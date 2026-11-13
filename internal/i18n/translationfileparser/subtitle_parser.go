@@ -2,19 +2,19 @@ package translationfileparser
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 )
 
-// SubtitleKind selects SubRip (.srt) or WebVTT (.vtt) parsing rules.
+// SubtitleKind selects SubRip (.srt), WebVTT (.vtt), or YouTube SBV parsing rules.
 type SubtitleKind int
 
 const (
 	SubtitleSRT SubtitleKind = iota
 	SubtitleVTT
+	SubtitleSBV
 )
 
 // SubtitleParser parses subtitle files into translatable cue payloads.
@@ -43,12 +43,6 @@ type subtitleLine struct {
 	end   int
 	text  string
 }
-
-// SRT hours are 1-2 digits. WebVTT hours may be two or more digits (100:00:00.000).
-var (
-	srtTimestampPattern = regexp.MustCompile(`^(?:\d{1,2}:)?\d{1,2}:\d{2}[,.]\d{1,3}\s+-->\s+(?:\d{1,2}:)?\d{1,2}:\d{2}[,.]\d{1,3}(?:\s+\S.*)?$`)
-	vttTimestampPattern = regexp.MustCompile(`^(?:\d{2,}:)?\d{1,2}:\d{2}[,.]\d{1,3}\s+-->\s+(?:\d{2,}:)?\d{1,2}:\d{2}[,.]\d{1,3}(?:\s+\S.*)?$`)
-)
 
 func (p SubtitleParser) Parse(content []byte) (map[string]string, error) {
 	values, _, err := p.ParseWithContext(content)
@@ -130,7 +124,7 @@ func parseSubtitleDocument(content []byte, kind SubtitleKind) (subtitleDocument,
 		template: text,
 		kind:     kind,
 		newline:  subtitleNewline(text),
-		entries:  make([]subtitleCue, 0, strings.Count(text, "-->")),
+		entries:  make([]subtitleCue, 0, subtitleCapacityHint(text, kind)),
 	}
 	if strings.TrimSpace(text) == "" {
 		return doc, nil
@@ -145,7 +139,9 @@ func parseSubtitleDocument(content []byte, kind SubtitleKind) (subtitleDocument,
 		}
 		start = headerEnd
 	} else if looksLikeWebVTTHeader(firstNonEmptySubtitleLine(lines)) {
-		return subtitleDocument{}, fmt.Errorf("srt: file looks like WebVTT; use a .vtt extension")
+		return subtitleDocument{}, fmt.Errorf("%s: file looks like WebVTT; use a .vtt extension", subtitleKindName(kind))
+	} else if kind == SubtitleSBV && subtitleHasArrowTimestampLine(lines) {
+		return subtitleDocument{}, fmt.Errorf("sbv: file looks like SubRip or WebVTT; use a .srt or .vtt extension")
 	}
 
 	cueIndex := 0
@@ -310,6 +306,19 @@ func firstNonEmptySubtitleLine(lines []subtitleLine) string {
 	return lines[idx].text
 }
 
+func subtitleHasArrowTimestampLine(lines []subtitleLine) bool {
+	for _, line := range lines {
+		if !strings.Contains(line.text, "-->") {
+			continue
+		}
+		trimmed := strings.TrimSpace(line.text)
+		if isSRTTimestampLineFast(trimmed) || isVTTTimestampLineFast(trimmed) {
+			return true
+		}
+	}
+	return false
+}
+
 func looksLikeWebVTTHeader(line string) bool {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "WEBVTT" {
@@ -332,24 +341,234 @@ func isWebVTTNonCueBlock(first string) bool {
 	}
 }
 
+// BOLT OPTIMIZATION: Replace regex MatchString for subtitle timestamp line validation
+// with zero-allocation byte scanning routines (isSRTTimestampLineFast, isVTTTimestampLineFast, isSBVTimestampLineFast).
 func isSubtitleTimestampLine(line string, kind SubtitleKind) bool {
-	// BOLT OPTIMIZATION: Non-timestamp lines (cue IDs, text, blank lines) comprise ~75%
-	// of lines in subtitle files. Fast-path check for "-->" before TrimSpace and regex.
+	if kind == SubtitleSBV {
+		return isSBVTimestampLineFast(strings.TrimSpace(line))
+	}
 	if !strings.Contains(line, "-->") {
 		return false
 	}
 	trimmed := strings.TrimSpace(line)
 	if kind == SubtitleVTT {
-		return vttTimestampPattern.MatchString(trimmed)
+		return isVTTTimestampLineFast(trimmed)
 	}
-	return srtTimestampPattern.MatchString(trimmed)
+	return isSRTTimestampLineFast(trimmed)
+}
+
+func isSRTTimestampLineFast(s string) bool {
+	return isArrowTimestampLineFast(s, false)
+}
+
+func isVTTTimestampLineFast(s string) bool {
+	return isArrowTimestampLineFast(s, true)
+}
+
+func isArrowTimestampLineFast(s string, isVTT bool) bool {
+	consumed1, ok1 := parseTimestampToken(s, isVTT)
+	if !ok1 {
+		return false
+	}
+	i := skipRegexpWhitespace(s, consumed1)
+	if i == consumed1 || i >= len(s) {
+		return false
+	}
+	if !strings.HasPrefix(s[i:], "-->") {
+		return false
+	}
+	afterArrow := i + 3
+	i = skipRegexpWhitespace(s, afterArrow)
+	if i == afterArrow || i >= len(s) {
+		return false
+	}
+	consumed2, ok2 := parseTimestampToken(s[i:], isVTT)
+	if !ok2 {
+		return false
+	}
+	i += consumed2
+	if i == len(s) {
+		return true
+	}
+	afterTimestamp := i
+	i = skipRegexpWhitespace(s, i)
+	// Legacy (?:\s+\S.*)?$ — leftover text needs whitespace then a non-space.
+	return i > afterTimestamp && i < len(s)
+}
+
+// isRegexpWhitespace matches Go regexp \s: [ \t\n\f\r].
+func isRegexpWhitespace(c byte) bool {
+	switch c {
+	case ' ', '\t', '\n', '\f', '\r':
+		return true
+	default:
+		return false
+	}
+}
+
+func skipRegexpWhitespace(s string, i int) int {
+	for i < len(s) && isRegexpWhitespace(s[i]) {
+		i++
+	}
+	return i
+}
+
+func parseTimestampToken(s string, isVTT bool) (int, bool) {
+	if len(s) == 0 {
+		return 0, false
+	}
+	i := 0
+	d1 := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		d1++
+		i++
+	}
+	if d1 == 0 || i >= len(s) || s[i] != ':' {
+		return 0, false
+	}
+	i++ // skip ':'
+
+	d2 := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		d2++
+		i++
+	}
+	if d2 == 0 || i >= len(s) {
+		return 0, false
+	}
+
+	var minutesDigits, secondsDigits int
+
+	if s[i] == ':' {
+		// SRT hours are 1-2 digits. WebVTT hours are two or more (100:00:00.000).
+		hoursDigits := d1
+		if isVTT {
+			if hoursDigits < 2 {
+				return 0, false
+			}
+		} else if hoursDigits < 1 || hoursDigits > 2 {
+			return 0, false
+		}
+		minutesDigits = d2
+		if minutesDigits < 1 || minutesDigits > 2 {
+			return 0, false
+		}
+
+		i++ // skip ':'
+		d3 := 0
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			d3++
+			i++
+		}
+		secondsDigits = d3
+	} else {
+		// Hours are optional: SRT (?:\d{1,2}:)? and VTT (?:\d{2,}:)? both
+		// accept MM:SS[,.]mmm with 1-2 minute digits.
+		minutesDigits = d1
+		if minutesDigits < 1 || minutesDigits > 2 {
+			return 0, false
+		}
+		secondsDigits = d2
+	}
+
+	if secondsDigits != 2 {
+		return 0, false
+	}
+
+	if i >= len(s) || (s[i] != ',' && s[i] != '.') {
+		return 0, false
+	}
+	i++ // skip ',' or '.'
+
+	dMS := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		dMS++
+		i++
+	}
+	if dMS < 1 || dMS > 3 {
+		return 0, false
+	}
+
+	return i, true
+}
+
+func isSBVTimestampLineFast(s string) bool {
+	consumed1, ok1 := parseSBVTimestamp(s)
+	if !ok1 {
+		return false
+	}
+	if consumed1 >= len(s) || s[consumed1] != ',' {
+		return false
+	}
+	consumed2, ok2 := parseSBVTimestamp(s[consumed1+1:])
+	if !ok2 {
+		return false
+	}
+	return consumed1+1+consumed2 == len(s)
+}
+
+func parseSBVTimestamp(s string) (int, bool) {
+	if len(s) == 0 {
+		return 0, false
+	}
+	i := 0
+	dHours := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		dHours++
+		i++
+	}
+	if dHours < 1 || i >= len(s) || s[i] != ':' {
+		return 0, false
+	}
+	i++ // skip ':'
+
+	dMin := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		dMin++
+		i++
+	}
+	if dMin != 2 || i >= len(s) || s[i] != ':' {
+		return 0, false
+	}
+	i++ // skip ':'
+
+	dSec := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		dSec++
+		i++
+	}
+	if dSec != 2 || i >= len(s) || s[i] != '.' {
+		return 0, false
+	}
+	i++ // skip '.'
+
+	dMS := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		dMS++
+		i++
+	}
+	if dMS < 1 || dMS > 3 {
+		return 0, false
+	}
+
+	return i, true
+}
+
+func subtitleCapacityHint(text string, kind SubtitleKind) int {
+	if kind == SubtitleSBV {
+		return strings.Count(text, "\n") / 3
+	}
+	return strings.Count(text, "-->")
 }
 
 func subtitleCueKey(kind SubtitleKind, index int) string {
 	// BOLT OPTIMIZATION: Avoid fmt.Sprintf reflection and formatting allocations for cue key formatting.
 	prefix := "srt."
-	if kind == SubtitleVTT {
+	switch kind {
+	case SubtitleVTT:
 		prefix = "vtt."
+	case SubtitleSBV:
+		prefix = "sbv."
 	}
 	if index < 10 {
 		return prefix + "000" + strconv.Itoa(index)
@@ -364,10 +583,14 @@ func subtitleCueKey(kind SubtitleKind, index int) string {
 }
 
 func subtitleKindName(kind SubtitleKind) string {
-	if kind == SubtitleVTT {
+	switch kind {
+	case SubtitleVTT:
 		return "vtt"
+	case SubtitleSBV:
+		return "sbv"
+	default:
+		return "srt"
 	}
-	return "srt"
 }
 
 func subtitleCueContext(entry subtitleCue) string {

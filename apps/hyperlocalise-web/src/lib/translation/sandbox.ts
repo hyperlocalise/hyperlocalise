@@ -27,6 +27,11 @@ import {
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import { translationPromptPolicy } from "@/lib/translation/generation";
+import {
+  appendHlRunReportOutput,
+  parseCliTokenUsage,
+  type CliTokenUsage,
+} from "@/lib/translation/cli-token-usage";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
 import {
   hlEntriesPayloadToStringMap,
@@ -41,6 +46,7 @@ export const crowdinSandboxConfigPath = "/tmp/crowdin.yml";
  *  Reserved name so a user source named i18n.yml is not overwritten. */
 export const sandboxI18nConfigPath = ".hl-sandbox-i18n.yml";
 export const sandboxFileBucketName = "file";
+export const sandboxCliReportPath = "/tmp/hl-run-report.json";
 
 export type { SandboxTranslationContext };
 
@@ -67,6 +73,14 @@ export function isSandboxTimeoutError(error: unknown): boolean {
 export type ExtractSandboxEntriesResult =
   | { ok: true; entries: HlEntriesPayload }
   | { ok: false; exitCode: number; output: string };
+
+export type ExtractSandboxEntriesOptions = {
+  /** Source column for files that keep locales in columns, such as `.xlsx`. */
+  sourceLocale?: string;
+  locale?: string;
+  sourcePath?: string;
+  srx?: string;
+};
 
 export { hlEntriesPayloadToStringMap };
 
@@ -833,7 +847,7 @@ export class HyperlocaliseCliRunner {
     sourceLocale: string | null,
     targetLocale: string,
     instructions: string | null,
-  ): Promise<{ exitCode: number; output: string }> {
+  ): Promise<{ exitCode: number; output: string; tokenUsage: CliTokenUsage | null }> {
     const config = this.configBuilder.build(
       inputFile,
       outputFile,
@@ -843,15 +857,29 @@ export class HyperlocaliseCliRunner {
     );
     await this.writeTempConfig(sandboxId, config, sandboxI18nConfigPath);
 
-    return this.lifecycle.runCommand(
+    const result = await this.lifecycle.runCommand(
       sandboxId,
       "bash",
       [
         "-lc",
-        `hl run --config ${shellQuote(sandboxI18nConfigPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
+        appendHlRunReportOutput(
+          `hl run --config ${shellQuote(sandboxI18nConfigPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
+          sandboxCliReportPath,
+        ),
       ],
       { env: getSandboxTranslationEnv() },
     );
+    const tokenUsage = await this.readCliTokenUsage(sandboxId, sandboxCliReportPath);
+    return { ...result, tokenUsage };
+  }
+
+  async readCliTokenUsage(sandboxId: string, reportPath: string): Promise<CliTokenUsage | null> {
+    try {
+      const content = await this.lifecycle.readFile(sandboxId, reportPath);
+      return parseCliTokenUsage(JSON.parse(content.toString("utf8")));
+    } catch {
+      return null;
+    }
   }
 
   async readTranslatedFile(sandboxId: string, outputFile: string): Promise<Buffer> {
@@ -861,27 +889,26 @@ export class HyperlocaliseCliRunner {
   async extractEntries(
     sandboxId: string,
     path: string,
-    options?: { locale?: string; sourcePath?: string },
+    options?: ExtractSandboxEntriesOptions,
   ): Promise<ExtractSandboxEntriesResult> {
+    const sourceLocale = options?.sourceLocale?.trim();
+    const sourceLocaleFlag = sourceLocale ? ` --source-locale ${shellQuote(sourceLocale)}` : "";
     const locale = options?.locale?.trim();
     const localeFlag = locale ? ` --locale ${shellQuote(locale)}` : "";
     const sourcePath = options?.sourcePath?.trim();
     const sourceFlag = sourcePath ? ` --source ${shellQuote(sourcePath)}` : "";
+    const srx = options?.srx?.trim();
+    const srxFlag = srx ? ` --srx ${shellQuote(srx)}` : "";
     // Sandbox command.output() concatenates NDJSON log chunks as JS strings. When a
     // UTF-8 multi-byte character (e.g. Vietnamese ề = E1 BB 81) is split across
     // chunks, each orphaned byte becomes U+FFFD (�). Write entries to a file and
     // read bytes instead so CAT / pull persist valid Unicode.
     const outputPath = `/tmp/hl-entries-${randomUUID()}.json`;
     try {
-      const result = await this.lifecycle.runCommand(
-        sandboxId,
-        "bash",
-        [
-          "-lc",
-          `hl entries ${shellQuote(path)}${localeFlag}${sourceFlag} > ${shellQuote(outputPath)}`,
-        ],
-        { env: getSandboxTranslationEnv() },
-      );
+      const result = await this.lifecycle.runCommand(sandboxId, "bash", [
+        "-lc",
+        `hl entries ${shellQuote(path)}${sourceLocaleFlag}${localeFlag}${sourceFlag}${srxFlag} > ${shellQuote(outputPath)}`,
+      ]);
       if (result.exitCode !== 0) {
         return { ok: false, exitCode: result.exitCode, output: result.output };
       }
@@ -1083,6 +1110,10 @@ export async function runTranslationCommand(
   );
 }
 
+export async function readSandboxCliTokenUsage(sandboxId: string, reportPath: string) {
+  return defaultRunner.readCliTokenUsage(sandboxId, reportPath);
+}
+
 export async function readTranslatedFile(sandboxId: string, outputFile: string) {
   return defaultRunner.readTranslatedFile(sandboxId, outputFile);
 }
@@ -1124,7 +1155,7 @@ export async function writeCrowdinFileSandboxConfig(input: {
 export async function extractSandboxEntries(
   sandboxId: string,
   path: string,
-  options?: { locale?: string; sourcePath?: string },
+  options?: ExtractSandboxEntriesOptions,
 ): Promise<ExtractSandboxEntriesResult> {
   return defaultRunner.extractEntries(sandboxId, path, options);
 }

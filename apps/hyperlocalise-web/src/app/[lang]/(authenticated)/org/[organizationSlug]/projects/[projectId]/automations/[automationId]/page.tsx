@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { hasCapability } from "@/api/auth/policy";
+import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import {
   evaluateWorkspaceFeatureFlags,
@@ -18,20 +18,20 @@ import {
   workspaceAutomationsFlag,
 } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { AutomationDetailPageContent } from "../../../../automations/_components/automation-detail-page-content";
-import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectAutomationDetail");
+}
 
 export default function ProjectAutomationDetailPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string; automationId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectAutomationDetailPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ProjectAutomationDetailPageLoader params={params} />;
 }
 
 async function ProjectAutomationDetailPageLoader({
@@ -47,7 +47,10 @@ async function ProjectAutomationDetailPageLoader({
     return <FeatureTeaserPage feature="automations" scope="project" />;
   }
 
-  const flags = await evaluateWorkspaceFeatureFlags(auth);
+  const [flags, assistantEnabled] = await Promise.all([
+    evaluateWorkspaceFeatureFlags(auth),
+    canUseWorkspaceAutomationAssistant(auth),
+  ]);
 
   return (
     <AutomationDetailPageContent
@@ -55,7 +58,7 @@ async function ProjectAutomationDetailPageLoader({
       projectId={projectId}
       automationId={automationId}
       knowledgeAvailable={flags.knowledge}
-      canUpdateKnowledgeMemory={hasCapability(auth.membership.role, "workspace:update")}
+      assistantEnabled={assistantEnabled}
     />
   );
 }

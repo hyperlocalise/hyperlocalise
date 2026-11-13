@@ -1,145 +1,112 @@
 ---
-title: "Integrations"
-description: "Connect GitHub, a TMS, and other systems into Hyperlocalise Cloud."
+title: "Connect your tools"
+description: "Choose connections for repositories, design tools, external services, and agents."
 ---
 
-Connect the systems that already hold your source files or reviewed translations so content operations run on those sources.
+Connect the systems that hold your content or provide tools for your workflows. A connection gives access; you still need to configure the task or sync that uses it.
 
-## Design tools
-
-### Canva
-
-Open **Integrations** → **Canva** to create a **Canva connection** for the workspace.
-
-1. Choose a [personal access token](/platform/settings#personal-access-tokens) with `files:read`, `files:write`, `jobs:read`, and `jobs:write`.
-2. Set the default project and locales.
-3. Copy the one-time **connection token** after creation.
-
-Paste that token in the Hyperlocalise Canva app along with optional project and locale overrides. The app uploads each design as `canva/designs/<design-id>.json`, runs a file job, and syncs translations back into selected pages.
-
-See the [Canva app README](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/canva-app/README.md) for local development and Developer Portal setup.
-
-### Figma
-
-The Hyperlocalise Figma plugin uses a personal access token (sent as `x-api-key`) to extract text from the current selection or page, create translation jobs, and pull completed locales back onto the file.
-
-1. Create a token under **Settings** → **Personal access tokens** with at least `files:read` and `jobs:read`. Add `files:write` and `jobs:write` to create and generate jobs from the plugin.
-2. In Figma, import the plugin from `apps/figma-plugin/manifest.json` under **Plugins → Development**.
-3. Paste the token, choose a native project, then extract, create, generate, and pull.
-
-Each page stores its latest job binding in plugin data; the server is the source of truth when a newer job exists for that Figma file and page.
-
-See the [Figma plugin README](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/figma-plugin/README.md) for build and test commands.
+| Tool or workflow | Start here |
+| --- | --- |
+| GitHub repositories and events | [Connect GitHub](/platform/connections/github) |
+| Intercom Help Center articles | [Localize Intercom Help Center articles](/platform/connections/intercom) |
+| Braze | [Localize Braze](/platform/connections/braze) (Email Templates or Campaigns & Canvas) |
+| HubSpot | [Localize HubSpot](/platform/connections/hubspot) (emails, forms, blog posts, landing pages, and website pages). Connect HubSpot from **Integrations**, then use **Translate HubSpot content**. |
+| Mailchimp | [Localize Mailchimp](/platform/connections/mailchimp) (regular campaigns; HTML user templates only). Connect Mailchimp from **Integrations**, then use **Translate Mailchimp content**. |
+| Iterable | [Localize Iterable](/platform/connections/iterable) (email, in-app, push, SMS, and snippets) |
+| Canva | [Localize Canva](/platform/connections/canva) |
+| Figma | [Localize Figma](/platform/connections/figma) |
+| Sanity (Studio inspector) | [Localize Sanity Studio documents](/platform/connections/sanity-studio-plugin) |
+| Sanity (automations) | [Localize Sanity documents (automation)](/platform/connections/sanity) |
+| Repository files through CI | [Connect the CLI](/platform/cli) |
+| An AI agent working with Platform | [Hosted MCP server](/platform/mcp) |
+| Custom file and job integrations | [Public API](/platform/api) |
 
 ## GitHub
 
-Open **Integrations**, find **GitHub**, then click **Connect**.
+Connect the GitHub App, enable the repositories you need, then configure [content sync](/platform/automation/content-sync) or an [automation trigger](/platform/automation/create-automation). Refreshing the repository list does not move files.
 
-GitHub is used for pull request reviews, localization fixes, and repository context. After the app is installed:
+## Canva
 
-1. Confirm the account in **Connected as**.
-2. **Enable** the repositories Cloud should see, or **Enable all**.
-3. Use **Refresh repo list** to reload names and default **Branch** from GitHub. Refresh does not push or pull translations.
-4. **Manage access on GitHub** if you need to change installation permissions.
+Create a Canva connection with a personal token. Designers pick the native project in the Canva app. Jobs use that project's source and target languages. There is no separate Canva locale list. Follow [Localize Canva](/platform/connections/canva) to collect page files and apply existing translations.
 
-Use those enabled repos in automation **GitHub push** triggers. See [Automations](/platform/automations).
+## Figma
 
-Click **Disconnect** to unlink the installation from this organization.
+Create a Figma connection with a personal token. Designers pick the native project in the Figma plugin. Jobs use that project's source and target languages. Follow [Localize Figma](/platform/connections/figma) to upload source pages (collect only), translate, and apply one locale at a time.
+
+## Sanity
+
+Hyperlocalise supports two Sanity workflows:
+
+- **Studio plugin**: Create a **Sanity Studio plugin** connection (personal access token). Editors OAuth from the `sanity-plugin-hyperlocalise` editor view or bulk tool, upload documents, translate, and write locale versions. Each OAuth grant is bound to the Studio origin. See [Localize Sanity Studio documents](/platform/connections/sanity-studio-plugin).
+- **Automations**: Connect **Sanity** (Pipes) for scheduled or manual import of document sets, translation in Jobs, and **Push to Sanity** from the Content editor. See [Localize Sanity documents (automation)](/platform/connections/sanity).
 
 ## GitLab
 
-Open **Integrations**, find **GitLab**, then connect it through the WorkOS Pipes widget. GitLab uses OAuth, not an API key. Only workspace admins can connect Pipes providers.
+Connected GitLab projects can be used as repository context in chat: select a project or paste its project or merge-request address. **Use GitLab repo** in a manual or scheduled automation runs repository analysis. Syncing files with GitLab is described under [Sync content with a repository](/platform/automation/content-sync).
 
-After you connect GitLab:
+### Connect GitLab for the workspace
 
-1. Chat lists GitLab.com projects you can clone (Reporter access or higher).
-2. Selecting a project, or pasting a project or merge request URL, clones that project into the conversation sandbox.
-3. Clone uses HTTPS username `oauth2` and the access token as the password. Reconnect GitLab if Pipes asks.
-4. Add **Use GitLab repo** on a scheduled or manual automation to run the same read-only repository agent GitHub has.
+An admin or localization manager connects the workspace to GitLab under **Integrations → GitLab** → **Add connection**: give it a name, choose **GitLab.com** or **Your company's GitLab server** (with its `https` address), and enter an access token. Hyperlocalise checks the address and the token before saving, and checks each connection again whenever you open the row. Syncing files with GitLab needs a connection.
 
-Merge-request comment tools and GitLab sync workflows are not included.
+- A workspace can hold several connections, each with its own token. Chat and automations use the **default** one; each project's **Sync** settings pick the connection to run with. Mark another connection as the default with **Use for chat and automations**.
+- Everyone in the workspace reaches whatever a connection's token can reach. GitLab has no per-project switch like GitHub's, so choose each token with care: on GitLab.com, a project or group access token, or a dedicated account that belongs only to the projects to sync; on your own server, a token from a non-admin user. Give the token's user or group the **Developer** role on the projects to sync: Reporter can only pull, and Guest can't read files at all. Give it the `api` scope to send merge requests; with `read_api` and `read_repository` only, syncs pull and each run says translations weren't sent. Set an expiry. When you open the row, each connection's line says whether its token can send or only pull, when it expires, and warns when it can read no projects. A connection used by a few projects can carry a token that reaches only their repositories; anyone who can change a project's settings can still pick any of the workspace's connections for its sync.
+- **Change** replaces a connection's name, address or token (the token is always entered again); project syncs that use it follow the change. **Remove** asks you to confirm and says how many project syncs use the connection; those syncs stop until they are given another connection in the project's Sync settings. Removing the default makes the oldest remaining connection the default; removing the last one sends chat and automations back to members' own GitLab.com sign-ins.
+- Paste links from the default connection's GitLab into chat; links from another GitLab server get a reply saying they aren't used.
+- Automations name a project by its path, so pointing the default connection at another server, or removing it, points them at the new default, or back at their authors' own GitLab.com sign-ins. Project syncs and visual workflow Content sync steps also remember the project's id and refuse to run when the path on the new connection names another project. When the default's server address changes, chats stop using projects from the old one.
+- A company server must be reachable from the internet. Fixed outgoing addresses for an allow-list aren't available yet.
 
-## TMS and CLI sync
+### Your own GitLab.com sign-in
 
-Cloud can work with an existing TMS. For repository-first native projects, the CLI [pushes](/cli/commands/sync-push) and [pulls](/cli/commands/sync-pull) against Hyperlocalise. See [Connect the CLI](/platform/cli).
+While the workspace has no GitLab connection, an admin or localization manager can sign in with their own GitLab.com account from the **GitLab.com sign-in** row below the GitLab row. It serves chat and the automations that person creates; it can't sync files. Once the workspace connects GitLab, the row stays only for people whose own sign-in is stored, marked as not in use, so they can remove it; their sign-ins come back into use if the workspace connection is removed.
 
-## WorkOS Pipes
+## Intercom
 
-Open **Integrations** and connect these providers through the WorkOS Pipes widget. Enable each provider in the WorkOS Dashboard and allow the widget origin for this app.
+Connect Intercom from **Integrations**, then create a scheduled or manual automation with the **Translate Intercom Help Center articles** skill. Import writes markdown source files into a native project. **Push to Intercom** writes Intercom drafts. It does not publish. See [Localize Intercom Help Center articles](/platform/connections/intercom).
 
-Most Pipes providers store an API key. GitLab is OAuth: WorkOS vends an access token with `getAccessToken`.
+## Braze
 
-| Provider | WorkOS slug | Integrations category | Credential |
-| --- | --- | --- | --- |
-| GitLab | `gitlab` | Source control | OAuth access token |
-| Ahrefs | `ahrefs` (custom) | SEO tools | API key |
-| Similarweb | `similarweb` | SEO tools | API key |
-| Intercom | `intercom` | Customer engagement | API key |
-| HubSpot | `hubspot` | Customer engagement | API key |
-| Mailchimp | `mailchimp` | Customer engagement | API key |
-| SendGrid | `sendgrid` | Customer engagement | API key |
-| Resend | `resend` | Customer engagement | API key |
-| Webflow | `webflow` | Content & publishing | API key |
-| Sanity | `sanity` | Content & publishing | API key |
-| Notion | `notion` | Guidelines | API key |
-| Atlassian | `atlassian` | Collaboration | API key |
+Connect Braze from **Integrations** with a REST API key and REST cluster. Two workflows share that connection. Apply **Translate Braze Email Templates** or **Translate Braze Campaigns & Canvas** from Popular or Marketing. Do not attach both on one automation. Email Templates imports HTML and **Push to Braze** writes locale-suffixed library copies. Campaigns & Canvas imports tagged draft JSON maps and writes approved locales through the Translation API. Neither action publishes. See [Localize Braze](/platform/connections/braze).
 
-Ahrefs is not in the default WorkOS catalog. Enable a custom API-key provider with slug `ahrefs`. The other providers are catalog API-key integrations.
+## HubSpot
 
-Status for each row comes from `GET /api/orgs/:slug/pipes/:provider`. Automations that already use Ahrefs still vend that user's credential and call `https://api.ahrefs.com/mcp/mcp` with `Authorization: Bearer`.
+Emails, blog posts, and forms import into a native project and push back as unpublished locale copies. Hyperlocalise translates the copy. HubSpot does not. Emails clone into a locale draft. Forms become a new form named `{source} [{locale}]`. Add each blog language in HubSpot first (**Settings → Blog → Add/edit multi-language variations**). When that language is on the blog, push creates an unpublished post draft. Landing pages and website pages are temporarily unsupported. Connect HubSpot from **Integrations**, then add the **Translate HubSpot content** template. See [Localize HubSpot](/platform/connections/hubspot).
 
-The org-level `ahrefs_connections` and `intercom_connections` tables are deprecated and unused. Do not add new callers.
+## Mailchimp
 
-### Ahrefs
+Regular campaigns import as HTML into a native project, including emails built with Mailchimp's drag-and-drop editor. Only **code-your-own HTML** user templates import; saved drag-and-drop template layouts do not (use campaigns for those emails). **Push to Mailchimp** writes draft copies named `{source} [{locale}]` and never sends or schedules. Connect Mailchimp from **Integrations** with OAuth, then add the **Translate Mailchimp content** template. Do not attach HubSpot or other marketing-email tools on the same automation. See [Localize Mailchimp](/platform/connections/mailchimp).
 
-1. Connect Ahrefs on **Integrations**.
-2. On an automation, add the **Ahrefs** tool. Saving stamps the current WorkOS user on the automation.
-3. At run time the automation vends that user's Pipes credential and calls Ahrefs MCP.
+## Iterable
 
-## Zernio
+Connect Iterable with a server-side API key and US or EU data center in **Integrations**, then apply **Translate Iterable templates and snippets** from **Popular** or **Marketing**. Import pulls email, in-app, push, and SMS templates plus snippets into the project without changing Iterable. **Push to Iterable** writes approved locales only and never sends a campaign. See [Localize Iterable](/platform/connections/iterable).
 
-Open **Integrations** → **Zernio** and save an API key from [Zernio](https://docs.zernio.com). Hyperlocalise stores the key encrypted on the organization. Automations keep only a connection id.
+## Other external services
 
-1. Create an API key in Zernio.
-2. Paste it on the Zernio row. Saving calls `GET /v1/accounts` to confirm the key.
-3. On an [automation](/platform/automations), add the **Zernio** tool and pick the connection.
-4. Hosted [MCP](/platform/mcp) agents can call `zernio_*` tools after the org connects a key.
+Use the provider’s **Connect** action in **Integrations**, complete authorization or supply the requested credential, then select that tool in your automation. Availability and actions differ by provider; a catalog entry does not guarantee content sync.
 
-Zernio is not a WorkOS Pipes provider. Automations and inbound agents call `https://zernio.com/api/v1` with `Authorization: Bearer`. Use this path to create paid ads from localized copy on Meta, Google, TikTok, LinkedIn, Pinterest, X, or OpenAI Ads.
+For Ahrefs, connect the account and add the **Ahrefs** tool to the automation. For Zernio, save a valid API key, then select the **Zernio** tool and connection. Confirm the intended account and action before running tasks that publish or change external content.
 
 ## MCP server connections
 
-Add a remote MCP server when an [automation](/platform/automations) should call external tools at run time (for example Semrush). Ahrefs uses [WorkOS Pipes](/platform/integrations#workos-pipes-api-keys) instead of a generic MCP server connection.
+To let an automation call tools on an external MCP server:
 
 1. Open **Integrations** → **MCP Server**.
-2. Enter a display name, HTTPS endpoint, transport (`http` or `sse`), and auth (`none`, bearer token, or custom headers).
+2. Enter a display name, HTTPS endpoint, transport (`http` or `sse`), and the required authentication.
 3. Save and validate the connection.
-4. On an automation, add the **MCP Server** tool and pick the connection.
+4. Add the **MCP Server** tool to an automation and select the connection.
 
-Credentials are stored encrypted at the organization level. Automations store only a connection reference, not the secret.
-
-This is **outbound** MCP (Hyperlocalise calling a remote server). To connect **inbound** agents such as Cursor to Hyperlocalise itself, use the hosted [MCP server](/platform/mcp) at `/mcp` on workspace **Overview**.
+This connects Platform to an external server. To connect an agent such as Cursor to Platform, use the [hosted MCP server](/platform/mcp) instead.
 
 ## Slack Connect
 
-The per-organization Slack app installs the localization bot in **your** workspace for automations and notifications.
-
-**Slack Connect** is separate: Hyperlocalise hosts a shared channel and emails you a Slack Connect invite so your company can link a channel on your side. The banner appears on workspace **Overview** when your deployment enables it.
-
-After you request an invite, check the email address on your Hyperlocalise account. Accept the Slack Connect link to finish setup on your workspace. You can dismiss the banner or request another invite after the cooldown.
-
-This path does not install the localization bot. Use the Slack integration under **Integrations** when you need bot mentions and agent tools inside your workspace.
+Use the Slack integration for bot tools and automation notifications in your Slack workspace. The Slack Connect invitation on workspace **Overview**, when available, creates a shared support channel instead. See [Contact support](/platform/help/contact-support).
 
 ## API keys and tokens
 
-- **Settings** → **API Keys** — organization keys for CI and shared scripts. See [Settings](/platform/settings).
-- **Settings** → **Personal access tokens** — credentials tied to your user, used by the Figma plugin, Canva connections, and local tooling. See [Personal access tokens](/platform/settings#personal-access-tokens).
+Manage organization keys and personal tokens in [Settings](/platform/settings). If a connection fails or a resource is missing, use [Connection troubleshooting](/platform/help/connections).
 
-Both authenticate to the [public API](/platform/api) with the `x-api-key` header. MCP agents use OAuth instead; see [MCP server](/platform/mcp).
+## Translation management systems
 
-## Next
-
-- [MCP server](/platform/mcp)
-- [Connect the CLI](/platform/cli)
-- [Settings](/platform/settings)
-- [Automations](/platform/automations)
+Connect supported Crowdin, Lokalise, Phrase Strings, or Smartling workflows through
+[Platform TMS integrations](/platform/tms). For repository and CI operations, use
+the [all-in-one Hyperlocalise CLI](/cli/storage/overview). Provider-specific
+commands and Platform connections have separate capabilities and credentials.

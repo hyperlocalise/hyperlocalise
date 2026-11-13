@@ -26,30 +26,60 @@ import {
   validateActiveVisualWorkflowTrigger,
 } from "./dispatch/trigger-matching";
 
-import { visualWorkflowDefinitionSchema } from "./schema/definition-schema";
 import {
   createEmptyVisualWorkflowDefinition,
-  fromVisualWorkflowDefinition,
+  fromVisualWorkflowV3Definition,
 } from "./schema/serializers";
-import type { VisualWorkflowDefinition } from "./schema/types";
+import type { VisualWorkflowDefinition, VisualWorkflowV3Definition } from "./schema/types";
 import { validateVisualWorkflowDefinition } from "./validation/validate-workflow";
 import { stampEmailNodePipesUsersOnDefinition } from "./stamp-email-node-pipes-users";
+import type { VisualWorkflowTestSetup } from "./editor/visual-workflow-test-data";
+import { encryptVisualWorkflowTestSetup } from "./visual-workflow-test-setup";
 import type {
   VisualWorkflowRecord,
   VisualWorkflowStatus,
   VisualWorkflowValidationError,
 } from "./visual-workflow-types";
+import { parseVisualWorkflowV3Definition } from "./schema/definition-migration";
+import {
+  compileVisualWorkflowV3Definition,
+  toVisualWorkflowExecutionDefinition,
+} from "./validation/compile-workflow-v3";
+import {
+  validateSubworkflowCalls,
+  type SubworkflowVersionResolution,
+} from "./validation/subworkflow-validation";
 
 type VisualWorkflowRow = typeof schema.visualWorkflows.$inferSelect;
+
+function isReusableManualWorkflow(definition: VisualWorkflowV3Definition): boolean {
+  return (
+    getVisualWorkflowTriggerNode(definition)?.config.kind === "trigger.manual" &&
+    definition.nodes.some((node) => node.config.kind === "flow.return")
+  );
+}
 
 function toIsoString(value: Date): string {
   return value.toISOString();
 }
 
 function mapVisualWorkflowRow(row: VisualWorkflowRow): VisualWorkflowRecord | null {
-  const parsedDefinition = visualWorkflowDefinitionSchema.safeParse(row.definition);
-  if (!parsedDefinition.success) {
+  let definition: VisualWorkflowV3Definition;
+
+  try {
+    definition = parseVisualWorkflowV3Definition(row.definition);
+  } catch {
     return null;
+  }
+
+  let publishedDefinition: VisualWorkflowV3Definition | null = null;
+
+  if (row.publishedDefinition !== null) {
+    try {
+      publishedDefinition = parseVisualWorkflowV3Definition(row.publishedDefinition);
+    } catch {
+      return null;
+    }
   }
 
   return {
@@ -59,12 +89,11 @@ function mapVisualWorkflowRow(row: VisualWorkflowRow): VisualWorkflowRecord | nu
     projectId: row.projectId,
     status: row.status,
     name: row.name,
-    definition: parsedDefinition.data,
+    definition,
     definitionVersion: row.definitionVersion,
     revision: row.revision,
     publishedVersion: row.publishedVersion,
-    publishedDefinition:
-      visualWorkflowDefinitionSchema.safeParse(row.publishedDefinition).data ?? null,
+    publishedDefinition,
     triggerFingerprint: row.triggerFingerprint,
     nextRunAt: row.nextRunAt ? toIsoString(row.nextRunAt) : null,
     createdAt: toIsoString(row.createdAt),
@@ -74,39 +103,52 @@ function mapVisualWorkflowRow(row: VisualWorkflowRow): VisualWorkflowRecord | nu
 
 function validateVisualWorkflowPayload(input: {
   name: string;
-  definition: VisualWorkflowDefinition;
+  definition: unknown;
   draft?: boolean;
-}): Result<VisualWorkflowDefinition, VisualWorkflowValidationError> {
-  const parsed = visualWorkflowDefinitionSchema.safeParse(input.definition);
-  if (!parsed.success) {
+}): Result<VisualWorkflowV3Definition, VisualWorkflowValidationError> {
+  let normalized: VisualWorkflowV3Definition;
+
+  try {
+    normalized = {
+      ...parseVisualWorkflowV3Definition(input.definition),
+      name: input.name.trim(),
+    };
+  } catch {
     return err({
       code: "invalid_definition",
       message: "Workflow definition is invalid.",
     });
   }
 
-  const normalized: VisualWorkflowDefinition = {
-    ...parsed.data,
-    name: input.name.trim(),
-  };
-
-  if (normalized.nodes.some(hasLiteralHttpCredentials))
+  if (normalized.nodes.some(hasLiteralHttpCredentials)) {
     return err({
       code: "invalid_definition",
       message: "Use credential references for sensitive fields.",
     });
-  const issues = input.draft
-    ? normalized.nodes
-        .filter(
-          (node) =>
-            node.config.kind === "action.http" &&
-            (node.config.auth?.token ||
-              node.config.headers?.some(
-                (header) => /^(authorization|x-api-key|cookie)$/i.test(header.key) && header.value,
-              )),
-        )
-        .map((node) => ({ code: "invalid_node_config", nodeId: node.id }))
-    : validateVisualWorkflowDefinition(normalized);
+  }
+
+  const compiled = compileVisualWorkflowV3Definition(normalized);
+
+  const issues = [
+    ...compiled.issues,
+    ...(input.draft
+      ? normalized.nodes
+          .filter(
+            (node) =>
+              node.config.kind === "action.http" &&
+              (node.config.auth?.token ||
+                node.config.headers?.some(
+                  (header) =>
+                    /^(authorization|x-api-key|cookie)$/i.test(header.key) && header.value,
+                )),
+          )
+          .map((node) => ({
+            code: "invalid_node_config",
+            nodeId: node.id,
+          }))
+      : validateVisualWorkflowDefinition(toVisualWorkflowExecutionDefinition(compiled))),
+  ];
+
   if (issues.length > 0) {
     return err({
       code: "invalid_graph",
@@ -120,7 +162,7 @@ function validateVisualWorkflowPayload(input: {
 function resolveWorkflowSchedulingMetadata(input: {
   workflowId: string;
   status: VisualWorkflowStatus;
-  definition: VisualWorkflowDefinition;
+  definition: VisualWorkflowV3Definition;
   from?: Date;
 }): { triggerFingerprint: string | null; nextRunAt: Date | null } {
   const triggerFingerprint = resolveVisualWorkflowTriggerFingerprint({
@@ -136,7 +178,7 @@ function resolveWorkflowSchedulingMetadata(input: {
 
 function schedulingConfigChanged(input: {
   existing: VisualWorkflowRecord;
-  nextDefinition: VisualWorkflowDefinition;
+  nextDefinition: VisualWorkflowV3Definition;
   nextStatus: VisualWorkflowStatus;
 }): boolean {
   if (input.existing.status !== input.nextStatus) {
@@ -171,6 +213,27 @@ async function projectExists(input: {
     .limit(1);
 
   return Boolean(project);
+}
+
+/** The name of a project in the organization, or null when there is none by that id. */
+export async function getVisualWorkflowProjectName(input: {
+  organizationId: string;
+  projectId: string;
+  dbClient?: DatabaseClient;
+}): Promise<string | null> {
+  const dbClient = input.dbClient ?? db;
+  const [project] = await dbClient
+    .select({ name: schema.projects.name })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.organizationId, input.organizationId),
+        eq(schema.projects.id, input.projectId),
+      ),
+    )
+    .limit(1);
+
+  return project?.name ?? null;
 }
 
 export async function listVisualWorkflows(input: {
@@ -241,7 +304,7 @@ export async function createVisualWorkflow(input: {
   actorWorkosUserId?: string | null;
   projectId?: string | null;
   name?: string;
-  definition?: VisualWorkflowDefinition;
+  definition?: VisualWorkflowDefinition | VisualWorkflowV3Definition;
   status?: VisualWorkflowStatus;
   dbClient?: DatabaseClient;
 }): Promise<
@@ -331,9 +394,11 @@ export async function updateVisualWorkflow(input: {
   visualWorkflowId: string;
   actorWorkosUserId?: string | null;
   name?: string;
-  definition?: VisualWorkflowDefinition;
+  definition?: VisualWorkflowDefinition | VisualWorkflowV3Definition;
   status?: VisualWorkflowStatus;
   projectId?: string | null;
+  /** The editor's test data and test run choices, saved in the same write as the draft. */
+  testSetup?: VisualWorkflowTestSetup;
   dbClient?: DatabaseClient;
 }): Promise<
   Result<
@@ -403,7 +468,9 @@ export async function updateVisualWorkflow(input: {
   if (nextStatus === "active") {
     if (!existing.publishedDefinition)
       return err({ code: "invalid_definition", message: "Publish a version before activating." });
-    const activeTrigger = validateActiveVisualWorkflowTrigger(existing.publishedDefinition);
+    const activeTrigger = isReusableManualWorkflow(existing.publishedDefinition)
+      ? ({ ok: true } as const)
+      : validateActiveVisualWorkflowTrigger(existing.publishedDefinition);
     if (!activeTrigger.ok) {
       return err({ code: "invalid_active_trigger", message: activeTrigger.message });
     }
@@ -428,10 +495,17 @@ export async function updateVisualWorkflow(input: {
   const resolvedTriggerFingerprint = schedulingChanged
     ? scheduling.triggerFingerprint
     : existing.triggerFingerprint;
+  const encryptedTestSetup = input.testSetup
+    ? encryptVisualWorkflowTestSetup(
+        input.testSetup,
+        validated.value.nodes.map((node) => node.id),
+      )
+    : undefined;
 
   const [row] = await dbClient
     .update(schema.visualWorkflows)
     .set({
+      ...(encryptedTestSetup ? { encryptedTestSetup } : {}),
       name: validated.value.name,
       revision: existing.revision + 1,
       definition: validated.value,
@@ -513,10 +587,40 @@ export async function deleteVisualWorkflow(input: {
 }
 
 export function visualWorkflowEditorStateFromRecord(record: VisualWorkflowRecord) {
-  return fromVisualWorkflowDefinition({
+  return fromVisualWorkflowV3Definition({
     ...record.definition,
     name: record.name,
   });
+}
+
+/**
+ * An active workflow with its published definition, found by id alone. Only for callers that
+ * prove access another way, such as a webhook token.
+ */
+export async function getActivePublishedVisualWorkflowById(input: {
+  visualWorkflowId: string;
+  dbClient?: DatabaseClient;
+}): Promise<VisualWorkflowRecord | null> {
+  const dbClient = input.dbClient ?? db;
+  const [row] = await dbClient
+    .select()
+    .from(schema.visualWorkflows)
+    .where(
+      and(
+        eq(schema.visualWorkflows.id, input.visualWorkflowId),
+        eq(schema.visualWorkflows.status, "active"),
+      ),
+    )
+    .limit(1);
+  const workflow = row ? mapVisualWorkflowRow(row) : null;
+  if (!workflow?.publishedDefinition || workflow.publishedVersion === null) {
+    return null;
+  }
+  return {
+    ...workflow,
+    definition: workflow.publishedDefinition,
+    definitionVersion: workflow.publishedVersion,
+  };
 }
 
 export async function listDueScheduledVisualWorkflows(input: {
@@ -619,7 +723,23 @@ export async function publishVisualWorkflow(input: {
       definition: existing.definition,
     });
     if (isErr(validation)) return validation;
-    const trigger = validateActiveVisualWorkflowTrigger(validation.value);
+    const subworkflowIssues = await validateSubworkflowCalls({
+      definition: validation.value,
+      workflowId: existing.id,
+      resolveVersion: ({ workflowId, version }) =>
+        resolvePublishedSubworkflowVersion({
+          dbClient: tx,
+          organizationId: input.organizationId,
+          workflowId,
+          version,
+        }),
+    });
+    if (subworkflowIssues.length > 0) {
+      return err({ code: "invalid_graph" as const, issues: subworkflowIssues });
+    }
+    const trigger = isReusableManualWorkflow(validation.value)
+      ? ({ ok: true } as const)
+      : validateActiveVisualWorkflowTrigger(validation.value);
     if (!trigger.ok)
       return err({ code: "invalid_active_trigger" as const, message: trigger.message });
     const version = existing.definitionVersion;
@@ -661,4 +781,53 @@ export async function publishVisualWorkflow(input: {
       .onConflictDoNothing();
     return ok(mapVisualWorkflowRow(row)!);
   });
+}
+
+async function resolvePublishedSubworkflowVersion(input: {
+  dbClient: DatabaseClient;
+  organizationId: string;
+  workflowId: string;
+  version: number;
+}): Promise<SubworkflowVersionResolution> {
+  const [workflow] = await input.dbClient
+    .select({ id: schema.visualWorkflows.id, status: schema.visualWorkflows.status })
+    .from(schema.visualWorkflows)
+    .where(
+      and(
+        eq(schema.visualWorkflows.id, input.workflowId),
+        eq(schema.visualWorkflows.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!workflow || workflow.status === "archived") {
+    return { status: "workflow_missing" };
+  }
+
+  const [publishedVersion] = await input.dbClient
+    .select({ definition: schema.visualWorkflowVersions.definition })
+    .from(schema.visualWorkflowVersions)
+    .where(
+      and(
+        eq(schema.visualWorkflowVersions.workflowId, input.workflowId),
+        eq(schema.visualWorkflowVersions.organizationId, input.organizationId),
+        eq(schema.visualWorkflowVersions.version, input.version),
+      ),
+    )
+    .limit(1);
+
+  if (!publishedVersion) {
+    return { status: "version_missing" };
+  }
+
+  try {
+    return {
+      status: "found",
+      workflowId: input.workflowId,
+      version: input.version,
+      definition: parseVisualWorkflowV3Definition(publishedVersion.definition),
+    };
+  } catch {
+    return { status: "invalid_version" };
+  }
 }

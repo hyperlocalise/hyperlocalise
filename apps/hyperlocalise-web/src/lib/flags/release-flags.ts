@@ -12,12 +12,26 @@
  */
 import { flag } from "flags/next";
 
+import type { AppAuthContext } from "@/lib/workos/app-auth";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
 
-import { RELEASE_CAT_ALL_FILES_FLAG, RELEASE_SANDBOX_VCR_IMAGE_FLAG } from "./release-flag-keys";
+import { createWorkosIdentify } from "./identify-workos-context";
+import { workosAdapter } from "./workos-adapter";
+import type { WorkosFlagEntities } from "./workos-flag-entities";
+import {
+  RELEASE_CAT_ALL_FILES_FLAG,
+  RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
+  RELEASE_QA_SANDBOX_VCR_IMAGE_FLAG,
+  RELEASE_SANDBOX_VCR_IMAGE_FLAG,
+} from "./release-flag-keys";
 
-export { RELEASE_CAT_ALL_FILES_FLAG, RELEASE_SANDBOX_VCR_IMAGE_FLAG } from "./release-flag-keys";
+export {
+  RELEASE_CAT_ALL_FILES_FLAG,
+  RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
+  RELEASE_QA_SANDBOX_VCR_IMAGE_FLAG,
+  RELEASE_SANDBOX_VCR_IMAGE_FLAG,
+} from "./release-flag-keys";
 
 export type ReleaseContentEditorAllFilesEntities = {
   /** `null` / omitted = native project; otherwise the live TMS provider kind. */
@@ -79,6 +93,71 @@ export const releaseSandboxVcrImageFlag = flag<boolean>({
 export async function isReleaseSandboxVcrImageEnabled(): Promise<boolean> {
   try {
     return (await releaseSandboxVcrImageFlag.run({ identify: {} })) === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Release gate for translation QA sandboxes (Hunspell dictionaries baked into VCR).
+ *
+ * `decide` enables when `RELEASE_QA_SANDBOX_VCR_IMAGE=true` so cron/workflow QA
+ * paths can use the custom image without enabling the global sandbox cutover.
+ * Also respects {@link isReleaseSandboxVcrImageEnabled} when `imageScope` is `qa`.
+ */
+export const releaseQaSandboxVcrImageFlag = flag<boolean>({
+  key: RELEASE_QA_SANDBOX_VCR_IMAGE_FLAG,
+  description: "Create translation QA Vercel Sandboxes from the hyperlocalise-sandbox VCR image.",
+  defaultValue: false,
+  decide() {
+    return process.env.RELEASE_QA_SANDBOX_VCR_IMAGE === "true";
+  },
+});
+
+export async function isReleaseQaSandboxVcrImageEnabled(): Promise<boolean> {
+  try {
+    return (await releaseQaSandboxVcrImageFlag.run({ identify: {} })) === true;
+  } catch {
+    return false;
+  }
+}
+
+export type VercelSandboxImageScope = "default" | "qa";
+
+/** Whether a sandbox create should use `VERCEL_SANDBOX_IMAGE` for the given scope. */
+export async function isHyperlocaliseSandboxVcrImageEnabledForScope(
+  imageScope: VercelSandboxImageScope,
+): Promise<boolean> {
+  if (imageScope === "qa") {
+    return (await isReleaseSandboxVcrImageEnabled()) || (await isReleaseQaSandboxVcrImageEnabled());
+  }
+  return await isReleaseSandboxVcrImageEnabled();
+}
+
+/**
+ * Release gate for the adaptive workspace persona system in the Content Editor
+ * (Translator / Designer / Reviewer layout presets + per-file-family auto-detection).
+ *
+ * Controlled per-organization or per-user in WorkOS Feature Flags dashboard, or
+ * overridden via Flags Explorer.
+ */
+export const releaseCatAdaptiveWorkspaceFlag = flag<boolean, WorkosFlagEntities>({
+  key: RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
+  description:
+    "Adaptive workspace personas for the Content Editor (Translator / Designer / Reviewer).",
+  defaultValue: false,
+  adapter: workosAdapter(),
+});
+
+export async function isReleaseCatAdaptiveWorkspaceEnabled(
+  auth?: Pick<AppAuthContext, "activeOrganization" | "user">,
+): Promise<boolean> {
+  try {
+    return (
+      (await releaseCatAdaptiveWorkspaceFlag.run({
+        identify: auth ? () => createWorkosIdentify(auth) : () => ({}),
+      })) === true
+    );
   } catch {
     return false;
   }

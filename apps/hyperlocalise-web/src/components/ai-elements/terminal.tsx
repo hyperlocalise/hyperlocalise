@@ -12,14 +12,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Copy01Icon, Delete02Icon, TerminalIcon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CopyIcon, TrashIcon, TerminalWindowIcon, CheckIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
 import Ansi from "ansi-to-react";
 import type { ComponentProps, HTMLAttributes } from "react";
 import {
+  createElement,
   createContext,
   useCallback,
   useContext,
@@ -66,7 +66,7 @@ export const TerminalTitle = ({ className, children, ...props }: TerminalTitlePr
 
   return (
     <div className={cn("flex items-center gap-2 text-sm text-zinc-400", className)} {...props}>
-      <HugeiconsIcon icon={TerminalIcon} className="size-4" />
+      <TerminalWindowIcon className="size-4" />
       {children ?? intl.formatMessage(terminalMessages.title)}
     </div>
   );
@@ -138,7 +138,7 @@ export const TerminalCopyButton = ({
     [],
   );
 
-  const Icon = isCopied ? Tick02Icon : Copy01Icon;
+  const Icon = isCopied ? CheckIcon : CopyIcon;
   const tooltipText = isCopied
     ? intl.formatMessage(terminalMessages.copied)
     : intl.formatMessage(terminalMessages.copyOutput);
@@ -158,7 +158,7 @@ export const TerminalCopyButton = ({
             variant="ghost"
             {...props}
           >
-            {children ?? <HugeiconsIcon icon={Icon} size={14} />}
+            {children ?? createElement(Icon, { size: 14 })}
           </Button>
         }
       />
@@ -191,7 +191,7 @@ export const TerminalClearButton = ({
       variant="ghost"
       {...props}
     >
-      {children ?? <HugeiconsIcon icon={Delete02Icon} size={14} />}
+      {children ?? <TrashIcon size={14} />}
     </Button>
   );
 };

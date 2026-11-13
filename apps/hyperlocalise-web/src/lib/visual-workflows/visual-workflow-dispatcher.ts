@@ -10,22 +10,34 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { isAutumnBooleanFeatureEnabled } from "@/lib/billing/autumn-boolean-feature-access";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { and, eq, gte, sql } from "drizzle-orm";
+
+import { db, schema } from "@/lib/database/client";
+import type { JobChangeEventRecord } from "@/lib/job-change-events/job-change-events-contract";
 import { createLogger } from "@/lib/log";
 import type { VisualWorkflowExecutionQueue } from "@/lib/workflow/types";
 import { createVisualWorkflowExecutionQueue } from "@/workflows/adapters";
 
 import {
   buildVisualWorkflowGithubIdempotencyKey,
+  buildVisualWorkflowJobChangedIdempotencyKey,
   buildVisualWorkflowScheduledIdempotencyKey,
   buildVisualWorkflowSourceUploadIdempotencyKey,
+  buildVisualWorkflowWebhookIdempotencyKey,
 } from "./dispatch/idempotency";
 import {
+  getVisualWorkflowTriggerNode,
   visualWorkflowShouldDispatchOnGithubPullRequest,
   visualWorkflowShouldDispatchOnGithubPush,
+  visualWorkflowShouldDispatchOnJobChange,
   visualWorkflowShouldDispatchOnSourceUpload,
 } from "./dispatch/trigger-matching";
+import { verifyVisualWorkflowWebhookToken } from "./dispatch/webhook-token";
 import {
   advanceVisualWorkflowNextRun,
+  getActivePublishedVisualWorkflowById,
   listDueScheduledVisualWorkflows,
   listVisualWorkflows,
 } from "./visual-workflows";
@@ -378,6 +390,167 @@ export async function dispatchVisualWorkflowsForSourceUpload(input: {
   }
 
   return results;
+}
+
+/**
+ * A workflow started by a job change can change that job again (Update job, Create task), which
+ * starts it again. Past this many runs for one job in the window, further changes to that job are
+ * skipped so such a loop dies out instead of running forever.
+ */
+export const JOB_CHANGED_RUNS_PER_JOB_LIMIT = 20;
+const JOB_CHANGED_RUNS_WINDOW_MS = 60 * 60 * 1000;
+
+async function countRecentJobChangedRuns(input: {
+  organizationId: string;
+  visualWorkflowId: string;
+  jobId: string;
+  now: Date;
+}): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(schema.visualWorkflowRuns)
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+        eq(schema.visualWorkflowRuns.visualWorkflowId, input.visualWorkflowId),
+        eq(schema.visualWorkflowRuns.triggerSource, "job_changed"),
+        gte(
+          schema.visualWorkflowRuns.createdAt,
+          new Date(input.now.getTime() - JOB_CHANGED_RUNS_WINDOW_MS),
+        ),
+        sql`${schema.visualWorkflowRuns.inputSnapshot}->>'jobId' = ${input.jobId}`,
+      ),
+    );
+  return row?.count ?? 0;
+}
+
+/** Workflows a tick has already loaded, by organization, so a burst of changes loads them once. */
+export type ActiveVisualWorkflowCache = Map<string, Promise<VisualWorkflowRecord[]>>;
+
+export async function dispatchVisualWorkflowsForJobChange(input: {
+  event: JobChangeEventRecord;
+  cache?: ActiveVisualWorkflowCache;
+  queue?: VisualWorkflowExecutionQueue;
+  now?: Date;
+}): Promise<VisualWorkflowDispatchResult[]> {
+  const { event } = input;
+  let activeWorkflows = input.cache?.get(event.organizationId);
+  if (!activeWorkflows) {
+    activeWorkflows = listAllActiveVisualWorkflows(event.organizationId);
+    input.cache?.set(event.organizationId, activeWorkflows);
+  }
+  const workflows = (await activeWorkflows).filter((workflow) =>
+    visualWorkflowShouldDispatchOnJobChange(workflow, event),
+  );
+
+  const results: VisualWorkflowDispatchResult[] = [];
+  for (const workflow of workflows) {
+    const recentRuns = await countRecentJobChangedRuns({
+      organizationId: event.organizationId,
+      visualWorkflowId: workflow.id,
+      jobId: event.jobId,
+      now: input.now ?? new Date(),
+    });
+    if (recentRuns >= JOB_CHANGED_RUNS_PER_JOB_LIMIT) {
+      logger.warn(
+        { visualWorkflowId: workflow.id, jobId: event.jobId, jobChangeEventId: event.id },
+        "visual workflow job change dispatch skipped; too many runs for this job",
+      );
+      results.push({
+        outcome: "skipped",
+        runId: "",
+        inserted: false,
+        enqueued: false,
+        scheduleSlotCommitted: false,
+        skipReason: "job_changed_run_limit",
+      });
+      continue;
+    }
+
+    // Let a failure reach the caller: the event stays undispatched and the next tick retries it,
+    // and the idempotency key keeps runs that already started from starting twice.
+    results.push(
+      await dispatchVisualWorkflowRun({
+        workflow,
+        triggerSource: "job_changed",
+        idempotencyKey: buildVisualWorkflowJobChangedIdempotencyKey({
+          visualWorkflowId: workflow.id,
+          definitionVersion: workflow.definitionVersion,
+          jobChangeEventId: event.id,
+        }),
+        inputSnapshot: {
+          eventId: event.id,
+          eventType: event.type,
+          jobId: event.jobId,
+          jobKind: event.kind,
+          projectId: event.projectId,
+          status: event.toStatus,
+          previousStatus: event.fromStatus,
+          assigneeType: event.assigneeType,
+        },
+        queue: input.queue,
+      }),
+    );
+  }
+
+  return results;
+}
+
+export type VisualWorkflowWebhookDispatchResult =
+  | { outcome: "not_found" }
+  | { outcome: "unauthorized" }
+  | { outcome: "feature_unavailable" }
+  | VisualWorkflowDispatchResult;
+
+/** Starts a run of the workflow a webhook URL belongs to, once per delivery id. */
+export async function dispatchVisualWorkflowForWebhook(input: {
+  visualWorkflowId: string;
+  token: string;
+  deliveryId: string;
+  body: unknown;
+  query: Record<string, string>;
+  queue?: VisualWorkflowExecutionQueue;
+}): Promise<VisualWorkflowWebhookDispatchResult> {
+  const workflow = await getActivePublishedVisualWorkflowById({
+    visualWorkflowId: input.visualWorkflowId,
+  });
+  const trigger = workflow ? getVisualWorkflowTriggerNode(workflow.definition) : undefined;
+  if (!workflow || trigger?.config.kind !== "trigger.webhook") {
+    return { outcome: "not_found" };
+  }
+  if (
+    !verifyVisualWorkflowWebhookToken({
+      visualWorkflowId: workflow.id,
+      tokenVersion: trigger.config.tokenVersion,
+      token: input.token,
+    })
+  ) {
+    return { outcome: "unauthorized" };
+  }
+  if (
+    !(await isAutumnBooleanFeatureEnabled({
+      organizationId: workflow.organizationId,
+      featureId: autumnFeatureIds.automationWorkflow,
+    }))
+  ) {
+    return { outcome: "feature_unavailable" };
+  }
+
+  return dispatchVisualWorkflowRun({
+    workflow,
+    triggerSource: "webhook",
+    idempotencyKey: buildVisualWorkflowWebhookIdempotencyKey({
+      visualWorkflowId: workflow.id,
+      definitionVersion: workflow.definitionVersion,
+      deliveryId: input.deliveryId,
+    }),
+    inputSnapshot: {
+      body: input.body,
+      query: input.query,
+      deliveryId: input.deliveryId,
+    },
+    queue: input.queue,
+  });
 }
 
 export async function dispatchDueScheduledVisualWorkflows(input?: {

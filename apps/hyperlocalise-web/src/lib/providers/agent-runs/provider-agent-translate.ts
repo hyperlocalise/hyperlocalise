@@ -10,7 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
+import { addAiTokenUsage } from "@/lib/billing/agent-runtime-usage";
+import { ensureAiFeaturesAllowed, type AiFeaturesError } from "@/lib/billing/ai-features";
+import type { AiTokenUsage } from "@/lib/billing/usage-control";
 import { createLogger } from "@/lib/log";
 import {
   detectAgentRunProposalWarnings,
@@ -40,7 +42,6 @@ import {
   summarizeProviderUnitFileIds,
   translateProviderJobFiles,
 } from "@/lib/providers/agent-runs/provider-agent-file-translate";
-import { isUntranslatedTranslation } from "@/lib/projects/translations/translation-prefill";
 import {
   assembleStringTranslationContextSnapshot,
   loadTranslationContextProject,
@@ -53,9 +54,56 @@ import type { AgentRunGlossaryMatchUsage } from "@/lib/providers/contracts/gloss
 import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/providers/contracts/translation-memory-match";
 import { loadOrganizationTranslationGenerator } from "@/lib/translation/generation";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
-import type { StringTranslationGenerator } from "@/lib/translation/domain";
+import type {
+  StringTranslationGenerator,
+  StringTranslationJobResult,
+} from "@/lib/translation/domain";
 
 const logger = createLogger("provider-agent-translate");
+
+type ProviderAgentStringTokenUsage = AiTokenUsage & {
+  modelId?: string;
+  credentialSource?: "gateway" | "byok";
+};
+
+function accumulateProviderAgentStringTokenUsage(
+  current: ProviderAgentStringTokenUsage | null,
+  next: NonNullable<StringTranslationJobResult["tokenUsage"]>,
+): ProviderAgentStringTokenUsage | null {
+  const aggregated = addAiTokenUsage(current, {
+    inputTokens: next.inputTokens,
+    outputTokens: next.outputTokens,
+    totalTokens: next.totalTokens,
+    cacheReadTokens: next.cacheReadTokens,
+    cacheWriteTokens: next.cacheWriteTokens,
+    reasoningTokens: next.reasoningTokens,
+  });
+  if (!aggregated) {
+    return null;
+  }
+
+  return {
+    ...aggregated,
+    modelId: current?.modelId ?? next.modelId,
+    credentialSource: current?.credentialSource ?? next.credentialSource,
+  };
+}
+
+type ProviderAgentCreditGateError = AiFeaturesError;
+
+function formatProviderAgentCreditGateError(error: ProviderAgentCreditGateError): string {
+  return error.message;
+}
+
+async function ensureProviderAgentTranslationAllowed(input: {
+  organizationId: string;
+}): Promise<{ ok: true } | { ok: false; error: ProviderAgentCreditGateError }> {
+  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
+  if (!aiFeatures.ok) {
+    return { ok: false, error: aiFeatures.error };
+  }
+  return { ok: true };
+}
 
 export type ProviderAgentTranslationChangedItem = AgentRunProposalItem;
 
@@ -133,7 +181,7 @@ function existingTranslationForLocale(unit: ExternalTmsTranslationUnit, locale: 
 function shouldSkipExistingTranslation(
   translation: ExternalTmsTranslationUnit["translations"][number] | null,
 ) {
-  return !isUntranslatedTranslation({ targetText: translation?.text });
+  return Boolean(translation?.text?.trim());
 }
 
 function buildJobInputForUnit(input: {
@@ -181,11 +229,7 @@ async function translateProviderUnits(input: {
   }> = [];
   let unitsProcessed = 0;
   let skippedExistingLocales = 0;
-  let tokenUsage = {
-    inputTokens: 0,
-    outputTokens: 0,
-    totalTokens: 0,
-  };
+  let tokenUsage: ProviderAgentStringTokenUsage | null = null;
 
   const project = await loadTranslationContextProject(input.projectId);
   if (!project) {
@@ -293,11 +337,7 @@ async function translateProviderUnits(input: {
       });
 
       if (result.tokenUsage) {
-        tokenUsage = {
-          inputTokens: tokenUsage.inputTokens + (result.tokenUsage.inputTokens ?? 0),
-          outputTokens: tokenUsage.outputTokens + (result.tokenUsage.outputTokens ?? 0),
-          totalTokens: tokenUsage.totalTokens + (result.tokenUsage.totalTokens ?? 0),
-        };
+        tokenUsage = accumulateProviderAgentStringTokenUsage(tokenUsage, result.tokenUsage);
       }
 
       for (const translation of result.translations) {
@@ -392,7 +432,7 @@ async function translateProviderUnits(input: {
     skippedExistingLocales,
     translationMemoryUsageByUnit,
     glossaryUsageByUnit,
-    tokenUsage: tokenUsage.totalTokens > 0 ? tokenUsage : null,
+    tokenUsage,
   };
 }
 
@@ -448,23 +488,6 @@ export async function executeProviderAgentTranslation(input: {
       agentRunId: input.agentRunId,
       code: run.status === "failed" ? "agent_run_already_failed" : "agent_run_already_cancelled",
       message: `Agent run is ${run.status}, expected queued or running`,
-    };
-  }
-
-  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
-  if (!aiFeatures.ok) {
-    await failAgentRun({
-      runId: run.id,
-      organizationId: input.organizationId,
-      outputSummary: { code: aiFeatures.error.code },
-      warnings: [aiFeatures.error.message],
-    });
-
-    return {
-      ok: false,
-      agentRunId: input.agentRunId,
-      code: aiFeatures.error.code,
-      message: aiFeatures.error.message,
     };
   }
 
@@ -638,6 +661,28 @@ export async function executeProviderAgentTranslation(input: {
       "provider agent translation selected file mode",
     );
 
+    const creditReservation = await ensureProviderAgentTranslationAllowed({
+      organizationId: input.organizationId,
+    });
+    if (!creditReservation.ok) {
+      await failAgentRun({
+        runId: run.id,
+        organizationId: input.organizationId,
+        outputSummary: {
+          code: creditReservation.error.code,
+          pullRunId: pullResult.runId,
+          unitsDiscovered: pullResult.counts.unitsDiscovered,
+        },
+        warnings: [formatProviderAgentCreditGateError(creditReservation.error)],
+      });
+      return {
+        ok: false,
+        agentRunId: input.agentRunId,
+        code: creditReservation.error.code,
+        message: formatProviderAgentCreditGateError(creditReservation.error),
+      };
+    }
+
     const fileTranslationResult = await translateProviderJobFiles({
       agentRunId: input.agentRunId,
       organizationId: input.organizationId,
@@ -661,6 +706,9 @@ export async function executeProviderAgentTranslation(input: {
         translationMode: "file",
         targetLocales: filteredContent.targetLocales,
         sourceLocale: filteredContent.sourceLocale ?? defaultSourceLocale,
+        ...(fileTranslationResult.tokenUsage
+          ? { tokenUsage: fileTranslationResult.tokenUsage }
+          : {}),
         ...pullDiagnosticsSummary,
       },
       changedItems: fileTranslationResult.changedItems,
@@ -780,6 +828,28 @@ export async function executeProviderAgentTranslation(input: {
     },
     "provider agent translation selected string mode",
   );
+
+  const creditReservation = await ensureProviderAgentTranslationAllowed({
+    organizationId: input.organizationId,
+  });
+  if (!creditReservation.ok) {
+    await failAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: {
+        code: creditReservation.error.code,
+        pullRunId: pullResult.runId,
+        unitsDiscovered: pullResult.counts.unitsDiscovered,
+      },
+      warnings: [formatProviderAgentCreditGateError(creditReservation.error)],
+    });
+    return {
+      ok: false,
+      agentRunId: input.agentRunId,
+      code: creditReservation.error.code,
+      message: formatProviderAgentCreditGateError(creditReservation.error),
+    };
+  }
 
   const translationResult = await translateProviderUnits({
     organizationId: input.organizationId,

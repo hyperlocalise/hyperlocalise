@@ -45,6 +45,61 @@ vi.mock("@/lib/workos/config", () => ({
   }),
 }));
 
+describe("waitForWorkosFeatureFlags", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    waitUntilReady.mockReset();
+  });
+
+  it("resolves once the flags are downloaded, with the caller's time limit", async () => {
+    waitUntilReady.mockResolvedValue(undefined);
+
+    const { waitForWorkosFeatureFlags } = await import("./workos-adapter");
+
+    await expect(waitForWorkosFeatureFlags({ timeoutMs: 10_000 })).resolves.toBe(true);
+    expect(waitUntilReady).toHaveBeenCalledWith({ timeoutMs: 10_000 });
+  });
+
+  it("rejects when the flags cannot be downloaded in time", async () => {
+    waitUntilReady.mockRejectedValue(new Error("waitUntilReady timed out"));
+
+    const { waitForWorkosFeatureFlags } = await import("./workos-adapter");
+
+    await expect(waitForWorkosFeatureFlags({ timeoutMs: 10 })).rejects.toThrow("timed out");
+  });
+});
+
+describe("readWorkosFeatureFlag", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    isEnabled.mockReset();
+  });
+
+  it("asks the runtime client with the organization and user ids", async () => {
+    isEnabled.mockResolvedValue(true);
+
+    const { readWorkosFeatureFlag } = await import("./workos-adapter");
+
+    await expect(
+      readWorkosFeatureFlag(WORKSPACE_KNOWLEDGE_FLAG, { organization: { id: "org_123" } }),
+    ).resolves.toBe(true);
+    expect(isEnabled).toHaveBeenCalledWith(WORKSPACE_KNOWLEDGE_FLAG, {
+      organizationId: "org_123",
+      userId: undefined,
+    });
+  });
+
+  it("lets a failed check through instead of answering false", async () => {
+    isEnabled.mockRejectedValue(new Error("evaluation failed"));
+
+    const { readWorkosFeatureFlag } = await import("./workos-adapter");
+
+    await expect(
+      readWorkosFeatureFlag(WORKSPACE_KNOWLEDGE_FLAG, { organization: { id: "org_123" } }),
+    ).rejects.toThrow("evaluation failed");
+  });
+});
+
 describe("workosAdapter", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -155,36 +210,37 @@ describe("workosAdapter", () => {
 const intl = getIntlShape("en") as IntlShape;
 
 describe("annotateNavigationByWorkspaceFlags", () => {
-  it("marks Automations, Guideline, and Domains as preview when workspace flags are disabled", () => {
+  it("marks Queries, Reports, Guideline, and Automations as preview when workspace flags are disabled", () => {
     const groups = buildGlobalNavigationGroups("acme", intl);
     const annotated = annotateNavigationByWorkspaceFlags(groups, {
       automations: false,
       knowledge: false,
       visualMock: false,
       visualWorkflows: false,
+      queriesBoard: false,
       domains: false,
       glossarySearch: false,
       hyperlab: false,
       reports: false,
     });
 
-    const automationsItem = annotated
+    const queriesItem = annotated
       .flatMap((group) => group.items)
-      .find((item) => item.label === "Automations");
+      .find((item) => item.label === "Queries");
     const guidelineItem = annotated
       .flatMap((group) => group.items)
       .find((item) => item.label === "Guideline");
-    const domainsItem = annotated
-      .flatMap((group) => group.items)
-      .find((item) => item.label === "Domains");
     const reportsItem = annotated
       .flatMap((group) => group.items)
       .find((item) => item.label === "Reports");
+    const automationsItem = annotated
+      .flatMap((group) => group.items)
+      .find((item) => item.label === "Automations");
 
-    expect(automationsItem?.preview).toBe(true);
+    expect(queriesItem?.preview).toBe(true);
     expect(guidelineItem?.preview).toBe(true);
-    expect(domainsItem?.preview).toBe(true);
     expect(reportsItem?.preview).toBe(true);
+    expect(automationsItem?.preview).toBe(true);
   });
 
   it("clears preview badges when workspace flags are enabled", () => {
@@ -194,6 +250,7 @@ describe("annotateNavigationByWorkspaceFlags", () => {
       knowledge: true,
       visualMock: true,
       visualWorkflows: true,
+      queriesBoard: true,
       domains: true,
       glossarySearch: true,
       hyperlab: true,
@@ -209,13 +266,14 @@ describe("annotateNavigationByWorkspaceFlags", () => {
 });
 
 describe("filterNavigationByWorkspaceFlags", () => {
-  it("removes Automations, Guideline, and Domains when workspace flags are disabled", () => {
+  it("removes Queries, Reports, and Guideline when workspace flags are disabled", () => {
     const groups = buildGlobalNavigationGroups("acme", intl);
     const filtered = filterNavigationByWorkspaceFlags(groups, {
       automations: false,
       knowledge: false,
       visualMock: false,
       visualWorkflows: false,
+      queriesBoard: false,
       domains: false,
       glossarySearch: false,
       hyperlab: false,
@@ -224,23 +282,25 @@ describe("filterNavigationByWorkspaceFlags", () => {
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));
 
-    expect(itemLabels).not.toContain("Automations");
+    expect(itemLabels).not.toContain("Queries");
     expect(itemLabels).not.toContain("Guideline");
-    expect(itemLabels).toContain("Queries");
-    expect(itemLabels).toContain("New Request");
-    expect(itemLabels).toContain("AI Engine");
-    expect(itemLabels).not.toContain("Domains");
     expect(itemLabels).not.toContain("Reports");
+    expect(itemLabels).not.toContain("Automations");
+    expect(itemLabels).not.toContain("AI Engine");
+    expect(itemLabels).not.toContain("Domains");
+    expect(itemLabels).toContain("New Request");
     expect(itemLabels).toContain("Projects");
+    expect(itemLabels).toContain("Settings");
   });
 
-  it("keeps Automations, Guideline, Issues, and Domains when workspace flags are enabled", () => {
+  it("keeps Queries, Reports, Guideline, and Automations when workspace flags are enabled", () => {
     const groups = buildGlobalNavigationGroups("acme", intl);
     const filtered = filterNavigationByWorkspaceFlags(groups, {
       automations: true,
       knowledge: true,
       visualMock: true,
       visualWorkflows: true,
+      queriesBoard: true,
       domains: true,
       glossarySearch: true,
       hyperlab: true,
@@ -249,12 +309,13 @@ describe("filterNavigationByWorkspaceFlags", () => {
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));
 
-    expect(itemLabels).toContain("Automations");
+    expect(itemLabels).toContain("New Request");
     expect(itemLabels).toContain("Guideline");
     expect(itemLabels).toContain("Queries");
-    expect(itemLabels).toContain("Domains");
     expect(itemLabels).toContain("Reports");
-    expect(itemLabels).toContain("AI Engine");
+    expect(itemLabels).toContain("Automations");
+    expect(itemLabels).not.toContain("Domains");
+    expect(itemLabels).not.toContain("AI Engine");
   });
 });
 
@@ -265,6 +326,7 @@ describe("groupPreviewNavigationGroups", () => {
       knowledge: false,
       visualMock: false,
       visualWorkflows: false,
+      queriesBoard: false,
       domains: false,
       glossarySearch: false,
       hyperlab: false,
@@ -273,21 +335,21 @@ describe("groupPreviewNavigationGroups", () => {
     const grouped = groupPreviewNavigationGroups(groups, "Try");
 
     const tryGroup = grouped.find((group) => group.label === "Try");
-    const agentsGroup = grouped.find((group) => group.label === "Agents");
     const workspaceGroup = grouped.find((group) => group.label === "Workspace");
     const promotedLabels = grouped[0]?.items.map((item) => item.label) ?? [];
 
     expect(tryGroup?.items.map((item) => item.label)).toEqual([
+      "Queries",
       "Reports",
       "Automations",
-      "Domains",
-      "Hyperlab",
       "Guideline",
     ]);
-    expect(agentsGroup?.items.map((item) => item.label)).toEqual(["New Request", "AI Engine"]);
-    expect(workspaceGroup?.items.map((item) => item.label)).not.toContain("Domains");
-    expect(workspaceGroup?.items.map((item) => item.label)).toContain("Projects");
-    expect(promotedLabels).toContain("Inbox");
+    expect(workspaceGroup?.items.map((item) => item.label)).not.toContain("Queries");
+    expect(workspaceGroup?.items.map((item) => item.label)).toContain("Inbox");
+    expect(workspaceGroup?.items.map((item) => item.label)).toContain("QA");
+    expect(promotedLabels).toContain("New Request");
+    expect(promotedLabels).toContain("Overview");
+    expect(promotedLabels).toContain("Projects");
     expect(promotedLabels).not.toContain("Reports");
   });
 
@@ -297,6 +359,7 @@ describe("groupPreviewNavigationGroups", () => {
       knowledge: true,
       visualMock: true,
       visualWorkflows: true,
+      queriesBoard: true,
       domains: true,
       glossarySearch: true,
       hyperlab: true,
@@ -305,8 +368,9 @@ describe("groupPreviewNavigationGroups", () => {
     const grouped = groupPreviewNavigationGroups(groups, "Try");
 
     expect(grouped.some((group) => group.label === "Try")).toBe(false);
+    expect(grouped.flatMap((group) => group.items.map((item) => item.label))).toContain("Queries");
     expect(grouped.flatMap((group) => group.items.map((item) => item.label))).toContain(
-      "Automations",
+      "Guideline",
     );
   });
 });

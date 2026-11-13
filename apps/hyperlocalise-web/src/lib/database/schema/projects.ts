@@ -117,8 +117,36 @@ export const projects = pgTable(
     automaticallyGroupIdenticalStrings: boolean("automatically_group_identical_strings")
       .notNull()
       .default(false),
+    /**
+     * Whether source text may be edited in the platform. Off, an import replaces the platform's
+     * source text with the file's; on, an import keeps platform edits and reports clashes.
+     */
+    sourceTextEditable: boolean("source_text_editable").notNull().default(false),
     // Changes whenever grouping policy changes so open CAT workspaces can defer a safe refresh.
     contentEditorGroupingRevision: integer("cat_grouping_revision").notNull().default(0),
+    /**
+     * What a source text change does to a key's approved translations: `stay_approved` leaves
+     * them alone; `needs_review` moves them to `needs_review`. Every source writer follows it.
+     */
+    approvedTranslationsOnSourceChange: text("approved_translations_on_source_change", {
+      enum: ["stay_approved", "needs_review"],
+    })
+      .notNull()
+      .default("stay_approved"),
+    /**
+     * Native QA scan cadence. `off` is manual only. `daily` lets the QA cron
+     * start a scan when the last run is older than a day.
+     */
+    qaScanCadence: text("qa_scan_cadence", { enum: ["off", "daily"] })
+      .notNull()
+      .default("off"),
+    qaCheckPolicy: jsonb("qa_check_policy")
+      .$type<import("@/lib/qa/qa-policy").QaCheckPolicy>()
+      .notNull()
+      .default(
+        sql`'{"not_localized":{"enabled":true,"severity":"error"},"whitespace_only":{"enabled":true,"severity":"warning"},"same_as_source":{"enabled":true,"severity":"warning"},"escaped_char_mismatch":{"enabled":true,"severity":"warning"},"length":{"enabled":true,"severity":"error"},"placeholder_mismatch":{"enabled":true,"severity":"error"},"glossary_violation":{"enabled":true,"severity":"warning"},"format":{"enabled":true,"severity":"error"},"spelling":{"enabled":true,"severity":"warning"},"numbers_mismatch":{"enabled":false,"severity":"warning"},"punctuation_mismatch":{"enabled":false,"severity":"warning"},"character_case_mismatch":{"enabled":false,"severity":"warning"}}'::jsonb`,
+      ),
+    qaScanLastRunAt: timestamp("qa_scan_last_run_at", { withTimezone: true }),
     // When the project record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When project metadata was last changed.
@@ -143,5 +171,10 @@ export const projects = pgTable(
     index("idx_projects_created_by_user_id").on(table.createdByUserId),
     check("projects_identifier_format_check", sql`${table.identifier} ~ '^[A-Z][A-Z0-9]{0,9}$'`),
     check("projects_issue_number_seq_check", sql`${table.issueNumberSeq} >= 0`),
+    check("projects_qa_scan_cadence_check", sql`${table.qaScanCadence} in ('off', 'daily')`),
+    check(
+      "projects_approved_translations_on_source_change_check",
+      sql`${table.approvedTranslationsOnSourceChange} in ('stay_approved', 'needs_review')`,
+    ),
   ],
 );

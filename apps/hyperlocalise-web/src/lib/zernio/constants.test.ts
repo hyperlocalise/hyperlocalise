@@ -12,14 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildZernioAuthorizationHeader, ZERNIO_API_BASE_URL } from "./constants";
+import { buildZernioAuthorizationHeader } from "./constants";
 
 describe("zernio constants", () => {
   it("builds the Zernio Bearer authorization header", () => {
     expect(buildZernioAuthorizationHeader("  sk_test_abc  ")).toBe("Bearer sk_test_abc");
-  });
-
-  it("points at the Zernio REST v1 base URL", () => {
-    expect(ZERNIO_API_BASE_URL).toBe("https://zernio.com/api/v1");
   });
 });

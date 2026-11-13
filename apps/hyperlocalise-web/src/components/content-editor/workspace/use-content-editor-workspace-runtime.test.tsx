@@ -24,6 +24,7 @@ import type { ContentEditorSegmentConcordanceResult } from "@/components/content
 import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
 
 import { createCatWorkspace } from "./content-editor-workspace-orchestrator";
+import { findAdjacentSegmentIdMatching } from "./controllers/content-editor-navigation-controller";
 import { useContentEditorWorkspaceRuntime } from "./use-content-editor-workspace-runtime";
 
 function createDeferred<T>() {
@@ -102,6 +103,24 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+describe("findAdjacentSegmentIdMatching", () => {
+  const segments = ["a", "b", "c", "d"].map((id) => ({ id, key: id }));
+  const untranslated = new Set(["a", "d"]);
+
+  it("skips segments that do not match in either direction", () => {
+    const matches = (id: string) => untranslated.has(id);
+
+    expect(findAdjacentSegmentIdMatching(segments, "b", 1, matches)).toBe("d");
+    expect(findAdjacentSegmentIdMatching(segments, "c", -1, matches)).toBe("a");
+  });
+
+  it("returns undefined when no later segment matches", () => {
+    expect(
+      findAdjacentSegmentIdMatching(segments, "d", 1, (id) => untranslated.has(id)),
+    ).toBeUndefined();
+  });
+});
+
 describe("useContentEditorWorkspaceRuntime", () => {
   it("debounces format checks and validates the latest target text", async () => {
     const validateFormat = vi.fn(mockValidateFormat);
@@ -178,6 +197,35 @@ describe("useContentEditorWorkspaceRuntime", () => {
     });
 
     expect(store.getSegmentView("seg-02")?.targetText).toBe("Suggestion IA");
+  });
+
+  it("does not write a TM match to the hidden single-target draft while variant editors are expected", () => {
+    const { result, store } = renderController();
+    store.groupVariants.expect("seg-02", "vi");
+
+    act(() => {
+      result.current.dependencies.editing.onUseTmMatch("seg-02", {
+        id: "tm-1",
+        sourceText: "Second",
+        targetText: "Deuxième",
+        matchPercent: 100,
+      });
+    });
+
+    expect(store.getSegmentView("seg-02")?.targetText).toBe("");
+    expect(store.dirtySegmentIds.has("seg-02")).toBe(false);
+    expect(store.groupVariants.takeHeldText("seg-02", "vi")).toBe("Deuxième");
+  });
+
+  it("forwards onSetMaxLength from editing overrides", () => {
+    const onSetMaxLength = vi.fn();
+    const { result } = renderController(undefined, {
+      editing: { onSetMaxLength },
+    });
+
+    expect(result.current.dependencies.editing.onSetMaxLength).toBe(onSetMaxLength);
+    void result.current.dependencies.editing.onSetMaxLength?.("seg-02", 32);
+    expect(onSetMaxLength).toHaveBeenCalledWith("seg-02", 32);
   });
 
   it("waits for the intelligence panel before running concordance lookup", async () => {
@@ -611,11 +659,12 @@ describe("useContentEditorWorkspaceRuntime", () => {
       review: { onApprove },
     });
 
+    const formatChecks = store.segmentFormatChecks["seg-02"];
     await act(async () => {
       await result.current.dependencies.review.onApprove("seg-02", "Deuxième");
     });
 
-    expect(onApprove).toHaveBeenCalledWith("seg-02", "Deuxième");
+    expect(onApprove).toHaveBeenCalledWith("seg-02", "Deuxième", { formatChecks });
     expect(store.selectedSegmentId).toBe("seg-03");
     expect(store.getSegmentView("seg-02")?.status).toBe("reviewed");
   });

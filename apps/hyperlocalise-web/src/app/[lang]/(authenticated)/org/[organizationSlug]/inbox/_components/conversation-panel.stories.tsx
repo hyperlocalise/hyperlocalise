@@ -94,6 +94,17 @@ export const LoadingMessages: Story = {
   },
 };
 
+export const LoadingConversation: Story = {
+  args: {
+    conversation: undefined,
+    messages: [],
+    messagesIsLoading: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByLabelText("Loading conversation")).toBeInTheDocument();
+  },
+};
+
 export const EmptyMessages: Story = {
   args: {
     messages: [],

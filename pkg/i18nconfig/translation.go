@@ -6,8 +6,9 @@ import (
 )
 
 const (
-	TranslationTypeLLM = "llm"
-	TranslationTypeMT  = "mt"
+	TranslationTypeLLM  = "llm"
+	TranslationTypeMT   = "mt"
+	TranslationTypeCopy = "copy"
 
 	mtProviderGoogle = "google"
 	mtProviderDeepL  = "deepl"

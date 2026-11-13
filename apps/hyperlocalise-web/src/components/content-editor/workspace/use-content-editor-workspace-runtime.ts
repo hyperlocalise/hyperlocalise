@@ -12,13 +12,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
+import { computed } from "mobx";
 import { useIntl } from "react-intl";
 
-import {
-  findSegmentIdByKeyOrIdInQueue,
-  type ContentEditorQueueFilter,
-} from "@/components/content-editor/queue/content-editor-queue-filter";
+import type { ContentEditorQueueFilter } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { buildCatSegmentShareUrl } from "@/components/content-editor/segment/content-editor-segment-share-link";
 import type {
   ContentEditorWorkspaceDependencies,
@@ -39,36 +37,17 @@ import {
   type ContentEditorIntelligenceControllerPorts,
 } from "./controllers/content-editor-intelligence-controller";
 import {
+  ContentEditorNavigationController,
+  type ContentEditorNavigationControllerPorts,
+} from "./controllers/content-editor-navigation-controller";
+import {
   ContentEditorReviewController,
   type ContentEditorReviewControllerPorts,
 } from "./controllers/content-editor-review-controller";
-import { getAiSuggestionForSegment } from "./store/content-editor-workspace-store-utils";
-
-function getSegmentQueueIndex(
-  segments: Pick<ContentEditorSegment, "id" | "key">[],
-  segmentIdOrKey: string,
-) {
-  const resolvedId = findSegmentIdByKeyOrIdInQueue(segments, segmentIdOrKey) ?? segmentIdOrKey;
-  return segments.findIndex((segment) => segment.id === resolvedId);
-}
-
-function getAdjacentSegmentId(
-  segments: Pick<ContentEditorSegment, "id" | "key">[],
-  currentId: string,
-  direction: -1 | 1,
-) {
-  const currentIndex = getSegmentQueueIndex(segments, currentId);
-  if (currentIndex < 0) {
-    return segments[0]?.id;
-  }
-
-  const nextIndex = currentIndex + direction;
-  if (nextIndex < 0 || nextIndex >= segments.length) {
-    return undefined;
-  }
-
-  return segments[nextIndex]?.id;
-}
+import {
+  getAiSuggestionForSegment,
+  glossaryTermsForSegment,
+} from "./store/content-editor-workspace-store-utils";
 
 export interface UseCatWorkspaceRuntimeInput {
   store: ContentEditorWorkspaceOrchestrator;
@@ -103,7 +82,6 @@ export function useContentEditorWorkspaceRuntime({
   const intl = useIntl();
   const queueFilter = queueFilterProp ?? store.queueFilter;
   const usesServerQueueFilter = Boolean(onQueueFilterChange);
-  const pendingAdvanceFromSegmentIdRef = useRef<string | null>(null);
 
   const validateFormat = serviceOverrides?.validateFormat;
   const runQaChecks = serviceOverrides?.runQaChecks;
@@ -121,11 +99,13 @@ export function useContentEditorWorkspaceRuntime({
   const onAskQuestion = reviewOverrides?.onAskQuestion;
 
   const canLookupContext = Boolean(lookupSegmentContext) && canLookupFreshContext;
-  const canLoadVisualContext = Boolean(
-    lookupSegmentVisualContext && store.providerKind && store.providerKind !== "native",
-  );
+  const canLoadVisualContext = Boolean(lookupSegmentVisualContext);
   const canUseAiRecommendation = Boolean(generateAiRecommendation);
-  const queuePanelSegments = store.getQueuePanelSegments(queueFilter, usesServerQueueFilter);
+  const queueView = useMemo(
+    () => computed(() => store.getQueuePanelSegments(queueFilter, usesServerQueueFilter)),
+    [store, queueFilter, usesServerQueueFilter],
+  );
+  const queuePanelSegments = queueView.get();
 
   const intelligencePorts = useMemo<ContentEditorIntelligenceControllerPorts>(
     () => ({
@@ -162,47 +142,71 @@ export function useContentEditorWorkspaceRuntime({
     [store],
   );
 
+  const navigationPorts = useMemo<ContentEditorNavigationControllerPorts>(
+    () => ({
+      queueFilter,
+      usesServerQueueFilter,
+      hasMoreQueue,
+      onLoadMoreQueue,
+      navigation: { onSelectSegment, onPreviousSegment, onNextSegment },
+    }),
+    [
+      hasMoreQueue,
+      onLoadMoreQueue,
+      onNextSegment,
+      onPreviousSegment,
+      onSelectSegment,
+      queueFilter,
+      usesServerQueueFilter,
+    ],
+  );
+  const navigationController = useMemo(
+    () => new ContentEditorNavigationController(store, navigationPorts),
+    [store],
+  );
+
   useEffect(() => {
     intelligenceController.configure(intelligencePorts);
     reviewController.configure(reviewPorts);
-  }, [intelligenceController, intelligencePorts, reviewController, reviewPorts]);
+    navigationController.configure(navigationPorts);
+  }, [
+    intelligenceController,
+    intelligencePorts,
+    navigationController,
+    navigationPorts,
+    reviewController,
+    reviewPorts,
+  ]);
 
   useEffect(() => {
-    store.attachControllers(intelligenceController, reviewController);
+    store.groupVariants.setServices({
+      validateFormat,
+      runGuidelineCheck: serviceOverrides?.runGuidelineCheck,
+      glossaryTerms: (segmentId) => glossaryTermsForSegment(store.shellState, segmentId),
+    });
+  }, [serviceOverrides?.runGuidelineCheck, store, validateFormat]);
+
+  useEffect(() => {
+    store.attachControllers(intelligenceController, reviewController, navigationController);
     store.start();
     return () => store.dispose();
-  }, [intelligenceController, reviewController, store]);
+  }, [intelligenceController, navigationController, reviewController, store]);
 
   const handleIntelligencePanelVisible = useCallback(
     (segmentId: string) => intelligenceController.panelVisible(segmentId),
     [intelligenceController],
   );
 
-  useEffect(() => {
-    const fromId = pendingAdvanceFromSegmentIdRef.current;
-    if (!fromId) {
-      return;
-    }
-
-    const visibleSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
-    const nextId = getAdjacentSegmentId(visibleSegments, fromId, 1);
-    if (nextId) {
-      pendingAdvanceFromSegmentIdRef.current = null;
-      const currentId =
-        store.findSegmentIdByKeyOrId(store.selectedSegmentId) ?? store.selectedSegmentId;
-      const resolvedFromId = store.findSegmentIdByKeyOrId(fromId) ?? fromId;
-      if (currentId === resolvedFromId) {
-        store.setSelectedSegmentId(nextId);
-      }
-      return;
-    }
-
-    if (!hasMoreQueue) {
-      pendingAdvanceFromSegmentIdRef.current = null;
-    }
-  }, [hasMoreQueue, queueFilter, queuePanelSegments, store, usesServerQueueFilter]);
+  const handleLoadSegmentConcordance = useCallback(
+    (segmentId: string) => intelligenceController.ensureConcordance(segmentId),
+    [intelligenceController],
+  );
 
   const dependencies = useMemo<ContentEditorWorkspaceDependencies>(() => {
+    const sendTextToGroupVariant = (segmentId: string, text: string) => {
+      const locale = store.getSegmentView(segmentId)?.targetLocale;
+      return Boolean(locale && store.groupVariants.routeText(segmentId, locale, text));
+    };
     const editing: ContentEditorWorkspaceEditing = {
       onTargetChange: (segmentId: string, value: string) => {
         store.setTargetText(segmentId, value);
@@ -217,10 +221,13 @@ export function useContentEditorWorkspaceRuntime({
         if (!aiSuggestion) {
           return;
         }
-        editing.onTargetChange(segmentId, aiSuggestion);
+        if (!sendTextToGroupVariant(segmentId, aiSuggestion)) {
+          editing.onTargetChange(segmentId, aiSuggestion);
+        }
         onUseAiSuggestion?.(segmentId);
       },
       onUseTmMatch: (segmentId: string, match: ContentEditorTranslationMemoryMatch) => {
+        if (sendTextToGroupVariant(segmentId, match.targetText)) return;
         editing.onTargetChange(segmentId, match.targetText);
       },
       ...(editingOverrides?.onTreatAsImage
@@ -233,58 +240,29 @@ export function useContentEditorWorkspaceRuntime({
         ? { onRegenerateImage: editingOverrides.onRegenerateImage }
         : {}),
       ...(editingOverrides?.onUploadImage ? { onUploadImage: editingOverrides.onUploadImage } : {}),
+      ...(editingOverrides?.onUploadVisualContext
+        ? {
+            onUploadVisualContext: async (segmentId: string, file: File) => {
+              const visualContext = await editingOverrides.onUploadVisualContext?.(segmentId, file);
+              if (visualContext) {
+                store.mergeSegmentIntelligence(segmentId, { visualContext });
+              }
+              return visualContext;
+            },
+          }
+        : {}),
+      ...(editingOverrides?.onSetMaxLength
+        ? { onSetMaxLength: editingOverrides.onSetMaxLength }
+        : {}),
     };
 
     const navigation: ContentEditorWorkspaceNavigation = {
-      onSelectSegment: (segmentId: string) => {
-        const selectedSegmentId = store.findSegmentIdByKeyOrId(segmentId) ?? segmentId;
-        const currentSegmentId =
-          store.findSegmentIdByKeyOrId(store.selectedSegmentId) ?? store.selectedSegmentId;
-        if (selectedSegmentId === currentSegmentId) {
-          return;
-        }
-
-        pendingAdvanceFromSegmentIdRef.current = null;
-        store.setSelectedSegmentId(selectedSegmentId);
-        onSelectSegment?.(segmentId);
-      },
-      onPreviousSegment: () => {
-        pendingAdvanceFromSegmentIdRef.current = null;
-        const visibleSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
-        const previousId = getAdjacentSegmentId(visibleSegments, store.selectedSegmentId, -1);
-        if (previousId) {
-          store.setSelectedSegmentId(previousId);
-        }
-        onPreviousSegment?.();
-      },
-      onNextSegment: () => {
-        const visibleSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
-        const currentId = store.selectedSegmentId;
-        const nextId = getAdjacentSegmentId(visibleSegments, currentId, 1);
-        if (nextId) {
-          pendingAdvanceFromSegmentIdRef.current = null;
-          store.setSelectedSegmentId(nextId);
-          onNextSegment?.();
-          return;
-        }
-
-        if (hasMoreQueue && onLoadMoreQueue) {
-          pendingAdvanceFromSegmentIdRef.current = currentId;
-          onLoadMoreQueue();
-          // Sync loaders (tests / already-buffered pages) can populate the store
-          // before the pending-advance effect runs.
-          const refreshedSegments = store.getFilteredQueueSegments(
-            queueFilter,
-            usesServerQueueFilter,
-          );
-          const loadedNextId = getAdjacentSegmentId(refreshedSegments, currentId, 1);
-          if (loadedNextId) {
-            pendingAdvanceFromSegmentIdRef.current = null;
-            store.setSelectedSegmentId(loadedNextId);
-          }
-        }
-        onNextSegment?.();
-      },
+      onSelectSegment: navigationController.selectSegment.bind(navigationController),
+      onPreviousSegment: navigationController.previous.bind(navigationController),
+      onNextSegment: navigationController.next.bind(navigationController),
+      onPreviousUntranslatedSegment:
+        navigationController.previousUntranslated.bind(navigationController),
+      onNextUntranslatedSegment: navigationController.nextUntranslated.bind(navigationController),
       onReviewInSequence: () => {
         onReviewInSequence?.();
       },
@@ -335,34 +313,30 @@ export function useContentEditorWorkspaceRuntime({
     };
   }, [
     editingOverrides?.onRegenerateImage,
+    editingOverrides?.onSetMaxLength,
     editingOverrides?.onTreatAsImage,
     editingOverrides?.onTreatAsVideo,
     editingOverrides?.onUploadImage,
+    editingOverrides?.onUploadVisualContext,
     generateAiRecommendation,
-    hasMoreQueue,
     intelligenceController,
+    navigationController,
     onAskQuestion,
-    onLoadMoreQueue,
-    onNextSegment,
-    onPreviousSegment,
     onReviewInSequence,
     onSaveDraft,
-    onSelectSegment,
     onTargetChange,
     onUseAiSuggestion,
-    queueFilter,
     runQaChecks,
     reviewController,
     reviewOverrides?.onAddToIssueSheet,
     reviewOverrides?.onSetLocked,
     store,
-    usesServerQueueFilter,
     validateFormat,
   ]);
 
   const handleQueueFilterChange = useCallback(
     (filter: ContentEditorQueueFilter) => {
-      pendingAdvanceFromSegmentIdRef.current = null;
+      navigationController.cancelPendingAdvance();
       if (onQueueFilterChange) {
         onQueueFilterChange(filter);
         return;
@@ -370,7 +344,7 @@ export function useContentEditorWorkspaceRuntime({
 
       store.setQueueFilter(filter);
     },
-    [onQueueFilterChange, store],
+    [navigationController, onQueueFilterChange, store],
   );
 
   const handleBulkApprove = useCallback(() => reviewController.bulkApprove(), [reviewController]);
@@ -421,6 +395,7 @@ export function useContentEditorWorkspaceRuntime({
     canLoadVisualContext,
     canUseAiRecommendation,
     handleIntelligencePanelVisible,
+    handleLoadSegmentConcordance,
     handleReloadConcordance: (segmentId: string) =>
       intelligenceController.reloadConcordance(segmentId),
   };

@@ -1,0 +1,32 @@
+---
+title: "v1.13.6"
+description: "Go CLI release notes for v1.13.6."
+---
+
+`hl run` and `hl entries` now support PDF documents and plain text (`.txt`) files. PDFs are read from the native text layer, keyed by page and layout block, and written back into a copy of the source file. Plain text splits on paragraph breaks and writes targets with the same line endings and layout.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.13.6) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.13.5...v1.13.6)
+
+## Breaking changes
+
+None.
+
+## Features
+
+- Add [PDF documents](https://github.com/hyperlocalise/hyperlocalise/pull/2969) (`.pdf`). The CLI extracts text objects on each page, groups them into blocks by layout, and keys them as `page-1#1` (page 1, block 1). Context reads `Page 1, block 1`. Scanned PDFs without a selectable text layer fail ingest. Text in form XObjects, annotations, and form fields is not extracted. Writeback copies the source PDF, replaces block text with approved translations, wraps and scales fonts to fit, and reports overflow keys when a block still does not fit. See [Translate PDF documents](/cli/reference/formats/pdf).
+- Add [plain text files](https://github.com/hyperlocalise/hyperlocalise/pull/2963) (`.txt`). Paragraphs are separated by one or more blank lines; line breaks inside a paragraph are preserved. Segments use sequential keys such as `txt.0001`. Target alignment uses content fingerprints so inserting or removing paragraphs in the target does not shift unrelated strings during `hl check`. See [Translate plain text](/cli/reference/formats/plain-text).
+
+## Performance
+
+- [Reuse a forms slice buffer](https://github.com/hyperlocalise/hyperlocalise/pull/2976) while parsing and inspecting gettext PO catalogs, cutting per-entry allocations during `poWalkState.reset()`.
+- [Skip UTF-8 rune counting](https://github.com/hyperlocalise/hyperlocalise/pull/2984) in `sanitizePromptContext` when the trimmed string’s byte length is already within the limit.
+
+## Tests
+
+- PDF block extraction, writeback, wrapping overflow, and segment validation as an office-style format.
+- Plain text paragraph splitting, keys, and document writeback.
+- PO parser allocation benchmarks after the forms buffer reuse.
+
+## Maintenance
+
+- Add [`go-pdfium`](https://github.com/hyperlocalise/hyperlocalise/pull/2969) for PDF text-layer read and write.

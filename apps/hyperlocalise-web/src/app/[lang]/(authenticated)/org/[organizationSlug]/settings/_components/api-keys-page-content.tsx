@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { Add01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, CopyIcon, CheckIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -33,7 +32,8 @@ import { Input } from "@/components/ui/input";
 import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { type AccessTokenSummary } from "./access-token-lifecycle";
 import { apiKeysPageContentMessages } from "./api-keys-page-content.messages";
@@ -45,6 +45,7 @@ const apiKeysQueryKey = (organizationSlug: string) => ["api-keys", organizationS
 export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
@@ -54,33 +55,28 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
   const apiKeysQuery = useQuery({
     queryKey: apiKeysQueryKey(organizationSlug),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["api-keys"].$get({
-        param: { organizationSlug },
-      });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(apiKeysPageContentMessages.loadFailed));
+      try {
+        const body = await goSvcClient.apiKey.list(organizationSlug);
+        return (body.apiKeys ?? []) as AccessTokenSummary[];
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(apiKeysPageContentMessages.loadFailed)),
+          { cause: error },
+        );
       }
-      const body = await response.json();
-      return (body.apiKeys ?? []) as AccessTokenSummary[];
     },
   });
 
   const createKey = useMutation({
     mutationFn: async (name: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["api-keys"].$post({
-        param: { organizationSlug },
-        json: { name },
-      });
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        if (body && typeof body === "object" && "error" in body) {
-          throw new Error(String(body.error));
-        }
-        throw new Error(intl.formatMessage(apiKeysPageContentMessages.createFailed));
+      try {
+        return await goSvcClient.apiKey.create(organizationSlug, { name });
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(apiKeysPageContentMessages.createFailed)),
+          { cause: error },
+        );
       }
-      return response.json() as Promise<{
-        apiKey: { id: string; name: string; key: string; keyPrefix: string };
-      }>;
     },
     onSuccess: async (data) => {
       setCreatedKey(data.apiKey.key);
@@ -94,13 +90,13 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
 
   const revokeKey = useMutation({
     mutationFn: async (apiKeyId: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["api-keys"][
-        ":apiKeyId"
-      ].$delete({
-        param: { organizationSlug, apiKeyId },
-      });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(apiKeysPageContentMessages.revokeFailed));
+      try {
+        await goSvcClient.apiKey.revoke(organizationSlug, apiKeyId);
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(apiKeysPageContentMessages.revokeFailed)),
+          { cause: error },
+        );
       }
     },
     onSuccess: async () => {
@@ -147,11 +143,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
       <Rows spacing="4u">
         <Row spacing="2u" align="spaceBetween" alignY="start">
           <div className="min-w-0 flex-1">
-            <SettingsPageHeader
-              eyebrow={intl.formatMessage(apiKeysPageContentMessages.pageLabel)}
-              title={intl.formatMessage(apiKeysPageContentMessages.pageTitle)}
-              description={intl.formatMessage(apiKeysPageContentMessages.pageDescription)}
-            />
+            <SettingsPageHeader title={intl.formatMessage(apiKeysPageContentMessages.pageTitle)} />
           </div>
           <Button
             type="button"
@@ -159,7 +151,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
             onClick={() => setIsCreateOpen(true)}
             disabled={createKey.isPending}
           >
-            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
+            <PlusIcon data-icon="inline-start" />
             <FormattedMessage {...apiKeysPageContentMessages.createButton} />
           </Button>
         </Row>
@@ -246,12 +238,12 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                 >
                   {copied ? (
                     <>
-                      <HugeiconsIcon icon={Tick02Icon} strokeWidth={1.8} className="size-4" />
+                      <CheckIcon className="size-4" />
                       <FormattedMessage {...apiKeysPageContentMessages.copied} />
                     </>
                   ) : (
                     <>
-                      <HugeiconsIcon icon={Copy01Icon} strokeWidth={1.8} className="size-4" />
+                      <CopyIcon className="size-4" />
                       <FormattedMessage {...apiKeysPageContentMessages.copy} />
                     </>
                   )}

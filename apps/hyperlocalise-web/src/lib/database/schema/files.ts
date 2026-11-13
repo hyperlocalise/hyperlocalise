@@ -12,6 +12,8 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
+  boolean,
   index,
   integer,
   jsonb,
@@ -35,6 +37,15 @@ import { projects } from "./projects";
 import { interactions, workspaceAutomations } from "./agents";
 import { jobs } from "./jobs";
 import { organizationApiKeys } from "./integrations";
+import type { RepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
+import type { RepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings-schema";
+import type { SourceFileSyncReport } from "@/lib/projects/files/source-file-sync-report";
+import type { MessageFormat } from "@/lib/i18n/message-format";
+
+export type { RepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
+export { defaultRepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
+export type { RepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings-schema";
+export { defaultRepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings-schema";
 
 /**
  * Stores metadata for files kept in object storage, including tenant/project scope, source provenance, role, storage location, content metadata, hashes, and audit timestamps.
@@ -120,6 +131,31 @@ export const repositorySourceFiles = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     sourcePath: text("source_path").notNull(),
+    /**
+     * Native version branch this file belongs to. Defaults to `main` so existing
+     * uploads stay on the default branch without a backfill of application code.
+     */
+    branchName: text("branch_name").notNull().default("main"),
+    segmentationSettings: jsonb("segmentation_settings")
+      .$type<RepositorySourceFileSegmentationSettings>()
+      .notNull()
+      .default(sql`'{"enabled":false,"template":"default"}'::jsonb`),
+    /** Placeholder syntax used by validation: auto, icu, or i18next. */
+    messageFormat: text("message_format").$type<MessageFormat>().notNull().default("auto"),
+    /** Custom placeholder regular expressions used by validation and the editor. */
+    placeholderPatterns: jsonb("placeholder_patterns")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /** Format-specific import filters applied on ingest. */
+    importSettings: jsonb("import_settings")
+      .$type<RepositorySourceFileImportSettings>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    reconciledSourceFileVersionId: uuid("reconciled_source_file_version_id").references(
+      (): AnyPgColumn => repositorySourceFileVersions.id,
+      { onDelete: "set null" },
+    ),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -127,8 +163,13 @@ export const repositorySourceFiles = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("repository_source_files_project_path_key").on(table.projectId, table.sourcePath),
+    uniqueIndex("repository_source_files_project_branch_path_key").on(
+      table.projectId,
+      table.branchName,
+      table.sourcePath,
+    ),
     index("idx_repository_source_files_org_project").on(table.organizationId, table.projectId),
+    index("idx_repository_source_files_reconciled_version").on(table.reconciledSourceFileVersionId),
   ],
 );
 
@@ -162,14 +203,18 @@ export const repositorySourceFileVersions = pgTable(
       onDelete: "set null",
     }),
     uploadSurface: text("upload_surface"),
+    // The uploader asked to keep approved translations approved for this version's source changes.
+    keepApprovedTranslations: boolean("keep_approved_translations").notNull().default(false),
     ingestState: repositorySourceFileIngestStateEnum("ingest_state").notNull().default("pending"),
     ingestError: text("ingest_error"),
     ingestedAt: timestamp("ingested_at", { withTimezone: true }),
     ingestWorkflowRunId: text("ingest_workflow_run_id"),
+    /** What a repository sync's ingest could not settle on its own: see `SourceFileSyncReport`. */
+    syncReport: jsonb("sync_report").$type<SourceFileSyncReport>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("repository_source_file_versions_stored_file_key").on(table.storedFileId),
+    index("idx_repository_source_file_versions_stored_file").on(table.storedFileId),
     index("idx_repository_source_file_versions_file_created").on(
       table.repositorySourceFileId,
       table.createdAt,

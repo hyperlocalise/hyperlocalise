@@ -15,19 +15,47 @@
 import { useEffect, useMemo, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Extension, type Extensions } from "@tiptap/core";
+import { Extension, type Extensions, type JSONContent } from "@tiptap/core";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import type { MessageFormat } from "@/lib/i18n/message-format";
 import { cn } from "@/lib/primitives/cn";
 
+import { inferSupportedDocumentTranslationFileFormat } from "@/lib/translation/file-formats";
+
+import {
+  canUseMarkdownCatEditor,
+  isStructuralMarkdownMarkupToken,
+  markdownDisplayDocFromModel,
+  markdownDisplayModel,
+  persistMarkdownCatTarget,
+  serializeMarkdownEditorDoc,
+  shouldUseMarkdownCatDisplay,
+  sourceHeadingIdLiteral,
+} from "@/components/content-editor/message-format/content-editor-markdown-display";
+import {
+  stripInternalMarkupSentinels,
+  stripLeakedInternalMarkupFromStoredMessage,
+} from "@/components/content-editor/message-format/content-editor-internal-markup";
+import {
+  joinOfficeTarget,
+  officeRunDisplayLines,
+  officeRunDocFromLines,
+  officeRunLayout,
+  serializeOfficeRunDoc,
+  splitOfficeTarget,
+  type OfficeRunLayout,
+} from "@/components/content-editor/message-format/content-editor-office-runs";
+import { formatMarkdownMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-markdown-markup";
 import {
   analyzeCatMessageFormat,
   contentEditorMessageTokenSignature,
   compareCatMessageFormats,
-  missingCatMessageTokens,
+  missingCatMessageTokensFromAnalysis,
   type ContentEditorIcuBlockSummary,
   type ContentEditorMessageAnalysis,
   type ContentEditorMessageToken,
@@ -37,7 +65,67 @@ import {
   contentEditorMessageTokenToneClass,
   type ContentEditorMessageTokenVisualKind,
 } from "@/components/content-editor/message-format/content-editor-message-token-styles";
+import { glossaryTermRanges } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
+import { ContentEditorCharacterMeter } from "@/components/content-editor/segment/content-editor-character-meter";
+import {
+  markContentEditorTargetInsertFocused,
+  registerContentEditorTargetInsert,
+} from "@/components/content-editor/editor/content-editor-target-insert";
 import { contentEditorTargetEditorMessages } from "@/components/content-editor/shared/content-editor.messages";
+
+const TEXT_BLOCK_SEPARATOR = "\n";
+const TEXT_LEAF_TEXT = "\n";
+
+type TextOffsetRange = {
+  offsetStart: number;
+  offsetEnd: number;
+  posStart: number;
+};
+
+function documentSearchText(doc: ProseMirrorNode) {
+  return doc.textBetween(0, doc.content.size, TEXT_BLOCK_SEPARATOR, TEXT_LEAF_TEXT);
+}
+
+/**
+ * Map offsets in `documentSearchText` back to document positions.
+ * `textBetween` inserts the block separator before every textblock after the
+ * first, including empty paragraphs, so a blank line contributes two newlines.
+ */
+export function contentEditorTextOffsetRanges(doc: ProseMirrorNode): TextOffsetRange[] {
+  const textRanges: TextOffsetRange[] = [];
+  let offset = 0;
+  let seenSeparatorBlock = false;
+
+  doc.descendants((node, pos) => {
+    const leafText = node.isLeaf && !node.isText ? TEXT_LEAF_TEXT : "";
+    const isSeparatorBlock =
+      node.isBlock && ((node.isLeaf && leafText.length > 0) || node.isTextblock);
+
+    if (isSeparatorBlock) {
+      if (seenSeparatorBlock) {
+        offset += TEXT_BLOCK_SEPARATOR.length;
+      } else {
+        seenSeparatorBlock = true;
+      }
+    }
+
+    if (node.isText && node.text) {
+      textRanges.push({
+        offsetStart: offset,
+        offsetEnd: offset + node.text.length,
+        posStart: pos,
+      });
+      offset += node.text.length;
+      return;
+    }
+
+    if (leafText) {
+      offset += leafText.length;
+    }
+  });
+
+  return textRanges;
+}
 
 function textDocFromValue(value: string) {
   const lines = value.split("\n");
@@ -48,6 +136,46 @@ function textDocFromValue(value: string) {
       content: line ? [{ type: "text", text: line }] : undefined,
     })),
   };
+}
+
+function createOfficeRunKeyboardExtension(isActive: () => boolean) {
+  return Extension.create({
+    name: "contentEditorOfficeRunKeyboard",
+    addKeyboardShortcuts() {
+      return {
+        Enter: ({ editor }) => {
+          if (!isActive()) {
+            return false;
+          }
+          const { state } = editor;
+          const { $from } = state.selection;
+          if (!$from.parent.isTextblock) {
+            return false;
+          }
+          const paragraphIndex = $from.index(0);
+          if (paragraphIndex >= state.doc.childCount - 1) {
+            return false;
+          }
+          let pos = 0;
+          for (let index = 0; index <= paragraphIndex; index += 1) {
+            pos += state.doc.child(index).nodeSize;
+          }
+          editor.commands.setTextSelection(pos + 1);
+          return true;
+        },
+        Backspace: ({ editor }) => {
+          if (!isActive()) {
+            return false;
+          }
+          const { $from } = editor.state.selection;
+          if ($from.parentOffset !== 0) {
+            return false;
+          }
+          return $from.index(0) > 0;
+        },
+      };
+    },
+  });
 }
 
 function editorText(editor: NonNullable<ReturnType<typeof useEditor>>) {
@@ -94,45 +222,71 @@ function decorationRangesForToken(
   });
 }
 
-function createCatMessageFormatExtension() {
+function createQaHighlightExtension(
+  getHighlight: () => { tokens: string[]; status: "warn" | "fail"; wholeTerm: boolean },
+) {
+  return Extension.create({
+    name: "contentEditorQaHighlights",
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: new PluginKey("contentEditorQaHighlights"),
+          props: {
+            decorations(state) {
+              const { tokens, status, wholeTerm } = getHighlight();
+              if (tokens.length === 0) {
+                return DecorationSet.empty;
+              }
+
+              const textRanges = contentEditorTextOffsetRanges(state.doc);
+              const text = documentSearchText(state.doc);
+              const decorations = highlightRangesForTokens(text, tokens, wholeTerm).flatMap(
+                (range) =>
+                  decorationRangesForToken(textRanges, {
+                    id: `qa-${range.start}`,
+                    kind: "argument",
+                    name: "qa",
+                    literal: "",
+                    start: range.start,
+                    end: range.end,
+                  }).map(({ from, to }) =>
+                    Decoration.inline(from, to, {
+                      class: qaHighlightClassName(status),
+                      "data-qa-highlight": "true",
+                    }),
+                  ),
+              );
+
+              return DecorationSet.create(state.doc, decorations);
+            },
+          },
+        }),
+      ];
+    },
+  });
+}
+
+function createCatMessageFormatExtension(
+  getPlaceholderPatterns: () => readonly string[] | undefined,
+) {
   return Extension.create({
     name: "contentEditorMessageFormatDecorations",
     addProseMirrorPlugins() {
+      let previousDocument: unknown;
+      let previousPatterns: readonly string[] | undefined;
+      let previousDecorations = DecorationSet.empty;
       return [
         new Plugin({
           key: new PluginKey("contentEditorMessageFormatDecorations"),
           props: {
             decorations(state) {
-              const textRanges: Array<{
-                offsetStart: number;
-                offsetEnd: number;
-                posStart: number;
-              }> = [];
-              let offset = 0;
-              let prevNodeEnd = -1;
-
-              state.doc.descendants((node, pos) => {
-                if (!node.isText || !node.text) {
-                  return;
-                }
-
-                // Account for the "\n" block separator that textBetween inserts
-                // between consecutive text nodes that belong to different blocks.
-                if (prevNodeEnd !== -1 && pos !== prevNodeEnd) {
-                  offset += 1;
-                }
-
-                textRanges.push({
-                  offsetStart: offset,
-                  offsetEnd: offset + node.text.length,
-                  posStart: pos,
-                });
-                offset += node.text.length;
-                prevNodeEnd = pos + node.text.length;
-              });
-
-              const text = state.doc.textBetween(0, state.doc.content.size, "\n", "\n");
-              const analysis = analyzeCatMessageFormat(text);
+              const placeholderPatterns = getPlaceholderPatterns();
+              if (state.doc === previousDocument && placeholderPatterns === previousPatterns) {
+                return previousDecorations;
+              }
+              const textRanges = contentEditorTextOffsetRanges(state.doc);
+              const text = documentSearchText(state.doc);
+              const analysis = analyzeCatMessageFormat(text, { placeholderPatterns });
               const decorations: Decoration[] = [];
 
               analysis.tokens.forEach((token) => {
@@ -167,7 +321,10 @@ function createCatMessageFormatExtension() {
                 });
               }
 
-              return DecorationSet.create(state.doc, decorations);
+              previousDocument = state.doc;
+              previousPatterns = placeholderPatterns;
+              previousDecorations = DecorationSet.create(state.doc, decorations);
+              return previousDecorations;
             },
           },
         }),
@@ -176,9 +333,17 @@ function createCatMessageFormatExtension() {
   });
 }
 
+const officeRunKeyboardRef = { current: () => false };
+
 const contentEditorTargetEditorExtensions = [
-  StarterKit.configure({ heading: false }),
-  createCatMessageFormatExtension(),
+  StarterKit.configure({
+    heading: false,
+    link: {
+      openOnClick: false,
+      HTMLAttributes: { class: "text-primary underline", target: null },
+    },
+  }),
+  createOfficeRunKeyboardExtension(() => officeRunKeyboardRef.current()),
 ] as unknown as Extensions;
 
 function tokenLabel(token: ContentEditorMessageToken) {
@@ -201,16 +366,110 @@ function presentTokenSignatures(analysis: ContentEditorMessageAnalysis) {
   return new Set(analysis.tokens.map((token) => contentEditorMessageTokenSignature(token)));
 }
 
-export function ContentEditorMessagePreview({
+function highlightRangesForTokens(text: string, tokens: string[], wholeTerm = false) {
+  const ranges: Array<{ start: number; end: number }> = [];
+  for (const token of tokens) {
+    if (!token) {
+      continue;
+    }
+    if (wholeTerm) {
+      ranges.push(...glossaryTermRanges(text, token));
+      continue;
+    }
+    let from = 0;
+    while (from < text.length) {
+      const index = text.indexOf(token, from);
+      if (index < 0) {
+        break;
+      }
+      ranges.push({ start: index, end: index + token.length });
+      from = index + token.length;
+    }
+  }
+  return ranges.toSorted((first, second) => first.start - second.start);
+}
+
+function qaHighlightClassName(status: "warn" | "fail" = "warn") {
+  return cn(
+    "box-decoration-clone rounded-sm",
+    status === "fail" ? "bg-destructive/20" : "bg-warning/25",
+  );
+}
+
+function renderHighlightedPlainText(
+  text: string,
+  tokens: string[],
+  status: "warn" | "fail",
+  keyPrefix: string,
+  wholeTerm: boolean,
+) {
+  const ranges = highlightRangesForTokens(text, tokens, wholeTerm);
+  if (ranges.length === 0) {
+    return text;
+  }
+
+  const parts: Array<{ key: string; text: string; highlighted: boolean }> = [];
+  let cursor = 0;
+  ranges.forEach((range, index) => {
+    if (range.start < cursor) {
+      return;
+    }
+    if (cursor < range.start) {
+      parts.push({
+        key: `${keyPrefix}-text-${cursor}`,
+        text: text.slice(cursor, range.start),
+        highlighted: false,
+      });
+    }
+    parts.push({
+      key: `${keyPrefix}-mark-${index}`,
+      text: text.slice(range.start, range.end),
+      highlighted: true,
+    });
+    cursor = range.end;
+  });
+  if (cursor < text.length) {
+    parts.push({
+      key: `${keyPrefix}-text-${cursor}`,
+      text: text.slice(cursor),
+      highlighted: false,
+    });
+  }
+
+  return parts.map((part) =>
+    part.highlighted ? (
+      <mark key={part.key} data-qa-highlight="true" className={qaHighlightClassName(status)}>
+        {part.text}
+      </mark>
+    ) : (
+      <span key={part.key}>{part.text}</span>
+    ),
+  );
+}
+
+function ContentEditorMessageFormatParts({
   message,
-  className,
+  companionMessage,
+  placeholderPatterns,
+  highlightTokens,
+  highlightStatus,
+  highlightWholeTerm,
 }: {
   message: string;
-  className?: string;
+  companionMessage?: string;
+  placeholderPatterns?: readonly string[];
+  highlightTokens: string[];
+  highlightStatus: "warn" | "fail";
+  highlightWholeTerm: boolean;
 }) {
-  const analysis = useMemo(() => analyzeCatMessageFormat(message), [message]);
+  const analysis = analyzeCatMessageFormat(message, { placeholderPatterns });
+  const displayMessage = analysis.message;
   const ranges = analysis.tokens
-    .filter((token) => token.kind !== "pound")
+    .filter(
+      (token) =>
+        token.kind !== "pound" &&
+        !isStructuralMarkdownMarkupToken(token, message, companionMessage),
+    )
     .toSorted((first, second) => first.start - second.start)
     .reduce<ContentEditorMessageToken[]>((items, token) => {
       const previous = items.at(-1);
@@ -221,48 +480,158 @@ export function ContentEditorMessagePreview({
     }, []);
 
   if (ranges.length === 0) {
-    return <span className={className}>{message}</span>;
+    return renderHighlightedPlainText(
+      displayMessage,
+      highlightTokens,
+      highlightStatus,
+      "plain",
+      highlightWholeTerm,
+    );
   }
 
   let cursor = 0;
   const parts: Array<{ text: string; token?: ContentEditorMessageToken; key: string }> = [];
   ranges.forEach((token) => {
     if (cursor < token.start) {
-      parts.push({ key: `text-${cursor}`, text: message.slice(cursor, token.start) });
+      parts.push({ key: `text-${cursor}`, text: displayMessage.slice(cursor, token.start) });
     }
     parts.push({
       key: token.id,
       text:
         token.kind === "markup"
           ? (token.displayLabel ?? token.name)
-          : message.slice(token.start, token.end),
+          : displayMessage.slice(token.start, token.end),
       token,
     });
     cursor = token.end;
   });
 
-  if (cursor < message.length) {
-    parts.push({ key: `text-${cursor}`, text: message.slice(cursor) });
+  if (cursor < displayMessage.length) {
+    parts.push({ key: `text-${cursor}`, text: displayMessage.slice(cursor) });
+  }
+
+  return parts.map((part) =>
+    part.token ? (
+      <span
+        key={part.key}
+        className={cn(
+          "rounded-md border px-1 py-0.5 font-mono text-[0.9em]",
+          contentEditorMessageTokenToneClass(tokenVisualKind(part.token)),
+        )}
+        title={part.token.kind === "markup" ? part.token.literal : undefined}
+      >
+        {part.text}
+      </span>
+    ) : (
+      <span key={part.key}>
+        {renderHighlightedPlainText(
+          part.text,
+          highlightTokens,
+          highlightStatus,
+          part.key,
+          highlightWholeTerm,
+        )}
+      </span>
+    ),
+  );
+}
+
+export function ContentEditorMessagePreview({
+  message,
+  companionMessage,
+  className,
+  placeholderPatterns,
+  highlightTokens = [],
+  highlightStatus = "warn",
+  highlightWholeTerm = false,
+}: {
+  message: string;
+  companionMessage?: string;
+  className?: string;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: readonly string[];
+  highlightTokens?: string[];
+  highlightStatus?: "warn" | "fail";
+  highlightWholeTerm?: boolean;
+}) {
+  const markdown = useMemo(() => {
+    if (!shouldUseMarkdownCatDisplay(message, companionMessage)) {
+      return null;
+    }
+    return markdownDisplayModel(message, companionMessage);
+  }, [companionMessage, message]);
+  const displayMessage = useMemo(
+    () => formatMarkdownMarkupForDisplay(message, companionMessage),
+    [companionMessage, message],
+  );
+
+  const officeLines = useMemo(() => officeRunDisplayLines(message), [message]);
+
+  if (officeLines) {
+    return (
+      <span className={cn("block whitespace-pre-wrap", className)}>
+        {officeLines.map((line, index) => (
+          <span key={index} className="block">
+            {renderHighlightedPlainText(
+              line,
+              highlightTokens,
+              highlightStatus,
+              `office-run-${index}`,
+              highlightWholeTerm,
+            )}
+          </span>
+        ))}
+      </span>
+    );
+  }
+
+  if (markdown) {
+    return (
+      <span className={className}>
+        {markdown.spans.map((span, index) =>
+          span.type === "link" ? (
+            <a
+              key={`link-${index}`}
+              href={span.href || undefined}
+              title={span.href}
+              className="text-primary underline"
+              onClick={(event) => event.preventDefault()}
+            >
+              <ContentEditorMessageFormatParts
+                message={span.label}
+                companionMessage={companionMessage}
+                placeholderPatterns={placeholderPatterns}
+                highlightTokens={highlightTokens}
+                highlightStatus={highlightStatus}
+                highlightWholeTerm={highlightWholeTerm}
+              />
+            </a>
+          ) : (
+            <span key={`text-${index}`}>
+              <ContentEditorMessageFormatParts
+                message={span.text}
+                companionMessage={companionMessage}
+                placeholderPatterns={placeholderPatterns}
+                highlightTokens={highlightTokens}
+                highlightStatus={highlightStatus}
+                highlightWholeTerm={highlightWholeTerm}
+              />
+            </span>
+          ),
+        )}
+      </span>
+    );
   }
 
   return (
     <span className={className}>
-      {parts.map((part) =>
-        part.token ? (
-          <span
-            key={part.key}
-            className={cn(
-              "rounded-md border px-1 py-0.5 font-mono text-[0.9em]",
-              contentEditorMessageTokenToneClass(tokenVisualKind(part.token)),
-            )}
-            title={part.token.kind === "markup" ? part.token.literal : undefined}
-          >
-            {part.text}
-          </span>
-        ) : (
-          <span key={part.key}>{part.text}</span>
-        ),
-      )}
+      <ContentEditorMessageFormatParts
+        message={displayMessage}
+        placeholderPatterns={placeholderPatterns}
+        highlightTokens={highlightTokens}
+        highlightStatus={highlightStatus}
+        highlightWholeTerm={highlightWholeTerm}
+      />
     </span>
   );
 }
@@ -321,44 +690,158 @@ export function ContentEditorIcuStructureSummary({
 
 export function ContentEditorTargetEditor({
   sourceText,
+  sourcePath,
   value,
   maxLength,
   disabled = false,
   compact = false,
+  inline = false,
+  autoFocus = false,
+  ariaLabel,
+  highlightTokens,
+  highlightStatus = "warn",
+  highlightWholeTerm = false,
+  messageFormat,
+  placeholderPatterns,
   onChange,
 }: {
   sourceText: string;
+  sourcePath?: string;
   value: string;
   maxLength?: number;
+  messageFormat?: MessageFormat | null;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: readonly string[];
   disabled?: boolean;
   compact?: boolean;
+  inline?: boolean;
+  autoFocus?: boolean;
+  ariaLabel?: string;
+  highlightTokens?: string[];
+  highlightStatus?: "warn" | "fail";
+  highlightWholeTerm?: boolean;
   onChange: (value: string) => void;
 }) {
   const intl = useIntl();
   const valueRef = useRef(value);
   valueRef.current = value;
-  const sourceAnalysis = useMemo(() => analyzeCatMessageFormat(sourceText), [sourceText]);
-  const targetAnalysis = useMemo(() => analyzeCatMessageFormat(value), [value]);
+  const markdownMode =
+    inferSupportedDocumentTranslationFileFormat(sourcePath ?? "") !== "txt" &&
+    canUseMarkdownCatEditor(value, sourceText);
+  const headingLiteral = useMemo(
+    () => sourceHeadingIdLiteral(sourceText, value),
+    [sourceText, value],
+  );
+  const sourceTextRef = useRef(sourceText);
+  sourceTextRef.current = sourceText;
+  const headingLiteralRef = useRef(headingLiteral);
+  headingLiteralRef.current = headingLiteral;
+  const markdownModeRef = useRef(markdownMode);
+  markdownModeRef.current = markdownMode;
+  const highlightRef = useRef({
+    tokens: highlightTokens ?? [],
+    status: highlightStatus,
+    wholeTerm: highlightWholeTerm,
+  });
+  highlightRef.current = {
+    tokens: highlightTokens ?? [],
+    status: highlightStatus,
+    wholeTerm: highlightWholeTerm,
+  };
+  const placeholderPatternsRef = useRef(placeholderPatterns);
+  placeholderPatternsRef.current = placeholderPatterns;
+  const sourceAnalysis = useMemo(
+    () => analyzeCatMessageFormat(sourceText, { messageFormat, placeholderPatterns }),
+    [messageFormat, placeholderPatterns, sourceText],
+  );
+  const targetAnalysis = useMemo(
+    () => analyzeCatMessageFormat(value, { messageFormat, placeholderPatterns }),
+    [messageFormat, placeholderPatterns, value],
+  );
   const parityIssues = useMemo(
     () => compareCatMessageFormats(sourceAnalysis, targetAnalysis),
     [sourceAnalysis, targetAnalysis],
   );
   const missingTokens = useMemo(
-    () => missingCatMessageTokens(sourceText, value),
-    [sourceText, value],
+    () => missingCatMessageTokensFromAnalysis(sourceAnalysis, targetAnalysis),
+    [sourceAnalysis, targetAnalysis],
   );
   const targetSignatures = useMemo(() => presentTokenSignatures(targetAnalysis), [targetAnalysis]);
-  const sourceTokens = sourceAnalysis.tokens.filter((token) => token.kind !== "pound");
-  const characterCount = value.length;
+  const officeLayout = useMemo(() => officeRunLayout(sourceText), [sourceText]);
+  const officeRunMode = useMemo(() => {
+    if (!officeLayout || markdownMode) {
+      return false;
+    }
+    const cleaned = stripLeakedInternalMarkupFromStoredMessage(value);
+    if (!cleaned.trim()) {
+      return true;
+    }
+    return splitOfficeTarget(value, officeLayout) !== null;
+  }, [officeLayout, markdownMode, value]);
+  const officeRunLines = useMemo(() => {
+    if (!officeLayout) {
+      return null;
+    }
+    const cleaned = stripLeakedInternalMarkupFromStoredMessage(value);
+    if (!cleaned.trim()) {
+      return officeLayout.runs.map(() => "");
+    }
+    return splitOfficeTarget(value, officeLayout);
+  }, [officeLayout, value]);
+  const officeLayoutRef = useRef<OfficeRunLayout | null>(null);
+  officeLayoutRef.current = officeRunMode ? officeLayout : null;
+  officeRunKeyboardRef.current = () => officeRunMode;
+
+  const sourceTokens = sourceAnalysis.tokens.filter(
+    (token) => token.kind !== "pound" && !isStructuralMarkdownMarkupToken(token, sourceText, value),
+  );
+  const characterCount = markdownMode
+    ? markdownDisplayModel(value, sourceText).visibleText.length
+    : stripInternalMarkupSentinels(value).length;
   const isOverMaxLength = maxLength !== undefined && characterCount > maxLength;
 
+  function editorContentFromValue(): JSONContent {
+    if (markdownMode) {
+      return markdownDisplayDocFromModel(
+        markdownDisplayModel(stripLeakedInternalMarkupFromStoredMessage(value), sourceText),
+      ) as JSONContent;
+    }
+    if (officeRunMode && officeRunLines) {
+      return officeRunDocFromLines(officeRunLines.map((line) => line.trim())) as JSONContent;
+    }
+    return textDocFromValue(stripLeakedInternalMarkupFromStoredMessage(value)) as JSONContent;
+  }
+
+  function persistedEditorValue(activeEditor: NonNullable<ReturnType<typeof useEditor>>) {
+    const layout = officeLayoutRef.current;
+    if (layout && officeRunKeyboardRef.current()) {
+      return stripLeakedInternalMarkupFromStoredMessage(
+        joinOfficeTarget(serializeOfficeRunDoc(activeEditor.state.doc), layout),
+      );
+    }
+    if (!markdownModeRef.current) {
+      return stripLeakedInternalMarkupFromStoredMessage(editorText(activeEditor));
+    }
+    return stripLeakedInternalMarkupFromStoredMessage(
+      persistMarkdownCatTarget(
+        sourceTextRef.current,
+        serializeMarkdownEditorDoc(activeEditor.getJSON()),
+        headingLiteralRef.current,
+      ),
+    );
+  }
+
   const editor = useEditor({
-    extensions: contentEditorTargetEditorExtensions,
-    content: textDocFromValue(value),
+    extensions: [
+      ...contentEditorTargetEditorExtensions,
+      createCatMessageFormatExtension(() => placeholderPatternsRef.current),
+      createQaHighlightExtension(() => highlightRef.current),
+    ],
+    content: editorContentFromValue(),
     editable: !disabled,
     immediatelyRender: false,
     onUpdate: ({ editor: activeEditor }) => {
-      const nextValue = editorText(activeEditor);
+      const nextValue = persistedEditorValue(activeEditor);
       // Ignore no-op updates (e.g. mount/focus round-trips) so focusing a loaded
       // translation does not mark the segment as an unsaved draft.
       if (nextValue === valueRef.current) {
@@ -370,11 +853,13 @@ export function ContentEditorTargetEditor({
       attributes: {
         class: cn(
           compact
-            ? "min-h-10 px-3 py-2 text-sm leading-relaxed text-foreground focus:outline-none"
+            ? "min-h-8 px-2.5 py-1.5 text-sm leading-snug text-foreground focus:outline-none"
             : "min-h-36 px-4 py-4 text-lg leading-relaxed text-foreground focus:outline-none md:text-lg",
           "whitespace-pre-wrap break-words",
         ),
-        "aria-label": intl.formatMessage(contentEditorTargetEditorMessages.targetTranslationAria),
+        role: "textbox",
+        "aria-label":
+          ariaLabel ?? intl.formatMessage(contentEditorTargetEditorMessages.targetTranslationAria),
         "data-placeholder": intl.formatMessage(contentEditorTargetEditorMessages.targetPlaceholder),
         autocapitalize: "off",
         autocomplete: "off",
@@ -397,12 +882,55 @@ export function ContentEditorTargetEditor({
       return;
     }
 
-    if (editorText(editor) === value) {
+    if (persistedEditorValue(editor) === value) {
       return;
     }
 
-    editor.commands.setContent(textDocFromValue(value), { emitUpdate: false });
-  }, [editor, value]);
+    editor.commands.setContent(editorContentFromValue(), { emitUpdate: false });
+  }, [editor, markdownMode, officeRunLines, officeRunMode, sourceText, value]);
+
+  useEffect(() => {
+    if (autoFocus && editor) editor.commands.focus("end");
+  }, [autoFocus, editor]);
+
+  useEffect(() => {
+    // Redraw placeholder chips when the file's patterns load or change.
+    if (editor && !editor.isDestroyed) {
+      editor.view.dispatch(editor.state.tr.setMeta("addToHistory", false));
+    }
+  }, [editor, placeholderPatterns]);
+
+  useEffect(() => {
+    if (!editor || disabled) {
+      return;
+    }
+
+    const insert = (text: string) => {
+      if (!editor.isEditable) {
+        return false;
+      }
+      editor.chain().focus().insertContent(text).run();
+      return true;
+    };
+
+    const unregister = registerContentEditorTargetInsert(insert);
+    const onFocus = () => markContentEditorTargetInsertFocused(insert);
+    editor.on("focus", onFocus);
+    return () => {
+      editor.off("focus", onFocus);
+      unregister();
+    };
+  }, [disabled, editor]);
+
+  const highlightTokenKey = (highlightTokens ?? []).join("\0");
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    editor.view.dispatch(editor.state.tr.setMeta("contentEditorQaHighlights", highlightTokenKey));
+  }, [editor, highlightStatus, highlightTokenKey, highlightWholeTerm]);
 
   function insertToken(token: ContentEditorMessageToken) {
     if (!editor || disabled) {
@@ -416,17 +944,22 @@ export function ContentEditorTargetEditor({
       .run();
   }
 
+  const showCharacterCount = !inline && (maxLength !== undefined || characterCount > 0);
+  const characterCountLabel = showCharacterCount ? (
+    <ContentEditorCharacterMeter count={characterCount} maxLength={maxLength} variant="compact" />
+  ) : null;
+
   return (
-    <div className={cn("space-y-2", compact && "space-y-1.5")}>
+    <div className={cn(!compact && "space-y-2")}>
       <div
         className={cn(
           compact
-            ? "rounded-lg border border-border bg-background transition-colors"
+            ? "overflow-hidden rounded-lg border border-border bg-background transition-colors"
             : "rounded-2xl border border-border bg-background shadow-sm transition-colors",
           "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
           "[&_.cat-mf-token]:rounded-md [&_.cat-mf-token]:px-1 [&_.cat-mf-token]:py-0.5 [&_.cat-mf-token]:font-mono [&_.cat-mf-token]:text-[0.9em]",
           // Collapse raw HL*PH sentinel glyphs; ::before paints the short MD#n / HT#n / LQ#n chip.
-          "[&_.cat-mf-markup-chip]:text-[0px] [&_.cat-mf-markup-chip]:leading-none",
+          "[&_.cat-mf-token.cat-mf-markup-chip]:text-[0px] [&_.cat-mf-token.cat-mf-markup-chip]:leading-none",
           "[&_.cat-mf-markup-chip::before]:content-[attr(data-cat-label)] [&_.cat-mf-markup-chip::before]:text-[0.9rem]",
           "[&_.cat-mf-markup-chip::before]:font-mono [&_.cat-mf-markup-chip::before]:leading-normal",
           "[&_.tiptap_p.is-editor-empty:first-child::before]:text-muted-foreground",
@@ -444,45 +977,22 @@ export function ContentEditorTargetEditor({
           <div
             className={cn(
               "text-muted-foreground",
-              compact ? "min-h-10 px-3 py-2 text-sm" : "min-h-36 px-4 py-4 text-lg",
+              compact ? "min-h-8 px-2.5 py-1.5 text-sm" : "min-h-36 px-4 py-4 text-lg",
             )}
           />
         )}
+        {compact && characterCountLabel ? (
+          <div className="flex justify-end border-t border-border/70 px-2.5 py-1">
+            {characterCountLabel}
+          </div>
+        ) : null}
       </div>
 
-      <div className="flex justify-end px-1">
-        <p
-          className={cn(
-            "text-xs tabular-nums",
-            isOverMaxLength ? "font-medium text-destructive" : "text-muted-foreground",
-          )}
-          aria-live="polite"
-          aria-label={
-            maxLength !== undefined
-              ? intl.formatMessage(contentEditorTargetEditorMessages.characterCountAria, {
-                  count: characterCount,
-                  maxLength,
-                })
-              : intl.formatMessage(contentEditorTargetEditorMessages.characterCountOnlyAria, {
-                  count: characterCount,
-                })
-          }
-        >
-          {maxLength !== undefined ? (
-            <FormattedMessage
-              {...contentEditorTargetEditorMessages.characterCount}
-              values={{ count: characterCount, maxLength }}
-            />
-          ) : (
-            <FormattedMessage
-              {...contentEditorTargetEditorMessages.characterCountOnly}
-              values={{ count: characterCount }}
-            />
-          )}
-        </p>
-      </div>
+      {!compact && characterCountLabel ? (
+        <div className="flex justify-end px-1">{characterCountLabel}</div>
+      ) : null}
 
-      {sourceTokens.length > 0 ? (
+      {sourceTokens.length > 0 && !inline && !officeRunMode ? (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="me-1 text-xs font-medium text-muted-foreground">
             <FormattedMessage {...contentEditorTargetEditorMessages.requiredTokens} />

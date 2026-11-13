@@ -23,7 +23,7 @@ Add `ai_gateway` as a built-in LLM provider.
 | Optional env | `AI_GATEWAY_BASE_URL` |
 | Default base URL | `https://ai-gateway.vercel.sh/v1` |
 | Client | Existing OpenAI-compatible chat completions helper |
-| Model IDs | Passed through unchanged (`openai/gpt-5.6-luna`, `anthropic/claude-opus-5`) |
+| Model IDs | Passed through unchanged (`openai/gpt-6-luna`, `anthropic/claude-opus-5`) |
 
 Auth is the Gateway API key only. The CLI does not read `VERCEL_OIDC_TOKEN`.
 Image localization stays OpenAI-only; this change covers text translation and

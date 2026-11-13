@@ -12,8 +12,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
+	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
+	"github.com/hyperlocalise/hyperlocalise/internal/guidelines/check"
+	guidelinepg "github.com/hyperlocalise/hyperlocalise/internal/guidelines/postgres"
+	"github.com/hyperlocalise/hyperlocalise/internal/postgres"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/workos/workos-go/v10"
 )
 
 const (
@@ -22,6 +29,8 @@ const (
 	serverWriteTimeout      = 75 * time.Second
 	serverIdleTimeout       = 60 * time.Second
 	serverShutdownTimeout   = 10 * time.Second
+	// telemetryShutdownReserve reserves part of the shutdown budget for flushing spans.
+	telemetryShutdownReserve = 2 * time.Second
 
 	defaultHunspellDictDir = "/usr/share/hunspell"
 )
@@ -38,7 +47,12 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 }
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	slog.SetDefault(slog.New(newDatadogLogHandler(slog.NewJSONHandler(os.Stdout, nil))))
+
+	shutdownTelemetry, err := initTelemetry(context.Background())
+	if err != nil {
+		log.Printf("configure telemetry: %v; continuing without tracing", err)
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -69,7 +83,96 @@ func main() {
 	}()
 
 	h := newHandler()
+	activityLogPublisher, activityLogErr := newActivityLogPublisher(context.Background())
+	if activityLogErr != nil {
+		log.Printf("configure activity log publisher: %v", activityLogErr)
+	}
+	h.activityLog = activityLogPublisher
+	interchangePublisher, interchangeErr := newGlossaryInterchangePublisher(context.Background())
+	if interchangeErr != nil {
+		log.Printf("configure glossary interchange publisher: %v", interchangeErr)
+	}
+	memoryInterchangePublisher, memoryInterchangeErr := newMemoryInterchangePublisher(context.Background())
+	if memoryInterchangeErr != nil {
+		log.Printf("configure memory interchange publisher: %v", memoryInterchangeErr)
+	}
 	h.spellChecker = spellChecker
+	h.dictionaries = &dictionaryAPI{activityLog: activityLogPublisher}
+	tms := newTMSImportsFromEnv()
+	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher, interchange: interchangePublisher, tms: tms}
+	h.memories = &memoryAPI{
+		activityLog: activityLogPublisher,
+		interchange: memoryInterchangePublisher,
+		analytics:   newGAProductUsageTrackerFromEnv(),
+		tms:         tms,
+	}
+	h.qaReports = &qaReportAPI{activityLog: activityLogPublisher}
+	h.teams = &teamAPI{}
+	h.members = &memberAPI{
+		seats:     fallbackMemberSeats{limit: localSeatFallbackLimit},
+		analytics: newGAProductUsageTrackerFromEnv(),
+	}
+	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
+	h.sessionOrganizations = &sessionOrganizationsAPI{}
+	h.sessionAccount = &sessionAccountAPI{}
+	h.sessionOnboarding = &sessionOnboardingAPI{}
+	h.irisGeneration = &irisGenerationAPI{provider: newIrisGenerationProvider(), text: newIrisTextModel()}
+	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
+	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
+	h.notifications = &notificationsAPI{}
+	h.activityLogs = &activityLogAPI{}
+	h.billing = &billingAPI{}
+	visualContextMatchPublisher, visualContextMatchErr := newVisualContextMatchPublisher(context.Background())
+	if visualContextMatchErr != nil {
+		log.Printf("configure visual context match publisher: %v", visualContextMatchErr)
+	}
+	h.contentEditor = &editorCatAPI{matchPublisher: visualContextMatchPublisher}
+	h.projects = &projectAPI{activityLog: activityLogPublisher, tms: tms}
+	h.conversations = &conversationAPI{}
+	h.automations = &automationAPI{activityLog: activityLogPublisher}
+	h.overview = &overviewAPI{}
+	h.publicTranslations = &publicTranslationsAPI{auth: newPublicAPIAuthFromEnv(nil, nil)}
+	h.publicJobs = &publicJobsAPI{auth: h.publicTranslations.auth}
+	h.publicMemory = &publicMemoryAPI{auth: h.publicTranslations.auth, memories: h.memories}
+	if autumnKey := strings.TrimSpace(os.Getenv("AUTUMN_API_KEY")); autumnKey != "" {
+		if client, err := autumn.NewClient(autumn.Config{SecretKey: autumnKey}); err != nil {
+			log.Printf("configure autumn: %v", err)
+		} else {
+			h.autumn = client
+			h.issueSheets.autumn = autumnClientChecker{client: client}
+			h.members.seats = autumnMemberSeats{client: client}
+			h.projects.autumn = client
+			h.billing.autumn = client
+		}
+	}
+	var membershipLookup organizationMembershipLookup
+	var workosClient *workos.Client
+	if key := strings.TrimSpace(os.Getenv("WORKOS_API_KEY")); key != "" {
+		workosClient = workos.NewClient(key)
+		membershipLookup = func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
+			return workosClient.OrganizationMembership().Get(ctx, id)
+		}
+		h.members.workos = newLiveMemberWorkos(key, workosAPIBaseURL())
+		if identity := newLiveMemberWorkos(key, workosAPIBaseURL()); identity != nil {
+			h.sessionOnboarding.workos = identity
+		}
+		if identity := newLiveMemberWorkos(key, workosAPIBaseURL()); identity != nil {
+			h.workspaceSettings.workos = identity
+		}
+	}
+	h.workspace = &workspaceAPI{membership: membershipLookup, activityLog: activityLogPublisher}
+	if h.irisGeneration != nil {
+		h.irisGeneration.membership = membershipLookup
+	}
+	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
+	if h.autumn != nil {
+		h.knowledgeMemories.autumn = autumnClientChecker{client: h.autumn}
+	}
+	h.reports = newReportingAPI()
+	if workosClient != nil {
+		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
+		h.workspace.pipes = workosPipeTokens{client: workosClient}
+	}
 
 	if apiKey := strings.TrimSpace(os.Getenv("DATAFORSEO_API_KEY")); apiKey != "" {
 		client, err := dataforseo.NewClient(dataforseo.Config{APIKey: apiKey})
@@ -80,7 +183,42 @@ func main() {
 		}
 	}
 
+	var guidelinePool *pgxpool.Pool
 	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
+		pool, err := postgres.NewPool(context.Background(), databaseURL)
+		if err != nil {
+			log.Fatalf("configure dictionary store: %v", err)
+		}
+		defer pool.Close()
+		h.postgres = pool
+		guidelinePool = pool
+		traced := tracedPool{inner: pool}
+		h.dictionaries.pool = traced
+		h.glossaries.pool = traced
+		h.memories.pool = traced
+		h.qaReports.pool = traced
+		h.issueSheets.pool = traced
+		h.notifications.pool = traced
+		h.teams.pool = traced
+		h.members.pool = traced
+		h.workspaceSettings.pool = traced
+		h.sessionOrganizations.pool = traced
+		h.sessionAccount.pool = traced
+		h.sessionOnboarding.pool = traced
+		if h.irisGeneration != nil {
+			h.irisGeneration.pool = traced
+		}
+		h.apiKeys.pool = traced
+		h.activityLogs.pool = traced
+		h.billing.pool = traced
+		h.contentEditor.pool = traced
+		h.projects.pool = traced
+		h.conversations.pool = traced
+		h.automations.pool = traced
+		h.overview.pool = traced
+		h.reports.pool = traced
+		h.publicTranslations.auth.pool = traced
+		h.workspace.pool = traced
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
 		if err != nil {
 			log.Fatalf("configure experiment store: %v", err)
@@ -89,11 +227,110 @@ func main() {
 		h.ofrep = experiment.NewOFREPHandler(store)
 	}
 
+	storageCtx, cancelStorage := context.WithTimeout(context.Background(), 15*time.Second)
+	h.objects, err = configureObjectStorage(storageCtx)
+	cancelStorage()
+	if err != nil {
+		log.Fatalf("configure object storage: %v", err)
+	}
+	h.glossaries.objects = h.objects
+	h.memories.objects = h.objects
+	h.contentEditor.objects = h.objects
+	if h.irisGeneration != nil {
+		h.irisGeneration.objects = h.objects
+		if h.objects != nil {
+			h.irisGeneration.StartRecovery(context.Background())
+		}
+	}
+	guidelineIngestPublisher, guidelineIngestErr := newGuidelineIngestPublisher(context.Background())
+	if guidelineIngestErr != nil {
+		log.Printf("configure guideline ingest publisher: %v", guidelineIngestErr)
+	}
+	if guidelineIngestPublisher != nil {
+		h.knowledgeMemories.guidelineIngest = guidelineIngestPublisher
+	}
+	h.guidelineDocuments = newGuidelineDocumentAPI(h.knowledgeMemories, h.objects, guidelineIngestPublisher)
+
+	guidelinesCtx, cancelGuidelines := context.WithTimeout(context.Background(), 15*time.Second)
+	guidelineSearch, closeGuidelines, err := configureGuidelineSearch(guidelinesCtx)
+	cancelGuidelines()
+	if err != nil {
+		log.Fatalf("configure guideline search: %v", err)
+	}
+	defer closeGuidelines()
+	h.guidelines = guidelineSearch
+	h.guidelineCheck = &guidelineCheckAPI{knowledge: h.knowledgeMemories}
+	if h.autumn != nil {
+		h.guidelineCheck.meter = h.autumn
+		if h.irisGeneration != nil {
+			h.irisGeneration.meter = h.autumn
+		}
+	}
+	checkModel, err := newGuidelineCheckModel()
+	if err != nil {
+		log.Fatalf("configure guideline check model: %v", err)
+	}
+	// Without a search index, checks still apply mandatory guidelines.
+	checkRetriever := guidelineSearch
+	if checkRetriever == nil && guidelinePool != nil {
+		checkRetriever = guidelines.NewService(guidelinepg.NewWithPool(guidelinePool), nil)
+	}
+	if checkRetriever != nil && guidelinePool != nil {
+		h.guidelineRetrieve = &guidelineRetrieveAPI{retriever: checkRetriever, pool: guidelinePool}
+	}
+
+	valkeyCtx, cancelValkey := context.WithTimeout(context.Background(), 5*time.Second)
+	valkeyClient, err := configureValkey(valkeyCtx)
+	cancelValkey()
+	if err != nil {
+		log.Fatalf("configure valkey: %v", err)
+	}
+	if valkeyClient != nil {
+		h.valkey = valkeyClient
+		h.overviewCache = valkeyClient
+		h.researchCache = valkeyClient
+		h.dictionaries.wordsCache = valkeyClient
+		h.glossaries.readCache = valkeyClient
+		defer valkeyClient.Close()
+	}
+	if checkModel != nil && checkRetriever != nil {
+		var checkOpts []check.Option
+		if valkeyClient != nil {
+			checkOpts = append(checkOpts, check.WithCache(valkeyClient))
+		}
+		h.guidelineCheck.checker = check.New(checkRetriever, checkModel, checkOpts...)
+	}
+	membershipLookup = newCachedOrganizationMembershipLookup(membershipLookup, valkeyClient)
+	h.dictionaries.membership = membershipLookup
+	h.glossaries.membership = membershipLookup
+	h.memories.membership = membershipLookup
+	h.qaReports.membership = membershipLookup
+	h.teams.membership = membershipLookup
+	h.members.membership = membershipLookup
+	h.workspaceSettings.membership = membershipLookup
+	h.apiKeys.membership = membershipLookup
+	h.issueSheets.membership = membershipLookup
+	h.notifications.membership = membershipLookup
+	h.activityLogs.membership = membershipLookup
+	h.billing.membership = membershipLookup
+	h.contentEditor.membership = membershipLookup
+	h.projects.membership = membershipLookup
+	h.conversations.membership = membershipLookup
+	h.automations.membership = membershipLookup
+	h.overview.membership = membershipLookup
+	h.overview.flags = h.workspace.flags
+	h.reports.membership = membershipLookup
+	h.reports.flags = newCachedWorkspaceFlags(h.workspace.flags)
+	h.publicTranslations.auth.membership = membershipLookup
+	h.workspace.membership = membershipLookup
+
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, verifier)
 
 	addr := ":" + port
-	server := newHTTPServer(addr, requestLogMiddleware(withOptionalPrefix(publicPathPrefix, mux)))
+	// Keep request logging inside tracing. requestLogMiddleware copies the mux
+	// Pattern back onto the outer request so spans keep the matched route.
+	server := newHTTPServer(addr, tracingMiddleware(requestLogMiddleware(corsMiddleware(mux))))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -118,11 +355,25 @@ func main() {
 
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
 		defer cancel()
-		if err := server.Shutdown(shutdownCtx); err != nil {
+
+		serverBudget := serverShutdownTimeout
+		if shutdownTelemetry != nil {
+			serverBudget -= telemetryShutdownReserve
+		}
+		serverShutdownCtx, serverCancel := context.WithTimeout(shutdownCtx, serverBudget)
+		defer serverCancel()
+		if err := server.Shutdown(serverShutdownCtx); err != nil {
 			log.Printf("graceful shutdown: %v", err)
 		}
 		if err := <-serveErrCh; err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("serve after shutdown: %v", err)
+		}
+
+		if shutdownTelemetry != nil {
+			// Use the overall shutdown context so telemetry gets the reserved flush window.
+			if err := shutdownTelemetry(shutdownCtx); err != nil {
+				log.Printf("shutdown telemetry: %v", err)
+			}
 		}
 	}
 }

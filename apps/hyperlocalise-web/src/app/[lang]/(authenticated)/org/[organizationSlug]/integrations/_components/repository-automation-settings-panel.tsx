@@ -54,6 +54,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { createApiClient } from "@/lib/api-client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { AutomationTimeZoneSelect } from "@/components/automation/automation-time-zone-select";
 import type { GithubRepositoryAutomationSettings } from "@/lib/agents/github/github-repository-automation-settings";
 import { cn } from "@/lib/primitives/cn";
@@ -163,6 +165,7 @@ export function RepositoryAutomationSettingsPanel({
 }: RepositoryAutomationSettingsPanelProps) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [form, setForm] = useState<GithubRepositoryAutomationFormState | null>(null);
   const [fieldErrors, setFieldErrors] = useState<GithubRepositoryAutomationFieldErrors>({});
   const [branchInput, setBranchInput] = useState("");
@@ -202,21 +205,21 @@ export function RepositoryAutomationSettingsPanel({
   const projectsQuery = useQuery({
     queryKey: ["org-projects", organizationSlug],
     queryFn: async () => {
-      const res = await api.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-
-      if (res.status !== 200) {
+      try {
+        const data = await goSvcClient.project.list(organizationSlug);
+        return data.projects.map((project) => ({
+          id: project.id,
+          name: project.name,
+        }));
+      } catch (error) {
         throw new Error(
-          intl.formatMessage(repositoryAutomationSettingsPanelMessages.loadProjectsFailed),
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(repositoryAutomationSettingsPanelMessages.loadProjectsFailed),
+          ),
+          { cause: error },
         );
       }
-
-      const data = await res.json();
-      return data.projects.map((project) => ({
-        id: project.id,
-        name: project.name,
-      }));
     },
     enabled: userCanManage,
   });

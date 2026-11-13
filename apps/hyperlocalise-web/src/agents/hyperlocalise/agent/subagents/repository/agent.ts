@@ -22,11 +22,13 @@ import {
   SUBAGENT_TIMEOUT,
 } from "@/lib/agent-runtime/subagents/constants";
 import type { SubagentCallOptions } from "@/lib/agent-runtime/subagents/types";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 
 const callOptionsSchema = z.object({
   toolContext: z.custom<SubagentCallOptions["toolContext"]>(),
   task: z.string(),
   instructions: z.string(),
+  languageModel: z.custom<SubagentCallOptions["languageModel"]>().optional(),
 });
 
 function buildRepositorySystemPrompt() {
@@ -40,23 +42,29 @@ ${SUBAGENT_NO_QUESTIONS_RULES}`;
 export const REPOSITORY_SYSTEM_PROMPT = buildRepositorySystemPrompt();
 
 export const repositorySubagent = new ToolLoopAgent({
+  // Replaced in prepareCall by the calling workspace's model.
   model: getHyperlocaliseAgentModel(),
   instructions: REPOSITORY_SYSTEM_PROMPT,
   stopWhen: isStepCount(SUBAGENT_STEP_LIMIT),
   timeout: SUBAGENT_TIMEOUT,
   callOptionsSchema,
   // @ts-expect-error Dynamic toolset is assembled in prepareCall from ToolContext.
-  prepareCall: ({ options, ...settings }) => {
+  prepareCall: async ({ options, ...settings }) => {
     if (!options) {
       throw new Error("Repository subagent requires call options.");
     }
 
     const tools = buildSubagentToolSet(options.toolContext, "repository");
     const activeTools = Object.keys(tools) as Array<keyof typeof tools>;
+    const languageModel =
+      options.languageModel ??
+      (await resolveHyperlocaliseAgentLanguageModel({
+        organizationId: options.toolContext.organizationId,
+      }));
 
     return {
       ...settings,
-      model: getHyperlocaliseAgentModel(),
+      model: languageModel.model,
       tools,
       activeTools: activeTools.length > 0 ? activeTools : undefined,
       instructions: `${REPOSITORY_SYSTEM_PROMPT}

@@ -17,6 +17,7 @@ import {
   siGithub,
   siGitlab,
   siGoogledrive,
+  siGooglesearchconsole,
   siHubspot,
   siIntercom,
   siJira,
@@ -44,6 +45,7 @@ export const integrationIconsByKey: Record<IntegrationIconKey, SimpleIcon> = {
   mailchimp: siMailchimp,
   loops: siLoops,
   googledrive: siGoogledrive,
+  googlesearchconsole: siGooglesearchconsole,
   atlassian: siAtlassian,
   similarweb: siSimilarweb,
   webflow: siWebflow,
@@ -67,6 +69,7 @@ const integrationIconsBySlug: Partial<Record<string, SimpleIcon>> = {
   similarweb: siSimilarweb,
   webflow: siWebflow,
   "google-drive": siGoogledrive,
+  "google-search-console": siGooglesearchconsole,
 };
 
 export function getIntegrationIconForKey(iconKey: IntegrationIconKey): SimpleIcon {

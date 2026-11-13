@@ -7,9 +7,9 @@ Filesystem-first agent packages for product runtime AI. Cursor coding-agent skil
 ```
 src/agents/
 ├── _runtime/           # Loader, compose-instructions, shared tools/skills
-├── hyperlocalise/      # Conversational orchestrator + subagents
+├── hyperlocalise/      # Conversational agent + repository subagent
 ├── email/
-└── automations/        # workspace, contentful, github-repository, provider-tms
+└── automations/        # workspace, contentful, github-repository
 ```
 
 Each package uses Eve-inspired slots under `agent/`:
@@ -32,6 +32,8 @@ Each package uses Eve-inspired slots under `agent/`:
 - **Execution**: `ToolLoopAgent` with `prepareStep` forcing each planned tool
 - **Tools**: GitHub workflows, Contentful translation, Queries list/create,
   Slack, and email notifications
+
+Skills are capabilities a customer attaches to an automation. The catalogue (name, tools, compatible triggers, shared skills) is `src/lib/agents/workspace-automation-skills.ts`; each skill's procedure is the markdown file with the same id under `skills/`. Attaching a skill in the editor switches on its tools in `toolConfig`, so the plan above is unchanged. At run time the attached skills' procedures are added to the orchestrator prompt and to the tools that run their own agent.
 
 Child executors remain specialized packages (`contentful`, `github-repository`) but are invoked as orchestrator tools rather than separate dispatch branches.
 

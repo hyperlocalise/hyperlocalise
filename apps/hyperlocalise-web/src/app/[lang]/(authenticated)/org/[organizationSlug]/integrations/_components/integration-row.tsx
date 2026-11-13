@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon, ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, ArrowUpRightIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { FormattedMessage } from "react-intl";
@@ -153,7 +152,7 @@ export function IntegrationRow({
         ) : action === "open" && href ? (
           <Button nativeButton={false} variant="outline" size="sm" render={<Link href={href} />}>
             <FormattedMessage {...integrationRowMessages.open} />
-            <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" strokeWidth={2} />
+            <ArrowUpRightIcon className="size-3.5" />
           </Button>
         ) : action === "view-only" ? (
           <TypographyMuted>
@@ -172,17 +171,15 @@ export function IntegrationRow({
             ) : (
               <FormattedMessage {...integrationRowMessages.connect} />
             )}
-            <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" strokeWidth={2} />
+            <ArrowUpRightIcon className="size-3.5" />
           </Button>
         ) : showPanel ? (
           <CollapsibleTrigger
             render={
               <Button type="button" variant="outline" size="sm">
                 <FormattedMessage {...integrationRowMessages.manage} />
-                <HugeiconsIcon
-                  icon={ArrowDown01Icon}
+                <CaretDownIcon
                   className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
-                  strokeWidth={2}
                 />
               </Button>
             }
@@ -251,10 +248,8 @@ export function CollapsibleIntegrationRow({
                 ) : (
                   <FormattedMessage {...integrationRowMessages.viewOnly} />
                 )}
-                <HugeiconsIcon
-                  icon={ArrowDown01Icon}
+                <CaretDownIcon
                   className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
-                  strokeWidth={2}
                 />
               </Button>
             }

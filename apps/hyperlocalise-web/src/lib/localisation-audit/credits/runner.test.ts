@@ -29,14 +29,13 @@ vi.mock("@/lib/agent-runtime/loops/model", () => ({
   getHyperlocaliseAgentModel: () => getHyperlocaliseAgentModelMock(),
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: () => ({
-    warn: vi.fn(),
-    info: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  }),
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: () => createTestLogger(),
+    serializeErrorForLog: vi.fn((error: Error) => ({ error })),
+  };
+});
 
 import { LOCALISATION_AUDIT_CREDITS } from "./catalog";
 import { runLocalisationAuditCredits } from "./runner";
@@ -207,8 +206,8 @@ describe("runLocalisationAuditCredits", () => {
     expect(result.credits.find((credit) => credit.id === "visual-hierarchy")).toEqual({
       id: "visual-hierarchy",
       dimension: "visual",
-      score: null,
-      method: "na",
+      score: 100,
+      method: "heuristic",
     });
     expect(result.credits.find((credit) => credit.id === "component-consistency")).toEqual({
       id: "component-consistency",

@@ -2,6 +2,7 @@ package runsvc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -10,6 +11,8 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/srx"
+	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -68,6 +71,7 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		in.ContextMemoryMaxChars = maxChars
 		assignContextKeys(planned, reportScope)
 	}
+	copyTasks, translatePlanned := splitCopyTasks(planned)
 	endRunSpan(planSpan, nil, "")
 
 	_, lockSpan := startRunSpan(ctx, "run.lock")
@@ -79,11 +83,12 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	initializeLockState(state)
 
 	activeRunID := ensureActiveRunID(state)
-	report, executable, checkpointStaged, lockMigrated, err := applyLockFilterWithReader(planned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force, s.readProjectFile, s.projectRoot)
+	report, executable, checkpointStaged, _, err := applyLockFilterWithReader(translatePlanned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force, s.readProjectFile, s.projectRoot)
 	if err != nil {
 		endRunSpan(lockSpan, err, "lock_filter")
 		return Report{}, err
 	}
+	report.PlannedTotal = len(planned)
 	executable, reusedByPrefill, prefillWarnings, prefillErr := applyPrefilledEntries(executable, checkpointStaged, in.PrefilledEntries, in.PrefilledByLocale, in.PrefilledTargetPath)
 	if prefillErr != nil {
 		endRunSpan(lockSpan, prefillErr, "apply_prefilled_entries")
@@ -102,8 +107,8 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	}
 	executable, deferredByLimit := applyMaxTranslationsLimit(executable, in.MaxTranslations)
 	report.DeferredByLimit = deferredByLimit
-	report.ExecutableTotal = len(executable)
-	report.Executable = append([]Task(nil), executable...)
+	report.Executable = append(append([]Task(nil), executable...), copyTasks...)
+	report.ExecutableTotal = len(executable) + len(copyTasks)
 
 	report.GeneratedAt = s.now()
 	report.ConfigPath = in.ConfigPath
@@ -136,16 +141,11 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	}
 	endRunSpan(pruneSpan, nil, "")
 
-	if in.DryRun || (len(executable) == 0 && len(report.PruneCandidates) == 0 && len(checkpointStaged) == 0) {
+	if in.DryRun || (len(executable) == 0 && len(copyTasks) == 0 && len(report.PruneCandidates) == 0 && len(checkpointStaged) == 0) {
 		if !in.DryRun {
-			lockChanged := lockMigrated
-			if s.reconcileLockEntries(in, planned, state) > 0 {
-				lockChanged = true
-			}
-			if lockChanged {
-				if err := s.saveLock(in.LockPath, *state); err != nil {
-					return report, fmt.Errorf("persist lock state: %w", err)
-				}
+			s.reconcileLockEntries(in, planned, state)
+			if err := s.saveLock(in.LockPath, *state); err != nil {
+				return report, fmt.Errorf("persist lock state: %w", err)
 			}
 		}
 		emitter.emit(completedEvent(report))
@@ -156,8 +156,13 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	// invalid runtime configuration fails the run before any work begins.
 	var mtEngines *mtEngineFactory
 	if mtProfileNames := selectedMTProfileNames(executable); len(mtProfileNames) > 0 {
-		mtEngines = newMTEngineFactory(mtProfilesFromConfig(cfg))
+		mtProfiles := mtProfilesFromConfig(cfg)
+		mtEngines = newMTEngineFactory(mtProfiles)
 		_, mtSpan := startRunSpan(ctx, "run.mt_engines")
+		mtSpan.SetAttributes(
+			attribute.StringSlice("run.mt_profiles", mtProfileNames),
+			attribute.StringSlice("mt.provider", distinctConfiguredProviders(mtProfiles, mtProfileNames)),
+		)
 		if err := mtEngines.BuildSelected(mtProfileNames); err != nil {
 			endRunSpan(mtSpan, err, "mt_engines")
 			emitter.emit(completedEvent(report))
@@ -166,20 +171,28 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		endRunSpan(mtSpan, nil, "")
 	}
 
+	// Context memory applies only to the LLM execution path.
+	llmTasks, mtTasks := partitionMTTasks(executable)
+
 	contextPlan := contextMemoryPlan{}
-	if in.ExperimentalContextMemory && len(executable) > 0 {
+	if in.ExperimentalContextMemory && len(llmTasks) > 0 {
 		_, cmSpan := startRunSpan(ctx, "run.context_memory")
 		emitter.emit(Event{Kind: EventPhase, Phase: PhaseContextMemory})
-		contextPlan = buildContextMemoryPlan(executable, in.ContextMemoryScope, in.ContextMemoryMaxChars)
+		contextPlan = buildContextMemoryPlan(llmTasks, in.ContextMemoryScope, in.ContextMemoryMaxChars)
 		endRunSpan(cmSpan, nil, "")
 	}
 
-	if len(executable) > 0 {
+	if len(executable) > 0 || len(copyTasks) > 0 {
 		emitter.emit(Event{Kind: EventPhase, Phase: PhaseExecuting})
 		if state.ActiveRunID == "" {
 			state.ActiveRunID = nextRunID(s.now())
 			activeRunID = state.ActiveRunID
 		}
+	} else if len(checkpointStaged) > 0 && state.ActiveRunID == "" {
+		// Prefill-only runs still flush outputs and must leave a lockfile so
+		// platform collect can tell completed keys from source fallbacks.
+		state.ActiveRunID = nextRunID(s.now())
+		activeRunID = state.ActiveRunID
 	}
 	parityRetry := &markdownParityRetryInput{
 		cfg:           cfg,
@@ -188,23 +201,60 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 		targetLocales: in.TargetLocales,
 		sourcePaths:   in.SourcePaths,
 	}
-	execCtx, execSpan := startRunSpan(ctx, "run.execute_pool")
-	execSpan.SetAttributes(attribute.Int("run.workers", in.Workers))
-	staged, flushedTargets, execReport, err := s.executePool(execCtx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, emitter, summaryReportMode, parityRetry)
-	endRunSpan(execSpan, err, "execute_pool")
-	report.Succeeded = execReport.Succeeded
-	report.Failed = execReport.Failed
-	report.PersistedToLock = execReport.PersistedToLock
-	report.TokenUsage = addTokenUsage(report.TokenUsage, execReport.TokenUsage)
-	report.LocaleUsage = mergeLocaleUsage(report.LocaleUsage, execReport.LocaleUsage)
-	report.Batches = execReport.Batches
-	report.Failures = append(report.Failures, execReport.Failures...)
-	report.ContextMemoryGenerated = execReport.ContextMemoryGenerated
-	report.ContextMemoryFallbackGroups = execReport.ContextMemoryFallbackGroups
-	report.Warnings = append(report.Warnings, execReport.Warnings...)
-	if err != nil {
-		emitter.emit(completedEvent(report))
-		return report, err
+	staged := checkpointStaged
+	if staged == nil {
+		staged = map[string]stagedOutput{}
+	}
+	flushedTargets := map[string]struct{}{}
+	if len(llmTasks) > 0 || len(mtTasks) > 0 {
+		execCtx, execSpan := startRunSpan(ctx, "run.execute_pool")
+		var translationTypes []string
+		if len(llmTasks) > 0 {
+			translationTypes = append(translationTypes, config.TranslationTypeLLM)
+		}
+		if len(mtTasks) > 0 {
+			translationTypes = append(translationTypes, config.TranslationTypeMT)
+		}
+		execSpan.SetAttributes(
+			attribute.Int("run.workers", in.Workers),
+			attribute.StringSlice("translation.type", translationTypes),
+			attribute.Int("run.llm_task_count", len(llmTasks)),
+			attribute.Int("run.mt_task_count", len(mtTasks)),
+		)
+		var execReport executionReport
+		staged, flushedTargets, execReport, err = s.executePool(execCtx, llmTasks, mtTasks, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, mtEngines, emitter, summaryReportMode, parityRetry, in.KeepCompletedOnFailure)
+		endRunSpan(execSpan, err, "execute_pool")
+		report.Succeeded = execReport.Succeeded
+		report.Failed = execReport.Failed
+		report.PersistedToLock = execReport.PersistedToLock
+		report.TokenUsage = addTokenUsage(report.TokenUsage, execReport.TokenUsage)
+		report.LocaleUsage = mergeLocaleUsage(report.LocaleUsage, execReport.LocaleUsage)
+		report.MTUsage = addMTUsage(report.MTUsage, execReport.MTUsage)
+		report.LocaleMTUsage = mergeLocaleMTUsage(report.LocaleMTUsage, execReport.LocaleMTUsage)
+		report.MTUsageByProfile = mergeMTUsageByProfile(report.MTUsageByProfile, execReport.MTUsageByProfile)
+		report.Batches = execReport.Batches
+		report.Failures = append(report.Failures, execReport.Failures...)
+		report.ContextMemoryGenerated = execReport.ContextMemoryGenerated
+		report.ContextMemoryFallbackGroups = execReport.ContextMemoryFallbackGroups
+		report.Warnings = append(report.Warnings, execReport.Warnings...)
+		if err != nil {
+			emitter.emit(completedEvent(report))
+			return report, err
+		}
+	}
+
+	if len(copyTasks) > 0 {
+		_, copySpan := startRunSpan(ctx, "run.copy_locales")
+		copied, copyErr := s.applyLocaleCopies(copyTasks, staged)
+		if copyErr != nil {
+			endRunSpan(copySpan, copyErr, "copy_locales")
+			emitter.emit(completedEvent(report))
+			return report, copyErr
+		}
+		report.Succeeded += copied
+		report.PersistedToLock += s.persistCopyLockEntries(state, copyTasks, staged)
+		copySpan.SetAttributes(attribute.Int("run.copy_task_count", len(copyTasks)), attribute.Int("run.copied", copied))
+		endRunSpan(copySpan, nil, "")
 	}
 
 	emitter.emit(Event{Kind: EventPhase, Phase: PhaseFinalizingOutput})
@@ -214,8 +264,26 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	endRunSpan(outSpan, err, "flush_output")
 	report.Warnings = append(report.Warnings, flushWarnings...)
 	if err != nil {
+		if in.KeepCompletedOnFailure {
+			thisRunTasks := make([]Task, 0, len(executable)+len(copyTasks))
+			thisRunTasks = append(thisRunTasks, executable...)
+			thisRunTasks = append(thisRunTasks, copyTasks...)
+			removed, rbErr := s.rollbackLockAfterFailedFlush(in.LockPath, state, thisRunTasks, err)
+			if rbErr != nil {
+				err = errors.Join(err, rbErr)
+			}
+			report.PersistedToLock -= removed
+			if report.PersistedToLock < 0 {
+				report.PersistedToLock = 0
+			}
+		}
 		emitter.emit(completedEvent(report))
 		return report, err
+	}
+	if len(llmTasks) == 0 && len(mtTasks) == 0 {
+		// executePool already persists LLM/MT completions and rolls them back
+		// when a sibling key fails. Prefill-only runs never enter that path.
+		report.PersistedToLock += s.persistStagedLockEntries(state, translatePlanned, staged)
 	}
 	s.reconcileLockEntries(in, planned, state)
 	if err := s.clearRunCheckpoints(in.LockPath, state); err != nil {
@@ -383,7 +451,7 @@ func applyLockFilterWithReader(planned []Task, completed map[string]lockfile.Run
 	}
 
 	for _, task := range planned {
-		identity := preferredTaskIdentity(projectRoot, task.TargetPath, task.EntryKey)
+		identity := taskLockIdentity(projectRoot, task.TargetPath, task.TargetLocale, task.EntryKey)
 		sourceHash := taskLockSourceHash(task)
 		taskHashes := lockTaskHashCandidates(task)
 		taskHash := taskHashes[0]
@@ -452,7 +520,7 @@ func findCompletionForTask(
 	taskHashes []string,
 ) (lockfile.RunCompletion, string, bool) {
 	for _, identity := range taskIdentityCandidates(task, projectRoot) {
-		if completion, ok := completed[identity]; ok && completionMatchesTask(completion, sourceHash, taskHashes) {
+		if completion, ok := completed[identity]; ok && completionMatchesTask(completion, sourceHash, taskHashes, task) {
 			return completion, identity, true
 		}
 	}
@@ -470,7 +538,7 @@ func findCheckpointForTask(
 	for _, identity := range taskIdentityCandidates(task, projectRoot) {
 		if checkpoint, ok := checkpoints[identity]; ok &&
 			checkpointMatchesActiveRun(checkpoint, activeRunID) &&
-			checkpointMatchesTask(checkpoint, sourceHash, taskHashes) {
+			checkpointMatchesTask(checkpoint, sourceHash, taskHashes, task) {
 			return checkpoint, identity, true
 		}
 	}
@@ -479,10 +547,15 @@ func findCheckpointForTask(
 
 func lockTaskHashCandidates(task Task) []string {
 	candidates := []string{lockTaskHash(task)}
-	if isMarkdownEntryKey(task.EntryKey) {
-		candidates = append(candidates, legacyMarkdownContextSensitiveLockTaskHashCandidates(task)...)
-	} else {
-		candidates = append(candidates, legacyDefaultLockTaskHash(task))
+	if task.TranslationType != config.TranslationTypeMT && task.TranslationType != config.TranslationTypeCopy {
+		// Type-less legacy hashes represent LLM state; MT and copy tasks must match
+		// a hash that explicitly includes translation_type.
+		candidates = append(candidates, legacyPreTranslationTypeLockTaskHash(task))
+		if isMarkdownEntryKey(task.EntryKey) {
+			candidates = append(candidates, legacyMarkdownContextSensitiveLockTaskHashCandidates(task)...)
+		} else {
+			candidates = append(candidates, legacyDefaultLockTaskHash(task))
+		}
 	}
 
 	seen := map[string]struct{}{}
@@ -508,16 +581,24 @@ func checkpointMatchesActiveRun(cp lockfile.RunCheckpoint, activeRunID string) b
 	return activeRunID != "" && cp.RunID == activeRunID
 }
 
-func completionMatchesTask(completion lockfile.RunCompletion, sourceHash string, taskHashes []string) bool {
+func completionMatchesTask(completion lockfile.RunCompletion, sourceHash string, taskHashes []string, task Task) bool {
 	if strings.TrimSpace(completion.TaskHash) != "" {
 		return lockFingerprintEqualAny(completion.TaskHash, taskHashes)
+	}
+	if task.TranslationType == config.TranslationTypeMT || task.TranslationType == config.TranslationTypeCopy {
+		// Source-only legacy rows are LLM-era state. MT and copy must match an
+		// explicit task hash so switching type cannot reuse stale output.
+		return false
 	}
 	return lockFingerprintEqual(completion.SourceHash, sourceHash)
 }
 
-func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash string, taskHashes []string) bool {
+func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash string, taskHashes []string, task Task) bool {
 	if strings.TrimSpace(checkpoint.TaskHash) != "" {
 		return lockFingerprintEqualAny(checkpoint.TaskHash, taskHashes)
+	}
+	if task.TranslationType == config.TranslationTypeMT || task.TranslationType == config.TranslationTypeCopy {
+		return false
 	}
 	return lockFingerprintEqual(checkpoint.SourceHash, sourceHash)
 }
@@ -539,6 +620,42 @@ func assignContextKeys(tasks []Task, scope string) {
 	for i := range tasks {
 		tasks[i].ContextKey = contextMemoryKey(tasks[i], scope)
 	}
+}
+
+func (s *Service) persistStagedLockEntries(lockState *lockfile.File, tasks []Task, staged map[string]stagedOutput) int {
+	if lockState == nil || len(tasks) == 0 || len(staged) == 0 {
+		return 0
+	}
+	if lockState.RunCompleted == nil {
+		lockState.RunCompleted = map[string]lockfile.RunCompletion{}
+	}
+
+	persisted := 0
+	for _, task := range tasks {
+		if isImageTask(task) {
+			continue
+		}
+		identity := taskLockIdentity(s.projectRoot, task.TargetPath, task.TargetLocale, task.EntryKey)
+		if _, exists := lockState.RunCompleted[identity]; exists {
+			continue
+		}
+		output, ok := staged[stagedOutputKey(task.TargetPath, task.TargetLocale)]
+		if !ok {
+			output, ok = staged[task.TargetPath]
+		}
+		if !ok {
+			continue
+		}
+		if _, exists := output.entries[task.EntryKey]; !exists {
+			continue
+		}
+		lockState.RunCompleted[identity] = lockfile.RunCompletion{
+			SourceHash: taskLockSourceHash(task),
+			TaskHash:   lockTaskHash(task),
+		}
+		persisted++
+	}
+	return persisted
 }
 
 func (s *Service) clearRunCheckpoints(lockPath string, state *lockfile.File) error {
@@ -595,16 +712,54 @@ func remainingPruneTargets(pruneTargets map[string]map[string]struct{}, pruneMet
 
 // applyMaxTranslationsLimit keeps the first max tasks in plan order and reports
 // how many executable tasks were deferred for a later session. max <= 0 means unlimited.
+//
+// SRX sibling spans that share a target path and original file key are kept atomic:
+// the limit never cuts between them, otherwise flush would join a partial span set
+// and historically fell back to source text for the missing siblings.
 func applyMaxTranslationsLimit(executable []Task, max int) (limited []Task, deferred int) {
 	if max <= 0 || len(executable) <= max {
 		return executable, 0
 	}
-	return executable[:max], len(executable) - max
+	cut := 0
+	for cut < len(executable) {
+		groupEnd := nextSRXSiblingGroupEnd(executable, cut)
+		if cut > 0 && groupEnd > max {
+			break
+		}
+		cut = groupEnd
+		if cut >= max {
+			break
+		}
+	}
+	if cut == 0 {
+		cut = nextSRXSiblingGroupEnd(executable, 0)
+	}
+	return executable[:cut], len(executable) - cut
+}
+
+func nextSRXSiblingGroupEnd(executable []Task, start int) int {
+	if start < 0 || start >= len(executable) {
+		return start
+	}
+	end := start + 1
+	fileKey, _, ok := srx.SplitSpanKey(executable[start].EntryKey)
+	if !ok {
+		return end
+	}
+	targetPath := executable[start].TargetPath
+	for end < len(executable) {
+		nextKey, _, isSpan := srx.SplitSpanKey(executable[end].EntryKey)
+		if !isSpan || nextKey != fileKey || executable[end].TargetPath != targetPath {
+			break
+		}
+		end++
+	}
+	return end
 }
 
 func completedEvent(report Report) Event {
 	usage := NormalizeTokenUsage(report.TokenUsage)
-	return eventWithTokenUsage(Event{
+	return eventWithMTUsage(eventWithTokenUsage(Event{
 		Kind:            EventCompleted,
 		PlannedTotal:    report.PlannedTotal,
 		SkippedByLock:   report.SkippedByLock,
@@ -615,7 +770,7 @@ func completedEvent(report Report) Event {
 		PersistedToLock: report.PersistedToLock,
 		PruneCandidates: len(report.PruneCandidates),
 		PruneApplied:    report.PruneApplied,
-	}, usage)
+	}, usage), report.MTUsage)
 }
 
 func eventWithTokenUsage(event Event, usage TokenUsage) Event {
@@ -637,5 +792,13 @@ func eventWithTokenUsage(event Event, usage TokenUsage) Event {
 	event.ToolInputTokens = usage.ToolInputTokens
 	event.AcceptedPredictionTokens = usage.AcceptedPredictionTokens
 	event.RejectedPredictionTokens = usage.RejectedPredictionTokens
+	return event
+}
+
+func eventWithMTUsage(event Event, usage MTUsage) Event {
+	event.SourceChars = usage.SourceChars
+	event.TranslatedChars = usage.TranslatedChars
+	event.RequestCount = usage.RequestCount
+	event.DurationMillis = usage.DurationMillis
 	return event
 }

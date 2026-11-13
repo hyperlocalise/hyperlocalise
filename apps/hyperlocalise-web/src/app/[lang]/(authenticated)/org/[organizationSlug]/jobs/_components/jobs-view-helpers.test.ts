@@ -12,49 +12,15 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import type { ApiJob } from "./jobs-page-view";
 import {
-  buildJobContentEditorHref,
   buildJobDetailHref,
-  canOpenJobContentEditor,
+  getDueUrgency,
   isKanbanStatus,
+  jobDueDate,
   readJobsViewMode,
+  sortBoardJobs,
   writeJobsViewMode,
 } from "./jobs-view-helpers";
-
-function createJob(overrides: Partial<ApiJob> = {}): ApiJob {
-  return {
-    id: "ext:crowdin:project-1:job-1",
-    projectId: "ext:crowdin:project-1",
-    createdByUserId: null,
-    kind: "translation",
-    type: "file",
-    status: "running",
-    createdAt: "2026-06-01T00:00:00.000Z",
-    updatedAt: "2026-06-01T01:00:00.000Z",
-    completedAt: null,
-    workflowRunId: null,
-    lastError: null,
-    inputPayload: { sourceFileId: "locales/en.json" },
-    outcomeKind: null,
-    outcomePayload: null,
-    reviewCriteria: null,
-    reviewTargetLocale: null,
-    syncConnectorKind: null,
-    syncDirection: null,
-    assetType: null,
-    assetOperation: null,
-    externalProviderKind: "crowdin",
-    externalTaskId: "CR-1204",
-    externalStatus: "in_progress",
-    externalTitle: "Translate homepage",
-    externalDueDate: "2026-06-10T00:00:00.000Z",
-    externalTargetLocales: ["fr-FR"],
-    externalAssignedUsers: ["Mina"],
-    externalSyncState: "synced",
-    ...overrides,
-  };
-}
 
 describe("jobs-view-helpers", () => {
   it("builds project job detail hrefs", () => {
@@ -64,68 +30,6 @@ describe("jobs-view-helpers", () => {
     expect(buildJobDetailHref("acme", null, "job-1")).toBeNull();
     expect(buildJobDetailHref("acme", null, "ext:crowdin:project-1:job-1")).toBe(
       "/org/acme/projects/ext%3Acrowdin%3Aproject-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1",
-    );
-  });
-
-  it("allows CAT for provider-backed translation and review jobs", () => {
-    expect(canOpenJobContentEditor(createJob())).toBe(true);
-    expect(canOpenJobContentEditor(createJob({ kind: "review" }))).toBe(true);
-    expect(canOpenJobContentEditor(createJob({ kind: "sync" }))).toBe(false);
-  });
-
-  it("allows CAT for native file translation jobs", () => {
-    expect(
-      canOpenJobContentEditor(
-        createJob({
-          externalProviderKind: null,
-          id: "job_native",
-          externalTargetLocales: null,
-          inputPayload: {
-            sourceFileId: "file_home_json",
-            targetLocales: ["fr-FR"],
-          },
-        }),
-      ),
-    ).toBe(true);
-  });
-
-  it("builds provider CAT hrefs with locale and source path when available", () => {
-    expect(buildJobContentEditorHref("acme", "project-1", createJob())).toBe(
-      "/org/acme/projects/project-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json&queueFilter=untranslated",
-    );
-    expect(buildJobContentEditorHref("acme", null, createJob())).toBe(
-      "/org/acme/projects/ext%3Acrowdin%3Aproject-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json&queueFilter=untranslated",
-    );
-    expect(buildJobContentEditorHref("acme", null, createJob({ id: "job_native" }))).toBeNull();
-    expect(buildJobContentEditorHref("acme", "project-1", createJob({ kind: "sync" }))).toBeNull();
-  });
-
-  it("includes needs_review queue filter for review jobs", () => {
-    expect(buildJobContentEditorHref("acme", "project-1", createJob({ kind: "review" }))).toContain(
-      "queueFilter=needs_review",
-    );
-    expect(
-      buildJobContentEditorHref("acme", "project-1", createJob({ status: "waiting_for_review" })),
-    ).toContain("queueFilter=needs_review");
-  });
-
-  it("builds native CAT hrefs with stored file id and target locale", () => {
-    expect(
-      buildJobContentEditorHref(
-        "acme",
-        "project-1",
-        createJob({
-          externalProviderKind: null,
-          id: "job_native",
-          externalTargetLocales: null,
-          inputPayload: {
-            sourceFileId: "file_home_json",
-            targetLocales: ["fr-FR"],
-          },
-        }),
-      ),
-    ).toBe(
-      "/org/acme/projects/project-1/jobs/job_native/strings?storedFileId=file_home_json&targetLocale=fr-FR&queueFilter=untranslated",
     );
   });
 
@@ -166,5 +70,114 @@ describe("jobs-view-helpers", () => {
     expect(readJobsViewMode()).toBe("kanban");
     expect(() => writeJobsViewMode("row")).not.toThrow();
     expect(readJobsViewMode()).toBe("kanban");
+  });
+});
+
+describe("jobDueDate", () => {
+  it("prefers the provider due date, then the native dueAt", () => {
+    expect(
+      jobDueDate({
+        externalDueDate: "2026-05-01T00:00:00.000Z",
+        dueAt: "2026-06-01T00:00:00.000Z",
+      }),
+    ).toBe("2026-05-01T00:00:00.000Z");
+    expect(
+      jobDueDate({
+        externalDueDate: null,
+        dueAt: "2026-06-01T00:00:00.000Z",
+      }),
+    ).toBe("2026-06-01T00:00:00.000Z");
+    expect(jobDueDate({ externalDueDate: null })).toBeNull();
+  });
+});
+
+describe("sortBoardJobs", () => {
+  const job = (
+    id: string,
+    overrides: {
+      due?: string | null;
+      dueAt?: string | null;
+      updatedAt?: string;
+      completedAt?: string | null;
+    },
+  ) => ({
+    id,
+    externalDueDate: overrides.due ?? null,
+    dueAt: overrides.dueAt,
+    updatedAt: overrides.updatedAt ?? "2026-06-01T00:00:00.000Z",
+    completedAt: overrides.completedAt ?? null,
+  });
+
+  it("orders open work by soonest due date, undated jobs last", () => {
+    const jobs = [
+      job("undated", {}),
+      job("later", { due: "2026-06-10T00:00:00.000Z" }),
+      job("sooner", { due: "2026-06-03T00:00:00.000Z" }),
+    ];
+
+    expect(sortBoardJobs("running", jobs).map((item) => item.id)).toEqual([
+      "sooner",
+      "later",
+      "undated",
+    ]);
+  });
+
+  it("orders open work by native dueAt when no provider date exists", () => {
+    const jobs = [
+      job("undated", {}),
+      job("later", { dueAt: "2026-06-10T00:00:00.000Z" }),
+      job("sooner", { dueAt: "2026-06-03T00:00:00.000Z" }),
+      job("provider", {
+        due: "2026-06-01T00:00:00.000Z",
+        dueAt: "2026-06-20T00:00:00.000Z",
+      }),
+    ];
+
+    expect(sortBoardJobs("queued", jobs).map((item) => item.id)).toEqual([
+      "provider",
+      "sooner",
+      "later",
+      "undated",
+    ]);
+  });
+
+  it("orders closed and failed work by most recent activity", () => {
+    const jobs = [
+      job("old", { updatedAt: "2026-06-01T00:00:00.000Z" }),
+      job("completed", {
+        updatedAt: "2026-06-01T00:00:00.000Z",
+        completedAt: "2026-06-05T00:00:00.000Z",
+      }),
+      job("recent", { updatedAt: "2026-06-04T00:00:00.000Z" }),
+    ];
+
+    expect(sortBoardJobs("succeeded", jobs).map((item) => item.id)).toEqual([
+      "completed",
+      "recent",
+      "old",
+    ]);
+    expect(sortBoardJobs("failed", jobs).map((item) => item.id)).toEqual([
+      "completed",
+      "recent",
+      "old",
+    ]);
+  });
+
+  it("does not mutate the input", () => {
+    const jobs = [job("b", { due: "2026-06-10T00:00:00.000Z" }), job("a", { due: null })];
+    sortBoardJobs("queued", jobs);
+    expect(jobs.map((item) => item.id)).toEqual(["b", "a"]);
+  });
+});
+
+describe("getDueUrgency", () => {
+  const now = Date.UTC(2026, 5, 6, 12, 0, 0);
+
+  it("classifies due dates relative to now", () => {
+    expect(getDueUrgency(null, now)).toBeNull();
+    expect(getDueUrgency("not a date", now)).toBeNull();
+    expect(getDueUrgency(new Date(now - 60_000).toISOString(), now)).toBe("overdue");
+    expect(getDueUrgency(new Date(now + 3_600_000).toISOString(), now)).toBe("soon");
+    expect(getDueUrgency(new Date(now + 3 * 86_400_000).toISOString(), now)).toBe("upcoming");
   });
 });

@@ -1,34 +1,34 @@
 ---
-title: "Knowledge"
+title: "Language resources"
 description: "Guideline, glossaries, and translation memories for multilingual content operations."
 ---
 
 Guideline, glossaries, and translation memories are the shared memory of your content operations.
 
-Add the terms and memories your team already trusts so CAT and automations reuse them.
+Use a guideline for tone and context, a glossary for required terms, and a translation memory for reusable source/target sentence pairs. Review suggestions in context before approving them.
 
-Cloud splits this into three sidebar items. **Guideline** is the free-form context page. **Glossaries** and **Translation Memories** are structured term and TM stores.
+Platform splits this into three sidebar items. **Guideline** is the free-form context page. **Glossaries** and **Translation Memories** are structured term and TM stores.
 
 ## Guideline
 
 Open **Guideline** in the organization **Workspace** group, or on a project.
 
-Organization **Guideline**: "Give every workflow the language, market, compliance, and go-to-market context it needs."
+Upload style guides, product notes, and market instructions — or type them as Markdown, which is saved as a document. Use workspace guidance for shared rules and project guidance for content-specific context. Org-wide uploads apply to every project until scoped to listed projects on the document's page. See [Add translation guidelines](/platform/knowledge/guidelines) for supported files and examples, and [Use guidelines efficiently](/platform/knowledge/guidelines#use-guidelines-efficiently) for passages, **Always apply**, and the **Guidelines** QA check.
 
-Project **Guideline**: "Give this project's workflows the language, market, and product context they need."
-
-Upload style guides, product notes, or other files there. Automations and chat read that context when they translate.
+Legacy typed notes are retired: the old workspace/project note editors are gone (their APIs return 410 `knowledge_memory_gone`) and existing typed rows are no longer read. Re-enter any live guidance as a guideline document.
 
 ## Glossaries
 
-Open **Glossaries**. Create first-party workspace glossaries, or sync provider term bases. Provider glossaries stay read-only.
+Open **Glossaries**. Create workspace glossaries, or sync provider term bases. Provider glossaries stay read-only.
 
 1. Click **Create glossary**.
 2. Name it and set source and target locales.
-3. Add terms. Mark forbidden terms so CAT and agents avoid them.
+3. Add terms. Mark forbidden terms so the Content Editor and agents avoid them.
 4. Link the glossary to the projects that should enforce it.
 
-CAT uses glossary hits as suggestions while you edit. Automations can query the same terms during a run.
+The Content Editor uses glossary hits as suggestions while you edit. Automations can query the same terms during a run.
+
+Import and export native glossaries as **TBX**, **CSV**, or **XLSX** from the glossary actions menu. When Crowdin, Phrase Strings, or Smartling is connected, you can also copy a provider glossary into a native glossary through the TMS import API. See [Glossary import and export](/platform/glossary-import-export). Provider glossaries stay read-only in Platform.
 
 ## Translation memories
 
@@ -36,9 +36,17 @@ Open **Translation Memories**.
 
 You can keep a workspace TM or connect an **External TMS** memory. The table shows **Provider**, linked project, and segment counts.
 
-Create a workspace memory, then import or grow it from approved CAT work. CAT uses matching segments as suggestions. Agents can query the same memory during a run.
+Create a workspace memory, then import or grow it from approved translations in the Content Editor. The Content Editor uses matching segments as suggestions. Agents can query the same memory during a run.
+
+Translation jobs write new pairs as **Draft**. Drafts do not prefill later jobs until a reviewer approves them. On the memory detail page, open **Review drafts** or **Cleanup** to filter drafts, rejected entries, same-as-source copies, and job-written units. Select rows to approve, reject, or delete them.
+
+Import **CSV** or **TMX** from the memory detail page, copy from a connected TMS when supported, and export the full memory or a single locale pair in either format. See [Translation memory import and export](/platform/translation-memory-import-export).
 
 ## Next
 
-- [CAT](/platform/cat)
+- [Glossary import and export](/platform/glossary-import-export)
+- [Translation memory import and export](/platform/translation-memory-import-export)
+- [Review translations](/platform/cat)
 - [Automations](/platform/automations)
+
+Changing a resource does not retroactively rewrite existing translations. Test updated guidance on a small sample and [review existing quality issues](/platform/help/quality).

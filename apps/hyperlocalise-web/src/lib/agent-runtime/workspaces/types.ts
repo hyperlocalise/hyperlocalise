@@ -10,29 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export type WorkspaceLifecyclePolicy =
-  | {
-      mode: "disposable";
-      timeoutMs: number;
-      destroyOnFinish: true;
-    }
-  | {
-      mode: "multi_turn";
-      idleTimeoutMs: number;
-      maxLifetimeMs: number;
-      destroyOnExpiry: true;
-      snapshotOnPause?: boolean;
-    };
-
-export type WorkspaceSecurityPolicy = {
-  network: "none" | "allowlisted" | "restricted";
-  secrets: "none" | "scoped_ephemeral";
-  writeAccess: "none" | "workspace_only" | "external_with_policy";
-  allowedCommands?: string[];
-  maxCommandRuntimeMs: number;
-  maxOutputBytes: number;
-};
-
 export type WorkspaceCommandResult = {
   exitCode: number;
   output: string;
@@ -54,12 +31,19 @@ export type WorkspaceSnapshotRef = {
   id: string;
 };
 
+export type WorkspaceRunCommandOptions = {
+  output?: "both" | "stdout";
+  /** Kill the command (SIGKILL) after this many milliseconds. */
+  timeoutMs?: number;
+  signal?: AbortSignal;
+};
+
 export type WorkspaceRuntime = {
   id: string;
   runCommand(
     command: string,
     args: string[],
-    options?: { output?: "both" | "stdout" },
+    options?: WorkspaceRunCommandOptions,
   ): Promise<WorkspaceCommandResult>;
   readFile(path: string): Promise<string>;
   writeFile(path: string, content: string | Buffer): Promise<void>;

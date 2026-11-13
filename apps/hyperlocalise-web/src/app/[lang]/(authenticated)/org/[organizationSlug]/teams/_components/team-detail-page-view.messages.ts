@@ -85,16 +85,6 @@ export const teamDetailPageViewMessages = defineMessages({
     id: "gI8N/Ms4so",
     description: "Fallback team detail page title while the team is loading",
   },
-  pageDescriptionWithSlug: {
-    defaultMessage: "Manage membership and roles for the {slug} team.",
-    id: "vrxnOkVw+Z",
-    description: "Team detail page description when the team slug is known",
-  },
-  pageDescriptionLoading: {
-    defaultMessage: "Load team membership and roles.",
-    id: "NTnOgDMsrG",
-    description: "Team detail page description while the team is loading",
-  },
   editTeam: {
     defaultMessage: "Edit team",
     id: "cAGL69hzyh",

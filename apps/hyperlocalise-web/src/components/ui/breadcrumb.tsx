@@ -18,8 +18,7 @@ import { useRender } from "@base-ui/react/use-render";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowRight01Icon, MoreHorizontalCircle01Icon } from "@hugeicons/core-free-icons";
+import { ArrowRightIcon, DotsThreeCircleIcon } from "@phosphor-icons/react";
 import { breadcrumbMessages } from "@/components/ui/breadcrumb.messages";
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
@@ -96,9 +95,7 @@ function BreadcrumbSeparator({ children, className, ...props }: React.ComponentP
       className={cn("[&>svg]:size-3.5", className)}
       {...props}
     >
-      {children ?? (
-        <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} className="rtl:rotate-180" />
-      )}
+      {children ?? <ArrowRightIcon className="rtl:rotate-180" />}
     </li>
   );
 }
@@ -112,7 +109,7 @@ function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<"span"
       className={cn("flex size-5 items-center justify-center [&>svg]:size-4", className)}
       {...props}
     >
-      <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={2} />
+      <DotsThreeCircleIcon />
       <span className="sr-only">
         <FormattedMessage {...breadcrumbMessages.more} />
       </span>

@@ -26,6 +26,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 
+import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { HyperlabAudienceQueryBridge } from "../store/hyperlab-query-bridge";
 import {
   HyperlabWorkspaceProvider,
@@ -33,7 +34,7 @@ import {
 } from "../store/hyperlab-workspace-context";
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabAudience,
@@ -74,8 +75,9 @@ const HyperlabAudienceDetailConnected = observer(function HyperlabAudienceDetail
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const { audience: audienceStore } = useHyperlabWorkspace();
+  const { leaveGuardDialog } = useUnsavedChangesLeaveGuard(audienceStore.isDirty);
 
   const detailQuery = useQuery({
     queryKey: hyperlabQueryKeys.audience(organizationSlug, audienceId),
@@ -122,9 +124,9 @@ const HyperlabAudienceDetailConnected = observer(function HyperlabAudienceDetail
   return (
     <>
       <HyperlabAudienceQueryBridge audience={audience} />
+      {leaveGuardDialog}
       <HyperlabPageShell
         title={audience?.name ?? intl.formatMessage(messages.audiencesTitle)}
-        description={intl.formatMessage(messages.audiencesDescription)}
         backHref={`/org/${organizationSlug}/hyperlab/audiences`}
       >
         <Rows spacing="2u">

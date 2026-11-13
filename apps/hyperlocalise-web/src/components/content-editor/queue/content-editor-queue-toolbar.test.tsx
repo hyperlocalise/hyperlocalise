@@ -29,14 +29,32 @@ describe("ContentEditorQueueToolbar", () => {
       <ContentEditorQueueToolbar
         queueFilter="all"
         onQueueFilterChange={onQueueFilterChange}
-        availableQueueFilters={["all", "hidden"]}
+        availableQueueFilters={["all", "hidden", "not_hidden"]}
       />,
     );
 
     await user.click(screen.getByRole("button", { name: "Filter queue" }));
-    await user.click(screen.getByRole("menuitemradio", { name: "Hidden" }));
+    await user.click(screen.getByRole("menuitem", { name: "Hidden" }));
 
     expect(onQueueFilterChange).toHaveBeenCalledWith("hidden");
+  });
+
+  it("includes Not hidden in the Crowdin queue filter menu", async () => {
+    const user = userEvent.setup();
+    const onQueueFilterChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={onQueueFilterChange}
+        availableQueueFilters={["all", "hidden", "not_hidden"]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    await user.click(screen.getByRole("menuitem", { name: "Not hidden" }));
+
+    expect(onQueueFilterChange).toHaveBeenCalledWith("not_hidden");
   });
 
   it("shows Crowdin extra filters and the sort menu", async () => {
@@ -62,12 +80,14 @@ describe("ContentEditorQueueToolbar", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Filter queue" }));
-    expect(screen.getByRole("menuitemradio", { name: "Unsaved translations" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitemradio", { name: "QA issues" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitemradio", { name: "Machine translations" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitemradio", { name: "With comments" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Unsaved translations" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "QA issues" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Machine translations" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "With comments" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Advanced Filter…" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Sort queue" }));
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "View options" }));
     await user.click(screen.getByRole("menuitemradio", { name: "Untranslated first" }));
 
     expect(onQueueSortChange).toHaveBeenCalledWith("untranslated_first");
@@ -85,10 +105,26 @@ describe("ContentEditorQueueToolbar", () => {
       />,
     );
 
-    expect(screen.queryByRole("button", { name: "Sort queue" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View options" })).not.toBeInTheDocument();
   });
 
-  it("offers Hide and Unhide when those bulk handlers are provided", async () => {
+  it("keeps search and filter visible until strings are selected", () => {
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        selectionMode
+        onSelectionModeChange={vi.fn()}
+        selectedCount={0}
+        queueFilter="all"
+        onQueueFilterChange={vi.fn()}
+        onBulkApprove={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Filter queue" })).toBeInTheDocument();
+    expect(screen.queryByRole("toolbar", { name: "Bulk actions" })).not.toBeInTheDocument();
+  });
+
+  it("offers Hide and Unhide in the bulk bar More menu", async () => {
     const user = userEvent.setup();
     const onBulkHide = vi.fn();
     const onBulkUnhide = vi.fn();
@@ -97,24 +133,21 @@ describe("ContentEditorQueueToolbar", () => {
       <ContentEditorQueueToolbar
         selectionMode
         onSelectionModeChange={vi.fn()}
+        selectedCount={2}
         onBulkHide={onBulkHide}
         onBulkUnhide={onBulkUnhide}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Queue actions" }));
+    expect(screen.getByRole("toolbar", { name: "Bulk actions" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("menuitem", { name: "Unhide selected" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Hide selected" }));
 
-    expect(screen.getByRole("menuitem", { name: "Hide selected" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
-    expect(screen.getByRole("menuitem", { name: "Unhide selected" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    expect(onBulkHide).toHaveBeenCalled();
   });
 
-  it("offers Lock and Unlock when those bulk handlers are provided", async () => {
+  it("offers Lock and Unlock in the bulk bar More menu", async () => {
     const user = userEvent.setup();
     const onBulkLock = vi.fn();
     const onBulkUnlock = vi.fn();
@@ -123,21 +156,62 @@ describe("ContentEditorQueueToolbar", () => {
       <ContentEditorQueueToolbar
         selectionMode
         onSelectionModeChange={vi.fn()}
+        selectedCount={2}
         onBulkLock={onBulkLock}
         onBulkUnlock={onBulkUnlock}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Queue actions" }));
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("menuitem", { name: "Lock selected" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Unlock selected" }));
 
-    expect(screen.getByRole("menuitem", { name: "Lock selected" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
+    expect(onBulkUnlock).toHaveBeenCalled();
+  });
+
+  it("names the language on per-language bulk actions when one is given", async () => {
+    const user = userEvent.setup();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        selectionMode
+        onSelectionModeChange={vi.fn()}
+        selectedCount={2}
+        bulkActionLocale="de-DE"
+        onBulkApprove={vi.fn()}
+        onBulkSkip={vi.fn()}
+        onBulkHide={vi.fn()}
+        onBulkLock={vi.fn()}
+        onBulkUnlock={vi.fn()}
+      />,
     );
-    expect(screen.getByRole("menuitem", { name: "Unlock selected" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
+
+    expect(screen.getByRole("button", { name: "Approve in German (Germany)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Skip selected" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("menuitem", { name: "Hide selected" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Lock in German (Germany)" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Unlock in German (Germany)" }),
+    ).toBeInTheDocument();
+  });
+
+  it("exits selection mode from the bulk bar", async () => {
+    const user = userEvent.setup();
+    const onSelectionModeChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        selectionMode
+        onSelectionModeChange={onSelectionModeChange}
+        selectedCount={2}
+        onBulkApprove={vi.fn()}
+      />,
     );
+
+    await user.click(screen.getByRole("button", { name: "Done" }));
+
+    expect(onSelectionModeChange).toHaveBeenCalledWith(false);
   });
 
   it("disables select-all and bulk mutate while the queue is still loading placeholder data", async () => {
@@ -159,22 +233,214 @@ describe("ContentEditorQueueToolbar", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Queue actions" }));
+    const selectAll = screen.getByRole("button", { name: /Select all loaded/ });
+    const approveSelected = screen.getByRole("button", { name: "Approve selected" });
+    expect(selectAll).toBeDisabled();
+    expect(approveSelected).toBeDisabled();
 
-    const selectAll = screen.getByRole("menuitem", { name: "Select all visible" });
+    await user.click(screen.getByRole("button", { name: "More" }));
     const hideSelected = screen.getByRole("menuitem", { name: "Hide selected" });
-    const approveSelected = screen.getByRole("menuitem", { name: "Approve selected" });
-
-    expect(selectAll).toHaveAttribute("aria-disabled", "true");
     expect(hideSelected).toHaveAttribute("aria-disabled", "true");
-    expect(approveSelected).toHaveAttribute("aria-disabled", "true");
 
-    await user.click(selectAll);
     await user.click(hideSelected);
-    await user.click(approveSelected);
 
     expect(onSelectAllVisible).not.toHaveBeenCalled();
     expect(onBulkHide).not.toHaveBeenCalled();
     expect(onBulkApprove).not.toHaveBeenCalled();
+  });
+
+  it("disables select-all while a bulk action is pending", async () => {
+    const user = userEvent.setup();
+    const onSelectAllVisible = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        selectionMode
+        onSelectionModeChange={vi.fn()}
+        visibleCount={12}
+        selectedCount={3}
+        isBulkActionPending
+        onSelectAllVisible={onSelectAllVisible}
+        onClearChecked={vi.fn()}
+        onBulkApprove={vi.fn()}
+      />,
+    );
+
+    const selectAll = screen.getByRole("button", { name: /Select all loaded/ });
+    expect(selectAll).toBeDisabled();
+    expect(screen.getByRole("button", { name: "More" })).toBeDisabled();
+
+    await user.click(selectAll);
+
+    expect(onSelectAllVisible).not.toHaveBeenCalled();
+  });
+
+  it("shows the Select toggle when onSelectionModeChange is provided, even without bulk handlers", async () => {
+    const user = userEvent.setup();
+    const onSelectionModeChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar onSelectionModeChange={onSelectionModeChange} />,
+    );
+
+    const selectToggle = screen.getByRole("button", { name: "Select" });
+    expect(selectToggle).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(selectToggle);
+    expect(onSelectionModeChange).toHaveBeenCalledWith(true);
+  });
+
+  it("selects All, untranslated first from the Crowdin-style filter menu", async () => {
+    const user = userEvent.setup();
+    const onQueueFilterChange = vi.fn();
+    const onQueueSortChange = vi.fn();
+    const onQueueFilterQualifierChange = vi.fn();
+    const onQueueAdvancedChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="untranslated"
+        queueSort="file_order"
+        onQueueFilterChange={onQueueFilterChange}
+        onQueueSortChange={onQueueSortChange}
+        onQueueFilterQualifierChange={onQueueFilterQualifierChange}
+        onQueueAdvancedChange={onQueueAdvancedChange}
+        availableQueueFilters={["all", "untranslated"]}
+        availableQueueSorts={["file_order", "untranslated_first"]}
+        providerKind="crowdin"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    await user.click(screen.getByRole("menuitem", { name: "All, untranslated first" }));
+
+    expect(onQueueFilterChange).toHaveBeenCalledWith("all");
+    expect(onQueueSortChange).toHaveBeenCalledWith("untranslated_first");
+    expect(onQueueFilterQualifierChange).toHaveBeenCalledWith(undefined);
+    expect(onQueueAdvancedChange).toHaveBeenCalledWith(undefined);
+  });
+
+  it("lists QA qualifier submenu items", async () => {
+    const user = userEvent.setup();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={vi.fn()}
+        availableQueueFilters={["all", "qa_issues"]}
+        providerKind="native"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    const qaIssues = screen.getByRole("menuitem", { name: "QA issues" });
+    await user.hover(qaIssues);
+    qaIssues.focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(await screen.findByRole("menuitem", { name: "Spelling" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "All" })).toBeInTheDocument();
+  });
+
+  it("opens the advanced filter dialog and applies native fields", async () => {
+    const user = userEvent.setup();
+    const onQueueFilterChange = vi.fn();
+    const onQueueAdvancedChange = vi.fn();
+    const onQueueFilterQualifierChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={onQueueFilterChange}
+        onQueueAdvancedChange={onQueueAdvancedChange}
+        onQueueFilterQualifierChange={onQueueFilterQualifierChange}
+        availableQueueFilters={["all", "untranslated"]}
+        providerKind="native"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    await user.click(screen.getByRole("menuitem", { name: "Advanced Filter…" }));
+
+    expect(await screen.findByRole("dialog", { name: "Advanced Filter" })).toBeInTheDocument();
+    expect(screen.queryByText("Screenshots")).not.toBeInTheDocument();
+    // Native projects filter by their strings' tags through the labels fields.
+    expect(screen.getByText("Labels: Include All")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("String type"));
+    await user.click(screen.getByRole("option", { name: "ICU" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(onQueueFilterChange).toHaveBeenCalledWith("all");
+    expect(onQueueFilterQualifierChange).toHaveBeenCalledWith(undefined);
+    expect(onQueueAdvancedChange).toHaveBeenCalledWith({ stringType: "icu" });
+  });
+
+  it("hides the advanced filter for providers that do not support it", async () => {
+    const user = userEvent.setup();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={vi.fn()}
+        availableQueueFilters={["all"]}
+        providerKind="phrase"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    expect(screen.queryByRole("menuitem", { name: "Advanced Filter…" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ContentEditorQueueToolbar key job scope", () => {
+  it("keeps the task scope when a preset filter is chosen, and leaves it on request", async () => {
+    const user = userEvent.setup();
+    const onQueueAdvancedChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={vi.fn()}
+        availableQueueFilters={["all", "hidden", "not_hidden"]}
+        queueAdvanced={{ jobId: "job_1", stringType: "plain" }}
+        onQueueAdvancedChange={onQueueAdvancedChange}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Showing the strings of one task");
+
+    await user.click(screen.getByRole("button", { name: /Filter queue|Advanced/ }));
+    await user.click(screen.getByRole("menuitem", { name: "Hidden" }));
+    expect(onQueueAdvancedChange).toHaveBeenLastCalledWith({ jobId: "job_1" });
+
+    await user.click(screen.getByRole("button", { name: "Show all strings" }));
+    expect(onQueueAdvancedChange).toHaveBeenLastCalledWith({ stringType: "plain" });
+  });
+});
+
+describe("ContentEditorQueueToolbar new task hint", () => {
+  it("explains how to make a task while ticking, and hides on request", async () => {
+    const user = userEvent.setup();
+    const onDismissNewTaskHint = vi.fn();
+    const props = {
+      queueFilter: "all" as const,
+      onQueueFilterChange: vi.fn(),
+      onSelectionModeChange: vi.fn(),
+      onBulkCreateTask: vi.fn(),
+      onDismissNewTaskHint,
+    };
+
+    const { rerender } = renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar {...props} selectionMode={false} />,
+    );
+    expect(screen.queryByText(/Tick the strings for the new task/)).toBeNull();
+
+    rerender(<ContentEditorQueueToolbar {...props} selectionMode />);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Tick the strings for the new task, then choose More → Add to a task…",
+    );
+    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(onDismissNewTaskHint).toHaveBeenCalledTimes(1);
   });
 });

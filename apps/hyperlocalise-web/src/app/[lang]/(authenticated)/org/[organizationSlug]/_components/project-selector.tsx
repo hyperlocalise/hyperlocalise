@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
-import { ArrowDown01Icon, FolderLibraryIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, FoldersIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { PromptInputButton } from "@/components/ai-elements/prompt-input";
@@ -120,7 +119,7 @@ export function ProjectSelector({
         className={disabledTriggerClassName}
         disabled
       >
-        <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
+        <FoldersIcon className="size-4" />
         <Skeleton className="h-3.5 w-24 rounded-full bg-muted" />
       </ProjectSelectorTrigger>
     );
@@ -133,7 +132,7 @@ export function ProjectSelector({
         className={disabledTriggerClassName}
         disabled
       >
-        <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
+        <FoldersIcon className="size-4" />
         <FormattedMessage {...messages.projectsUnavailable} />
       </ProjectSelectorTrigger>
     );
@@ -146,7 +145,7 @@ export function ProjectSelector({
         className={disabledTriggerClassName}
         disabled
       >
-        <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
+        <FoldersIcon className="size-4" />
         <FormattedMessage {...messages.noProjects} />
       </ProjectSelectorTrigger>
     );
@@ -159,7 +158,7 @@ export function ProjectSelector({
         className={singleProjectTriggerClassName}
         disabled
       >
-        <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4 shrink-0" />
+        <FoldersIcon className="size-4 shrink-0" />
         <span className="truncate">{selectedLabel}</span>
       </ProjectSelectorTrigger>
     );
@@ -176,9 +175,9 @@ export function ProjectSelector({
             triggerStyle={triggerStyle}
             className={interactiveTriggerClassName}
           >
-            <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4 shrink-0" />
+            <FoldersIcon className="size-4 shrink-0" />
             <span className="max-w-44 truncate">{selectedLabel}</span>
-            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5 shrink-0" />
+            <CaretDownIcon className="size-3.5 shrink-0" />
           </ProjectSelectorTrigger>
         }
       />
@@ -190,7 +189,7 @@ export function ProjectSelector({
             </DropdownMenuLabel>
             {tmsProjects.map((project) => (
               <DropdownMenuItem key={project.id} onClick={() => onSelectProject(project.id)}>
-                <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
+                <FoldersIcon className="size-4" />
                 <span className="min-w-0 flex-1 truncate">{project.name}</span>
               </DropdownMenuItem>
             ))}
@@ -203,7 +202,7 @@ export function ProjectSelector({
             </DropdownMenuLabel>
             {nativeProjects.map((project) => (
               <DropdownMenuItem key={project.id} onClick={() => onSelectProject(project.id)}>
-                <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
+                <FoldersIcon className="size-4" />
                 <span className="min-w-0 flex-1 truncate">{project.name}</span>
               </DropdownMenuItem>
             ))}

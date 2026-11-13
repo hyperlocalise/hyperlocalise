@@ -19,6 +19,13 @@
  */
 
 import type { ProjectFileContentEditorQueueFilter } from "@/api/routes/project/project.schema";
+import {
+  croqlDateRangePredicate,
+  croqlLabelPredicates,
+  crowdinQaCroqlByQualifier,
+  type ContentEditorAdvancedQueueFilter,
+  type CrowdinQaIssueQualifier,
+} from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
@@ -81,10 +88,40 @@ function crowdinLanguageSummaryPredicate(locale: string) {
   return `language = @language:"${locale}"`;
 }
 
+function crowdinQaPredicate(languageSummary: string, qualifier?: string) {
+  const qaClause =
+    qualifier && qualifier in crowdinQaCroqlByQualifier
+      ? crowdinQaCroqlByQualifier[qualifier as CrowdinQaIssueQualifier]
+      : "has qa issues";
+  return `count of languages summary where (${languageSummary} and ${qaClause}) > 0`;
+}
+
+function crowdinMachineTranslationPredicate(languageSummary: string, qualifier?: string) {
+  if (qualifier === "tm") {
+    return `count of languages summary where (${languageSummary} and is translated by tm) > 0`;
+  }
+  if (qualifier === "mt") {
+    return `count of languages summary where (${languageSummary} and is translated by mt) > 0`;
+  }
+  if (qualifier === "ai") {
+    return `count of languages summary where (${languageSummary} and is translated by ai) > 0`;
+  }
+  return `count of languages summary where (${languageSummary} and is auto translated) > 0`;
+}
+
+function crowdinUnresolvedIssuePredicate(qualifier?: string) {
+  if (!qualifier) {
+    return "count of comments where (has unresolved issue) > 0";
+  }
+
+  return `count of comments where (has unresolved issue and issueType = "${escapeCrowdinCroqlString(qualifier)}") > 0`;
+}
+
 function crowdinQueueFilterPredicates(
   queueFilter: ProjectFileContentEditorQueueFilter | undefined,
   languageSummary: string,
-  locale: string,
+  _locale: string,
+  qualifier?: string,
 ) {
   switch (queueFilter) {
     case "untranslated":
@@ -102,21 +139,89 @@ function crowdinQueueFilterPredicates(
     case "reviewed":
       return [`count of languages summary where (${languageSummary} and is approved) > 0`];
     case "has_issues":
-      return ["count of comments where (has unresolved issue) > 0"];
+      return [crowdinUnresolvedIssuePredicate(qualifier)];
     case "hidden":
       return ["is hidden"];
+    case "not_hidden":
+      return ["not is hidden"];
     case "qa_issues":
-      return [`count of languages summary where (${languageSummary} and has qa issues) > 0`];
+      return [crowdinQaPredicate(languageSummary, qualifier)];
     case "machine_translated":
-      return [
-        `count of translations where (language = @language:"${locale}" and is pre translated) > 0`,
-      ];
+      return [crowdinMachineTranslationPredicate(languageSummary, qualifier)];
     case "with_comments":
       return ["count of comments > 0"];
     case "all":
     default:
       return [];
   }
+}
+
+function crowdinAdvancedFilterPredicates(
+  filter: ContentEditorAdvancedQueueFilter | undefined,
+  languageSummary: string,
+) {
+  if (!filter) {
+    return [];
+  }
+
+  const parts: string[] = [];
+  const added = croqlDateRangePredicate("added", filter.addedFrom, filter.addedTo);
+  if (added) parts.push(added);
+  const updated = croqlDateRangePredicate("updated", filter.updatedFrom, filter.updatedTo);
+  if (updated) parts.push(updated);
+  parts.push(
+    ...croqlLabelPredicates({
+      includeLabelMode: filter.includeLabelMode,
+      includeLabelIds: filter.includeLabelIds,
+      excludeLabelMode: filter.excludeLabelMode,
+      excludeLabelIds: filter.excludeLabelIds,
+    }),
+  );
+
+  if (filter.stringType === "plain") parts.push("type is plain");
+  if (filter.stringType === "plural") parts.push("type is plural");
+  if (filter.stringType === "icu") parts.push("type is icu");
+  if (filter.stringType === "asset") parts.push("type is asset");
+
+  if (filter.translationStatus === "translated") {
+    parts.push(`count of languages summary where (${languageSummary} and is translated) > 0`);
+  }
+  if (filter.translationStatus === "untranslated") {
+    parts.push(`count of languages summary where (${languageSummary} and is translated) = 0`);
+  }
+  if (filter.translationStatus === "partially_translated") {
+    parts.push(
+      `count of languages summary where (${languageSummary} and is partially translated) > 0`,
+    );
+  }
+
+  if (filter.approvalStatus === "approved") {
+    parts.push(`count of languages summary where (${languageSummary} and is approved) > 0`);
+  }
+  if (filter.approvalStatus === "not_approved") {
+    parts.push(`count of languages summary where (${languageSummary} and not is approved) > 0`);
+  }
+  if (filter.approvalStatus === "partially_approved") {
+    parts.push(
+      `count of languages summary where (${languageSummary} and is partially approved) > 0`,
+    );
+  }
+
+  if (filter.qaIssues === "with") {
+    parts.push(crowdinQaPredicate(languageSummary, filter.qaIssueType));
+  }
+  if (filter.qaIssues === "without") {
+    parts.push(`count of languages summary where (${languageSummary} and has qa issues) = 0`);
+  }
+
+  if (filter.comments === "with") parts.push("count of comments > 0");
+  if (filter.comments === "without") parts.push("count of comments = 0");
+  if (filter.screenshots === "with") parts.push("count of screenshots > 0");
+  if (filter.screenshots === "without") parts.push("count of screenshots = 0");
+  if (filter.visibility === "hidden") parts.push("is hidden");
+  if (filter.visibility === "visible") parts.push("not is hidden");
+
+  return parts;
 }
 
 function crowdinStatusBandPredicate(band: CrowdinQueueStatusBand, languageSummary: string) {
@@ -136,6 +241,8 @@ export function buildCrowdinFileQueueCroql(input: {
   fileIds?: readonly number[];
   targetLocale: string;
   queueFilter?: ProjectFileContentEditorQueueFilter;
+  queueFilterQualifier?: string;
+  advancedFilter?: ContentEditorAdvancedQueueFilter;
   search?: string;
   statusBand?: CrowdinQueueStatusBand;
 }) {
@@ -161,7 +268,15 @@ export function buildCrowdinFileQueueCroql(input: {
 
   const locale = escapeCrowdinCroqlString(input.targetLocale);
   const languageSummary = crowdinLanguageSummaryPredicate(locale);
-  parts.push(...crowdinQueueFilterPredicates(input.queueFilter, languageSummary, locale));
+  parts.push(
+    ...crowdinQueueFilterPredicates(
+      input.queueFilter,
+      languageSummary,
+      locale,
+      input.queueFilterQualifier,
+    ),
+  );
+  parts.push(...crowdinAdvancedFilterPredicates(input.advancedFilter, languageSummary));
 
   if (input.statusBand && input.statusBand !== input.queueFilter) {
     parts.push(crowdinStatusBandPredicate(input.statusBand, languageSummary));
@@ -190,6 +305,8 @@ export type ListCrowdinTasksOptions = {
   offset?: number;
   orderBy?: string;
   fetchAll?: boolean;
+  /** Only tasks in these statuses, such as "todo" and "in_progress". */
+  statuses?: readonly string[];
 };
 
 export type ListCrowdinGlossariesOptions = {
@@ -279,12 +396,27 @@ export interface CrowdinSourceString {
   fileId: number | null;
   branchId: number | null;
   directoryId: number | null;
-  identifier: string;
+  /** Null or empty for HTML/document strings that have no key. */
+  identifier: string | null;
   text: string | Record<string, string>;
   type: string;
   context: string | null;
   isHidden: boolean;
   labelIds: number[] | null;
+}
+
+export function crowdinSourceStringKey(
+  sourceString: Pick<CrowdinSourceString, "id" | "identifier">,
+): string {
+  const identifier = sourceString.identifier?.trim();
+  return identifier ? identifier : String(sourceString.id);
+}
+
+export interface CrowdinLabel {
+  id: number;
+  projectId: number;
+  title: string;
+  isSystem?: boolean;
 }
 
 export interface CrowdinScreenshotTagPosition {
@@ -354,6 +486,10 @@ export interface CrowdinLanguageProgress {
   approvalProgress: number;
 }
 
+export interface CrowdinFileProgress extends Omit<CrowdinLanguageProgress, "languageId"> {
+  fileId: number;
+}
+
 export interface CrowdinTaskDetails extends CrowdinTask {
   stringIds?: number[] | null;
 }
@@ -382,6 +518,22 @@ export interface CrowdinCreateTaskRequest {
   startedAt?: string;
   dateFrom?: string;
   dateTo?: string;
+}
+
+export interface CrowdinPreTranslationRequest {
+  languageIds: string[];
+  fileIds: number[];
+  method: "tm" | "mt" | "ai";
+  engineId?: number;
+  aiPromptId?: number;
+  autoApproveOption?: "all" | "exceptAutoSubstituted" | "perfectMatchOnly" | "none";
+  translateUntranslatedOnly?: boolean;
+}
+
+export interface CrowdinPreTranslation {
+  identifier: string;
+  status: "created" | "inProgress" | "canceled" | "failed" | "finished" | (string & {});
+  progress: number;
 }
 
 export interface CrowdinProjectMember {
@@ -658,6 +810,17 @@ export type CrowdinPatchOperation = {
   path: string;
   value?: unknown;
 };
+
+export function crowdinTmSegmentReplaceTextOperation(
+  recordId: number,
+  text: string,
+): CrowdinPatchOperation {
+  return { op: "replace", path: `/records/${recordId}/text`, value: text };
+}
+
+export function crowdinTmSegmentRemoveRecordOperation(recordId: number): CrowdinPatchOperation {
+  return { op: "remove", path: `/records/${recordId}` };
+}
 
 export interface CrowdinTmConcordanceSearchRequest {
   sourceLanguageId: string;
@@ -1076,11 +1239,10 @@ export class CrowdinApiClient {
     return revisions;
   }
 
-  /**
-   * List source strings for a given project.
-   *
-   * Supported filters: `fileId`, `taskId`, or `croql` (mutually exclusive with each other).
-   */
+  async listLabels(projectId: number): Promise<CrowdinLabel[]> {
+    return this.listPaginated<CrowdinLabel>(`/projects/${projectId}/labels`);
+  }
+
   async listScreenshots(
     projectId: number,
     options?: {
@@ -1132,6 +1294,11 @@ export class CrowdinApiClient {
     return screenshots;
   }
 
+  /**
+   * List source strings for a given project.
+   *
+   * Supported filters: `fileId`, `taskId`, or `croql` (mutually exclusive with each other).
+   */
   async listSourceStrings(
     projectId: number,
     options?: {
@@ -1363,11 +1530,14 @@ export class CrowdinApiClient {
     const orderBy = options?.orderBy ?? (fetchAll ? undefined : CROWDIN_LIVE_TASK_LIST_ORDER_BY);
     const tasks: CrowdinTask[] = [];
     let offset = options?.offset ?? 0;
+    const statusParam = options?.statuses?.length
+      ? `&status=${encodeURIComponent(options.statuses.join(","))}`
+      : "";
 
     while (true) {
       const orderParam = orderBy ? `&orderBy=${encodeURIComponent(orderBy)}` : "";
       const response = await this.get<CrowdinListResponse<CrowdinTask>>(
-        `/projects/${projectId}/tasks?limit=${limit}&offset=${offset}${orderParam}`,
+        `/projects/${projectId}/tasks?limit=${limit}&offset=${offset}${orderParam}${statusParam}`,
       );
       const page = response.data.map((item) => item.data);
       tasks.push(...page);
@@ -1957,6 +2127,31 @@ export class CrowdinApiClient {
   }
 
   /**
+   * Start an async pre-translation of files with translation memory, a machine translation
+   * engine, or an AI prompt.
+   */
+  async applyPreTranslation(
+    projectId: number,
+    request: CrowdinPreTranslationRequest,
+  ): Promise<CrowdinPreTranslation> {
+    const response = await this.post<CrowdinGetResponse<CrowdinPreTranslation>>(
+      `/projects/${projectId}/pre-translations`,
+      request,
+    );
+    return response.data;
+  }
+
+  async getPreTranslationStatus(
+    projectId: number,
+    preTranslationId: string,
+  ): Promise<CrowdinPreTranslation> {
+    const response = await this.get<CrowdinGetResponse<CrowdinPreTranslation>>(
+      `/projects/${projectId}/pre-translations/${encodeURIComponent(preTranslationId)}`,
+    );
+    return response.data;
+  }
+
+  /**
    * Check status of an async translation build.
    */
   async getTranslationBuildStatus(
@@ -2107,6 +2302,22 @@ export class CrowdinApiClient {
     return this.listTranslationProgress(
       `/projects/${projectId}/files/${fileId}/languages/progress`,
       options,
+    );
+  }
+
+  /**
+   * Get translation progress for every file in one target language.
+   * Rows for branches and directories are dropped.
+   */
+  async listLanguageFileProgress(
+    projectId: number,
+    languageId: string,
+  ): Promise<CrowdinFileProgress[]> {
+    const rows = await this.listPaginated<
+      Omit<CrowdinFileProgress, "fileId"> & { fileId?: number }
+    >(`/projects/${projectId}/languages/${encodeURIComponent(languageId)}/progress`);
+    return rows.flatMap((row) =>
+      typeof row.fileId === "number" ? [row as CrowdinFileProgress] : [],
     );
   }
 
@@ -2320,6 +2531,11 @@ export class CrowdinApiClient {
     return this.listPaginated<CrowdinTranslationMemory>("/tms");
   }
 
+  async getTranslationMemory(tmId: number): Promise<CrowdinTranslationMemory> {
+    const response = await this.get<CrowdinGetResponse<CrowdinTranslationMemory>>(`/tms/${tmId}`);
+    return response.data;
+  }
+
   async listTranslationMemorySegments(
     tmId: number,
     options?: {
@@ -2327,6 +2543,45 @@ export class CrowdinApiClient {
     },
   ): Promise<CrowdinTranslationMemorySegment[]> {
     return this.listPaginated<CrowdinTranslationMemorySegment>(`/tms/${tmId}/segments`, options);
+  }
+
+  async getTranslationMemorySegment(
+    tmId: number,
+    segmentId: number,
+  ): Promise<CrowdinTranslationMemorySegment> {
+    const response = await this.get<CrowdinGetResponse<CrowdinTranslationMemorySegment>>(
+      `/tms/${tmId}/segments/${segmentId}`,
+    );
+    return response.data;
+  }
+
+  async findTranslationMemorySegmentByRecordId(
+    tmId: number,
+    recordId: number,
+  ): Promise<CrowdinTranslationMemorySegment | null> {
+    const segments = await this.listTranslationMemorySegments(tmId, {
+      shouldStop: (items) =>
+        items.some((segment) => segment.records.some((record) => record.id === recordId)),
+    });
+    return (
+      segments.find((segment) => segment.records.some((record) => record.id === recordId)) ?? null
+    );
+  }
+
+  async updateTranslationMemorySegment(
+    tmId: number,
+    segmentId: number,
+    operations: CrowdinPatchOperation[],
+  ): Promise<CrowdinTranslationMemorySegment> {
+    const response = await this.patch<CrowdinGetResponse<CrowdinTranslationMemorySegment>>(
+      `/tms/${tmId}/segments/${segmentId}`,
+      operations,
+    );
+    return response.data;
+  }
+
+  async deleteTranslationMemorySegment(tmId: number, segmentId: number): Promise<void> {
+    await this.delete(`/tms/${tmId}/segments/${segmentId}`);
   }
 
   async listWebhooks(projectId: number): Promise<CrowdinWebhook[]> {

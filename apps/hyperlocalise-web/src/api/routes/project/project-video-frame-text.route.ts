@@ -90,6 +90,7 @@ export function createProjectVideoFrameTextRoutes() {
         content,
         contentType: "image/png",
         organizationId: file.organizationId,
+        projectId: params.projectId,
         fileId: file.id,
         signal: c.req.raw.signal,
       });

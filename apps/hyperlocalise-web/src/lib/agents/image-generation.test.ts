@@ -12,10 +12,14 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { generateImageMock, getManagedImageModelMock } = vi.hoisted(() => ({
-  generateImageMock: vi.fn(),
-  getManagedImageModelMock: vi.fn(() => "openai/gpt-image-2.5-flare"),
-}));
+const { generateImageMock, getManagedImageModelMock, withAgentRuntimeUsageMeteringMock } =
+  vi.hoisted(() => ({
+    generateImageMock: vi.fn(),
+    getManagedImageModelMock: vi.fn(() => "openai/gpt-image-2.6-flare"),
+    withAgentRuntimeUsageMeteringMock: vi.fn(async ({ run }: { run: () => Promise<unknown> }) =>
+      run(),
+    ),
+  }));
 
 vi.mock("ai", async () => {
   const actual = await vi.importActual<typeof import("ai")>("ai");
@@ -27,10 +31,20 @@ vi.mock("ai", async () => {
 
 vi.mock("@/lib/providers/language-model", () => ({
   getManagedImageModel: getManagedImageModelMock,
+  getManagedLanguageModel: () => "mock-language-model",
+  hyperlocaliseImageModelId: "openai/gpt-image-2.6-flare",
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
-  withAgentRuntimeUsageMetering: vi.fn(async ({ run }: { run: () => Promise<unknown> }) => run()),
+  withAgentRuntimeUsageMetering: withAgentRuntimeUsageMeteringMock,
+}));
+
+vi.mock("@/lib/billing/managed-ai-pricing", () => ({
+  getManagedAiPricingConfig: () => ({
+    pricingVersion: "test",
+    imageModelId: "custom/image",
+    videoModelId: "custom/video",
+  }),
 }));
 
 import { regenerateImageFromAttachment } from "./image-generation";
@@ -40,6 +54,7 @@ describe("image generation", () => {
     vi.clearAllMocks();
     generateImageMock.mockResolvedValue({
       images: [{ uint8Array: new Uint8Array([1, 2, 3]), mediaType: "image/png" }],
+      providerMetadata: { gateway: { generationId: "gen_image" } },
     });
   });
 
@@ -53,7 +68,7 @@ describe("image generation", () => {
     expect(getManagedImageModelMock).toHaveBeenCalledOnce();
     expect(generateImageMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "openai/gpt-image-2.5-flare",
+        model: "openai/gpt-image-2.6-flare",
         prompt: {
           images: [Buffer.from("source")],
           text: "Localize this screenshot into Japanese",
@@ -65,5 +80,106 @@ describe("image generation", () => {
       mimeType: "image/png",
       prompt: "Localize this screenshot into Japanese",
     });
+  });
+
+  it("forwards the abort signal to the image model", async () => {
+    const abort = new AbortController();
+
+    await regenerateImageFromAttachment(
+      Buffer.from("source"),
+      "image/png",
+      "Localize this screenshot",
+      undefined,
+      { signal: abort.signal },
+    );
+
+    expect(generateImageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ abortSignal: abort.signal }),
+    );
+  });
+
+  it("tracks a synthetic image unit after generation when the provider reports no tokens", async () => {
+    await regenerateImageFromAttachment(
+      Buffer.from("source"),
+      "image/png",
+      "Localize this screenshot",
+      {
+        organizationId: "org_123",
+        operationKey: "image:test",
+      },
+    );
+
+    expect(withAgentRuntimeUsageMeteringMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org_123",
+        operationKey: "image:test",
+        aiCreditCredentialSource: "gateway",
+      }),
+    );
+    const metering = withAgentRuntimeUsageMeteringMock.mock.calls[0][0] as unknown as {
+      extractTokenUsage: (result: {
+        billing: { tokenUsage: unknown; imageCount: number };
+      }) => unknown;
+      aiCreditModelId: (result: { billing: { tokenUsage: unknown } }) => string;
+    };
+    const generated = {
+      billing: { tokenUsage: null, imageCount: 1 },
+    };
+    expect(metering.extractTokenUsage(generated)).toEqual({
+      inputTokens: 0,
+      outputTokens: 1,
+      totalTokens: 1,
+    });
+    expect(metering.aiCreditModelId(generated)).toBe("custom/image");
+  });
+
+  it("tracks reported image token usage after generation", async () => {
+    generateImageMock.mockResolvedValueOnce({
+      images: [{ uint8Array: new Uint8Array([1, 2, 3]), mediaType: "image/png" }],
+      usage: { inputTokens: 120, outputTokens: 80, totalTokens: 200 },
+      providerMetadata: { gateway: { generationId: "gen_image" } },
+    });
+
+    await regenerateImageFromAttachment(
+      Buffer.from("source"),
+      "image/png",
+      "Localize this screenshot",
+      {
+        organizationId: "org_123",
+        operationKey: "image:tokens",
+      },
+    );
+
+    const metering = withAgentRuntimeUsageMeteringMock.mock.calls[0][0] as unknown as {
+      extractTokenUsage: (result: { billing: { tokenUsage: unknown } }) => unknown;
+      aiCreditModelId: (result: { billing: { tokenUsage: unknown } }) => string;
+    };
+    const generated = {
+      billing: {
+        tokenUsage: { inputTokens: 120, outputTokens: 80, totalTokens: 200 },
+      },
+    };
+    expect(metering.extractTokenUsage(generated)).toEqual({
+      inputTokens: 120,
+      outputTokens: 80,
+      totalTokens: 200,
+    });
+    expect(metering.aiCreditModelId(generated)).toBe("openai/gpt-image-2.6-flare");
+  });
+
+  it("does not complete image tracking when generation fails", async () => {
+    generateImageMock.mockRejectedValueOnce(new Error("provider unavailable"));
+
+    await expect(
+      regenerateImageFromAttachment(
+        Buffer.from("source"),
+        "image/png",
+        "Localize this screenshot",
+        {
+          organizationId: "org_123",
+          operationKey: "image:test",
+        },
+      ),
+    ).rejects.toThrow("provider unavailable");
   });
 });

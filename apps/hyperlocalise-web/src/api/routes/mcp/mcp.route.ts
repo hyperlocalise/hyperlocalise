@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { mcpActivityActor } from "@/api/routes/mcp/mcp-activity-actor";
 import { createHash, randomUUID } from "node:crypto";
 
 import { and, desc, eq, gt, inArray, isNotNull, isNull } from "drizzle-orm";
@@ -31,6 +32,13 @@ import { issueIdSchema } from "@/lib/projects/issue-identifier/project-issue-ide
 import { z } from "zod";
 
 import { registerZernioMcpTools } from "@/api/routes/mcp/zernio-tools";
+import { registerTranslatorMcpTools } from "@/api/routes/mcp/translator-tools";
+import { registerProjectManagerMcpTools } from "@/api/routes/mcp/project-manager-tools";
+import {
+  MCP_CREATE_TOOL,
+  MCP_READ_ONLY_TOOL,
+  mcpToolError,
+} from "@/api/routes/mcp/mcp-tool-result";
 import { apiAuthContextFromMcpAuth } from "@/api/auth/mcp-access";
 import { normalizedGlossaryTermStatusFromStatus } from "@/lib/providers/contracts/glossary-term-status";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
@@ -38,6 +46,7 @@ import {
   buildAccessibleProjectsWhere,
   buildProjectLinkedGlossaryWhere,
   canAccessGlossary,
+  canAccessProject,
   ownedProjectWhere,
 } from "@/api/auth/team-access";
 import { jobIdParamsSchema } from "@/api/routes/public-jobs/public-jobs.schema";
@@ -76,6 +85,7 @@ import {
   issueSheetFeedQuerySchema,
   issueSheetUpdateIssueBodySchema,
 } from "@/api/routes/project/issue-sheet.schema";
+import { enqueueQueryCreatedActivity } from "@/lib/activity-log/query-events";
 import {
   IssueSheetService,
   type IssueSheetIssue,
@@ -137,12 +147,26 @@ import {
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import { createTranslationJob } from "@/lib/agent-runtime/tools/translation-tools";
 import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { isAutumnBooleanFeatureEnabled } from "@/lib/billing/autumn-boolean-feature-access";
 import { getOwnedGlossary, isGlossaryManageAllowed } from "@/api/routes/glossary/glossary.shared";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { GlossaryValidationError } from "@/lib/glossary/glossary";
 import { toolCanAccessMemory, toolCanAccessProject } from "@/lib/tools/tool-access";
 import { mcpCreateGlossaryConceptInputSchema } from "./mcp-create-glossary-concept.schema";
 import { mcpQueryTranslationMemoryInputSchema } from "./mcp-query-translation-memory.schema";
+import { mcpGetKnowledgeMemoryInputSchema } from "@/api/routes/mcp/mcp-get-knowledge-memory.schema";
+import { mcpCheckGuidelinesInputSchema } from "@/api/routes/mcp/mcp-check-guidelines.schema";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
+import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
+import { loadUploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
+import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
+
+// upload_sources accepts up to maxPublicUploadBytes, possibly base64-encoded,
+// so the transport body cap must leave room for that plus the JSON-RPC envelope.
+const MCP_REQUEST_BODY_ENVELOPE_BYTES = 1024 * 1024;
+const MAX_MCP_REQUEST_BODY_BYTES =
+  Math.ceil((maxPublicUploadBytes * 4) / 3) + MCP_REQUEST_BODY_ENVELOPE_BYTES;
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
@@ -368,6 +392,12 @@ export function getMcpProtectedResourceMetadata(origin: string, apiBasePath = "/
   };
 }
 
+async function isMcpKnowledgeMemoryFeatureEnabled(apiAuth: ApiAuthContext) {
+  return resolveWorkspaceKnowledgeFlag({
+    organizationId: apiAuth.organization.localOrganizationId,
+  });
+}
+
 async function readTokenRequestBody(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
 
@@ -496,7 +526,7 @@ const mcpListTranslationsInputSchema = z.object({
     .enum(mcpListTranslationsQueueFilters)
     .optional()
     .describe(
-      "CAT queue filter: all, untranslated, needs_review, approved (same as reviewed), has_issues, or other Content Editor filters.",
+      "CAT queue filter: all, untranslated, needs_review, approved (same as reviewed), has_issues, hidden, not_hidden, or other Content Editor filters.",
     ),
   queueSort: projectFileCatQueueSortSchema
     .optional()
@@ -740,9 +770,14 @@ const mcpQueryGlossaryInputSchema = z.object({
 const catTranslationShape = projectFileCatTranslationBodySchema.shape;
 
 const mcpUpdateTranslationInputSchema = z.object({
-  projectId: z.string().trim().min(1).max(128),
+  projectId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .describe("ID of the accessible Hyperlocalise project."),
 
-  translationKeyId: z.uuid(),
+  translationKeyId: z.uuid().describe("UUID returned as id by list_translations."),
 
   targetLocale: catTranslationShape.targetLocale.describe(
     "Target locale whose translation should be updated.",
@@ -929,16 +964,17 @@ function mcpCreateIssueFingerprint(
   return createHash("sha256").update(JSON.stringify(canonicalPayload)).digest("hex");
 }
 
-function mcpToolError(code: string, message: string, details?: Record<string, unknown>) {
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text: JSON.stringify({ error: code, message, ...details }),
-      },
-    ],
-    isError: true,
-  };
+const QUERIES_BOARD_UNAVAILABLE_MESSAGE = "Queries is not included in your current plan.";
+
+async function requireMcpQueriesBoard(apiAuth: ApiAuthContext) {
+  const enabled = await isAutumnBooleanFeatureEnabled({
+    organizationId: apiAuth.organization.localOrganizationId,
+    featureId: autumnFeatureIds.queriesBoard,
+  });
+  if (!enabled) {
+    return mcpToolError("feature_unavailable", QUERIES_BOARD_UNAVAILABLE_MESSAGE);
+  }
+  return null;
 }
 
 function detailedMcpIssue(issue: IssueSheetIssue) {
@@ -1013,7 +1049,10 @@ function mcpIssueComment(comment: IssueSheetComment) {
   };
 }
 
-async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
+async function createMcpServerForRequest(
+  auth: McpAuthVariables["mcpAuth"],
+  options: { deferAfterResponse?: (task: () => Promise<unknown>) => void } = {},
+) {
   const apiAuth = apiAuthContextFromMcpAuth(auth);
   const server = new McpServer({
     name: "hyperlocalise",
@@ -1023,6 +1062,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "list_projects",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description: "List Hyperlocalise projects for the authenticated organization.",
       inputSchema: z.object({
         limit: z.number().int().min(1).max(50).default(20),
@@ -1052,9 +1092,10 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "get_project",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description: "Get Hyperlocalise project details by ID.",
       inputSchema: z.object({
-        projectId: projectIdSchema,
+        projectId: projectIdSchema.describe("ID of the accessible Hyperlocalise project."),
       }),
     },
     async ({ projectId }) => {
@@ -1080,6 +1121,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "list_files",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "List source files in an accessible Hyperlocalise project. Returns metadata only — use sourcePath values for upload, download, or run_workflow.",
       inputSchema: mcpListFilesInputSchema,
@@ -1156,6 +1198,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "list_translations",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "List translation keys in an accessible Hyperlocalise project. Returns compact CAT queue rows (id, key, sourcePath, sourceText, targetLocale, targetText, status, maxLength, isHidden) with total and pagination. Filters match the Content Editor queue. Read-only roles may list. Results use the native key overlay; live TMS provider listing is out of scope.",
       inputSchema: mcpListTranslationsInputSchema,
@@ -1205,6 +1248,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "get_project_status",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "Get locale coverage counts for an accessible Hyperlocalise project. Returns CAT queue totals per target locale without source or target text. Counts use the native key overlay (the same filters as the Content Editor). Live TMS provider statistics are out of scope.",
       inputSchema: z.object({
@@ -1250,11 +1294,17 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "list_issues",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "List issues visible to the authenticated organization with filtering, sorting, and pagination.",
       inputSchema: mcpListIssuesInputSchema,
     },
     async (query: OrganizationIssuesQuery) => {
+      const unavailable = await requireMcpQueriesBoard(apiAuth);
+      if (unavailable) {
+        return unavailable;
+      }
+
       const result = await organizationIssueService.list(apiAuth, query);
       const nextOffset = query.offset + result.issues.length;
       const hasMore = nextOffset < result.total;
@@ -1285,11 +1335,17 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "list_issue_comments",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "List comment threads for one accessible Hyperlocalise issue with cursor pagination. Root comments are ordered chronologically, with each root followed by its replies in chronological order.",
       inputSchema: mcpListIssueCommentsInputSchema,
     },
     async ({ projectId, issueId, limit, cursor }) => {
+      const unavailable = await requireMcpQueriesBoard(apiAuth);
+      if (unavailable) {
+        return unavailable;
+      }
+
       if ((cursor as unknown) === invalidCommentCursor) {
         return mcpToolError("invalid_comment_cursor", "Invalid comment cursor");
       }
@@ -1352,10 +1408,16 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "create_issue_comment",
     {
+      annotations: MCP_CREATE_TOOL,
       description: "Create a Markdown comment or reply on an accessible Hyperlocalise issue.",
       inputSchema: mcpCreateIssueCommentInputSchema,
     },
     async ({ projectId, issueId, ...commentBody }) => {
+      const unavailable = await requireMcpQueriesBoard(apiAuth);
+      if (unavailable) {
+        return unavailable;
+      }
+
       const [project] = await db
         .select({ id: schema.projects.id })
         .from(schema.projects)
@@ -1418,10 +1480,16 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "get_issue",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description: "Get the complete details of one accessible Hyperlocalise issue.",
       inputSchema: mcpGetIssueInputSchema,
     },
     async ({ projectId, issueId }) => {
+      const unavailable = await requireMcpQueriesBoard(apiAuth);
+      if (unavailable) {
+        return unavailable;
+      }
+
       const [project] = await db
         .select({ id: schema.projects.id })
         .from(schema.projects)
@@ -1459,10 +1527,21 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "update_issue",
     {
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       description: "Update mutable fields on one accessible Hyperlocalise issue.",
       inputSchema: mcpUpdateIssueInputSchema,
     },
     async ({ projectId, issueId, priority, ...updates }) => {
+      const unavailable = await requireMcpQueriesBoard(apiAuth);
+      if (unavailable) {
+        return unavailable;
+      }
+
       if (!isWriteBackTranslationAllowed(apiAuth.membership.role)) {
         return mcpToolError("forbidden", "Insufficient permissions to update issues");
       }
@@ -1546,10 +1625,16 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "create_issue",
     {
+      annotations: MCP_CREATE_TOOL,
       description: "Create one issue in an accessible Hyperlocalise project.",
       inputSchema: mcpCreateIssueInputSchema,
     },
     async ({ projectId, idempotencyKey, ...body }) => {
+      const unavailable = await requireMcpQueriesBoard(apiAuth);
+      if (unavailable) {
+        return unavailable;
+      }
+
       if (!isWriteBackTranslationAllowed(apiAuth.membership.role)) {
         return mcpToolError("forbidden", "Insufficient permissions to create issues");
       }
@@ -1565,6 +1650,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       }
 
       let issue: Awaited<ReturnType<IssueSheetService["createIssue"]>> | null = null;
+      let createdIssue = false;
       const externalRef = idempotencyKey ? `mcp:${idempotencyKey}` : undefined;
       const fingerprint = idempotencyKey ? mcpCreateIssueFingerprint(body) : undefined;
 
@@ -1618,6 +1704,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
               ...(externalRef ? { externalRef } : {}),
             },
           });
+          createdIssue = true;
         } catch (error) {
           if (error instanceof Error) {
             if (error.message === "assignee_not_assignable") {
@@ -1648,6 +1735,17 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 
       if (!issue) {
         throw new Error("issue_sheet_issue_load_failed");
+      }
+
+      if (createdIssue) {
+        await enqueueQueryCreatedActivity({
+          ...mcpActivityActor(apiAuth.user.localUserId),
+          identifier: issue.identifier,
+          organizationId: apiAuth.organization.localOrganizationId,
+          projectId,
+          queryId: issue.id,
+          source: "mcp",
+        });
       }
 
       if (fingerprint) {
@@ -1696,6 +1794,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "list_glossaries",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description: "List glossaries for the authenticated organization.",
       inputSchema: z.object({
         limit: z.number().int().min(1).max(50).default(20),
@@ -1725,6 +1824,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "list_jobs",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "List recent translation jobs visible to the caller. Use this to find a job id, then call get_job. Defaults to translation jobs. Optional sourcePath uses the latest-job-for-path lookup.",
       inputSchema: mcpListJobsInputSchema,
@@ -1768,6 +1868,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "get_job",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "Get status and results for one accessible Hyperlocalise job. Poll after run_workflow until the job reaches a terminal status.",
       inputSchema: mcpGetJobInputSchema,
@@ -1795,6 +1896,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "get_glossary_entries",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description: "Get glossary entries for a glossary in the authenticated organization.",
       inputSchema: z.object({
         glossaryId: z.string().uuid(),
@@ -1852,6 +1954,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "query_glossary",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "Search concept-linked glossary terms for a source string and locale pair. Prefer this over get_glossary_entries when you need a hit while translating. Forbidden terms are marked so agents can avoid them.",
       inputSchema: mcpQueryGlossaryInputSchema,
@@ -1892,6 +1995,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "create_glossary_concept",
     {
+      annotations: MCP_CREATE_TOOL,
       description: "Create a source and target terminology concept in a native glossary.",
       inputSchema: mcpCreateGlossaryConceptInputSchema,
     },
@@ -2022,6 +2126,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "run_workflow",
     {
+      annotations: MCP_CREATE_TOOL,
       description:
         "Create and enqueue a string or file translation job in an accessible Hyperlocalise project.",
       inputSchema: mcpRunWorkflowInputSchema,
@@ -2193,7 +2298,9 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "get_translation",
     {
-      description: "Get complete CAT detail for one translation returned by list_translations.",
+      annotations: MCP_READ_ONLY_TOOL,
+      description:
+        "Get complete CAT detail for one translation returned by list_translations, including the placeholders and ICU plural/select blocks the target must preserve.",
       inputSchema: mcpGetTranslationInputSchema,
     },
     async ({ projectId, translationKeyId, targetLocale }) => {
@@ -2246,6 +2353,12 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "update_translation",
     {
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       description:
         "Save and optionally approve a target translation in an accessible Hyperlocalise project.",
       inputSchema: mcpUpdateTranslationInputSchema,
@@ -2332,6 +2445,12 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "upload_sources",
     {
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       description: "Upload one source file to an accessible Hyperlocalise project.",
       inputSchema: mcpUploadSourcesInputSchema,
     },
@@ -2412,15 +2531,24 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
         resolvedProjectId = ensuredProject.value;
       }
 
-      const projectWhere =
-        target.kind === "provider"
-          ? and(
-              eq(schema.projects.organizationId, apiAuth.organization.localOrganizationId),
-              eq(schema.projects.id, resolvedProjectId),
-            )
-          : await ownedProjectWhere(apiAuth, resolvedProjectId);
+      // Always enforce project access after materialization. Org-only lookups on
+      // provider targets skipped team ACL and live TMS membership for already-
+      // materialized `ext:` rows (ensureOrganizationProjectRecord early-returns).
+      const accessibleProject = await canAccessProject(apiAuth, resolvedProjectId);
+      if (!accessibleProject) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
 
-      const [project] = await db.select().from(schema.projects).where(projectWhere).limit(1);
+      const [project] = await db
+        .select()
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, apiAuth.organization.localOrganizationId),
+            eq(schema.projects.id, accessibleProject.id),
+          ),
+        )
+        .limit(1);
 
       if (!project) {
         return mcpToolError("project_not_found", "Project not found or inaccessible");
@@ -2444,6 +2572,8 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
         uploadSurface: "mcp",
         uploadedByUserId: apiAuth.user.localUserId,
         actorUserId: apiAuth.user.localUserId,
+        // Keep ingest enqueue alive after the MCP response (same as /api/v1/files).
+        deferAfterResponse: options.deferAfterResponse,
       });
 
       if (isErr(result)) {
@@ -2453,6 +2583,12 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
 
           case "source_upload_failed":
             return mcpToolError("source_upload_failed", "Source file upload failed");
+
+          case "protected_branch":
+            return mcpToolError("protected_branch", "This branch is protected");
+
+          case "branch_not_found":
+            return mcpToolError("branch_not_found", "Branch not found");
 
           case "provider_credential_not_found":
           case "invalid_crowdin_project_id":
@@ -2485,8 +2621,9 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   server.registerTool(
     "download_translations",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
-        "Download a reconstructed UTF-8 target translation file from an accessible Hyperlocalise project.",
+        "Download a reconstructed target translation file from an accessible Hyperlocalise project. JSON-compatible sources and HTML return UTF-8 text. dotLottie, Office, and PDF sources return base64-encoded bytes in `content` with `contentEncoding` set to `base64`. PDF responses may include `overflowKeys` when block text could not fit after wrapping.",
       inputSchema: mcpDownloadTranslationsInputSchema,
     },
     async ({ projectId, sourcePath, locale }) => {
@@ -2534,6 +2671,39 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
               "The reconstructed translation file is not supported as UTF-8 text",
             );
 
+          case "html_export_failed":
+            return mcpToolError(
+              "html_export_failed",
+              "Could not write translations into the HTML file",
+            );
+
+          case "lottie_export_failed":
+            return mcpToolError(
+              "lottie_export_failed",
+              "Could not write translations into the Lottie animation",
+            );
+
+          case "xlsx_export_failed":
+            return mcpToolError(
+              "xlsx_export_failed",
+              "Could not write translations into the Excel workbook",
+            );
+
+          case "office_export_failed":
+            return mcpToolError(
+              "office_export_failed",
+              "Could not write translations into the Office file",
+            );
+
+          case "pdf_export_failed":
+            return mcpToolError("pdf_export_failed", "Could not write translations into the PDF");
+
+          case "pdf_script_unsupported":
+            return mcpToolError(
+              "pdf_script_unsupported",
+              "The target text uses a script this PDF export does not support",
+            );
+
           default:
             return assertNever(downloadError);
         }
@@ -2551,10 +2721,13 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   );
 
   registerZernioMcpTools(server, apiAuth);
+  registerTranslatorMcpTools(server, apiAuth);
+  registerProjectManagerMcpTools(server, apiAuth);
 
   server.registerTool(
     "query_translation_memory",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description: "Find exact and similar translation memory matches for a source segment.",
       inputSchema: mcpQueryTranslationMemoryInputSchema,
     },
@@ -2614,10 +2787,103 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     },
   );
 
+  server.registerTool(
+    "get_knowledge_memory",
+    {
+      annotations: MCP_READ_ONLY_TOOL,
+      description:
+        "Search workspace and project guideline documents for passages relevant to a question. Returns nothing found if no document matches.",
+      inputSchema: mcpGetKnowledgeMemoryInputSchema,
+    },
+    async ({ query, scope, projectId, targetLocale }) => {
+      if (!(await isMcpKnowledgeMemoryFeatureEnabled(apiAuth))) {
+        return mcpToolError(
+          "knowledge_memory_unavailable",
+          "Workspace Knowledge is not enabled for this organization",
+        );
+      }
+
+      if (scope === "project") {
+        if (!projectId) {
+          return mcpToolError(
+            "invalid_knowledge_memory_request",
+            "projectId is required when scope is project",
+          );
+        }
+
+        const ctx = mcpToolContext(apiAuth);
+
+        if (!(await toolCanAccessProject(ctx, projectId))) {
+          return mcpToolError("project_not_found", "Project not found or inaccessible");
+        }
+      }
+
+      const guidelines = await loadUploadedGuidelinesContext({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: scope === "project" ? projectId : undefined,
+        targetLocales: targetLocale ? [targetLocale] : [],
+        sourceText: query,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              scope,
+              ...(scope === "project" ? { projectId } : {}),
+              found: guidelines.text.length > 0,
+              text: guidelines.text,
+              documents: guidelines.documents,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    "check_guidelines",
+    {
+      description:
+        "Check source or translated segments against workspace and project guidelines. Returns findings with UTF-16 offsets and the guideline passages they cite.",
+      inputSchema: mcpCheckGuidelinesInputSchema,
+    },
+    async ({ projectId, sourceLocale, targetLocale, segments, checks }) => {
+      if (!(await isMcpKnowledgeMemoryFeatureEnabled(apiAuth))) {
+        return mcpToolError(
+          "knowledge_memory_unavailable",
+          "Workspace Knowledge is not enabled for this organization",
+        );
+      }
+
+      if (projectId && !(await toolCanAccessProject(mcpToolContext(apiAuth), projectId))) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      try {
+        const result = await createGoSvcServerClient().guidelines.internalCheck(
+          apiAuth.organization.localOrganizationId,
+          { projectId, sourceLocale, targetLocale, segments, checks },
+        );
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      } catch (error) {
+        if (error instanceof GoSvcClientError) {
+          return mcpToolError(error.code, error.message);
+        }
+        throw error;
+      }
+    },
+  );
+
   return server;
 }
 
-async function handleMcpTransport(request: Request, auth: McpAuthVariables["mcpAuth"]) {
+async function handleMcpTransport(
+  request: Request,
+  auth: McpAuthVariables["mcpAuth"],
+  options: { deferAfterResponse?: (task: () => Promise<unknown>) => void } = {},
+) {
   if (request.method !== "POST") {
     return new Response(null, {
       status: 405,
@@ -2627,10 +2893,11 @@ async function handleMcpTransport(request: Request, auth: McpAuthVariables["mcpA
     });
   }
 
-  const server = await createMcpServerForRequest(auth);
+  const server = await createMcpServerForRequest(auth, options);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
+    maxRequestBodySize: MAX_MCP_REQUEST_BODY_BYTES,
   });
 
   try {
@@ -2661,8 +2928,14 @@ const validateRegisterBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
+export function createMcpRoutes(
+  options: {
+    apiBasePath?: string;
+    deferAfterResponse?: (task: () => Promise<unknown>) => void;
+  } = {},
+) {
   const apiBasePath = options.apiBasePath ?? "/api";
+  const deferAfterResponse = options.deferAfterResponse;
 
   // `/mcp` is the canonical Streamable HTTP endpoint advertised by
   // protected-resource metadata. `/mcp/sse` and `/mcp/message` remain
@@ -3022,7 +3295,11 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
     .use("/mcp", mcpBearerAuthMiddleware)
     .use("/mcp/sse", mcpBearerAuthMiddleware)
     .use("/mcp/message", mcpBearerAuthMiddleware)
-    .all("/mcp", async (c) => handleMcpTransport(c.req.raw, c.var.mcpAuth))
-    .all("/mcp/sse", async (c) => handleMcpTransport(c.req.raw, c.var.mcpAuth))
-    .all("/mcp/message", async (c) => handleMcpTransport(c.req.raw, c.var.mcpAuth));
+    .all("/mcp", async (c) => handleMcpTransport(c.req.raw, c.var.mcpAuth, { deferAfterResponse }))
+    .all("/mcp/sse", async (c) =>
+      handleMcpTransport(c.req.raw, c.var.mcpAuth, { deferAfterResponse }),
+    )
+    .all("/mcp/message", async (c) =>
+      handleMcpTransport(c.req.raw, c.var.mcpAuth, { deferAfterResponse }),
+    );
 }

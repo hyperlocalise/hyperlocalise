@@ -27,6 +27,15 @@ export const env = createEnv({
     /** Postgres connection string for Drizzle ORM. */
     DATABASE_URL: z.string().min(1),
 
+    /** SQS queue used for asynchronous organization activity-log events. */
+    ACTIVITY_LOG_SQS_QUEUE_URL: z.url(),
+
+    /** AWS region used to sign activity-log SQS requests. */
+    AWS_REGION: z.string().min(1),
+
+    /** IAM role assumed through Vercel OIDC for activity-log SQS requests. */
+    AWS_ROLE_ARN: z.string().min(1).optional(),
+
     /** OpenAI API key used for CLI sandbox translation. Optional when AI Gateway or that feature is unused. */
     OPENAI_API_KEY: z.string().min(1).optional(),
 
@@ -68,13 +77,6 @@ export const env = createEnv({
 
     /** Password for encrypting WorkOS session cookies. Must be at least 32 characters. */
     WORKOS_COOKIE_PASSWORD: z.string().min(32).optional(),
-
-    /**
-     * Comma-separated AuthKit redirect URIs allowed for native clients (Mac app).
-     * Always merged with the default `hyperlocalise://auth/callback` scheme.
-     * Example: `http://127.0.0.1:53682/callback`
-     */
-    WORKOS_NATIVE_REDIRECT_URIS: z.string().min(1).optional(),
 
     /** Secret used by WorkOS to sign webhook payloads. Required for secure WorkOS webhook handling. */
     WORKOS_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -150,8 +152,17 @@ export const env = createEnv({
     /** Channel name prefix for Slack Connect client channels. Default `ext`. */
     SLACK_CONNECT_CHANNEL_PREFIX: z.string().min(1).max(20).optional(),
 
-    /** Autumn secret key for server-side usage checks and tracking. */
+    /** Autumn secret key for server-side usage tracking. */
     AUTUMN_API_KEY: z.string().min(1).optional(),
+
+    /** Autumn custom model ID used to price one generated image as one synthetic token. */
+    AI_CREDIT_IMAGE_MODEL_ID: z.string().min(1).default("custom/hyperlocalise-gpt-image-2"),
+
+    /** Autumn custom model ID used to price one generated video second as one synthetic token. */
+    AI_CREDIT_VIDEO_MODEL_ID: z.string().min(1).default("custom/hyperlocalise-seedance-2-5"),
+
+    /** Version recorded with each managed AI price calculation. */
+    AI_CREDIT_PRICING_VERSION: z.string().min(1).default("2026-09-01"),
 
     /**
      * GA4 Measurement Protocol API secret. Optional — without it, server-side
@@ -214,10 +225,14 @@ export const env = createEnv({
     /** Maximum snapshots deleted per snapshot cleanup cron tick. */
     SNAPSHOT_CLEANUP_MAX_PER_TICK: z.coerce.number().int().positive().default(100),
 
+    /** Maximum native projects scanned per translation QA cron tick. */
+    TRANSLATION_QA_SCAN_MAX_PROJECTS_PER_TICK: z.coerce.number().int().positive().default(10),
+
     /**
      * OCI image ref for custom Vercel Sandboxes (VCR), e.g.
      * `vcr.vercel.com/<team>/<project>/hyperlocalise-sandbox:latest`.
-     * Used only when release flag `release-sandbox-vcr-image` is enabled.
+     * Used when release flag `release-sandbox-vcr-image` or
+     * `release-qa-sandbox-vcr-image` (QA only) is enabled.
      */
     VERCEL_SANDBOX_IMAGE: z.string().min(1).optional(),
 
@@ -230,6 +245,22 @@ export const env = createEnv({
       .enum(["true", "false"])
       .default("false")
       .transform((value) => value === "true"),
+
+    /**
+     * Env-backed decide for release flag `release-qa-sandbox-vcr-image`.
+     * When true (and `VERCEL_SANDBOX_IMAGE` is set), translation QA sandboxes
+     * use the custom VCR image without enabling the global sandbox cutover.
+     */
+    RELEASE_QA_SANDBOX_VCR_IMAGE: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+
+    /**
+     * Tilion API key. When set, localisation audits render pages in Tilion cloud
+     * browsers instead of Vercel Sandboxes, falling back to the sandbox on failure.
+     */
+    TILION_API_KEY: z.string().min(1).optional(),
 
     /** Canva app ID used to verify Canva JWTs for the integration API. */
     CANVA_APP_ID: z.string().min(1).optional(),
@@ -255,32 +286,27 @@ export const env = createEnv({
     /** Comma-separated browser origins allowed to call the Figma plugin API. */
     FIGMA_CORS_ORIGINS: z.string().min(1).optional(),
 
-    /** Crowdin App OAuth client id used for Crowdin Apps JWT audience checks. */
-    CROWDIN_APP_CLIENT_ID: z.string().min(1).optional(),
+    /** Public OAuth client id for the Figma plugin (PKCE, no client secret). */
+    FIGMA_OAUTH_CLIENT_ID: z.string().min(1).optional(),
 
-    /** Crowdin App OAuth client secret used to verify Crowdin Apps JWTs. */
-    CROWDIN_APP_CLIENT_SECRET: z.string().min(1).optional(),
+    /** Comma-separated redirect URIs allowed for Figma plugin OAuth. */
+    FIGMA_OAUTH_REDIRECT_URI: z.string().min(1).optional(),
 
-    /**
-     * Secret for signing Crowdin App embed sessions. Required when the Crowdin
-     * App iframe is enabled; do not reuse WorkOS or provider credential keys.
-     */
-    CROWDIN_APP_EMBED_SESSION_SECRET: z.string().min(32).optional(),
+    /** Comma-separated browser origins allowed to call the Sanity Studio plugin API. */
+    SANITY_CORS_ORIGINS: z.string().min(1).optional(),
 
-    /**
-     * Extra CSP frame-ancestors for `/crowdin-app/*`, merged with Crowdin SaaS
-     * defaults. Use for Crowdin Enterprise custom UI domains (CNAME), e.g.
-     * `https://translate.acme.com`. Applied by the Next proxy at runtime.
-     */
-    CROWDIN_APP_FRAME_ANCESTORS: z.string().min(1).optional(),
+    /** Public OAuth client id for the Sanity Studio plugin (PKCE, no client secret). */
+    SANITY_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+
+    /** Comma-separated redirect URIs allowed for Sanity Studio plugin OAuth. */
+    SANITY_OAUTH_REDIRECT_URI: z.string().min(1).optional(),
 
     /** Base URL for browser e2e tests. Defaults to http://localhost:3000. */
     E2E_BASE_URL: z.url().optional(),
 
     /**
-     * Origin of go-svc for server-side DataForSEO research calls.
-     * Vercel injects this via the `go_svc` service binding. Local default is
-     * `http://127.0.0.1:8080`.
+     * Origin of go-svc for server-side domains research and Search Console calls.
+     * Production: `https://api.hyperlocalise.com`. Local default is `http://127.0.0.1:8080`.
      */
     GO_SVC_URL: z.url().optional(),
   },
@@ -288,16 +314,35 @@ export const env = createEnv({
     /** Public runtime environment exposed to the browser. Mirrors NODE_ENV. */
     NEXT_PUBLIC_APP_ENV: z.enum(["development", "test", "production"]).default("development"),
 
+    /** Public origin used by browser-direct Go service requests. */
+    NEXT_PUBLIC_API_BASE_URL: z.url().optional(),
+
     /** Public WorkOS OAuth redirect URI exposed to the browser. Optional — falls back to WORKOS_REDIRECT_URI. */
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: z.url().optional(),
 
-    /** Crowdin Apps iframe helper script CDN URL. */
-    NEXT_PUBLIC_CROWDIN_IFRAME_SRC: z.url().optional(),
+    /**
+     * PostHog project token. Optional — without it, PostHog client and server
+     * capture no-op. The token is public by design (`phc_…`).
+     */
+    NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: z.string().min(1).optional(),
+
+    /**
+     * PostHog ingest host. Optional — defaults to US Cloud. Use
+     * `https://eu.i.posthog.com` for EU Cloud.
+     */
+    NEXT_PUBLIC_POSTHOG_HOST: z.url().optional(),
   },
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
+    NEXT_PUBLIC_API_BASE_URL:
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? (isTestEnv ? "http://127.0.0.1:8080" : undefined),
     DATABASE_URL: process.env.DATABASE_URL,
+    ACTIVITY_LOG_SQS_QUEUE_URL:
+      process.env.ACTIVITY_LOG_SQS_QUEUE_URL ??
+      (isTestEnv ? "https://sqs.test.local/123456789012/activity-log" : undefined),
+    AWS_REGION: process.env.AWS_REGION ?? (isTestEnv ? "us-east-1" : undefined),
+    AWS_ROLE_ARN: process.env.AWS_ROLE_ARN,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? (isTestEnv ? "test-openai-api-key" : undefined),
     AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
     AI_GATEWAY_BASE_URL: process.env.AI_GATEWAY_BASE_URL,
@@ -322,7 +367,6 @@ export const env = createEnv({
     WORKOS_COOKIE_PASSWORD:
       process.env.WORKOS_COOKIE_PASSWORD ??
       (isTestEnv ? "test-workos-cookie-password-at-least-32-chars" : undefined),
-    WORKOS_NATIVE_REDIRECT_URIS: process.env.WORKOS_NATIVE_REDIRECT_URIS,
     WORKOS_WEBHOOK_SECRET:
       process.env.WORKOS_WEBHOOK_SECRET ?? (isTestEnv ? "test-workos-webhook-secret" : undefined),
     WORKOS_API_HOSTNAME: process.env.WORKOS_API_HOSTNAME,
@@ -353,6 +397,11 @@ export const env = createEnv({
     SLACK_CONNECT_HOST_USER_IDS: process.env.SLACK_CONNECT_HOST_USER_IDS,
     SLACK_CONNECT_CHANNEL_PREFIX: process.env.SLACK_CONNECT_CHANNEL_PREFIX,
     AUTUMN_API_KEY: process.env.AUTUMN_API_KEY,
+    AI_CREDIT_IMAGE_MODEL_ID:
+      process.env.AI_CREDIT_IMAGE_MODEL_ID ?? "custom/hyperlocalise-gpt-image-2",
+    AI_CREDIT_VIDEO_MODEL_ID:
+      process.env.AI_CREDIT_VIDEO_MODEL_ID ?? "custom/hyperlocalise-seedance-2-5",
+    AI_CREDIT_PRICING_VERSION: process.env.AI_CREDIT_PRICING_VERSION ?? "2026-09-01",
     GA_MEASUREMENT_PROTOCOL_API_SECRET: process.env.GA_MEASUREMENT_PROTOCOL_API_SECRET,
     FILE_STORAGE_PROVIDER: process.env.FILE_STORAGE_PROVIDER,
     FILE_STORAGE_ACCESS: process.env.FILE_STORAGE_ACCESS,
@@ -375,8 +424,12 @@ export const env = createEnv({
       process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
     SANDBOX_CLEANUP_MAX_PER_TICK: process.env.SANDBOX_CLEANUP_MAX_PER_TICK,
     SNAPSHOT_CLEANUP_MAX_PER_TICK: process.env.SNAPSHOT_CLEANUP_MAX_PER_TICK,
+    TRANSLATION_QA_SCAN_MAX_PROJECTS_PER_TICK:
+      process.env.TRANSLATION_QA_SCAN_MAX_PROJECTS_PER_TICK,
     VERCEL_SANDBOX_IMAGE: process.env.VERCEL_SANDBOX_IMAGE,
     RELEASE_SANDBOX_VCR_IMAGE: process.env.RELEASE_SANDBOX_VCR_IMAGE,
+    RELEASE_QA_SANDBOX_VCR_IMAGE: process.env.RELEASE_QA_SANDBOX_VCR_IMAGE,
+    TILION_API_KEY: process.env.TILION_API_KEY,
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,
@@ -390,24 +443,27 @@ export const env = createEnv({
         ? "https://www.canva.com/apps/oauth/authorized,https://canva.example.test/oauth/callback"
         : undefined),
     FIGMA_CORS_ORIGINS: process.env.FIGMA_CORS_ORIGINS,
-    CROWDIN_APP_CLIENT_ID:
-      process.env.CROWDIN_APP_CLIENT_ID ?? (isTestEnv ? "test-crowdin-app-client-id" : undefined),
-    CROWDIN_APP_CLIENT_SECRET:
-      process.env.CROWDIN_APP_CLIENT_SECRET ??
-      (isTestEnv ? "test-crowdin-app-client-secret" : undefined),
-    CROWDIN_APP_EMBED_SESSION_SECRET:
-      process.env.CROWDIN_APP_EMBED_SESSION_SECRET ??
-      (isTestEnv ? "test-crowdin-embed-session-secret-32chars" : undefined),
-    CROWDIN_APP_FRAME_ANCESTORS: process.env.CROWDIN_APP_FRAME_ANCESTORS,
+    FIGMA_OAUTH_CLIENT_ID:
+      process.env.FIGMA_OAUTH_CLIENT_ID ?? (isTestEnv ? "test-figma-oauth-client" : undefined),
+    FIGMA_OAUTH_REDIRECT_URI:
+      process.env.FIGMA_OAUTH_REDIRECT_URI ??
+      (isTestEnv
+        ? "https://www.figma.com/apps/oauth/authorized,http://localhost:3000/connect/figma/oauth/callback,figma://oauth/callback"
+        : undefined),
+    SANITY_CORS_ORIGINS: process.env.SANITY_CORS_ORIGINS,
+    SANITY_OAUTH_CLIENT_ID:
+      process.env.SANITY_OAUTH_CLIENT_ID ?? (isTestEnv ? "test-sanity-oauth-client" : undefined),
+    SANITY_OAUTH_REDIRECT_URI:
+      process.env.SANITY_OAUTH_REDIRECT_URI ??
+      (isTestEnv ? "http://localhost:3000/connect/sanity/oauth/callback" : undefined),
     E2E_BASE_URL: process.env.E2E_BASE_URL,
     GO_SVC_URL: process.env.GO_SVC_URL ?? (isTestEnv ? "http://127.0.0.1:8080" : undefined),
     NEXT_PUBLIC_WORKOS_REDIRECT_URI:
       process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI ??
       process.env.WORKOS_REDIRECT_URI ??
       (isTestEnv ? "http://localhost:3000/auth/callback" : undefined),
-    NEXT_PUBLIC_CROWDIN_IFRAME_SRC:
-      process.env.NEXT_PUBLIC_CROWDIN_IFRAME_SRC ??
-      (isTestEnv ? "https://cdn.crowdin.com/apps/dist/iframe.js" : undefined),
+    NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
+    NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
   },
 });
 

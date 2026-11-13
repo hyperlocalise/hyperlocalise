@@ -1,0 +1,1532 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { describe, expect, it } from "vite-plus/test";
+
+import { createDefaultConfig, isTriggerType, VISUAL_NODE_CATALOG } from "../catalog/node-catalog";
+import { getAllowedExecutionSourceHandles } from "./execution-handles";
+import {
+  compileVisualWorkflowV3Definition,
+  toVisualWorkflowExecutionDefinition,
+} from "./compile-workflow-v3";
+import type { VisualWorkflowV3Definition } from "../schema/types";
+
+function definition(edges: VisualWorkflowV3Definition["edges"]): VisualWorkflowV3Definition {
+  return {
+    schemaVersion: 3,
+    name: "V3 compiler",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: {
+          kind: "trigger.manual",
+        },
+      },
+      {
+        id: "set",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [],
+        },
+      },
+    ],
+    edges,
+    editor: {
+      positions: {
+        trigger: { x: 0, y: 0 },
+        set: { x: 240, y: 0 },
+      },
+    },
+  };
+}
+
+describe("compileVisualWorkflowV3Definition", () => {
+  it("compiles file references and preserves explicit file operation branches", () => {
+    const workflow = definition([]);
+    workflow.nodes[0]!.outputFields = [
+      { path: "sourceFileId", type: "string" },
+      { path: "content", type: "string" },
+    ];
+    workflow.nodes.splice(
+      1,
+      1,
+      {
+        id: "read",
+        type: "action.file_read",
+        config: { kind: "action.file_read", fileId: "", encoding: "utf-8" },
+      },
+      {
+        id: "write",
+        type: "action.file_write",
+        config: {
+          kind: "action.file_write",
+          content: "",
+          filename: "output.json",
+          contentType: "application/json",
+          encoding: "utf-8",
+        },
+      },
+      {
+        id: "convert",
+        type: "action.file_convert",
+        config: { kind: "action.file_convert", fileId: "", targetFormat: "yaml" },
+      },
+    );
+    workflow.edges.push(
+      {
+        id: "trigger-read",
+        kind: "execution",
+        source: "trigger",
+        target: "read",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "read-write",
+        kind: "execution",
+        source: "read",
+        target: "write",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "write-convert",
+        kind: "execution",
+        source: "write",
+        target: "convert",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "read-error-convert",
+        kind: "execution",
+        source: "read",
+        target: "convert",
+        sourcePortId: "error",
+        targetPortId: "input",
+      },
+      {
+        id: "trigger-file-read",
+        kind: "data",
+        source: "trigger",
+        target: "read",
+        sourcePortId: "sourceFileId",
+        targetPortId: "fileId",
+      },
+      {
+        id: "read-content-write",
+        kind: "data",
+        source: "read",
+        target: "write",
+        sourcePortId: "content",
+        targetPortId: "content",
+      },
+      {
+        id: "write-file-convert",
+        kind: "data",
+        source: "write",
+        target: "convert",
+        sourcePortId: "fileId",
+        targetPortId: "fileId",
+      },
+    );
+
+    const compiled = compileVisualWorkflowV3Definition(workflow);
+    const execution = toVisualWorkflowExecutionDefinition(compiled);
+
+    expect(compiled.issues).toEqual([]);
+    expect(compiled.definition.nodes[1]?.inputs?.fileId).toEqual({
+      kind: "reference",
+      nodeId: "trigger",
+      path: ["sourceFileId"],
+    });
+    expect(execution.edges).toContainEqual(
+      expect.objectContaining({ id: "read-error-convert", sourceHandle: "error" }),
+    );
+    expect(execution.edges).toContainEqual(
+      expect.objectContaining({ id: "write-convert", sourceHandle: "success" }),
+    );
+  });
+
+  it("binds JSON data ports and rejects incompatible schema bindings", () => {
+    const workflow = definition([]);
+    workflow.nodes[0]!.outputFields = [{ path: "payload", type: "string" }];
+    workflow.nodes.splice(
+      1,
+      1,
+      {
+        id: "parse",
+        type: "logic.json_parse",
+        config: { kind: "logic.json_parse", text: "{}" },
+      },
+      {
+        id: "validate",
+        type: "logic.schema_validate",
+        config: { kind: "logic.schema_validate", value: null, schema: {} },
+      },
+    );
+    workflow.edges.push(
+      {
+        id: "parse-text",
+        kind: "data",
+        source: "trigger",
+        target: "parse",
+        sourcePortId: "payload",
+        targetPortId: "text",
+      },
+      {
+        id: "invalid-schema",
+        kind: "data",
+        source: "trigger",
+        target: "validate",
+        sourcePortId: "payload",
+        targetPortId: "schema",
+      },
+    );
+
+    const result = compileVisualWorkflowV3Definition(workflow);
+
+    expect(result.definition.nodes[1]?.inputs).toEqual({
+      text: { kind: "reference", nodeId: "trigger", path: ["payload"] },
+    });
+    expect(result.issues).toContainEqual({
+      code: "incompatible_data_types",
+      edgeId: "invalid-schema",
+      nodeId: "validate",
+    });
+  });
+
+  it("preserves explicit JSON success handles in the execution definition", () => {
+    const workflow = definition([]);
+    workflow.nodes.splice(
+      1,
+      1,
+      {
+        id: "parse",
+        type: "logic.json_parse",
+        config: { kind: "logic.json_parse", text: "{}" },
+      },
+      {
+        id: "validate",
+        type: "logic.schema_validate",
+        config: { kind: "logic.schema_validate", value: {}, schema: {} },
+      },
+    );
+    workflow.edges.push(
+      {
+        id: "trigger-parse",
+        kind: "execution",
+        source: "trigger",
+        target: "parse",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "parse-validate",
+        kind: "execution",
+        source: "parse",
+        target: "validate",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+    );
+
+    const compiled = compileVisualWorkflowV3Definition(workflow);
+    const execution = toVisualWorkflowExecutionDefinition(compiled);
+
+    expect(compiled.issues).toEqual([]);
+    expect(execution.edges).toEqual([
+      expect.objectContaining({ id: "trigger-parse", sourceHandle: null }),
+      expect.objectContaining({ id: "parse-validate", sourceHandle: "success" }),
+    ]);
+  });
+
+  it("accepts the invalid and error branches of JSON nodes", () => {
+    const workflow = definition([]);
+    workflow.nodes.splice(
+      1,
+      1,
+      {
+        id: "parse",
+        type: "logic.json_parse",
+        config: { kind: "logic.json_parse", text: "{}" },
+      },
+      {
+        id: "stringify",
+        type: "logic.json_stringify",
+        config: { kind: "logic.json_stringify", value: {} },
+      },
+      {
+        id: "validate",
+        type: "logic.schema_validate",
+        config: { kind: "logic.schema_validate", value: {}, schema: {} },
+      },
+      {
+        id: "stop",
+        type: "flow.stop",
+        config: { kind: "flow.stop", outcome: "completed" },
+      },
+    );
+    const execution = (
+      id: string,
+      source: string,
+      target: string,
+      sourcePortId: string,
+    ): VisualWorkflowV3Definition["edges"][number] => ({
+      id,
+      kind: "execution",
+      source,
+      target,
+      sourcePortId,
+      targetPortId: "input",
+    });
+    workflow.edges.push(
+      execution("trigger-parse", "trigger", "parse", "success"),
+      execution("parse-invalid", "parse", "stringify", "invalid"),
+      execution("stringify-error", "stringify", "validate", "error"),
+      execution("validate-invalid", "validate", "stop", "invalid"),
+    );
+
+    const compiled = compileVisualWorkflowV3Definition(workflow);
+
+    expect(compiled.issues).toEqual([]);
+    expect(toVisualWorkflowExecutionDefinition(compiled).edges).toEqual([
+      expect.objectContaining({ id: "trigger-parse", sourceHandle: null }),
+      expect.objectContaining({ id: "parse-invalid", sourceHandle: "invalid" }),
+      expect.objectContaining({ id: "stringify-error", sourceHandle: "error" }),
+      expect.objectContaining({ id: "validate-invalid", sourceHandle: "invalid" }),
+    ]);
+  });
+
+  it("compiles a data edge into the existing WorkflowBinding model", () => {
+    const result = compileVisualWorkflowV3Definition(
+      definition([
+        {
+          id: "execution",
+          kind: "execution",
+          source: "trigger",
+          target: "set",
+          sourcePortId: "success",
+          targetPortId: "input",
+        },
+        {
+          id: "data",
+          kind: "data",
+          source: "trigger",
+          target: "set",
+          sourcePortId: "triggeredAt",
+          targetPortId: "value",
+        },
+      ]),
+    );
+
+    expect(result.issues).toEqual([]);
+    expect(result.definition.nodes[1]?.inputs).toEqual({
+      value: {
+        kind: "reference",
+        nodeId: "trigger",
+        path: ["triggeredAt"],
+      },
+    });
+  });
+
+  it("compiles compatible Call Workflow data bindings", () => {
+    const workflow = definition([]);
+    workflow.nodes[0]!.outputFields = [{ path: "customerId", type: "string" }];
+    workflow.nodes.push({
+      id: "call",
+      type: "flow.call_workflow",
+      config: {
+        kind: "flow.call_workflow",
+        workflowId: "11111111-1111-4111-8111-111111111111",
+        version: 1,
+        inputFields: [{ id: "customerId", name: "customerId", type: "string", required: true }],
+        outputFields: [],
+      },
+    });
+    workflow.edges.push({
+      id: "customer-binding",
+      kind: "data",
+      source: "trigger",
+      target: "call",
+      sourcePortId: "customerId",
+      targetPortId: "value.customerId",
+    });
+
+    const result = compileVisualWorkflowV3Definition(workflow);
+
+    expect(result.issues).toEqual([]);
+    expect(result.definition.nodes.at(-1)?.inputs).toEqual({
+      "value.customerId": {
+        kind: "reference",
+        nodeId: "trigger",
+        path: ["customerId"],
+      },
+    });
+  });
+
+  it("rejects missing and incompatible Call Workflow inputs", () => {
+    const workflow = definition([]);
+    workflow.nodes[0]!.outputFields = [{ path: "customerId", type: "number" }];
+    workflow.nodes.push({
+      id: "call",
+      type: "flow.call_workflow",
+      config: {
+        kind: "flow.call_workflow",
+        workflowId: "11111111-1111-4111-8111-111111111111",
+        version: 1,
+        inputFields: [
+          { id: "customerId", name: "customerId", type: "string", required: true },
+          { id: "locale", name: "locale", type: "string", required: true },
+        ],
+        outputFields: [],
+      },
+    });
+    workflow.edges.push({
+      id: "customer-binding",
+      kind: "data",
+      source: "trigger",
+      target: "call",
+      sourcePortId: "customerId",
+      targetPortId: "value.customerId",
+    });
+
+    const result = compileVisualWorkflowV3Definition(workflow);
+
+    expect(result.issues).toContainEqual({
+      code: "incompatible_data_types",
+      edgeId: "customer-binding",
+      nodeId: "call",
+    });
+    expect(result.issues).toContainEqual({
+      code: "missing_required_input",
+      field: "value.locale",
+      nodeId: "call",
+      reason: "required",
+    });
+  });
+
+  it("does not include data edges in the execution graph", () => {
+    const result = compileVisualWorkflowV3Definition(
+      definition([
+        {
+          id: "data-only",
+          kind: "data",
+          source: "trigger",
+          target: "set",
+          sourcePortId: "triggeredAt",
+          targetPortId: "value",
+        },
+      ]),
+    );
+
+    expect(result.issues).toEqual([]);
+    expect(result.executionEdges).toEqual([]);
+  });
+});
+
+it("rejects a data edge whose source is an execution port", () => {
+  const result = compileVisualWorkflowV3Definition(
+    definition([
+      {
+        id: "invalid-data-source",
+        kind: "data",
+        source: "trigger",
+        target: "set",
+        sourcePortId: "success",
+        targetPortId: "value",
+      },
+    ]),
+  );
+
+  expect(result.issues).toContainEqual({
+    code: "invalid_source_port",
+    edgeId: "invalid-data-source",
+    nodeId: "trigger",
+  });
+
+  expect(result.definition.nodes[1]?.inputs).toBeUndefined();
+});
+
+it("rejects a data edge whose target is an execution port", () => {
+  const result = compileVisualWorkflowV3Definition(
+    definition([
+      {
+        id: "invalid-data-target",
+        kind: "data",
+        source: "trigger",
+        target: "set",
+        sourcePortId: "triggeredAt",
+        targetPortId: "input",
+      },
+    ]),
+  );
+
+  expect(result.issues).toContainEqual({
+    code: "invalid_target_port",
+    edgeId: "invalid-data-target",
+    nodeId: "set",
+  });
+
+  expect(result.definition.nodes[1]?.inputs).toBeUndefined();
+});
+
+it("rejects an execution edge whose source is a data port", () => {
+  const result = compileVisualWorkflowV3Definition(
+    definition([
+      {
+        id: "invalid-execution-source",
+        kind: "execution",
+        source: "trigger",
+        target: "set",
+        sourcePortId: "triggeredAt",
+        targetPortId: "input",
+      },
+    ]),
+  );
+
+  expect(result.issues).toContainEqual({
+    code: "invalid_source_port",
+    edgeId: "invalid-execution-source",
+    nodeId: "trigger",
+  });
+
+  expect(result.executionEdges).toEqual([]);
+});
+
+it("rejects an execution edge whose target is a data port", () => {
+  const result = compileVisualWorkflowV3Definition(
+    definition([
+      {
+        id: "invalid-execution-target",
+        kind: "execution",
+        source: "trigger",
+        target: "set",
+        sourcePortId: "success",
+        targetPortId: "value",
+      },
+    ]),
+  );
+
+  expect(result.issues).toContainEqual({
+    code: "invalid_target_port",
+    edgeId: "invalid-execution-target",
+    nodeId: "set",
+  });
+
+  expect(result.executionEdges).toEqual([]);
+});
+
+it("accepts a Switch execution port identified by its stable case ID", () => {
+  const input = definition([
+    {
+      id: "switch-case-ready",
+      kind: "execution",
+      source: "switch",
+      target: "set",
+      sourcePortId: "case-ready",
+      targetPortId: "input",
+    },
+  ]);
+
+  input.nodes.splice(1, 0, {
+    id: "switch",
+    type: "logic.switch",
+    config: {
+      kind: "logic.switch",
+      expression: "status",
+      cases: [{ id: "case-ready", value: "ready" }],
+    },
+  });
+  input.editor.positions.switch = { x: 120, y: 0 };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).not.toContainEqual({
+    code: "invalid_source_port",
+    edgeId: "switch-case-ready",
+    nodeId: "switch",
+  });
+  expect(result.executionEdges).toContainEqual(input.edges[0]);
+});
+
+it("rejects a data edge that conflicts with an existing input binding", () => {
+  const input = definition([
+    {
+      id: "conflicting-data",
+      kind: "data",
+      source: "trigger",
+      target: "set",
+      sourcePortId: "triggeredAt",
+      targetPortId: "value",
+    },
+  ]);
+
+  input.nodes[1] = {
+    ...input.nodes[1]!,
+    inputs: {
+      value: {
+        kind: "literal",
+        value: "existing value",
+      },
+    },
+  };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toContainEqual({
+    code: "conflicting_data_input",
+    edgeId: "conflicting-data",
+    nodeId: "set",
+  });
+
+  expect(result.definition.nodes[1]?.inputs?.value).toEqual({
+    kind: "literal",
+    value: "existing value",
+  });
+});
+
+it("rejects incompatible source and target data port types", () => {
+  const input: VisualWorkflowV3Definition = {
+    schemaVersion: 3,
+    name: "Incompatible data types",
+    nodes: [
+      {
+        id: "source",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [],
+        },
+        outputFields: [
+          {
+            path: "count",
+            type: "number",
+          },
+        ],
+      },
+      {
+        id: "target",
+        type: "action.http",
+        config: {
+          kind: "action.http",
+          method: "GET",
+          url: "",
+        },
+      },
+    ],
+    edges: [
+      {
+        id: "number-to-string",
+        kind: "data",
+        source: "source",
+        target: "target",
+        sourcePortId: "count",
+        targetPortId: "url",
+      },
+    ],
+    editor: {
+      positions: {
+        source: { x: 0, y: 0 },
+        target: { x: 240, y: 0 },
+      },
+    },
+  };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toContainEqual({
+    code: "incompatible_data_types",
+    edgeId: "number-to-string",
+    nodeId: "target",
+  });
+
+  expect(result.definition.nodes[1]?.inputs).toBeUndefined();
+});
+
+it("reports cycles formed by execution edges", () => {
+  const input: VisualWorkflowV3Definition = {
+    schemaVersion: 3,
+    name: "Execution cycle",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: {
+          kind: "trigger.manual",
+        },
+      },
+      {
+        id: "a",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [],
+        },
+      },
+      {
+        id: "b",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [],
+        },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-a",
+        kind: "execution",
+        source: "trigger",
+        target: "a",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "a-b",
+        kind: "execution",
+        source: "a",
+        target: "b",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "b-a",
+        kind: "execution",
+        source: "b",
+        target: "a",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+    ],
+    editor: {
+      positions: {
+        trigger: { x: 0, y: 0 },
+        a: { x: 240, y: 0 },
+        b: { x: 480, y: 0 },
+      },
+    },
+  };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toContainEqual({
+    code: "execution_cycle",
+  });
+});
+
+it("does not treat a data dependency cycle as an execution cycle", () => {
+  const input: VisualWorkflowV3Definition = {
+    schemaVersion: 3,
+    name: "Data cycle",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: {
+          kind: "trigger.manual",
+        },
+      },
+      {
+        id: "a",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [],
+        },
+        outputFields: [
+          {
+            path: "value",
+            type: "string",
+          },
+        ],
+      },
+      {
+        id: "b",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [],
+        },
+        outputFields: [
+          {
+            path: "value",
+            type: "string",
+          },
+        ],
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-a",
+        kind: "execution",
+        source: "trigger",
+        target: "a",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "a-b-data",
+        kind: "data",
+        source: "a",
+        target: "b",
+        sourcePortId: "value",
+        targetPortId: "fromA",
+      },
+      {
+        id: "b-a-data",
+        kind: "data",
+        source: "b",
+        target: "a",
+        sourcePortId: "value",
+        targetPortId: "fromB",
+      },
+    ],
+    editor: {
+      positions: {
+        trigger: { x: 0, y: 0 },
+        a: { x: 240, y: 0 },
+        b: { x: 480, y: 0 },
+      },
+    },
+  };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).not.toContainEqual({
+    code: "execution_cycle",
+  });
+});
+
+it("reports a data edge whose endpoint does not exist", () => {
+  const result = compileVisualWorkflowV3Definition(
+    definition([
+      {
+        id: "missing-source",
+        kind: "data",
+        source: "missing",
+        target: "set",
+        sourcePortId: "value",
+        targetPortId: "value",
+      },
+    ]),
+  );
+
+  expect(result.issues).toContainEqual({
+    code: "invalid_edge",
+    edgeId: "missing-source",
+  });
+
+  expect(result.definition.nodes[1]?.inputs).toBeUndefined();
+});
+
+it("rejects all data edges that target the same input", () => {
+  const result = compileVisualWorkflowV3Definition(
+    definition([
+      {
+        id: "first-data",
+        kind: "data",
+        source: "trigger",
+        target: "set",
+        sourcePortId: "triggeredAt",
+        targetPortId: "value",
+      },
+      {
+        id: "second-data",
+        kind: "data",
+        source: "trigger",
+        target: "set",
+        sourcePortId: "triggeredAt",
+        targetPortId: "value",
+      },
+    ]),
+  );
+
+  expect(result.issues).toEqual(
+    expect.arrayContaining([
+      {
+        code: "conflicting_data_input",
+        edgeId: "first-data",
+        nodeId: "set",
+      },
+      {
+        code: "conflicting_data_input",
+        edgeId: "second-data",
+        nodeId: "set",
+      },
+    ]),
+  );
+
+  expect(result.definition.nodes[1]?.inputs).toBeUndefined();
+});
+
+it("derives For Each execution membership from v3 execution edges", () => {
+  const definition: VisualWorkflowV3Definition = {
+    schemaVersion: 3,
+    name: "Graph-derived loop",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: {
+          kind: "trigger.manual",
+        },
+      },
+      {
+        id: "loop",
+        type: "logic.for_each",
+        config: {
+          kind: "logic.for_each",
+          collection: "[]",
+        },
+        bodyNodeIds: ["stale"],
+      },
+      {
+        id: "body",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [],
+        },
+      },
+      {
+        id: "after",
+        type: "logic.set",
+        config: {
+          kind: "logic.set",
+          assignments: [],
+        },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-loop",
+        kind: "execution",
+        source: "trigger",
+        target: "loop",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "loop-body",
+        kind: "execution",
+        source: "loop",
+        target: "body",
+        sourcePortId: "each",
+        targetPortId: "input",
+      },
+      {
+        id: "loop-after",
+        kind: "execution",
+        source: "loop",
+        target: "after",
+        sourcePortId: "done",
+        targetPortId: "input",
+      },
+      {
+        id: "body-after-data",
+        kind: "data",
+        source: "body",
+        target: "after",
+        sourcePortId: "value",
+        targetPortId: "value",
+      },
+    ],
+    editor: {
+      positions: {},
+    },
+  };
+
+  const compiled = compileVisualWorkflowV3Definition(definition);
+  const executionDefinition = toVisualWorkflowExecutionDefinition(compiled);
+
+  expect(executionDefinition.nodes.find((node) => node.id === "loop")?.bodyNodeIds).toEqual([
+    "body",
+  ]);
+});
+
+it("derives Array Transform body membership from each and done execution edges", () => {
+  const definition: VisualWorkflowV3Definition = {
+    schemaVersion: 3,
+    name: "Graph-derived array transform",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: { kind: "trigger.manual" },
+      },
+      {
+        id: "transform",
+        type: "logic.array_transform",
+        config: {
+          kind: "logic.array_transform",
+          operation: "filter",
+          collection: "[]",
+          itemType: "object",
+          resultType: "object",
+        },
+        bodyNodeIds: ["stale"],
+      },
+      {
+        id: "predicate",
+        type: "logic.compare",
+        config: createDefaultConfig("logic.compare"),
+      },
+      {
+        id: "after",
+        type: "logic.set",
+        config: { kind: "logic.set", assignments: [] },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-transform",
+        kind: "execution",
+        source: "trigger",
+        target: "transform",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "transform-predicate",
+        kind: "execution",
+        source: "transform",
+        target: "predicate",
+        sourcePortId: "each",
+        targetPortId: "input",
+      },
+      {
+        id: "transform-after",
+        kind: "execution",
+        source: "transform",
+        target: "after",
+        sourcePortId: "done",
+        targetPortId: "input",
+      },
+    ],
+    editor: { positions: {} },
+  };
+
+  const compiled = compileVisualWorkflowV3Definition(definition);
+  const executionDefinition = toVisualWorkflowExecutionDefinition(compiled);
+
+  expect(executionDefinition.nodes.find((node) => node.id === "transform")?.bodyNodeIds).toEqual([
+    "predicate",
+  ]);
+});
+
+it("rejects operation-specific Array Transform ports that the selected mode does not expose", () => {
+  const workflow: VisualWorkflowV3Definition = {
+    schemaVersion: 3,
+    name: "Array transform ports",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: { kind: "trigger.manual" },
+      },
+      {
+        id: "transform",
+        type: "logic.array_transform",
+        config: {
+          kind: "logic.array_transform",
+          operation: "reduce",
+          collection: "[]",
+          itemType: "number",
+          resultType: "number",
+          initialValue: 0,
+        },
+      },
+      {
+        id: "body",
+        type: "logic.set",
+        config: { kind: "logic.set", assignments: [] },
+      },
+      {
+        id: "after",
+        type: "logic.set",
+        config: { kind: "logic.set", assignments: [] },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-transform",
+        kind: "execution",
+        source: "trigger",
+        target: "transform",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "transform-body",
+        kind: "execution",
+        source: "transform",
+        target: "body",
+        sourcePortId: "each",
+        targetPortId: "input",
+      },
+      {
+        id: "transform-after",
+        kind: "execution",
+        source: "transform",
+        target: "after",
+        sourcePortId: "done",
+        targetPortId: "input",
+      },
+      {
+        id: "items-after",
+        kind: "data",
+        source: "transform",
+        target: "after",
+        sourcePortId: "items",
+        targetPortId: "value",
+      },
+    ],
+    editor: { positions: {} },
+  };
+
+  expect(compileVisualWorkflowV3Definition(workflow).issues).toContainEqual({
+    code: "invalid_source_port",
+    edgeId: "items-after",
+    nodeId: "transform",
+  });
+});
+
+it("keeps Array Transform item ports inside the body and rejects them after Done", () => {
+  const workflow: VisualWorkflowV3Definition = {
+    schemaVersion: 3,
+    name: "Array transform scoped ports",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: { kind: "trigger.manual" },
+      },
+      {
+        id: "transform",
+        type: "logic.array_transform",
+        config: {
+          kind: "logic.array_transform",
+          operation: "map",
+          collection: "[]",
+          itemType: "number",
+          resultType: "number",
+        },
+      },
+      {
+        id: "body",
+        type: "logic.set",
+        config: { kind: "logic.set", assignments: [] },
+      },
+      {
+        id: "after",
+        type: "logic.set",
+        config: { kind: "logic.set", assignments: [] },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-transform",
+        kind: "execution",
+        source: "trigger",
+        target: "transform",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "transform-body",
+        kind: "execution",
+        source: "transform",
+        target: "body",
+        sourcePortId: "each",
+        targetPortId: "input",
+      },
+      {
+        id: "transform-after",
+        kind: "execution",
+        source: "transform",
+        target: "after",
+        sourcePortId: "done",
+        targetPortId: "input",
+      },
+      {
+        id: "item-body",
+        kind: "data",
+        source: "transform",
+        target: "body",
+        sourcePortId: "item",
+        targetPortId: "value",
+      },
+      {
+        id: "item-after",
+        kind: "data",
+        source: "transform",
+        target: "after",
+        sourcePortId: "item",
+        targetPortId: "value",
+      },
+    ],
+    editor: { positions: {} },
+  };
+
+  expect(compileVisualWorkflowV3Definition(workflow).issues).toEqual([
+    {
+      code: "invalid_source_port",
+      edgeId: "item-after",
+      nodeId: "transform",
+    },
+  ]);
+});
+
+it("accepts stable Merge execution target ports", () => {
+  const input = definition([
+    {
+      id: "trigger-merge",
+      kind: "execution",
+      source: "trigger",
+      target: "merge",
+      sourcePortId: "success",
+      targetPortId: "email",
+    },
+  ]);
+
+  input.nodes[1] = {
+    id: "merge",
+    type: "logic.merge",
+    config: {
+      kind: "logic.merge",
+      mode: "all",
+      inputs: [
+        { id: "email", name: "Email" },
+        { id: "slack", name: "Slack" },
+      ],
+    },
+  };
+
+  input.editor.positions.merge = { x: 240, y: 0 };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toEqual([]);
+  expect(result.executionEdges).toEqual(input.edges);
+});
+
+it("preserves the Try / Catch Success execution handle", () => {
+  const input = definition([
+    {
+      id: "boundary-success",
+      kind: "execution",
+      source: "boundary",
+      target: "set",
+      sourcePortId: "success",
+      targetPortId: "input",
+    },
+  ]);
+  input.nodes[0] = {
+    id: "boundary",
+    type: "logic.try_catch",
+    config: { kind: "logic.try_catch" },
+  };
+  input.editor.positions.boundary = { x: 0, y: 0 };
+  delete input.editor.positions.trigger;
+
+  const executionDefinition = toVisualWorkflowExecutionDefinition(
+    compileVisualWorkflowV3Definition(input),
+  );
+
+  expect(executionDefinition.edges[0]?.sourceHandle).toBe("success");
+});
+
+it("rejects removed Merge execution target ports", () => {
+  const input = definition([
+    {
+      id: "trigger-merge",
+      kind: "execution",
+      source: "trigger",
+      target: "merge",
+      sourcePortId: "success",
+      targetPortId: "removed-input",
+    },
+  ]);
+
+  input.nodes[1] = {
+    id: "merge",
+    type: "logic.merge",
+    config: {
+      kind: "logic.merge",
+      mode: "all",
+      inputs: [
+        { id: "email", name: "Email" },
+        { id: "slack", name: "Slack" },
+      ],
+    },
+  };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toContainEqual({
+    code: "invalid_target_port",
+    edgeId: "trigger-merge",
+    nodeId: "merge",
+  });
+});
+
+it("compiles optional Merge data values by stable input ID", () => {
+  const input = definition([
+    {
+      id: "trigger-merge",
+      kind: "execution",
+      source: "trigger",
+      target: "merge",
+      sourcePortId: "success",
+      targetPortId: "email",
+    },
+    {
+      id: "triggered-at-value",
+      kind: "data",
+      source: "trigger",
+      target: "merge",
+      sourcePortId: "triggeredAt",
+      targetPortId: "value.email",
+    },
+  ]);
+
+  input.nodes[1] = {
+    id: "merge",
+    type: "logic.merge",
+    config: {
+      kind: "logic.merge",
+      mode: "all",
+      inputs: [
+        { id: "email", name: "Email" },
+        { id: "slack", name: "Slack" },
+      ],
+    },
+  };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toEqual([]);
+  expect(result.definition.nodes.find((node) => node.id === "merge")?.inputs).toEqual({
+    "value.email": {
+      kind: "reference",
+      nodeId: "trigger",
+      path: ["triggeredAt"],
+      optional: true,
+    },
+  });
+});
+
+it("accepts configured Sequence execution output IDs", () => {
+  const input = definition([
+    {
+      id: "sequence-set",
+      kind: "execution",
+      source: "sequence",
+      target: "set",
+      sourcePortId: "notify",
+      targetPortId: "input",
+    },
+  ]);
+
+  input.nodes[0] = {
+    id: "sequence",
+    type: "logic.sequence",
+    config: {
+      kind: "logic.sequence",
+      outputs: [
+        { id: "prepare", label: "Prepare" },
+        { id: "notify", label: "Notify" },
+      ],
+    },
+  };
+  input.editor.positions.sequence = { x: 0, y: 0 };
+  delete input.editor.positions.trigger;
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toEqual([]);
+  expect(result.executionEdges).toEqual(input.edges);
+});
+
+it("rejects removed Sequence execution output IDs", () => {
+  const input = definition([
+    {
+      id: "sequence-set",
+      kind: "execution",
+      source: "sequence",
+      target: "set",
+      sourcePortId: "removed",
+      targetPortId: "input",
+    },
+  ]);
+
+  input.nodes[0] = {
+    id: "sequence",
+    type: "logic.sequence",
+    config: {
+      kind: "logic.sequence",
+      outputs: [{ id: "notify", label: "Notify" }],
+    },
+  };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toContainEqual({
+    code: "invalid_source_port",
+    edgeId: "sequence-set",
+    nodeId: "sequence",
+  });
+});
+
+it("compiles typed Return inputs by stable output ID", () => {
+  const input = definition([
+    {
+      id: "trigger-return-value",
+      kind: "data",
+      source: "trigger",
+      target: "return",
+      sourcePortId: "triggeredAt",
+      targetPortId: "value.finished-at",
+    },
+  ]);
+  input.nodes[1] = {
+    id: "return",
+    type: "flow.return",
+    config: {
+      kind: "flow.return",
+      outputs: [{ id: "finished-at", name: "finishedAt", type: "string" }],
+    },
+  };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toEqual([]);
+  expect(result.definition.nodes[1]?.inputs).toEqual({
+    "value.finished-at": {
+      kind: "reference",
+      nodeId: "trigger",
+      path: ["triggeredAt"],
+    },
+  });
+});
+
+it("rejects missing and incompatible Return inputs", () => {
+  const missing = definition([]);
+  missing.nodes[1] = {
+    id: "return",
+    type: "flow.return",
+    config: {
+      kind: "flow.return",
+      outputs: [{ id: "count", name: "count", type: "number" }],
+    },
+  };
+
+  expect(compileVisualWorkflowV3Definition(missing).issues).toContainEqual({
+    code: "missing_required_input",
+    nodeId: "return",
+    field: "value.count",
+    reason: "required",
+  });
+
+  const incompatible = definition([
+    {
+      id: "trigger-return-value",
+      kind: "data",
+      source: "trigger",
+      target: "return",
+      sourcePortId: "triggeredAt",
+      targetPortId: "value.count",
+    },
+  ]);
+  incompatible.nodes[1] = missing.nodes[1]!;
+
+  expect(compileVisualWorkflowV3Definition(incompatible).issues).toContainEqual({
+    code: "incompatible_data_types",
+    edgeId: "trigger-return-value",
+    nodeId: "return",
+  });
+});
+
+it("rejects outgoing edges from terminal nodes", () => {
+  const input = definition([
+    {
+      id: "terminal-set",
+      kind: "execution",
+      source: "terminal",
+      target: "set",
+      sourcePortId: "success",
+      targetPortId: "input",
+    },
+  ]);
+  input.nodes[0] = {
+    id: "terminal",
+    type: "flow.stop",
+    config: { kind: "flow.stop", outcome: "completed" },
+  };
+
+  expect(compileVisualWorkflowV3Definition(input).issues).toContainEqual({
+    code: "terminal_node_outgoing_edge",
+    edgeId: "terminal-set",
+    nodeId: "terminal",
+  });
+});
+
+describe("every execution handle a step offers", () => {
+  const sources = VISUAL_NODE_CATALOG.filter((item) => item.enabled && !isTriggerType(item.type))
+    .flatMap((item) => {
+      const config = createDefaultConfig(item.type);
+      return "onError" in config
+        ? [
+            { type: item.type, config },
+            { type: item.type, config: { ...config, onError: "branch" as const } },
+          ]
+        : [{ type: item.type, config }];
+    })
+    .flatMap((source) =>
+      getAllowedExecutionSourceHandles(source)
+        .filter((handle): handle is string => handle !== null)
+        .map((handle, index) => ({ ...source, handle, index })),
+    );
+
+  it.each(sources)("accepts a wire from $type's output $index", ({ type, config, handle }) => {
+    const workflow = definition([
+      {
+        id: "trigger-source",
+        kind: "execution",
+        source: "trigger",
+        target: "source",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "source-set",
+        kind: "execution",
+        source: "source",
+        target: "set",
+        sourcePortId: handle,
+        targetPortId: "input",
+      },
+    ]);
+    workflow.nodes.push({
+      id: "source",
+      type,
+      config,
+    } as VisualWorkflowV3Definition["nodes"][number]);
+
+    const { issues } = compileVisualWorkflowV3Definition(workflow);
+
+    expect(issues.filter((issue) => issue.edgeId === "source-set")).toEqual([]);
+  });
+});

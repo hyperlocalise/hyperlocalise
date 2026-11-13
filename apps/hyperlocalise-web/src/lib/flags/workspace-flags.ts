@@ -14,6 +14,11 @@ import { redirect } from "next/navigation";
 import { flag, type Flag } from "flags/next";
 import { and, eq } from "drizzle-orm";
 
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import {
+  isAutumnBooleanFeatureEnabled,
+  type AutumnBooleanFeatureId,
+} from "@/lib/billing/autumn-boolean-feature-access";
 import { db, schema } from "@/lib/database/client";
 import type { AppAuthContext } from "@/lib/workos/app-auth";
 
@@ -25,10 +30,8 @@ import {
   WORKSPACE_FEATURE_UNAVAILABLE_REASON,
   WORKSPACE_GLOSSARY_SEARCH_FLAG,
   WORKSPACE_HYPERLAB_FLAG,
-  WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_REPORTS_FLAG,
   WORKSPACE_VISUAL_MOCK_FLAG,
-  WORKSPACE_VISUAL_WORKFLOWS_FLAG,
   type WorkosFlagEntities,
   type WorkspaceFeatureFlagState,
 } from "./workos-flag-entities";
@@ -48,24 +51,10 @@ export const workspaceAutomationsFlag = flag<boolean, WorkosFlagEntities>({
   adapter: workosAdapter(),
 });
 
-export const workspaceKnowledgeFlag = flag<boolean, WorkosFlagEntities>({
-  key: WORKSPACE_KNOWLEDGE_FLAG,
-  defaultValue: false,
-  description: "Workspace knowledge memory for agents and teams.",
-  adapter: workosAdapter(),
-});
-
 export const workspaceVisualMockFlag = flag<boolean, WorkosFlagEntities>({
   key: WORKSPACE_VISUAL_MOCK_FLAG,
   defaultValue: false,
   description: "Visual mock skill for repository-backed Hyperlocalise agent previews.",
-  adapter: workosAdapter(),
-});
-
-export const workspaceVisualWorkflowsFlag = flag<boolean, WorkosFlagEntities>({
-  key: WORKSPACE_VISUAL_WORKFLOWS_FLAG,
-  defaultValue: false,
-  description: "Advanced visual workflow editor for deterministic automation graphs.",
   adapter: workosAdapter(),
 });
 
@@ -102,25 +91,37 @@ export async function evaluateWorkspaceFeatureFlags(
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
 ): Promise<WorkspaceFeatureFlagState> {
   const identify = () => createWorkosIdentify(auth);
+  const organizationId = auth.activeOrganization.localOrganizationId;
 
   const [
     automations,
     knowledge,
     visualMock,
-    visualWorkflows,
     domains,
     glossarySearch,
     hyperlab,
     reports,
+    visualWorkflows,
+    queriesBoard,
   ] = await Promise.all([
     workspaceAutomationsFlag.run({ identify }),
-    workspaceKnowledgeFlag.run({ identify }),
+    isAutumnBooleanFeatureEnabled({
+      organizationId,
+      featureId: autumnFeatureIds.guidelines,
+    }),
     workspaceVisualMockFlag.run({ identify }),
-    workspaceVisualWorkflowsFlag.run({ identify }),
     workspaceDomainsFlag.run({ identify }),
     workspaceGlossarySearchFlag.run({ identify }),
     workspaceHyperlabFlag.run({ identify }),
     workspaceReportsFlag.run({ identify }),
+    isAutumnBooleanFeatureEnabled({
+      organizationId,
+      featureId: autumnFeatureIds.automationWorkflow,
+    }),
+    isAutumnBooleanFeatureEnabled({
+      organizationId,
+      featureId: autumnFeatureIds.queriesBoard,
+    }),
   ]);
 
   return {
@@ -128,11 +129,40 @@ export async function evaluateWorkspaceFeatureFlags(
     knowledge,
     visualMock,
     visualWorkflows,
+    queriesBoard,
     domains,
     glossarySearch,
     hyperlab,
     reports,
   };
+}
+
+export async function getAutumnWorkspaceBooleanFeatureEnabled(
+  featureId: AutumnBooleanFeatureId,
+  auth: Pick<AppAuthContext, "activeOrganization" | "user">,
+): Promise<boolean> {
+  return isAutumnBooleanFeatureEnabled({
+    organizationId: auth.activeOrganization.localOrganizationId,
+    featureId,
+  });
+}
+
+export async function requireAutumnWorkspaceBooleanFeature(
+  featureId: AutumnBooleanFeatureId,
+  auth: Pick<AppAuthContext, "activeOrganization" | "user">,
+) {
+  const enabled = await getAutumnWorkspaceBooleanFeatureEnabled(featureId, auth);
+
+  if (enabled) {
+    return;
+  }
+
+  const organizationSlug = auth.activeOrganization.slug;
+  if (organizationSlug) {
+    redirect(`/org/${organizationSlug}/dashboard?reason=${WORKSPACE_FEATURE_UNAVAILABLE_REASON}`);
+  }
+
+  redirect("/auth/select-organization");
 }
 
 export async function resolveWorkspaceVisualMockFlag(input: {
@@ -214,23 +244,26 @@ async function resolveWorkspaceOrganizationFlag(
 }
 
 /**
- * Resolves workspaceKnowledgeFlag from just an internal organizationId, for callers with no live
- * HTTP auth context to build a WorkOS identify() from — background jobs, queue workers, and
- * workspace-automation tool calls. Mirrors resolveWorkspaceVisualMockFlag's DB-join-then-run-flag
- * shape, minus the user lookup those callers don't have either.
+ * Resolves the Autumn `guidelines` entitlement from an internal organizationId. Works for
+ * callers with no live HTTP auth context — background jobs, queue workers, and
+ * workspace-automation tool calls — as well as API routes.
  *
- * knowledge-memory.route.ts already rejects every request when this flag is off, but that check
- * lives only on the human-facing HTTP route — nothing stopped an automation's stored toolConfig
- * (set once, possibly before the flag was disabled, or via direct API access that skips UI
- * validation) from reaching save_memory/recall_memory and mutating or reading Memory.md on a
- * schedule regardless of the flag. Call this at the point of use, not just at config-save time, so
- * disabling the flag actually stops in-flight automations too.
+ * An automation's stored toolConfig (set once, possibly before the plan lost Guidelines, or via
+ * direct API access that skips UI validation) could otherwise keep reaching recall_memory and
+ * reading guideline documents on a schedule. Call this at the point of use, not just at
+ * config-save time, so losing the entitlement actually stops in-flight automations too.
  */
 export async function resolveWorkspaceKnowledgeFlag(input: {
   organizationId: string;
-  dbClient?: Pick<typeof db, "select">;
 }): Promise<boolean> {
-  return resolveWorkspaceOrganizationFlag(workspaceKnowledgeFlag, input);
+  try {
+    return await isAutumnBooleanFeatureEnabled({
+      organizationId: input.organizationId,
+      featureId: autumnFeatureIds.guidelines,
+    });
+  } catch {
+    return false;
+  }
 }
 
 /**

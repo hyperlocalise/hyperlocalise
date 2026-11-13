@@ -55,6 +55,20 @@ export type LocalisationAuditReportEmailProps = {
 
 const reportCopy = getLocalisationAuditResultCopy("en");
 
+const EMAIL_EVIDENCE_MAX_CHARS = 280;
+
+function clipEvidence(evidence: string) {
+  return evidence.length > EMAIL_EVIDENCE_MAX_CHARS
+    ? `${evidence.slice(0, EMAIL_EVIDENCE_MAX_CHARS).trimEnd()}…`
+    : evidence;
+}
+
+function formatAuditedDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en", { dateStyle: "medium", timeZone: "UTC" });
+}
+
 function formatFindingPlainText(
   finding: LocalisationAuditFinding,
   index: number,
@@ -72,7 +86,7 @@ function formatFindingPlainText(
     lines.push(findingHref);
   }
   if (finding.evidence) {
-    lines.push(`${reportCopy.findingEvidenceLabel}: ${finding.evidence}`);
+    lines.push(`${reportCopy.findingEvidenceLabel}: ${clipEvidence(finding.evidence)}`);
   }
   if (finding.advice) {
     lines.push(`${reportCopy.findingAdviceLabel}: ${finding.advice}`);
@@ -100,12 +114,12 @@ export function localisationAuditReportEmailText(props: LocalisationAuditReportE
     "",
     `Score: ${props.score}/100`,
     ...(dimensions ? [dimensions, ""] : []),
-    `Audited: ${props.completedAt}`,
+    `Audited: ${formatAuditedDate(props.completedAt)}`,
     "",
     "Top findings:",
     findings || "No headline findings.",
     "",
-    "Open your public report (link expires in 24 hours):",
+    "Open the full report (it stays public, so you can forward this link):",
     props.verifyUrl,
     "",
     "How we score localisation audits:",
@@ -129,7 +143,7 @@ export function LocalisationAuditReportEmail(props: LocalisationAuditReportEmail
         <Container style={container}>
           <Heading style={heading}>Your localisation audit is ready</Heading>
           <Text style={text}>
-            We finished sampling <strong>{props.domainKey}</strong>. Your teaser score is{" "}
+            We finished sampling <strong>{props.domainKey}</strong>. It scored{" "}
             <strong style={{ color: scoreColor }}>{props.score}/100</strong>.
           </Text>
           {props.dimensionScores ? (
@@ -156,7 +170,7 @@ export function LocalisationAuditReportEmail(props: LocalisationAuditReportEmail
               </Row>
             </Section>
           ) : null}
-          <Text style={muted}>Audited {props.completedAt}</Text>
+          <Text style={muted}>Audited {formatAuditedDate(props.completedAt)}</Text>
           <Hr style={hr} />
           <Heading as="h2" style={subheading}>
             Top findings
@@ -165,14 +179,7 @@ export function LocalisationAuditReportEmail(props: LocalisationAuditReportEmail
             const toneColor = emailAuditToneColor(severityTone(finding.severity));
             const findingHref = sanitizeLocalisationAuditFindingUrl(finding.url, props.domainKey);
             return (
-              <Section
-                key={finding.id}
-                style={{
-                  ...findingBlock,
-                  borderLeft: `3px solid ${toneColor}`,
-                  paddingLeft: "12px",
-                }}
-              >
+              <Section key={finding.id} style={findingBlock}>
                 <Text style={findingTitle}>
                   <span style={{ color: toneColor }}>{finding.severity.toUpperCase()}</span>
                   {" · "}
@@ -193,7 +200,7 @@ export function LocalisationAuditReportEmail(props: LocalisationAuditReportEmail
                 {finding.evidence ? (
                   <>
                     <Text style={detailLabel}>{reportCopy.findingEvidenceLabel}</Text>
-                    <Text style={evidenceBody}>{finding.evidence}</Text>
+                    <Text style={evidenceBody}>{clipEvidence(finding.evidence)}</Text>
                   </>
                 ) : null}
                 {finding.advice ? (
@@ -210,7 +217,9 @@ export function LocalisationAuditReportEmail(props: LocalisationAuditReportEmail
               Open full report
             </Button>
           </Section>
-          <Text style={muted}>This link opens your public report. It expires in 24 hours.</Text>
+          <Text style={muted}>
+            The report stays public at this link, so you can forward it to your team.
+          </Text>
           <Text style={muted}>
             <Link href={localisationAuditGuideUrl()} style={link}>
               How we score localisation audits
@@ -336,6 +345,8 @@ const hr = {
 };
 
 const findingBlock = {
+  borderTop: "1px solid #e5e7eb",
+  padding: "12px 0 0",
   marginBottom: "12px",
 };
 

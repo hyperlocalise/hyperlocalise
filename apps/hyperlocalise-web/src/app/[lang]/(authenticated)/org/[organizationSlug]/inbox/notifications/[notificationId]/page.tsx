@@ -10,42 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { InboxPageContent } from "../../_components/inbox-page-content";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
-
-export default function InboxNotificationPage({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string; notificationId: string }>;
-}) {
-  return (
-    <OrgPageSuspense>
-      <InboxNotificationPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "inboxNotification");
 }
 
-async function InboxNotificationPageLoader({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string; notificationId: string }>;
-}) {
-  const { organizationSlug } = await params;
-  const auth = await requireAppAuthContext({ organizationSlug });
-  const currentUserName =
-    [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
-    auth.sessionUser.email;
-
-  return (
-    <InboxPageContent
-      currentUser={{
-        avatarUrl: auth.sessionUser.profilePictureUrl ?? null,
-        email: auth.sessionUser.email,
-        name: currentUserName,
-      }}
-      organizationSlug={organizationSlug}
-    />
-  );
+// The inbox shell lives in `layout.tsx` so it stays mounted when the URL changes.
+export default function InboxNotificationPage() {
+  return null;
 }

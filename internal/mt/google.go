@@ -84,14 +84,14 @@ func (c *GoogleClient) Translate(ctx context.Context, req Request) (Response, er
 
 	var out googleTranslateResponse
 	if err := c.request(ctx, http.MethodPost, c.translateURL(), body, &out); err != nil {
-		return Response{}, err
+		return Response{RequestCount: 1}, err
 	}
 
 	translations := make([]string, len(out.Data.Translations))
 	for i, t := range out.Data.Translations {
 		translations[i] = html.UnescapeString(t.TranslatedText)
 	}
-	return Response{Translations: translations}, nil
+	return Response{Translations: translations, RequestCount: 1}, nil
 }
 
 func (c *GoogleClient) translateURL() string {

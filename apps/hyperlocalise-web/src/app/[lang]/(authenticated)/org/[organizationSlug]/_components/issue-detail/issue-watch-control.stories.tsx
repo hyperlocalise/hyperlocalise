@@ -34,7 +34,7 @@ function CommentSectionPreview() {
 }
 
 const meta = {
-  title: "App/Issue Detail/Subscribe Control",
+  title: "App/Queries/Subscribe Control",
   component: IssueWatchControl,
   decorators: [
     (Story) => (

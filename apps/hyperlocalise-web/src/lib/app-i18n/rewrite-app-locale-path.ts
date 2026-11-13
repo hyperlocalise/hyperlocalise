@@ -65,9 +65,15 @@ export function getNativeLocaleDisplayName(locale: AppLocale): string {
 const APP_LOCALE_FLAG_EMOJI = {
   en: "🇺🇸",
   "zh-CN": "🇨🇳",
-  "vi-VN": "🇻🇳",
-  "de-DE": "🇩🇪",
+  "da-DK": "🇩🇰",
+  "nl-NL": "🇳🇱",
+  "fil-PH": "🇵🇭",
   "fr-FR": "🇫🇷",
+  "de-DE": "🇩🇪",
+  "ja-JP": "🇯🇵",
+  "ko-KR": "🇰🇷",
+  "th-TH": "🇹🇭",
+  "vi-VN": "🇻🇳",
 } as const satisfies Record<AppLocale, string>;
 
 export function getAppLocaleFlagEmoji(locale: AppLocale): string {

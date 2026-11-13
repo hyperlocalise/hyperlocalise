@@ -15,8 +15,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
-import { readApiResponseError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
+import type { OrganizationIssuesListQuery } from "@/lib/go-svc/go-svc-client.types";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { buildIssueDetailHref } from "../../_components/issue-detail/issue-detail-utils";
 import { IssueBulkActionBar } from "../../_components/issue-bulk-action-bar";
@@ -28,7 +29,7 @@ import { useIssueListUrlState } from "../../_components/use-issue-list-url-state
 import { IssuesActions } from "./issues-actions";
 import { ISSUES_PAGE_SIZE, IssuesPageView, type OrganizationIssue } from "./issues-page-view";
 
-const issuesQueryKey = (organizationSlug: string, query: Record<string, string>) =>
+const issuesQueryKey = (organizationSlug: string, query: OrganizationIssuesListQuery) =>
   ["organization-issues", organizationSlug, query] as const;
 
 export function IssuesPageContent({
@@ -40,6 +41,7 @@ export function IssuesPageContent({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useIssueListUrlState({
     includeProject: true,
   });
@@ -52,18 +54,16 @@ export function IssuesPageContent({
   const projectsQuery = useQuery({
     queryKey: ["organization-issues-projects", organizationSlug],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load projects");
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects.map((project) => ({
+          id: project.id,
+          name: project.name,
+          targetLocales: project.targetLocales ?? [],
+        }));
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load projects"), { cause: error });
       }
-      const body = await response.json();
-      return body.projects.map((project) => ({
-        id: project.id,
-        name: project.name,
-        targetLocales: project.targetLocales ?? [],
-      }));
     },
   });
 
@@ -76,16 +76,11 @@ export function IssuesPageContent({
         limit: ISSUES_PAGE_SIZE,
         offset: pageParam,
       });
-      const response = await apiClient.api.orgs[":organizationSlug"].issues.$get({
-        param: { organizationSlug },
-        query,
-      } as never);
-
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load issues");
+      try {
+        return await goSvcClient.issueSheet.listOrg(organizationSlug, query);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load issues"), { cause: error });
       }
-
-      return response.json();
     },
     getNextPageParam: (lastPage, pages) => {
       const loaded = pages.reduce((sum, page) => sum + page.issues.length, 0);
@@ -161,8 +156,8 @@ export function IssuesPageContent({
     router.push(
       buildIssueDetailHref({
         organizationSlug,
-        projectId: issue.projectId,
         issueId: issue.identifier,
+        scope: "organization",
       }),
     );
   };

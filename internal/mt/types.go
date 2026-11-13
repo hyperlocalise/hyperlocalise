@@ -10,4 +10,8 @@ type Request struct {
 // Response contains translations in the same order as Request.Sources.
 type Response struct {
 	Translations []string
+	// RequestCount is the number of provider HTTP requests issued while
+	// serving this Translate call. Zero means the engine did not report
+	// usage; callers treat an attempted Translate as one request.
+	RequestCount int
 }

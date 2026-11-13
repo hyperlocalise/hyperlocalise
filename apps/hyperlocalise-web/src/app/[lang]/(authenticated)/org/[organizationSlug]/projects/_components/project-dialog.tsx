@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { type FormEvent, useEffect, useId, useState } from "react";
-import { ArrowDown01Icon, SaveIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Spinner } from "@/components/ui/spinner";
@@ -30,12 +29,21 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { ProjectTemplateRecord } from "@/lib/go-svc/go-svc-client.types";
 import { cn } from "@/lib/primitives/cn";
 
 import { projectDialogMessages } from "./project-dialog.messages";
 import { ProjectSourceLocalePicker, ProjectTargetLocalesPicker } from "./project-locale-picker";
 import {
+  applyProjectTemplate,
   projectFormHasErrors,
   projectFormRequiresLocales,
   validateProjectForm,
@@ -44,6 +52,8 @@ import {
 } from "./project-form";
 import type { ProjectListRow } from "./project-list";
 
+const BLANK_TEMPLATE_VALUE = "__blank__";
+
 export function ProjectDialog({
   open,
   title,
@@ -51,6 +61,7 @@ export function ProjectDialog({
   mode,
   projectSource = "native",
   initialValues,
+  templates = [],
   isSaving,
   onOpenChange,
   onSubmit,
@@ -61,6 +72,8 @@ export function ProjectDialog({
   mode: "create" | "edit";
   projectSource?: ProjectListRow["source"];
   initialValues: ProjectFormValues;
+  /** Templates a new project can start from. Shown in create mode when there are any. */
+  templates?: readonly ProjectTemplateRecord[];
   isSaving: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: ProjectFormValues) => void;
@@ -73,6 +86,7 @@ export function ProjectDialog({
   const nameCountId = useId();
   const descriptionId = useId();
   const descriptionCountId = useId();
+  const templateId = useId();
 
   useEffect(() => {
     if (open) {
@@ -83,6 +97,11 @@ export function ProjectDialog({
   }, [initialValues, open]);
 
   const showLocaleFields = projectFormRequiresLocales(mode, projectSource);
+  const showTemplatePicker = mode === "create" && templates.length > 0;
+  const templateItems = [
+    { value: BLANK_TEMPLATE_VALUE, label: intl.formatMessage(projectDialogMessages.blankProject) },
+    ...templates.map((template) => ({ value: template.id, label: template.name })),
+  ];
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -122,6 +141,38 @@ export function ProjectDialog({
             <DialogDescription className="text-muted-foreground">{description}</DialogDescription>
           </DialogHeader>
           <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 py-4">
+            {showTemplatePicker ? (
+              <Field className="gap-1.5">
+                <FieldLabel htmlFor={templateId}>
+                  <FormattedMessage {...projectDialogMessages.templateLabel} />
+                </FieldLabel>
+                <Select
+                  value={values.templateId ?? BLANK_TEMPLATE_VALUE}
+                  disabled={isSaving}
+                  onValueChange={(value) => {
+                    const template = templates.find((item) => item.id === value) ?? null;
+                    setValues((current) => applyProjectTemplate(current, template));
+                    setErrors({});
+                  }}
+                >
+                  <SelectTrigger id={templateId}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templateItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value} label={item.label}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {values.templateId ? (
+                  <FieldDescription>
+                    <FormattedMessage {...projectDialogMessages.templateHint} />
+                  </FieldDescription>
+                ) : null}
+              </Field>
+            ) : null}
             <Field className="gap-1.5">
               <FieldLabel htmlFor={nameId}>
                 <FormattedMessage {...projectDialogMessages.nameLabel} />
@@ -184,13 +235,11 @@ export function ProjectDialog({
                     className="h-9 w-full justify-between px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     <FormattedMessage {...projectDialogMessages.settings} />
-                    <HugeiconsIcon
-                      icon={ArrowDown01Icon}
+                    <CaretDownIcon
                       className={cn(
                         "size-4 shrink-0 transition-transform",
                         settingsOpen && "rotate-180",
                       )}
-                      strokeWidth={2}
                     />
                   </Button>
                 }
@@ -240,7 +289,7 @@ export function ProjectDialog({
               <FormattedMessage {...projectDialogMessages.cancel} />
             </Button>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? <Spinner /> : <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />}
+              {isSaving ? <Spinner /> : <FloppyDiskIcon />}
               {isSaving ? (
                 <FormattedMessage {...projectDialogMessages.saving} />
               ) : (

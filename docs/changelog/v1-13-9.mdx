@@ -1,0 +1,36 @@
+---
+title: "v1.13.9"
+description: "Go CLI release notes for v1.13.9."
+---
+
+Gettext PO and POT writeback now fills every plural form a target locale expects, clears fuzzy flags on catalog headers, and writes `charset=UTF-8`. Apple `.stringsdict` parsing measures entity boundaries in the raw XML. Interactive `run`, `status`, and `eval` views keep list selection and reverse sort order.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.13.9) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.13.8...v1.13.9)
+
+## Breaking changes
+
+None.
+
+## Features
+
+None.
+
+## Fixes
+
+- Fix [gettext PO and POT writeback](https://github.com/hyperlocalise/hyperlocalise/pull/3128) for template headers and plural entries. A target locale with more plural categories than the source gets the extra `msgstr[n]` slots, using the last translated form when a category has no translation yet. Catalog headers lose a `fuzzy` flag, and `charset=CHARSET` becomes `charset=UTF-8`. See [Translate gettext PO](/cli/reference/formats/gettext).
+- Fix [`.stringsdict` entity offsets](https://github.com/hyperlocalise/hyperlocalise/pull/3128) when parsing plist XML so character entities decode without shifting string boundaries. See [Translate Apple .stringsdict](/cli/reference/formats/apple-stringsdict).
+- Fix [`hl eval` dashboard sorting](https://github.com/hyperlocalise/hyperlocalise/pull/3105) so reverse sort inverts every column, including assertion score and failure-bucket counts.
+- Fix [`hl status` locale sorting](https://github.com/hyperlocalise/hyperlocalise/pull/3105) so reverse sort applies to translated and untranslated counts.
+- Keep [interactive `hl run` list selection](https://github.com/hyperlocalise/hyperlocalise/pull/3105) on the current step when you change a numeric option with arrow keys.
+
+## Tests
+
+- PO plural writeback fills missing categories and clears header `fuzzy` flags.
+- `.stringsdict` round-trip with XML entities in message values.
+- Eval and status dashboard sort order with `reverse` enabled.
+- Interactive run selection after option mutations.
+
+## Maintenance
+
+- Bump Go dependencies, including OpenAI Go to v3.96.0, Phrase Go to v4.38.0, goldmark to v2.1.15, and DataDog dd-trace-go to v2.12.0 ([#3147](https://github.com/hyperlocalise/hyperlocalise/pull/3147)).
+- Bump the `google.golang.org/genproto` replace to `v0.0.0-20261104224025-d1e00e9f33ab` ([#3140](https://github.com/hyperlocalise/hyperlocalise/pull/3140)).

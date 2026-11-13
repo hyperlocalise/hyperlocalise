@@ -12,25 +12,26 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { observer } from "mobx-react-lite";
 import { useSearchParams } from "next/navigation";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { GoSvcClientError, type GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import {
+  memoryImportFormatFromFilename,
+  normalizeMemoryImportUploadBytes,
+  suggestedMemoryNameFromFilename,
+} from "@/lib/memory/decode-import-file";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
-import {
-  effectiveWorkspaceSyncFilter,
-  GLOSSARY_SYNC_FILTERS,
-  PROJECT_SOURCE_FILTERS,
-  readWorkspaceFilterParam,
-  TMS_PROVIDER_KINDS,
-} from "../../_components/workspace-filter-params";
 import {
   buildProjectIdByExternalKey,
   filterMemoryListRows,
@@ -38,21 +39,35 @@ import {
   mapMemoryToListRow,
   providerLabel,
   type ApiMemory,
-  type MemoryListRow,
 } from "./memory-list";
 import type { TmsProviderLiveTranslationMemory } from "@/lib/providers/jobs/tms-provider-live";
+import type { MemoryCreateForm } from "../store/translation-memories-page-store";
 import {
-  TranslationMemoriesPageView,
-  MEMORIES_PAGE_SIZE,
-  type MemoryCreateForm,
-} from "./translation-memories-page-view";
+  TranslationMemoriesPageStoreProvider,
+  useTranslationMemoriesPageStore,
+} from "../store/translation-memories-store-context";
+import { TranslationMemoriesPageView, MEMORIES_PAGE_SIZE } from "./translation-memories-page-view";
 import { translationMemoriesPageContentMessages } from "./translation-memories-page-content.messages";
 
-const memoriesQueryKey = (organizationSlug: string, page: number) => [
-  "translation-memories",
-  organizationSlug,
-  page,
-];
+class CreateMemoryImportError extends Error {
+  memoryId: string;
+
+  constructor(memoryId: string, message: string) {
+    super(message);
+    this.name = "CreateMemoryImportError";
+    this.memoryId = memoryId;
+  }
+}
+
+// Matches MEMORY_INTERCHANGE_MAX_BYTES in go-svc. Larger files are rejected
+// before the upload so the user gets a fast, localizable error.
+const MEMORY_IMPORT_UPLOAD_LIMIT_BYTES = 100 * 1024 * 1024;
+
+const workspaceMemoriesQueryKey = (
+  organizationSlug: string,
+  source: "native" | "external_tms",
+  projectFilter: string,
+) => ["translation-memories", organizationSlug, source, projectFilter] as const;
 const projectsQueryKey = (organizationSlug: string) => [
   "translation-memory-projects",
   organizationSlug,
@@ -62,65 +77,36 @@ const credentialsQueryKey = (organizationSlug: string) => [
   organizationSlug,
 ];
 
-function createEmptyMemoryForm(): MemoryCreateForm {
-  return { name: "", description: "" };
-}
-
-function useMemoryFilters(
-  memories: MemoryListRow[],
-  searchParams: URLSearchParams,
-  options?: { ignoreSyncFilter?: boolean },
+async function fetchWorkspaceMemories(
+  goSvcClient: GoSvcClient,
+  organizationSlug: string,
+  intl: ReturnType<typeof useIntl>,
+  page: number,
+  source: "native" | "external_tms",
+  projectFilter: string,
 ) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState(() =>
-    readWorkspaceFilterParam(searchParams, "source", PROJECT_SOURCE_FILTERS),
-  );
-  const [providerFilter, setProviderFilter] = useState(() =>
-    readWorkspaceFilterParam(searchParams, "provider", TMS_PROVIDER_KINDS),
-  );
-  const [syncFilter, setSyncFilter] = useState(() =>
-    readWorkspaceFilterParam(searchParams, "sync", GLOSSARY_SYNC_FILTERS),
-  );
-  const effectiveSyncFilter = effectiveWorkspaceSyncFilter(
-    syncFilter,
-    Boolean(options?.ignoreSyncFilter),
-  );
-
-  const filteredMemories = useMemo(
-    () =>
-      filterMemoryListRows(memories, {
-        searchQuery,
-        sourceFilter,
-        providerFilter,
-        syncFilter: effectiveSyncFilter,
-      }),
-    [memories, searchQuery, sourceFilter, providerFilter, effectiveSyncFilter],
-  );
-
-  const activeFilterCount = [sourceFilter, providerFilter, effectiveSyncFilter].filter(
-    (f) => f !== "all",
-  ).length;
-
-  function clearFilters() {
-    setSearchQuery("");
-    setSourceFilter("all");
-    setProviderFilter("all");
-    setSyncFilter("all");
+  try {
+    const body = await goSvcClient.memory.list(organizationSlug, {
+      limit: MEMORIES_PAGE_SIZE,
+      offset: (page - 1) * MEMORIES_PAGE_SIZE,
+      source,
+      ...(projectFilter !== "all" ? { projectId: projectFilter } : {}),
+    });
+    return {
+      memories: body.memories as ApiMemory[],
+      total: body.total,
+    };
+  } catch (error) {
+    throw new Error(
+      goSvcErrorMessage(
+        error,
+        intl.formatMessage(translationMemoriesPageContentMessages.loadMemoriesFailed, {
+          status: error instanceof GoSvcClientError ? error.status : 0,
+        }),
+      ),
+      { cause: error },
+    );
   }
-
-  return {
-    searchQuery,
-    setSearchQuery,
-    sourceFilter,
-    setSourceFilter,
-    providerFilter,
-    setProviderFilter,
-    syncFilter: effectiveSyncFilter,
-    setSyncFilter,
-    filteredMemories,
-    activeFilterCount,
-    clearFilters,
-  };
 }
 
 export function TranslationMemoriesPageContent({
@@ -130,37 +116,57 @@ export function TranslationMemoriesPageContent({
   organizationSlug: string;
   canCreateMemories: boolean;
 }) {
+  const searchParams = useSearchParams();
+  return (
+    <TranslationMemoriesPageStoreProvider
+      organizationSlug={organizationSlug}
+      searchParams={searchParams}
+    >
+      <TranslationMemoriesPageContentView canCreateMemories={canCreateMemories} />
+    </TranslationMemoriesPageStoreProvider>
+  );
+}
+
+const TranslationMemoriesPageContentView = observer(function TranslationMemoriesPageContentView({
+  canCreateMemories,
+}: {
+  canCreateMemories: boolean;
+}) {
   const intl = useIntl();
   const router = useOrgRouter();
-  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<MemoryCreateForm>(() => createEmptyMemoryForm());
-  const [createErrors, setCreateErrors] = useState<{ name?: string }>({});
-  const [selectedExternalProjectId, setSelectedExternalProjectId] = useState("");
-  const [projectFilter, setProjectFilter] = useState("all");
+  const { client: goSvcClient } = useGoSvcClient();
+  const pageStore = useTranslationMemoriesPageStore();
+  const organizationSlug = pageStore.organizationSlug;
   const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
   const useLiveProviderMemories = Boolean(activeTmsProvider);
-  const allowCreateMemories = canCreateMemories && !useLiveProviderMemories;
+  const allowCreateMemories = canCreateMemories;
+  const searchQuery = pageStore.searchQuery;
+  const sourceFilter = pageStore.sourceFilter;
+  const providerFilter = pageStore.providerFilter;
+  const syncFilter = pageStore.effectiveSyncFilter(useLiveProviderMemories);
+  const projectFilter = pageStore.projectFilter;
+  const selectedExternalProjectId = pageStore.selectedExternalProjectId;
+  const createDialogOpen = pageStore.createDialogOpen;
+  const createForm = pageStore.createForm;
+  const createErrors = pageStore.createErrors;
 
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),
     enabled: !useLiveProviderMemories,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-
-      if (!response.ok) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(translationMemoriesPageContentMessages.loadProjectsFailed),
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects;
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(translationMemoriesPageContentMessages.loadProjectsFailed),
+          ),
+          { cause: error },
         );
       }
-
-      const body = await response.json();
-      return body.projects;
     },
   });
 
@@ -187,101 +193,259 @@ export function TranslationMemoriesPageContent({
     },
   });
 
-  const memoriesQuery = useQuery({
+  const nativeMemoriesQuery = useInfiniteQuery({
+    queryKey: workspaceMemoriesQueryKey(organizationSlug, "native", projectFilter),
+    initialPageParam: 1,
+    enabled: sourceFilter !== "external_tms",
+    queryFn: ({ pageParam }) =>
+      fetchWorkspaceMemories(
+        goSvcClient,
+        organizationSlug,
+        intl,
+        pageParam,
+        "native",
+        projectFilter,
+      ),
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((count, page) => count + page.memories.length, 0);
+      return loaded < lastPage.total ? pages.length + 1 : undefined;
+    },
+  });
+
+  const persistedExternalMemoriesQuery = useInfiniteQuery({
+    queryKey: workspaceMemoriesQueryKey(organizationSlug, "external_tms", projectFilter),
+    initialPageParam: 1,
+    enabled: !useLiveProviderMemories && sourceFilter !== "native",
+    queryFn: ({ pageParam }) =>
+      fetchWorkspaceMemories(
+        goSvcClient,
+        organizationSlug,
+        intl,
+        pageParam,
+        "external_tms",
+        projectFilter,
+      ),
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((count, page) => count + page.memories.length, 0);
+      return loaded < lastPage.total ? pages.length + 1 : undefined;
+    },
+  });
+
+  const liveMemoriesQuery = useQuery({
     queryKey: [
-      ...memoriesQueryKey(organizationSlug, page),
-      useLiveProviderMemories ? "live" : "native",
+      "translation-memories",
+      organizationSlug,
+      "live",
       selectedExternalProjectId,
-      projectFilter,
+      activeTmsProvider?.providerKind,
     ],
-    enabled: !useLiveProviderMemories || Boolean(selectedExternalProjectId),
+    enabled: useLiveProviderMemories && Boolean(selectedExternalProjectId),
     queryFn: async () => {
-      if (useLiveProviderMemories && activeTmsProvider) {
-        const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"][
-          "translation-memories"
-        ].$get({
-          param: { organizationSlug },
-          query: {
-            externalProjectId: selectedExternalProjectId,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            intl.formatMessage(translationMemoriesPageContentMessages.loadProviderMemoriesFailed, {
-              status: response.status,
-            }),
-          );
-        }
-
-        const body = (await response.json()) as {
-          translationMemories: TmsProviderLiveTranslationMemory[];
-        };
-        const liveRows = body.translationMemories.map((memory) =>
-          mapLiveTmsProviderMemoryToListRow(memory, activeTmsProvider.providerKind, intl),
-        );
-
-        return {
-          memories: [] as ApiMemory[],
-          liveRows,
-          total: liveRows.length,
-        };
-      }
-
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$get({
+      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"][
+        "translation-memories"
+      ].$get({
         param: { organizationSlug },
         query: {
-          limit: String(MEMORIES_PAGE_SIZE),
-          offset: String((page - 1) * MEMORIES_PAGE_SIZE),
-          ...(projectFilter !== "all" ? { projectId: projectFilter } : {}),
+          externalProjectId: selectedExternalProjectId,
         },
       });
 
       if (!response.ok) {
         throw new Error(
-          intl.formatMessage(translationMemoriesPageContentMessages.loadMemoriesFailed, {
+          intl.formatMessage(translationMemoriesPageContentMessages.loadProviderMemoriesFailed, {
             status: response.status,
           }),
         );
       }
 
-      const body = await response.json();
-      return {
-        memories: body.memories as ApiMemory[],
-        total: body.total as number,
+      const body = (await response.json()) as {
+        translationMemories: TmsProviderLiveTranslationMemory[];
       };
+      return body.translationMemories.map((memory) =>
+        mapLiveTmsProviderMemoryToListRow(memory, activeTmsProvider!.providerKind, intl),
+      );
     },
   });
 
   const createMemory = useMutation({
     mutationFn: async (values: MemoryCreateForm) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$post({
-        param: { organizationSlug },
-        json: {
-          name: values.name.trim(),
-          description: values.description.trim(),
-        },
-      });
+      const name =
+        values.name.trim() ||
+        (values.importFile ? suggestedMemoryNameFromFilename(values.importFile.name) : "");
+      if (values.importFile) {
+        if (!memoryImportFormatFromFilename(values.importFile.name)) {
+          throw new Error(
+            intl.formatMessage(translationMemoriesPageContentMessages.importFileInvalid),
+          );
+        }
+        if (
+          values.importFile.size <= 0 ||
+          values.importFile.size > MEMORY_IMPORT_UPLOAD_LIMIT_BYTES
+        ) {
+          throw new Error(
+            intl.formatMessage(translationMemoriesPageContentMessages.importFileTooLarge, {
+              maxMegabytes: 100,
+            }),
+          );
+        }
+      }
 
-      if (!response.ok) {
+      let memoryId: string;
+      try {
+        const body = await goSvcClient.memory.create(organizationSlug, {
+          name,
+          description: values.description.trim(),
+        });
+        memoryId = body.memory.id;
+      } catch (error) {
         throw new Error(
-          await readApiError(
-            response,
+          goSvcErrorMessage(
+            error,
             intl.formatMessage(translationMemoriesPageContentMessages.createMemoryFailed),
+          ),
+          { cause: error },
+        );
+      }
+      if (!values.importFile) {
+        return { memoryId, importAttemptId: null as string | null };
+      }
+
+      // Lambda-backed import, same as the translation memory import flow:
+      // upload the file to object storage, queue apply, then navigate to the
+      // report page while the import runs in the background.
+      const file = values.importFile;
+      const format = memoryImportFormatFromFilename(file.name);
+      if (!format) {
+        throw new CreateMemoryImportError(
+          memoryId,
+          intl.formatMessage(translationMemoriesPageContentMessages.importFileInvalid),
+        );
+      }
+      // Lambda-backed import: normalize to UTF-8 before upload (see the
+      // translation memory import flow). Re-encoded text can grow, so
+      // re-check the limit against the bytes actually uploaded.
+      let importUploadBytes: Uint8Array;
+      try {
+        importUploadBytes = normalizeMemoryImportUploadBytes(
+          new Uint8Array(await file.arrayBuffer()),
+        );
+      } catch (error) {
+        throw new CreateMemoryImportError(
+          memoryId,
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
           ),
         );
       }
-
-      return response.json();
+      if (
+        importUploadBytes.byteLength <= 0 ||
+        importUploadBytes.byteLength > MEMORY_IMPORT_UPLOAD_LIMIT_BYTES
+      ) {
+        throw new CreateMemoryImportError(
+          memoryId,
+          intl.formatMessage(translationMemoriesPageContentMessages.importFileTooLarge, {
+            maxMegabytes: 100,
+          }),
+        );
+      }
+      let upload;
+      try {
+        upload = await goSvcClient.memory.entries.createImportUpload(organizationSlug, memoryId, {
+          format,
+          sourceFilename: file.name,
+          contentType: file.type || "application/octet-stream",
+        });
+      } catch (error) {
+        throw new CreateMemoryImportError(
+          memoryId,
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+          ),
+        );
+      }
+      const headers = new Headers();
+      for (const [headerName, headerValues] of Object.entries(upload.upload.headers)) {
+        headers.set(headerName, headerValues.join(","));
+      }
+      // Fail the upload session if the PUT or the queue request fails, so a
+      // stale upload_pending attempt does not linger in import history.
+      const cancelUploadSession = () => {
+        void goSvcClient.memory.entries
+          .cancelImport(organizationSlug, memoryId, { attemptId: upload.attemptId })
+          .catch(() => undefined);
+      };
+      let uploaded;
+      try {
+        uploaded = await fetch(upload.upload.url, {
+          method: upload.upload.method,
+          headers,
+          // BodyInit takes ArrayBuffer but not Uint8Array under this TS DOM lib.
+          body: importUploadBytes.slice().buffer,
+        });
+      } catch (error) {
+        cancelUploadSession();
+        throw new CreateMemoryImportError(
+          memoryId,
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+          ),
+        );
+      }
+      if (!uploaded.ok) {
+        cancelUploadSession();
+        throw new CreateMemoryImportError(
+          memoryId,
+          intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+        );
+      }
+      try {
+        const queued = await goSvcClient.memory.entries.queueImport(organizationSlug, memoryId, {
+          attemptId: upload.attemptId,
+          mode: "preview",
+        });
+        return { memoryId, importAttemptId: queued.attemptId };
+      } catch (error) {
+        cancelUploadSession();
+        throw new CreateMemoryImportError(
+          memoryId,
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+          ),
+        );
+      }
     },
-    onSuccess: async (body) => {
+    onSuccess: async ({ memoryId, importAttemptId }) => {
       await queryClient.invalidateQueries({ queryKey: ["translation-memories", organizationSlug] });
-      setCreateDialogOpen(false);
-      setCreateForm(createEmptyMemoryForm());
-      toast.success(intl.formatMessage(translationMemoriesPageContentMessages.memoryCreated));
-      router.push(`/org/${organizationSlug}/translation-memories/${body.memory.id}`);
+      pageStore.resetCreateDialog();
+      toast.success(
+        intl.formatMessage(
+          importAttemptId
+            ? translationMemoriesPageContentMessages.memoryCreatedAndImported
+            : translationMemoriesPageContentMessages.memoryCreated,
+        ),
+      );
+      router.push(
+        importAttemptId
+          ? `/org/${organizationSlug}/translation-memories/${memoryId}/imports/${importAttemptId}`
+          : `/org/${organizationSlug}/translation-memories/${memoryId}`,
+      );
     },
     onError: (error) => {
+      if (error instanceof CreateMemoryImportError) {
+        toast.error(
+          intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+        );
+        void queryClient.invalidateQueries({
+          queryKey: ["translation-memories", organizationSlug],
+        });
+        pageStore.resetCreateDialog();
+        router.push(`/org/${organizationSlug}/translation-memories/${error.memoryId}`);
+        return;
+      }
       toast.error(error.message);
     },
   });
@@ -291,26 +455,94 @@ export function TranslationMemoriesPageContent({
     [projectsQuery.data],
   );
 
-  const memories = useMemo(() => {
-    if (useLiveProviderMemories) {
-      return memoriesQuery.data?.liveRows ?? [];
+  const listFilters = useMemo(
+    () => pageStore.listFilters(useLiveProviderMemories),
+    [pageStore, providerFilter, searchQuery, sourceFilter, syncFilter, useLiveProviderMemories],
+  );
+
+  const nativeMemoryRows = useMemo(
+    () =>
+      (nativeMemoriesQuery.data?.pages ?? []).flatMap((page) =>
+        page.memories.map((memory) => mapMemoryToListRow(memory, projectIdByExternalKey, intl)),
+      ),
+    [intl, nativeMemoriesQuery.data?.pages, projectIdByExternalKey],
+  );
+  const persistedExternalMemoryRows = useMemo(
+    () =>
+      (persistedExternalMemoriesQuery.data?.pages ?? []).flatMap((page) =>
+        page.memories.map((memory) => mapMemoryToListRow(memory, projectIdByExternalKey, intl)),
+      ),
+    [intl, persistedExternalMemoriesQuery.data?.pages, projectIdByExternalKey],
+  );
+  const loadedMemories = useMemo(
+    () => [...nativeMemoryRows, ...persistedExternalMemoryRows, ...(liveMemoriesQuery.data ?? [])],
+    [liveMemoriesQuery.data, nativeMemoryRows, persistedExternalMemoryRows],
+  );
+  const providerKinds = useMemo(() => {
+    const kinds = new Set<string>();
+    for (const memory of loadedMemories) {
+      if (memory.externalProviderKind) {
+        kinds.add(memory.externalProviderKind);
+      }
     }
-
-    return (memoriesQuery.data?.memories ?? []).map((memory) =>
-      mapMemoryToListRow(memory, projectIdByExternalKey, intl),
+    return [...kinds].sort((left, right) =>
+      providerLabel(left).localeCompare(providerLabel(right)),
     );
-  }, [
-    intl,
-    memoriesQuery.data?.liveRows,
-    memoriesQuery.data?.memories,
-    projectIdByExternalKey,
-    useLiveProviderMemories,
-  ]);
+  }, [loadedMemories]);
+  const hasExternalMemories = loadedMemories.some((memory) => memory.source === "external_tms");
 
-  const memoryTotal = memoriesQuery.data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(memoryTotal / MEMORIES_PAGE_SIZE));
-  const pageStart = memoryTotal === 0 ? 0 : (page - 1) * MEMORIES_PAGE_SIZE + 1;
-  const pageEnd = Math.min(page * MEMORIES_PAGE_SIZE, memoryTotal);
+  const nativeMemories = useMemo(
+    () => filterMemoryListRows(nativeMemoryRows, listFilters),
+    [listFilters, nativeMemoryRows],
+  );
+  const persistedExternalMemories = useMemo(
+    () => filterMemoryListRows(persistedExternalMemoryRows, listFilters),
+    [listFilters, persistedExternalMemoryRows],
+  );
+  const liveExternalMemories = useMemo(
+    () => filterMemoryListRows(liveMemoriesQuery.data ?? [], listFilters),
+    [listFilters, liveMemoriesQuery.data],
+  );
+  const externalMemories = useLiveProviderMemories
+    ? liveExternalMemories
+    : persistedExternalMemories;
+
+  const nativeTotal = searchQuery.trim()
+    ? nativeMemories.length
+    : (nativeMemoriesQuery.data?.pages[0]?.total ?? nativeMemories.length);
+  const externalTotal = useLiveProviderMemories
+    ? liveExternalMemories.length
+    : searchQuery.trim()
+      ? persistedExternalMemories.length
+      : (persistedExternalMemoriesQuery.data?.pages[0]?.total ?? persistedExternalMemories.length);
+  const nativeQueryState = {
+    isLoading: nativeMemoriesQuery.isLoading,
+    isError: nativeMemoriesQuery.isError,
+    isSuccess: nativeMemoriesQuery.isSuccess,
+    error: nativeMemoriesQuery.error,
+    refetch: () => {
+      void nativeMemoriesQuery.refetch();
+    },
+  };
+  const externalQueryState = useLiveProviderMemories
+    ? {
+        isLoading: Boolean(selectedExternalProjectId) && liveMemoriesQuery.isLoading,
+        isError: liveMemoriesQuery.isError,
+        isSuccess: !selectedExternalProjectId || liveMemoriesQuery.isSuccess,
+        error: liveMemoriesQuery.error,
+        refetch: () => {
+          void liveMemoriesQuery.refetch();
+        },
+      }
+    : {
+        isLoading: persistedExternalMemoriesQuery.isLoading,
+        isError: persistedExternalMemoriesQuery.isError,
+        isSuccess: persistedExternalMemoriesQuery.isSuccess,
+        error: persistedExternalMemoriesQuery.error,
+        refetch: () => {
+          void persistedExternalMemoriesQuery.refetch();
+        },
+      };
 
   const filterProjects = useMemo(
     () =>
@@ -320,56 +552,23 @@ export function TranslationMemoriesPageContent({
     [projectsQuery.data],
   );
 
-  const providerKinds = useMemo(() => {
-    const kinds = new Set<string>();
-    for (const memory of memories) {
-      if (memory.externalProviderKind) {
-        kinds.add(memory.externalProviderKind);
-      }
-    }
-    return [...kinds].sort((a, b) => providerLabel(a).localeCompare(providerLabel(b)));
-  }, [memories]);
+  const serverNativeTotal = nativeMemoriesQuery.data?.pages[0]?.total ?? 0;
+  const serverExternalTotal = persistedExternalMemoriesQuery.data?.pages[0]?.total ?? 0;
+  const hasLoadedMemories =
+    loadedMemories.length > 0 ||
+    (projectFilter !== "all" && (serverNativeTotal > 0 || serverExternalTotal > 0));
 
-  const {
-    searchQuery,
-    setSearchQuery,
-    sourceFilter,
-    setSourceFilter,
-    providerFilter,
-    setProviderFilter,
-    syncFilter,
-    setSyncFilter,
-    filteredMemories,
-    activeFilterCount,
-    clearFilters,
-  } = useMemoryFilters(memories, searchParams, {
-    ignoreSyncFilter: useLiveProviderMemories,
-  });
+  const listsReady =
+    (sourceFilter === "external_tms" || nativeQueryState.isSuccess) &&
+    (sourceFilter === "native" || externalQueryState.isSuccess);
+  const hasActiveFilters = pageStore.hasActiveFilters(useLiveProviderMemories);
+  const showNoFilterMatches =
+    listsReady && nativeMemories.length + externalMemories.length === 0 && hasActiveFilters;
 
   useEffect(() => {
-    setPage(1);
-  }, [
-    organizationSlug,
-    searchQuery,
-    sourceFilter,
-    providerFilter,
-    syncFilter,
-    selectedExternalProjectId,
-    projectFilter,
-  ]);
+    pageStore.resetProjectSelection();
+  }, [organizationSlug, useLiveProviderMemories, pageStore]);
 
-  useEffect(() => {
-    setSelectedExternalProjectId("");
-    setProjectFilter("all");
-  }, [organizationSlug, useLiveProviderMemories]);
-
-  useEffect(() => {
-    if (memoriesQuery.isSuccess && page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [memoriesQuery.isSuccess, page, totalPages]);
-
-  const hasExternalMemories = memories.some((memory) => memory.source === "external_tms");
   const connectedCredentials = (credentialsQuery.data ?? []).filter(
     (credential) => credential.validationStatus === "connected",
   );
@@ -378,11 +577,19 @@ export function TranslationMemoriesPageContent({
     : credentialsQuery.isSuccess && connectedCredentials.length > 0;
 
   function submitCreateMemory() {
-    const errors: { name?: string } = {};
-    if (!createForm.name.trim()) {
+    const errors: { name?: string; importFile?: string } = {};
+    const suggestedName = createForm.importFile
+      ? suggestedMemoryNameFromFilename(createForm.importFile.name)
+      : "";
+    if (!createForm.name.trim() && !suggestedName) {
       errors.name = intl.formatMessage(translationMemoriesPageContentMessages.nameRequired);
     }
-    setCreateErrors(errors);
+    if (createForm.importFile && !memoryImportFormatFromFilename(createForm.importFile.name)) {
+      errors.importFile = intl.formatMessage(
+        translationMemoriesPageContentMessages.importFileInvalid,
+      );
+    }
+    pageStore.setCreateErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
     }
@@ -392,53 +599,59 @@ export function TranslationMemoriesPageContent({
   return (
     <TranslationMemoriesPageView
       organizationSlug={organizationSlug}
-      memories={filteredMemories}
-      memoryTotal={memoryTotal}
-      isLoading={memoriesQuery.isLoading}
-      isError={memoriesQuery.isError}
-      isSuccess={memoriesQuery.isSuccess}
-      error={memoriesQuery.error}
+      nativeMemories={nativeMemories}
+      externalMemories={externalMemories}
+      nativeTotal={nativeTotal}
+      externalTotal={externalTotal}
+      nativeQuery={nativeQueryState}
+      externalQuery={externalQueryState}
       allowCreateMemories={allowCreateMemories}
       hasConnectedProvider={hasConnectedProvider}
       useLiveProviderMemories={useLiveProviderMemories}
+      connectedProviderKinds={
+        useLiveProviderMemories && activeTmsProvider
+          ? [activeTmsProvider.providerKind]
+          : [...new Set(connectedCredentials.map((credential) => credential.providerKind))]
+      }
       selectedExternalProjectId={selectedExternalProjectId}
-      onSelectedExternalProjectIdChange={setSelectedExternalProjectId}
+      onSelectedExternalProjectIdChange={(value) => pageStore.setSelectedExternalProjectId(value)}
       searchQuery={searchQuery}
-      onSearchQueryChange={setSearchQuery}
+      onSearchQueryChange={(value) => pageStore.setSearchQuery(value)}
       sourceFilter={sourceFilter}
-      onSourceFilterChange={setSourceFilter}
+      onSourceFilterChange={(value) => pageStore.setSourceFilter(value)}
       projectFilter={projectFilter}
-      onProjectFilterChange={setProjectFilter}
+      onProjectFilterChange={(value) => pageStore.setProjectFilter(value)}
       projects={filterProjects}
       providerFilter={providerFilter}
-      onProviderFilterChange={setProviderFilter}
+      onProviderFilterChange={(value) => pageStore.setProviderFilter(value)}
       syncFilter={syncFilter}
-      onSyncFilterChange={setSyncFilter}
+      onSyncFilterChange={(value) => pageStore.setSyncFilter(value)}
       providerKinds={providerKinds}
       hasExternalMemories={hasExternalMemories}
-      hasMemories={memories.length > 0 || (projectFilter !== "all" && memoryTotal === 0)}
-      activeFilterCount={activeFilterCount + (projectFilter === "all" ? 0 : 1)}
-      showNoFilterMatches={
-        memoriesQuery.isSuccess &&
-        ((memories.length > 0 && filteredMemories.length === 0) ||
-          (projectFilter !== "all" && memoryTotal === 0))
-      }
-      onClearFilters={() => {
-        clearFilters();
-        setProjectFilter("all");
+      hasMemories={hasLoadedMemories}
+      showNoFilterMatches={showNoFilterMatches}
+      hasActiveFilters={hasActiveFilters}
+      onClearFilters={() => pageStore.clearFilters()}
+      nativeHasMore={Boolean(nativeMemoriesQuery.hasNextPage)}
+      nativeIsLoadingMore={nativeMemoriesQuery.isFetchingNextPage}
+      onNativeLoadMore={() => {
+        void nativeMemoriesQuery.fetchNextPage();
       }}
-      page={page}
-      totalPages={totalPages}
-      pageStart={pageStart}
-      pageEnd={pageEnd}
-      onPageChange={setPage}
+      externalHasMore={
+        useLiveProviderMemories ? false : Boolean(persistedExternalMemoriesQuery.hasNextPage)
+      }
+      externalIsLoadingMore={persistedExternalMemoriesQuery.isFetchingNextPage}
+      onExternalLoadMore={() => {
+        void persistedExternalMemoriesQuery.fetchNextPage();
+      }}
       createDialogOpen={createDialogOpen}
-      onCreateDialogOpenChange={setCreateDialogOpen}
+      onCreateDialogOpenChange={(open) => pageStore.setCreateDialogOpen(open)}
       createForm={createForm}
-      onCreateFormChange={setCreateForm}
+      onCreateFormChange={(form) => pageStore.setCreateForm(form)}
       createErrors={createErrors}
       isCreating={createMemory.isPending}
       onSubmitCreateMemory={submitCreateMemory}
+      onImportMemory={() => pageStore.openCreateDialog()}
     />
   );
-}
+});

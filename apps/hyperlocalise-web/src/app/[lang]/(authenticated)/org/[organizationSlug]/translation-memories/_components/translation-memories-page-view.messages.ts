@@ -25,12 +25,6 @@ export const translationMemoriesPageViewMessages = defineMessages({
     id: "zHmiYq4Tm1",
     description: "Translation memories page heading",
   },
-  pageDescription: {
-    defaultMessage:
-      "Create first-party workspace memories or sync provider translation memories. Provider memories stay read-only.",
-    id: "RiqlM9/Nv4",
-    description: "Translation memories page description under the heading",
-  },
   memoryCount: {
     defaultMessage: "{count, plural, one {# memory} other {# memories}}",
     id: "hIXJeNB+nI",
@@ -41,6 +35,11 @@ export const translationMemoriesPageViewMessages = defineMessages({
     id: "elDbGHn1Tb",
     description: "Button to open the create translation memory dialog",
   },
+  importMemory: {
+    defaultMessage: "Import TMX or CSV",
+    id: "88klhgXFog",
+    description: "Button to create a translation memory by uploading a TMX or CSV file",
+  },
   searchLabel: {
     defaultMessage: "Search",
     id: "3zVs9fHVPp",
@@ -50,6 +49,27 @@ export const translationMemoriesPageViewMessages = defineMessages({
     defaultMessage: "Name, project, or external ID...",
     id: "xYeE5w8BlW",
     description: "Placeholder for the translation memories search field",
+  },
+  nativeSectionTitle: {
+    defaultMessage: "Hyperlocalise",
+    id: "Vd8rri53Cw",
+    description: "Heading for workspace translation memories",
+  },
+  nativeEmptyTitle: {
+    defaultMessage: "No Hyperlocalise memories",
+    id: "JnkMlPrbgO",
+    description: "Empty state title for workspace translation memories",
+  },
+  externalEmptyTitle: {
+    defaultMessage: "No {provider} memories",
+    id: "3F7R48zqwN",
+    description: "Empty state title for provider translation memories",
+  },
+  nativeEmptyDescription: {
+    defaultMessage:
+      "Hyperlocalise memories created here stay available to every project you attach.",
+    id: "pj3dDbWu7o",
+    description: "Empty state description for workspace translation memories",
   },
   sourceLabel: {
     defaultMessage: "Source",
@@ -154,14 +174,14 @@ export const translationMemoriesPageViewMessages = defineMessages({
   },
   emptyDescriptionCreate: {
     defaultMessage:
-      "Create a workspace memory, import entries, then assign it to the projects that should use it.",
-    id: "hoUlxWeu2t",
+      "Create a workspace memory, upload a TMX or CSV file, then assign it to the projects that should use it.",
+    id: "a1Rp/rylyq",
     description: "Empty state description when the user can create translation memories",
   },
   emptyDescriptionWithProvider: {
     defaultMessage:
-      "Provider translation memories appear here after sync. Connect or resync a TMS provider from Integrations if you expected to see one.",
-    id: "ZwXdX+nC9a",
+      "{provider} translation memories appear here after sync. Connect or resync from Integrations if you expected to see one.",
+    id: "CkyeuxhCTF",
     description: "Empty state description when a TMS provider is connected but no memories exist",
   },
   emptyDescriptionWithoutProvider: {
@@ -197,9 +217,39 @@ export const translationMemoriesPageViewMessages = defineMessages({
   },
   createDialogDescription: {
     defaultMessage:
-      "Add a first-party memory library. You can import and edit entries after creation.",
-    id: "0LWDKXES/c",
+      "Add a workspace memory. Upload a TMX or CSV file now, or add entries after creation.",
+    id: "CIhbMSiEM0",
     description: "Description of the create translation memory dialog",
+  },
+  importFileLabel: {
+    defaultMessage: "TMX or CSV file",
+    id: "kgYTYlFKnV",
+    description: "Label for the optional translation memory upload field",
+  },
+  importFileHint: {
+    defaultMessage: "Optional. TMX is the interchange format for translation memories.",
+    id: "nxfY9E7T+0",
+    description: "Hint under the optional translation memory upload field",
+  },
+  selectImportFile: {
+    defaultMessage: "Choose a TMX or CSV file",
+    id: "xJG0B6qHm8",
+    description: "Prompt inside the create translation memory file upload area",
+  },
+  selectedImportFile: {
+    defaultMessage: "{filename} · {format}",
+    id: "wKc4U9j256",
+    description: "Selected translation memory import filename and format",
+  },
+  clearImportFile: {
+    defaultMessage: "Remove file",
+    id: "caNZDGtpcW",
+    description: "Button to clear the selected translation memory import file",
+  },
+  importFileInvalid: {
+    defaultMessage: "Choose a TMX or CSV file.",
+    id: "MHv6MtNx22",
+    description: "Validation error when the create-memory upload is not TMX or CSV",
   },
   nameLabel: {
     defaultMessage: "Name",

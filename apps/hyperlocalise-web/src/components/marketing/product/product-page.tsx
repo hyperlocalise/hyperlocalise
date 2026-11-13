@@ -12,11 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRightIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { FormattedMessage } from "react-intl";
 
+import type { HomepageFaqItem } from "@/components/marketing/homepage-faq-content";
+import { HomepageFaqSection } from "@/components/marketing/homepage-faq-section";
 import { HeroFrameMeshStage } from "@/components/marketing/hero-frame-mesh-stage";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
@@ -36,11 +37,15 @@ import { HyperlabMockUI } from "./hyperlab-mock-ui";
 import { IntegrationStripSection } from "./integration-strip-section";
 import { KnowledgeHero } from "./knowledge-hero";
 import { KnowledgeMockUI } from "./knowledge-mock-ui";
+import { ProductHowItWorksNarrativeSection } from "./product-how-it-works-narrative-section";
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
 import { VisualWorkflowPlayground } from "./visual-workflow-playground";
 
 type ProductPageProps = {
   content: ProductPageContent;
+  faqItems?: HomepageFaqItem[];
+  faqHeading?: string;
+  faqSubheading?: string;
 };
 
 function ProductMessage({ messageKey }: { messageKey: ProductMessageKey }) {
@@ -76,7 +81,7 @@ function ProductHero({ content }: ProductPageProps) {
   //         render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
   //       >
   //         <ProductMessage messageKey="ctaJoinWaitlist" />
-  //         <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
+  //         <ArrowRightIcon data-icon="inline-end" className="size-4" />
   //       </Button>
   //     </div>
   //   );
@@ -106,7 +111,7 @@ function ProductHero({ content }: ProductPageProps) {
               render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
             >
               <ProductMessage messageKey="ctaJoinWaitlist" />
-              <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
+              <ArrowRightIcon data-icon="inline-end" className="size-4" />
             </Button>
           </div>
         </div>
@@ -226,11 +231,7 @@ function ProductDetailsSection({ content }: ProductPageProps) {
                 render={<Link href={rewriteAppLocalePath(link.href, locale)} />}
               >
                 <ProductMessage messageKey={link.labelKey} />
-                <HugeiconsIcon
-                  icon={ArrowRight01Icon}
-                  data-icon="inline-end"
-                  className="size-3.5"
-                />
+                <ArrowRightIcon data-icon="inline-end" className="size-3.5" />
               </Button>
             ))}
           </div>
@@ -258,7 +259,9 @@ function ProductCta({ content }: ProductPageProps) {
   );
 }
 
-export function ProductPage({ content }: ProductPageProps) {
+export function ProductPage({ content, faqItems, faqHeading, faqSubheading }: ProductPageProps) {
+  const showFaq = faqItems && faqHeading && faqSubheading;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto max-w-7xl">
@@ -269,6 +272,12 @@ export function ProductPage({ content }: ProductPageProps) {
         <section className="px-3 pb-20 sm:px-6 lg:px-8">
           <ProductShowcase content={content} />
         </section>
+
+        {content.howItWorksNarrativeKey ? (
+          <ProductHowItWorksNarrativeSection
+            narrative={productPageMessages[content.howItWorksNarrativeKey]}
+          />
+        ) : null}
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
           <ProductDetailsSection content={content} />
@@ -285,6 +294,12 @@ export function ProductPage({ content }: ProductPageProps) {
             <VisualWorkflowPlayground />
           </section>
         )}
+
+        {showFaq ? (
+          <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
+            <HomepageFaqSection items={faqItems} heading={faqHeading} subheading={faqSubheading} />
+          </section>
+        ) : null}
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
           <ProductCta content={content} />

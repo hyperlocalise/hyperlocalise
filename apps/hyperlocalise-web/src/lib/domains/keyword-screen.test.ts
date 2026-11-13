@@ -12,24 +12,14 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 import {
+  EMPTY_KEYWORD_FILTERS,
   filterKeywordIdeas,
   keywordIdeasCsv,
   resolveActiveKeyword,
-  type KeywordFilters,
 } from "./keyword-screen";
 import type { KeywordIdea } from "./research-prototype";
 
-const filters: KeywordFilters = {
-  include: "",
-  exclude: "",
-  minVolume: "",
-  maxVolume: "",
-  minKd: "",
-  maxKd: "",
-  minCpc: "",
-  maxCpc: "",
-  intent: "all",
-};
+const filters = EMPTY_KEYWORD_FILTERS;
 const rows: KeywordIdea[] = [
   {
     id: "a",

@@ -34,7 +34,7 @@ const descriptionWithImage = [
 ].join("\n");
 
 const meta = {
-  title: "App/Issues/Markdown Field",
+  title: "App/Queries/Markdown Field",
   component: IssueMarkdownField,
   render: (args) => (
     <div className="max-w-2xl p-6">

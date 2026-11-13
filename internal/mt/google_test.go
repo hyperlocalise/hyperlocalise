@@ -39,6 +39,7 @@ func TestGoogleClientTranslateSuccess(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{"Bonjour", "Salut"}, resp.Translations)
+	require.Equal(t, 1, resp.RequestCount)
 
 	require.Equal(t, []string{"Hello", "Hi"}, gotBody.Q)
 	require.Equal(t, "en", gotBody.Source)

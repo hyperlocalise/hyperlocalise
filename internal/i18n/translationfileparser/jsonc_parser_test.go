@@ -265,6 +265,67 @@ func TestJSONCParserParseWithContextCombinesMultiplePendingLineComments(t *testi
 	}
 }
 
+func TestJSONCParserParseWithContextAttachesCommentOnLastKeyWithoutTrailingNewline(t *testing.T) {
+	content := []byte("{\n  // eof hint\n  \"done\": \"Yes\"\n}")
+	if content[len(content)-1] != '}' {
+		t.Fatal("fixture must end on the closing brace with no trailing newline")
+	}
+
+	messages, contextByKey, err := (JSONCParser{}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse file without trailing newline: %v", err)
+	}
+	if messages["done"] != "Yes" {
+		t.Fatalf("unexpected done message: %q", messages["done"])
+	}
+	if contextByKey["done"] != "eof hint" {
+		t.Fatalf("unexpected done context: %q", contextByKey["done"])
+	}
+}
+
+func TestJSONCParserParseWithContextIgnoresEmptyCommentsBetweenKeys(t *testing.T) {
+	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte(`{
+  // hint for a
+  "a": "A",
+  //
+  "b": "B"
+}`))
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages["a"] != "A" || messages["b"] != "B" {
+		t.Fatalf("unexpected messages: %#v", messages)
+	}
+	if contextByKey["a"] != "hint for a" {
+		t.Fatalf("unexpected a context: %q", contextByKey["a"])
+	}
+	if _, ok := contextByKey["b"]; ok {
+		t.Fatalf("did not expect context for b: %q", contextByKey["b"])
+	}
+}
+
+func TestJSONCParserParseWithContextHandlesTabBeforeColonAndNestedObject(t *testing.T) {
+	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte("{\n  // tab key\n  \"hero\"\t: \"Welcome\",\n  \"home\": {\n    // nested label\n    \"cta\": {\n      // button copy\n      \"label\": \"Go\"\n    }\n  }\n}"))
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages["hero"] != "Welcome" {
+		t.Fatalf("unexpected hero message: %q", messages["hero"])
+	}
+	if contextByKey["hero"] != "tab key" {
+		t.Fatalf("unexpected hero context: %q", contextByKey["hero"])
+	}
+	if messages["home.cta.label"] != "Go" {
+		t.Fatalf("unexpected nested message: %q", messages["home.cta.label"])
+	}
+	if contextByKey["home.cta.label"] != "button copy" {
+		t.Fatalf("unexpected nested context: %q", contextByKey["home.cta.label"])
+	}
+	if _, ok := contextByKey["home.cta"]; ok {
+		t.Fatalf("did not expect object-key context for home.cta: %q", contextByKey["home.cta"])
+	}
+}
+
 func TestJSONCParserParseWithContextHandlesLineCommentWithBlockMarkers(t *testing.T) {
 	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte(`{
   ///* translator hint */

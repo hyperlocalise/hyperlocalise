@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -56,6 +57,28 @@ func TestStrategyParsesJSTSLocaleModules(t *testing.T) {
 				t.Fatalf("unexpected entries for %s: %#v", ext, got)
 			}
 		})
+	}
+}
+
+func TestStrategyParsesQtLinguistTS(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("translations/app_de.ts", []byte(`<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="de_DE">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>File</source>
+        <translation>Datei</translation>
+    </message>
+</context>
+</TS>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["MainWindow|File"] != "Datei" {
+		t.Fatalf("unexpected Qt Linguist entries: %#v", got)
 	}
 }
 
@@ -363,6 +386,33 @@ func TestStrategyParsesGenericXML(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesRESW(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("Strings/fr-FR/Resources.resw", []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="AppTitle" xml:space="preserve">
+    <value>Contoso</value>
+  </data>
+  <data name="Welcome.Text" xml:space="preserve">
+    <value>Bienvenue</value>
+    <comment>Home screen heading</comment>
+  </data>
+</root>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["AppTitle"] != "Contoso" {
+		t.Fatalf("unexpected AppTitle: %q", got["AppTitle"])
+	}
+	if got["Welcome.Text"] != "Bienvenue" {
+		t.Fatalf("unexpected Welcome.Text: %q", got["Welcome.Text"])
+	}
+	if _, ok := got["Welcome.Text.comment"]; ok {
+		t.Fatalf("comment metadata must not be parsed: %#v", got)
+	}
+}
+
 func TestStrategyParsesAndroidXMLResourcePath(t *testing.T) {
 	s := NewDefaultStrategy()
 
@@ -393,6 +443,20 @@ escaped\ key: Ligne un\nLigne deux
 	}
 }
 
+func TestStrategyParsesINI(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("locales/fr.ini", []byte(`[Home]
+welcome=Bienvenue
+`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["Home.welcome"] != "Bienvenue" {
+		t.Fatalf("unexpected Home.welcome translation: %q", got["Home.welcome"])
+	}
+}
+
 func TestStrategyParsesSRT(t *testing.T) {
 	s := NewDefaultStrategy()
 
@@ -414,6 +478,54 @@ func TestStrategyParsesVTT(t *testing.T) {
 	}
 	if got["vtt.0001"] != "Hello" {
 		t.Fatalf("unexpected vtt translation: %#v", got)
+	}
+}
+
+func TestStrategyParsesTSV(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("en.tsv", []byte("key\tvalue\nhello\tHello\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("unexpected tsv translation: %#v", got)
+	}
+}
+
+func TestStrategyParsesTOML(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("en.toml", []byte("hello = \"Hello\"\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("unexpected toml translation: %#v", got)
+	}
+}
+
+func TestStrategyParsesSBV(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("en.sbv", []byte("0:00:00.000,0:00:01.000\nHello\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["sbv.0001"] != "Hello" {
+		t.Fatalf("unexpected sbv translation: %#v", got)
+	}
+}
+
+func TestStrategyParsesSVG(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("mark.svg", []byte(`<svg><text>Hello</text></svg>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["svg.0001"] != "Hello" {
+		t.Fatalf("unexpected svg translation: %#v", got)
 	}
 }
 
@@ -464,6 +576,45 @@ func TestStrategyParseWithContextIncludesFormatJSDescriptions(t *testing.T) {
 	}
 	if contextByKey["checkout.submit"] != "Checkout CTA" {
 		t.Fatalf("unexpected context: %q", contextByKey["checkout.submit"])
+	}
+}
+
+func TestStrategyParseIngestEntriesIncludesFormatJSDescriptions(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	entries, err := s.ParseIngestEntries("en-US.json", []byte(`{
+  "checkout.submit": {"defaultMessage": "Submit", "description": "Checkout CTA"},
+  "home.title": {"defaultMessage": "Home"}
+}`), "")
+	if err != nil {
+		t.Fatalf("parse ingest entries: %v", err)
+	}
+	if entries["checkout.submit"] != (IngestEntry{Text: "Submit", Context: "Checkout CTA"}) {
+		t.Fatalf("unexpected checkout.submit ingest entry: %#v", entries["checkout.submit"])
+	}
+	if entries["home.title"] != (IngestEntry{Text: "Home"}) {
+		t.Fatalf("unexpected home.title ingest entry: %#v", entries["home.title"])
+	}
+
+	got := EncodeEntriesCommandOutput(entries)["checkout.submit"]
+	want := map[string]any{"text": "Submit", "context": "Checkout CTA"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("encoded entry mismatch\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
+func TestStrategyParseIngestEntriesIncludesJSONCKeyComments(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	entries, err := s.ParseIngestEntries("en.jsonc", []byte(`{
+  // Greeting used on landing page.
+  "hello": "Bonjour"
+}`), "")
+	if err != nil {
+		t.Fatalf("parse ingest entries: %v", err)
+	}
+	if entries["hello"] != (IngestEntry{Text: "Bonjour", Context: "Greeting used on landing page."}) {
+		t.Fatalf("unexpected hello ingest entry: %#v", entries["hello"])
 	}
 }
 
@@ -529,7 +680,7 @@ func TestStrategyParsesHTMLExtensions(t *testing.T) {
 func TestStrategyUnsupportedExtension(t *testing.T) {
 	s := NewDefaultStrategy()
 
-	_, err := s.Parse("fr.toml", []byte(""))
+	_, err := s.Parse("notes.xyz", []byte(""))
 	if err == nil {
 		t.Fatalf("expected unsupported extension error")
 	}
@@ -570,11 +721,11 @@ msgstr[1] "articles"
 	if got["home.title"] != "Accueil Maison" {
 		t.Fatalf("unexpected home.title translation: %q", got["home.title"])
 	}
-	if got["items"] != "article" {
-		t.Fatalf("unexpected plural base translation: %q", got["items"])
+	if got["items||one"] != "article" || got["items||other"] != "articles" {
+		t.Fatalf("unexpected plural translations: %+v", got)
 	}
-	if len(got) != 3 {
-		t.Fatalf("unexpected parsed entry count: got %d want 3", len(got))
+	if len(got) != 4 {
+		t.Fatalf("unexpected parsed entry count: got %d want 4 (%+v)", len(got), got)
 	}
 }
 
@@ -651,6 +802,101 @@ func TestStrategyParseWithContextMarkdownIncludesAdjacentHints(t *testing.T) {
 	if !found {
 		t.Fatalf("expected adjacent literal hints in at least one segment context, got %#v", ctx)
 	}
+}
+
+func TestStrategyParseIngestEntriesKeepsDeveloperContext(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	t.Run("resx comments", func(t *testing.T) {
+		entries, err := s.ParseIngestEntries("Resources.resx", []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="home.title" xml:space="preserve">
+    <value>Welcome home</value>
+    <comment>Main heading</comment>
+  </data>
+</root>`), "")
+		if err != nil {
+			t.Fatalf("parse ingest entries: %v", err)
+		}
+		if entries["home.title"] != (IngestEntry{Text: "Welcome home", Context: "Main heading"}) {
+			t.Fatalf("unexpected home.title ingest entry: %#v", entries["home.title"])
+		}
+	})
+
+	t.Run("xliff notes", func(t *testing.T) {
+		entries, err := s.ParseIngestEntries("en.xliff", []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+  <file source-language="en">
+    <body>
+      <trans-unit id="hello">
+        <source>Hello</source>
+        <note>Login greeting</note>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`), "")
+		if err != nil {
+			t.Fatalf("parse ingest entries: %v", err)
+		}
+		if entries["hello"] != (IngestEntry{Text: "Hello", Context: "Login greeting"}) {
+			t.Fatalf("unexpected hello ingest entry: %#v", entries["hello"])
+		}
+	})
+
+	t.Run("android comments", func(t *testing.T) {
+		entries, err := s.ParseIngestEntries("res/values/strings.xml", []byte(`<resources>
+  <!-- Login greeting -->
+  <string name="hello">Hello</string>
+</resources>`), "")
+		if err != nil {
+			t.Fatalf("parse ingest entries: %v", err)
+		}
+		if entries["hello"] != (IngestEntry{Text: "Hello", Context: "Login greeting"}) {
+			t.Fatalf("unexpected hello ingest entry: %#v", entries["hello"])
+		}
+	})
+
+	t.Run("yaml comments", func(t *testing.T) {
+		entries, err := s.ParseIngestEntries("en.yml", []byte("# Login greeting\nhello: Hello\n"), "")
+		if err != nil {
+			t.Fatalf("parse ingest entries: %v", err)
+		}
+		if entries["hello"] != (IngestEntry{Text: "Hello", Context: "Login greeting"}) {
+			t.Fatalf("unexpected hello ingest entry: %#v", entries["hello"])
+		}
+	})
+
+	t.Run("apple strings comments", func(t *testing.T) {
+		entries, err := s.ParseIngestEntries("Localizable.strings", []byte(`/* Login greeting */
+"hello" = "Hello";
+`), "")
+		if err != nil {
+			t.Fatalf("parse ingest entries: %v", err)
+		}
+		if entries["hello"] != (IngestEntry{Text: "Hello", Context: "Login greeting"}) {
+			t.Fatalf("unexpected hello ingest entry: %#v", entries["hello"])
+		}
+	})
+
+	t.Run("markdown structural context", func(t *testing.T) {
+		content := []byte("# Hello\n")
+		_, parseCtx, err := s.ParseWithContext("en/page.md", content)
+		if err != nil {
+			t.Fatalf("parse with context: %v", err)
+		}
+		entries, err := s.ParseIngestEntries("en/page.md", content, "")
+		if err != nil {
+			t.Fatalf("parse ingest entries: %v", err)
+		}
+		if len(parseCtx) == 0 {
+			t.Fatalf("expected markdown parse context")
+		}
+		for key, context := range parseCtx {
+			if entries[key].Context != context {
+				t.Fatalf("ingest dropped markdown context for %q: %#v", key, entries[key])
+			}
+		}
+	})
 }
 
 func TestJSONParserRejectsInvalidShape(t *testing.T) {

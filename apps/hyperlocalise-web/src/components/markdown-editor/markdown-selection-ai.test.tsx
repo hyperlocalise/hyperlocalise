@@ -13,11 +13,13 @@
 // @vitest-environment happy-dom
 import { useState } from "react";
 import { Editor } from "@tiptap/core";
+import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { ContentEditorTestProviders } from "@/components/content-editor/shared/content-editor-test-utils";
+import { ApiResponseError } from "@/lib/api-error";
 import { MarkdownSelectionAi } from "./markdown-selection-ai";
 import type { MarkdownSelectionAiConfig } from "./markdown-selection-ai.types";
 
@@ -41,7 +43,7 @@ function Host({ request }: { request: MarkdownSelectionAiConfig["request"] }) {
 function setup(request: MarkdownSelectionAiConfig["request"]) {
   editor = new Editor({
     element: document.createElement("div"),
-    extensions: [StarterKit],
+    extensions: [StarterKit, Markdown],
     content: "<p>Before selected after</p>",
   });
   editor.commands.setTextSelection({ from: 8, to: 16 });
@@ -49,6 +51,34 @@ function setup(request: MarkdownSelectionAiConfig["request"]) {
 }
 
 describe("MarkdownSelectionAi", () => {
+  it("sends Markdown for formatted selections and applies formatted replacements", async () => {
+    const user = userEvent.setup();
+    const request = vi.fn().mockResolvedValue({
+      suggestion: "**amélioré**",
+      reasoning: "Kept emphasis.",
+    });
+    editor = new Editor({
+      element: document.createElement("div"),
+      extensions: [StarterKit, Markdown],
+      content: "Before **selected** after",
+      contentType: "markdown",
+    });
+    editor.commands.setTextSelection({ from: 8, to: 16 });
+    render(<Host request={request} />);
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    await user.click(screen.getByRole("button", { name: "Retranslate" }));
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedText: "**selected**",
+        documentContext: "Before **selected** after",
+        instruction: expect.stringContaining("Preserve Markdown formatting"),
+      }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Replace" }));
+    expect(editor.getText()).toBe("Before amélioré after");
+    expect(editor.getHTML()).toContain("<strong>amélioré</strong>");
+  });
+
   it("requests AI with selection context and only replaces the selection after approval", async () => {
     const user = userEvent.setup();
     const request = vi
@@ -109,6 +139,25 @@ describe("MarkdownSelectionAi", () => {
     await user.click(apply);
     expect(screen.getByRole("alert")).toHaveTextContent("The document changed");
     expect(editor.getText()).toBe("New Before selected after");
+  });
+
+  it("says the AI credit is used up when the request is refused for it, without a retry", async () => {
+    const user = userEvent.setup();
+    setup(
+      vi
+        .fn()
+        .mockRejectedValue(
+          new ApiResponseError("used up", { code: "ai_credit_exhausted", status: 402 }),
+        ),
+    );
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    await user.click(screen.getByRole("button", { name: "Rewrite" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Your workspace has used all of its AI credit.",
+    );
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+    expect(editor.getText()).toBe("Before selected after");
   });
 
   it("keeps the document intact when AI fails and lets the reviewer retry", async () => {

@@ -1,0 +1,492 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { Hono } from "hono";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { validator } from "hono/validator";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { z } from "zod";
+
+import { hasCapability } from "@/api/auth/policy";
+import { isTrustedSanityStudioOrigin, sanityCorsMiddleware } from "@/api/auth/sanity-cors";
+import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
+import { badRequestResponse } from "@/api/response.schema";
+import {
+  authenticateSanityOauthClient,
+  buildSanityOauthRedirect,
+  completeSanityOauthHandoff,
+  createSanityOauthAuthorizationCode,
+  createSanityOauthAuthorizationRequest,
+  createSanityOauthHandoff,
+  getPendingSanityOauthHandoffByWriteKey,
+  SANITY_OAUTH_REQUEST_COOKIE,
+  SANITY_OAUTH_SCOPE,
+  consumeSanityOauthAuthorizationCode,
+  getSanityOauthRedirectAllowlist,
+  isAllowedSanityOauthRedirectUri,
+  isSanityOauthConfigured,
+  issueSanityOauthTokens,
+  listSanityOauthConsentConnections,
+  listSanityOauthConsentOrganizations,
+  parseSanityOauthAuthorizationRequest,
+  readSanityOauthHandoff,
+  refreshSanityOauthTokens,
+  revokeSanityOauthToken,
+} from "@/lib/sanity/oauth";
+import { ensureSanityStudioPluginConnection } from "@/lib/sanity/connections";
+import { env } from "@/lib/env";
+
+const authorizationQuerySchema = z.object({
+  response_type: z.literal("code"),
+  client_id: z.string().min(1).max(2048),
+  redirect_uri: z.url().max(2048),
+  code_challenge: z.string().min(32).max(128),
+  code_challenge_method: z.literal("S256"),
+  scope: z.string().max(128).optional().default(SANITY_OAUTH_SCOPE),
+  state: z.string().min(1).max(512),
+  studio_origin: z.url().max(2048),
+});
+
+const optionalUuid = z.preprocess(
+  (value) => (value === "" || value === null || value === undefined ? undefined : value),
+  z.string().uuid().optional(),
+);
+
+const consentBodySchema = z.object({
+  connectionId: optionalUuid,
+  organizationId: optionalUuid,
+});
+
+const tokenRequestSchema = z.discriminatedUnion("grant_type", [
+  z.object({
+    grant_type: z.literal("authorization_code"),
+    code: z.string().min(1).max(8192),
+    redirect_uri: z.url().max(2048),
+    code_verifier: z.string().min(43).max(128),
+    client_id: z.string().min(1).max(2048).optional(),
+    client_secret: z.string().min(1).max(2048).optional(),
+  }),
+  z.object({
+    grant_type: z.literal("refresh_token"),
+    refresh_token: z.string().min(1).max(8192),
+    client_id: z.string().min(1).max(2048).optional(),
+    client_secret: z.string().min(1).max(2048).optional(),
+  }),
+]);
+
+const revokeRequestSchema = z.object({
+  token: z.string().min(1).max(8192),
+  token_type_hint: z.enum(["access_token", "refresh_token"]).optional(),
+  client_id: z.string().min(1).max(2048).optional(),
+  client_secret: z.string().min(1).max(2048).optional(),
+});
+
+const handoffCompleteBodySchema = z.object({
+  writeKey: z.string().min(1).max(512),
+  code: z.string().min(1).max(8192).optional(),
+  error: z.string().min(1).max(256).optional(),
+  errorDescription: z.string().min(1).max(2048).optional(),
+});
+
+const handoffReadKeyParamSchema = z.object({
+  readKey: z.string().min(1).max(512),
+});
+
+function endpointOrigin(c: { req: { url: string } }) {
+  return new URL(c.req.url).origin;
+}
+
+function secureCookieOptions(maxAgeSeconds: number) {
+  return {
+    httpOnly: true,
+    sameSite: "Lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: maxAgeSeconds,
+  };
+}
+
+async function readFormOrJsonBody(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    try {
+      return await request.json();
+    } catch {
+      return {};
+    }
+  }
+
+  try {
+    const formData = await request.formData();
+    return Object.fromEntries(formData.entries());
+  } catch {
+    return {};
+  }
+}
+
+function oauthError(
+  c: Parameters<typeof badRequestResponse>[0],
+  error: string,
+  status: ContentfulStatusCode = 400,
+) {
+  return c.json({ error }, status);
+}
+
+function tokenResponse(input: {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  scope: string;
+}) {
+  return {
+    access_token: input.accessToken,
+    refresh_token: input.refreshToken,
+    token_type: "Bearer",
+    expires_in: input.expiresIn,
+    scope: input.scope,
+  };
+}
+
+function consentPagePath() {
+  const publicAppUrl = env.HYPERLOCALISE_PUBLIC_APP_URL;
+  if (publicAppUrl) {
+    return new URL("/en/connect/sanity/oauth", publicAppUrl).pathname;
+  }
+
+  return "/en/connect/sanity/oauth";
+}
+
+const validateAuthorizationQuery = validator("query", (value, c) => {
+  const parsed = authorizationQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return oauthError(c, "invalid_request");
+  }
+
+  return parsed.data;
+});
+
+export function getSanityOauthAuthorizationServerMetadata(origin: string) {
+  return {
+    issuer: origin,
+    authorization_endpoint: `${origin}/api/oauth/sanity/authorize`,
+    token_endpoint: `${origin}/api/oauth/sanity/token`,
+    revocation_endpoint: `${origin}/api/oauth/sanity/revoke`,
+    scopes_supported: [SANITY_OAUTH_SCOPE],
+    response_types_supported: ["code"],
+    response_modes_supported: ["query"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
+    token_endpoint_auth_methods_supported: ["none"],
+    code_challenge_methods_supported: ["S256"],
+    redirect_uris: getSanityOauthRedirectAllowlist(),
+  };
+}
+
+export function createSanityOauthRoutes(): Hono {
+  return new Hono()
+    .use("*", sanityCorsMiddleware)
+    .get("/.well-known/oauth-authorization-server", (c) =>
+      c.json(getSanityOauthAuthorizationServerMetadata(endpointOrigin(c)), 200),
+    )
+    .get("/authorize", validateAuthorizationQuery, async (c) => {
+      if (!isSanityOauthConfigured()) {
+        return c.json({ error: "sanity_oauth_unconfigured" }, 503);
+      }
+
+      const query = c.req.valid("query");
+      if (query.client_id !== env.SANITY_OAUTH_CLIENT_ID) {
+        return oauthError(c, "invalid_client");
+      }
+
+      if (!isAllowedSanityOauthRedirectUri(query.redirect_uri)) {
+        return oauthError(c, "invalid_redirect_uri");
+      }
+
+      const handoff = await getPendingSanityOauthHandoffByWriteKey(query.state);
+      if (!handoff || handoff.studioOrigin !== query.studio_origin) {
+        return oauthError(c, "invalid_request");
+      }
+      if (!isTrustedSanityStudioOrigin(handoff.studioOrigin)) {
+        return oauthError(c, "invalid_request");
+      }
+
+      const authRequest = createSanityOauthAuthorizationRequest({
+        clientId: query.client_id,
+        redirectUri: query.redirect_uri,
+        codeChallenge: query.code_challenge,
+        codeChallengeMethod: query.code_challenge_method,
+        scope: query.scope,
+        state: query.state,
+        studioOrigin: handoff.studioOrigin,
+      });
+      setCookie(c, SANITY_OAUTH_REQUEST_COOKIE, authRequest, secureCookieOptions(15 * 60));
+
+      const origin = endpointOrigin(c);
+      const auth = await resolveApiAuthContextFromSession();
+      const consentPath = consentPagePath();
+      if (!auth) {
+        const signInUrl = new URL("/auth/sign-in", origin);
+        signInUrl.searchParams.set("returnTo", consentPath);
+        return c.redirect(signInUrl.toString(), 302);
+      }
+
+      return c.redirect(new URL(consentPath, origin).toString(), 302);
+    })
+    .post("/consent", async (c) => {
+      if (!isSanityOauthConfigured()) {
+        return c.json({ error: "sanity_oauth_unconfigured" }, 503);
+      }
+
+      const authRequestToken = getCookie(c, SANITY_OAUTH_REQUEST_COOKIE);
+      const authRequest = authRequestToken
+        ? parseSanityOauthAuthorizationRequest(authRequestToken)
+        : null;
+      if (!authRequest) {
+        return oauthError(c, "invalid_request");
+      }
+
+      const parsedBody = consentBodySchema.safeParse(await readFormOrJsonBody(c.req.raw));
+      if (!parsedBody.success) {
+        return c.redirect(
+          buildSanityOauthRedirect({
+            redirectUri: authRequest.redirectUri,
+            state: authRequest.state,
+            error: "invalid_request",
+            errorDescription: "A Sanity connection is required.",
+          }),
+          302,
+        );
+      }
+
+      const auth = await resolveApiAuthContextFromSession();
+      if (!auth) {
+        const signInUrl = new URL("/auth/sign-in", endpointOrigin(c));
+        signInUrl.searchParams.set("returnTo", consentPagePath());
+        return c.redirect(signInUrl.toString(), 302);
+      }
+
+      const [connections, memberships] = await Promise.all([
+        listSanityOauthConsentConnections(auth.user.localUserId),
+        listSanityOauthConsentOrganizations(auth.user.localUserId),
+      ]);
+      const organizations = memberships.filter((organization) =>
+        hasCapability(organization.role, "provider_credentials:write"),
+      );
+      const selectedConnection = parsedBody.data.connectionId
+        ? connections.find((candidate) => candidate.connectionId === parsedBody.data.connectionId)
+        : undefined;
+      const organizationId =
+        selectedConnection?.organizationId ??
+        parsedBody.data.organizationId ??
+        auth.organization.localOrganizationId;
+      const writableOrganization = organizations.find(
+        (candidate) => candidate.organizationId === organizationId,
+      );
+
+      if (selectedConnection && !selectedConnection.enabled) {
+        return c.redirect(
+          buildSanityOauthRedirect({
+            redirectUri: authRequest.redirectUri,
+            state: authRequest.state,
+            error: "access_denied",
+            errorDescription: "The selected Sanity connection is unavailable.",
+          }),
+          302,
+        );
+      }
+
+      if (!writableOrganization) {
+        return c.redirect(
+          buildSanityOauthRedirect({
+            redirectUri: authRequest.redirectUri,
+            state: authRequest.state,
+            error: "access_denied",
+            errorDescription: "You need permission to connect Sanity to this workspace.",
+          }),
+          302,
+        );
+      }
+
+      const connectionId = (
+        await ensureSanityStudioPluginConnection({
+          organizationId: writableOrganization.organizationId,
+          userId: auth.user.localUserId,
+          connectionId:
+            selectedConnection && selectedConnection.enabled
+              ? selectedConnection.connectionId
+              : undefined,
+        })
+      ).id;
+
+      const code = await createSanityOauthAuthorizationCode({
+        clientId: authRequest.clientId,
+        redirectUri: authRequest.redirectUri,
+        codeChallenge: authRequest.codeChallenge,
+        studioOrigin: authRequest.studioOrigin,
+        userId: auth.user.localUserId,
+        organizationId: writableOrganization.organizationId,
+        connectionId,
+      });
+      deleteCookie(c, SANITY_OAUTH_REQUEST_COOKIE, { path: "/" });
+      return c.redirect(
+        buildSanityOauthRedirect({
+          redirectUri: authRequest.redirectUri,
+          state: authRequest.state,
+          code,
+        }),
+        302,
+      );
+    })
+    .post("/handoff", async (c) => {
+      if (!isSanityOauthConfigured()) {
+        return c.json({ error: "sanity_oauth_unconfigured" }, 503);
+      }
+
+      const studioOrigin = c.req.header("origin")?.trim();
+      if (!isTrustedSanityStudioOrigin(studioOrigin)) {
+        return oauthError(c, "invalid_request");
+      }
+
+      const handoff = await createSanityOauthHandoff({ studioOrigin });
+      return c.json(handoff, 201);
+    })
+    .post("/handoff/complete", async (c) => {
+      const parsed = handoffCompleteBodySchema.safeParse(await readFormOrJsonBody(c.req.raw));
+      if (!parsed.success) {
+        return oauthError(c, "invalid_request");
+      }
+
+      const payload = parsed.data;
+      if (!payload.code && !payload.error) {
+        return oauthError(c, "invalid_request");
+      }
+
+      const completed = await completeSanityOauthHandoff({
+        writeKey: payload.writeKey,
+        code: payload.code,
+        error: payload.error,
+        errorDescription: payload.errorDescription,
+      });
+      if (!completed) {
+        return oauthError(c, "invalid_grant");
+      }
+
+      return c.body(null, 200);
+    })
+    .get(
+      "/handoff/:readKey",
+      validator("param", (value, c) => {
+        const parsed = handoffReadKeyParamSchema.safeParse(value);
+        if (!parsed.success) {
+          return oauthError(c, "invalid_request");
+        }
+        return parsed.data;
+      }),
+      async (c) => {
+        const { readKey } = c.req.valid("param");
+        const result = await readSanityOauthHandoff(readKey);
+        return c.json(result, 200);
+      },
+    )
+    .post("/deny", async (c) => {
+      const authRequestToken = getCookie(c, SANITY_OAUTH_REQUEST_COOKIE);
+      const authRequest = authRequestToken
+        ? parseSanityOauthAuthorizationRequest(authRequestToken)
+        : null;
+      deleteCookie(c, SANITY_OAUTH_REQUEST_COOKIE, { path: "/" });
+      if (!authRequest) {
+        return oauthError(c, "invalid_request");
+      }
+
+      return c.redirect(
+        buildSanityOauthRedirect({
+          redirectUri: authRequest.redirectUri,
+          state: authRequest.state,
+          error: "access_denied",
+          errorDescription: "The user denied the request.",
+        }),
+        302,
+      );
+    })
+    .post("/token", async (c) => {
+      if (!isSanityOauthConfigured()) {
+        return c.json({ error: "sanity_oauth_unconfigured" }, 503);
+      }
+
+      const parsed = tokenRequestSchema.safeParse(await readFormOrJsonBody(c.req.raw));
+      if (!parsed.success) {
+        return oauthError(c, "invalid_request");
+      }
+
+      if (
+        !authenticateSanityOauthClient({
+          authorizationHeader: c.req.header("authorization"),
+          clientId: parsed.data.client_id,
+          clientSecret: parsed.data.client_secret,
+        })
+      ) {
+        return oauthError(c, "invalid_client", 401);
+      }
+
+      if (parsed.data.grant_type === "authorization_code") {
+        const consumed = await consumeSanityOauthAuthorizationCode({
+          code: parsed.data.code,
+          clientId: env.SANITY_OAUTH_CLIENT_ID ?? "",
+          redirectUri: parsed.data.redirect_uri,
+          codeVerifier: parsed.data.code_verifier,
+        });
+        if (!consumed) {
+          return oauthError(c, "invalid_grant");
+        }
+
+        const tokens = await issueSanityOauthTokens({
+          connectionId: consumed.connectionId,
+          userId: consumed.userId,
+          organizationId: consumed.organizationId,
+          studioOrigin: consumed.studioOrigin,
+        });
+        if (!tokens) {
+          return oauthError(c, "invalid_grant");
+        }
+        return c.json(tokenResponse(tokens), 200);
+      }
+
+      const tokens = await refreshSanityOauthTokens(parsed.data.refresh_token);
+      if (!tokens) {
+        return oauthError(c, "invalid_grant");
+      }
+
+      return c.json(tokenResponse(tokens), 200);
+    })
+    .post("/revoke", async (c) => {
+      if (!isSanityOauthConfigured()) {
+        return c.json({ error: "sanity_oauth_unconfigured" }, 503);
+      }
+
+      const parsed = revokeRequestSchema.safeParse(await readFormOrJsonBody(c.req.raw));
+      if (!parsed.success) {
+        return oauthError(c, "invalid_request");
+      }
+
+      if (
+        !authenticateSanityOauthClient({
+          authorizationHeader: c.req.header("authorization"),
+          clientId: parsed.data.client_id,
+          clientSecret: parsed.data.client_secret,
+        })
+      ) {
+        return oauthError(c, "invalid_client", 401);
+      }
+
+      await revokeSanityOauthToken(parsed.data.token);
+      return c.body(null, 200);
+    });
+}

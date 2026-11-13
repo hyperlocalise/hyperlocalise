@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { Delete02Icon, SaveIcon, SourceCodeIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TrashIcon, FloppyDiskIcon, CodeIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -202,7 +201,7 @@ export function McpServerConnectionPanel({
     <CollapsibleIntegrationRow
       name={intl.formatMessage(mcpServerConnectionPanelMessages.rowName)}
       description={intl.formatMessage(mcpServerConnectionPanelMessages.rowDescription)}
-      icon={<HugeiconsIcon icon={SourceCodeIcon} strokeWidth={1.8} className="size-5" />}
+      icon={<CodeIcon className="size-5" />}
       isConnected={isConnected}
       userIsAdmin={!disabled}
       expanded={expanded}
@@ -243,7 +242,7 @@ export function McpServerConnectionPanel({
                   aria-label={intl.formatMessage(mcpServerConnectionPanelMessages.delete)}
                   onClick={() => deleteMutation.mutate(connection.id)}
                 >
-                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                  <TrashIcon />
                 </Button>
               </li>
             ))}
@@ -418,7 +417,7 @@ export function McpServerConnectionPanel({
                 disabled={disabled || saveMutation.isPending}
                 onClick={() => saveMutation.mutate(form)}
               >
-                <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                <FloppyDiskIcon />
                 <FormattedMessage {...mcpServerConnectionPanelMessages.save} />
               </Button>
             </div>

@@ -19,17 +19,43 @@ import { preloadFileTree } from "@pierre/trees/ssr";
 import "@pierre/trees/web-components";
 import { useIntl, type IntlShape } from "react-intl";
 
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileProgressRecord,
+  ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 
+import {
+  buildProjectFileProgressDecoration,
+  buildProjectFileProgressLookup,
+  findProjectFileProgress,
+} from "./project-files-tree-decoration";
 import {
   ProjectFileTreeContextMenu,
   type ProjectFileTreeActionsConfig,
 } from "./project-file-tree-context-menu";
 import { projectFilesTreeMessages as messages } from "./project-files-tree.messages";
+import { PROJECT_FILES_TREE_ICONS } from "./project-files-tree-icons";
 import { dedupeProjectFilesBySourcePath, formatBytes } from "./project-files-shared";
 import { buildProjectFileActionCapabilities } from "./use-project-file-actions";
+import {
+  buildTranslationAsSourceSentDecoration,
+  type TranslationAsSourceReceipt,
+  type TranslationAsSourceSend,
+} from "./translation-as-source-sent-mark";
+import { useProjectFilesTreeCollapsedFolders } from "./use-project-files-tree-collapsed-folders";
 
 export const TREE_HEIGHT_PX = 480;
+
+const NO_FILE_PROGRESS: readonly ProjectFileProgressRecord[] = [];
+
+/** The other projects each file was sent to as their source, by path. */
+export type ProjectFilesTreeFileSends = ReadonlyMap<string, readonly TranslationAsSourceSend[]>;
+
+/** The files sent here from another project, by path. */
+export type ProjectFilesTreeFileReceipts = ReadonlyMap<string, TranslationAsSourceReceipt>;
+
+/** Let the progress badge keep its width; long file names middle-truncate instead. */
+const PROJECT_FILES_TREE_UNSAFE_CSS = `[data-item-section="decoration"] { flex: 1 0 auto; }`;
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -62,6 +88,8 @@ function buildProjectFilesTreeStyle(fillHeight: boolean): CSSProperties {
     "--trees-selected-bg-override": "var(--muted)",
     "--trees-selected-fg-override": "var(--foreground)",
     "--trees-selected-focused-border-color-override": "var(--ring)",
+    "--trees-git-ignored-color-override": "var(--muted-foreground)",
+    "--trees-git-lane-width-override": "0px",
   } as CSSProperties;
 }
 
@@ -97,6 +125,11 @@ export function ProjectFilesTree({
   fileActions,
   ariaLabel,
   fillHeight = false,
+  fileProgress,
+  searchQuery,
+  collapsedFoldersStorageKey,
+  fileSends,
+  fileReceipts,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
@@ -104,8 +137,18 @@ export function ProjectFilesTree({
   onActivateFile?: (sourcePath: string) => void;
   fileActions?: ProjectFileTreeActionsConfig;
   ariaLabel?: string;
+  /** Persists collapsed folders in localStorage under this key. */
+  collapsedFoldersStorageKey?: string;
+  /** Marks files sent to another project as its source, after their latest job status. */
+  fileSends?: ProjectFilesTreeFileSends;
+  /** Marks files sent here from another project. */
+  fileReceipts?: ProjectFilesTreeFileReceipts;
   /** Stretch to the parent height instead of the fixed TREE_HEIGHT_PX. */
   fillHeight?: boolean;
+  /** Per-file progress for the active locale, shown as "translated% · approved%". */
+  fileProgress?: readonly ProjectFileProgressRecord[];
+  /** Filters rows from a caller-owned input and hides the built-in search box. */
+  searchQuery?: string;
 }) {
   if (fileActions) {
     return (
@@ -117,6 +160,11 @@ export function ProjectFilesTree({
         fileActions={fileActions}
         ariaLabel={ariaLabel}
         fillHeight={fillHeight}
+        fileProgress={fileProgress}
+        searchQuery={searchQuery}
+        collapsedFoldersStorageKey={collapsedFoldersStorageKey}
+        fileSends={fileSends}
+        fileReceipts={fileReceipts}
       />
     );
   }
@@ -129,6 +177,11 @@ export function ProjectFilesTree({
       onActivateFile={onActivateFile}
       ariaLabel={ariaLabel}
       fillHeight={fillHeight}
+      fileProgress={fileProgress}
+      searchQuery={searchQuery}
+      collapsedFoldersStorageKey={collapsedFoldersStorageKey}
+      fileSends={fileSends}
+      fileReceipts={fileReceipts}
     />
   );
 }
@@ -141,6 +194,11 @@ function ProjectFilesTreeView({
   fileActions,
   ariaLabel,
   fillHeight = false,
+  fileProgress = NO_FILE_PROGRESS,
+  searchQuery,
+  collapsedFoldersStorageKey,
+  fileSends,
+  fileReceipts,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
@@ -149,7 +207,13 @@ function ProjectFilesTreeView({
   fileActions?: ProjectFileTreeActionsConfig;
   ariaLabel?: string;
   fillHeight?: boolean;
+  fileProgress?: readonly ProjectFileProgressRecord[];
+  searchQuery?: string;
+  collapsedFoldersStorageKey?: string;
+  fileSends?: ProjectFilesTreeFileSends;
+  fileReceipts?: ProjectFilesTreeFileReceipts;
 }) {
+  const hasExternalSearch = searchQuery !== undefined;
   const intl = useIntl();
   const resolvedAriaLabel = ariaLabel ?? intl.formatMessage(messages.ariaLabel);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -161,14 +225,28 @@ function ProjectFilesTreeView({
     () => new Map(displayFiles.map((file) => [file.sourcePath, file])),
     [displayFiles],
   );
+  const progressLookup = useMemo(
+    () => buildProjectFileProgressLookup(fileProgress),
+    [fileProgress],
+  );
+  const hiddenGitStatus = useMemo(
+    () =>
+      displayFiles.flatMap((file) =>
+        file.isHidden ? [{ path: file.sourcePath, status: "ignored" as const }] : [],
+      ),
+    [displayFiles],
+  );
   const selectedPaths =
     selectedSourcePath && fileByPath.has(selectedSourcePath) ? [selectedSourcePath] : [];
   const latestStateRef = useRef({
     fileActions,
     fileByPath,
+    fileSends,
+    fileReceipts,
     intl,
     onSelectFile,
     onActivateFile,
+    progressLookup,
   });
   const [activeFileContextMenu, setActiveFileContextMenu] = useState<ActiveFileContextMenu | null>(
     null,
@@ -195,6 +273,7 @@ function ProjectFilesTreeView({
       initialExpansion: "open",
       paths: nextPaths,
       initialVisibleRowCount: Math.max(nextPaths.length, 8),
+      icons: PROJECT_FILES_TREE_ICONS,
     });
   }, [pathsKey]);
 
@@ -202,11 +281,23 @@ function ProjectFilesTreeView({
     latestStateRef.current = {
       fileActions,
       fileByPath,
+      fileSends,
+      fileReceipts,
       intl,
       onActivateFile,
       onSelectFile,
+      progressLookup,
     };
-  }, [fileActions, fileByPath, intl, onActivateFile, onSelectFile]);
+  }, [
+    fileActions,
+    fileByPath,
+    fileSends,
+    fileReceipts,
+    intl,
+    onActivateFile,
+    onSelectFile,
+    progressLookup,
+  ]);
 
   contextMenuHandlersRef.current = {
     onOpen: (itemPath, context) => {
@@ -280,8 +371,10 @@ function ProjectFilesTreeView({
     initialExpansion: "open",
     initialSelectedPaths: selectedPaths,
     initialVisibleRowCount: Math.max(paths.length, 8),
+    icons: PROJECT_FILES_TREE_ICONS,
     paths,
-    search: true,
+    unsafeCSS: PROJECT_FILES_TREE_UNSAFE_CSS,
+    search: !hasExternalSearch,
     searchBlurBehavior: "retain",
     fileTreeSearchMode: "hide-non-matches",
     composition: fileActions
@@ -308,15 +401,44 @@ function ProjectFilesTreeView({
         return null;
       }
 
-      const file = latestStateRef.current.fileByPath.get(context.item.path);
-      if (!file || file.provider) {
+      const {
+        fileByPath: files,
+        fileSends: sendsByPath,
+        fileReceipts: receiptsByPath,
+        intl: latestIntl,
+        progressLookup: lookup,
+      } = latestStateRef.current;
+      const file = files.get(context.item.path);
+      if (!file) {
         return null;
       }
 
+      const progressDecoration = buildProjectFileProgressDecoration(
+        file,
+        findProjectFileProgress(lookup, file),
+        latestIntl,
+      );
+      if (progressDecoration || file.provider) {
+        return progressDecoration;
+      }
+
+      const sends = sendsByPath?.get(file.sourcePath);
+      const receipt = receiptsByPath?.get(file.sourcePath);
+      if (sends?.length || receipt) {
+        return buildTranslationAsSourceSentDecoration(
+          sends ?? [],
+          {
+            jobStatus: file.latestJob?.status ?? null,
+            metadata: fileListMetadata(file, latestIntl),
+          },
+          latestIntl,
+          receipt,
+        );
+      }
+
       return {
-        text:
-          file.latestJob?.status ?? latestStateRef.current.intl.formatMessage(messages.uploaded),
-        title: fileListMetadata(file, latestStateRef.current.intl),
+        text: file.latestJob?.status ?? latestIntl.formatMessage(messages.uploaded),
+        title: fileListMetadata(file, latestIntl),
       };
     },
     onSelectionChange: (nextSelectedPaths) => {
@@ -331,9 +453,37 @@ function ProjectFilesTreeView({
     },
   });
 
+  const { preserveCollapsedFolders, restoreCollapsedFolders } = useProjectFilesTreeCollapsedFolders(
+    model,
+    collapsedFoldersStorageKey,
+  );
+
+  // Keyed on the path set, not array identity: each reset rebuilds the tree fully expanded.
   useEffect(() => {
-    model.resetPaths(paths);
-  }, [model, paths]);
+    preserveCollapsedFolders(() => model.resetPaths(pathsKey ? pathsKey.split("\0") : []));
+  }, [model, pathsKey, preserveCollapsedFolders]);
+
+  useEffect(() => {
+    if (searchQuery === undefined) {
+      return;
+    }
+
+    const query = searchQuery.trim() || null;
+    model.setSearch(query);
+    if (!query) {
+      restoreCollapsedFolders();
+    }
+  }, [model, pathsKey, searchQuery, restoreCollapsedFolders]);
+
+  // Pierre's "ignored" git status dims the row name and icon, like gitignored files.
+  useEffect(() => {
+    model.setGitStatus(hiddenGitStatus.length > 0 ? hiddenGitStatus : undefined);
+  }, [model, hiddenGitStatus]);
+
+  // Pierre has no decoration refresh API; re-setting icons re-renders every row.
+  useEffect(() => {
+    model.setIcons(PROJECT_FILES_TREE_ICONS);
+  }, [model, progressLookup, fileSends, fileReceipts]);
 
   useEffect(() => {
     if (!selectedSourcePath || !fileByPath.has(selectedSourcePath)) {

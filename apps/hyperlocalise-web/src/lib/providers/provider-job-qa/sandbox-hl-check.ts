@@ -47,12 +47,16 @@ export async function writeHlCheckWorkspaceToSandbox(
 export async function runHlCheckCommandInSandbox(
   sandboxId: string,
   bundle: HlCheckWorkspaceBundle,
+  options?: { dictionaryDir?: string },
 ): Promise<HlCheckReport> {
+  const dictionaryFlag = options?.dictionaryDir
+    ? ` --dictionary-dir ${shellQuote(options.dictionaryDir)}`
+    : "";
   const check = await runSandboxCommand(sandboxId, "bash", [
     "-lc",
     [
       'export PATH="$HOME/.local/bin:$PATH"',
-      `hl check --config ${shellQuote(bundle.configPath)} --no-fail --format json --json-report ${shellQuote(bundle.reportPath)} --exclude-check orphaned_key --exclude-check missing_target_file >/dev/null`,
+      `hl check --config ${shellQuote(bundle.configPath)} --no-fail --format json --json-report ${shellQuote(bundle.reportPath)} --exclude-check orphaned_key --exclude-check missing_target_file${dictionaryFlag} >/dev/null`,
     ].join("; "),
   ]);
 

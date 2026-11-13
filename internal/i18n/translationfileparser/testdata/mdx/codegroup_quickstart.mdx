@@ -1,0 +1,40 @@
+---
+title: "Quickstart"
+description: "Run hyperlocalise end-to-end in about 10 minutes."
+---
+
+## 1. Initialize config
+
+```bash
+hyperlocalise init
+```
+
+This writes `i18n.yml` in your current directory.
+
+## 2. Configure provider credentials
+
+Example:
+
+<CodeGroup>
+```bash Export
+export OPENAI_API_KEY="your-openai-api-key"
+```
+
+```bash .env.local
+OPENAI_API_KEY="your-openai-api-key"
+```
+</CodeGroup>
+
+Azure OpenAI:
+
+<CodeGroup>
+```bash Export
+export AZURE_OPENAI_BASE_URL="https://<resource>.openai.azure.com/openai/v1"
+export AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
+```
+
+```bash .env.local
+AZURE_OPENAI_BASE_URL="https://<resource>.openai.azure.com/openai/v1"
+AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
+```
+</CodeGroup>

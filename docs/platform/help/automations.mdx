@@ -1,0 +1,36 @@
+---
+title: "Fix automation and sync problems"
+description: "Find why a trigger did not start, a run failed, or content did not move."
+---
+
+Open the automation’s **Run History** first. No run usually points to trigger configuration; a failed run points to an execution problem.
+
+## No run started
+
+- Confirm the automation is active rather than paused.
+- For a schedule, check cadence and **Schedule timezone**.
+- For GitHub, check installation access, repository enablement, event type, and branch patterns.
+- For source uploads, check the selected project and confirm the upload completed.
+- For Contentful, check the configured webhook event and delivery in Contentful.
+- For Google Drive import, confirm Google Drive is connected and the automation has folders or files selected. A schedule imports supported Drive files. It does not push translations. **Ingest** and **Push to Google Drive** appear in the Content editor header when a Drive file is open. Ingest queues the same import as **Run now**. Push appears after at least one mapped locale is approved.
+- For Intercom Help Center import, confirm Intercom is connected, the Help Center and region are set, and the project locales map onto the Help Center locale codes. Exact tags match first; language-only aliases such as `en` ↔ `en-US` are supported when only one regional form is present. A schedule imports markdown articles. It does not push translations. **Push to Intercom** appears in the Content editor header when an Intercom article is open and every visible string for a mapped locale is approved.
+- For Braze email template import, confirm Braze is connected, the REST cluster is saved, and the project locales match the Braze copy suffixes (native tags such as `fr-FR`). A schedule imports HTML templates and Content Blocks. It does not push copies. **Push to Braze** appears in the Content editor header when a Braze file is open and at least one mapped locale is approved.
+- For Braze campaign and Canvas import, apply **Translate Braze Campaigns & Canvas**. Confirm locales exist in Braze **Localization Settings** and that drafts use `{% translation id %}` tags. A schedule imports JSON translation maps. It does not push. **Push to Braze** writes approved locales through the Translation API and does not publish. An Email Templates automation will not pull campaign or Canvas messages. See [Localize Braze](/platform/connections/braze).
+
+Test a single matching event after correcting the configuration. See [Create an automation](/platform/automation/create-automation).
+
+## A run failed
+
+Inspect the failed step, input, and error. Confirm its connection, project access, language resources, and usage limits. Fix missing inputs or expired credentials before retrying.
+
+For a visual workflow, inspect the executed version. Editing a draft does not change the published version used by automatic runs. Publish the corrected version for future runs.
+
+## Content sync did not translate anything
+
+Sync moves sources and existing ready translations. It does not generate target text. Add a translation step and review the result. GitHub currently supports executable content sync; other provider setup choices do not imply available file movers.
+
+## A run needs attention
+
+Check the external service to determine whether an uncertain action completed before retrying. Pause prevents new automatic runs; it does not cancel existing runs. See [workflow retry and recovery guidance](/platform/guides/workflow-data-and-retries).
+
+If the cause remains unclear, send the automation and run links to [support](/platform/help/contact-support).

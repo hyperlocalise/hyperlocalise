@@ -10,9 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { isReleaseContentEditorAllFilesEnabled } from "@/lib/flags/release-flags";
 import {
+  isReleaseCatAdaptiveWorkspaceEnabled,
+  isReleaseContentEditorAllFilesEnabled,
+} from "@/lib/flags/release-flags";
+import {
+  parseCatWorkspaceQueueAdvancedParam,
+  parseCatWorkspaceQueueFilterQualifierParam,
   parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
 } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
@@ -21,9 +27,13 @@ import {
   contentEditorAllFilesProviderKindFromTarget,
   resolveProjectResourceTarget,
 } from "@/api/routes/project/project.shared";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { JobContentEditorPageContent } from "./_components/job-content-editor-page-content";
-import { OrgPageSuspense } from "../../../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectJobStrings");
+}
 
 export default function ProjectJobStringsPage({
   params,
@@ -39,13 +49,11 @@ export default function ProjectJobStringsPage({
     queueFilter?: string;
     queueSort?: string;
     search?: string;
+    queueFilterQualifier?: string;
+    queueAdvanced?: string;
   }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectJobStringsPageLoader params={params} searchParams={searchParams} />
-    </OrgPageSuspense>
-  );
+  return <ProjectJobStringsPageLoader params={params} searchParams={searchParams} />;
 }
 
 async function ProjectJobStringsPageLoader({
@@ -62,6 +70,8 @@ async function ProjectJobStringsPageLoader({
     queueFilter?: string;
     queueSort?: string;
     search?: string;
+    queueFilterQualifier?: string;
+    queueAdvanced?: string;
   }>;
 }) {
   const { organizationSlug, projectId, jobId } = await params;
@@ -74,12 +84,15 @@ async function ProjectJobStringsPageLoader({
     queueFilter,
     queueSort,
     search,
+    queueFilterQualifier,
+    queueAdvanced,
   } = await searchParams;
   const auth = await requireAppAuthContext({ organizationSlug });
   const target = await resolveProjectResourceTarget(auth, projectId);
-  const contentEditorAllFilesEnabled = await isReleaseContentEditorAllFilesEnabled(
-    contentEditorAllFilesProviderKindFromTarget(target),
-  );
+  const [contentEditorAllFilesEnabled, adaptiveWorkspaceEnabled] = await Promise.all([
+    isReleaseContentEditorAllFilesEnabled(contentEditorAllFilesProviderKindFromTarget(target)),
+    isReleaseCatAdaptiveWorkspaceEnabled(auth),
+  ]);
 
   const initialQueueFilter = await resolveJobContentEditorInitialQueueFilter({
     auth,
@@ -100,7 +113,12 @@ async function ProjectJobStringsPageLoader({
       initialQueueFilter={initialQueueFilter}
       initialQueueSort={parseCatWorkspaceQueueSortParam(queueSort) ?? "file_order"}
       initialSearch={parseCatWorkspaceSearchParam(search)}
+      initialQueueFilterQualifier={parseCatWorkspaceQueueFilterQualifierParam(queueFilterQualifier)}
+      initialQueueAdvanced={parseCatWorkspaceQueueAdvancedParam(queueAdvanced)}
       contentEditorAllFilesEnabled={contentEditorAllFilesEnabled}
+      adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
+      canWriteDictionaries={hasCapability(auth.membership.role, "dictionaries:write")}
+      canManageAutomations={isWorkspaceOperatorRole(auth.membership.role)}
     />
   );
 }

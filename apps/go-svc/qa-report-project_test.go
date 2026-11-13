@@ -1,0 +1,164 @@
+package main
+
+import (
+	"encoding/json"
+	"net/http"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestValidQaPolicyAcceptsGuidelineError(t *testing.T) {
+	checks := make(map[string]qaCheckSetting, len(qaPolicyCheckTypes))
+	for key := range qaPolicyCheckTypes {
+		checks[key] = qaCheckSetting{Enabled: true, Severity: "warning"}
+	}
+	require.True(t, validQaPolicy(checks))
+
+	delete(checks, "guideline")
+	require.True(t, validQaPolicy(checks))
+	require.Equal(t, "warning", checks["guideline"].Severity)
+
+	checks["guideline"] = qaCheckSetting{Enabled: true, Severity: "error"}
+	require.True(t, validQaPolicy(checks))
+	require.Equal(t, "error", checks["guideline"].Severity)
+}
+
+func TestProjectQaReportRejectsProviderProject(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	_, err := scope.Pool.Exec(t.Context(), `update projects set source='external_tms' where id=$1`, scope.ProjectID)
+	require.NoError(t, err)
+	rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports"), "")
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "qa_scan_not_supported")
+}
+
+func TestWorkspaceQaReportExposesSafeFailureAndLastSuccess(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	succeededID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 1, 0)
+	failedID := mustQaRun(t, scope, scope.ProjectID, "failed", 0, 0, 0)
+	_, err := scope.Pool.Exec(t.Context(), `
+        update translation_qa_runs
+        set error_code='qa_scan_processing_failed', error_message='private source text', created_at=now() + interval '1 second'
+        where id=$1`, failedID)
+	require.NoError(t, err)
+
+	rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/qa-reports"), "")
+	require.Equal(t, http.StatusOK, rec.Code)
+	var response struct {
+		Reports []struct {
+			ProjectID        string  `json:"projectId"`
+			LastSuccessfulAt *string `json:"lastSuccessfulAt"`
+			Report           struct {
+				ID           string  `json:"id"`
+				ErrorCode    *string `json:"errorCode"`
+				ErrorMessage *string `json:"errorMessage"`
+			} `json:"report"`
+		} `json:"reports"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	require.Len(t, response.Reports, 1)
+	require.Equal(t, scope.ProjectID, response.Reports[0].ProjectID)
+	require.Equal(t, failedID, response.Reports[0].Report.ID)
+	require.Equal(t, "qa_scan_processing_failed", *response.Reports[0].Report.ErrorCode)
+	require.Nil(t, response.Reports[0].Report.ErrorMessage)
+	require.NotNil(t, response.Reports[0].LastSuccessfulAt)
+	require.NotEmpty(t, *response.Reports[0].LastSuccessfulAt)
+	require.NotEqual(t, succeededID, failedID)
+	require.NotContains(t, rec.Body.String(), "private source text")
+	projectRec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports"), "")
+	require.Equal(t, http.StatusOK, projectRec.Code)
+	require.Contains(t, projectRec.Body.String(), "qa_scan_processing_failed")
+	require.NotContains(t, projectRec.Body.String(), "private source text")
+}
+
+func TestWorkspaceQaReportIncludesPreviousSuccessfulCounts(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	olderID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 7, 5, 2)
+	_, err := scope.Pool.Exec(t.Context(), `update translation_qa_runs set created_at=now() - interval '1 day' where id=$1`, olderID)
+	require.NoError(t, err)
+
+	readPrevious := func() *struct {
+		ErrorCount   int `json:"errorCount"`
+		WarningCount int `json:"warningCount"`
+	} {
+		rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/qa-reports"), "")
+		require.Equal(t, http.StatusOK, rec.Code)
+		var response struct {
+			Reports []struct {
+				PreviousSuccessful *struct {
+					ErrorCount   int `json:"errorCount"`
+					WarningCount int `json:"warningCount"`
+				} `json:"previousSuccessful"`
+			} `json:"reports"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+		require.Len(t, response.Reports, 1)
+		return response.Reports[0].PreviousSuccessful
+	}
+
+	require.Nil(t, readPrevious())
+
+	mustQaRun(t, scope, scope.ProjectID, "succeeded", 3, 2, 1)
+	previous := readPrevious()
+	require.NotNil(t, previous)
+	require.Equal(t, 5, previous.ErrorCount)
+	require.Equal(t, 2, previous.WarningCount)
+}
+
+func TestProjectQaReportRunAndPromoteHandlers(t *testing.T) {
+	t.Run("member cannot promote", func(t *testing.T) {
+		api, scope := qaReportTestAPI(t, "member")
+		rec := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/findings/promote"), `{"findingIds":[]}`)
+		require.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("invalid run id is not found", func(t *testing.T) {
+		api, scope := qaReportTestAPI(t, "admin")
+		rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/not-a-uuid"), "")
+		require.Equal(t, http.StatusNotFound, rec.Code)
+		require.Contains(t, rec.Body.String(), "not_found")
+	})
+
+	t.Run("returns the run and promotes its findings", func(t *testing.T) {
+		api, scope := qaReportTestAPI(t, "admin")
+		runID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 1, 0)
+		findingID := mustQaFinding(t, scope, runID, scope.ProjectID, "checkout")
+
+		rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/"+runID), "")
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"id":"`+runID+`"`)
+
+		empty := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/findings/promote"), `{"findingIds":[]}`)
+		require.Equal(t, http.StatusBadRequest, empty.Code, empty.Body.String())
+		require.Contains(t, empty.Body.String(), "invalid_qa_findings_promote")
+
+		promote := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/findings/promote"),
+			`{"findingIds":["`+findingID+`"]}`)
+		require.Equal(t, http.StatusOK, promote.Code, promote.Body.String())
+		require.Contains(t, promote.Body.String(), `"created":true`)
+	})
+}
+
+func TestProjectQaReportFindsLastSuccessBeyondHistoryLimit(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	succeededID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 1, 0)
+	_, err := scope.Pool.Exec(t.Context(), `update translation_qa_runs set created_at=now() - interval '1 day' where id=$1`, succeededID)
+	require.NoError(t, err)
+
+	var latestFailedID string
+	for i := range 21 {
+		latestFailedID = mustQaRun(t, scope, scope.ProjectID, "failed", 0, 0, 0)
+		_, err = scope.Pool.Exec(t.Context(), `update translation_qa_runs set created_at=now() + ($2 * interval '1 second') where id=$1`, latestFailedID, i)
+		require.NoError(t, err)
+	}
+
+	path := scope.OrgPath("/projects/" + scope.ProjectID + "/qa-reports/last-successful?beforeRunId=" + latestFailedID)
+	rec := qaReportRequest(api, scope, http.MethodGet, path, "")
+	require.Equal(t, http.StatusOK, rec.Code)
+	var response struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	require.Equal(t, succeededID, response.ID)
+}

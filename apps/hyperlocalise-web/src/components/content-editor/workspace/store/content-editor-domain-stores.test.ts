@@ -18,12 +18,32 @@ import { ContentEditorQueueStore } from "./content-editor-queue-store";
 import { ContentEditorSegmentDraft } from "./content-editor-segment-draft";
 import { ContentEditorSegmentStore } from "./content-editor-segment-store";
 import { ContentEditorWorkspaceUiStore } from "./content-editor-workspace-ui-store";
+import { ContentEditorWorkspaceOrchestrator } from "../content-editor-workspace-orchestrator";
+import {
+  CAT_DETAILS_PANEL_COLLAPSED_STORAGE_KEY,
+  CAT_FILES_PANEL_COLLAPSED_STORAGE_KEY,
+  CAT_SHORTCUT_HINTS_HIDDEN_STORAGE_KEY,
+} from "../content-editor-workspace-panel-state";
+import { CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY } from "../content-editor-workspace-view-mode";
 
 const queueSegments = [
   { id: "seg-01", index: 1, key: "first", sourceText: "First" },
   { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
   { id: "seg-03", index: 3, key: "third", sourceText: "Third" },
 ] as const;
+
+it("does not invalidate another segment's intelligence when checks arrive", () => {
+  const store = new ContentEditorIntelligenceStore();
+  store.setSegment("first", { glossaryTerms: [] });
+  let runs = 0;
+  const dispose = autorun(() => {
+    void store.bySegment.first;
+    runs += 1;
+  });
+  store.setSegment("second", { glossaryTerms: [], aiSuggestion: "Bonjour" });
+  expect(runs).toBe(1);
+  dispose();
+});
 
 describe("ContentEditorQueueStore", () => {
   it("constructs without throwing when storage is unavailable", () => {
@@ -142,6 +162,75 @@ describe("ContentEditorQueueStore", () => {
 
     expect(queue.selectedSegmentId).toBe("seg-01");
     expect([...queue.checkedSegmentIds]).toEqual([]);
+  });
+
+  describe("Shift-click ranges", () => {
+    const order = ["seg-01", "seg-02", "seg-03", "seg-04", "seg-05"];
+    const ticked = (queue: ContentEditorQueueStore) => [...queue.checkedSegmentIds].sort();
+
+    it("ticks every row from the last box clicked to the Shift-clicked one, either way round", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-04", true);
+      queue.checkFromClick("seg-02", true, order);
+
+      expect(ticked(queue)).toEqual(["seg-02", "seg-03", "seg-04"]);
+    });
+
+    it("gives the range the clicked box's new state, so a Shift-click can untick", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.selectAll(order);
+      queue.checkFromClick("seg-02", false);
+      queue.checkFromClick("seg-04", false, order);
+
+      expect(ticked(queue)).toEqual(["seg-01", "seg-05"]);
+    });
+
+    it("starts the next range at the last box clicked, Shift or not", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-01", true);
+      queue.checkFromClick("seg-02", true, order);
+      queue.checkFromClick("seg-05", true, order);
+
+      expect(ticked(queue)).toEqual(order);
+      queue.checkFromClick("seg-03", false, order);
+      expect(ticked(queue)).toEqual(["seg-01", "seg-02"]);
+    });
+
+    it("ticks just the clicked row with no earlier click, or one no longer in the list", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-03", true, order);
+      expect(ticked(queue)).toEqual(["seg-03"]);
+
+      // The list no longer shows seg-03, as after a search.
+      queue.checkFromClick("seg-05", true, ["seg-04", "seg-05"]);
+      expect(ticked(queue)).toEqual(["seg-03", "seg-05"]);
+    });
+
+    it.each([
+      ["the filter changes", (queue: ContentEditorQueueStore) => queue.setFilter("untranslated")],
+      ["the sort changes", (queue: ContentEditorQueueStore) => queue.setSort("untranslated_first")],
+      ["Select is turned off", (queue: ContentEditorQueueStore) => queue.setSelectionMode(false)],
+      [
+        "the file or language changes",
+        (queue: ContentEditorQueueStore) => queue.resetForFileScope(),
+      ],
+    ])("forgets the start when %s", (_case, change) => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-01", true);
+      change(queue);
+      queue.checkFromClick("seg-04", true, order);
+
+      expect(ticked(queue)).toEqual(["seg-04"]);
+    });
+
+    it("keeps the start through a search that still lists it", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-02", true);
+      queue.setSearch("second");
+      queue.checkFromClick("seg-05", true, ["seg-02", "seg-04", "seg-05"]);
+
+      expect(ticked(queue)).toEqual(["seg-02", "seg-04", "seg-05"]);
+    });
   });
 });
 
@@ -313,9 +402,110 @@ describe("ContentEditorIntelligenceStore", () => {
     expect(intelligence.revealedAgentContextSegmentIds.has("seg-01")).toBe(true);
     expect(intelligence.contextLoadingSegmentIds.has("seg-01")).toBe(false);
   });
+
+  it("primes the add-to-glossary wizard and remembers created glossaries", () => {
+    const intelligence = new ContentEditorIntelligenceStore();
+
+    intelligence.setGlossaryDefinition("kept until remount");
+    intelligence.primeGlossaryWizard({
+      sourceTerm: "Dashboard",
+      targetTerm: "Bảng điều khiển",
+      selectedGlossaryId: "glossary-1",
+      defaultGlossaryName: "Shared with Product.",
+    });
+    intelligence.primeGlossaryWizard({
+      sourceTerm: "Later",
+      targetTerm: "Sau",
+      selectedGlossaryId: "glossary-2",
+      defaultGlossaryName: "Shared with Design.",
+    });
+
+    expect(intelligence.glossaryPrimaryTerm).toBe("Later");
+    expect(intelligence.glossaryTargetDraft).toBe("Sau");
+    expect(intelligence.glossarySelectedId).toBe("glossary-2");
+    expect(intelligence.glossaryNewName).toBe("Shared with Design.");
+    expect(intelligence.glossaryDefinition).toBe("");
+
+    intelligence.setGlossaryCreateDialogOpen(true, "Shared with Product.");
+    intelligence.rememberCreatedGlossary({
+      id: "glossary-created",
+      name: "Product team terms",
+      teamId: "team-product",
+    });
+
+    expect(intelligence.glossaryCreated).toEqual([
+      { id: "glossary-created", name: "Product team terms", teamId: "team-product" },
+    ]);
+    expect(intelligence.glossarySelectedId).toBe("glossary-created");
+    expect(intelligence.glossaryCreateDialogOpen).toBe(false);
+  });
 });
 
 describe("ContentEditorWorkspaceUiStore", () => {
+  it("tracks file-view dirty flags, source pane, and generate dialog", () => {
+    const ui = new ContentEditorWorkspaceUiStore();
+
+    ui.applyFileViewViewer("image");
+    expect(ui.fileViewSourcePaneVisible).toBe(true);
+
+    ui.setFileViewImageLayersDirty(true);
+    ui.setFileViewGenerateDialogOpen(true);
+    ui.toggleFileViewSourcePane();
+    expect(ui.fileViewImageLayersDirty).toBe(true);
+    expect(ui.fileViewGenerateDialogOpen).toBe(true);
+    expect(ui.fileViewSourcePaneVisible).toBe(false);
+
+    ui.applyFileViewViewer("markdown");
+    expect(ui.fileViewImageLayersDirty).toBe(false);
+    expect(ui.fileViewGenerateDialogOpen).toBe(false);
+    expect(ui.fileViewDocumentReviewBlocked).toBe(true);
+    expect(ui.fileViewSourcePaneVisible).toBe(false);
+
+    ui.applyFileViewViewer("markdown");
+    ui.setFileViewDocumentReviewBlocked(false);
+    expect(ui.fileViewDocumentReviewBlocked).toBe(false);
+  });
+
+  it("opens one toolbar dialog at a time and keeps the export format across openings", () => {
+    const ui = new ContentEditorWorkspaceUiStore();
+
+    expect(ui.chromeDialog).toBeNull();
+    expect(ui.exportFormat).toBe("csv");
+
+    ui.openChromeDialog("export");
+    ui.setExportFormat("xliff");
+    ui.openChromeDialog("import");
+    expect(ui.chromeDialog).toBe("import");
+
+    ui.openChromeDialog("shortcuts");
+    expect(ui.chromeDialog).toBe("shortcuts");
+
+    ui.closeChromeDialog();
+    ui.openChromeDialog("export");
+    expect(ui.chromeDialog).toBe("export");
+    expect(ui.exportFormat).toBe("xliff");
+  });
+
+  it("persists the shortcut hint preference", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore("comfortable");
+      expect(ui.shortcutHintsHidden).toBe(false);
+
+      ui.setShortcutHintsHidden(true);
+
+      expect(store.get(CAT_SHORTCUT_HINTS_HIDDEN_STORAGE_KEY)).toBe("true");
+      expect(new ContentEditorWorkspaceUiStore("comfortable").shortcutHintsHidden).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("tracks view mode and page limit", () => {
     const ui = new ContentEditorWorkspaceUiStore();
 
@@ -326,13 +516,20 @@ describe("ContentEditorWorkspaceUiStore", () => {
     expect(ui.isSideBySideView).toBe(true);
     expect(ui.isFileView).toBe(false);
 
+    ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01"],
+      loadSegmentIds: ["seg-01", "seg-02"],
+    });
+
     ui.setViewMode("file");
 
     expect(ui.isFileView).toBe(true);
     expect(ui.pageLimit).toBe(50);
+    expect(ui.visibleSideBySideSegmentIds).toEqual([]);
+    expect(ui.loadSideBySideSegmentIds).toEqual([]);
   });
 
-  it("honors an explicit initial view mode without reading storage", () => {
+  it("honors an explicit initial view mode without reading the stored view mode", () => {
     const getItem = vi.fn().mockReturnValue("side-by-side");
     vi.stubGlobal("localStorage", { getItem, setItem: vi.fn() });
 
@@ -341,7 +538,63 @@ describe("ContentEditorWorkspaceUiStore", () => {
 
       expect(ui.viewMode).toBe("comfortable");
       expect(ui.isSideBySideView).toBe(false);
-      expect(getItem).not.toHaveBeenCalled();
+      expect(getItem).not.toHaveBeenCalledWith(CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("persists files and details panel collapse state", () => {
+    const store = new Map<string, string>();
+    const setItem = vi.fn((key: string, value: string) => store.set(key, value));
+    vi.stubGlobal("localStorage", { getItem: (key: string) => store.get(key) ?? null, setItem });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore("comfortable");
+
+      expect(ui.filesPanelCollapsed).toBe(false);
+      expect(ui.detailsPanelCollapsed).toBe(false);
+
+      ui.toggleFilesPanel();
+      ui.toggleDetailsPanel();
+
+      expect(ui.filesPanelCollapsed).toBe(true);
+      expect(ui.detailsPanelCollapsed).toBe(true);
+      expect(setItem).toHaveBeenCalledWith(CAT_FILES_PANEL_COLLAPSED_STORAGE_KEY, "true");
+      expect(setItem).toHaveBeenCalledWith(CAT_DETAILS_PANEL_COLLAPSED_STORAGE_KEY, "true");
+
+      expect(new ContentEditorWorkspaceUiStore("comfortable").filesPanelCollapsed).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("expands the details panel when QA details are revealed", () => {
+    vi.stubGlobal("localStorage", { getItem: vi.fn(), setItem: vi.fn() });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore("side-by-side");
+      ui.setDetailsPanelCollapsed(true);
+
+      ui.revealQaDetails();
+
+      expect(ui.detailsPanelCollapsed).toBe(false);
+      expect(ui.qaDetailsRevealNonce).toBe(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("skips persistence when collapse state is applied transiently", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", { getItem: vi.fn(), setItem });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore("comfortable");
+      ui.setFilesPanelCollapsed(true, { persist: false });
+
+      expect(ui.filesPanelCollapsed).toBe(true);
+      expect(setItem).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
     }
@@ -362,32 +615,488 @@ describe("ContentEditorWorkspaceUiStore", () => {
     }
   });
 
-  it("tracks hovered segment and preview loading state", () => {
+  it("reveals QA details through a store signal instead of a window event", () => {
     const ui = new ContentEditorWorkspaceUiStore();
 
-    ui.setHoveredSegment("seg-02");
-    ui.setPreviewLoadingState("seg-02", {
-      isTargetLoading: true,
-      isCommentsLoading: false,
-    });
+    expect(ui.qaDetailsRevealNonce).toBe(0);
 
-    expect(ui.hoveredSegmentId).toBe("seg-02");
+    ui.revealQaDetails();
+    ui.revealQaDetails();
 
-    ui.clearHoveredSegment();
-
-    expect(ui.hoveredSegmentId).toBeNull();
-    expect(ui.previewTargetLoading).toBe(true);
+    expect(ui.qaDetailsRevealNonce).toBe(2);
   });
 
-  it("tracks the virtualized side-by-side segment range", () => {
+  it("tracks the virtualized side-by-side viewport and load range", () => {
     const ui = new ContentEditorWorkspaceUiStore();
 
-    ui.setVisibleSideBySideSegmentIds(["seg-01", "seg-02"]);
+    ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01", "seg-02"],
+      loadSegmentIds: ["seg-01", "seg-02", "seg-03"],
+    });
 
     expect(ui.visibleSideBySideSegmentIds).toEqual(["seg-01", "seg-02"]);
+    expect(ui.loadSideBySideSegmentIds).toEqual(["seg-01", "seg-02", "seg-03"]);
 
-    ui.setVisibleSideBySideSegmentIds([]);
+    ui.setSideBySideViewport({ visibleSegmentIds: [], loadSegmentIds: [] });
 
     expect(ui.visibleSideBySideSegmentIds).toEqual([]);
+    expect(ui.loadSideBySideSegmentIds).toEqual([]);
+  });
+
+  it("loads saved persona on initial text family hydration without early returning", () => {
+    const getItem = vi.fn().mockImplementation((key: string) => {
+      if (key === "content-editor-workspace-persona:v1:text") {
+        return "reviewer";
+      }
+      return null;
+    });
+    vi.stubGlobal("window", {
+      localStorage: { getItem, setItem: vi.fn() },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("text");
+
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.resolvedPersona).toBe("reviewer");
+      expect(ui.isReviewerPersona).toBe(true);
+      expect(ui.viewMode).toBe("side-by-side");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("drives corresponding layout preset when selecting a persona", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage: { getItem: vi.fn().mockReturnValue(null), setItem },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+
+      ui.setWorkspacePersona("reviewer");
+      expect(ui.resolvedPersona).toBe("reviewer");
+      expect(ui.isReviewerPersona).toBe(true);
+      expect(ui.viewMode).toBe("side-by-side");
+
+      ui.setWorkspacePersona("translator");
+      expect(ui.resolvedPersona).toBe("translator");
+      expect(ui.isTranslatorPersona).toBe(true);
+      expect(ui.viewMode).toBe("comfortable");
+
+      ui.setWorkspacePersona("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.isDesignerPersona).toBe(true);
+      expect(ui.viewMode).toBe("file");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("synchronizes workspacePersona when setViewMode is called under adaptive mode", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage: { getItem: vi.fn().mockReturnValue(null), setItem },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("text");
+
+      // Default for text is translator
+      expect(ui.resolvedPersona).toBe("translator");
+
+      // Selecting side-by-side view synchronizes persona to reviewer
+      ui.setViewMode("side-by-side");
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.resolvedPersona).toBe("reviewer");
+      expect(ui.isReviewerPersona).toBe(true);
+      expect(setItem).toHaveBeenCalledWith("content-editor-workspace-persona:v1:text", "reviewer");
+
+      // Selecting comfortable view synchronizes persona to translator
+      ui.setViewMode("comfortable");
+      expect(ui.workspacePersona).toBe("translator");
+      expect(ui.resolvedPersona).toBe("translator");
+      expect(ui.isTranslatorPersona).toBe(true);
+      expect(setItem).toHaveBeenCalledWith(
+        "content-editor-workspace-persona:v1:text",
+        "translator",
+      );
+
+      // Selecting file view synchronizes persona to designer
+      ui.setViewMode("file");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.isDesignerPersona).toBe(true);
+      expect(setItem).toHaveBeenCalledWith("content-editor-workspace-persona:v1:text", "designer");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not mutate workspacePersona when adaptive mode is disabled", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage: { getItem: vi.fn().mockReturnValue(null), setItem },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(false);
+      ui.applyFileFamily("text");
+
+      ui.setViewMode("side-by-side");
+      expect(ui.workspacePersona).toBeNull();
+      expect(setItem).not.toHaveBeenCalledWith(
+        "content-editor-workspace-persona:v1:text",
+        "reviewer",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps designer persona when adaptive view mode switches away from file on designer families", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => store.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => store.set(key, value)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("image");
+      // Applying a designer family runs file-view sync, which materializes the designer persona.
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("designer");
+
+      // Text families map side-by-side → reviewer and comfortable → translator.
+      // Designer families must keep the designer persona so image/video layout stays intact.
+      ui.setViewMode("side-by-side");
+      expect(ui.viewMode).toBe("side-by-side");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("designer");
+
+      ui.setViewMode("comfortable");
+      expect(ui.viewMode).toBe("comfortable");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("designer");
+
+      ui.setViewMode("file");
+      expect(ui.viewMode).toBe("file");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("designer");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("maps native markdown segment views to translator and reviewer personas", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => store.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => store.set(key, value)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("document");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+
+      ui.setViewMode("comfortable");
+      expect(ui.workspacePersona).toBe("translator");
+      expect(ui.viewMode).toBe("comfortable");
+
+      ui.setViewMode("side-by-side");
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.viewMode).toBe("side-by-side");
+
+      ui.setViewMode("file");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("isolates saved persona preferences between distinct file families", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => store.get(key) ?? null),
+        setItem: vi.fn((key: string, val: string) => store.set(key, val)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+
+      // Start on text family and save reviewer
+      ui.applyFileFamily("text");
+      ui.setWorkspacePersona("reviewer", "text");
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.viewMode).toBe("side-by-side");
+      expect(store.get("content-editor-workspace-persona:v1:text")).toBe("reviewer");
+
+      // Switch to image family
+      ui.applyFileFamily("image");
+      // Image has no saved preference yet, defaults to designer
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+
+      // Save designer for image family
+      ui.setWorkspacePersona("designer", "image");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+      expect(store.get("content-editor-workspace-persona:v1:image")).toBe("designer");
+
+      // Text preference should still be reviewer
+      expect(store.get("content-editor-workspace-persona:v1:text")).toBe("reviewer");
+
+      // Switch back to text family: restores reviewer persona and side-by-side view
+      ui.applyFileFamily("text");
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.resolvedPersona).toBe("reviewer");
+      expect(ui.viewMode).toBe("side-by-side");
+
+      // Switch back to image family: restores designer persona and file view
+      ui.applyFileFamily("image");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("restores saved translator preference when switching from an image file back to a text file", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => store.get(key) ?? null),
+        setItem: vi.fn((key: string, val: string) => store.set(key, val)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+
+      // Start on text family and save translator
+      ui.applyFileFamily("text");
+      ui.setWorkspacePersona("translator", "text");
+      expect(ui.workspacePersona).toBe("translator");
+      expect(ui.viewMode).toBe("comfortable");
+      expect(store.get("content-editor-workspace-persona:v1:text")).toBe("translator");
+
+      // Switch to image family (layout becomes file view, persona becomes designer)
+      ui.applyFileFamily("image");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+
+      // Switch back to text family: restores saved translator persona and comfortable view
+      ui.applyFileFamily("text");
+      expect(ui.workspacePersona).toBe("translator");
+      expect(ui.resolvedPersona).toBe("translator");
+      expect(ui.viewMode).toBe("comfortable");
+      expect(store.get("content-editor-workspace-persona:v1:text")).toBe("translator");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("preserves legacy view-mode preference in localStorage when adaptive mode is enabled", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => {
+          if (key === "content-editor-workspace-view-mode:v1") return "side-by-side";
+          return null;
+        }),
+        setItem,
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("text");
+
+      // Default persona is translator, layout becomes comfortable
+      expect(ui.viewMode).toBe("comfortable");
+      expect(ui.resolvedPersona).toBe("translator");
+
+      // writeCatWorkspaceViewMode should NOT have been called with "comfortable"
+      expect(setItem).not.toHaveBeenCalledWith(
+        "content-editor-workspace-view-mode:v1",
+        "comfortable",
+      );
+
+      // Switching persona to reviewer should also not overwrite the legacy view-mode key
+      ui.setWorkspacePersona("reviewer", "text");
+      expect(ui.viewMode).toBe("side-by-side");
+      expect(setItem).not.toHaveBeenCalledWith(
+        "content-editor-workspace-view-mode:v1",
+        "side-by-side",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("saves and preserves multilingual view choice in adaptive workspace without overwriting on file family apply", () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => storage.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.setMultilingualViewAvailable(true);
+      ui.applyFileFamily("text");
+
+      // User selects multilingual in view switcher
+      ui.setViewMode("multilingual");
+      expect(ui.viewMode).toBe("multilingual");
+      // Multilingual choice is saved to localStorage
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // Navigating to an image segment in a mixed-file workspace applies designer layout (file view)
+      ui.applyFileFamily("image");
+      expect(ui.viewMode).toBe("file");
+      // The automatic switch to file view must NOT overwrite the stored multilingual preference
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // Returning to a text segment restores the user's chosen multilingual view
+      ui.applyFileFamily("text");
+      expect(ui.viewMode).toBe("multilingual");
+
+      // Reopening workspace (new instance reading stored viewMode)
+      const reopenedUi = new ContentEditorWorkspaceUiStore();
+      expect(reopenedUi.viewMode).toBe("multilingual");
+      reopenedUi.setAdaptiveWorkspaceEnabled(true);
+      reopenedUi.setMultilingualViewAvailable(true);
+      // Applying file family must preserve multilingual layout instead of overriding with translator persona
+      reopenedUi.applyFileFamily("text");
+      expect(reopenedUi.viewMode).toBe("multilingual");
+
+      // Explicitly selecting another view mode updates the saved preference
+      reopenedUi.setViewMode("comfortable");
+      expect(reopenedUi.viewMode).toBe("comfortable");
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("comfortable");
+
+      // Switching to image and back to text now restores the persona preference (comfortable), not multilingual
+      reopenedUi.applyFileFamily("image");
+      expect(reopenedUi.viewMode).toBe("file");
+      reopenedUi.applyFileFamily("text");
+      expect(reopenedUi.viewMode).toBe("comfortable");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not restore multilingual when multilingualViewAvailable is false and preserves stored preference", () => {
+    const storage = new Map<string, string>([
+      ["content-editor-workspace-view-mode:v1", "multilingual"],
+    ]);
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => storage.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
+      },
+    });
+
+    try {
+      // Workspace has no multilingual configuration
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.setMultilingualViewAvailable(false);
+
+      // Navigating to an image file in mixed workspace
+      ui.applyFileFamily("image");
+      expect(ui.viewMode).toBe("file");
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // Moving to a text segment: since multilingual is unavailable, it falls back to persona layout
+      // and does NOT attempt to set multilingual or overwrite the stored preference in localStorage
+      ui.applyFileFamily("text");
+      expect(ui.viewMode).toBe("comfortable");
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // When view-mode sync clamps with { persistViewMode: false }, the stored preference is also preserved
+      ui.setViewMode("side-by-side", { persistViewMode: false });
+      expect(ui.viewMode).toBe("side-by-side");
+      expect(storage.get("content-editor-workspace-view-mode:v1")).toBe("multilingual");
+
+      // Opening another workspace where multilingual IS available restores the choice
+      const multiUi = new ContentEditorWorkspaceUiStore();
+      multiUi.setAdaptiveWorkspaceEnabled(true);
+      multiUi.setMultilingualViewAvailable(true);
+      multiUi.applyFileFamily("text");
+      expect(multiUi.viewMode).toBe("multilingual");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not persist selectionMode to localStorage when adaptiveWorkspaceEnabled is true and clears on translator switch", () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => storage.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
+      },
+    });
+
+    try {
+      const orchestrator = new ContentEditorWorkspaceOrchestrator();
+      orchestrator.ui.setAdaptiveWorkspaceEnabled(true);
+
+      // In adaptive workspace, orchestrator.setSelectionMode defaults to persist: false
+      orchestrator.setSelectionMode(true);
+      expect(orchestrator.queue.selectionMode).toBe(true);
+      expect(storage.get("content-editor-queue:selection-mode:v1")).toBeUndefined();
+
+      // Check some segments
+      orchestrator.queue.toggleChecked("seg-1", true);
+      orchestrator.queue.toggleChecked("seg-2", true);
+      expect(orchestrator.queue.checkedSegmentIds.size).toBe(2);
+
+      // Switching off selection mode clears checked segments without writing to localStorage
+      orchestrator.setSelectionMode(false);
+      expect(orchestrator.queue.selectionMode).toBe(false);
+      expect(orchestrator.queue.checkedSegmentIds.size).toBe(0);
+      expect(storage.get("content-editor-queue:selection-mode:v1")).toBeUndefined();
+
+      // Outside adaptive mode, setting selection mode DOES persist to localStorage
+      orchestrator.ui.setAdaptiveWorkspaceEnabled(false);
+      orchestrator.setSelectionMode(true);
+      expect(storage.get("content-editor-queue:selection-mode:v1")).toBe("true");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -1,0 +1,1216 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { describe, expect, it } from "vite-plus/test";
+
+import { createDefaultConfig } from "../catalog/node-catalog";
+import {
+  applyNodeConfigUpdate,
+  applyVisualWorkflowGraphConnection,
+  reconcileForEachBodyMembership,
+  removeVisualWorkflowNode,
+  reconnectVisualWorkflowGraphConnection,
+} from "./visual-workflow-editor-graph";
+import { fromVisualWorkflowDefinition, toVisualWorkflowDefinition } from "../schema/serializers";
+import type { VisualWorkflowRfEdge, VisualWorkflowRfNode } from "../schema/types";
+import { validateVisualWorkflowDefinition } from "../validation/validate-workflow";
+
+function node(
+  id: string,
+  type: VisualWorkflowRfNode["data"]["catalogType"],
+  extra?: Partial<VisualWorkflowRfNode["data"]>,
+): VisualWorkflowRfNode {
+  return {
+    id,
+    type,
+    position: { x: 0, y: 0 },
+    data: {
+      catalogType: type,
+      config: createDefaultConfig(type),
+      runStatus: "idle",
+      ...extra,
+    },
+  };
+}
+
+function codes(issues: Array<{ code: string }>): string[] {
+  return issues.map((issue) => issue.code).toSorted();
+}
+
+function definition(
+  graph: { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] },
+  name = "Quick add",
+) {
+  return toVisualWorkflowDefinition({ name, nodes: graph.nodes, edges: graph.edges });
+}
+
+describe("applyVisualWorkflowGraphConnection", () => {
+  it("preserves Switch case and default handles", () => {
+    const switchNode = node("sw", "logic.switch", {
+      config: {
+        kind: "logic.switch",
+        expression: "status",
+        cases: [
+          { id: "case-pending", value: "pending" },
+          { id: "case-ready", value: "ready" },
+        ],
+      },
+    });
+    const first = applyVisualWorkflowGraphConnection(
+      [node("t", "trigger.manual"), switchNode, node("a", "logic.set")],
+      [{ id: "e0", source: "t", target: "sw" }],
+      { source: "sw", target: "a", sourceHandle: "case-ready", targetHandle: null },
+    );
+    expect(first.edges.at(-1)?.sourceHandle).toBe("case-ready");
+    expect(codes(validateVisualWorkflowDefinition(definition(first)))).not.toContain(
+      "invalid_handle",
+    );
+
+    const withDefault = applyVisualWorkflowGraphConnection(
+      [node("t", "trigger.manual"), switchNode, node("b", "logic.set")],
+      [{ id: "e0", source: "t", target: "sw" }],
+      { source: "sw", target: "b", sourceHandle: "default", targetHandle: null },
+    );
+    expect(withDefault.edges.at(-1)?.sourceHandle).toBe("default");
+    expect(codes(validateVisualWorkflowDefinition(definition(withDefault)))).not.toContain(
+      "invalid_handle",
+    );
+  });
+
+  it("does not connect a stale Switch case handle", () => {
+    const switchNode = node("sw", "logic.switch", {
+      config: {
+        kind: "logic.switch",
+        expression: "status",
+        cases: [
+          { id: "case-pending", value: "pending" },
+          { id: "case-ready", value: "ready" },
+        ],
+      },
+    });
+    const nodes = [node("t", "trigger.manual"), switchNode, node("a", "logic.set")];
+    const edges: VisualWorkflowRfEdge[] = [{ id: "e0", source: "t", target: "sw" }];
+    const next = applyVisualWorkflowGraphConnection(nodes, edges, {
+      source: "sw",
+      target: "a",
+      sourceHandle: "3",
+      targetHandle: null,
+    });
+    expect(next.edges).toBe(edges);
+    expect(next.nodes).toBe(nodes);
+    expect(next.edges).toEqual([{ id: "e0", source: "t", target: "sw" }]);
+  });
+
+  it("adds For Each each targets to bodyNodeIds", () => {
+    const next = applyVisualWorkflowGraphConnection(
+      [node("t", "trigger.manual"), node("loop", "logic.for_each"), node("body", "logic.set")],
+      [{ id: "e0", source: "t", target: "loop" }],
+      { source: "loop", target: "body", sourceHandle: "each", targetHandle: null },
+    );
+    const loop = next.nodes.find((entry) => entry.id === "loop");
+    expect(next.edges.at(-1)?.sourceHandle).toBe("each");
+    expect(loop?.data.bodyNodeIds).toEqual(["body"]);
+    expect(codes(validateVisualWorkflowDefinition(definition(next)))).toEqual([]);
+  });
+
+  it("adds chained body nodes from If false to the owning For Each", () => {
+    const seeded = applyVisualWorkflowGraphConnection(
+      [
+        node("t", "trigger.manual"),
+        node("loop", "logic.for_each"),
+        node("iff", "logic.if", { config: { kind: "logic.if", condition: "true" } }),
+        node("no", "logic.set"),
+      ],
+      [{ id: "e0", source: "t", target: "loop" }],
+      { source: "loop", target: "iff", sourceHandle: "each", targetHandle: null },
+    );
+    const chained = applyVisualWorkflowGraphConnection(seeded.nodes, seeded.edges, {
+      source: "iff",
+      target: "no",
+      sourceHandle: "false",
+      targetHandle: null,
+    });
+    expect(chained.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual([
+      "iff",
+      "no",
+    ]);
+    expect(chained.edges.at(-1)?.sourceHandle).toBe("false");
+    expect(codes(validateVisualWorkflowDefinition(definition(chained)))).toEqual([]);
+  });
+
+  it("does not add For Each done targets to bodyNodeIds", () => {
+    const withBody = applyVisualWorkflowGraphConnection(
+      [node("t", "trigger.manual"), node("loop", "logic.for_each"), node("body", "logic.set")],
+      [{ id: "e0", source: "t", target: "loop" }],
+      { source: "loop", target: "body", sourceHandle: "each", targetHandle: null },
+    );
+    const next = applyVisualWorkflowGraphConnection(
+      [...withBody.nodes, node("after", "logic.set")],
+      withBody.edges,
+      { source: "loop", target: "after", sourceHandle: "done", targetHandle: null },
+    );
+    expect(next.edges.at(-1)?.sourceHandle).toBe("done");
+    expect(next.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual(["body"]);
+    expect(codes(validateVisualWorkflowDefinition(definition(next)))).toEqual([]);
+  });
+
+  it("replaces stale For Each membership with membership derived from execution edges", () => {
+    const nodes = [
+      node("trigger", "trigger.manual"),
+      node("loop", "logic.for_each", {
+        bodyNodeIds: ["stale"],
+      }),
+      node("first", "logic.set"),
+      node("second", "logic.set"),
+    ];
+
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "trigger-loop",
+        source: "trigger",
+        target: "loop",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+      {
+        id: "loop-first",
+        source: "loop",
+        target: "first",
+        sourceHandle: "each",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+    ];
+
+    const result = applyVisualWorkflowGraphConnection(nodes, edges, {
+      source: "first",
+      target: "second",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    expect(result.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual([
+      "first",
+      "second",
+    ]);
+  });
+
+  it("preserves HTTP error handles when onError is branch", () => {
+    const http = node("http", "action.http", {
+      config: {
+        kind: "action.http",
+        method: "GET",
+        url: "https://example.test",
+        onError: "branch",
+      },
+    });
+    const next = applyVisualWorkflowGraphConnection(
+      [node("t", "trigger.manual"), http, node("err", "logic.set")],
+      [{ id: "e0", source: "t", target: "http" }],
+      { source: "http", target: "err", sourceHandle: "error", targetHandle: null },
+    );
+    expect(next.edges.at(-1)?.sourceHandle).toBe("error");
+    expect(codes(validateVisualWorkflowDefinition(definition(next)))).not.toContain(
+      "invalid_handle",
+    );
+  });
+
+  it("does not connect a foreign handle on a single-output node", () => {
+    const nodes = [
+      node("t", "trigger.manual"),
+      node("http", "action.http"),
+      node("a", "logic.set"),
+    ];
+    const edges: VisualWorkflowRfEdge[] = [{ id: "e0", source: "t", target: "http" }];
+    const next = applyVisualWorkflowGraphConnection(nodes, edges, {
+      source: "http",
+      target: "a",
+      sourceHandle: "true",
+      targetHandle: null,
+    });
+    expect(next.edges).toBe(edges);
+    expect(next.nodes).toBe(nodes);
+  });
+
+  it("preserves If true and false handles", () => {
+    const iff = node("iff", "logic.if", {
+      config: { kind: "logic.if", condition: "true" },
+    });
+    const next = applyVisualWorkflowGraphConnection(
+      [node("t", "trigger.manual"), iff, node("ok", "logic.set"), node("no", "logic.set")],
+      [{ id: "e0", source: "t", target: "iff" }],
+      { source: "iff", target: "ok", sourceHandle: "true", targetHandle: null },
+    );
+    const withFalse = applyVisualWorkflowGraphConnection(next.nodes, next.edges, {
+      source: "iff",
+      target: "no",
+      sourceHandle: "false",
+      targetHandle: null,
+    });
+    expect(
+      withFalse.edges.filter((edge) => edge.source === "iff").map((edge) => edge.sourceHandle),
+    ).toEqual(["true", "false"]);
+    expect(codes(validateVisualWorkflowDefinition(definition(withFalse)))).not.toContain(
+      "invalid_handle",
+    );
+  });
+
+  it("reconciles bodyNodeIds when loop body edges are removed", () => {
+    const seeded = applyVisualWorkflowGraphConnection(
+      [
+        node("t", "trigger.manual"),
+        node("loop", "logic.for_each"),
+        node("iff", "logic.if", { config: { kind: "logic.if", condition: "true" } }),
+        node("no", "logic.set"),
+      ],
+      [{ id: "e0", source: "t", target: "loop" }],
+      { source: "loop", target: "iff", sourceHandle: "each", targetHandle: null },
+    );
+    const chained = applyVisualWorkflowGraphConnection(seeded.nodes, seeded.edges, {
+      source: "iff",
+      target: "no",
+      sourceHandle: "false",
+      targetHandle: null,
+    });
+    const edgesWithoutChain = chained.edges.filter(
+      (edge) => !(edge.source === "iff" && edge.target === "no"),
+    );
+    const reconciled = reconcileForEachBodyMembership(chained.nodes, edgesWithoutChain);
+    expect(reconciled.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual(["iff"]);
+    expect(
+      codes(
+        validateVisualWorkflowDefinition(
+          definition({ nodes: reconciled, edges: edgesWithoutChain }),
+        ),
+      ),
+    ).not.toContain("invalid_loop");
+
+    const edgesWithoutEach = edgesWithoutChain.filter(
+      (edge) => !(edge.source === "loop" && edge.sourceHandle === "each"),
+    );
+    const cleared = reconcileForEachBodyMembership(reconciled, edgesWithoutEach);
+    expect(cleared.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual([]);
+  });
+
+  it("round-trips handles and bodyNodeIds through save/load", () => {
+    const next = applyVisualWorkflowGraphConnection(
+      [node("t", "trigger.manual"), node("loop", "logic.for_each"), node("body", "logic.set")],
+      [{ id: "e0", source: "t", target: "loop" }],
+      { source: "loop", target: "body", sourceHandle: "each", targetHandle: null },
+    );
+    const restored = fromVisualWorkflowDefinition(definition(next));
+    expect(restored.edges.find((edge) => edge.target === "body")?.sourceHandle).toBe("each");
+    expect(restored.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual(["body"]);
+  });
+
+  it("tracks Try body membership without claiming exit branches", () => {
+    const nodes = [
+      node("trigger", "trigger.manual"),
+      node("boundary", "logic.try_catch"),
+      node("work", "logic.set"),
+      node("caught", "logic.set"),
+    ];
+    const withTry = applyVisualWorkflowGraphConnection(nodes, [], {
+      source: "boundary",
+      target: "work",
+      sourceHandle: "try",
+      targetHandle: "input",
+    });
+    const withCatch = applyVisualWorkflowGraphConnection(withTry.nodes, withTry.edges, {
+      source: "boundary",
+      target: "caught",
+      sourceHandle: "catch",
+      targetHandle: "input",
+    });
+
+    expect(withCatch.nodes.find((entry) => entry.id === "boundary")?.data.bodyNodeIds).toEqual([
+      "work",
+    ]);
+  });
+
+  it("does not commit an invalid reconnection", () => {
+    const nodes = [
+      node("trigger", "trigger.manual"),
+      node("first", "logic.set"),
+      node("second", "logic.set"),
+    ];
+
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "first-second",
+        source: "first",
+        target: "second",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+      {
+        id: "connection",
+        source: "trigger",
+        target: "first",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+    ];
+
+    const result = reconnectVisualWorkflowGraphConnection(nodes, edges, "connection", {
+      source: "second",
+      target: "first",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    expect(result.nodes).toBe(nodes);
+    expect(result.edges).toBe(edges);
+  });
+
+  it("does not commit an execution connection that creates a cycle", () => {
+    const nodes = [node("first", "logic.set"), node("second", "logic.set")];
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "first-second",
+        source: "first",
+        target: "second",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+    ];
+
+    const result = applyVisualWorkflowGraphConnection(nodes, edges, {
+      source: "second",
+      target: "first",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    expect(result.nodes).toBe(nodes);
+    expect(result.edges).toBe(edges);
+  });
+});
+
+describe("removeVisualWorkflowNode", () => {
+  it("prunes deleted body members from For Each bodyNodeIds", () => {
+    const nodes = [
+      node("t", "trigger.manual"),
+      node("loop", "logic.for_each", { bodyNodeIds: ["body"] }),
+      node("body", "logic.set"),
+    ];
+    const edges: VisualWorkflowRfEdge[] = [
+      { id: "e0", source: "t", target: "loop" },
+      { id: "e1", source: "loop", target: "body", sourceHandle: "each" },
+    ];
+    const result = removeVisualWorkflowNode(nodes, edges, "body");
+    expect(result.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual([]);
+    expect(result.edges).toEqual([{ id: "e0", source: "t", target: "loop" }]);
+  });
+});
+
+describe("a connection drawn on the canvas", () => {
+  it("is saved with plain port ids", () => {
+    const read = node("read", "action.file_read");
+    const request = node("request", "action.http");
+    const run: VisualWorkflowRfEdge = {
+      id: "run",
+      source: "read",
+      target: "request",
+      sourceHandle: "success",
+      targetHandle: "input",
+      data: { kind: "execution" },
+    };
+
+    const result = applyVisualWorkflowGraphConnection([read, request], [run], {
+      source: "read",
+      target: "request",
+      sourceHandle: "data:content",
+      targetHandle: "data:body",
+    });
+
+    expect(result.edges.find((edge) => edge.id !== "run")).toMatchObject({
+      id: "xy-edge__readcontent-requestbody",
+      sourceHandle: "content",
+      targetHandle: "body",
+      data: { kind: "data" },
+    });
+  });
+});
+
+describe("applyNodeConfigUpdate", () => {
+  it("prunes a stale Reduce initial-value edge when changing operation", () => {
+    const transform = node("transform", "logic.array_transform", {
+      config: {
+        kind: "logic.array_transform",
+        operation: "reduce",
+        collection: "[]",
+        itemType: "number",
+        resultType: "number",
+        initialValue: 0,
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "initial-value",
+        source: "source",
+        target: "transform",
+        sourceHandle: "value",
+        targetHandle: "initialValue",
+        data: { kind: "data" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [node("source", "logic.set"), transform],
+      edges,
+      "transform",
+      {
+        kind: "logic.array_transform",
+        operation: "find",
+        collection: "[]",
+        itemType: "number",
+        resultType: "number",
+      },
+    );
+
+    expect(result.edges).toEqual([]);
+  });
+
+  it("prunes stale Array Transform result edges when the operation changes", () => {
+    const transform = node("transform", "logic.array_transform", {
+      config: {
+        kind: "logic.array_transform",
+        operation: "map",
+        collection: "[]",
+        itemType: "number",
+        resultType: "number",
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "items",
+        source: "transform",
+        target: "after",
+        sourceHandle: "items",
+        targetHandle: "value",
+        data: { kind: "data" },
+      },
+      {
+        id: "each",
+        source: "transform",
+        target: "body",
+        sourceHandle: "each",
+        targetHandle: "input",
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [transform, node("body", "logic.set"), node("after", "logic.set")],
+      edges,
+      "transform",
+      {
+        kind: "logic.array_transform",
+        operation: "reduce",
+        collection: "[]",
+        itemType: "number",
+        resultType: "number",
+        initialValue: 0,
+      },
+    );
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["each"]);
+  });
+
+  it("drops a leftover Reduce initial-value binding when leaving Reduce", () => {
+    const transform = node("transform", "logic.array_transform", {
+      config: {
+        kind: "logic.array_transform",
+        operation: "reduce",
+        collection: "[]",
+        itemType: "number",
+        resultType: "number",
+        initialValue: 0,
+      },
+      inputs: {
+        initialValue: { kind: "literal", value: 1 },
+      },
+    });
+
+    const result = applyNodeConfigUpdate([transform], [], "transform", {
+      kind: "logic.array_transform",
+      operation: "find",
+      collection: "[]",
+      itemType: "number",
+      resultType: "number",
+    });
+
+    expect(result.nodes.find((entry) => entry.id === "transform")?.data.inputs).toEqual({});
+  });
+
+  it("removes the error branch's wire when On error stops the workflow again", () => {
+    const request = node("request", "action.http");
+    request.data.config = {
+      ...request.data.config,
+      onError: "branch",
+    } as typeof request.data.config;
+    const edges: VisualWorkflowRfEdge[] = [
+      { id: "next", source: "request", target: "next", sourceHandle: "success" },
+      { id: "on-error", source: "request", target: "fallback", sourceHandle: "error" },
+      {
+        id: "status-value",
+        source: "request",
+        target: "fallback",
+        sourceHandle: "status",
+        targetHandle: "value",
+        data: { kind: "data" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [request, node("next", "logic.set"), node("fallback", "logic.set")],
+      edges,
+      "request",
+      { ...request.data.config, onError: "stop" } as typeof request.data.config,
+    );
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["next", "status-value"]);
+  });
+
+  it("keeps a Set field's wires while its name is edited, so retyping the name finds them", () => {
+    const set = node("set", "logic.set", {
+      config: { kind: "logic.set", assignments: [{ key: "total", value: "1" }] },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "total",
+        source: "set",
+        target: "request",
+        sourceHandle: "total",
+        targetHandle: "url",
+        data: { kind: "data" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate([set, node("request", "action.http")], edges, "set", {
+      kind: "logic.set",
+      assignments: [{ key: "tota", value: "1" }],
+    });
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["total"]);
+  });
+
+  it("removes the wires of a Set field that is deleted", () => {
+    const set = node("set", "logic.set", {
+      config: {
+        kind: "logic.set",
+        assignments: [
+          { key: "total", value: "1" },
+          { key: "count", value: "2" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = ["total", "count"].map((key) => ({
+      id: key,
+      source: "set",
+      target: "request",
+      sourceHandle: key,
+      targetHandle: key === "total" ? "url" : "body",
+      data: { kind: "data" },
+    }));
+
+    const result = applyNodeConfigUpdate([set, node("request", "action.http")], edges, "set", {
+      kind: "logic.set",
+      assignments: [{ key: "count", value: "2" }],
+    });
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["count"]);
+  });
+
+  it("removes edges for deleted Switch cases and keeps other branches", () => {
+    const switchNode = node("sw", "logic.switch", {
+      config: {
+        kind: "logic.switch",
+        expression: "status",
+        cases: [
+          { id: "case-pending", value: "pending" },
+          { id: "case-ready", value: "ready" },
+        ],
+      },
+    });
+    const next = applyNodeConfigUpdate(
+      [node("t", "trigger.manual"), switchNode, node("a", "logic.set"), node("b", "logic.set")],
+      [
+        { id: "e0", source: "t", target: "sw" },
+        { id: "e1", source: "sw", target: "a", sourceHandle: "case-pending" },
+        { id: "e2", source: "sw", target: "b", sourceHandle: "case-ready" },
+      ],
+      "sw",
+      {
+        kind: "logic.switch",
+        expression: "status",
+        cases: [{ id: "case-ready", value: "ready" }],
+      },
+    );
+    expect(next.edges.map((edge) => edge.id)).toEqual(["e0", "e2"]);
+    expect(next.edges.find((edge) => edge.id === "e2")?.sourceHandle).toBe("case-ready");
+  });
+
+  it("keeps Create Object data edges when fields are renamed or reordered", () => {
+    const createObject = node("create", "logic.create_object", {
+      config: {
+        kind: "logic.create_object",
+        fields: [
+          { id: "customer", name: "customerId", type: "string" },
+          { id: "locale", name: "locale", type: "string" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "customer-edge",
+        source: "source",
+        target: "create",
+        sourceHandle: "value",
+        targetHandle: "value.customer",
+        data: { kind: "data" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [node("source", "logic.set"), createObject],
+      edges,
+      "create",
+      {
+        kind: "logic.create_object",
+        fields: [
+          { id: "locale", name: "localeCode", type: "string" },
+          { id: "customer", name: "renamedCustomer", type: "string" },
+        ],
+      },
+    );
+
+    expect(result.edges).toEqual(edges);
+  });
+
+  it("removes data edges for deleted Create Object fields", () => {
+    const createObject = node("create", "logic.create_object", {
+      config: {
+        kind: "logic.create_object",
+        fields: [
+          { id: "customer", name: "customerId", type: "string" },
+          { id: "locale", name: "locale", type: "string" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "customer-edge",
+        source: "source",
+        target: "create",
+        sourceHandle: "value",
+        targetHandle: "value.customer",
+        data: { kind: "data" },
+      },
+      {
+        id: "locale-edge",
+        source: "source",
+        target: "create",
+        sourceHandle: "value",
+        targetHandle: "value.locale",
+        data: { kind: "data" },
+      },
+      {
+        id: "execution-edge",
+        source: "source",
+        target: "create",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [node("source", "logic.set"), createObject],
+      edges,
+      "create",
+      {
+        kind: "logic.create_object",
+        fields: [{ id: "locale", name: "locale", type: "string" }],
+      },
+    );
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["locale-edge", "execution-edge"]);
+  });
+
+  it("keeps Merge Objects data edges when inputs are renamed or reordered", () => {
+    const mergeObjects = node("merge-objects", "logic.merge_objects", {
+      config: {
+        kind: "logic.merge_objects",
+        inputs: [
+          { id: "base", name: "Base" },
+          { id: "override", name: "Override" },
+        ],
+        conflictPolicy: "reject",
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "base-edge",
+        source: "source",
+        target: "merge-objects",
+        sourceHandle: "value",
+        targetHandle: "value.base",
+        data: { kind: "data" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [node("source", "logic.set"), mergeObjects],
+      edges,
+      "merge-objects",
+      {
+        kind: "logic.merge_objects",
+        inputs: [
+          { id: "override", name: "Overrides" },
+          { id: "base", name: "Base context" },
+        ],
+        conflictPolicy: "last_wins",
+      },
+    );
+
+    expect(result.edges).toEqual(edges);
+  });
+
+  it("removes data edges for deleted Merge Objects inputs", () => {
+    const mergeObjects = node("merge-objects", "logic.merge_objects", {
+      config: {
+        kind: "logic.merge_objects",
+        inputs: [
+          { id: "base", name: "Base" },
+          { id: "override", name: "Override" },
+          { id: "audit", name: "Audit" },
+        ],
+        conflictPolicy: "reject",
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "base-edge",
+        source: "source",
+        target: "merge-objects",
+        sourceHandle: "value",
+        targetHandle: "value.base",
+        data: { kind: "data" },
+      },
+      {
+        id: "audit-edge",
+        source: "source",
+        target: "merge-objects",
+        sourceHandle: "value",
+        targetHandle: "value.audit",
+        data: { kind: "data" },
+      },
+      {
+        id: "execution-edge",
+        source: "source",
+        target: "merge-objects",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [node("source", "logic.set"), mergeObjects],
+      edges,
+      "merge-objects",
+      {
+        kind: "logic.merge_objects",
+        inputs: [
+          { id: "base", name: "Base" },
+          { id: "override", name: "Override" },
+        ],
+        conflictPolicy: "reject",
+      },
+    );
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["base-edge", "execution-edge"]);
+  });
+
+  it("removes data edges for deleted Compare operands", () => {
+    const compare = node("compare", "logic.compare", {
+      config: {
+        kind: "logic.compare",
+        operator: "and",
+        operands: [
+          { id: "first", name: "First", type: "boolean" },
+          { id: "second", name: "Second", type: "boolean" },
+          { id: "third", name: "Third", type: "boolean" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "first-data",
+        source: "source",
+        target: "compare",
+        sourceHandle: "value",
+        targetHandle: "value.first",
+        data: { kind: "data" },
+      },
+      {
+        id: "third-data",
+        source: "source",
+        target: "compare",
+        sourceHandle: "value",
+        targetHandle: "value.third",
+        data: { kind: "data" },
+      },
+      {
+        id: "execution-edge",
+        source: "source",
+        target: "compare",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate([node("source", "logic.set"), compare], edges, "compare", {
+      kind: "logic.compare",
+      operator: "equal",
+      operands: [
+        { id: "first", name: "Left", type: "boolean" },
+        { id: "second", name: "Right", type: "boolean" },
+      ],
+    });
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["first-data", "execution-edge"]);
+  });
+});
+
+describe("reconnectVisualWorkflowGraphConnection", () => {
+  it("reconnects an edge through the shared validator", () => {
+    const nodes = [
+      node("trigger", "trigger.manual"),
+      node("first", "logic.set"),
+      node("second", "logic.set"),
+    ];
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "connection",
+        source: "trigger",
+        target: "first",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+    ];
+
+    const result = reconnectVisualWorkflowGraphConnection(nodes, edges, "connection", {
+      source: "trigger",
+      target: "second",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    expect(result.edges).toContainEqual(
+      expect.objectContaining({
+        id: "connection",
+        source: "trigger",
+        target: "second",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      }),
+    );
+  });
+
+  it("removes stale loop membership when reconnecting a loop body edge", () => {
+    const nodes = [
+      node("loop", "logic.for_each", { bodyNodeIds: ["body"] }),
+      node("outside", "logic.set"),
+      node("body", "logic.set"),
+    ];
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "loop-body",
+        source: "loop",
+        target: "body",
+        sourceHandle: "each",
+        targetHandle: "input",
+        data: {
+          kind: "execution",
+        },
+      },
+    ];
+
+    const result = reconnectVisualWorkflowGraphConnection(nodes, edges, "loop-body", {
+      source: "outside",
+      target: "body",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    expect(result.edges).toContainEqual(
+      expect.objectContaining({
+        id: "loop-body",
+        source: "outside",
+        target: "body",
+      }),
+    );
+    expect(result.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual([]);
+  });
+
+  it("keeps Merge edges when inputs are renamed or reordered", () => {
+    const merge = node("merge", "logic.merge", {
+      config: {
+        kind: "logic.merge",
+        mode: "all",
+        inputs: [
+          { id: "email", name: "Email" },
+          { id: "slack", name: "Slack" },
+        ],
+      },
+    });
+
+    const edges = [
+      {
+        id: "email-edge",
+        source: "source",
+        target: "merge",
+        sourceHandle: "success",
+        targetHandle: "email",
+        data: { kind: "execution" as const },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate([node("source", "logic.set"), merge], edges, "merge", {
+      kind: "logic.merge",
+      mode: "all",
+      inputs: [
+        { id: "slack", name: "Team Slack" },
+        { id: "email", name: "Customer email" },
+      ],
+    });
+
+    expect(result.edges).toEqual(edges);
+  });
+
+  it("removes edges for deleted Merge inputs", () => {
+    const merge = node("merge", "logic.merge", {
+      config: {
+        kind: "logic.merge",
+        mode: "all",
+        inputs: [
+          { id: "email", name: "Email" },
+          { id: "slack", name: "Slack" },
+          { id: "audit", name: "Audit" },
+        ],
+      },
+    });
+
+    const edges = [
+      {
+        id: "email-edge",
+        source: "source",
+        target: "merge",
+        sourceHandle: "success",
+        targetHandle: "email",
+        data: { kind: "execution" as const },
+      },
+      {
+        id: "audit-edge",
+        source: "audit",
+        target: "merge",
+        sourceHandle: "success",
+        targetHandle: "audit",
+        data: { kind: "execution" as const },
+      },
+      {
+        id: "audit-value-edge",
+        source: "audit",
+        target: "merge",
+        sourceHandle: "value",
+        targetHandle: "value.audit",
+        data: { kind: "data" as const },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [node("source", "logic.set"), node("audit", "logic.set"), merge],
+      edges,
+      "merge",
+      {
+        kind: "logic.merge",
+        mode: "all",
+        inputs: [
+          { id: "email", name: "Email" },
+          { id: "slack", name: "Slack" },
+        ],
+      },
+    );
+
+    expect(result.edges).toEqual([edges[0]]);
+  });
+
+  it("preserves Sequence wires when outputs are renamed or reordered", () => {
+    const sequence = node("sequence", "logic.sequence", {
+      config: {
+        kind: "logic.sequence",
+        outputs: [
+          { id: "email", label: "Email" },
+          { id: "slack", label: "Slack" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "email-edge",
+        source: "sequence",
+        target: "email-action",
+        sourceHandle: "email",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+      {
+        id: "slack-edge",
+        source: "sequence",
+        target: "slack-action",
+        sourceHandle: "slack",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+    ];
+    const result = applyNodeConfigUpdate([sequence], edges, "sequence", {
+      kind: "logic.sequence",
+      outputs: [
+        { id: "slack", label: "Notify Slack" },
+        { id: "email", label: "Send email" },
+      ],
+    });
+
+    expect(result.edges).toEqual(edges);
+  });
+
+  it("removes only wires for deleted Sequence outputs", () => {
+    const sequence = node("sequence", "logic.sequence", {
+      config: {
+        kind: "logic.sequence",
+        outputs: [
+          { id: "email", label: "Email" },
+          { id: "slack", label: "Slack" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "email-edge",
+        source: "sequence",
+        target: "email-action",
+        sourceHandle: "email",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+      {
+        id: "slack-edge",
+        source: "sequence",
+        target: "slack-action",
+        sourceHandle: "slack",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+    ];
+    const result = applyNodeConfigUpdate([sequence], edges, "sequence", {
+      kind: "logic.sequence",
+      outputs: [{ id: "slack", label: "Slack" }],
+    });
+
+    expect(result.edges).toEqual([edges[1]]);
+  });
+
+  it("grows a Sequence node as outputs are added", () => {
+    const sequence = node("sequence", "logic.sequence", {
+      config: {
+        kind: "logic.sequence",
+        outputs: [{ id: "initial", label: "Initial" }],
+      },
+    });
+    const outputs = Array.from({ length: 10 }, (_, index) => ({
+      id: `output-${index}`,
+      label: `Output ${index + 1}`,
+    }));
+
+    const result = applyNodeConfigUpdate([sequence], [], "sequence", {
+      kind: "logic.sequence",
+      outputs,
+    });
+
+    expect(result.nodes[0]?.height).toBe(376);
+  });
+});
+
+describe("a Retry step's wires", () => {
+  function retryGraph(extraEdges: VisualWorkflowRfEdge[]) {
+    return {
+      nodes: [
+        node("trigger", "trigger.manual"),
+        node("retry", "logic.retry"),
+        node("attempt", "logic.set"),
+        node("next", "logic.set"),
+      ],
+      edges: [
+        { id: "start", source: "trigger", target: "retry", sourceHandle: "success" },
+        { id: "try", source: "retry", target: "attempt", sourceHandle: "attempt" },
+        ...extraEdges,
+      ],
+    };
+  }
+
+  it("saves the steps wired from Attempt as its body and passes validation", () => {
+    const saved = definition(
+      retryGraph([{ id: "carry-on", source: "retry", target: "next", sourceHandle: "succeeded" }]),
+    );
+
+    expect(saved.nodes.find((entry) => entry.id === "retry")?.bodyNodeIds).toEqual(["attempt"]);
+    expect(validateVisualWorkflowDefinition(saved)).toEqual([]);
+  });
+
+  it("points at the wire that leaves the body, not at Succeeded", () => {
+    const saved = definition(
+      retryGraph([
+        { id: "carry-on", source: "retry", target: "next", sourceHandle: "succeeded" },
+        { id: "leaves-body", source: "attempt", target: "next", sourceHandle: "success" },
+      ]),
+    );
+
+    expect(
+      validateVisualWorkflowDefinition(saved)
+        .filter((issue) => issue.code === "invalid_retry")
+        .map((issue) => issue.edgeId),
+    ).toEqual(["leaves-body"]);
+  });
+});

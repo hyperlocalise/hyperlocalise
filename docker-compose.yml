@@ -15,5 +15,16 @@ services:
     volumes:
       - postgres18-data:/var/lib/postgresql
 
+  # go-svc: VALKEY_URL=redis://localhost:6379 (see apps/go-svc/README.md)
+  valkey:
+    image: valkey/valkey:9
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
 volumes:
   postgres18-data:

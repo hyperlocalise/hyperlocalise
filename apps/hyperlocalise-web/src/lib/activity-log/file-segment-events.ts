@@ -12,6 +12,11 @@
  */
 import "server-only";
 
+import {
+  PRODUCT_USAGE_ANALYTICS_EVENTS,
+  productUsageSourceForActorKind,
+} from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 
 import type { ActivityActorKind } from "./activity-log-contract";
@@ -58,15 +63,31 @@ function filePayload(input: {
   };
 }
 
+function uniqueSegmentIds(ids: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const id of ids) {
+    const trimmed = id.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    unique.push(trimmed);
+  }
+  return unique;
+}
+
 function segmentPayload(input: {
   itemCount?: number;
   projectId: string;
   segmentId: string;
+  segmentIds?: readonly string[];
   sourcePath: string;
   targetLocale?: string | null;
 }) {
   const sourcePath = normalizeSourcePath(input.sourcePath);
   const fileName = fileActivityFileName(sourcePath);
+  const segmentIds = uniqueSegmentIds(input.segmentIds ?? []);
   return {
     fileName,
     name: fileName,
@@ -75,6 +96,7 @@ function segmentPayload(input: {
     sourcePath,
     ...(input.targetLocale ? { targetLocale: input.targetLocale } : {}),
     ...(input.itemCount && input.itemCount > 1 ? { itemCount: input.itemCount } : {}),
+    ...(segmentIds.length > 1 ? { segmentIds } : {}),
   };
 }
 
@@ -87,6 +109,10 @@ type FileActivityInput = ActivityActor & {
 };
 
 export async function enqueueFileUploadedActivity(input: FileActivityInput) {
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.fileUploaded, {
+    status: "created",
+    source: productUsageSourceForActorKind(input.actorKind),
+  });
   const payload = filePayload(input);
   return enqueueActivityLogEvent({
     ...activityActor(input),
@@ -120,9 +146,24 @@ type SegmentActivityInput = ActivityActor & {
   organizationId: string;
   projectId: string;
   segmentId: string;
+  /** All segments a bulk hide or lock changed. The per-segment tab matches each one. */
+  segmentIds?: readonly string[];
   sourcePath: string;
   targetLocale?: string | null;
 };
+
+export async function enqueueStringSegmentTranslationUpdatedActivity(
+  input: SegmentActivityInput & { nextStatus: string },
+) {
+  return enqueueActivityLogEvent({
+    ...activityActor(input),
+    eventType: "string_segment_translation_updated",
+    organizationId: input.organizationId,
+    payload: { ...segmentPayload(input), nextStatus: input.nextStatus },
+    targetId: input.segmentId,
+    targetKind: "string_segment",
+  });
+}
 
 export async function enqueueStringSegmentApprovedActivity(input: SegmentActivityInput) {
   return enqueueActivityLogEvent({

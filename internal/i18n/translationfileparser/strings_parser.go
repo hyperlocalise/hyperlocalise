@@ -34,19 +34,31 @@ type stringsDocument struct {
 }
 
 func (p AppleStringsParser) Parse(content []byte) (map[string]string, error) {
-	entries, err := p.ParseIngestEntries(content)
-	if err != nil {
-		return nil, err
-	}
-	out := map[string]string{}
-	for key, entry := range entries {
-		out[key] = entry.Text
-	}
-	return out, nil
+	values, _, err := p.ParseWithContext(content)
+	return values, err
 }
 
-// ParseIngestEntries parses Apple .strings files and extracts optional max-length metadata
-// from leading entry comments.
+func (p AppleStringsParser) ParseWithContext(content []byte) (map[string]string, map[string]string, error) {
+	entries, err := p.ParseIngestEntries(content)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := make(map[string]string, len(entries))
+	var contextByKey map[string]string
+	for key, entry := range entries {
+		out[key] = entry.Text
+		if entry.Context != "" {
+			if contextByKey == nil {
+				contextByKey = make(map[string]string, len(entries))
+			}
+			contextByKey[key] = entry.Context
+		}
+	}
+	return out, contextByKey, nil
+}
+
+// ParseIngestEntries parses Apple .strings files and extracts optional max-length
+// metadata and translator comments from leading entry comments.
 func (p AppleStringsParser) ParseIngestEntries(content []byte) (map[string]IngestEntry, error) {
 	doc, err := parseStringsDocument(content)
 	if err != nil {
@@ -57,6 +69,9 @@ func (p AppleStringsParser) ParseIngestEntries(content []byte) (map[string]Inges
 		ingestEntry := IngestEntry{Text: entry.sourceValue}
 		if maxLength, ok := ParseMaxLengthFromComment(entry.leadingComments); ok {
 			ingestEntry.MaxLength = maxLength
+		}
+		if context := strings.TrimSpace(entry.leadingComments); context != "" {
+			ingestEntry.Context = context
 		}
 		out[entry.key] = ingestEntry
 	}

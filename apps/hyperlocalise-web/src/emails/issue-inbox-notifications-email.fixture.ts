@@ -12,7 +12,7 @@
  */
 import type { EmailNotificationItem } from "./issue-inbox-notifications-email";
 
-export const emailStoryBrandLogoUrl = "/images/logo.png";
+export const emailStoryBrandLogoUrl = "/images/logo/logomark-dark-mode.png";
 export const emailStoryInboxUrl = "https://app.hyperlocalise.com/en/org/acme/inbox";
 export const emailStoryUnsubscribeUrl =
   "https://app.hyperlocalise.com/en/org/acme/settings/account#notifications";

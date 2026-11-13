@@ -1,0 +1,249 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { VisualWorkflowRfEdge, VisualWorkflowV3Edge } from "../schema/types";
+
+export type FlowBodyRegion = {
+  bodyNodeIds: string[];
+  exitNodeIds: string[];
+};
+
+function isExecutionEdge(edge: VisualWorkflowRfEdge): boolean {
+  return edge.data?.kind !== "data";
+}
+
+function collectReachableNodeIds(
+  ownerId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+  entryHandle: string,
+): Set<string> {
+  const outgoingByNodeId = new Map<string, string[]>();
+
+  for (const edge of edges) {
+    if (!isExecutionEdge(edge) || !edge.source || !edge.target) {
+      continue;
+    }
+
+    const targets = outgoingByNodeId.get(edge.source) ?? [];
+    targets.push(edge.target);
+    outgoingByNodeId.set(edge.source, targets);
+  }
+
+  const roots = edges
+    .filter(
+      (edge) =>
+        isExecutionEdge(edge) &&
+        edge.source === ownerId &&
+        edge.sourceHandle === entryHandle &&
+        edge.target !== ownerId,
+    )
+    .map((edge) => edge.target);
+
+  const reachable = new Set<string>();
+  const queue = [...roots];
+
+  while (queue.length > 0) {
+    const nodeId = queue.shift();
+
+    if (!nodeId || nodeId === ownerId || reachable.has(nodeId)) {
+      continue;
+    }
+
+    reachable.add(nodeId);
+
+    for (const targetId of outgoingByNodeId.get(nodeId) ?? []) {
+      if (targetId !== ownerId && !reachable.has(targetId)) {
+        queue.push(targetId);
+      }
+    }
+  }
+
+  return reachable;
+}
+
+export function deriveForEachLoopRegion(
+  loopId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): FlowBodyRegion {
+  const eachReachable = collectReachableNodeIds(loopId, edges, "each");
+  const doneReachable = collectReachableNodeIds(loopId, edges, "done");
+
+  return {
+    bodyNodeIds: [...eachReachable].filter((nodeId) => !doneReachable.has(nodeId)).toSorted(),
+    exitNodeIds: [...doneReachable].toSorted(),
+  };
+}
+
+export function computeForEachBodyNodeIds(
+  loopId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  return deriveForEachLoopRegion(loopId, edges).bodyNodeIds;
+}
+
+export function computeForEachBodyNodeIdsFromV3Edges(
+  loopId: string,
+  edges: readonly VisualWorkflowV3Edge[],
+): string[] {
+  const editorEdges: VisualWorkflowRfEdge[] = edges
+    .filter(
+      (edge): edge is Extract<VisualWorkflowV3Edge, { kind: "execution" }> =>
+        edge.kind === "execution",
+    )
+    .map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourcePortId,
+      targetHandle: edge.targetPortId,
+      data: {
+        kind: "execution",
+      },
+    }));
+
+  return computeForEachBodyNodeIds(loopId, editorEdges);
+}
+
+export function computeRetryBodyNodeIds(
+  retryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  const attemptReachable = collectReachableNodeIds(retryId, edges, "attempt");
+  const exitReachable = new Set(
+    ["succeeded", "exhausted"].flatMap((handle) => [
+      ...collectReachableNodeIds(retryId, edges, handle),
+    ]),
+  );
+
+  return [...attemptReachable].filter((nodeId) => !exitReachable.has(nodeId)).toSorted();
+}
+
+export function deriveTryCatchRegion(
+  boundaryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): FlowBodyRegion {
+  const tryReachable = collectReachableNodeIds(boundaryId, edges, "try");
+  const exitReachable = new Set(
+    ["success", "catch", "finally"].flatMap((handle) => [
+      ...collectReachableNodeIds(boundaryId, edges, handle),
+    ]),
+  );
+
+  return {
+    bodyNodeIds: [...tryReachable].filter((nodeId) => !exitReachable.has(nodeId)).toSorted(),
+    exitNodeIds: [...exitReachable].toSorted(),
+  };
+}
+
+export function computeTryCatchBodyNodeIds(
+  boundaryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  return deriveTryCatchRegion(boundaryId, edges).bodyNodeIds;
+}
+
+function computeTryCatchExclusiveExitNodeIds(
+  boundaryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+  exitHandle: "success" | "catch",
+): string[] {
+  const otherHandles =
+    exitHandle === "success" ? (["catch", "finally"] as const) : (["success", "finally"] as const);
+  const exitReachable = collectReachableNodeIds(boundaryId, edges, exitHandle);
+  const otherExitReachable = new Set(
+    otherHandles.flatMap((handle) => [...collectReachableNodeIds(boundaryId, edges, handle)]),
+  );
+
+  return [...exitReachable].filter((nodeId) => !otherExitReachable.has(nodeId)).toSorted();
+}
+
+export function computeTryCatchCatchNodeIds(
+  boundaryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  return computeTryCatchExclusiveExitNodeIds(boundaryId, edges, "catch");
+}
+
+export function computeTryCatchSuccessNodeIds(
+  boundaryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  return computeTryCatchExclusiveExitNodeIds(boundaryId, edges, "success");
+}
+
+function v3ExecutionEdgesToEditorEdges(
+  edges: readonly VisualWorkflowV3Edge[],
+): VisualWorkflowRfEdge[] {
+  return edges
+    .filter(
+      (edge): edge is Extract<VisualWorkflowV3Edge, { kind: "execution" }> =>
+        edge.kind === "execution",
+    )
+    .map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourcePortId,
+      targetHandle: edge.targetPortId,
+      data: { kind: "execution" },
+    }));
+}
+
+export function computeTryCatchBodyNodeIdsFromV3Edges(
+  boundaryId: string,
+  edges: readonly VisualWorkflowV3Edge[],
+): string[] {
+  return computeTryCatchBodyNodeIds(boundaryId, v3ExecutionEdgesToEditorEdges(edges));
+}
+
+export function computeTryCatchCatchNodeIdsFromV3Edges(
+  boundaryId: string,
+  edges: readonly VisualWorkflowV3Edge[],
+): string[] {
+  return computeTryCatchCatchNodeIds(boundaryId, v3ExecutionEdgesToEditorEdges(edges));
+}
+
+export function computeTryCatchSuccessNodeIdsFromV3Edges(
+  boundaryId: string,
+  edges: readonly VisualWorkflowV3Edge[],
+): string[] {
+  return computeTryCatchSuccessNodeIds(boundaryId, v3ExecutionEdgesToEditorEdges(edges));
+}
+
+/**
+ * The steps inside a For each, Array transform, Retry or Try / Catch, worked out from its wires.
+ * Null for a step that has no body. Saving, loading and running all derive bodies this way.
+ */
+export function computeFlowBodyNodeIds(
+  type: string,
+  ownerId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] | null {
+  if (type === "logic.for_each" || type === "logic.array_transform") {
+    return computeForEachBodyNodeIds(ownerId, edges);
+  }
+  if (type === "logic.retry") {
+    return computeRetryBodyNodeIds(ownerId, edges);
+  }
+  if (type === "logic.try_catch") {
+    return computeTryCatchBodyNodeIds(ownerId, edges);
+  }
+  return null;
+}
+
+export function computeFlowBodyNodeIdsFromV3Edges(
+  type: string,
+  ownerId: string,
+  edges: readonly VisualWorkflowV3Edge[],
+): string[] | null {
+  return computeFlowBodyNodeIds(type, ownerId, v3ExecutionEdgesToEditorEdges(edges));
+}

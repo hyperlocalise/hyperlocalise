@@ -10,9 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasSafeContentSyncTemplateWildcards } from "./content-sync-locale-paths";
 import { buildContentSyncFingerprint } from "./content-sync-paths";
 import {
   buildDefaultContentSyncTriggerMode,
+  CONTENT_SYNC_LOCALE_PLACEHOLDER,
+  contentSyncNeedsPathTemplate,
   contentSyncNeedsProviderFolder,
   type ContentSyncConfig,
 } from "./content-sync-types";
@@ -25,12 +28,17 @@ import type {
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 export function normalizeStoredContentSyncConfig(config: ContentSyncConfig): ContentSyncConfig {
+  const { branch: rawBranch, pathTemplate: rawPathTemplate, ...rest } = config;
+  const branch = rawBranch?.trim();
+  const pathTemplate = rawPathTemplate ? normalizeContentSyncFolder(rawPathTemplate) : "";
   return {
-    ...config,
+    ...rest,
     providerFolder: normalizeContentSyncFolder(config.providerFolder),
     projectFolder: normalizeContentSyncFolder(config.projectFolder),
     resourceKey: config.resourceKey.trim(),
     connectionId: config.connectionId.trim(),
+    ...(branch ? { branch } : {}),
+    ...(pathTemplate ? { pathTemplate } : {}),
   };
 }
 
@@ -112,6 +120,30 @@ export function validateContentSyncConfig(
       code: "content_sync_folder_invalid",
       message: "Choose a safe relative folder path.",
     });
+  }
+  if (contentSyncNeedsPathTemplate(normalized.provider)) {
+    if (!normalized.pathTemplate) {
+      return err({
+        code: "content_sync_path_template_required",
+        message: "Say where each language's files are, for example {{locale}}.json.",
+      });
+    }
+    if (!isSafeContentSyncFolder(normalized.pathTemplate.replace(/[*{}]/g, "x"))) {
+      return err({
+        code: "content_sync_folder_invalid",
+        message: "Choose a safe relative folder path.",
+      });
+    }
+    if (
+      !normalized.pathTemplate.includes(CONTENT_SYNC_LOCALE_PLACEHOLDER) ||
+      !hasSafeContentSyncTemplateWildcards(normalized.pathTemplate)
+    ) {
+      return err({
+        code: "content_sync_path_template_invalid",
+        message:
+          "The language file paths need {{locale}}, with ** only as a whole folder (twice at most), at most two * or {{locale}} in a name, and at most eight in all.",
+      });
+    }
   }
 
   return ok(normalized);

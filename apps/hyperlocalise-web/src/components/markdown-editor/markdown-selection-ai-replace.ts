@@ -13,6 +13,12 @@
 import type { Editor, JSONContent } from "@tiptap/core";
 import type { Mark } from "@tiptap/pm/model";
 
+import {
+  applySharedMarks,
+  contentForBlock,
+  suggestionBlocksFromMarkdown,
+} from "./markdown-selection-ai-markdown";
+
 function marksToJson(marks: readonly Mark[]): JSONContent["marks"] {
   if (marks.length === 0) {
     return undefined;
@@ -37,15 +43,6 @@ function sharedMarksJson(editor: Editor, from: number, to: number): JSONContent[
   return shared ? marksToJson(shared) : undefined;
 }
 
-function suggestionInlineContent(suggestion: string, marks?: JSONContent["marks"]): JSONContent[] {
-  return suggestion
-    .split("\n")
-    .flatMap((line, index) => [
-      ...(index ? [{ type: "hardBreak" }] : []),
-      ...(line ? [{ type: "text", text: line, ...(marks ? { marks } : {}) }] : []),
-    ]);
-}
-
 function selectedTextblocks(editor: Editor, from: number, to: number) {
   const blocks: { from: number; to: number }[] = [];
   editor.state.doc.nodesBetween(from, to, (node, pos) => {
@@ -64,13 +61,6 @@ function selectedTextblocks(editor: Editor, from: number, to: number) {
   return blocks;
 }
 
-function lineForBlock(lines: string[], index: number, blockCount: number) {
-  if (index < blockCount - 1) {
-    return lines[index] ?? "";
-  }
-  return lines.slice(index).join("\n");
-}
-
 export function replaceMarkdownSelection(
   editor: Editor,
   from: number,
@@ -82,12 +72,12 @@ export function replaceMarkdownSelection(
     return false;
   }
 
-  const lines = suggestion.split("\n");
+  const parsed = suggestionBlocksFromMarkdown(editor, suggestion);
   let chain = editor.chain().focus();
   for (let index = blocks.length - 1; index >= 0; index -= 1) {
     const block = blocks[index];
-    const content = suggestionInlineContent(
-      lineForBlock(lines, index, blocks.length),
+    const content = applySharedMarks(
+      contentForBlock(parsed, index, blocks.length),
       sharedMarksJson(editor, block.from, block.to),
     );
     chain =

@@ -106,14 +106,19 @@ export const translationMemoryDetailPageContentMessages = defineMessages({
     description: "Accessible label for the translation memory actions menu",
   },
   importHistory: {
-    defaultMessage: "Import history",
-    id: "RWcC6K686A",
-    description: "Menu item that opens translation memory import history",
+    defaultMessage: "Import/export history",
+    id: "Lvrd1itzcD",
+    description: "Menu item that opens translation memory import and export history",
   },
   importAction: {
     defaultMessage: "Import",
     id: "5XGfxQ1JbC",
     description: "Menu item that opens translation memory import",
+  },
+  importTmxAction: {
+    defaultMessage: "Import TMX or CSV",
+    id: "WlcETQs82X",
+    description: "Empty-state button that opens translation memory TMX or CSV import",
   },
   exportAction: {
     defaultMessage: "Export",

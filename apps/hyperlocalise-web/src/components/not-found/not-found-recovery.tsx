@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CustomerSupportIcon, DashboardSquare01Icon, Home01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { HeadsetIcon, SquaresFourIcon, HouseIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -61,7 +60,7 @@ export function NotFoundRecovery({
             nativeButton={false}
             render={<Link href={homeHref} />}
           >
-            <HugeiconsIcon data-icon="inline-start" icon={Home01Icon} strokeWidth={2} />
+            <HouseIcon data-icon="inline-start" />
             {homeLabel}
           </Button>
           <Button
@@ -70,7 +69,7 @@ export function NotFoundRecovery({
             nativeButton={false}
             render={<Link href={dashboardHref} />}
           >
-            <HugeiconsIcon data-icon="inline-start" icon={DashboardSquare01Icon} strokeWidth={2} />
+            <SquaresFourIcon data-icon="inline-start" />
             {dashboardLabel}
           </Button>
           <Button
@@ -79,7 +78,7 @@ export function NotFoundRecovery({
             nativeButton={false}
             render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
           >
-            <HugeiconsIcon data-icon="inline-start" icon={CustomerSupportIcon} strokeWidth={2} />
+            <HeadsetIcon data-icon="inline-start" />
             {supportLabel}
           </Button>
         </EmptyContent>

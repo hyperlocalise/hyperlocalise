@@ -56,6 +56,16 @@ export const commonLocaleDisplayNameMessages = defineMessages({
     id: "cdYuP66GRZ",
     description: "Display name for BCP-47 locale es-MX",
   },
+  es_419: {
+    defaultMessage: "Spanish (Latin America)",
+    id: "yKk8PSmKHK",
+    description: "Display name for BCP-47 locale es-419",
+  },
+  es_AR: {
+    defaultMessage: "Spanish (Argentina)",
+    id: "/v8UgBZCqG",
+    description: "Display name for BCP-47 locale es-AR",
+  },
   fr_FR: {
     defaultMessage: "French (France)",
     id: "DJGr6J4yAS",
@@ -135,6 +145,11 @@ export const commonLocaleDisplayNameMessages = defineMessages({
     defaultMessage: "Turkish (Türkiye)",
     id: "PSqr8lzpHo",
     description: "Display name for BCP-47 locale tr-TR",
+  },
+  az: {
+    defaultMessage: "Azerbaijani",
+    id: "aq+Hkv5Fr8",
+    description: "Display name for BCP-47 locale az",
   },
   el_GR: {
     defaultMessage: "Greek (Greece)",

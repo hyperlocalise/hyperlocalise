@@ -15,7 +15,10 @@
 import Image from "next/image";
 
 import type { IntegrationIconKey } from "@/lib/integrations/integration-catalog.types";
-import { getIntegrationIconForKey } from "@/lib/integrations/integration-icons";
+import {
+  getIntegrationIconForKey,
+  getIntegrationIconForSlug,
+} from "@/lib/integrations/integration-icons";
 import { Box } from "@/components/ui/layout/box";
 import { cn } from "@/lib/primitives/cn";
 
@@ -23,6 +26,7 @@ import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationS
 
 type IntegrationLogoMarkProps = {
   name: string;
+  slug?: string;
   logoSrc?: string;
   iconKey?: IntegrationIconKey;
   size?: "sm" | "md" | "lg";
@@ -40,13 +44,23 @@ const imageSizeClassNames = {
   lg: "size-8",
 } as const;
 
+export function integrationLogoAltText(name: string) {
+  return `${name} logo`;
+}
+
 export function IntegrationLogoMark({
   name,
+  slug,
   logoSrc,
   iconKey,
   size = "md",
 }: IntegrationLogoMarkProps) {
-  const icon = iconKey ? getIntegrationIconForKey(iconKey) : undefined;
+  const icon = iconKey
+    ? getIntegrationIconForKey(iconKey)
+    : slug
+      ? getIntegrationIconForSlug(slug)
+      : undefined;
+  const logoAlt = integrationLogoAltText(name);
 
   return (
     <div className={cn("shrink-0", containerClassNames[size])}>
@@ -60,17 +74,23 @@ export function IntegrationLogoMark({
         width="full"
         height="full"
       >
-        {logoSrc ? (
+        {icon ? (
+          <SimpleBrandIcon
+            aria-hidden={false}
+            aria-label={logoAlt}
+            className={imageSizeClassNames[size]}
+            colored
+            icon={icon}
+            role="img"
+          />
+        ) : logoSrc ? (
           <Image
-            alt=""
-            aria-hidden
+            alt={logoAlt}
             className={cn("object-contain", imageSizeClassNames[size])}
             height={32}
             src={logoSrc}
             width={32}
           />
-        ) : icon ? (
-          <SimpleBrandIcon className={imageSizeClassNames[size]} colored icon={icon} />
         ) : (
           <span className="text-sm font-semibold text-muted-foreground">{name.slice(0, 1)}</span>
         )}

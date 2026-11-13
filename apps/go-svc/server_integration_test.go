@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -55,7 +56,7 @@ func startTestServer(t *testing.T, h *handler) (baseURL string, server *http.Ser
 
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})
-	rootHandler := requestLogMiddleware(withOptionalPrefix(publicPathPrefix, mux))
+	rootHandler := requestLogMiddleware(mux)
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -68,7 +69,9 @@ func startTestServer(t *testing.T, h *handler) (baseURL string, server *http.Ser
 	}()
 	t.Cleanup(func() {
 		_ = srv.Close()
-		<-serveErrCh
+		if err := <-serveErrCh; err != nil && !errors.Is(err, http.ErrServerClosed) {
+			t.Errorf("server exited with unexpected error: %v", err)
+		}
 	})
 
 	return "http://" + listener.Addr().String(), srv

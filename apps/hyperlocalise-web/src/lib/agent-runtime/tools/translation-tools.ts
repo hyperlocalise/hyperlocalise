@@ -43,6 +43,7 @@ import {
 } from "@/lib/activity-log/job-automation-events";
 import { assertOrganizationCanEnqueueTranslationJobInTransaction } from "@/lib/security/organization-operation-budget";
 import type { DatabaseTransaction } from "@/lib/database/client";
+import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
 
 import {
   toolAccessibleJobsWhere,
@@ -339,10 +340,10 @@ async function createQueuedJob(
         rollbackJobCreation(budgetResult.error);
       }
 
-      const [createdJob] = await tx
-        .insert(schema.jobs)
-        .values(queuedJobValues(ctx, input))
-        .returning();
+      const [createdJob] = await insertJobs(tx, {
+        values: queuedJobValues(ctx, input),
+        returning: "all",
+      });
 
       if (!createdJob) {
         rollbackJobCreation(jobInsertFailedError());
@@ -569,18 +570,16 @@ async function createTranslationJobRecord(
 ): Promise<Result<TranslationJobRecordResult, JobCreationError>> {
   try {
     const recordResult = await ctx.db.transaction(async (tx) => {
-      const [createdJob] = await tx
-        .insert(schema.jobs)
-        .values(
-          queuedJobValues(ctx, {
-            jobId: options?.jobId,
-            kind: "translation",
-            inputPayload: preparedInput.inputPayload,
-            interactionId: options?.interactionId,
-          }),
-        )
-        .onConflictDoNothing({ target: schema.jobs.id })
-        .returning();
+      const [createdJob] = await insertJobs(tx, {
+        values: queuedJobValues(ctx, {
+          jobId: options?.jobId,
+          kind: "translation",
+          inputPayload: preparedInput.inputPayload,
+          interactionId: options?.interactionId,
+        }),
+        onConflict: { action: "doNothing" },
+        returning: "all",
+      });
 
       if (!createdJob) {
         if (!options?.jobId) {
@@ -712,18 +711,16 @@ async function enqueueTranslationJob(input: {
         type: input.type,
       });
 
-      const [claimedJob] = await tx
-        .update(schema.jobs)
-        .set({ workflowRunId: result.ids[0] ?? null })
-        .where(
-          and(
-            eq(schema.jobs.id, input.job.id),
-            eq(schema.jobs.organizationId, input.ctx.organizationId),
-            eq(schema.jobs.status, "queued"),
-            isNull(schema.jobs.workflowRunId),
-          ),
-        )
-        .returning({ workflowRunId: schema.jobs.workflowRunId });
+      const [claimedJob] = await updateJobs(tx, {
+        set: { workflowRunId: result.ids[0] ?? null },
+        where: and(
+          eq(schema.jobs.id, input.job.id),
+          eq(schema.jobs.organizationId, input.ctx.organizationId),
+          eq(schema.jobs.status, "queued"),
+          isNull(schema.jobs.workflowRunId),
+        ),
+        returning: { workflowRunId: schema.jobs.workflowRunId },
+      });
 
       if (!claimedJob) {
         const [ownedJob] = await tx
@@ -747,21 +744,19 @@ async function enqueueTranslationJob(input: {
 
     return ok(claimed);
   } catch (error) {
-    const [failedJob] = await input.ctx.db
-      .update(schema.jobs)
-      .set({
+    const [failedJob] = await updateJobs(input.ctx.db, {
+      set: {
         status: "failed",
         lastError: error instanceof Error ? error.message : "translation job queue unavailable",
-      })
-      .where(
-        and(
-          eq(schema.jobs.id, input.job.id),
-          eq(schema.jobs.organizationId, input.ctx.organizationId),
-          eq(schema.jobs.status, "queued"),
-          isNull(schema.jobs.workflowRunId),
-        ),
-      )
-      .returning({ id: schema.jobs.id });
+      },
+      where: and(
+        eq(schema.jobs.id, input.job.id),
+        eq(schema.jobs.organizationId, input.ctx.organizationId),
+        eq(schema.jobs.status, "queued"),
+        isNull(schema.jobs.workflowRunId),
+      ),
+      returning: { id: schema.jobs.id },
+    });
 
     if (!failedJob) {
       const [ownedJob] = await input.ctx.db
@@ -958,15 +953,13 @@ async function createReviewJobRecord(
         rollbackJobCreation(budgetResult.error);
       }
 
-      const [createdJob] = await tx
-        .insert(schema.jobs)
-        .values(
-          queuedJobValues(ctx, {
-            kind: "review",
-            inputPayload: input,
-          }),
-        )
-        .returning();
+      const [createdJob] = await insertJobs(tx, {
+        values: queuedJobValues(ctx, {
+          kind: "review",
+          inputPayload: input,
+        }),
+        returning: "all",
+      });
 
       if (!createdJob) {
         rollbackJobCreation(jobInsertFailedError());
@@ -1017,30 +1010,26 @@ async function enqueueReviewJob(input: {
       projectId: input.projectId,
     });
 
-    await input.ctx.db
-      .update(schema.jobs)
-      .set({ workflowRunId: result.ids[0] ?? null })
-      .where(
-        and(
-          eq(schema.jobs.id, input.job.id),
-          eq(schema.jobs.organizationId, input.ctx.organizationId),
-        ),
-      );
+    await updateJobs(input.ctx.db, {
+      set: { workflowRunId: result.ids[0] ?? null },
+      where: and(
+        eq(schema.jobs.id, input.job.id),
+        eq(schema.jobs.organizationId, input.ctx.organizationId),
+      ),
+    });
 
     return ok(undefined);
   } catch (error) {
-    await input.ctx.db
-      .update(schema.jobs)
-      .set({
+    await updateJobs(input.ctx.db, {
+      set: {
         status: "failed",
         lastError: error instanceof Error ? error.message : "review job queue unavailable",
-      })
-      .where(
-        and(
-          eq(schema.jobs.id, input.job.id),
-          eq(schema.jobs.organizationId, input.ctx.organizationId),
-        ),
-      );
+      },
+      where: and(
+        eq(schema.jobs.id, input.job.id),
+        eq(schema.jobs.organizationId, input.ctx.organizationId),
+      ),
+    });
 
     await enqueueJobFailedActivity({
       actorCredentialId: null,
@@ -1194,15 +1183,13 @@ async function createSyncJobRecord(
         rollbackJobCreation(budgetResult.error);
       }
 
-      const [createdJob] = await tx
-        .insert(schema.jobs)
-        .values(
-          queuedJobValues(ctx, {
-            kind: "sync",
-            inputPayload: input,
-          }),
-        )
-        .returning();
+      const [createdJob] = await insertJobs(tx, {
+        values: queuedJobValues(ctx, {
+          kind: "sync",
+          inputPayload: input,
+        }),
+        returning: "all",
+      });
 
       if (!createdJob) {
         rollbackJobCreation(jobInsertFailedError());
@@ -1301,15 +1288,13 @@ async function createAssetManagementJobRecord(
         rollbackJobCreation(budgetResult.error);
       }
 
-      const [createdJob] = await tx
-        .insert(schema.jobs)
-        .values(
-          queuedJobValues(ctx, {
-            kind: "asset_management",
-            inputPayload: input,
-          }),
-        )
-        .returning();
+      const [createdJob] = await insertJobs(tx, {
+        values: queuedJobValues(ctx, {
+          kind: "asset_management",
+          inputPayload: input,
+        }),
+        returning: "all",
+      });
 
       if (!createdJob) {
         rollbackJobCreation(jobInsertFailedError());

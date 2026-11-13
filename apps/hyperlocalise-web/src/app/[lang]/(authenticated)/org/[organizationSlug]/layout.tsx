@@ -10,10 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell/app-shell";
-import { AppShellSkeleton } from "@/components/app-shell/app-shell-skeleton";
 import { AutumnBillingProvider } from "@/lib/billing/autumn-billing-provider";
 import { isAutumnConfigured } from "@/lib/billing/autumn-config";
 
@@ -24,15 +23,13 @@ type OrganizationLayoutProps = {
   }>;
 };
 
-export default function OrganizationLayout({ children, params }: OrganizationLayoutProps) {
+export default async function OrganizationLayout({ children, params }: OrganizationLayoutProps) {
   const autumnConfigured = isAutumnConfigured();
 
   return (
-    <Suspense fallback={<AppShellSkeleton>{children}</AppShellSkeleton>}>
-      <OrganizationLayoutContent autumnConfigured={autumnConfigured} params={params}>
-        {children}
-      </OrganizationLayoutContent>
-    </Suspense>
+    <OrganizationLayoutContent autumnConfigured={autumnConfigured} params={params}>
+      {children}
+    </OrganizationLayoutContent>
   );
 }
 

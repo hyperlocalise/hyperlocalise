@@ -12,22 +12,24 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
+import { createElement, useMemo, useState } from "react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 import {
   BookOpenTextIcon,
-  Building06Icon,
-  Cancel01Icon,
+  BuildingOfficeIcon,
+  XIcon,
   DatabaseIcon,
-  File01Icon,
-  FilterIcon,
-  FolderLibraryIcon,
-  Key01Icon,
-  PuzzleIcon,
-  TextFontIcon,
-  UserGroup02Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  FileIcon,
+  FunnelIcon,
+  FoldersIcon,
+  GitBranchIcon,
+  KeyIcon,
+  PuzzlePieceIcon,
+  ChatCircleIcon,
+  GlobeIcon,
+  TextTIcon,
+  UsersThreeIcon,
+} from "@phosphor-icons/react";
 
 import {
   IMPLEMENTED_ACTIVITY_EVENT_TYPES,
@@ -57,31 +59,58 @@ import { activityLogsPageContentMessages as messages } from "./activity-logs-pag
 
 type EventTypeGroup = {
   eventTypes: readonly ImplementedActivityEventType[];
-  icon: typeof UserGroup02Icon;
+  icon: typeof UsersThreeIcon;
   label: MessageDescriptor;
 };
 
 const eventTypeGroups: readonly EventTypeGroup[] = [
   {
-    icon: UserGroup02Icon,
+    icon: UsersThreeIcon,
     label: messages.membershipEventGroup,
-    eventTypes: ["member_invited", "member_invite_resent", "member_role_changed", "member_removed"],
+    eventTypes: [
+      "member_invited",
+      "member_invite_resent",
+      "member_invite_revoked",
+      "member_joined",
+      "member_role_changed",
+      "member_removed",
+      "member_left",
+    ],
   },
-  { icon: Building06Icon, label: messages.workspaceEventGroup, eventTypes: ["workspace_updated"] },
   {
-    icon: Key01Icon,
+    icon: BuildingOfficeIcon,
+    label: messages.workspaceEventGroup,
+    eventTypes: ["workspace_updated", "workspace_archived"],
+  },
+  {
+    icon: KeyIcon,
     label: messages.accessEventGroup,
-    eventTypes: ["personal_access_token_created", "personal_access_token_revoked"],
+    eventTypes: [
+      "personal_access_token_created",
+      "personal_access_token_revoked",
+      "organization_api_key_created",
+      "organization_api_key_revoked",
+    ],
   },
   {
-    icon: PuzzleIcon,
+    icon: PuzzlePieceIcon,
     label: messages.integrationEventGroup,
-    eventTypes: ["integration_connected", "integration_disconnected"],
+    eventTypes: [
+      "integration_connected",
+      "integration_disconnected",
+      "integration_credential_revealed",
+      "integration_credential_rotated",
+    ],
   },
   {
-    icon: FolderLibraryIcon,
+    icon: FoldersIcon,
     label: messages.projectEventGroup,
-    eventTypes: ["project_created", "project_deleted", "project_settings_changed"],
+    eventTypes: [
+      "project_created",
+      "project_deleted",
+      "project_settings_changed",
+      "project_strings_updated",
+    ],
   },
   {
     icon: BookOpenTextIcon,
@@ -111,22 +140,48 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
   {
     icon: DatabaseIcon,
     label: messages.jobEventGroup,
-    eventTypes: ["job_created", "job_cancelled", "job_failed"],
+    eventTypes: ["job_created", "job_cancelled", "job_failed", "job_updated"],
   },
   {
-    icon: PuzzleIcon,
+    icon: PuzzlePieceIcon,
     label: messages.automationEventGroup,
-    eventTypes: ["automation_run_started", "automation_enabled", "automation_disabled"],
+    eventTypes: [
+      "automation_created",
+      "automation_deleted",
+      "automation_run_started",
+      "automation_enabled",
+      "automation_disabled",
+    ],
   },
   {
-    icon: File01Icon,
+    icon: GitBranchIcon,
+    label: messages.visualWorkflowEventGroup,
+    eventTypes: [
+      "visual_workflow_created",
+      "visual_workflow_deleted",
+      "visual_workflow_published",
+      "visual_workflow_enabled",
+      "visual_workflow_disabled",
+      "visual_workflow_run_started",
+      "visual_workflow_approval_requested",
+      "visual_workflow_approval_decided",
+    ],
+  },
+  {
+    icon: ChatCircleIcon,
+    label: messages.queryEventGroup,
+    eventTypes: ["query_created", "query_deleted", "query_imported"],
+  },
+  {
+    icon: FileIcon,
     label: messages.fileEventGroup,
     eventTypes: ["file_uploaded", "file_translations_imported"],
   },
   {
-    icon: TextFontIcon,
+    icon: TextTIcon,
     label: messages.stringSegmentEventGroup,
     eventTypes: [
+      "string_segment_translation_updated",
       "string_segment_approved",
       "string_segment_status_changed",
       "string_segment_hidden",
@@ -136,21 +191,50 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
       "string_segment_commented",
     ],
   },
+  {
+    icon: BookOpenTextIcon,
+    label: messages.dictionaryEventGroup,
+    eventTypes: [
+      "dictionary_created",
+      "dictionary_deleted",
+      "dictionary_imported",
+      "dictionary_project_attached",
+    ],
+  },
+  {
+    icon: GlobeIcon,
+    label: messages.linkedDomainEventGroup,
+    eventTypes: [
+      "linked_domain_created",
+      "linked_domain_verified",
+      "linked_domain_cancelled",
+      "linked_domain_markets_changed",
+    ],
+  },
 ];
 
 const eventTypeLabels = {
   member_invited: messages.memberInvitedEventType,
   member_invite_resent: messages.memberInviteResentEventType,
+  member_invite_revoked: messages.memberInviteRevokedEventType,
+  member_joined: messages.memberJoinedEventType,
   member_role_changed: messages.memberRoleChangedEventType,
   member_removed: messages.memberRemovedEventType,
+  member_left: messages.memberLeftEventType,
   workspace_updated: messages.workspaceUpdatedEventType,
+  workspace_archived: messages.workspaceArchivedEventType,
   personal_access_token_created: messages.personalAccessTokenCreatedEventType,
   personal_access_token_revoked: messages.personalAccessTokenRevokedEventType,
+  organization_api_key_created: messages.organizationApiKeyCreatedEventType,
+  organization_api_key_revoked: messages.organizationApiKeyRevokedEventType,
   integration_connected: messages.integrationConnectedEventType,
   integration_disconnected: messages.integrationDisconnectedEventType,
+  integration_credential_revealed: messages.integrationCredentialRevealedEventType,
+  integration_credential_rotated: messages.integrationCredentialRotatedEventType,
   project_created: messages.projectCreatedEventType,
   project_deleted: messages.projectDeletedEventType,
   project_settings_changed: messages.projectSettingsChangedEventType,
+  project_strings_updated: messages.projectStringsUpdatedEventType,
   glossary_created: messages.glossaryCreatedEventType,
   glossary_deleted: messages.glossaryDeletedEventType,
   glossary_imported: messages.glossaryImportedEventType,
@@ -167,11 +251,26 @@ const eventTypeLabels = {
   job_created: messages.jobCreatedEventType,
   job_cancelled: messages.jobCancelledEventType,
   job_failed: messages.jobFailedEventType,
+  job_updated: messages.jobUpdatedEventType,
+  automation_created: messages.automationCreatedEventType,
+  automation_deleted: messages.automationDeletedEventType,
   automation_run_started: messages.automationRunStartedEventType,
   automation_enabled: messages.automationEnabledEventType,
   automation_disabled: messages.automationDisabledEventType,
+  visual_workflow_created: messages.visualWorkflowCreatedEventType,
+  visual_workflow_deleted: messages.visualWorkflowDeletedEventType,
+  visual_workflow_published: messages.visualWorkflowPublishedEventType,
+  visual_workflow_enabled: messages.visualWorkflowEnabledEventType,
+  visual_workflow_disabled: messages.visualWorkflowDisabledEventType,
+  visual_workflow_run_started: messages.visualWorkflowRunStartedEventType,
+  visual_workflow_approval_requested: messages.visualWorkflowApprovalRequestedEventType,
+  visual_workflow_approval_decided: messages.visualWorkflowApprovalDecidedEventType,
+  query_created: messages.queryCreatedEventType,
+  query_deleted: messages.queryDeletedEventType,
+  query_imported: messages.queryImportedEventType,
   file_uploaded: messages.fileUploadedEventType,
   file_translations_imported: messages.fileTranslationsImportedEventType,
+  string_segment_translation_updated: messages.stringSegmentTranslationUpdatedEventType,
   string_segment_approved: messages.stringSegmentApprovedEventType,
   string_segment_status_changed: messages.stringSegmentStatusChangedEventType,
   string_segment_hidden: messages.stringSegmentHiddenEventType,
@@ -179,7 +278,17 @@ const eventTypeLabels = {
   string_segment_locked: messages.stringSegmentLockedEventType,
   string_segment_unlocked: messages.stringSegmentUnlockedEventType,
   string_segment_commented: messages.stringSegmentCommentedEventType,
+  dictionary_created: messages.dictionaryCreatedEventType,
+  dictionary_deleted: messages.dictionaryDeletedEventType,
+  dictionary_imported: messages.dictionaryImportedEventType,
+  dictionary_project_attached: messages.dictionaryProjectAttachedEventType,
+  linked_domain_created: messages.linkedDomainCreatedEventType,
+  linked_domain_verified: messages.linkedDomainVerifiedEventType,
+  linked_domain_cancelled: messages.linkedDomainCancelledEventType,
+  linked_domain_markets_changed: messages.linkedDomainMarketsChangedEventType,
 } satisfies Record<ImplementedActivityEventType, MessageDescriptor>;
+
+export const activityLogEventTypeLabels = eventTypeLabels;
 
 export function ActivityLogEventTypeFilter({
   value,
@@ -218,7 +327,7 @@ export function ActivityLogEventTypeFilter({
           }
         >
           <span className="flex min-w-0 items-center gap-2">
-            <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3.5 shrink-0" />
+            <FunnelIcon className="size-3.5 shrink-0" />
             <span className="truncate">
               {value.length === 0 ? (
                 <FormattedMessage {...messages.allEventTypes} />
@@ -239,7 +348,7 @@ export function ActivityLogEventTypeFilter({
         <PopoverContent align="start" className="w-[min(24rem,calc(100vw-2rem))] gap-3 p-2">
           <PopoverHeader className="flex-row items-center justify-between px-2 pt-1">
             <PopoverTitle className="flex items-center gap-2 text-sm font-medium">
-              <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3.5 text-primary" />
+              <FunnelIcon className="size-3.5 text-primary" />
               <FormattedMessage {...messages.eventTypePickerTitle} />
             </PopoverTitle>
             <div className="flex items-center gap-1">
@@ -274,11 +383,7 @@ export function ActivityLogEventTypeFilter({
                   key={group.label.id}
                   heading={
                     <span className="flex items-center gap-2">
-                      <HugeiconsIcon
-                        icon={group.icon}
-                        strokeWidth={1.8}
-                        className="size-3.5 text-muted-foreground"
-                      />
+                      {createElement(group.icon, { className: "size-3.5 text-muted-foreground" })}
                       <span>{intl.formatMessage(group.label)}</span>
                     </span>
                   }
@@ -321,7 +426,7 @@ export function ActivityLogEventTypeFilter({
                   aria-label={intl.formatMessage(messages.removeEventType, { eventType: label })}
                   onClick={() => toggleEventType(eventType)}
                 >
-                  <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+                  <XIcon />
                 </Button>
               </Badge>
             );

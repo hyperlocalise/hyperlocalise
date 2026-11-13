@@ -611,6 +611,14 @@ func (m *runInteractiveModel) refreshStep() {
 	}
 }
 
+func (m *runInteractiveModel) refreshStepPreservingSelection() {
+	index := m.list.Index()
+	m.refreshStep()
+	if count := len(m.list.Items()); count > 0 {
+		m.list.Select(min(max(index, 0), count-1))
+	}
+}
+
 func (m *runInteractiveModel) setListItems(items []runInteractiveListItem) {
 	listItems := make([]list.Item, 0, len(items))
 	for _, item := range items {
@@ -889,7 +897,7 @@ func (m *runInteractiveModel) mutateOption(value string, delta int) {
 		m.refreshStep()
 		return
 	}
-	m.refreshStep()
+	m.refreshStepPreservingSelection()
 }
 
 func (m *runInteractiveModel) mutateExperimentalOption(value string, delta int) {
@@ -921,7 +929,7 @@ func (m *runInteractiveModel) mutateExperimentalOption(value string, delta int) 
 		m.refreshStep()
 		return
 	}
-	m.refreshStep()
+	m.refreshStepPreservingSelection()
 }
 
 func runInteractiveStepsForMode(mode runInteractiveMode) []runInteractiveStep {

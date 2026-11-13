@@ -70,6 +70,8 @@ export type RepositoryGitHubContextResolution =
       status: "unresolved";
       context: UnresolvedRepositoryAgentGitHubContext;
       followUp: string;
+      /** Answers the user can pick from, such as the enabled repositories. */
+      options?: string[];
     };
 
 export type RepositoryGitHubContextDependencies = {
@@ -185,6 +187,7 @@ export async function resolveConversationRepositoryGitHubContext(input: {
       "Multiple GitHub repositories are enabled and the request did not identify which one to use.",
       "Reply with owner/repository, a GitHub URL, or the repository name from the list.",
       buildMultipleRepositorySelectionFollowUp(installedRepositories),
+      repositorySelectionOptions(installedRepositories),
     );
   }
 
@@ -645,10 +648,19 @@ function getGitHubRawCommitSha(raw: GitHubRawMessage): string | null {
     : null;
 }
 
+const MAX_REPOSITORY_SELECTION_OPTIONS = 8;
+
+function repositorySelectionOptions(repositories: EnabledGitHubRepository[]): string[] {
+  return repositories
+    .map((repository) => repository.repositoryFullName)
+    .slice(0, MAX_REPOSITORY_SELECTION_OPTIONS);
+}
+
 function unresolved(
   reason: string,
   hint: string,
   followUp: string,
+  options?: string[],
 ): Extract<RepositoryGitHubContextResolution, { status: "unresolved" }> {
   return {
     status: "unresolved",
@@ -658,6 +670,7 @@ function unresolved(
       hint,
     },
     followUp,
+    ...(options && options.length > 0 ? { options } : {}),
   };
 }
 

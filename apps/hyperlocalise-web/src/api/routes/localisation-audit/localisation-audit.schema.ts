@@ -16,7 +16,7 @@ import { normalizeAppLocale, SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locale
 
 export const startLocalisationAuditBodySchema = z.object({
   url: z.string().trim().min(1).max(2_048),
-  focusLocales: z.array(z.string().trim().min(2).max(16)).max(2).optional(),
+  focusLocales: z.array(z.string().trim().min(2).max(40)).max(2).optional(),
 });
 
 export const unlockLocalisationAuditBodySchema = z.object({

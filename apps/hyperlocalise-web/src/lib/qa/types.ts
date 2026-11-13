@@ -1,0 +1,86 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { MessageFormat } from "@/lib/i18n/message-format";
+
+/** Checks a project scan can store. Guideline review runs in the editor only. */
+export const translationQaScanCheckTypes = [
+  "not_localized",
+  "whitespace_only",
+  "same_as_source",
+  "escaped_char_mismatch",
+  "length",
+  "placeholder_mismatch",
+  "glossary_violation",
+  "format",
+  "spelling",
+  "numbers_mismatch",
+  "punctuation_mismatch",
+  "character_case_mismatch",
+  "unreachable_plural_case",
+] as const;
+
+export const translationQaCheckTypes = [...translationQaScanCheckTypes, "guideline"] as const;
+
+export type TranslationQaCheckType = (typeof translationQaCheckTypes)[number];
+
+export const translationQaSeverities = ["error", "warning"] as const;
+
+export type TranslationQaSeverity = (typeof translationQaSeverities)[number];
+
+export const translationQaScanCadences = ["off", "daily"] as const;
+
+export type TranslationQaScanCadence = (typeof translationQaScanCadences)[number];
+
+export const translationQaRunTriggers = ["manual", "scheduled"] as const;
+
+export type TranslationQaRunTrigger = (typeof translationQaRunTriggers)[number];
+
+export const translationQaRunStatuses = ["queued", "running", "succeeded", "failed"] as const;
+
+export type TranslationQaRunStatus = (typeof translationQaRunStatuses)[number];
+
+export type TranslationQaGlossaryTerm = {
+  sourceTerm: string;
+  targetTerm: string;
+  targetLocale: string;
+  forbidden: boolean;
+  caseSensitive: boolean;
+};
+
+export type TranslationQaSegmentInput = {
+  sourceText: string;
+  targetText: string;
+  sourcePath?: string | null;
+  maxLength?: number | null;
+  targetLocale: string;
+  glossaryTerms?: readonly TranslationQaGlossaryTerm[];
+  messageFormat?: MessageFormat | null;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: readonly string[] | null;
+};
+
+export type TranslationQaCheck = {
+  checkType: TranslationQaCheckType;
+  severity: TranslationQaSeverity;
+  category: "qa" | "length" | "placeholder" | "glossary" | "syntax" | "spelling";
+  message: string;
+  relatedTokens: string[];
+};
+
+export type TranslationQaSummary = {
+  byCheckType: Partial<Record<TranslationQaCheckType, number>>;
+  bySeverity: Partial<Record<TranslationQaSeverity, number>>;
+  byLocale: Record<string, number>;
+  skippedChecksByLocale?: Record<string, string[]>;
+  checkVersion?: number;
+};

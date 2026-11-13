@@ -32,7 +32,12 @@ import {
 import { isErr } from "@/lib/primitives/result/results";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 
-import { badRequestResponse, payloadTooLargeResponse } from "@/api/response.schema";
+import {
+  badRequestResponse,
+  conflictResponse,
+  notFoundResponse,
+  payloadTooLargeResponse,
+} from "@/api/response.schema";
 
 import { uploadBodySchema, fileParamsSchema, maxPublicUploadBytes } from "./public-files.schema";
 import {
@@ -52,6 +57,7 @@ function asFile(value: unknown) {
 }
 
 type CreatePublicFileRoutesOptions = {
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
@@ -80,6 +86,10 @@ function sourceUploadErrorResponse(
         },
         502,
       );
+    case "protected_branch":
+      return conflictResponse(c, "protected_branch", "This branch is protected.");
+    case "branch_not_found":
+      return notFoundResponse(c, "branch_not_found", "Branch not found.");
   }
 }
 
@@ -104,6 +114,7 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           sourceLocale: asString(body.sourceLocale),
           format: asString(body.format),
           branch: asString(body.branch),
+          keepApproved: asString(body.keepApproved),
         });
 
         if (!parsed.success) {
@@ -146,8 +157,10 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           format: parsed.data.format,
           branch: parsed.data.branch,
           uploadSurface: "public_api",
+          keepApprovedTranslations: parsed.data.keepApproved === "true",
           uploadedByApiKeyId: storedOrganizationApiKeyId(c.var.auth),
           actorUserId: c.var.auth.teamAccess.user.localUserId,
+          deferAfterResponse: options.deferAfterResponse,
           fileStorageAdapter: options.fileStorageAdapter,
         });
         if (isErr(result)) {

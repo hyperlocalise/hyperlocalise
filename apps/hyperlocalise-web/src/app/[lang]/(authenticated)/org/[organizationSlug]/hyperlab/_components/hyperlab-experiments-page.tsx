@@ -21,11 +21,13 @@ import { TypographyP } from "@/components/ui/typography";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabExperiment,
 } from "./hyperlab-api";
+import { HyperlabWorkspaceProvider } from "../store/hyperlab-workspace-context";
+
 import { HyperlabCreateExperimentDialog } from "./hyperlab-create-dialogs";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
 import { formatScheduleRange } from "./hyperlab-schedule";
@@ -46,8 +48,22 @@ export function HyperlabExperimentsPage({
   organizationSlug: string;
   canWrite: boolean;
 }) {
+  return (
+    <HyperlabWorkspaceProvider>
+      <HyperlabExperimentsPageView organizationSlug={organizationSlug} canWrite={canWrite} />
+    </HyperlabWorkspaceProvider>
+  );
+}
+
+function HyperlabExperimentsPageView({
+  organizationSlug,
+  canWrite,
+}: {
+  organizationSlug: string;
+  canWrite: boolean;
+}) {
   const intl = useIntl();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const experimentsQuery = useQuery({
     queryKey: hyperlabQueryKeys.experiments(organizationSlug),
     queryFn: async () => {
@@ -65,11 +81,7 @@ export function HyperlabExperimentsPage({
   ) : null;
 
   return (
-    <HyperlabPageShell
-      title={intl.formatMessage(messages.experimentsTitle)}
-      description={intl.formatMessage(messages.experimentsDescription)}
-      actions={createAction}
-    >
+    <HyperlabPageShell title={intl.formatMessage(messages.experimentsTitle)} actions={createAction}>
       {experimentsQuery.isError ? (
         <HyperlabLoadError
           error={experimentsQuery.error}

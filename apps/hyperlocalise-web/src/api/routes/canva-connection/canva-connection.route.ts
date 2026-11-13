@@ -16,6 +16,14 @@ import { validator } from "hono/validator";
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import {
+  enqueueIntegrationConnectedActivity,
+  enqueueIntegrationCredentialRotatedActivity,
+  enqueueIntegrationDisconnectedActivity,
+} from "@/lib/activity-log/integration-events";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { completeCanvaConnectionClaim } from "@/lib/canva/connection-claims";
 import {
   createCanvaConnection,
@@ -104,6 +112,12 @@ function mapCreateError(c: Parameters<typeof badRequestResponse>[0], error: unkn
       );
     case "canva_project_not_found":
       return notFoundResponse(c, error.message, "Project was not found for this workspace.");
+    case "canva_project_source_locale_missing":
+      return badRequestResponse(
+        c,
+        error.message,
+        "The selected project must have a source locale.",
+      );
     default:
       return badRequestResponse(c, "canva_connection_create_failed");
   }
@@ -137,9 +151,18 @@ export function createCanvaConnectionRoutes() {
           displayName: payload.displayName,
           apiKeyId: payload.apiKeyId,
           projectId: payload.projectId,
-          sourceLocale: payload.sourceLocale,
-          targetLocales: payload.targetLocales,
           enabled: payload.enabled,
+        });
+
+        serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
+          status: "created",
+          source: "canva",
+        });
+        await enqueueIntegrationConnectedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          connectionId: result.connection.id,
+          integrationKind: "canva",
+          organizationId: c.var.auth.organization.localOrganizationId,
         });
 
         return c.json(
@@ -210,6 +233,13 @@ export function createCanvaConnectionRoutes() {
         return notFoundResponse(c, "canva_connection_not_found");
       }
 
+      await enqueueIntegrationDisconnectedActivity({
+        ...sessionActivityActor(c.var.auth.user.localUserId),
+        connectionId: params.connectionId,
+        integrationKind: "canva",
+        organizationId: c.var.auth.organization.localOrganizationId,
+      });
+
       return c.body(null, 204);
     })
     .post("/:connectionId/regenerate-token", validateConnectionIdParams, async (c) => {
@@ -227,6 +257,13 @@ export function createCanvaConnectionRoutes() {
       if (!result) {
         return notFoundResponse(c, "canva_connection_not_found");
       }
+
+      await enqueueIntegrationCredentialRotatedActivity({
+        ...sessionActivityActor(c.var.auth.user.localUserId),
+        connectionId: params.connectionId,
+        integrationKind: "canva",
+        organizationId: c.var.auth.organization.localOrganizationId,
+      });
 
       return c.json(
         {

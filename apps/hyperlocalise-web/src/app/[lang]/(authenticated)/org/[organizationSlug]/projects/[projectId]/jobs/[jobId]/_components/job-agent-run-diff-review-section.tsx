@@ -13,13 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useMemo, useState } from "react";
-import {
-  Cancel01Icon,
-  CheckmarkCircle02Icon,
-  Search01Icon,
-  Tick02Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { XIcon, CheckCircleIcon, MagnifyingGlassIcon, CheckIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -191,7 +185,7 @@ function ProposalDiffRow({
               disabled={disabled || item.reviewState === "accepted"}
               onClick={() => onAccept(item.itemId)}
             >
-              <HugeiconsIcon icon={Tick02Icon} strokeWidth={1.8} />
+              <CheckIcon />
               <FormattedMessage {...messages.accept} />
             </Button>
             <Button
@@ -200,7 +194,7 @@ function ProposalDiffRow({
               disabled={disabled || item.reviewState === "rejected"}
               onClick={() => onReject(item.itemId)}
             >
-              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={1.8} />
+              <XIcon />
               <FormattedMessage {...messages.reject} />
             </Button>
           </div>
@@ -434,11 +428,7 @@ export function JobAgentRunDiffReviewSection({
 
       <div className="mt-4 flex flex-wrap gap-2">
         <div className="relative min-w-[12rem] flex-1">
-          <HugeiconsIcon
-            icon={Search01Icon}
-            strokeWidth={1.8}
-            className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground"
-          />
+          <MagnifyingGlassIcon className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.currentTarget.value)}
@@ -521,7 +511,7 @@ export function JobAgentRunDiffReviewSection({
           disabled={reviewMutation.isPending}
           onClick={() => applyBulk("accepted", "pending")}
         >
-          <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={1.8} />
+          <CheckCircleIcon />
           <FormattedMessage {...messages.acceptAllPending} />
         </Button>
         <Button

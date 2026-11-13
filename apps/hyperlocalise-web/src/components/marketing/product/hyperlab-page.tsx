@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRightIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -43,6 +42,7 @@ import {
   type HyperlabSceneId,
 } from "./hyperlab-mock-ui";
 import { hyperlabPageMessages as messages } from "./hyperlab-page.messages";
+import { ProductHowItWorksNarrativeSection } from "./product-how-it-works-narrative-section";
 
 const solutionIds = [
   "flags",
@@ -433,8 +433,7 @@ export function HyperlabPage() {
                 nativeButton={false}
                 render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
               >
-                <FormattedMessage {...messages.requestDemo} />{" "}
-                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                <FormattedMessage {...messages.requestDemo} /> <ArrowRightIcon className="size-4" />
               </Button>
               <Button
                 size="lg"
@@ -470,6 +469,8 @@ export function HyperlabPage() {
             </span>
           </div>
         </section>
+
+        <ProductHowItWorksNarrativeSection narrative={messages.howItWorksNarrative} />
 
         <HyperlabSolutions />
         <CompareSection />
@@ -538,7 +539,7 @@ export function HyperlabPage() {
                   render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
                 >
                   <FormattedMessage {...messages.requestDemo} />{" "}
-                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                  <ArrowRightIcon className="size-4" />
                 </Button>
                 <span className="text-xs text-[#e5edf9]">
                   <FormattedMessage {...messages.ctaNote} />

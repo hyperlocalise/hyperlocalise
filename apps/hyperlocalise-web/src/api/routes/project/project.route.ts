@@ -10,10 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
@@ -21,40 +20,29 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import {
+  apiErrorResponse,
   badRequestResponse,
   conflictResponse,
   forbiddenResponse as sharedForbiddenResponse,
+  internalErrorResponse,
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
-import {
-  deleteProjectWithTeamGlossaryGuard,
-  glossaryTeamProjectRequiredResponse,
-} from "@/api/routes/glossary/glossary.shared";
+import { createProjectQaReportScanRoutes } from "@/api/routes/project/qa-report-scan.route";
+import { createProjectContentSyncRoutes } from "@/api/routes/project/project-content-sync.route";
 import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
-import {
-  withWorkspaceResourceLimit,
-  workspaceResourceFeatureIds,
-  workspaceResourceLimitErrorDetails,
-  workspaceResourceLimitMessage,
-} from "@/lib/billing/workspace-resource-limits";
-import { FILE_SEGMENT_ACTIVITY_EVENT_TYPES } from "@/lib/activity-log/activity-log-contract";
 import {
   enqueueFileUploadedActivity,
   enqueueStringSegmentApprovedActivity,
   enqueueStringSegmentCommentedActivity,
   enqueueStringSegmentHiddenActivity,
   enqueueStringSegmentLockedActivity,
-  enqueueStringSegmentStatusChangedActivity,
+  enqueueStringSegmentTranslationUpdatedActivity,
   sessionActivityActor,
 } from "@/lib/activity-log/file-segment-events";
-import {
-  InvalidActivityLogCursorError,
-  listActivityLogEvents,
-} from "@/lib/activity-log/activity-log-reader";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
-import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { db, schema } from "@/lib/database/client";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
@@ -62,11 +50,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { isReleaseContentEditorAllFilesEnabled } from "@/lib/flags/release-flags";
 import { createLogger } from "@/lib/log";
-import { ensureDefaultNativeProjectMemory } from "@/lib/memory/ensure-default-native-project-memory";
-import {
-  insertWithAllocatedProjectIdentifier,
-  isProjectIdentifierTaken,
-} from "@/lib/projects/issue-identifier/allocate-issue-identifier";
+import { isProjectIdentifierTaken } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import {
   createRepositorySourceFileVersion,
@@ -78,24 +62,34 @@ import {
   isContentEditorAllFilesSourcePath,
   parseCatSourcePathsFilter,
 } from "@/lib/projects/content-editor-all-files";
+import { importCatBilingualRows } from "@/lib/projects/content-editor/content-editor-bilingual-import-apply";
+import {
+  inferCatBilingualFormat,
+  maxCatFilteredExportSegments,
+} from "@/lib/projects/content-editor/content-editor-filtered-export";
+import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
+import { listProjectKeyTags } from "@/lib/projects/jobs/key-job";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 
 import {
-  countTmsProviderLiveOpenJobsForProject,
   getTmsProviderLiveContentEditorAllFiles,
   getTmsProviderLiveCatFile,
+  getTmsProviderLiveCatLabels,
   getTmsProviderLiveCatSegmentComments,
   getTmsProviderLiveCatSegmentTarget,
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
   getTmsProviderLiveProjectLocaleReadiness,
+  listTmsProviderLiveFileProgress,
   listTmsProviderLiveFilesForProject,
+  listTmsProviderLiveHiddenFiles,
   listTmsProviderLiveProjectBranches,
   saveTmsProviderLiveCatTranslation,
   saveTmsProviderLiveCatComment,
   setTmsProviderLiveCatStringsHidden,
   resolveTmsProviderLiveCatComment,
 } from "@/lib/providers/jobs/tms-provider-live";
-import { listNativeProjectLocaleProgress } from "@/lib/projects/locale-progress/native-project-locale-progress";
 import { normalizeProviderLocaleProgress } from "@/lib/projects/locale-progress/provider-locale-progress";
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
@@ -108,8 +102,11 @@ import {
   saveNativeProjectContentEditorTranslation,
   setNativeProjectContentEditorStringsHidden,
   setNativeProjectContentEditorKeyMaxLength,
-  updateNativeProjectTranslationStatus,
 } from "@/lib/projects/content-editor/native-content-editor-service";
+import {
+  trackNativeCatCommentProductUsage,
+  trackNativeCatTranslationProductUsage,
+} from "@/lib/projects/content-editor/native-cat-product-analytics";
 import {
   enrichExternalContentEditorFileImageFields,
   enrichExternalContentEditorTranslationImageFields,
@@ -124,16 +121,24 @@ import {
   setCatSegmentLocks,
 } from "@/lib/projects/content-editor/content-editor-segment-lock-service";
 import { resolveProjectFileContentEditorPagination } from "@/lib/projects/content-editor/project-file-content-editor-pagination";
-import {
-  buildCatFilteredExportPayload,
-  collectCatFilteredExportRows,
-} from "@/lib/projects/content-editor/content-editor-filtered-export-service";
-import { maxCatFilteredExportSegments } from "@/lib/projects/content-editor/content-editor-filtered-export";
+import { listContentEditorActivityLogs } from "@/lib/projects/content-editor/content-editor-activity-log-service";
 import {
   getProjectFileDetail,
   listFilteredProjectFiles,
 } from "@/lib/projects/files/project-file-service";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
+import {
+  getRepositorySourceFileSegmentation,
+  updateRepositorySourceFileSegmentation,
+} from "@/lib/projects/files/source-file-segmentation";
+import {
+  getRepositorySourceFilePlaceholderSettings,
+  updateRepositorySourceFilePlaceholderSettings,
+} from "@/lib/projects/files/source-file-message-format";
+import {
+  getRepositorySourceFileImportSettings,
+  updateRepositorySourceFileImportSettings,
+} from "@/lib/projects/files/source-file-import-settings";
 import { localizeAndStoreDocumentVariant } from "@/lib/projects/files/document-variant-service";
 import {
   localizeAndStoreImageVariant,
@@ -159,6 +164,27 @@ import {
   replaceVideoUrlTranslationBytes,
   setTranslationKeyTreatAsVideo,
 } from "@/lib/projects/files/video-url-translation-service";
+import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import { loadProjectSubtitleTranslationDownload } from "@/lib/projects/files/subtitle-translation-download";
+import { loadProjectHtmlTranslationDownload } from "@/lib/projects/files/html-translation-download";
+import { loadProjectSourceFormatTranslationDownload } from "@/lib/projects/files/source-format-translation-download";
+import {
+  TRANSLATION_DOWNLOAD_FALLBACK_HEADER,
+  TRANSLATION_DOWNLOAD_JSON_FALLBACK,
+} from "@/lib/projects/files/translation-download-fallback";
+import {
+  loadProjectOfficeTranslationDownload,
+  officeTranslationDownloadFailure,
+  officeTranslationDownloadFilename,
+} from "@/lib/projects/files/office-translation-download";
+import {
+  loadProjectPdfTranslationDownload,
+  pdfTranslationDownloadFailure,
+} from "@/lib/projects/files/pdf-translation-download";
+import {
+  fileVariantDownloadName,
+  loadProjectFileVariant,
+} from "@/lib/projects/files/file-variant-download";
 import {
   lookupCachedProjectFileStringRepositoryContext,
   lookupProjectFileStringRepositoryContext,
@@ -172,21 +198,26 @@ import type {
   JobQueue,
   TranslationFileImportQueue,
   TranslationJobEventData,
+  ProjectContentSyncQueue,
+  TranslationQaScanQueue,
 } from "@/lib/workflow/types";
 import {
   createTranslationFileImportQueue,
   createTranslationJobEventQueue,
+  createTranslationQaScanQueue,
 } from "@/workflows/adapters";
 
 import {
-  createProjectBodySchema,
   maxProjectFileUploadBytes,
   projectFileCatSegmentParamsSchema,
   projectFileCatSegmentQuerySchema,
+  projectFileCatProviderActivityLogQuerySchema,
   projectFileCatQuerySchema,
-  projectFileCatActivityLogQuerySchema,
-  projectFileCatExportQuerySchema,
   projectFileCatConcordanceBodySchema,
+  projectFileCatTmSegmentGetQuerySchema,
+  projectFileCatTmSegmentPatchBodySchema,
+  projectFileCatTmSegmentDeleteQuerySchema,
+  projectFileCatTmSegmentRecordParamsSchema,
   projectFileCatCommentBodySchema,
   projectFileCatCommentResolveBodySchema,
   projectFileCatHiddenStringsBodySchema,
@@ -195,22 +226,26 @@ import {
   projectFileCatImageRegenerateBodySchema,
   projectFileCatImageStatusBodySchema,
   projectFileCatRecommendationBodySchema,
-  projectFileCatStatusBodySchema,
   projectFileCatTreatAsImageBodySchema,
   projectFileCatTreatAsVideoBodySchema,
   projectFileCatTranslationBodySchema,
   projectFileCatVisualContextBodySchema,
   projectFileDetailQuerySchema,
+  projectFileSegmentationQuerySchema,
+  updateProjectFileSegmentationBodySchema,
+  projectFileMessageFormatQuerySchema,
+  updateProjectFileMessageFormatBodySchema,
+  projectFileImportSettingsQuerySchema,
+  updateProjectFileImportSettingsBodySchema,
   projectFileStringContextBodySchema,
   projectFileUploadBodySchema,
   projectFileTranslationImportBodySchema,
   projectFileTranslationDownloadQuerySchema,
+  projectFileProgressQuerySchema,
   projectFilesQuerySchema,
   projectIdParamsSchema,
   projectFileCatCommentIdParamsSchema,
   updateProjectBodySchema,
-  updateProjectContentEditorBehaviorBodySchema,
-  type CreateProjectBody,
   type ProjectFileContentEditorQuery,
   type ProjectFileContentEditorQueueFile,
   type UpdateProjectBody,
@@ -218,10 +253,7 @@ import {
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { normalizeProjectLocalePatch, type ProjectLocalePatchError } from "@/lib/i18n/locales";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import {
-  ensureDefaultWorkspaceTeam,
-  ensureTeamMembership,
-} from "@/lib/teams/default-workspace-team";
+import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -238,21 +270,14 @@ import {
 } from "@/api/routes/glossary/glossary.shared";
 import {
   isAiActionAllowed,
-  isProjectContentEditorBehaviorMutationAllowed,
   isReviewApproveAllowed,
   isWriteBackTranslationAllowed,
 } from "@/api/auth/capability-guards";
 import {
-  previewIdenticalStringGrouping,
-  updateProjectContentEditorGroupingPolicy,
-} from "@/lib/projects/content-editor/project-content-editor-behavior-service";
-import {
-  buildAccessibleProjectsWhere,
   projectForbiddenResponse,
   getOwnedProject,
   getOwnedProjectRecord,
   invalidProjectPayloadResponse,
-  isProjectCreateAllowed,
   isProjectMutationAllowed,
   ownedProjectWhere,
   projectNotFoundResponse,
@@ -266,15 +291,24 @@ import {
 import { createJobRoutes } from "./job.route";
 import { createIssueSheetRoutes } from "./issue-sheet.route";
 import { createProjectAssetRoutes } from "./project-assets.route";
+import { createTranslationAsSourceRoutes } from "./translation-as-source.route";
+import { createProjectBranchRoutes } from "./project-branches.route";
 import {
   generateContentEditorAiRecommendation,
   loadContentEditorSegmentConcordance,
   loadContentEditorSegmentVisualContext,
 } from "@/lib/translation/content-editor-core";
 import {
+  deleteContentEditorExternalTmSegmentRecord,
+  loadContentEditorExternalTmSegment,
+  updateContentEditorExternalTmSegment,
+  type ContentEditorExternalTmSegmentError,
+} from "@/lib/translation/content-editor-external-tm-segment";
+import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedFileTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
+  inferSupportedOfficeTranslationFileFormat,
   inferSupportedSourceUploadFormat,
   inferSupportedVideoTranslationFileFormat,
   inferSupportedWholeFileTranslationFileFormat,
@@ -313,19 +347,12 @@ const projectLocalePatchErrorMessages: Record<
 };
 
 type ProjectStore = {
-  list(auth: ApiAuthContext): Promise<Project[]>;
-  create(
-    auth: ApiAuthContext,
-    payload: CreateProjectBody,
-    database?: DatabaseClient,
-  ): Promise<Project>;
   getById(auth: ApiAuthContext, projectId: string): Promise<Project | null>;
   update(
     auth: ApiAuthContext,
     projectId: string,
     payload: UpdateProjectBody,
   ): Promise<ProjectUpdateResult>;
-  delete(auth: ApiAuthContext, projectId: string): Promise<boolean>;
 };
 
 async function countOpenJobs(auth: ApiAuthContext, projectId: string): Promise<number> {
@@ -374,67 +401,6 @@ async function resolveProjectTeamId(auth: ApiAuthContext, requestedTeamId?: stri
 }
 
 const projectStore: ProjectStore = {
-  async list(auth) {
-    return db
-      .select()
-      .from(schema.projects)
-      .where(await buildAccessibleProjectsWhere(auth))
-      .orderBy(desc(schema.projects.createdAt));
-  },
-  async create(auth, payload, database = db) {
-    const teamId = await resolveProjectTeamId(auth, payload.teamId);
-    if (!teamId) {
-      throw new Error("invalid_project_team");
-    }
-
-    const [project] = await insertWithAllocatedProjectIdentifier({
-      organizationId: auth.organization.localOrganizationId,
-      name: payload.name,
-      database,
-      insert: async (identifier, attemptDb) => {
-        const created = await attemptDb
-          .insert(schema.projects)
-          .values({
-            id: `project_${randomUUID()}`,
-            organizationId: auth.organization.localOrganizationId,
-            teamId,
-            createdByUserId: auth.user.localUserId,
-            name: payload.name,
-            identifier,
-            description: payload.description ?? "",
-            translationContext: payload.translationContext ?? "",
-            source: "native",
-            sourceLocale: payload.sourceLocale,
-            targetLocales: payload.targetLocales,
-          })
-          .returning();
-        const createdProject = created[0];
-        if (createdProject) {
-          await ensureDefaultNativeProjectMemory({
-            organizationId: auth.organization.localOrganizationId,
-            projectId: createdProject.id,
-            projectName: createdProject.name,
-            createdByUserId: auth.user.localUserId,
-            database: attemptDb,
-          });
-        }
-        return created;
-      },
-    });
-
-    // Creators without teams:write only see projects on teams they belong to.
-    // Mirror team-create behavior so the new project is immediately listable.
-    if (!hasOrganizationWideProjectAccess(auth)) {
-      await ensureTeamMembership({
-        teamId,
-        userId: auth.user.localUserId,
-        role: "member",
-        database,
-      });
-    }
-
-    return project;
-  },
   async getById(auth, projectId) {
     const [project] = await db
       .select()
@@ -578,14 +544,6 @@ const projectStore: ProjectStore = {
 
     return ok(project ?? null);
   },
-  async delete(auth, projectId) {
-    const deletedProjects = await db
-      .delete(schema.projects)
-      .where(await ownedProjectWhere(auth, projectId))
-      .returning({ id: schema.projects.id });
-
-    return deletedProjects.length > 0;
-  },
 };
 
 const validateProjectParams = validator("param", (value, c) => {
@@ -633,6 +591,66 @@ const validateProjectFileDetailQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateProjectFileSegmentationQuery = validator("query", (value, c) => {
+  const parsed = projectFileSegmentationQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateUpdateProjectFileSegmentationBody = validator("json", (value, c) => {
+  const parsed = updateProjectFileSegmentationBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileMessageFormatQuery = validator("query", (value, c) => {
+  const parsed = projectFileMessageFormatQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateUpdateProjectFileMessageFormatBody = validator("json", (value, c) => {
+  const parsed = updateProjectFileMessageFormatBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileImportSettingsQuery = validator("query", (value, c) => {
+  const parsed = projectFileImportSettingsQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateUpdateProjectFileImportSettingsBody = validator("json", (value, c) => {
+  const parsed = updateProjectFileImportSettingsBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileContentEditorSegmentParams = validator("param", (value, c) => {
   const parsed = projectFileCatSegmentParamsSchema.safeParse(value);
 
@@ -653,28 +671,18 @@ const validateProjectFileContentEditorSegmentQuery = validator("query", (value, 
   return parsed.data;
 });
 
+const validateProjectFileContentEditorProviderActivityLogQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatProviderActivityLogQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileContentEditorQuery = validator("query", (value, c) => {
   const parsed = projectFileCatQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidProjectPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateProjectFileContentEditorExportQuery = validator("query", (value, c) => {
-  const parsed = projectFileCatExportQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidProjectPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateProjectFileContentEditorActivityLogQuery = validator("query", (value, c) => {
-  const parsed = projectFileCatActivityLogQuerySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -723,6 +731,51 @@ const validateProjectFileContentEditorConcordanceBody = validator("json", (value
   return parsed.data;
 });
 
+const validateProjectFileCatTmSegmentQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatTmSegmentGetQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+  return parsed.data;
+});
+
+const validateProjectFileCatTmSegmentPatchBody = validator("json", (value, c) => {
+  const parsed = projectFileCatTmSegmentPatchBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+  return parsed.data;
+});
+
+const validateProjectFileCatTmSegmentDeleteQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatTmSegmentDeleteQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+  return parsed.data;
+});
+
+const validateProjectFileCatTmSegmentRecordParams = validator("param", (value, c) => {
+  const parsed = projectFileCatTmSegmentRecordParamsSchema.safeParse(value);
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+  return parsed.data;
+});
+
+function contentEditorExternalTmSegmentErrorResponse(
+  c: Parameters<typeof notFoundResponse>[0],
+  error: ContentEditorExternalTmSegmentError,
+) {
+  if (error.code === "invalid_tm_segment") {
+    return badRequestResponse(c, error.code, error.message);
+  }
+  if (error.code === "tm_segment_unsupported") {
+    return badRequestResponse(c, error.code, error.message);
+  }
+  return notFoundResponse(c, error.code, error.message);
+}
+
 const validateProjectFileContentEditorVisualContextBody = validator("json", (value, c) => {
   const parsed = projectFileCatVisualContextBodySchema.safeParse(value);
 
@@ -735,16 +788,6 @@ const validateProjectFileContentEditorVisualContextBody = validator("json", (val
 
 const validateProjectFileContentEditorRecommendationBody = validator("json", (value, c) => {
   const parsed = projectFileCatRecommendationBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidProjectPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateProjectFileContentEditorStatusBody = validator("json", (value, c) => {
-  const parsed = projectFileCatStatusBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -909,8 +952,8 @@ const validateProjectFilesQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
-const validateCreateProjectBody = validator("json", (value, c) => {
-  const parsed = createProjectBodySchema.safeParse(value);
+const validateProjectFileProgressQuery = validator("query", (value, c) => {
+  const parsed = projectFileProgressQuerySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -929,20 +972,13 @@ const validateUpdateProjectBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateUpdateProjectContentEditorBehaviorBody = validator("json", (value, c) => {
-  const parsed = updateProjectContentEditorBehaviorBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidProjectPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
 type CreateProjectRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
+  translationQaScanQueue?: TranslationQaScanQueue;
+  projectContentSyncQueue?: ProjectContentSyncQueue;
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
 };
 
 async function withCatTeamGlossaryContext(
@@ -1007,6 +1043,7 @@ export async function loadProjectFileContentEditorQueue(
       organizationSlug,
       pagination,
       sourcePaths: sourcePathsFilter,
+      branchName: query.branch,
     });
 
     if (!contentEditorQueue) {
@@ -1119,77 +1156,33 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
   const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
   const translationFileImportQueue =
     options.translationFileImportQueue ?? createTranslationFileImportQueue();
-
+  const translationQaScanQueue = options.translationQaScanQueue ?? createTranslationQaScanQueue();
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
       const projects = await listOrganizationProjects(c.var.auth);
       return c.json({ projects }, 200);
     })
-    .post("/", validateCreateProjectBody, async (c) => {
-      if (!isProjectCreateAllowed(c.var.auth.membership.role)) {
-        return projectForbiddenResponse(c);
-      }
-
-      const payload = c.req.valid("json");
-
-      try {
-        const limitResult = await withWorkspaceResourceLimit(
-          {
-            organizationId: c.var.auth.organization.localOrganizationId,
-            featureId: workspaceResourceFeatureIds.projects,
-          },
-          async (tx) => projectStore.create(c.var.auth, payload, tx),
-        );
-        if (!limitResult.ok) {
-          if (limitResult.error.code === "workspace_resource_limit_check_failed") {
-            return serviceUnavailableResponse(
-              c,
-              limitResult.error.code,
-              "Unable to verify project limits. Try again later.",
-            );
-          }
-
-          return conflictResponse(
-            c,
-            limitResult.error.code,
-            workspaceResourceLimitMessage(limitResult.error.featureId),
-            workspaceResourceLimitErrorDetails(limitResult.error),
-          );
-        }
-
-        const project = limitResult.value;
-        await enqueueActivityLogEvent({
-          actorCredentialId: null,
-          actorKind: "user",
-          actorUserId: c.var.auth.user.localUserId,
-          eventType: "project_created",
-          organizationId: c.var.auth.organization.localOrganizationId,
-          payload: {
-            name: project.name,
-            providerKind: project.externalProviderKind ?? undefined,
-            resourceId: project.id,
-            source: project.source,
-          },
-          targetId: project.id,
-          targetKind: "project",
-        });
-        return c.json({ project: { ...project, openJobCount: 0 } }, 201);
-      } catch (error) {
-        if (error instanceof Error && error.message === "invalid_project_team") {
-          return invalidProjectPayloadResponse(c);
-        }
-
-        throw error;
-      }
-    })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .route("/:projectId/issue-sheet", createIssueSheetRoutes())
     .route("/:projectId/knowledge-memory", createProjectKnowledgeMemoryRoutes())
+    .route("/:projectId/qa-reports", createProjectQaReportScanRoutes({ translationQaScanQueue }))
+    .route(
+      "/:projectId/content-sync",
+      createProjectContentSyncRoutes({ projectContentSyncQueue: options.projectContentSyncQueue }),
+    )
     .route(
       "/:projectId/assets",
       createProjectAssetRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
+    .route(
+      "/:projectId/files/translation-source",
+      createTranslationAsSourceRoutes({
+        fileStorageAdapter: options.fileStorageAdapter,
+        deferAfterResponse: options.deferAfterResponse,
+      }),
+    )
+    .route("/:projectId/branches", createProjectBranchRoutes())
     .get(
       "/:projectId/files/detail/cat/queue",
       validateProjectParams,
@@ -1229,7 +1222,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .get(
       "/:projectId/files/detail/cat/activity-logs",
       validateProjectParams,
-      validateProjectFileContentEditorActivityLogQuery,
+      validateProjectFileContentEditorProviderActivityLogQuery,
       async (c) => {
         const params = c.req.valid("param");
         const query = c.req.valid("query");
@@ -1237,156 +1230,64 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         if (target.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, target);
         }
-
-        const project = await getOwnedProject(c.var.auth, params.projectId);
-        if (!project) {
+        if (target.kind !== "provider" && !(await getOwnedProject(c.var.auth, params.projectId))) {
           return projectNotFoundResponse(c);
         }
 
-        try {
-          const { activityLogs, nextCursor } = await listActivityLogEvents({
-            includeActors: false,
-            organizationId: c.var.auth.organization.localOrganizationId,
-            organizationSlug: c.req.param("organizationSlug") ?? "",
-            query: {
-              eventTypes: [...FILE_SEGMENT_ACTIVITY_EVENT_TYPES],
-              limit: query.limit,
-              projectId: params.projectId,
-              range: "all",
-              sourcePath: query.sourcePath,
-              cursor: query.cursor,
-            },
-          });
-          return c.json({ activityLogs, nextCursor }, 200);
-        } catch (error) {
-          if (error instanceof InvalidActivityLogCursorError) {
-            return badRequestResponse(
-              c,
-              "invalid_activity_log_cursor",
-              "Activity log cursor is invalid",
-            );
-          }
-          throw error;
-        }
-      },
-    )
-    .get(
-      "/:projectId/files/detail/cat/export",
-      validateProjectParams,
-      validateProjectFileContentEditorExportQuery,
-      async (c) => {
-        const params = c.req.valid("param");
-        const query = c.req.valid("query");
-        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-        if (target.kind === "provider_unavailable") {
-          return providerProjectUnavailableResponse(c, target);
-        }
-
-        let sourceLocale = query.sourceLocale?.trim() || "";
-        if (!sourceLocale) {
-          if (target.kind === "provider") {
-            sourceLocale = "en";
-          } else {
-            const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
-            if (!project) {
-              return projectNotFoundResponse(c);
-            }
-            sourceLocale = project.sourceLocale?.trim() || "en";
-          }
-        }
-
-        const { format, sourceLocale: _sourceLocale, ...contentEditorQuery } = query;
-        const collected = await collectCatFilteredExportRows({
-          auth: c.var.auth,
+        const result = await listContentEditorActivityLogs({
+          organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
-          query: contentEditorQuery,
-          sourceLocale,
-          loadCatQueue: loadProjectFileContentEditorQueue,
-          externalProjectId: target.kind === "provider" ? target.externalProjectId : null,
-        });
-
-        if (collected.kind === "feature_unavailable") {
-          return sharedForbiddenResponse(
-            c,
-            "feature_unavailable",
-            "All Files CAT is not enabled for this organization",
-          );
-        }
-        if (collected.kind === "provider_unavailable") {
-          return providerProjectUnavailableResponse(c, collected.target);
-        }
-        if (collected.kind === "project_not_found") {
-          return projectNotFoundResponse(c);
-        }
-        if (collected.kind === "source_file_not_found") {
-          return badRequestResponse(
-            c,
-            "source_file_not_found",
-            "Source file not found for the given path",
-          );
-        }
-        if (collected.kind === "provider_error") {
-          return tmsProviderLiveErrorResponse(c, collected.error);
-        }
-        if (collected.kind === "empty") {
-          return notFoundResponse(c, "cat_export_empty", "No segments match the current filters.");
-        }
-
-        const payload = buildCatFilteredExportPayload({
-          format,
-          rows: collected.rows,
           sourcePath: query.sourcePath,
+          segmentId: query.segmentId,
           targetLocale: query.targetLocale,
+          eventTypes: query.eventTypes?.split(",").map((type) => type.trim()),
+          actorKind: query.actorKind,
+          since: query.since,
+          cursor: query.cursor,
+          limit: query.limit,
         });
+        if (!result.ok) {
+          return badRequestResponse(c, result.error, "Activity log cursor is invalid");
+        }
 
-        return c.body(payload.body, 200, {
-          "Content-Type": payload.contentType,
-          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(payload.filename)}`,
-          ...(collected.truncated
-            ? {
-                "X-Hyperlocalise-Export-Truncated": "true",
-                "X-Hyperlocalise-Export-Limit": String(maxCatFilteredExportSegments),
-              }
-            : {}),
-        });
+        return c.json({ activityLogs: result.activityLogs, nextCursor: result.nextCursor }, 200);
       },
     )
-    .get(
-      "/:projectId/files/detail/cat",
-      validateProjectParams,
-      validateProjectFileContentEditorQuery,
-      async (c) => {
-        const params = c.req.valid("param");
-        const query = c.req.valid("query");
-        const result = await loadProjectFileContentEditorQueue(c.var.auth, params.projectId, query);
+    .get("/:projectId/files/detail/cat/labels", validateProjectParams, async (c) => {
+      const params = c.req.valid("param");
+      const auth = c.var.auth;
+      const target = await resolveProjectResourceTarget(auth, params.projectId);
 
-        if (result.kind === "feature_unavailable") {
-          return sharedForbiddenResponse(
-            c,
-            "feature_unavailable",
-            "All Files CAT is not enabled for this organization",
-          );
-        }
-        if (result.kind === "provider_unavailable") {
-          return providerProjectUnavailableResponse(c, result.target);
-        }
-        if (result.kind === "project_not_found") {
+      if (target.kind === "provider_unavailable") {
+        return providerProjectUnavailableResponse(c, target);
+      }
+
+      if (target.kind === "native") {
+        if (!(await getOwnedProject(auth, target.projectId))) {
           return projectNotFoundResponse(c);
         }
-        if (result.kind === "source_file_not_found") {
-          return badRequestResponse(
-            c,
-            "source_file_not_found",
-            "Source file not found for the given path",
-          );
-        }
-        if (result.kind === "provider_error") {
-          return tmsProviderLiveErrorResponse(c, result.error);
-        }
+        const tags = await listProjectKeyTags(
+          auth.organization.localOrganizationId,
+          target.projectId,
+        );
+        return c.json({ labels: tags.map((tag) => ({ id: tag, title: tag })) }, 200);
+      }
 
-        return c.json({ contentEditorFile: result.contentEditorQueue }, 200);
-      },
-    )
+      if (target.kind !== "provider") {
+        return c.json({ labels: [] }, 200);
+      }
+
+      try {
+        const labels = await getTmsProviderLiveCatLabels(
+          auth.organization.localOrganizationId,
+          target.externalProjectId,
+          { actorUserId: auth.user.localUserId },
+        );
+        return c.json({ labels }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
     .get(
       "/:projectId/files/detail/cat/segments/:externalStringId/target",
       validateProjectParams,
@@ -1516,6 +1417,71 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       },
     )
     .post(
+      "/:projectId/files/detail/cat/translations/reporting-capture",
+      validateProjectParams,
+      validateProjectFileContentEditorTranslationBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_deferred",
+            "Reporting capture applies to native CAT only",
+          );
+        }
+
+        // Reports records Go-service saves from their activity events (reporting-capture cron);
+        // this route only keeps the product analytics event the browser sends after a save.
+        trackNativeCatTranslationProductUsage({ approve: body.approve });
+
+        return c.body(null, 204);
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/comments/product-usage-capture",
+      validateProjectParams,
+      validateProjectFileContentEditorCommentBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_deferred",
+            "Product usage capture applies to native CAT only",
+          );
+        }
+        if (body.type === "issue") {
+          return badRequestResponse(
+            c,
+            "native_cat_issue_unsupported",
+            "Native CAT issues are tracked in Issues.",
+          );
+        }
+
+        trackNativeCatCommentProductUsage({ type: body.type });
+
+        return c.body(null, 204);
+      },
+    )
+    .post(
       "/:projectId/files/detail/cat/translations",
       validateProjectParams,
       validateProjectFileContentEditorTranslationBody,
@@ -1576,15 +1542,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return badRequestResponse(c, "translation_key_not_found", "Translation key not found");
           }
 
-          serverAnalytics.track(
-            body.approve
-              ? PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorSegmentApproved
-              : PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorSegmentDraftSaved,
-            {
-              source: "native",
-              status: body.approve ? "approved" : "draft",
-            },
-          );
+          trackNativeCatTranslationProductUsage({ approve: body.approve });
 
           if (body.approve) {
             await enqueueStringSegmentApprovedActivity({
@@ -1626,6 +1584,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               status: translation.isApproved ? "approved" : "draft",
             },
           );
+
+          await enqueueStringSegmentTranslationUpdatedActivity({
+            ...sessionActivityActor(c.var.auth.user.localUserId),
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            segmentId: body.externalStringId,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+            nextStatus: translation.isApproved ? "approved" : "translated",
+          });
 
           if (translation.isApproved) {
             await enqueueStringSegmentApprovedActivity({
@@ -1693,10 +1661,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             );
           }
 
-          serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorCommentCreated, {
-            source: "native",
-            feature: "comment",
-          });
+          trackNativeCatCommentProductUsage({ type: body.type });
 
           await enqueueStringSegmentCommentedActivity({
             ...sessionActivityActor(c.var.auth.user.localUserId),
@@ -1850,6 +1815,144 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
       },
     )
+    .get(
+      "/:projectId/files/detail/cat/tm-segments",
+      validateProjectParams,
+      validateProjectFileCatTmSegmentQuery,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind !== "provider" || target.providerKind !== "crowdin") {
+          return badRequestResponse(
+            c,
+            "tm_segment_unsupported",
+            "This translation memory cannot be edited here",
+          );
+        }
+
+        try {
+          const result = await loadContentEditorExternalTmSegment({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            actorUserId: c.var.auth.user.localUserId,
+            sourceLocale: query.sourceLocale,
+            externalProjectId: target.externalProjectId,
+            ref: {
+              providerKind: "crowdin",
+              resourceId: query.resourceId,
+              externalResourceId: query.externalResourceId,
+              externalSegmentId: query.externalSegmentId,
+            },
+          });
+          if (isErr(result)) {
+            return contentEditorExternalTmSegmentErrorResponse(c, result.error);
+          }
+          return c.json({ tmSegment: result.value }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .patch(
+      "/:projectId/files/detail/cat/tm-segments",
+      validateProjectParams,
+      validateProjectFileCatTmSegmentPatchBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind !== "provider" || target.providerKind !== "crowdin") {
+          return badRequestResponse(
+            c,
+            "tm_segment_unsupported",
+            "This translation memory cannot be edited here",
+          );
+        }
+
+        try {
+          const result = await updateContentEditorExternalTmSegment({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            actorUserId: c.var.auth.user.localUserId,
+            sourceLocale: body.sourceLocale,
+            externalProjectId: target.externalProjectId,
+            ref: {
+              providerKind: "crowdin",
+              resourceId: body.resourceId,
+              externalResourceId: body.externalResourceId,
+              externalSegmentId: body.externalSegmentId,
+            },
+            sourceText: body.sourceText,
+            records: body.records,
+          });
+          if (isErr(result)) {
+            return contentEditorExternalTmSegmentErrorResponse(c, result.error);
+          }
+          return c.json({ tmSegment: result.value }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .delete(
+      "/:projectId/files/detail/cat/tm-segments/records/:recordId",
+      validateProjectFileCatTmSegmentRecordParams,
+      validateProjectFileCatTmSegmentDeleteQuery,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind !== "provider" || target.providerKind !== "crowdin") {
+          return badRequestResponse(
+            c,
+            "tm_segment_unsupported",
+            "This translation memory cannot be edited here",
+          );
+        }
+
+        try {
+          const result = await deleteContentEditorExternalTmSegmentRecord({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            actorUserId: c.var.auth.user.localUserId,
+            sourceLocale: query.sourceLocale,
+            externalProjectId: target.externalProjectId,
+            ref: {
+              providerKind: "crowdin",
+              resourceId: query.resourceId,
+              externalResourceId: query.externalResourceId,
+              externalSegmentId: query.externalSegmentId,
+            },
+            recordId: params.recordId,
+          });
+          if (isErr(result)) {
+            return contentEditorExternalTmSegmentErrorResponse(c, result.error);
+          }
+          return c.body(null, 204);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
     .post(
       "/:projectId/files/detail/cat/visual-context",
       validateProjectParams,
@@ -1930,23 +2033,26 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         const filename = body.sourcePath.split("/").pop() ?? body.sourcePath;
-        const result = await generateContentEditorAiRecommendation({
-          projectId: recommendationProjectId,
-          organizationId: c.var.auth.organization.localOrganizationId,
-          sourcePath: body.sourcePath,
-          filename,
-          sourceLocale: body.sourceLocale,
-          targetLocale: body.targetLocale,
-          displayLocale: body.displayLocale,
-          key: body.key,
-          sourceText: body.sourceText,
-          targetText: body.targetText,
-          context: body.context ?? null,
-          agentContext: body.agentContext ?? null,
-          maxLength: body.maxLength,
-          glossaryTerms: body.glossaryTerms,
-          translationMemoryMatches: body.translationMemoryMatches,
-        });
+        const result = await generateContentEditorAiRecommendation(
+          {
+            projectId: recommendationProjectId,
+            organizationId: c.var.auth.organization.localOrganizationId,
+            sourcePath: body.sourcePath,
+            filename,
+            sourceLocale: body.sourceLocale,
+            targetLocale: body.targetLocale,
+            displayLocale: body.displayLocale,
+            key: body.key,
+            sourceText: body.sourceText,
+            targetText: body.targetText,
+            context: body.context ?? null,
+            agentContext: body.agentContext ?? null,
+            maxLength: body.maxLength,
+            glossaryTerms: body.glossaryTerms,
+            translationMemoryMatches: body.translationMemoryMatches,
+          },
+          { deferBilling: options.deferAfterResponse },
+        );
 
         if (isErr(result)) {
           if (result.error.code === "ai_features_check_failed") {
@@ -1954,6 +2060,9 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           }
           if (result.error.code === "ai_features_required") {
             return sharedForbiddenResponse(c, result.error.code, result.error.message);
+          }
+          if (result.error.code === "ai_credit_exhausted") {
+            return apiErrorResponse(c, 402, result.error.code, result.error.message);
           }
           return badRequestResponse(c, result.error.code, result.error.message);
         }
@@ -1966,86 +2075,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         );
 
         return c.json({ recommendation: result.value }, 200);
-      },
-    )
-    .post(
-      "/:projectId/files/detail/cat/translations/status",
-      validateProjectParams,
-      validateProjectFileContentEditorStatusBody,
-      async (c) => {
-        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return projectForbiddenResponse(c);
-        }
-
-        const params = c.req.valid("param");
-        const body = c.req.valid("json");
-        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-        if (target.kind === "provider_unavailable") {
-          return providerProjectUnavailableResponse(c, target);
-        }
-
-        if (target.kind === "provider") {
-          return badRequestResponse(
-            c,
-            "provider_cat_unsupported",
-            "Native translation status updates are only available for workspace files.",
-          );
-        }
-
-        const project = await getOwnedProject(c.var.auth, params.projectId);
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
-
-        const lockedStatusResponse = await contentEditorSegmentLockedResponse(c, {
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: params.projectId,
-          targetLocale: body.targetLocale,
-          externalStringId: body.externalStringId,
-        });
-        if (lockedStatusResponse) {
-          return lockedStatusResponse;
-        }
-
-        const translation = await updateNativeProjectTranslationStatus({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: params.projectId,
-          translationKeyId: body.externalStringId,
-          targetLocale: body.targetLocale,
-          status: body.status,
-          actorUserId: c.var.auth.user.localUserId,
-        });
-
-        if (!translation) {
-          return badRequestResponse(c, "translation_not_found", "Translation not found");
-        }
-
-        if (body.status === "approved") {
-          serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorSegmentApproved, {
-            source: "native",
-            status: "approved",
-          });
-          await enqueueStringSegmentApprovedActivity({
-            ...sessionActivityActor(c.var.auth.user.localUserId),
-            organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: params.projectId,
-            segmentId: body.externalStringId,
-            sourcePath: body.sourcePath,
-            targetLocale: body.targetLocale,
-          });
-        } else {
-          await enqueueStringSegmentStatusChangedActivity({
-            ...sessionActivityActor(c.var.auth.user.localUserId),
-            nextStatus: body.status,
-            organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: params.projectId,
-            segmentId: body.externalStringId,
-            sourcePath: body.sourcePath,
-            targetLocale: body.targetLocale,
-          });
-        }
-
-        return c.json({ translation }, 200);
       },
     )
     .post(
@@ -2091,6 +2120,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               organizationId: c.var.auth.organization.localOrganizationId,
               projectId: params.projectId,
               segmentId: body.externalStringIds[0]!,
+              segmentIds: body.externalStringIds,
               sourcePath: body.sourcePath,
             });
 
@@ -2126,6 +2156,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           segmentId: body.externalStringIds[0]!,
+          segmentIds: body.externalStringIds,
           sourcePath: body.sourcePath,
         });
 
@@ -2170,18 +2201,30 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           actorUserId: c.var.auth.user.localUserId,
         });
 
-        await enqueueStringSegmentLockedActivity({
-          ...sessionActivityActor(c.var.auth.user.localUserId),
-          isLocked: body.isLocked,
-          itemCount: result.updatedCount,
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: params.projectId,
-          segmentId: body.externalStringIds[0]!,
-          sourcePath: body.sourcePath,
-          targetLocale: body.targetLocale,
-        });
+        const changedIds = result.externalStringIds;
+        if (changedIds.length > 0) {
+          await enqueueStringSegmentLockedActivity({
+            ...sessionActivityActor(c.var.auth.user.localUserId),
+            isLocked: body.isLocked,
+            itemCount: result.updatedCount,
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            segmentId: changedIds[0]!,
+            segmentIds: changedIds,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+          });
+        }
 
-        return c.json({ contentEditorSegmentLock: result }, 200);
+        return c.json(
+          {
+            contentEditorSegmentLock: {
+              updatedCount: result.updatedCount,
+              isLocked: result.isLocked,
+            },
+          },
+          200,
+        );
       },
     )
     .post(
@@ -2348,6 +2391,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           });
 
           if (!result.ok) {
+            if (result.error.code === "ai_credit_insufficient") {
+              return apiErrorResponse(
+                c,
+                402,
+                result.error.code,
+                "Insufficient AI credit for video regeneration",
+                {
+                  requiredAmountUsd: result.error.requiredAmountUsd,
+                  remainingAmountUsd: result.error.remainingAmountUsd,
+                  billingSection: "available-plans",
+                },
+              );
+            }
+            if (result.error.code === "ai_credit_unavailable") {
+              return apiErrorResponse(c, 503, result.error.code, result.error.message);
+            }
             return badRequestResponse(c, result.error.code, "Video regeneration failed");
           }
 
@@ -2407,6 +2466,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             provenance: "agent",
             createdByUserId: c.var.auth.user.localUserId,
             force: body.force,
+            deferBilling: options.deferAfterResponse,
           });
 
           if (!result.ok) {
@@ -2465,9 +2525,26 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             provenance: "agent",
             createdByUserId: c.var.auth.user.localUserId,
             force: body.force,
+            signal: c.req.raw.signal,
           });
 
           if (!result.ok) {
+            if (result.error.code === "ai_credit_insufficient") {
+              return apiErrorResponse(
+                c,
+                402,
+                result.error.code,
+                "Insufficient AI credit for image regeneration",
+                {
+                  requiredAmountUsd: result.error.requiredAmountUsd,
+                  remainingAmountUsd: result.error.remainingAmountUsd,
+                  billingSection: "available-plans",
+                },
+              );
+            }
+            if (result.error.code === "ai_credit_unavailable") {
+              return apiErrorResponse(c, 503, result.error.code, result.error.message);
+            }
             return badRequestResponse(c, result.error.code, "Image regeneration failed");
           }
 
@@ -2518,6 +2595,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           });
 
           if (!videoResult.ok) {
+            if (videoResult.error.code === "ai_credit_insufficient") {
+              return apiErrorResponse(
+                c,
+                402,
+                videoResult.error.code,
+                "Insufficient AI credit for video regeneration",
+                {
+                  requiredAmountUsd: videoResult.error.requiredAmountUsd,
+                  remainingAmountUsd: videoResult.error.remainingAmountUsd,
+                  billingSection: "available-plans",
+                },
+              );
+            }
+            if (videoResult.error.code === "ai_credit_unavailable") {
+              return apiErrorResponse(c, 503, videoResult.error.code, videoResult.error.message);
+            }
             return badRequestResponse(c, videoResult.error.code, "Video URL regeneration failed");
           }
 
@@ -2545,9 +2638,26 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           instructions: body.instructions,
           actorUserId: c.var.auth.user.localUserId,
           force: body.force,
+          signal: c.req.raw.signal,
         });
 
         if (!result.ok) {
+          if (result.error.code === "ai_credit_insufficient") {
+            return apiErrorResponse(
+              c,
+              402,
+              result.error.code,
+              "Insufficient AI credit for image regeneration",
+              {
+                requiredAmountUsd: result.error.requiredAmountUsd,
+                remainingAmountUsd: result.error.remainingAmountUsd,
+                billingSection: "available-plans",
+              },
+            );
+          }
+          if (result.error.code === "ai_credit_unavailable") {
+            return apiErrorResponse(c, 503, result.error.code, result.error.message);
+          }
           return badRequestResponse(c, result.error.code, "Image URL regeneration failed");
         }
 
@@ -3267,6 +3377,274 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return c.json({ file }, 200);
       },
     )
+    .get(
+      "/:projectId/files/segmentation",
+      validateProjectParams,
+      validateProjectFileSegmentationQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "segmentation_not_supported",
+            "Segmentation settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const record = await getRepositorySourceFileSegmentation({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+        });
+        if (!record) {
+          return notFoundResponse(c, "source_file_not_found");
+        }
+
+        return c.json(
+          {
+            segmentation: {
+              enabled: record.segmentation.enabled,
+              template: record.segmentation.template,
+              customSrxXml: record.segmentation.customSrxXml ?? null,
+              supportsSegmentation: record.supportsSegmentation,
+            },
+          },
+          200,
+        );
+      },
+    )
+    .patch(
+      "/:projectId/files/segmentation",
+      validateProjectParams,
+      validateUpdateProjectFileSegmentationBody,
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "segmentation_not_supported",
+            "Segmentation settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const result = await updateRepositorySourceFileSegmentation({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: body.sourcePath,
+          settings: body.segmentation,
+        });
+
+        if (!result.ok) {
+          if (result.error === "unsupported_format") {
+            return badRequestResponse(
+              c,
+              "segmentation_unsupported_format",
+              "This file format cannot use SRX segmentation.",
+            );
+          }
+          return notFoundResponse(c, result.error);
+        }
+
+        return c.json(
+          {
+            segmentation: {
+              enabled: result.segmentation.enabled,
+              template: result.segmentation.template,
+              customSrxXml: result.segmentation.customSrxXml ?? null,
+              supportsSegmentation: result.supportsSegmentation,
+            },
+            reingest: result.reingest,
+          },
+          200,
+        );
+      },
+    )
+    .get(
+      "/:projectId/files/message-format",
+      validateProjectParams,
+      validateProjectFileMessageFormatQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "message_format_not_supported",
+            "Message format settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const settings = await getRepositorySourceFilePlaceholderSettings({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+        });
+        if (!settings) {
+          return notFoundResponse(c, "source_file_not_found");
+        }
+
+        return c.json(
+          {
+            messageFormat: settings.messageFormat,
+            placeholderPatterns: settings.placeholderPatterns,
+          },
+          200,
+        );
+      },
+    )
+    .patch(
+      "/:projectId/files/message-format",
+      validateProjectParams,
+      validateUpdateProjectFileMessageFormatBody,
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "message_format_not_supported",
+            "Message format settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const settings = await updateRepositorySourceFilePlaceholderSettings({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: body.sourcePath,
+          messageFormat: body.messageFormat,
+          placeholderPatterns: body.placeholderPatterns,
+        });
+        if (!settings) {
+          return notFoundResponse(c, "source_file_not_found");
+        }
+
+        return c.json(
+          {
+            messageFormat: settings.messageFormat,
+            placeholderPatterns: settings.placeholderPatterns,
+          },
+          200,
+        );
+      },
+    )
+    .get(
+      "/:projectId/files/import-settings",
+      validateProjectParams,
+      validateProjectFileImportSettingsQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "import_settings_not_supported",
+            "Import settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const record = await getRepositorySourceFileImportSettings({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+        });
+        if (!record) {
+          return notFoundResponse(c, "source_file_not_found");
+        }
+
+        return c.json(
+          {
+            importSettings: record.importSettings,
+            kind: record.kind,
+          },
+          200,
+        );
+      },
+    )
+    .patch(
+      "/:projectId/files/import-settings",
+      validateProjectParams,
+      validateUpdateProjectFileImportSettingsBody,
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "import_settings_not_supported",
+            "Import settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const result = await updateRepositorySourceFileImportSettings({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: body.sourcePath,
+          settings: body.importSettings,
+        });
+        if (!result.ok) {
+          return notFoundResponse(c, result.error);
+        }
+
+        return c.json(
+          {
+            importSettings: result.importSettings,
+            kind: result.kind,
+            reingest: result.reingest,
+          },
+          200,
+        );
+      },
+    )
     .post(
       "/:projectId/files/string-context",
       validateProjectParams,
@@ -3402,6 +3780,150 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return notFoundResponse(c, "source_file_not_found", "Source file not found");
         }
 
+        const extension = path.extname(query.sourcePath);
+        const baseName = path.basename(query.sourcePath, extension);
+        const suffix = baseName.endsWith(`-${query.locale}`)
+          ? baseName
+          : `${baseName}-${query.locale}`;
+        const filename = extension ? `${suffix}${extension}` : `${suffix}.json`;
+        const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
+
+        const officeDownload = await loadProjectOfficeTranslationDownload({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+        });
+        if (isErr(officeDownload)) {
+          const failure = officeTranslationDownloadFailure(query.sourcePath);
+          return internalErrorResponse(c, failure.code, failure.message);
+        }
+        if (officeDownload.value) {
+          const officeFilename = officeTranslationDownloadFilename(filename, officeDownload.value);
+          return c.body(new Uint8Array(officeDownload.value.content), 200, {
+            "Content-Type": officeDownload.value.contentType,
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(officeFilename)}`,
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+          });
+        }
+
+        const pdfDownload = await loadProjectPdfTranslationDownload({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+        });
+        if (isErr(pdfDownload)) {
+          if (pdfDownload.error.code === "pdf_script_unsupported") {
+            return c.json(
+              {
+                error: "pdf_script_unsupported",
+                message: pdfDownload.error.message,
+              },
+              422,
+            );
+          }
+          if (pdfDownload.error.code === "pdf_export_failed") {
+            return internalErrorResponse(c, "pdf_export_failed", pdfDownload.error.message);
+          }
+          if (pdfDownload.error.code === "source_content_not_found") {
+            return notFoundResponse(c, "source_file_not_found", "Source file not found");
+          }
+          return internalErrorResponse(
+            c,
+            "pdf_export_failed",
+            pdfTranslationDownloadFailure().message,
+          );
+        }
+        if (pdfDownload.value) {
+          const headers: Record<string, string> = {
+            "Content-Type": pdfDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+          };
+          if (pdfDownload.value.overflowKeys.length > 0) {
+            headers["X-Hyperlocalise-Overflow-Keys"] = pdfDownload.value.overflowKeys.join(",");
+          }
+          return c.body(new Uint8Array(pdfDownload.value.content), 200, headers);
+        }
+
+        if (inferSupportedWholeFileTranslationFileFormat(query.sourcePath)) {
+          const fileVariant = await loadProjectFileVariant({
+            organizationId,
+            projectId: params.projectId,
+            sourcePath: query.sourcePath,
+            locale: query.locale,
+            fileStorageAdapter: options.fileStorageAdapter,
+          });
+          if (!fileVariant) {
+            const htmlDownload = await loadProjectHtmlTranslationDownload({
+              organizationId,
+              projectId: params.projectId,
+              sourcePath: query.sourcePath,
+              targetLocale: query.locale,
+            });
+            if (isErr(htmlDownload)) {
+              if (htmlDownload.error.code === "source_content_not_found") {
+                return notFoundResponse(c, "source_file_not_found", "Source file not found");
+              }
+              return internalErrorResponse(c, htmlDownload.error.code, htmlDownload.error.message);
+            }
+            if (htmlDownload.value) {
+              return c.body(new Uint8Array(htmlDownload.value.content), 200, {
+                "Content-Type": htmlDownload.value.contentType,
+                "Content-Disposition": contentDisposition,
+                "X-Content-Type-Options": "nosniff",
+                "Cache-Control": "no-store",
+              });
+            }
+            return notFoundResponse(
+              c,
+              "file_variant_not_found",
+              "No translated file has been saved for this source file and locale.",
+            );
+          }
+
+          const filename = fileVariantDownloadName({
+            sourcePath: query.sourcePath,
+            locale: query.locale,
+            storedFilename: fileVariant.storedFilename,
+          });
+          return c.body(fileVariant.body, 200, {
+            "Content-Type": fileVariant.contentType,
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+            "Content-Security-Policy": "default-src 'none'; sandbox;",
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+          });
+        }
+
+        const sourceFormatDownload = await loadProjectSourceFormatTranslationDownload({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+          fileStorageAdapter: options.fileStorageAdapter,
+        });
+        if (sourceFormatDownload?.kind === "file") {
+          // A filled-in gettext template is a catalog, so it downloads as .po.
+          const sourceFormatFilename = filename.replace(/\.pot$/i, ".po");
+          return c.body(new Uint8Array(sourceFormatDownload.content), 200, {
+            "Content-Type": sourceFormatDownload.contentType,
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(sourceFormatFilename)}`,
+            "Content-Security-Policy": "default-src 'none'; sandbox;",
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+          });
+        }
+        // A file that could not be written in its own format downloads as JSON, named and
+        // marked so.
+        const jsonFallback = sourceFormatDownload?.kind === "json";
+        const jsonContentDisposition = jsonFallback
+          ? `attachment; filename*=UTF-8''${encodeURIComponent(`${suffix}.json`)}`
+          : contentDisposition;
+
         const result = await loadProjectTranslationsAsPrefilledEntries({
           organizationId,
           projectId: params.projectId,
@@ -3422,17 +3944,55 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return translationsNotFoundResponse(c);
         }
 
-        const extension = path.extname(query.sourcePath);
-        const baseName = path.basename(query.sourcePath, extension);
-        const suffix = baseName.endsWith(`-${query.locale}`)
-          ? baseName
-          : `${baseName}-${query.locale}`;
-        const filename = extension ? `${suffix}${extension}` : `${suffix}.json`;
+        const lottieDownload = await loadProjectLottieTranslationDownload({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          prefilled: result.prefilled,
+        });
+        if (isErr(lottieDownload)) {
+          return internalErrorResponse(
+            c,
+            "lottie_export_failed",
+            "Could not write translations into the Lottie animation.",
+          );
+        }
+        if (lottieDownload.value) {
+          return c.body(new Uint8Array(lottieDownload.value.content), 200, {
+            "Content-Type": lottieDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+          });
+        }
+
+        const subtitleDownload = await loadProjectSubtitleTranslationDownload({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          prefilled: result.prefilled,
+          fileStorageAdapter: options.fileStorageAdapter,
+        });
+        if (isErr(subtitleDownload)) {
+          return internalErrorResponse(
+            c,
+            "subtitle_export_failed",
+            "Could not write translations into the subtitle file.",
+          );
+        }
+        if (subtitleDownload.value) {
+          return c.body(new Uint8Array(subtitleDownload.value.content), 200, {
+            "Content-Type": subtitleDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+          });
+        }
+
         const content = JSON.stringify(result.prefilled, null, 2) + "\n";
 
         return c.body(content, 200, {
           "Content-Type": "application/json; charset=utf-8",
-          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+          "Content-Disposition": jsonContentDisposition,
+          ...(jsonFallback
+            ? { [TRANSLATION_DOWNLOAD_FALLBACK_HEADER]: TRANSLATION_DOWNLOAD_JSON_FALLBACK }
+            : {}),
         });
       },
     )
@@ -3444,7 +4004,17 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
 
       if (target.kind !== "provider") {
-        return c.json({ branches: [] }, 200);
+        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+        await projectBranchService.ensureDefaultBranch({
+          organizationId: project.organizationId,
+          projectId: project.id,
+          createdByUserId: project.createdByUserId,
+        });
+        const branches = await projectBranchService.listActivePickerOptions(project.id);
+        return c.json({ branches }, 200);
       }
 
       try {
@@ -3454,6 +4024,58 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           { actorUserId: c.var.auth.user.localUserId },
         );
         return c.json({ branches }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
+    .get(
+      "/:projectId/file-progress",
+      validateProjectParams,
+      validateProjectFileProgressQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        // Native file progress is served by go-svc.
+        if (target.kind !== "provider") {
+          return c.json({ files: [] }, 200);
+        }
+
+        try {
+          const files = await listTmsProviderLiveFileProgress(
+            c.var.auth.organization.localOrganizationId,
+            target.externalProjectId,
+            { locale: query.locale, actorUserId: c.var.auth.user.localUserId },
+          );
+          return c.json({ files }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .get("/:projectId/hidden-files", validateProjectParams, async (c) => {
+      const params = c.req.valid("param");
+      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+      if (target.kind === "provider_unavailable") {
+        return providerProjectUnavailableResponse(c, target);
+      }
+
+      // Native files carry `isHidden` on the file list.
+      if (target.kind !== "provider") {
+        return c.json({ files: [] }, 200);
+      }
+
+      try {
+        const files = await listTmsProviderLiveHiddenFiles(
+          c.var.auth.organization.localOrganizationId,
+          target.externalProjectId,
+          { actorUserId: c.var.auth.user.localUserId },
+        );
+        return c.json({ files }, 200);
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }
@@ -3541,6 +4163,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           sourceHash: asString(body.sourceHash),
           commitSha: asString(body.commitSha),
           workflowRunId: asString(body.workflowRunId),
+          keepApproved: asString(body.keepApproved),
+          branch: asString(body.branch),
         });
 
         if (!parsed.success) {
@@ -3555,6 +4179,23 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         if (!inferSupportedSourceUploadFormat(parsed.data.sourcePath)) {
           return unsupportedProjectFileResponse(c, parsed.data.sourcePath);
         }
+
+        await projectBranchService.ensureDefaultBranch({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          createdByUserId: c.var.auth.user.localUserId,
+        });
+        const writableBranch = await projectBranchService.assertWritable({
+          projectId: params.projectId,
+          branchName: parsed.data.branch,
+        });
+        if (!writableBranch.ok) {
+          if (writableBranch.error === "protected_branch") {
+            return conflictResponse(c, "protected_branch", "This branch is protected.");
+          }
+          return notFoundResponse(c, "branch_not_found", "Branch not found.");
+        }
+        const uploadBranchName = writableBranch.value;
 
         const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
         let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
@@ -3584,11 +4225,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             const version = await createRepositorySourceFileVersion({
               storedFile: uploadedFile,
               sourcePath: parsed.data.sourcePath,
+              branchName: uploadBranchName,
               sourceHash: parsed.data.sourceHash,
               commitSha: parsed.data.commitSha,
               workflowRunId: parsed.data.workflowRunId,
               uploadedByUserId: c.var.auth.user.localUserId,
               uploadSurface: "files_page",
+              keepApprovedTranslations: parsed.data.keepApproved === "true",
               db: tx,
             });
 
@@ -3689,7 +4332,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return invalidProjectPayloadResponse(c);
         }
 
-        if (!inferSupportedFileTranslationFileFormat(parsed.data.sourcePath)) {
+        if (
+          !inferSupportedFileTranslationFileFormat(parsed.data.sourcePath) &&
+          !inferSupportedOfficeTranslationFileFormat(parsed.data.sourcePath)
+        ) {
           return unsupportedProjectFileResponse(c, parsed.data.sourcePath);
         }
 
@@ -3758,6 +4404,137 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         );
       },
     )
+    .post(
+      "/:projectId/files/bilingual/import",
+      validateProjectParams,
+      bodyLimit({
+        maxSize: maxProjectFileUploadBytes,
+        onError: (c) => badRequestResponse(c, "file_upload_too_large", "File upload is too large"),
+      }),
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_import_unsupported",
+            "Bilingual imports are only available for workspace files.",
+          );
+        }
+
+        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const body = await c.req.parseBody({ all: true });
+        const parsed = projectFileTranslationImportBodySchema.safeParse({
+          sourcePath: asString(body.sourcePath),
+          locale: asString(body.locale),
+        });
+        if (!parsed.success) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        const file = asFile(body.file);
+        if (!file) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        if (!project.targetLocales.includes(parsed.data.locale)) {
+          return badRequestResponse(
+            c,
+            "invalid_target_locale",
+            "Locale is not a target locale of this project.",
+          );
+        }
+
+        const isAllFiles = isContentEditorAllFilesSourcePath(parsed.data.sourcePath);
+        if (!isAllFiles) {
+          const sourceFile = await getRepositorySourceFileByPath({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: parsed.data.sourcePath,
+          });
+          if (!sourceFile) {
+            return notFoundResponse(c, "source_file_not_found", "Source file not found");
+          }
+        }
+
+        const format = inferCatBilingualFormat(file.name);
+        if (!format) {
+          return badRequestResponse(
+            c,
+            "unsupported_bilingual_format",
+            "Upload a CSV, TMX, XLF, XLIFF, or XLSX file exported from the Content Editor.",
+          );
+        }
+
+        const fileBytes = new Uint8Array(await file.arrayBuffer());
+        let rows;
+        try {
+          const parsedFile = await createGoSvcServerClient().editorExport.parseFiltered({
+            format,
+            filename: file.name,
+            body: fileBytes,
+          });
+          rows = parsedFile.rows;
+        } catch (error) {
+          if (error instanceof GoSvcClientError && error.status === 400) {
+            return badRequestResponse(
+              c,
+              "invalid_bilingual_file",
+              error.message || "The bilingual file could not be parsed.",
+            );
+          }
+          return serviceUnavailableResponse(
+            c,
+            "bilingual_parse_unavailable",
+            "The bilingual import service is unavailable.",
+          );
+        }
+
+        if (rows.length === 0) {
+          return badRequestResponse(
+            c,
+            "empty_bilingual_file",
+            "The bilingual file does not contain any strings.",
+          );
+        }
+        if (rows.length > maxCatFilteredExportSegments) {
+          return badRequestResponse(
+            c,
+            "too_many_bilingual_rows",
+            "The bilingual file has more than 5,000 strings.",
+          );
+        }
+
+        try {
+          const result = await importCatBilingualRows({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: parsed.data.sourcePath,
+            targetLocale: parsed.data.locale,
+            rows,
+            actorUserId: c.var.auth.user.localUserId,
+          });
+          return c.json({ import: result }, 200);
+        } catch (error) {
+          const message =
+            error instanceof Error && error.message === "too many rows"
+              ? "The bilingual file has more than 5,000 strings."
+              : "Failed to import bilingual translations.";
+          return badRequestResponse(c, "bilingual_import_failed", message);
+        }
+      },
+    )
     .get("/:projectId/locale-progress", validateProjectParams, async (c) => {
       const params = c.req.valid("param");
       const organizationId = c.var.auth.organization.localOrganizationId;
@@ -3807,123 +4584,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
       }
 
-      const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
-      if (!project) {
-        scheduleProjectNotFoundDiagnostics({
-          auth: c.var.auth,
-          projectId: params.projectId,
-          route: "project.locale_progress",
-        });
-        return projectNotFoundResponse(c);
-      }
-
-      const locales = await listNativeProjectLocaleProgress({
-        organizationId,
-        projectId: project.id,
-        sourceLocale: project.sourceLocale,
-        targetLocales: project.targetLocales,
-      });
-      return c.json({ locales }, 200);
+      return projectNotFoundResponse(c);
     })
-    .get("/:projectId/open-job-count", validateProjectParams, async (c) => {
-      const params = c.req.valid("param");
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-
-      if (target.kind === "provider_unavailable") {
-        return providerProjectUnavailableResponse(c, target);
-      }
-
-      if (target.kind === "provider") {
-        try {
-          const openJobCount = await countTmsProviderLiveOpenJobsForProject(
-            organizationId,
-            target.externalProjectId,
-            { actorUserId: c.var.auth.user.localUserId },
-          );
-          return c.json({ openJobCount }, 200);
-        } catch (error) {
-          return tmsProviderLiveErrorResponse(c, error);
-        }
-      }
-
-      const project = await getOwnedProject(c.var.auth, params.projectId);
-      if (!project) {
-        scheduleProjectNotFoundDiagnostics({
-          auth: c.var.auth,
-          projectId: params.projectId,
-          route: "project.open_job_count",
-        });
-        return projectNotFoundResponse(c);
-      }
-
-      const openJobCount = await countOpenJobs(c.var.auth, project.id);
-      return c.json({ openJobCount }, 200);
-    })
-    .get("/:projectId/content-editor-behavior", validateProjectParams, async (c) => {
-      const params = c.req.valid("param");
-      const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
-      if (!project) return projectNotFoundResponse(c);
-
-      return c.json(
-        {
-          contentEditorBehavior: {
-            automaticallyGroupIdenticalStrings: project.automaticallyGroupIdenticalStrings,
-            groupingRevision: project.contentEditorGroupingRevision,
-            canManage: isProjectContentEditorBehaviorMutationAllowed(c.var.auth.membership.role),
-          },
-        },
-        200,
-      );
-    })
-    .get("/:projectId/content-editor-behavior/preview", validateProjectParams, async (c) => {
-      if (!isProjectContentEditorBehaviorMutationAllowed(c.var.auth.membership.role)) {
-        return projectForbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
-      if (!project) return projectNotFoundResponse(c);
-
-      const preview = await previewIdenticalStringGrouping(
-        c.var.auth.organization.localOrganizationId,
-        project.id,
-      );
-      return c.json({ preview }, 200);
-    })
-    .patch(
-      "/:projectId/content-editor-behavior",
-      validateProjectParams,
-      validateUpdateProjectContentEditorBehaviorBody,
-      async (c) => {
-        if (!isProjectContentEditorBehaviorMutationAllowed(c.var.auth.membership.role)) {
-          return projectForbiddenResponse(c);
-        }
-
-        const params = c.req.valid("param");
-        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
-        if (!project) return projectNotFoundResponse(c);
-
-        const payload = c.req.valid("json");
-        const contentEditorBehavior = await updateProjectContentEditorGroupingPolicy({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: project.id,
-          automaticallyGroupIdenticalStrings: payload.automaticallyGroupIdenticalStrings,
-          actorUserId: c.var.auth.user.localUserId,
-        });
-        if (!contentEditorBehavior) return projectNotFoundResponse(c);
-
-        return c.json(
-          {
-            contentEditorBehavior: {
-              ...contentEditorBehavior,
-              canManage: true,
-            },
-          },
-          200,
-        );
-      },
-    )
     .get("/:projectId", validateProjectParams, async (c) => {
       const rawPathProjectId = c.req.param("projectId");
       const params = c.req.valid("param");
@@ -4126,35 +4788,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
       const openJobCount = await countOpenJobs(c.var.auth, project.id);
       return c.json({ project: { ...project, openJobCount } }, 200);
-    })
-    .delete("/:projectId", validateProjectParams, async (c) => {
-      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-        return projectForbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const deleteResult = await deleteProjectWithTeamGlossaryGuard(c.var.auth, params.projectId);
-
-      if (deleteResult === "team_project_required") {
-        return glossaryTeamProjectRequiredResponse(c);
-      }
-
-      if (deleteResult === "not_found") {
-        return projectNotFoundResponse(c);
-      }
-
-      await enqueueActivityLogEvent({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        eventType: "project_deleted",
-        organizationId: c.var.auth.organization.localOrganizationId,
-        payload: { resourceId: params.projectId },
-        targetId: params.projectId,
-        targetKind: "project",
-      });
-
-      return c.body(null, 204);
     });
 }
 

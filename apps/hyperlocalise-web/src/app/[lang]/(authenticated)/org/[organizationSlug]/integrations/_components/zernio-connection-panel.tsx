@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { Delete02Icon, SaveIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TrashIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -209,7 +208,7 @@ export function ZernioConnectionPanel({
                     aria-label={intl.formatMessage(zernioConnectionPanelMessages.delete)}
                     onClick={() => deleteMutation.mutate(connection.id)}
                   >
-                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                    <TrashIcon />
                   </Button>
                 </div>
               </li>
@@ -281,7 +280,7 @@ export function ZernioConnectionPanel({
                 disabled={disabled || saveMutation.isPending}
                 onClick={() => saveMutation.mutate(form)}
               >
-                <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                <FloppyDiskIcon />
                 <FormattedMessage {...zernioConnectionPanelMessages.save} />
               </Button>
             </div>

@@ -436,7 +436,8 @@ describe("sandbox command runner", () => {
           /^hl entries 'lang\/vi-VN\.json' > '\/tmp\/hl-entries-[0-9a-f-]+\.json'$/,
         ),
       ],
-      env: { OPENAI_API_KEY: "test-openai-api-key" },
+      // Parsing needs no model credentials, so ingest works without an LLM key.
+      env: undefined,
       detached: true,
     });
     expect(readFileToBuffer).toHaveBeenCalledWith({
@@ -448,6 +449,38 @@ describe("sandbox command runner", () => {
       env: undefined,
       detached: true,
     });
+  });
+
+  it("passes the workbook source locale to hl entries", async () => {
+    const wait = vi.fn().mockResolvedValue({ exitCode: 0, output: sandboxMocks.output });
+    const readFileToBuffer = vi.fn().mockResolvedValue(Buffer.from('{"home.title":"Accueil"}'));
+    sandboxMocks.output.mockResolvedValue("");
+    sandboxMocks.runCommand
+      .mockResolvedValueOnce({ cmdId: "cmd_entries", wait })
+      .mockResolvedValueOnce({ cmdId: "cmd_cleanup", wait });
+    sandboxMocks.get
+      .mockResolvedValueOnce({ runCommand: sandboxMocks.runCommand })
+      .mockResolvedValueOnce({ readFileToBuffer })
+      .mockResolvedValueOnce({ runCommand: sandboxMocks.runCommand });
+
+    await expect(
+      extractSandboxEntries("sandbox_123", "strings.xlsx", {
+        sourceLocale: "en-US",
+        locale: "fr-FR",
+      }),
+    ).resolves.toEqual({ ok: true, entries: { "home.title": "Accueil" } });
+
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cmd: "bash",
+        args: [
+          "-lc",
+          expect.stringMatching(
+            /^hl entries 'strings\.xlsx' --source-locale 'en-US' --locale 'fr-FR' > '\/tmp\/hl-entries-[0-9a-f-]+\.json'$/,
+          ),
+        ],
+      }),
+    );
   });
 
   it("returns exitCode and output when hl entries fails", async () => {
@@ -508,7 +541,7 @@ describe("sandbox translation temporary config", () => {
     expect(config).toContain("  file:");
     expect(config).not.toContain("  email:");
     expect(config).toContain("provider: openai");
-    expect(config).toContain("model: gpt-5.6-luna");
+    expect(config).toContain("model: gpt-6-luna");
     expect(config).toContain('from: "source.md"');
     expect(config).toContain('to: "source-de-DE.md"');
   });
@@ -642,7 +675,7 @@ describe("sandbox translation temporary config", () => {
       const config = buildTempConfig("source.json", "target.json", "en-US", "fr-FR", null);
 
       expect(config).toContain("provider: ai_gateway");
-      expect(config).toContain("model: openai/gpt-5.6-luna");
+      expect(config).toContain("model: openai/gpt-6-luna");
       expect(getSandboxTranslationEnv()).toEqual({
         OPENAI_API_KEY: "test-openai-api-key",
         AI_GATEWAY_API_KEY: "vck_test_key",

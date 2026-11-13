@@ -10,10 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { isReleaseContentEditorAllFilesEnabled } from "@/lib/flags/release-flags";
 import {
+  isReleaseCatAdaptiveWorkspaceEnabled,
+  isReleaseContentEditorAllFilesEnabled,
+} from "@/lib/flags/release-flags";
+import {
+  parseCatWorkspaceQueueAdvancedParam,
   parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceQueueFilterQualifierParam,
   parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
 } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
@@ -22,9 +28,13 @@ import {
   contentEditorAllFilesProviderKindFromTarget,
   resolveProjectResourceTarget,
 } from "@/api/routes/project/project.shared";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { ProjectFileContentEditorPageContent } from "../_components/project-file-content-editor-page-content";
-import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectContentEditor");
+}
 
 export default function ProjectFileContentEditorPage({
   params,
@@ -42,13 +52,11 @@ export default function ProjectFileContentEditorPage({
     queueFilter?: string;
     queueSort?: string;
     search?: string;
+    queueFilterQualifier?: string;
+    queueAdvanced?: string;
   }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectFileContentEditorPageLoader params={params} searchParams={searchParams} />
-    </OrgPageSuspense>
-  );
+  return <ProjectFileContentEditorPageLoader params={params} searchParams={searchParams} />;
 }
 
 async function ProjectFileContentEditorPageLoader({
@@ -67,6 +75,8 @@ async function ProjectFileContentEditorPageLoader({
     queueFilter?: string;
     queueSort?: string;
     search?: string;
+    queueFilterQualifier?: string;
+    queueAdvanced?: string;
   }>;
 }) {
   const { organizationSlug, projectId } = await params;
@@ -74,9 +84,10 @@ async function ProjectFileContentEditorPageLoader({
   const parsedSearchParams = parseProjectFileContentEditorSearchParams(rawSearchParams);
   const auth = await requireAppAuthContext({ organizationSlug });
   const target = await resolveProjectResourceTarget(auth, projectId);
-  const contentEditorAllFilesEnabled = await isReleaseContentEditorAllFilesEnabled(
-    contentEditorAllFilesProviderKindFromTarget(target),
-  );
+  const [contentEditorAllFilesEnabled, adaptiveWorkspaceEnabled] = await Promise.all([
+    isReleaseContentEditorAllFilesEnabled(contentEditorAllFilesProviderKindFromTarget(target)),
+    isReleaseCatAdaptiveWorkspaceEnabled(auth),
+  ]);
 
   return (
     <ProjectFileContentEditorPageContent
@@ -85,15 +96,22 @@ async function ProjectFileContentEditorPageLoader({
       sourcePath={parsedSearchParams.sourcePath}
       allFiles={contentEditorAllFilesEnabled ? parsedSearchParams.allFiles : false}
       contentEditorAllFilesEnabled={contentEditorAllFilesEnabled}
+      adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
       highlightLocale={parsedSearchParams.highlightLocale}
       initialSegmentKey={parsedSearchParams.initialSegmentKey}
       initialQueueFilter={parseCatWorkspaceQueueFilterParam(rawSearchParams.queueFilter) ?? "all"}
       initialQueueSort={parseCatWorkspaceQueueSortParam(rawSearchParams.queueSort) ?? "file_order"}
       initialSearch={parseCatWorkspaceSearchParam(rawSearchParams.search)}
+      initialQueueFilterQualifier={parseCatWorkspaceQueueFilterQualifierParam(
+        rawSearchParams.queueFilterQualifier,
+      )}
+      initialQueueAdvanced={parseCatWorkspaceQueueAdvancedParam(rawSearchParams.queueAdvanced)}
       externalResourceId={parsedSearchParams.externalResourceId}
       resourceType={parsedSearchParams.resourceType}
       branch={parsedSearchParams.branch}
       sourcePaths={parsedSearchParams.sourcePaths}
+      canWriteDictionaries={hasCapability(auth.membership.role, "dictionaries:write")}
+      canManageAutomations={isWorkspaceOperatorRole(auth.membership.role)}
     />
   );
 }

@@ -11,10 +11,16 @@
  * Version 2.0 or later.
  */
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
+import {
+  getUseCaseFaqItems,
+  getUseCaseFaqSectionCopy,
+} from "@/components/marketing/use-case/faq/use-case-faq-content";
+import type { UseCaseFaqSlug } from "@/components/marketing/use-case/faq/use-case-faq-types";
 import { UseCasePage } from "@/components/marketing/use-case/use-case-page";
 import {
+  RETIRED_USE_CASE_SLUGS,
   useCasePagesBySlug,
   useCaseSlugs,
 } from "@/components/marketing/use-case/use-case-page-content";
@@ -24,7 +30,7 @@ import {
   normalizeAppLocale,
   SUPPORTED_APP_LOCALES,
 } from "@/lib/app-i18n/locales";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 import { getUseCaseRouteMetadata } from "./use-case-route-metadata";
 
@@ -62,23 +68,39 @@ export async function generateMetadata({ params }: UseCaseRouteProps): Promise<M
   return {
     title,
     description,
-    keywords: content.metadata.keywords,
+    keywords: content.keywords,
     alternates: getLocalizedAlternates({ locale, path: `/use-cases/${slug}` }),
-    openGraph: {
+    openGraph: localizedOpenGraph(locale, `/use-cases/${slug}`, {
       title,
       description,
       type: "website",
-    },
+    }),
   };
 }
 
 export default async function UseCaseRoutePage({ params }: UseCaseRouteProps) {
-  const { slug } = await params;
+  const { lang, slug } = await params;
   const content = useCasePagesBySlug[slug];
+
+  const replacementSlug = RETIRED_USE_CASE_SLUGS[slug];
+  if (replacementSlug) {
+    permanentRedirect(`/${lang}/use-cases/${replacementSlug}`);
+  }
 
   if (!content) {
     notFound();
   }
 
-  return <UseCasePage content={content} />;
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const faqSlug = slug as UseCaseFaqSlug;
+  const faqCopy = getUseCaseFaqSectionCopy(faqSlug, locale);
+
+  return (
+    <UseCasePage
+      page={content}
+      faqItems={getUseCaseFaqItems(faqSlug, locale)}
+      faqHeading={faqCopy.heading}
+      faqSubheading={faqCopy.subheading}
+    />
+  );
 }

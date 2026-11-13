@@ -41,6 +41,12 @@ type Input struct {
 	Prune         bool
 	PruneLimit    int
 	PruneForce    bool
+	// KeepCompletedOnFailure leaves successful lock entries in place when a
+	// sibling key in the same target fails. The default rolls those entries
+	// back so the next run retries the whole target. A failed target file
+	// write still rolls back this run's entries for every target that was
+	// not written.
+	KeepCompletedOnFailure bool
 	// MaxTranslations caps how many executable tasks run in this session after lock
 	// filtering and prefill. 0 means unlimited. Deferred tasks remain unlocked so a
 	// later run without --force can continue.
@@ -172,6 +178,11 @@ type Event struct {
 	ContextMemoryProcessed   int       `json:"contextMemoryProcessed,omitempty"`
 	ContextMemoryFallbacks   int       `json:"contextMemoryFallbacks,omitempty"`
 	ContextMemoryState       string    `json:"contextMemoryState,omitempty"`
+	TranslationType          string    `json:"translationType,omitempty"`
+	SourceChars              int64     `json:"sourceChars,omitempty"`
+	TranslatedChars          int64     `json:"translatedChars,omitempty"`
+	RequestCount             int       `json:"requestCount,omitempty"`
+	DurationMillis           int64     `json:"durationMs,omitempty"`
 }
 
 type Task struct {
@@ -186,6 +197,7 @@ type Task struct {
 	Provider        string `json:"provider"`
 	Model           string `json:"model"`
 	TranslationType string `json:"translationType,omitempty"`
+	CopyFrom        string `json:"copyFrom,omitempty"`
 	SystemPrompt    string `json:"systemPrompt,omitempty"`
 	UserPrompt      string `json:"userPrompt,omitempty"`
 	LegacyPrompt    bool   `json:"-"`
@@ -212,12 +224,15 @@ type Task struct {
 	sourceContextFingerprint string
 	sourceFingerprint        string
 	sourceImage              []byte
+	copyFromTargetPath       string
 }
 
 type Failure struct {
-	TargetPath string `json:"targetPath"`
-	EntryKey   string `json:"entryKey"`
-	Reason     string `json:"reason"`
+	TargetPath      string `json:"targetPath"`
+	EntryKey        string `json:"entryKey"`
+	Reason          string `json:"reason"`
+	TranslationType string `json:"translationType,omitempty"`
+	Code            string `json:"code,omitempty"`
 }
 
 type TokenUsage struct {
@@ -270,11 +285,35 @@ func tokenUsageWithoutRaw(u TokenUsage) TokenUsage {
 	return u
 }
 
+// RequestCount and DurationMillis are aggregate-only because MT requests
+// may contain multiple tasks.
+type MTUsage struct {
+	SourceChars     int64 `json:"sourceChars,omitempty"`
+	TranslatedChars int64 `json:"translatedChars,omitempty"`
+	RequestCount    int   `json:"requestCount,omitempty"`
+	DurationMillis  int64 `json:"durationMs,omitempty"`
+}
+
+type MTProfileUsage struct {
+	Provider string `json:"provider,omitempty"`
+	MTUsage
+}
+
+func addMTUsage(current MTUsage, delta MTUsage) MTUsage {
+	current.SourceChars += delta.SourceChars
+	current.TranslatedChars += delta.TranslatedChars
+	current.RequestCount += delta.RequestCount
+	current.DurationMillis += delta.DurationMillis
+	return current
+}
+
 type BatchUsage struct {
-	TargetLocale string `json:"targetLocale"`
-	TargetPath   string `json:"targetPath"`
-	EntryKey     string `json:"entryKey"`
+	TargetLocale    string `json:"targetLocale"`
+	TargetPath      string `json:"targetPath"`
+	EntryKey        string `json:"entryKey"`
+	TranslationType string `json:"translationType,omitempty"`
 	TokenUsage
+	MTUsage
 }
 
 type Report struct {
@@ -290,18 +329,21 @@ type Report struct {
 	Failed          int `json:"failed"`
 	PersistedToLock int `json:"persistedToLock"`
 	TokenUsage
-	LocaleUsage                 map[string]TokenUsage `json:"localeUsage,omitempty"`
-	Batches                     []BatchUsage          `json:"batches,omitempty"`
-	Failures                    []Failure             `json:"failures,omitempty"`
-	Executable                  []Task                `json:"executable,omitempty"`
-	Skipped                     []Task                `json:"skipped,omitempty"`
-	PruneCandidates             []PruneCandidate      `json:"pruneCandidates,omitempty"`
-	PruneApplied                int                   `json:"pruneApplied"`
-	ContextMemoryEnabled        bool                  `json:"contextMemoryEnabled,omitempty"`
-	ContextMemoryScope          string                `json:"contextMemoryScope,omitempty"`
-	ContextMemoryGenerated      int                   `json:"contextMemoryGenerated,omitempty"`
-	ContextMemoryFallbackGroups int                   `json:"contextMemoryFallbackGroups,omitempty"`
-	Warnings                    []string              `json:"warnings,omitempty"`
+	LocaleUsage map[string]TokenUsage `json:"localeUsage,omitempty"`
+	MTUsage
+	LocaleMTUsage               map[string]MTUsage        `json:"localeMTUsage,omitempty"`
+	MTUsageByProfile            map[string]MTProfileUsage `json:"mtUsageByProfile,omitempty"`
+	Batches                     []BatchUsage              `json:"batches,omitempty"`
+	Failures                    []Failure                 `json:"failures,omitempty"`
+	Executable                  []Task                    `json:"executable,omitempty"`
+	Skipped                     []Task                    `json:"skipped,omitempty"`
+	PruneCandidates             []PruneCandidate          `json:"pruneCandidates,omitempty"`
+	PruneApplied                int                       `json:"pruneApplied"`
+	ContextMemoryEnabled        bool                      `json:"contextMemoryEnabled,omitempty"`
+	ContextMemoryScope          string                    `json:"contextMemoryScope,omitempty"`
+	ContextMemoryGenerated      int                       `json:"contextMemoryGenerated,omitempty"`
+	ContextMemoryFallbackGroups int                       `json:"contextMemoryFallbackGroups,omitempty"`
+	Warnings                    []string                  `json:"warnings,omitempty"`
 }
 
 type PruneCandidate struct {
@@ -507,12 +549,6 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							return nil, nil, fmt.Errorf("planning tasks: read source image %q: %w", sourcePath, err)
 						}
 						sourceFingerprint := imageLockSourceHash(sourceContent)
-						if selection.Type != config.TranslationTypeLLM {
-							return nil, nil, fmt.Errorf("planning tasks: image source %q in group %q is routed to translation type %q; image localization is only supported with type %q", sourcePath, groupName, selection.Type, config.TranslationTypeLLM)
-						}
-						if strings.ToLower(strings.TrimSpace(selection.LLMProfile.Provider)) != translator.ProviderOpenAI {
-							return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, selection.LLMProfile.Provider, translator.ProviderOpenAI)
-						}
 						if !filterFixes && cap(tasks)-len(tasks) < len(targets) {
 							tasks = slices.Grow(tasks, len(targets))
 						}
@@ -528,6 +564,15 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							outputFormat, err := imageOutputFormat(targetPath)
 							if err != nil {
 								return nil, nil, fmt.Errorf("planning tasks: image target %q: %w", targetPath, err)
+							}
+							_, isCopy := cfg.Locales.CopyOrigin(target)
+							if !isCopy {
+								if selection.Type != config.TranslationTypeLLM {
+									return nil, nil, fmt.Errorf("planning tasks: image source %q in group %q is routed to translation type %q; image localization is only supported with type %q", sourcePath, groupName, selection.Type, config.TranslationTypeLLM)
+								}
+								if strings.ToLower(strings.TrimSpace(selection.LLMProfile.Provider)) != translator.ProviderOpenAI {
+									return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, selection.LLMProfile.Provider, translator.ProviderOpenAI)
+								}
 							}
 							task := Task{
 								Kind:              taskKindImage,
@@ -551,6 +596,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								sourceFingerprint: sourceFingerprint,
 								sourceImage:       sourceContent,
 							}
+							if err := s.assignLocaleCopy(cfg, &task, file, sourcePattern, sourcePath); err != nil {
+								return nil, nil, err
+							}
 							precomputeStableTaskCacheFields(&task)
 							if filterFixes {
 								if len(fixSet) == 0 {
@@ -567,7 +615,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						}
 						continue
 					}
-					snapshot, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath)
+					snapshot, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath, cfg.Locales.Source)
 					if err != nil {
 						return nil, nil, err
 					}
@@ -612,6 +660,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						}
 						for _, key := range keys {
 							sourceText := sourceEntries[key]
+							if strings.TrimSpace(sourceText) == "" {
+								continue
+							}
 							task := Task{
 								SourceLocale:             cfg.Locales.Source,
 								TargetLocale:             target,
@@ -648,6 +699,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								task.Provider = selection.MTProfile.Provider
 							}
 
+							if err := s.assignLocaleCopy(cfg, &task, file, sourcePattern, sourcePath); err != nil {
+								return nil, nil, err
+							}
 							precomputeStableTaskCacheFields(&task)
 							if filterFixes {
 								mk := fixTargetMatchKey(task.SourcePath, task.TargetPath, task.TargetLocale, task.EntryKey)
@@ -791,7 +845,7 @@ func resolvePromptVersion(profile config.LLMProfile) string {
 	}, "\n"))
 }
 
-func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sourcePath string) (map[string]string, map[string]string, string, error) {
+func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sourcePath, sourceLocale string) (map[string]string, map[string]string, string, error) {
 	content, err := s.readProjectFile(sourcePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -800,7 +854,7 @@ func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sour
 		return nil, nil, "", fmt.Errorf("planning tasks: read source file %q: %w", sourcePath, err)
 	}
 
-	entries, entryContext, err := parser.ParseWithContext(sourcePath, content)
+	entries, entryContext, err := parser.ParseSource(sourcePath, content, sourceLocale)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("planning tasks: parse source file %q: %w", sourcePath, err)
 	}
@@ -808,12 +862,12 @@ func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sour
 	return entries, entryContext, parserModeForSource(sourcePath, content), nil
 }
 
-func (s *Service) loadSourceEntriesCached(parser *translationfileparser.Strategy, sourceCache map[string]plannedSourceSnapshot, sourcePath string) (plannedSourceSnapshot, error) {
+func (s *Service) loadSourceEntriesCached(parser *translationfileparser.Strategy, sourceCache map[string]plannedSourceSnapshot, sourcePath, sourceLocale string) (plannedSourceSnapshot, error) {
 	if cached, ok := sourceCache[sourcePath]; ok {
 		return cached, nil
 	}
 
-	entries, entryContext, parserMode, err := s.loadSourceEntries(parser, sourcePath)
+	entries, entryContext, parserMode, err := s.loadSourceEntries(parser, sourcePath, sourceLocale)
 	if err != nil {
 		return plannedSourceSnapshot{}, err
 	}
@@ -1101,17 +1155,21 @@ func taskIdentity(targetPath, entryKey string) string {
 
 func taskIdentityCandidates(task Task, projectRoot string) []string {
 	identities := []string{
+		taskLockIdentity(projectRoot, task.TargetPath, task.TargetLocale, task.EntryKey),
 		preferredTaskIdentity(projectRoot, task.TargetPath, task.EntryKey),
 		taskIdentity(task.TargetPath, task.EntryKey),
 	}
 	if rel, ok := relativizeProjectPath(projectRoot, task.TargetPath); ok {
+		identities = append(identities, taskLockIdentity(projectRoot, rel, task.TargetLocale, task.EntryKey))
 		identities = append(identities, taskIdentity(rel, task.EntryKey))
 	}
 	if isMarkdownEntryKey(task.EntryKey) {
 		for _, entryKey := range legacyMarkdownEntryKeyCandidates(task.EntryKey) {
+			identities = append(identities, taskLockIdentity(projectRoot, task.TargetPath, task.TargetLocale, entryKey))
 			identities = append(identities, preferredTaskIdentity(projectRoot, task.TargetPath, entryKey))
 			identities = append(identities, taskIdentity(task.TargetPath, entryKey))
 			if rel, ok := relativizeProjectPath(projectRoot, task.TargetPath); ok {
+				identities = append(identities, taskLockIdentity(projectRoot, rel, task.TargetLocale, entryKey))
 				identities = append(identities, taskIdentity(rel, entryKey))
 			}
 		}
@@ -1153,6 +1211,11 @@ func lockFingerprintEqual(stored, computed string) bool {
 	}
 	// Bolt: Use hex.EncodeToString instead of fmt.Sprintf("%x") to avoid reflection/formatting overhead
 	return hex.EncodeToString(decoded[:16]) == computed
+}
+
+// ParserModeForSource classifies a source file the same way hl run does (including strict FormatJS JSON).
+func ParserModeForSource(path string, content []byte) string {
+	return parserModeForSource(path, content)
 }
 
 func parserModeForSource(path string, content []byte) string {

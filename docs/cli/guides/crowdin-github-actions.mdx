@@ -1,0 +1,80 @@
+---
+title: "Automate Crowdin uploads and downloads in GitHub Actions"
+sidebarTitle: "Crowdin in GitHub Actions"
+description: "Use Hyperlocalise to upload Crowdin source files and download approved translations in GitHub Actions, with one localization CLI and an explicit review artifact."
+---
+
+Run Crowdin file commands in GitHub Actions with the same Hyperlocalise CLI you
+use locally. This workflow uploads sources, downloads currently approved French
+translations, and saves them as a review artifact. It does not wait for newly
+uploaded strings to be translated or approved.
+
+## Prepare your repository
+
+[Install and test the Crowdin workflow locally](/cli/commands/crowdin). Commit
+`locales/en.json` and this `crowdin.yml`, substituting your project ID:
+
+```yaml
+project_id: "your-project-id"
+api_token_env: CROWDIN_PERSONAL_TOKEN
+files:
+    - source: /locales/en.json
+      translation: /locales/%two_letters_code%.json
+```
+
+Create a GitHub Actions repository secret named `CROWDIN_PERSONAL_TOKEN` with
+project access. Set the repository variable `HYPERLOCALISE_CLI_VERSION` to the
+release you tested, including its `v` prefix. The workflow below requires that
+variable, so CI does not silently change CLI versions.
+
+## Add the workflow
+
+Save as `.github/workflows/crowdin.yml`. Start it manually from the repository's
+trusted default branch when you intend to upload the current sources.
+
+```yaml
+name: Crowdin localization
+on:
+    workflow_dispatch:
+permissions:
+    contents: read
+jobs:
+    localization:
+        runs-on: ubuntu-latest
+        env:
+            CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
+            HYPERLOCALISE_CLI_VERSION: ${{ vars.HYPERLOCALISE_CLI_VERSION }}
+        steps:
+            - uses: actions/checkout@v4
+            - name: Require a tested CLI release
+              run: test -n "$HYPERLOCALISE_CLI_VERSION"
+            - uses: hyperlocalise/hyperlocalise/install@v1
+              with:
+                  version: ${{ vars.HYPERLOCALISE_CLI_VERSION }}
+            - name: Validate file mappings
+              run: hyperlocalise crowdin config validate
+            - name: Upload source files
+              run: hyperlocalise crowdin upload sources
+            - name: Download approved French translations
+              run: hyperlocalise crowdin download translations --language fr --export-only-approved
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: crowdin-fr-translations
+                  path: locales/fr.json
+                  if-no-files-found: error
+```
+
+## Review the result
+
+Download the artifact from the Actions run, inspect the JSON, and compare it with
+your repository's current French file before committing. An upload success means
+Crowdin received the sources; it does not mean the target locale is complete.
+Missing approval or an empty export can leave no artifact and fail the workflow.
+
+For incremental updates that retain local keys missing from an approved export,
+use [merge-approved](/cli/guides/crowdin-approved-translations) and ensure the
+existing French file is checked out. Do not expose write credentials to untrusted
+pull-request code.
+
+See [Crowdin CLI reference](/cli/commands/crowdin) for branch and language filters,
+and [CI automation](/cli/workflows/ci-automation) for local translation checks.

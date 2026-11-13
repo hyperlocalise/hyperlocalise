@@ -17,10 +17,26 @@ import { validator } from "hono/validator";
 import { requireApiKeyPermission, type ApiKeyAuthVariables } from "@/api/auth/api-key";
 import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
 import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
+import { internalErrorResponse } from "@/api/response.schema";
+import {
+  htmlTranslationDownloadFailure,
+  loadProjectHtmlTranslationDownload,
+} from "@/lib/projects/files/html-translation-download";
+import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import {
+  loadProjectOfficeTranslationDownload,
+  officeTranslationDownloadFailure,
+  officeTranslationDownloadFilename,
+} from "@/lib/projects/files/office-translation-download";
+import {
+  loadProjectPdfTranslationDownload,
+  pdfTranslationDownloadFailure,
+} from "@/lib/projects/files/pdf-translation-download";
 import {
   getRepositorySourceFileByPath,
   loadProjectTranslationsAsPrefilledEntries,
 } from "@/lib/projects/translations/project-translation-service";
+import { isErr } from "@/lib/primitives/result/results";
 
 import {
   downloadPublicTranslationsQuerySchema,
@@ -87,6 +103,86 @@ export function createPublicTranslationRoutes() {
           return sourceFileNotFoundResponse(c);
         }
 
+        const filename = downloadFilename(query.sourcePath, query.locale);
+        const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
+
+        const officeDownload = await loadProjectOfficeTranslationDownload({
+          organizationId,
+          projectId: project.id,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+        });
+        if (isErr(officeDownload)) {
+          const failure = officeTranslationDownloadFailure(query.sourcePath);
+          return internalErrorResponse(c, failure.code, failure.message);
+        }
+        if (officeDownload.value) {
+          const officeFilename = officeTranslationDownloadFilename(filename, officeDownload.value);
+          return c.body(new Uint8Array(officeDownload.value.content), 200, {
+            "Content-Type": officeDownload.value.contentType,
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(officeFilename)}`,
+          });
+        }
+
+        const pdfDownload = await loadProjectPdfTranslationDownload({
+          organizationId,
+          projectId: project.id,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+        });
+        if (isErr(pdfDownload)) {
+          if (pdfDownload.error.code === "pdf_script_unsupported") {
+            return c.json(
+              {
+                error: "pdf_script_unsupported",
+                message: pdfDownload.error.message,
+              },
+              422,
+            );
+          }
+          if (pdfDownload.error.code === "pdf_export_failed") {
+            return internalErrorResponse(c, "pdf_export_failed", pdfDownload.error.message);
+          }
+          if (pdfDownload.error.code === "source_content_not_found") {
+            return sourceFileNotFoundResponse(c);
+          }
+          return internalErrorResponse(
+            c,
+            "pdf_export_failed",
+            pdfTranslationDownloadFailure().message,
+          );
+        }
+        if (pdfDownload.value) {
+          const headers: Record<string, string> = {
+            "Content-Type": pdfDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+          };
+          if (pdfDownload.value.overflowKeys.length > 0) {
+            headers["X-Hyperlocalise-Overflow-Keys"] = pdfDownload.value.overflowKeys.join(",");
+          }
+          return c.body(new Uint8Array(pdfDownload.value.content), 200, headers);
+        }
+
+        const htmlDownload = await loadProjectHtmlTranslationDownload({
+          organizationId,
+          projectId: project.id,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+        });
+        if (isErr(htmlDownload)) {
+          if (htmlDownload.error.code === "source_content_not_found") {
+            return sourceFileNotFoundResponse(c);
+          }
+          const failure = htmlTranslationDownloadFailure();
+          return internalErrorResponse(c, failure.code, failure.message);
+        }
+        if (htmlDownload.value) {
+          return c.body(new Uint8Array(htmlDownload.value.content), 200, {
+            "Content-Type": htmlDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+          });
+        }
+
         const result = await loadProjectTranslationsAsPrefilledEntries({
           organizationId,
           projectId: project.id,
@@ -103,12 +199,31 @@ export function createPublicTranslationRoutes() {
           return translationsNotFoundResponse(c);
         }
 
+        const lottieDownload = await loadProjectLottieTranslationDownload({
+          organizationId,
+          projectId: project.id,
+          sourcePath: query.sourcePath,
+          prefilled: result.prefilled,
+        });
+        if (isErr(lottieDownload)) {
+          return internalErrorResponse(
+            c,
+            "lottie_export_failed",
+            "Could not write translations into the Lottie animation.",
+          );
+        }
+        if (lottieDownload.value) {
+          return c.body(new Uint8Array(lottieDownload.value.content), 200, {
+            "Content-Type": lottieDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+          });
+        }
+
         const content = JSON.stringify(result.prefilled, null, 2) + "\n";
-        const filename = downloadFilename(query.sourcePath, query.locale);
 
         return c.body(content, 200, {
           "Content-Type": "application/json; charset=utf-8",
-          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+          "Content-Disposition": contentDisposition,
         });
       },
     );

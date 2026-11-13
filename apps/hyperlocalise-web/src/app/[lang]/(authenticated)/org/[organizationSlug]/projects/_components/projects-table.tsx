@@ -13,12 +13,12 @@
  * Version 2.0 or later.
  */
 import {
-  ArrowUpRight01Icon,
-  Delete02Icon,
-  Edit02Icon,
-  MoreHorizontalCircle01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  ArrowUpRightIcon,
+  TrashIcon,
+  PencilSimpleIcon,
+  DotsThreeCircleIcon,
+  CopySimpleIcon,
+} from "@phosphor-icons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -98,6 +98,7 @@ function ProjectRow({
   isDeletingProject,
   onEditProject,
   onDeleteProject,
+  onSaveAsTemplate,
   onOpenProject,
 }: {
   project: ProjectListRow;
@@ -106,6 +107,7 @@ function ProjectRow({
   isDeletingProject: boolean;
   onEditProject?: (project: ProjectListRow) => void;
   onDeleteProject?: (project: ProjectListRow) => void;
+  onSaveAsTemplate?: (project: ProjectListRow) => void;
   onOpenProject?: (projectId: string) => void;
 }) {
   const intl = useIntl();
@@ -200,7 +202,7 @@ function ProjectRow({
                     }
                     className="text-muted-foreground hover:text-foreground"
                   >
-                    <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={1.8} />
+                    <ArrowUpRightIcon />
                     <span className="sr-only">
                       {intl.formatMessage(projectsTableMessages.openInProviderSrOnly, {
                         projectName: project.name,
@@ -228,11 +230,11 @@ function ProjectRow({
                       projectName: project.name,
                     })}
                     disabled={isDeletingProject || isSavingProject}
-                    className="text-muted-foreground hover:text-foreground"
+                    className="shrink-0 text-muted-foreground hover:text-foreground"
                   />
                 }
               >
-                <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={1.8} />
+                <DotsThreeCircleIcon />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-48">
                 <DropdownMenuGroup>
@@ -243,9 +245,15 @@ function ProjectRow({
                     onClick={() => onEditProject(project)}
                     disabled={isSavingProject}
                   >
-                    <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} />
+                    <PencilSimpleIcon />
                     <FormattedMessage {...projectsTableMessages.editProject} />
                   </DropdownMenuItem>
+                  {onSaveAsTemplate ? (
+                    <DropdownMenuItem onClick={() => onSaveAsTemplate(project)}>
+                      <CopySimpleIcon />
+                      <FormattedMessage {...projectsTableMessages.saveAsTemplate} />
+                    </DropdownMenuItem>
+                  ) : null}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
@@ -254,7 +262,7 @@ function ProjectRow({
                     onClick={() => onDeleteProject(project)}
                     disabled={isDeletingProject || isSavingProject}
                   >
-                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                    <TrashIcon />
                     <FormattedMessage {...projectsTableMessages.deleteProject} />
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
@@ -312,6 +320,7 @@ export function ProjectsTable({
   onLoadMore,
   onEditProject,
   onDeleteProject,
+  onSaveAsTemplate,
   onCreateProject,
   onOpenProject,
 }: {
@@ -330,6 +339,7 @@ export function ProjectsTable({
   onLoadMore?: () => void;
   onEditProject?: (project: ProjectListRow) => void;
   onDeleteProject?: (project: ProjectListRow) => void;
+  onSaveAsTemplate?: (project: ProjectListRow) => void;
   onCreateProject?: () => void;
   onOpenProject?: (projectId: string) => void;
 }) {
@@ -424,6 +434,7 @@ export function ProjectsTable({
               isDeletingProject={isDeletingProject}
               onEditProject={onEditProject}
               onDeleteProject={onDeleteProject}
+              onSaveAsTemplate={onSaveAsTemplate}
               onOpenProject={onOpenProject}
             />
           ))

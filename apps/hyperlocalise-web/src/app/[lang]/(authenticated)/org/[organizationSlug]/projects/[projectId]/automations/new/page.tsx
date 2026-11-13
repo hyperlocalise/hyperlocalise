@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { hasCapability } from "@/api/auth/policy";
+import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import {
   createDefaultWorkspaceAutomationFormState,
@@ -23,9 +23,13 @@ import {
   workspaceAutomationsFlag,
 } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { AutomationsNewPageContent } from "../../../../automations/_components/automations-new-page-content";
-import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectAutomationNew");
+}
 
 export default function ProjectNewAutomationPage({
   params,
@@ -34,11 +38,7 @@ export default function ProjectNewAutomationPage({
   params: Promise<{ organizationSlug: string; projectId: string }>;
   searchParams: Promise<{ template?: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectNewAutomationPageLoader params={params} searchParams={searchParams} />
-    </OrgPageSuspense>
-  );
+  return <ProjectNewAutomationPageLoader params={params} searchParams={searchParams} />;
 }
 
 async function ProjectNewAutomationPageLoader({
@@ -57,7 +57,10 @@ async function ProjectNewAutomationPageLoader({
     return <FeatureTeaserPage feature="automations" scope="project" />;
   }
 
-  const flags = await evaluateWorkspaceFeatureFlags(auth);
+  const [flags, assistantEnabled] = await Promise.all([
+    evaluateWorkspaceFeatureFlags(auth),
+    canUseWorkspaceAutomationAssistant(auth),
+  ]);
   const templates = getMergedWorkspaceAutomationTemplates();
   const templateForm = template
     ? createWorkspaceAutomationFormStateFromTemplate(template, templates)
@@ -73,7 +76,8 @@ async function ProjectNewAutomationPageLoader({
       projectId={projectId}
       initialForm={initialForm}
       knowledgeAvailable={flags.knowledge}
-      canUpdateKnowledgeMemory={hasCapability(auth.membership.role, "workspace:update")}
+      assistantEnabled={assistantEnabled}
+      startsFromTemplate={Boolean(template)}
     />
   );
 }

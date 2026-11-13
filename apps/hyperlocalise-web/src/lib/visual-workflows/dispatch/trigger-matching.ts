@@ -17,13 +17,17 @@ import { isTriggerType } from "../catalog/node-catalog";
 import type {
   CanonicalVisualWorkflowNode,
   VisualNodeConfig,
-  VisualWorkflowDefinition,
   VisualWorkflowGithubTriggerEvent,
 } from "../schema/types";
 import type { VisualWorkflowRecord } from "../visual-workflow-types";
+import type { JobChangeEventRecord } from "@/lib/job-change-events/job-change-events-contract";
+
+type VisualWorkflowDefinitionWithNodes = {
+  nodes: readonly CanonicalVisualWorkflowNode[];
+};
 
 export function getVisualWorkflowTriggerNode(
-  definition: VisualWorkflowDefinition,
+  definition: VisualWorkflowDefinitionWithNodes,
 ): CanonicalVisualWorkflowNode | null {
   const triggers = definition.nodes.filter((node) => isTriggerType(node.type));
   return triggers.length === 1 ? (triggers[0] ?? null) : null;
@@ -45,9 +49,10 @@ export function visualWorkflowGithubEventsInclude(
   return resolveVisualWorkflowGithubEvents(events).includes(event);
 }
 
-export function resolveVisualWorkflowTriggerFingerprint(
-  workflow: Pick<VisualWorkflowRecord, "id" | "definition">,
-): string | null {
+export function resolveVisualWorkflowTriggerFingerprint(workflow: {
+  id: string;
+  definition: VisualWorkflowDefinitionWithNodes;
+}): string | null {
   const trigger = getVisualWorkflowTriggerNode(workflow.definition);
   if (!trigger) {
     return null;
@@ -68,6 +73,12 @@ export function resolveVisualWorkflowTriggerFingerprint(
       return trigger.config.projectId
         ? `source_upload:${workflow.id}:${trigger.config.projectId}`
         : `source_upload:${workflow.id}`;
+    case "trigger.webhook":
+      return `webhook:${workflow.id}`;
+    case "trigger.job_changed":
+      return trigger.config.projectId
+        ? `job_changed:${workflow.id}:${trigger.config.projectId}`
+        : `job_changed:${workflow.id}`;
     default:
       return null;
   }
@@ -141,6 +152,35 @@ export function visualWorkflowShouldDispatchOnSourceUpload(
   return true;
 }
 
+function matchesOptionalFilter<T>(filter: readonly T[] | undefined, value: T): boolean {
+  return !filter || filter.length === 0 || filter.includes(value);
+}
+
+export function visualWorkflowShouldDispatchOnJobChange(
+  workflow: VisualWorkflowRecord,
+  event: Pick<JobChangeEventRecord, "type" | "projectId" | "kind" | "toStatus">,
+): boolean {
+  if (workflow.status !== "active") {
+    return false;
+  }
+
+  const trigger = getVisualWorkflowTriggerNode(workflow.definition);
+  if (!trigger || trigger.config.kind !== "trigger.job_changed") {
+    return false;
+  }
+
+  const config = trigger.config;
+  if (config.projectId && config.projectId !== event.projectId) {
+    return false;
+  }
+
+  return (
+    matchesOptionalFilter(config.eventTypes, event.type) &&
+    matchesOptionalFilter(config.jobKinds, event.kind) &&
+    matchesOptionalFilter(config.toStatuses, event.toStatus)
+  );
+}
+
 export function validateVisualWorkflowTriggerConfig(
   config: VisualNodeConfig,
 ): { ok: true } | { ok: false; message: string } {
@@ -162,6 +202,12 @@ export function validateVisualWorkflowTriggerConfig(
     }
     case "trigger.source_upload":
       return { ok: true };
+    case "trigger.job_changed":
+      return { ok: true };
+    case "trigger.webhook":
+      return Number.isInteger(config.tokenVersion) && config.tokenVersion >= 1
+        ? { ok: true }
+        : { ok: false, message: "Webhook token version is invalid." };
     case "trigger.manual":
       return { ok: true };
     default:
@@ -170,7 +216,7 @@ export function validateVisualWorkflowTriggerConfig(
 }
 
 export function validateActiveVisualWorkflowTrigger(
-  definition: VisualWorkflowDefinition,
+  definition: VisualWorkflowDefinitionWithNodes,
 ): { ok: true } | { ok: false; message: string } {
   const trigger = getVisualWorkflowTriggerNode(definition);
   if (!trigger) {
@@ -181,7 +227,7 @@ export function validateActiveVisualWorkflowTrigger(
     return {
       ok: false,
       message:
-        "Active workflows require a production trigger (schedule, GitHub, or source upload).",
+        "Active workflows require a production trigger (schedule, GitHub, source upload, job changed, or webhook).",
     };
   }
 

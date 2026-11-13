@@ -15,20 +15,16 @@
 import { useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
-import { HugeiconsIcon } from "@hugeicons/react";
-import type { HugeiconsProps } from "@hugeicons/react";
-import { Loading03Icon } from "@hugeicons/core-free-icons";
+import { CircleNotchIcon, type IconProps } from "@phosphor-icons/react";
 import { spinnerMessages } from "@/components/ui/spinner.messages";
 
-type SpinnerProps = Omit<HugeiconsProps, "icon">;
+type SpinnerProps = IconProps;
 
 function Spinner({ className, ...props }: SpinnerProps) {
   const intl = useIntl();
 
   return (
-    <HugeiconsIcon
-      icon={Loading03Icon}
-      strokeWidth={2}
+    <CircleNotchIcon
       role="status"
       aria-label={intl.formatMessage(spinnerMessages.loading)}
       className={cn("size-4 motion-safe:animate-spin", className)}

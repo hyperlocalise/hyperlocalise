@@ -12,6 +12,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+vi.mock("@/lib/job-change-events/job-writes", () => import("@/test/mocks/job-writes-passthrough"));
+
 import { err, ok } from "@/lib/primitives/result/results";
 import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
 
@@ -23,6 +25,7 @@ const {
   reserveUsageEventMock,
   selectLimitMock,
   transactionMock,
+  updateSetMock,
   jobQueueEnqueueMock,
   ensureAiFeaturesAllowedMock,
 } = vi.hoisted(() => ({
@@ -33,6 +36,7 @@ const {
   reserveUsageEventMock: vi.fn(),
   selectLimitMock: vi.fn(),
   transactionMock: vi.fn(),
+  updateSetMock: vi.fn(),
   jobQueueEnqueueMock: vi.fn(),
   ensureAiFeaturesAllowedMock: vi.fn(),
 }));
@@ -90,9 +94,10 @@ vi.mock("@/lib/database/client", () => {
       select: vi.fn(() => createSelectBuilder()),
       transaction: (...args: unknown[]) => transactionMock(...args),
       update: vi.fn(() => ({
-        set: vi.fn(() => ({
-          where: vi.fn(),
-        })),
+        set: (payload: unknown) => {
+          updateSetMock(payload);
+          return { where: vi.fn() };
+        },
       })),
     },
     schema: {
@@ -155,6 +160,8 @@ describe("mergeNativeFileTranslationJobMetadata", () => {
     ).toEqual({
       title: "messages.json · 2026-07-31 22:11",
       instructions: "Keep brand names",
+      sourceFilename: "messages.json",
+      sourcePath: "messages.json",
     });
   });
 
@@ -167,6 +174,22 @@ describe("mergeNativeFileTranslationJobMetadata", () => {
       ),
     ).toEqual({
       title: "Release notes · JP + KO",
+      sourceFilename: "messages.json",
+      sourcePath: "messages.json",
+    });
+  });
+
+  it("stores the original filename instead of a Vercel Blob storage key", () => {
+    expect(
+      mergeNativeFileTranslationJobMetadata(
+        "organizations/org_1/workspace/files/file_abc/brief.docx",
+        { sourcePath: "organizations/org_1/workspace/files/file_abc/brief.docx" },
+        new Date("2026-07-31T22:11:45.000Z"),
+      ),
+    ).toEqual({
+      title: "brief.docx · 2026-07-31 22:11",
+      sourceFilename: "brief.docx",
+      sourcePath: "brief.docx",
     });
   });
 });
@@ -213,6 +236,32 @@ describe("enqueueFileTranslationJob", () => {
       }));
       return fn(tx);
     });
+  });
+
+  it("accepts CLI catalog source files for file translation jobs", async () => {
+    getStoredFileForJobScopeMock.mockResolvedValue({
+      id: "file_properties",
+      filename: "messages_en.properties",
+    });
+
+    const result = await enqueueFileTranslationJob({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourceFileId: "file_properties",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fileFormat: "properties",
+      jobQueue: { enqueue: jobQueueEnqueueMock } as never,
+    });
+
+    expect(result).toEqual({ ok: true, jobId: "job_test" });
+    expect(jobQueueEnqueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "translation",
+        type: "file",
+        jobId: "job_test",
+      }),
+    );
   });
 
   it("accepts png source files for image translation jobs", async () => {
@@ -272,11 +321,72 @@ describe("enqueueFileTranslationJob", () => {
         targetLocales: ["fr-FR"],
         metadata: {
           title: "messages.json · 2026-07-31 22:11",
+          sourceFilename: "messages.json",
+          sourcePath: "messages.json",
         },
       });
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("stores ignoreTranslationMemory on the job payload when requested", async () => {
+    getStoredFileForJobScopeMock.mockResolvedValue({
+      id: "file_json",
+      filename: "messages.json",
+    });
+
+    const result = await createFileTranslationJob({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourceFileId: "file_json",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fileFormat: "json",
+      ignoreTranslationMemory: true,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      jobId: "job_test",
+      projectId: "project_1",
+      sourceFileVersionId: "version_1",
+    });
+    expect(capturedJobValues?.inputPayload).toEqual(
+      expect.objectContaining({
+        ignoreTranslationMemory: true,
+      }),
+    );
+  });
+
+  it("binds the stored file version on the requested branch", async () => {
+    getStoredFileForJobScopeMock.mockResolvedValue({
+      id: "file_json",
+      filename: "messages.json",
+    });
+
+    const result = await createFileTranslationJob({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourceFileId: "file_json",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fileFormat: "json",
+      branchName: "feature-checkout",
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(ensureRepositorySourceFileVersionForStoredFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileId: "file_json",
+        branchName: "feature-checkout",
+      }),
+    );
+    expect(capturedJobValues?.inputPayload).toEqual(
+      expect.objectContaining({
+        branch: "feature-checkout",
+      }),
+    );
   });
 
   it("keeps a caller-supplied metadata title", async () => {
@@ -301,7 +411,30 @@ describe("enqueueFileTranslationJob", () => {
     });
   });
 
-  it("rejects unsupported source file formats", async () => {
+  it("preserves an agent assignee when no human owner is set", async () => {
+    getStoredFileForJobScopeMock.mockResolvedValue({
+      id: "file_json",
+      filename: "messages.json",
+    });
+
+    const result = await createFileTranslationJob({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourceFileId: "file_json",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fileFormat: "json",
+      assigneeType: "agent",
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(capturedJobValues).toMatchObject({
+      assigneeType: "agent",
+      ownerUserId: null,
+    });
+  });
+
+  it("accepts PDF source files for file translation jobs", async () => {
     getStoredFileForJobScopeMock.mockResolvedValue({
       id: "file_pdf",
       filename: "brief.pdf",
@@ -311,6 +444,24 @@ describe("enqueueFileTranslationJob", () => {
       organizationId: "org_1",
       projectId: "project_1",
       sourceFileId: "file_pdf",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      jobQueue: { enqueue: jobQueueEnqueueMock } as never,
+    });
+
+    expect(result).toMatchObject({ ok: true });
+  });
+
+  it("rejects unsupported source file formats", async () => {
+    getStoredFileForJobScopeMock.mockResolvedValue({
+      id: "file_rtf",
+      filename: "brief.rtf",
+    });
+
+    const result = await enqueueFileTranslationJob({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourceFileId: "file_rtf",
       sourceLocale: "en-US",
       targetLocales: ["fr-FR"],
       jobQueue: { enqueue: jobQueueEnqueueMock } as never,
@@ -437,6 +588,46 @@ describe("enqueueExistingFileTranslationJob", () => {
         kind: "translation",
         type: "file",
         jobId: "job_queued",
+      }),
+    );
+  });
+
+  it("records an automation trigger on the job before enqueue", async () => {
+    selectLimitMock.mockResolvedValue([
+      {
+        id: "job_queued",
+        projectId: "project_1",
+        kind: "translation",
+        status: "queued",
+        type: "file",
+        externalProviderKind: null,
+      },
+    ]);
+    const trigger = {
+      kind: "automation" as const,
+      automationId: "auto-1",
+      runId: "run-1",
+      name: "Nightly Drive",
+    };
+
+    await expect(
+      enqueueExistingFileTranslationJob({
+        organizationId: "org_1",
+        jobId: "job_queued",
+        trigger,
+        jobQueue: { enqueue: jobQueueEnqueueMock } as never,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      jobId: "job_queued",
+      projectId: "project_1",
+    });
+
+    expect(updateSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeType: "agent",
+        ownerUserId: null,
+        generationProvenance: { trigger },
       }),
     );
   });

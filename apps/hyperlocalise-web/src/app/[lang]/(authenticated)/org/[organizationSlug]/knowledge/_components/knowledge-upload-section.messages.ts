@@ -31,20 +31,14 @@ export const knowledgeUploadSectionMessages = defineMessages({
     description: "Clickable label inside the knowledge upload dropzone hint",
   },
   formats: {
-    defaultMessage:
-      "Supported formats: .csv, .json, .pdf, .xlsx, .xls, .txt, .md, .docx, .pptx. Max 1 file per upload.",
-    id: "vVxZW3OWeO",
+    defaultMessage: "Supported formats: .pdf, .docx, .md, .txt. Up to 25 MB, 1 file per upload.",
+    id: "I4SX9RyzOi",
     description: "Supported formats and file limit for knowledge upload",
   },
   or: {
     defaultMessage: "or",
     id: "bl+DouTlcU",
     description: "Separator between knowledge upload dropzone and source buttons",
-  },
-  selectedFiles: {
-    defaultMessage: "{count, plural, one {# file selected} other {# files selected}}",
-    id: "80QeJXvhPz",
-    description: "Count of files selected in the knowledge upload dropzone",
   },
   googleDrive: {
     defaultMessage: "Add Google Drive",
@@ -67,9 +61,9 @@ export const knowledgeUploadSectionMessages = defineMessages({
     description: "Button to import knowledge from a website",
   },
   markdownText: {
-    defaultMessage: "Markdown/Text",
-    id: "wE0HX7UKYn",
-    description: "Button to start a blank markdown knowledge memory document",
+    defaultMessage: "Write a guideline",
+    id: "zuK3zVbLqY",
+    description: "Button to start a blank guideline document",
   },
   comingSoon: {
     defaultMessage: "Coming soon",
@@ -85,5 +79,20 @@ export const knowledgeUploadSectionMessages = defineMessages({
     defaultMessage: "That file type is not supported. Use a supported format.",
     id: "pJSZRmHIFC",
     description: "Toast when the selected knowledge upload file uses an unsupported format",
+  },
+  fileTooLarge: {
+    defaultMessage: "That file is larger than 25 MB.",
+    id: "UxELaHpNTI",
+    description: "Toast when the selected knowledge upload file exceeds the size limit",
+  },
+  replaceFile: {
+    defaultMessage: "Replace",
+    id: "24HdfRVkvE",
+    description: "Button to choose a different file for the guideline upload",
+  },
+  removeFile: {
+    defaultMessage: "Remove file",
+    id: "Qgbvs1lDve",
+    description: "Accessible label for removing the chosen guideline upload file",
   },
 });

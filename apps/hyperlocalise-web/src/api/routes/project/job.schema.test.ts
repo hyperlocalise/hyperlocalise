@@ -77,6 +77,33 @@ describe("createJobBodySchema kind and description", () => {
     ).toBe(false);
   });
 
+  it("accepts CLI catalog file formats on file jobs", () => {
+    for (const fileFormat of ["xml", "properties", "php", "ftl", "javascript", "liquid"] as const) {
+      const parsed = createJobBodySchema.safeParse({
+        ...fileBase,
+        fileInput: {
+          ...fileBase.fileInput,
+          fileFormat,
+        },
+      });
+      expect(parsed.success, fileFormat).toBe(true);
+    }
+  });
+
+  it("accepts ignoreTranslationMemory on file jobs", () => {
+    const parsed = createJobBodySchema.safeParse({
+      ...fileBase,
+      fileInput: {
+        ...fileBase.fileInput,
+        ignoreTranslationMemory: true,
+      },
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success && parsed.data.type === "file") {
+      expect(parsed.data.fileInput.ignoreTranslationMemory).toBe(true);
+    }
+  });
+
   it("counts waiting_for_review as an open job status", () => {
     expect(openJobStatusValues).toContain("waiting_for_review");
   });
@@ -87,5 +114,40 @@ describe("updateJobBodySchema", () => {
     expect(updateJobBodySchema.safeParse({}).success).toBe(false);
     expect(updateJobBodySchema.safeParse({ description: null }).success).toBe(true);
     expect(updateJobBodySchema.safeParse({ title: "Retitled" }).success).toBe(true);
+    expect(updateJobBodySchema.safeParse({ dueAt: null }).success).toBe(true);
+  });
+
+  it("accepts an offset datetime and rejects a bare date or local string", () => {
+    expect(updateJobBodySchema.safeParse({ dueAt: "2026-05-01T17:00:00.000Z" }).success).toBe(true);
+    expect(updateJobBodySchema.safeParse({ dueAt: "2026-05-01T17:00:00+02:00" }).success).toBe(
+      true,
+    );
+    expect(updateJobBodySchema.safeParse({ dueAt: "2026-05-01" }).success).toBe(false);
+    expect(updateJobBodySchema.safeParse({ dueAt: "next Friday" }).success).toBe(false);
+  });
+});
+
+describe("createJobBodySchema dueAt", () => {
+  const stringBase = {
+    type: "string" as const,
+    stringInput: {
+      sourceText: "Hello",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    },
+  };
+
+  it("accepts an offset datetime on create and rejects a date without a time", () => {
+    const accepted = createJobBodySchema.safeParse({
+      ...stringBase,
+      dueAt: "2026-05-01T17:00:00.000Z",
+    });
+    expect(accepted.success).toBe(true);
+    if (accepted.success) {
+      expect(accepted.data.dueAt).toBe("2026-05-01T17:00:00.000Z");
+    }
+    expect(createJobBodySchema.safeParse({ ...stringBase, dueAt: "2026-05-01" }).success).toBe(
+      false,
+    );
   });
 });

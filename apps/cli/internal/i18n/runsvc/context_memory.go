@@ -362,6 +362,35 @@ func mergeLocaleUsage(base map[string]TokenUsage, delta map[string]TokenUsage) m
 	return base
 }
 
+func mergeLocaleMTUsage(base map[string]MTUsage, delta map[string]MTUsage) map[string]MTUsage {
+	if len(delta) == 0 {
+		return base
+	}
+	if base == nil {
+		base = make(map[string]MTUsage, len(delta))
+	}
+	for locale, usage := range delta {
+		base[locale] = addMTUsage(base[locale], usage)
+	}
+	return base
+}
+
+func mergeMTUsageByProfile(base map[string]MTProfileUsage, delta map[string]MTProfileUsage) map[string]MTProfileUsage {
+	if len(delta) == 0 {
+		return base
+	}
+	if base == nil {
+		base = make(map[string]MTProfileUsage, len(delta))
+	}
+	for profile, usage := range delta {
+		existing := base[profile]
+		existing.Provider = usage.Provider
+		existing.MTUsage = addMTUsage(existing.MTUsage, usage.MTUsage)
+		base[profile] = existing
+	}
+	return base
+}
+
 func interleaveTasksByContextKey(tasks []Task) []Task {
 	if len(tasks) <= 1 {
 		return tasks

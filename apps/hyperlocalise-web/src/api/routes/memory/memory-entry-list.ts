@@ -49,6 +49,7 @@ export function memoryEntryListFiltersFromQuery(
     sourceLocale: query?.sourceLocale,
     targetLocale: query?.targetLocale,
     reviewStatus: query?.reviewStatus,
+    sameAsSource: query?.sameAsSource,
     origin: query?.origin,
     provider: query?.provider,
     createdByUserId: query?.createdByUserId,
@@ -97,6 +98,9 @@ export function buildMemoryEntryListWhere(
   }
   if (filters.reviewStatus) {
     conditions.push(eq(schema.memoryEntries.reviewStatus, filters.reviewStatus));
+  }
+  if (filters.sameAsSource === "true") {
+    conditions.push(eq(schema.memoryEntries.sourceText, schema.memoryEntries.targetText));
   }
   if (filters.origin) {
     conditions.push(eq(schema.memoryEntries.provenance, filters.origin));

@@ -45,6 +45,11 @@ export const inboxTypesMessages = defineMessages({
     id: "k4KpJNxaEK",
     description: "Inbox conversation source label for public web chat",
   },
+  sourceWorkflowApproval: {
+    defaultMessage: "Workflow approval",
+    id: "bCKzjhKq9c",
+    description: "Inbox source label for a workflow approval request",
+  },
   statusActive: {
     defaultMessage: "Active",
     id: "QNkL8EdZgQ",

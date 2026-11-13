@@ -12,10 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { createElement, useState, type KeyboardEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowDown01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -26,7 +25,11 @@ import { cn } from "@/lib/primitives/cn";
 import { IssueAssigneeTableCell } from "./issue-detail/issue-assignee-table-cell";
 import { IssuePriorityIcon } from "./issue-detail/issue-priority-icon";
 import { IssueStatusIcon } from "./issue-detail/issue-status-icon";
-import { buildIssueDetailHref, issueStatusLabel } from "./issue-detail/issue-detail-utils";
+import {
+  buildIssueDetailHref,
+  issueStatusLabel,
+  type IssueDetailHrefScope,
+} from "./issue-detail/issue-detail-utils";
 import {
   groupIssuesByStatus,
   type IssueListSummaryCounts,
@@ -74,7 +77,7 @@ function StatusGroupHeader({
 }) {
   const intl = useIntl();
   const label = issueStatusLabel(intl, status);
-  const chevron = collapsed ? ArrowRight01Icon : ArrowDown01Icon;
+  const chevron = collapsed ? ArrowRightIcon : CaretDownIcon;
 
   return (
     <button
@@ -89,7 +92,7 @@ function StatusGroupHeader({
       )}
       onClick={onToggle}
     >
-      <HugeiconsIcon icon={chevron} strokeWidth={2} className="size-3.5 text-muted-foreground" />
+      {createElement(chevron, { className: "size-3.5 text-muted-foreground" })}
       <IssueStatusIcon status={status} />
       <span>{label}</span>
       <span className="text-muted-foreground tabular-nums">{count}</span>
@@ -101,6 +104,7 @@ export function IssueListRow({
   organizationSlug,
   issue,
   showProject,
+  detailScope = "project",
   onActivate,
   onActivateKeyDown,
   selectionEnabled = false,
@@ -112,6 +116,7 @@ export function IssueListRow({
   organizationSlug: string;
   issue: IssueGroupedListItem;
   showProject?: boolean;
+  detailScope?: IssueDetailHrefScope;
   onActivate: (issue: IssueGroupedListItem) => void;
   onActivateKeyDown: (event: KeyboardEvent<HTMLDivElement>, issue: IssueGroupedListItem) => void;
   selectionEnabled?: boolean;
@@ -151,6 +156,7 @@ export function IssueListRow({
               organizationSlug,
               projectId: issue.projectId,
               issueId: issue.identifier,
+              scope: detailScope,
             })}
             className="block truncate font-medium text-foreground hover:underline"
             onClick={stopPropagation}
@@ -205,6 +211,7 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
   summary,
   activeStatus,
   showProject,
+  detailScope = "project",
   isLoading,
   isError,
   isFetchingMore,
@@ -227,6 +234,7 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
   summary?: IssueListSummaryCounts;
   activeStatus?: string;
   showProject?: boolean;
+  detailScope?: IssueDetailHrefScope;
   isLoading: boolean;
   isError: boolean;
   isFetchingMore?: boolean;
@@ -246,7 +254,7 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
 }) {
   const intl = useIntl();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const groups = groupIssuesByStatus(issues, { activeStatus, summary });
+  const groups = groupIssuesByStatus(issues, { activeStatus, hasMore, summary });
   // Only a single-status filter hides headers. Do not use groups.length —
   // pagination may have loaded only one status so far while summary spans more.
   const hideHeaders = Boolean(activeStatus);
@@ -331,6 +339,7 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
                       organizationSlug={organizationSlug}
                       issue={issue}
                       showProject={showProject}
+                      detailScope={detailScope}
                       selectionEnabled={selectionEnabled}
                       selected={isIssueSelected?.(issue as T) ?? false}
                       selectionDisabled={selectionDisabled}

@@ -1,0 +1,389 @@
+"use client";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { defineMessages } from "react-intl";
+
+export const contentEditorViewMenuMessages = defineMessages({
+  trigger: {
+    defaultMessage: "View",
+    id: "zav6I2MtpJ",
+    description: "Label for the Content Editor view options menu trigger",
+  },
+  triggerAria: {
+    defaultMessage: "View options",
+    id: "Ps7pQymjZB",
+    description: "Accessible label for the Content Editor view options menu trigger",
+  },
+  layoutLabel: {
+    defaultMessage: "Layout",
+    id: "HpSZVN9p7L",
+    description: "Section label for workspace layout options in the Content Editor view menu",
+  },
+  modeLabel: {
+    defaultMessage: "Mode",
+    id: "NiBNvdtgqF",
+    description: "Section label for workspace persona options in the Content Editor view menu",
+  },
+  sortLabel: {
+    defaultMessage: "Sort strings",
+    id: "3B3n54tU18",
+    description: "Section label for queue sort options in the Content Editor view menu",
+  },
+  groupingLabel: {
+    defaultMessage: "Show strings",
+    id: "ru7Wge58fC",
+    description: "Section label for grouped or individual string options in the view menu",
+  },
+  panelsLabel: {
+    defaultMessage: "Panels",
+    id: "0W8f7Hq7eM",
+    description: "Section label for panel visibility toggles in the Content Editor view menu",
+  },
+  filesPanel: {
+    defaultMessage: "Files panel",
+    id: "FZ/OkTcJpl",
+    description: "View menu toggle that shows or hides the files panel",
+  },
+  detailsPanel: {
+    defaultMessage: "Details panel",
+    id: "qbyieDePtF",
+    description: "View menu toggle that shows or hides the string details panel",
+  },
+  filesLabel: {
+    defaultMessage: "Files",
+    id: "tzsKa8xL6Z",
+    description: "View menu section label for file list options",
+  },
+  showHiddenFiles: {
+    defaultMessage: "Show hidden files",
+    id: "eGiW70wkpJ",
+    description:
+      "View menu toggle that shows or hides files whose strings are all hidden from translators",
+  },
+});
+
+export const contentEditorOverflowMenuMessages = defineMessages({
+  triggerAria: {
+    defaultMessage: "More actions",
+    id: "x2Cfa/aUUM",
+    description: "Accessible label for the Content Editor overflow actions menu",
+  },
+  downloadFilteredView: {
+    defaultMessage: "Download filtered view…",
+    id: "cx3+OxbAb3",
+    description: "Overflow menu item that opens the filtered export dialog",
+  },
+  importBilingualFile: {
+    defaultMessage: "Import bilingual file…",
+    id: "cxb+FsoLJb",
+    description: "Overflow menu item that opens the bilingual file re-import dialog",
+  },
+  fileActivity: {
+    defaultMessage: "File activity",
+    id: "c2QYSQJf6k",
+    description: "Overflow menu item that opens the file activity log",
+  },
+  keyboardShortcuts: {
+    defaultMessage: "Keyboard shortcuts",
+    id: "FhEjxRttwc",
+    description: "Overflow menu item that opens the keyboard shortcuts dialog",
+  },
+});
+
+export const contentEditorBulkBarMessages = defineMessages({
+  select: {
+    defaultMessage: "Select",
+    id: "AXEaiv3hw7",
+    description: "Button that turns on bulk selection in the Content Editor queue",
+  },
+  selectedCount: {
+    defaultMessage: "{count, plural, one {# selected} other {# selected}}",
+    id: "nSV3pblCAm",
+    description: "Number of strings selected in the Content Editor bulk action bar",
+  },
+  selectAllVisible: {
+    defaultMessage: "Select all loaded ({count})",
+    id: "2WT/yGH514",
+    description:
+      "Bulk action bar button that ticks every string loaded so far, including ones scrolled out of view; count is how many are loaded",
+  },
+  more: {
+    defaultMessage: "More",
+    id: "PyrXpZW3dU",
+    description: "Bulk action bar menu with less common bulk actions",
+  },
+  done: {
+    defaultMessage: "Done",
+    id: "iE2A3xoRIH",
+    description: "Bulk action bar button that exits selection mode",
+  },
+  barAria: {
+    defaultMessage: "Bulk actions",
+    id: "jZp99wvTSu",
+    description: "Accessible label for the Content Editor bulk action bar",
+  },
+});
+
+export const contentEditorExportDialogMessages = defineMessages({
+  title: {
+    defaultMessage: "Download filtered view",
+    id: "YNEVk3jydD",
+    description: "Title of the Content Editor filtered export dialog",
+  },
+  description: {
+    defaultMessage: "Exports the strings that match the current filter: {filter}.",
+    id: "6InUvYkWGX",
+    description: "Description of the Content Editor filtered export dialog",
+  },
+  formatLabel: {
+    defaultMessage: "File format",
+    id: "CIDv8dNyhc",
+    description: "Label for the export format choices in the filtered export dialog",
+  },
+  cancel: {
+    defaultMessage: "Cancel",
+    id: "Mt2FErfqOi",
+    description: "Closes the filtered export dialog without downloading",
+  },
+  download: {
+    defaultMessage: "Download",
+    id: "RcXQkSHSjo",
+    description: "Starts the filtered export download",
+  },
+});
+
+export const contentEditorImportDialogMessages = defineMessages({
+  title: {
+    defaultMessage: "Import bilingual file",
+    id: "VzLClJsLg0",
+    description: "Title of the Content Editor bilingual import dialog",
+  },
+  description: {
+    defaultMessage:
+      "Re-import a CSV, TMX, XLF, XLIFF, or XLSX file exported from this queue to apply tag and translation fixes for {locale}. Matching keys are updated. Empty targets are skipped.",
+    id: "KrcMVcci8Z",
+    description:
+      "Description of the Content Editor bilingual import dialog. {locale} is the current target locale",
+  },
+  fileLabel: {
+    defaultMessage: "Bilingual file",
+    id: "EOTMIMF/c9",
+    description: "Label for the bilingual file picker in the import dialog",
+  },
+  chooseFile: {
+    defaultMessage: "Choose file",
+    id: "MyCHJKVL+S",
+    description: "Button that opens the bilingual file picker",
+  },
+  noFileSelected: {
+    defaultMessage: "No file selected",
+    id: "14fjm7KS5p",
+    description: "Placeholder when no bilingual file has been chosen",
+  },
+  cancel: {
+    defaultMessage: "Cancel",
+    id: "/846Cme9F7",
+    description: "Closes the bilingual import dialog without uploading",
+  },
+  import: {
+    defaultMessage: "Import",
+    id: "jPLbJdtewx",
+    description: "Starts the bilingual file import",
+  },
+  importFailed: {
+    defaultMessage: "Could not import the bilingual file.",
+    id: "57vdPa03Kj",
+    description: "Toast when bilingual import fails",
+  },
+  noneImported: {
+    defaultMessage: "No matching translations were imported.",
+    id: "R7DirRTdeG",
+    description: "Toast when bilingual import matches no keys",
+  },
+  importSuccess: {
+    defaultMessage:
+      "{imported, plural, one {Imported # translation.} other {Imported # translations.}}",
+    id: "h7ecP3kpVa",
+    description: "Toast after bilingual import. {imported} is the number of saved translations",
+  },
+  importSkipped: {
+    defaultMessage:
+      "{skipped, plural, one {Skipped # unmatched or empty row.} other {Skipped # unmatched or empty rows.}}",
+    id: "kzjEnGFmtM",
+    description:
+      "Follow-on toast text after bilingual import. {skipped} is unmatched or empty rows",
+  },
+});
+
+export const contentEditorShortcutsDialogMessages = defineMessages({
+  title: {
+    defaultMessage: "Keyboard shortcuts",
+    id: "fmHJLMYbQV",
+    description: "Title of the Content Editor keyboard shortcuts dialog",
+  },
+  description: {
+    defaultMessage: "Shortcuts work while you edit a string.",
+    id: "ZJeMLihOyK",
+    description: "Description of the Content Editor keyboard shortcuts dialog",
+  },
+  alternateShortcut: {
+    defaultMessage: "or",
+    id: "fC5ypafpDV",
+    description: "Separator between two key combinations that trigger the same shortcut",
+  },
+  approve: {
+    defaultMessage: "Approve string",
+    id: "qAQXdmfmq+",
+    description: "Keyboard shortcuts dialog row for approving the current string",
+  },
+  previous: {
+    defaultMessage: "Previous string",
+    id: "AtXAhlt1Vc",
+    description: "Keyboard shortcuts dialog row for moving to the previous string",
+  },
+  next: {
+    defaultMessage: "Next string",
+    id: "CxBkPTcIQP",
+    description: "Keyboard shortcuts dialog row for moving to the next string",
+  },
+  findContext: {
+    defaultMessage: "Find context",
+    id: "d3L1baYy7c",
+    description: "Keyboard shortcuts dialog row for looking up repository context",
+  },
+  openShortcuts: {
+    defaultMessage: "Show keyboard shortcuts",
+    id: "/TFjPTBnks",
+    description: "Keyboard shortcuts dialog row for opening this dialog",
+  },
+  exitSelection: {
+    defaultMessage: "Exit bulk selection",
+    id: "+XceZn1/ER",
+    description: "Keyboard shortcuts dialog row for leaving bulk selection mode",
+  },
+  showHintBar: {
+    defaultMessage: "Show shortcut hints below the editor",
+    id: "wSzothE8ek",
+    description: "Toggle in the shortcuts dialog for the editor shortcut hint strip",
+  },
+  holdToReveal: {
+    defaultMessage: "Hold {key} to see shortcuts next to buttons.",
+    id: "omy5y6OpyC",
+    description:
+      "Tip in the shortcuts dialog. {key} is the Command key on Mac or Ctrl elsewhere, held down to reveal shortcut badges",
+  },
+  groupEditing: {
+    defaultMessage: "Editing",
+    id: "EX5VTr5svf",
+    description: "Keyboard shortcuts dialog section for actions on the current translation",
+  },
+  groupNavigation: {
+    defaultMessage: "Navigation",
+    id: "1oPWgOArxL",
+    description: "Keyboard shortcuts dialog section for moving between strings",
+  },
+  groupWorkspace: {
+    defaultMessage: "Workspace",
+    id: "kmJ1dyJfEZ",
+    description: "Keyboard shortcuts dialog section for panels, search, and dialogs",
+  },
+  saveDraft: {
+    defaultMessage: "Save as draft",
+    id: "SjMR/pn7Sj",
+    description: "Keyboard shortcuts dialog row for saving the current translation as a draft",
+  },
+  previousUntranslated: {
+    defaultMessage: "Previous untranslated string",
+    id: "Ew6icN4mB3",
+    description:
+      "Keyboard shortcuts dialog row for jumping back to the previous untranslated string",
+  },
+  nextUntranslated: {
+    defaultMessage: "Next untranslated string",
+    id: "geJeKohJDH",
+    description: "Keyboard shortcuts dialog row for jumping to the next untranslated string",
+  },
+  copySource: {
+    defaultMessage: "Copy source into translation",
+    id: "2naYn8OhpC",
+    description: "Keyboard shortcuts dialog row for copying the source text into the translation",
+  },
+  clearTarget: {
+    defaultMessage: "Clear translation",
+    id: "eWNRKPdE2G",
+    description: "Keyboard shortcuts dialog row for clearing the current translation",
+  },
+  useSuggestion: {
+    defaultMessage: "Use translation memory match 1–3",
+    id: "hEZ5a5ZO9w",
+    description:
+      "Keyboard shortcuts dialog row for applying one of the first three translation memory matches",
+  },
+  searchStrings: {
+    defaultMessage: "Search strings",
+    id: "iBeDAhz+Sv",
+    description: "Keyboard shortcuts dialog row for focusing the string search box",
+  },
+  toggleFilesPanel: {
+    defaultMessage: "Show or hide files panel",
+    id: "5e9bzaPtZE",
+    description: "Keyboard shortcuts dialog row for toggling the file tree panel",
+  },
+  toggleDetailsPanel: {
+    defaultMessage: "Show or hide details panel",
+    id: "Sdt1zO7EDS",
+    description: "Keyboard shortcuts dialog row for toggling the string details panel",
+  },
+  addComment: {
+    defaultMessage: "Write a comment",
+    id: "+F5FHObn7V",
+    description: "Keyboard shortcuts dialog row for focusing the comment box",
+  },
+});
+
+export const contentEditorSegmentActionsMessages = defineMessages({
+  triggerAria: {
+    defaultMessage: "String actions",
+    id: "RbEKTU1lMo",
+    description: "Accessible label for the per-string actions menu",
+  },
+  copyLink: {
+    defaultMessage: "Copy link to this string",
+    id: "jWhUR5x+Vb",
+    description: "Per-string menu item that copies a link to the string",
+  },
+  linkCopied: {
+    defaultMessage: "Link copied",
+    id: "MmXiAtBLYT",
+    description: "Toast after copying a link to a string",
+  },
+  linkCopyFailed: {
+    defaultMessage: "Could not copy link",
+    id: "99GL6BjW2r",
+    description: "Toast when copying a link to a string fails",
+  },
+  activity: {
+    defaultMessage: "View activity",
+    id: "HB+x7NCsPK",
+    description: "Per-string menu item that opens the string activity history",
+  },
+});
+
+export const contentEditorFindContextMessages = defineMessages({
+  refreshContext: {
+    defaultMessage: "Refresh context",
+    id: "dIpX2t1U6p",
+    description: "Re-runs the repository context lookup once context has been found",
+  },
+});

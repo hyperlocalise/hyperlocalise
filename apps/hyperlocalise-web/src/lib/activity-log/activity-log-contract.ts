@@ -26,24 +26,35 @@ export const ACTIVITY_TARGET_KINDS = [
   "translation_memory",
   "job",
   "automation",
+  "visual_workflow",
+  "query",
   "file",
   "string_segment",
+  "dictionary",
+  "linked_domain",
 ] as const;
 export type ActivityTargetKind = (typeof ACTIVITY_TARGET_KINDS)[number];
 
 export const V1_ACTIVITY_EVENT_TYPES = [
   "member_invited",
   "member_invite_resent",
+  "member_invite_revoked",
+  "member_joined",
   "member_role_changed",
   "member_removed",
+  "member_left",
   "workspace_updated",
+  "workspace_archived",
   "personal_access_token_created",
   "personal_access_token_revoked",
   "integration_connected",
   "integration_disconnected",
+  "integration_credential_revealed",
+  "integration_credential_rotated",
   "project_created",
   "project_deleted",
   "project_settings_changed",
+  "project_strings_updated",
   "glossary_created",
   "glossary_deleted",
   "glossary_imported",
@@ -60,26 +71,65 @@ export const V1_ACTIVITY_EVENT_TYPES = [
 ] as const;
 export type V1ActivityEventType = (typeof V1_ACTIVITY_EVENT_TYPES)[number];
 
-/** Reserved until the data model distinguishes organization API keys from PATs. */
-export const RESERVED_ACTIVITY_EVENT_TYPES = [
+export const ORGANIZATION_API_KEY_ACTIVITY_EVENT_TYPES = [
   "organization_api_key_created",
   "organization_api_key_revoked",
 ] as const;
-export type ReservedActivityEventType = (typeof RESERVED_ACTIVITY_EVENT_TYPES)[number];
+export type OrganizationApiKeyActivityEventType =
+  (typeof ORGANIZATION_API_KEY_ACTIVITY_EVENT_TYPES)[number];
 
 export const LATER_ACTIVITY_EVENT_TYPES = [
   "job_created",
   "job_cancelled",
   "job_failed",
+  "job_updated",
+  "automation_created",
+  "automation_deleted",
   "automation_run_started",
   "automation_enabled",
   "automation_disabled",
 ] as const;
 export type LaterActivityEventType = (typeof LATER_ACTIVITY_EVENT_TYPES)[number];
 
+export const VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES = [
+  "visual_workflow_created",
+  "visual_workflow_deleted",
+  "visual_workflow_published",
+  "visual_workflow_enabled",
+  "visual_workflow_disabled",
+  "visual_workflow_run_started",
+  "visual_workflow_approval_requested",
+  "visual_workflow_approval_decided",
+] as const;
+export type VisualWorkflowActivityEventType = (typeof VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES)[number];
+
+export const QUERY_ACTIVITY_EVENT_TYPES = [
+  "query_created",
+  "query_deleted",
+  "query_imported",
+] as const;
+export type QueryActivityEventType = (typeof QUERY_ACTIVITY_EVENT_TYPES)[number];
+
+export const DICTIONARY_ACTIVITY_EVENT_TYPES = [
+  "dictionary_created",
+  "dictionary_deleted",
+  "dictionary_imported",
+  "dictionary_project_attached",
+] as const;
+export type DictionaryActivityEventType = (typeof DICTIONARY_ACTIVITY_EVENT_TYPES)[number];
+
+export const LINKED_DOMAIN_ACTIVITY_EVENT_TYPES = [
+  "linked_domain_created",
+  "linked_domain_verified",
+  "linked_domain_cancelled",
+  "linked_domain_markets_changed",
+] as const;
+export type LinkedDomainActivityEventType = (typeof LINKED_DOMAIN_ACTIVITY_EVENT_TYPES)[number];
+
 export const FILE_SEGMENT_ACTIVITY_EVENT_TYPES = [
   "file_uploaded",
   "file_translations_imported",
+  "string_segment_translation_updated",
   "string_segment_approved",
   "string_segment_status_changed",
   "string_segment_hidden",
@@ -92,16 +142,25 @@ export type FileSegmentActivityEventType = (typeof FILE_SEGMENT_ACTIVITY_EVENT_T
 
 export const IMPLEMENTED_ACTIVITY_EVENT_TYPES = [
   ...V1_ACTIVITY_EVENT_TYPES,
+  ...ORGANIZATION_API_KEY_ACTIVITY_EVENT_TYPES,
   ...LATER_ACTIVITY_EVENT_TYPES,
+  ...VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES,
+  ...QUERY_ACTIVITY_EVENT_TYPES,
   ...FILE_SEGMENT_ACTIVITY_EVENT_TYPES,
+  ...DICTIONARY_ACTIVITY_EVENT_TYPES,
+  ...LINKED_DOMAIN_ACTIVITY_EVENT_TYPES,
 ] as const;
 export type ImplementedActivityEventType = (typeof IMPLEMENTED_ACTIVITY_EVENT_TYPES)[number];
 
 export type ActivityEventType =
   | V1ActivityEventType
-  | ReservedActivityEventType
+  | OrganizationApiKeyActivityEventType
   | LaterActivityEventType
-  | FileSegmentActivityEventType;
+  | VisualWorkflowActivityEventType
+  | QueryActivityEventType
+  | FileSegmentActivityEventType
+  | DictionaryActivityEventType
+  | LinkedDomainActivityEventType;
 
 export type ActivityMembershipRole =
   | "admin"
@@ -145,6 +204,8 @@ type StringSegmentActivityPayload = {
   name: string;
   projectId: string;
   segmentId: string;
+  /** Every segment in a bulk hide or lock. Absent when the event is a single segment. */
+  segmentIds?: readonly string[];
   sourcePath: string;
   targetLocale?: string;
 };
@@ -157,6 +218,14 @@ export type ActivityPayloadByEventType = {
   member_invite_resent: {
     invitationId: string;
   };
+  member_invite_revoked: {
+    invitationId: string;
+  };
+  member_joined: {
+    memberUserId: string;
+    membershipId: string;
+    role: ActivityMembershipRole;
+  };
   member_role_changed: {
     memberUserId: string;
     membershipId: string;
@@ -167,10 +236,17 @@ export type ActivityPayloadByEventType = {
     memberUserId: string;
     membershipId: string;
   };
+  member_left: {
+    memberUserId: string;
+    membershipId: string;
+  };
   workspace_updated: {
     changedFields: readonly string[];
     previousName?: string;
     nextName?: string;
+  };
+  workspace_archived: {
+    lifecycleStatus: "archived";
   };
   personal_access_token_created: {
     keyPrefix: string;
@@ -182,11 +258,31 @@ export type ActivityPayloadByEventType = {
     reason: "manual" | "membership_removed";
     tokenId: string;
   };
+  organization_api_key_created: {
+    apiKeyId: string;
+    keyPrefix: string;
+    name: string;
+    permissions: readonly string[];
+  };
+  organization_api_key_revoked: {
+    apiKeyId: string;
+    keyPrefix: string;
+    name: string;
+    reason: "manual" | "membership_removed";
+  };
   integration_connected: {
     connectionId: string;
     integrationKind: string;
   };
   integration_disconnected: {
+    connectionId: string;
+    integrationKind: string;
+  };
+  integration_credential_revealed: {
+    connectionId: string;
+    integrationKind: string;
+  };
+  integration_credential_rotated: {
     connectionId: string;
     integrationKind: string;
   };
@@ -199,6 +295,13 @@ export type ActivityPayloadByEventType = {
     previousProviderKind?: string;
     previousVisibility?: string;
     projectId: string;
+  };
+  /** Strings created or updated in bulk through the public API. */
+  project_strings_updated: {
+    created: number;
+    itemCount: number;
+    projectId: string;
+    updated: number;
   };
   glossary_created: SafeResourcePayload;
   glossary_deleted: SafeResourcePayload;
@@ -236,6 +339,22 @@ export type ActivityPayloadByEventType = {
     projectId?: string;
     status: "failed";
   };
+  job_updated: {
+    changedFields: readonly ("title" | "description" | "dueAt" | "owner")[];
+    jobId: string;
+    kind: string;
+    projectId?: string;
+  };
+  automation_created: {
+    automationId: string;
+    name: string;
+    status: "active" | "archived" | "paused";
+  };
+  automation_deleted: {
+    automationId: string;
+    name: string;
+    status: "archived";
+  };
   automation_run_started: {
     automationId: string;
     name: string;
@@ -253,9 +372,86 @@ export type ActivityPayloadByEventType = {
     name: string;
     status: "archived" | "paused";
   };
+  visual_workflow_created: {
+    name: string;
+    status: "draft";
+    visualWorkflowId: string;
+  };
+  visual_workflow_deleted: {
+    name: string;
+    status: "archived";
+    visualWorkflowId: string;
+  };
+  visual_workflow_published: {
+    name: string;
+    publishedVersion: number;
+    visualWorkflowId: string;
+  };
+  visual_workflow_enabled: {
+    name: string;
+    status: "active";
+    visualWorkflowId: string;
+  };
+  visual_workflow_disabled: {
+    name: string;
+    status: "archived" | "paused";
+    visualWorkflowId: string;
+  };
+  visual_workflow_run_started: {
+    name: string;
+    runId: string;
+    status: "queued";
+    triggerSource: string;
+    visualWorkflowId: string;
+  };
+  visual_workflow_approval_requested: {
+    approvalRequestId: string;
+    nodeId: string;
+    reviewerId: string;
+    reviewerType: "user" | "team";
+    runId: string;
+    status: "pending";
+    visualWorkflowId: string;
+  };
+  visual_workflow_approval_decided: {
+    approvalRequestId: string;
+    decision: "approved" | "rejected" | "changes_requested";
+    nodeId: string;
+    runId: string;
+    visualWorkflowId: string;
+  };
+  query_created: {
+    identifier: string;
+    name: string;
+    projectId: string;
+    queryId: string;
+    source: "manual" | "mcp" | "qa_promote";
+  };
+  query_deleted: {
+    identifier: string;
+    name: string;
+    projectId: string;
+    queryId: string;
+  };
+  query_imported: {
+    itemCount: number;
+    projectId: string;
+  };
   file_uploaded: FileActivityPayload;
   file_translations_imported: FileActivityPayload & {
     targetLocale: string;
+  };
+  string_segment_translation_updated: StringSegmentActivityPayload & {
+    afterRevision?: string;
+    beforeRevision?: string;
+    beforeStatus?: string;
+    groupId?: string;
+    nextStatus?: string;
+    operationId?: string;
+    operationMemberIds?: string[];
+    restoredFromRevisionId?: string;
+    revisionId?: string;
+    sourceRevision?: string;
   };
   string_segment_approved: StringSegmentActivityPayload;
   string_segment_status_changed: StringSegmentActivityPayload & {
@@ -267,21 +463,58 @@ export type ActivityPayloadByEventType = {
   string_segment_locked: StringSegmentActivityPayload;
   string_segment_unlocked: StringSegmentActivityPayload;
   string_segment_commented: StringSegmentActivityPayload;
+  dictionary_created: SafeResourcePayload;
+  dictionary_deleted: SafeResourcePayload;
+  dictionary_imported: ImportExportPayload & {
+    locale?: string;
+  };
+  dictionary_project_attached: AttachmentPayload;
+  linked_domain_created: {
+    name: string;
+    resourceId: string;
+    status: string;
+  };
+  linked_domain_verified: {
+    name: string;
+    resourceId: string;
+    status: string;
+    verifiedMethod?: string;
+  };
+  linked_domain_cancelled: {
+    name: string;
+    resourceId: string;
+    status: "cancelled";
+  };
+  linked_domain_markets_changed: {
+    name: string;
+    nextMarketIds: readonly string[];
+    previousMarketIds: readonly string[];
+    resourceId: string;
+  };
 };
 
 export type ActivityTargetKindByEventType = {
   member_invited: "invitation";
   member_invite_resent: "invitation";
+  member_invite_revoked: "invitation";
+  member_joined: "membership";
   member_role_changed: "membership";
   member_removed: "membership";
+  member_left: "membership";
   workspace_updated: "organization";
+  workspace_archived: "organization";
   personal_access_token_created: "personal_access_token";
   personal_access_token_revoked: "personal_access_token";
+  organization_api_key_created: "organization_api_key";
+  organization_api_key_revoked: "organization_api_key";
   integration_connected: "integration";
   integration_disconnected: "integration";
+  integration_credential_revealed: "integration";
+  integration_credential_rotated: "integration";
   project_created: "project";
   project_deleted: "project";
   project_settings_changed: "project";
+  project_strings_updated: "project";
   glossary_created: "glossary";
   glossary_deleted: "glossary";
   glossary_imported: "glossary";
@@ -298,11 +531,26 @@ export type ActivityTargetKindByEventType = {
   job_created: "job";
   job_cancelled: "job";
   job_failed: "job";
+  job_updated: "job";
+  automation_created: "automation";
+  automation_deleted: "automation";
   automation_run_started: "automation";
   automation_enabled: "automation";
   automation_disabled: "automation";
+  visual_workflow_created: "visual_workflow";
+  visual_workflow_deleted: "visual_workflow";
+  visual_workflow_published: "visual_workflow";
+  visual_workflow_enabled: "visual_workflow";
+  visual_workflow_disabled: "visual_workflow";
+  visual_workflow_run_started: "visual_workflow";
+  visual_workflow_approval_requested: "visual_workflow";
+  visual_workflow_approval_decided: "visual_workflow";
+  query_created: "query";
+  query_deleted: "query";
+  query_imported: "project";
   file_uploaded: "file";
   file_translations_imported: "file";
+  string_segment_translation_updated: "string_segment";
   string_segment_approved: "string_segment";
   string_segment_status_changed: "string_segment";
   string_segment_hidden: "string_segment";
@@ -310,6 +558,14 @@ export type ActivityTargetKindByEventType = {
   string_segment_locked: "string_segment";
   string_segment_unlocked: "string_segment";
   string_segment_commented: "string_segment";
+  dictionary_created: "dictionary";
+  dictionary_deleted: "dictionary";
+  dictionary_imported: "dictionary";
+  dictionary_project_attached: "project";
+  linked_domain_created: "linked_domain";
+  linked_domain_verified: "linked_domain";
+  linked_domain_cancelled: "linked_domain";
+  linked_domain_markets_changed: "linked_domain";
 };
 
 type ActivityLogEventBase = {
@@ -338,6 +594,14 @@ export type ActivityLogWorkflowEvent = ActivityLogEventInput & {
   id: string;
 };
 
+export const ACTIVITY_LOG_SQS_SCHEMA_VERSION = 1 as const;
+
+export type ActivityLogSqsMessage = {
+  event: ActivityLogWorkflowEvent;
+  messageType: "activity_log";
+  schemaVersion: typeof ACTIVITY_LOG_SQS_SCHEMA_VERSION;
+};
+
 export type ActivityLogCursor = {
   createdAt: Date;
   id: string;
@@ -364,6 +628,9 @@ export const FORBIDDEN_ACTIVITY_PAYLOAD_KEYS = [
   "secret",
   "sourceText",
   "targetText",
+  "beforeText",
+  "afterText",
+  "groupSourceText",
   "token",
   "transcript",
   "x-api-key",

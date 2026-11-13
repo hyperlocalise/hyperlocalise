@@ -115,6 +115,17 @@ vi.mock("@/components/content-editor/project-file/project-file-content-editor-wo
   }) => ProjectFileContentEditorWorkspaceMock(props),
 }));
 
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      cat: {
+        activityLogs: vi.fn().mockResolvedValue({ activityLogs: [], nextCursor: null }),
+      },
+    },
+    loading: false,
+  }),
+}));
+
 import { JobContentEditorPageContent } from "./job-content-editor-page-content";
 
 const nativeFile = createProjectFileRecord({

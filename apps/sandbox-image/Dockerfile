@@ -26,8 +26,9 @@
 #
 # libarchive-tools provides bsdtar, which is linked to /usr/local/bin/tar so
 # fetch-dictionaries.sh (shared with go-svc, unchanged) uses it. Ubuntu 26.04
-# GNU tar returns ENOSYS ("Function not implemented") extracting the
-# LibreOffice archive under linux/amd64 emulation on Docker Desktop.
+# GNU tar returns ENOSYS ("Function not implemented") extracting archives
+# under linux/amd64 emulation on Docker Desktop. The runtime stage calls
+# bsdtar directly for the same reason.
 FROM ubuntu:26.04 AS dictionaries
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -58,9 +59,13 @@ ENV HOME=/root
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Keep in sync with apps/hyperlocalise-web/src/lib/vercel-sandbox-config.ts
-ARG NODE_MAJOR=24
-ARG HYPERLOCALISE_VERSION=1.11.0
-ARG PLAYWRIGHT_VERSION=1.61.1
+# (HYPERLOCALISE_VERSION: apps/hyperlocalise-web/src/lib/translation/sandbox-cli-version.ts)
+# Pin the patch. `latest-v24.x` does not change the Dockerfile text, so Docker
+# keeps an older Node layer across security releases.
+ARG NODE_VERSION=24.22.1
+ARG RIPGREP_VERSION=15.2.0
+ARG HYPERLOCALISE_VERSION=1.13.10
+ARG PLAYWRIGHT_VERSION=1.63.0
 # Optional pin; omit / leave empty to install the latest Volta release.
 ARG VOLTA_VERSION=
 # Matches MANAGED_BROWSER_RUNTIME_DIR in capture-screenshot.ts (web wiring later).
@@ -94,13 +99,32 @@ RUN apt-get update \
     && usermod --home /vercel ubuntu \
     && chown -R ubuntu:ubuntu /vercel
 
-# Node.js latest of the pinned major (same approach as vercel/sandbox/node).
+# Pin ripgrep when apt ships an older package.
 RUN set -eux; \
-    tarball="$(curl -fsSL "https://nodejs.org/dist/latest-v${NODE_MAJOR}.x/SHASUMS256.txt" \
-      | grep -oE 'node-v[0-9]+\.[0-9]+\.[0-9]+-linux-x64\.tar\.xz' | head -n1)"; \
+    if ! rg --version | grep -Fq "${RIPGREP_VERSION}"; then \
+      curl -fsSL -o /tmp/rg.tar.gz \
+        "https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl.tar.gz"; \
+      bsdtar -xzf /tmp/rg.tar.gz -C /tmp; \
+      install -m 0755 \
+        "/tmp/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl/rg" \
+        /usr/local/bin/rg; \
+      rm -rf /tmp/rg.tar.gz "/tmp/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl"; \
+    fi; \
+    # dash tracks the first rg lookup (/usr/bin/rg from apt). Drop that so
+    # this check runs /usr/local/bin/rg when the pin was just installed.
+    hash -r; \
+    rg --version | grep -Fq "${RIPGREP_VERSION}"
+
+# Node.js security release for this major (linux/x64).
+RUN set -eux; \
+    tarball="node-v${NODE_VERSION}-linux-x64.tar.xz"; \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" -o /tmp/node-shasums.txt; \
+    grep -F " ${tarball}" /tmp/node-shasums.txt > /tmp/node-shasum.txt; \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${tarball}" -o "/tmp/${tarball}"; \
+    (cd /tmp && sha256sum -c /tmp/node-shasum.txt); \
     mkdir -p /opt/node; \
-    curl -fsSL "https://nodejs.org/dist/latest-v${NODE_MAJOR}.x/${tarball}" \
-      | bsdtar -xJ --strip-components=1 -C /opt/node; \
+    bsdtar -xJf "/tmp/${tarball}" --strip-components=1 -C /opt/node; \
+    rm -f "/tmp/${tarball}" /tmp/node-shasums.txt /tmp/node-shasum.txt; \
     rm -f /opt/node/CHANGELOG.md /opt/node/LICENSE /opt/node/README.md; \
     cp -a /opt/node/. /usr/local/; \
     npm install -g pnpm@11; \
@@ -118,7 +142,7 @@ RUN set -eux; \
       curl -fsSL -o "${TMP}/${ARCHIVE}" \
         "https://github.com/hyperlocalise/hyperlocalise/releases/download/${HYPERLOCALISE_VERSION}/${ARCHIVE}"; \
     fi; \
-    tar -xzf "${TMP}/${ARCHIVE}" -C "${TMP}" hyperlocalise; \
+    bsdtar -xzf "${TMP}/${ARCHIVE}" -C "${TMP}" hyperlocalise; \
     install -m 0755 "${TMP}/hyperlocalise" /usr/local/bin/hyperlocalise; \
     ln -sfn /usr/local/bin/hyperlocalise /usr/local/bin/hl; \
     rm -rf "${TMP}"; \

@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import type { IntlShape } from "react-intl";
-import { Copy01Icon, Link01Icon, StopCircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CopyIcon, LinkIcon, StopCircleIcon } from "@phosphor-icons/react";
 
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { cn } from "@/lib/primitives/cn";
@@ -43,12 +42,12 @@ export function relationshipKindLabel(
   }
 }
 
-const KIND_ICON: Record<IssueRelationshipPresentedKind, typeof Link01Icon> = {
-  related: Link01Icon,
+const KIND_ICON: Record<IssueRelationshipPresentedKind, typeof LinkIcon> = {
+  related: LinkIcon,
   blocks: StopCircleIcon,
   blocked_by: StopCircleIcon,
-  duplicate_of: Copy01Icon,
-  duplicate: Copy01Icon,
+  duplicate_of: CopyIcon,
+  duplicate: CopyIcon,
 };
 
 // blocked_by mirrors the blocks glyph so the pair reads as opposite directions of the
@@ -68,11 +67,6 @@ export function IssueRelationshipKindIcon({
   kind: IssueRelationshipPresentedKind;
   className?: string;
 }) {
-  return (
-    <HugeiconsIcon
-      icon={KIND_ICON[kind]}
-      strokeWidth={1.8}
-      className={cn("size-3.5 shrink-0", KIND_ICON_CLASS_NAME[kind], className)}
-    />
-  );
+  const Icon = KIND_ICON[kind];
+  return <Icon className={cn("size-3.5 shrink-0", KIND_ICON_CLASS_NAME[kind], className)} />;
 }

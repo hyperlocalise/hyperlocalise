@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import type { CarouselApi } from "@/components/ui/carousel";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
@@ -208,7 +207,7 @@ export const InlineCitationCarouselPrev = ({
       type="button"
       {...props}
     >
-      <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4 text-muted-foreground" />
+      <ArrowLeftIcon className="size-4 text-muted-foreground" />
     </button>
   );
 };
@@ -236,7 +235,7 @@ export const InlineCitationCarouselNext = ({
       type="button"
       {...props}
     >
-      <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 text-muted-foreground" />
+      <ArrowRightIcon className="size-4 text-muted-foreground" />
     </button>
   );
 };

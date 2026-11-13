@@ -12,6 +12,16 @@
  */
 import { generateText, Output } from "ai";
 
+import { validateContentSyncConfig } from "@/lib/agents/content-sync/content-sync-config";
+import { executeContentSyncConfig } from "@/lib/agents/content-sync/execute-content-sync";
+import {
+  credentialSourceForLanguageModel,
+  extractAiSdkTokenUsage,
+  trackAiCallTokenUsage,
+} from "@/lib/billing/agent-runtime-usage";
+import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
+import { db, schema } from "@/lib/database/client";
+import { isErr } from "@/lib/primitives/result/results";
 import {
   runWorkspaceAutomationEmailNotificationTool,
   runWorkspaceAutomationSlackNotificationTool,
@@ -21,7 +31,9 @@ import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/pub
 
 import type { CanonicalVisualWorkflowNode } from "../schema/types";
 import type { VisualWorkflowExecutionContext } from "./context";
+import { runPickAssigneeAction } from "./assignment-actions";
 import { executeLogicVisualWorkflowNode } from "./execute-logic-node";
+import { executeFileConvertNode, executeFileReadNode, executeFileWriteNode } from "./file-nodes";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 import { resolveVisualWorkflowTemplate } from "./expressions";
 import {
@@ -31,9 +43,23 @@ import {
   resolveHttpRequestBody,
   resolveKeyValuePairs,
 } from "./http-request";
+import {
+  runCrowdinCheckProgressAction,
+  runCrowdinCreateTaskAction,
+  runCrowdinPreTranslateAction,
+} from "./crowdin-actions";
+import {
+  runCheckProgressAction,
+  runCreateTaskAction,
+  runListSourceFilesAction,
+  runMachineTranslateAction,
+  runQaChecksAction,
+  runUpdateJobAction,
+} from "./localization-actions";
 
 export type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { WORKFLOW_LIMITS } from "./limits";
 import { workflowStructuredOutputSchema } from "./structured-output";
@@ -43,6 +69,8 @@ export async function executeVisualWorkflowNode(input: {
   node: CanonicalVisualWorkflowNode;
   context: VisualWorkflowExecutionContext;
   organizationId: string;
+  visualWorkflowId?: string;
+  visualWorkflowRunId?: string;
   signal?: AbortSignal;
   inputsResolved?: boolean;
   idempotencyKey?: string;
@@ -50,6 +78,8 @@ export async function executeVisualWorkflowNode(input: {
   const { node, context } = input;
   const text = (value: string) =>
     input.inputsResolved ? value : resolveVisualWorkflowTemplate(value, context);
+  // A wired list setting holds the earlier step's array, not text.
+  const list = (value: unknown) => (typeof value === "string" ? text(value) : value);
   const logicResult = executeLogicVisualWorkflowNode({
     node,
     context,
@@ -60,6 +90,42 @@ export async function executeVisualWorkflowNode(input: {
   }
 
   switch (node.config.kind) {
+    case "action.file_read":
+      return executeFileReadNode({
+        organizationId: input.organizationId,
+        visualWorkflowId: input.visualWorkflowId,
+        fileId: text(node.config.fileId),
+        encoding: node.config.encoding,
+        signal: input.signal,
+      });
+    case "action.file_write":
+      return executeFileWriteNode({
+        organizationId: input.organizationId,
+        visualWorkflowId: input.visualWorkflowId,
+        visualWorkflowRunId: input.visualWorkflowRunId,
+        nodeId: node.id,
+        idempotencyKey: input.idempotencyKey,
+        content: text(node.config.content),
+        filename: text(node.config.filename),
+        contentType: text(node.config.contentType),
+        encoding: node.config.encoding,
+        locale: node.config.locale ? text(node.config.locale) : undefined,
+        sourceFileId: node.config.sourceFileId ? text(node.config.sourceFileId) : undefined,
+        signal: input.signal,
+      });
+    case "action.file_convert":
+      return executeFileConvertNode({
+        organizationId: input.organizationId,
+        visualWorkflowId: input.visualWorkflowId,
+        visualWorkflowRunId: input.visualWorkflowRunId,
+        nodeId: node.id,
+        idempotencyKey: input.idempotencyKey,
+        fileId: text(node.config.fileId),
+        targetFormat: node.config.targetFormat,
+        filename: node.config.filename ? text(node.config.filename) : undefined,
+        locale: node.config.locale ? text(node.config.locale) : undefined,
+        signal: input.signal,
+      });
     case "action.http": {
       const httpConfig = node.config;
       const url = text(httpConfig.url).trim();
@@ -163,6 +229,190 @@ export async function executeVisualWorkflowNode(input: {
           },
         };
       }
+    }
+    case "action.machine_translate":
+      return runMachineTranslateAction({
+        organizationId: input.organizationId,
+        idempotencyKey: input.idempotencyKey,
+        projectId: text(node.config.projectId).trim(),
+        sourceFileId: text(node.config.sourceFileId).trim(),
+        targetLocales: list(node.config.targetLocales),
+        useTranslationMemory: node.config.useTranslationMemory !== false,
+      });
+    case "action.create_task":
+      return runCreateTaskAction({
+        organizationId: input.organizationId,
+        idempotencyKey: input.idempotencyKey,
+        projectId: text(node.config.projectId).trim(),
+        sourceFileId: text(node.config.sourceFileId).trim(),
+        targetLocales: list(node.config.targetLocales),
+        step: node.config.step,
+        assigneeWorkosUserId: text(node.config.assigneeWorkosUserId).trim(),
+        title: text(node.config.title),
+        dueAt: text(node.config.dueAt ?? ""),
+      });
+    case "action.check_progress":
+      return runCheckProgressAction({
+        organizationId: input.organizationId,
+        projectId: text(node.config.projectId).trim(),
+        sourceFileId: text(node.config.sourceFileId).trim(),
+        targetLocales: list(node.config.targetLocales),
+        jobId: text(node.config.jobId).trim(),
+      });
+    case "action.run_qa":
+      return runQaChecksAction({
+        organizationId: input.organizationId,
+        projectId: text(node.config.projectId).trim(),
+      });
+    case "action.list_source_files":
+      return runListSourceFilesAction({
+        organizationId: input.organizationId,
+        projectId: text(node.config.projectId).trim(),
+        pathPrefix: text(node.config.pathPrefix),
+      });
+    case "action.update_job":
+      return runUpdateJobAction({
+        organizationId: input.organizationId,
+        jobId: text(node.config.jobId).trim(),
+        assigneeWorkosUserId: text(node.config.assigneeWorkosUserId).trim(),
+        title: text(node.config.title),
+        dueAt: text(node.config.dueAt ?? ""),
+      });
+    case "action.pick_assignee":
+      return runPickAssigneeAction({
+        organizationId: input.organizationId,
+        visualWorkflowId: input.visualWorkflowId,
+        nodeId: node.id,
+        idempotencyKey: input.idempotencyKey,
+        locale: list(node.config.locale),
+        jobType: text(node.config.jobType),
+        size: list(node.config.size),
+        dueAt: text(node.config.dueAt),
+        rules: node.config.rules,
+        fallbackAssigneeIds: node.config.fallbackAssigneeIds,
+        strategy: node.config.strategy,
+        peopleSource: node.config.peopleSource,
+        crowdinProjectId: text(node.config.crowdinProjectId ?? ""),
+        workosUserId: node.config.workosUserId?.trim(),
+        signal: input.signal,
+      });
+    case "action.crowdin_pre_translate":
+      return runCrowdinPreTranslateAction({
+        organizationId: input.organizationId,
+        workosUserId: node.config.workosUserId?.trim(),
+        signal: input.signal,
+        crowdinProjectId: text(node.config.crowdinProjectId),
+        fileIds: list(node.config.fileIds),
+        languageIds: list(node.config.languageIds),
+        method: node.config.method,
+        engineId: text(node.config.engineId),
+        aiPromptId: text(node.config.aiPromptId),
+      });
+    case "action.crowdin_create_task":
+      return runCrowdinCreateTaskAction({
+        organizationId: input.organizationId,
+        workosUserId: node.config.workosUserId?.trim(),
+        signal: input.signal,
+        crowdinProjectId: text(node.config.crowdinProjectId),
+        fileIds: list(node.config.fileIds),
+        languageIds: list(node.config.languageIds),
+        taskType: node.config.taskType,
+        assigneeIds: list(node.config.assigneeIds),
+        title: text(node.config.title),
+        description: text(node.config.description),
+        dueAt: text(node.config.dueAt ?? ""),
+      });
+    case "action.crowdin_check_progress":
+      return runCrowdinCheckProgressAction({
+        organizationId: input.organizationId,
+        workosUserId: node.config.workosUserId?.trim(),
+        signal: input.signal,
+        crowdinProjectId: text(node.config.crowdinProjectId),
+        fileIds: list(node.config.fileIds),
+        languageIds: list(node.config.languageIds),
+        taskIds: list(node.config.taskIds),
+        preTranslationId: text(node.config.preTranslationId),
+      });
+    case "action.content_sync": {
+      const projectId = text(node.config.projectId).trim();
+      const connectionId = text(node.config.connectionId).trim();
+      const resourceKey = text(node.config.resourceKey).trim();
+      const projectFolder = text(node.config.projectFolder).trim();
+      if (!projectId || !connectionId || !resourceKey || !projectFolder) {
+        return {
+          ok: false,
+          error: {
+            code: "missing_content_sync_config",
+            message: "Choose a project, source, and project folder before syncing.",
+          },
+        };
+      }
+
+      const syncValidation = validateContentSyncConfig({
+        provider: node.config.provider,
+        connectionId,
+        resourceKey,
+        providerFolder: text(node.config.providerFolder).trim(),
+        projectFolder,
+        branch: text(node.config.branch ?? "").trim(),
+        pathTemplate: text(node.config.pathTemplate ?? "").trim(),
+      });
+      if (isErr(syncValidation)) {
+        return {
+          ok: false,
+          error: {
+            code: syncValidation.error.code,
+            message: syncValidation.error.message,
+          },
+        };
+      }
+
+      const [scopedProject] = await db
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+      if (!scopedProject) {
+        return {
+          ok: false,
+          error: {
+            code: "project_not_found",
+            message: "Choose a project in this organization.",
+          },
+        };
+      }
+
+      const workflowId = input.visualWorkflowId ?? input.organizationId;
+      const result = await executeContentSyncConfig({
+        organizationId: input.organizationId,
+        projectId,
+        workflowId,
+        runId: input.visualWorkflowRunId ?? input.idempotencyKey ?? crypto.randomUUID(),
+        syncConfig: syncValidation.value,
+        // A GitLab step keeps one merge request of its own; two steps in a workflow must not
+        // rebuild each other's branch. GitHub steps keep their branch per run.
+        ...(syncValidation.value.provider === "gitlab"
+          ? {
+              pullRequestBranchKey: `workflow-${workflowId}-${node.id.replace(/[^A-Za-z0-9_-]/g, "-")}`,
+            }
+          : {}),
+      });
+      if (isErr(result)) {
+        return {
+          ok: false,
+          error: {
+            code: result.error.code,
+            message: result.error.message,
+          },
+        };
+      }
+
+      return { ok: true, output: result.value };
     }
     case "action.notify_slack": {
       const channelId = text(node.config.channelId).trim();
@@ -288,14 +538,27 @@ export async function executeVisualWorkflowNode(input: {
         return { ok: false, error: { code: "missing_prompt", message: "AI prompt is required." } };
       }
 
+      const aiFeatures = await ensureAiFeaturesAllowed({
+        organizationId: input.organizationId,
+      });
+      if (isErr(aiFeatures)) {
+        return {
+          ok: false,
+          error: {
+            code: aiFeatures.error.code,
+            message: aiFeatures.error.message,
+          },
+        };
+      }
+
       try {
-        const { model } = await resolveHyperlocaliseAgentLanguageModel({
+        const languageModel = await resolveHyperlocaliseAgentLanguageModel({
           organizationId: input.organizationId,
         });
         const structured =
           node.outputFields?.some((field) => field.path.startsWith("json.")) ?? false;
         const result = await generateText({
-          model,
+          model: languageModel.model,
           prompt,
           maxRetries: 0,
           ...(structured
@@ -308,6 +571,13 @@ export async function executeVisualWorkflowNode(input: {
           abortSignal: input.signal
             ? AbortSignal.any([input.signal, AbortSignal.timeout(WORKFLOW_LIMITS.aiTimeoutMs)])
             : AbortSignal.timeout(WORKFLOW_LIMITS.aiTimeoutMs),
+        });
+        await trackAiCallTokenUsage({
+          organizationId: input.organizationId,
+          source: "visual_workflow_ai_step",
+          tokenUsage: extractAiSdkTokenUsage(result.usage),
+          modelId: languageModel.modelId,
+          credentialSource: credentialSourceForLanguageModel(languageModel),
         });
         const json = structured ? result.output : undefined;
         return {

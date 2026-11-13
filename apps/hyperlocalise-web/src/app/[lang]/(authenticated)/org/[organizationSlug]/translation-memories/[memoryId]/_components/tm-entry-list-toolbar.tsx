@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useState, type ReactNode } from "react";
-import { Cancel01Icon, FilterIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { XIcon, FunnelIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +75,10 @@ function originLabel(intl: ReturnType<typeof useIntl>, origin: string): string {
       return intl.formatMessage(messages.originImport);
     case "sync":
       return intl.formatMessage(messages.originSync);
+    case "file_job":
+      return intl.formatMessage(messages.originFileJob);
+    case "approved_job":
+      return intl.formatMessage(messages.originApprovedJob);
     default:
       return origin;
   }
@@ -107,6 +110,8 @@ function formatChipLabel(intl: ReturnType<typeof useIntl>, chip: TmEntryFilterCh
       return intl.formatMessage(messages.chipReviewStatus, {
         value: reviewStatusLabel(intl, chip.value),
       });
+    case "sameAsSource":
+      return intl.formatMessage(messages.chipSameAsSource);
     case "origin":
       return intl.formatMessage(messages.chipOrigin, { value: originLabel(intl, chip.value) });
     case "provider":
@@ -188,7 +193,7 @@ export function TmEntryListToolbar({
           <PopoverTrigger
             render={<Button type="button" variant="outline" size="sm" className="gap-1.5" />}
           >
-            <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3.5" />
+            <FunnelIcon className="size-3.5" />
             {filterChipCount > 0 ? (
               <FormattedMessage
                 {...messages.filterButtonWithCount}
@@ -435,7 +440,7 @@ export function TmEntryListToolbar({
                     });
                   }}
                 >
-                  <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+                  <XIcon className="size-3.5" />
                 </button>
               </Badge>
             );

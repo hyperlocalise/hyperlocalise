@@ -255,6 +255,20 @@ func buildPushReport(local, remote storage.CatalogSnapshot, opts PushOptions) (R
 			continue
 		}
 
+		if isUnknownProvenance(localEntry.Provenance) {
+			if !opts.ForceConflicts {
+				report.Conflicts = append(report.Conflicts, storage.Conflict{
+					ID:          id,
+					Reason:      conflictReasonUnknownProvenance,
+					LocalValue:  localEntry.Value,
+					RemoteValue: remoteEntry.Value,
+					LocalState:  localEntry.Provenance.State,
+					RemoteState: remoteEntry.Provenance.State,
+				})
+				continue
+			}
+		}
+
 		if strings.EqualFold(localEntry.Provenance.State, storage.StateDraft) &&
 			strings.EqualFold(remoteEntry.Provenance.State, storage.StateCurated) {
 			if !opts.ForceConflicts {
@@ -299,6 +313,19 @@ func decidePullDiff(localEntry, remoteEntry storage.Entry, opts PullOptions) (*s
 		}, nil
 	}
 
+	// Flat JSON without a sidecar is OriginUnknown. Conflict instead of silently
+	// overwriting handwritten local values on first TMS pull.
+	if isUnknownProvenance(localEntry.Provenance) {
+		return &storage.Conflict{
+			ID:          localEntry.ID(),
+			Reason:      conflictReasonUnknownProvenance,
+			LocalValue:  localEntry.Value,
+			RemoteValue: remoteEntry.Value,
+			LocalState:  localEntry.Provenance.State,
+			RemoteState: storage.StateCurated,
+		}, nil
+	}
+
 	if localOrigin == storage.OriginLLM && localState == storage.StateDraft && shouldApplyCuratedOverDraft {
 		update := markRemoteCurated(remoteEntry)
 		return nil, &update
@@ -316,6 +343,11 @@ func decidePullDiff(localEntry, remoteEntry storage.Entry, opts PullOptions) (*s
 
 	update := markRemoteCurated(remoteEntry)
 	return nil, &update
+}
+
+func isUnknownProvenance(p storage.EntryProvenance) bool {
+	origin := strings.ToLower(strings.TrimSpace(p.Origin))
+	return origin == "" || origin == storage.OriginUnknown
 }
 
 func markRemoteCurated(entry storage.Entry) storage.Entry {

@@ -33,6 +33,7 @@ export function ContentEditorPageRoot({
   chrome,
   backHref,
   actions,
+  headerTrailing,
   banners,
   className,
   children,
@@ -44,6 +45,7 @@ export function ContentEditorPageRoot({
   chrome: ContentEditorPageChromeSnapshot;
   backHref: string;
   actions: ContentEditorPageActions;
+  headerTrailing?: ReactNode;
   banners?: ReactNode;
   className?: string;
   children: ReactNode;
@@ -59,6 +61,7 @@ export function ContentEditorPageRoot({
       <ContentEditorPageShell
         backHref={backHref}
         actions={actions}
+        headerTrailing={headerTrailing}
         banners={banners}
         className={className}
       >

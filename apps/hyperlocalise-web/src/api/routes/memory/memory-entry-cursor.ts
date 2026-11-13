@@ -29,6 +29,7 @@ export type MemoryEntryListFilterFields = {
   sourceLocale?: string;
   targetLocale?: string;
   reviewStatus?: string;
+  sameAsSource?: string;
   origin?: string;
   provider?: string;
   createdByUserId?: string;
@@ -86,6 +87,7 @@ export function hashMemoryEntryListFilters(filters: MemoryEntryListFilterFields)
     origin: filters.origin ?? "",
     provider: filters.provider ?? "",
     reviewStatus: filters.reviewStatus ?? "",
+    sameAsSource: filters.sameAsSource ?? "",
     search: filters.search ?? "",
     sort: filters.sort,
     sortDir: filters.sortDir,

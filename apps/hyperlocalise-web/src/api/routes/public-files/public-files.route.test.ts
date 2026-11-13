@@ -21,6 +21,8 @@ import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { err, ok } from "@/lib/primitives/result/results";
 
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
+
 import {
   createMemoryFileStorageAdapter,
   createExternalTmsPublicApiFixture,
@@ -211,6 +213,60 @@ describe("publicFileRoutes", () => {
     expect(await downloadResponse.text()).toBe("# Hello");
   });
 
+  it("rejects native uploads onto a protected branch", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: project.createdByUserId,
+    });
+    const protectedResult = await projectBranchService.update({
+      projectId: project.id,
+      name: "main",
+      isProtected: true,
+    });
+    expect(protectedResult.ok).toBe(true);
+
+    const response = await client.api.v1.files.$post(
+      {
+        form: {
+          projectId: project.id,
+          sourcePath: "content/en/home.md",
+          file: new File(["# Hello"], "home.md", { type: "text/markdown" }),
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "protected_branch",
+      message: "This branch is protected.",
+    });
+  });
+
+  it("rejects native uploads onto a missing branch", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+
+    const response = await client.api.v1.files.$post(
+      {
+        form: {
+          projectId: project.id,
+          sourcePath: "content/en/home.md",
+          branch: "missing",
+          file: new File(["# Hello"], "home.md", { type: "text/markdown" }),
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "branch_not_found",
+      message: "Branch not found.",
+    });
+  });
+
   it("groups repeated repository uploads by project and source path", async () => {
     const { apiKey, project } = await createPublicApiFixture();
 
@@ -275,6 +331,38 @@ describe("publicFileRoutes", () => {
         .sort((a, b) => String(a).localeCompare(String(b))),
     ).toEqual(["run_1", "run_2"]);
     expect(new Set(versions.map((version) => version.storedFileId)).size).toBe(2);
+  });
+
+  it("records an upload's request to keep approved translations approved", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const upload = (path: string, keepApproved?: string) =>
+      client.api.v1.files.$post(
+        {
+          form: {
+            projectId: project.id,
+            sourcePath: path,
+            ...(keepApproved ? { keepApproved } : {}),
+            file: new File(["# Hello"], "home.md", { type: "text/markdown" }),
+          },
+        },
+        { headers: { "x-api-key": apiKey } },
+      );
+
+    expect((await upload("content/en/fix.md", "true")).status).toBe(201);
+    expect((await upload("content/en/plain.md")).status).toBe(201);
+    expect((await upload("content/en/bad.md", "yes")).status).toBe(400);
+
+    const versions = await db
+      .select({
+        sourcePath: schema.repositorySourceFileVersions.sourcePath,
+        keepApprovedTranslations: schema.repositorySourceFileVersions.keepApprovedTranslations,
+      })
+      .from(schema.repositorySourceFileVersions)
+      .where(eq(schema.repositorySourceFileVersions.projectId, project.id));
+    expect(versions.toSorted((a, b) => a.sourcePath.localeCompare(b.sourcePath))).toEqual([
+      { sourcePath: "content/en/fix.md", keepApprovedTranslations: true },
+      { sourcePath: "content/en/plain.md", keepApprovedTranslations: false },
+    ]);
   });
 
   it("rejects unsupported source file formats", async () => {

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon, Download01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
@@ -120,7 +119,7 @@ export const ConversationScrollButton = ({
               variant="secondary"
               {...props}
             >
-              <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" />
+              <CaretDownIcon className="size-4" />
             </Button>
           }
         />
@@ -192,7 +191,7 @@ export const ConversationDownload = ({
             variant="outline"
             {...props}
           >
-            {children ?? <HugeiconsIcon icon={Download01Icon} className="size-4" />}
+            {children ?? <DownloadSimpleIcon className="size-4" />}
           </Button>
         }
       />

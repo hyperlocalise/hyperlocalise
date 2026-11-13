@@ -13,9 +13,16 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, within } from "storybook/test";
 
+import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
+
+import {
+  createIntercomAutomationRecord,
+  intercomAutomationRunsFixture,
+} from "./automation-editor.fixture";
 import { createAutomationSummary } from "./automations.fixture";
 import { AutomationDetailPageContent } from "./automation-detail-page-content";
 import { createAutomationDetailMswHandlers } from "./automation-msw-handlers";
+import { intercomApiArticlesFixture, intercomSupportHelpCenter } from "./intercom-api.fixture";
 
 const githubAutomation = createAutomationSummary();
 const scheduledAutomation = createAutomationSummary({
@@ -54,6 +61,13 @@ const meta = {
     organizationSlug: "acme",
     automationId: githubAutomation.id,
   },
+  decorators: [
+    (Story) => (
+      <AppShellStoreProvider defaultNavigationGroups={[]}>
+        <Story />
+      </AppShellStoreProvider>
+    ),
+  ],
 } satisfies Meta<typeof AutomationDetailPageContent>;
 
 export default meta;
@@ -76,8 +90,9 @@ export const GithubTriggerHidesRun: Story = {
       await canvas.findByDisplayValue("Validate localisation on push"),
     ).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Run now" })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
-    await expect(canvas.getByRole("button", { name: "Delete" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "More actions" })).toBeEnabled();
+    await expect(canvas.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Model" })).toBeInTheDocument();
   },
 };
@@ -96,7 +111,8 @@ export const DeleteConfirmsRemoval: Story = {
   },
   play: async ({ canvas, canvasElement, userEvent }) => {
     const body = within(canvasElement.ownerDocument.body);
-    await userEvent.click(await canvas.findByRole("button", { name: "Delete" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "More actions" }));
+    await userEvent.click(body.getByRole("menuitem", { name: "Delete" }));
     const dialog = body.getByRole("alertdialog", { name: "Delete automation?" });
     await expect(dialog).toBeInTheDocument();
     await expect(
@@ -127,7 +143,7 @@ export const ScheduledTriggerShowsRun: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findByDisplayValue("Weekly translation sync")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
   },
 };
 
@@ -149,7 +165,7 @@ export const ManualTriggerShowsRun: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findByDisplayValue("Manual release checklist")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
   },
 };
 
@@ -170,11 +186,11 @@ export const SaveEnablesAfterFormChange: Story = {
   },
   play: async ({ canvas, userEvent }) => {
     const nameInput = await canvas.findByDisplayValue("Weekly translation sync");
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
     await userEvent.clear(nameInput);
     await userEvent.type(nameInput, "Nightly translation sync");
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeEnabled();
-    await expect(canvas.getByRole("button", { name: "Delete" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "More actions" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeInTheDocument();
   },
 };
@@ -200,10 +216,54 @@ export const SavePendingDisablesDelete: Story = {
     const nameInput = await canvas.findByDisplayValue("Weekly translation sync");
     await userEvent.clear(nameInput);
     await userEvent.type(nameInput, "Nightly translation sync");
-    await expect(canvas.getByRole("button", { name: "Delete" })).toBeEnabled();
-    await userEvent.click(canvas.getByRole("button", { name: "Save changes" }));
+    await expect(canvas.getByRole("button", { name: "More actions" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("button", { name: "Save" }));
     await expect(canvas.getByRole("button", { name: /Saving/ })).toBeDisabled();
-    await expect(canvas.getByRole("button", { name: "Delete" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "More actions" })).toBeDisabled();
+  },
+};
+
+const intercomAutomation = createIntercomAutomationRecord();
+const publishedIntercomArticles = intercomApiArticlesFixture.filter(
+  (article) => article.state === "published",
+);
+
+export const IntercomWeeklyImport: Story = {
+  args: {
+    automationId: intercomAutomation.id,
+  },
+  parameters: {
+    msw: {
+      handlers: createAutomationDetailMswHandlers(intercomAutomation, {
+        recentRuns: intercomAutomationRunsFixture.filter(
+          (run) => run.inputSnapshot.operation !== "push_approved",
+        ),
+        intercomPush: {
+          eligibleLocaleCount: 0,
+          mappedArticleCount: publishedIntercomArticles.length,
+          pushRunInProgress: false,
+        },
+      }),
+    },
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/acme/automations/${intercomAutomation.id}`,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByDisplayValue("Translate Intercom Help Center articles"),
+    ).toBeInTheDocument();
+    await expect(
+      await canvas.findByText(intercomSupportHelpCenter.displayName),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/^Locales:/)).not.toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
+    await expect(
+      canvas.queryByRole("button", { name: "Push to Intercom" }),
+    ).not.toBeInTheDocument();
   },
 };
 
@@ -229,12 +289,13 @@ export const DeletePendingDisablesSave: Story = {
     const nameInput = await canvas.findByDisplayValue("Weekly translation sync");
     await userEvent.clear(nameInput);
     await userEvent.type(nameInput, "Nightly translation sync");
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeEnabled();
-    await userEvent.click(canvas.getByRole("button", { name: "Delete" }));
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("button", { name: "More actions" }));
+    await userEvent.click(body.getByRole("menuitem", { name: "Delete" }));
     const dialog = body.getByRole("alertdialog", { name: "Delete automation?" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
     await expect(within(dialog).getByRole("button", { name: /Deleting/ })).toBeDisabled();
-    await expect(canvas.getByRole("button", { name: "Save changes", hidden: true })).toBeDisabled();
-    await expect(canvas.getByRole("button", { name: "Delete", hidden: true })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save", hidden: true })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "More actions", hidden: true })).toBeDisabled();
   },
 };

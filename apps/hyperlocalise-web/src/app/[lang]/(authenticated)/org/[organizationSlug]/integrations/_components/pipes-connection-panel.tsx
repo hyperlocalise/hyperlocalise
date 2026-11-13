@@ -20,6 +20,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { createApiClient } from "@/lib/api-client";
 import { resolveWorkspaceIntegrationSummary } from "@/lib/integrations/workspace-integrations";
+import type { PipesProviderAvailability } from "@/lib/pipes/availability";
 import type { PipesProviderSlug } from "@/lib/pipes/providers";
 import type { PipesConnectionStatus } from "@/lib/pipes/types";
 
@@ -33,10 +34,40 @@ import "@workos-inc/widgets/styles.css";
 
 const api = createApiClient();
 
+export function usePipesProviderAvailability(
+  organizationSlug: string,
+  provider: PipesProviderSlug,
+) {
+  return useQuery({
+    queryKey: ["pipes", "availability", organizationSlug, provider],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].availability.$get(
+        {
+          param: { organizationSlug, provider },
+        },
+      );
+      if (!response.ok) {
+        throw new Error("Failed to load Pipes availability");
+      }
+      const body = await response.json();
+      if (
+        !("availability" in body) ||
+        typeof body.availability !== "object" ||
+        !body.availability
+      ) {
+        throw new Error("Failed to load Pipes availability");
+      }
+      return body.availability as PipesProviderAvailability;
+    },
+    staleTime: 60_000,
+  });
+}
+
 export function usePipesStatus(
   organizationSlug: string,
   provider: PipesProviderSlug,
   refetchWhileOpen = false,
+  enabled = true,
 ) {
   const intl = useIntl();
   const summary = useMemo(
@@ -47,6 +78,7 @@ export function usePipesStatus(
 
   return useQuery({
     queryKey: ["pipes", organizationSlug, provider],
+    enabled,
     queryFn: async () => {
       const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
         param: { organizationSlug, provider },
@@ -68,11 +100,17 @@ export function PipesConnectionPanel({
   provider,
   disabled,
   isLast = false,
+  name,
+  description,
 }: {
   organizationSlug: string;
   provider: PipesProviderSlug;
   disabled?: boolean;
   isLast?: boolean;
+  /** Replaces the provider's usual name, for example to tell a per-member sign-in apart. */
+  name?: string;
+  /** Replaces the provider's usual description, for example to say it isn't in use. */
+  description?: string;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -100,8 +138,8 @@ export function PipesConnectionPanel({
 
   return (
     <CollapsibleIntegrationRow
-      name={providerName}
-      description={summary?.detail ?? ""}
+      name={name ?? providerName}
+      description={description ?? summary?.detail ?? ""}
       icon={
         summary?.logoSrc ? (
           <IntegrationLogo src={summary.logoSrc} />

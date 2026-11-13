@@ -1,0 +1,96 @@
+---
+title: "Translation memory import and export"
+description: "Import and export reusable translations as TMX or CSV and filter exports by language pair."
+---
+
+Native workspace **translation memories** support interchange through Platform. External TMS memories follow different rules when they are not mirrored locally.
+
+## Supported formats
+
+| Format | Import | Export |
+| ------ | ------ | ------ |
+| **TMX** | Yes | Yes |
+| **CSV** | Yes | Yes |
+
+**TMX** is TMX 1.4 with inline codes, `tuid` upsert, and locale-pair variants. **CSV** uses a Hyperlocalise row layout (header row with `source_locale`, `target_locale`, `source_text`, `target_text`, `match_score`). The importer also accepts Crowdin-style locale-matrix CSV (locale codes as column headers).
+
+## Import in Platform
+
+You can upload a **TMX** or **CSV** file when you create a workspace memory, or import into an existing memory you can edit.
+
+1. Open **Translation Memories**.
+2. Choose **Import TMX or CSV** (or **Create memory** and attach a file), or open a memory and choose **Import**.
+3. The import runs a background **preview** and opens a report with counts, sample entries, and diagnostics.
+4. Review the report, then choose **Import entries** to write the segments into the memory. Until you confirm, nothing is applied.
+5. If the report shows a size or entry limit, split the file into smaller batches and import each batch separately.
+
+## Import from a connected TMS
+
+When **Integrations** lists Crowdin, Phrase Strings, or Smartling, you can copy a provider translation memory into a **native** workspace memory. Hyperlocalise exports TMX from the TMS, stores it like an uploaded file, and runs the same preview-and-apply import flow.
+
+1. Connect the TMS under **Integrations**.
+2. Create or open a native memory you can edit.
+3. Start the import through the API (below) or the in-product flow when available. Track progress under **Import attempts** on the memory detail page.
+4. Review the preview report, then confirm **Import entries**.
+
+The workspace uses the most recently updated TMS credential; the request must name that credential id and the provider memory's external id. Supported providers are Crowdin, Phrase Strings, and Smartling. The acting user's token must be able to export the memory. Smartling may require an account UID on the connection or a linked Smartling project in the workspace.
+
+## Export in Platform
+
+1. Open the memory and choose **Export**.
+2. Select **TMX** or **CSV**.
+3. Either download **all locales** or pick a **source** and **target** locale pair to filter the file.
+
+## Public API
+
+TMX (and CSV) import and export are available with a personal access token on `https://public-api.hyperlocalise.com/v1`, the same host as job reads.
+
+| Method | Path | Permission |
+| ------ | ---- | ---------- |
+| GET | `/v1/translation-memories/{memoryId}/entries/export?format=tmx` | `memories:read` |
+| POST | `/v1/translation-memories/{memoryId}/entries/import` | `memories:write` |
+
+The import body is JSON with `format` (`tmx` or `csv`) and `content`. See [Files and translation jobs API](/platform/api#translation-memories).
+
+### List TMS memories and import from TMS
+
+`GET https://public-api.hyperlocalise.com/v1/orgs/{organizationSlug}/tms/translation-memories`
+
+Returns the active TMS connection and provider memories (`externalId`, locales, optional `segmentCount`).
+
+`POST https://public-api.hyperlocalise.com/v1/orgs/{organizationSlug}/translation-memories/{memoryId}/entries/import/from-tms`
+
+```json
+{
+  "credentialId": "<active TMS credential uuid>",
+  "externalId": "<provider memory id>"
+}
+```
+
+`202 Accepted` returns an import `attemptId`. Poll `GET .../translation-memories/{memoryId}/import-attempts/{attemptId}` and its report before applying entries.
+
+## External TMS memories
+
+| Asset | Platform export | Platform import |
+| ----- | ------------ | ------------ |
+| External TMS memory (no mirror) | Not available | Not available |
+| Synced TMS memory | TMX or CSV from mirrored entries | Use native memory import on a workspace memory you edit |
+
+Use your TMS or the Hyperlocalise **CLI** for provider-native TM download shapes where supported (`csv` or `tmx` depending on provider). CLI CSV is often Hyperlocalise-shaped and may not match every TMS upload format.
+
+## Tips
+
+- Prefer **TMX** when moving segments with inline tags or stable `tuid` values between memories.
+- Prefer **CSV** for spreadsheets, quick edits, or scripts.
+- Re-importing an exported **TMX** from Hyperlocalise is supported; treat **CSV** as the canonical flat row format for native memories.
+
+## Check the result
+
+Inspect the reported counts, locales, and representative entries after import. Keep an export before a bulk replacement. If terms or suggestions are missing, confirm that the resource is linked to the intended project and uses the expected locales. See [Translation quality](/platform/help/quality).
+
+## Related
+
+- [Knowledge](/platform/knowledge)
+- [Glossary import and export](/platform/glossary-import-export)
+- [CLI](/platform/cli)
+- [API](/platform/api)

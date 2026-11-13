@@ -12,12 +12,14 @@ Plan cards follow a Vercel-style column layout with thin vertical dividers. Free
 
 Plan limits match the Autumn product configuration:
 
-- Free: 2 integrations, 1 project, 1 seat
-- Starter: $20/mo — 2 integrations, unlimited projects, 5 seats
-- Growth: $2,000/mo — Starter limits plus usage quotas, automations, and AI features
+- Free: 1 project, 1 seat
+- Starter: $20/mo — 2 integrations, unlimited projects, 5 seats, AI features, Queries Board, 2,000,000 AI tokens / month, then $8 / 1M token overage
+- Growth: $2,000/mo — 20 automations, 5 integrations, unlimited projects and seats, 2,000 agent runs / month, unlimited translation jobs, AI features, Automation Workflow, Queries Board, 2,000,000 AI tokens / month, then $4 / 1M token overage
 - Enterprise: Custom — Growth features plus SSO, SLA, dedicated support, and custom limits
 
 The comparison matrix repeats those limits in categorized rows. Its plan-name header stays sticky under the marketing navbar (`top-16`) while the matrix scrolls. There is no feature search.
+
+A **Queries & automation** section elaborates Queries Board (workspace/project views, collaboration, import) and Automation Workflow (visual editor, step types, runs) with short row details under each label.
 
 Between the matrix and FAQ, an AI features explainer lists the eight agent capabilities included on Growth and Enterprise as a simple title-plus-description list (no cards).
 

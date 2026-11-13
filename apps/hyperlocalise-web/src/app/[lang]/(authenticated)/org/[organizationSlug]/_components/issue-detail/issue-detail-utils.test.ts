@@ -17,6 +17,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   buildIssueCatHref,
   buildIssueDetailHref,
+  buildIssueListHref,
   isExternalHttpUrl,
   isHttpOrHttpsUrl,
   issueSheetApiPath,
@@ -102,9 +103,32 @@ describe("issue-detail-utils", () => {
       "/org/acme%2Fteam/projects/project%2Fwith%20spaces/issue-sheet/11111111-1111-4111-8111-111111111111",
     );
 
+    expect(
+      buildIssueDetailHref({
+        organizationSlug: "acme/team",
+        issueId: "WEB-1",
+        scope: "organization",
+      }),
+    ).toBe("/org/acme%2Fteam/issues/WEB-1");
+
     expect(issueSheetApiPath("acme/team", "project/with spaces")).toBe(
       "/api/orgs/acme%2Fteam/projects/project%2Fwith%20spaces/issue-sheet",
     );
+
+    expect(
+      buildIssueListHref({
+        organizationSlug: "acme/team",
+        projectId: "project/with spaces",
+      }),
+    ).toBe("/org/acme%2Fteam/projects/project%2Fwith%20spaces/issue-sheet");
+
+    expect(
+      buildIssueListHref({
+        organizationSlug: "acme/team",
+        projectId: "project/with spaces",
+        scope: "organization",
+      }),
+    ).toBe("/org/acme%2Fteam/issues");
   });
 
   it("truncates breadcrumb titles without cutting mid-ellipsis padding", () => {

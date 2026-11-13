@@ -15,12 +15,7 @@
 import Link from "next/link";
 import { type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  LeftToRightListBulletIcon,
-  LinkSquare02Icon,
-  RefreshIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ListBulletsIcon, ArrowSquareOutIcon, ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -201,7 +196,7 @@ export function ProviderLiveJobDetailView({
             nativeButton={false}
             render={
               <a href={job.externalUrl} target="_blank" rel="noreferrer noopener">
-                <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} />
+                <ArrowSquareOutIcon />
                 <FormattedMessage
                   {...messages.openInProvider}
                   values={{ providerKind: job.externalProviderKind }}
@@ -220,7 +215,7 @@ export function ProviderLiveJobDetailView({
           disabled={isRefreshing || isDeleting}
           onClick={onRefresh}
         >
-          <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
+          <ArrowClockwiseIcon />
           {isRefreshing ? (
             <FormattedMessage {...messages.refreshing} />
           ) : (
@@ -244,7 +239,7 @@ export function ProviderLiveJobDetailView({
       ) : null}
       {showViewStrings && contentEditorHref ? (
         <Button size="sm" render={<Link href={contentEditorHref} />}>
-          <HugeiconsIcon icon={LeftToRightListBulletIcon} />
+          <ListBulletsIcon />
           <FormattedMessage {...messages.openEditor} />
         </Button>
       ) : null}

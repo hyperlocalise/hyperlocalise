@@ -86,4 +86,19 @@ Public teaser pages are the primary lead magnet:
 
 ## Leaderboard
 
-Landing includes a public leaderboard of succeeded teaser scores (domain + score only; never emails or full reports). Ranking is highest score first, then most recently completed. Result pages compute standing with the same public set.
+Landing includes a public leaderboard of succeeded teaser scores (domain + score only; never emails or full reports). Ranking is current scoring methodology first, then highest score, then most recently completed. Result pages compute standing against public teasers scored under the same methodology.
+
+## Scoring methodology
+
+`LOCALISATION_AUDIT_METHODOLOGY_VERSION` in `credits/catalog.ts` is stored on every teaser and report. Teasers without it were scored under methodology 1.
+
+Methodology 2 (Lighthouse-style):
+
+- Each check has a catalog `weight`. Dimension scores and the overall score are weighted means of scored checks.
+- Page-level checks score the share of sampled pages that pass, so results do not depend on how many pages were sampled.
+- Checks with nothing to measure are N/A and excluded, never treated as 100 or 0.
+- Only measured (heuristic) checks are scored. LLM checks are shown as "AI-assessed, not scored" because model judgements vary between runs.
+- Text overflow, layout breakage and responsive checks use layout measured in the sandbox browser at 1440px and 390px. A page only fails when its source-language sibling is cleaner.
+- The overall score is multiplied by a locale coverage factor based on locales found by the crawl. Requested focus locales do not count.
+
+The deeper audit for verified domains is in `2026-10-22-domain-deep-localisation-audit-design.md`.

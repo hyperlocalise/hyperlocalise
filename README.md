@@ -58,7 +58,7 @@ Other commands include `init`, `completion`, `update`, and `version`.
 
 For review-time validation, `check` also supports `--diff-stdin` to scope findings to changed keys from a unified patch for configured `.json`, `.jsonc`, and `.arb` translation files.
 
-Local generation supports common app resource formats including JSON/JSONC, ARB, XLIFF, PO, HTML, Liquid, Markdown/MDX, Apple `.strings`/`.stringsdict`, CSV, and Android `res/values*/strings.xml` resource files.
+Local generation supports common app resource formats including JSON/JSONC, ARB, XLIFF, PO, Qt Linguist `.ts`, HTML, Liquid, Markdown/MDX, AsciiDoc, Apple `.strings`/`.stringsdict`, CSV, and Android `res/values*/strings.xml` resource files.
 
 Use `hyperlocalise --help` for the local command surface, or see the docs for full flags, examples, and provider-specific setup.
 
@@ -135,6 +135,64 @@ jobs:
           upload-artifact: true
 ```
 
+## SQS Lambda workers
+
+Use the `create-sqs-lambda-worker` skill in `.agents/skills/` when adding a
+Go-first SQS-triggered Lambda. It scaffolds the handler contract, partial batch
+failure tests, shared Secrets Manager metadata, build target, and deployment
+handoff. The infrastructure repository provides the matching
+`add-sqs-lambda-worker` skill and reusable OpenTofu module.
+
+The standard deployment action is
+`.github/actions/deploy-lambda-artifact`. It builds a root-level `bootstrap`,
+uploads a versioned S3 artifact, and updates the function named by SSM. Secret
+values stay in Secrets Manager; Lambda receives only ARN, JSON-key, and cache
+metadata through environment variables.
+
+All Postgres-backed SQS Lambdas (activity-log, glossary-interchange,
+memory-interchange, visual-context-match) use the same database secret metadata and Go bootstrap:
+
+- `DATABASE_URL_SECRET_ARN`, `DATABASE_SECRET_KEY`, and optionally
+  `DATABASE_URL_SECRET_CACHE_TTL_SECONDS`
+- `secretsmanager.ConfigFromEnv()` plus `NewLoader` in `main`
+
+Infrastructure passes those variables either through the activity-log wrapper
+module or through `secret_references.database_url_secret` on
+`sqs-lambda-consumer`, with an explicit `DATABASE_SECRET_KEY = "DATABASE_URL"`
+in `environment_variables` (required because `ConfigFromEnv()` reads
+`DATABASE_SECRET_KEY`, not `DATABASE_URL_SECRET_KEY`).
+
+Workers that need additional Secrets Manager fields beyond Postgres should use
+generic `<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` from infra
+`secret_references` with `ConfigsFromEnv("NAME", ...)` and `Collection`. See
+`.agents/skills/create-sqs-lambda-worker/references/worker-contract.md`.
+
+The translation-memory interchange worker uses the dedicated
+`MEMORY_INTERCHANGE_QUEUE_URL` producer variable and publishes versioned
+`{schemaVersion, attemptId, operation}` messages. Its artifact is
+`memory-interchange/bootstrap.zip`, built by
+`make build-memory-interchange-lambda`, and its Lambda function handoff is
+`/hyperlocalise/prod/lambda/memory-interchange/function_name`. Imports upload to
+the `memory-interchange/` object prefix, support an asynchronous preview and
+apply, and exports become downloadable after the worker records a completed
+run. The infrastructure queue must be provisioned before enabling the
+publisher; deploy the real artifact before redriving placeholder or DLQ
+messages.
+
+The visual-context match worker binds native strings to CAT screenshots with
+OCR, modelled on Smartling's context match processes. go-svc publishes
+`{schemaVersion, processId}` messages when `VISUAL_CONTEXT_MATCH_QUEUE_URL` is
+set; without it the match API returns `visual_context_matching_unavailable`.
+Its artifact is `visual-context-match/bootstrap.zip`, built by
+`make build-visual-context-match-lambda`, and its function handoff is
+`/hyperlocalise/prod/lambda/visual-context-match/function_name`. Besides the
+database secret variables, the Lambda reads `OBJECT_STORAGE_S3_FILES_BUCKET`,
+`OBJECT_STORAGE_S3_FILES_REGION`, optional `OBJECT_STORAGE_S3_FILES_ENDPOINT`,
+`OBJECT_STORAGE_DEFAULT_LOCATION`, and optional `TEXTRACT_REGION`. Its role
+needs `s3:GetObject` on the files bucket and `textract:DetectDocumentText`.
+Use a function timeout of at least 3 minutes and a queue visibility timeout
+above it.
+
 ### GitHub Action settings
 
 Inputs from [`action.yml`](action.yml):
@@ -191,7 +249,6 @@ Useful repo paths:
 - `apps/canva-app/`: Canva design editor app
 - `internal/`: shared internal packages
 - `pkg/platform/`: runtime, auth, transport, and observability helpers
-- `api/proto/`: protobuf contract workspace
 - `scripts/`: project scripts
 
 Common commands:
@@ -222,10 +279,10 @@ Release assets are built by [GoReleaser](https://goreleaser.com/) via [`.github/
 The CLI, shared Go packages, GitHub Actions, and repository files are licensed
 under the MIT License unless a more specific license file applies.
 
-The web application in [`apps/hyperlocalise-web/`](apps/hyperlocalise-web/),
-the Canva app in [`apps/canva-app/`](apps/canva-app/), and the Mac app in
-[`apps/mac-app/`](apps/mac-app/) are licensed separately under the Business
-Source License 1.1 by Hyperlocalise Pty Ltd. See each directory's `LICENSE`
+The web application in [`apps/hyperlocalise-web/`](apps/hyperlocalise-web/) and
+the Canva app in [`apps/canva-app/`](apps/canva-app/) are licensed separately
+under the Business Source License 1.1 by Hyperlocalise Pty Ltd. See each
+directory's `LICENSE`
 file for the Licensed Work definition, Additional Use Grant, Change Date, and
 Change License. Hyperlocalise-owned source files in those trees carry a BSL
 header; third-party files retain their own notices. Use

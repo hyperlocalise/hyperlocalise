@@ -10,25 +10,52 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { VisualNodeConfig, VisualWorkflowDefinition } from "./schema/types";
+import type { CanonicalVisualWorkflowNode, VisualNodeConfig } from "./schema/types";
 
-type NotifyEmailNodeConfig = Extract<VisualNodeConfig, { kind: "action.notify_email" }>;
+type VisualWorkflowDefinitionWithNodes = {
+  nodes: CanonicalVisualWorkflowNode[];
+};
 
-function emailNodeConfigFingerprint(config: NotifyEmailNodeConfig): string {
+/** Steps that send through the connection of the person who last saved them. */
+const CREDENTIAL_OWNER_KINDS = new Set<VisualNodeConfig["kind"]>([
+  "action.notify_email",
+  "action.crowdin_pre_translate",
+  "action.crowdin_create_task",
+  "action.crowdin_check_progress",
+  "action.pick_assignee",
+]);
+
+type CredentialOwnerNodeConfig = Extract<
+  VisualNodeConfig,
+  {
+    kind:
+      | "action.notify_email"
+      | "action.crowdin_pre_translate"
+      | "action.crowdin_create_task"
+      | "action.crowdin_check_progress"
+      | "action.pick_assignee";
+  }
+>;
+
+function hasCredentialOwner(config: VisualNodeConfig): config is CredentialOwnerNodeConfig {
+  return CREDENTIAL_OWNER_KINDS.has(config.kind);
+}
+
+function credentialOwnerConfigFingerprint(config: CredentialOwnerNodeConfig): string {
   const { workosUserId: _workosUserId, ...rest } = config;
   return JSON.stringify(rest);
 }
 
-function previousEmailNodeConfigById(
-  previousDefinition: VisualWorkflowDefinition | null | undefined,
-): Map<string, NotifyEmailNodeConfig> {
-  const configs = new Map<string, NotifyEmailNodeConfig>();
+function previousCredentialOwnerConfigById(
+  previousDefinition: VisualWorkflowDefinitionWithNodes | null | undefined,
+): Map<string, CredentialOwnerNodeConfig> {
+  const configs = new Map<string, CredentialOwnerNodeConfig>();
   if (!previousDefinition) {
     return configs;
   }
 
   for (const node of previousDefinition.nodes) {
-    if (node.config.kind === "action.notify_email") {
+    if (hasCredentialOwner(node.config)) {
       configs.set(node.id, node.config);
     }
   }
@@ -36,11 +63,11 @@ function previousEmailNodeConfigById(
   return configs;
 }
 
-function withEmailWorkosUserId(
-  node: VisualWorkflowDefinition["nodes"][number],
+function withWorkosUserId(
+  node: CanonicalVisualWorkflowNode,
   workosUserId: string | undefined,
-): VisualWorkflowDefinition["nodes"][number] {
-  if (node.config.kind !== "action.notify_email") {
+): CanonicalVisualWorkflowNode {
+  if (!hasCredentialOwner(node.config)) {
     return node;
   }
 
@@ -68,38 +95,42 @@ function withEmailWorkosUserId(
   };
 }
 
-export function stampEmailNodePipesUsersOnDefinition(input: {
-  definition: VisualWorkflowDefinition;
-  previousDefinition?: VisualWorkflowDefinition | null;
+export function stampEmailNodePipesUsersOnDefinition<
+  TDefinition extends VisualWorkflowDefinitionWithNodes,
+>(input: {
+  definition: TDefinition;
+  previousDefinition?: VisualWorkflowDefinitionWithNodes | null;
   actorWorkosUserId?: string | null;
-}): VisualWorkflowDefinition {
+}): TDefinition {
   const actorWorkosUserId = input.actorWorkosUserId?.trim() || null;
-  const previousConfigs = previousEmailNodeConfigById(input.previousDefinition);
+  const previousConfigs = previousCredentialOwnerConfigById(input.previousDefinition);
 
   const nodes = input.definition.nodes.map((node) => {
-    if (node.config.kind !== "action.notify_email") {
+    if (!hasCredentialOwner(node.config)) {
       return node;
     }
 
     const previousConfig = previousConfigs.get(node.id);
     const configChanged =
       !previousConfig ||
-      emailNodeConfigFingerprint(previousConfig) !== emailNodeConfigFingerprint(node.config);
+      previousConfig.kind !== node.config.kind ||
+      credentialOwnerConfigFingerprint(previousConfig) !==
+        credentialOwnerConfigFingerprint(node.config);
 
     if (!configChanged) {
       // Unrelated save: keep the stored credential owner. Never prefer a
       // client-supplied workosUserId — that would be a same-org credential IDOR.
       const preservedWorkosUserId = previousConfig.workosUserId ?? actorWorkosUserId ?? undefined;
-      return withEmailWorkosUserId(node, preservedWorkosUserId);
+      return withWorkosUserId(node, preservedWorkosUserId);
     }
 
     if (!actorWorkosUserId) {
-      // New/changed email node without an authenticated actor must not accept
+      // New/changed node without an authenticated actor must not accept
       // a client-chosen credential owner.
-      return withEmailWorkosUserId(node, undefined);
+      return withWorkosUserId(node, undefined);
     }
 
-    return withEmailWorkosUserId(node, actorWorkosUserId);
+    return withWorkosUserId(node, actorWorkosUserId);
   });
 
   return {

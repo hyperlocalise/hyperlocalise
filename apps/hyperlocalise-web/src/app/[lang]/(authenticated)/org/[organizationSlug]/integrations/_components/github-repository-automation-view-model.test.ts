@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   addBranchPattern,
   createAutomationFormStateFromSettings,
+  formatAutomationNextRunAt,
   formStateToAutomationSettings,
   mapAutomationApiErrorToFieldErrors,
   validateAutomationFormState,
@@ -98,6 +99,18 @@ describe("github-repository-automation-view-model", () => {
 
     expect(first.branches).toEqual(["main"]);
     expect(duplicate.error).toMatch(/already listed/i);
+  });
+
+  it("formats the next scheduled run with its UTC zone", () => {
+    const formatted = formatAutomationNextRunAt("2026-10-30T09:05:00.000Z");
+
+    expect(formatted).toContain("2026");
+    expect(formatted).toContain("UTC");
+  });
+
+  it("leaves out a missing or unreadable next run", () => {
+    expect(formatAutomationNextRunAt(null)).toBeNull();
+    expect(formatAutomationNextRunAt("not a date")).toBeNull();
   });
 
   it("rejects invalid weekly day-of-week values", () => {

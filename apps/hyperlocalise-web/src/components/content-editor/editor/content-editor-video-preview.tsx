@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Video01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { VideoIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
@@ -38,7 +37,7 @@ export function ContentEditorVideoPreview({
         )}
       >
         <div className="flex flex-col items-center gap-2 px-4 text-center">
-          <HugeiconsIcon icon={Video01Icon} className="size-6 opacity-60" aria-hidden />
+          <VideoIcon className="size-6 opacity-60" aria-hidden />
           <span>
             {emptyLabel ?? <FormattedMessage {...contentEditorEditorPanelMessages.videoEmpty} />}
           </span>

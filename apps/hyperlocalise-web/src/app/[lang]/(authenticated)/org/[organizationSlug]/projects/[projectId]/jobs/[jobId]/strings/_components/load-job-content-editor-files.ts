@@ -15,6 +15,8 @@ import type {
   ProjectFileRecord,
 } from "@/api/routes/project/project.schema";
 import { apiClient } from "@/lib/api-client-instance";
+import { GoSvcClientError, type GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import {
   parseProviderJobId,
   parseProviderProjectId,
@@ -60,24 +62,39 @@ function projectFileDetailToRecord(
 }
 
 async function fetchProjectFiles(input: {
+  goSvcClient: GoSvcClient;
   organizationSlug: string;
   projectId: string;
   origin?: "all" | "repository" | "provider";
 }) {
-  const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files.$get({
-    param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
-    query: {
-      limit: String(PROJECT_FILES_FETCH_LIMIT),
-      ...(input.origin ? { origin: input.origin } : {}),
-    },
-  });
+  if (parseProviderProjectId(input.projectId)) {
+    const response = await apiClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.$get({
+      param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
+      query: {
+        limit: String(PROJECT_FILES_FETCH_LIMIT),
+        ...(input.origin ? { origin: input.origin } : {}),
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to load task files (${response.status})`);
+    if (!response.ok) {
+      throw new Error(`Failed to load task files (${response.status})`);
+    }
+
+    const body = (await response.json()) as { files: ProjectFileRecord[] };
+    return body.files;
   }
 
-  const body = (await response.json()) as { files: ProjectFileRecord[] };
-  return body.files;
+  try {
+    const body = await input.goSvcClient.project.files(input.organizationSlug, input.projectId, {
+      limit: PROJECT_FILES_FETCH_LIMIT,
+      ...(input.origin ? { origin: input.origin } : {}),
+    });
+    return body.files as ProjectFileRecord[];
+  } catch (error) {
+    throw new Error(goSvcErrorMessage(error, "Failed to load task files"), { cause: error });
+  }
 }
 
 export function resolveJobContentEditorTargetFromStoredFileId(
@@ -102,6 +119,7 @@ export function resolveJobContentEditorTargetFromStoredFileId(
 }
 
 export async function loadJobContentEditorTargetFile(input: {
+  goSvcClient: GoSvcClient;
   organizationSlug: string;
   projectId: string;
   sourcePath: string | null;
@@ -128,6 +146,7 @@ export async function loadJobContentEditorTargetFile(input: {
 
   if (input.storedFileId) {
     const files = await fetchProjectFiles({
+      goSvcClient: input.goSvcClient,
       organizationSlug: input.organizationSlug,
       projectId: input.projectId,
     });
@@ -156,7 +175,15 @@ async function fetchTmsProviderLiveJobFiles(input: {
   return body.files.map(tmsLiveFileToProjectFileRecord);
 }
 
-async function fetchJobDetail(organizationSlug: string, jobId: string) {
+async function fetchJobDetail(goSvcClient: GoSvcClient, organizationSlug: string, jobId: string) {
+  try {
+    const body = await goSvcClient.job.get<JobDetailRecord>(organizationSlug, jobId);
+    return body.job;
+  } catch (error) {
+    if (!(error instanceof GoSvcClientError) || error.status !== 404) {
+      throw error;
+    }
+  }
   const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$get({
     param: { organizationSlug, jobId },
   });
@@ -222,6 +249,7 @@ export function mapSyncedProviderSourceFiles(input: {
 }
 
 export async function loadJobContentEditorSelectableTargetLocales(input: {
+  goSvcClient: GoSvcClient;
   organizationSlug: string;
   projectId: string;
   jobId: string;
@@ -249,7 +277,7 @@ export async function loadJobContentEditorSelectableTargetLocales(input: {
     });
   }
 
-  const job = await fetchJobDetail(input.organizationSlug, input.jobId);
+  const job = await fetchJobDetail(input.goSvcClient, input.organizationSlug, input.jobId);
   if (job.projectId !== input.projectId) {
     return [];
   }
@@ -258,6 +286,7 @@ export async function loadJobContentEditorSelectableTargetLocales(input: {
 }
 
 export async function loadJobContentEditorProviderJobFiles(input: {
+  goSvcClient: GoSvcClient;
   organizationSlug: string;
   projectId: string;
   jobId: string;
@@ -273,7 +302,8 @@ export async function loadJobContentEditorProviderJobFiles(input: {
     });
   }
 
-  const job = input.job ?? (await fetchJobDetail(input.organizationSlug, input.jobId));
+  const job =
+    input.job ?? (await fetchJobDetail(input.goSvcClient, input.organizationSlug, input.jobId));
   if (job.projectId !== input.projectId) {
     throw new Error("Task does not belong to this project");
   }
@@ -302,6 +332,7 @@ export async function loadJobContentEditorProviderJobFiles(input: {
 }
 
 export async function loadJobContentEditorJobSourceFiles(input: {
+  goSvcClient: GoSvcClient;
   organizationSlug: string;
   projectId: string;
   jobId: string;
@@ -311,7 +342,7 @@ export async function loadJobContentEditorJobSourceFiles(input: {
     return loadJobContentEditorProviderJobFiles(input);
   }
 
-  const job = await fetchJobDetail(input.organizationSlug, input.jobId);
+  const job = await fetchJobDetail(input.goSvcClient, input.organizationSlug, input.jobId);
   if (job.projectId !== input.projectId) {
     throw new Error("Task does not belong to this project");
   }

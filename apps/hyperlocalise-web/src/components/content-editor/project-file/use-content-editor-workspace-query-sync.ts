@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import type {
@@ -20,6 +20,7 @@ import type {
   ContentEditorQueueSort,
 } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { applyCatWorkspaceQueryParams } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 
 /**
  * Keeps queueFilter + queueSort + search in the URL so locale/file remounts restore them.
@@ -29,8 +30,9 @@ export function useContentEditorWorkspaceQuerySync(input: {
   queueSort: ContentEditorQueueSort;
   search: string;
   debouncedSearch: string;
+  queueFilterQualifier?: string;
+  queueAdvanced?: ContentEditorAdvancedQueueFilter;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
@@ -46,19 +48,26 @@ export function useContentEditorWorkspaceQuerySync(input: {
       queueFilter: input.queueFilter,
       queueSort: input.queueSort,
       search: input.debouncedSearch,
+      queueFilterQualifier: input.queueFilterQualifier ?? null,
+      queueAdvanced: input.queueAdvanced ?? null,
     });
     const nextString = next.toString();
     if (nextString === searchParamsString) {
       return;
     }
 
-    router.replace(nextString ? `${pathname}?${nextString}` : pathname, { scroll: false });
+    window.history.replaceState(
+      null,
+      "",
+      `${nextString ? `${pathname}?${nextString}` : pathname}${window.location.hash}`,
+    );
   }, [
     input.debouncedSearch,
     input.queueFilter,
     input.queueSort,
+    input.queueFilterQualifier,
+    input.queueAdvanced,
     pathname,
-    router,
     searchParamsString,
   ]);
 }

@@ -15,8 +15,11 @@
 import { useEffect, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 import { apiClient } from "@/lib/api-client-instance";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import {
   PageHeader,
@@ -24,27 +27,54 @@ import {
   type Icon,
 } from "../../../_components/workspace-resource-shared";
 
-import { mapProjectToListRow } from "../../_components/project-list";
+import {
+  mapProjectToListRow,
+  type ApiProject,
+  type ProjectListRow,
+} from "../../_components/project-list";
 import { recordRecentProjectVisit } from "../../_components/recent-projects";
+
+export const translationProjectQueryKey = (organizationSlug: string, projectId: string) =>
+  ["translation-project", organizationSlug, projectId] as const;
+
+export async function fetchTranslationProjectRow(
+  organizationSlug: string,
+  projectId: string,
+  goSvcClient: {
+    project: {
+      get: (organizationSlug: string, projectId: string) => Promise<{ project: ApiProject }>;
+    };
+  },
+): Promise<ProjectListRow> {
+  if (parseProviderProjectId(projectId)) {
+    const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
+      param: { organizationSlug, projectId },
+    });
+    if (response.status !== 200) {
+      throw new Error(`Failed to load project (${response.status})`);
+    }
+    const body = await response.json();
+    return mapProjectToListRow(body.project);
+  }
+
+  try {
+    const body = await goSvcClient.project.get(organizationSlug, projectId);
+    return mapProjectToListRow(body.project);
+  } catch (error) {
+    throw new Error(goSvcErrorMessage(error, "Failed to load project"), { cause: error });
+  }
+}
 
 export function useProjectPageQuery(
   organizationSlug: string,
   projectId: string,
   options?: { enabled?: boolean },
 ) {
+  const { client: goSvcClient } = useGoSvcClient();
   const query = useQuery({
-    queryKey: ["translation-project", organizationSlug, projectId],
+    queryKey: translationProjectQueryKey(organizationSlug, projectId),
     enabled: options?.enabled ?? true,
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
-        param: { organizationSlug, projectId },
-      });
-      if (response.status !== 200) {
-        throw new Error(`Failed to load project (${response.status})`);
-      }
-      const body = await response.json();
-      return mapProjectToListRow(body.project);
-    },
+    queryFn: () => fetchTranslationProjectRow(organizationSlug, projectId, goSvcClient),
   });
 
   useEffect(() => {
@@ -69,23 +99,16 @@ export function ProjectPageShell({
 type ProjectSectionHeaderProps = {
   icon: Icon;
   section: string;
-  description: string;
   actions?: ReactNode;
   meta?: ReactNode;
 };
 
-export function ProjectSectionHeader({
-  icon,
-  section,
-  description,
-  actions,
-  meta,
-}: ProjectSectionHeaderProps) {
+export function ProjectSectionHeader({ icon, section, actions, meta }: ProjectSectionHeaderProps) {
   return (
-    <div className="space-y-3">
-      <PageHeader icon={icon} title={section} description={description} actions={actions} />
+    <>
+      <PageHeader icon={icon} title={section} actions={actions} />
       {meta}
-    </div>
+    </>
   );
 }
 

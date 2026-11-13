@@ -16,6 +16,7 @@ import type {
   MarketingFooterColumn,
   MarketingFooterLink,
 } from "@/components/marketing/marketing-page-content";
+import { BrandLogomark } from "@/components/brand/brand-logomark";
 import Image from "next/image";
 import Link from "next/link";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -28,6 +29,7 @@ import type { ProductMessageKey } from "./product/product-page-content.messages"
 import { useCasePageMessages } from "./use-case/use-case-page-content.messages";
 import type { UseCaseMessageKey } from "./use-case/use-case-page-content.messages";
 import type { AppLocale } from "@/lib/app-i18n/locales";
+import { brandLogotypoDarkModeSvgSrc } from "@/lib/brand/brand-assets";
 import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 
@@ -125,8 +127,7 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
       <div className="grid gap-12 lg:grid-cols-[160px_1fr]">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="flex size-8 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-            <Image
-              src="/images/logo.png"
+            <BrandLogomark
               width={32}
               height={32}
               alt={intl.formatMessage(marketingFooterMessages.logoAlt)}
@@ -196,9 +197,16 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
             aria-hidden
             className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-background/50 blur-2xl sm:size-56"
           />
-          <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-2 text-center font-sans text-7xl font-semibold tracking-tight text-white sm:text-9xl md:text-[10rem] lg:text-[13rem]">
-            <FormattedMessage {...marketingFooterMessages.brandWordmark} />
-          </p>
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 sm:px-8">
+            <Image
+              src={brandLogotypoDarkModeSvgSrc}
+              alt={intl.formatMessage(marketingFooterMessages.brandWordmark)}
+              width={1246}
+              height={231}
+              sizes="(max-width: 640px) 92vw, (max-width: 1024px) 78vw, 64rem"
+              className="h-auto w-full max-w-[min(92vw,64rem)]"
+            />
+          </div>
         </div>
       </div>
     </footer>

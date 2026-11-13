@@ -13,20 +13,19 @@
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import { getWorkspaceFeatureFlagEnabled, workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { ReportsWorkspace } from "@/components/reports/reports-workspace";
+import { ReportsPage as ReportsPageContent } from "@/components/reports/reports-page";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectReports");
+}
 
 export default function ReportsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ReportsLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ReportsLoader params={params} />;
 }
 
 async function ReportsLoader({
@@ -42,5 +41,5 @@ async function ReportsLoader({
     return <FeatureTeaserPage feature="reports" scope="project" />;
   }
 
-  return <ReportsWorkspace organizationSlug={organizationSlug} projectId={projectId} />;
+  return <ReportsPageContent organizationSlug={organizationSlug} projectId={projectId} />;
 }

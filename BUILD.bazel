@@ -16,8 +16,3 @@ alias(
     name = "cli",
     actual = "//apps/cli:cli",
 )
-
-filegroup(
-    name = "contracts",
-    srcs = ["//api/proto:contracts"],
-)

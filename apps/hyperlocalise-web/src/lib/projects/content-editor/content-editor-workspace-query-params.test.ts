@@ -61,10 +61,21 @@ describe("applyCatWorkspaceQueryParams", () => {
       queueFilter: "needs_review",
       queueSort: "untranslated_first",
       search: "checkout",
+      queueFilterQualifier: "spelling",
     });
     expect(withValues.get("queueFilter")).toBe("needs_review");
     expect(withValues.get("queueSort")).toBe("untranslated_first");
     expect(withValues.get("search")).toBe("checkout");
+    expect(withValues.get("queueFilterQualifier")).toBe("spelling");
+
+    const withAdvanced = applyCatWorkspaceQueryParams(params, {
+      queueFilter: "all",
+      queueAdvanced: { stringType: "icu" },
+      queueFilterQualifier: null,
+    });
+    expect(withAdvanced.get("queueFilter")).toBeNull();
+    expect(withAdvanced.get("queueAdvanced")).toBe(JSON.stringify({ stringType: "icu" }));
+    expect(withAdvanced.get("queueFilterQualifier")).toBeNull();
 
     const clearedSort = applyCatWorkspaceQueryParams(withValues, {
       queueSort: "file_order",

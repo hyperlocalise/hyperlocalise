@@ -14,8 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 export type AssignableIssueMember = {
   userId: string;
@@ -41,19 +41,21 @@ export function useAssignableIssueMembersQuery({
   projectId: string | undefined;
   enabled?: boolean;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
+
   return useQuery({
     queryKey: assignableMembersQueryKey(organizationSlug, projectId ?? ""),
     enabled: Boolean(organizationSlug && projectId && enabled),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ]["assignable-members"].$get({
-        param: { organizationSlug, projectId: projectId! },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load assignable members");
+      try {
+        return (await goSvcClient.issueSheet.assignableMembers(organizationSlug, projectId!)) as {
+          members: AssignableIssueMember[];
+        };
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load assignable members"), {
+          cause: error,
+        });
       }
-      return response.json();
     },
   });
 }

@@ -21,9 +21,15 @@ import {
   getChatStreamManager,
 } from "./chat-stream-manager";
 
-const { readUIMessageStreamMock, sendMessagesMock } = vi.hoisted(() => ({
+const { readUIMessageStreamMock, sendMessagesMock, getRunMock, cancelRunMock } = vi.hoisted(() => ({
   readUIMessageStreamMock: vi.fn(),
   sendMessagesMock: vi.fn(),
+  getRunMock: vi.fn(),
+  cancelRunMock: vi.fn(),
+}));
+
+vi.mock("./chat-run-api", () => ({
+  createChatRunApi: () => ({ getRun: getRunMock, cancelRun: cancelRunMock }),
 }));
 
 vi.mock("ai", async (importOriginal) => {
@@ -56,6 +62,113 @@ function createAssistantMessage(id: string, text: string): UIMessage {
 describe("ChatStreamManager", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getRunMock.mockResolvedValue(null);
+    cancelRunMock.mockResolvedValue(true);
+  });
+
+  it("follows a turn another tab already started until it finishes", async () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store, { pollIntervalMs: 1 });
+    const finished: string[] = [];
+    manager.setOnStreamFinished((conversationId) => {
+      finished.push(conversationId);
+    });
+    sendMessagesMock.mockRejectedValueOnce(
+      Object.assign(new Error("conflict"), {
+        statusCode: 409,
+        responseBody: JSON.stringify({ error: "run_in_progress", details: { runId: "run_1" } }),
+      }),
+    );
+    const partial = [{ type: "text" as const, text: "Half", state: "streaming" as const }];
+    getRunMock
+      .mockResolvedValueOnce({
+        id: "run_1",
+        userMessageId: "msg_1",
+        status: "running",
+        cancelRequested: false,
+        parts: partial,
+      })
+      .mockImplementationOnce(async () => {
+        expect(store.getStreamSnapshot("conv_follow")?.message.parts).toEqual(partial);
+        return {
+          id: "run_1",
+          userMessageId: "msg_1",
+          status: "completed",
+          cancelRequested: false,
+          parts: [],
+        };
+      });
+
+    await manager.start({
+      conversationId: "conv_follow",
+      responseToMessageId: "msg_1",
+      text: "hi",
+    });
+
+    expect(getRunMock).toHaveBeenCalledTimes(2);
+    expect(finished).toEqual(["conv_follow"]);
+    expect(manager.isStreaming("conv_follow")).toBe(false);
+  });
+
+  it("asks the server to stop and reports the cancel when the turn ends", async () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store);
+    const finished: Array<{ conversationId: string; cancelled: boolean }> = [];
+    manager.setOnStreamFinished((conversationId, info) => {
+      finished.push({ conversationId, cancelled: info.cancelled });
+    });
+
+    let endStream!: () => void;
+    const streamEnded = new Promise<void>((resolve) => {
+      endStream = resolve;
+    });
+    sendMessagesMock.mockResolvedValueOnce(createMessageStream([]));
+    readUIMessageStreamMock.mockReturnValueOnce(
+      (async function* () {
+        yield createAssistantMessage("stream-msg_1", "Partial");
+        await streamEnded;
+      })(),
+    );
+
+    const startPromise = manager.start({
+      conversationId: "conv_cancel",
+      responseToMessageId: "msg_1",
+      text: "go",
+    });
+    await vi.waitFor(() => expect(manager.isStreaming("conv_cancel")).toBe(true));
+
+    await manager.cancel("conv_cancel");
+    expect(cancelRunMock).toHaveBeenCalledWith("conv_cancel");
+    expect(manager.isCancelling("conv_cancel")).toBe(true);
+
+    endStream();
+    await startPromise;
+
+    expect(finished).toEqual([{ conversationId: "conv_cancel", cancelled: true }]);
+    expect(manager.isCancelling("conv_cancel")).toBe(false);
+  });
+
+  it("treats an already answered turn as finished", async () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    const manager = new ChatStreamManager("acme", store);
+    const finished: string[] = [];
+    manager.setOnStreamFinished((conversationId) => {
+      finished.push(conversationId);
+    });
+    sendMessagesMock.mockRejectedValueOnce(
+      Object.assign(new Error("conflict"), {
+        statusCode: 409,
+        responseBody: JSON.stringify({ error: "turn_already_processed" }),
+      }),
+    );
+
+    await manager.start({ conversationId: "conv_done", responseToMessageId: "msg_1", text: "hi" });
+
+    expect(finished).toEqual(["conv_done"]);
+    expect(getRunMock).not.toHaveBeenCalled();
   });
 
   it("refuses a fourth concurrent stream before calling the network", async () => {
@@ -200,6 +313,49 @@ describe("ChatStreamManager", () => {
     expect(store.hasTabs).toBe(false);
     // Failed attempts still count so remounts do not auto-retry the same user message.
     expect(manager.shouldAutoTriggerResponse("conv_orphan_error", "msg_1")).toBe(false);
+
+    consoleError.mockRestore();
+  });
+
+  it("keeps a reply refused for used-up AI credit on screen, without the error banner", async () => {
+    const store = new ChatDockStore();
+    store.setOrganizationSlug("acme");
+    store.openTab({ id: "conv_no_credit", title: "No credit" });
+    const manager = new ChatStreamManager("acme", store);
+    const finished: string[] = [];
+    manager.setOnStreamFinished((conversationId) => {
+      finished.push(conversationId);
+      store.clearStreamSnapshot(conversationId);
+    });
+
+    // The AI SDK chat transport keeps the refused response's body on its call error.
+    sendMessagesMock.mockRejectedValueOnce(
+      Object.assign(new Error("refused"), {
+        statusCode: 402,
+        responseBody: JSON.stringify({
+          error: "ai_credit_exhausted",
+          message: "Your workspace has used all of its AI credit.",
+        }),
+      }),
+    );
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const result = await manager.start({
+      conversationId: "conv_no_credit",
+      responseToMessageId: "msg_1",
+      text: "hello",
+    });
+
+    expect(result).toEqual({ started: true });
+    expect(finished).toEqual([]);
+    expect(store.getStreamSnapshot("conv_no_credit")).toMatchObject({
+      status: "error",
+      aiCreditExhausted: true,
+      message: { parts: [] },
+    });
+    expect(store.tabs[0]?.lastError).toBeNull();
+    expect(consoleError).not.toHaveBeenCalled();
+    expect(manager.shouldAutoTriggerResponse("conv_no_credit", "msg_1")).toBe(false);
 
     consoleError.mockRestore();
   });

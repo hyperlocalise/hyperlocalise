@@ -4,6 +4,7 @@
 
 - Run `make bootstrap` before working if dependencies are not installed yet.
 - For web-related work, also check [`apps/hyperlocalise-web/AGENTS.md`](apps/hyperlocalise-web/AGENTS.md).
+- Mailchimp connects with **OAuth only** (WorkOS Pipes slug `mailchimp`); the web app calls Marketing API 3.0 over REST (`fetch`), not the TypeScript SDK. See [`docs/platform/connections/mailchimp.mdx`](docs/platform/connections/mailchimp.mdx) and [Mailchimp developer docs](https://mailchimp.com/developer/llms.txt).
 
 ## Commit Messages
 
@@ -26,6 +27,14 @@ In apps/hyperlocalise-web, if we change these folders:
 - Run `vp check --fix`
 
 Do not finalize work until all commands complete successfully.
+
+## Lambda deployment (CI)
+
+Production Go Lambdas deploy from [`.github/workflows/lambda-deploy.yml`](.github/workflows/lambda-deploy.yml) on every push to `prod` and via **Lambda Deploy** (`workflow_dispatch`). The same applies to `go-svc-deploy.yml` and the `prod` push of `sandbox-image.yml`.
+
+- **No path filters on prod deploys.** Every push to `prod` deploys every Lambda. Path filters drift from the Go import graph and silently skip deploys.
+- **Concurrency:** use a separate `concurrency` group on each deploy job (`lambda-deploy-<worker>-${{ github.ref }}`). Push deploy jobs call `ensure-deploy-main-tip` after checkout; it skips an older run when `prod` has moved past its commit, because the newer run deploys everything.
+- When adding a lambda: extend the workflow only (new deploy job, concurrency group, `ensure-deploy-main-tip` step). Every deploy job uses `role-session-name: github-actions-lambda-deploy` on `prod`; do not add per-worker session names or change existing jobs’ session names. See [docs/contributing/lambda-deploy.mdx](docs/contributing/lambda-deploy.mdx) and [`.agents/skills/create-sqs-lambda-worker/SKILL.md`](.agents/skills/create-sqs-lambda-worker/SKILL.md).
 
 ## Cursor Cloud specific instructions
 
@@ -51,6 +60,8 @@ go build -o $(go env GOPATH)/bin/golangci-lint github.com/golangci/golangci-lint
 - Before the dev server works, create `apps/hyperlocalise-web/.env` with at minimum:
   ```
   DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise
+  ACTIVITY_LOG_SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/000000000000/activity-log-local
+  AWS_REGION=us-east-1
   PROVIDER_CREDENTIALS_MASTER_KEY=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
   WORKOS_API_KEY=sk_test_placeholder
   WORKOS_CLIENT_ID=client_placeholder
@@ -68,6 +79,9 @@ go build -o $(go env GOPATH)/bin/golangci-lint github.com/golangci/golangci-lint
   # AI_GATEWAY_API_KEY=
   # Optional. Enables server-side GA4 custom events via Measurement Protocol.
   # GA_MEASUREMENT_PROTOCOL_API_SECRET=
+  # Optional. PostHog product analytics. No-ops when unset.
+  # NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=phc_...
+  # NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
  ```
 - Run `vp run db:migrate` after starting Postgres to apply Drizzle migrations.
 - The `make test` target uses coverage flags that may warn about a missing `covdata` tool — all actual tests still pass. Use `go test ./...` if you want a clean exit code without coverage.
@@ -78,7 +92,7 @@ Enable Agent Registration on the WorkOS environment (account team if the feature
 
 - Methods: **Service auth** on, **Anonymous** off.
 - Credential type: short-lived **access token** JWT.
-- Trusted (post-claim) permissions: the same PAT scopes as `/api/v1` (`files:read`, `files:write`, `jobs:read`, `jobs:write`) plus `mcp`.
+- Trusted (post-claim) permissions: the same PAT scopes as `/api/v1` (`files:read`, `files:write`, `jobs:read`, `jobs:write`, `memories:read`, `memories:write`) plus `mcp`.
 - Host `auth.md`: copy the AuthKit hostname into `WORKOS_AUTHKIT_DOMAIN` (no scheme). The app rewrites `/auth.md` to `https://$WORKOS_AUTHKIT_DOMAIN/agent/auth.md`.
 - OAuth well-known: protected resource is Hyperlocalise (`/api/v1`). Authorization server is AuthKit. Do not add AuthKit as the first authorization server on MCP protected-resource metadata.
 

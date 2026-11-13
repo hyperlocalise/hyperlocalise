@@ -13,21 +13,21 @@
  * Version 2.0 or later.
  */
 import {
-  AttachmentIcon,
-  Cancel01Icon,
-  File01Icon,
-  Globe02Icon,
-  Image01Icon,
-  MusicNote01Icon,
-  Video01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+  PaperclipIcon,
+  XIcon,
+  FileIcon,
+  GlobeIcon,
+  ImageIcon,
+  MusicNoteIcon,
+  VideoIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/primitives/cn";
 import type { FileUIPart, SourceDocumentUIPart } from "ai";
 import type { ComponentProps, HTMLAttributes, ReactNode } from "react";
-import { createContext, useCallback, useContext, useMemo } from "react";
+import { createElement, createContext, useCallback, useContext, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { attachmentsMessages } from "./attachments.messages";
@@ -52,13 +52,13 @@ export type AttachmentMediaCategory =
 
 export type AttachmentVariant = "grid" | "inline" | "list";
 
-const mediaCategoryIcons: Record<AttachmentMediaCategory, IconSvgElement> = {
-  audio: MusicNote01Icon,
-  document: File01Icon,
-  image: Image01Icon,
-  source: Globe02Icon,
-  unknown: AttachmentIcon,
-  video: Video01Icon,
+const mediaCategoryIcons: Record<AttachmentMediaCategory, Icon> = {
+  audio: MusicNoteIcon,
+  document: FileIcon,
+  image: ImageIcon,
+  source: GlobeIcon,
+  unknown: PaperclipIcon,
+  video: VideoIcon,
 };
 
 // ============================================================================
@@ -255,9 +255,8 @@ export const AttachmentPreview = ({
 
   const iconSize = variant === "inline" ? "size-3" : "size-4";
 
-  const renderIcon = (Icon: IconSvgElement) => (
-    <HugeiconsIcon icon={Icon} className={cn(iconSize, "text-muted-foreground")} />
-  );
+  const renderIcon = (Icon: Icon) =>
+    createElement(Icon, { className: cn(iconSize, "text-muted-foreground") });
 
   const renderContent = () => {
     if (mediaCategory === "image" && data.type === "file" && data.url) {
@@ -373,7 +372,7 @@ export const AttachmentRemove = ({
       variant="ghost"
       {...props}
     >
-      {children ?? <HugeiconsIcon icon={Cancel01Icon} />}
+      {children ?? <XIcon />}
       <span className="sr-only">{resolvedLabel}</span>
     </Button>
   );

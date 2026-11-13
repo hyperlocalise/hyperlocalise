@@ -317,6 +317,7 @@ export function createAgentSlackRoutes() {
             {
               organizationId,
               featureId: workspaceResourceFeatureIds.integrations,
+              analyticsSource: "slack",
             },
             upsertSlackConnector,
           );

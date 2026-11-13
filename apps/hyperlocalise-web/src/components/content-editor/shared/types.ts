@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { MessageFormat } from "@/lib/i18n/message-format";
+import type { SourceFileIngestState } from "@/lib/projects/files/source-file-ingest-state";
 import type { ContentEditorVisualContext } from "@/lib/translation/content-editor-visual-context";
 
 export type ContentEditorContentKind =
@@ -83,14 +85,26 @@ export interface ContentEditorQueueSegment {
   imageVariantId?: string | null;
   looksLikeImageUrl?: boolean;
   looksLikeVideoUrl?: boolean;
+  /** The string's file is one whose source text the platform can write back. */
+  sourceTextEditable?: boolean;
   /** TMS hidden string — unavailable to translators, still visible to managers. */
   isHidden?: boolean;
   /** Explicit CAT lock. Editors can set and show this independently of approved/hidden. */
   isLocked?: boolean;
   /** Set when the queue spans multiple files. */
   sourcePath?: string;
+  /** Placeholder syntax of this row's file; set when the queue spans multiple files. */
+  messageFormat?: MessageFormat;
+  /** Custom placeholder regexes of this row's file; set when the queue spans multiple files. */
+  placeholderPatterns?: string[];
   externalResourceId?: string;
   resourceType?: "file" | "key";
+  /** Grouped queues: identical source strings this row saves to, including itself. */
+  occurrenceCount?: number;
+  /** Grouped queues: least complete status among the occurrences in the queue locale. */
+  groupStatus?: "pending" | "needs_review" | "reviewed";
+  /** Grouped queues: locales whose occurrences do not share one translation. */
+  divergentLocales?: string[];
 }
 
 /** File and locale scope for the CAT editor, shared across all segments. */
@@ -109,6 +123,17 @@ export interface ContentEditorFileContext {
   canContributeTeamGlossary?: boolean;
   teamName?: string;
   projectTeamSlug?: string;
+  lottieSourceUrl?: string;
+  documentView?: {
+    externalStringId: string;
+    sourceAssetUrl?: string | null;
+    targetAssetUrl?: string | null;
+    imageVariantId?: string | null;
+  };
+  ingestState?: SourceFileIngestState;
+  ingestError?: string | null;
+  messageFormat?: MessageFormat;
+  placeholderPatterns?: string[];
 }
 
 export interface ContentEditorSegment {
@@ -119,6 +144,10 @@ export interface ContentEditorSegment {
   targetText: string;
   /** Present when the queue spans multiple files. */
   sourcePath?: string;
+  /** Placeholder syntax used for format checks; defaults to auto. */
+  messageFormat?: MessageFormat;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: string[];
   sourceLocale: string;
   targetLocale: string;
   contextLabel?: string;
@@ -137,6 +166,14 @@ export interface ContentEditorSegment {
   imageVariantId?: string | null;
   looksLikeImageUrl?: boolean;
   looksLikeVideoUrl?: boolean;
+  /** The string's file is one whose source text the platform can write back. */
+  sourceTextEditable?: boolean;
+  /** Grouped queues: identical source strings this row saves to, including itself. */
+  occurrenceCount?: number;
+  /** Grouped queues: least complete status among the occurrences in the queue locale. */
+  groupStatus?: "pending" | "needs_review" | "reviewed";
+  /** Grouped queues: locales whose occurrences do not share one translation. */
+  divergentLocales?: string[];
 }
 
 export interface ContentEditorFormatCheck {
@@ -146,6 +183,12 @@ export interface ContentEditorFormatCheck {
   message: string;
   category?: ContentEditorFormatCheckCategory;
   relatedTokens?: string[];
+  /** The AI request behind this check was refused because the workspace's AI credit is used up. */
+  aiCreditExhausted?: boolean;
+  /** Translation text this guideline finding was checked against. */
+  appliesToText?: string;
+  /** Locale this guideline finding was checked against. */
+  appliesToLocale?: string;
 }
 
 export interface ContentEditorGlossaryTerm {
@@ -182,6 +225,20 @@ export interface ContentEditorGlossaryConcept {
   targetTerms: ContentEditorGlossaryConceptTerm[];
 }
 
+export type ContentEditorTmSegmentRef =
+  | {
+      kind: "native";
+      memoryId: string;
+      entryId: string;
+    }
+  | {
+      kind: "external";
+      providerKind: "crowdin";
+      resourceId: string;
+      externalResourceId: string;
+      externalSegmentId: string;
+    };
+
 export interface ContentEditorTranslationMemoryMatch {
   id: string;
   sourceText: string;
@@ -189,6 +246,9 @@ export interface ContentEditorTranslationMemoryMatch {
   matchPercent: number;
   matchKind?: ContentEditorTmMatchKind;
   contextLabel?: string;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  segmentRef?: ContentEditorTmSegmentRef;
 }
 
 export interface ContentEditorSegmentIntelligence {
@@ -201,6 +261,9 @@ export interface ContentEditorSegmentIntelligence {
   productMeaning?: string;
   segmentType?: string;
   maxLength?: number;
+  /** The key's own tags and design link (native projects). */
+  keyTags?: string[];
+  designUrl?: string;
   agentContext?: string | null;
   reviewerPreference?: string;
   constraints?: string;

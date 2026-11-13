@@ -53,16 +53,9 @@ function createOrgSlugClient(origin: string) {
   const workspace = hc<OrgWorkspaceRpcAppType>(origin).api.orgs[":organizationSlug"];
 
   return {
-    ...pickClientPaths(inbox, [
-      "issues",
-      "issue-sheet",
-      "notifications",
-      "notification-preferences",
-      "mentions",
-      "conversations",
-    ]),
+    ...pickClientPaths(inbox, ["conversations", "workflow-approvals"]),
     ...pickClientPaths(knowledge, ["glossaries", "knowledge-memory", "translation-memories"]),
-    ...pickClientPaths(projects, ["projects", "jobs", "files", "workspace-files", "automations"]),
+    ...pickClientPaths(projects, ["projects", "jobs", "files", "automations", "visual-workflows"]),
     ...pickClientPaths(tms, [
       "external-tms-provider-credential",
       "tms-provider",
@@ -72,14 +65,23 @@ function createOrgSlugClient(origin: string) {
     ]),
     ...pickClientPaths(integrations, [
       "contentful-connections",
+      "webflow-connections",
       "mcp-server-connections",
-      "linked-domains",
       "semrush-connections",
       "zernio-connections",
       "ahrefs-connections",
       "pipes",
+      "braze",
+      "loops",
+      "customer-io",
+      "hubspot",
+      "mailchimp",
+      "iterable",
       "intercom-connections",
       "canva-connections",
+      "figma-connections",
+      "sanity-connections",
+      "google-drive",
     ]),
     ...pickClientPaths(agents, [
       "agent-email",
@@ -87,17 +89,10 @@ function createOrgSlugClient(origin: string) {
       "slack-connect",
       "github-installation",
       "gitlab",
+      "intercom",
+      "sanity",
     ]),
-    ...pickClientPaths(workspace, [
-      "teams",
-      "members",
-      "workspace",
-      "billing",
-      "api-keys",
-      "activity-logs",
-      "hyperlab",
-      "overview",
-    ]),
+    ...pickClientPaths(workspace, ["webhook-endpoints"]),
   };
 }
 

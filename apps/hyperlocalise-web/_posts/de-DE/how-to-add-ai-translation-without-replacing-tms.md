@@ -23,7 +23,7 @@ tags:
 
 Viele Lokalisierungsteams stehen unter Druck, schneller zu arbeiten, manuelle Aufgaben zu reduzieren und mehr Sprachen zu unterstützen, ohne die Mitarbeiterzahl zu erhöhen. KI-Übersetzung ist ein naheliegender Teil der Lösung, aber für die meisten Teams lautet die Frage nicht, ob KI eingesetzt werden sollte. Die schwierigere Frage ist, wie sich KI-Übersetzung einführen lässt, ohne die bestehenden Systeme, Workflows und Beziehungen zu Dienstleistern zu beeinträchtigen.
 
-Für Unternehmen, die bereits [Phrase](https://phrase.com), [Lokalise](https://lokalise.com), [Crowdin](https://crowdin.com), [Smartling](https://www.smartling.com) oder ein anderes Übersetzungsmanagementsystem verwenden, ist es selten der richtige erste Schritt, das TMS zu ersetzen. Diese Plattformen sind oft tief in Produktfreigabeprozesse, Content-Workflows, Lieferantenabläufe, Translation Memorys, Glossarverwaltung, Prüfzyklen und Berichterstattung integriert. Ein vollständiges Ersetzen kann monatelange Migrationsarbeit verursachen, bevor das Team eine spürbare Verbesserung feststellt.
+For companies already using [Phrase](https://phrase.com), [Lokalise](https://lokalise.com), [Crowdin](https://crowdin.com), [Smartling](https://www.smartling.com), or another translation management system, replacing the TMS is rarely the right first move. These platforms often sit deeply inside product release processes, content workflows, vendor operations, translation memory, glossary management, review cycles, and reporting. A rip-and-replace project can create months of migration work before the team sees any meaningful improvement.
 
 Ein besserer Ansatz besteht darin, KI-Übersetzungen als intelligente Ebene um den bestehenden Lokalisierungs-Workflow herum hinzuzufügen. Anstatt das TMS zu ersetzen, können Unternehmen es durch KI erweitern, die Kontext sammelt, Übersetzungsaufgaben vorbereitet, die Übersetzungsqualität verbessert, Reviewer unterstützt und aus früheren Entscheidungen in verschiedenen Tools lernt.
 
@@ -65,7 +65,7 @@ Es sollte **Reviewer unterstützen, nicht sie umgehen**. Lokalisierungsteams ben
 
 Es sollte **aus Feedback lernen**. Das wertvollste Lokalisierungswissen entsteht oft, nachdem die erste Übersetzung überprüft wurde: warum eine Formulierung abgelehnt wurde, warum der Ton geändert wurde, warum ein Markt einen bestimmten Ausdruck bevorzugte oder warum eine wörtliche Übersetzung nicht funktioniert hat. Wenn dieses Feedback in Kommentaren und Tabellen verschwindet, kann sich die KI im Laufe der Zeit nicht verbessern.
 
-Weitere Informationen dazu, warum der Kontext genauso wichtig ist wie das Ergebnis, finden Sie unter [KI-Übersetzung reicht nicht: Warum globale Teams kontextbewusste Lokalisierung brauchen](/blog/ai-translation-is-not-enough-context-aware-localisation).
+For more on why context matters as much as output, see [AI Translation Is Not Enough: Why Global Teams Need Context-Aware Localisation](/blog/ai-translation-is-not-enough-context-aware-localisation).
 
 ## Das TMS-agnostische Modell
 
@@ -93,7 +93,7 @@ Hyperlocalise konzentriert sich auf drei Bereiche.
 
 **Drittens schafft es eine sich selbst weiterentwickelnde Wissensebene.** Jede freigegebene Übersetzung, jeder abgelehnte Vorschlag, jede Aktualisierung des Glossars, jeder Kommentar von Reviewern und jede marktspezifische Entscheidung kann Teil der Lokalisierungsintelligenz der Organisation werden. Mit der Zeit verringert dies wiederholte Fehler und trägt dazu bei, dass zukünftige Übersetzungen konsistenter, kontextbezogener und schneller freigegeben werden.
 
-Dies baut auf derselben Grundlage auf wie [Übersetzungsintelligenz](/blog/what-is-translation-intelligence): die Infrastruktur, die verstreutes Wissen über Produkt, Marke, UI, Markt und Prüfer in bessere Lokalisierungsentscheidungen überführt.
+This builds on the same foundation as [translation intelligence](/blog/what-is-translation-intelligence): the infrastructure that turns scattered product, brand, UI, market, and reviewer knowledge into better localisation decisions.
 
 ## Die praktischen Vorteile
 
@@ -116,3 +116,5 @@ Das ist das Versprechen eines TMS-unabhängigen Workflows.
 Mit Hyperlocalise können Teams KI-Übersetzungsintelligenz in ihren bestehenden Lokalisierungs-Stack integrieren, Kontext zwischen Tools verknüpfen, menschliche Prüfer unterstützen und eine Wissensebene aufbauen, die sich mit der Zeit verbessert.
 
 KI-Übersetzung sollte Teams nicht dazu zwingen, von vorne anzufangen. Sie sollte ihnen helfen, von ihrem aktuellen Stand aus schneller voranzukommen.
+
+Die Bewertungskriterien für diese Entscheidung – Produktkontext, menschliche Prüfung, TMS-Interoperabilität und Release-Bereitschaft – finden Sie unter [So wählen Sie einen kontinuierlichen Lokalisierungsworkflow aus](/blog/how-to-choose-a-continuous-localisation-workflow).

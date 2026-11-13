@@ -1,0 +1,40 @@
+---
+title: "v1.13.0"
+description: "Go CLI release notes for v1.13.0."
+---
+
+`hl run` translates editable text layers in Lottie JSON and dotLottie archives, and can copy a whole target catalog from another locale with `locales.copies`. `sync push` and `sync pull` honor optional `cloud_path` aliases so Cloud file identity stays stable when local paths move. PO parse/marshal, Liquid scanning, and eval scoring are faster.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.13.0) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.12.2...v1.13.0)
+
+## Breaking changes
+
+None.
+
+## Features
+
+- Add [Lottie and dotLottie support](https://github.com/hyperlocalise/hyperlocalise/pull/2613). Text layers (`ty: 5`), including those inside precompositions, are keyed as JSON paths such as `layers[1].t.d.k[0].s.t`. A `.json` file whose root has `v`, `fr`, `ip`, `op`, and `layers` is treated as a Lottie animation rather than a JSON catalog. `.lottie` archives translate every animation under `animations/` (dotLottie 1.0) or `a/` (dotLottie 2.0); keys are prefixed with the entry name. Writeback replaces only text string literals. Shapes, keyframes, fonts, timing, manifests, images, themes, and state machines stay unchanged.
+- Add [`locales.copies`](https://github.com/hyperlocalise/hyperlocalise/pull/2626) so a target locale can ship as a copy of another catalog, for example `en-AU: en-GB`. `hl run` still writes the copy locale's files. It skips LLM and MT for that locale and copies origin values instead. The origin must be `locales.source` or another target that is not itself a copy. Copy locales cannot share a `to` path with their origin, combine with `locales.fallbacks` on the same locale, or copy another copy. `hl run --locale en-AU` reads existing origin files; missing origin files fail with an instruction to translate the origin first. Image copies convert origin bytes when the destination extension differs (`banner.png` → `banner-en-AU.webp`).
+- Add optional [`files[].cloud_path`](https://github.com/hyperlocalise/hyperlocalise/pull/2553) so Hyperlocalise Cloud `sync push` and `sync pull` keep the existing Cloud source identity when local `from` / `to` paths change. The alias accepts `{{source}}` and the same glob suffix as `from`. Recursive mappings preserve nested relative paths. Distinct local files need distinct Cloud paths; collisions and unsafe segments fail before network requests. Local `run`, `check`, `status`, and `pack` keep using the local paths.
+
+## Fixes
+
+None.
+
+## Performance
+
+- [GNU gettext PO parse/marshal](https://github.com/hyperlocalise/hyperlocalise/pull/2597) uses `strings.IndexByte` instead of `strings.ContainsAny` when unquoting values: about 35% faster parse and 23% faster marshal.
+- [Liquid tag-name scanning](https://github.com/hyperlocalise/hyperlocalise/pull/2583) matches skipped block names on raw bytes without `strings.ToLower`, and skips placeholder-token extraction when no Liquid sentinels are present.
+- [Eval scoring](https://github.com/hyperlocalise/hyperlocalise/pull/2535) reuses source text analysis when the candidate matches the source, inlines brace/printf token scans, and returns static strings for common HTML tags.
+
+## Tests
+
+- Lottie JSON detection, text-layer extract/writeback (including precomps and indented templates), and byte-stable no-op marshal.
+- dotLottie v1 `animations/` and v2 `a/` extract, rewrite of only changed animations, entry names that contain `#`, and deterministic archive rebuild.
+- `locales.copies` config validation, planning marks copy tasks, `run` translates the origin once, copy-only `--locale` reuses origin files, copy-from-source writes source text with no provider calls, and image extension conversion.
+- `cloud_path` validation, collision rejection, and Cloud sync push/pull identity vs local write paths.
+- Liquid skip-block Bolt edges.
+
+## Maintenance
+
+- Bump Go dependencies, including the Crowdin API client to v0.19.0, Phrase Go to v4.32.0, OpenAI Go to v3.71.1, goldmark to v2.1.6, and OpenTelemetry to v1.47.0. ([#2665](https://github.com/hyperlocalise/hyperlocalise/pull/2665))

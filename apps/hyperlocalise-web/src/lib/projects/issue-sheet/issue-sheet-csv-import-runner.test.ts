@@ -130,6 +130,63 @@ Second copy issue,Open,EXT-DUP`,
     expect(issues).toEqual([{ title: "First copy issue", externalRef: "EXT-DUP" }]);
   });
 
+  it("binds duplicate csv headers to distinct columns left-to-right", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const service = new IssueSheetService();
+
+    const result = await runIssueSheetCsvImport(service, {
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      body: {
+        content: `Title,Status,Title
+Correct Title,Open,WRONG TITLE FROM COL3
+Second Correct,Done,WRONG2`,
+        dryRun: false,
+        mapping: [
+          systemMapping("Title", { kind: "system", field: "title" }),
+          systemMapping("Status", { kind: "system", field: "status" }),
+          {
+            csvHeader: "Title",
+            target: {
+              kind: "create",
+              key: "alt_title",
+              label: "Alt Title",
+              type: "text",
+            },
+          },
+        ],
+      },
+    });
+
+    expect(result).toMatchObject({
+      totalRows: 2,
+      created: 2,
+      skippedInvalid: 0,
+      columnsCreated: [{ key: "alt_title", label: "Alt Title" }],
+    });
+
+    const issues = await service.listIssues({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      query: { status: "all", sort: "updated_at", sortDir: "asc", limit: 10, offset: 0 },
+    });
+
+    expect(issues.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Correct Title",
+          values: { alt_title: "WRONG TITLE FROM COL3" },
+        }),
+        expect.objectContaining({
+          title: "Second Correct",
+          values: { alt_title: "WRONG2" },
+        }),
+      ]),
+    );
+  });
+
   it("persists created select columns, row values, and assignee resolution", async () => {
     const { identity, organization, project, user } =
       await projectFixture.createStoredProjectFixture();

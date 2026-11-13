@@ -75,6 +75,7 @@ export type SandboxTranslationContext = {
   projectName?: string | null;
   projectTranslationContext?: string | null;
   jobContext?: string | null;
+  knowledgeMemory?: string | null;
   glossaryTerms?: Array<{
     sourceTerm: string;
     targetTerm: string;
@@ -86,7 +87,6 @@ export type SandboxTranslationContext = {
 };
 
 export type StringTranslationGeneratorInput = {
-  reporting?: { organizationId: string; projectId: string; jobId: string };
   projectName: string;
   projectTranslationContext: string;
   jobInput: StringTranslationJobInput;
@@ -115,6 +115,11 @@ export type StringTranslationJobResult = {
     inputTokens: number;
     outputTokens: number;
     totalTokens: number;
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
+    reasoningTokens?: number;
+    modelId?: string;
+    credentialSource?: "gateway" | "byok";
   };
 };
 
@@ -164,7 +169,8 @@ export type ContentEditorAiRecommendationError = {
     | "translation_context_assembly_failed"
     | "ai_recommendation_failed"
     | "ai_features_required"
-    | "ai_features_check_failed";
+    | "ai_features_check_failed"
+    | "ai_credit_exhausted";
   message: string;
 };
 

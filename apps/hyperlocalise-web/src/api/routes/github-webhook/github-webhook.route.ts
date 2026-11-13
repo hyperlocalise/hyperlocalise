@@ -32,6 +32,8 @@ import {
   handleGithubPullRequestWebhook,
   type GitHubPullRequestWebhookPayload,
 } from "@/lib/agents/github/github-pull-request-webhook";
+import { enqueueIntegrationDisconnectedActivity } from "@/lib/activity-log/integration-events";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 
 const logger = createLogger("github-webhook");
@@ -236,11 +238,23 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
 
       if (event === "installation" && payload.action === "deleted" && payload.installation?.id) {
         log.info({ installationId: payload.installation.id }, "deleting github installation");
-        await db
+        const [deletedInstallation] = await db
           .delete(schema.githubInstallations)
           .where(
             eq(schema.githubInstallations.githubInstallationId, String(payload.installation.id)),
-          );
+          )
+          .returning({
+            id: schema.githubInstallations.id,
+            organizationId: schema.githubInstallations.organizationId,
+          });
+        if (deletedInstallation) {
+          await enqueueIntegrationDisconnectedActivity({
+            ...sessionActivityActor(null),
+            connectionId: deletedInstallation.id,
+            integrationKind: "github",
+            organizationId: deletedInstallation.organizationId,
+          });
+        }
 
         return c.json({ ok: true, ignored: false }, 200);
       }

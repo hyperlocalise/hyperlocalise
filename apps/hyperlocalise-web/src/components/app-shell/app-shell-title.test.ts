@@ -24,6 +24,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/dashboard", "Overview"],
     ["/org/acme/inbox", "Inbox"],
     ["/org/acme/issues", "Queries"],
+    ["/org/acme/issues/WEB-1", "Queries"],
     ["/org/acme/inbox/new", "New Request"],
     ["/org/acme/projects", "Projects"],
     ["/org/acme/projects/proj_1", "proj_1"],
@@ -38,22 +39,28 @@ describe("getAppShellTitle", () => {
     ["/org/acme/projects/proj_1/context", "Context"],
     ["/org/acme/projects/proj_1/locales", "Locales"],
     ["/org/acme/projects/proj_1/qa", "QA"],
+    ["/org/acme/projects/proj_1/reports", "Reports"],
     ["/org/acme/projects/proj_1/reviews", "Reviews"],
     ["/org/acme/projects/proj_1/settings", "Settings"],
     ["/org/acme/my-work", "My Jobs"],
     ["/org/acme/my-jobs", "My Jobs"],
     ["/org/acme/knowledge", "Guideline"],
+    ["/org/acme/automations", "Automations"],
+    ["/org/acme/reports", "Reports"],
     ["/org/acme/ai-engine", "AI Engine"],
     ["/org/acme/domains", "Domains"],
     ["/org/acme/domains/ld_1", "ld_1"],
     ["/org/acme/domains/hyperlocalise-com/keywords", "Keywords"],
     ["/org/acme/glossaries", "Glossaries"],
+    ["/org/acme/glossaries/glos_1", "glos_1"],
     ["/org/acme/hyperlab", "Hyperlab"],
     ["/org/acme/hyperlab/experiments", "Experiments"],
     ["/org/acme/hyperlab/audiences", "Audiences"],
     ["/org/acme/hyperlab/flags", "Flags"],
     ["/org/acme/hyperlab/keys", "API keys"],
     ["/org/acme/translation-memories", "Translation Memories"],
+    ["/org/acme/translation-memories/tm_1", "tm_1"],
+    ["/org/acme/dictionaries", "Dictionaries"],
     ["/org/acme/integrations", "Integrations"],
     ["/org/acme/teams", "Teams"],
     ["/org/acme/teams/team_1", "team_1"],
@@ -61,6 +68,10 @@ describe("getAppShellTitle", () => {
     ["/org/acme/members/permissions", "Role permissions"],
     ["/org/acme/settings", "Settings"],
     ["/org/acme/settings/members", "Members"],
+    ["/org/acme/settings/integrations", "Integrations"],
+    ["/org/acme/settings/ai-engine", "AI Engine"],
+    ["/org/acme/settings/domains", "Domains"],
+    ["/org/acme/settings/hyperlab", "Hyperlab"],
     ["/org/acme/settings/account", "Account"],
     ["/org/acme/settings/billing", "Billing"],
     ["/org/acme/settings/api-keys", "API keys"],
@@ -123,6 +134,95 @@ describe("getAppShellBreadcrumbs", () => {
     ]);
   });
 
+  it("returns glossary breadcrumbs for glossary detail and subpages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/glossaries", intl)).toEqual([{ label: "Glossaries" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/glossaries/glos_1", intl)).toEqual([
+      { label: "Glossaries", href: "/org/acme/glossaries" },
+      { label: "glos_1" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/glossaries/glos_1", intl, {
+        glossaryName: "Product terms",
+      }),
+    ).toEqual([{ label: "Glossaries", href: "/org/acme/glossaries" }, { label: "Product terms" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/glossaries/glos_1/history", intl)).toEqual([
+      { label: "Glossaries", href: "/org/acme/glossaries" },
+      { label: "glos_1", href: "/org/acme/glossaries/glos_1" },
+      { label: "Glossary history" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/glossaries/glos_1/imports/run_1", intl, {
+        glossaryName: "Product terms",
+      }),
+    ).toEqual([
+      { label: "Glossaries", href: "/org/acme/glossaries" },
+      { label: "Product terms", href: "/org/acme/glossaries/glos_1" },
+      { label: "Import/export history", href: "/org/acme/glossaries/glos_1/imports" },
+      { label: "Interchange report" },
+    ]);
+  });
+
+  it("returns guideline breadcrumbs for detail and upload pages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/knowledge", intl)).toEqual([{ label: "Guideline" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/knowledge/upload", intl)).toEqual([
+      { label: "Guideline", href: "/org/acme/knowledge" },
+      { label: "Upload guideline" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/knowledge/doc_1", intl)).toEqual([
+      { label: "Guideline", href: "/org/acme/knowledge" },
+      { label: "doc_1" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/knowledge/doc_1", intl, {
+        guidelineDocumentTitle: "Brand voice",
+      }),
+    ).toEqual([{ label: "Guideline", href: "/org/acme/knowledge" }, { label: "Brand voice" }]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/knowledge/doc_1", intl, {
+        guidelineDocumentTitleLoading: true,
+      }),
+    ).toEqual([
+      { label: "Guideline", href: "/org/acme/knowledge" },
+      { label: "", isLoading: true },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/projects/proj_1/knowledge/doc_1", intl)).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "proj_1", href: "/org/acme/projects/proj_1" },
+      { label: "Guideline", href: "/org/acme/projects/proj_1/knowledge" },
+      { label: "doc_1" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/knowledge/doc_1", intl, {
+        projectName: "Checkout",
+        guidelineDocumentTitle: "Brand voice",
+      }),
+    ).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "Checkout", href: "/org/acme/projects/proj_1" },
+      { label: "Guideline", href: "/org/acme/projects/proj_1/knowledge" },
+      { label: "Brand voice" },
+    ]);
+  });
+
+  it("returns translation memory breadcrumbs for detail and import report pages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/translation-memories", intl)).toEqual([
+      { label: "Translation Memories" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/translation-memories/tm_1", intl)).toEqual([
+      { label: "Translation Memories", href: "/org/acme/translation-memories" },
+      { label: "tm_1" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/translation-memories/tm_1/imports/attempt_1", intl, {
+        translationMemoryName: "Checkout TM",
+      }),
+    ).toEqual([
+      { label: "Translation Memories", href: "/org/acme/translation-memories" },
+      { label: "Checkout TM", href: "/org/acme/translation-memories/tm_1" },
+      { label: "Import report" },
+    ]);
+  });
+
   it("returns teams breadcrumbs for team detail pages", () => {
     expect(getAppShellBreadcrumbs("/org/acme/teams", intl)).toEqual([{ label: "Teams" }]);
     expect(getAppShellBreadcrumbs("/org/acme/teams/team_1", intl)).toEqual([
@@ -163,6 +263,15 @@ describe("getAppShellBreadcrumbs", () => {
       { label: "Domains", href: "/org/acme/domains" },
       { label: "hyperlocalise.com", href: "/org/acme/domains/hyperlocalise-com" },
       { label: "Keywords" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/domains/hyperlocalise-com/search-console", intl, {
+        domainName: "hyperlocalise.com",
+      }),
+    ).toEqual([
+      { label: "Domains", href: "/org/acme/domains" },
+      { label: "hyperlocalise.com", href: "/org/acme/domains/hyperlocalise-com" },
+      { label: "Search Console" },
     ]);
   });
 
@@ -252,6 +361,68 @@ describe("getAppShellBreadcrumbs", () => {
       { label: "Projects", href: "/org/acme/projects" },
       { label: "Checkout", href: "/org/acme/projects/proj_1" },
       { label: "Queries", href: "/org/acme/projects/proj_1/issue-sheet" },
+    ]);
+  });
+
+  it("links workspace Queries when viewing an organization query detail URL", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/issues", intl)).toEqual([{ label: "Queries" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/issues/WEB-1", intl)).toEqual([
+      { label: "Queries", href: "/org/acme/issues" },
+    ]);
+    expect(getAppShellBreadcrumbs("/en/org/acme/issues/WEB-1", intl)).toEqual([
+      { label: "Queries", href: "/org/acme/issues" },
+    ]);
+  });
+
+  it("links Automations when viewing a workspace automation detail URL", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/automations", intl)).toEqual([
+      { label: "Automations" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/automations/auto_1", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+    ]);
+    expect(getAppShellBreadcrumbs("/en/org/acme/automations/auto_1", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+    ]);
+  });
+
+  it("returns New automation breadcrumbs for the compose pages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/automations/new", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+      { label: "New automation" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/automations/new", intl, {
+        projectName: "Checkout",
+      }),
+    ).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "Checkout", href: "/org/acme/projects/proj_1" },
+      { label: "Automations", href: "/org/acme/projects/proj_1/automations" },
+      { label: "New automation" },
+    ]);
+  });
+
+  it("links Automations when viewing visual workflows", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/automations/visual-workflows", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+      { label: "Visual workflows" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/automations/visual-workflows/wf_1", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+      { label: "Visual workflows", href: "/org/acme/automations/visual-workflows" },
+    ]);
+  });
+
+  it("links Automations when viewing a project automation detail URL", () => {
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/automations/auto_1", intl, {
+        projectName: "Checkout",
+      }),
+    ).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "Checkout", href: "/org/acme/projects/proj_1" },
+      { label: "Automations", href: "/org/acme/projects/proj_1/automations" },
     ]);
   });
 

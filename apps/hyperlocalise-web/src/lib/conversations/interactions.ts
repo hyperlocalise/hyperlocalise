@@ -13,13 +13,25 @@
 import { and, eq } from "drizzle-orm";
 import type { UIMessage } from "ai";
 
+import {
+  PRODUCT_USAGE_ANALYTICS_EVENTS,
+  productUsageSourceForConversation,
+} from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
+import { updateJobs } from "@/lib/job-change-events/job-writes";
 
 const sourceFileIdPattern = /\bsourceFileId=/;
 
 type CreateInteractionInput = {
   organizationId: string;
-  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent" | "web_chat";
+  source:
+    | "chat_ui"
+    | "email_agent"
+    | "github_agent"
+    | "slack_agent"
+    | "web_chat"
+    | "workflow_approval";
   title: string;
   projectId?: string;
   sourceThreadId?: string;
@@ -27,8 +39,8 @@ type CreateInteractionInput = {
 
 export async function createInteraction(input: CreateInteractionInput) {
   const now = new Date();
-  return db.transaction(async (tx) => {
-    const [interaction] = await tx
+  const interaction = await db.transaction(async (tx) => {
+    const [created] = await tx
       .insert(schema.interactions)
       .values({
         organizationId: input.organizationId,
@@ -44,7 +56,7 @@ export async function createInteraction(input: CreateInteractionInput) {
 
     // Every interaction creates exactly one inbox item.
     await tx.insert(schema.inboxItems).values({
-      interactionId: interaction.id,
+      interactionId: created.id,
       organizationId: input.organizationId,
       projectId: input.projectId ?? null,
       status: "active",
@@ -52,8 +64,14 @@ export async function createInteraction(input: CreateInteractionInput) {
       updatedAt: now,
     });
 
-    return interaction;
+    return created;
   });
+
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.conversationCreated, {
+    status: "created",
+    source: productUsageSourceForConversation(input.source),
+  });
+  return interaction;
 }
 
 type AddMessageInput = {
@@ -80,15 +98,23 @@ export async function addInteractionMessage(input: AddMessageInput) {
     })
     .returning();
 
-  await db
+  const [interaction] = await db
     .update(schema.interactions)
     .set({ lastMessageAt: now, updatedAt: now })
-    .where(eq(schema.interactions.id, input.interactionId));
+    .where(eq(schema.interactions.id, input.interactionId))
+    .returning({ source: schema.interactions.source });
 
   await db
     .update(schema.inboxItems)
     .set({ updatedAt: now })
     .where(eq(schema.inboxItems.interactionId, input.interactionId));
+
+  if (input.senderType === "user" && interaction) {
+    serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.conversationMessageSent, {
+      status: "sent",
+      source: productUsageSourceForConversation(interaction.source),
+    });
+  }
 
   return message;
 }
@@ -149,12 +175,13 @@ export async function linkJobToInteraction(input: {
     return;
   }
 
-  await db
-    .update(schema.jobs)
-    .set({ interactionId: input.interactionId })
-    .where(
-      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
-    );
+  await updateJobs(db, {
+    set: { interactionId: input.interactionId },
+    where: and(
+      eq(schema.jobs.id, input.jobId),
+      eq(schema.jobs.organizationId, input.organizationId),
+    ),
+  });
 }
 
 export async function findInteractionBySourceThreadId(input: {

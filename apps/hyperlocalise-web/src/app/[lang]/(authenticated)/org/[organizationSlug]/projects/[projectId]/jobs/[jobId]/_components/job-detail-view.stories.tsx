@@ -13,12 +13,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import Link from "next/link";
 import { expect, userEvent } from "storybook/test";
-import {
-  LeftToRightListBulletIcon,
-  LinkSquare02Icon,
-  RefreshIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ListBulletsIcon, ArrowSquareOutIcon, ArrowClockwiseIcon } from "@phosphor-icons/react/ssr";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
@@ -26,6 +21,7 @@ import type { IntlShape } from "react-intl";
 
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { buildJobContentEditorHref } from "@/lib/projects/job-content-editor-routing";
+import { readJobFailureDetails } from "@/lib/projects/jobs/job-failure-details";
 
 import { ProviderJobDescriptionFieldView } from "../../../../../jobs/_components/provider-job-description-field";
 import {
@@ -40,8 +36,10 @@ import {
   jobDetailTaskLayoutFromLiveJob,
   jobDetailTaskLayoutFromRecord,
 } from "./job-detail-layout-helpers";
+import { CrowdinJobAssigneesField } from "./job-detail-assignee-field";
 import { JobDetailTaskView } from "./job-detail-task-view";
 import type { JobDetailRecord } from "./job-detail-types";
+import { JobFailureNotice } from "./job-failure-notice";
 import { JobProviderDetailSectionView } from "./job-provider-detail-section-view";
 import { NativeJobSourceFilesSection } from "./native-job-detail-helpers";
 import { JobSourceFilesPanel } from "./tms/job-source-files-panel";
@@ -63,8 +61,15 @@ const storyIntl = getIntlShape("en") as IntlShape;
 
 const nativeJob = createNativeJobDetail();
 const failedJob = createNativeJobDetail({
+  assigneeType: "agent",
+  ownerUserId: null,
   status: "failed",
   lastError: "Translation provider timed out after 120 seconds.",
+  outcomePayload: {
+    code: "file_translation_failed",
+    message: "Translation provider timed out after 120 seconds.",
+    failedLocales: ["ja-JP", "ko-KR"],
+  },
 });
 const syncedJob = createProviderBackedJobDetail();
 const syncedJobFields = toProviderBackedJobFields(syncedJob);
@@ -161,7 +166,7 @@ function liveCrowdinHeaderActions() {
         nativeButton={false}
         render={
           <a href={liveJob.externalUrl!} target="_blank" rel="noreferrer noopener">
-            <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} />
+            <ArrowSquareOutIcon />
             Open in crowdin
           </a>
         }
@@ -169,12 +174,12 @@ function liveCrowdinHeaderActions() {
         variant="outline"
       />
       <Button size="sm" variant="outline">
-        <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
+        <ArrowClockwiseIcon />
         Refresh
       </Button>
       {liveJobContentEditorHref ? (
         <Button size="sm" render={<Link href={liveJobContentEditorHref} />}>
-          <HugeiconsIcon icon={LeftToRightListBulletIcon} />
+          <ListBulletsIcon />
           Open Editor
         </Button>
       ) : null}
@@ -241,6 +246,9 @@ export const RunningFileTranslation: Story = {
 export const FailedJob: Story = {
   args: {
     ...taskViewArgsFromRecord(failedJob),
+    renderExtraMain: () => (
+      <JobFailureNotice details={readJobFailureDetails(failedJob)} variant="failed" />
+    ),
     renderFilesSection: () => (
       <NativeJobSourceFilesSection
         organizationSlug={organizationSlug}
@@ -251,6 +259,13 @@ export const FailedJob: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Failed")).toBeInTheDocument();
+    await expect(canvas.getByText("Failure reason")).toBeInTheDocument();
+    await expect(
+      canvas.getAllByText("Translation provider timed out after 120 seconds.").length,
+    ).toBeGreaterThan(0);
+    await expect(canvas.getByText("Unfinished locales")).toBeInTheDocument();
+    await expect(canvas.getByText("ja-JP, ko-KR")).toBeInTheDocument();
+    await expect(canvas.getByText("This job failed")).toBeInTheDocument();
   },
 };
 
@@ -343,6 +358,49 @@ export const LiveCrowdinTask: Story = {
     await expect(canvas.getByText("home.json")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("tab", { name: "Comments" }));
     await expect(canvas.getByText(/Preserve product name casing/)).toBeInTheDocument();
+  },
+};
+
+const manyAssigneeNames = ["Ada", "Beau", "Cora", "Drew", "Eden"];
+const manyAssigneesJob = createLiveCrowdinJobDetail({
+  externalAssignedUsers: manyAssigneeNames,
+});
+
+export const ManyCrowdinAssignees: Story = {
+  args: taskViewArgsFromLiveJob(manyAssigneesJob),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Ada")).toBeInTheDocument();
+    await expect(canvas.getByText("+4")).toBeInTheDocument();
+    await expect(canvas.queryByText("Eden")).not.toBeInTheDocument();
+  },
+};
+
+export const CrowdinAssigneesPicker: Story = {
+  args: {
+    ...taskViewArgsFromLiveJob(manyAssigneesJob),
+    properties: taskViewArgsFromLiveJob(manyAssigneesJob).properties.map((property) =>
+      property.id === "assignees"
+        ? {
+            ...property,
+            value: (
+              <CrowdinJobAssigneesField
+                organizationSlug={organizationSlug}
+                encodedJobId="ext:crowdin:project_website:1204"
+                externalProjectId="project_website"
+                selectedExternalUserIds={["1", "2", "3", "4", "5"]}
+                fallbackLabels={manyAssigneeNames}
+                queryKey={["story-crowdin-assignees"]}
+              />
+            ),
+          }
+        : property,
+    ),
+  },
+  play: async ({ canvas }) => {
+    const trigger = canvas.getByRole("button", { name: /Assignees:/ });
+    await expect(trigger).toHaveTextContent("Ada");
+    await expect(trigger).toHaveTextContent("+4");
+    await expect(canvas.queryByText("Eden")).not.toBeInTheDocument();
   },
 };
 

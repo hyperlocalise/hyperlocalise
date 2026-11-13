@@ -29,6 +29,7 @@ import {
   toAgentRunTranslationMemoryMatchUsage,
 } from "@/lib/providers/contracts/translation-memory-match";
 import { listHiddenProjectTranslationKeysForSourcePath } from "@/lib/projects/translations/project-translation-service";
+import { isSameAsSourceMemoryPrefill } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 export type FileTranslationMemoryReuseResult = {
@@ -40,6 +41,30 @@ const emptyFileTranslationMemoryReuseResult = (): FileTranslationMemoryReuseResu
   prefilled: {},
   matchesByKey: {},
 });
+
+/** Ten bind values per row; stay under PostgreSQL's 65,535-parameter limit. */
+export const FILE_TRANSLATION_MEMORY_WRITE_BATCH_SIZE = 500;
+
+/**
+ * PostgreSQL btree index entries cap near 2,712 bytes. `memory_entries`
+ * carries `normalized_source_text` inside two btree indexes (the
+ * locale-source uniqueness key and the normalized-source lookup), so one
+ * oversized segment — e.g. a full Webflow rich-text article — fails the
+ * entire batch insert with "index row size exceeds maximum", and retries
+ * fail identically. Skip those units for TM persistence: giant blobs never
+ * exact-match reuse anyway, and one bad row must not fail every other
+ * entry in the batch.
+ */
+export const FILE_TRANSLATION_MEMORY_MAX_NORMALIZED_BYTES = 2000;
+
+function chunkItems<T>(items: readonly T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  const chunkSize = Math.max(size, 1);
+  for (let index = 0; index < items.length; index += chunkSize) {
+    chunks.push(items.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
 
 function sourceTextHash(sourceText: string) {
   return createHash("sha256").update(sourceText, "utf8").digest("hex");
@@ -162,6 +187,14 @@ export class FileTranslationMemoryStore {
         if (!row) {
           continue;
         }
+        if (
+          isSameAsSourceMemoryPrefill({
+            sourceText: unit.sourceText,
+            targetText: row.targetText,
+          })
+        ) {
+          continue;
+        }
 
         prefilled[unit.key] = row.targetText;
         matchesByKey[unit.key] = [
@@ -205,8 +238,15 @@ export class FileTranslationMemoryStore {
         key,
         sourceText,
         targetText: input.targetEntries[key] ?? "",
+        normalizedSourceText: normalizeTranslationMemorySourceText(sourceText),
       }))
-      .filter((unit) => unit.sourceText.trim().length > 0 && unit.targetText.trim().length > 0);
+      .filter(
+        (unit) =>
+          unit.sourceText.trim().length > 0 &&
+          unit.targetText.trim().length > 0 &&
+          Buffer.byteLength(unit.normalizedSourceText, "utf8") <=
+            FILE_TRANSLATION_MEMORY_MAX_NORMALIZED_BYTES,
+      );
     if (units.length === 0) {
       return;
     }
@@ -246,7 +286,7 @@ export class FileTranslationMemoryStore {
 
     const valueByConflictKey = new Map<string, typeof schema.memoryEntries.$inferInsert>();
     for (const unit of persistableUnits) {
-      const normalized = normalizeTranslationMemorySourceText(unit.sourceText);
+      const normalized = unit.normalizedSourceText;
       for (const memoryId of memoryIds) {
         valueByConflictKey.set(
           `${memoryId}:${input.sourceLocale}:${input.targetLocale}:${normalized}`,
@@ -258,6 +298,7 @@ export class FileTranslationMemoryStore {
             normalizedSourceText: normalized,
             targetText: unit.targetText,
             provenance: "file_job",
+            reviewStatus: "pending",
             externalKey: `${input.jobId}:${input.targetLocale}:${unit.key}`,
             metadata: {
               projectId: input.projectId,
@@ -273,25 +314,30 @@ export class FileTranslationMemoryStore {
       }
     }
 
-    await db
-      .insert(schema.memoryEntries)
-      .values([...valueByConflictKey.values()])
-      .onConflictDoUpdate({
-        target: [
-          schema.memoryEntries.memoryId,
-          schema.memoryEntries.sourceLocale,
-          schema.memoryEntries.targetLocale,
-          schema.memoryEntries.normalizedSourceText,
-        ],
-        set: {
-          targetText: sql`excluded.target_text`,
-          provenance: sql`excluded.provenance`,
-          externalKey: sql`excluded.external_key`,
-          metadata: sql`excluded.metadata`,
-          version: incrementMemoryEntryVersionSql(),
-          updatedAt: sql`now()`,
-        },
-      });
+    const values = [...valueByConflictKey.values()];
+    // Approved gold stays live. A later job may refresh drafts and rejected
+    // suggestions, but it must not overwrite a human-approved entry.
+    const conflictUpdate = {
+      target: [
+        schema.memoryEntries.memoryId,
+        schema.memoryEntries.sourceLocale,
+        schema.memoryEntries.targetLocale,
+        schema.memoryEntries.normalizedSourceText,
+      ],
+      setWhere: sql`${schema.memoryEntries.reviewStatus} <> 'approved'`,
+      set: {
+        targetText: sql`excluded.target_text`,
+        provenance: sql`excluded.provenance`,
+        reviewStatus: sql`excluded.review_status`,
+        externalKey: sql`excluded.external_key`,
+        metadata: sql`excluded.metadata`,
+        version: incrementMemoryEntryVersionSql(),
+        updatedAt: sql`now()`,
+      },
+    };
+    for (const batch of chunkItems(values, FILE_TRANSLATION_MEMORY_WRITE_BATCH_SIZE)) {
+      await db.insert(schema.memoryEntries).values(batch).onConflictDoUpdate(conflictUpdate);
+    }
   }
 }
 

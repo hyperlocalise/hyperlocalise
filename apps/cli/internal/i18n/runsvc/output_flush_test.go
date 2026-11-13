@@ -11,6 +11,48 @@ import (
 	"testing"
 )
 
+func TestFlushOutputForTargetReplaceCatalogDropsDestinationOnlyKeys(t *testing.T) {
+	dir := t.TempDir()
+	targetPath := filepath.Join(dir, "en-AU.json")
+	sourcePath := filepath.Join(dir, "en-US.json")
+	if err := os.WriteFile(targetPath, []byte(`{"hello":"Old","stale":"Stale"}`), 0o644); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path: %s", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	_, err := svc.flushOutputForTarget(targetPath, stagedOutput{
+		entries:        map[string]string{"hello": "Colour"},
+		sourcePath:     sourcePath,
+		targetLocale:   "en-AU",
+		replaceCatalog: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("flush output target: %v", err)
+	}
+
+	var payload map[string]string
+	if err := json.Unmarshal(written, &payload); err != nil {
+		t.Fatalf("decode written payload: %v", err)
+	}
+	want := map[string]string{"hello": "Colour"}
+	if !reflect.DeepEqual(payload, want) {
+		t.Fatalf("written payload mismatch\nwant: %#v\n got: %#v", want, payload)
+	}
+}
+
 func TestFlushOutputForTargetPrunesAndMerges(t *testing.T) {
 	targetPath := filepath.Join(t.TempDir(), "fr.json")
 	sourcePath := filepath.Join(t.TempDir(), "en.json")
@@ -95,6 +137,50 @@ func TestFlushOutputsSortedUniqueTargets(t *testing.T) {
 	}
 }
 
+func TestFlushOutputsReportsUnwrittenTargetsOnFailure(t *testing.T) {
+	dir := t.TempDir()
+	paths := []string{
+		filepath.Join(dir, "a.json"),
+		filepath.Join(dir, "b.json"),
+		filepath.Join(dir, "c.json"),
+	}
+	for _, path := range paths {
+		if err := os.WriteFile(path, []byte(`{"k":"v"}`), 0o644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	svc.writeFile = func(path string, _ []byte) error {
+		if path == paths[1] {
+			return errors.New("disk full")
+		}
+		return nil
+	}
+
+	staged := map[string]stagedOutput{
+		paths[0]: {entries: map[string]string{"k": "va"}, targetLocale: "fr"},
+		paths[1]: {entries: map[string]string{"k": "vb"}, targetLocale: "fr"},
+		paths[2]: {entries: map[string]string{"k": "vc"}, targetLocale: "fr"},
+	}
+	_, err := svc.flushOutputs(context.Background(), nil, staged, nil, nil)
+	if err == nil {
+		t.Fatal("expected flush failure")
+	}
+	var targetErr *targetFlushError
+	if !errors.As(err, &targetErr) {
+		t.Fatalf("expected targetFlushError, got %T %v", err, err)
+	}
+	if targetErr.TargetPath != paths[1] {
+		t.Fatalf("failed target = %q, want %q", targetErr.TargetPath, paths[1])
+	}
+	wantUnwritten := []string{paths[1], paths[2]}
+	if !reflect.DeepEqual(targetErr.UnwrittenTargets, wantUnwritten) {
+		t.Fatalf("unwritten targets mismatch\nwant: %#v\n got: %#v", wantUnwritten, targetErr.UnwrittenTargets)
+	}
+}
+
 func TestLoadExistingTargetWithWarnings(t *testing.T) {
 	svc := newTestService()
 
@@ -125,7 +211,7 @@ func TestLoadExistingTargetWithWarnings(t *testing.T) {
 
 	t.Run("non-json parse error", func(t *testing.T) {
 		svc.readFile = func(_ string) ([]byte, error) { return []byte("not-supported"), nil }
-		_, _, err := svc.loadExistingTargetWithWarnings("/tmp/target.txt", "fr")
+		_, _, err := svc.loadExistingTargetWithWarnings("/tmp/target.xyz", "fr")
 		if err == nil {
 			t.Fatalf("expected parse error for non-json unsupported format")
 		}

@@ -65,11 +65,6 @@ export const membersPageContentMessages = defineMessages({
     id: "2+En/9xBc0",
     description: "Workspace members page heading",
   },
-  pageDescription: {
-    defaultMessage: "Manage workspace access, invitations, and localization roles.",
-    id: "8QNV5JFMzw",
-    description: "Workspace members page description",
-  },
   inviteMember: {
     defaultMessage: "Invite member",
     id: "eW2eLsJu8K",
@@ -170,6 +165,12 @@ export const membersPageContentMessages = defineMessages({
     defaultMessage: "Revoke invitation...",
     id: "LeQu4ZEOkJ",
     description: "Menu item to revoke a pending workspace invitation",
+  },
+  leaveWorkspaceMenu: {
+    defaultMessage: "Leave workspace…",
+    id: "n+wQ7BXYlc",
+    description:
+      "Menu item on the signed-in person's own row on the members page that opens the dialog for leaving the workspace",
   },
   removeMemberMenu: {
     defaultMessage: "Remove member...",

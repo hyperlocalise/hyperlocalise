@@ -104,8 +104,8 @@ export const organizationExternalTmsProviderCredentials = pgTable(
     region: text("region"),
     baseUrl: text("base_url"),
     /**
-     * Provider-side organization id when known (e.g. Crowdin JWT `organization_id`).
-     * Used to map Crowdin App iframe sessions to a Hyperlocalise workspace.
+     * @deprecated Historical Crowdin embed organization mapping. Retained for
+     * existing data; the embed app no longer reads or writes this column.
      */
     externalOrganizationId: text("external_organization_id"),
     oauthExpiresAt: timestamp("oauth_expires_at", { withTimezone: true }),

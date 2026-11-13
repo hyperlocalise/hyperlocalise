@@ -78,8 +78,9 @@ export const agentIntegrationsSectionMessages = defineMessages({
     description: "Braze integration name on the integrations page",
   },
   brazeDescription: {
-    defaultMessage: "Localize campaigns, in-app messages, and customer journeys in Braze.",
-    id: "eENPAn2kRY",
+    defaultMessage:
+      "Localize Braze email templates and Content Blocks. Campaigns and Canvas are upcoming.",
+    id: "Yb4Y1JetMA",
     description: "Braze integration description on the integrations page",
   },
   iterableName: {
@@ -108,8 +109,9 @@ export const agentIntegrationsSectionMessages = defineMessages({
     description: "HubSpot integration name on the integrations page",
   },
   hubspotDescription: {
-    defaultMessage: "Localize marketing emails, landing pages, and CRM messages in HubSpot.",
-    id: "NCfwtZnJJa",
+    defaultMessage:
+      "Localize emails, forms, blog posts, landing pages, and website pages in HubSpot.",
+    id: "bfBd1OoAHf",
     description: "HubSpot integration description on the integrations page",
   },
   mailchimpName: {

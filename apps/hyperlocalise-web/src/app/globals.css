@@ -205,6 +205,7 @@
 
   --animate-marquee: marquee var(--duration) infinite linear;
   --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+  --animate-suggestion-flash: suggestion-flash 1.6s ease-out;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
@@ -247,19 +248,12 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 /*
  * Inter is the only UI face. `font-heading` aliases --font-sans so marketing
- * and product stay on one family. Marketing headings are Bold; subheadings
- * (h2) are Semibold. Product headings keep the Title defaults (Semibold).
+ * and product stay on one family. Marketing headings (h1, h2) are Semibold.
+ * Product headings keep the Title defaults (Semibold).
  */
 html,
 [data-brand-theme="marketing"],
@@ -267,12 +261,24 @@ html,
   --font-heading: var(--font-sans);
 }
 
-[data-brand-theme="marketing"] h1 {
-  font-weight: 700;
-}
-
+[data-brand-theme="marketing"] h1,
 [data-brand-theme="marketing"] h2 {
   font-weight: 600;
+}
+
+/*
+ * Use semantic language metadata for locale-aware typography.
+ * Apply `lang` to specific elements only when their content language differs
+ * from the page-level `<html lang="...">`.
+ *
+ * Korean: `word-break: keep-all` avoids breaking inside words; see
+ * https://developer.mozilla.org/en-US/docs/Web/CSS/word-break and
+ * https://developer.mozilla.org/en-US/docs/Web/CSS/line-break
+ */
+[lang="ko"],
+[lang="ko-KR"] {
+  word-break: keep-all;
+  line-break: normal;
 }
 
 :root,
@@ -500,7 +506,16 @@ html,
   --chart-3: var(--ds-teal-600);
   --chart-4: var(--ds-purple-600);
   --chart-5: var(--ds-pink-600);
-  --radius: 0.375rem;
+  /*
+   * Match band tiers on Reports' charts, closest match darkest: one hue in steps checked apart
+   * (blue 800 sits too close to 700). New work, with no match, is a grey lighter than the lightest.
+   */
+  --chart-band-1: var(--ds-blue-1000);
+  --chart-band-2: var(--ds-blue-700);
+  --chart-band-3: var(--ds-blue-600);
+  --chart-band-4: var(--ds-blue-500);
+  --chart-band-new: var(--ds-gray-300);
+  --radius: 0.625rem;
   --sidebar: var(--ds-background-200);
   --sidebar-foreground: var(--ds-gray-1000);
   --sidebar-muted-foreground: var(--ds-gray-800);
@@ -738,6 +753,16 @@ html,
   --sidebar-accent-foreground: var(--ds-gray-1000);
   --sidebar-border: var(--ds-gray-alpha-400);
   --sidebar-ring: var(--ds-blue-900);
+  /*
+   * The dark blue ramp is not in step order, so the tiers name their steps: closest brightest,
+   * new work a grey as dim as the dimmest.
+   */
+  --chart-band-1: var(--ds-blue-900);
+  --chart-band-2: #9cb9f7;
+  --chart-band-2: color(display-p3 0.6339 0.72208 0.94891);
+  --chart-band-3: var(--ds-blue-600);
+  --chart-band-4: var(--ds-blue-700);
+  --chart-band-new: var(--ds-gray-500);
 }
 
 @layer base {
@@ -785,6 +810,16 @@ html,
   to {
     filter: blur(0);
     opacity: 1;
+  }
+}
+
+/* Holds a blue highlight, then fades to the element's own colours. */
+@keyframes suggestion-flash {
+  0%,
+  35% {
+    background-color: var(--ds-blue-200);
+    border-color: var(--ds-blue-600);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ds-blue-600) 30%, transparent);
   }
 }
 
@@ -846,6 +881,630 @@ html,
 
 ::view-transition-new(app-shell-header) {
   animation: none;
+}
+
+/* Document editor canvas (components/document-editor). */
+.document-editor-content {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--foreground);
+  outline: none;
+}
+.document-editor-content > * + * {
+  margin-top: 0.5rem;
+}
+.document-editor-content p {
+  margin: 0.25rem 0;
+}
+.document-editor-content h1,
+.document-editor-content h2,
+.document-editor-content h3,
+.document-editor-content h4 {
+  font-family: var(--font-heading, inherit);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  scroll-margin-top: 6rem;
+}
+.document-editor-content h1 {
+  font-size: 2rem;
+  margin: 2rem 0 0.5rem;
+}
+.document-editor-content h2 {
+  font-size: 1.5rem;
+  margin: 1.75rem 0 0.25rem;
+}
+.document-editor-content h3 {
+  font-size: 1.25rem;
+  margin: 1.25rem 0 0.25rem;
+}
+.document-editor-content h4 {
+  font-size: 1.0625rem;
+  margin: 1rem 0 0.25rem;
+}
+.document-editor-content > :first-child {
+  margin-top: 0;
+}
+.document-editor-content a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--foreground) 35%, transparent);
+  text-underline-offset: 3px;
+}
+.document-editor-content a:hover {
+  text-decoration-color: var(--foreground);
+}
+.document-editor-content strong {
+  font-weight: 600;
+}
+.document-editor-content ul,
+.document-editor-content ol {
+  padding-inline-start: 1.5rem;
+}
+.document-editor-content ul {
+  list-style: disc;
+}
+.document-editor-content ol {
+  list-style: decimal;
+}
+.document-editor-content li > p {
+  margin: 0.125rem 0;
+}
+.document-editor-content ul.document-task-list {
+  list-style: none;
+  padding-inline-start: 0.25rem;
+}
+.document-editor-content li.document-task-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.document-editor-content li.document-task-item > label {
+  margin-top: 0.3rem;
+  user-select: none;
+}
+.document-editor-content li.document-task-item > div {
+  flex: 1;
+  min-width: 0;
+}
+.document-editor-content li.document-task-item[data-checked="true"] > div {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+.document-editor-content blockquote {
+  border-inline-start: 3px solid var(--border);
+  padding-inline-start: 1rem;
+  color: var(--muted-foreground);
+}
+.document-editor-content code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  border-radius: 0.375rem;
+  background: var(--muted);
+  padding: 0.1rem 0.35rem;
+}
+.document-editor-content pre {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  border-radius: 0.75rem;
+  background: var(--muted);
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+}
+.document-editor-content pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+.document-editor-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5rem 0;
+}
+.document-editor-content img {
+  max-width: 100%;
+  border-radius: 0.75rem;
+}
+.document-editor-content .tableWrapper {
+  overflow-x: auto;
+  margin: 1rem 0;
+  -webkit-overflow-scrolling: touch;
+}
+.document-editor-content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  margin: 0;
+}
+.document-editor-content th,
+.document-editor-content td {
+  border: 1px solid var(--border);
+  padding: 0.375rem 0.75rem;
+  text-align: start;
+  vertical-align: top;
+}
+.document-editor-content th {
+  background: color-mix(in oklab, var(--muted) 60%, transparent);
+  font-weight: 600;
+}
+.document-editor-content th > p,
+.document-editor-content td > p {
+  margin: 0;
+}
+.document-editor-content .selectedCell {
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+}
+/* TipTap sets break-spaces on .ProseMirror, and only resets descendants that
+   are contenteditable="false". A read-only preview is that attribute on the
+   root, so a newline inside a paragraph was still a visible line break. */
+.ProseMirror[contenteditable="false"] {
+  white-space: normal;
+}
+.ProseMirror[contenteditable="false"] pre {
+  white-space: pre-wrap;
+}
+
+.document-editor-content .ProseMirror-selectednode {
+  outline: 2px solid color-mix(in oklab, var(--primary) 45%, transparent);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+.document-editor-content .is-empty::before {
+  content: attr(data-placeholder);
+  float: inline-start;
+  height: 0;
+  pointer-events: none;
+  color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
+}
+
+.document-editor-content .document-suggestion-target {
+  border-radius: 0.375rem;
+  background: color-mix(in oklab, var(--color-violet-500, #8b5cf6) 6%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in oklab, var(--color-violet-500, #8b5cf6) 60%, transparent);
+}
+.document-suggestion-card {
+  margin: 0.25rem 0 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--color-violet-500, #8b5cf6) 30%, var(--border));
+  border-radius: 0.75rem;
+  background: var(--card);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  user-select: text;
+}
+.document-suggestion-diff {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.document-suggestion-diff ins {
+  text-decoration: none;
+  border-radius: 0.25rem;
+  background: color-mix(in oklab, var(--color-emerald-500, #10b981) 18%, transparent);
+}
+.document-suggestion-diff del {
+  border-radius: 0.25rem;
+  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--color-red-500, #ef4444) 12%, transparent);
+}
+.document-suggestion-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+.document-suggestion-actions button {
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  padding: 0 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+}
+.document-suggestion-actions button[data-action="accept"] {
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.document-suggestion-actions button:hover {
+  filter: brightness(0.96);
+}
+.document-suggestion-outdated {
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+/* ══ Sonner (components/ui/sonner.tsx) ══════════════════════════════════
+   Paper cards: one surface colour, a hairline instead of a drop shadow,
+   and status as a solid icon — never a filled toast. Sonner already
+   stacks and fans on hover; this only restyles it. */
+.toaster {
+  font-family: var(--font-sans);
+  --toast-mute: color-mix(in srgb, var(--foreground) 52%, var(--card));
+  --toast-wash: color-mix(in srgb, var(--foreground) 6%, var(--card));
+}
+
+.toaster [data-sonner-toast][data-styled="true"] {
+  gap: 12px;
+  padding: 12px 44px 12px 16px;
+  background: var(--card);
+  color: var(--foreground);
+  border: 0;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.toaster [data-sonner-toast][data-styled="true"][data-expanded="false"][data-front="false"] {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--card));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+
+.toaster [data-sonner-toast]:focus-visible {
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 0 0 3px var(--ring);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-icon] {
+  width: 18px;
+  height: 18px;
+}
+
+.toaster [data-sonner-toast][data-type="success"] [data-icon] {
+  color: var(--ds-green-700);
+}
+
+.toaster [data-sonner-toast][data-type="error"] [data-icon] {
+  color: var(--destructive);
+}
+
+.toaster [data-sonner-toast][data-type="warning"] [data-icon] {
+  color: var(--color-warning);
+}
+
+.toaster [data-sonner-toast][data-type="info"] [data-icon] {
+  color: var(--toast-mute);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-title] {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: -0.01em;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-description] {
+  font-size: 13px;
+  line-height: 17px;
+  color: var(--toast-mute);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-button] {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--toast-wash);
+  color: inherit;
+  font-size: 13px;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-button]:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-cancel] {
+  background: var(--toast-wash);
+  color: inherit;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-close-button] {
+  top: 8px;
+  left: auto;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  transform: none;
+  border: 0;
+  background: none;
+  color: var(--toast-mute);
+}
+
+.toaster[dir="rtl"] [data-sonner-toast][data-styled="true"] [data-close-button] {
+  left: 8px;
+  right: auto;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-close-button]:focus-visible,
+.toaster [data-sonner-toast][data-styled="true"]:hover [data-close-button]:hover {
+  background: var(--toast-wash);
+  border: 0;
+  color: var(--foreground);
+  box-shadow: none;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-close-button]:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+/* Upload dropzone (components/ui/upload-dropzone.tsx). Tokens stay
+   on `.upl`: surface `--card`, ink `--foreground`, hairline `--border`,
+   progress `--ring`, tick `--ds-green-700`. */
+.upl {
+  --fill-on: var(--foreground);
+  --fill-slab: var(--card);
+  --font-ui: var(--font-sans);
+  --ink: var(--foreground);
+  --ok: var(--ds-green-700);
+  --pane-edge: var(--border);
+  --signal: var(--ring);
+  --upl-refuse: var(--destructive);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 300px;
+  font-family: var(--font-ui);
+  color: var(--fill-on, var(--ink));
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.upl[data-wide] {
+  width: 100%;
+}
+
+/* Fixed slot so shrinking the box around an upload does not move
+   the content below. */
+.upl-zone-wrap {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 176px;
+}
+
+.upl[data-compact] .upl-zone-wrap {
+  height: 112px;
+}
+
+.upl-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  height: 176px;
+  padding: 0 16px;
+  overflow: hidden;
+  border-radius: var(--upl-r);
+  background: var(--fill-slab, var(--card));
+  box-shadow: 0 0 0 1px var(--pane-edge);
+  transition:
+    scale 420ms cubic-bezier(0.24, 1.34, 0.38, 1),
+    width 420ms cubic-bezier(0.24, 1.34, 0.38, 1),
+    height 420ms cubic-bezier(0.24, 1.34, 0.38, 1),
+    background-color 220ms ease;
+}
+
+.upl[data-compact] .upl-zone:not([data-busy]) {
+  height: 112px;
+}
+
+.upl-zone[data-over] {
+  scale: 1.02;
+}
+
+.upl-zone:focus-visible {
+  box-shadow: 0 0 0 2px var(--signal, #2231dd);
+}
+
+.upl-zone[data-gulp] {
+  animation: upl-gulp 460ms cubic-bezier(0.3, 1.2, 0.4, 1);
+}
+
+.upl-zone[data-gulp] .upl-icon {
+  animation: upl-open 460ms cubic-bezier(0.3, 1.4, 0.4, 1);
+}
+
+.upl-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fill-on, #17181a) 6%, var(--fill-slab, #ffffff));
+  color: color-mix(in srgb, var(--fill-on, #17181a) 72%, var(--fill-slab, #ffffff));
+  transition:
+    translate 420ms cubic-bezier(0.24, 1.34, 0.38, 1),
+    background-color 220ms ease,
+    color 220ms ease;
+}
+
+.upl-zone[data-over] .upl-icon {
+  translate: 0 -4px;
+  color: var(--fill-on, var(--ink));
+}
+
+.upl-say {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  text-align: center;
+  letter-spacing: 0em;
+}
+
+.upl-say b {
+  font-weight: 500;
+}
+
+.upl-say span {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--fill-on, #17181a) 52%, var(--fill-slab, #ffffff));
+  letter-spacing: 0em;
+}
+
+.upl-zone[data-refuse] .upl-say b {
+  color: var(--upl-refuse, #e5484d);
+}
+
+.upl-now {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  flex: none;
+  animation: upl-land 420ms var(--upl-spring) both;
+}
+
+.upl-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 150px;
+}
+
+.upl-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  letter-spacing: 0em;
+}
+
+.upl-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 14px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--fill-on, #17181a) 52%, var(--fill-slab, #ffffff));
+  letter-spacing: 0em;
+}
+
+.upl-track {
+  position: relative;
+  height: 4px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--fill-on, #17181a) 6%, var(--fill-slab, #ffffff));
+}
+
+.upl-bar {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--signal, #2231dd);
+  transform-origin: left center;
+}
+
+.upl-roll {
+  display: inline-flex;
+  line-height: 1em;
+  height: 1em;
+  overflow: hidden;
+}
+
+.upl-roll-col {
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+}
+
+.upl-roll-strip {
+  display: flex;
+  flex-direction: column;
+  transition: transform 220ms cubic-bezier(0.24, 1.34, 0.38, 1);
+}
+
+.upl-roll-strip > span {
+  height: 1em;
+}
+
+.upl-end {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+
+.upl-tick {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ok, #15803d);
+  color: #fff;
+  animation: upl-pop 380ms cubic-bezier(0.3, 1.6, 0.4, 1) both;
+}
+
+.upl-page {
+  overflow: visible;
+}
+
+.upl-page-line {
+  stroke: color-mix(in srgb, var(--fill-on, #17181a) 32%, var(--fill-slab, #ffffff));
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.upl-page-ext {
+  fill: #fff;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  letter-spacing: 0em;
+}
+
+@keyframes upl-gulp {
+  0% {
+    scale: 1.02;
+  }
+  35% {
+    scale: 0.985;
+  }
+  70% {
+    scale: 1.006;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+@keyframes upl-open {
+  40% {
+    scale: 1.08;
+  }
+}
+
+@keyframes upl-land {
+  from {
+    opacity: 0;
+    scale: 0.85;
+    translate: 0 10px;
+  }
+}
+
+@keyframes upl-pop {
+  from {
+    scale: 0;
+  }
+}
+
+/* Theme switches crossfade the whole page as one snapshot (see theme-toggle.tsx). */
+:root[data-theme-transition] * {
+  view-transition-name: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -596,7 +596,8 @@ func normalizeLanguage(language string) string {
 }
 
 // Join concatenates translations in span order and restores source leading whitespace
-// when a translation trims it.
+// when a translation trims it. Missing translations stay empty — callers must not rely
+// on source-text fallback here, or target files can receive mixed-language output.
 func Join(spans []Span, translations []string) string {
 	if len(spans) == 0 {
 		return ""
@@ -607,15 +608,68 @@ func Join(spans []Span, translations []string) string {
 		if i < len(translations) {
 			translated = translations[i]
 		}
-		if translated == "" && span.Text != "" && (i >= len(translations) || translations[i] == "") {
-			translated = span.Text
-		}
 		b.WriteString(restoreLeadingWhitespace(span.Text, translated))
 	}
 	return b.String()
 }
 
+// JoinSpanValues folds span-keyed translations back into one value per file key.
+// sourceSpans holds the source text of every span key the file has. A file key is joined
+// only when each of its spans has a translation, so a joined value never mixes source and
+// target text; the spans of any other file key are dropped. Keys that sourceSpans does not
+// name pass through unchanged.
+func JoinSpanValues(values, sourceSpans map[string]string) map[string]string {
+	if len(sourceSpans) == 0 {
+		return values
+	}
+
+	sourceByFileKey := make(map[string]map[int]string)
+	for spanKey, sourceText := range sourceSpans {
+		fileKey, index, ok := SplitSpanKey(spanKey)
+		if !ok {
+			continue
+		}
+		if sourceByFileKey[fileKey] == nil {
+			sourceByFileKey[fileKey] = make(map[int]string)
+		}
+		sourceByFileKey[fileKey][index] = sourceText
+	}
+
+	joined := make(map[string]string, len(values))
+	for key, value := range values {
+		if _, isSpan := sourceSpans[key]; !isSpan {
+			joined[key] = value
+		}
+	}
+	for fileKey, sourceByIndex := range sourceByFileKey {
+		spans := make([]Span, len(sourceByIndex))
+		translations := make([]string, len(sourceByIndex))
+		complete := true
+		for index := range spans {
+			sourceText, hasSource := sourceByIndex[index]
+			translation := values[SpanKey(fileKey, index)]
+			// A whitespace-only span (the trailing "\n" of a block) has nothing to translate.
+			if translation == "" && hasSource && strings.TrimSpace(sourceText) == "" {
+				translation = sourceText
+			}
+			if !hasSource || translation == "" {
+				complete = false
+				break
+			}
+			spans[index] = Span{Text: sourceText}
+			translations[index] = translation
+		}
+		if complete {
+			joined[fileKey] = Join(spans, translations)
+		}
+	}
+	return joined
+}
+
 func restoreLeadingWhitespace(source, translated string) string {
+	if translated == "" {
+		return ""
+	}
 	lead := leadingWhitespace(source)
 	if lead == "" || strings.HasPrefix(translated, lead) {
 		return translated

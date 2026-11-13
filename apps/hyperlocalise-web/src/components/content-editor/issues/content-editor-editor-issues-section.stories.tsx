@@ -27,7 +27,7 @@ import {
 import { ContentEditorEditorIssuesSection } from "./content-editor-editor-issues-section";
 
 const meta = {
-  title: "CAT/Issues Panel",
+  title: "CAT/Queries Panel",
   component: ContentEditorEditorIssuesSection,
   parameters: {
     layout: "fullscreen",
@@ -87,9 +87,9 @@ export const Empty: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("No issues for this string")).toBeInTheDocument();
+    await expect(canvas.getByText('No issues for "Social:"')).toBeInTheDocument();
     await expect(
-      canvas.getByText("Create an issue to track work on this string."),
+      canvas.getByText('Create an issue to track work on "Social:".'),
     ).toBeInTheDocument();
   },
 };

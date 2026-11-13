@@ -14,6 +14,7 @@ import { makeAutoObservable } from "mobx";
 
 import {
   filterCatalogForLocale,
+  researchLocalesForMarketIds,
   resolveDomainLocale,
   type DomainResearchCatalog,
   type DomainResearchNavId,
@@ -22,12 +23,19 @@ import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 
 import { buildDomainPath } from "@/components/app-shell/navigation-config";
 
+import { DomainKeywordsUiStore } from "./domain-keywords-ui-store";
+import { DomainResearchUiStore } from "./domain-research-ui-store";
+import { DomainSearchConsoleUiStore } from "./domain-search-console-ui-store";
+
 export type DomainResearchShellLoadStatus = "idle" | "loading" | "error" | "success";
 
 export class DomainResearchShellStore {
   readonly organizationSlug: string;
   readonly linkedDomainId: string;
   readonly surface: DomainResearchNavId;
+  readonly keywords = new DomainKeywordsUiStore();
+  readonly searchConsole = new DomainSearchConsoleUiStore();
+  readonly ui = new DomainResearchUiStore();
   requestedLocaleId: string | null = null;
   search = "";
   catalog: DomainResearchCatalog | null = null;
@@ -46,15 +54,34 @@ export class DomainResearchShellStore {
     this.surface = input.surface;
     this.requestedLocaleId = input.requestedLocaleId ?? null;
     this.search = input.search ?? "";
-    makeAutoObservable(this, {}, { autoBind: true });
+    makeAutoObservable(
+      this,
+      {
+        keywords: false,
+        searchConsole: false,
+        ui: false,
+      },
+      { autoBind: true },
+    );
   }
 
   get domain() {
-    return this.catalog?.domain ?? null;
+    const catalogDomain = this.catalog?.domain ?? null;
+    if (!catalogDomain || !this.linkedDomain) {
+      return catalogDomain;
+    }
+    return {
+      ...catalogDomain,
+      locales: researchLocalesForMarketIds(this.linkedDomain.marketIds),
+      status:
+        this.linkedDomain.status === "verified"
+          ? ("verified" as const)
+          : ("pending_verification" as const),
+    };
   }
 
   get locale() {
-    if (!this.domain) {
+    if (!this.domain || this.domain.locales.length === 0) {
       return null;
     }
     return resolveDomainLocale(this.domain, this.requestedLocaleId);
@@ -66,13 +93,6 @@ export class DomainResearchShellStore {
 
   get isPending() {
     return this.domain?.status !== "verified";
-  }
-
-  get verifyHref() {
-    if (!this.domain?.domainSlug) {
-      return null;
-    }
-    return `/org/${this.organizationSlug}/link-domain/${this.domain.domainSlug}`;
   }
 
   get filteredCatalog() {
@@ -103,6 +123,19 @@ export class DomainResearchShellStore {
 
   get showResearchContent() {
     return !this.isPending && this.activeCatalog !== null;
+  }
+
+  get showSearchConsoleSurface() {
+    return this.surface === "search-console" && !this.isPending && this.domain !== null;
+  }
+
+  get showAuditSurface() {
+    return this.surface === "audit" && !this.isPending && this.domain !== null;
+  }
+
+  /** The deep audit covers every locale it finds, so the market picker does not apply. */
+  get showLocaleSelector() {
+    return this.surface !== "audit";
   }
 
   setRequestedLocaleId(localeId: string | null) {
@@ -136,5 +169,13 @@ export class DomainResearchShellStore {
       return null;
     }
     return this.hrefForLocale(localeId);
+  }
+
+  hrefWithoutLocale() {
+    const params = new URLSearchParams(this.search);
+    params.delete("locale");
+    const query = params.toString();
+    const path = buildDomainPath(this.organizationSlug, this.linkedDomainId, this.surface);
+    return query ? `${path}?${query}` : path;
   }
 }

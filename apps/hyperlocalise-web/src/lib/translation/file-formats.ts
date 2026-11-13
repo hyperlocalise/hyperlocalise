@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
+
 export const supportedTranslationFileFormats = [
   "json",
   "jsonc",
@@ -17,15 +19,32 @@ export const supportedTranslationFileFormats = [
   "arb",
   "xliff",
   "po",
+  "qt-ts",
   "html",
   "markdown",
   "mdx",
+  "asciidoc",
+  "txt",
   "strings",
   "stringsdict",
   "xcstrings",
   "csv",
+  "tsv",
+  "toml",
+  "ini",
+  "xml",
+  "resx",
+  "resw",
+  "properties",
+  "php",
+  "ftl",
+  "javascript",
+  "liquid",
   "srt",
   "vtt",
+  "sbv",
+  "svg",
+  "lottie",
   "png",
   "jpeg",
   "webp",
@@ -34,6 +53,7 @@ export const supportedTranslationFileFormats = [
   "xlsx",
   "xls",
   "pptx",
+  "pdf",
 ] as const;
 
 export type SupportedTranslationFileFormat = (typeof supportedTranslationFileFormats)[number];
@@ -45,19 +65,41 @@ export const supportedFileTranslationFileFormats = [
   "arb",
   "xliff",
   "po",
+  "qt-ts",
   "html",
   "markdown",
   "mdx",
+  "asciidoc",
+  "txt",
   "strings",
   "stringsdict",
   "xcstrings",
   "csv",
+  "tsv",
+  "toml",
+  "ini",
+  "xml",
+  "resx",
+  "resw",
+  "properties",
+  "php",
+  "ftl",
+  "javascript",
+  "liquid",
   "srt",
   "vtt",
+  "sbv",
+  "svg",
+  "lottie",
   "png",
   "jpeg",
   "webp",
   "mp4",
+  "docx",
+  "xlsx",
+  "xls",
+  "pptx",
+  "pdf",
 ] as const;
 
 export type SupportedFileTranslationFileFormat =
@@ -73,15 +115,47 @@ const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".xlif": "xliff",
   ".xliff": "xliff",
   ".po": "po",
+  ".pot": "po",
+  ".ts": "qt-ts",
   ".html": "html",
+  ".htm": "html",
   ".md": "markdown",
+  ".markdown": "markdown",
+  ".mdown": "markdown",
+  ".mkdn": "markdown",
+  ".mdwn": "markdown",
+  ".mkd": "markdown",
   ".mdx": "mdx",
+  ".adoc": "asciidoc",
+  ".asciidoc": "asciidoc",
+  ".asc": "asciidoc",
+  ".txt": "txt",
   ".strings": "strings",
   ".stringsdict": "stringsdict",
   ".xcstrings": "xcstrings",
   ".csv": "csv",
+  ".tsv": "tsv",
+  ".toml": "toml",
+  ".ini": "ini",
+  ".xml": "xml",
+  ".resx": "resx",
+  ".resw": "resw",
+  ".properties": "properties",
+  ".php": "php",
+  ".ftl": "ftl",
+  ".js": "javascript",
+  ".jsx": "javascript",
+  ".mjs": "javascript",
+  ".cjs": "javascript",
+  ".tsx": "javascript",
+  ".mts": "javascript",
+  ".cts": "javascript",
+  ".liquid": "liquid",
   ".srt": "srt",
   ".vtt": "vtt",
+  ".sbv": "sbv",
+  ".svg": "svg",
+  ".lottie": "lottie",
   ".png": "png",
   ".jpg": "jpeg",
   ".jpeg": "jpeg",
@@ -91,6 +165,7 @@ const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".xlsx": "xlsx",
   ".xls": "xls",
   ".pptx": "pptx",
+  ".pdf": "pdf",
 };
 
 export const supportedImageTranslationFileFormats = ["png", "jpeg", "webp"] as const;
@@ -104,6 +179,10 @@ export type SupportedVideoTranslationFileFormat =
   (typeof supportedVideoTranslationFileFormats)[number];
 
 export const supportedOfficeTranslationFileFormats = ["docx", "xlsx", "xls", "pptx"] as const;
+
+export const supportedPdfTranslationFileFormats = ["pdf"] as const;
+
+export type SupportedPdfTranslationFileFormat = (typeof supportedPdfTranslationFileFormats)[number];
 
 export type SupportedOfficeTranslationFileFormat =
   (typeof supportedOfficeTranslationFileFormats)[number];
@@ -132,7 +211,44 @@ export function isOfficeTranslationFileFormat(
   );
 }
 
-/** Binary whole-file formats that skip string-key extraction (images + video + office). */
+export function isPdfTranslationFileFormat(
+  format: SupportedTranslationFileFormat,
+): format is SupportedPdfTranslationFileFormat {
+  return supportedPdfTranslationFileFormats.includes(format as SupportedPdfTranslationFileFormat);
+}
+
+export const supportedSegmentedSpreadsheetTranslationFileFormats = ["xlsx", "xls"] as const;
+
+export type SupportedSegmentedSpreadsheetTranslationFileFormat =
+  (typeof supportedSegmentedSpreadsheetTranslationFileFormats)[number];
+
+/**
+ * Workbooks among the Office formats. Every Office format is extracted into keyed segments
+ * with a generated per-locale download; workbooks also key by locale column or cell.
+ */
+export function isSegmentedSpreadsheetTranslationFileFormat(
+  format: SupportedTranslationFileFormat,
+): format is SupportedSegmentedSpreadsheetTranslationFileFormat {
+  return supportedSegmentedSpreadsheetTranslationFileFormats.includes(
+    format as SupportedSegmentedSpreadsheetTranslationFileFormat,
+  );
+}
+
+export function inferSupportedSegmentedSpreadsheetTranslationFileFormat(
+  filename: string,
+): SupportedSegmentedSpreadsheetTranslationFileFormat | null {
+  const format = inferSupportedTranslationFileFormat(filename);
+  if (!format || !isSegmentedSpreadsheetTranslationFileFormat(format)) {
+    return null;
+  }
+
+  return format;
+}
+
+/**
+ * Binary whole-file formats (images + video + office). They skip sandbox string extraction;
+ * segmented spreadsheets are extracted in-process instead.
+ */
 export function isBinaryTranslationFileFormat(
   format: SupportedTranslationFileFormat,
 ): format is
@@ -146,12 +262,18 @@ export function isBinaryTranslationFileFormat(
   );
 }
 
-export const supportedDocumentTranslationFileFormats = ["markdown", "mdx"] as const;
+export const supportedDocumentTranslationFileFormats = [
+  "html",
+  "markdown",
+  "mdx",
+  "asciidoc",
+  "txt",
+] as const;
 
 export type SupportedDocumentTranslationFileFormat =
   (typeof supportedDocumentTranslationFileFormats)[number];
 
-/** Markdown/MDX documents stored and edited as whole files, not CAT string keys. */
+/** HTML/Markdown/MDX/AsciiDoc documents stored and edited as whole files, with optional CAT keys. */
 export function isDocumentTranslationFileFormat(
   format: SupportedTranslationFileFormat,
 ): format is SupportedDocumentTranslationFileFormat {
@@ -188,11 +310,28 @@ export function inferSupportedTranslationFileFormat(
   return formatsByExtension[filename.slice(dotIndex).toLowerCase()] ?? null;
 }
 
+/** File translation job formats the pinned sandbox CLI can run, for user-facing lists. */
+export function availableFileTranslationFileFormats(
+  cliParsesOffice: boolean = sandboxCliParsesOffice(),
+): SupportedFileTranslationFileFormat[] {
+  return supportedFileTranslationFileFormats.filter(
+    (format) => cliParsesOffice || !isOfficeTranslationFileFormat(format),
+  );
+}
+
+/**
+ * The file translation job format for `filename`. Office files qualify only once the
+ * pinned sandbox CLI parses them; until then they are translated as segments in CAT.
+ */
 export function inferSupportedFileTranslationFileFormat(
   filename: string,
+  cliParsesOffice: boolean = sandboxCliParsesOffice(),
 ): SupportedFileTranslationFileFormat | null {
   const format = inferSupportedTranslationFileFormat(filename);
   if (!format || !isSupportedFileTranslationFileFormat(format)) {
+    return null;
+  }
+  if (!cliParsesOffice && isOfficeTranslationFileFormat(format)) {
     return null;
   }
 
@@ -237,6 +376,17 @@ export function inferSupportedOfficeTranslationFileFormat(
 ): SupportedOfficeTranslationFileFormat | null {
   const format = inferSupportedTranslationFileFormat(filename);
   if (!format || !isOfficeTranslationFileFormat(format)) {
+    return null;
+  }
+
+  return format;
+}
+
+export function inferSupportedPdfTranslationFileFormat(
+  filename: string,
+): SupportedPdfTranslationFileFormat | null {
+  const format = inferSupportedTranslationFileFormat(filename);
+  if (!format || !isPdfTranslationFileFormat(format)) {
     return null;
   }
 
@@ -320,12 +470,23 @@ export function getLocaleScanExtensions(): string[] {
   const extensions = new Set<string>();
 
   for (const [extension, format] of Object.entries(formatsByExtension)) {
-    if (isSupportedFileTranslationFileFormat(format) && !isBinaryTranslationFileFormat(format)) {
+    if (
+      isSupportedFileTranslationFileFormat(format) &&
+      !isBinaryTranslationFileFormat(format) &&
+      !isPdfTranslationFileFormat(format)
+    ) {
       extensions.add(extension.slice(1));
     }
   }
 
   return [...extensions].toSorted();
+}
+
+/** Comma-separated `accept` value for catalog import pickers (no images, video, or Office). */
+export function getSupportedFileTranslationAccept(): string {
+  return getLocaleScanExtensions()
+    .map((extension) => `.${extension}`)
+    .join(",");
 }
 
 /** Comma-separated `accept` value for project source upload file pickers. */

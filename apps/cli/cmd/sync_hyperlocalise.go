@@ -45,6 +45,7 @@ type hyperlocaliseSyncRuntime struct {
 type hyperlocaliseFilePlan struct {
 	Bucket        string            `json:"bucket"`
 	SourcePath    string            `json:"sourcePath"`
+	CloudPath     string            `json:"cloudPath"`
 	SourceHash    string            `json:"sourceHash"`
 	FileFormat    string            `json:"fileFormat"`
 	SourceLocale  string            `json:"sourceLocale"`
@@ -213,7 +214,7 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 
 			var content []byte
 			if isHyperlocaliseWholeFileFormat(plan.FileFormat) {
-				content, err = rt.client.downloadFileVariant(ctx, rt.projectID, plan.SourcePath, locale)
+				content, err = rt.client.downloadFileVariant(ctx, rt.projectID, plan.CloudPath, locale)
 				switch {
 				case err == nil:
 					if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
@@ -231,7 +232,7 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 				}
 			}
 
-			content, err = rt.client.downloadTranslationExport(ctx, rt.projectID, plan.SourcePath, locale)
+			content, err = rt.client.downloadTranslationExport(ctx, rt.projectID, plan.CloudPath, locale)
 			if err != nil {
 				if isHyperlocaliseNotFound(err) {
 					report.Skipped++
@@ -289,9 +290,16 @@ func pullAcceptsRawPrefilledExport(targetPath string) bool {
 	}
 }
 
+func pullAcceptsReconstructedNativeExport(format string) bool {
+	return format == "html"
+}
+
 func (rt *hyperlocaliseSyncRuntime) reconstructPullFile(plan hyperlocaliseFilePlan, locale, targetPath string, prefilledJSON []byte) ([]byte, error) {
 	var prefilled map[string]string
 	if err := json.Unmarshal(prefilledJSON, &prefilled); err != nil {
+		if pullAcceptsReconstructedNativeExport(plan.FileFormat) {
+			return prefilledJSON, nil
+		}
 		return nil, fmt.Errorf("parse translation export JSON: %w", err)
 	}
 
@@ -348,9 +356,13 @@ func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []st
 	sort.Strings(bucketNames)
 
 	plans := make([]hyperlocaliseFilePlan, 0)
+	cloudSources := make(map[string]string)
 	for _, bucketName := range bucketNames {
 		bucket := cfg.Buckets[bucketName]
 		for _, mapping := range bucket.Files {
+			if err := config.ValidateCloudPathMapping(mapping); err != nil {
+				return nil, fmt.Errorf("bucket %q cloud_path: %w", bucketName, err)
+			}
 			sourcePattern := pathresolver.ResolveSourcePath(mapping.From, cfg.Locales.Source)
 			sourcePaths, err := resolveSourcePathsForStatus(configRoot, sourcePattern)
 			if err != nil {
@@ -368,6 +380,28 @@ func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []st
 				if err != nil {
 					return nil, fmt.Errorf("relativize source path %q: %w", resolvedSourcePath, err)
 				}
+				cloudPath := sourcePath
+				if mapping.CloudPath != "" {
+					cloudPath = pathresolver.ResolveSourcePath(mapping.CloudPath, cfg.Locales.Source)
+					if strings.ContainsAny(sourcePattern, "*?[") {
+						resolvedPattern, err := resolveConfigRelativePath(configRoot, sourcePattern)
+						if err != nil {
+							return nil, err
+						}
+						relative, err := filepath.Rel(globBaseDirForStatus(resolvedPattern), resolvedSourcePath)
+						if err != nil {
+							return nil, err
+						}
+						cloudPath = filepath.ToSlash(filepath.Join(globBaseDirForStatus(cloudPath), relative))
+					}
+				}
+				if err := config.ValidateCloudSourcePathLength(cloudPath); err != nil {
+					return nil, fmt.Errorf("bucket %q cloud path %q: %w", bucketName, cloudPath, err)
+				}
+				if previous, exists := cloudSources[cloudPath]; exists && previous != sourcePath {
+					return nil, fmt.Errorf("cloud path %q maps to both %q and %q", cloudPath, previous, sourcePath)
+				}
+				cloudSources[cloudPath] = sourcePath
 				sourceHash := ""
 				if hashSources {
 					sourceHash, err = sha256File(resolvedSourcePath)
@@ -391,6 +425,7 @@ func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []st
 				plans = append(plans, hyperlocaliseFilePlan{
 					Bucket:        bucketName,
 					SourcePath:    sourcePath,
+					CloudPath:     cloudPath,
 					SourceHash:    sourceHash,
 					FileFormat:    fileFormat,
 					SourceLocale:  cfg.Locales.Source,
@@ -448,14 +483,18 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "arb"
 	case ".xlf", ".xlif", ".xliff":
 		return "xliff"
-	case ".po":
+	case ".po", ".pot":
 		return "po"
-	case ".html":
+	case ".ts":
+		return "qt-ts"
+	case ".html", ".htm":
 		return "html"
 	case ".md":
 		return "markdown"
 	case ".mdx":
 		return "mdx"
+	case ".adoc", ".asciidoc", ".asc":
+		return "asciidoc"
 	case ".strings":
 		return "strings"
 	case ".stringsdict":
@@ -464,14 +503,24 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "xcstrings"
 	case ".csv":
 		return "csv"
+	case ".tsv":
+		return "tsv"
+	case ".toml":
+		return "toml"
 	case ".ftl":
 		return "fluent"
 	case ".properties":
 		return "properties"
+	case ".ini":
+		return "ini"
 	case ".srt":
 		return "srt"
 	case ".vtt":
 		return "vtt"
+	case ".sbv":
+		return "sbv"
+	case ".svg":
+		return "svg"
 	case ".png":
 		return "png"
 	case ".jpg", ".jpeg":
@@ -511,7 +560,7 @@ func isHyperlocaliseOfficeFileFormat(format string) bool {
 
 func isHyperlocaliseDocumentFileFormat(format string) bool {
 	switch format {
-	case "markdown", "mdx":
+	case "markdown", "mdx", "asciidoc":
 		return true
 	default:
 		return false
@@ -555,7 +604,7 @@ func (c *hyperlocaliseAPIClient) uploadFile(ctx context.Context, projectID, conf
 	if err := writer.WriteField("projectId", projectID); err != nil {
 		return "", err
 	}
-	_ = writer.WriteField("sourcePath", plan.SourcePath)
+	_ = writer.WriteField("sourcePath", plan.CloudPath)
 	_ = writer.WriteField("sourceHash", plan.SourceHash)
 	_ = writer.WriteField("commitSha", os.Getenv("GITHUB_SHA"))
 	_ = writer.WriteField("workflowRunId", os.Getenv("GITHUB_RUN_ID"))
@@ -784,14 +833,25 @@ func writeHyperlocalisePullReport(w io.Writer, report hyperlocalisePullReport, o
 }
 
 func contentTypeForPath(path string) string {
+	if strings.EqualFold(filepath.Ext(path), ".ts") {
+		return "text/xml"
+	}
 	if contentType := mime.TypeByExtension(filepath.Ext(path)); contentType != "" {
 		return contentType
 	}
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".md", ".mdx":
 		return "text/markdown"
-	case ".po", ".strings", ".stringsdict", ".ftl", ".properties":
+	case ".adoc", ".asciidoc", ".asc":
+		return "text/asciidoc"
+	case ".po", ".pot", ".strings", ".stringsdict", ".ftl", ".properties", ".ini", ".sbv":
 		return "text/plain"
+	case ".toml":
+		return "application/toml"
+	case ".tsv":
+		return "text/tab-separated-values"
+	case ".svg":
+		return "image/svg+xml"
 	case ".srt":
 		return "application/x-subrip"
 	case ".vtt":

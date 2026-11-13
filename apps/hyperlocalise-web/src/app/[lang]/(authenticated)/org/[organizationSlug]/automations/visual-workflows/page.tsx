@@ -14,26 +14,27 @@ import { notFound } from "next/navigation";
 
 import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import {
+  getAutumnWorkspaceBooleanFeatureEnabled,
   getWorkspaceFeatureFlagEnabled,
   workspaceAutomationsFlag,
-  workspaceVisualWorkflowsFlag,
 } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { VisualWorkflowsPageContent } from "../_components/visual-workflows-page-content";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "visualWorkflows");
+}
 
 export default function VisualWorkflowsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <VisualWorkflowsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <VisualWorkflowsPageLoader params={params} />;
 }
 
 async function VisualWorkflowsPageLoader({
@@ -45,7 +46,7 @@ async function VisualWorkflowsPageLoader({
   const auth = await requireAppAuthContext({ organizationSlug });
   const [automationsEnabled, visualWorkflowsEnabled] = await Promise.all([
     getWorkspaceFeatureFlagEnabled(workspaceAutomationsFlag, auth),
-    getWorkspaceFeatureFlagEnabled(workspaceVisualWorkflowsFlag, auth),
+    getAutumnWorkspaceBooleanFeatureEnabled(autumnFeatureIds.automationWorkflow, auth),
   ]);
 
   if (!automationsEnabled) {

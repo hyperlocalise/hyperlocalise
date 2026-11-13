@@ -25,12 +25,6 @@ export const integrationsPageContentMessages = defineMessages({
     id: "9glYgHRgqB",
     description: "Integrations page heading",
   },
-  pageDescription: {
-    defaultMessage:
-      "Connect the systems this workspace uses for source content, collaboration, and translation.",
-    id: "c4Om5rZTyf",
-    description: "Integrations page description under the heading",
-  },
   categoryFilterAll: {
     defaultMessage: "All",
     id: "UdxBZORXpe",

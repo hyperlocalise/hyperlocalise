@@ -2,6 +2,9 @@ package crowdin
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -89,5 +92,53 @@ func TestFileAdapterDownloadSourcesFiltersBySourcePath(t *testing.T) {
 	}
 	if _, err := os.Stat(otherPath); !os.IsNotExist(err) {
 		t.Fatalf("expected other source file to remain absent, got err=%v", err)
+	}
+}
+
+func TestDownloadSourceFileByIDRejectsInvalidInput(t *testing.T) {
+	ctx := t.Context()
+	cfg := Config{ProjectID: "123", APIToken: "token"}
+	if _, err := DownloadSourceFileByID(ctx, cfg, 0); err == nil {
+		t.Fatal("expected file id error")
+	}
+	if _, err := DownloadSourceFileByID(ctx, Config{APIToken: "token"}, 7); err == nil {
+		t.Fatal("expected project id error")
+	}
+	if _, err := DownloadSourceFileByID(ctx, Config{ProjectID: "  ", APIToken: "token"}, 7); err == nil {
+		t.Fatal("expected blank project id error")
+	}
+	if _, err := DownloadSourceFileByID(ctx, Config{ProjectID: "123"}, 7); err == nil {
+		t.Fatal("expected api token error")
+	}
+	_, err := DownloadSourceFileByID(ctx, Config{ProjectID: "123", APIToken: "token", APIBaseURL: "http://%"}, 7)
+	if err == nil {
+		t.Fatal("expected client init error")
+	}
+}
+
+func TestDownloadSourceFileByID(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v2/projects/123/files/17/download", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %s", r.Method)
+		}
+		_, _ = io.WriteString(w, `{"data":{"url":"https://api.crowdin.com/downloads/source-17.json"}}`)
+	})
+	mux.HandleFunc("/downloads/source-17.json", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"hello":"Hello"}`)
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	payload, err := DownloadSourceFileByID(t.Context(), Config{
+		ProjectID:  "123",
+		APIToken:   "token",
+		APIBaseURL: server.URL,
+	}, 17)
+	if err != nil {
+		t.Fatalf("download: %v", err)
+	}
+	if string(payload) != `{"hello":"Hello"}` {
+		t.Fatalf("payload = %q", payload)
 	}
 }

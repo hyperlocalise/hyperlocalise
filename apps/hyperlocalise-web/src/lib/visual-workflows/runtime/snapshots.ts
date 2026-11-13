@@ -10,7 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-const SENSITIVE_KEY = /(?:authorization|cookie|password|secret|token|api[-_]?key|credential)/i;
+export const SENSITIVE_KEY =
+  /(?:authorization|cookie|password|secret|token|api[-_]?key|credential)/i;
 export function redactWorkflowSnapshot(value: unknown, secrets: readonly string[] = []): unknown {
   if (Array.isArray(value)) return value.map((entry) => redactWorkflowSnapshot(entry, secrets));
   if (value && typeof value === "object")

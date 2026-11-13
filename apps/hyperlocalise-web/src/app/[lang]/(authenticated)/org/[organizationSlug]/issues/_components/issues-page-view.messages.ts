@@ -20,11 +20,6 @@ export const issuesPageViewMessages = defineMessages({
     id: "0PhWie0NMV",
     description: "Workspace Queries page title",
   },
-  pageDescription: {
-    defaultMessage: "Triage open work across this workspace.",
-    id: "S5zYTuw8xI",
-    description: "Short description under the workspace Queries page title",
-  },
   loadError: {
     defaultMessage: "Queries could not be loaded.",
     id: "PF5J5zLlad",

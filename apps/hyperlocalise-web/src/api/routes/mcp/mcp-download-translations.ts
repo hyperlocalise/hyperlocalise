@@ -13,10 +13,29 @@
 import path from "node:path";
 
 import {
+  htmlTranslationDownloadFailure,
+  loadProjectHtmlTranslationDownload,
+} from "@/lib/projects/files/html-translation-download";
+import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import {
+  loadProjectOfficeTranslationDownload,
+  officeTranslationDownloadFailure,
+  officeTranslationDownloadFilename,
+} from "@/lib/projects/files/office-translation-download";
+import {
+  loadProjectPdfTranslationDownload,
+  mcpPdfTranslationDownloadErrorCode,
+} from "@/lib/projects/files/pdf-translation-download";
+import { isErr } from "@/lib/primitives/result/results";
+import {
   getRepositorySourceFileByPath,
   loadProjectTranslationsAsPrefilledEntries,
 } from "@/lib/projects/translations/project-translation-service";
-import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedTranslationFileFormat,
+  type SupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
+import { DOTLOTTIE_CONTENT_TYPE } from "@/lib/translation/lottie/lottie-translation-export";
 
 export type McpDownloadTranslationsDetail = {
   filename: string;
@@ -24,6 +43,10 @@ export type McpDownloadTranslationsDetail = {
   locale: string;
   sourcePath: string;
   content: string;
+  /** Present when `content` holds base64-encoded binary (dotLottie archives, Office files, PDF). */
+  contentEncoding?: "utf8" | "base64";
+  /** PDF block keys that could not fit after wrapping (PDF downloads only). */
+  overflowKeys?: string[];
 };
 
 export type McpDownloadTranslationsResult =
@@ -33,13 +56,35 @@ export type McpDownloadTranslationsResult =
     }
   | {
       ok: false;
-      error: "source_file_not_found" | "translations_not_found" | "unsupported_binary_download";
+      error:
+        | "source_file_not_found"
+        | "translations_not_found"
+        | "unsupported_binary_download"
+        | "html_export_failed"
+        | "lottie_export_failed"
+        | "xlsx_export_failed"
+        | "office_export_failed"
+        | "pdf_export_failed"
+        | "pdf_script_unsupported";
     }
   | {
       ok: false;
       error: "source_file_too_large";
       maxKeyCount: number;
     };
+
+const MCP_UTF8_DOWNLOAD_FORMATS = new Set<SupportedTranslationFileFormat>([
+  "json",
+  "jsonc",
+  "arb",
+  "lottie",
+]);
+
+function isMcpTranslationDownloadFormat(
+  format: SupportedTranslationFileFormat | null,
+): format is SupportedTranslationFileFormat {
+  return format !== null && MCP_UTF8_DOWNLOAD_FORMATS.has(format);
+}
 
 /** Builds the target filename used by the public translation download endpoint. */
 function downloadFilename(sourcePath: string, locale: string) {
@@ -69,8 +114,84 @@ export async function downloadMcpTranslations(input: {
     };
   }
 
+  const officeDownload = await loadProjectOfficeTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.locale,
+  });
+  if (isErr(officeDownload)) {
+    return { ok: false, error: officeTranslationDownloadFailure(input.sourcePath).code };
+  }
+  if (officeDownload.value) {
+    return {
+      ok: true,
+      value: {
+        filename: officeTranslationDownloadFilename(
+          downloadFilename(input.sourcePath, input.locale),
+          officeDownload.value,
+        ),
+        contentType: officeDownload.value.contentType,
+        locale: input.locale,
+        sourcePath: input.sourcePath,
+        contentEncoding: "base64",
+        content: officeDownload.value.content.toString("base64"),
+      },
+    };
+  }
+
+  const pdfDownload = await loadProjectPdfTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.locale,
+  });
+  if (isErr(pdfDownload)) {
+    return { ok: false, error: mcpPdfTranslationDownloadErrorCode(pdfDownload.error) };
+  }
+  if (pdfDownload.value) {
+    const value: McpDownloadTranslationsDetail = {
+      filename: downloadFilename(input.sourcePath, input.locale),
+      contentType: pdfDownload.value.contentType,
+      locale: input.locale,
+      sourcePath: input.sourcePath,
+      contentEncoding: "base64",
+      content: pdfDownload.value.content.toString("base64"),
+    };
+    if (pdfDownload.value.overflowKeys.length > 0) {
+      value.overflowKeys = [...pdfDownload.value.overflowKeys];
+    }
+    return { ok: true, value };
+  }
+
+  const htmlDownload = await loadProjectHtmlTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.locale,
+  });
+  if (isErr(htmlDownload)) {
+    if (htmlDownload.error.code === "source_content_not_found") {
+      return { ok: false, error: "source_file_not_found" };
+    }
+    return { ok: false, error: htmlTranslationDownloadFailure().code };
+  }
+  if (htmlDownload.value) {
+    return {
+      ok: true,
+      value: {
+        filename: downloadFilename(input.sourcePath, input.locale),
+        contentType: `${htmlDownload.value.contentType}; charset=utf-8`,
+        locale: input.locale,
+        sourcePath: input.sourcePath,
+        contentEncoding: "utf8",
+        content: htmlDownload.value.content.toString("utf8"),
+      },
+    };
+  }
+
   const sourceFormat = inferSupportedTranslationFileFormat(input.sourcePath);
-  if (sourceFormat !== "json" && sourceFormat !== "jsonc" && sourceFormat !== "arb") {
+  if (!isMcpTranslationDownloadFormat(sourceFormat)) {
     return {
       ok: false,
       error: "unsupported_binary_download",
@@ -100,14 +221,41 @@ export async function downloadMcpTranslations(input: {
     };
   }
 
+  const lottieDownload = await loadProjectLottieTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    prefilled: result.prefilled,
+  });
+  if (isErr(lottieDownload)) {
+    return { ok: false, error: "lottie_export_failed" };
+  }
+
+  if (lottieDownload.value?.kind === "dotlottie") {
+    return {
+      ok: true,
+      value: {
+        filename: downloadFilename(input.sourcePath, input.locale),
+        contentType: DOTLOTTIE_CONTENT_TYPE,
+        locale: input.locale,
+        sourcePath: input.sourcePath,
+        contentEncoding: "base64",
+        content: lottieDownload.value.content.toString("base64"),
+      },
+    };
+  }
+
   return {
     ok: true,
     value: {
       filename: downloadFilename(input.sourcePath, input.locale),
-      contentType: "application/json; charset=utf-8",
+      contentType: lottieDownload.value?.contentType ?? "application/json; charset=utf-8",
       locale: input.locale,
       sourcePath: input.sourcePath,
-      content: `${JSON.stringify(result.prefilled, null, 2)}\n`,
+      contentEncoding: "utf8",
+      content: lottieDownload.value
+        ? lottieDownload.value.content.toString("utf8")
+        : `${JSON.stringify(result.prefilled, null, 2)}\n`,
     },
   };
 }

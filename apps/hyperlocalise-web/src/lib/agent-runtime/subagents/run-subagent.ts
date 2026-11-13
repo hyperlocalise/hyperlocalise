@@ -10,25 +10,53 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import {
+  credentialSourceForLanguageModel,
+  extractGenerateResultTokenUsage,
+  trackAiCallTokenUsage,
+} from "@/lib/billing/agent-runtime-usage";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
+
 import type { SubagentCallOptions, HyperlocaliseSubagentType } from "./types";
 import { repositorySubagent } from "./repository";
-import { translationSubagent } from "./translation";
 
 type SubagentGenerate = {
-  generate(input: { prompt: string; options: SubagentCallOptions }): Promise<{ text: string }>;
+  generate(input: { prompt: string; options: SubagentCallOptions }): Promise<{
+    text: string;
+    usage?: unknown;
+    totalUsage?: unknown;
+  }>;
 };
 
 const subagents: Record<HyperlocaliseSubagentType, SubagentGenerate> = {
-  translation: translationSubagent as SubagentGenerate,
   repository: repositorySubagent as SubagentGenerate,
 };
 
+/**
+ * Looks up the workspace model once, runs the subagent on it and bills its tokens by it.
+ * `usageSource` names the caller on the AI Credit row.
+ */
 export async function runSubagent(
   subagentType: HyperlocaliseSubagentType,
   options: SubagentCallOptions,
+  metering: { usageSource: string },
 ): Promise<{ text: string }> {
-  return subagents[subagentType].generate({
+  const languageModel =
+    options.languageModel ??
+    (await resolveHyperlocaliseAgentLanguageModel({
+      organizationId: options.toolContext.organizationId,
+    }));
+  const result = await subagents[subagentType].generate({
     prompt: "Complete the task and return a concise summary for the end user.",
-    options,
+    options: { ...options, languageModel },
   });
+  await trackAiCallTokenUsage({
+    organizationId: options.toolContext.organizationId,
+    source: metering.usageSource,
+    tokenUsage: extractGenerateResultTokenUsage(result),
+    modelId: languageModel.modelId,
+    credentialSource: credentialSourceForLanguageModel(languageModel),
+    projectId: options.toolContext.projectId,
+  });
+  return { text: result.text };
 }

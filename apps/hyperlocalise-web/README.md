@@ -8,17 +8,20 @@ For API conventions, Hono route layout, Drizzle migrations, and agent-specific n
 
 ## Prerequisites
 
-- Docker (PostgreSQL for local development)
+- Docker (PostgreSQL and Valkey for local development)
 - [`vp`](https://vite.plus) — install with `curl -fsSL https://vite.plus | bash`, then run `vp env setup`
 - Repository bootstrap from the monorepo root: `make bootstrap`
 
-Start Postgres from the repository root:
+Start Postgres and Valkey from the **monorepo root** (`hyperlocalise/docker-compose.yml`, not this app folder):
 
 ```bash
 sudo dockerd &>/tmp/dockerd.log &
 sudo chmod 666 /var/run/docker.sock
+cd ../..   # from apps/hyperlocalise-web → repo root
 docker compose up -d
 ```
+
+For go-svc, set `VALKEY_URL=redis://localhost:6379` in `apps/go-svc/.env`. Full steps: [`apps/go-svc/README.md`](../go-svc/README.md#local-development).
 
 ## Setup
 
@@ -32,6 +35,10 @@ Create `.env` with at least:
 
 ```bash
 DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise
+ACTIVITY_LOG_SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/000000000000/activity-log-local
+AWS_REGION=us-east-1
+# Production only: IAM role assumed through Vercel OIDC.
+# AWS_ROLE_ARN=arn:aws:iam::123456789012:role/hyperlocalise-web-prod-sqs
 PROVIDER_CREDENTIALS_MASTER_KEY=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
 WORKOS_API_KEY=sk_test_placeholder
 WORKOS_CLIENT_ID=client_placeholder
@@ -39,7 +46,32 @@ WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
 NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
 WORKOS_COOKIE_PASSWORD=this-is-a-test-cookie-password-at-least-32-characters
 AUTUMN_API_KEY=am_sk_test_placeholder
+# Optional. PostHog product analytics. No-ops when unset.
+# NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=phc_...
+# NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ```
+
+Optional Canva integration and OAuth (see [Canva app OAuth](../../docs/contributing/canva-app-oauth.mdx)):
+
+```bash
+HYPERLOCALISE_PUBLIC_APP_URL=http://localhost:3000
+CANVA_APP_ID=
+CANVA_APP_ORIGIN=http://localhost:8080
+CANVA_OAUTH_CLIENT_ID=
+CANVA_OAUTH_CLIENT_SECRET=
+CANVA_OAUTH_REDIRECT_URI=https://www.canva.com/apps/oauth/authorized
+```
+
+Production SQS publishing uses Vercel OIDC credentials. Configure the role to
+allow only `sqs:SendMessage` on the activity-log queue and restrict its trust
+policy to this Vercel project's production environment. Set `AWS_ROLE_ARN`,
+`AWS_REGION`, and `ACTIVITY_LOG_SQS_QUEUE_URL` in the Vercel production
+environment before deploying.
+
+`GET /api/health` includes `checks.oidc` with the selected credential provider
+and status. Production Vercel requests perform a non-mutating AWS STS
+`GetCallerIdentity` check, with a one-second timeout; the response never
+exposes the role ARN or AWS account details.
 
 Apply migrations after Postgres is running:
 
@@ -57,12 +89,26 @@ vp run dev
 
 The app listens on `http://localhost:3000` by default. Pass a port through the script if needed.
 
+### go-svc locally
+
+Run Postgres, Valkey, and migrations (see **Prerequisites**), then start go-svc and point the web app at it:
+
+1. Configure and run go-svc — [`apps/go-svc/README.md`](../go-svc/README.md#local-development).
+2. In this app’s `.env`: `GO_SVC_URL=http://127.0.0.1:8080` and `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8080` (same WorkOS keys as go-svc).
+
+Many Cloud surfaces (projects, dictionaries, CAT validation, domains, and others) call go-svc from the browser or via `GO_SVC_URL` server proxies.
+
 ### Domains research locally
 
 Keyword research and rank tracking proxy to [`go-svc`](../go-svc/README.md). For live DataForSEO calls:
 
 1. Run `go-svc` with `DATAFORSEO_API_KEY` and matching `WORKOS_*` values.
 2. Set `GO_SVC_URL=http://127.0.0.1:8080` in `.env`.
+
+Browser-direct Go service calls use `NEXT_PUBLIC_API_BASE_URL`. Set it to
+`http://127.0.0.1:8080` for local development; production uses
+`https://api.hyperlocalise.com`.
+
 3. Enable the `workspace-domains` WorkOS feature flag for your test org.
 
 Without `go-svc`, Domains UI still loads but research mutations return provider errors.
@@ -81,6 +127,10 @@ vp test
 ```
 
 `vp check --fix` formats, lints, and type-checks. `vp test` runs the Vitest suite through Vite+.
+
+## Observability
+
+Server-side Datadog APM setup, sampling, verification, and rollback are documented in [`DATADOG.md`](./DATADOG.md). Local and test runs do not preload the tracer by default.
 
 ## Useful paths
 

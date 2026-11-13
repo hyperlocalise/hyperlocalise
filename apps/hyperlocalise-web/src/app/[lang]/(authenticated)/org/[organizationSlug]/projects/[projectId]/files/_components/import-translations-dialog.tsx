@@ -28,12 +28,24 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { readApiResponseError } from "@/lib/api-error";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  getSupportedFileTranslationAccept,
+  inferSupportedFileTranslationFileFormat,
+  inferSupportedOfficeTranslationFileFormat,
+  type SupportedOfficeTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 
 import { importTranslationsDialogMessages as messages } from "./import-translations-dialog.messages";
+import { translationAsSourceSendsQueryKey } from "./translation-as-source-sent-mark";
 
-const FILE_ACCEPT =
-  ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
+const FILE_ACCEPT = getSupportedFileTranslationAccept();
+// .xls sources download as .xlsx, so translated workbooks come back in either format.
+const OFFICE_FILE_ACCEPT: Record<SupportedOfficeTranslationFileFormat, string> = {
+  docx: ".docx",
+  xlsx: ".xlsx",
+  xls: ".xlsx,.xls",
+  pptx: ".pptx",
+};
 
 type ImportTranslationsDialogProps = {
   open: boolean;
@@ -61,6 +73,7 @@ export function ImportTranslationsDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const [locale, setLocale] = useState<string>(targetLocales[0] ?? "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const officeFormat = inferSupportedOfficeTranslationFileFormat(sourcePath);
 
   useEffect(() => {
     if (open) {
@@ -77,7 +90,7 @@ export function ImportTranslationsDialog({
       if (!selectedFile) {
         throw new Error(intl.formatMessage(messages.chooseFileRequired));
       }
-      if (!inferSupportedFileTranslationFileFormat(sourcePath)) {
+      if (!officeFormat && !inferSupportedFileTranslationFileFormat(sourcePath)) {
         throw new Error(intl.formatMessage(messages.unsupportedFormat));
       }
 
@@ -100,6 +113,10 @@ export function ImportTranslationsDialog({
         queryClient.invalidateQueries({ queryKey: ["project-files", organizationSlug, projectId] }),
         queryClient.invalidateQueries({
           queryKey: ["project-file-detail", organizationSlug, projectId, sourcePath],
+        }),
+        // Imported translations can change a sent file's mark.
+        queryClient.invalidateQueries({
+          queryKey: translationAsSourceSendsQueryKey(organizationSlug, projectId),
         }),
       ]);
       toast.success(intl.formatMessage(messages.importSuccess));
@@ -165,7 +182,7 @@ export function ImportTranslationsDialog({
               <input
                 ref={inputRef}
                 type="file"
-                accept={FILE_ACCEPT}
+                accept={officeFormat ? OFFICE_FILE_ACCEPT[officeFormat] : FILE_ACCEPT}
                 className="sr-only"
                 onChange={(event) => {
                   setSelectedFile(event.target.files?.[0] ?? null);

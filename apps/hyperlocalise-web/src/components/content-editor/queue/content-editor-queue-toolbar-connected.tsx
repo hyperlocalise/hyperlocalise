@@ -13,8 +13,12 @@
  * Version 2.0 or later.
  */
 import { observer } from "mobx-react-lite";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+
+import type { CatBilingualImportCounts } from "@/lib/projects/content-editor/content-editor-bilingual-import";
+import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 
 import {
   contentEditorQueueFilterValues,
@@ -24,6 +28,10 @@ import {
 import { ContentEditorQueueToolbar } from "./content-editor-queue-toolbar";
 import { CAT_QUEUE_TOOLBAR_HOST_ID } from "./content-editor-queue-toolbar-host";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import {
+  contentEditorNewTaskParam,
+  type ContentEditorAdvancedQueueFilter,
+} from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 
 export const ContentEditorQueueToolbarConnected = observer(
   function ContentEditorQueueToolbarConnected({
@@ -33,6 +41,13 @@ export const ContentEditorQueueToolbarConnected = observer(
     queueSort = "file_order",
     onQueueSortChange,
     availableQueueSorts,
+    queueFilterQualifier,
+    onQueueFilterQualifierChange,
+    queueAdvanced,
+    onQueueAdvancedChange,
+    providerKind,
+    organizationSlug,
+    projectId,
     isSearching = false,
     isQueueLoading = false,
     visibleCount = 0,
@@ -43,8 +58,13 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkUnhide,
     onBulkLock,
     onBulkUnlock,
+    onBulkCreateTask,
+    onBulkEditTags,
     onDownloadFilteredView,
     isDownloadingFilteredView = false,
+    onImportBilingualFile,
+    isImportingBilingualFile = false,
+    adaptiveWorkspaceEnabled = false,
   }: {
     onQueueSearchChange?: (value: string) => void;
     onQueueFilterChange?: (filter: ContentEditorQueueFilter) => void;
@@ -52,6 +72,13 @@ export const ContentEditorQueueToolbarConnected = observer(
     queueSort?: ContentEditorQueueSort;
     onQueueSortChange?: (sort: ContentEditorQueueSort) => void;
     availableQueueSorts?: ContentEditorQueueSort[];
+    queueFilterQualifier?: string;
+    onQueueFilterQualifierChange?: (qualifier: string | undefined) => void;
+    queueAdvanced?: ContentEditorAdvancedQueueFilter;
+    onQueueAdvancedChange?: (filter: ContentEditorAdvancedQueueFilter | undefined) => void;
+    providerKind?: string | null;
+    organizationSlug?: string;
+    projectId?: string;
     isSearching?: boolean;
     isQueueLoading?: boolean;
     visibleCount?: number;
@@ -62,8 +89,14 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkUnhide?: () => void;
     onBulkLock?: () => void;
     onBulkUnlock?: () => void;
-    onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
+    onBulkCreateTask?: () => void;
+    onBulkEditTags?: () => void;
+    onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
     isDownloadingFilteredView?: boolean;
+    onImportBilingualFile?: (file: File) => Promise<CatBilingualImportCounts>;
+    isImportingBilingualFile?: boolean;
+    /** Gate for the adaptive workspace persona options in the View menu. Off by default. */
+    adaptiveWorkspaceEnabled?: boolean;
   }) {
     const store = useContentEditorWorkspace();
     const [host, setHost] = useState<HTMLElement | null | undefined>(undefined);
@@ -72,15 +105,31 @@ export const ContentEditorQueueToolbarConnected = observer(
       setHost(document.getElementById(CAT_QUEUE_TOOLBAR_HOST_ID));
     }, []);
 
+    // Opened from the jobs page to make a task from strings: start with tick boxes on and say
+    // what to do next. Dismissing drops the flag from the address so a reload doesn't bring it back.
+    const startsNewTask = useSearchParams()?.get(contentEditorNewTaskParam) === "1";
+    const [showNewTaskHint, setShowNewTaskHint] = useState(startsNewTask);
+    useEffect(() => {
+      if (startsNewTask) {
+        store.setSelectionMode(true, { persist: false });
+      }
+    }, [startsNewTask, store]);
+    const dismissNewTaskHint = useCallback(() => {
+      setShowNewTaskHint(false);
+      const url = new URL(window.location.href);
+      url.searchParams.delete(contentEditorNewTaskParam);
+      window.history.replaceState(null, "", url);
+    }, []);
+
     useEffect(() => {
       if (!store.ui.isFileView) {
         return;
       }
 
-      if (store.selectionMode) {
-        store.setSelectionMode(false);
-      }
-    }, [store, store.ui.isFileView, store.selectionMode]);
+      // When the workspace switches into file view, clear selection mode so
+      // stale checkboxes do not carry over to a context without a queue list.
+      store.setSelectionMode(false);
+    }, [store, store.ui.isFileView]);
 
     const handleSearchChange = useCallback(
       (value: string) => {
@@ -127,6 +176,13 @@ export const ContentEditorQueueToolbarConnected = observer(
         queueSort={queueSort}
         onQueueSortChange={onQueueSortChange ? handleSortChange : undefined}
         availableQueueSorts={availableQueueSorts}
+        queueFilterQualifier={queueFilterQualifier}
+        onQueueFilterQualifierChange={onQueueFilterQualifierChange}
+        queueAdvanced={queueAdvanced}
+        onQueueAdvancedChange={onQueueAdvancedChange}
+        providerKind={providerKind}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
         selectionMode={store.selectionMode}
         onSelectionModeChange={(enabled) => store.setSelectionMode(enabled)}
         selectedCount={store.checkedSegmentIds.size}
@@ -139,9 +195,23 @@ export const ContentEditorQueueToolbarConnected = observer(
         onBulkUnhide={onBulkUnhide}
         onBulkLock={onBulkLock}
         onBulkUnlock={onBulkUnlock}
+        onBulkCreateTask={onBulkCreateTask}
+        onDismissNewTaskHint={showNewTaskHint ? dismissNewTaskHint : undefined}
+        onBulkEditTags={onBulkEditTags}
         isBulkActionPending={store.isBulkActionPending}
+        bulkActionLocale={
+          store.ui.viewMode === "multilingual" ? store.fileContext.targetLocale : undefined
+        }
+        bulkProgress={
+          store.isBulkActionPending && store.bulkTotalCount > 0
+            ? `${store.bulkCompletedCount}/${store.bulkTotalCount}`
+            : undefined
+        }
         onDownloadFilteredView={onDownloadFilteredView}
         isDownloadingFilteredView={isDownloadingFilteredView}
+        onImportBilingualFile={onImportBilingualFile}
+        isImportingBilingualFile={isImportingBilingualFile}
+        adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
       />
     );
 

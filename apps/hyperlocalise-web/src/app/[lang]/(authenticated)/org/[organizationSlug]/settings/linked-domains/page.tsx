@@ -11,18 +11,18 @@
  * Version 2.0 or later.
  */
 import { redirect } from "next/navigation";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "settingsLinkedDomains");
+}
 
 export default function LinkedDomainsSettingsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <LinkedDomainsSettingsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <LinkedDomainsSettingsPageLoader params={params} />;
 }
 
 async function LinkedDomainsSettingsPageLoader({
@@ -31,5 +31,5 @@ async function LinkedDomainsSettingsPageLoader({
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  return redirect(`/org/${organizationSlug}/domains`);
+  return redirect(`/org/${organizationSlug}/settings/domains`);
 }

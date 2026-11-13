@@ -40,20 +40,52 @@ function literals(elements: MessageFormatElement[]): string {
     .join(" ");
 }
 
-export function countSourceWords(source: string, locale: string): number | null {
+/**
+ * The text a translator translates: tags and placeholders removed, and every option of an ICU
+ * plural or select kept. Null when the message cannot be parsed.
+ */
+function translatableText(source: string): string | null {
   const cleaned = source
     .replace(/<[^>]*>/g, " ")
     .replace(/\{\{[^}]*\}\}|%\d*\$?[sdif]|\$\{[^}]*\}/g, " ");
-  let text: string;
   try {
-    text = literals(parse(cleaned, { ignoreTag: true }));
+    return literals(parse(cleaned, { ignoreTag: true }));
   } catch {
     return null;
   }
+}
+
+export function countSourceWords(source: string, locale: string): number | null {
+  const text = translatableText(source);
+  if (text === null) return null;
   try {
     return Array.from(new Intl.Segmenter(locale, { granularity: "word" }).segment(text)).filter(
       (part) => part.isWordLike,
     ).length;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Characters of the translatable text, counted as a reader sees them (an emoji or a letter with
+ * its accent is one), the usual unit for languages written without spaces. Runs of whitespace,
+ * including the gaps left by removed tags and placeholders, count as one space in `withSpaces`.
+ */
+export function countSourceCharacters(
+  source: string,
+  locale: string,
+): { withoutSpaces: number; withSpaces: number } | null {
+  const text = translatableText(source);
+  if (text === null) return null;
+  try {
+    const characters = Array.from(
+      new Intl.Segmenter(locale, { granularity: "grapheme" }).segment(
+        text.replace(/\s+/gu, " ").trim(),
+      ),
+    );
+    const spaces = characters.filter((part) => part.segment === " ").length;
+    return { withoutSpaces: characters.length - spaces, withSpaces: characters.length };
   } catch {
     return null;
   }
@@ -68,16 +100,4 @@ export function matchBucket(score: number | null, repetition = false): MatchBuck
   if (score >= 75) return "75-84";
   if (score >= 50) return "50-74";
   return "new";
-}
-
-export function reportingPeriod(date: Date, interval: "day" | "week") {
-  const result = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  if (interval === "week") result.setUTCDate(result.getUTCDate() - ((result.getUTCDay() + 6) % 7));
-  return result.toISOString().slice(0, 10);
-}
-
-export function csvCell(value: string | number | boolean | null | undefined): string {
-  const text = String(value ?? "");
-  const safe = /^[=+@\-\t\r]/.test(text) ? "'" + text : text;
-  return '"' + safe.replaceAll('"', '""') + '"';
 }

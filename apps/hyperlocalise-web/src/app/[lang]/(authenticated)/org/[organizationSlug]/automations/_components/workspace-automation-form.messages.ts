@@ -16,8 +16,8 @@ import { defineMessages } from "react-intl";
 
 export const workspaceAutomationFormMessages = defineMessages({
   scheduledTriggerHourly: {
-    defaultMessage: "Every hour · {timezone}",
-    id: "SlPmp40QPZ",
+    defaultMessage: "Every hour",
+    id: "/C7cczI0aP",
     description: "Summary for a scheduled automation that runs every hour",
   },
   scheduledTriggerDaily: {
@@ -44,16 +44,6 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "GitHub push and pull request · {repository} · {branches}",
     id: "/2DsRIRpZu",
     description: "Header summary for a GitHub trigger that runs on push and pull request",
-  },
-  githubEventPush: {
-    defaultMessage: "Push",
-    id: "k2PKKnD3GN",
-    description: "Toggle label for GitHub push trigger events",
-  },
-  githubEventPullRequest: {
-    defaultMessage: "Pull request opened",
-    id: "2C7ykfN2tG",
-    description: "Toggle label for GitHub pull request opened trigger events",
   },
   repositoryRequired: {
     defaultMessage: "repository required",
@@ -180,36 +170,6 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "uqGZNAVfVF",
     description: "Button to add a branch pattern",
   },
-  addTrigger: {
-    defaultMessage: "Add Trigger",
-    id: "DPE4D8nJkF",
-    description: "Button to open the add-trigger menu",
-  },
-  supportedTriggers: {
-    defaultMessage: "Supported triggers",
-    id: "peYw3ULGLY",
-    description: "Dropdown section label for available automation triggers",
-  },
-  manualRun: {
-    defaultMessage: "Manual run",
-    id: "Ya1gnhy/x1",
-    description: "Menu item to select a manual trigger",
-  },
-  scheduled: {
-    defaultMessage: "Scheduled",
-    id: "bCXvSTPFsb",
-    description: "Menu item to select a scheduled trigger",
-  },
-  githubPush: {
-    defaultMessage: "GitHub push",
-    id: "6YRqpDlcKq",
-    description: "Label for the GitHub push trigger",
-  },
-  sourceUpload: {
-    defaultMessage: "Source upload",
-    id: "91uWukrQcJ",
-    description: "Label for the source upload trigger",
-  },
   addedShortcut: {
     defaultMessage: "Added",
     id: "UQM29Qy4Ux",
@@ -225,65 +185,20 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "G7es7H7NT8",
     description: "Shortcut hint when an email provider must be connected first",
   },
-  triggersSection: {
-    defaultMessage: "Triggers",
-    id: "3kjfANjxLP",
+  triggerSection: {
+    defaultMessage: "Trigger",
+    id: "WuN0lCA6yk",
     description: "Section heading for automation trigger settings",
-  },
-  every: {
-    defaultMessage: "Every",
-    id: "tr/WtfszIz",
-    description: "Prefix label before the schedule cadence select",
-  },
-  cadenceHour: {
-    defaultMessage: "Hour",
-    id: "gXZ1TC7mZA",
-    description: "Hourly schedule cadence option",
-  },
-  cadenceDay: {
-    defaultMessage: "Day",
-    id: "+ixHu5wBKG",
-    description: "Daily schedule cadence option",
-  },
-  cadenceWeek: {
-    defaultMessage: "Week",
-    id: "4Iy9AzpaNC",
-    description: "Weekly schedule cadence option",
-  },
-  at: {
-    defaultMessage: "at",
-    id: "yC7UjRaWKX",
-    description: "Preposition between cadence and time in the schedule row",
   },
   scheduleTimezoneAriaLabel: {
     defaultMessage: "Schedule timezone",
     id: "VFS/q4p0GR",
     description: "Accessible label for the schedule timezone input",
   },
-  manualOnlyTitle: {
-    defaultMessage: "Manual only",
-    id: "YPT/4ux3Z/",
-    description: "Title when the automation only supports manual runs",
-  },
-  manualOnlyDescription: {
-    defaultMessage: "Runs only start when a teammate queues one from this automation.",
-    id: "yc2ziR1Owc",
-    description: "Description for the manual-only trigger",
-  },
-  contentfulWebhookConnectedDescription: {
-    defaultMessage: "Runs when Contentful sends a matching entry create or update webhook.",
-    id: "GdV4Jl3WMg",
-    description: "Description for Contentful webhook trigger when Contentful is connected",
-  },
   contentfulWebhookDisconnectedDescription: {
     defaultMessage: "Connect Contentful in Integrations before this trigger can run.",
     id: "PsCe6RXT6P",
     description: "Description for Contentful webhook trigger when Contentful is not connected",
-  },
-  sourceUploadDescription: {
-    defaultMessage: "Runs when a source file is uploaded to the project selected above.",
-    id: "1QEv3c/AxW",
-    description: "Description for the source upload trigger",
   },
   addTool: {
     defaultMessage: "Add Tool",
@@ -333,8 +248,8 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   manageMemories: {
     defaultMessage: "Manage",
-    id: "WNUkfqHAtJ",
-    description: "Button to open the knowledge memories editor from an automation",
+    id: "p5GBATu78J",
+    description: "Button to open the workspace guideline sheet from an automation",
   },
   manageMemoriesTitle: {
     defaultMessage: "Guideline",
@@ -342,25 +257,19 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Title for the workspace guideline management sheet",
   },
   manageMemoriesDescription: {
-    defaultMessage: "Edit the shared workspace guideline used by this automation.",
-    id: "rLqAlt6azb",
+    defaultMessage: "Manage the shared workspace guideline documents used by this automation.",
+    id: "gDQWtH8Qce",
     description: "Description for the workspace guideline management sheet",
+  },
+  openGuideline: {
+    defaultMessage: "Open Guideline",
+    id: "h+hl88hWgz",
+    description: "Button opening the workspace Guideline page from an automation",
   },
   removeMemoriesTool: {
     defaultMessage: "Remove memories tool",
     id: "axtydiBtML",
     description: "Accessible label to remove the knowledge memories tool",
-  },
-  allowMemoryUpdates: {
-    defaultMessage: "Allow memory updates",
-    id: "Bel9GZJcDc",
-    description: "Toggle label letting this automation append to organization Memory.md",
-  },
-  allowMemoryUpdatesWarning: {
-    defaultMessage:
-      "Allows this automation to append information to the organization's shared Memory.md. Changes are recorded in revision history and can be restored.",
-    id: "zLdcgO8mwD",
-    description: "Warning copy shown when the allow-memory-updates toggle is on",
   },
   enableKnowledgeFirstShortcut: {
     defaultMessage: "Enable first",
@@ -397,6 +306,12 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Connect GitLab to choose a project",
     id: "+TLsx7a6do",
     description: "Placeholder when GitLab is not connected so projects cannot be chosen",
+  },
+  gitlabProjectsLoadFailed: {
+    defaultMessage: "Couldn't load projects from GitLab",
+    id: "uyHddFItti",
+    description:
+      "Placeholder when the GitLab project list failed to load, for example because the workspace's GitLab token was refused",
   },
   selectGitlabProject: {
     defaultMessage: "Select a GitLab project",
@@ -614,6 +529,172 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Select a Contentful connection to choose target locales.",
     id: "DCeid5ejmn",
     description: "Empty state when Contentful target locales cannot be chosen yet",
+  },
+  skillsSection: {
+    defaultMessage: "Skills",
+    id: "DIG49VapuX",
+    description: "Section heading for automation skills",
+  },
+  addSkill: {
+    defaultMessage: "Add Skill",
+    id: "hb3XPziYiC",
+    description: "Button to open the add-skill menu",
+  },
+  skillsEmpty: {
+    defaultMessage: "Pick what this automation should do. Each skill adds the tools it needs.",
+    id: "xYhoLiHtTw",
+    description: "Hint shown in the skills section when no skill is attached",
+  },
+  removeSkill: {
+    defaultMessage: "Remove skill {name}",
+    id: "W/GIC1a+rE",
+    description: "Accessible label for the button that detaches a skill from the automation",
+  },
+  skillNotApplicableHint: {
+    defaultMessage: "Not applicable for this trigger",
+    id: "WLsnSTKJV/",
+    description:
+      "Hint on a skill that cannot be added because it does not work with the selected trigger",
+  },
+  skillExclusiveHint: {
+    defaultMessage: "Use only one CMS translation skill on this automation",
+    id: "+bTQr9RSSt",
+    description:
+      "Hint on a CMS translation skill that cannot be added because another is already attached",
+  },
+  requiredForSkillBadge: {
+    defaultMessage: "{count, plural, one {Required for skill} other {Required for # skills}}",
+    id: "CwUciV9/fZ",
+    description: "Badge on a tool row that one or more attached skills need",
+  },
+  requiredForSkillTooltip: {
+    defaultMessage: "Required for {skills}",
+    id: "1itlYEshpl",
+    description:
+      "Tooltip on the badge of a tool row, listing the attached skills that need the tool",
+  },
+  skillConnectFirstHint: {
+    defaultMessage: "Connect {integrations} first",
+    id: "+WGFtpyLP3",
+    description: "Hint on a skill that cannot be added until the named integrations are connected",
+  },
+  skillIntegrationGithub: {
+    defaultMessage: "GitHub",
+    id: "qho0RvsuUF",
+    description: "Name of the GitHub integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationCrowdin: {
+    defaultMessage: "Crowdin",
+    id: "mKDi5gA4Mz",
+    description: "Name of the Crowdin integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationContentful: {
+    defaultMessage: "Contentful",
+    id: "a8MPnEetIK",
+    description:
+      "Name of the Contentful integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationIntercom: {
+    defaultMessage: "Intercom",
+    id: "8GHkIAG5lJ",
+    description: "Name of the Intercom integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationSanity: {
+    defaultMessage: "Sanity",
+    id: "G9eQqJWzlH",
+    description: "Name of the Sanity integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationWebflow: {
+    defaultMessage: "Webflow",
+    id: "zC+2fxCHmG",
+    description: "Name of the Webflow integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationGoogleDrive: {
+    defaultMessage: "Google Drive",
+    id: "mCZ6rjBj9L",
+    description:
+      "Name of the Google Drive integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationBraze: {
+    defaultMessage: "Braze",
+    id: "o0HXRhjJ+T",
+    description: "Name of the Braze integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationCustomerIo: {
+    defaultMessage: "Customer.io",
+    id: "NwFKmyGsjl",
+    description:
+      "Name of the Customer.io integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationIterable: {
+    defaultMessage: "Iterable",
+    id: "C0jp5QUb8B",
+    description: "Name of the Iterable integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationLoops: {
+    defaultMessage: "Loops",
+    id: "oC6DC5UXTd",
+    description: "Name of the Loops integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationHubspot: {
+    defaultMessage: "HubSpot",
+    id: "UT4djK0Z7P",
+    description: "Name of the HubSpot integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationMailchimp: {
+    defaultMessage: "Mailchimp",
+    id: "8T9ADmB57c",
+    description: "Name of the Mailchimp integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationSlack: {
+    defaultMessage: "Slack",
+    id: "SXLP18M0vY",
+    description: "Name of the Slack integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationEmail: {
+    defaultMessage: "an email provider",
+    id: "foebJc8o+q",
+    description:
+      "How the email integration is named in the hint on a skill that needs it connected",
+  },
+  riskySkillTitle: {
+    defaultMessage: "Add {name}?",
+    id: "NRfaLdr7/e",
+    description:
+      "Title of the confirmation shown before attaching a skill that does something irreversible",
+  },
+  riskySkillConfirm: {
+    defaultMessage: "Add skill",
+    id: "u6vs4VuGx2",
+    description: "Button that confirms attaching a risky skill",
+  },
+  riskySkillCancel: {
+    defaultMessage: "Cancel",
+    id: "pYrkNX1dan",
+    description: "Button that cancels attaching a risky skill",
+  },
+  instructionsWithSkillsPlaceholder: {
+    defaultMessage:
+      "Optional. Add anything specific to your team: tone, report format, what to ignore.",
+    id: "kzwi13YrTF",
+    description: "Placeholder for the automation instructions textarea when a skill is attached",
+  },
+  suggestionsLabel: {
+    defaultMessage: "Suggested",
+    id: "boofVI7NrL",
+    description:
+      "Label before the skills and tools suggested from the automation name and instructions",
+  },
+  addSuggestion: {
+    defaultMessage: "Add {name}",
+    id: "M6GfZRzYV+",
+    description:
+      "Accessible label for the button that adds a suggested skill or tool to the automation",
+  },
+  dismissSuggestion: {
+    defaultMessage: "Dismiss suggestion {name}",
+    id: "9hl7/enPE5",
+    description: "Accessible label for the button that hides a suggested skill or tool",
   },
   toolsSection: {
     defaultMessage: "Tools",
@@ -878,6 +959,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "mzBTNMYPpo",
     description: "Empty state when Create job target locales need a project first",
   },
+  chooseProjectForIterableSourceLocale: {
+    defaultMessage: "Choose a project above to pick a source locale.",
+    id: "Fb6qGloXW4",
+    description: "Empty state when the Iterable source locale needs a project first",
+  },
   noRunsYet: {
     defaultMessage: "No runs yet.",
     id: "kSA5sHlbN9",
@@ -998,6 +1084,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "GERghL+Meu",
     description: "Tab label for automation run history",
   },
+  refreshRunHistory: {
+    defaultMessage: "Refresh",
+    id: "WnA8ZhP3C6",
+    description: "Button to reload the automation run history list",
+  },
   agentInstructionsSection: {
     defaultMessage: "Agent Instructions",
     id: "Ej5U0a0604",
@@ -1012,6 +1103,46 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "This model runs the automation and its nested agents.",
     id: "4/w2RcdLUO",
     description: "Helper text for the automation language model select",
+  },
+  modelGpt6Luna: {
+    defaultMessage: "GPT-6 Luna",
+    id: "lNo4qG1F4d",
+    description: "Label for the OpenAI GPT-6 Luna automation model",
+  },
+  modelGpt6Astra: {
+    defaultMessage: "GPT-6 Astra",
+    id: "5wWPtxr+Iq",
+    description: "Label for the OpenAI GPT-6 Astra automation model",
+  },
+  modelGpt6Sol: {
+    defaultMessage: "GPT-6 Sol",
+    id: "v5ZuLrI48c",
+    description: "Label for the OpenAI GPT-6 Sol automation model",
+  },
+  modelGpt61Sol: {
+    defaultMessage: "GPT-6.1 Sol",
+    id: "nn5/Lv4WBX",
+    description: "Label for the OpenAI GPT-6.1 Sol automation model",
+  },
+  modelGpt61SolFast: {
+    defaultMessage: "GPT-6.1 Sol (Fast)",
+    id: "zN4XlAxGFa",
+    description: "Label for the OpenAI GPT-6.1 Sol fast automation model",
+  },
+  modelGpt6LunaFast: {
+    defaultMessage: "GPT-6 Luna (Fast)",
+    id: "XTQH6Cl2jC",
+    description: "Label for the OpenAI GPT-6 Luna fast automation model",
+  },
+  modelGpt6AstraFast: {
+    defaultMessage: "GPT-6 Astra (Fast)",
+    id: "XcFjhy5gkF",
+    description: "Label for the OpenAI GPT-6 Astra fast automation model",
+  },
+  modelGpt6SolFast: {
+    defaultMessage: "GPT-6 Sol (Fast)",
+    id: "dO1TC3x3LJ",
+    description: "Label for the OpenAI GPT-6 Sol fast automation model",
   },
   modelGpt56Luna: {
     defaultMessage: "GPT-5.6 Luna",
@@ -1028,6 +1159,16 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "f7G04QgkqV",
     description: "Label for the OpenAI GPT-5.6 Sol automation model",
   },
+  modelGpt56TerraFast: {
+    defaultMessage: "GPT-5.6 Terra (Fast)",
+    id: "cAyguvo6I8",
+    description: "Label for the OpenAI GPT-5.6 Terra fast automation model",
+  },
+  modelGpt56SolFast: {
+    defaultMessage: "GPT-5.6 Sol (Fast)",
+    id: "29NlUC9+y8",
+    description: "Label for the OpenAI GPT-5.6 Sol fast automation model",
+  },
   modelClaudeSonnet5: {
     defaultMessage: "Claude Sonnet 5",
     id: "4b7EZj4onr",
@@ -1038,26 +1179,45 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "hGgsaGVVDY",
     description: "Label for the Anthropic Claude Opus 5 automation model",
   },
+  modelClaudeOpus55: {
+    defaultMessage: "Claude Opus 5.5",
+    id: "ksdV9RsBoH",
+    description: "Label for the Anthropic Claude Opus 5.5 automation model",
+  },
+  modelGemini38Flash: {
+    defaultMessage: "Gemini 3.8 Flash",
+    id: "EE7waUBBeR",
+    description: "Label for the Google Gemini 3.8 Flash automation model",
+  },
+  modelGemini37Flash: {
+    defaultMessage: "Gemini 3.7 Flash",
+    id: "j8e6X/c9hq",
+    description: "Label for the Google Gemini 3.7 Flash automation model",
+  },
+  modelGemini36Flash: {
+    defaultMessage: "Gemini 3.6 Flash",
+    id: "YlNYKWNMnX",
+    description: "Label for the Google Gemini 3.6 Flash automation model",
+  },
+  modelGemini35Flash: {
+    defaultMessage: "Gemini 3.5 Flash",
+    id: "TvuxI/JPcp",
+    description: "Label for the Google Gemini 3.5 Flash automation model",
+  },
+  modelGemini31ProPreview: {
+    defaultMessage: "Gemini 3.1 Pro Preview",
+    id: "bwRlaW2gsC",
+    description: "Label for the Google Gemini 3.1 Pro Preview automation model",
+  },
   instructionsPlaceholder: {
     defaultMessage: "Tell the automation what to do, what to inspect, and what to ignore.",
     id: "rkQ7AmKMrt",
     description: "Placeholder for the automation instructions textarea",
   },
-  webChat: {
-    defaultMessage: "Web chat",
-    id: "+lT5g7sqtS",
-    description: "Menu item and label for the public web chat trigger",
-  },
   webChatSummary: {
     defaultMessage: "Web chat",
     id: "mg4r+1o1Aq",
     description: "Header summary for a web chat trigger",
-  },
-  webChatDescription: {
-    defaultMessage:
-      "Anyone with the link can chat with this agent. Traffic is protected with BotID. Visitors can attach images.",
-    id: "cUhuuxlusZ",
-    description: "Description of the public web chat trigger",
   },
   webChatUrlPending: {
     defaultMessage: "Save this automation to get a public chat URL.",
@@ -1174,5 +1334,56 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Web chat",
     id: "xF7D3G1OBo",
     description: "Run history trigger source for web chat",
+  },
+  skillCategoryReview: {
+    defaultMessage: "Review",
+    id: "bQPNqQ6BaC",
+    description: "Skill menu group: skills that check your own code and translations",
+  },
+  skillCategoryResearch: {
+    defaultMessage: "Research",
+    id: "tM2BieLM3f",
+    description:
+      "Skill menu group: skills that look things up outside your content, such as the web",
+  },
+  skillCategoryTranslate: {
+    defaultMessage: "Translate",
+    id: "lV6tIpjosi",
+    description: "Skill menu group: skills that produce translations",
+  },
+  skillCategoryReport: {
+    defaultMessage: "Report results",
+    id: "uY8w9jXbP0",
+    description: "Skill menu group: skills that send the run's outcome somewhere",
+  },
+  runSummaryYes: {
+    defaultMessage: "Yes",
+    id: "VyqM/DHC5Z",
+    description: "A true value in a run's result details",
+  },
+  runSummaryNo: {
+    defaultMessage: "No",
+    id: "nBxDlo+wU3",
+    description: "A false value in a run's result details",
+  },
+  runSummaryShowJson: {
+    defaultMessage: "View raw JSON",
+    id: "VvQgh8Trix",
+    description: "Button to show a run's result as raw JSON",
+  },
+  runSummaryHideJson: {
+    defaultMessage: "View formatted",
+    id: "ZE42IfPAsQ",
+    description: "Button to go back from raw JSON to the formatted run result",
+  },
+  runSummaryCopyJson: {
+    defaultMessage: "Copy JSON",
+    id: "FqcQ3Q8Id9",
+    description: "Accessible label for the button that copies a run's raw JSON result",
+  },
+  runSummaryNoHeadline: {
+    defaultMessage: "View details",
+    id: "AcKddeQtF1",
+    description: "Run history summary cell when a run has result details but no sentence to show",
   },
 });

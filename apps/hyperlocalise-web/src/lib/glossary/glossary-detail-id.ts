@@ -11,7 +11,21 @@
  * Version 2.0 or later.
  */
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import { isQueryableNativeGlossaryId } from "@/lib/glossary/glossary-persisted-id";
 import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
+
+export function glossaryUsesNativeDetailPage(
+  glossaryId: string,
+  source?: "native" | "external_tms" | null,
+) {
+  if (parseLiveProviderGlossaryId(glossaryId)) {
+    return false;
+  }
+  if (source === "native") {
+    return true;
+  }
+  return isQueryableNativeGlossaryId(glossaryId);
+}
 
 export function resolveGlossaryDetailId(input: {
   glossaryId: string;

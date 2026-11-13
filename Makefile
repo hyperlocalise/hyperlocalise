@@ -1,9 +1,8 @@
 projectname?=hyperlocalise
 version?=$(shell git describe --abbrev=0 --tags 2>/dev/null || echo dev)
-golangci_lint_version?=v2.12.2
+golangci_lint_version?=v2.15.0
 gobin?=$(shell go env GOPATH)/bin
 golangci_lint_bin?=$(gobin)/golangci-lint
-fmt_go_files:=$(filter-out %.pb.go,$(shell git ls-files '*.go' | while read -r f; do [ -f "$$f" ] && printf '%s\n' "$$f"; done))
 default: help
 
 .PHONY: help
@@ -22,6 +21,35 @@ check-build: ## check golang build
 .PHONY: check-build-go-svc
 check-build-go-svc: ## check go-svc container service build
 	@go build -o /dev/null ./apps/go-svc
+
+.PHONY: build-activity-log-lambda
+build-activity-log-lambda: ## build the activity-log Lambda bootstrap binary
+	@mkdir -p dist/activity-log-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/activity-log-lambda/bootstrap ./apps/activity-log-lambda
+
+.PHONY: build-glossary-interchange-lambda
+build-glossary-interchange-lambda: ## build the glossary-interchange Lambda bootstrap binary
+	@mkdir -p dist/glossary-interchange-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/glossary-interchange-lambda/bootstrap ./apps/glossary-interchange-lambda
+
+.PHONY: build-memory-interchange-lambda
+build-memory-interchange-lambda: ## build the memory-interchange Lambda bootstrap binary
+	@mkdir -p dist/memory-interchange-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/memory-interchange-lambda/bootstrap ./apps/memory-interchange-lambda
+
+.PHONY: build-visual-context-match-lambda
+build-visual-context-match-lambda: ## build the visual-context-match Lambda bootstrap binary
+	@mkdir -p dist/visual-context-match-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/visual-context-match-lambda/bootstrap ./apps/visual-context-match-lambda
+
+.PHONY: build-guideline-ingest-lambda
+build-guideline-ingest-lambda: ## build the guideline-ingest Lambda bootstrap binary
+	@mkdir -p dist/guideline-ingest-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/guideline-ingest-lambda/bootstrap ./apps/guideline-ingest-lambda
+
+.PHONY: check-build-public-api
+check-build-public-api: ## check standalone public API service build
+	@go build -o /dev/null ./apps/public-api
 
 .PHONY: check-build-go-svc-cgo
 check-build-go-svc-cgo: ## check go-svc build+tests with the real cgo_hunspell provider (requires libhunspell-dev + pkg-config locally; matches Dockerfile.vercel)
@@ -56,6 +84,12 @@ test-workspace: clean ## run workspace tests
 	go test -cover -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out | sort -rnk3
 
+.PHONY: test-go-svc
+test-go-svc: ## run go-svc tests against live Postgres and Valkey (DATABASE_URL + VALKEY_URL)
+	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL is required for go-svc integration tests" >&2 && exit 1)
+	@test -n "$(VALKEY_URL)" || (echo "VALKEY_URL is required for go-svc integration tests" >&2 && exit 1)
+	GO_SVC_INTEGRATION=1 go test -race ./apps/go-svc/...
+
 .PHONY: test
 test: test-workspace ## run workspace-wide tests
 
@@ -77,6 +111,16 @@ bench-evalsvc: ## run focused evalsvc benchmarks
 	go test -run '^$$' -bench 'Benchmark(EvaluatorEvaluate|PlaceholderTokens|TokenF1|NormalizeText)' -benchmem -benchtime=20x ./apps/cli/internal/i18n/evalsvc/scoring
 
 
+.PHONY: bench-public-api
+bench-public-api: ## run focused public-api request-path benchmarks
+	go test -run '^$$' -bench 'Benchmark(GroupBilingual|NormalizeSource|EffectivePermissions|ParseQuery|ParsePagination|FileActivity|SQLFilter)' -benchmem -benchtime=20x ./apps/public-api
+
+
+.PHONY: bench-go-svc
+bench-go-svc: ## run focused go-svc request-path benchmarks
+	go test -run '^$$' -bench 'Benchmark(USDUnits|USDString|WordCost|ReportingCSVCell|ReportingNumber|RewriteHashedHTMLSegmentKeys|UniqueEditorCatIDs|ParseLatestPublicJobQuery|ParsePublicJobAnalysisUnit|ParseAutomationListQuery|ParseWorkspaceAutomationCreate|ParseVisualWorkflowCreate|NormalizeVisualWorkflowDefinition|EmptyVisualWorkflowDefinition|ParseSkillIDs)' -benchmem -benchtime=20x ./apps/go-svc
+
+
 .PHONY: clean
 clean: ## clean up environment
 	@rm -rf coverage.out test-report.jsonl dist/ $(projectname)
@@ -90,8 +134,8 @@ cover: ## display root-module test coverage
 
 .PHONY: fmt
 fmt: ## format go files
-	go tool gofumpt -w $(fmt_go_files)
-	go tool gci write $(fmt_go_files)
+	go tool gofumpt -w .
+	go tool gci write --skip-vendor .
 
 
 .PHONY: lint

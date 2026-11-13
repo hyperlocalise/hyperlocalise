@@ -14,8 +14,7 @@
  */
 import Link from "next/link";
 import { Fragment } from "react";
-import { ArrowLeft01Icon, Tick02Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, CheckIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -64,6 +63,7 @@ const rowMessages = {
   "manage-teams": messages.rowManageTeams,
   "edit-glossaries": messages.rowEditGlossaries,
   "edit-memories": messages.rowEditMemories,
+  "edit-dictionaries": messages.rowEditDictionaries,
   "view-integrations": messages.rowViewIntegrations,
   "manage-integrations": messages.rowManageIntegrations,
   "manage-credentials": messages.rowManageCredentials,
@@ -82,7 +82,7 @@ function PermissionMark({ allowed }: { allowed: boolean }) {
 
   return (
     <Box display="inline-flex" alignItems="center" justifyContent="center">
-      <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} className="size-4 text-primary" />
+      <CheckIcon className="size-4 text-primary" />
       <span className="sr-only">
         <FormattedMessage {...messages.allowed} />
       </span>
@@ -167,15 +167,14 @@ export function RolePermissionsPageView({ organizationSlug }: { organizationSlug
           size="sm"
           className="w-fit px-2 text-muted-foreground hover:text-foreground"
         >
-          <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.8} />
+          <ArrowLeftIcon />
           <FormattedMessage {...messages.backToMembers} />
         </Button>
 
         <PageHeader
-          icon={UserGroupIcon}
+          icon={UsersThreeIcon}
           label={intl.formatMessage(messages.pageLabel)}
           title={intl.formatMessage(messages.pageTitle)}
-          description={intl.formatMessage(messages.pageDescription)}
         />
       </Rows>
 

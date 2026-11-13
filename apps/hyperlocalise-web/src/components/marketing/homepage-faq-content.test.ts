@@ -19,7 +19,7 @@ describe("homepage FAQ content", () => {
     const items = getHomepageFaqItems("en");
     const jsonLd = buildHomepageFaqJsonLd("en", items);
 
-    expect(items).toHaveLength(12);
+    expect(items).toHaveLength(13);
     expect(jsonLd).toMatchObject({
       "@context": "https://schema.org",
       "@type": "FAQPage",

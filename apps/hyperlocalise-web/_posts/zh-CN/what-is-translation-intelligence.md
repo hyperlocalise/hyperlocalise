@@ -196,4 +196,4 @@ Hyperlocalise 旨在自动将恰当的上下文带入翻译体验，而不是让
 
 翻译智能是现代本地化团队弥合这一差距的方式。
 
-如需了解从翻译转向面向市场的沟通这一更广泛的转变，请参阅[超本地化：为什么全球增长需要的不只是翻译](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation)。
+若要进一步了解从翻译转向面向市场的沟通方式这一更广泛的转变，请参阅[超本地化：为什么全球增长需要的不只是翻译](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation)。若要了解如何在评估平台时应用这些理念，请参阅[如何选择持续本地化工作流](/blog/how-to-choose-a-continuous-localisation-workflow)。

@@ -12,11 +12,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ContentEditorMultilingualConfig } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import { observer } from "mobx-react-lite";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
+import type { ContentEditorSegmentFileIdentityLookupRef } from "@/components/content-editor/project-file/use-content-editor-mutations";
+import type { CatBilingualImportCounts } from "@/lib/projects/content-editor/content-editor-bilingual-import";
+import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +43,7 @@ import type {
 } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { ContentEditorQueueToolbarConnected } from "@/components/content-editor/queue/content-editor-queue-toolbar-connected";
 import { contentEditorWorkspaceContainerMessages } from "@/components/content-editor/shared/content-editor.messages";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import type {
   ContentEditorSegment,
   ContentEditorWorkspaceState,
@@ -61,6 +66,7 @@ import { ContentEditorWorkspaceViewModeSync } from "./content-editor-workspace-v
 import { useContentEditorWorkspaceRuntime } from "./use-content-editor-workspace-runtime";
 
 export interface ContentEditorWorkspaceContainerProps {
+  multilingual?: ContentEditorMultilingualConfig;
   initialState: ContentEditorWorkspaceState;
   /** Overrides persisted view-mode preference for this workspace instance. */
   initialViewMode?: ContentEditorWorkspaceViewMode;
@@ -73,6 +79,7 @@ export interface ContentEditorWorkspaceContainerProps {
     externalResourceId?: string | null;
     resourceType?: "file" | "key";
     contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
+    retainedSegmentIdentityRef?: ContentEditorSegmentFileIdentityLookupRef;
     enabled: boolean;
   };
   dependencies?: PartialCatWorkspaceDependencies;
@@ -89,6 +96,10 @@ export interface ContentEditorWorkspaceContainerProps {
   queueSort?: ContentEditorQueueSort;
   onQueueSortChange?: (sort: ContentEditorQueueSort) => void;
   availableQueueSorts?: ContentEditorQueueSort[];
+  queueFilterQualifier?: string;
+  onQueueFilterQualifierChange?: (qualifier: string | undefined) => void;
+  queueAdvanced?: ContentEditorAdvancedQueueFilter;
+  onQueueAdvancedChange?: (filter: ContentEditorAdvancedQueueFilter | undefined) => void;
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   isQueueListLoading?: boolean;
@@ -97,6 +108,8 @@ export interface ContentEditorWorkspaceContainerProps {
   /** @deprecated Use isQueueListLoading or isQueueDataPending. */
   isQueueLoading?: boolean;
   isImageBusy?: boolean;
+  isImageGenerating?: boolean;
+  generatingImageSegmentId?: string;
   isMaxLengthSaving?: boolean;
   queuePagination?: ContentEditorWorkspaceViewProps["queuePagination"];
   hasMoreQueue?: boolean;
@@ -107,15 +120,26 @@ export interface ContentEditorWorkspaceContainerProps {
   onPageLimitChange?: (pageLimit: number) => void;
   pageNavigationGuardRef?: ContentEditorPageNavigationGuardRef;
   nativeIssuesEnabled?: boolean;
-  onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
+  onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
   isDownloadingFilteredView?: boolean;
+  onImportBilingualFile?: (file: File) => Promise<CatBilingualImportCounts>;
+  isImportingBilingualFile?: boolean;
   /** Stable identity for the open file/locale. Changing this resets workspace data only. */
   fileScopeKey?: string;
+  /**
+   * When true, the adaptive workspace persona switcher (Translator / Designer / Reviewer)
+   * is visible and the UI auto-detects the persona from the file's content family.
+   *
+   * Controlled by the `release-content-editor-adaptive-workspace` feature flag.
+   * Defaults to false — off for all users until enabled via Flags Explorer.
+   */
+  adaptiveWorkspaceEnabled?: boolean;
 }
 
 const ContentEditorWorkspaceContainerObserver = observer(
   function ContentEditorWorkspaceContainerObserver({
     store,
+    multilingual,
     queueSnapshot,
     lazySegment,
     initialSegmentKeyOrId,
@@ -133,6 +157,10 @@ const ContentEditorWorkspaceContainerObserver = observer(
     queueSort,
     onQueueSortChange,
     availableQueueSorts,
+    queueFilterQualifier,
+    onQueueFilterQualifierChange,
+    queueAdvanced,
+    onQueueAdvancedChange,
     isQueueSearchPending,
     isQueueFetchingPage,
     isQueueListLoading,
@@ -140,6 +168,8 @@ const ContentEditorWorkspaceContainerObserver = observer(
     isTranslationViewLoading,
     isQueueLoading: legacyIsQueueLoading,
     isImageBusy,
+    isImageGenerating,
+    generatingImageSegmentId,
     isMaxLengthSaving,
     queuePagination,
     hasMoreQueue,
@@ -150,7 +180,10 @@ const ContentEditorWorkspaceContainerObserver = observer(
     nativeIssuesEnabled = false,
     onDownloadFilteredView,
     isDownloadingFilteredView = false,
+    onImportBilingualFile,
+    isImportingBilingualFile = false,
     fileScopeKey,
+    adaptiveWorkspaceEnabled = false,
   }: ContentEditorWorkspaceContainerProps & { store: ContentEditorWorkspaceOrchestrator }) {
     const controller = useContentEditorWorkspaceRuntime({
       store,
@@ -193,10 +226,21 @@ const ContentEditorWorkspaceContainerObserver = observer(
       store.ui.setTranslationViewLoading(Boolean(isTranslationViewLoading));
     }, [isTranslationViewLoading, store]);
 
+    useLayoutEffect(() => {
+      store.ui.setMultilingualViewAvailable(Boolean(multilingual));
+    }, [multilingual, store]);
+
+    useLayoutEffect(() => {
+      store.ui.setAdaptiveWorkspaceEnabled(Boolean(adaptiveWorkspaceEnabled));
+    }, [adaptiveWorkspaceEnabled, store]);
+
     // Cache hits make the query look ready before ContentEditorQueryBridge writes the
     // snapshot. Block bulk targets until both the query and the store agree.
     const isQueueBulkBlocked =
       Boolean(resolvedQueueDataPending) || !store.hasIngestedQueueSnapshot(queueSnapshot ?? null);
+
+    // Until the store is reset for this file, its selected segment is the previous file's.
+    const isFileScopeSynced = !fileScopeKey || store.fileScopeKey === fileScopeKey;
 
     return (
       <>
@@ -215,81 +259,126 @@ const ContentEditorWorkspaceContainerObserver = observer(
           snapshot={queueSnapshot ?? null}
           initialSegmentKeyOrId={initialSegmentKeyOrId}
         />
-        {lazySegment ? <ContentEditorWorkspaceLazySegmentSync {...lazySegment} /> : null}
+        {lazySegment ? (
+          <ContentEditorWorkspaceLazySegmentSync
+            {...lazySegment}
+            enabled={lazySegment.enabled && isFileScopeSynced}
+          />
+        ) : null}
 
-        <ContentEditorQueueToolbarConnected
-          onQueueSearchChange={onQueueSearchChange}
-          onQueueFilterChange={controller.handleQueueFilterChange}
-          availableQueueFilters={availableQueueFilters}
-          queueSort={queueSort}
-          onQueueSortChange={onQueueSortChange}
-          availableQueueSorts={availableQueueSorts}
-          isSearching={isQueueSearchPending}
-          isQueueLoading={isQueueBulkBlocked}
-          visibleCount={isQueueBulkBlocked ? 0 : controller.queueSegments.length}
-          onSelectAllVisible={() => {
-            // Placeholder or not-yet-ingested pages still expose the previous
-            // filter's segment ids.
-            if (isQueueBulkBlocked) {
-              return;
+        <ContentEditorPanelErrorBoundary
+          scope="queue"
+          className="h-auto"
+          resetKeys={[controller.queueFilter, queueSearch]}
+        >
+          <ContentEditorQueueToolbarConnected
+            onQueueSearchChange={onQueueSearchChange}
+            onQueueFilterChange={controller.handleQueueFilterChange}
+            availableQueueFilters={availableQueueFilters}
+            queueSort={queueSort}
+            onQueueSortChange={onQueueSortChange}
+            availableQueueSorts={availableQueueSorts}
+            queueFilterQualifier={queueFilterQualifier}
+            onQueueFilterQualifierChange={onQueueFilterQualifierChange}
+            queueAdvanced={queueAdvanced}
+            onQueueAdvancedChange={onQueueAdvancedChange}
+            providerKind={lazySegment?.contentEditorFile?.provider?.kind}
+            organizationSlug={lazySegment?.organizationSlug}
+            projectId={lazySegment?.projectId}
+            isSearching={isQueueSearchPending}
+            isQueueLoading={isQueueBulkBlocked}
+            visibleCount={isQueueBulkBlocked ? 0 : controller.queueSegments.length}
+            onSelectAllVisible={() => {
+              // Placeholder or not-yet-ingested pages still expose the previous
+              // filter's segment ids.
+              if (isQueueBulkBlocked) {
+                return;
+              }
+              store.selectAllVisible(controller.queueSegments.map((segment) => segment.id));
+            }}
+            onBulkApprove={() => {
+              if (isQueueBulkBlocked) {
+                return;
+              }
+              void controller.handleBulkApprove();
+            }}
+            onBulkSkip={() => {
+              if (isQueueBulkBlocked) {
+                return;
+              }
+              void controller.handleBulkSkip();
+            }}
+            onBulkHide={
+              review?.onBulkHide
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkHide();
+                  }
+                : undefined
             }
-            store.selectAllVisible(controller.queueSegments.map((segment) => segment.id));
-          }}
-          onBulkApprove={() => {
-            if (isQueueBulkBlocked) {
-              return;
+            onBulkUnhide={
+              review?.onBulkUnhide
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkUnhide();
+                  }
+                : undefined
             }
-            void controller.handleBulkApprove();
-          }}
-          onBulkSkip={() => {
-            if (isQueueBulkBlocked) {
-              return;
+            onBulkLock={
+              review?.onBulkLock || review?.onSetLocked
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkLock();
+                  }
+                : undefined
             }
-            void controller.handleBulkSkip();
-          }}
-          onBulkHide={
-            review?.onBulkHide
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
+            onBulkUnlock={
+              review?.onBulkUnlock || review?.onSetLocked
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkUnlock();
                   }
-                  void controller.handleBulkHide();
-                }
-              : undefined
-          }
-          onBulkUnhide={
-            review?.onBulkUnhide
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
+                : undefined
+            }
+            onBulkCreateTask={
+              review?.onCreateKeyTask
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    review.onCreateKeyTask?.([...store.checkedSegmentIds], () =>
+                      store.clearChecked(),
+                    );
                   }
-                  void controller.handleBulkUnhide();
-                }
-              : undefined
-          }
-          onBulkLock={
-            review?.onBulkLock || review?.onSetLocked
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
+                : undefined
+            }
+            onBulkEditTags={
+              review?.onEditKeyTags
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    review.onEditKeyTags?.([...store.checkedSegmentIds], () =>
+                      store.clearChecked(),
+                    );
                   }
-                  void controller.handleBulkLock();
-                }
-              : undefined
-          }
-          onBulkUnlock={
-            review?.onBulkUnlock || review?.onSetLocked
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
-                  }
-                  void controller.handleBulkUnlock();
-                }
-              : undefined
-          }
-          onDownloadFilteredView={onDownloadFilteredView}
-          isDownloadingFilteredView={isDownloadingFilteredView}
-        />
+                : undefined
+            }
+            onDownloadFilteredView={onDownloadFilteredView}
+            isDownloadingFilteredView={isDownloadingFilteredView}
+            onImportBilingualFile={onImportBilingualFile}
+            isImportingBilingualFile={isImportingBilingualFile}
+            adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
+          />
+        </ContentEditorPanelErrorBoundary>
 
         <ContentEditorPanelErrorBoundary
           scope="workspace"
@@ -303,49 +392,30 @@ const ContentEditorWorkspaceContainerObserver = observer(
           ]}
         >
           <ContentEditorWorkspaceView
+            multilingual={multilingual}
             shell={controller.shell}
             queueSegments={controller.queueSegments}
             selectedSegment={controller.selectedSegment}
             dependencies={controller.dependencies}
-            dirtySegmentIds={controller.dirtySegmentIds}
-            isValidating={store.isValidating}
-            isApproving={store.isApproving}
-            isSavingDraft={store.isSavingDraft}
-            isPostingComment={store.isPostingComment}
-            isResolvingComment={store.isResolvingComment}
-            resolvingCommentId={store.resolvingCommentId}
-            commentPostError={store.commentPostError}
-            isLookingUpContext={store.isLookingUpContext}
-            isConcordanceLoading={store.isLoadingConcordance}
-            isVisualContextLoading={store.isLoadingVisualContext}
-            isAiSuggestionLoading={
-              store.isGeneratingAiRecommendation && controller.canUseAiRecommendation
-            }
-            isFormatChecksLoading={store.isRunningFormatChecks || store.isValidating}
             canLookupContext={controller.canLookupContext}
-            showAgentContext={store.revealedAgentContextSegmentIds.has(store.selectedSegmentId)}
-            revealedAgentContextSegmentIds={store.revealedAgentContextSegmentIds}
             showVisualContext={controller.canLoadVisualContext}
             canUseAiRecommendation={controller.canUseAiRecommendation}
             className={className}
             queueSearch={queueSearch}
             isQueueFetchingPage={isQueueFetchingPage}
             isQueueListLoading={resolvedQueueListLoading}
-            isTranslationViewLoading={store.ui.translationViewLoading}
-            isCommentsLoading={store.isCommentsLoading}
-            isSegmentTargetLoading={store.isSegmentTargetLoading}
+            isQueueDataPending={isQueueBulkBlocked}
             isImageBusy={isImageBusy}
+            isImageGenerating={isImageGenerating}
+            generatingImageSegmentId={generatingImageSegmentId}
             isMaxLengthSaving={isMaxLengthSaving}
             queuePagination={queuePagination}
             hasMoreQueue={hasMoreQueue}
             onLoadMoreQueue={onLoadMoreQueue}
             queueFilter={controller.queueFilter}
-            checkedSegmentIds={store.checkedSegmentIds}
-            onToggleSegmentChecked={(segmentId, checked) =>
-              store.toggleSegmentChecked(segmentId, checked)
-            }
             buildSegmentShareUrl={controller.resolvedBuildSegmentShareUrl}
             onIntelligencePanelVisible={controller.handleIntelligencePanelVisible}
+            onLoadSegmentConcordance={controller.handleLoadSegmentConcordance}
             organizationSlug={lazySegment?.organizationSlug}
             projectId={lazySegment?.projectId}
             nativeIssuesEnabled={nativeIssuesEnabled}
@@ -408,24 +478,12 @@ function ContentEditorFileScopeSync({
   sourceLocale: string;
   targetLocale: string;
 }) {
-  const lastScopeKeyRef = useRef<string | null>(null);
-
   useLayoutEffect(() => {
     if (!fileScopeKey) {
       return;
     }
 
-    if (lastScopeKeyRef.current === null) {
-      lastScopeKeyRef.current = fileScopeKey;
-      return;
-    }
-
-    if (lastScopeKeyRef.current === fileScopeKey) {
-      return;
-    }
-
-    lastScopeKeyRef.current = fileScopeKey;
-    store.prepareFileScopeChange({ sourcePath, sourceLocale, targetLocale });
+    store.syncFileScope(fileScopeKey, { sourcePath, sourceLocale, targetLocale });
   }, [fileScopeKey, sourceLocale, sourcePath, store, targetLocale]);
 
   return null;

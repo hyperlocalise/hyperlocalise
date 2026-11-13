@@ -14,8 +14,7 @@
  */
 import { useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { ArrowDown01Icon, UserIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, UserIcon } from "@phosphor-icons/react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -114,7 +113,7 @@ function UnassignedAvatar({ className }: { className?: string }) {
       )}
       aria-hidden
     >
-      <HugeiconsIcon icon={UserIcon} strokeWidth={1.8} className="size-3" />
+      <UserIcon className="size-3" />
     </span>
   );
 }
@@ -207,11 +206,7 @@ export function IssueAssigneePicker({
               {triggerAvatar}
               <span className="min-w-0 truncate">{triggerLabel}</span>
             </span>
-            <HugeiconsIcon
-              icon={ArrowDown01Icon}
-              strokeWidth={2}
-              className="size-4 shrink-0 text-muted-foreground"
-            />
+            <CaretDownIcon className="size-4 shrink-0 text-muted-foreground" />
           </>
         )}
       </PopoverTrigger>

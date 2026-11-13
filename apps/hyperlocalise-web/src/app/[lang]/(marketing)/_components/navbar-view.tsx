@@ -44,12 +44,12 @@ import { useCaseFooterLinks } from "@/components/marketing/use-case/use-case-pag
 import { useCasePageMessages } from "@/components/marketing/use-case/use-case-page-content.messages";
 import type { UseCaseMessageKey } from "@/components/marketing/use-case/use-case-page-content.messages";
 import { cn } from "@/lib/primitives/cn";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { BrandLockup } from "@/components/brand/brand-lockup";
 import LocaleToggle from "@/components/locale-toggle/locale-toggle";
 import ThemeToggle from "@/components/theme-toggle/theme-toggle";
 import { themeToggleMessages } from "@/components/theme-toggle/theme-toggle.messages";
@@ -228,22 +228,14 @@ function Logo({ locale, onHero = false }: { locale: AppLocale; onHero?: boolean 
   const intl = useIntl();
 
   return (
-    <Link href={rewriteAppLocalePath("/", locale)} className="flex items-center gap-2.5">
-      <Image
-        src="/images/logo.png"
-        className="size-8"
-        width={32}
-        height={32}
-        alt={intl.formatMessage(navbarMessages.logoAlt)}
+    <Link href={rewriteAppLocalePath("/", locale)} className="inline-flex min-w-0 items-center">
+      <BrandLockup
+        logoAlt={intl.formatMessage(navbarMessages.logoAlt)}
+        markSize={32}
+        markClassName="size-8"
+        surface={onHero ? "dark" : undefined}
+        typClassName="hidden max-w-[10rem] md:block"
       />
-      <span
-        className={cn(
-          "hidden font-sans text-base font-semibold tracking-tight md:inline",
-          onHero && "text-white",
-        )}
-      >
-        <FormattedMessage {...navbarMessages.brandName} />
-      </span>
     </Link>
   );
 }
@@ -255,7 +247,9 @@ function useHomeHeroNavTone() {
   const pathSegments = pathname.split("/").filter(Boolean);
   const isMarketingHome = pathSegments.length === 1;
   const isStartupsPage = pathSegments.length === 2 && pathSegments[1] === "startups";
-  const usesFullBleedHero = isMarketingHome || isStartupsPage;
+  const isIrisPage = pathSegments.length === 2 && pathSegments[1] === "iris";
+  const isUseCasePage = pathSegments.length === 3 && pathSegments[1] === "use-cases";
+  const usesFullBleedHero = isMarketingHome || isStartupsPage || isIrisPage || isUseCasePage;
   const [onHero, setOnHero] = useState(usesFullBleedHero);
 
   useEffect(() => {
@@ -440,7 +434,11 @@ function MobileNavigation({ auth, locale }: { auth: NavbarAuthState; locale: App
 
 function DesktopNavigation({ locale }: { locale: AppLocale }) {
   return (
-    <NavigationMenu className="mx-auto hidden max-w-none md:flex">
+    // The header is sticky, so its triggers stay put in the viewport while the page scrolls.
+    // Fixed positioning keeps the popup's coordinates constant too; the default absolute
+    // positioning changes them on every scroll frame and the positioner's transition then
+    // makes the popup trail behind the header.
+    <NavigationMenu positionMethod="fixed" className="mx-auto hidden max-w-none md:flex">
       <NavigationMenuList className="gap-1">
         <NavigationMenuItem>
           <NavigationMenuTrigger className="px-3 py-2 font-medium text-muted-foreground hover:text-foreground data-popup-open:text-foreground data-open:text-foreground">
@@ -510,13 +508,13 @@ export function NavbarView({ auth }: { auth: NavbarAuthState }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 border-b transition-[background-color,border-color,color,backdrop-filter] duration-300",
+        "sticky top-0 z-40 h-16 border-b transition-[background-color,border-color,color,backdrop-filter] duration-300",
         onHero
           ? "border-transparent bg-transparent text-white"
           : "border-border bg-background/95 text-foreground backdrop-blur supports-[backdrop-filter]:bg-background/80",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+      <div className="mx-auto flex h-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3 lg:gap-8">
           <Logo locale={locale} onHero={onHero} />
           <div

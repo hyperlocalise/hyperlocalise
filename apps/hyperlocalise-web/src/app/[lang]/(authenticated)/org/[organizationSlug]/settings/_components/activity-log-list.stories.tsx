@@ -23,16 +23,23 @@ import { ActivityLogList, type ActivityLogItem } from "./activity-log-list";
 const targetKindByEventType: Record<V1ActivityEventType, ActivityLogItem["target"]["kind"]> = {
   member_invited: "invitation",
   member_invite_resent: "invitation",
+  member_invite_revoked: "invitation",
+  member_joined: "membership",
   member_role_changed: "membership",
   member_removed: "membership",
+  member_left: "membership",
   workspace_updated: "organization",
+  workspace_archived: "organization",
   personal_access_token_created: "personal_access_token",
   personal_access_token_revoked: "personal_access_token",
   integration_connected: "integration",
   integration_disconnected: "integration",
+  integration_credential_revealed: "integration",
+  integration_credential_rotated: "integration",
   project_created: "project",
   project_deleted: "project",
   project_settings_changed: "project",
+  project_strings_updated: "project",
   glossary_created: "glossary",
   glossary_deleted: "glossary",
   glossary_imported: "glossary",
@@ -53,9 +60,19 @@ const storyNow = new Date("2026-09-04T10:00:00.000Z").getTime();
 const allCategoryActivityLogs: ActivityLogItem[] = V1_ACTIVITY_EVENT_TYPES.map(
   (eventType, index) => ({
     actor: {
+      credentialId: index % 5 === 0 ? "key_storybook" : null,
+      credentialName: index % 5 === 0 ? "CLI deploy" : null,
       displayName: index % 3 === 0 ? "Story Book" : index % 3 === 1 ? "System" : "Translation bot",
-      kind: index % 3 === 0 ? "user" : index % 3 === 1 ? "system" : "agent",
-      userId: index % 3 === 0 ? "user_storybook" : null,
+      keyPrefix: index % 5 === 0 ? "hl_abc12" : null,
+      kind:
+        index % 5 === 0
+          ? "api_key"
+          : index % 3 === 0
+            ? "user"
+            : index % 3 === 1
+              ? "system"
+              : "agent",
+      userId: index % 3 === 0 || index % 5 === 0 ? "user_storybook" : null,
     },
     createdAt: new Date(storyNow - (index + 1) * 60 * 60 * 1000).toISOString(),
     eventType,

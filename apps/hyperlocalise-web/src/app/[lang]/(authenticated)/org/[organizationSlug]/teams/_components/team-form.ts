@@ -14,8 +14,8 @@
  */
 import type { IntlShape } from "@formatjs/intl";
 
-import { slugifyTeamName } from "@/api/routes/team/team-slug";
-import type { CreateTeamBody, UpdateTeamBody } from "@/api/routes/team/team.schema";
+import { slugifyTeamName } from "@/lib/teams/team-slug";
+import type { CreateTeamBody, UpdateTeamBody } from "@/lib/teams/team.schema";
 import { resolveMessage } from "@/lib/app-i18n/resolve-message";
 
 import type { TeamSummaryRow } from "./teams-api";

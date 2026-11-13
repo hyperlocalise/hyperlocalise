@@ -14,6 +14,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import type { GlossaryConceptRecord, GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
+import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
 
 import { createGlossaryDetailMswHandlers } from "./glossary-detail-page-content-msw-handlers";
 import { GlossaryConceptDetail } from "./glossary-concept-detail";
@@ -125,6 +126,13 @@ const meta = {
     glossaryId,
     canManageGlossaries: true,
   },
+  decorators: [
+    (Story) => (
+      <AppShellStoreProvider defaultNavigationGroups={[]}>
+        <Story />
+      </AppShellStoreProvider>
+    ),
+  ],
 } satisfies Meta<typeof NativeGlossaryDetail>;
 
 export default meta;
@@ -166,6 +174,32 @@ export const ConceptList: Story = {
     ).toBeInTheDocument();
     await expect(await canvas.findByText("Agency")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add concept" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: /^Filters/ }));
+    const filtersDialog = await canvas.findByRole("dialog", { name: "Filter concepts" });
+    await expect(within(filtersDialog).getByLabelText("Languages")).toHaveTextContent(
+      "Languages: All",
+    );
+    await expect(within(filtersDialog).getByLabelText("Last modified")).toHaveTextContent(
+      "Last modified: All",
+    );
+    await expect(within(filtersDialog).getByLabelText("Part of speech")).toHaveTextContent(
+      "Part of speech: All",
+    );
+    await expect(within(filtersDialog).getByLabelText("Type")).toHaveTextContent("Type: All");
+    await expect(within(filtersDialog).getByLabelText("Status")).toHaveTextContent("Status: All");
+    await expect(within(filtersDialog).getByLabelText("Gender")).toHaveTextContent("Gender: All");
+    await expect(within(filtersDialog).getByLabelText("Author")).toHaveTextContent("Author: All");
+    await userEvent.click(within(filtersDialog).getByLabelText("Author"));
+    await expect(await canvas.findByText("Ada Lovelace")).toBeInTheDocument();
+    await expect(await canvas.findByText("Grace Hopper")).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(within(filtersDialog).getByLabelText("Gender"));
+    await userEvent.click(await canvas.findByRole("option", { name: "Feminine" }));
+    await expect(within(filtersDialog).getByLabelText("Gender")).toHaveTextContent(
+      "Gender: Feminine",
+    );
+    await userEvent.click(within(filtersDialog).getByRole("button", { name: "Apply" }));
+    await expect(await canvas.findByRole("button", { name: /^Filters \(1\)/ })).toBeInTheDocument();
   },
 };
 

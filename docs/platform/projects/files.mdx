@@ -1,0 +1,77 @@
+---
+title: "Upload and organize source files"
+sidebarTitle: "Upload source files"
+description: "Add source content to a native project and understand upload and editor availability."
+---
+
+Upload source files to make them available for translation and review. The native project upload screen accepts up to **10 files per batch**.
+
+## Upload files
+
+1. Open **Projects**, select your project, and open **Files**.
+2. Select **Add files** and choose the source files.
+3. Review **Ready to upload**. Remove anything you selected by mistake.
+4. Select **Upload** and wait for completion.
+5. Confirm the expected file appears, then open it with a target locale.
+
+Platform supports content such as JSON, YAML, XLIFF, PO, images, and Office documents. Processing and editing capabilities vary by format. A file appearing in the list does not guarantee that it can open in the text Content Editor.
+
+The [CLI format guides](/cli/reference/formats/overview) describe CLI parsing and configuration. They are not a guarantee that every CLI format has the same Platform editor experience.
+
+## Check the upload
+
+Confirm the file path and source text before requesting translation. If this is your first upload, use the three-key [sample file](/samples/checkout.json) from [Your first translation](/platform/getting-started).
+
+If you already have a translated version of the source, use [Import existing translations](/platform/translation/import). Uploading that target file as a new source does not attach its translations to the original source file.
+
+## Keep paths stable
+
+Use a consistent source path for content you update regularly. Repository and CLI workflows should keep the same path mapping between uploads. Review [Update source content](/platform/guides/update-source-content) before replacing an existing source snapshot.
+
+## Connected TMS projects
+
+Provider-backed projects browse files from the connected TMS. Upload or organize provider-owned files in that system. For GitHub sources in a native project, configure [content sync](/platform/automation/content-sync) after connecting the repository. For Intercom Help Center articles, a [Help Center automation](/platform/connections/intercom) writes markdown sources at `intercom/{help-center-slug}/{article-title-slug}.md`. For Braze email templates, a [Braze Email Templates automation](/platform/connections/braze#braze-email-templates) writes HTML sources at `braze/templates/{template-slug}.html` and `braze/content-blocks/{block-slug}.html`. For campaigns and Canvas, a [Braze Campaigns & Canvas automation](/platform/connections/braze#braze-campaigns-and-canvas) writes JSON translation maps at `braze/campaigns/{campaign-slug}/{variation-slug}.json` and `braze/canvas/{canvas-slug}/{step-slug}/{variation-slug}.json`. For Canva, the [Hyperlocalise Canva app](/platform/connections/canva) writes one JSON source per collected page at `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`.
+
+## Import filters and placeholders
+
+On a native file’s menu, **Import filters** control which strings ingest. HTML can skip extra tags. JSON and JSONC can include or exclude key paths, copy sibling fields as context or character limits, and mark HTML or ICU values. Excel can map key, source, context, and limit columns. Saving re-reads the file.
+
+**Placeholder format** sets ICU, i18next, or auto-detect for QA and the Content Editor. Add **Custom placeholder patterns** (one regular expression per line) when the file uses extra placeholder syntax such as `[[name]]`. Import and export are not affected. See [i18next and interpolation placeholders](/platform/tutorials/i18next).
+
+## Translate through another language first
+
+Some content is translated into one language first, and into the others from that language. For example, Chinese documents go to English, and English is then the source for German and French. Use two projects:
+
+1. A project with the original language as its source and the in-between language as a target (Chinese to English).
+2. A project with the in-between language as its source and the remaining languages as targets (English to German and French).
+
+When every string of a Word or Excel file is approved in the first project, open the file's menu on **Files** and select **Use translation as source…**, then choose the second project. The approved translation is uploaded there as a source file with the same path, and that project's upload automations run as for any upload.
+
+- The action is refused while any string has no approved translation, and lists the strings that are missing. A string hidden in the editor needs an approved translation too when its original text would otherwise stay in the file.
+- The second project is offered only when its source language code is exactly one of the first project's language codes (`en-US` does not match `en`).
+- A file that was sent shows **Sent** in the file list, after its latest job status. Hover over it to see which project it went to and when; the **Use translation as source…** dialog also says when the file was last sent to the project you choose. It shows **Changed since sent** when sending again would send something else: a translation in that language was edited or set back to review, the file's **Import filters** changed, or the file was uploaded again with other content. Sending it again updates the second project. It shows **Replaced in** the second project when a file added there since replaced the one you sent; sending again then shows what that file is before replacing it. A hidden file shows **Hidden** instead. A send is not shown when you cannot open the project it went to, or when that project's source language is no longer one of this project's languages.
+- In the second project, a file whose newest version came from such a send shows **From** and the first project's name, or **From another project** when you cannot open that project. Hover over it to see when it was sent, and which version the send replaced and who uploaded it, when it replaced one that did not come from the same file. Uploading the file there by hand removes the mark. Both marks show on the `main` branch only, where sends are read and written.
+- After a fix to the translation, send the file again. It updates the same strings in the second project. If the second project's file at that path did not come from this file's last send (someone uploaded it there, another project or file sent it, or an integration added it), the dialog says what it is and who added it before you send, and the button reads **Replace in** that project. When the file there came from that project's repository sync, the dialog says so, since the sync may put its copy back the next time it runs. Set **When source text changes** to **Needs review** in both projects' settings: in the second, so that approved translations of the changed strings go back to review; in the first, so that a changed original sends its translation back to review before the file can be sent again.
+- A string the file no longer has when you send it again is hidden in the second project, not deleted, so its translations are kept. It is shown again if a later send has it. Word paragraphs and Excel cells are matched by position, so removing one from the middle of a file moves the strings after it.
+- Admins, localization managers, and developers can send a file. Both projects must be in the same workspace.
+- Sends use each project's default branch, `main`: the action is offered only on that branch, and the file goes to the second project's `main` branch. Files with the same path on other branches are left alone. If the second project's `main` branch is protected, the send is refused.
+- Scripts can send a file through the API. See [Use a translation as another project's source](/platform/api#use-a-translation-as-another-projects-source).
+- Word (`.docx`) and Excel (`.xlsx`, `.xls`) files only. In Word files, links inserted as fields, tables of contents, and comments are not strings, so they keep the original language.
+- An Excel file's **Import filters** are copied to the second project each time it is sent, replacing any saved there. An `.xls` file arrives as `.xlsx`. Context and comment columns are not strings, so they keep the original language.
+- An Excel file is not sent when the second project would not read it as the same strings. This happens when:
+  - a first-row cell, once translated, is just the name of the second project's source language, such as `English`. Reword that translation (for example `English text`) and send again;
+  - a cell in that language's column holds a formula, so the translation cannot be written there;
+  - the file's **Import filters** were saved without a source column, even with only the header row choice changed, and a sheet's first row names the first project's source language;
+  - the **Import filters** set a source column, and the header row names the first project's source language in that same column.
+- A glossary is attached by its source language, so the second project needs a glossary in the in-between language.
+
+## After upload
+
+Upload does not automatically generate translations unless a matching automation is active. [Start a translation](/platform/translation/start) or configure a [Source upload trigger](/platform/automation/create-automation).
+
+If a file is missing or cannot open, follow [Upload troubleshooting](/platform/help/uploads).
+
+## Find your format
+
+See [Platform file formats](/platform/file-formats) for upload, translation, review,
+and export capabilities. For provider-owned files, see [TMS integrations](/platform/tms).

@@ -36,6 +36,7 @@ type ClassifyConversationInput = {
   knowledgeMemoryEnabled?: boolean;
   surface: ConversationClassifierSurface;
   model: LanguageModel;
+  onUsage?: (usage: unknown) => void;
 };
 
 type CreateConversationClassifierOptions = {
@@ -117,7 +118,7 @@ export function normalizeConversationClassification(
 
 export function createConversationClassifier({ model }: CreateConversationClassifierOptions) {
   return async (input: ClassifyConversationInput): Promise<ConversationClassification> => {
-    const { output } = await generateText({
+    const { output, usage } = await generateText({
       model,
       output: Output.object({
         schema: conversationClassificationSchema,
@@ -128,6 +129,7 @@ export function createConversationClassifier({ model }: CreateConversationClassi
       temperature: 0,
     });
 
+    input.onUsage?.(usage);
     return normalizeConversationClassification(output);
   };
 }

@@ -31,21 +31,22 @@ import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
 import { DEFAULT_WORKSPACE_TEAM_NAME } from "@/lib/teams/default-workspace-team";
 
 import { createProjectTestFixture } from "./project.fixture";
-import { createTeamTestFixture } from "../team/team.fixture";
-import type { TeamResponse } from "../team/team.schema";
+import { createTeamTestFixture } from "@/lib/teams/team.fixture";
+import type { TeamResponse } from "@/lib/teams/team.schema";
 import { ok } from "@/lib/primitives/result/results";
 import type {
   ProjectFileContentEditorConcordanceResponse,
   ProjectFileContentEditorCommentResponse,
   ProjectFileContentEditorQueueResponse,
   ProjectFileContentEditorRecommendationResponse,
-  ProjectFileContentEditorResponse,
   ProjectFileContentEditorSegmentCommentsResponse,
   ProjectFileContentEditorSegmentTargetResponse,
   ProjectFileContentEditorTranslationResponse,
 } from "./project.schema";
 
 const {
+  enqueueActivityLogEventMock,
+  enqueueActivityLogEventsMock,
   getTmsProviderConnectionMock,
   getTmsProviderLiveCatFileMock,
   getTmsProviderLiveContentEditorAllFilesMock,
@@ -66,6 +67,11 @@ const {
   enqueueStringSegmentLockedActivityMock,
   enqueueStringSegmentStatusChangedActivityMock,
 } = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
+  enqueueActivityLogEventsMock: vi.fn().mockResolvedValue([]),
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
   getTmsProviderLiveContentEditorAllFilesMock: vi.fn(),
@@ -85,6 +91,11 @@ const {
   enqueueStringSegmentHiddenActivityMock: vi.fn(),
   enqueueStringSegmentLockedActivityMock: vi.fn(),
   enqueueStringSegmentStatusChangedActivityMock: vi.fn(),
+}));
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
+  enqueueActivityLogEvents: enqueueActivityLogEventsMock,
 }));
 
 vi.mock("@/lib/activity-log/file-segment-events", async (importOriginal) => {
@@ -164,8 +175,8 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 const client = testClient<AppType>(app);
-const projectFixture = createProjectTestFixture(client);
-const teamFixture = createTeamTestFixture(client);
+const projectFixture = createProjectTestFixture();
+const teamFixture = createTeamTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -471,6 +482,7 @@ describe("project file CAT routes", () => {
         sourceText: "Hello",
         displayLocale: "de-DE",
       }),
+      { deferBilling: undefined },
     );
   });
 
@@ -675,7 +687,7 @@ describe("project file CAT routes", () => {
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
-    ].files.detail.cat.$get(
+    ].files.detail.cat.queue.$get(
       {
         param: {
           organizationSlug: identity.organization.slug ?? "missing-slug",
@@ -687,8 +699,8 @@ describe("project file CAT routes", () => {
     );
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as ProjectFileContentEditorResponse;
-    expect(body.contentEditorFile.segments[0]).not.toHaveProperty("comments");
+    const body = (await response.json()) as ProjectFileContentEditorQueueResponse;
+    expect(body.contentEditorQueue.segments[0]).not.toHaveProperty("comments");
 
     const targetResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -825,32 +837,6 @@ describe("project file CAT routes", () => {
       }),
     );
 
-    trackSpy.mockClear();
-    const statusResponse = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat.translations.status.$post(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          projectId: project.id,
-        },
-        json: {
-          sourcePath,
-          targetLocale: "fr-FR",
-          externalStringId: translationKey!.id,
-          status: "approved",
-        },
-      },
-      { headers },
-    );
-    expect(statusResponse.status).toBe(200);
-    expect(trackSpy).toHaveBeenCalledWith(
-      PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorSegmentApproved,
-      {
-        source: "native",
-        status: "approved",
-      },
-    );
     trackSpy.mockRestore();
   });
 
@@ -1011,7 +997,7 @@ describe("project file CAT routes", () => {
 
     const contentEditorResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
-    ].files.detail.cat.$get(
+    ].files.detail.cat.queue.$get(
       {
         param: {
           organizationSlug: identity.organization.slug ?? "missing-slug",
@@ -1023,8 +1009,8 @@ describe("project file CAT routes", () => {
     );
     expect(contentEditorResponse.status).toBe(200);
     const contentEditorBody =
-      (await contentEditorResponse.json()) as ProjectFileContentEditorResponse;
-    expect(contentEditorBody.contentEditorFile.segments[0]).toMatchObject({
+      (await contentEditorResponse.json()) as ProjectFileContentEditorQueueResponse;
+    expect(contentEditorBody.contentEditorQueue.segments[0]).toMatchObject({
       contentKind: "image_url",
       looksLikeImageUrl: true,
     });
@@ -1095,7 +1081,7 @@ describe("project file CAT routes", () => {
 
     const contentEditorResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
-    ].files.detail.cat.$get(
+    ].files.detail.cat.queue.$get(
       {
         param: {
           organizationSlug: identity.organization.slug ?? "missing-slug",
@@ -1107,8 +1093,8 @@ describe("project file CAT routes", () => {
     );
     expect(contentEditorResponse.status).toBe(200);
     const contentEditorBody =
-      (await contentEditorResponse.json()) as ProjectFileContentEditorResponse;
-    expect(contentEditorBody.contentEditorFile.segments[0]).toMatchObject({
+      (await contentEditorResponse.json()) as ProjectFileContentEditorQueueResponse;
+    expect(contentEditorBody.contentEditorQueue.segments[0]).toMatchObject({
       contentKind: "video_url",
       looksLikeVideoUrl: true,
     });
@@ -1224,7 +1210,7 @@ describe("project file CAT routes", () => {
 
     const contentEditorResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
-    ].files.detail.cat.$get(
+    ].files.detail.cat.queue.$get(
       {
         param: {
           organizationSlug: translator.organization.slug ?? "missing-slug",
@@ -1237,8 +1223,8 @@ describe("project file CAT routes", () => {
 
     expect(contentEditorResponse.status).toBe(200);
     const contentEditorBody =
-      (await contentEditorResponse.json()) as ProjectFileContentEditorResponse;
-    expect(contentEditorBody.contentEditorFile.segments[0]).toMatchObject({
+      (await contentEditorResponse.json()) as ProjectFileContentEditorQueueResponse;
+    expect(contentEditorBody.contentEditorQueue.segments[0]).toMatchObject({
       externalStringId: "1001",
       contentKind: "image_url",
       sourceAssetUrl: "https://cdn.example.com/banner.png",
@@ -1557,80 +1543,6 @@ describe("project file CAT routes", () => {
     expect(resolveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
   });
 
-  it("returns Crowdin CAT content for an encoded provider project", async () => {
-    const translator = projectFixture.createWorkosIdentityWithRole("translator");
-    getTmsProviderConnectionMock.mockResolvedValue({
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      validationStatus: "valid",
-      validationMessage: null,
-    });
-    getTmsProviderLiveCatFileMock.mockResolvedValue({
-      sourcePath: "crowdin/home.json",
-      filename: "home.json",
-      provider: {
-        kind: "crowdin",
-        resourceType: "file",
-        externalProjectId: "42",
-        externalResourceId: "101",
-        externalUrl: null,
-        syncState: "synced",
-        sourceLocale: "en",
-        targetLocales: ["fr"],
-        localeReadiness: {},
-        revision: "1",
-        format: "json",
-        lastSyncedAt: null,
-      },
-      targetLocale: "fr",
-      canEditTranslations: true,
-      truncated: false,
-      segments: [
-        {
-          externalStringId: "1001",
-          key: "hello",
-          sourceText: "Hello",
-          context: null,
-          type: "text",
-        },
-      ],
-    });
-
-    const response = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat.$get(
-      {
-        param: {
-          organizationSlug: translator.organization.slug ?? "missing-slug",
-          projectId: "ext:crowdin:42",
-        },
-        query: { sourcePath: "crowdin/home.json", targetLocale: "fr" },
-      },
-      { headers: await projectFixture.authHeadersFor(translator) },
-    );
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as ProjectFileContentEditorResponse;
-    expect(body.contentEditorFile.segments[0]).toMatchObject({ externalStringId: "1001" });
-    expect(body.contentEditorFile.segments[0]).not.toHaveProperty("target");
-    expect(body.contentEditorFile.segments[0]).not.toHaveProperty("comments");
-    expect(getTmsProviderLiveCatFileMock).toHaveBeenCalledWith(
-      expect.any(String),
-      "42",
-      "crowdin/home.json",
-      "fr",
-      expect.objectContaining({
-        canEditTranslations: true,
-        pagination: expect.objectContaining({
-          paginated: true,
-          offset: 0,
-          limit: 50,
-          queueFilter: "all",
-        }),
-      }),
-    );
-  });
-
   it("returns CAT queue content from the split queue endpoint", async () => {
     const translator = projectFixture.createWorkosIdentityWithRole("translator");
     getTmsProviderConnectionMock.mockResolvedValue({
@@ -1732,175 +1644,6 @@ describe("project file CAT routes", () => {
         }),
       }),
     );
-  });
-
-  it("passes pagination params to the provider CAT loader", async () => {
-    const translator = projectFixture.createWorkosIdentityWithRole("translator");
-    getTmsProviderConnectionMock.mockResolvedValue({
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      validationStatus: "valid",
-      validationMessage: null,
-    });
-    getTmsProviderLiveCatFileMock.mockResolvedValue({
-      sourcePath: "crowdin/home.json",
-      filename: "home.json",
-      provider: {
-        kind: "crowdin",
-        resourceType: "file",
-        externalProjectId: "42",
-        externalResourceId: "101",
-        externalUrl: null,
-        syncState: "synced",
-        sourceLocale: "en",
-        targetLocales: ["fr"],
-        localeReadiness: {},
-        revision: "1",
-        format: "json",
-        lastSyncedAt: null,
-      },
-      targetLocale: "fr",
-      canEditTranslations: true,
-      truncated: false,
-      pagination: {
-        offset: 50,
-        limit: 25,
-        returnedCount: 1,
-        totalCount: 120,
-        hasMore: true,
-      },
-      segments: [
-        {
-          externalStringId: "1002",
-          key: "goodbye",
-          sourceText: "Goodbye",
-          context: null,
-          type: "text",
-        },
-      ],
-    });
-
-    const response = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat.$get(
-      {
-        param: {
-          organizationSlug: translator.organization.slug ?? "missing-slug",
-          projectId: "ext:crowdin:42",
-        },
-        query: {
-          sourcePath: "crowdin/home.json",
-          targetLocale: "fr",
-          offset: 50,
-          limit: 25,
-          search: "good",
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(translator) },
-    );
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as ProjectFileContentEditorResponse;
-    expect(body.contentEditorFile.pagination).toMatchObject({
-      offset: 50,
-      limit: 25,
-      hasMore: true,
-      totalCount: 120,
-    });
-    expect(getTmsProviderLiveCatFileMock).toHaveBeenCalledWith(
-      expect.any(String),
-      "42",
-      "crowdin/home.json",
-      "fr",
-      expect.objectContaining({
-        canEditTranslations: true,
-        pagination: expect.objectContaining({
-          paginated: true,
-          offset: 50,
-          limit: 25,
-          search: "good",
-        }),
-      }),
-    );
-  });
-
-  it("returns project_not_found when the provider file is missing", async () => {
-    const translator = projectFixture.createWorkosIdentityWithRole("translator");
-    getTmsProviderConnectionMock.mockResolvedValue({
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      validationStatus: "valid",
-      validationMessage: null,
-    });
-    getTmsProviderLiveCatFileMock.mockResolvedValue(null);
-
-    const response = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat.$get(
-      {
-        param: {
-          organizationSlug: translator.organization.slug ?? "missing-slug",
-          projectId: "ext:crowdin:42",
-        },
-        query: { sourcePath: "missing.json", targetLocale: "fr" },
-      },
-      { headers: await projectFixture.authHeadersFor(translator) },
-    );
-
-    expect(response.status).toBe(404);
-    expect(await response.json()).toMatchObject({ error: "project_not_found" });
-  });
-
-  it("returns provider_cat_unsupported for unsupported providers", async () => {
-    const translator = projectFixture.createWorkosIdentityWithRole("translator");
-    getTmsProviderConnectionMock.mockResolvedValue({
-      providerKind: "phrase",
-      displayName: "Phrase",
-      validationStatus: "valid",
-      validationMessage: null,
-    });
-    getTmsProviderLiveCatFileMock.mockRejectedValue(
-      new TmsProviderLiveError(
-        "provider_cat_unsupported",
-        "CAT editing is not available for this provider file yet.",
-      ),
-    );
-
-    const response = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat.$get(
-      {
-        param: {
-          organizationSlug: translator.organization.slug ?? "missing-slug",
-          projectId: "ext:phrase:42",
-        },
-        query: { sourcePath: "phrase/home.json", targetLocale: "fr" },
-      },
-      { headers: await projectFixture.authHeadersFor(translator) },
-    );
-
-    expect(response.status).toBe(501);
-    expect(await response.json()).toMatchObject({ error: "provider_cat_unsupported" });
-  });
-
-  it("rejects invalid CAT query payloads", async () => {
-    const translator = projectFixture.createWorkosIdentityWithRole("translator");
-
-    const response = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat.$get(
-      {
-        param: {
-          organizationSlug: translator.organization.slug ?? "missing-slug",
-          projectId: "ext:crowdin:42",
-        },
-        query: { sourcePath: "crowdin/home.json", targetLocale: "" },
-      },
-      { headers: await projectFixture.authHeadersFor(translator) },
-    );
-
-    expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({ error: "invalid_project_payload" });
   });
 
   it("saves Crowdin CAT translations for users with write-back permission", async () => {
@@ -2280,6 +2023,26 @@ describe("project file CAT routes", () => {
     expect(
       remainingBody.contentEditorQueue.segments.map((segment) => segment.externalStringId),
     ).toEqual([farewell!.id]);
+
+    const notHiddenQueue = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR", queueFilter: "not_hidden" },
+      },
+      { headers },
+    );
+    const notHiddenBody = (await notHiddenQueue.json()) as ProjectFileContentEditorQueueResponse;
+    expect(
+      notHiddenBody.contentEditorQueue.segments.map((segment) => segment.externalStringId),
+    ).toEqual([greeting!.id]);
+    expect(notHiddenBody.contentEditorQueue.segments.every((segment) => !segment.isHidden)).toBe(
+      true,
+    );
   });
 
   it("hides Crowdin CAT strings for users with write-back permission", async () => {
@@ -2515,6 +2278,38 @@ describe("project file CAT routes", () => {
     );
     expect(greetingSegment?.isLocked).toBeUndefined();
     expect(farewellSegment?.isLocked).toBe(true);
+
+    enqueueStringSegmentLockedActivityMock.mockClear();
+    const mixedUnlock = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [greeting!.id, farewell!.id],
+          isLocked: false,
+        },
+      },
+      { headers },
+    );
+    expect(mixedUnlock.status).toBe(200);
+    expect(await mixedUnlock.json()).toEqual({
+      contentEditorSegmentLock: { updatedCount: 1, isLocked: false },
+    });
+    expect(enqueueStringSegmentLockedActivityMock).toHaveBeenCalledTimes(1);
+    expect(enqueueStringSegmentLockedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isLocked: false,
+        itemCount: 1,
+        segmentId: farewell!.id,
+        segmentIds: [farewell!.id],
+      }),
+    );
   });
 
   it("locks Crowdin CAT segments without calling the provider hide API", async () => {
@@ -2773,80 +2568,6 @@ describe("project file CAT routes", () => {
     expect(await response.json()).toMatchObject({ error: "project_not_found" });
   });
 
-  it("rejects native translation status updates when the segment is locked", async () => {
-    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-    const sourcePath = "locales/en.json";
-    const sourceFile = await ensureRepositorySourceFile({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourcePath,
-    });
-
-    const { imported } = await upsertProjectTranslationKeysFromEntries({
-      organizationId: organization.id,
-      projectId: project.id,
-      repositorySourceFileId: sourceFile.id,
-      entries: [{ key: "greeting", text: "Hello", context: null }],
-    });
-    expect(imported).toBe(1);
-
-    const [translationKey] = await db
-      .select({ id: schema.projectTranslationKeys.id })
-      .from(schema.projectTranslationKeys)
-      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
-      .limit(1);
-    expect(translationKey).toBeDefined();
-
-    await db.insert(schema.projectTranslations).values({
-      organizationId: organization.id,
-      projectId: project.id,
-      translationKeyId: translationKey!.id,
-      targetLocale: "fr-FR",
-      text: "Bonjour",
-      status: "draft",
-    });
-
-    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat.strings.locked.$post(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          projectId: project.id,
-        },
-        json: {
-          sourcePath,
-          targetLocale: "fr-FR",
-          externalStringIds: [translationKey!.id],
-          isLocked: true,
-        },
-      },
-      { headers },
-    );
-    expect(lockResponse.status).toBe(200);
-
-    const statusResponse = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat.translations.status.$post(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          projectId: project.id,
-        },
-        json: {
-          sourcePath,
-          targetLocale: "fr-FR",
-          externalStringId: translationKey!.id,
-          status: "approved",
-        },
-      },
-      { headers },
-    );
-    expect(statusResponse.status).toBe(409);
-    expect(await statusResponse.json()).toMatchObject({ error: "translation_locked" });
-  });
-
   it("rejects image status updates when locked via the image: alias id", async () => {
     const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
@@ -3071,18 +2792,12 @@ describe("project file CAT routes", () => {
         ),
       );
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "CAT Alpha Project",
-          teamId: alphaTeam.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: adminHeaders },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "CAT Alpha Project",
+      teamId: alphaTeam.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
     expect(projectResponse.status).toBe(201);
     const project = ((await projectResponse.json()) as { project: { id: string } }).project;
     const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
@@ -3144,18 +2859,12 @@ describe("project file CAT routes", () => {
     expect(teamResponse.status).toBe(201);
     const team = ((await teamResponse.json()) as TeamResponse).team;
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "CAT Glossary Project",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: adminHeaders },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "CAT Glossary Project",
+      teamId: team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
     expect(projectResponse.status).toBe(201);
     const project = ((await projectResponse.json()) as { project: { id: string } }).project;
     const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
@@ -3219,92 +2928,5 @@ describe("project file CAT routes", () => {
     ]);
     expect(body.contentEditorQueue.projectTeamId).toBe(team.id);
     expect(body.contentEditorQueue.canContributeTeamGlossary).toBe(true);
-  });
-
-  it("lists file and string activity for the current source path", async () => {
-    const { identity, project, organization, user } =
-      await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-
-    await db.insert(schema.organizationActivityEvents).values([
-      {
-        actorKind: "user",
-        actorUserId: user.id,
-        eventType: "file_uploaded",
-        organizationId: organization.id,
-        payload: {
-          fileName: "en.json",
-          name: "en.json",
-          projectId: project.id,
-          sourcePath: "locales/en.json",
-        },
-        targetId: `${project.id}:locales/en.json`,
-        targetKind: "file",
-      },
-      {
-        actorKind: "user",
-        actorUserId: user.id,
-        eventType: "file_uploaded",
-        organizationId: organization.id,
-        payload: {
-          fileName: "de.json",
-          name: "de.json",
-          projectId: project.id,
-          sourcePath: "locales/de.json",
-        },
-        targetId: `${project.id}:locales/de.json`,
-        targetKind: "file",
-      },
-    ]);
-
-    const response = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat["activity-logs"].$get(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          projectId: project.id,
-        },
-        query: { sourcePath: "locales/en.json", limit: "50" },
-      },
-      { headers },
-    );
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      activityLogs: Array<{ eventType: string; target: { displayName: string | null } }>;
-      actors?: unknown;
-    };
-    expect(body.activityLogs).toHaveLength(1);
-    expect(body.activityLogs[0]).toMatchObject({
-      eventType: "file_uploaded",
-      target: { displayName: "en.json" },
-    });
-    expect(body.actors).toBeUndefined();
-  });
-
-  it("rejects provider activity logs when the live project is not accessible", async () => {
-    const translator = projectFixture.createWorkosIdentityWithRole("translator");
-    getTmsProviderConnectionMock.mockResolvedValue({
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      validationStatus: "valid",
-      validationMessage: null,
-    });
-
-    const response = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat["activity-logs"].$get(
-      {
-        param: {
-          organizationSlug: translator.organization.slug ?? "missing-slug",
-          projectId: "ext:crowdin:999",
-        },
-        query: { sourcePath: "locales/en.json", limit: "50" },
-      },
-      { headers: await projectFixture.authHeadersFor(translator) },
-    );
-
-    expect(response.status).toBe(404);
   });
 });

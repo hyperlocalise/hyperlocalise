@@ -14,7 +14,7 @@ import "server-only";
 import { and, eq, asc } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
-import { runVisualWorkflowInterpreter } from "./interpreter";
+import { runVisualWorkflowV3Interpreter } from "./interpreter-v3";
 import { executeVisualWorkflowNode } from "./execute-node";
 import { createMockWorkflowExecutor } from "./mock-executor";
 import {
@@ -25,15 +25,43 @@ import {
 import { redactWorkflowSnapshot, collectWorkflowSecrets } from "./snapshots";
 import { resolveSelectedNodeCredentials } from "./resolve-node-credentials";
 import { upsertVisualWorkflowNodeRun } from "../visual-workflow-runs";
-import type { VisualWorkflowDefinition } from "../schema/types";
+import type { VisualWorkflowV3Definition } from "../schema/types";
 import type { VisualWorkflowRunRecord } from "../visual-workflow-run-types";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 import { WORKFLOW_LIMITS } from "./limits";
+import {
+  buildVisualWorkflowNodeIdempotencyKey,
+  collectRetryBodyNodeIds,
+  collectRetryBodyNodeIdsForRetryNode,
+  findRetryNodeForBodyNodeId,
+  isRepeatableVisualWorkflowAction,
+  shouldReuseCompletedNodeRun,
+} from "../validation/retry-idempotency";
+import { isLogicRetryConfig } from "../schema/retry-policy";
+import { parseRetryResumeState } from "./retry-delay";
+import { parseWaitResumeState } from "./wait-schedule";
+import { parseMergeResumeState } from "./merge-timeout";
+import { resolveActiveWaitConditionProbeNodeIds } from "./wait-condition-probes";
+import { createSerialAsyncQueue } from "./serial-async-queue";
+import {
+  shouldReuseDurableExecution,
+  shouldReuseTryCatchBodyFailure,
+} from "./durable-execution-reuse";
+import {
+  computeTryCatchBodyNodeIdsFromV3Edges,
+  computeTryCatchCatchNodeIdsFromV3Edges,
+  computeTryCatchSuccessNodeIdsFromV3Edges,
+} from "../editor/for-each-body-membership";
+import { executeSubworkflowNode } from "./execute-subworkflow-node";
+import { shouldStopAutomaticNodeRetry } from "./subworkflow-resume";
+import { executeHumanApprovalNode } from "./execute-human-approval-node";
+
 const logger = createLogger("visual-workflow-node");
+
 export async function executeDurableWorkflowSlice(input: {
   run: VisualWorkflowRunRecord;
   leaseToken: string;
-  definition: VisualWorkflowDefinition;
+  definition: VisualWorkflowV3Definition;
   payload: Record<string, unknown>;
   organizationId: string;
 }) {
@@ -48,16 +76,62 @@ export async function executeDurableWorkflowSlice(input: {
     )
     .orderBy(asc(schema.visualWorkflowNodeRuns.attempt));
   const key = (id: string, iteration = -1) => JSON.stringify([id, iteration]);
-  const completed = new Map(
-    records
-      .filter(
-        (record) =>
-          record.encryptedOutput && ["succeeded", "handled_error"].includes(record.status),
-      )
-      .map((record) => [
-        key(record.nodeId, record.iteration),
-        decryptWorkflowPayload(record.encryptedOutput!) as VisualWorkflowNodeExecutionResult,
+  const retryBodyNodeIds = collectRetryBodyNodeIds(input.definition);
+  // Catch and Success failures may be held while Finally suspends. Reuse those
+  // persisted failures on the next slice so the action is not executed again
+  // and the original terminal result is not lost.
+  const reusableTryCatchFailureNodeIds = new Set(
+    input.definition.nodes
+      .filter((node) => node.type === "logic.try_catch")
+      .flatMap((node) => [
+        ...computeTryCatchBodyNodeIdsFromV3Edges(node.id, input.definition.edges),
+        ...computeTryCatchCatchNodeIdsFromV3Edges(node.id, input.definition.edges),
+        ...computeTryCatchSuccessNodeIdsFromV3Edges(node.id, input.definition.edges),
       ]),
+  );
+  const retryBackoff = parseRetryResumeState(input.payload.retryBackoff);
+  const waitResume = parseWaitResumeState(input.payload.waitResume);
+  const mergeResume = parseMergeResumeState(input.payload.mergeResume);
+  const waitConditionProbeNodeIds = resolveActiveWaitConditionProbeNodeIds({
+    definition: input.definition,
+    waitResume,
+    nodeRuns: records,
+  });
+  const resumeAttempt = retryBackoff?.nextAttempt ?? null;
+  const resumedRetryBodyNodeIds =
+    retryBackoff != null
+      ? collectRetryBodyNodeIdsForRetryNode(input.definition, retryBackoff.retryNodeId)
+      : new Set<string>();
+  const completed = new Map(
+    records.flatMap((record) => {
+      if (
+        !record.encryptedOutput ||
+        waitConditionProbeNodeIds.has(record.nodeId) ||
+        !["succeeded", "handled_error", "failed"].includes(record.status) ||
+        !shouldReuseCompletedNodeRun({
+          nodeId: record.nodeId,
+          retryRegionAttempt: record.iteration,
+          resumedRetryBodyNodeIds,
+          resumeAttempt,
+        })
+      ) {
+        return [];
+      }
+
+      const execution = decryptWorkflowPayload(
+        record.encryptedOutput,
+      ) as VisualWorkflowNodeExecutionResult;
+      if (
+        !shouldReuseDurableExecution(record.status, execution) &&
+        !(
+          reusableTryCatchFailureNodeIds.has(record.nodeId) &&
+          shouldReuseTryCatchBodyFailure(record.status, execution)
+        )
+      )
+        return [];
+
+      return [[key(record.nodeId, record.iteration), execution] as const];
+    }),
   );
   const pending = new Map<string, VisualWorkflowNodeExecutionResult>();
   const inputs = new Map<string, Record<string, unknown>>();
@@ -69,7 +143,13 @@ export async function executeDurableWorkflowSlice(input: {
   let externalExecuted = false;
   const mock = createMockWorkflowExecutor(
     (input.payload.mockOutputs as Record<string, Record<string, unknown>>) ?? {},
+    (input.payload.mockFailures as Record<string, { code?: string; message?: string }>) ?? {},
   );
+  // A test run calls out only for the steps it lists; every other step uses its test data.
+  const realTestNodeIds = new Set(
+    Array.isArray(input.payload.realNodeIds) ? (input.payload.realNodeIds as string[]) : [],
+  );
+  const runsForReal = (nodeId: string) => input.run.mode !== "mock" || realTestNodeIds.has(nodeId);
   const controller = new AbortController();
   const isCancelled = async () => {
     const [run] = await db
@@ -86,8 +166,28 @@ export async function executeDurableWorkflowSlice(input: {
   const timer = setInterval(() => {
     void isCancelled().catch(() => controller.abort());
   }, 1000);
+  const renewLease = async () => {
+    const [renewed] = await db
+      .update(schema.visualWorkflowRuns)
+      .set({ leaseExpiresAt: new Date(Date.now() + WORKFLOW_LIMITS.leaseMs) })
+      .where(
+        and(
+          eq(schema.visualWorkflowRuns.id, input.run.id),
+          eq(schema.visualWorkflowRuns.leaseToken, input.leaseToken),
+          eq(schema.visualWorkflowRuns.status, "running"),
+        ),
+      )
+      .returning({ id: schema.visualWorkflowRuns.id });
+    if (!renewed) controller.abort();
+  };
+  const leaseRenewals = createSerialAsyncQueue();
+  const leaseTimer = setInterval(() => {
+    leaseRenewals.enqueue(renewLease, (error: unknown) =>
+      logger.warn({ error, runId: input.run.id }, "visual workflow lease renewal failed"),
+    );
+  }, WORKFLOW_LIMITS.leaseRenewIntervalMs);
   try {
-    const result = await runVisualWorkflowInterpreter({
+    const result = await runVisualWorkflowV3Interpreter({
       definition: input.definition,
       organizationId: input.organizationId,
       triggerInput: {
@@ -99,19 +199,57 @@ export async function executeDurableWorkflowSlice(input: {
               ![
                 "definitionSnapshot",
                 "mockOutputs",
+                "mockFailures",
+                "realNodeIds",
                 "triggeredAt",
                 "executionPlanVersion",
+                "retryBackoff",
+                "waitResume",
+                "mergeResume",
+                "subworkflowResume",
+                "subworkflowPausedMs",
               ].includes(name),
           ),
         ),
       },
       signal: controller.signal,
       shouldCancel: isCancelled,
+      mockMode: input.run.mode === "mock",
+      retryBackoff: retryBackoff ?? null,
+      waitResume,
+      mergeResume,
       executeNode: async (args) => {
         const id = key(args.node.id, args.iteration);
-        const isExternal = args.node.type.startsWith("action.") || args.node.type === "ai.agent";
-        if (args.node.type !== "logic.for_each" && completed.has(id)) return completed.get(id)!;
-        if (isExternal && externalExecuted)
+        const isExternal =
+          args.node.type.startsWith("action.") ||
+          args.node.type === "ai.agent" ||
+          args.node.type === "flow.call_workflow" ||
+          args.node.type === "flow.human_approval";
+        // Condition probes must all refresh in the same slice before the wait
+        // re-evaluates; they must not consume the single post-wait external slot.
+        const isWaitConditionProbe = waitConditionProbeNodeIds.has(args.node.id);
+        if (
+          args.node.type !== "logic.for_each" &&
+          args.node.type !== "logic.array_transform" &&
+          args.node.type !== "logic.retry" &&
+          completed.has(id)
+        )
+          return completed.get(id)!;
+        // Wait / Merge nodes are scheduled by the interpreter; the durable layer
+        // only supplies cached completions from prior slices.
+        if (args.node.type === "flow.wait" || args.node.type === "logic.merge") {
+          return {
+            ok: false,
+            error: {
+              code: args.node.type === "flow.wait" ? "wait_evaluate" : "merge_evaluate",
+              message:
+                args.node.type === "flow.wait"
+                  ? "Wait schedule must be evaluated by the interpreter."
+                  : "Merge settlement must be evaluated by the interpreter.",
+            },
+          };
+        }
+        if (isExternal && externalExecuted && !isWaitConditionProbe)
           return {
             ok: false,
             error: { code: "yield_execution", message: "Continue in the next durable step." },
@@ -120,9 +258,13 @@ export async function executeDurableWorkflowSlice(input: {
           .filter((record) => key(record.nodeId, record.iteration) === id)
           .at(-1);
         const safe =
-          args.node.config.kind === "action.http" &&
-          (args.node.config.method === "GET" || Boolean(args.node.config.idempotencyHeader));
-        if (isExternal && previous?.status === "running" && input.run.mode !== "mock" && !safe)
+          args.node.config.kind === "flow.call_workflow" ||
+          args.node.config.kind === "flow.human_approval" ||
+          isRepeatableVisualWorkflowAction(args.node.type) ||
+          (args.node.config.kind === "action.http" &&
+            (args.node.config.method === "GET" || Boolean(args.node.config.idempotencyHeader)));
+        const real = runsForReal(args.node.id);
+        if (isExternal && previous?.status === "running" && real && !safe)
           return {
             ok: false,
             error: {
@@ -131,9 +273,9 @@ export async function executeDurableWorkflowSlice(input: {
                 "The previous action outcome is unknown. Inspect the provider before retrying.",
             },
           };
-        if (isExternal) externalExecuted = true;
+        if (isExternal && !isWaitConditionProbe) externalExecuted = true;
         let config = { ...args.node.config } as Record<string, unknown>;
-        if (input.run.mode !== "mock") {
+        if (real) {
           const resolvedSecrets = await resolveSelectedNodeCredentials({
             organizationId: input.organizationId,
             node: args.node,
@@ -147,22 +289,45 @@ export async function executeDurableWorkflowSlice(input: {
           secrets.push(...resolvedSecrets.value.secrets);
         }
         inputs.set(id, { config });
+        const inRetryBody = retryBodyNodeIds.has(args.node.id);
         const resolved = {
           ...args,
           node: { ...args.node, config: config as typeof args.node.config },
           inputsResolved: true,
-          idempotencyKey: `${input.run.id}/${args.node.id}/${args.iteration ?? -1}`,
+          visualWorkflowId: input.run.visualWorkflowId,
+          visualWorkflowRunId: input.run.id,
+          idempotencyKey: buildVisualWorkflowNodeIdempotencyKey({
+            runId: input.run.id,
+            nodeId: args.node.id,
+            iteration: args.iteration,
+            inRetryBody,
+            node: args.node,
+          }),
         };
-        const firstAttempt = (previous?.attempt ?? 0) + 1;
+        const resumesSameAttempt =
+          previous?.error?.code === "yield_execution" ||
+          (args.node.config.kind === "flow.human_approval" && previous?.status === "running");
+
+        const firstAttempt = resumesSameAttempt
+          ? (previous?.attempt ?? 1)
+          : (previous?.attempt ?? 0) + 1;
         const currentAttempts = records.filter(
           (record) =>
             key(record.nodeId, record.iteration) === id &&
             (!input.run.startedAt || record.createdAt.getTime() >= Date.parse(input.run.startedAt)),
         ).length;
+        const retryParent = findRetryNodeForBodyNodeId(input.definition, args.node.id);
+        const duplicateRiskAcknowledged =
+          inRetryBody &&
+          retryParent?.config.kind === "logic.retry" &&
+          isLogicRetryConfig(retryParent.config) &&
+          retryParent.config.acknowledgeDuplicateRisk;
         const maxAttempts =
-          safe && input.run.mode !== "mock"
-            ? Math.max(0, WORKFLOW_LIMITS.attempts - currentAttempts)
-            : 1;
+          inRetryBody || !real
+            ? 1
+            : safe
+              ? Math.max(0, WORKFLOW_LIMITS.attempts - currentAttempts)
+              : 1;
         let execution: VisualWorkflowNodeExecutionResult = {
           ok: false,
           error: { message: "Execution did not start." },
@@ -170,8 +335,10 @@ export async function executeDurableWorkflowSlice(input: {
         for (let offset = 0; offset < maxAttempts; offset++) {
           const attempt = firstAttempt + offset;
           attempts.set(id, attempt);
-          if (isExternal)
-            await upsertVisualWorkflowNodeRun({
+          let runningNodeRunId: string | null = null;
+
+          if (isExternal) {
+            const runningNodeRun = await upsertVisualWorkflowNodeRun({
               leaseToken: input.leaseToken,
               runId: input.run.id,
               organizationId: input.organizationId,
@@ -180,26 +347,67 @@ export async function executeDurableWorkflowSlice(input: {
               iteration: args.iteration,
               attempt,
               status: "running",
-              inputSnapshot: redactWorkflowSnapshot({ config }, secrets) as Record<string, unknown>,
+              inputSnapshot:
+                resolved.node.config.kind === "flow.human_approval"
+                  ? {
+                      config: {
+                        ...config,
+                        prompt: "[redacted]",
+                        ...(config.artifactReference ? { artifactReference: "[redacted]" } : {}),
+                        ...(config.jobReference ? { jobReference: "[redacted]" } : {}),
+                      },
+                    }
+                  : (redactWorkflowSnapshot({ config }, secrets) as Record<string, unknown>),
               startedAt: new Date(),
             });
+
+            runningNodeRunId = runningNodeRun.id;
+          }
           try {
-            execution =
-              input.run.mode === "mock"
-                ? await mock(resolved)
-                : await executeVisualWorkflowNode(resolved);
+            execution = !real
+              ? await mock(resolved)
+              : resolved.node.config.kind === "flow.human_approval"
+                ? runningNodeRunId
+                  ? await executeHumanApprovalNode({
+                      node: resolved.node,
+                      organizationId: input.organizationId,
+                      runId: input.run.id,
+                      nodeRunId: runningNodeRunId,
+                      visualWorkflowId: input.run.visualWorkflowId,
+                    })
+                  : {
+                      ok: false,
+                      error: {
+                        code: "approval_node_run_missing",
+                        message: "The Human Approval node run was not created.",
+                      },
+                    }
+                : resolved.node.config.kind === "flow.call_workflow"
+                  ? await executeSubworkflowNode({
+                      node: resolved.node,
+                      organizationId: input.organizationId,
+                      parentRunId: input.run.id,
+                      traceId: input.run.traceId,
+                      iteration: args.iteration,
+                      attempt,
+                    })
+                  : await executeVisualWorkflowNode(resolved);
           } catch {
             execution = {
               ok: false,
               error: {
-                code: isExternal && !safe ? "needs_attention" : "node_execution_failed",
+                code:
+                  isExternal && !safe && !duplicateRiskAcknowledged
+                    ? "needs_attention"
+                    : "node_execution_failed",
                 message: "Execution failed. Check the action configuration and provider.",
               },
             };
           }
           if (controller.signal.aborted)
             return { ok: false, error: { code: "cancelled", message: "Run cancelled." } };
-          if (execution.ok || offset === maxAttempts - 1) break;
+          if (execution.ok) break;
+          if (shouldStopAutomaticNodeRetry({ execution, offset, maxAttempts })) break;
           await upsertVisualWorkflowNodeRun({
             leaseToken: input.leaseToken,
             runId: input.run.id,
@@ -217,8 +425,9 @@ export async function executeDurableWorkflowSlice(input: {
         if (
           !execution.ok &&
           !safe &&
-          input.run.mode !== "mock" &&
-          ["http_request_failed", "slack_send_failed", "email_send_failed"].includes(
+          !duplicateRiskAcknowledged &&
+          real &&
+          ["http_request_failed", "slack_send_failed", "email_send_failed", "http_error"].includes(
             execution.error.code ?? "",
           )
         )
@@ -245,12 +454,27 @@ export async function executeDurableWorkflowSlice(input: {
       },
       onNodeUpdate: async (update) => {
         const id = key(update.nodeId, update.iteration);
-        if (completed.has(id) && update.nodeType !== "logic.for_each") return;
+        if (
+          completed.has(id) &&
+          update.nodeType !== "logic.for_each" &&
+          update.nodeType !== "logic.array_transform" &&
+          update.nodeType !== "logic.retry"
+        )
+          return;
         if (update.status === "running") {
           inputs.set(id, update.inputSnapshot ?? {});
           return;
         }
         const execution = pending.get(id);
+        const interpreterExecution =
+          (update.nodeType === "flow.wait" ||
+            update.nodeType === "logic.merge" ||
+            update.nodeType === "logic.try_catch") &&
+          update.status === "succeeded" &&
+          update.outputSnapshot
+            ? ({ ok: true, output: update.outputSnapshot } as VisualWorkflowNodeExecutionResult)
+            : null;
+        const recorded = interpreterExecution ?? execution;
         await upsertVisualWorkflowNodeRun({
           leaseToken: input.leaseToken,
           runId: input.run.id,
@@ -272,7 +496,7 @@ export async function executeDurableWorkflowSlice(input: {
             string,
             unknown
           > | null,
-          encryptedOutput: execution ? encryptWorkflowPayload(execution) : undefined,
+          encryptedOutput: recorded ? encryptWorkflowPayload(recorded) : undefined,
           finishedAt: new Date(),
         });
       },
@@ -288,8 +512,18 @@ export async function executeDurableWorkflowSlice(input: {
         nodeResults,
         error: redactWorkflowSnapshot(result.error, secrets) as typeof result.error,
       };
-    return { ...result, nodeResults };
+    return {
+      ...result,
+      nodeResults,
+      ...(result.terminal
+        ? {
+            terminal: redactWorkflowSnapshot(result.terminal, secrets) as typeof result.terminal,
+          }
+        : {}),
+    };
   } finally {
     clearInterval(timer);
+    clearInterval(leaseTimer);
+    await leaseRenewals.drain();
   }
 }

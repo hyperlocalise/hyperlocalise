@@ -40,8 +40,8 @@ export function createWorkosIdentityWithRole(
     },
     organization: {
       workosOrganizationId: `org_${suffix}`,
-      name: `Example Org ${suffix}`,
-      slug: `example-org-${suffix}`,
+      name: `Acme Org ${suffix}`,
+      slug: `acme-org-${suffix}`,
     },
     membership: {
       workosMembershipId: `membership_${suffix}`,

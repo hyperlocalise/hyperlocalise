@@ -67,7 +67,7 @@ function PickerStory({
 }
 
 const meta = {
-  title: "App/Issues/Column Icon Picker",
+  title: "App/Queries/Column Icon Picker",
   component: PickerStory,
   parameters: {
     layout: "centered",

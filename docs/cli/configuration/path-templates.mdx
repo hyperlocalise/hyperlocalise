@@ -69,3 +69,46 @@ Before running:
 1. confirm `from` resolves for source locale,
 2. confirm `to` can be created for each target locale,
 3. run `hyperlocalise run --dry-run` to inspect planned tasks.
+
+## Cloud path aliases
+
+Use `cloud_path` when a file's path in Hyperlocalise Cloud differs from its local
+path. For example, you can move files within your repository or share a config
+across several apps while keeping existing Cloud paths and translations.
+
+```yaml
+buckets:
+    web:
+        files:
+            - from: apps/web/locales/en.json
+              to: apps/web/locales/{{target}}.json
+              cloud_path: locales/en.json
+    guides:
+        files:
+            - from: content/guides/en/**/*.md
+              to: content/guides/{{target}}/**/*.md
+              cloud_path: guides/en/**/*.md
+```
+
+In the web mapping, `sync push` reads `apps/web/locales/en.json` and uploads it as
+`locales/en.json`. For a French target, `sync pull` retrieves the translation for
+that Cloud path and writes it to `apps/web/locales/fr.json`.
+
+Recursive aliases preserve nested folders. The guides mapping uploads
+`content/guides/en/setup/install.md` as `guides/en/setup/install.md`.
+
+To reuse existing translations, keep the same Cloud project and set `cloud_path`
+to the file's exact existing source path. Changed source content still follows
+your project's normal translation workflow. If you omit `cloud_path`, sync uses
+the local source path relative to the config directory.
+
+Cloud path aliases follow these rules:
+
+- Use a relative path with forward slashes and no empty, `.` or `..` segments.
+- Use `{{source}}` for the source locale; target locale placeholders are not supported.
+- Keep the source file extension and the same glob suffix as `from`.
+- Give distinct local files distinct Cloud paths. Sync rejects collisions before sending requests.
+
+The `from` and `to` paths remain relative to your config directory. `cloud_path`
+only affects Cloud sync; local `run`, `check`, `status`, and `pack` commands keep
+using the local paths.

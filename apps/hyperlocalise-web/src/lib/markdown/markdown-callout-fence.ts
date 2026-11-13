@@ -1,0 +1,33 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+
+/** Intercom `:::callout` / closing `:::` fences are markup, not translatable copy. */
+export function isMarkdownCalloutFenceText(value: string | null | undefined): boolean {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const trimmed = value.trim();
+  return trimmed === ":::" || trimmed.startsWith(":::callout");
+}
+
+export function isMarkdownTranslationKey(key: string | null | undefined): boolean {
+  return typeof key === "string" && (key.startsWith("md.") || key.startsWith("frontmatter/"));
+}
+
+export function isMarkdownCalloutFenceEntry(
+  key: string | null | undefined,
+  text: string | null | undefined,
+): boolean {
+  return isMarkdownTranslationKey(key) && isMarkdownCalloutFenceText(text);
+}

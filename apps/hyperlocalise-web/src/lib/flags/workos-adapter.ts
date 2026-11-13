@@ -81,3 +81,37 @@ export function workosAdapter<ValueType, EntitiesType>(): Adapter<ValueType, Ent
 
   return defaultWorkosAdapter<ValueType, EntitiesType>();
 }
+
+/**
+ * Waits for this instance's first download of WorkOS feature flags. Once it resolves, a flag check
+ * answers from downloaded WorkOS data rather than from the `false` the adapter returns while
+ * nothing has been downloaded, so background work can tell "off" from "not known yet". Rejects
+ * when the flags cannot be downloaded within `timeoutMs`. Resolves to `false` when WorkOS flags
+ * are not configured, where every flag reads as off.
+ */
+export async function waitForWorkosFeatureFlags(options: { timeoutMs: number }): Promise<boolean> {
+  if (!isWorkosFeatureFlagsEnabled()) {
+    return false;
+  }
+
+  await getFeatureFlagsRuntimeClient().waitUntilReady({ timeoutMs: options.timeoutMs });
+  return true;
+}
+
+/**
+ * Checks one flag straight from the WorkOS client, for background work that must tell "off" from
+ * "could not check": unlike the adapter, which answers false on any error, it lets a failure
+ * through. Call it only after `waitForWorkosFeatureFlags` resolved to `true`; it does not wait.
+ */
+export async function readWorkosFeatureFlag(
+  key: string,
+  entities: WorkosFlagEntities,
+): Promise<boolean> {
+  const enabled = await Promise.resolve(
+    getFeatureFlagsRuntimeClient().isEnabled(key, {
+      organizationId: entities.organization?.id,
+      userId: entities.user?.id,
+    }),
+  );
+  return enabled === true;
+}

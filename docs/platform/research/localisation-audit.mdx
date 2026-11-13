@@ -1,0 +1,143 @@
+---
+title: "About the localisation audit"
+description: "What the free localisation audit checks, how it scores your site, and how to read the report."
+---
+
+The localisation audit is a free health check for multilingual websites. Enter a URL, and Hyperlocalise reads a sample of your public pages. It returns a score from 0 to 100, a list of checks that passed or failed, and the fixes to make first.
+
+It works like Google Lighthouse. Each check measures one thing, has a weight, and either passes or fails. The score is built only from checks that can be measured the same way every time.
+
+Run an audit at [hyperlocalise.com/localisation-audit](https://hyperlocalise.com/localisation-audit). You do not need an account.
+
+## What the audit reads
+
+The audit renders up to **15 public pages** in a real Chromium browser, so sites that render with JavaScript are visible. It starts at your homepage and follows:
+
+- hreflang alternate links
+- links to locale roots, such as `/de/` or `fr.example.com`
+- high-value navigation targets, such as pricing and product pages
+- localized URLs listed in your sitemap
+
+It also reads `robots.txt` and your XML sitemaps.
+
+Each page is measured at a desktop width of 1440px and a mobile width of 390px. That lets the audit catch text that gets clipped or layouts that overflow once a translation is longer than the source.
+
+The audit only reads public pages. It never signs in or fills in forms.
+
+### Focus languages
+
+You can name up to two languages in **Languages to look at (optional)**, such as `French, German`. The audit seeds those locale roots, like `/fr/`, so they are more likely to be sampled.
+
+Focus languages do not count as locales your site supports. Only locales the audit actually finds on your pages count toward the score.
+
+## The four dimensions
+
+Checks are grouped into four dimensions. Each dimension gets its own score.
+
+| Dimension | Question it answers |
+| --- | --- |
+| Technical | Can people and search engines find the right version of each page? Covers hreflang, routing, canonicals, sitemaps, and `html lang`. |
+| Linguistic | Is every page fully translated, and are key labels used consistently? |
+| Contextual | Do prices, phone numbers, buttons, and examples make sense in each market? |
+| Visual | Do layouts, fonts, and scripts hold up when the text gets longer or changes direction? |
+
+See [localisation audit checks](/platform/research/localisation-audit-checks) for every check, its weight, and how it is measured.
+
+## How the score works
+
+### Each check passes, fails, or does not apply
+
+| Status | Check score | Meaning |
+| --- | --- | --- |
+| Pass | 90–100 | Nothing to fix. |
+| Worth a look | 75–89 | Close to passing. |
+| Fail | Below 75 | Fix this. |
+| Not applicable | — | The audit found nothing to measure. |
+
+A check is **not applicable** when your pages give it nothing to measure. For example, RTL support only applies when the audit finds right-to-left pages, such as Arabic, Hebrew, Persian, or Urdu, and canonical checks only apply when pages declare a canonical. Not applicable checks are left out of the score. They never count as 0 or 100.
+
+### Page-level checks score the share of pages that pass
+
+Most checks look at each sampled page. Their score is the share of inspected pages that pass. If 8 of 10 localized pages have a correct `html lang`, the locale detection check scores 80.
+
+This keeps scores comparable between a site where the audit sampled 6 pages and a site where it sampled 15.
+
+### Weights
+
+Each check has a weight from 1 to 5. Checks with a bigger effect on visitors and search engines weigh more. For example, translation completeness weighs 5, hreflang weighs 3, and structured data weighs 1.
+
+- A **dimension score** is the weighted average of the scored checks in that dimension.
+- The **overall score** is the weighted average of every scored check, across all dimensions.
+
+### AI-assessed checks do not affect the score
+
+Some qualities, such as fluency, translation accuracy, and brand voice, need a language model to judge. The audit runs those reviews and shows them under **AI-assessed, not scored**.
+
+They are left out of the score because a model can give a slightly different answer each time. Treat them as pointers to pages worth a human review.
+
+A few checks are hybrid. They are measured when the evidence allows it, such as an untranslated button that is identical to the source. When the evidence is ambiguous, the check falls back to an AI review, which is shown but not scored.
+
+### Locale coverage
+
+The overall score is multiplied by a coverage factor based on how many locales the audit found on your site:
+
+| Locales found | Factor |
+| --- | --- |
+| 0 | 0.55 |
+| 1 | 0.72 |
+| 2 | 0.86 |
+| 3 | 0.94 |
+| 4 or more | 1.00 |
+
+This stops a single-language site with no localisation problems from outranking a site that serves many markets. When the factor applies, the report says how much it reduced the score.
+
+### Score bands
+
+| Overall score | Rating |
+| --- | --- |
+| 90–100 | Excellent |
+| 75–89 | Good |
+| 50–74 | Needs improvement |
+| 25–49 | Poor |
+| 0–24 | Critical |
+
+## Read the report
+
+The report page has these sections:
+
+- **Score and dimensions:** the overall score, rating, and four dimension scores. Each check shows its weight.
+- **Fix first:** the highest-severity findings from scored checks. Start here.
+- **Audit criteria:** checks grouped into **Needs attention**, **Worth a look**, **Passed audits**, **AI-assessed, not scored**, and **Not applicable**. Failing checks list their findings with the page, the HTML element, evidence, and a suggested fix.
+- **Other findings:** findings that are not tied to a failing check.
+- **Detected locales:** every locale the audit detected, and where it found it: hreflang, `html lang`, URL path prefix, or subdomain.
+- **Pages sampled:** the pages the audit read, with their `html lang` and HTTP status.
+
+## Public reports and the leaderboard
+
+Reports are public and can be indexed by search engines. The landing page shows a leaderboard of public scores, and each report shows where the site ranks.
+
+The scoring method has a version number. Reports scored with an earlier method rank after current ones, and the report shows a note that it uses an earlier method. Standings only compare reports scored the same way. Run the audit again to get a current score.
+
+You can email yourself a summary from the report page. Your email address is never shown on the report or the leaderboard.
+
+## Limits and re-runs
+
+- Each site gets one free audit. A completed report can be refreshed once every 24 hours.
+- There is a daily limit across all sites. If it is reached, try again the next day.
+- The audit is a sample, not a full crawl. A page that was not sampled is not checked.
+
+To audit more of your site in your workspace, [claim the domain](/platform/research/audit-to-domain-tutorial) and verify it.
+
+## When the audit cannot finish
+
+If your homepage returns an error, a bot challenge, or a login wall, the audit stops and the report says the site was blocked. Allow this user agent through your firewall, CDN, or bot protection for public pages, then run it again:
+
+```text
+HyperlocaliseAuditBot/1.0 (+https://hyperlocalise.com)
+```
+
+If some secondary pages are blocked but the homepage loads, the audit skips those pages and scores the rest.
+
+<Note>
+The audit flags problems that are likely to affect visitors and search engines. It does not guarantee rankings, and a passing score is not a full linguistic review. Use the AI-assessed checks and your own reviewers for translation quality.
+</Note>

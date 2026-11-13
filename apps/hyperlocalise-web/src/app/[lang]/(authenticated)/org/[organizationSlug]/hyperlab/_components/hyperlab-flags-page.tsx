@@ -21,11 +21,13 @@ import { TypographyP } from "@/components/ui/typography";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabFlag,
 } from "./hyperlab-api";
+import { HyperlabWorkspaceProvider } from "../store/hyperlab-workspace-context";
+
 import { HyperlabCreateFlagDialog } from "./hyperlab-create-dialogs";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
 import {
@@ -44,8 +46,22 @@ export function HyperlabFlagsPage({
   organizationSlug: string;
   canWrite: boolean;
 }) {
+  return (
+    <HyperlabWorkspaceProvider>
+      <HyperlabFlagsPageView organizationSlug={organizationSlug} canWrite={canWrite} />
+    </HyperlabWorkspaceProvider>
+  );
+}
+
+function HyperlabFlagsPageView({
+  organizationSlug,
+  canWrite,
+}: {
+  organizationSlug: string;
+  canWrite: boolean;
+}) {
   const intl = useIntl();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const flagsQuery = useQuery({
     queryKey: hyperlabQueryKeys.flags(organizationSlug),
     queryFn: async () => {
@@ -63,11 +79,7 @@ export function HyperlabFlagsPage({
   ) : null;
 
   return (
-    <HyperlabPageShell
-      title={intl.formatMessage(messages.flagsTitle)}
-      description={intl.formatMessage(messages.flagsDescription)}
-      actions={createAction}
-    >
+    <HyperlabPageShell title={intl.formatMessage(messages.flagsTitle)} actions={createAction}>
       {flagsQuery.isError ? (
         <HyperlabLoadError error={flagsQuery.error} onRetry={() => void flagsQuery.refetch()} />
       ) : null}

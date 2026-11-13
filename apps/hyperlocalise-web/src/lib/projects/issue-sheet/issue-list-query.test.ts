@@ -79,6 +79,14 @@ describe("buildIssueListFilterConditions", () => {
     ).toEqual([inArray(schema.issueSheetIssues.status, ["open", "in_progress"])]);
   });
 
+  it("filters QA issues by check type metadata", () => {
+    const conditions = buildIssueListFilterConditions({
+      actorUserId,
+      query: { qaCheckType: "placeholder_mismatch", status: "all" },
+    });
+    expect(conditions).toHaveLength(1);
+  });
+
   it("combines project, locale, and assignee filters with translationKeyId", () => {
     const projectId = "project_docs";
     const translationKeyId = "22222222-2222-4222-8222-222222222222";

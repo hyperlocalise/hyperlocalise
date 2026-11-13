@@ -10,6 +10,7 @@ var (
 	icuMessagePattern = regexp.MustCompile(`\{[A-Za-z_][A-Za-z0-9_]*\s*,\s*(plural|select|selectordinal)\b`)
 	icuPlaceholder    = regexp.MustCompile(`\{[A-Za-z_][A-Za-z0-9_]*\}`)
 	printfPattern     = regexp.MustCompile(`%(?:\d+\$)?[-+#0 ]*\d*(?:\.\d+)?[sdifFeEgGxXucpo@]`)
+	qtPlaceholder     = regexp.MustCompile(`%(?:L?(?:\d+|n))`)
 	fluentVarPattern  = regexp.MustCompile(`\{\s*\$[A-Za-z_][A-Za-z0-9_]*`)
 )
 
@@ -29,6 +30,7 @@ func FormatSupports(path, parserMode string) bool {
 		strings.HasSuffix(normalized, ".pot"),
 		strings.HasSuffix(normalized, ".srt"),
 		strings.HasSuffix(normalized, ".vtt"),
+		strings.HasSuffix(normalized, ".sbv"),
 		strings.HasSuffix(normalized, ".xcstrings"),
 		strings.HasSuffix(normalized, ".stringsdict"):
 		return false
@@ -56,6 +58,9 @@ func ShouldSkipValue(text, parserMode string) bool {
 		return true
 	}
 	if printfPattern.MatchString(trimmed) {
+		return true
+	}
+	if qtPlaceholder.MatchString(trimmed) {
 		return true
 	}
 	return false

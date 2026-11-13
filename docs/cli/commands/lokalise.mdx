@@ -1,9 +1,59 @@
 ---
-title: "lokalise"
-description: "Lokalise file workflow commands using project flags and API credentials."
+title: "Lokalise CLI workflows with Hyperlocalise"
+sidebarTitle: "Lokalise"
+description: "Upload sources and translations, wait for imports, and download Lokalise locales with Hyperlocalise. Compare supported workflows with the official lokalise2 CLI."
 ---
 
-## Usage
+Use `hyperlocalise lokalise` to upload locale files, wait for queued imports, and
+download translations from a Lokalise project. Keep these operations alongside
+local AI translation and other TMS workflows in the [all-in-one localization CLI](/cli).
+
+## Start with a Lokalise upload and download
+
+[Install Hyperlocalise](/cli/getting-started/install), set `LOKALISE_API_TOKEN`
+in your shell or CI secret manager, and use a project with English and French
+locales. Create `locales/en.json` with your source strings. Replace
+`your-project-id` with the ID from Lokalise:
+
+```bash
+hyperlocalise lokalise locales list --project-id your-project-id
+hyperlocalise lokalise upload sources \
+    --project-id your-project-id --source-locale en \
+    --file ./locales/en.json --format json --poll --poll-timeout 10m
+# Complete the French translations in Lokalise before downloading.
+hyperlocalise lokalise download translations \
+    --project-id your-project-id --target-locale fr \
+    --format json --output ./locales/fr.json
+```
+
+Use the locale codes returned by `locales list`. The upload waits for processing;
+it does not wait for human translation. The download writes the exported French
+file. Review it before committing; use `--force` only when you intend to replace
+an existing output file. For existing translated files, follow
+[upload translations and wait for processing](/cli/guides/lokalise-translation-import).
+
+## Hyperlocalise vs the official Lokalise CLI
+
+Hyperlocalise is a Lokalise CLI alternative for the documented file workflows.
+It uses `upload sources` and `download translations` instead of the official
+`lokalise2 file upload` and `file download` syntax. You must adapt flags and
+credentials when moving scripts.
+
+| Task | Official lokalise2 | Hyperlocalise |
+| --- | --- | --- |
+| List languages | `language list` | `lokalise locales list` |
+| List files | `file list` | `lokalise files list` |
+| Upload files | `file upload` with language flags | `lokalise upload sources` or `upload translations` |
+| Wait for an upload | `file upload --poll` | Add `--poll --poll-timeout 10m` to an upload |
+| Download files | `file download` | `lokalise download sources` or `download translations` |
+| Full workspace/API operations | Use official commands for supported objects | Limited to the operations documented here |
+
+Prefix commands in the last column with `hyperlocalise`. Existing Lokalise CLI
+config files are not read. See the [official lokalise2 documentation](https://github.com/lokalise/lokalise-cli-2-go)
+when your workflow needs broader API coverage.
+
+
+## Command reference
 
 ```bash
 hyperlocalise lokalise locales list [--config <path>] [--project-id <id>] [--branch <name>] [--output text|json]
@@ -21,7 +71,7 @@ These commands are flag-only. Hyperlocalise does not read a Lokalise YAML config
 
 These commands talk to the Lokalise API v2 file, language, queued-process, and glossary endpoints.
 
-They are separate from Hyperlocalise native `i18n.yml` and `sync push` / `sync pull` workflows. Use native sync when you want Hyperlocalise-managed entry sync through the [Lokalise adapter](/cli/storage/lokalise). Use this surface when you want flag-driven file upload and download against a Lokalise project.
+They are separate from Hyperlocalise native `i18n.yml` and `sync push` / `sync pull` workflows. Use shared TMS sync when you want Hyperlocalise-managed entry sync through the [Lokalise adapter](/cli/storage/lokalise). Use this surface when you want flag-driven file upload and download against a Lokalise project.
 
 Use them for:
 
@@ -114,3 +164,10 @@ hyperlocalise lokalise download translations \
   --target-locale fr \
   --output ./locales/fr.json
 ```
+
+## Related workflows
+
+- [One CLI for your TMS workflows](/cli/storage/overview)
+- [Local AI translation](/cli/workflows/local-generation)
+- [Localization file formats](/cli/reference/formats/overview)
+- [Hyperlocalise Platform integration with Lokalise](https://www.hyperlocalise.com/en/integrations/lokalise)

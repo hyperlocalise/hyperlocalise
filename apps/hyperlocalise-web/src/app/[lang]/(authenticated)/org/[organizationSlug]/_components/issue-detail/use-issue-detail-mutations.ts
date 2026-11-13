@@ -17,8 +17,8 @@ import { useRef } from "react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
 import { type IssueDetailIssue, isIssueDetailIssue } from "./issue-detail-utils";
@@ -72,16 +72,20 @@ export function useIssueDetailMutations({
   issueId,
   actorUserId,
   onSaved,
+  onDeleted,
 }: {
   organizationSlug: string;
   projectId: string;
   issueId: string;
   actorUserId?: string;
   onSaved?: () => void;
+  onDeleted?: () => void;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const requestFailed = intl.formatMessage(messages.updateFailed);
+  const deleteFailed = intl.formatMessage(messages.deleteFailed);
   const updateAbortControllersRef = useRef<Set<AbortController>>(new Set());
   const setValueAbortControllersRef = useRef<Set<AbortController>>(new Set());
 
@@ -129,24 +133,22 @@ export function useIssueDetailMutations({
       const controller = new AbortController();
       trackAbortController(updateAbortControllersRef.current, controller);
       try {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-          "issue-sheet"
-        ][":issueId"].$patch(
-          {
-            param: { organizationSlug, projectId, issueId },
-            json: patch,
-          } as never,
-          { init: { signal: controller.signal } },
+        const payload = await goSvcClient.issueSheet.update(
+          organizationSlug,
+          projectId,
+          issueId,
+          patch,
+          { signal: controller.signal },
         );
-        if (response.status !== 200) {
-          const error = await readApiResponseError(response, requestFailed);
-          throw new Error(error.message || requestFailed);
-        }
-        const payload = await response.json();
         if (!isIssueDetailIssue(payload.issue)) {
           throw new Error(requestFailed);
         }
         return { issue: payload.issue };
+      } catch (error) {
+        if (isAbortError(error)) {
+          throw error;
+        }
+        throw new Error(goSvcErrorMessage(error, requestFailed), { cause: error });
       } finally {
         releaseAbortController(updateAbortControllersRef.current, controller);
       }
@@ -174,20 +176,18 @@ export function useIssueDetailMutations({
       const controller = new AbortController();
       trackAbortController(setValueAbortControllersRef.current, controller);
       try {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-          "issue-sheet"
-        ][":issueId"].values.$patch(
-          {
-            param: { organizationSlug, projectId, issueId },
-            json: { columnKey, value },
-          } as never,
-          { init: { signal: controller.signal } },
+        return await goSvcClient.issueSheet.setValue(
+          organizationSlug,
+          projectId,
+          issueId,
+          { columnKey, value },
+          { signal: controller.signal },
         );
-        if (response.status !== 200) {
-          const error = await readApiResponseError(response, requestFailed);
-          throw new Error(error.message || requestFailed);
+      } catch (error) {
+        if (isAbortError(error)) {
+          throw error;
         }
-        return response.json();
+        throw new Error(goSvcErrorMessage(error, requestFailed), { cause: error });
       } finally {
         releaseAbortController(setValueAbortControllersRef.current, controller);
       }
@@ -198,6 +198,38 @@ export function useIssueDetailMutations({
         return;
       }
       toast.error(error instanceof Error ? error.message : requestFailed);
+    },
+  });
+
+  const deleteIssue = useMutation({
+    mutationFn: async () => {
+      try {
+        await goSvcClient.issueSheet.delete(organizationSlug, projectId, issueId);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, deleteFailed));
+      }
+    },
+    onSuccess: async () => {
+      queryClient.removeQueries({
+        queryKey: issueDetailQueryKey(organizationSlug, projectId, issueId),
+      });
+      queryClient.removeQueries({
+        queryKey: ["organization-issue", organizationSlug, issueId],
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["issue-sheet", organizationSlug, projectId] }),
+        queryClient.invalidateQueries({ queryKey: ["organization-issues", organizationSlug] }),
+        queryClient.invalidateQueries({ queryKey: ["issue-notifications", organizationSlug] }),
+        queryClient.invalidateQueries({
+          queryKey: ["issue-notifications-unread-count", organizationSlug],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["issue-notification", organizationSlug] }),
+      ]);
+      toast.success(intl.formatMessage(messages.deleted));
+      onDeleted?.();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : deleteFailed);
     },
   });
 
@@ -214,5 +246,5 @@ export function useIssueDetailMutations({
     setValue.reset();
   };
 
-  return { updateIssue, setValue, cancelPending };
+  return { updateIssue, setValue, deleteIssue, cancelPending };
 }

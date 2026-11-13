@@ -13,36 +13,72 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { buildPricingFaqJsonLd, getPricingFaqItems } from "./pricing-faq-content";
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
+import { llmProviderContentEditoralog } from "@/lib/providers/shared/catalog";
+import { curatedOpenAiNativeModels } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
+
+import { PRICING_IRIS_MODELS } from "./pricing-iris-models";
 import {
   getPricingAiFeatures,
   getPricingMatrixSections,
+  getPricingModelsSectionContent,
   getPricingPlans,
   pricingPlanOrder,
 } from "./pricing-page-content";
 
 describe("pricing page content", () => {
-  it("exposes four plans with coming-soon CTAs except Enterprise demo", () => {
+  it("exposes four plans with signup CTAs except Enterprise demo", () => {
     const plans = getPricingPlans("en");
 
     expect(plans.map((plan) => plan.id)).toEqual([...pricingPlanOrder]);
-    expect(plans.find((plan) => plan.id === "free")?.features).toEqual([
-      "2 integrations",
-      "1 project",
-      "1 seat",
-    ]);
+    expect(plans.find((plan) => plan.id === "free")?.features).toEqual(["1 project", "1 seat"]);
+    expect(plans.find((plan) => plan.id === "free")?.cardHeading).toBe("Free Plan: Free");
+    expect(plans.find((plan) => plan.id === "starter")?.cardHeading).toBe("Starter: $20 per month");
+    expect(plans.find((plan) => plan.id === "growth")?.cardHeading).toBe(
+      "Growth Plan: $2,000 per month",
+    );
+    expect(plans.find((plan) => plan.id === "enterprise")?.cardHeading).toBe("Enterprise: Custom");
     expect(plans.find((plan) => plan.id === "starter")?.price).toBe("$20");
     expect(plans.find((plan) => plan.id === "growth")?.price).toBe("$2,000");
     expect(plans.find((plan) => plan.id === "growth")?.popular).toBe(true);
-    expect(plans.find((plan) => plan.id === "growth")?.features).toEqual([
-      "2,000 agent runs per month",
-      "2,000 AI tokens per month",
-      "20 agent automations",
-      "5 integrations",
-      "Unlimited seats",
-      "Unlimited translation jobs",
-      "AI features",
+    expect(plans.find((plan) => plan.id === "free")?.badge).toBe("Auto-enable");
+    expect(plans.find((plan) => plan.id === "free")?.price).toBe("Free");
+    expect(plans.find((plan) => plan.id === "starter")?.features).toEqual([
+      "2 integrations",
+      "Unlimited projects",
+      "5 seats",
+      "AI Feature",
+      "Queries Board",
+      "$20 per month AI credit",
+      "20 guideline checks per week",
+      "Guidelines",
     ]);
-    expect(plans.filter((plan) => plan.cta.kind === "coming_soon")).toHaveLength(3);
+    expect(plans.find((plan) => plan.id === "growth")?.features).toEqual([
+      "20 automations",
+      "5 integrations",
+      "Unlimited projects",
+      "Unlimited seats",
+      "2,000 agent runs per month",
+      "Unlimited translation jobs",
+      "AI Feature",
+      "Automation Workflow",
+      "Queries Board",
+      "$2,000 per month AI credit",
+      "2,000 guideline checks per week",
+      "Guidelines",
+    ]);
+    expect(plans.find((plan) => plan.id === "free")?.cta).toEqual({
+      kind: "signup",
+      label: "Start for free",
+    });
+    expect(plans.find((plan) => plan.id === "starter")?.cta).toEqual({
+      kind: "signup",
+      label: "Get started",
+    });
+    expect(plans.find((plan) => plan.id === "growth")?.cta).toEqual({
+      kind: "signup",
+      label: "Get started",
+    });
     expect(plans.find((plan) => plan.id === "enterprise")?.cta).toEqual({
       kind: "demo",
       label: "Contact Sales",
@@ -54,12 +90,97 @@ describe("pricing page content", () => {
     const rows = sections.flatMap((section) => section.rows);
 
     expect(sections.length).toBeGreaterThan(0);
-    expect(rows.find((row) => row.id === "automations")?.label).toBe("Agent Automations");
+    expect(rows.find((row) => row.id === "automations")?.label).toBe("Automations");
+    expect(rows.find((row) => row.id === "ai-tokens")?.label).toBe("AI credit / month");
+    expect(rows.find((row) => row.id === "ai-tokens")?.cells.starter).toEqual({
+      kind: "text",
+      value: "$20",
+    });
+    expect(rows.find((row) => row.id === "ai-tokens")?.cells.growth).toEqual({
+      kind: "text",
+      value: "$2,000",
+    });
+    expect(rows.find((row) => row.id === "ai-tokens")?.detail).toContain("monthly AI credit");
+    expect(rows.find((row) => row.id === "ai-token-overage")).toBeUndefined();
+    expect(rows.find((row) => row.id === "ai-features")?.cells.starter).toEqual({ kind: "check" });
+    const queriesSection = sections.find((section) => section.id === "queries-automation");
+    expect(queriesSection?.title).toBe("Queries & automation");
+    expect(queriesSection?.rows.find((row) => row.id === "queries-board")?.detail).toContain(
+      "localization questions",
+    );
+    expect(queriesSection?.rows.find((row) => row.id === "automation-workflow")?.detail).toContain(
+      "deterministic",
+    );
     for (const row of rows) {
       for (const planId of pricingPlanOrder) {
         expect(row.cells[planId]).toBeTruthy();
       }
     }
+  });
+
+  it("describes included models and BYOK providers in plain language", () => {
+    const section = getPricingModelsSectionContent("en");
+    const catalog = section.models;
+
+    expect(section.heading).toBe("Models your team can use");
+    expect(section.footnote).toContain("AI Engine");
+    expect(catalog[0]?.name).toBe("GPT-6 Luna");
+    expect(catalog[0]?.highlight).toBe("Workspace default");
+    expect(catalog[0]?.story).toContain("monthly AI credit");
+
+    const includedOpenAi = catalog
+      .filter((model) => model.providerId === "openai" && model.job === "write")
+      .map((model) => model.modelId);
+    expect(new Set(includedOpenAi)).toEqual(
+      new Set(curatedOpenAiNativeModels.map((slug) => `openai/${slug}`)),
+    );
+    expect(includedOpenAi).toContain(`openai/${hyperlocaliseAgentModelId}`);
+
+    const irisModels = catalog.filter((model) => model.surface === "iris");
+    expect(irisModels.map((model) => model.modelId)).toEqual(
+      expect.arrayContaining(PRICING_IRIS_MODELS.map((model) => model.id)),
+    );
+    expect(irisModels).toHaveLength(PRICING_IRIS_MODELS.length);
+    expect(irisModels.every((model) => model.access === "included")).toBe(true);
+    expect(irisModels.every((model) => model.summary.length > 0)).toBe(true);
+    expect(catalog.find((model) => model.modelId === "elevenlabs-dubbing")?.job).toBe("speak");
+    expect(catalog.find((model) => model.modelId === "elevenlabs-music")?.job).toBe("sound");
+    expect(catalog.find((model) => model.modelId === "universal-3.5-pro")?.job).toBe("listen");
+    expect(catalog.find((model) => model.modelId === "fish-audio-s2.1-pro")?.job).toBe("speak");
+    expect(catalog.find((model) => model.modelId === "fish-audio-transcribe-1")?.job).toBe(
+      "listen",
+    );
+    expect(section.jobs.map((job) => job.id)).toContain("sound");
+    expect(
+      new Set(
+        catalog.filter((model) => model.providerId === "anthropic").map((model) => model.modelId),
+      ),
+    ).toEqual(new Set(llmProviderContentEditoralog.anthropic.models));
+    expect(
+      new Set(
+        catalog
+          .filter((model) => model.providerId === "gemini" && model.access === "byok")
+          .map((model) => model.modelId),
+      ),
+    ).toEqual(new Set(llmProviderContentEditoralog.gemini.models));
+    expect(catalog.find((model) => model.modelId === "claude-sonnet-5")?.billingLabel).toBe(
+      "Your account",
+    );
+    expect(catalog.filter((model) => model.recommended).map((model) => model.name)).toEqual([
+      "GPT-6 Luna",
+      "Claude Sonnet 5",
+      "Nano Banana 2.1",
+      "GPT Image 2.6 Sunburst",
+      "Image Localise",
+      "Veo 3.1",
+      "Kling 3.0",
+      "Seedance 2.5",
+      "Sync Lipsync 2",
+      "ElevenLabs v4",
+      "ElevenLabs Dubbing",
+      "ElevenLabs Music",
+      "Universal 3.5 Pro",
+    ]);
   });
 
   it("lists eight AI feature capabilities", () => {

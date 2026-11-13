@@ -44,14 +44,14 @@ import {
 } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import type { ProjectResponse } from "@/api/routes/project/project.schema";
-import { createTeamTestFixture } from "@/api/routes/team/team.fixture";
-import type { TeamResponse } from "@/api/routes/team/team.schema";
+import { createTeamTestFixture } from "@/lib/teams/team.fixture";
+import type { TeamResponse } from "@/lib/teams/team.schema";
 import { db, schema } from "@/lib/database/client";
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const client = testClient<AppType>(createApp({ fileStorageAdapter }));
-const projectFixture = createProjectTestFixture(client);
-const teamFixture = createTeamTestFixture(client);
+const projectFixture = createProjectTestFixture();
+const teamFixture = createTeamTestFixture();
 const {
   authHeadersFor,
   createWorkosIdentityWithRole,
@@ -102,18 +102,12 @@ describe("public API team-scoped access", () => {
     expect(teamBetaResponse.status).toBe(201);
     const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
 
-    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "Beta Project",
-          teamId: teamBetaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await authHeadersFor(admin) },
-    );
+    const betaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Beta Project",
+      teamId: teamBetaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
     expect(betaProjectResponse.status).toBe(201);
     const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
 
@@ -161,18 +155,12 @@ describe("public API team-scoped access", () => {
     expect(teamBetaResponse.status).toBe(201);
     const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
 
-    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "Beta Jobs Project",
-          teamId: teamBetaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await authHeadersFor(admin) },
-    );
+    const betaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Beta Jobs Project",
+      teamId: teamBetaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
     expect(betaProjectResponse.status).toBe(201);
     const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
 

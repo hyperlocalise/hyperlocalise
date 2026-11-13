@@ -1,0 +1,1 @@
+ALTER TABLE "workspace_automations" ADD COLUMN "skill_ids" jsonb DEFAULT '[]'::jsonb NOT NULL;

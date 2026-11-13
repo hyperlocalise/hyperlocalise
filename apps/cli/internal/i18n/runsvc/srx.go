@@ -115,10 +115,12 @@ func joinSRXStagedEntries(doc *srx.Document, sourcePath, parserMode, sourceLocal
 		}
 
 		translations := make([]string, len(spans))
+		haveSpan := make([]bool, len(spans))
 		haveStaged := false
 		for index := range spans {
 			if value, ok := staged[srx.SpanKey(fileKey, index)]; ok {
 				translations[index] = value
+				haveSpan[index] = true
 				haveStaged = true
 			}
 		}
@@ -133,11 +135,29 @@ func joinSRXStagedEntries(doc *srx.Document, sourcePath, parserMode, sourceLocal
 			existingSpans := doc.Segment(existingValue, firstNonEmptyLocale(targetLocale, sourceLocale))
 			if len(existingSpans) == len(spans) {
 				for index := range translations {
-					if translations[index] == "" {
+					if !haveSpan[index] {
 						translations[index] = existingSpans[index].Text
+						haveSpan[index] = true
 					}
 				}
 			}
+		}
+
+		complete := true
+		for _, ok := range haveSpan {
+			if !ok {
+				complete = false
+				break
+			}
+		}
+		if !complete {
+			// Never substitute source text for missing spans — that writes
+			// mixed-language values into target files (e.g. after MaxTranslations
+			// cuts between sibling spans). Keep the prior target value when present.
+			if existingValue, ok := existing[fileKey]; ok {
+				joined[fileKey] = existingValue
+			}
+			continue
 		}
 		joined[fileKey] = srx.Join(spans, translations)
 	}

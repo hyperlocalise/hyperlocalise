@@ -123,6 +123,92 @@ func TestParseJSONEntriesLenientIgnoresNonStringLeaves(t *testing.T) {
 	}
 }
 
+func TestSetExistingLiteralKeyUpdatesFlatDottedKeysInPlace(t *testing.T) {
+	payload := map[string]any{
+		"figma.k.A": "Branding by",
+		"figma.k.B": "Let's Talk",
+	}
+	setNestedValue(payload, "figma.k.A", "Thương hiệu bởi")
+	setNestedValue(payload, "figma.k.B", "Hãy trò chuyện")
+	if _, hasNested := payload["figma"]; hasNested {
+		t.Fatalf("expected no nested figma object, got %#v", payload["figma"])
+	}
+	if got := payload["figma.k.A"]; got != "Thương hiệu bởi" {
+		t.Fatalf("figma.k.A mismatch: %v", got)
+	}
+	if got := payload["figma.k.B"]; got != "Hãy trò chuyện" {
+		t.Fatalf("figma.k.B mismatch: %v", got)
+	}
+}
+
+func TestMarshalJSONTargetUpdatesFlatDottedKeysInPlace(t *testing.T) {
+	template := []byte(`{"figma.k.A":"Branding by","figma.k.B":"Let's Talk"}`)
+	content, err := marshalJSONTarget("/tmp/figma-vi.json", template, map[string]string{
+		"figma.k.A": "Thương hiệu bởi",
+		"figma.k.B": "Hãy trò chuyện",
+	}, nil)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if _, hasNested := payload["figma"]; hasNested {
+		t.Fatalf("expected flat keys only, got nested figma: %#v", payload["figma"])
+	}
+	if got := payload["figma.k.A"]; got != "Thương hiệu bởi" {
+		t.Fatalf("figma.k.A mismatch: %v", got)
+	}
+}
+
+func TestSetExistingLiteralKeyPrefersFlatLiteralOverNestedCollision(t *testing.T) {
+	payload := map[string]any{
+		"home.title": "flat",
+		"home": map[string]any{
+			"title": "nested",
+		},
+	}
+	setNestedValue(payload, "home.title", "updated")
+	if got := payload["home.title"]; got != "updated" {
+		t.Fatalf("literal home.title mismatch: %v", got)
+	}
+	home := payload["home"].(map[string]any)
+	if got := home["title"]; got != "nested" {
+		t.Fatalf("nested home.title should stay unchanged, got %v", got)
+	}
+}
+
+func TestSetExistingLiteralKeySkipsNonStringLiteralThenUpdatesNested(t *testing.T) {
+	payload := map[string]any{
+		"home.title": 12,
+		"home": map[string]any{
+			"title": "nested",
+		},
+	}
+	setNestedValue(payload, "home.title", "updated")
+	if got := payload["home.title"]; got != 12 {
+		t.Fatalf("non-string literal should stay, got %v", got)
+	}
+	home := payload["home"].(map[string]any)
+	if got := home["title"]; got != "updated" {
+		t.Fatalf("nested home.title mismatch: %v", got)
+	}
+}
+
+func TestSetExistingLiteralKeyUpdatesMixedDottedKeys(t *testing.T) {
+	payload := map[string]any{
+		"figma": map[string]any{
+			"k.A": "Branding by",
+		},
+	}
+	setNestedValue(payload, "figma.k.A", "Thương hiệu bởi")
+	figma := payload["figma"].(map[string]any)
+	if got := figma["k.A"]; got != "Thương hiệu bởi" {
+		t.Fatalf("figma.k.A mismatch: %v", got)
+	}
+}
+
 func TestSetNestedValueCreatesAndReplacesIntermediateNodes(t *testing.T) {
 	payload := map[string]any{"a": "not-an-object"}
 	setNestedValue(payload, "a.b.c", "value")
@@ -152,6 +238,31 @@ func TestMarshalJSONTargetWithFallback(t *testing.T) {
 	}
 	if !strings.Contains(string(content), `"hello": "Bonjour"`) {
 		t.Fatalf("expected translated value in fallback content: %s", content)
+	}
+}
+
+func TestMarshalJSONTargetWithFallbackLottieUsesSourceTemplate(t *testing.T) {
+	source := `{"v":"5.7.4","fr":30,"ip":0,"op":60,"layers":[{"ty":5,"nm":"Title","t":{"d":{"k":[{"s":{"t":"Hello","s":36},"t":0}]}},"ks":{"o":{"k":80}}}]}`
+	staleTarget := `{"v":"5.7.4","fr":30,"ip":0,"op":60,"layers":[{"ty":5,"nm":"Title","t":{"d":{"k":[{"s":{"t":"Bonjour","s":36},"t":0}]}},"ks":{"o":{"k":100}}}]}`
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/fr/intro.json":
+			return []byte(staleTarget), nil
+		case "/tmp/en/intro.json":
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, err := svc.marshalJSONTargetWithFallback("/tmp/fr/intro.json", "/tmp/en/intro.json", map[string]string{"layers[0].t.d.k[0].s.t": "Salut"}, nil)
+	if err != nil {
+		t.Fatalf("marshal lottie target: %v", err)
+	}
+	want := strings.Replace(source, `"t":"Hello"`, `"t":"Salut"`, 1)
+	if string(content) != want {
+		t.Fatalf("lottie target mismatch:\n got %s\nwant %s", content, want)
 	}
 }
 

@@ -18,7 +18,16 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+
 import { IssueRelationshipPicker } from "./issue-relationship-picker";
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: new GoSvcClient({ getAccessToken: () => "access-token" }),
+    loading: false,
+  }),
+}));
 
 function renderPicker() {
   const queryClient = new QueryClient({

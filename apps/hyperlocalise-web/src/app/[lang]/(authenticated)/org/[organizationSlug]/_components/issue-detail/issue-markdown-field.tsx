@@ -17,6 +17,8 @@ import { useState } from "react";
 import { MarkdownEditor, MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { cn } from "@/lib/primitives/cn";
 
+import { issueContentFieldClassName } from "./issue-property-control";
+
 export function IssueMarkdownField({
   value,
   onChange,
@@ -51,6 +53,7 @@ export function IssueMarkdownField({
         placeholder={placeholder}
         ariaLabel={ariaLabel}
         chrome="minimal"
+        className={issueContentFieldClassName}
         imageUpload={imageUpload}
       />
     );
@@ -59,7 +62,8 @@ export function IssueMarkdownField({
   return (
     <div
       className={cn(
-        "cursor-text rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
+        issueContentFieldClassName,
+        "cursor-text outline-none",
         disabled && "cursor-not-allowed opacity-60",
       )}
       tabIndex={disabled ? -1 : 0}

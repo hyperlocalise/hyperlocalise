@@ -149,6 +149,51 @@ describe("image URL translation approved locks", () => {
     });
   });
 
+  it("does not replace the translation when the request is aborted during generation", async () => {
+    const { key, organization, project } = await createApprovedImageUrlTranslationFixture();
+    fetchImageBytesFromUrl.mockResolvedValue({
+      ok: true,
+      value: {
+        content: Buffer.from("source-image"),
+        contentType: "image/png",
+        filename: "hero.png",
+      },
+    });
+    const abort = new AbortController();
+    regenerateImageFromAttachment.mockImplementation(async () => {
+      abort.abort();
+      return { image: Buffer.from("localized-image"), mimeType: "image/png" };
+    });
+
+    const result = await localizeImageUrlTranslation({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: key.id,
+      targetLocale: "fr-FR",
+      sourceLocale: "en-US",
+      origin: "https://app.example.com",
+      force: true,
+      signal: abort.signal,
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) {
+      throw new Error("expected aborted generation to be discarded");
+    }
+    expect(result.error).toEqual({ code: "aborted" });
+    expect(fetchImageBytesFromUrl).toHaveBeenCalledWith(key.sourceText, {
+      signal: abort.signal,
+    });
+    expect(createStoredFile).not.toHaveBeenCalled();
+
+    await expect(
+      getTranslation({ translationKeyId: key.id, targetLocale: "fr-FR" }),
+    ).resolves.toMatchObject({
+      text: "https://cdn.example.com/assets/hero-approved-fr.png",
+      status: "approved",
+    });
+  });
+
   it("does not replace approved image URL translation bytes unless forced", async () => {
     const { key, organization, project } = await createApprovedImageUrlTranslationFixture();
 

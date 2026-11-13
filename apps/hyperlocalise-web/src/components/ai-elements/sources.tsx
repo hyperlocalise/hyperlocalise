@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon, BookOpen01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, BookOpenIcon } from "@phosphor-icons/react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/primitives/cn";
 import type { ComponentProps } from "react";
@@ -39,7 +38,7 @@ export const SourcesTrigger = ({ className, count, children, ...props }: Sources
         <TypographyP weight="medium">
           <FormattedMessage {...sourcesMessages.usedSources} values={{ count }} />
         </TypographyP>
-        <HugeiconsIcon icon={ArrowDown01Icon} className="h-4 w-4" />
+        <CaretDownIcon className="h-4 w-4" />
       </>
     )}
   </CollapsibleTrigger>
@@ -70,7 +69,7 @@ export const Source = ({ href, title, children, ...props }: SourceProps) => (
   >
     {children ?? (
       <>
-        <HugeiconsIcon icon={BookOpen01Icon} className="h-4 w-4" />
+        <BookOpenIcon className="h-4 w-4" />
         <span className="block font-medium">{title}</span>
       </>
     )}

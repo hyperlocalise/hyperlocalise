@@ -51,6 +51,7 @@ vi.mock("../files/_components/project-files-tree", () => ({
 
 import {
   ContentEditorFileTreePicker,
+  ContentEditorLocaleSelect,
   contentEditorSourcePathDisplayName,
 } from "./content-editor-header-pickers";
 
@@ -77,6 +78,45 @@ describe("contentEditorSourcePathDisplayName", () => {
 
   it("returns the original path when it has no directories", () => {
     expect(contentEditorSourcePathDisplayName("en-US.json")).toBe("en-US.json");
+  });
+});
+
+describe("ContentEditorLocaleSelect", () => {
+  it("filters locales by name or code and selects the match", async () => {
+    const onTargetLocaleChange = vi.fn();
+    renderWithContentEditorProviders(
+      <ContentEditorLocaleSelect
+        targetLocales={["fr", "es", "ja", "zh-TW"]}
+        selectedTargetLocale="fr"
+        onTargetLocaleChange={onTargetLocaleChange}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox", { name: "Target locale" }));
+    await user.type(await screen.findByLabelText("Search locales"), "japan");
+
+    expect(screen.getAllByRole("option")).toHaveLength(1);
+    await user.click(screen.getByRole("option", { name: /Japanese/ }));
+
+    expect(onTargetLocaleChange).toHaveBeenCalledWith("ja");
+  });
+
+  it("shows an empty state when nothing matches", async () => {
+    renderWithContentEditorProviders(
+      <ContentEditorLocaleSelect
+        targetLocales={["fr", "es"]}
+        selectedTargetLocale="fr"
+        onTargetLocaleChange={vi.fn()}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox", { name: "Target locale" }));
+    await user.type(await screen.findByLabelText("Search locales"), "klingon");
+
+    expect(screen.queryAllByRole("option")).toHaveLength(0);
+    expect(screen.getByText("No matching locales")).toBeInTheDocument();
   });
 });
 

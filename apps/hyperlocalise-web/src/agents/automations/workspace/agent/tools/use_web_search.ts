@@ -28,6 +28,7 @@ import type { WorkspaceAutomationWebSearchProvider } from "@/lib/agents/workspac
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import type { WorkspaceOrchestratorSession } from "../context";
+import { composeSkillToolInstructions } from "../workspace-skill-instructions";
 import { mergeToolOutputSummaryIntoSessionRun } from "../workspace-orchestrator-output-summary";
 
 const WEB_SEARCH_TOOL_STEP_LIMIT = 8;
@@ -85,7 +86,7 @@ export function createUseWebSearchTool(session: WorkspaceOrchestratorSession) {
     description:
       "Search the live web through Vercel AI Gateway. Supports Auto (Perplexity or Exa), Perplexity, or Exa.",
     inputSchema: useWebSearchInputSchema,
-    execute: async ({ objective }) => {
+    execute: async ({ objective }, { toolCallId } = {}) => {
       const webSearch = session.automation.toolConfig.webSearch;
       if (!webSearch?.enabled) {
         throw new Error("web_search_not_configured");
@@ -110,9 +111,15 @@ export function createUseWebSearchTool(session: WorkspaceOrchestratorSession) {
         timeout: WORKFLOW_AGENT_TIMEOUT,
       });
 
+      const taskInstructions = composeSkillToolInstructions({
+        skillIds: session.automation.skillIds ?? [],
+        tool: "use_web_search",
+        customerInstructions: session.automation.instructions,
+      });
+
       const result = await withAgentRuntimeUsageMetering({
         organizationId: session.organizationId,
-        operationKey: `workspace-web-search:${session.run.id}:agent_runs`,
+        operationKey: `workspace-web-search:${session.run.id}:${toolCallId ?? crypto.randomUUID()}:agent_runs`,
         source: "workspace_web_search_agent",
         dimensions: {
           surface: "automation",
@@ -120,6 +127,7 @@ export function createUseWebSearchTool(session: WorkspaceOrchestratorSession) {
           provider,
         },
         extractTokenUsage: extractGenerateResultTokenUsage,
+        aiCreditModelId: resolveWorkspaceAutomationModel(session.automation.model),
         run: () =>
           agent.generate({
             messages: [
@@ -127,9 +135,7 @@ export function createUseWebSearchTool(session: WorkspaceOrchestratorSession) {
                 role: "user",
                 content: [
                   `Objective: ${objective}`,
-                  session.automation.instructions.trim()
-                    ? `Automation instructions:\n${session.automation.instructions.trim()}`
-                    : null,
+                  taskInstructions ? `Automation instructions:\n${taskInstructions}` : null,
                 ]
                   .filter((line): line is string => Boolean(line))
                   .join("\n\n"),

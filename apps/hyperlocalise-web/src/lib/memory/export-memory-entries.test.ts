@@ -14,7 +14,12 @@ import "dotenv/config";
 
 import { describe, expect, it } from "vite-plus/test";
 
-import { asTuid, buildMemoryTmxFilename, trailingTuidGroup } from "./export-memory-entries";
+import {
+  asTuid,
+  buildMemoryCsvFilename,
+  buildMemoryTmxFilename,
+  trailingTuidGroup,
+} from "./export-memory-entries";
 import type { TmxExportEntry } from "./tmx/tmx-types";
 
 function entry(partial: Partial<TmxExportEntry> & Pick<TmxExportEntry, "tuid">): TmxExportEntry {
@@ -89,5 +94,14 @@ describe("buildMemoryTmxFilename", () => {
   it("falls back to translation-memory.tmx for blank names without locale filters", () => {
     expect(buildMemoryTmxFilename("   ", {})).toBe("translation-memory.tmx");
     expect(buildMemoryTmxFilename("Product Copy", { sourceLocale: "en" })).toBe("Product-Copy.tmx");
+  });
+});
+
+describe("buildMemoryCsvFilename", () => {
+  it("uses the same slug rules as TMX with a .csv extension", () => {
+    expect(
+      buildMemoryCsvFilename("  My TM / v2  ", { sourceLocale: "en", targetLocale: "fr" }),
+    ).toBe("My-TM-v2-en-fr.csv");
+    expect(buildMemoryCsvFilename("   ", {})).toBe("translation-memory.csv");
   });
 });

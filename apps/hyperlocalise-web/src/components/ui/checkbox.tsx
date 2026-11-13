@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
-import { Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckIcon } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/primitives/cn";
 
@@ -48,7 +47,7 @@ function Checkbox({
         data-slot="checkbox-indicator"
         className="grid place-content-center text-current transition-none"
       >
-        <HugeiconsIcon icon={Tick02Icon} strokeWidth={2.5} className="size-3.5" />
+        <CheckIcon className="size-3.5" />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   );

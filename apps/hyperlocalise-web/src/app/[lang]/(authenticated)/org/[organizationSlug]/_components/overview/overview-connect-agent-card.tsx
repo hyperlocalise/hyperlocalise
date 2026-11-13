@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState, useSyncExternalStore, type ReactNode } from "react";
-import { LinkSquare02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { siClaude, siCursor } from "simple-icons";
 
@@ -195,7 +194,7 @@ export function OverviewConnectAgentCard({
               target="_blank"
             >
               <FormattedMessage {...messages.setupGuide} />
-              <HugeiconsIcon className="size-3.5" icon={LinkSquare02Icon} strokeWidth={1.8} />
+              <ArrowSquareOutIcon className="size-3.5" />
             </a>
           </div>
         )}

@@ -15,7 +15,7 @@ import type { Metadata } from "next";
 import { ContactPage } from "@/components/marketing/contact/contact-page";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 import { getContactRouteMetadata } from "./contact-route-metadata";
 
@@ -33,11 +33,11 @@ export async function generateMetadata({ params }: ContactRouteProps): Promise<M
     title: metadata.title,
     description: metadata.description,
     alternates: getLocalizedAlternates({ locale, path: "/contact" }),
-    openGraph: {
+    openGraph: localizedOpenGraph(locale, "/contact", {
       title: metadata.title,
       description: metadata.description,
       type: "website",
-    },
+    }),
   };
 }
 

@@ -1,0 +1,64 @@
+---
+title: "Update source content safely"
+sidebarTitle: "Update source content"
+description: "Keep source paths stable and review changed content without losing track of approved translations."
+---
+
+Treat an updated source file as a complete snapshot of that file. Keep its path stable, then inspect changed, added, and removed strings before delivering new translations.
+
+## Before replacing a source
+
+Download the target files you need to retain, record the release or source revision, and identify any active upload automations. For repositories, commit the source change so you can compare or restore it later.
+
+## Update and inspect
+
+1. Upload the revised file to the same project and source path, or use your existing [GitHub sync](/platform/automation/content-sync) or [CLI push](/platform/cli) mapping.
+2. Wait for source processing to finish.
+3. Open the file and confirm the current key list and source wording.
+4. Check added strings and strings whose meaning changed.
+5. Start the required translation work, or follow the upload-triggered automation.
+6. Review and download the result for each target locale.
+
+The current source snapshot determines the active keys. Removing a key from the file removes it from the reconciled source key set; uploading only a partial file is not a safe way to request a partial update.
+
+## Edit source text in Hyperlocalise
+
+By default the file is the source of truth: each upload or sync replaces the project's source text with the file's, and the API refuses to change the source text of a string that belongs to a file. Strings created through the API outside any file can always be edited there.
+
+To keep source text in Hyperlocalise instead, turn on **Allow source text editing** under **Translation & Content Editor behavior** in the project settings. Administrators and localization managers can change it. While it's on:
+
+- Administrators, localization managers and developers can edit a string's source text in the Content Editor, from the **Source text** section of the side panel, and through the API with `PATCH /v1/projects/{projectId}/strings/{stringId}` or `POST /v1/projects/{projectId}/strings/batch`. A string locked in any language can't be changed, nor a hidden string in a file, and the merged-strings view doesn't offer editing.
+- Editing covers strings in JSON, JSONC and ARB files, and strings created through the API outside any file. Other formats keep their file as the source of truth: documents such as HTML, Markdown and Office files are split into strings by position, gettext PO files are keyed by the source text itself, and the other key-value formats can't yet be written back. Files an integration (Braze, HubSpot, Webflow, Sanity and others) brings in are also left to that service, and so is a file last uploaded before Hyperlocalise recorded where uploads came from: upload it again to edit it.
+- An upload or sync keeps edits made here. For each string it compares the file's text, the project's text and the text it last imported: a change on one side only wins; when both sides changed to different text, the project's text is kept and the string is a **clash**. A GitLab sync lists clashes under **Recent syncs** on every run until one side gives way; other uploads keep the project's text without listing the clash.
+- Translation jobs read the edited text. A string that already has a translation keeps it, so set **When source text changes** to **Needs review** if edits should send approved translations back for another look.
+- A GitLab sync writes the project's source text back into the repository's JSON source files, in the same merge request as the translations. Merging it settles the clashes. GitHub syncs, uploads and the CLI don't send source text back yet, so their edits stay in Hyperlocalise.
+
+Turning the setting off asks first: source text edits that haven't reached the file are replaced by the file's text on its next upload or sync, and translations go to review as for any other change if the project asks for that.
+
+## Recheck approved wording
+
+When a string's source text changes, what happens to its approved translations depends on the project setting **When source text changes**, under **Translation & Content Editor behavior** in the project settings. Administrators and localization managers can change it.
+
+- **Stays approved** (the default): approved translations keep their status and their old text. Inspect them yourself whenever the source meaning changes. A successful rerun doesn't replace approved targets.
+- **Needs review**: approved translations of every changed string move to **Needs review**. Their text is kept, so a reviewer can update it to the new source and approve it again. Drafts, translations already in review, rejected translations and locked translations aren't touched, and the translation's history records the change. A locked translation keeps its old text approved, and unlocking it later doesn't send it to review, so recheck it yourself. Through the API, a source change to a string locked in any language is refused instead.
+
+The setting applies to every way source text changes: file uploads, repository syncs, CLI pushes, integration imports, the Content Editor and the API. A source text edit that an upload keeps, or a clash, isn't a change, so it leaves translations as they are. A change to surrounding spaces only doesn't count. An integration import that brings back a translation's current text, unchanged, leaves it in review; new text from the integration is approved as before. Importing a bilingual or translation file yourself approves what it contains, as before.
+
+A translation in review is still delivered by downloads, the CLI pull, GitHub sync and bilingual export, with its old text. Integration pushes send only approved translations: most keep the language's current copy until it is approved again (or send the source text where no copy exists yet), and Sanity and Intercom skip that language. GitLab sync keeps the repository's current text for that key. Check the **Needs review** filter in the Content Editor before you deliver files.
+
+For example, changing a button from “Start trial” to “Buy now” needs a fresh review even if its key is still `checkout.action`.
+
+### Skip the review for a small fix
+
+A typo or punctuation fix leaves the translations correct. In a project set to **Needs review**, you can keep approved translations approved for one change:
+
+- When uploading on the **Files** page, tick **Keep translations approved** before you select **Upload**.
+- When editing source text in the Content Editor, tick **Keep translations approved** before you select **Save source text**.
+- When uploading through the [API](/platform/api#upload-a-source-file) (`POST /v1/files`), send the form field `keepApproved=true`.
+- When editing strings through the public API, send `"keepApproved": true` with `PATCH /v1/projects/{projectId}/strings/{stringId}` or `POST /v1/projects/{projectId}/strings/batch`.
+
+The skip covers every string the upload or request changes, so leave it off when any of them changed meaning. The CLI push, chat, MCP, the Slack agent, integration imports and repository syncs don't offer it.
+
+## Validate delivery
+
+Compare target keys and placeholders with the latest source. Test the downloaded file in its destination. For local CLI generation that specifically selects source changes using lockfiles, use [Translate changed strings](/cli/workflows/translate-changed-strings); Platform upload reconciliation is a separate workflow.

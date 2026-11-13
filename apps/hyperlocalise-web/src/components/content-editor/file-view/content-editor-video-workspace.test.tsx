@@ -15,6 +15,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { ContentEditorTestProviders } from "@/components/content-editor/shared/content-editor-test-utils";
+import { ApiResponseError } from "@/lib/api-error";
 import { ContentEditorVideoWorkspace, videoFrameEndpoint } from "./content-editor-video-workspace";
 import { ContentEditorFileViewPanel } from "./content-editor-file-view-panel";
 import { createCatVideoFileWorkspaceState } from "./content-editor-file-view.fixture";
@@ -75,6 +76,22 @@ describe("video refinement workspace", () => {
     expect(onRegenerate).toHaveBeenLastCalledWith({
       instructions: expect.stringContaining("Warm and unhurried"),
     });
+  });
+  it("says the AI credit is used up when generation is refused for it", async () => {
+    const user = userEvent.setup();
+    show({
+      onRegenerate: vi
+        .fn()
+        .mockRejectedValue(
+          new ApiResponseError("used up", { code: "ai_credit_exhausted", status: 402 }),
+        ),
+    });
+    await user.type(screen.getByLabelText("Voice & pacing"), "Warm and unhurried");
+    await user.click(screen.getByRole("button", { name: "Generate new version" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Your workspace has used all of its AI credit.",
+    );
   });
   it("adds a timestamped element and sends exact replacements to generation", async () => {
     const user = userEvent.setup();

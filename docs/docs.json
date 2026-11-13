@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "name": "Hyperlocalise",
-  "description": "Infrastructure for multilingual content operations. Docs for Hyperlocalise Cloud and the CLI.",
+  "description": "Hyperlocalise Platform and CLI documentation for multilingual content operations, AI translation, and TMS integrations.",
   "theme": "mint",
   "colors": {
     "primary": "#0f766e",
@@ -9,8 +9,8 @@
     "dark": "#0d9488"
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg",
+    "light": "/logo/logotypo-light-mode.png",
+    "dark": "/logo/logotypo-dark-mode.png",
     "href": "https://www.hyperlocalise.com"
   },
   "favicon": "/favicon.svg",
@@ -20,8 +20,8 @@
   "navbar": {
     "links": [
       {
-        "label": "Cloud",
-        "href": "https://www.hyperlocalise.com"
+        "label": "Platform",
+        "href": "/"
       },
       {
         "label": "CLI",
@@ -30,7 +30,7 @@
     ],
     "primary": {
       "type": "button",
-      "label": "Open Cloud",
+      "label": "Open Hyperlocalise",
       "href": "https://www.hyperlocalise.com"
     }
   },
@@ -45,7 +45,7 @@
         "header": "Product",
         "items": [
           {
-            "label": "Cloud",
+            "label": "Platform",
             "href": "https://www.hyperlocalise.com"
           },
           {
@@ -89,7 +89,7 @@
       "name": "Hyperlocalise",
       "legalName": "Hyperlocalise Pty Ltd",
       "url": "https://www.hyperlocalise.com",
-      "logo": "https://www.hyperlocalise.com/images/logo.png",
+      "logo": "https://www.hyperlocalise.com/images/logo/logomark-dark-mode.svg",
       "sameAs": [
         "https://www.linkedin.com/company/hyperlocalise/",
         "https://github.com/hyperlocalise/hyperlocalise"
@@ -97,7 +97,7 @@
     }
   },
   "search": {
-    "prompt": "Search Cloud and CLI docs"
+    "prompt": "Search Platform and CLI docs"
   },
   "navigation": {
     "global": {
@@ -119,158 +119,471 @@
         "language": "en",
         "products": [
           {
-            "product": "Cloud",
-            "description": "Infrastructure for multilingual content operations",
+            "product": "Platform",
+            "description": "Customer guides for translation, review, automation, and workspace management.",
             "icon": "cloud",
             "groups": [
               {
-                "group": "Getting started",
+                "group": "Platform guide",
                 "pages": [
-                  "index",
-                  "platform/getting-started"
-                ]
-              },
-              {
-                "group": "Workspace",
-                "pages": [
-                  "platform/cat",
-                  "platform/domains",
-                  "platform/automations",
-                  "platform/visual-workflows",
-                  "platform/knowledge"
-                ]
-              },
-              {
-                "group": "Connect",
-                "pages": [
-                  "platform/cli",
-                  "platform/integrations",
-                  "platform/mcp",
-                  "platform/settings"
-                ]
-              },
-              {
-                "group": "API",
-                "pages": [
-                  "platform/api"
-                ]
-              },
-              {
-                "group": "Contributing",
-                "pages": [
-                  "contributing/docs-contributions",
-                  "contributing/development",
-                  "contributing/release-maintenance"
+                  {
+                    "group": "Getting started",
+                    "pages": [
+                      "index",
+                      "platform/getting-started/managers",
+                      "platform/getting-started/translators",
+                      "platform/getting-started/developers",
+                      "platform/getting-started",
+                      "platform/file-formats",
+                      "platform/getting-started/moving-to-hyperlocalise"
+                    ],
+                    "expanded": true
+                  },
+                  {
+                    "group": "Translation process",
+                    "pages": [
+                      "platform/translation/workflows",
+                      "platform/translation/start",
+                      "platform/cat",
+                      "platform/translation/merge-strings",
+                      "platform/translation/jobs",
+                      "platform/translation/issues"
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Project management",
+                    "pages": [
+                      "platform/projects/create-project",
+                      "platform/projects/templates",
+                      "platform/projects/settings",
+                      "platform/projects/languages",
+                      {
+                        "group": "Sources",
+                        "pages": [
+                          "platform/projects/files",
+                          "platform/guides/update-source-content"
+                        ],
+                        "expanded": false
+                      },
+                      {
+                        "group": "Translations",
+                        "pages": [
+                          "platform/translation/download",
+                          "platform/guides/review-handoff",
+                          "platform/translation/import"
+                        ],
+                        "expanded": false
+                      },
+                      "platform/projects/access"
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Language resources",
+                    "pages": [
+                      "platform/knowledge",
+                      "platform/knowledge/guidelines",
+                      "platform/glossary-import-export",
+                      "platform/translation-memory-import-export"
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Automations",
+                    "pages": [
+                      "platform/automations",
+                      "platform/automation/create-automation",
+                      "platform/automation/content-sync",
+                      "platform/visual-workflows",
+                      "platform/guides/workflow-data-and-retries",
+                      "platform/help/automations"
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Integrations",
+                    "pages": [
+                      "platform/integrations",
+                      "platform/tms",
+                      "platform/connections/github",
+                      "platform/connections/intercom",
+                      "platform/connections/sanity",
+                      "platform/connections/sanity-studio-plugin",
+                      "platform/connections/webflow",
+                      "platform/connections/braze",
+                      "platform/connections/customer-io",
+                      "platform/connections/iterable",
+                      "platform/connections/loops",
+                      "platform/connections/hubspot",
+                      "platform/connections/mailchimp",
+                      "platform/connections/canva",
+                      "platform/connections/figma",
+                      "platform/connections/design-tools"
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Developer integrations",
+                    "pages": [
+                      "platform/developers/overview",
+                      "platform/cli",
+                      "platform/developers/api-overview",
+                      "platform/api",
+                      "platform/developers/projects-and-queries",
+                      "platform/developers/custom-fields",
+                      "platform/developers/strings-and-key-jobs",
+                      "platform/mcp",
+                      "platform/developers/mcp-tools",
+                      "platform/developers/webhooks",
+                      {
+                        "group": "Framework and repository guides",
+                        "pages": [
+                          "platform/tutorials/github-localisation-workflow",
+                          "platform/tutorials/react-intl-icu",
+                          "platform/tutorials/vue-i18n",
+                          "platform/tutorials/i18next",
+                          "platform/tutorials/next-intl",
+                          "platform/tutorials/ios-strings",
+                          "platform/tutorials/android-string-resources",
+                          "platform/tutorials/flutter-arb",
+                          "platform/tutorials/gettext-pot-po",
+                          "platform/tutorials/fluent",
+                          "platform/tutorials/xliff",
+                          "platform/tutorials/qt-linguist",
+                          "platform/tutorials/dotnet-resx"
+                        ]
+                      }
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Website and market research",
+                    "pages": [
+                      "platform/domains",
+                      "platform/research/audit-to-domain-tutorial",
+                      "platform/research/verify-domain",
+                      "platform/research/keywords-and-ranks",
+                      "platform/research/localisation-audit",
+                      "platform/research/localisation-audit-checks"
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Workspace and account",
+                    "pages": [
+                      "platform/settings",
+                      "platform/workspace/members",
+                      "platform/workspace/roles",
+                      "platform/workspace/reports",
+                      "platform/workspace/billing"
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Troubleshooting and support",
+                    "pages": [
+                      "platform/help/overview",
+                      "platform/help/uploads",
+                      "platform/help/translation-failures",
+                      "platform/help/quality",
+                      "platform/help/connections",
+                      "platform/help/access",
+                      "platform/help/contact-support"
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Release notes",
+                    "pages": [
+                      "platform/release-notes"
+                    ],
+                    "expanded": false
+                  }
                 ]
               }
             ]
           },
           {
             "product": "CLI",
-            "description": "Local generation, CI, and sync with Cloud or a TMS",
+            "description": "Local generation, CI, and sync with Platform or a TMS",
             "icon": "terminal",
             "groups": [
               {
-                "group": "Getting started",
+                "group": "CLI guide",
                 "pages": [
-                  "cli/index",
-                  "cli/getting-started/why-hyperlocalise",
-                  "cli/getting-started/install",
-                  "cli/getting-started/quickstart",
-                  "cli/getting-started/first-project"
-                ]
-              },
-              {
-                "group": "Configuration",
-                "pages": [
-                  "cli/configuration/i18n-config",
-                  "cli/configuration/path-templates",
-                  "cli/configuration/provider-credentials"
-                ]
-              },
-              {
-                "group": "Commands",
-                "pages": [
-                  "cli/commands/overview",
-                  "cli/commands/init",
-                  "cli/commands/crowdin",
-                  "cli/commands/phrase",
-                  "cli/commands/smartling",
-                  "cli/commands/lokalise",
-                  "cli/commands/run",
-                  "cli/commands/extract",
-                  "cli/commands/pack",
-                  "cli/commands/check",
-                  "cli/commands/eval",
-                  "cli/commands/status",
-                  "cli/commands/sync-pull",
-                  "cli/commands/sync-push",
-                  "cli/commands/version-and-completion"
-                ]
-              },
-              {
-                "group": "Workflows",
-                "pages": [
-                  "cli/workflows/local-generation",
-                  "cli/workflows/eval-set-curation",
-                  "cli/workflows/tms-curation-loop",
-                  "cli/workflows/ci-automation"
-                ]
-              },
-              {
-                "group": "Providers",
-                "pages": [
-                  "cli/providers/overview",
-                  "cli/providers/openai",
-                  "cli/providers/azure-openai",
-                  "cli/providers/gemini",
-                  "cli/providers/anthropic",
-                  "cli/providers/bedrock",
-                  "cli/providers/lmstudio",
-                  "cli/providers/groq",
-                  "cli/providers/ollama",
-                  "cli/providers/openrouter",
-                  "cli/providers/ai-gateway"
-                ]
-              },
-              {
-                "group": "TMS adapters",
-                "pages": [
-                  "cli/storage/overview",
-                  "cli/storage/tms-webhook-sync",
-                  "cli/storage/crowdin",
-                  "cli/storage/lilt",
-                  "cli/storage/lokalise",
-                  "cli/storage/phrase",
-                  "cli/storage/poeditor",
-                  "cli/storage/smartling"
-                ]
-              },
-              {
-                "group": "Troubleshooting",
-                "pages": [
-                  "cli/troubleshooting/common-errors",
-                  "cli/troubleshooting/conflicts",
-                  "cli/troubleshooting/performance"
-                ]
-              },
-              {
-                "group": "Reference and concepts",
-                "pages": [
-                  "cli/reference/glossary",
-                  "cli/reference/stability-matrix",
-                  "cli/reference/config-schema",
-                  "cli/reference/output-formats",
-                  "cli/reference/lockfile-contract",
-                  "cli/reference/creator"
-                ]
-              },
-              {
-                "group": "Contributing",
-                "pages": [
-                  "contributing/docs-contributions",
-                  "contributing/development",
-                  "contributing/release-maintenance"
+                  {
+                    "group": "Getting started",
+                    "pages": [
+                      "cli/index",
+                      "cli/getting-started/workflows",
+                      "cli/getting-started/install",
+                      "cli/getting-started/quickstart",
+                      "cli/getting-started/first-project",
+                      "cli/getting-started/why-hyperlocalise"
+                    ],
+                    "expanded": true
+                  },
+                  {
+                    "group": "Configuration",
+                    "pages": [
+                      "cli/configuration/i18n-config",
+                      "cli/configuration/path-templates",
+                      "cli/configuration/provider-credentials"
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "File formats",
+                    "root": "cli/reference/formats/overview",
+                    "directory": "accordion",
+                    "pages": [
+                      {
+                        "group": "App translations",
+                        "expanded": false,
+                        "pages": [
+                          "cli/reference/formats/json",
+                          "cli/reference/formats/jsonc",
+                          "cli/reference/formats/yaml",
+                          "cli/reference/formats/javascript-typescript",
+                          "cli/reference/formats/formatjs",
+                          "cli/reference/formats/arb",
+                          "cli/reference/formats/php",
+                          "cli/reference/formats/fluent",
+                          "cli/reference/formats/csv",
+                          "cli/reference/formats/tsv",
+                          "cli/reference/formats/xlsx",
+                          "cli/reference/formats/docx",
+                          "cli/reference/formats/pdf",
+                          "cli/reference/formats/pptx",
+                          "cli/reference/formats/toml"
+                        ]
+                      },
+                      {
+                        "group": "Mobile",
+                        "expanded": false,
+                        "pages": [
+                          "cli/reference/formats/android-xml",
+                          "cli/reference/formats/apple-strings",
+                          "cli/reference/formats/apple-stringsdict",
+                          "cli/reference/formats/apple-xcstrings"
+                        ]
+                      },
+                      {
+                        "group": "Content",
+                        "expanded": false,
+                        "pages": [
+                          "cli/reference/formats/markdown",
+                          "cli/reference/formats/mdx",
+                          "cli/reference/formats/asciidoc",
+                          "cli/reference/formats/plain-text",
+                          "cli/reference/formats/html",
+                          "cli/reference/formats/liquid",
+                          "cli/reference/formats/lottie",
+                          "cli/reference/formats/svg"
+                        ]
+                      },
+                      {
+                        "group": "Interchange",
+                        "expanded": false,
+                        "pages": [
+                          "cli/reference/formats/xliff",
+                          "cli/reference/formats/gettext",
+                          "cli/reference/formats/qt-linguist",
+                          "cli/reference/formats/xml",
+                          "cli/reference/formats/resx",
+                          "cli/reference/formats/resw",
+                          "cli/reference/formats/java-properties",
+                          "cli/reference/formats/ini"
+                        ]
+                      },
+                      {
+                        "group": "Subtitles",
+                        "expanded": false,
+                        "pages": [
+                          "cli/reference/formats/srt",
+                          "cli/reference/formats/webvtt",
+                          "cli/reference/formats/sbv"
+                        ]
+                      }
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Guides",
+                    "pages": [
+                      "cli/guides/react-intl",
+                      "cli/workflows/translate-changed-strings",
+                      "cli/workflows/local-generation",
+                      "cli/workflows/tms-curation-loop",
+                      "cli/workflows/ci-automation",
+                      "cli/workflows/github-action-drift-check",
+                      "cli/workflows/eval-set-curation",
+                      {
+                        "group": "TMS task guides",
+                        "expanded": false,
+                        "pages": [
+                          "cli/guides/crowdin-approved-translations",
+                          "cli/guides/crowdin-github-actions",
+                          "cli/guides/crowdin-tmx-export",
+                          "cli/guides/lokalise-translation-import",
+                          "cli/guides/phrase-existing-config",
+                          "cli/guides/smartling-published-translations"
+                        ]
+                      },
+                      "cli/guides/translation-behavior"
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Integrations",
+                    "pages": [
+                      {
+                        "group": "AI providers",
+                        "pages": [
+                          "cli/providers/openai",
+                          "cli/providers/azure-openai",
+                          "cli/providers/gemini",
+                          "cli/providers/anthropic",
+                          "cli/providers/bedrock",
+                          "cli/providers/lmstudio",
+                          "cli/providers/groq",
+                          "cli/providers/ollama",
+                          "cli/providers/openrouter",
+                          "cli/providers/ai-gateway",
+                          "cli/providers/mistral"
+                        ],
+                        "root": "cli/providers/overview",
+                        "directory": "accordion",
+                        "expanded": false
+                      },
+                      {
+                        "group": "TMS integrations",
+                        "pages": [
+                          "cli/storage/tms-webhook-sync",
+                          "cli/storage/crowdin",
+                          "cli/storage/lilt",
+                          "cli/storage/lokalise",
+                          "cli/storage/phrase",
+                          "cli/storage/poeditor",
+                          "cli/storage/smartling"
+                        ],
+                        "root": "cli/storage/overview",
+                        "directory": "accordion",
+                        "expanded": false
+                      }
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Reference",
+                    "pages": [
+                      {
+                        "group": "Commands",
+                        "root": "cli/commands/overview",
+                        "directory": "accordion",
+                        "pages": [
+                          {
+                            "group": "Set up and translate",
+                            "pages": [
+                              "cli/commands/init",
+                              "cli/commands/run",
+                              "cli/commands/extract",
+                              "cli/commands/pack"
+                            ]
+                          },
+                          {
+                            "group": "Check and evaluate",
+                            "pages": [
+                              "cli/commands/check",
+                              "cli/commands/validate",
+                              "cli/commands/status",
+                              "cli/commands/eval"
+                            ]
+                          },
+                          {
+                            "group": "Sync translations",
+                            "pages": [
+                              "cli/commands/sync-push",
+                              "cli/commands/sync-pull"
+                            ]
+                          },
+                          {
+                            "group": "TMS CLI commands",
+                            "pages": [
+                              "cli/commands/crowdin",
+                              "cli/commands/phrase",
+                              "cli/commands/smartling",
+                              "cli/commands/lokalise"
+                            ]
+                          },
+                          "cli/commands/version-and-completion"
+                        ]
+                      },
+                      "cli/reference/config-schema",
+                      "cli/reference/output-formats",
+                      "cli/reference/lockfile-contract",
+                      "cli/reference/stability-matrix",
+                      "cli/reference/glossary",
+                      "cli/reference/creator"
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Troubleshooting",
+                    "pages": [
+                      "cli/troubleshooting/common-errors",
+                      "cli/troubleshooting/icu-placeholders",
+                      "cli/troubleshooting/conflicts",
+                      "cli/troubleshooting/performance"
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Release notes",
+                    "pages": [
+                      {
+                        "group": "Releases",
+                        "root": "changelog",
+                        "directory": "accordion",
+                        "pages": [
+                          "changelog/v1-13-10",
+                          "changelog/v1-13-9",
+                          "changelog/v1-13-8",
+                          "changelog/v1-13-7",
+                          "changelog/v1-13-6",
+                          "changelog/v1-13-5",
+                          "changelog/v1-13-4",
+                          "changelog/v1-13-3",
+                          "changelog/v1-13-2",
+                          "changelog/v1-13-1",
+                          "changelog/v1-13-0",
+                          "changelog/v1-12-2",
+                          "changelog/v1-12-1",
+                          "changelog/v1-12-0",
+                          "changelog/v1-11-0",
+                          "changelog/v1-10-0",
+                          "changelog/v1-9-1",
+                          "changelog/v1-9-0"
+                        ]
+                      }
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Contributing",
+                    "pages": [
+                      "contributing/docs-contributions",
+                      "contributing/development",
+                      "contributing/canva-app-oauth",
+                      "contributing/figma-plugin-oauth",
+                      "contributing/google-drive-oauth",
+                      "contributing/sanity-studio-plugin-oauth",
+                      "contributing/lambda-deploy",
+                      "contributing/release-maintenance"
+                    ],
+                    "expanded": false
+                  }
                 ]
               }
             ]

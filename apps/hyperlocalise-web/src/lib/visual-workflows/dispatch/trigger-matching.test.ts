@@ -12,13 +12,22 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { createDefaultConfig } from "../catalog/node-catalog";
+import { createDefaultConfig, resolveNodeSubtitle } from "../catalog/node-catalog";
 import {
+  getVisualWorkflowTriggerNode,
   resolveVisualWorkflowTriggerFingerprint,
   validateActiveVisualWorkflowTrigger,
+  validateVisualWorkflowTriggerConfig,
+  visualWorkflowShouldDispatchOnGithubPullRequest,
   visualWorkflowShouldDispatchOnGithubPush,
+  visualWorkflowShouldDispatchOnJobChange,
+  visualWorkflowShouldDispatchOnSourceUpload,
 } from "./trigger-matching";
-import type { VisualWorkflowDefinition } from "../schema/types";
+import type {
+  VisualWorkflowDefinition,
+  VisualWorkflowJobChangedTriggerConfig,
+} from "../schema/types";
+import { parseVisualWorkflowV3Definition } from "../schema/definition-migration";
 import type { VisualWorkflowRecord } from "../visual-workflow-types";
 
 function workflowRecord(definition: VisualWorkflowDefinition): VisualWorkflowRecord {
@@ -29,7 +38,7 @@ function workflowRecord(definition: VisualWorkflowDefinition): VisualWorkflowRec
     projectId: null,
     status: "active",
     name: definition.name,
-    definition,
+    definition: parseVisualWorkflowV3Definition(definition),
     definitionVersion: 1,
     revision: 1,
     publishedVersion: null,
@@ -136,5 +145,281 @@ describe("visual workflow trigger matching", () => {
     if (!result.ok) {
       expect(result.message).toContain("timezone");
     }
+  });
+
+  it("fingerprints a webhook trigger and allows it on an active workflow", () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Webhook",
+      nodes: [
+        {
+          id: "t",
+          type: "trigger.webhook",
+          config: createDefaultConfig("trigger.webhook"),
+        },
+      ],
+      edges: [],
+      editor: { positions: {} },
+    };
+
+    expect(resolveVisualWorkflowTriggerFingerprint({ id: "wf-webhook", definition })).toBe(
+      "webhook:wf-webhook",
+    );
+    expect(validateActiveVisualWorkflowTrigger(definition)).toEqual({ ok: true });
+    expect(
+      validateVisualWorkflowTriggerConfig({ kind: "trigger.webhook", tokenVersion: 0 }),
+    ).toEqual({ ok: false, message: "Webhook token version is invalid." });
+    expect(
+      validateVisualWorkflowTriggerConfig({ kind: "trigger.webhook", tokenVersion: 1.5 }),
+    ).toEqual({ ok: false, message: "Webhook token version is invalid." });
+  });
+
+  it("returns no trigger when a definition has zero or two trigger nodes", () => {
+    expect(getVisualWorkflowTriggerNode({ nodes: [] })).toBeNull();
+    expect(
+      getVisualWorkflowTriggerNode({
+        nodes: [
+          { id: "a", type: "trigger.webhook", config: createDefaultConfig("trigger.webhook") },
+          { id: "b", type: "trigger.manual", config: createDefaultConfig("trigger.manual") },
+        ],
+      }),
+    ).toBeNull();
+  });
+
+  it("matches source upload for the chosen project and skips other projects", () => {
+    const scoped: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "Upload",
+      nodes: [
+        {
+          id: "t",
+          type: "trigger.source_upload",
+          config: { kind: "trigger.source_upload", projectId: "proj-1" },
+        },
+      ],
+      edges: [],
+      editor: { positions: {} },
+    };
+    const anyProject: VisualWorkflowDefinition = {
+      ...scoped,
+      nodes: [
+        { id: "t", type: "trigger.source_upload", config: { kind: "trigger.source_upload" } },
+      ],
+    };
+
+    expect(
+      visualWorkflowShouldDispatchOnSourceUpload(workflowRecord(scoped), { projectId: "proj-1" }),
+    ).toBe(true);
+    expect(
+      visualWorkflowShouldDispatchOnSourceUpload(workflowRecord(scoped), { projectId: "proj-2" }),
+    ).toBe(false);
+    expect(
+      visualWorkflowShouldDispatchOnSourceUpload(workflowRecord(anyProject), {
+        projectId: "proj-2",
+      }),
+    ).toBe(true);
+    expect(
+      visualWorkflowShouldDispatchOnSourceUpload(
+        { ...workflowRecord(scoped), status: "draft" },
+        { projectId: "proj-1" },
+      ),
+    ).toBe(false);
+    expect(resolveVisualWorkflowTriggerFingerprint({ id: "wf-up", definition: scoped })).toBe(
+      "source_upload:wf-up:proj-1",
+    );
+  });
+
+  it("matches github pull requests independently of push", () => {
+    const definition: VisualWorkflowDefinition = {
+      schemaVersion: 2,
+      name: "PR only",
+      nodes: [
+        {
+          id: "t",
+          type: "trigger.github",
+          config: {
+            kind: "trigger.github",
+            githubInstallationRepositoryId: "00000000-0000-4000-8000-000000000099",
+            branches: ["main"],
+            events: ["pull_request"],
+          },
+        },
+      ],
+      edges: [],
+      editor: { positions: {} },
+    };
+    const record = workflowRecord(definition);
+    const repo = {
+      githubInstallationRepositoryId: "00000000-0000-4000-8000-000000000099",
+    };
+
+    expect(
+      visualWorkflowShouldDispatchOnGithubPullRequest(record, {
+        ...repo,
+        baseBranch: "main",
+      }),
+    ).toBe(true);
+    expect(
+      visualWorkflowShouldDispatchOnGithubPullRequest(record, {
+        ...repo,
+        baseBranch: "develop",
+      }),
+    ).toBe(false);
+    expect(
+      visualWorkflowShouldDispatchOnGithubPush(record, {
+        ...repo,
+        branch: "main",
+      }),
+    ).toBe(false);
+  });
+
+  describe("job changed trigger", () => {
+    function jobChangedWorkflow(config: Omit<VisualWorkflowJobChangedTriggerConfig, "kind">) {
+      return workflowRecord({
+        schemaVersion: 2,
+        name: "Job changed",
+        nodes: [
+          {
+            id: "t",
+            type: "trigger.job_changed",
+            config: { kind: "trigger.job_changed", ...config },
+          },
+        ],
+        edges: [],
+        editor: { positions: {} },
+      });
+    }
+    const event = {
+      type: "job.status_changed" as const,
+      projectId: "proj-1",
+      kind: "translation" as const,
+      toStatus: "succeeded" as const,
+    };
+
+    it("matches every change when no filter is set", () => {
+      expect(visualWorkflowShouldDispatchOnJobChange(jobChangedWorkflow({}), event)).toBe(true);
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          jobChangedWorkflow({ eventTypes: [], jobKinds: [], toStatuses: [] }),
+          event,
+        ),
+      ).toBe(true);
+    });
+
+    it("applies each filter", () => {
+      const cases: [Omit<VisualWorkflowJobChangedTriggerConfig, "kind">, boolean][] = [
+        [{ projectId: "proj-1" }, true],
+        [{ projectId: "proj-2" }, false],
+        [{ eventTypes: ["job.status_changed"] }, true],
+        [{ eventTypes: ["job.created"] }, false],
+        [{ eventTypes: ["job.assignee_changed"] }, false],
+        [{ jobKinds: ["translation", "review"] }, true],
+        [{ jobKinds: ["review"] }, false],
+        [{ toStatuses: ["succeeded", "failed"] }, true],
+        [{ toStatuses: ["failed"] }, false],
+      ];
+      for (const [config, expected] of cases) {
+        expect(visualWorkflowShouldDispatchOnJobChange(jobChangedWorkflow(config), event)).toBe(
+          expected,
+        );
+      }
+    });
+
+    it("matches assignee changes when that event type is selected", () => {
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          jobChangedWorkflow({ eventTypes: ["job.assignee_changed"] }),
+          {
+            ...event,
+            type: "job.assignee_changed",
+          },
+        ),
+      ).toBe(true);
+    });
+
+    it("matches due date and details changes only when those event types are selected", () => {
+      const dueDate = { ...event, type: "job.due_date_changed" as const };
+      const details = { ...event, type: "job.details_changed" as const };
+
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          jobChangedWorkflow({ eventTypes: ["job.due_date_changed"] }),
+          dueDate,
+        ),
+      ).toBe(true);
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          jobChangedWorkflow({ eventTypes: ["job.details_changed"] }),
+          details,
+        ),
+      ).toBe(true);
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          jobChangedWorkflow({ eventTypes: ["job.due_date_changed"] }),
+          details,
+        ),
+      ).toBe(false);
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          jobChangedWorkflow({ eventTypes: ["job.status_changed"] }),
+          dueDate,
+        ),
+      ).toBe(false);
+      expect(visualWorkflowShouldDispatchOnJobChange(jobChangedWorkflow({}), dueDate)).toBe(true);
+      expect(
+        resolveNodeSubtitle({
+          kind: "trigger.job_changed",
+          eventTypes: ["job.due_date_changed", "job.details_changed"],
+        }),
+      ).toBe("Due date changed, Title or description changed");
+    });
+
+    it("ignores inactive workflows and other triggers", () => {
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          { ...jobChangedWorkflow({}), status: "paused" },
+          event,
+        ),
+      ).toBe(false);
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          workflowRecord({
+            schemaVersion: 2,
+            name: "Upload",
+            nodes: [
+              { id: "t", type: "trigger.source_upload", config: { kind: "trigger.source_upload" } },
+            ],
+            edges: [],
+            editor: { positions: {} },
+          }),
+          event,
+        ),
+      ).toBe(false);
+    });
+
+    it("is a production trigger with a per-project fingerprint", () => {
+      const workflow = jobChangedWorkflow({ projectId: "proj-1" });
+      expect(validateActiveVisualWorkflowTrigger(workflow.definition)).toEqual({ ok: true });
+      expect(resolveVisualWorkflowTriggerFingerprint(workflow)).toBe("job_changed:wf-1:proj-1");
+      expect(resolveVisualWorkflowTriggerFingerprint(jobChangedWorkflow({}))).toBe(
+        "job_changed:wf-1",
+      );
+      expect(createDefaultConfig("trigger.job_changed")).toEqual({
+        kind: "trigger.job_changed",
+        eventTypes: ["job.status_changed"],
+      });
+      expect(resolveNodeSubtitle(createDefaultConfig("trigger.job_changed"))).toBe(
+        "Status changed",
+      );
+      expect(resolveNodeSubtitle({ kind: "trigger.job_changed" })).toBe("Any job change");
+      expect(
+        resolveNodeSubtitle({
+          kind: "trigger.job_changed",
+          eventTypes: ["job.created"],
+          jobKinds: ["translation"],
+          toStatuses: ["succeeded"],
+        }),
+      ).toBe("Created · translation · succeeded");
+    });
   });
 });

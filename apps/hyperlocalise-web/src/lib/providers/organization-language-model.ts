@@ -20,6 +20,7 @@ import {
   resolveProviderLanguageModel,
   type ResolvedAgentLanguageModel,
 } from "@/lib/providers/language-model";
+import { toVercelAiGatewayModelId } from "@/lib/providers/shared/vercel-ai-gateway-model-id";
 import {
   decryptProviderCredential,
   unwrapProviderCredentialCrypto,
@@ -39,6 +40,17 @@ export type LoadedOrganizationProviderCredential =
       code: "provider_credential_invalid";
       message: string;
     };
+
+/** Whether the organization has saved its own model key, without decrypting it. */
+export async function organizationHasOwnModelKey(organizationId: string): Promise<boolean> {
+  const [credential] = await db
+    .select({ id: schema.organizationLlmProviderCredentials.id })
+    .from(schema.organizationLlmProviderCredentials)
+    .where(eq(schema.organizationLlmProviderCredentials.organizationId, organizationId))
+    .limit(1);
+
+  return credential !== undefined;
+}
 
 export async function loadLatestOrganizationProviderCredential(
   organizationId: string,
@@ -114,7 +126,10 @@ export async function resolveHyperlocaliseAgentLanguageModel(input?: {
           model: loaded.credential.model,
         }),
         source: loaded.credential.provider,
-        modelId: loaded.credential.model,
+        modelId: toVercelAiGatewayModelId({
+          provider: loaded.credential.provider,
+          model: loaded.credential.model,
+        }),
       };
     }
   }

@@ -13,15 +13,10 @@
  * Version 2.0 or later.
  */
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
-import {
-  Delete02Icon,
-  Key01Icon,
-  SaveIcon,
-  ViewIcon,
-  ViewOffSlashIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TrashIcon, KeyIcon, FloppyDiskIcon, EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
 import type { SimpleIcon } from "simple-icons";
+
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import { siAnthropic, siGooglegemini } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
@@ -53,7 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 import {
   IntegrationCategoryCard,
   IntegrationCategoryLabel,
@@ -257,7 +252,7 @@ export function AiEnginePageContent({
       id: hyperlocaliseGoProviderId,
       label: intl.formatMessage(aiEnginePageContentMessages.hyperlocaliseGoLabel),
       description: intl.formatMessage(aiEnginePageContentMessages.hyperlocaliseGoDescription),
-      logo: "/images/logo.png",
+      logo: brandLogomarkSrc,
     }),
     [intl],
   );
@@ -369,15 +364,10 @@ export function AiEnginePageContent({
     selectedProviderConfig?.label;
 
   return (
-    <main className="space-y-8">
-      <div className="flex flex-col gap-1.5">
-        <TypographyH1 className="font-heading text-2xl md:text-2xl" weight="medium" tone="content">
-          <FormattedMessage {...aiEnginePageContentMessages.pageTitle} />
-        </TypographyH1>
-        <TypographyP className="max-w-2xl leading-6" size="small" tone="subtle">
-          <FormattedMessage {...aiEnginePageContentMessages.pageDescription} />
-        </TypographyP>
-      </div>
+    <main className="space-y-6">
+      <h1 className="sr-only">
+        <FormattedMessage {...aiEnginePageContentMessages.pageTitle} />
+      </h1>
 
       {canManageAiEngine ? (
         <>
@@ -538,11 +528,7 @@ export function AiEnginePageContent({
                       {intl.formatMessage(aiEnginePageContentMessages.apiKeyLabel)}
                     </FieldLabel>
                     <div className="relative">
-                      <HugeiconsIcon
-                        icon={Key01Icon}
-                        strokeWidth={1.8}
-                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                      />
+                      <KeyIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id={apiKeyFieldId}
                         type={showApiKey ? "text" : "password"}
@@ -565,11 +551,7 @@ export function AiEnginePageContent({
                             : aiEnginePageContentMessages.showApiKeyAriaLabel,
                         )}
                       >
-                        {showApiKey ? (
-                          <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
-                        ) : (
-                          <HugeiconsIcon icon={ViewIcon} size={16} />
-                        )}
+                        {showApiKey ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
                       </button>
                     </div>
                   </Field>
@@ -595,13 +577,13 @@ export function AiEnginePageContent({
                         saveCredential.isPending
                       }
                     >
-                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                      <TrashIcon />
                       {deleteCredential.isPending
                         ? intl.formatMessage(aiEnginePageContentMessages.disconnecting)
                         : intl.formatMessage(aiEnginePageContentMessages.disconnect)}
                     </Button>
                     <Button type="submit" disabled={!apiKey.trim() || saveCredential.isPending}>
-                      <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                      <FloppyDiskIcon />
                       {saveCredential.isPending
                         ? intl.formatMessage(aiEnginePageContentMessages.validating)
                         : intl.formatMessage(aiEnginePageContentMessages.saveProvider)}

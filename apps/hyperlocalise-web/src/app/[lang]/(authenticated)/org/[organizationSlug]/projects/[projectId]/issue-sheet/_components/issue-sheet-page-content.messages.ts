@@ -20,16 +20,6 @@ export const issueSheetPageContentMessages = defineMessages({
     id: "xotII997CO",
     description: "Section title for the project Queries page",
   },
-  sectionDescription: {
-    defaultMessage: "Triage localization issues for this project.",
-    id: "W+Q3zuZLIK",
-    description: "Short section description for the project Queries page",
-  },
-  importCsv: {
-    defaultMessage: "Import CSV",
-    id: "g3WGoqC7FR",
-    description: "Button to open the Issue Sheet CSV import dialog",
-  },
   column: {
     defaultMessage: "Column",
     id: "QbB9yIc9Ea",

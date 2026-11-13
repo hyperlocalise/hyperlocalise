@@ -4,11 +4,11 @@
 # Use a Debian/glibc builder so the cgo_hunspell wrapper can build
 # against Hunspell's development headers and pkg-config metadata.
 
-FROM golang:1.27.1-bookworm AS builder
+FROM golang:1.27.4-bookworm AS builder
 WORKDIR /repo
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates=20250419~deb12u1 \
+        ca-certificates=20250419~deb12u2 \
         git=1:2.39.5-0+deb12u3 \
         libhunspell-dev=1.7.1-1 \
         pkg-config=1.8.1-1 \
@@ -16,10 +16,9 @@ RUN apt-get update \
 
 COPY go.mod go.sum ./
 COPY third_party ./third_party
-# Shared packages imported by apps/go-svc. Add a COPY for each new
-# internal/... import, or `go build ./apps/go-svc` fails in this image.
-COPY internal/i18n ./internal/i18n
-COPY internal/dataforseo ./internal/dataforseo
+# Minimal source context for go-svc (see root .dockerignore). Copy all of
+# internal/ so new shared packages compile without Dockerfile edits.
+COPY internal ./internal
 COPY apps/go-svc ./apps/go-svc
 
 RUN go mod download

@@ -76,20 +76,13 @@ describe("ContentEditorEditorPanel UI", () => {
     expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
   });
 
-  it("disables find context when lookup is unavailable", () => {
-    renderEditorPanel({ canLookupContext: false });
-
-    const findContextButtons = screen.getAllByRole("button", { name: /Find context/i });
-    expect(findContextButtons.every((button) => button.hasAttribute("disabled"))).toBe(true);
-  });
-
   it("shows save draft when draft saving is supported", async () => {
     const user = userEvent.setup();
     const onSaveDraft = vi.fn();
 
     renderEditorPanel({ onSaveDraft });
 
-    await user.click(screen.getByRole("button", { name: /Save as draft/i }));
+    await user.click(screen.getByRole("button", { name: /Save draft/i }));
     expect(onSaveDraft).toHaveBeenCalled();
   });
 
@@ -132,7 +125,7 @@ describe("ContentEditorEditorPanel UI", () => {
     const commentsSection = screen.getByText("Comments").closest("section");
     expect(commentsSection).not.toBeNull();
 
-    await user.click(within(commentsSection!).getByRole("button", { name: "Queries" }));
+    await user.click(within(commentsSection!).getByRole("button", { name: "Manage queries" }));
 
     expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
   });
@@ -163,11 +156,10 @@ describe("ContentEditorEditorPanel UI", () => {
     expect(onNext).toHaveBeenCalled();
   });
 
-  it("blocks primary actions while context lookup is running", () => {
+  it("keeps approval available while context lookup is running", () => {
     renderEditorPanel({ isLookingUpContext: true });
 
-    expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Finding context/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Approve/i })).not.toBeDisabled();
   });
 
   it("renders format check failures for the active segment", () => {

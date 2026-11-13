@@ -26,11 +26,34 @@ import {
   enqueueFileUploadedActivity,
   uploadActivityActor,
 } from "@/lib/activity-log/file-segment-events";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
+import { resolvedProjectBranchName } from "@/lib/projects/branches/project-branch-name";
+import type { RepositorySourceFileImportSettings } from "./source-file-import-settings-schema";
 import { enqueueSourceFileIngestAfterUpload } from "./source-file-ingest";
 
 type ProjectRecord = typeof schema.projects.$inferSelect;
 
 const logger = createLogger("source-file-upload-service");
+const sourceFileIngestEnqueueTimeoutMs = 10_000;
+
+function withTimeout<T>(task: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`source file ingest enqueue timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    task.then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
+}
 
 export type SourceFileUploadInput = {
   organizationId: string;
@@ -48,10 +71,23 @@ export type SourceFileUploadInput = {
   format?: string | null;
   branch?: string | null;
   uploadSurface: string;
+  /** Keep approved translations approved for this upload's source text changes. */
+  keepApprovedTranslations?: boolean;
+  /** Set when the file was built from another project's translations. */
+  translationSource?: {
+    projectId: string;
+    locale: string;
+    sourceFileVersionId: string;
+    /** What the send read (`translationSourceFingerprintSql`), read before the translations. */
+    fingerprint: string;
+  };
+  /** Replaces the file's import settings, for a file built to be read through them. */
+  importSettings?: RepositorySourceFileImportSettings;
   uploadedByApiKeyId?: string | null;
   uploadedByUserId?: string | null;
   actorUserId?: string | null;
   targetAutomationId?: string;
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
@@ -89,6 +125,8 @@ export type SourceFileUploadError =
   | { code: "external_tms_project_not_found" }
   | { code: "provider_credential_not_found" }
   | { code: "source_upload_failed" }
+  | { code: "protected_branch" }
+  | { code: "branch_not_found" }
   | ExternalTmsSourceFileUploadError;
 
 export async function uploadSourceFile(
@@ -98,12 +136,28 @@ export async function uploadSourceFile(
     return uploadExternalTmsSourceFile(input);
   }
 
-  return ok(await uploadNativeSourceFile(input));
+  return uploadNativeSourceFile(input);
 }
 
 async function uploadNativeSourceFile(
   input: SourceFileUploadInput,
-): Promise<NativeSourceFileUploadResult> {
+): Promise<Result<NativeSourceFileUploadResult, SourceFileUploadError>> {
+  await projectBranchService.ensureDefaultBranch({
+    organizationId: input.organizationId,
+    projectId: input.project.id,
+    createdByUserId: input.uploadedByUserId ?? null,
+  });
+  const branchName = resolvedProjectBranchName(input.branch);
+  const writable = await projectBranchService.assertWritable({
+    projectId: input.project.id,
+    branchName,
+  });
+  if (isErr(writable)) {
+    return err({
+      code: writable.error === "protected_branch" ? "protected_branch" : "branch_not_found",
+    });
+  }
+
   const adapter = input.fileStorageAdapter ?? getFileStorageAdapter();
   let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
 
@@ -124,6 +178,7 @@ async function uploadNativeSourceFile(
           commitSha: input.commitSha ?? null,
           workflowRunId: input.workflowRunId ?? null,
           uploadSurface: input.uploadSurface,
+          ...(input.translationSource ? { translationSource: input.translationSource } : {}),
         },
         adapter,
         db: tx,
@@ -132,14 +187,23 @@ async function uploadNativeSourceFile(
       const version = await createRepositorySourceFileVersion({
         storedFile: uploadedFile,
         sourcePath: input.sourcePath,
+        branchName: writable.value,
         sourceHash: input.sourceHash ?? undefined,
         commitSha: input.commitSha ?? undefined,
         workflowRunId: input.workflowRunId ?? undefined,
         uploadedByApiKeyId: input.uploadedByApiKeyId ?? undefined,
         uploadedByUserId: input.uploadedByUserId ?? undefined,
         uploadSurface: input.uploadSurface,
+        keepApprovedTranslations: input.keepApprovedTranslations,
         db: tx,
       });
+      if (input.importSettings) {
+        // Before ingest is enqueued, so this version is read with them.
+        await tx
+          .update(schema.repositorySourceFiles)
+          .set({ importSettings: input.importSettings })
+          .where(eq(schema.repositorySourceFiles.id, version.repositorySourceFileId));
+      }
 
       return { storedFile: uploadedFile, version };
     })
@@ -150,24 +214,33 @@ async function uploadNativeSourceFile(
       throw error;
     });
 
-  void enqueueSourceFileIngestAfterUpload({
-    organizationId: input.organizationId,
-    projectId: input.project.id,
-    storedFileId: storedFile.id,
-    sourceFileVersionId: version.id,
-    sourcePath: input.sourcePath,
-    sourceHash: input.sourceHash ?? storedFile.sha256,
-    targetAutomationId: input.targetAutomationId,
-  }).catch((error) => {
-    logger.warn(
-      {
+  const enqueueIngest = () =>
+    withTimeout(
+      enqueueSourceFileIngestAfterUpload({
+        organizationId: input.organizationId,
         projectId: input.project.id,
+        storedFileId: storedFile.id,
         sourceFileVersionId: version.id,
-        error: error instanceof Error ? error.message : "unknown",
-      },
-      "source-file-upload source ingest enqueue failed",
-    );
-  });
+        sourcePath: input.sourcePath,
+        sourceHash: input.sourceHash ?? storedFile.sha256,
+        targetAutomationId: input.targetAutomationId,
+      }),
+      sourceFileIngestEnqueueTimeoutMs,
+    ).catch((error) => {
+      logger.warn(
+        {
+          projectId: input.project.id,
+          sourceFileVersionId: version.id,
+          error: error instanceof Error ? error.message : "unknown",
+        },
+        "source-file-upload source ingest enqueue failed",
+      );
+    });
+  if (input.deferAfterResponse) {
+    input.deferAfterResponse(enqueueIngest);
+  } else {
+    void enqueueIngest();
+  }
 
   await enqueueFileUploadedActivity({
     ...uploadActivityActor(input),
@@ -178,7 +251,7 @@ async function uploadNativeSourceFile(
     versionId: version.id,
   });
 
-  return {
+  return ok({
     destination: "native",
     file: {
       id: storedFile.id,
@@ -188,7 +261,7 @@ async function uploadNativeSourceFile(
       byteSize: storedFile.byteSize,
       sha256: storedFile.sha256,
     },
-  };
+  });
 }
 
 async function uploadExternalTmsSourceFile(

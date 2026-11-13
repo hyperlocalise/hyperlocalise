@@ -1,0 +1,42 @@
+---
+title: "v1.13.5"
+description: "Go CLI release notes for v1.13.5."
+---
+
+`hl run` reads gettext `.pot` templates and keeps message context and plural forms as separate keys. `hl check` and `hl validate` flag ICU plural categories the target locale never selects. Comments and notes from several catalogs travel with the string. Word and PowerPoint writeback drops placeholder names a model copied as plain text.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.13.5) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.13.4...v1.13.5)
+
+## Breaking changes
+
+- [Gettext keys](https://github.com/hyperlocalise/hyperlocalise/pull/2910) change shape. A singular entry with `msgctxt` is `msgctxt||msgid`. A plural entry is one key per category, such as `msgid||one` and `msgid||other`, or `msgctxt||msgid||one` when context is set. The first `hl run` after upgrade translates those strings again and writes new lockfile entries. A lockfile entry that still uses the bare `msgid` fills the `one` slot. See [Translate gettext PO](/cli/reference/formats/gettext).
+- [`hl entries`](https://github.com/hyperlocalise/hyperlocalise/pull/2954) prints a key that has parser context as an object with `text` and `context`. Keys without context stay plain strings.
+
+## Features
+
+- Translate [gettext `.pot` templates and plural catalogs](https://github.com/hyperlocalise/hyperlocalise/pull/2910). An empty `msgstr` falls back to `msgid`, and an empty plural slot other than `one` falls back to `msgid_plural`. A source catalog that already stores English in `msgstr` keeps using `msgstr`. Add `X-Crowdin-SourceKey: msgstr` to the header when an empty `msgstr` must stay empty. Translator comments (`#`) and extracted comments (`#.`) go to the model as context. Obsolete entries (`#~`) stay in the file and are skipped. Writeback sets `Language` to the target locale, writes the matching `Plural-Forms` rule, removes a `fuzzy` flag, and leaves other flags in place. `hl sync` uploads `.pot` as gettext. See [Translate gettext PO](/cli/reference/formats/gettext).
+- Flag [unreachable ICU plural cases](https://github.com/hyperlocalise/hyperlocalise/pull/2953). `hl check` and `hl validate` report `unreachable_plural_case` when a target keeps a `plural` or `selectordinal` category the locale never selects, such as `one` in Japanese. The check is an error. `--fix` can retranslate it, and `--diff-stdin` includes it with the other key-scoped checks. A custom `--policy-file` may omit the check; `validate` then enables it as an error. See [`check`](/cli/commands/check) and [`validate`](/cli/commands/validate).
+- Send [file comments and notes](https://github.com/hyperlocalise/hyperlocalise/pull/2954) with the string. `hl run` now includes a preceding Android XML comment, an immediate YAML `#` comment, a RESX or RESW `<comment>` or `<note>`, a leading Apple `.strings` comment, an `.xcstrings` comment, and an XLIFF `<note>`. The next `hl run` translates a key again when that context is new. `hl entries` also returns a FormatJS `description` and a JSONC comment in `context`. Markdown and AsciiDoc lock entries ignore structural hints, so those documents stay cached.
+
+## Fixes
+
+- Drop [leaked Office placeholder names](https://github.com/hyperlocalise/hyperlocalise/pull/2929) during Word and PowerPoint writeback. A translation that copies `HLOXPH_…` as plain text loses that copy, and a paragraph segment no longer keeps trailing spaces. Real placeholder tokens stay in place. See [Translate Word documents](/cli/reference/formats/docx) and [Translate PowerPoint decks](/cli/reference/formats/pptx).
+- Escape [quotes in XLIFF attributes](https://github.com/hyperlocalise/hyperlocalise/pull/2939) on every write path that builds a start tag, including target attributes, inline-code wrappers, and edited attributes.
+
+## Performance
+
+- [JSONC comment attachment](https://github.com/hyperlocalise/hyperlocalise/pull/2900) skips key decoding for leaves that have no comment.
+- [Gettext parsing](https://github.com/hyperlocalise/hyperlocalise/pull/2907) scans the catalog as bytes instead of splitting it into lines, and writeback quotes `msgstr` values through one writer ([#2919](https://github.com/hyperlocalise/hyperlocalise/pull/2919)).
+- [INI parsing](https://github.com/hyperlocalise/hyperlocalise/pull/2950) detects unescaped quoted values with `IndexByte`, and writeback grows the output buffer from the template size.
+
+## Tests
+
+- Gettext `msgctxt`, plural categories, `.pot` msgid fallback, `X-Crowdin-SourceKey: msgstr`, and locale `Plural-Forms` on writeback.
+- `unreachable_plural_case` in `hl check`, including `--fix`.
+- `hl entries` context for FormatJS descriptions.
+- XLIFF attribute quoting.
+- Word and PowerPoint cleanup of leaked placeholder names.
+
+## Maintenance
+
+- Bump Go dependencies, including OpenAI Go to v3.84.0, WorkOS Go to v10.6.0, Orchestrion to v1.14.0, and `dd-trace-go` to v2.11.2 ([#2930](https://github.com/hyperlocalise/hyperlocalise/pull/2930)).

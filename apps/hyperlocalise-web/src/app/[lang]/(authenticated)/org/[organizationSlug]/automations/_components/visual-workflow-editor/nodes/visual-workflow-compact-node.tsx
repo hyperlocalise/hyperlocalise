@@ -12,24 +12,48 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { defineMessages, FormattedMessage, useIntl } from "react-intl";
+import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
+import { BroadcastIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { Handle, Position, useEdges, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
+import { defineMessages, FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { Card } from "@/components/ui/card";
 import {
   catalogItemByType,
+  getVisualNodeDimensions,
   isTriggerType,
   resolveNodeSubtitle,
   TRIGGER_BADGE_ICON,
 } from "@/lib/visual-workflows/catalog/node-catalog";
-import { nodeSupportsErrorBranch } from "@/lib/visual-workflows/runtime/node-options";
-import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
+import {
+  canvasDataHandleId,
+  fromCanvasEdgeHandles,
+} from "@/lib/visual-workflows/editor/canvas-handle-ids";
+import {
+  getVisualWorkflowDataPorts,
+  type VisualWorkflowDataPort,
+} from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
+import { isExecutionHandleConnected } from "@/lib/visual-workflows/editor/visual-workflow-execution-ports";
+import { getAllowedExecutionSourceHandles } from "@/lib/visual-workflows/validation/execution-handles";
+import type {
+  VisualWorkflowCanvasEdge,
+  VisualWorkflowRfNode,
+} from "@/lib/visual-workflows/schema/types";
 import { cn } from "@/lib/primitives/cn";
 
 import { useVisualWorkflowCanvasActions } from "../visual-workflow-canvas-actions";
 import { visualWorkflowEditorMessages as messages } from "../visual-workflow-editor.messages";
+import { visualWorkflowNodeTitleMessage } from "../visual-workflow-node-picker";
+import { VisualWorkflowQuickAddButton } from "./visual-workflow-quick-add-button";
+import {
+  createElement,
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  type ComponentProps,
+  type CSSProperties,
+} from "react";
 
 const nodeStatusMessages = defineMessages({
   running: { defaultMessage: "Running", id: "ZWQ+8S8rpv", description: "Workflow node status" },
@@ -49,144 +73,612 @@ const nodeStatusMessages = defineMessages({
     description: "Workflow node status",
   },
 });
-const HANDLE_CLASS = "size-2.5! border-2 border-background bg-primary";
+// React Flow draws a handle as a dot of its own, and its stylesheet, being in no cascade layer,
+// outranks Tailwind's utilities. The `!` classes switch that dot off and leave the handle as the
+// thing to grab; its shape is a glyph inside it, drawn in the handle's text colour.
+const HANDLE_CLASS = cn(
+  "group/handle size-2.5! border-0! bg-transparent!",
+  "transition-colors duration-100 motion-reduce:transition-none",
+  // A target larger than the glyph, so it can be grabbed without aiming.
+  "after:absolute after:-inset-[7px] after:rounded-full after:content-['']",
+  // Where a connection being dragged would land: green once it is one the canvas allows.
+  "[&.connectingto.valid]:text-emerald-500",
+);
+
+const HANDLE_GLYPH_CLASS = cn(
+  // The pointer has to reach the handle itself, which is what React Flow looks for under it.
+  "pointer-events-none absolute top-1/2 left-1/2 size-(--handle-glyph) -translate-1/2 overflow-visible",
+  "transition-colors duration-100 motion-reduce:transition-none",
+  // Where a connection being dragged would land: dimmed until it is one the canvas allows.
+  "group-[.connectingto]/handle:opacity-30 group-[.connectingto.valid]/handle:opacity-100",
+);
+
+// Under the pointer, and where a connection being dragged starts from, a handle keeps its size and
+// takes a stronger colour, as the app's buttons and links do. One that is still hollow also gets a
+// light fill of that colour.
+const HANDLE_GLYPH_HOLLOW_ACTIVE_CLASS = cn(
+  "group-[:not(.connectingto):hover]/handle:fill-[color-mix(in_oklab,currentColor_25%,var(--card))]",
+  "group-[.connectingfrom]/handle:fill-[color-mix(in_oklab,currentColor_25%,var(--card))]",
+);
+
+// The app's primary, destructive and muted colours are far heavier than the data ports' type
+// colours. Mixed with the background they sit at the same strength, and stay opaque, so neither
+// the card's border nor a step's band shows through. The stronger colour is the app's own.
+const EXECUTION_GLYPH_TONE_CLASS = cn(
+  "text-[color:color-mix(in_oklab,currentColor_60%,var(--background))]",
+  "group-[:not(.connectingto):hover]/handle:text-current group-[.connectingfrom]/handle:text-current",
+);
+
+// A data port is already at its type colour's full strength, so its stronger colour is a step
+// towards the text colour.
+const DATA_GLYPH_TONE_CLASS = cn(
+  "group-[:not(.connectingto):hover]/handle:text-[color:color-mix(in_oklab,currentColor_70%,var(--foreground))]",
+  "group-[.connectingfrom]/handle:text-[color:color-mix(in_oklab,currentColor_70%,var(--foreground))]",
+);
+
+/**
+ * The shape inside a handle: hollow until a wire is attached to the handle, then filled. Its
+ * outline and fill are the handle's text colour, so a tone class and the drag feedback reach both.
+ */
+function HandleGlyph({
+  shape,
+  connected,
+  className,
+}: {
+  shape: "arrow" | "dot";
+  connected: boolean;
+  className?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={cn(
+        HANDLE_GLYPH_CLASS,
+        connected ? null : HANDLE_GLYPH_HOLLOW_ACTIVE_CLASS,
+        className,
+      )}
+      fill={connected ? "currentColor" : "var(--card)"}
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {shape === "arrow" ? (
+        <path d="M3.5 2.5 13.5 8 3.5 13.5Z" />
+      ) : (
+        <circle cx="8" cy="8" r="5.5" />
+      )}
+    </svg>
+  );
+}
+
+type WorkflowHandleProps = ComponentProps<typeof Handle> & {
+  /** Whether a wire is attached. Tests read it from `data-connected`. */
+  connected: boolean;
+};
+
+/**
+ * Where the workflow runs into or out of a step: an arrow pointing the way it runs, so it cannot
+ * be taken for a data port. `className` sets its place and, with a text colour, its tone.
+ */
+function ExecutionHandle({ className, connected, ...props }: WorkflowHandleProps) {
+  return (
+    <Handle
+      {...props}
+      data-connected={connected ? "" : undefined}
+      className={cn(HANDLE_CLASS, "text-primary", className)}
+    >
+      <HandleGlyph
+        shape="arrow"
+        connected={connected}
+        className={cn(EXECUTION_GLYPH_TONE_CLASS, "[--handle-glyph:14px]")}
+      />
+    </Handle>
+  );
+}
+
+/** Where a value enters or leaves a step: a round dot, in its type's colour through `className`. */
+function DataHandle({ className, connected, ...props }: WorkflowHandleProps) {
+  return (
+    <Handle
+      {...props}
+      data-connected={connected ? "" : undefined}
+      className={cn(HANDLE_CLASS, className)}
+    >
+      <HandleGlyph
+        shape="dot"
+        connected={connected}
+        className={cn(DATA_GLYPH_TONE_CLASS, "[--handle-glyph:12px]")}
+      />
+    </Handle>
+  );
+}
+
+// A step's state is marked with a band along its edge at half the colour's strength: the canvas
+// moves by fractions of a pixel, and a thin solid line flickers between two and three pixels wide
+// as it does, where a wide soft one keeps its look.
+//
+// The band is the shadow of an element set in from the card's edge by half the band's width, so
+// the edge, and with it every handle, runs down the band's middle.
+const STEP_BAND_CLASS =
+  "pointer-events-none absolute inset-[1.5px] rounded-[calc(var(--radius-xl)-1.5px)]";
+const STEP_BAND_TONE_CLASS = {
+  issue: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--destructive)_50%,transparent)]",
+  selected: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--ring)_50%,transparent)]",
+  // A step that appeared or was changed and has not been selected since; the selection's band
+  // takes its place once it is.
+  fresh: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-violet-600,#7c3aed)_50%,transparent)]",
+  // The step a value under the pointer in the settings panel comes from.
+  pointed: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--foreground)_25%,transparent)]",
+};
+
+export const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
+  string: "text-blue-500",
+  number: "text-amber-500",
+  boolean: "text-violet-500",
+  object: "text-emerald-500",
+  array: "text-pink-500",
+  unknown: "text-slate-500",
+};
+
+// A step's execution handles and their labels are placed down its top part, above its data ports,
+// so the two kinds of handle never land on one spot of the card's edge. Without data ports that
+// part is the whole card.
+const EXECUTION_ZONE_VARIABLE = "--execution-zone";
+// The card's padding, the icon, title and subtitle, and the gap above the data ports.
+const EXECUTION_ZONE_MIN_HEIGHT = 104;
+const EXECUTION_ZONE_INSET = 24;
+const EXECUTION_HANDLE_PITCH = 24;
+// The row of the execution input and the main output on a step with data ports: beside the title,
+// clear of the data ports below.
+const EXECUTION_MAIN_ROW_TOP = 64;
+// The rows start below the marks in the card's top corners, so the first label never runs under
+// the issue mark.
+const EXECUTION_ZONE_TOP_INSET = 12;
+
+function executionTop(fraction: number): CSSProperties {
+  return {
+    top: `calc(${EXECUTION_ZONE_TOP_INSET}px + (var(${EXECUTION_ZONE_VARIABLE}) - ${EXECUTION_ZONE_TOP_INSET}px) * ${fraction})`,
+  };
+}
+
+/** Where `count` handles go when spread evenly down the execution zone. */
+function spreadTop(index: number, count: number): CSSProperties {
+  return executionTop((index + 1) / (count + 1));
+}
+
+type ExecutionOutputLook = {
+  message: MessageDescriptor;
+  ariaLabel: string;
+  /** A text colour for the handle and its label. */
+  className?: string;
+};
+
+// How the card names an execution output, by its id. Switch cases and Sequence outputs are named
+// by the step's own settings.
+const EXECUTION_OUTPUT_LOOK: Record<string, ExecutionOutputLook> = {
+  true: { message: messages.trueHandle, ariaLabel: "true" },
+  false: { message: messages.falseHandle, ariaLabel: "false", className: "text-muted-foreground" },
+  success: { message: messages.jsonSuccessHandle, ariaLabel: "Success" },
+  invalid: { message: messages.invalidHandle, ariaLabel: "Invalid", className: "text-destructive" },
+  error: { message: messages.errorHandle, ariaLabel: "Error", className: "text-destructive" },
+  each: { message: messages.eachHandle, ariaLabel: "Each item" },
+  done: { message: messages.doneHandle, ariaLabel: "Done" },
+  attempt: { message: messages.attemptHandle, ariaLabel: "Attempt" },
+  succeeded: { message: messages.succeededHandle, ariaLabel: "Succeeded" },
+  exhausted: {
+    message: messages.exhaustedHandle,
+    ariaLabel: "Exhausted",
+    className: "text-muted-foreground",
+  },
+  approved: { message: messages.approvedHandle, ariaLabel: "Approved" },
+  rejected: {
+    message: messages.rejectedHandle,
+    ariaLabel: "Rejected",
+    className: "text-destructive",
+  },
+  changes_requested: { message: messages.changesRequestedHandle, ariaLabel: "Changes requested" },
+  timed_out: {
+    message: messages.timedOutHandle,
+    ariaLabel: "Timed out",
+    className: "text-muted-foreground",
+  },
+  completed: { message: messages.completedHandle, ariaLabel: "Completed" },
+  try: { message: messages.tryHandle, ariaLabel: "Try" },
+  catch: { message: messages.catchHandle, ariaLabel: "Catch", className: "text-destructive" },
+  finally: {
+    message: messages.finallyHandle,
+    ariaLabel: "Finally",
+    className: "text-muted-foreground",
+  },
+  default: {
+    message: messages.switchDefaultHandle,
+    ariaLabel: "default",
+    className: "text-muted-foreground",
+  },
+};
+
+const TRY_CATCH_SUCCESS_LOOK: ExecutionOutputLook = {
+  message: messages.successHandle,
+  ariaLabel: "Success",
+};
+
+/** One way the workflow can leave a step, as drawn on the card's right edge. */
+type ExecutionOutput = {
+  id: string;
+  /** Shown inside the card beside the handle. The main output of an ordinary step has none. */
+  label: string | null;
+  ariaLabel: string | undefined;
+  /** Its row, from the top of the execution zone. React Flow's own middle when absent. */
+  top: CSSProperties | undefined;
+  /** A text colour for the handle and its label. */
+  className?: string;
+};
+
+// A port's row starts inside the card's padding. This puts its dot on the card's edge, where the
+// execution handles are, and clear of the port's name and type.
+const DATA_PORT_EDGE_CLASS = { input: "-left-3!", output: "-right-3!" };
+
+// A label beside an execution handle, inside the card at the handle's row.
+const EXECUTION_LABEL_CLASS =
+  "pointer-events-none absolute flex -translate-y-1/2 items-center gap-1 text-[10px] font-medium text-muted-foreground";
+
+const PORT_VALUE_PREVIEW_LENGTH = 80;
+
+/** A value as the pin's tooltip shows it: JSON, cut short. */
+function previewPortValue(value: unknown): string {
+  const text = JSON.stringify(value) ?? String(value);
+  return text.length > PORT_VALUE_PREVIEW_LENGTH
+    ? `${text.slice(0, PORT_VALUE_PREVIEW_LENGTH - 1)}…`
+    : text;
+}
+
+function DataPortLabel({
+  port,
+  direction,
+  value,
+}: {
+  port: VisualWorkflowDataPort;
+  direction: "input" | "output";
+  /** What passed through the pin in the last run, if it ran. */
+  value?: unknown;
+}) {
+  const connected = port.connectionCount > 0;
+
+  return (
+    <div
+      className={cn(
+        "relative flex min-h-6 items-center gap-1.5 text-[10px]",
+        direction === "output" ? "justify-end text-right" : null,
+      )}
+      title={`${port.label}: ${port.type}${port.optional ? " (optional)" : ""}${
+        value === undefined ? "" : ` = ${previewPortValue(value)}`
+      }`}
+    >
+      {direction === "input" ? (
+        <DataHandle
+          id={canvasDataHandleId(port.id)}
+          type="target"
+          position={Position.Left}
+          connected={connected}
+          className={cn(DATA_PORT_EDGE_CLASS.input, DATA_TYPE_CLASS[port.type])}
+          aria-label={`Data input: ${port.label}, ${port.type}${port.optional ? ", optional" : ""}`}
+        />
+      ) : null}
+
+      <span className="min-w-0 truncate font-medium">{port.label}</span>
+      <span className="shrink-0 text-muted-foreground">{port.type}</span>
+
+      {direction === "output" ? (
+        <DataHandle
+          id={canvasDataHandleId(port.id)}
+          type="source"
+          position={Position.Right}
+          connected={connected}
+          className={cn(DATA_PORT_EDGE_CLASS.output, DATA_TYPE_CLASS[port.type])}
+          aria-label={`Data output: ${port.label}, ${port.type}${
+            port.optional ? ", optional" : ""
+          }`}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
-  const { onAddFromNode } = useVisualWorkflowCanvasActions();
+  // The canvas's own list, which holds the drawn reference lines as well as the stored edges.
+  const canvasEdges = useEdges<VisualWorkflowCanvasEdge>();
+  const edges = useMemo(() => canvasEdges.map(fromCanvasEdgeHandles), [canvasEdges]);
+  const { onAddFromNode, issueNodeIds, freshNodeIds, pointedNodeId, realNodeIds } =
+    useVisualWorkflowCanvasActions();
+  const hasIssue = issueNodeIds.has(id);
+  const runsForReal = realNodeIds.has(id);
+  const isFresh = !selected && freshNodeIds.has(id);
+  const isPointed = !selected && pointedNodeId === id;
   const catalog = catalogItemByType(data.catalogType);
   const isTrigger = isTriggerType(data.catalogType);
-  const isIf = data.catalogType === "logic.if";
-  const isSwitch = data.catalogType === "logic.switch";
-  const showErrorHandle = nodeSupportsErrorBranch(data.config);
-  const title = intl.formatMessage(titleMessage(data.catalogType));
+  const dataPorts = getVisualWorkflowDataPorts({
+    node: {
+      id,
+      type: data.catalogType,
+      position: { x: 0, y: 0 },
+      data,
+    },
+    edges,
+  });
+  const hasDataPorts = dataPorts.inputs.length > 0 || dataPorts.outputs.length > 0;
+  const title = intl.formatMessage(visualWorkflowNodeTitleMessage(data.catalogType));
   const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
 
-  const switchHandles =
-    isSwitch && data.config.kind === "logic.switch"
-      ? [
-          ...data.config.cases.map((_, index) => ({
-            id: String(index),
-            label: intl.formatMessage(messages.switchCaseHandle, { index: index + 1 }),
-          })),
-          { id: "default", label: intl.formatMessage(messages.switchDefaultHandle) },
-        ]
-      : [];
+  const mergeInputs = data.config.kind === "logic.merge" ? data.config.inputs : [];
+  // The card draws the outputs the connection check and the compiler accept. An ordinary step's
+  // main output (listed with null, its id before outputs had ids) has no label.
+  const allowedOutputs = getAllowedExecutionSourceHandles({
+    type: data.catalogType,
+    config: data.config,
+  });
+  const outputIds = allowedOutputs.filter((handle): handle is string => handle !== null);
+  const describeOutput = (outputId: string): Omit<ExecutionOutput, "top"> => {
+    if (outputId === "success" && allowedOutputs.includes(null)) {
+      return { id: outputId, label: null, ariaLabel: "Execution success" };
+    }
+    if (data.config.kind === "logic.switch") {
+      const index = data.config.cases.findIndex((caseEntry) => caseEntry.id === outputId);
+      if (index >= 0) {
+        const label = intl.formatMessage(messages.switchCaseHandle, { index: index + 1 });
+        return { id: outputId, label, ariaLabel: label };
+      }
+    }
+    if (data.config.kind === "logic.sequence") {
+      const output = data.config.outputs.find((entry) => entry.id === outputId);
+      if (output) {
+        return { id: outputId, label: output.label, ariaLabel: `Sequence output: ${output.label}` };
+      }
+    }
+    const look =
+      data.catalogType === "logic.try_catch" && outputId === "success"
+        ? TRY_CATCH_SUCCESS_LOOK
+        : EXECUTION_OUTPUT_LOOK[outputId];
+    return look
+      ? {
+          id: outputId,
+          label: intl.formatMessage(look.message),
+          ariaLabel: look.ariaLabel,
+          className: look.className,
+        }
+      : { id: outputId, label: outputId, ariaLabel: outputId };
+  };
+  // A lone output stays on the input's row; several are spread evenly down the execution zone.
+  const outputs: ExecutionOutput[] = outputIds.map((outputId, index) => ({
+    ...describeOutput(outputId),
+    top:
+      outputIds.length > 1
+        ? spreadTop(index, outputIds.length)
+        : hasDataPorts
+          ? { top: EXECUTION_MAIN_ROW_TOP }
+          : undefined,
+  }));
+  // React Flow measures a step's handles when it is first drawn. A handle added or moved later
+  // (the error branch, a declared output) takes no wire until the step is measured again.
+  const updateNodeInternals = useUpdateNodeInternals();
+  const handleLayout = [
+    ...mergeInputs.map((input) => `input:${input.id}`),
+    ...outputs.map((output) => `output:${output.id}`),
+    ...dataPorts.inputs.map((port) => `data-input:${port.id}`),
+    ...dataPorts.outputs.map((port) => `data-output:${port.id}`),
+  ].join("\n");
+  const measuredHandleLayout = useRef(handleLayout);
+  useEffect(() => {
+    if (measuredHandleLayout.current !== handleLayout) {
+      measuredHandleLayout.current = handleLayout;
+      updateNodeInternals(id);
+    }
+  }, [handleLayout, id, updateNodeInternals]);
+  const showAddButtons = !data.hideAddAction && outputs.length > 0;
+  const hasOutputLabels = outputs.some((output) => output.label !== null);
+
+  const addFromHandle = (handleId?: string) => {
+    onAddFromNode({
+      nodeId: id,
+      handleId,
+    });
+  };
+
+  // The most handles that are spread evenly down one side of the step.
+  const spreadExecutionHandleCount = Math.max(mergeInputs.length, outputs.length);
+  const executionZoneHeight = hasDataPorts
+    ? Math.max(EXECUTION_ZONE_MIN_HEIGHT, (spreadExecutionHandleCount + 1) * EXECUTION_HANDLE_PITCH)
+    : null;
 
   return (
     <Card
       aria-busy={data.runStatus === "running"}
+      style={
+        {
+          minHeight: getVisualNodeDimensions(data.catalogType, data.config).height,
+          [EXECUTION_ZONE_VARIABLE]: executionZoneHeight ? `${executionZoneHeight}px` : "100%",
+        } as CSSProperties
+      }
       className={cn(
-        "relative w-[200px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
-        selected ? "ring-2 ring-ring" : null,
+        "relative w-[280px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
         data.runStatus === "running" ? "ring-2 ring-primary/70" : null,
         data.runStatus === "succeeded" ? "border-grove-700/40 bg-grove-100/60" : null,
         data.runStatus === "failed" ? "border-destructive/40 bg-destructive/5" : null,
       )}
     >
+      {/* A selected, pointed or fresh step shows that band alone; its issue mark still says it
+          has a problem. The band comes before the handles, which are drawn over it. */}
+      {selected || isPointed || isFresh || hasIssue ? (
+        <span
+          aria-hidden
+          data-slot="step-band"
+          className={cn(
+            STEP_BAND_CLASS,
+            selected
+              ? STEP_BAND_TONE_CLASS.selected
+              : isPointed
+                ? STEP_BAND_TONE_CLASS.pointed
+                : isFresh
+                  ? STEP_BAND_TONE_CLASS.fresh
+                  : STEP_BAND_TONE_CLASS.issue,
+          )}
+        />
+      ) : null}
+      {hasIssue ? (
+        <span
+          className="absolute top-2 right-2 text-destructive"
+          title={intl.formatMessage(messages.stepHasIssue)}
+        >
+          <WarningCircleIcon className="size-3.5" />
+        </span>
+      ) : null}
+      {runsForReal ? (
+        <span
+          className="absolute top-2 left-2 text-warning"
+          title={intl.formatMessage(messages.stepRunsForReal)}
+        >
+          <BroadcastIcon weight="bold" className="size-3.5" />
+          <span className="sr-only">{intl.formatMessage(messages.stepRunsForReal)}</span>
+        </span>
+      ) : null}
       {isTrigger ? (
         <span
           className="absolute top-2 left-2 text-primary"
           title={intl.formatMessage(messages.triggerBadge)}
         >
-          <HugeiconsIcon icon={TRIGGER_BADGE_ICON} className="size-3.5" strokeWidth={2} />
+          {createElement(TRIGGER_BADGE_ICON, { className: "size-3.5" })}
         </span>
-      ) : (
-        <Handle className={HANDLE_CLASS} position={Position.Left} type="target" />
-      )}
-
-      {isIf ? (
-        <>
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[35%]!")}
-            id="true"
-            position={Position.Right}
-            type="source"
-          />
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[65%]! bg-muted-foreground")}
-            id="false"
-            position={Position.Right}
-            type="source"
-          />
-        </>
-      ) : data.catalogType === "logic.for_each" ? (
-        <>
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[35%]!")}
-            id="each"
-            position={Position.Right}
-            type="source"
-            aria-label="Each item"
-          />
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[65%]!")}
-            id="done"
-            position={Position.Right}
-            type="source"
-            aria-label="Done"
-          />
-        </>
-      ) : isSwitch ? (
-        switchHandles.map((handle, index) => (
-          <Handle
-            key={handle.id}
-            className={cn(HANDLE_CLASS, handle.id === "default" ? "bg-muted-foreground" : null)}
-            id={handle.id}
-            position={Position.Right}
-            type="source"
-            style={{
-              top: `${((index + 1) / (switchHandles.length + 1)) * 100}%`,
-            }}
-          />
+      ) : data.config.kind === "logic.merge" ? (
+        mergeInputs.map((input, index) => (
+          <Fragment key={input.id}>
+            <ExecutionHandle
+              id={input.id}
+              position={Position.Left}
+              type="target"
+              aria-label={`Merge input: ${input.name}`}
+              style={spreadTop(index, mergeInputs.length)}
+              connected={isExecutionHandleConnected(edges, id, "target", input.id)}
+            />
+            <div
+              className={cn(EXECUTION_LABEL_CLASS, "left-3")}
+              style={spreadTop(index, mergeInputs.length)}
+            >
+              <span className="max-w-14 truncate">{input.name}</span>
+            </div>
+          </Fragment>
         ))
       ) : (
-        <>
-          <Handle className={HANDLE_CLASS} position={Position.Right} type="source" />
-          {showErrorHandle ? (
-            <Handle
-              className={cn(HANDLE_CLASS, "top-[75%]! bg-destructive")}
-              id="error"
-              position={Position.Right}
-              type="source"
-            />
-          ) : null}
-        </>
+        <ExecutionHandle
+          id="input"
+          style={hasDataPorts ? { top: EXECUTION_MAIN_ROW_TOP } : undefined}
+          position={Position.Left}
+          type="target"
+          aria-label="Execution input"
+          connected={isExecutionHandleConnected(edges, id, "target", "input")}
+        />
       )}
+      {outputs.map((output) => (
+        <Fragment key={output.id}>
+          <ExecutionHandle
+            id={output.id}
+            position={Position.Right}
+            type="source"
+            aria-label={output.ariaLabel}
+            className={output.className}
+            style={output.top}
+            connected={isExecutionHandleConnected(edges, id, "source", output.id)}
+          />
+          {output.label !== null || showAddButtons ? (
+            <div
+              className={cn(EXECUTION_LABEL_CLASS, "right-3", output.className)}
+              style={output.top ?? { top: "50%" }}
+            >
+              {showAddButtons ? (
+                <VisualWorkflowQuickAddButton
+                  className="pointer-events-auto size-5"
+                  handleId={output.id}
+                  label={
+                    output.label === null
+                      ? intl.formatMessage(messages.addNode)
+                      : intl.formatMessage(messages.addNodeFromHandle, { handle: output.label })
+                  }
+                  onAdd={addFromHandle}
+                />
+              ) : null}
+              {output.label !== null ? (
+                <span className="max-w-16 truncate">{output.label}</span>
+              ) : null}
+            </div>
+          ) : null}
+        </Fragment>
+      ))}
 
-      <div className="flex flex-col items-center gap-1.5 pt-1 text-center">
-        <HugeiconsIcon icon={catalog.icon} className="size-7 text-foreground" strokeWidth={1.6} />
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      <div
+        className={cn(
+          "flex min-w-0 flex-col items-center justify-center gap-1.5 pt-1 text-center",
+          // Clear of the handle labels, which sit inside the card's sides.
+          mergeInputs.length > 0 ? "pl-14" : null,
+          hasOutputLabels ? "pr-20" : showAddButtons ? "pr-7" : null,
+        )}
+        style={
+          executionZoneHeight
+            ? { minHeight: executionZoneHeight - EXECUTION_ZONE_INSET }
+            : undefined
+        }
+      >
+        {createElement(catalog.icon, { className: "size-7 text-foreground" })}
+        <p className="max-w-full truncate text-sm font-medium text-foreground" title={title}>
+          {title}
+        </p>
+        <p className="max-w-full truncate text-xs text-muted-foreground" title={subtitle}>
+          {subtitle}
+        </p>
       </div>
 
-      {isIf ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-2.4rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
-          <span>
-            <FormattedMessage {...messages.trueHandle} />
-          </span>
-          <span>
-            <FormattedMessage {...messages.falseHandle} />
-          </span>
-        </div>
-      ) : null}
+      {hasDataPorts ? (
+        <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-2">
+          <div className="min-w-0">
+            <p className="mb-1 text-left text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <FormattedMessage
+                defaultMessage="Inputs"
+                id="xOduwNEWmK"
+                description="Workflow node data input ports heading"
+              />
+            </p>
 
-      {data.catalogType === "logic.for_each" ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-3.5rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
-          <span>
-            <FormattedMessage
-              defaultMessage="Each item"
-              id="7eZfUxSh+m"
-              description="Workflow loop body connection"
-            />
-          </span>
-          <span>
-            <FormattedMessage
-              defaultMessage="Done"
-              id="zZIbqHg71N"
-              description="Workflow loop completion connection"
-            />
-          </span>
+            <div className="space-y-0.5">
+              {dataPorts.inputs.map((port) => (
+                <DataPortLabel
+                  key={`data-input-${port.id}`}
+                  port={port}
+                  direction="input"
+                  value={readWorkflowPath(data.lastInput?.config, port.id.split("."))}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <p className="mb-1 text-right text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <FormattedMessage
+                defaultMessage="Outputs"
+                id="AfVZqT7lYf"
+                description="Workflow node data output ports heading"
+              />
+            </p>
+
+            <div className="space-y-0.5">
+              {dataPorts.outputs.map((port) => (
+                <DataPortLabel
+                  key={`data-output-${port.id}`}
+                  port={port}
+                  direction="output"
+                  value={readWorkflowPath(data.lastOutput, port.id.split("."))}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       ) : null}
       {data.runStatus && data.runStatus !== "idle" ? (
@@ -194,78 +686,12 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           {intl.formatMessage(nodeStatusMessages[data.runStatus])}
         </p>
       ) : null}
-      {isSwitch ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-2.8rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
-          {switchHandles.map((handle) => (
-            <span key={handle.id}>{handle.label}</span>
-          ))}
-        </div>
-      ) : null}
-
-      {showErrorHandle && !isIf && !isSwitch ? (
-        <div className="pointer-events-none absolute top-[72%] right-[-2.6rem] text-[10px] font-medium text-destructive">
-          <FormattedMessage {...messages.errorHandle} />
-        </div>
-      ) : null}
 
       {data.lastOutput && Object.keys(data.lastOutput).length > 0 ? (
         <div className="mt-2 max-h-16 overflow-hidden border-t border-border pt-2 text-left text-[10px] text-muted-foreground">
           <p className="line-clamp-3 font-mono break-all">{JSON.stringify(data.lastOutput)}</p>
         </div>
       ) : null}
-
-      {data.hideAddAction ? null : (
-        <button
-          type="button"
-          data-visual-workflow-add=""
-          className="nodrag nopan absolute top-1/2 -right-3 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-muted"
-          aria-label={intl.formatMessage(messages.addNode)}
-          onClick={(event) => {
-            event.stopPropagation();
-            onAddFromNode({
-              nodeId: id,
-              handleId: isIf
-                ? "true"
-                : isSwitch
-                  ? "0"
-                  : data.catalogType === "logic.for_each"
-                    ? "each"
-                    : undefined,
-            });
-          }}
-        >
-          <HugeiconsIcon icon={Add01Icon} className="size-3.5" strokeWidth={2} />
-        </button>
-      )}
     </Card>
   );
-}
-
-function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
-  switch (type) {
-    case "trigger.manual":
-      return messages.nodeManualTrigger;
-    case "trigger.scheduled":
-      return messages.nodeScheduledTrigger;
-    case "trigger.github":
-      return messages.nodeGithubTrigger;
-    case "trigger.source_upload":
-      return messages.nodeSourceUploadTrigger;
-    case "action.http":
-      return messages.nodeHttp;
-    case "action.notify_slack":
-      return messages.nodeNotifySlack;
-    case "action.notify_email":
-      return messages.nodeNotifyEmail;
-    case "logic.if":
-      return messages.nodeIf;
-    case "logic.switch":
-      return messages.nodeSwitch;
-    case "logic.set":
-      return messages.nodeSet;
-    case "ai.agent":
-      return messages.nodeAi;
-    case "logic.for_each":
-      return messages.nodeLoop;
-  }
 }

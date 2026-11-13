@@ -1,0 +1,76 @@
+---
+title: "Track and recover jobs"
+sidebarTitle: "Jobs and recovery"
+description: "Understand job status and decide when to retry, cancel, or request help."
+---
+
+Open a project’s jobs and select a job to inspect its status, progress, target locales, and source file. Use **My Jobs** to follow your own work across requests.
+
+## Due dates and ordering
+
+Native jobs can carry a **due date** set in the workspace, through visual workflow steps (**Assign task**, **Update job**), or with the MCP `update_job` tool (`dueAt` as ISO 8601, or `null` to clear). Jobs mirrored from an external TMS show the provider due date when one exists; change those in the TMS, not in Hyperlocalise.
+
+On **My Jobs** and the jobs kanban, open work is sorted with the soonest due date first; jobs without a due date appear after dated work. Cards and the job detail page show relative due text and highlight overdue items. **Pick assignee** rules can treat urgent work differently using **Due within (hours)** when the workflow passes a due date into the step.
+
+## File translation activity
+
+Native **file translation** and **proofread** jobs on uploaded project files show an **Activity** feed on the job detail page. While a translation job is **Queued** or **Running**, the page refreshes the feed and status about every three seconds; polling stops in a terminal state.
+
+The feed includes:
+
+- **Created** — when the job was created and by whom, when known.
+- **Run cards** — one card per workflow attempt, labeled with the Hyperlocalise agent. The badge moves through **Preparing** (context, glossary, translation memory, reading the file), **Translating**, then **Finished**, **Failed**, or **Stopped** if you cancel or mark the job failed.
+- **Per locale** — waiting, translating, retrying, done, or failed, with translated string counts (for example `120 / 340`) and how many strings were reused from translation memory or existing translations.
+- **Detailed steps** — expand a run card to see stages such as strings extracted, translation memory reuse, per-locale progress updates, locale retries, and completion.
+- **Your actions** — cancel, retry, mark as failed, or mark done appear as separate rows when you use those controls. Proofread tasks show who marked the task done.
+
+Jobs started before activity logging was enabled may show only **Created** and the current status. If activity fails to load, an inline message appears; the rest of the job page still works. The jobs list and kanban do not show this feed yet; open the job detail page to follow progress.
+
+## Tasks made of strings
+
+A **key job** is a task for people on a chosen set of strings rather than a file. Create one from the Content Editor: tick strings, open the selection menu, and choose **Add to a task…**. On a project's **Jobs** page, **Create job → From strings in the content editor** opens the Content Editor ready for ticking. Give a new task a title, languages, and an optional due date and description, or add the strings to an open task of the project. A task covers each of its strings in each of its languages. Automation can create key jobs with the [API](/platform/api#create-a-job), picking strings by id, key name, or tag.
+
+A key job made with **Add to a task…** runs no AI translation. Its page shows how many visible strings it holds, and **Open Editor** opens the project's Content Editor filtered to the job's strings. A string hidden after it joined stays in the job but is left out of its count, its progress, and the queue, unless you choose the **Hidden** filter.
+
+**Add to a task…** in the Content Editor's selection menu, with **Task type** set to **AI translation**, makes a key job of kind translation instead, as **Translation** does for files. It runs right away: it fills missing translations of its strings in the chosen languages, and Needs review ones that only repeat the source (or, if asked, replaces all not approved yet), saves them as **Needs review**, and ends **Succeeded**, listing any languages where some strings failed, or **Failed** if none could be translated. A failed run can be retried; the retry skips strings already translated. It counts towards the workspace's open-job limit like other AI jobs, and is charged once, for the job and the AI it used.
+
+Reports counts key jobs as it counts file jobs. A key job for people gets its word counts and match bands when it is created, and again when strings are added to it; approvals and edits made inside it count as its review work. An AI translation of chosen strings counts the strings it plans to translate and each one it saves, and its AI use shows under AI usage.
+
+## Reports on a job
+
+When workspace **Reports** is enabled, native jobs include a **Report** tab with that task's word counts, translation-memory match bands, time logged, and (for administrators and localization managers) cost and pricing. Match analysis runs shortly after the job is created; the tab shows progress until scoring finishes. See [Reports](/platform/workspace/reports).
+
+## Understand status
+
+| Status | What to do |
+| --- | --- |
+| Queued | Wait for execution to start; inspect the job if it remains queued unexpectedly. |
+| Running | Follow progress before submitting the same work again. |
+| Waiting for review | Open the job and complete the review it requests. |
+| Succeeded | Inspect the output; generation success is separate from translation approval. |
+| Failed | Read the error, fix its cause, and retry when eligible. |
+| Cancelled | The job was stopped; create a new job if the work is still needed. |
+
+Provider-backed jobs can expose different status and action names. Use **Open in provider** when the connected system owns the job.
+
+## Retry a job
+
+For a translation job in a queued or failed state, the detail page can offer **Retry job**. Check the source file, target locales, permissions, usage, and error first. Select **Retry job** once, then follow the queued attempt.
+
+Retrying without fixing a malformed file or disconnected provider is unlikely to help. See [Translation failures](/platform/help/translation-failures).
+
+## Stop an active native job
+
+For a native job that is queued, running, or waiting for review, select **Cancel job** and confirm when you want to stop it. Cancellation does not undo output or external actions that already completed.
+
+**Mark as failed** is a separate recovery action for active native jobs. It prevents the current workflow from later updating the job and removes it from the active queue. Use it when you have decided to abandon that attempt, rather than treating it as a refresh button.
+
+## Finish a proofread task
+
+When the work on a proofread task is finished, select **Mark done** and confirm. The task moves to **Succeeded** and can't be reopened. Strings that are not finished stay as they are, and later edits no longer count towards the task. The file language shows as **Ready** after this, even if some strings are still unfinished.
+
+Reviewers, localization managers, and admins can mark any such task done. Anyone else with job access can mark done only a task assigned to them. Post-edit and translate tasks from visual workflows do not have **Mark done**. Key jobs are finished the same way. Automation can do the same with [Complete a task for people](/platform/api#complete-a-task-for-people).
+
+## Hand off the result
+
+Use **Open Editor** when available. Check [review permissions](/platform/workspace/roles) if approval is unavailable. Keep the job link when [contacting support](/platform/help/contact-support).

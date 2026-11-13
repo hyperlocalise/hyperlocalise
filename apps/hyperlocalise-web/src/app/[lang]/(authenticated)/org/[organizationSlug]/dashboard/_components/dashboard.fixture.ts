@@ -329,7 +329,7 @@ export const dashboardOverviewFixture: WorkspaceOverviewSnapshot = {
       locale: "fr-FR",
       priority: "P1",
       updatedAt: "2026-03-18T11:45:00.000Z",
-      href: `/org/${organizationSlug}/projects/project_website/issue-sheet/issue_1`,
+      href: `/org/${organizationSlug}/issues/WEB-1`,
     },
     {
       id: "issue_2",
@@ -339,7 +339,7 @@ export const dashboardOverviewFixture: WorkspaceOverviewSnapshot = {
       locale: "ja-JP",
       priority: "P2",
       updatedAt: "2026-03-18T09:00:00.000Z",
-      href: `/org/${organizationSlug}/projects/project_website/issue-sheet/issue_2`,
+      href: `/org/${organizationSlug}/issues/WEB-2`,
     },
     {
       id: "issue_3",
@@ -349,7 +349,7 @@ export const dashboardOverviewFixture: WorkspaceOverviewSnapshot = {
       locale: "ko-KR",
       priority: "P1",
       updatedAt: "2026-03-17T16:20:00.000Z",
-      href: `/org/${organizationSlug}/projects/project_mobile/issue-sheet/issue_3`,
+      href: `/org/${organizationSlug}/issues/MOB-4`,
     },
   ],
   automations: [

@@ -15,16 +15,14 @@ import "dotenv/config";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { eq } from "drizzle-orm";
-import { testClient } from "hono/testing";
 
 import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { createProjectTestFixture } from "../project/project.fixture";
 import type { ProjectResponse } from "../project/project.schema";
-import { createTeamTestFixture } from "../team/team.fixture";
-import type { TeamResponse } from "../team/team.schema";
+import { createTeamTestFixture } from "@/lib/teams/team.fixture";
+import type { TeamResponse } from "@/lib/teams/team.schema";
 import { createMemoryFileStorageAdapter } from "./file.fixture";
 import { maxEditorImageUploadBytes, maxEditorImageUploadRequestBytes } from "./file.schema";
 
@@ -47,9 +45,8 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const app = createApp({ fileStorageAdapter });
-const client = testClient<AppType>(app);
-const projectFixture = createProjectTestFixture(client);
-const teamFixture = createTeamTestFixture(client);
+const projectFixture = createProjectTestFixture();
+const teamFixture = createTeamTestFixture();
 const {
   authHeadersFor,
   cleanup,
@@ -263,18 +260,12 @@ describe("file download route", () => {
     expect(teamBetaResponse.status).toBe(201);
     const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
 
-    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "Beta Project",
-          teamId: teamBetaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await authHeadersFor(admin) },
-    );
+    const betaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Beta Project",
+      teamId: teamBetaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
     expect(betaProjectResponse.status).toBe(201);
     const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
 
@@ -328,18 +319,12 @@ describe("file download route", () => {
       role: "member",
     });
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "Team Files Project",
-          teamId: teamBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await authHeadersFor(admin) },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Team Files Project",
+      teamId: teamBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
     expect(projectResponse.status).toBe(201);
     const projectBody = (await projectResponse.json()) as ProjectResponse;
 

@@ -68,11 +68,7 @@ export function AutomationHowItWorksIntegrations() {
         return (
           <li key={slug}>
             {href ? (
-              <Link
-                aria-label={name}
-                className="block transition-opacity hover:opacity-80"
-                href={href}
-              >
+              <Link className="block transition-opacity hover:opacity-80" href={href}>
                 {mark}
               </Link>
             ) : (

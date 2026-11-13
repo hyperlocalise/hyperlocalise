@@ -1,0 +1,191 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import {
+  getWorkflowInputFields,
+  getWorkflowOutputFields,
+  NODE_CONTRACTS,
+} from "../catalog/node-contracts";
+import type {
+  VisualWorkflowCanvasEdge,
+  VisualWorkflowRfEdge,
+  VisualWorkflowRfNode,
+  WorkflowBinding,
+  WorkflowValueType,
+} from "../schema/types";
+
+export type VisualWorkflowDataPort = {
+  id: string;
+  label: string;
+  type: WorkflowValueType;
+  optional: boolean;
+  connectionCount: number;
+};
+
+export type VisualWorkflowDataPorts = {
+  inputs: VisualWorkflowDataPort[];
+  outputs: VisualWorkflowDataPort[];
+};
+
+function getInputFields(node: VisualWorkflowRfNode) {
+  if (node.data.config.kind === "logic.merge") {
+    return node.data.config.inputs.map((input) => ({
+      name: `value.${input.id}`,
+      type: "unknown" as const,
+      required: false,
+    }));
+  }
+
+  if (
+    node.data.config.kind === "flow.return" ||
+    node.data.config.kind === "flow.call_workflow" ||
+    node.data.config.kind === "logic.create_object" ||
+    node.data.config.kind === "logic.merge_objects" ||
+    node.data.config.kind === "logic.coalesce" ||
+    node.data.config.kind === "logic.compare" ||
+    node.data.config.kind === "logic.text_template" ||
+    node.data.config.kind === "logic.concatenate" ||
+    node.data.config.kind === "logic.array_transform"
+  ) {
+    return getWorkflowInputFields({
+      id: node.id,
+      type: node.data.catalogType,
+      config: node.data.config,
+      inputs: node.data.inputs,
+      outputFields: node.data.outputFields,
+    });
+  }
+
+  if (node.data.config.kind !== "logic.set") {
+    return NODE_CONTRACTS[node.data.catalogType].inputs;
+  }
+
+  return [
+    ...new Set([
+      ...node.data.config.assignments.map((assignment) => assignment.key),
+      ...Object.keys(node.data.inputs ?? {}),
+    ]),
+  ]
+    .filter(Boolean)
+    .map((name) => ({
+      name,
+      type: "unknown" as const,
+      required: false,
+    }));
+}
+
+function getOutputFields(node: VisualWorkflowRfNode) {
+  return getWorkflowOutputFields({
+    id: node.id,
+    type: node.data.catalogType,
+    config: node.data.config,
+    inputs: node.data.inputs,
+    outputFields: node.data.outputFields,
+  });
+}
+
+function getInputLabel(node: VisualWorkflowRfNode, portId: string): string {
+  if (node.data.config.kind === "logic.create_object" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return node.data.config.fields.find((field) => field.id === id)?.name ?? portId;
+  }
+  if (node.data.config.kind === "logic.merge_objects" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return node.data.config.inputs.find((input) => input.id === id)?.name ?? portId;
+  }
+  if (node.data.config.kind === "logic.coalesce" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return node.data.config.inputs.find((input) => input.id === id)?.name ?? portId;
+  }
+  if (node.data.config.kind === "logic.compare" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return node.data.config.operands.find((operand) => operand.id === id)?.name ?? portId;
+  }
+  if (node.data.config.kind === "logic.text_template" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return (
+      node.data.config.placeholders.find((placeholder) => placeholder.id === id)?.name ?? portId
+    );
+  }
+  if (node.data.config.kind === "logic.concatenate" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    const segment = node.data.config.segments.find(
+      (candidate) => candidate.kind === "input" && candidate.id === id,
+    );
+    return segment?.kind === "input" ? segment.name : portId;
+  }
+  return portId;
+}
+
+export function getVisualWorkflowDataPorts({
+  node,
+  edges,
+}: {
+  node: VisualWorkflowRfNode;
+  edges: readonly VisualWorkflowCanvasEdge[];
+}): VisualWorkflowDataPorts {
+  const dataEdges = edges.filter((edge) => edge.data?.kind === "data");
+
+  const inputs = getInputFields(node).map((field) => ({
+    id: field.name,
+    label: getInputLabel(node, field.name),
+    type: field.type,
+    optional: field.required !== true,
+    connectionCount: dataEdges.filter(
+      (edge) => edge.target === node.id && edge.targetHandle === field.name,
+    ).length,
+  }));
+
+  const outputs = getOutputFields(node)
+    .filter((field) => field.path.trim().length > 0)
+    .map((field) => ({
+      id: field.path,
+      label: field.path,
+      type: field.type,
+      optional: field.optional === true,
+      connectionCount: dataEdges.filter(
+        (edge) => edge.source === node.id && edge.sourceHandle === field.path,
+      ).length,
+    }));
+
+  return { inputs, outputs };
+}
+
+export function getVisualWorkflowDataEdgeBinding({
+  nodeId,
+  portId,
+  edges,
+}: {
+  nodeId: string;
+  portId: string;
+  edges: readonly VisualWorkflowRfEdge[];
+}): Extract<WorkflowBinding, { kind: "reference" }> | undefined {
+  const edge = edges.find(
+    (candidate) =>
+      candidate.data?.kind === "data" &&
+      candidate.target === nodeId &&
+      candidate.targetHandle === portId &&
+      candidate.sourceHandle,
+  );
+
+  if (!edge?.sourceHandle) {
+    return undefined;
+  }
+
+  return {
+    kind: "reference",
+    nodeId: edge.source,
+    path: edge.sourceHandle
+      .split(".")
+      .map((segment) => (/^\d+$/.test(segment) ? Number(segment) : segment)),
+  };
+}

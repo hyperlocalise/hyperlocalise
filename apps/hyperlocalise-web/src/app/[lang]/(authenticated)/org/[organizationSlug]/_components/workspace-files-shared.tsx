@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, type ReactNode } from "react";
-import { SearchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import type { ProjectFileRecord, ProjectFilesQuery } from "@/api/routes/project/project.schema";
@@ -377,11 +376,7 @@ export function WorkspaceFilesFilterBar({
     <div className="flex flex-col gap-3">
       <FilesFilterField label={intl.formatMessage(messages.searchLabel)} className="min-w-0 flex-1">
         <div className="relative">
-          <HugeiconsIcon
-            icon={SearchIcon}
-            strokeWidth={1.8}
-            className="pointer-events-none absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground"
-          />
+          <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={filters.search}
             onChange={(event) => update({ search: event.target.value })}

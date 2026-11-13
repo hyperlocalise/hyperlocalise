@@ -13,13 +13,13 @@
 import { Autumn } from "autumn-js";
 import { and, count, eq, ne, sql } from "drizzle-orm";
 
-import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { getAutumnSecretKey } from "@/lib/billing/autumn-config";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import type { DatabaseClient, DatabaseTransaction } from "@/lib/database/client";
 import { db, schema } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
-import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { serverAnalytics } from "@/lib/analytics/server";
 
 export const workspaceResourceFeatureIds = {
   seats: autumnFeatureIds.seats,
@@ -143,42 +143,55 @@ export async function getWorkspaceResourceUsage(input: {
 }
 
 async function countActiveIntegrations(database: DatabaseClient, organizationId: string) {
-  const [[tmsCredentials], [githubInstallations], [contentfulConnections], [connectors]] =
-    await Promise.all([
-      database
-        .select({ value: count() })
-        .from(schema.organizationExternalTmsProviderCredentials)
-        .where(
-          eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId),
+  const [
+    [tmsCredentials],
+    [githubInstallations],
+    [contentfulConnections],
+    [webflowConnections],
+    [connectors],
+  ] = await Promise.all([
+    database
+      .select({ value: count() })
+      .from(schema.organizationExternalTmsProviderCredentials)
+      .where(eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId)),
+    database
+      .select({ value: count() })
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, organizationId)),
+    database
+      .select({ value: count() })
+      .from(schema.contentfulConnections)
+      .where(
+        and(
+          eq(schema.contentfulConnections.organizationId, organizationId),
+          eq(schema.contentfulConnections.enabled, true),
         ),
-      database
-        .select({ value: count() })
-        .from(schema.githubInstallations)
-        .where(eq(schema.githubInstallations.organizationId, organizationId)),
-      database
-        .select({ value: count() })
-        .from(schema.contentfulConnections)
-        .where(
-          and(
-            eq(schema.contentfulConnections.organizationId, organizationId),
-            eq(schema.contentfulConnections.enabled, true),
-          ),
+      ),
+    database
+      .select({ value: count() })
+      .from(schema.webflowConnections)
+      .where(
+        and(
+          eq(schema.webflowConnections.organizationId, organizationId),
+          eq(schema.webflowConnections.enabled, true),
         ),
-      database
-        .select({ value: count() })
-        .from(schema.connectors)
-        .where(
-          and(
-            eq(schema.connectors.organizationId, organizationId),
-            eq(schema.connectors.enabled, true),
-          ),
+      ),
+    database
+      .select({ value: count() })
+      .from(schema.connectors)
+      .where(
+        and(
+          eq(schema.connectors.organizationId, organizationId),
+          eq(schema.connectors.enabled, true),
         ),
-    ]);
+      ),
+  ]);
 
   return (
     countValue(tmsCredentials) +
     countValue(githubInstallations) +
     countValue(contentfulConnections) +
+    countValue(webflowConnections) +
     countValue(connectors)
   );
 }
@@ -307,6 +320,7 @@ export async function withWorkspaceResourceLimit<T>(
     additionalUsage?: number;
     autumnApiKey?: string;
     db?: DatabaseTransaction;
+    analyticsSource?: string;
   },
   fn: (tx: DatabaseTransaction) => Promise<T>,
 ): Promise<Result<T, WorkspaceResourceLimitError>> {
@@ -326,7 +340,7 @@ export async function withWorkspaceResourceLimit<T>(
     const eventName = WORKSPACE_RESOURCE_ANALYTICS_EVENTS[input.featureId];
     serverAnalytics.track(eventName, {
       status: "created",
-      source: input.featureId,
+      source: input.analyticsSource ?? input.featureId,
     });
     return ok(value);
   };

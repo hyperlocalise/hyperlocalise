@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { createVisualWorkflowExecutionQueue } from "@/workflows/adapters";
-import { validateVisualWorkflowDefinition } from "@/lib/visual-workflows/validation/validate-workflow";
+import { validateVisualWorkflowV3Definition } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 import {
   createWorkflowCredential,
   listWorkflowCredentials,
@@ -27,8 +27,18 @@ import { validator } from "hono/validator";
 import { isWorkspaceOperatorRole } from "@/api/auth/roles";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
-import { workspaceVisualWorkflowsFlag } from "@/lib/flags/workspace-flags";
+import { createAutumnBooleanFeatureMiddleware } from "@/api/middleware/autumn-boolean-feature";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
+import {
+  enqueueVisualWorkflowCreatedActivity,
+  enqueueVisualWorkflowDeletedActivity,
+  enqueueVisualWorkflowPublishedActivity,
+  enqueueVisualWorkflowStatusActivity,
+} from "@/lib/activity-log/visual-workflow-events";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { env } from "@/lib/env";
 import { isErr } from "@/lib/primitives/result/results";
+import { buildVisualWorkflowWebhookUrl } from "@/lib/visual-workflows/dispatch/webhook-token";
 import {
   publishVisualWorkflow,
   createVisualWorkflow,
@@ -51,6 +61,7 @@ import {
   workflowPublishSchema,
   workflowCredentialSchema,
   workflowRetrySchema,
+  workflowWebhookUrlQuerySchema,
   createVisualWorkflowBodySchema,
   createVisualWorkflowRunBodySchema,
   listVisualWorkflowRunsQuerySchema,
@@ -141,21 +152,6 @@ const validateCreateRunBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-async function isVisualWorkflowsFeatureEnabled(auth: AuthVariables["auth"]) {
-  try {
-    return (
-      (await workspaceVisualWorkflowsFlag.run({
-        identify: () => ({
-          organization: { id: auth.organization.workosOrganizationId },
-          user: { id: auth.user.workosUserId },
-        }),
-      })) === true
-    );
-  } catch {
-    return false;
-  }
-}
-
 function mapVisualWorkflowValidationError(
   c: Parameters<typeof badRequestResponse>[0],
   error: VisualWorkflowValidationError,
@@ -176,17 +172,20 @@ function mapVisualWorkflowValidationError(
 }
 
 export function createVisualWorkflowRoutes() {
+  const requireAutomationWorkflow = createAutumnBooleanFeatureMiddleware(
+    autumnFeatureIds.automationWorkflow,
+    "Automation Workflow is not included in your current plan.",
+  );
+
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .use("*", async (c, next) => {
       if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
-      if (!(await isVisualWorkflowsFeatureEnabled(c.var.auth))) {
-        return forbiddenResponse(c, "visual_workflows_feature_disabled");
-      }
       return next();
     })
+    .use("*", requireAutomationWorkflow)
     .get("/", validateListQuery, async (c) => {
       const query = c.req.valid("query");
       const visualWorkflows = await listVisualWorkflows({
@@ -218,6 +217,13 @@ export function createVisualWorkflowRoutes() {
         return mapVisualWorkflowValidationError(c, result.error);
       }
 
+      await enqueueVisualWorkflowCreatedActivity({
+        ...sessionActivityActor(c.var.auth.user.localUserId),
+        name: result.value.name,
+        organizationId: c.var.auth.organization.localOrganizationId,
+        visualWorkflowId: result.value.id,
+      });
+
       return c.json({ visualWorkflow: result.value }, 201);
     })
     .get("/credentials", async (c) =>
@@ -245,6 +251,35 @@ export function createVisualWorkflowRoutes() {
         );
       },
     )
+    .get(
+      "/:visualWorkflowId/webhook-url",
+      validateVisualWorkflowParams,
+      validator("query", (value, c) => {
+        const parsed = workflowWebhookUrlQuerySchema.safeParse(value);
+        return parsed.success ? parsed.data : badRequestResponse(c, "invalid_token_version");
+      }),
+      async (c) => {
+        const workflow = await getVisualWorkflowById({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          visualWorkflowId: c.req.valid("param").visualWorkflowId,
+        });
+        if (!workflow || workflow.status === "archived") {
+          return notFoundResponse(c, "visual_workflow_not_found");
+        }
+        const origin = env.HYPERLOCALISE_PUBLIC_APP_URL
+          ? new URL(env.HYPERLOCALISE_PUBLIC_APP_URL).origin
+          : new URL(c.req.url).origin;
+        return c.json({
+          webhookUrl: {
+            url: buildVisualWorkflowWebhookUrl({
+              origin,
+              visualWorkflowId: workflow.id,
+              tokenVersion: c.req.valid("query").tokenVersion,
+            }),
+          },
+        });
+      },
+    )
     .post(
       "/:visualWorkflowId/publish",
       validateVisualWorkflowParams,
@@ -262,6 +297,13 @@ export function createVisualWorkflowRoutes() {
           return result.error.code === "visual_workflow_not_found"
             ? notFoundResponse(c, result.error.code)
             : mapVisualWorkflowValidationError(c, result.error);
+        await enqueueVisualWorkflowPublishedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          name: result.value.name,
+          organizationId: c.var.auth.organization.localOrganizationId,
+          publishedVersion: result.value.publishedVersion ?? result.value.definitionVersion,
+          visualWorkflowId: result.value.id,
+        });
         return c.json({ visualWorkflow: result.value });
       },
     )
@@ -284,7 +326,7 @@ export function createVisualWorkflowRoutes() {
           previousDefinition: workflow.definition,
           actorWorkosUserId: c.var.auth.user.workosUserId,
         });
-        const issues = validateVisualWorkflowDefinition(definition);
+        const issues = validateVisualWorkflowV3Definition(definition);
         if (issues.length)
           return badRequestResponse(
             c,
@@ -299,6 +341,8 @@ export function createVisualWorkflowRoutes() {
           testDefinition: definition,
           mode: body.mode,
           mockOutputs: body.mockOutputs,
+          realNodeIds: body.realNodeIds,
+          mockFailures: body.mockFailures,
           inputSnapshot: body.inputSnapshot,
           idempotencyKey: `test:${body.idempotencyKey}`,
         });
@@ -354,8 +398,10 @@ export function createVisualWorkflowRoutes() {
     .patch("/:visualWorkflowId", validateVisualWorkflowParams, validateUpdateBody, async (c) => {
       const { visualWorkflowId } = c.req.valid("param");
       const body = c.req.valid("json");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const existing = await getVisualWorkflowById({ organizationId, visualWorkflowId });
       const result = await updateVisualWorkflow({
-        organizationId: c.var.auth.organization.localOrganizationId,
+        organizationId,
         visualWorkflowId,
         actorWorkosUserId: c.var.auth.user.workosUserId,
         expectedRevision: body.expectedRevision,
@@ -363,6 +409,7 @@ export function createVisualWorkflowRoutes() {
         definition: body.definition,
         status: body.status,
         projectId: body.projectId,
+        testSetup: body.testSetup,
       });
 
       if (isErr(result)) {
@@ -375,17 +422,43 @@ export function createVisualWorkflowRoutes() {
         return mapVisualWorkflowValidationError(c, result.error);
       }
 
+      if (
+        body.status &&
+        existing &&
+        body.status !== existing.status &&
+        (body.status === "active" || body.status === "paused" || body.status === "archived")
+      ) {
+        await enqueueVisualWorkflowStatusActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          name: result.value.name,
+          organizationId,
+          status: body.status,
+          visualWorkflowId: result.value.id,
+        });
+      }
+
       return c.json({ visualWorkflow: result.value }, 200);
     })
     .delete("/:visualWorkflowId", validateVisualWorkflowParams, async (c) => {
       const { visualWorkflowId } = c.req.valid("param");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const existing = await getVisualWorkflowById({ organizationId, visualWorkflowId });
       const result = await deleteVisualWorkflow({
-        organizationId: c.var.auth.organization.localOrganizationId,
+        organizationId,
         visualWorkflowId,
       });
 
       if (isErr(result)) {
         return notFoundResponse(c, result.error.code);
+      }
+
+      if (existing && existing.status !== "archived") {
+        await enqueueVisualWorkflowDeletedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          name: result.value.name,
+          organizationId,
+          visualWorkflowId: result.value.id,
+        });
       }
 
       return c.body(null, 204);
@@ -430,6 +503,7 @@ export function createVisualWorkflowRoutes() {
         const result = await dispatchManualVisualWorkflowRun({
           organizationId,
           visualWorkflowId,
+          activityActor: sessionActivityActor(c.var.auth.user.localUserId),
           idempotencyKey: body.idempotencyKey,
           inputSnapshot: body.inputSnapshot,
         });

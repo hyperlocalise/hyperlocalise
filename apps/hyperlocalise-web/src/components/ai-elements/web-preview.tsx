@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
@@ -256,8 +255,7 @@ export const WebPreviewConsole = ({
         }
       >
         <FormattedMessage {...webPreviewMessages.console} />
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
+        <CaretDownIcon
           className={cn("h-4 w-4 transition-transform duration-200", consoleOpen && "rotate-180")}
         />
       </CollapsibleTrigger>

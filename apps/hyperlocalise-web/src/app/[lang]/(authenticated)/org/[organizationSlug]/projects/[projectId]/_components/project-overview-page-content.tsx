@@ -14,17 +14,13 @@
  */
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import {
-  Add01Icon,
-  ArrowRight01Icon,
-  CubeIcon,
-  LanguageCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, ArrowRightIcon, TranslateIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
+import { AiFeatureAction } from "@/components/billing/ai-feature-action";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
+import { QaAttentionCard } from "@/components/qa/qa-attention-card";
 import { Button } from "@/components/ui/button";
 import { Box } from "@/components/ui/layout/box";
 import { Column } from "@/components/ui/layout/column";
@@ -33,7 +29,7 @@ import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 import type { ProjectLocaleProgressRow } from "@/api/routes/project/project.schema";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
@@ -50,6 +46,7 @@ import { ProjectLocaleProgressList } from "./project-locale-progress-list";
 import { projectOverviewPageContentMessages as messages } from "./project-overview-page-content.messages";
 import { ProjectPageShell, useProjectPageQuery } from "./project-page-shell";
 import { useProjectLocaleProgressQuery } from "./use-project-locale-progress";
+import { TranslateLocaleWithAgentDialog } from "./translate-locale-with-agent-dialog";
 import { useProjectOverviewJobsQuery } from "./use-project-overview-jobs";
 import {
   buildProjectOverviewJobItems,
@@ -197,11 +194,7 @@ function ProjectOverviewTriageRow({
           <Column width="content">
             <span className="inline-flex w-24 shrink-0 items-center justify-end gap-1 pt-0.5 text-sm font-medium text-foreground">
               {cta}
-              <HugeiconsIcon
-                icon={ArrowRight01Icon}
-                strokeWidth={1.8}
-                className="size-4 transition-transform group-hover:translate-x-0.5"
-              />
+              <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
             </span>
           </Column>
         </Row>
@@ -271,28 +264,6 @@ function ProjectOverviewSidebar({
           </Link>
         ) : null}
       </Rows>
-
-      {isNative ? (
-        <Rows spacing="1u">
-          <Separator />
-          <ProjectOverviewSectionLabel>
-            <FormattedMessage {...messages.shipTitle} />
-          </ProjectOverviewSectionLabel>
-          <span className="text-sm leading-tight text-foreground">
-            {project.lastSyncedAt ? (
-              <FormattedMessage
-                {...messages.shipLastSynced}
-                values={{ when: project.lastSyncedAt }}
-              />
-            ) : (
-              <FormattedMessage {...messages.shipNeverSynced} />
-            )}
-          </span>
-          <Link href={settingsHref} className="text-sm font-medium text-primary hover:underline">
-            <FormattedMessage {...messages.shipConnectCli} />
-          </Link>
-        </Rows>
-      ) : null}
     </Rows>
   );
 }
@@ -310,6 +281,8 @@ export type ProjectOverviewPageContentViewProps = {
   isLocaleProgressLoading: boolean;
   isLocaleProgressError: boolean;
   onCreateJob?: () => void;
+  qaAttentionCard?: ReactNode;
+  renderLocaleAgentAction?: (row: ProjectLocaleProgressRow) => ReactNode;
 };
 
 export function ProjectOverviewPageContentView({
@@ -325,6 +298,8 @@ export function ProjectOverviewPageContentView({
   isLocaleProgressLoading,
   isLocaleProgressError,
   onCreateJob,
+  qaAttentionCard,
+  renderLocaleAgentAction,
 }: ProjectOverviewPageContentViewProps) {
   const intl = useIntl();
   const isNative = project?.source === "native";
@@ -341,10 +316,6 @@ export function ProjectOverviewPageContentView({
       })
     : [];
 
-  const projectDescription =
-    project?.descriptionValue || intl.formatMessage(messages.defaultProjectDescription);
-
-  const projectsHref = `/org/${organizationSlug}/projects`;
   const settingsHref = buildProjectPath(organizationSlug, projectId, "settings");
   const filesHref = buildProjectPath(organizationSlug, projectId, "files");
   const jobsHref = buildProjectPath(organizationSlug, projectId, "jobs");
@@ -358,94 +329,54 @@ export function ProjectOverviewPageContentView({
     <ProjectPageShell>
       <Box paddingX="2u" paddingTop="1u" paddingBottom="4u">
         <Rows spacing="3u">
-          <Columns spacing="2u" collapseBelow="small" align="spaceBetween" alignY="start">
-            <Column width="fluid">
-              <Rows spacing="1u">
-                {isProjectLoading ? (
-                  <>
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-8 w-64" />
-                    <Skeleton className="h-4 w-full max-w-xl" />
-                  </>
-                ) : isProjectError ? (
-                  <>
-                    <TypographyH1
-                      className="text-2xl text-balance tracking-tight md:text-2xl"
-                      weight="medium"
-                      tone="content"
-                    >
-                      <FormattedMessage {...messages.projectOverviewFallbackTitle} />
-                    </TypographyH1>
-                    <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-                      <FormattedMessage {...messages.loadProjectError} />
-                    </TypographyP>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      href={projectsHref}
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      <HugeiconsIcon icon={CubeIcon} strokeWidth={1.8} className="size-4" />
-                      <FormattedMessage {...messages.projectsBreadcrumb} />
-                    </Link>
-                    <TypographyH1
-                      className="text-2xl text-balance tracking-tight md:text-2xl"
-                      weight="medium"
-                      tone="content"
-                    >
-                      {project?.name ?? intl.formatMessage(messages.projectFallbackName)}
-                    </TypographyH1>
-                    <TypographyP
-                      className="max-w-xl leading-normal"
-                      wrapStyle="pretty"
-                      size="small"
-                      tone="subtle"
-                    >
-                      {projectDescription}
-                    </TypographyP>
-                  </>
-                )}
-              </Rows>
-            </Column>
-
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <h1 className="sr-only">
+              {isProjectError
+                ? intl.formatMessage(messages.projectOverviewFallbackTitle)
+                : (project?.name ?? intl.formatMessage(messages.projectFallbackName))}
+            </h1>
+            {isProjectLoading ? <Skeleton className="h-9 w-40 shrink-0" /> : null}
+            {isProjectError ? (
+              <TypographyP wrapStyle="pretty" size="small" tone="subtle">
+                <FormattedMessage {...messages.loadProjectError} />
+              </TypographyP>
+            ) : null}
             {showHeaderActions ? (
-              <Column width="content">
-                <Row spacing="1u" alignY="center">
-                  {showViewStrings ? (
-                    <Button
-                      nativeButton={false}
-                      render={
-                        <Link href={buildProjectPath(organizationSlug, projectId, "strings")} />
-                      }
-                      size="sm"
-                      variant="outline"
-                    >
-                      <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} />
-                      <FormattedMessage {...messages.openEditor} />
-                    </Button>
-                  ) : null}
+              <Row spacing="1u" alignY="center">
+                {showViewStrings ? (
                   <Button
                     nativeButton={false}
-                    render={<Link href={filesHref} />}
+                    render={
+                      <Link href={buildProjectPath(organizationSlug, projectId, "strings")} />
+                    }
                     size="sm"
                     variant="outline"
                   >
-                    <FormattedMessage {...messages.viewFiles} />
+                    <TranslateIcon />
+                    <FormattedMessage {...messages.openEditor} />
                   </Button>
-                  <Button type="button" size="sm" onClick={onCreateJob}>
-                    <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-                    <FormattedMessage {...messages.createJob} />
-                  </Button>
-                </Row>
-              </Column>
+                ) : null}
+                <Button
+                  nativeButton={false}
+                  render={<Link href={filesHref} />}
+                  size="sm"
+                  variant="outline"
+                >
+                  <FormattedMessage {...messages.viewFiles} />
+                </Button>
+                <Button type="button" size="sm" onClick={onCreateJob}>
+                  <PlusIcon />
+                  <FormattedMessage {...messages.createJob} />
+                </Button>
+              </Row>
             ) : null}
-          </Columns>
+          </div>
 
           {isProjectLoading ? (
             <Skeleton className="min-h-56 w-full" />
           ) : project ? (
             <Rows spacing="4u">
+              {qaAttentionCard}
               <ProjectLocaleProgressList
                 locales={locales}
                 expectedLocaleCount={project.targetLocales.length}
@@ -455,6 +386,7 @@ export function ProjectOverviewPageContentView({
                 stringsHref={
                   showViewStrings ? buildProjectPath(organizationSlug, projectId, "strings") : null
                 }
+                renderAgentAction={renderLocaleAgentAction}
               />
               <Box paddingTop="1u">
                 <Columns spacing="4u" collapseBelow="large" alignY="start">
@@ -507,11 +439,7 @@ export function ProjectOverviewPageContentView({
                               className="inline-flex w-fit items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                             >
                               <FormattedMessage {...messages.viewAllJobs} />
-                              <HugeiconsIcon
-                                icon={ArrowRight01Icon}
-                                strokeWidth={1.8}
-                                className="size-4"
-                              />
+                              <ArrowRightIcon className="size-4" />
                             </Link>
                           </Box>
                         </>
@@ -592,6 +520,8 @@ export function ProjectOverviewPageContent({
   projectId: string;
 }) {
   const [createJobOpen, setCreateJobOpen] = useState(false);
+  const [agentDialogOpen, setAgentDialogOpen] = useState(false);
+  const [agentLocale, setAgentLocale] = useState<string | null>(null);
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
   const jobsQuery = useProjectOverviewJobsQuery(organizationSlug, projectId, {
     enabled: projectQuery.isSuccess,
@@ -602,6 +532,7 @@ export function ProjectOverviewPageContent({
 
   const sourceLocale = projectQuery.data?.sourceLocale?.trim() || "en";
   const targetLocales = projectQuery.data?.targetLocales ?? [];
+  const isNative = projectQuery.data?.source === "native";
 
   return (
     <>
@@ -618,6 +549,38 @@ export function ProjectOverviewPageContent({
         isLocaleProgressLoading={localeProgressQuery.isLoading}
         isLocaleProgressError={localeProgressQuery.isError}
         onCreateJob={() => setCreateJobOpen(true)}
+        qaAttentionCard={
+          isNative ? (
+            <QaAttentionCard organizationSlug={organizationSlug} projectId={projectId} />
+          ) : null
+        }
+        renderLocaleAgentAction={
+          isNative
+            ? (row) => (
+                <AiFeatureAction organizationSlug={organizationSlug} size="sm">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setAgentLocale(row.locale);
+                      setAgentDialogOpen(true);
+                    }}
+                  >
+                    <TranslateIcon />
+                    <FormattedMessage {...messages.translateLocaleWithAgent} />
+                  </Button>
+                </AiFeatureAction>
+              )
+            : undefined
+        }
+      />
+      <TranslateLocaleWithAgentDialog
+        open={agentDialogOpen}
+        onOpenChange={setAgentDialogOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        sourceLocale={sourceLocale}
+        locale={agentLocale}
       />
       <CreateJobDialog
         open={createJobOpen}

@@ -14,8 +14,6 @@
  */
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -252,13 +250,6 @@ export function GlossaryHistoryPage({
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <Link
-        href={glossaryHref}
-        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
-        <FormattedMessage {...messages.backToGlossary} />
-      </Link>
       <section className="grid gap-2">
         <TypographyH1>{intl.formatMessage(messages.title)}</TypographyH1>
         <TypographyP size="small" tone="subtle">

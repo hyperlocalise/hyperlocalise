@@ -13,8 +13,19 @@
 // @vitest-environment happy-dom
 
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vite-plus/test";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { IntlProvider } from "react-intl";
+
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+
+const { trackMarketingCtaClickMock } = vi.hoisted(() => ({
+  trackMarketingCtaClickMock: vi.fn(),
+}));
+
+vi.mock("@/lib/analytics/marketing-cta", () => ({
+  trackMarketingCtaClick: trackMarketingCtaClickMock,
+}));
 
 import { NavbarDesktopAuthActions } from "./navbar-auth-actions";
 
@@ -41,5 +52,17 @@ describe("NavbarDesktopAuthActions", () => {
     expect(screen.getByRole("button", { name: "Sign in" }).getAttribute("href")).toBe(
       "/auth/sign-in",
     );
+  });
+
+  it("tracks marketing CTA clicks for sign-in and request demo", async () => {
+    const user = userEvent.setup();
+    renderActions(false);
+
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.click(screen.getByRole("button", { name: "Request a Demo" }));
+
+    expect(trackMarketingCtaClickMock).toHaveBeenCalledWith("sign_in", "navbar");
+    expect(trackMarketingCtaClickMock).toHaveBeenCalledWith("request_demo", "navbar");
+    expect(PRODUCT_USAGE_ANALYTICS_EVENTS.marketingCtaClick).toBe("marketing_cta_click");
   });
 });

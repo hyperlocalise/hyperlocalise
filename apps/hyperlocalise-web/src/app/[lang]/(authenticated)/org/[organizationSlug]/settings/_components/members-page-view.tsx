@@ -14,8 +14,7 @@
  */
 import { type FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { Add01Icon, MoreHorizontalCircle01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, DotsThreeCircleIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -205,6 +204,7 @@ function MemberRowActions({
   isBusy,
   onChangeRole,
   onRemove,
+  onLeave,
 }: {
   member: MembersListMember;
   canUpdateRole: boolean;
@@ -212,11 +212,13 @@ function MemberRowActions({
   isBusy: boolean;
   onChangeRole: (member: MembersListMember) => void;
   onRemove: (member: MembersListMember) => void;
+  /** Set on the signed-in person's own row. */
+  onLeave?: () => void;
 }) {
   const intl = useIntl();
   const isPending = (member.status ?? "active") === "invited";
 
-  if (!canUpdateRole && !canRemove) {
+  if (!canUpdateRole && !canRemove && !onLeave) {
     return null;
   }
 
@@ -236,7 +238,7 @@ function MemberRowActions({
           />
         }
       >
-        <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={1.8} className="size-4" />
+        <DotsThreeCircleIcon className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-48">
         {canUpdateRole ? (
@@ -259,6 +261,13 @@ function MemberRowActions({
               ) : (
                 <FormattedMessage {...membersPageContentMessages.removeMemberMenu} />
               )}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        ) : null}
+        {onLeave ? (
+          <DropdownMenuGroup>
+            <DropdownMenuItem variant="destructive" onClick={onLeave} disabled={isBusy}>
+              <FormattedMessage {...membersPageContentMessages.leaveWorkspaceMenu} />
             </DropdownMenuItem>
           </DropdownMenuGroup>
         ) : null}
@@ -396,6 +405,7 @@ export function MembersPageView({
   onRemoveMember,
   onEditingMemberChange,
   onUpdateRole,
+  onLeaveWorkspace,
 }: {
   organizationSlug: string;
   members: MembersListMember[];
@@ -425,6 +435,8 @@ export function MembersPageView({
   onRemoveMember: (workosUserId: string) => void;
   onEditingMemberChange: (member: MembersListMember | null) => void;
   onUpdateRole: (input: { workosUserId: string; role: OrganizationMembershipRole }) => void;
+  /** Adds Leave workspace to the signed-in person's own row. */
+  onLeaveWorkspace?: () => void;
 }) {
   const intl = useIntl();
 
@@ -433,10 +445,9 @@ export function MembersPageView({
       <WorkspacePeopleNav organizationSlug={organizationSlug} />
 
       <PageHeader
-        icon={UserGroupIcon}
+        icon={UsersThreeIcon}
         label={intl.formatMessage(membersPageContentMessages.pageLabel)}
         title={intl.formatMessage(membersPageContentMessages.pageTitle)}
-        description={intl.formatMessage(membersPageContentMessages.pageDescription)}
         actions={
           <Columns spacing="1u" alignY="center" collapseBelow="small">
             <Column width="containedContent">
@@ -457,7 +468,7 @@ export function MembersPageView({
                   className="w-full sm:w-fit"
                   disabled={isInviting}
                 >
-                  <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                  <PlusIcon />
                   <FormattedMessage {...membersPageContentMessages.inviteMember} />
                 </Button>
               </Column>
@@ -549,6 +560,7 @@ export function MembersPageView({
                       isBusy={isRemoving || isUpdatingRole}
                       onChangeRole={onEditingMemberChange}
                       onRemove={onRemovingMemberChange}
+                      onLeave={member.isCurrentUser ? onLeaveWorkspace : undefined}
                     />
                   </div>
                 </div>

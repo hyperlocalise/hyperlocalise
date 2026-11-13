@@ -15,6 +15,12 @@ import { describe, expect, it, vi } from "vite-plus/test";
 const releaseFlagRunMocks = vi.hoisted(() => ({
   contentEditorAllFiles: vi.fn(),
   sandboxVcrImage: vi.fn(),
+  qaSandboxVcrImage: vi.fn(),
+  catAdaptiveWorkspace: vi.fn(),
+}));
+
+vi.mock("./workos-adapter", () => ({
+  workosAdapter: vi.fn(),
 }));
 
 vi.mock("flags/next", () => ({
@@ -22,7 +28,11 @@ vi.mock("flags/next", () => ({
     const run =
       definition.key === "release-sandbox-vcr-image"
         ? releaseFlagRunMocks.sandboxVcrImage
-        : releaseFlagRunMocks.contentEditorAllFiles;
+        : definition.key === "release-qa-sandbox-vcr-image"
+          ? releaseFlagRunMocks.qaSandboxVcrImage
+          : definition.key === "release-content-editor-adaptive-workspace"
+            ? releaseFlagRunMocks.catAdaptiveWorkspace
+            : releaseFlagRunMocks.contentEditorAllFiles;
     return Object.assign(vi.fn(), {
       run,
       key: definition.key,
@@ -31,7 +41,10 @@ vi.mock("flags/next", () => ({
 }));
 
 import {
+  isHyperlocaliseSandboxVcrImageEnabledForScope,
+  isReleaseCatAdaptiveWorkspaceEnabled,
   isReleaseContentEditorAllFilesEnabled,
+  isReleaseQaSandboxVcrImageEnabled,
   isReleaseSandboxVcrImageEnabled,
 } from "./release-flags";
 
@@ -63,6 +76,32 @@ describe("isReleaseContentEditorAllFilesEnabled", () => {
   });
 });
 
+describe("isReleaseQaSandboxVcrImageEnabled", () => {
+  it("returns the flag.run result", async () => {
+    releaseFlagRunMocks.qaSandboxVcrImage.mockResolvedValue(true);
+
+    await expect(isReleaseQaSandboxVcrImageEnabled()).resolves.toBe(true);
+
+    expect(releaseFlagRunMocks.qaSandboxVcrImage).toHaveBeenCalledWith({ identify: {} });
+  });
+});
+
+describe("isHyperlocaliseSandboxVcrImageEnabledForScope", () => {
+  it("enables QA scope when either sandbox or QA release gate is on", async () => {
+    releaseFlagRunMocks.sandboxVcrImage.mockResolvedValue(false);
+    releaseFlagRunMocks.qaSandboxVcrImage.mockResolvedValue(true);
+
+    await expect(isHyperlocaliseSandboxVcrImageEnabledForScope("qa")).resolves.toBe(true);
+  });
+
+  it("uses only the global gate for default scope", async () => {
+    releaseFlagRunMocks.sandboxVcrImage.mockResolvedValue(false);
+    releaseFlagRunMocks.qaSandboxVcrImage.mockResolvedValue(true);
+
+    await expect(isHyperlocaliseSandboxVcrImageEnabledForScope("default")).resolves.toBe(false);
+  });
+});
+
 describe("isReleaseSandboxVcrImageEnabled", () => {
   it("returns the flag.run result", async () => {
     releaseFlagRunMocks.sandboxVcrImage.mockResolvedValue(true);
@@ -76,5 +115,45 @@ describe("isReleaseSandboxVcrImageEnabled", () => {
     releaseFlagRunMocks.sandboxVcrImage.mockRejectedValue(new Error("flags unavailable"));
 
     await expect(isReleaseSandboxVcrImageEnabled()).resolves.toBe(false);
+  });
+});
+
+describe("isReleaseCatAdaptiveWorkspaceEnabled", () => {
+  it("passes WorkOS organization and user identity when auth context is provided", async () => {
+    releaseFlagRunMocks.catAdaptiveWorkspace.mockImplementation(
+      async (options: { identify: () => unknown }) => {
+        const identity = options.identify();
+        expect(identity).toEqual({
+          user: { id: "user_test_123" },
+          organization: { id: "org_test_456" },
+        });
+        return true;
+      },
+    );
+
+    const mockAuth = {
+      user: { workosUserId: "user_test_123" },
+      activeOrganization: { workosOrganizationId: "org_test_456" },
+    };
+
+    await expect(isReleaseCatAdaptiveWorkspaceEnabled(mockAuth as any)).resolves.toBe(true);
+  });
+
+  it("passes empty identify when auth context is omitted", async () => {
+    releaseFlagRunMocks.catAdaptiveWorkspace.mockImplementation(
+      async (options: { identify: () => unknown }) => {
+        const identity = options.identify();
+        expect(identity).toEqual({});
+        return true;
+      },
+    );
+
+    await expect(isReleaseCatAdaptiveWorkspaceEnabled()).resolves.toBe(true);
+  });
+
+  it("returns false when flag evaluation throws", async () => {
+    releaseFlagRunMocks.catAdaptiveWorkspace.mockRejectedValue(new Error("flag error"));
+
+    await expect(isReleaseCatAdaptiveWorkspaceEnabled()).resolves.toBe(false);
   });
 });

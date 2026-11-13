@@ -21,6 +21,8 @@ import {
   forbiddenResponse,
   notFoundResponse,
 } from "@/api/response.schema";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import {
   createSemrushConnection,
   deleteSemrushConnection,
@@ -126,6 +128,11 @@ export function createSemrushConnectionRoutes() {
       if (isErr(result)) {
         return mapSemrushConnectionError(c, result.error);
       }
+
+      serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
+        status: "created",
+        source: "semrush",
+      });
 
       return c.json({ semrushConnection: result.value }, 201);
     })

@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { filterKnowledgeUploadFiles, KNOWLEDGE_UPLOAD_MAX_FILES } from "./knowledge-upload.shared";
+import { filterKnowledgeUploadFiles } from "./knowledge-upload.shared";
 
 function file(name: string) {
   return new File(["content"], name, { type: "text/plain" });
@@ -20,24 +20,30 @@ function file(name: string) {
 
 describe("filterKnowledgeUploadFiles", () => {
   it("keeps the first supported file and caps at one", () => {
-    const files = [
-      file("brand.md"),
-      file("terms.csv"),
-      file("notes.txt"),
-      file("deck.pptx"),
-      file("extra.json"),
-      file("overflow.pdf"),
-      file("skip.exe"),
-    ];
+    const files = [file("terms.csv"), file("brand.md"), file("notes.txt"), file("overflow.pdf")];
 
     const accepted = filterKnowledgeUploadFiles(files);
 
-    expect(KNOWLEDGE_UPLOAD_MAX_FILES).toBe(1);
     expect(accepted).toHaveLength(1);
     expect(accepted.map((item) => item.name)).toEqual(["brand.md"]);
   });
 
+  it("accepts every format the guideline extractor supports", () => {
+    for (const name of ["a.pdf", "b.DOCX", "c.md", "d.markdown", "e.txt"]) {
+      expect(filterKnowledgeUploadFiles([file(name)])).toHaveLength(1);
+    }
+  });
+
   it("drops unsupported formats", () => {
-    expect(filterKnowledgeUploadFiles([file("skip.exe"), file("photo.png")])).toEqual([]);
+    expect(
+      filterKnowledgeUploadFiles([
+        file("skip.exe"),
+        file("photo.png"),
+        file("terms.csv"),
+        file("deck.pptx"),
+        file("sheet.xlsx"),
+        file("extra.json"),
+      ]),
+    ).toEqual([]);
   });
 });

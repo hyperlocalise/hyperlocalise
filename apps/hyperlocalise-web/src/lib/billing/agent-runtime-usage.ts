@@ -10,18 +10,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { randomUUID } from "node:crypto";
+
 import { AiFeaturesRequiredError, ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
   reserveUsageEvent,
+  trackAiCreditUsageInAutumn,
   usageFeatureIds,
   type AiTokenUsage,
 } from "@/lib/billing/usage-control";
+import type { AiCreditCredentialSource } from "@/lib/billing/managed-ai-credit";
 import { serializeErrorForLog } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
+import { hyperlocaliseManagedGatewayModelId } from "@/lib/providers/language-model";
 
-type AgentRuntimeUsageDimensions = Record<string, string | number | boolean | null>;
+export type AgentRuntimeUsageDimensions = Record<string, string | number | boolean | null>;
 
 function logAgentRuntimeUsageError(message: string, input: Record<string, unknown>) {
   console.error(`[agent-runtime-usage] ${message}`, input);
@@ -34,27 +39,84 @@ export function extractAiSdkTokenUsage(usage: unknown): AiTokenUsage | null {
 
   const raw = usage as {
     inputTokens?: unknown;
+    inputTokenDetails?: {
+      noCacheTokens?: unknown;
+      cacheReadTokens?: unknown;
+      cacheWriteTokens?: unknown;
+    };
     outputTokens?: unknown;
+    outputTokenDetails?: {
+      textTokens?: unknown;
+      reasoningTokens?: unknown;
+    };
     totalTokens?: unknown;
   };
-  const inputTokens = typeof raw.inputTokens === "number" ? raw.inputTokens : 0;
-  const outputTokens = typeof raw.outputTokens === "number" ? raw.outputTokens : 0;
+  const totalInputTokens = typeof raw.inputTokens === "number" ? raw.inputTokens : 0;
+  const cacheReadTokens =
+    typeof raw.inputTokenDetails?.cacheReadTokens === "number"
+      ? raw.inputTokenDetails.cacheReadTokens
+      : 0;
+  const cacheWriteTokens =
+    typeof raw.inputTokenDetails?.cacheWriteTokens === "number"
+      ? raw.inputTokenDetails.cacheWriteTokens
+      : 0;
+  const inputTokens =
+    typeof raw.inputTokenDetails?.noCacheTokens === "number"
+      ? raw.inputTokenDetails.noCacheTokens
+      : Math.max(0, totalInputTokens - cacheReadTokens - cacheWriteTokens);
+  const reasoningTokens =
+    typeof raw.outputTokenDetails?.reasoningTokens === "number"
+      ? raw.outputTokenDetails.reasoningTokens
+      : 0;
+  const totalOutputTokens = typeof raw.outputTokens === "number" ? raw.outputTokens : 0;
+  const outputTokens =
+    typeof raw.outputTokenDetails?.textTokens === "number"
+      ? raw.outputTokenDetails.textTokens
+      : Math.max(0, totalOutputTokens - reasoningTokens);
   const totalTokens =
-    typeof raw.totalTokens === "number" ? raw.totalTokens : inputTokens + outputTokens;
+    typeof raw.totalTokens === "number"
+      ? raw.totalTokens
+      : inputTokens + cacheReadTokens + cacheWriteTokens + outputTokens + reasoningTokens;
 
   if (totalTokens <= 0) {
     return null;
   }
 
-  return { inputTokens, outputTokens, totalTokens };
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    ...(cacheReadTokens > 0 ? { cacheReadTokens } : {}),
+    ...(cacheWriteTokens > 0 ? { cacheWriteTokens } : {}),
+    ...(reasoningTokens > 0 ? { reasoningTokens } : {}),
+  };
 }
 
-/** Prefer totalUsage from multi-step ToolLoopAgent results, then usage. */
+/** Prefer AI SDK 7 `usage`, then its deprecated `totalUsage` alias. */
 export function extractGenerateResultTokenUsage(result: {
   totalUsage?: unknown;
   usage?: unknown;
 }): AiTokenUsage | null {
-  return extractAiSdkTokenUsage(result.totalUsage) ?? extractAiSdkTokenUsage(result.usage);
+  return extractAiSdkTokenUsage(result.usage) ?? extractAiSdkTokenUsage(result.totalUsage);
+}
+
+export function addAiTokenUsage(
+  first: AiTokenUsage | null | undefined,
+  second: AiTokenUsage | null | undefined,
+): AiTokenUsage | null {
+  if (!first) return second ?? null;
+  if (!second) return first;
+
+  return {
+    inputTokens: first.inputTokens + second.inputTokens,
+    outputTokens: first.outputTokens + second.outputTokens,
+    totalTokens: first.totalTokens + second.totalTokens,
+    cacheReadTokens: (first.cacheReadTokens ?? 0) + (second.cacheReadTokens ?? 0),
+    cacheWriteTokens: (first.cacheWriteTokens ?? 0) + (second.cacheWriteTokens ?? 0),
+    reasoningTokens: (first.reasoningTokens ?? 0) + (second.reasoningTokens ?? 0),
+    audioInputTokens: (first.audioInputTokens ?? 0) + (second.audioInputTokens ?? 0),
+    audioOutputTokens: (first.audioOutputTokens ?? 0) + (second.audioOutputTokens ?? 0),
+  };
 }
 
 export async function reserveAgentRuntimeUsage(input: {
@@ -102,6 +164,9 @@ export async function trackSucceededAgentRuntimeUsage(input: {
   operationKey: string;
   dimensions?: AgentRuntimeUsageDimensions;
   tokenUsage?: AiTokenUsage | null;
+  aiCreditModelId?: string;
+  aiCreditCredentialSource?: AiCreditCredentialSource;
+  aiCreditSource?: string;
   interactionId?: string | null;
 }) {
   try {
@@ -112,8 +177,10 @@ export async function trackSucceededAgentRuntimeUsage(input: {
       unit: "run",
       dimensions: input.dimensions,
       tokenUsage: input.tokenUsage ?? null,
+      aiCreditModelId: input.aiCreditModelId,
+      aiCreditCredentialSource: input.aiCreditCredentialSource,
       interactionId: input.interactionId ?? undefined,
-      aiCreditSource: "agent_runtime_complete",
+      aiCreditSource: input.aiCreditSource ?? "agent_runtime_complete",
     });
 
     if (isErr(trackUsageResult)) {
@@ -134,6 +201,55 @@ export async function trackSucceededAgentRuntimeUsage(input: {
 }
 
 /**
+ * Check AI access and reserve agent_runs usage for work that may finish in a
+ * later process (for example a later workflow step). Pair with
+ * {@link completeAgentRuntimeUsage} using the same operation key.
+ */
+export async function beginAgentRuntimeUsage(input: {
+  organizationId: string;
+  operationKey: string;
+  source: string;
+  interactionId?: string | null;
+  dimensions?: AgentRuntimeUsageDimensions;
+}) {
+  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
+  if (!aiFeatures.ok) {
+    throw new AiFeaturesRequiredError(aiFeatures.error);
+  }
+
+  await reserveAgentRuntimeUsage(input);
+}
+
+/** Complete a reservation from {@link beginAgentRuntimeUsage} once the work succeeds. */
+export async function completeAgentRuntimeUsage(input: {
+  organizationId: string;
+  operationKey: string;
+  interactionId?: string | null;
+  dimensions?: AgentRuntimeUsageDimensions;
+  tokenUsage: AiTokenUsage | null;
+  aiCreditModelId?: string;
+  aiCreditCredentialSource?: AiCreditCredentialSource;
+  aiCreditSource?: string;
+}) {
+  const billableTokenUsage =
+    input.tokenUsage && input.tokenUsage.totalTokens > 0 ? input.tokenUsage : null;
+
+  await trackSucceededAgentRuntimeUsage({
+    organizationId: input.organizationId,
+    operationKey: input.operationKey,
+    dimensions: input.dimensions,
+    interactionId: input.interactionId,
+    tokenUsage: billableTokenUsage,
+    aiCreditModelId:
+      input.aiCreditModelId ??
+      (billableTokenUsage ? hyperlocaliseManagedGatewayModelId : undefined),
+    aiCreditCredentialSource:
+      input.aiCreditCredentialSource ?? (billableTokenUsage ? "gateway" : undefined),
+    aiCreditSource: input.aiCreditSource,
+  });
+}
+
+/**
  * Reserve agent_runs usage, run the work, then complete (+ optional AI Credit)
  * only when the work succeeds. Failures leave the reservation unbilled.
  */
@@ -145,13 +261,11 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
   dimensions?: AgentRuntimeUsageDimensions;
   run: () => Promise<T>;
   extractTokenUsage?: (result: T) => AiTokenUsage | null;
+  aiCreditModelId?: string | ((result: T) => string | undefined);
+  aiCreditCredentialSource?: AiCreditCredentialSource;
+  aiCreditSource?: string;
 }): Promise<T> {
-  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
-  if (!aiFeatures.ok) {
-    throw new AiFeaturesRequiredError(aiFeatures.error);
-  }
-
-  await reserveAgentRuntimeUsage({
+  await beginAgentRuntimeUsage({
     organizationId: input.organizationId,
     operationKey: input.operationKey,
     source: input.source,
@@ -161,13 +275,138 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
 
   const result = await input.run();
 
-  await trackSucceededAgentRuntimeUsage({
+  await completeAgentRuntimeUsage({
     organizationId: input.organizationId,
     operationKey: input.operationKey,
     dimensions: input.dimensions,
     interactionId: input.interactionId,
     tokenUsage: input.extractTokenUsage?.(result) ?? null,
+    aiCreditModelId:
+      typeof input.aiCreditModelId === "function"
+        ? input.aiCreditModelId(result)
+        : input.aiCreditModelId,
+    aiCreditCredentialSource: input.aiCreditCredentialSource,
+    aiCreditSource: input.aiCreditSource,
   });
 
   return result;
+}
+
+/** Our AI Gateway or the workspace's own key, for a model resolved per workspace. */
+export function credentialSourceForLanguageModel(languageModel: {
+  source: string;
+}): AiCreditCredentialSource {
+  return languageModel.source === "gateway" ? "gateway" : "byok";
+}
+
+/**
+ * Token billing for an agent turn that ran a classifier and then the agent on the same resolved
+ * model; model and key type are only set when there are tokens to bill.
+ */
+export function agentTurnTokenBilling(input: {
+  classificationTokenUsage: AiTokenUsage | null;
+  turnTokenUsage: AiTokenUsage | null;
+  languageModel: { modelId: string; source: string };
+}) {
+  const tokenUsage = addAiTokenUsage(input.classificationTokenUsage, input.turnTokenUsage);
+  return {
+    tokenUsage,
+    aiCreditModelId: tokenUsage ? input.languageModel.modelId : undefined,
+    aiCreditCredentialSource: tokenUsage
+      ? credentialSourceForLanguageModel(input.languageModel)
+      : undefined,
+  };
+}
+
+export type AiCallTokenUsageInput = {
+  organizationId: string;
+  source: string;
+  tokenUsage: AiTokenUsage | null | undefined;
+  modelId: string;
+  credentialSource: AiCreditCredentialSource;
+  interactionId?: string | null;
+  /** Stored as `project_id` so Reports can place the call in its project. */
+  projectId?: string | null;
+};
+
+/**
+ * Records the tokens of one AI call that is not part of an agent run or job, as
+ * AI Credit only. `source` names where the call came from. Never throws: a
+ * metering failure is logged and the caller's work continues. With `defer`, the
+ * charge runs after the response (Next's `after()` through `deferAfterResponse`).
+ */
+export async function trackAiCallTokenUsage(
+  input: AiCallTokenUsageInput,
+  options?: { defer?: (task: () => Promise<unknown>) => void },
+) {
+  const tokenUsage = input.tokenUsage;
+  if (!tokenUsage || tokenUsage.totalTokens <= 0) {
+    return;
+  }
+
+  if (options?.defer) {
+    options.defer(() => recordAiCallTokenUsage({ ...input, tokenUsage }));
+    return;
+  }
+
+  await recordAiCallTokenUsage({ ...input, tokenUsage });
+}
+
+/** Bills a string translation result, whose token usage carries the model that served it. */
+export async function trackStringTranslationTokenUsage(input: {
+  organizationId: string;
+  source: string;
+  projectId?: string | null;
+  tokenUsage:
+    | (AiTokenUsage & { modelId?: string; credentialSource?: AiCreditCredentialSource })
+    | null
+    | undefined;
+}) {
+  const { tokenUsage } = input;
+  if (!tokenUsage?.modelId || !tokenUsage.credentialSource) {
+    return;
+  }
+
+  await trackAiCallTokenUsage({
+    organizationId: input.organizationId,
+    source: input.source,
+    tokenUsage,
+    modelId: tokenUsage.modelId,
+    credentialSource: tokenUsage.credentialSource,
+    projectId: input.projectId,
+  });
+}
+
+async function recordAiCallTokenUsage(input: AiCallTokenUsageInput & { tokenUsage: AiTokenUsage }) {
+  const tokenUsage = input.tokenUsage;
+
+  const operationKey = `ai-call:${input.source}:${randomUUID()}`;
+  try {
+    const result = await trackAiCreditUsageInAutumn({
+      organizationId: input.organizationId,
+      parentOperationKey: operationKey,
+      tokenUsage,
+      source: input.source,
+      modelId: input.modelId,
+      credentialSource: input.credentialSource,
+      interactionId: input.interactionId ?? undefined,
+      dimensions: input.projectId ? { project_id: input.projectId } : undefined,
+    });
+
+    if (isErr(result)) {
+      logAgentRuntimeUsageError("AI call token tracking failed", {
+        organizationId: input.organizationId,
+        operationKey,
+        source: input.source,
+        error: formatUsageControlError(result.error),
+      });
+    }
+  } catch (error) {
+    logAgentRuntimeUsageError("AI call token tracking threw", {
+      organizationId: input.organizationId,
+      operationKey,
+      source: input.source,
+      err: serializeErrorForLog(error),
+    });
+  }
 }

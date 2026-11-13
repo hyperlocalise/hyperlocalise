@@ -5,6 +5,58 @@ import (
 	"testing"
 )
 
+func TestXLIFFParserParseWithContextIncludesNotes(t *testing.T) {
+	content := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+  <file source-language="en">
+    <body>
+      <trans-unit id="hello">
+        <source>Hello</source>
+        <note>Login greeting</note>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`)
+
+	got, contextByKey, err := (XLIFFParser{}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse xliff: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("unexpected hello value: %q", got["hello"])
+	}
+	if contextByKey["hello"] != "Login greeting" {
+		t.Fatalf("unexpected hello context: %q", contextByKey["hello"])
+	}
+}
+
+func TestXLIFFParserParseWithContextIncludesXLIFF2Notes(t *testing.T) {
+	content := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="2.0" srcLang="en" xmlns="urn:oasis:names:tc:xliff:document:2.0">
+  <file id="f1">
+    <unit id="checkout.submit">
+      <notes>
+        <note>Checkout CTA</note>
+      </notes>
+      <segment>
+        <source>Submit</source>
+      </segment>
+    </unit>
+  </file>
+</xliff>`)
+
+	got, contextByKey, err := (XLIFFParser{}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse xliff: %v", err)
+	}
+	if got["checkout.submit"] != "Submit" {
+		t.Fatalf("unexpected checkout.submit value: %q", got["checkout.submit"])
+	}
+	if contextByKey["checkout.submit"] != "Checkout CTA" {
+		t.Fatalf("unexpected checkout.submit context: %q", contextByKey["checkout.submit"])
+	}
+}
+
 func TestXLIFFParserPreservesInlineMarkupInTarget(t *testing.T) {
 	content := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">
@@ -79,7 +131,7 @@ func TestMarshalXLIFFPreservesInlineMarkupWhenReplacingTarget(t *testing.T) {
 	}
 
 	content := string(out)
-	if !strings.Contains(content, `>Hello <ph id="1"></ph> world</source>`) {
+	if !strings.Contains(content, `>Hello <ph id="1"/> world</source>`) {
 		t.Fatalf("expected source inline markup preserved, got %q", content)
 	}
 	if !strings.Contains(content, `<target state="translated">Bonjour <ph id="1"></ph> monde</target>`) {
@@ -120,7 +172,7 @@ func TestMarshalXLIFF20PreservesSrcLangAndRewritesTrgLang(t *testing.T) {
 	}
 }
 
-func TestMarshalXLIFF20MultiSegmentCurrentLimitationDuplicatesUnitValuePerTarget(t *testing.T) {
+func TestMarshalXLIFF20MultiSegmentWritesIndependentTargets(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="2.0" srcLang="en-US" trgLang="fr-FR" xmlns="urn:oasis:names:tc:xliff:document:2.0">
   <file id="f1">
@@ -137,16 +189,14 @@ func TestMarshalXLIFF20MultiSegmentCurrentLimitationDuplicatesUnitValuePerTarget
   </file>
 </xliff>`)
 
-	out, err := MarshalXLIFF(template, map[string]string{"hello": "Salut tout le monde"}, "en-US", "fr-FR")
+	out, err := MarshalXLIFF(template, map[string]string{"hello#segment-index=1": "Salut ", "hello#segment-index=2": "le monde"}, "en-US", "fr-FR")
 	if err != nil {
 		t.Fatalf("marshal xliff: %v", err)
 	}
 
 	content := string(out)
-	// This locks today's limitation, not desired XLIFF 2.x behavior. When
-	// segment-level rewrite is implemented, replace this with per-segment checks.
-	if strings.Count(content, `>Salut tout le monde</target>`) != 2 {
-		t.Fatalf("expected current unit-level rewrite to replace each segment target with the unit value, got %q", content)
+	if !strings.Contains(content, ">Salut </target>") || !strings.Contains(content, ">le monde</target>") {
+		t.Fatalf("expected independent segment targets, got %q", content)
 	}
 	if !strings.Contains(content, `>Hello </source>`) || !strings.Contains(content, `>world</source>`) {
 		t.Fatalf("expected segment sources preserved when targets exist, got %q", content)
@@ -189,7 +239,7 @@ func TestMarshalXLIFFAddsMissingTargetLocaleAttrs(t *testing.T) {
 	}
 }
 
-func TestMarshalXLIFFReplacesSourceWhenTargetMissing(t *testing.T) {
+func TestMarshalXLIFFCreatesTargetWhenMissing(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">
   <file source-language="en-US">
@@ -207,12 +257,12 @@ func TestMarshalXLIFFReplacesSourceWhenTargetMissing(t *testing.T) {
 	}
 
 	content := string(out)
-	if !strings.Contains(content, "<source>Bonjour</source>") {
-		t.Fatalf("expected source text to be replaced when target is missing, got %q", content)
+	if !strings.Contains(content, "<source>Hello</source>") || !strings.Contains(content, "<target>Bonjour</target>") {
+		t.Fatalf("expected source preserved and target created, got %q", content)
 	}
 }
 
-func TestMarshalXLIFFReplacesSourceWithInlineMarkupWhenTargetMissing(t *testing.T) {
+func TestMarshalXLIFFCreatesTargetWithInlineMarkupWhenMissing(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">
   <file source-language="en-US">
@@ -230,8 +280,8 @@ func TestMarshalXLIFFReplacesSourceWithInlineMarkupWhenTargetMissing(t *testing.
 	}
 
 	content := string(out)
-	if !strings.Contains(content, `<source>Bonjour <g id="1">monde</g></source>`) {
-		t.Fatalf("expected source inline markup replaced when target missing, got %q", content)
+	if !strings.Contains(content, `<source>Hello <g id="1">world</g></source>`) || !strings.Contains(content, `<target>Bonjour <g id="1">monde</g></target>`) {
+		t.Fatalf("expected source inline markup preserved and target created, got %q", content)
 	}
 }
 
@@ -256,6 +306,83 @@ func TestMarshalXLIFFEscapesPlainTextReplacementWhenFragmentInvalid(t *testing.T
 	content := string(out)
 	if !strings.Contains(content, `<target>2 &lt; 3 &amp; 4</target>`) {
 		t.Fatalf("expected invalid xml fragment replacement to be escaped as text, got %q", content)
+	}
+}
+
+func TestMarshalXLIFFEscapesXMLForbiddenPlainText(t *testing.T) {
+	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+  <file source-language="en-US" target-language="fr">
+    <body>
+      <trans-unit id="plain">
+        <source>Hello</source>
+        <target>Hello</target>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`)
+
+	tests := []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "cdata terminator", value: "hello ]]> world", want: "hello ]]&gt; world"},
+		{name: "control character", value: "hello\x01world", want: "hello\uFFFDworld"},
+		{name: "noncharacter", value: "hello\uFFFEworld", want: "hello\uFFFDworld"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out, err := MarshalXLIFF(template, map[string]string{"plain": tt.value}, "en-US", "fr-FR")
+			if err != nil {
+				t.Fatalf("marshal xliff: %v", err)
+			}
+			want := "<target>" + tt.want + "</target>"
+			if !strings.Contains(string(out), want) {
+				t.Fatalf("expected %q in marshaled XLIFF, got %q", want, out)
+			}
+			if _, err := (XLIFFParser{}).Parse(out); err != nil {
+				t.Fatalf("marshaled XLIFF must remain parseable: %v", err)
+			}
+		})
+	}
+}
+
+func TestMarshalXLIFFWritebackPreservesInlineCodeNewlinePayload(t *testing.T) {
+	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+  <file source-language="en-US" target-language="fr">
+    <body>
+      <trans-unit id="hello">
+        <source><ph id="p">a
+b</ph>Hello</source>
+        <target><ph id="p">a
+b</ph>Hello</target>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`)
+
+	entries, err := (XLIFFParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse xliff: %v", err)
+	}
+	out, err := MarshalXLIFF(template, map[string]string{"hello": entries["hello"]}, "en-US", "fr-FR")
+	if err != nil {
+		t.Fatalf("marshal parsed value with newline in inline code: %v", err)
+	}
+	if _, err := (XLIFFParser{}).Parse(out); err != nil {
+		t.Fatalf("writeback must remain parseable: %v", err)
+	}
+}
+
+func TestXLIFFSourceStructureEqualTreatsEscapedAndLiteralNewlinesAsEqual(t *testing.T) {
+	literal := []byte(`<xliff version="1.2"><file><body><trans-unit id="u"><source>Hello
+world</source></trans-unit></body></file></xliff>`)
+	escaped := []byte(`<xliff version="1.2"><file><body><trans-unit id="u"><source>Hello&#10;world</source></trans-unit></body></file></xliff>`)
+	if !XLIFFSourceStructureEqual(literal, escaped) {
+		t.Fatal("literal and escaped source newlines should compare equal")
 	}
 }
 
@@ -305,7 +432,7 @@ func TestXLIFFParserPreservesWhitespaceOnlyValues(t *testing.T) {
 	}
 }
 
-func TestXLIFFParserConcatenatesMultipleSegmentsInOrder(t *testing.T) {
+func TestXLIFFParserReadsIndependentSegments(t *testing.T) {
 	content := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="2.0" srcLang="en-US" trgLang="fr-FR" xmlns="urn:oasis:names:tc:xliff:document:2.0">
   <file id="f1">
@@ -326,12 +453,12 @@ func TestXLIFFParserConcatenatesMultipleSegmentsInOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse xliff: %v", err)
 	}
-	if got["hello"] != "Bonjour monde" {
-		t.Fatalf("expected multi-segment target content concatenated in order, got %#v", got["hello"])
+	if len(got) != 2 || got["hello#segment-index=1"] != "Bonjour " || got["hello#segment-index=2"] != "monde" {
+		t.Fatalf("expected independent segment values, got %#v", got)
 	}
 }
 
-func TestXLIFFParserDuplicateUnitIDCollidesByID(t *testing.T) {
+func TestXLIFFParserRejectsDuplicateUnitID(t *testing.T) {
 	content := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">
   <file source-language="en-US" target-language="fr">
@@ -348,15 +475,8 @@ func TestXLIFFParserDuplicateUnitIDCollidesByID(t *testing.T) {
   </file>
 </xliff>`)
 
-	got, err := (XLIFFParser{}).Parse(content)
-	if err != nil {
-		t.Fatalf("parse xliff: %v", err)
-	}
-	if len(got) != 1 {
-		t.Fatalf("expected duplicate ids to collapse to one key, got %+v", got)
-	}
-	if got["dup"] != "Deuxieme" {
-		t.Fatalf("expected last duplicate id to win, got %+v", got)
+	if _, err := (XLIFFParser{}).Parse(content); err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("expected duplicate-key error, got %v", err)
 	}
 }
 
@@ -466,7 +586,7 @@ func TestMarshalXLIFFPreservesInlineMarkupWithNamespaceReplacement(t *testing.T)
   <file source-language="en-US" target-language="fr">
     <body>
       <trans-unit id="hello">
-        <source>Hello</source>
+        <source>Hello <ph xmlns="urn:test:inline" id="1"></ph> world</source>
         <target>Hello</target>
       </trans-unit>
     </body>

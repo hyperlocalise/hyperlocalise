@@ -40,6 +40,7 @@ import type {
 } from "@/lib/providers/contracts/glossary-match";
 import { hasGlossaryExpectedTarget } from "@/lib/providers/contracts/glossary-match";
 import type { NormalizedTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
+import { catTranslationMemorySegmentAccess } from "@/lib/translation/content-editor-tm-segment";
 import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
@@ -65,6 +66,7 @@ import {
 } from "@/lib/translation/generation";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
+import { extractAiSdkTokenUsage, trackAiCallTokenUsage } from "@/lib/billing/agent-runtime-usage";
 
 export type {
   ContentEditorVisualContext,
@@ -237,6 +239,7 @@ function toCatTranslationMemoryMatch(
     matchPercent,
     matchKind: inferTmMatchKind(matchPercent, querySourceText, match.sourceText),
     contextLabel: match.memoryName,
+    ...catTranslationMemorySegmentAccess(match),
   };
 }
 
@@ -574,7 +577,11 @@ export async function loadContentEditorSegmentVisualContext(
 
 export async function generateContentEditorAiRecommendation(
   input: ContentEditorAiRecommendationInput,
-  options?: { signal?: AbortSignal },
+  options?: {
+    signal?: AbortSignal;
+    usageSource?: string;
+    deferBilling?: (task: () => Promise<unknown>) => void;
+  },
 ): Promise<Result<ContentEditorAiRecommendationResult, ContentEditorAiRecommendationError>> {
   const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
   if (!aiFeatures.ok) {
@@ -618,6 +625,7 @@ export async function generateContentEditorAiRecommendation(
     });
   }
 
+  let usage: unknown;
   try {
     const recommendation = await new ContentEditorRecommendationEngine(modelResult.model).recommend(
       input,
@@ -629,7 +637,12 @@ export async function generateContentEditorAiRecommendation(
         translationMemoryMatches:
           input.translationMemoryMatches ?? contextResult.snapshot.translationMemoryMatches ?? [],
       },
-      { signal: options?.signal },
+      {
+        signal: options?.signal,
+        onUsage: (value) => {
+          usage = value;
+        },
+      },
     );
 
     return ok(recommendation);
@@ -643,5 +656,19 @@ export async function generateContentEditorAiRecommendation(
       message:
         error instanceof Error ? error.message : "Failed to generate AI translation recommendation",
     });
+  } finally {
+    if (usage) {
+      await trackAiCallTokenUsage(
+        {
+          organizationId: input.organizationId,
+          source: options?.usageSource ?? "content_editor_ai_suggestion",
+          tokenUsage: extractAiSdkTokenUsage(usage),
+          modelId: modelResult.modelId,
+          credentialSource: modelResult.credentialSource,
+          projectId: input.projectId,
+        },
+        { defer: options?.deferBilling },
+      );
+    }
   }
 }

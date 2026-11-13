@@ -1,0 +1,896 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+
+export type GoSvcQueryValue = string | number | boolean | null | undefined;
+export type GoSvcQuery = Record<string, GoSvcQueryValue | readonly GoSvcQueryValue[]>;
+export type GoSvcRecord = Record<string, unknown>;
+
+export type GoSvcRequestOptions = {
+  signal?: AbortSignal;
+};
+
+export type GoSvcPageQuery = {
+  limit?: number;
+  offset?: number;
+};
+
+export type GoSvcDownload = {
+  blob: Blob;
+  contentType: string | null;
+  filename: string | null;
+  extension: string | null;
+  warningCount: number;
+};
+
+export type GlossaryInterchangeRun = {
+  id: string;
+  operation: "import" | "export";
+  status: string;
+  format: "csv" | "tbx" | "xlsx";
+  mode: string;
+  sourceFilename: string | null;
+  resultFilename?: string | null;
+  resultReady?: boolean;
+  counts: GoSvcRecord;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  createdAt: string;
+  processingStartedAt?: string | null;
+  completedAt?: string | null;
+  backupReady?: boolean;
+};
+
+export type GlossaryInterchangeRunsResponse = {
+  runs: GlossaryInterchangeRun[];
+  nextCursor?: string | null;
+};
+
+export type GlossaryInterchangeReport = {
+  report: GlossaryInterchangeRun;
+  entries: Array<{
+    id: string;
+    severity: string;
+    code: string;
+    message: string;
+    sourceRow?: number | null;
+    conceptId?: string | null;
+    termId?: string | null;
+    field?: string | null;
+  }>;
+};
+
+export type GlossaryUploadSession = {
+  reportId: string;
+  status: "upload_pending";
+  upload: {
+    url: string;
+    method: "PUT";
+    headers: Record<string, string[]>;
+    expiresAt: string;
+  };
+};
+
+export type GoSvcErrorBody = {
+  error?: string;
+  message?: string;
+  details?: unknown;
+  createdCount?: number;
+  jobs?: unknown[];
+};
+
+export type WorkspaceSettingsRecord = {
+  id: string;
+  workosOrganizationId: string;
+  name: string;
+  slug: string | null;
+  lifecycleStatus: "active" | "archived" | "deprecated";
+  archivedAt: string | null;
+  identityProvider: string;
+};
+
+export type UpdateWorkspaceBody = {
+  name?: string;
+  slug?: string;
+};
+
+export type UpdateWorkspaceResponse = {
+  workspace: WorkspaceSettingsRecord;
+  redirectTo: string;
+};
+
+export type WorkspaceResourceUsage = {
+  seats: number;
+  projects: number;
+  automations: number;
+  integrations: number;
+};
+
+export type DictionaryRecord = {
+  id: string;
+  organizationId: string;
+  createdByUserId: string | null;
+  name: string;
+  description: string;
+  status: "active" | "draft" | "archived";
+  wordsVersion: number;
+  wordCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DictionaryWord = {
+  id: string;
+  locale: string;
+  word: string;
+  createdAt: string;
+};
+
+export type DictionaryProject = {
+  projectId: string;
+  projectName: string;
+  priority: number;
+};
+
+export type GlossaryRecord = {
+  id: string;
+  organizationId: string;
+  createdByUserId: string | null;
+  name: string;
+  description: string;
+  sourceLocale: string;
+  targetLocale: string | null;
+  languages: { locale: string; name: string; isSource: boolean }[];
+  status: string;
+  source: string;
+  controlLevel: string;
+  teamId: string | null;
+  teamName?: string | null;
+  localeCoverage: string[];
+  termCount: number | null;
+  projectCount: number;
+  createdAt: string;
+  updatedAt: string;
+} & GoSvcRecord;
+
+export type GlossaryConcept = {
+  id: string;
+  glossaryId: string;
+  primaryTerm: string;
+  subject: string;
+  definition: string;
+  translatable: boolean;
+  note: string;
+  url: string | null;
+  figure?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  terms: GlossaryTerm[];
+};
+
+export type GlossaryTerm = {
+  id: string;
+  glossaryId: string;
+  conceptId: string;
+  locale: string;
+  term: string;
+  isPrimary: boolean;
+  description: string;
+  note: string;
+  partOfSpeech: string;
+  gender: string | null;
+  termType: string | null;
+  url?: string | null;
+  lemma?: string | null;
+  status: string;
+  caseSensitive: boolean;
+  forbidden: boolean;
+  provenance: string;
+  reviewStatus: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GlossaryProject = {
+  projectId: string;
+  projectName: string;
+  priority: number;
+  sourceLocale: string | null;
+  targetLocales: string[];
+  externalUrl: string | null;
+};
+
+/**
+ * go-svc exports the whole glossary; the filtered/scoped export still lives on
+ * the Hono route, so only `format` is accepted here.
+ */
+export type GlossaryExportQuery = {
+  format?: "csv" | "tbx" | "xlsx";
+  scope?: "complete" | "filtered";
+  search?: string;
+  locales?: readonly string[];
+  reviewStatus?: string;
+  termReviewStatus?: string;
+  linguisticStatus?: string;
+  partOfSpeech?: string;
+  termType?: string;
+  gender?: string;
+  provenance?: string;
+  forbidden?: boolean;
+  createdByUserId?: string;
+  modifiedFrom?: string;
+};
+
+export type GlossaryConceptPageQuery = {
+  limit?: number;
+  cursor?: string;
+  search?: string;
+};
+
+export type GlossaryTermPageQuery = {
+  limit?: number;
+  cursor?: string;
+  locale?: string;
+};
+
+export type MemoryRecord = {
+  id: string;
+  organizationId: string;
+  name: string;
+  description: string;
+  status: string;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+} & GoSvcRecord;
+
+export type MemoryEntryListQuery = GoSvcPageQuery & {
+  cursor?: string;
+  search?: string;
+  sourceLocale?: string;
+  targetLocale?: string;
+  reviewStatus?: "approved" | "pending" | "rejected";
+  sameAsSource?: "true";
+  origin?: string;
+  provider?: string;
+  createdByUserId?: string;
+  modifiedFrom?: string;
+  modifiedTo?: string;
+  importBatchId?: string;
+  sort?: "created_at" | "updated_at";
+  sortDir?: "asc" | "desc";
+};
+
+export type MemoryEntry = {
+  id: string;
+  memoryId: string;
+  sourceLocale: string;
+  targetLocale: string;
+  sourceText: string;
+  targetText: string;
+  matchScore: number;
+  provenance: string;
+  reviewStatus: string;
+  version: number;
+  externalKey: string | null;
+  createdByUserId?: string | null;
+  modifiedByUserId?: string | null;
+  reviewedByUserId?: string | null;
+  importBatchId?: string | null;
+  metadata: GoSvcRecord;
+  createdAt: string;
+  updatedAt: string;
+  reviewedAt: string | null;
+} & GoSvcRecord;
+
+export type MemoryEntryActor = {
+  userId: string | null;
+  displayName: string | null;
+  at: string | null;
+  source: "created" | "modified" | "reviewed" | "imported" | "provider";
+};
+
+export type MemoryEntryDetail = {
+  memoryEntry: MemoryEntry;
+  provenance: {
+    origin: string;
+    provider: string | null;
+    importBatchId: string | null;
+    context: string | null;
+    created: MemoryEntryActor;
+    modified: MemoryEntryActor;
+    reviewed: MemoryEntryActor;
+    imported: MemoryEntryActor;
+    providerSupplied: MemoryEntryActor;
+  };
+  variants: Array<{
+    id: string;
+    sourceLocale: string;
+    targetLocale: string;
+    sourceText: string;
+    targetText: string;
+    context: string | null;
+    reviewStatus: string;
+  }>;
+  auditEvents: Array<{
+    id: string;
+    eventType: "created" | "updated" | "reviewed" | "imported" | "synced";
+    actorKind: "user" | "import" | "provider" | "system";
+    actorUserId: string | null;
+    actorDisplayName: string | null;
+    version: number;
+    changedFields: string[];
+    attributes: GoSvcRecord;
+    occurredAt: string;
+  }>;
+  capabilities: {
+    canEdit: boolean;
+    readOnlyReason: "external_tms" | "reference_only" | null;
+  };
+};
+
+export type MemoryEntryPage = {
+  memoryEntries: MemoryEntry[];
+  total: number;
+  nextCursor: string | null;
+  pagination: { limit: number; returned: number; hasMore: boolean };
+};
+
+export type MemoryProject = {
+  projectId: string;
+  projectName: string;
+  priority: number;
+  sourceLocale: string | null;
+  targetLocales: string[];
+};
+
+export type MemoryInterchangeAttemptStatus =
+  | "upload_pending"
+  | "queued"
+  | "running"
+  | "preview_completed"
+  | "completed"
+  | "partially_successful"
+  | "failed";
+
+export type MemoryInterchangeAttempt = {
+  id: string;
+  organizationId: string;
+  memoryId: string;
+  createdByUserId: string | null;
+  actorDisplayName: string | null;
+  operation: "import" | "export";
+  status: MemoryInterchangeAttemptStatus;
+  importBatchId: string;
+  mode: string;
+  format: "csv" | "tmx";
+  options: GoSvcRecord;
+  sourceFilename: string | null;
+  sourceByteSize: number | null;
+  sourceSha256: string | null;
+  counts: GoSvcRecord | null;
+  headerSrclang: string | null;
+  diagnosticsTruncated: boolean;
+  diagnosticsAvailability: "available" | "expired";
+  diagnosticsExpiresAt: string | null;
+  retentionPolicy: "indefinite";
+  failureCode: string | null;
+  failureMessage?: string | null;
+  processingStartedAt?: string | null;
+  resultFilename: string | null;
+  resultReady: boolean;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+export type MemoryInterchangeDiagnostic = {
+  id?: string;
+  severity: string;
+  code: string;
+  message: string;
+  unitIndex?: number | null;
+  tuid?: string | null;
+  createdAt?: string;
+};
+
+export type MemoryInterchangeAttemptResponse = {
+  memoryImportAttempt: MemoryInterchangeAttempt;
+  diagnostics: MemoryInterchangeDiagnostic[];
+};
+
+export type MemoryExportJob = {
+  attemptId: string;
+  operation: "export";
+  status: "queued";
+};
+
+export type MemoryImportUploadSession = {
+  attemptId: string;
+  operation: "import";
+  status: "upload_pending";
+  upload: {
+    url: string;
+    method: "PUT";
+    headers: Record<string, string[]>;
+    expiresAt: string;
+  };
+};
+
+export type MemoryImportQueueResponse = {
+  attemptId: string;
+  operation: "import";
+  mode: string;
+  status: "queued";
+  format: string;
+  previousMode: string;
+};
+
+export type MemoryImportCancelResponse = {
+  attemptId: string;
+  operation: "import";
+  mode: "cancel";
+  status: "failed";
+};
+
+export type MemoryInterchangeDownloadUrl = {
+  url: string;
+  method: "GET";
+  expiresAt: string;
+  filename: string | null;
+};
+
+export type TeamRecord = {
+  id: string;
+  organizationId: string;
+  slug: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TeamMember = {
+  workosUserId: string;
+  email: string;
+  role: "manager" | "member";
+};
+
+export type TeamSummary = Omit<TeamRecord, "organizationId"> & {
+  memberCount: number;
+  currentUserRole: TeamMember["role"] | null;
+};
+
+export type MemberRole =
+  | "admin"
+  | "localization_manager"
+  | "developer"
+  | "reviewer"
+  | "translator"
+  | "member";
+
+export type MemberRecord = {
+  userId: string;
+  workosUserId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string;
+  avatarUrl: string | null;
+  role: MemberRole;
+  isCurrentUser: boolean;
+  createdAt: string;
+  status: "active" | "invited";
+  canUpdateRole?: boolean;
+  canRemove?: boolean;
+};
+
+export type MemberManagement = {
+  canInvite: boolean;
+  assignableRoles: MemberRole[];
+};
+
+export type MembersResponse = {
+  members: MemberRecord[];
+  memberManagement?: MemberManagement;
+};
+
+export type LeaveWorkspacePreview = {
+  /** `last_admin` when the caller is the only admin who has accepted their invitation. */
+  blockedReason: "last_admin" | null;
+  apiKeys: Array<{ name: string; keyPrefix: string }>;
+  automations: Array<{ id: string; name: string }>;
+  /** The lists are cut at 50; the totals count every match. */
+  apiKeyTotal: number;
+  automationTotal: number;
+};
+
+export type ApiKeyPermission =
+  | "jobs:read"
+  | "jobs:write"
+  | "files:read"
+  | "files:write"
+  | "memories:read"
+  | "memories:write";
+
+export type ApiKeyOwner = {
+  userId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+};
+
+export type ApiKeySummary = {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  permissions: string[];
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  owner: ApiKeyOwner | null;
+};
+
+export type CreatedApiKey = {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  permissions: string[];
+  createdAt: string;
+  key: string;
+  owner: ApiKeyOwner | null;
+};
+
+export type CreateApiKeyBody = {
+  name: string;
+  permissions?: ApiKeyPermission[];
+};
+
+export type GoSvcIssueSheetColumn = {
+  id: string;
+  key: string;
+  label: string;
+  layer: string;
+  type: string;
+  config: { options?: { id: string; label: string; color?: string }[] };
+  sortOrder: number;
+  hidden: boolean;
+  icon: string | null;
+};
+
+export type GoSvcIssueSheetIssue = {
+  id: string;
+  identifier: string;
+  number?: number;
+  projectId?: string;
+  projectName?: string;
+  title: string;
+  description: string;
+  issueType: string;
+  status: string;
+  targetLocale: string | null;
+  sourcePath: string | null;
+  segmentId: string | null;
+  translationKeyId: string | null;
+  linkedCommentId: string | null;
+  linkedAgentRunId: string | null;
+  linkKind: string | null;
+  linkLabel: string | null;
+  linkUrl: string | null;
+  templateKey: string | null;
+  assigneeUserId: string | null;
+  reporter: string | null;
+  assignee: string | null;
+  key: string | null;
+  sourceText: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  values: Record<string, unknown>;
+  isWatching: boolean;
+  priority?: string | null;
+};
+
+export type GoSvcOrganizationIssue = GoSvcIssueSheetIssue & {
+  projectId: string;
+  projectName: string;
+};
+
+export type GoSvcIssueListSummary = {
+  total: number;
+  open: number;
+  inProgress: number;
+  resolved: number;
+  wontFix: number;
+};
+
+export type GoSvcIssueSearchResult = {
+  issueId: string;
+  projectId: string;
+  title: string;
+  status: string;
+};
+
+export type GoSvcAssignableIssueMember = {
+  userId: string;
+  workosUserId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string;
+  avatarUrl: string | null;
+  isCurrentUser: boolean;
+};
+
+export type GoSvcIssueSheetTemplateConfig = {
+  defaultTemplateKey: string | null;
+  assigneeByTemplate: {
+    templateKey: string;
+    userId: string;
+    assignable: boolean;
+  }[];
+};
+
+export type IssueSheetListQuery = GoSvcPageQuery & {
+  view?: "my_work" | "qa_triage" | "source_context" | "all_open";
+  status?: "open" | "in_progress" | "resolved" | "wont_fix" | "all";
+  issueType?:
+    | "general_question"
+    | "translation_mistake"
+    | "context_request"
+    | "source_mistake"
+    | "glossary_violation"
+    | "qa_failure"
+    | "all";
+  priority?: "P0" | "P1" | "P2";
+  locale?: string;
+  assignee?: string;
+  translationKeyId?: string;
+  qaCheckType?: string;
+  search?: string;
+  sort?: "updated_at" | "created_at" | "priority" | "status";
+  sortDir?: "asc" | "desc";
+};
+
+export type OrganizationIssuesListQuery = IssueSheetListQuery & {
+  projectId?: string;
+};
+
+export type OrganizationIssueSearchQuery = {
+  q?: string;
+  excludeIssueId?: string;
+  limit?: number;
+};
+
+export type IssueBulkActionTarget = {
+  issueId: string;
+  projectId: string;
+};
+
+export type IssueBulkActionBody =
+  | { action: "assign"; assigneeUserId: string; issues: IssueBulkActionTarget[] }
+  | { action: "unassign"; issues: IssueBulkActionTarget[] }
+  | { action: "set_status"; status: string; issues: IssueBulkActionTarget[] }
+  | { action: "set_priority"; priority: string; issues: IssueBulkActionTarget[] }
+  | { action: "set_issue_type"; issueType: string; issues: IssueBulkActionTarget[] };
+
+export type IssueBulkActionResult = {
+  issueId: string;
+  projectId: string;
+  outcome: "updated" | "unchanged" | "failed";
+  issue?: GoSvcRecord;
+  error?: { code: string; message: string };
+};
+
+export type IssueBulkActionResponse = {
+  bulkAction: {
+    action: string;
+    requested: number;
+    succeeded: number;
+    failed: number;
+    unchanged: number;
+    results: IssueBulkActionResult[];
+  };
+};
+
+export type ActivityLogQuery = {
+  actor?: string;
+  cursor?: string;
+  eventTypes?: readonly string[];
+  limit?: number;
+  range?: "24h" | "7d" | "30d" | "all";
+};
+
+export type ActivityLogItem = {
+  id: string;
+  eventType: string;
+  actor: GoSvcRecord;
+  target: GoSvcRecord;
+  payload: GoSvcRecord;
+  createdAt: string;
+};
+
+export type ValidateSegmentBody = {
+  sourceText: string;
+  targetText: string;
+  sourcePath: string;
+  maxLength?: number;
+  /** auto | icu | i18next; omitted means auto. */
+  messageFormat?: string;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: readonly string[];
+  modes?: readonly string[];
+  targetLocale?: string;
+  acceptedWords?: readonly string[];
+};
+
+export type ValidateSegmentResult = {
+  checks: GoSvcRecord[];
+  skippedModes?: string[];
+};
+
+/** The "request" part of a render; the source file's bytes go in their own part. */
+export type RenderTranslationFileRequest = {
+  sourcePath: string;
+  sourceLocale: string;
+  targetLocale: string;
+  /** Translated text by key. Untranslated keys are left out. */
+  values: Record<string, string>;
+  /** Source text of every SRX span key the file has. */
+  sourceSpans: Record<string, string>;
+};
+
+export type EditorExportBody = {
+  format: "csv" | "tmx" | "xlf" | "xliff" | "xlsx";
+  rows: GoSvcRecord[];
+  [key: string]: unknown;
+};
+
+export type ProjectRecord = {
+  id: string;
+  organizationId: string;
+  teamId: string | null;
+  createdByUserId: string | null;
+  name: string;
+  identifier: string;
+  description: string;
+  translationContext: string;
+  source: "native" | "external_tms";
+  externalProviderKind: "crowdin" | "smartling" | "phrase" | "lokalise" | null;
+  externalProjectId: string | null;
+  sourceLocale: string | null;
+  targetLocales: string[];
+  externalProjectUrl: string | null;
+  isActive: boolean;
+  lastSyncedAt: string | null;
+  lastSyncErrorAt: string | null;
+  lastSyncErrorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  openJobCount: number;
+} & GoSvcRecord;
+
+export type CreateProjectBody = {
+  name: string;
+  description?: string;
+  translationContext?: string;
+  teamId?: string;
+  sourceLocale?: string;
+  targetLocales?: string[];
+  /** Starts the project from a template. Fields left out come from the template. */
+  templateId?: string;
+};
+
+/** A saved starting point for native projects. */
+export type ProjectTemplateRecord = {
+  id: string;
+  name: string;
+  description: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  projectDescription: string;
+  translationContext: string;
+  teamId: string | null;
+  automaticallyGroupIdenticalStrings: boolean;
+  sourceTextEditable: boolean;
+  approvedTranslationsOnSourceChange: ApprovedTranslationsOnSourceChange;
+  /** Highest priority first. */
+  memoryIds: string[];
+  /** Highest priority first. */
+  glossaryIds: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Template fields to create or patch. `teamId: null` clears the team. */
+export type ProjectTemplateBody = Partial<
+  Omit<ProjectTemplateRecord, "id" | "createdAt" | "updatedAt">
+>;
+
+export type UpdateProjectBody = {
+  name?: string;
+  description?: string;
+  translationContext?: string;
+  teamId?: string;
+  sourceLocale?: string;
+  targetLocales?: string[];
+  identifier?: string;
+};
+
+export type ProjectLocaleProgressCounts = {
+  total: number;
+  translated: number;
+  approved: number;
+};
+
+export type ProjectLocaleProgressRow = {
+  locale: string;
+  translationProgress: number;
+  approvalProgress: number;
+  words: ProjectLocaleProgressCounts;
+  phrases: ProjectLocaleProgressCounts;
+  lastActivityAt: string | null;
+};
+
+export type ApprovedTranslationsOnSourceChange = "stay_approved" | "needs_review";
+
+export type ProjectContentEditorBehavior = {
+  automaticallyGroupIdenticalStrings: boolean;
+  groupingRevision: number;
+  approvedTranslationsOnSourceChange: ApprovedTranslationsOnSourceChange;
+  /** Whether source text may be edited in the platform, not only in the files. */
+  sourceTextEditable: boolean;
+  canManage: boolean;
+  /** Whether this person may edit source text in the content editor now. */
+  canEditSourceText: boolean;
+  /** Whether this person may edit strings' tags and design links in the content editor. */
+  canEditKeyDetails: boolean;
+};
+
+export type ProjectContentEditorBehaviorPreview = {
+  affectedOccurrences: number;
+  groups: number;
+};
+
+export type ProjectFilesQuery = {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  origin?: "all" | "repository" | "provider";
+  resourceType?: "all" | "file" | "key";
+  providerKind?: "all" | "crowdin" | "smartling" | "phrase" | "lokalise";
+  locale?: string;
+  syncState?: string;
+  branch?: string;
+};
+
+export type WorkspaceFilesQuery = ProjectFilesQuery & {
+  projectId?: string;
+};
+
+export type ProjectFileRecord = {
+  origin: "repository" | "provider" | "combined";
+  sourcePath: string;
+  sourceHash: string | null;
+  commitSha: string | null;
+  workflowRunId: string | null;
+  uploadedAt: string;
+  storedFileId: string | null;
+  metadata: GoSvcRecord;
+  filename: string;
+  byteSize: number | null;
+  provider: GoSvcRecord | null;
+  latestJob: GoSvcRecord | null;
+} & GoSvcRecord;
+
+export type WorkspaceFileRecord = ProjectFileRecord & {
+  projectId: string;
+  projectName: string;
+};

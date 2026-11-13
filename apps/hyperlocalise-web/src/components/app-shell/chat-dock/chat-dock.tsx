@@ -12,17 +12,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
-import { Chat01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ChatCircleIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { createInboxApi } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-api";
 import type { InboxCurrentUser } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-types";
 import { AiFeatureAction } from "@/components/billing/ai-feature-action";
 import { Button } from "@/components/ui/button";
 import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
+import { apiClient } from "@/lib/api-client-instance";
+import { toast } from "sonner";
 import {
   disposeChatStreamManager,
   getChatStreamManager,
@@ -31,6 +33,9 @@ import {
 import { chatDockMessages } from "./chat-dock.messages";
 import { ChatDockPanel } from "./chat-dock-panel";
 import { ChatDockTabBar } from "./chat-dock-tab-bar";
+
+/** Sends queued follow-ups. Sending a message is a Hono route, so no go-svc reads are needed. */
+const queuedMessageApi = createInboxApi(apiClient);
 
 /** Query flag used by `/chat` redirects to open a new dock tab once. */
 export const NEW_REQUEST_QUERY_PARAM = "newRequest";
@@ -68,6 +73,9 @@ export const ChatDockBridge = observer(function ChatDockBridge({
   const store = useAppShellStore();
   const { chatDock } = store;
   const queryClient = useQueryClient();
+  const intl = useIntl();
+  const intlRef = useRef(intl);
+  intlRef.current = intl;
 
   useLayoutEffect(() => {
     if (!organizationSlug) {
@@ -81,12 +89,43 @@ export const ChatDockBridge = observer(function ChatDockBridge({
 
     chatDock.setOrganizationSlug(organizationSlug);
     const streamManager = getChatStreamManager(organizationSlug, chatDock);
-    streamManager.setOnStreamFinished(async (conversationId) => {
+    streamManager.setOnStreamFinished(async (conversationId, info) => {
       // invalidateQueries marks cache stale even when observers are unmounted; refetchQueries
       // (type: 'active') would silently skip and leave pre-stream messages until staleTime.
       await queryClient.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
       await queryClient.invalidateQueries({ queryKey: conversationsQueryKey(organizationSlug) });
       chatDock.clearStreamSnapshot(conversationId);
+
+      // A stopped turn holds the queue; the user sends or edits the queued messages themselves.
+      if (info.cancelled) {
+        return;
+      }
+
+      const next = chatDock.shiftQueuedMessage(conversationId);
+      if (!next) {
+        return;
+      }
+
+      try {
+        const sent = await queuedMessageApi.sendMessage(organizationSlug, conversationId, {
+          text: next.text,
+          files: next.files,
+          ...next.options,
+        });
+        await queryClient.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
+        if (sent) {
+          // Not awaited: this handler runs inside the previous stream's cleanup.
+          void streamManager.start({
+            conversationId,
+            responseToMessageId: sent.id,
+            text: sent.text,
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        chatDock.requeueMessageFirst(conversationId, next);
+        toast.error(intlRef.current.formatMessage(chatDockMessages.queuedSendFailed));
+      }
     });
 
     return () => {
@@ -171,7 +210,7 @@ export const ChatDockFooterControls = observer(function ChatDockFooterControls({
           aria-label={intl.formatMessage(chatDockMessages.newChat)}
           onClick={() => chatDock.openNewTab()}
         >
-          <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} data-icon="inline-start" />
+          <ChatCircleIcon data-icon="inline-start" />
           <FormattedMessage {...chatDockMessages.newChat} />
         </Button>
       </AiFeatureAction>

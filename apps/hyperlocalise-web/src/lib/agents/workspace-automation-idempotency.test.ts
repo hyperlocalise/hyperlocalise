@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  buildWorkspaceIntercomPushAutomationIdempotencyKey,
   buildWorkspaceSourceUploadAutomationIdempotencyKey,
   buildWorkspaceSourceUploadManualRunIdempotencyKey,
 } from "./workspace-automation-idempotency";
@@ -95,5 +96,29 @@ describe("buildWorkspaceSourceUploadManualRunIdempotencyKey", () => {
 
     expect(second).not.toBe(first);
     expect(first).not.toBe(buildWorkspaceSourceUploadAutomationIdempotencyKey(baseInput));
+  });
+});
+
+describe("buildWorkspaceIntercomPushAutomationIdempotencyKey", () => {
+  it("scopes push runs by automation, config version, and client key", () => {
+    const first = buildWorkspaceIntercomPushAutomationIdempotencyKey({
+      automationId: "automation-1",
+      configVersion: 2,
+      clientKey: "push_approved:automation-1:2",
+    });
+    const same = buildWorkspaceIntercomPushAutomationIdempotencyKey({
+      automationId: "automation-1",
+      configVersion: 2,
+      clientKey: "push_approved:automation-1:2",
+    });
+    const nextConfig = buildWorkspaceIntercomPushAutomationIdempotencyKey({
+      automationId: "automation-1",
+      configVersion: 3,
+      clientKey: "push_approved:automation-1:2",
+    });
+
+    expect(same).toBe(first);
+    expect(nextConfig).not.toBe(first);
+    expect(first).toContain("workspace-automation:intercom-push");
   });
 });

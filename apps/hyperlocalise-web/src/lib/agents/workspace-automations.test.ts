@@ -57,6 +57,7 @@ vi.mock("@/lib/gitlab/pipes", async (importOriginal) => {
 });
 
 import { db, schema } from "@/lib/database/client";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { ok, type Result } from "@/lib/primitives/result/results";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -165,6 +166,36 @@ async function seedWorkspaceAutomationScope() {
     githubRepositoryId,
     githubInstallationRepositoryId: repository.id,
   };
+}
+
+async function seedWorkspaceMember(input: {
+  organizationId: string;
+  role: OrganizationMembershipRole;
+  firstName?: string;
+  lastName?: string;
+  invited?: boolean;
+  pending?: boolean;
+  replacing?: boolean;
+}) {
+  const userId = crypto.randomUUID();
+  await db.insert(schema.users).values({
+    id: userId,
+    workosUserId: input.invited ? `invited_user_${userId}` : `user_${userId}`,
+    email: `${userId}@example.test`,
+    firstName: input.firstName ?? "Grace",
+    lastName: input.lastName ?? "Hopper",
+  });
+  await db.insert(schema.organizationMemberships).values({
+    organizationId: input.organizationId,
+    userId,
+    role: input.role,
+    workosMembershipId: input.pending
+      ? null
+      : input.replacing
+        ? `replacing:${userId}`
+        : `membership_${userId}`,
+  });
+  return userId;
 }
 
 describe("workspaceAutomationConfigSchema web search", () => {
@@ -385,7 +416,7 @@ describe("workspace automations", () => {
       authorName: "Ada Lovelace",
       status: "active",
       name: "Refresh repository translations",
-      model: "openai/gpt-5.6-luna",
+      model: "openai/gpt-6-luna",
       triggerConfig: { mode: "manual" },
       repositoryTarget: { kind: "none" },
       toolConfig: {},
@@ -552,7 +583,7 @@ describe("workspace automations", () => {
     expect(notificationOnlySchedule.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
     });
 
     const scheduledWebSearch = expectOk(
@@ -602,7 +633,7 @@ describe("workspace automations", () => {
     expect(scheduledUpdate.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
     });
   });
 
@@ -822,6 +853,143 @@ describe("workspace automations", () => {
     expect(paused?.nextRunAt).toBeNull();
   });
 
+  it("stores attached skills and versions config when they change", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Research brief",
+        instructions: "",
+        triggerConfig: { mode: "manual" },
+        toolConfig: { webSearch: { enabled: true, provider: "auto" } },
+        skillIds: ["research-web", "research-web"],
+      }),
+    );
+
+    expect(automation.skillIds).toEqual(["research-web"]);
+    expect(
+      (
+        await getWorkspaceAutomationById({
+          automationId: automation.id,
+          organizationId: scope.organizationId,
+        })
+      )?.skillIds,
+    ).toEqual(["research-web"]);
+
+    const renamed = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        name: "Daily research brief",
+      }),
+    );
+    expect(renamed?.skillIds).toEqual(["research-web"]);
+    expect(renamed?.configVersion).toBe(1);
+
+    const detached = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        skillIds: [],
+        instructions: "Research competitors.",
+      }),
+    );
+    expect(detached?.skillIds).toEqual([]);
+    expect(detached?.configVersion).toBe(2);
+  });
+
+  it("does not let an update leave an automation without instructions or a skill", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const skillOnly = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Research brief",
+        instructions: "",
+        triggerConfig: { mode: "manual" },
+        toolConfig: { webSearch: { enabled: true, provider: "auto" } },
+        skillIds: ["research-web"],
+      }),
+    );
+    const instructionsOnly = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Hand-written",
+        instructions: "Summarise the week.",
+      }),
+    );
+
+    const lastSkillRemoved = await updateWorkspaceAutomation({
+      automationId: skillOnly.id,
+      organizationId: scope.organizationId,
+      skillIds: [],
+    });
+    const instructionsBlanked = await updateWorkspaceAutomation({
+      automationId: instructionsOnly.id,
+      organizationId: scope.organizationId,
+      instructions: "  ",
+    });
+
+    expect(lastSkillRemoved.ok ? null : lastSkillRemoved.error.code).toBe(
+      "instructions_or_skill_required",
+    );
+    expect(instructionsBlanked.ok ? null : instructionsBlanked.error.code).toBe(
+      "instructions_or_skill_required",
+    );
+    expect(
+      (
+        await getWorkspaceAutomationById({
+          automationId: skillOnly.id,
+          organizationId: scope.organizationId,
+        })
+      )?.skillIds,
+    ).toEqual(["research-web"]);
+
+    // Changes that touch neither field are not held to the rule.
+    const paused = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: skillOnly.id,
+        organizationId: scope.organizationId,
+        status: "paused",
+      }),
+    );
+    expect(paused?.status).toBe("paused");
+  });
+
+  it("rejects skills that are unknown, do not fit the trigger, or lack their tools", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const base = {
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Research brief",
+      instructions: "",
+      triggerConfig: { mode: "manual" as const },
+    };
+
+    const unknown = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: { webSearch: { enabled: true, provider: "auto" } },
+      skillIds: ["not-a-skill"],
+    });
+    const wrongTrigger = await createWorkspaceAutomation({
+      ...base,
+      triggerConfig: { mode: "web_chat" },
+      toolConfig: { webSearch: { enabled: true, provider: "auto" } },
+      skillIds: ["research-web"],
+    });
+    const missingTool = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: {},
+      skillIds: ["research-web"],
+    });
+
+    expect(unknown.ok ? null : unknown.error.code).toBe("skill_not_found");
+    expect(wrongTrigger.ok ? null : wrongTrigger.error.code).toBe("skill_trigger_incompatible");
+    expect(missingTool.ok ? null : missingTool.error.code).toBe("skill_tools_required");
+  });
+
   it("persists the selected language model without versioning config", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const automation = expectOk(
@@ -846,6 +1014,91 @@ describe("workspace automations", () => {
 
     expect(updated?.model).toBe("openai/gpt-5.6-sol");
     expect(updated?.configVersion).toBe(1);
+  });
+
+  it("reassigns the owner to an active workspace operator without versioning config", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const nextOwnerUserId = await seedWorkspaceMember({
+      organizationId: scope.organizationId,
+      role: "localization_manager",
+      firstName: "Grace",
+      lastName: "Hopper",
+    });
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Owned automation",
+        instructions: "Keep the same config when the owner changes.",
+      }),
+    );
+
+    const updated = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        authorUserId: nextOwnerUserId,
+      }),
+    );
+
+    expect(updated?.authorUserId).toBe(nextOwnerUserId);
+    expect(updated?.authorName).toBe("Grace Hopper");
+    expect(updated?.configVersion).toBe(1);
+    expect(updated?.instructions).toBe("Keep the same config when the owner changes.");
+  });
+
+  it("rejects owners who are not active workspace operators", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const [developerUserId, invitedUserId, pendingUserId, replacingUserId] = await Promise.all([
+      seedWorkspaceMember({
+        organizationId: scope.organizationId,
+        role: "developer",
+      }),
+      seedWorkspaceMember({
+        organizationId: scope.organizationId,
+        role: "admin",
+        invited: true,
+      }),
+      seedWorkspaceMember({
+        organizationId: scope.organizationId,
+        role: "admin",
+        pending: true,
+      }),
+      seedWorkspaceMember({
+        organizationId: scope.organizationId,
+        role: "admin",
+        replacing: true,
+      }),
+    ]);
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Owned automation",
+        instructions: "Keep the current owner unless the next person can operate the workspace.",
+      }),
+    );
+
+    for (const authorUserId of [
+      developerUserId,
+      invitedUserId,
+      pendingUserId,
+      replacingUserId,
+      crypto.randomUUID(),
+    ]) {
+      const result = await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        authorUserId,
+      });
+      expect(result.ok ? null : result.error.code).toBe("author_not_found");
+    }
+
+    const unchanged = await getWorkspaceAutomationById({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(unchanged?.authorUserId).toBe(scope.userId);
   });
 
   it("does not pause archived automations", async () => {
@@ -953,7 +1206,7 @@ describe("workspace automations", () => {
         status: "active",
         name: "Legacy translation project automation",
         instructions: "Run from a legacy tool project id.",
-        model: "openai/gpt-5.6-luna",
+        model: "openai/gpt-6-luna",
         projectId: null,
         triggerConfig: { mode: "manual" },
         repositoryTarget: { kind: "none" },
@@ -1516,6 +1769,35 @@ describe("workspace automations", () => {
       throw new Error("expected update-path semrush validation error");
     }
     expect(updateRejected.error.code).toBe("semrush_not_connected");
+  });
+
+  it("saves a GitLab automation without a personal sign-in when the workspace has a server", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    await db.insert(schema.gitlabConnections).values({
+      organizationId: scope.organizationId,
+      serverUrl: "https://git.acme.example",
+      connectedUsername: "translations-bot",
+      encryptionAlgorithm: "aes-256-gcm",
+      ciphertext: "unused",
+      iv: "unused",
+      authTag: "unused",
+      maskedTokenSuffix: "••••abcd",
+    });
+
+    const created = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "GitLab automation",
+        instructions: "Review localisation impact.",
+        triggerConfig: { mode: "manual" as const },
+        repositoryTarget: { kind: "gitlab", gitlabPathWithNamespace: "acme/web" },
+        toolConfig: { gitlab: { enabled: true } },
+      }),
+    );
+
+    expect(created.toolConfig.gitlab?.enabled).toBe(true);
+    expect(pipesMocks.getGitLabPipesConnectionStatus).not.toHaveBeenCalled();
   });
 
   it("creates GitLab.com automations and keeps GitHub exclusive", async () => {

@@ -12,20 +12,20 @@
  */
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppCapability } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { HyperlabExperimentsPage } from "../_components/hyperlab-experiments-page";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "hyperlabExperiments");
+}
 
 export default function HyperlabExperimentsRoute({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <HyperlabExperimentsRouteLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <HyperlabExperimentsRouteLoader params={params} />;
 }
 
 async function HyperlabExperimentsRouteLoader({

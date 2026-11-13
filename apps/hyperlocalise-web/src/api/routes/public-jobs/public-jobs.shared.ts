@@ -21,10 +21,6 @@ export function invalidJobPayloadResponse(c: JsonContext) {
   return badRequestResponse(c, "invalid_job_payload", "Invalid job payload");
 }
 
-export function jobNotFoundResponse(c: JsonContext) {
-  return notFoundResponse(c, "job_not_found", "Job not found");
-}
-
 export function sourceFileNotFoundResponse(c: JsonContext) {
   return notFoundResponse(c, "source_file_not_found", "Source file not found");
 }
@@ -44,10 +40,34 @@ export function sourceFileFormatMismatchResponse(c: JsonContext, expectedFileFor
   );
 }
 
+export const publicJobQueueUnavailableError = "translation job queue unavailable";
+
 export function jobQueueUnavailableResponse(c: JsonContext) {
   return serviceUnavailableResponse(c, "job_queue_unavailable", "Job queue is unavailable");
 }
 
 export function projectNotFoundResponse(c: JsonContext) {
   return notFoundResponse(c, "project_not_found", "Project not found");
+}
+
+export function ownerNotFoundResponse(c: JsonContext) {
+  return badRequestResponse(c, "owner_not_found", "Owner must be a member of this workspace");
+}
+
+export function invalidIdempotencyKeyResponse(c: JsonContext) {
+  return badRequestResponse(
+    c,
+    "invalid_idempotency_key",
+    "Idempotency-Key must be 1 to 255 printable ASCII characters",
+  );
+}
+
+export function idempotencyKeyReusedResponse(c: JsonContext) {
+  return c.json(
+    {
+      error: "idempotency_key_reused",
+      message: "Idempotency-Key was already used with a different request",
+    },
+    422,
+  );
 }

@@ -16,7 +16,7 @@ import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { mockAudit } from "evlog";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   clearPendingMembershipReplacingInvitation,
@@ -34,20 +34,98 @@ import {
   ACCESS_TOKEN_AUDIT_ACTIONS,
   ACCESS_TOKEN_REVOKE_REASONS,
 } from "@/lib/security/access-token-audit";
-import {
-  INVITED_WORKOS_USER_ID_PREFIX,
-  REPLACING_WORKOS_MEMBERSHIP_ID,
-} from "@/lib/workos/constants";
+import { INVITED_WORKOS_USER_ID_PREFIX, replacingWorkosMembershipId } from "@/lib/workos/constants";
+
+const { enqueueActivityLogEventsMock } = vi.hoisted(() => ({
+  enqueueActivityLogEventsMock: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvents: enqueueActivityLogEventsMock,
+}));
 
 const { createWorkosIdentity, createWorkosIdentityForOrganization, cleanup, trackWorkosUserId } =
   createAuthTestFixture();
+
+function enqueuedActivityEvents() {
+  return enqueueActivityLogEventsMock.mock.calls.flatMap(([events]) => events);
+}
 
 beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
+beforeEach(() => {
+  enqueueActivityLogEventsMock.mockClear();
+});
+
 afterEach(async () => {
   await cleanup();
+});
+
+describe("syncWorkosIdentity activity", () => {
+  it("records member_joined when a pending invite becomes an active membership", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+    const invitedIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "translator",
+    );
+    await syncWorkosIdentity(db, {
+      ...invitedIdentity,
+      membership: { role: "translator" },
+    });
+    enqueueActivityLogEventsMock.mockClear();
+
+    const synced = await syncWorkosIdentity(db, invitedIdentity, { recordActivity: true });
+
+    expect(enqueuedActivityEvents()).toEqual([
+      expect.objectContaining({
+        actorKind: "user",
+        actorUserId: synced.user.id,
+        eventType: "member_joined",
+        organizationId: synced.organization.id,
+        payload: expect.objectContaining({ memberUserId: synced.user.id, role: "translator" }),
+        targetKind: "membership",
+      }),
+    ]);
+  });
+
+  it("records member_role_changed when WorkOS changes an active member role", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "translator",
+    );
+    await syncWorkosIdentity(db, memberIdentity);
+    enqueueActivityLogEventsMock.mockClear();
+
+    const synced = await syncWorkosIdentity(
+      db,
+      { ...memberIdentity, membership: { ...memberIdentity.membership, role: "reviewer" } },
+      { recordActivity: true },
+    );
+
+    expect(enqueuedActivityEvents()).toEqual([
+      expect.objectContaining({
+        actorKind: "system",
+        eventType: "member_role_changed",
+        organizationId: synced.organization.id,
+        payload: expect.objectContaining({ nextRole: "reviewer", previousRole: "translator" }),
+      }),
+    ]);
+  });
+
+  it("records nothing when an active membership is re-synced unchanged", async () => {
+    const identity = createWorkosIdentity();
+    await syncWorkosIdentity(db, identity);
+    enqueueActivityLogEventsMock.mockClear();
+
+    await syncWorkosIdentity(db, identity, { recordActivity: true });
+
+    expect(enqueuedActivityEvents()).toEqual([]);
+  });
 });
 
 describe("removePendingOrganizationMembershipForInvite", () => {
@@ -103,12 +181,80 @@ describe("removePendingOrganizationMembershipForInvite", () => {
       .where(eq(schema.organizationMemberships.id, membership.id))
       .limit(1);
 
-    expect(remaining?.workosMembershipId).toBe(REPLACING_WORKOS_MEMBERSHIP_ID);
+    expect(remaining?.workosMembershipId).toBe(replacingWorkosMembershipId(membership.id));
 
     await clearPendingMembershipReplacingInvitation(db, membership.id);
     await db
       .delete(schema.organizationMemberships)
       .where(eq(schema.organizationMemberships.id, membership.id));
+  });
+
+  it("marks two pending memberships replacing without colliding on the unique index", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const firstInvite = createWorkosIdentity();
+    const secondInvite = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+    await syncWorkosIdentity(db, firstInvite);
+    await syncWorkosIdentity(db, secondInvite);
+
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.organizations)
+      .where(
+        eq(
+          schema.organizations.workosOrganizationId,
+          ownerIdentity.organization.workosOrganizationId,
+        ),
+      )
+      .limit(1);
+
+    const [firstUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, firstInvite.user.workosUserId))
+      .limit(1);
+    const [secondUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, secondInvite.user.workosUserId))
+      .limit(1);
+
+    expect(organization).toBeDefined();
+    expect(firstUser).toBeDefined();
+    expect(secondUser).toBeDefined();
+
+    const [firstMembership] = await db
+      .insert(schema.organizationMemberships)
+      .values({
+        organizationId: organization!.id,
+        userId: firstUser!.id,
+        role: "member",
+        workosMembershipId: null,
+      })
+      .returning({ id: schema.organizationMemberships.id });
+    const [secondMembership] = await db
+      .insert(schema.organizationMemberships)
+      .values({
+        organizationId: organization!.id,
+        userId: secondUser!.id,
+        role: "member",
+        workosMembershipId: null,
+      })
+      .returning({ id: schema.organizationMemberships.id });
+
+    const [firstMarked, secondMarked] = await Promise.all([
+      markPendingMembershipReplacingInvitation(db, firstMembership.id),
+      markPendingMembershipReplacingInvitation(db, secondMembership.id),
+    ]);
+    expect(firstMarked).toBe(true);
+    expect(secondMarked).toBe(true);
+
+    await db
+      .delete(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.id, firstMembership.id));
+    await db
+      .delete(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.id, secondMembership.id));
   });
 
   it("removes pending invite rows for revoked invitations", async () => {
@@ -137,6 +283,37 @@ describe("removePendingOrganizationMembershipForInvite", () => {
     });
 
     expect(deleted).toBe(1);
+  });
+
+  it("records member_invite_revoked for each revoked pending invite", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const owner = await syncWorkosIdentity(db, ownerIdentity);
+
+    const pendingEmail = `revoked-${randomUUID()}@example.com`;
+    const placeholderUserId = `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`;
+    trackWorkosUserId(placeholderUserId);
+
+    await syncWorkosIdentity(db, {
+      user: { workosUserId: placeholderUserId, email: pendingEmail },
+      organization: ownerIdentity.organization,
+      membership: { role: "member" },
+    });
+    enqueueActivityLogEventsMock.mockClear();
+
+    await removePendingOrganizationMembershipForInvite(db, {
+      workosOrganizationId: ownerIdentity.organization.workosOrganizationId,
+      email: pendingEmail,
+      recordActivity: true,
+    });
+
+    expect(enqueuedActivityEvents()).toEqual([
+      expect.objectContaining({
+        actorKind: "system",
+        eventType: "member_invite_revoked",
+        organizationId: owner.organization.id,
+        targetKind: "invitation",
+      }),
+    ]);
   });
 });
 
@@ -171,7 +348,65 @@ describe("revokeOrganizationMembershipAccess", () => {
       teamMembershipsDeleted: 0,
       mcpSessionsDeleted: 0,
       apiKeysRevoked: 0,
+      figmaOauthTokensRevoked: 0,
+      canvaOauthTokensRevoked: 0,
+      sanityOauthTokensRevoked: 0,
     });
+  });
+
+  it("revokes leftover plugin tokens when the membership row is already gone", async () => {
+    const identity = createWorkosIdentity();
+    const synced = await syncWorkosIdentity(db, identity);
+    const [apiKey] = await db
+      .insert(schema.organizationApiKeys)
+      .values({
+        organizationId: synced.organization.id,
+        name: "Sanity leftover PAT",
+        keyHash: `hash_sanity_${randomUUID()}`,
+        keyPrefix: "hl_sanity",
+        createdByUserId: synced.user.id,
+      })
+      .returning({ id: schema.organizationApiKeys.id });
+    const [sanityConnection] = await db
+      .insert(schema.sanityConnections)
+      .values({
+        organizationId: synced.organization.id,
+        apiKeyId: apiKey!.id,
+        displayName: "Leftover Sanity",
+      })
+      .returning({ id: schema.sanityConnections.id });
+    const [sanityToken] = await db
+      .insert(schema.sanityOauthTokens)
+      .values({
+        connectionId: sanityConnection!.id,
+        userId: synced.user.id,
+        organizationId: synced.organization.id,
+        studioOrigin: "https://studio.example",
+        accessTokenHash: `sanity_at_gone_${randomUUID()}`,
+        refreshTokenHash: `sanity_rt_gone_${randomUUID()}`,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: schema.sanityOauthTokens.id });
+
+    await db
+      .delete(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.userId, synced.user.id));
+
+    const result = await revokeOrganizationMembershipAccess(db, {
+      workosMembershipId: identity.membership.workosMembershipId,
+      workosOrganizationId: identity.organization.workosOrganizationId,
+      workosUserId: identity.user.workosUserId,
+    });
+
+    expect(result.organizationMembershipsDeleted).toBe(0);
+    expect(result.sanityOauthTokensRevoked).toBe(1);
+    const [after] = await db
+      .select({ revokedAt: schema.sanityOauthTokens.revokedAt })
+      .from(schema.sanityOauthTokens)
+      .where(eq(schema.sanityOauthTokens.id, sanityToken!.id))
+      .limit(1);
+    expect(after?.revokedAt).not.toBeNull();
   });
 
   it("emits membership-removal audits for each revoked token", async () => {
@@ -324,6 +559,182 @@ describe("revokeOrganizationMembershipAccess", () => {
     expect(departingKeyAfter?.revokedAt).not.toBeNull();
     expect(alreadyRevokedAfter?.revokedAt?.toISOString()).toBe(
       alreadyRevokedKey!.revokedAt!.toISOString(),
+    );
+  });
+
+  it("revokes the departing member's Figma and Canva OAuth tokens", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const departingIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "admin",
+    );
+
+    await syncWorkosIdentity(db, ownerIdentity);
+    const departing = await syncWorkosIdentity(db, departingIdentity);
+
+    const [ownerUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, ownerIdentity.user.workosUserId))
+      .limit(1);
+
+    const [apiKey] = await db
+      .insert(schema.organizationApiKeys)
+      .values({
+        organizationId: departing.organization.id,
+        name: "Plugin PAT",
+        keyHash: `hash_plugin_${randomUUID()}`,
+        keyPrefix: "hl_plugi",
+        permissions: ["files:write", "jobs:write"],
+        createdByUserId: ownerUser!.id,
+      })
+      .returning({ id: schema.organizationApiKeys.id });
+
+    const [figmaConnection] = await db
+      .insert(schema.figmaConnections)
+      .values({
+        organizationId: departing.organization.id,
+        apiKeyId: apiKey!.id,
+        displayName: "Org Figma",
+        connectionTokenHash: `figma_conn_${randomUUID()}`,
+        connectionTokenPrefix: "hl_figma",
+      })
+      .returning({ id: schema.figmaConnections.id });
+
+    const [canvaConnection] = await db
+      .insert(schema.canvaConnections)
+      .values({
+        organizationId: departing.organization.id,
+        apiKeyId: apiKey!.id,
+        displayName: "Org Canva",
+        connectionTokenHash: `canva_conn_${randomUUID()}`,
+        connectionTokenPrefix: "hl_canva",
+      })
+      .returning({ id: schema.canvaConnections.id });
+
+    const [sanityConnection] = await db
+      .insert(schema.sanityConnections)
+      .values({
+        organizationId: departing.organization.id,
+        apiKeyId: apiKey!.id,
+        displayName: "Org Sanity",
+      })
+      .returning({ id: schema.sanityConnections.id });
+
+    const [ownerFigmaToken] = await db
+      .insert(schema.figmaOauthTokens)
+      .values({
+        connectionId: figmaConnection!.id,
+        userId: ownerUser!.id,
+        organizationId: departing.organization.id,
+        accessTokenHash: `figma_at_owner_${randomUUID()}`,
+        refreshTokenHash: `figma_rt_owner_${randomUUID()}`,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: schema.figmaOauthTokens.id });
+
+    const [departingFigmaToken] = await db
+      .insert(schema.figmaOauthTokens)
+      .values({
+        connectionId: figmaConnection!.id,
+        userId: departing.user.id,
+        organizationId: departing.organization.id,
+        accessTokenHash: `figma_at_leaving_${randomUUID()}`,
+        refreshTokenHash: `figma_rt_leaving_${randomUUID()}`,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: schema.figmaOauthTokens.id });
+
+    const [departingCanvaToken] = await db
+      .insert(schema.canvaOauthTokens)
+      .values({
+        connectionId: canvaConnection!.id,
+        userId: departing.user.id,
+        organizationId: departing.organization.id,
+        accessTokenHash: `canva_at_leaving_${randomUUID()}`,
+        refreshTokenHash: `canva_rt_leaving_${randomUUID()}`,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: schema.canvaOauthTokens.id });
+
+    const [departingSanityToken] = await db
+      .insert(schema.sanityOauthTokens)
+      .values({
+        connectionId: sanityConnection!.id,
+        userId: departing.user.id,
+        organizationId: departing.organization.id,
+        studioOrigin: "https://studio.example",
+        accessTokenHash: `sanity_at_leaving_${randomUUID()}`,
+        refreshTokenHash: `sanity_rt_leaving_${randomUUID()}`,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: schema.sanityOauthTokens.id });
+
+    const alreadyRevokedAt = new Date("2026-01-01T00:00:00.000Z");
+    const [alreadyRevokedFigmaToken] = await db
+      .insert(schema.figmaOauthTokens)
+      .values({
+        connectionId: figmaConnection!.id,
+        userId: departing.user.id,
+        organizationId: departing.organization.id,
+        accessTokenHash: `figma_at_revoked_${randomUUID()}`,
+        refreshTokenHash: `figma_rt_revoked_${randomUUID()}`,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+        revokedAt: alreadyRevokedAt,
+      })
+      .returning({
+        id: schema.figmaOauthTokens.id,
+        revokedAt: schema.figmaOauthTokens.revokedAt,
+      });
+
+    const result = await revokeOrganizationMembershipAccess(db, {
+      workosMembershipId: departingIdentity.membership.workosMembershipId,
+      workosOrganizationId: ownerIdentity.organization.workosOrganizationId,
+      workosUserId: departingIdentity.user.workosUserId,
+    });
+
+    expect(result.organizationMembershipsDeleted).toBe(1);
+    expect(result.figmaOauthTokensRevoked).toBe(1);
+    expect(result.canvaOauthTokensRevoked).toBe(1);
+    expect(result.sanityOauthTokensRevoked).toBe(1);
+
+    const [ownerFigmaAfter] = await db
+      .select({ revokedAt: schema.figmaOauthTokens.revokedAt })
+      .from(schema.figmaOauthTokens)
+      .where(eq(schema.figmaOauthTokens.id, ownerFigmaToken!.id))
+      .limit(1);
+    const [departingFigmaAfter] = await db
+      .select({ revokedAt: schema.figmaOauthTokens.revokedAt })
+      .from(schema.figmaOauthTokens)
+      .where(eq(schema.figmaOauthTokens.id, departingFigmaToken!.id))
+      .limit(1);
+    const [departingCanvaAfter] = await db
+      .select({ revokedAt: schema.canvaOauthTokens.revokedAt })
+      .from(schema.canvaOauthTokens)
+      .where(eq(schema.canvaOauthTokens.id, departingCanvaToken!.id))
+      .limit(1);
+    const [departingSanityAfter] = await db
+      .select({ revokedAt: schema.sanityOauthTokens.revokedAt })
+      .from(schema.sanityOauthTokens)
+      .where(eq(schema.sanityOauthTokens.id, departingSanityToken!.id))
+      .limit(1);
+    const [alreadyRevokedAfter] = await db
+      .select({ revokedAt: schema.figmaOauthTokens.revokedAt })
+      .from(schema.figmaOauthTokens)
+      .where(eq(schema.figmaOauthTokens.id, alreadyRevokedFigmaToken!.id))
+      .limit(1);
+
+    expect(ownerFigmaAfter?.revokedAt).toBeNull();
+    expect(departingFigmaAfter?.revokedAt).not.toBeNull();
+    expect(departingCanvaAfter?.revokedAt).not.toBeNull();
+    expect(departingSanityAfter?.revokedAt).not.toBeNull();
+    expect(alreadyRevokedAfter?.revokedAt?.toISOString()).toBe(
+      alreadyRevokedFigmaToken!.revokedAt!.toISOString(),
     );
   });
 });

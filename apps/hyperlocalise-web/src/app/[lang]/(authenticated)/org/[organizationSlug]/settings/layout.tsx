@@ -14,7 +14,6 @@ import type { ReactNode } from "react";
 
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
-import { OrgPageSuspense } from "../_components/org-page-suspense";
 import { SettingsLayoutClient } from "./_components/settings-layout-client";
 
 export default function SettingsLayout({
@@ -24,11 +23,7 @@ export default function SettingsLayout({
   children: ReactNode;
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <SettingsLayoutLoader params={params}>{children}</SettingsLayoutLoader>
-    </OrgPageSuspense>
-  );
+  return <SettingsLayoutLoader params={params}>{children}</SettingsLayoutLoader>;
 }
 
 async function SettingsLayoutLoader({

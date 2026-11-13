@@ -93,11 +93,11 @@ func (c *AmazonClient) Translate(ctx context.Context, req Request) (Response, er
 	}
 
 	for i, s := range req.Sources {
-		if n := len(s); n == 0 || n > amazonMaxTextBytes {
+		if n := len(s); n > amazonMaxTextBytes {
 			return Response{}, &Error{
 				Code: ErrorCodeValidation,
 				Message: fmt.Sprintf(
-					"source %d must be between 1 and %d bytes, got %d", i, amazonMaxTextBytes, n),
+					"source %d must not exceed %d bytes, got %d", i, amazonMaxTextBytes, n),
 			}
 		}
 	}
@@ -106,17 +106,23 @@ func (c *AmazonClient) Translate(ctx context.Context, req Request) (Response, er
 	targetCode := amazonLanguageCode(req.TargetLocale)
 
 	translations := make([]string, len(req.Sources))
+	requestCount := 0
 	for i, s := range req.Sources {
 		if err := ctx.Err(); err != nil {
-			return Response{}, err
+			return Response{RequestCount: requestCount}, err
+		}
+		if strings.TrimSpace(s) == "" {
+			translations[i] = s
+			continue
 		}
 		translated, err := c.translateOne(ctx, sourceCode, targetCode, s)
+		requestCount++
 		if err != nil {
-			return Response{}, err
+			return Response{RequestCount: requestCount}, err
 		}
 		translations[i] = translated
 	}
-	return Response{Translations: translations}, nil
+	return Response{Translations: translations, RequestCount: requestCount}, nil
 }
 
 func (c *AmazonClient) translateOne(ctx context.Context, sourceCode, targetCode, text string) (string, error) {

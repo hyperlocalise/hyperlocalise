@@ -26,7 +26,7 @@ const { isStepCountMock, toolLoopAgentMock, resolveHyperlocaliseAgentLanguageMod
       }> => ({
         model: "mock-model",
         source: "gateway",
-        modelId: "openai/gpt-5.6-luna",
+        modelId: "openai/gpt-6-luna",
       }),
     ),
   }));
@@ -46,6 +46,7 @@ vi.mock("@/lib/providers/language-model", () => ({
     source === "openai" || source === "gateway"
       ? { openai: { reasoningSummary: "auto" as const } }
       : undefined,
+  getManagedLanguageModel: () => "mock-language-model",
 }));
 
 vi.mock("@/lib/providers/organization-language-model", () => ({
@@ -126,7 +127,7 @@ describe("conversation skill agent", () => {
     });
   });
 
-  it("adds Knowledge Memory read and write tools for an enabled web admin", async () => {
+  it("adds the Knowledge Memory read tool for an enabled web admin", async () => {
     await createConversationSkillAgent({
       surface: "web",
       hasFileAttachments: false,
@@ -140,16 +141,15 @@ describe("conversation skill agent", () => {
 
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        activeTools: expect.arrayContaining(["get_knowledge_memory", "update_knowledge_memory"]),
+        activeTools: expect.arrayContaining(["get_knowledge_memory"]),
         tools: expect.objectContaining({
           get_knowledge_memory: expect.any(Object),
-          update_knowledge_memory: expect.any(Object),
         }),
       }),
     );
   });
 
-  it("keeps Knowledge Memory read-only for an enabled reviewer", async () => {
+  it("exposes only the Knowledge Memory read tool for an enabled reviewer", async () => {
     await createConversationSkillAgent({
       surface: "web",
       hasFileAttachments: false,
@@ -301,7 +301,7 @@ describe("conversation skill agent", () => {
       {
         model: "passed-model" as never,
         source: "openai",
-        modelId: "gpt-5.6-luna",
+        modelId: "gpt-6-luna",
       },
     );
 

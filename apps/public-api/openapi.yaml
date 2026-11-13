@@ -1,0 +1,3102 @@
+openapi: 3.1.0
+info:
+  title: Hyperlocalise Public API
+  version: 1.0.0
+  description: >-
+    Read projects, Queries, jobs, glossaries, and translation memories from a Hyperlocalise
+    workspace; create native projects from project templates and manage those templates; define
+    custom project fields and set their values; manage the strings, translations, screenshots,
+    and settings of native projects; search strings; round-trip bilingual files; update jobs one
+    at a time or in bulk; register job-change webhook endpoints; and import and export glossaries
+    and translation memories.
+servers:
+  - url: https://public-api.hyperlocalise.com
+security:
+  - personalAccessToken: []
+tags:
+  - name: Identity
+  - name: Projects
+  - name: Project templates
+  - name: Custom fields
+  - name: Queries
+  - name: Jobs
+  - name: Strings
+  - name: Translations
+  - name: Screenshots
+  - name: Bilingual files
+  - name: Glossaries
+  - name: Translation memories
+  - name: Webhooks
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      security: []
+      summary: Check process health
+      responses:
+        "200":
+          description: The service process is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+  /outbound-ip:
+    get:
+      operationId: getOutboundIP
+      security: []
+      summary: Show the task's public egress address
+      description: >-
+        Calls https://checkip.amazonaws.com from this process and reads the
+        published NAT allowlist. outboundIp is the address that server saw.
+        allowlist contains both NAT addresses to give a customer.
+      responses:
+        "200":
+          description: Both the observed address and the allowlist were read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutboundIP"
+        "502":
+          description: The outbound IP lookup failed. The allowlist is included when that read succeeded.
+        "503":
+          description: The allowlist could not be read. The observed address is included when that lookup succeeded.
+  /v1/me:
+    get:
+      operationId: getCurrentPrincipal
+      tags: [Identity]
+      summary: Get the current token principal
+      responses:
+        "200":
+          description: Authenticated token identity and effective access.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrincipalResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects:
+    get:
+      operationId: listProjects
+      tags: [Projects]
+      summary: List accessible projects
+      description: Requires `projects:read`. Results include organization-wide projects for workspace operators and team-owned projects for other members.
+      parameters:
+        - $ref: "#/components/parameters/Limit25"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Accessible projects.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projects, pagination]
+                properties:
+                  projects:
+                    type: array
+                    items: { $ref: "#/components/schemas/Project" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createProject
+      tags: [Projects]
+      summary: Create a native project, optionally from a project template
+      description: >-
+        Requires `projects:write`, which `files:write` grants to admins, localization managers,
+        and developers. With `templateId`, the project starts from the template: its source and
+        target locales, description, translation context, team, content editor settings,
+        translation memories, and glossaries. Fields in the request override the template's.
+        Without `templateId`, `sourceLocale` and `targetLocales` are required. Without
+        translation memories, the project gets a new one of its own. `customFields` sets custom
+        field values in the same request, as `PUT /v1/projects/{projectId}/custom-fields` does.
+        Counts toward the workspace's project limit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 200 }
+                templateId: { type: string, format: uuid }
+                description: { type: string, maxLength: 10000 }
+                translationContext: { type: string, maxLength: 20000 }
+                sourceLocale: { type: string, maxLength: 50 }
+                targetLocales:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { type: string, maxLength: 50 }
+                teamId:
+                  type: string
+                  format: uuid
+                  description: A team the key owner may use. Defaults to the template's team, then the owner's first team.
+                customFields: { $ref: "#/components/schemas/CustomFieldValuesInput" }
+      responses:
+        "201":
+          description: Created project.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project]
+                properties:
+                  project: { $ref: "#/components/schemas/Project" }
+        "400":
+          description: >-
+            Invalid body (`invalid_body`), unknown team (`invalid_team`), or a template resource
+            that no longer exists or does not fit the project (`translation_memory_not_found`,
+            `glossary_not_found`, `glossary_source_locale_mismatch`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Missing `projects:write`, or the workspace reached its project limit (`workspace_resource_limit_reached`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}:
+    get:
+      operationId: getProject
+      tags: [Projects]
+      summary: Get an accessible project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string, maxLength: 128 }
+      responses:
+        "200":
+          description: Project detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project]
+                properties:
+                  project: { $ref: "#/components/schemas/Project" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateProject
+      tags: [Projects]
+      summary: Update a native project's settings
+      description: >-
+        Requires `projects:write`, which `files:write` grants to admins, localization managers,
+        and developers. Native projects only. `targetLocales` replaces the target list: tags are
+        canonicalized (`pt-br` becomes `pt-BR`), duplicates are dropped, at most 50 are kept, and
+        the source locale is rejected.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                name: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: string, maxLength: 10000 }
+                translationContext: { type: string, maxLength: 20000 }
+                targetLocales:
+                  type: array
+                  minItems: 1
+                  items: { type: string, maxLength: 64 }
+      responses:
+        "200":
+          description: Updated project.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project]
+                properties:
+                  project: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/project-templates:
+    get:
+      operationId: listProjectTemplates
+      tags: [Project templates]
+      summary: List project templates
+      description: Requires `project-templates:read`, which every key with `files:read` or `projects:read` has.
+      responses:
+        "200":
+          description: The workspace's templates, by name.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projectTemplates]
+                properties:
+                  projectTemplates:
+                    type: array
+                    items: { $ref: "#/components/schemas/ProjectTemplate" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createProjectTemplate
+      tags: [Project templates]
+      summary: Create a project template
+      description: >-
+        Requires `project-templates:write`, which `files:write` grants to admins and localization
+        managers. With `fromProjectId`, the template copies that native project's locales,
+        description, translation context, team, content editor settings, translation memories,
+        and glossaries; other fields in the body override the copied values. Otherwise `name`,
+        `sourceLocale`, and `targetLocales` are required. Every glossary must use the template's
+        source locale.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ProjectTemplateFields"
+                - type: object
+                  properties:
+                    fromProjectId: { type: string, maxLength: 128 }
+      responses:
+        "201":
+          description: Created template.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectTemplateResponse" }
+        "400":
+          description: >-
+            Invalid body (`invalid_body`), or a team, translation memory, or glossary that does not
+            exist or does not fit (`invalid_team`, `translation_memory_not_found`,
+            `glossary_not_found`, `glossary_source_locale_mismatch`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Another template has this name (`project_template_name_taken`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/project-templates/{templateId}:
+    parameters:
+      - name: templateId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getProjectTemplate
+      tags: [Project templates]
+      summary: Get a project template
+      description: Requires `project-templates:read`.
+      responses:
+        "200":
+          description: Template detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectTemplateResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateProjectTemplate
+      tags: [Project templates]
+      summary: Update a project template
+      description: >-
+        Requires `project-templates:write`. Set fields replace the stored values; `memoryIds` and
+        `glossaryIds` replace the whole list, in priority order. `teamId: null` clears the team.
+        Projects already created from the template do not change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ProjectTemplateFields"
+                - minProperties: 1
+      responses:
+        "200":
+          description: Updated template.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectTemplateResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteProjectTemplate
+      tags: [Project templates]
+      summary: Delete a project template
+      description: Requires `project-templates:write`. Projects created from the template keep their settings.
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/custom-fields:
+    get:
+      operationId: listCustomFields
+      tags: [Custom fields]
+      summary: List custom fields
+      description: Requires `custom-fields:read`, which every key with `files:read` or `projects:read` has.
+      responses:
+        "200":
+          description: The workspace's custom fields, by name, with their options.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [customFields]
+                properties:
+                  customFields:
+                    type: array
+                    items: { $ref: "#/components/schemas/CustomField" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createCustomField
+      tags: [Custom fields]
+      summary: Create a custom field
+      description: >-
+        Requires `custom-fields:write`, which `files:write` grants to admins and localization
+        managers. `single_select` and `multi_select` fields need at least one option; other
+        types take none. The key and type cannot change later. A workspace has at most 200
+        fields.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [key, name, type]
+              properties:
+                key: { type: string, pattern: "^[a-z][a-z0-9_]*$", maxLength: 64 }
+                name: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: string, maxLength: 2000 }
+                type: { $ref: "#/components/schemas/CustomFieldType" }
+                options:
+                  type: array
+                  maxItems: 500
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [value]
+                    properties:
+                      value: { type: string, minLength: 1, maxLength: 200 }
+      responses:
+        "201":
+          description: Created field.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomFieldResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: Another field has this key (`custom_field_key_taken`), or the workspace has 200 fields (`custom_field_limit_reached`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/custom-fields/{fieldId}:
+    parameters:
+      - $ref: "#/components/parameters/FieldId"
+    get:
+      operationId: getCustomField
+      tags: [Custom fields]
+      summary: Get a custom field
+      description: Requires `custom-fields:read`.
+      responses:
+        "200":
+          description: The field.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomFieldResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateCustomField
+      tags: [Custom fields]
+      summary: Rename a custom field or change its options
+      description: >-
+        Requires `custom-fields:write`. `options` is the field's whole option list, in display
+        order: an entry with `id` keeps that option (renamed to `value`, so projects that chose it
+        keep it), an entry without `id` adds one, and options left out are removed, along with
+        every project's choice of them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                name: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: string, maxLength: 2000 }
+                options:
+                  type: array
+                  maxItems: 500
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [value]
+                    properties:
+                      id: { type: string, format: uuid }
+                      value: { type: string, minLength: 1, maxLength: 200 }
+      responses:
+        "200":
+          description: Updated field.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomFieldResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteCustomField
+      tags: [Custom fields]
+      summary: Delete a custom field
+      description: Requires `custom-fields:write`. Removes every project's value for the field.
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/custom-fields/{fieldId}/options:
+    parameters:
+      - $ref: "#/components/parameters/FieldId"
+    get:
+      operationId: listCustomFieldOptions
+      tags: [Custom fields]
+      summary: List a custom field's options
+      description: Requires `custom-fields:read`. Empty for fields that are not selects.
+      responses:
+        "200":
+          description: Options in display order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [options]
+                properties:
+                  options:
+                    type: array
+                    items: { $ref: "#/components/schemas/CustomFieldOption" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/custom-fields:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: getProjectCustomFields
+      tags: [Custom fields]
+      summary: Get a project's custom field values
+      description: Requires `projects:read`. Lists only the fields set on the project.
+      responses:
+        "200":
+          description: The project's values.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCustomFieldsResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    put:
+      operationId: setProjectCustomFields
+      tags: [Custom fields]
+      summary: Set a project's custom field values
+      description: >-
+        Requires `projects:write`. Sets the fields named in `customFields` and clears those set to
+        `null`; fields left out keep their values. Records `project_settings_changed`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [customFields]
+              properties:
+                customFields: { $ref: "#/components/schemas/CustomFieldValuesInput" }
+      responses:
+        "200":
+          description: The project's values after the change.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCustomFieldsResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/queries:
+    get:
+      operationId: listQueries
+      tags: [Queries]
+      summary: List accessible Queries
+      description: Requires `queries:read` and the Queries workspace entitlement.
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: string, maxLength: 128 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [all, open, in_progress, resolved, wont_fix] }
+        - name: issueType
+          in: query
+          schema: { type: string, enum: [all, general_question, translation_mistake, context_request, source_mistake, glossary_violation, qa_failure] }
+        - name: priority
+          in: query
+          schema: { type: string, enum: [P0, P1, P2] }
+        - name: locale
+          in: query
+          schema: { type: string, maxLength: 32 }
+        - name: assignee
+          in: query
+          description: A user UUID, `me`, or `unassigned`.
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 200 }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [updated_at, created_at, priority, status], default: status }
+        - name: sortDir
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Accessible Queries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queries, pagination]
+                properties:
+                  queries:
+                    type: array
+                    items: { $ref: "#/components/schemas/Query" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/queries/{queryId}:
+    get:
+      operationId: getQuery
+      tags: [Queries]
+      summary: Get an accessible Query
+      parameters:
+        - name: queryId
+          in: path
+          required: true
+          description: Query UUID or human-readable identifier such as `HL-123`.
+          schema: { type: string, maxLength: 128 }
+      responses:
+        "200":
+          description: Query detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [query]
+                properties:
+                  query: { $ref: "#/components/schemas/Query" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/locales:
+    get:
+      operationId: getProjectLocales
+      tags: [Projects]
+      summary: Get translation progress per target locale
+      description: Requires `strings:read`. Hidden strings are excluded from the totals.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Source locale and progress for each project target locale.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sourceLocale, locales]
+                properties:
+                  sourceLocale: { type: [string, "null"] }
+                  locales:
+                    type: array
+                    items: { $ref: "#/components/schemas/LocaleProgress" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings:
+    get:
+      operationId: listStrings
+      tags: [Strings]
+      summary: List project strings
+      description: Requires `strings:read`.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: search
+          in: query
+          description: Case-insensitive match on key or source text.
+          schema: { type: string, maxLength: 200 }
+        - name: key
+          in: query
+          description: Exact keys to find. Repeat for up to 100 keys.
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 100
+            items: { type: string, maxLength: 1000 }
+        - name: filePath
+          in: query
+          description: Only strings from this source file.
+          schema: { type: string, maxLength: 2048 }
+        - name: tag
+          in: query
+          description: Only strings carrying every tag given. Repeat for up to 10 tags.
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 10
+            items: { $ref: "#/components/schemas/Tag" }
+        - name: includeHidden
+          in: query
+          schema: { type: boolean, default: false }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Project strings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [strings, pagination]
+                properties:
+                  strings:
+                    type: array
+                    items: { $ref: "#/components/schemas/String" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createString
+      tags: [Strings]
+      summary: Create a string
+      description: >-
+        Requires `strings:write`, granted by `files:write` to roles other than member.
+        Native projects only. Keys are unique per source file; omit `filePath` for a string
+        that belongs to no file.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [key, sourceText]
+              properties:
+                key: { type: string, minLength: 1, maxLength: 1000 }
+                sourceText: { type: string, minLength: 1, maxLength: 100000 }
+                context: { type: [string, "null"], maxLength: 10000 }
+                type: { type: [string, "null"], maxLength: 64 }
+                maxLength: { type: [integer, "null"], minimum: 1, maximum: 100000 }
+                hidden: { type: boolean, default: false }
+                filePath:
+                  type: [string, "null"]
+                  maxLength: 2048
+                  description: Path of an existing project source file.
+      responses:
+        "201":
+          description: Created string.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StringResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings/batch:
+    post:
+      operationId: upsertStrings
+      tags: [Strings]
+      summary: Create or update strings in bulk
+      description: >-
+        Requires `strings:write`. Native projects only. Each item matches a string by `key` and
+        `filePath` (no `filePath` means a string in no file). A match is updated with the fields
+        the item sets; otherwise a string is created and `sourceText` is required. The batch runs
+        in one transaction: if an item fails, nothing is saved and the `X-Failed-Item` header
+        holds its index. Changing the source text of a locked string returns `409`, and so does
+        changing the source text of a string in a file while the project's "Allow source text editing"
+        setting is off, or of a hidden string, or in a file that isn't JSON, JSONC or ARB,
+        came from an integration, or was last uploaded before uploads were recorded
+        (`source_text_not_editable`). New source text holding the control characters U+001E or
+        U+0000 returns `400` (`invalid_source_text`). Only admins, localization managers and
+        developers may change the source text of a string in a file (`403`). Surrounding spaces
+        alone are not a change. In a project
+        whose "When source text changes" setting is "Needs review", changing a string's source
+        text moves its approved translations back to `needs_review`, unless `keepApproved` is
+        `true`.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [strings]
+              properties:
+                keepApproved:
+                  type: boolean
+                  default: false
+                  description: Keep approved translations approved for every source text change in this batch, for a typo or punctuation fix.
+                strings:
+                  type: array
+                  minItems: 1
+                  maxItems: 500
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [key]
+                    properties:
+                      key: { type: string, minLength: 1, maxLength: 1000 }
+                      filePath: { type: [string, "null"], maxLength: 2048 }
+                      sourceText: { type: string, minLength: 1, maxLength: 100000 }
+                      context: { type: [string, "null"], maxLength: 10000 }
+                      type: { type: [string, "null"], maxLength: 64 }
+                      maxLength: { type: [integer, "null"], minimum: 1, maximum: 100000 }
+                      hidden: { type: boolean }
+      responses:
+        "200":
+          description: Saved strings, in request order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [created, updated, strings]
+                properties:
+                  created: { type: integer, minimum: 0 }
+                  updated: { type: integer, minimum: 0 }
+                  strings:
+                    type: array
+                    items: { $ref: "#/components/schemas/String" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings/search:
+    post:
+      operationId: searchStrings
+      tags: [Strings]
+      summary: Search strings by key name, prefix, text, file, or tag
+      description: >-
+        Requires `strings:read`. The list endpoint's filters in a JSON body, so one call can look
+        up to 1,000 key names and return up to 1,000 strings. Filters combine with AND.
+        `missingKeys` lists, in request order, the `keys` that name no string in the project, in
+        any file and whether hidden or not.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                keys:
+                  type: array
+                  maxItems: 1000
+                  items: { type: string, minLength: 1, maxLength: 1000 }
+                keyPrefix: { type: string, maxLength: 1000, description: "Keys starting with this text, matched literally and case-sensitively." }
+                search: { type: string, maxLength: 200, description: "Case-insensitive match on key or source text." }
+                filePath: { type: string, maxLength: 2048 }
+                tags:
+                  type: array
+                  maxItems: 10
+                  items: { $ref: "#/components/schemas/Tag" }
+                includeHidden: { type: boolean, default: false }
+                limit: { type: integer, minimum: 1, maximum: 1000, default: 100 }
+                offset: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
+      responses:
+        "200":
+          description: Matching strings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [strings, missingKeys, pagination]
+                properties:
+                  strings:
+                    type: array
+                    items: { $ref: "#/components/schemas/String" }
+                  missingKeys:
+                    type: array
+                    items: { type: string }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings/bulk-update:
+    post:
+      operationId: bulkUpdateStrings
+      tags: [Strings]
+      summary: Tag strings and set their design link
+      description: >-
+        Requires `strings:write`, held by an admin, localization manager or developer, as in the
+        Content Editor. Native projects only. Picks strings by `stringIds`, `keys` (in
+        any file) or `tags` (strings carrying every tag), then adds `addTags`, removes
+        `removeTags`, and sets `designUrl` (null clears it). Each string has one design link.
+        Returns how many strings changed.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/StringSelection"
+                - type: object
+                  properties:
+                    addTags: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/Tag" } }
+                    removeTags: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/Tag" } }
+                    designUrl: { type: [string, "null"], format: uri, maxLength: 2048 }
+      responses:
+        "200":
+          description: Strings changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [updated]
+                properties:
+                  updated: { type: integer, minimum: 0 }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings/{stringId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/StringId"
+    get:
+      operationId: getString
+      tags: [Strings]
+      summary: Get a string
+      description: Requires `strings:read`.
+      responses:
+        "200":
+          description: String detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StringResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateString
+      tags: [Strings]
+      summary: Update a string
+      description: Requires `strings:write`. Native projects only. Send `null` to clear `context` or `maxLength`. Changing `sourceText` on a locked segment returns `409`, and so does changing the `sourceText` of a string in a file while the project's "Allow source text editing" setting is off, or of a hidden string, or in a file that isn't JSON, JSONC or ARB, came from an integration, or was last uploaded before uploads were recorded (`source_text_not_editable`). New `sourceText` holding the control characters U+001E or U+0000 returns `400` (`invalid_source_text`). Only admins, localization managers and developers may change the `sourceText` of a string in a file (`403`). Surrounding spaces alone are not a change. In a project whose "When source text changes" setting is "Needs review", changing `sourceText` moves the string's approved translations back to `needs_review`, unless `keepApproved` is `true`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                sourceText: { type: string, minLength: 1, maxLength: 100000 }
+                context: { type: [string, "null"], maxLength: 10000 }
+                maxLength: { type: [integer, "null"], minimum: 1, maximum: 100000 }
+                hidden: { type: boolean }
+                keepApproved:
+                  type: boolean
+                  default: false
+                  description: Keep approved translations approved for this source text change, for a typo or punctuation fix. Not a change on its own.
+      responses:
+        "200":
+          description: Updated string.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StringResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteString
+      tags: [Strings]
+      summary: Delete a string and its translations
+      description: Requires `strings:write`. Native projects only. Locked segments return `409`.
+      responses:
+        "204":
+          description: The string was deleted.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings/{stringId}/translations:
+    get:
+      operationId: listStringTranslations
+      tags: [Translations]
+      summary: List a string's translations in every locale
+      description: Requires `strings:read`.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/StringId"
+      responses:
+        "200":
+          description: Translations of the string.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [translations]
+                properties:
+                  translations:
+                    type: array
+                    items: { $ref: "#/components/schemas/Translation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings/{stringId}/translations/{locale}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/StringId"
+      - name: locale
+        in: path
+        required: true
+        description: A target locale of the project.
+        schema: { type: string, maxLength: 64 }
+    get:
+      operationId: getTranslation
+      tags: [Translations]
+      summary: Get a string's translation in one locale
+      description: Requires `strings:read`.
+      responses:
+        "200":
+          description: Translation detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TranslationResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    put:
+      operationId: putTranslation
+      tags: [Translations]
+      summary: Save a string's translation in one locale
+      description: >-
+        Requires `strings:write`; saving as `approved` or `rejected` also requires
+        `translations:approve` (admins, localization managers and reviewers). Native projects only.
+        Creates or replaces the translation and records a revision attributed to the token owner.
+        Locked segments return `409`, text longer than the string's `maxLength` returns `422`.
+        Without `origin`, the saved text is labelled as a person's: `human`, or
+        `machine_post_edited` when it changes machine text, and unchanged text keeps its origin.
+        Send `origin: machine` when the text comes from your own machine translation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [text]
+              properties:
+                text: { type: string, maxLength: 100000 }
+                status:
+                  type: string
+                  enum: [draft, needs_review, approved, rejected]
+                  default: draft
+                origin:
+                  type: string
+                  enum: [machine, machine_post_edited, human, unknown]
+                  description: Who wrote `text`. Omit to apply the rule for a person's edit.
+      responses:
+        "200":
+          description: Saved translation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TranslationResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "422":
+          description: The translation breaks a string rule such as its max length.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/translations:
+    get:
+      operationId: listTranslations
+      tags: [Translations]
+      summary: List project translations
+      description: Requires `strings:read`. Use `locale` to export one language. Hidden strings are omitted unless `includeHidden` is true.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: locale
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [draft, needs_review, approved, rejected] }
+        - name: origin
+          in: query
+          description: Only translations of this origin. See the `Translation` schema's `origin`.
+          schema: { type: string, enum: [machine, machine_post_edited, human, unknown] }
+        - name: key
+          in: query
+          description: Only translations of strings with these keys. Repeat for up to 100 keys.
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 100
+            items: { type: string, maxLength: 1000 }
+        - name: updatedSince
+          in: query
+          description: Only translations changed at or after this time. Encode a `+` offset as `%2B`, or use `Z`.
+          schema: { type: string, format: date-time }
+        - name: includeHidden
+          in: query
+          schema: { type: boolean, default: false }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Project translations.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [translations, pagination]
+                properties:
+                  translations:
+                    type: array
+                    items: { $ref: "#/components/schemas/Translation" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/translations/approve:
+    post:
+      operationId: approveTranslations
+      tags: [Translations]
+      summary: Approve translations in bulk
+      description: >-
+        Requires `translations:approve` (admins, localization managers and reviewers). Native
+        projects only. Approves the picked strings' translations that wait for review or are
+        drafts, when they have text, recording the token owner as reviewer. Blank translations,
+        rejected translations, texts over the string's `maxLength` and segments locked in the
+        content editor are left alone. A selection includes hidden strings.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/StringSelection"
+                - type: object
+                  properties:
+                    locales:
+                      type: array
+                      maxItems: 50
+                      description: Only these target locales. All project locales when omitted.
+                      items: { type: string, maxLength: 64 }
+      responses:
+        "200":
+          description: Translations changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [updated]
+                properties:
+                  updated: { type: integer, minimum: 0 }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/translations/send-to-review:
+    post:
+      operationId: sendTranslationsToReview
+      tags: [Translations]
+      summary: Send approved translations back to review
+      description: >-
+        Requires `strings:write`. Native projects only. Moves the picked strings' approved
+        translations to `needs_review`, keeping their text, as a source text change does.
+        Segments locked in the content editor are left alone.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/StringSelection"
+                - type: object
+                  properties:
+                    locales:
+                      type: array
+                      maxItems: 50
+                      description: Only these target locales. All project locales when omitted.
+                      items: { type: string, maxLength: 64 }
+      responses:
+        "200":
+          description: Translations changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [updated]
+                properties:
+                  updated: { type: integer, minimum: 0 }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/screenshots:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: listScreenshots
+      tags: [Screenshots]
+      summary: List project screenshots
+      description: >-
+        Requires `strings:read`. Native projects only. Filter with `stringId` or `key` (and
+        `filePath` when the key exists in more than one file). Newest first. `imageUrl` is a
+        time-limited download for `ready` screenshots. Figma-synced frames appear here with
+        `figmaUrl`; this API does not create them.
+      parameters:
+        - name: stringId
+          in: query
+          description: Only screenshots marked on this string. Do not send with `key`.
+          schema: { type: string, format: uuid }
+        - name: key
+          in: query
+          description: Only screenshots marked on this key. Do not send with `stringId`.
+          schema: { type: string, maxLength: 1000 }
+        - name: filePath
+          in: query
+          description: With `key`, only markers in this source file.
+          schema: { type: string, maxLength: 2048 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [ready, upload_pending] }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Screenshots.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [screenshots, pagination]
+                properties:
+                  screenshots:
+                    type: array
+                    items: { $ref: "#/components/schemas/Screenshot" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createScreenshot
+      tags: [Screenshots]
+      summary: Start a screenshot upload
+      description: >-
+        Requires `strings:write`. Native projects only. Returns a screenshot in `upload_pending`
+        and a time-limited PUT URL. PUT the image bytes (PNG, JPEG, or WebP, 1 byte to 10 MB)
+        with the returned headers, then call finalize. Object storage must be configured or the
+        service returns `503 screenshot_storage_unavailable`. Optional `markers` attach keys
+        before the image is ready. Figma fields are read-only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [filename, contentType, byteSize]
+              properties:
+                filename: { type: string, minLength: 1, maxLength: 255, description: A PNG, JPEG, or WebP file name. Spaces become underscores. }
+                contentType: { type: string, enum: [image/png, image/jpeg, image/jpg, image/webp] }
+                byteSize: { type: integer, format: int64, minimum: 1, maximum: 10485760 }
+                name: { type: [string, "null"], maxLength: 256 }
+                width: { type: [integer, "null"], minimum: 1, maximum: 10000 }
+                height: { type: [integer, "null"], minimum: 1, maximum: 10000 }
+                markers:
+                  type: array
+                  maxItems: 1000
+                  items: { $ref: "#/components/schemas/ScreenshotMarkerInput" }
+      responses:
+        "201":
+          description: Pending screenshot and upload request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScreenshotCreateResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/screenshots/{screenshotId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/ScreenshotId"
+    get:
+      operationId: getScreenshot
+      tags: [Screenshots]
+      summary: Get a screenshot
+      description: Requires `strings:read`. Native projects only.
+      responses:
+        "200":
+          description: Screenshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScreenshotResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteScreenshot
+      tags: [Screenshots]
+      summary: Delete a screenshot
+      description: Requires `strings:write`. Native projects only. Removes the image, its markers, and the stored object.
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/screenshots/{screenshotId}/finalize:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/ScreenshotId"
+    post:
+      operationId: finalizeScreenshot
+      tags: [Screenshots]
+      summary: Finalize a screenshot upload
+      description: >-
+        Requires `strings:write`. Native projects only. Call after the PUT to the upload URL
+        succeeds. Verifies the object is a PNG, JPEG, or WebP of the declared size and marks
+        the screenshot `ready`. Missing uploads return `409 screenshot_upload_missing`. Invalid
+        images are discarded and return `415 screenshot_invalid_image`. Send `{}` when there is
+        nothing to change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: [string, "null"], maxLength: 256 }
+                width: { type: [integer, "null"], minimum: 1, maximum: 10000 }
+                height: { type: [integer, "null"], minimum: 1, maximum: 10000 }
+      responses:
+        "200":
+          description: Ready screenshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScreenshotResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/screenshots/{screenshotId}/markers:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/ScreenshotId"
+    post:
+      operationId: upsertScreenshotMarkers
+      tags: [Screenshots]
+      summary: Add or update screenshot markers
+      description: >-
+        Requires `strings:write`. Native projects only. Upserts 1 to 1,000 markers. Each marker
+        picks a string with `stringId`, or `key` (and `filePath` when the key exists in more than
+        one file). A second marker for the same string on this screenshot replaces the box.
+        Duplicate keys return `400 ambiguous_key`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [markers]
+              properties:
+                markers:
+                  type: array
+                  minItems: 1
+                  maxItems: 1000
+                  items: { $ref: "#/components/schemas/ScreenshotMarkerInput" }
+      responses:
+        "200":
+          description: Upserted markers.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [markers]
+                properties:
+                  markers:
+                    type: array
+                    items: { $ref: "#/components/schemas/ScreenshotMarker" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/screenshots/{screenshotId}/markers/{markerId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/ScreenshotId"
+      - $ref: "#/components/parameters/MarkerId"
+    delete:
+      operationId: deleteScreenshotMarker
+      tags: [Screenshots]
+      summary: Delete a screenshot marker
+      description: Requires `strings:write`. Native projects only.
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/bilingual-file:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: exportBilingualFile
+      tags: [Bilingual files]
+      summary: Export a bilingual file
+      description: >-
+        Requires `strings:read`. Returns the project's strings with their translations in one
+        target locale, in the same CSV, TMX, XLF, XLIFF, or XLSX layout as the Content Editor's
+        bilingual export. Use `filePath` to export one file. A file holds at most 5,000 strings.
+      parameters:
+        - name: locale
+          in: query
+          required: true
+          description: A target locale of the project.
+          schema: { type: string, maxLength: 64 }
+        - name: format
+          in: query
+          schema: { type: string, enum: [csv, tmx, xlf, xliff, xlsx], default: xliff }
+        - name: filePath
+          in: query
+          schema: { type: string, maxLength: 2048 }
+        - name: includeHidden
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: The bilingual file, sent as an attachment.
+          content:
+            text/csv: { schema: { type: string } }
+            application/x-tmx+xml: { schema: { type: string } }
+            application/x-xliff+xml: { schema: { type: string } }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: importBilingualFile
+      tags: [Bilingual files]
+      summary: Re-import a bilingual file
+      description: >-
+        Requires `translations:approve` (admins, localization managers and reviewers). Native
+        projects only. Saves each row's target text as an
+        approved, imported translation of the string with the same key and file. Rows without a
+        key or target text, for another locale, for an unknown string, for a locked segment, or
+        longer than the string's `maxLength` are skipped. With `filePath`, rows that name no file
+        belong to it and rows that name another file are skipped. The format comes from the file
+        name unless `format` is set.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, locale]
+              properties:
+                file: { type: string, format: binary, description: At most 25 MiB and 5,000 rows. }
+                locale: { type: string, maxLength: 64 }
+                filePath: { type: string, maxLength: 2048 }
+                format: { type: string, enum: [csv, tmx, xlf, xliff, xlsx] }
+      responses:
+        "200":
+          description: Import counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import]
+                properties:
+                  import: { $ref: "#/components/schemas/BilingualImportCounts" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/jobs:
+    get:
+      operationId: listJobs
+      tags: [Jobs]
+      summary: List accessible jobs
+      description: Requires `jobs:read`. Newest first. Operators see every workspace job; others see jobs of projects their teams can access.
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: string, maxLength: 128 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [queued, running, succeeded, failed, waiting_for_review, cancelled] }
+        - name: kind
+          in: query
+          schema: { type: string, enum: [translation, research, review, proofread, sync, asset_management] }
+        - $ref: "#/components/parameters/Limit25"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Jobs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobs, pagination]
+                properties:
+                  jobs:
+                    type: array
+                    items: { $ref: "#/components/schemas/Job" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/jobs/bulk-update:
+    post:
+      operationId: bulkUpdateJobs
+      tags: [Jobs]
+      summary: Update the title, description, due date, or owner of many jobs
+      description: >-
+        Requires `jobs:write`. Applies the same change to every job in `jobIds`, with the rules of
+        `PATCH /v1/jobs/{jobId}`, in one transaction: if any job cannot change, none do, and the
+        error's `details.jobId` names the job that stopped the update. Repeated IDs count once.
+        Each job records its own `job_updated` event and webhook change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [jobIds]
+              minProperties: 2
+              properties:
+                jobIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items: { type: string, minLength: 1, maxLength: 128 }
+                title: { type: string, minLength: 1, maxLength: 256 }
+                description: { type: [string, "null"], maxLength: 2048 }
+                dueAt: { type: [string, "null"], format: date-time }
+                ownerEmail: { type: [string, "null"], format: email, maxLength: 320 }
+      responses:
+        "200":
+          description: Updated jobs, in request order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobs]
+                properties:
+                  jobs:
+                    type: array
+                    items: { $ref: "#/components/schemas/Job" }
+        "400":
+          description: Invalid body, or a job cannot take the change; `details.jobId` names the job.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: A job does not exist or is not accessible (`job_not_found`); `details.jobId` names it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: A job is provider-backed (`provider_job_not_updatable`); `details.jobId` names it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/jobs/{jobId}:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      operationId: getJob
+      tags: [Jobs]
+      summary: Get an accessible job
+      description: Requires `jobs:read`.
+      responses:
+        "200":
+          description: Job detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateJob
+      tags: [Jobs]
+      summary: Update a job's title, description, due date, or owner
+      description: >-
+        Requires `jobs:write`. Send at least one field; `null` clears `description`, `dueAt`, or
+        `ownerEmail`. The owner must be an active workspace member who can access the job's
+        project. Provider-backed jobs return `409`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                title: { type: string, minLength: 1, maxLength: 256 }
+                description: { type: [string, "null"], maxLength: 2048 }
+                dueAt: { type: [string, "null"], format: date-time }
+                ownerEmail: { type: [string, "null"], format: email, maxLength: 320 }
+      responses:
+        "200":
+          description: Updated job.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/jobs/{jobId}/strings:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      operationId: listJobStrings
+      tags: [Jobs]
+      summary: List a key job's strings
+      description: Requires `jobs:read` and `strings:read`. Key jobs only (`type` is `keys`).
+      parameters:
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: The job's strings, hidden ones included.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [strings, pagination]
+                properties:
+                  strings:
+                    type: array
+                    items: { $ref: "#/components/schemas/String" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: addJobStrings
+      tags: [Jobs]
+      summary: Add strings to an open key job
+      description: >-
+        Requires `jobs:write`. Adds the picked visible strings in the files of the job's project
+        (hidden strings and strings in no file are skipped). A tag picks
+        the strings carrying it now. A job holds at most 5,000 strings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StringSelection" }
+      responses:
+        "200":
+          description: Strings new to the job.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [added]
+                properties:
+                  added: { type: integer, minimum: 0 }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: removeJobStrings
+      tags: [Jobs]
+      summary: Remove strings from an open key job
+      description: Requires `jobs:write`. A job keeps at least one string.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StringSelection" }
+      responses:
+        "200":
+          description: Strings removed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [removed]
+                properties:
+                  removed: { type: integer, minimum: 1 }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/jobs/{jobId}/locales:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      operationId: listJobLocales
+      tags: [Jobs]
+      summary: Read a key job's progress per locale
+      description: Requires `jobs:read`. Worked out when asked, over the job's visible strings.
+      responses:
+        "200":
+          description: Each job locale's progress over the job's visible strings, in job order.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobLocalesResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: addJobLocale
+      tags: [Jobs]
+      summary: Add a locale to an open key job
+      description: Requires `jobs:write`. The locale must be a project target locale. A job holds at most 20 locales.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [locale]
+              properties:
+                locale: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        "200":
+          description: Each job locale's progress over the job's visible strings, in job order.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobLocalesResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/jobs/{jobId}/locales/{locale}:
+    delete:
+      operationId: removeJobLocale
+      tags: [Jobs]
+      summary: Remove a locale from an open key job
+      description: Requires `jobs:write`. A job keeps at least one locale.
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+        - name: locale
+          in: path
+          required: true
+          schema: { type: string, maxLength: 64 }
+      responses:
+        "200":
+          description: Each job locale's progress over the job's visible strings, in job order.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobLocalesResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/webhook-endpoints:
+    get:
+      operationId: listWebhookEndpoints
+      tags: [Webhooks]
+      summary: List webhook endpoints
+      description: >-
+        Requires `webhooks:read`, which `jobs:read` grants to admins and localization managers.
+        Secrets are never returned. An empty `eventTypes` list receives every job change.
+      responses:
+        "200":
+          description: Webhook endpoints in the workspace, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhookEndpoints]
+                properties:
+                  webhookEndpoints:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookEndpoint" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createWebhookEndpoint
+      tags: [Webhooks]
+      summary: Register a webhook endpoint
+      description: >-
+        Requires `webhooks:write`, which `jobs:write` grants to admins and localization managers.
+        The signing secret is returned this once. At most 20 endpoints per workspace. HTTPS on a
+        public host only. Omit `eventTypes`, or send `[]`, to receive every job change, including
+        types added later. `projectId` limits deliveries to one project in the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url]
+              properties:
+                url: { type: string, minLength: 1, maxLength: 2048 }
+                description: { type: [string, "null"], maxLength: 500 }
+                eventTypes:
+                  type: array
+                  maxItems: 5
+                  items: { $ref: "#/components/schemas/WebhookEventType" }
+                projectId: { type: [string, "null"], maxLength: 128 }
+      responses:
+        "201":
+          description: The endpoint and its signing secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhookEndpoint, secret]
+                properties:
+                  webhookEndpoint: { $ref: "#/components/schemas/WebhookEndpoint" }
+                  secret: { type: string, description: Standard Webhooks secret, shown once. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/webhook-endpoints/{endpointId}:
+    parameters:
+      - $ref: "#/components/parameters/WebhookEndpointId"
+    patch:
+      operationId: updateWebhookEndpoint
+      tags: [Webhooks]
+      summary: Update a webhook endpoint
+      description: >-
+        Requires `webhooks:write`. `enabled: true` re-enables an endpoint disabled by hand or after
+        too many failed deliveries. The signing secret does not change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                url: { type: string, minLength: 1, maxLength: 2048 }
+                description: { type: [string, "null"], maxLength: 500 }
+                eventTypes:
+                  type: array
+                  maxItems: 5
+                  items: { $ref: "#/components/schemas/WebhookEventType" }
+                projectId: { type: [string, "null"], maxLength: 128 }
+                enabled: { type: boolean }
+      responses:
+        "200":
+          description: The updated endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhookEndpoint]
+                properties:
+                  webhookEndpoint: { $ref: "#/components/schemas/WebhookEndpoint" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteWebhookEndpoint
+      tags: [Webhooks]
+      summary: Delete a webhook endpoint
+      description: Requires `webhooks:write`. Queued deliveries for the endpoint are dropped.
+      responses:
+        "204":
+          description: The endpoint was deleted.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/webhook-endpoints/{endpointId}/rotate-secret:
+    post:
+      operationId: rotateWebhookEndpointSecret
+      tags: [Webhooks]
+      summary: Rotate a webhook signing secret
+      description: >-
+        Requires `webhooks:write`. Replaces the secret immediately. The new value is returned this
+        once. The previous secret stops working with the next delivery.
+      parameters:
+        - $ref: "#/components/parameters/WebhookEndpointId"
+      responses:
+        "200":
+          description: The new signing secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [secret]
+                properties:
+                  secret: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/webhook-endpoints/{endpointId}/deliveries:
+    get:
+      operationId: listWebhookDeliveries
+      tags: [Webhooks]
+      summary: List recent webhook deliveries
+      description: Requires `webhooks:read`. Newest first. Default `limit` is 50, maximum 100.
+      parameters:
+        - $ref: "#/components/parameters/WebhookEndpointId"
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Recent deliveries for the endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhookDeliveries]
+                properties:
+                  webhookDeliveries:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookDelivery" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries:
+    get:
+      operationId: listGlossaries
+      tags: [Glossaries]
+      summary: List accessible glossaries
+      description: >-
+        Requires `glossaries:read`. Organization glossaries are visible to every member; team
+        glossaries to their team and to teams of projects they are attached to.
+      parameters:
+        - $ref: "#/components/parameters/Limit25"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Accessible glossaries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [glossaries, pagination]
+                properties:
+                  glossaries:
+                    type: array
+                    items: { $ref: "#/components/schemas/Glossary" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}:
+    get:
+      operationId: getGlossary
+      tags: [Glossaries]
+      summary: Get an accessible glossary
+      parameters:
+        - $ref: "#/components/parameters/GlossaryId"
+      responses:
+        "200":
+          description: Glossary detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [glossary]
+                properties:
+                  glossary: { $ref: "#/components/schemas/Glossary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}/terms:
+    get:
+      operationId: listGlossaryTerms
+      tags: [Glossaries]
+      summary: List glossary terms
+      description: Requires `glossaries:read`. Archived terms and concepts are excluded.
+      parameters:
+        - $ref: "#/components/parameters/GlossaryId"
+        - name: locale
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 200 }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Glossary terms ordered by concept.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [terms, pagination]
+                properties:
+                  terms:
+                    type: array
+                    items: { $ref: "#/components/schemas/GlossaryTerm" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}/export:
+    parameters:
+      - $ref: "#/components/parameters/GlossaryId"
+    get:
+      operationId: exportGlossary
+      tags: [Glossaries]
+      summary: Export a glossary
+      description: >-
+        Requires `glossaries:read`. Returns the glossary's concepts and terms, forbidden terms
+        included, as TBX-Basic (TBX 3) by default, or as CSV or XLSX. The files match the web
+        app's glossary export. Live provider glossaries return `409`.
+      parameters:
+        - name: format
+          in: query
+          schema: { type: string, enum: [tbx, csv, xlsx], default: tbx }
+      responses:
+        "200":
+          description: The export, sent as an attachment.
+          content:
+            application/xml: { schema: { type: string } }
+            text/csv: { schema: { type: string } }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}/import:
+    parameters:
+      - $ref: "#/components/parameters/GlossaryId"
+    post:
+      operationId: importGlossary
+      tags: [Glossaries]
+      summary: Import a TBX, CSV, or XLSX file into a glossary
+      description: >-
+        Requires `glossaries:write`, which `files:write` grants to admins, localization managers,
+        and translators. Translators can import only into team-controlled glossaries of their
+        teams. Native glossaries only. The file is processed by the same importer as the web app
+        (TBX 2 and TBX 3, forbidden terms included), so the request returns `202` with a run to
+        poll at `.../import-reports/{reportId}`. `mode` defaults to `merge`; `preview` reports
+        changes without applying them. At most 25 MB.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                format: { type: string, enum: [tbx, csv, xlsx], description: Defaults to the file extension. }
+                mode: { type: string, enum: [preview, create, update, merge, replace], default: merge }
+                strictLocale: { type: boolean, default: true, description: Skip concepts without a term in the glossary source locale. }
+      responses:
+        "202":
+          description: The queued import.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import]
+                properties:
+                  import: { $ref: "#/components/schemas/GlossaryImportReport" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}/import-reports/{reportId}:
+    parameters:
+      - $ref: "#/components/parameters/GlossaryId"
+      - name: reportId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getGlossaryImportReport
+      tags: [Glossaries]
+      summary: Get a glossary import's status and diagnostics
+      description: Requires `glossaries:read`. Poll until `status` is `completed` or `failed`.
+      responses:
+        "200":
+          description: The import run.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import]
+                properties:
+                  import: { $ref: "#/components/schemas/GlossaryImportReport" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/translation-memories:
+    get:
+      operationId: listTranslationMemories
+      tags: [Translation memories]
+      summary: List accessible translation memories
+      description: >-
+        Requires `translation-memories:read`. Unattached memories are visible to every member;
+        attached ones to teams of their projects.
+      parameters:
+        - $ref: "#/components/parameters/Limit25"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Accessible translation memories.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [translationMemories, pagination]
+                properties:
+                  translationMemories:
+                    type: array
+                    items: { $ref: "#/components/schemas/TranslationMemory" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/translation-memories/{memoryId}:
+    get:
+      operationId: getTranslationMemory
+      tags: [Translation memories]
+      summary: Get an accessible translation memory
+      parameters:
+        - $ref: "#/components/parameters/MemoryId"
+      responses:
+        "200":
+          description: Translation memory detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [translationMemory]
+                properties:
+                  translationMemory: { $ref: "#/components/schemas/TranslationMemory" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/translation-memories/{memoryId}/entries:
+    get:
+      operationId: listTranslationMemoryEntries
+      tags: [Translation memories]
+      summary: List translation memory entries
+      description: Requires `translation-memories:read`. `search` matches source or target text.
+      parameters:
+        - $ref: "#/components/parameters/MemoryId"
+        - name: sourceLocale
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: targetLocale
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 200 }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Entries, most recently updated first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries, pagination]
+                properties:
+                  entries:
+                    type: array
+                    items: { $ref: "#/components/schemas/TranslationMemoryEntry" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/translation-memories/{memoryId}/export:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+    get:
+      operationId: exportTranslationMemory
+      tags: [Translation memories]
+      summary: Export translation memory entries
+      description: >-
+        Requires `translation-memories:read`. Returns TMX 1.4 by default, or the Hyperlocalise
+        CSV layout with `format=csv`. `sourceLocale` and `targetLocale` narrow the export to
+        one language pair.
+      parameters:
+        - name: format
+          in: query
+          schema: { type: string, enum: [tmx, csv], default: tmx }
+        - name: sourceLocale
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: targetLocale
+          in: query
+          schema: { type: string, maxLength: 64 }
+      responses:
+        "200":
+          description: The export, sent as an attachment.
+          content:
+            application/x-tmx+xml: { schema: { type: string } }
+            text/csv: { schema: { type: string } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/translation-memories/{memoryId}/import:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+    post:
+      operationId: importTranslationMemory
+      tags: [Translation memories]
+      summary: Import TMX or CSV into a translation memory
+      description: >-
+        Requires `translation-memories:write`, which the `memories:write` token scope grants to
+        admins and localization managers. Native, non-archived memories only. Each unit updates
+        the entry with the same TMX `tuid`, or the same locale pair and source text, and creates
+        one otherwise. At most 10,000 units and 25 MiB. The run appears in the memory's import
+        history.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [format, content]
+              properties:
+                format: { type: string, enum: [tmx, csv] }
+                content: { type: string }
+                sourceFilename: { type: string, maxLength: 512 }
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                format: { type: string, enum: [tmx, csv], description: Defaults to the file extension. }
+      responses:
+        "201":
+          description: Import result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import]
+                properties:
+                  import: { $ref: "#/components/schemas/MemoryImportResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+components:
+  securitySchemes:
+    personalAccessToken:
+      type: apiKey
+      in: header
+      name: x-api-key
+  parameters:
+    Limit25:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    Limit50:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    Offset:
+      name: offset
+      in: query
+      schema: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
+    StringId:
+      name: stringId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ScreenshotId:
+      name: screenshotId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MarkerId:
+      name: markerId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    GlossaryId:
+      name: glossaryId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    FieldId:
+      name: fieldId
+      in: path
+      required: true
+      description: A custom field's ID or key.
+      schema: { type: string, maxLength: 128 }
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
+    MemoryId:
+      name: memoryId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WebhookEndpointId:
+      name: endpointId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    OutboundIP:
+      type: object
+      required: [outboundIp, allowlist]
+      properties:
+        outboundIp:
+          type: string
+          description: Address an external server sees for this task.
+        outboundIpError:
+          type: string
+          description: Present when the outbound address lookup failed.
+        allowlist:
+          type: array
+          items: { type: string }
+          description: Both public addresses customers should allowlist.
+        allowlistError:
+          type: string
+          description: Present when the allowlist could not be read.
+    PrincipalResponse:
+      type: object
+      required: [principal]
+      properties:
+        principal:
+          type: object
+          required: [tokenId, userId, organizationId, permissions, entitlements]
+          properties:
+            tokenId: { type: string }
+            userId: { type: string, format: uuid }
+            organizationId: { type: string, format: uuid }
+            permissions:
+              type: array
+              items: { type: string }
+            entitlements:
+              type: object
+              required: [queries]
+              properties:
+                queries: { type: boolean }
+    Pagination:
+      type: object
+      required: [offset, limit, total]
+      properties:
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+    Project:
+      type: object
+      required: [id, name, identifier, description, source, targetLocales, active, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        identifier: { type: string }
+        description: { type: string }
+        source: { type: string, enum: [native, external_tms] }
+        externalProviderKind: { type: [string, "null"], enum: [crowdin, smartling, phrase, lokalise, null] }
+        externalProjectId: { type: [string, "null"] }
+        sourceLocale: { type: [string, "null"] }
+        targetLocales:
+          type: array
+          items: { type: string }
+        externalProjectUrl: { type: [string, "null"], format: uri }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectTemplateFields:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        sourceLocale: { type: string, maxLength: 50 }
+        targetLocales:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { type: string, maxLength: 50 }
+        projectDescription: { type: string, maxLength: 10000, description: Copied to each new project's description. }
+        translationContext: { type: string, maxLength: 20000 }
+        teamId: { type: [string, "null"], format: uuid }
+        automaticallyGroupIdenticalStrings: { type: boolean }
+        sourceTextEditable: { type: boolean }
+        approvedTranslationsOnSourceChange: { type: string, enum: [stay_approved, needs_review] }
+        memoryIds:
+          type: array
+          maxItems: 50
+          description: Translation memories to attach, highest priority first.
+          items: { type: string, format: uuid }
+        glossaryIds:
+          type: array
+          maxItems: 50
+          description: Glossaries to attach, highest priority first. Each must use the template's source locale.
+          items: { type: string, format: uuid }
+    ProjectTemplate:
+      type: object
+      required: [id, name, description, sourceLocale, targetLocales, projectDescription, translationContext, teamId, automaticallyGroupIdenticalStrings, sourceTextEditable, approvedTranslationsOnSourceChange, memoryIds, glossaryIds, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        sourceLocale: { type: string }
+        targetLocales: { type: array, items: { type: string } }
+        projectDescription: { type: string }
+        translationContext: { type: string }
+        teamId: { type: [string, "null"], format: uuid }
+        automaticallyGroupIdenticalStrings: { type: boolean }
+        sourceTextEditable: { type: boolean }
+        approvedTranslationsOnSourceChange: { type: string, enum: [stay_approved, needs_review] }
+        memoryIds: { type: array, items: { type: string, format: uuid } }
+        glossaryIds: { type: array, items: { type: string, format: uuid } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectTemplateResponse:
+      type: object
+      required: [projectTemplate]
+      properties:
+        projectTemplate: { $ref: "#/components/schemas/ProjectTemplate" }
+    CustomFieldType:
+      type: string
+      enum: [text, number, date, url, checkbox, single_select, multi_select]
+    CustomFieldOption:
+      type: object
+      required: [id, value]
+      properties:
+        id: { type: string, format: uuid }
+        value: { type: string }
+    CustomField:
+      type: object
+      required: [id, key, name, description, type, options, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        key: { type: string }
+        name: { type: string }
+        description: { type: string }
+        type: { $ref: "#/components/schemas/CustomFieldType" }
+        options:
+          type: array
+          items: { $ref: "#/components/schemas/CustomFieldOption" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CustomFieldResponse:
+      type: object
+      required: [customField]
+      properties:
+        customField: { $ref: "#/components/schemas/CustomField" }
+    CustomFieldValuesInput:
+      type: object
+      description: >-
+        Values keyed by field key or ID, at most 100. `null` clears a value. Text is 1 to 10,000
+        characters, a URL is http or https, a date is `YYYY-MM-DD`, a number is a JSON number, a
+        checkbox is a boolean, a single select is one option ID or value, and a multi select is a
+        non-empty list of option IDs or values. Option values match ignoring case.
+      maxProperties: 100
+      additionalProperties:
+        oneOf:
+          - type: "null"
+          - type: string
+          - type: number
+          - type: boolean
+          - type: array
+            items: { type: string }
+    ProjectCustomFieldValue:
+      type: object
+      required: [fieldId, key, name, type, value]
+      properties:
+        fieldId: { type: string, format: uuid }
+        key: { type: string }
+        name: { type: string }
+        type: { $ref: "#/components/schemas/CustomFieldType" }
+        value:
+          description: A string, number, or boolean; an option for a single select; a list of options for a multi select.
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - $ref: "#/components/schemas/CustomFieldOption"
+            - type: array
+              items: { $ref: "#/components/schemas/CustomFieldOption" }
+    ProjectCustomFieldsResponse:
+      type: object
+      required: [customFields]
+      properties:
+        customFields:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectCustomFieldValue" }
+    Query:
+      type: object
+      required: [id, identifier, number, projectId, projectName, title, description, issueType, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        identifier: { type: string }
+        number: { type: integer, minimum: 1 }
+        projectId: { type: string }
+        projectName: { type: string }
+        title: { type: string }
+        description: { type: string }
+        issueType: { type: string }
+        status: { type: string, enum: [open, in_progress, resolved, wont_fix] }
+        targetLocale: { type: [string, "null"] }
+        sourcePath: { type: [string, "null"] }
+        segmentId: { type: [string, "null"] }
+        linkKind: { type: [string, "null"] }
+        linkLabel: { type: [string, "null"] }
+        linkUrl: { type: [string, "null"], format: uri }
+        templateKey: { type: [string, "null"] }
+        assigneeUserId: { type: [string, "null"], format: uuid }
+        key: { type: [string, "null"] }
+        sourceText: { type: [string, "null"] }
+        priority: { type: [string, "null"], enum: [P0, P1, P2, null] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        resolvedAt: { type: [string, "null"], format: date-time }
+    LocaleProgress:
+      type: object
+      required: [locale, totalStrings, translatedStrings, approvedStrings, needsReviewStrings, translationProgress, approvalProgress]
+      properties:
+        locale: { type: string }
+        totalStrings: { type: integer, minimum: 0 }
+        translatedStrings: { type: integer, minimum: 0 }
+        approvedStrings: { type: integer, minimum: 0 }
+        needsReviewStrings: { type: integer, minimum: 0 }
+        translationProgress: { type: integer, minimum: 0, maximum: 100, description: Percent of strings with non-rejected text. }
+        approvalProgress: { type: integer, minimum: 0, maximum: 100 }
+    String:
+      type: object
+      required: [id, key, sourceText, context, type, maxLength, hidden, filePath, tags, designUrl, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        key: { type: string }
+        sourceText: { type: string }
+        context: { type: [string, "null"] }
+        type: { type: [string, "null"] }
+        maxLength: { type: [integer, "null"] }
+        hidden: { type: boolean }
+        filePath: { type: [string, "null"] }
+        tags: { type: array, items: { $ref: "#/components/schemas/Tag" } }
+        designUrl: { type: [string, "null"], description: Link to the design where the string appears. }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Tag:
+      type: string
+      pattern: "^[A-Za-z0-9_-]{1,64}$"
+    StringSelection:
+      type: object
+      description: Pick strings one way only. `keys` match in any file; `tags` pick strings carrying every tag. Bulk update and batch review refuse a selection matching more than 1,000 strings (`too_many_strings`). Adding strings to a key job refuses more than 5,000.
+      properties:
+        stringIds: { type: array, maxItems: 1000, items: { type: string, format: uuid } }
+        keys: { type: array, maxItems: 1000, items: { type: string, maxLength: 1000 } }
+        tags: { type: array, maxItems: 10, items: { $ref: "#/components/schemas/Tag" } }
+    JobLocalesResponse:
+      type: object
+      required: [locales]
+      properties:
+        locales:
+          type: array
+          items:
+            type: object
+            required: [locale, totalStrings, translatedStrings, approvedStrings, needsReviewStrings]
+            properties:
+              locale: { type: string }
+              totalStrings: { type: integer, minimum: 0 }
+              translatedStrings: { type: integer, minimum: 0 }
+              approvedStrings: { type: integer, minimum: 0 }
+              needsReviewStrings: { type: integer, minimum: 0 }
+    StringResponse:
+      type: object
+      required: [string]
+      properties:
+        string: { $ref: "#/components/schemas/String" }
+    ScreenshotMarkerBox:
+      type: object
+      additionalProperties: false
+      required: [left, top, width, height]
+      description: Percent of the image. `left + width` and `top + height` must stay at or below 100.
+      properties:
+        left: { type: number, minimum: 0, maximum: 100 }
+        top: { type: number, minimum: 0, maximum: 100 }
+        width: { type: number, exclusiveMinimum: 0, maximum: 100 }
+        height: { type: number, exclusiveMinimum: 0, maximum: 100 }
+    ScreenshotMarkerInput:
+      type: object
+      additionalProperties: false
+      description: Pick the string with `stringId`, or `key` (and `filePath` when the key exists in more than one file).
+      properties:
+        stringId: { type: string, format: uuid }
+        key: { type: string, minLength: 1, maxLength: 1000 }
+        filePath: { type: string, maxLength: 2048 }
+        marker: { $ref: "#/components/schemas/ScreenshotMarkerBox" }
+    ScreenshotMarker:
+      type: object
+      required: [id, screenshotId, stringId, key, filePath, marker, source]
+      properties:
+        id: { type: string, format: uuid }
+        screenshotId: { type: string, format: uuid }
+        stringId: { type: string, format: uuid }
+        key: { type: string }
+        filePath: { type: [string, "null"] }
+        marker: { oneOf: [{ $ref: "#/components/schemas/ScreenshotMarkerBox" }, { type: "null" }] }
+        source: { type: string, enum: [manual, auto] }
+    Screenshot:
+      type: object
+      required: [id, name, filename, contentType, status, width, height, imageUrl, figmaUrl, markers, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: [string, "null"] }
+        filename: { type: string }
+        contentType: { type: string, enum: [image/png, image/jpeg, image/webp] }
+        status: { type: string, enum: [upload_pending, ready] }
+        width: { type: [integer, "null"] }
+        height: { type: [integer, "null"] }
+        imageUrl:
+          type: [string, "null"]
+          format: uri
+          description: Time-limited download URL for `ready` screenshots.
+        figmaUrl:
+          type: [string, "null"]
+          format: uri
+          description: Set when the Figma plugin synced this screenshot from a frame. Read-only.
+        markers:
+          type: array
+          items: { $ref: "#/components/schemas/ScreenshotMarker" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ScreenshotResponse:
+      type: object
+      required: [screenshot]
+      properties:
+        screenshot: { $ref: "#/components/schemas/Screenshot" }
+    ScreenshotUpload:
+      type: object
+      required: [url, method, headers, expiresAt]
+      properties:
+        url: { type: string, format: uri }
+        method: { type: string, enum: [PUT] }
+        headers:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+        expiresAt: { type: string, format: date-time }
+    ScreenshotCreateResult:
+      type: object
+      required: [screenshot, upload]
+      properties:
+        screenshot: { $ref: "#/components/schemas/Screenshot" }
+        upload: { $ref: "#/components/schemas/ScreenshotUpload" }
+    Translation:
+      type: object
+      required: [id, stringId, key, locale, text, status, provenance, origin, reviewedByUserId, reviewedAt, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        stringId: { type: string, format: uuid }
+        key: { type: string }
+        locale: { type: string }
+        text: { type: string }
+        status: { type: string, enum: [draft, needs_review, approved, rejected] }
+        provenance:
+          type: string
+          enum: [manual, translation_job, import, agent]
+          description: The last writer. Overwritten by every save; use `origin` for machine or human authorship.
+        origin:
+          type: string
+          enum: [machine, machine_post_edited, human, unknown]
+          description: >-
+            Whether a machine or a person wrote `text`. `machine`: a translation job or the agent,
+            or kept unchanged by a person. `machine_post_edited`: machine text a person changed.
+            `human`: a person's own text. `unknown`: imported with no record of who wrote it.
+            Approving or rejecting doesn't change it.
+        reviewedByUserId: { type: [string, "null"], format: uuid }
+        reviewedAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TranslationResponse:
+      type: object
+      required: [translation]
+      properties:
+        translation: { $ref: "#/components/schemas/Translation" }
+    Glossary:
+      type: object
+      required: [id, name, description, sourceLocale, locales, status, source, controlLevel, teamId, externalProviderKind, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        sourceLocale: { type: string }
+        locales:
+          type: array
+          items: { type: string }
+        status: { type: string, enum: [draft, active, archived] }
+        source: { type: string, enum: [native, external_tms] }
+        controlLevel: { type: string, enum: [org, team] }
+        teamId: { type: [string, "null"], format: uuid }
+        externalProviderKind: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    GlossaryTerm:
+      type: object
+      required: [id, conceptId, locale, term, description, note, partOfSpeech, status, caseSensitive, forbidden, reviewStatus, conceptDefinition, conceptSubject, translatable, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        conceptId: { type: string, format: uuid }
+        locale: { type: string }
+        term: { type: string }
+        description: { type: string }
+        note: { type: string }
+        partOfSpeech: { type: string }
+        status: { type: string }
+        caseSensitive: { type: boolean }
+        forbidden: { type: boolean }
+        reviewStatus: { type: string }
+        conceptDefinition: { type: string }
+        conceptSubject: { type: string }
+        translatable: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TranslationMemory:
+      type: object
+      required: [id, name, description, status, source, externalProviderKind, locales, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [draft, active, archived] }
+        source: { type: string, enum: [native, external_tms] }
+        externalProviderKind: { type: [string, "null"] }
+        locales:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TranslationMemoryEntry:
+      type: object
+      required: [id, sourceLocale, targetLocale, sourceText, targetText, matchScore, provenance, reviewStatus, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        sourceLocale: { type: string }
+        targetLocale: { type: string }
+        sourceText: { type: string }
+        targetText: { type: string }
+        matchScore: { type: integer }
+        provenance: { type: string }
+        reviewStatus: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Job:
+      type: object
+      required: [id, projectId, kind, type, status, createdAt, updatedAt, completedAt, lastError, title, description, dueAt, ownerEmail, outputFiles, sourceFile, sourceLocale, targetLocales]
+      properties:
+        id: { type: string }
+        projectId: { type: [string, "null"] }
+        kind: { type: string, enum: [translation, research, review, proofread, sync, asset_management] }
+        type: { type: [string, "null"], enum: [string, file, keys, null] }
+        status: { type: string, enum: [queued, running, succeeded, failed, waiting_for_review, cancelled] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        lastError: { type: [string, "null"] }
+        title: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        dueAt: { type: [string, "null"], format: date-time }
+        ownerEmail: { type: [string, "null"] }
+        outputFiles:
+          type: [array, "null"]
+          description: Translated files of a finished file job.
+          items:
+            type: object
+            required: [fileId, locale, filename]
+            properties:
+              fileId: { type: string }
+              locale: { type: string }
+              filename: { type: string }
+        sourceFile:
+          type: [object, "null"]
+          description: >-
+            The file the job translates or reviews. `null` for jobs without a file, such as key
+            jobs.
+          required: [fileId, path, branch]
+          properties:
+            fileId: { type: string, description: "Stored file id, as the `/v1/files` routes use." }
+            path: { type: [string, "null"], description: "The file's path in the project; `null` when it has none." }
+            branch: { type: [string, "null"], description: "The project version branch the file belongs to; `null` when it has no path." }
+        sourceLocale: { type: [string, "null"] }
+        targetLocales:
+          type: [array, "null"]
+          items: { type: string }
+    JobResponse:
+      type: object
+      required: [job]
+      properties:
+        job: { $ref: "#/components/schemas/Job" }
+    GlossaryImportReport:
+      type: object
+      required: [id, glossaryId, format, mode, status, counts, errorCode, errorMessage, createdAt, completedAt, diagnostics]
+      properties:
+        id: { type: string, format: uuid }
+        glossaryId: { type: string, format: uuid }
+        format: { type: string, enum: [tbx, csv, xlsx] }
+        mode: { type: string, enum: [preview, create, update, merge, replace] }
+        status: { type: string, description: "queued, processing, completed, or failed" }
+        counts:
+          type: object
+          additionalProperties: { type: integer }
+          description: Concepts and terms read, and terms created, updated, and merged.
+        errorCode: { type: [string, "null"] }
+        errorMessage: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        diagnostics:
+          type: array
+          description: Up to 500 validation messages.
+          items:
+            type: object
+            required: [severity, code, message, conceptId, termId, field]
+            properties:
+              severity: { type: string, enum: [warning, error] }
+              code: { type: string }
+              message: { type: string }
+              conceptId: { type: [string, "null"] }
+              termId: { type: [string, "null"] }
+              field: { type: [string, "null"] }
+    MemoryImportResult:
+      type: object
+      required: [importAttemptId, importBatchId, totalRead, created, updated, warned, failed, headerSrclang, issues]
+      properties:
+        importAttemptId: { type: string, format: uuid }
+        importBatchId: { type: string, format: uuid }
+        totalRead: { type: integer, minimum: 0 }
+        created: { type: integer, minimum: 0 }
+        updated: { type: integer, minimum: 0 }
+        warned: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        headerSrclang: { type: [string, "null"] }
+        issues:
+          type: array
+          items:
+            type: object
+            required: [severity, code, message]
+            properties:
+              severity: { type: string, enum: [warning, error] }
+              code: { type: string }
+              message: { type: string }
+              unitIndex: { type: integer }
+              tuid: { type: string }
+    BilingualImportCounts:
+      type: object
+      required: [matched, imported, skipped, files]
+      properties:
+        matched: { type: integer, minimum: 0, description: Strings found for the file's rows. }
+        imported: { type: integer, minimum: 0, description: Translations saved or already up to date. }
+        skipped: { type: integer, minimum: 0 }
+        files: { type: integer, minimum: 0 }
+    WebhookEventType:
+      type: string
+      enum: [job.created, job.status_changed, job.assignee_changed, job.due_date_changed, job.details_changed]
+    WebhookEndpoint:
+      type: object
+      required: [id, url, description, eventTypes, projectId, enabled, disabledReason, consecutiveFailures, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        description: { type: [string, "null"] }
+        eventTypes:
+          type: array
+          items: { $ref: "#/components/schemas/WebhookEventType" }
+        projectId: { type: [string, "null"] }
+        enabled: { type: boolean }
+        disabledReason: { type: [string, "null"] }
+        consecutiveFailures: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    WebhookDelivery:
+      type: object
+      required: [id, eventId, eventType, status, attemptCount, lastResponseStatus, lastError, lastAttemptAt, nextAttemptAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        eventId: { type: [string, "null"], format: uuid }
+        eventType: { type: string }
+        status: { type: string, enum: [pending, succeeded, failed] }
+        attemptCount: { type: integer, minimum: 0 }
+        lastResponseStatus: { type: [integer, "null"] }
+        lastError: { type: [string, "null"] }
+        lastAttemptAt: { type: [string, "null"], format: date-time }
+        nextAttemptAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error: { type: string }
+        message: { type: string }
+        details:
+          type: object
+          description: Structured context, such as the `jobId` that stopped a bulk job update.
+          additionalProperties: true
+  responses:
+    BadRequest:
+      description: Invalid query parameters or request body.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: The personal access token is missing or invalid.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: The token lacks the required scope or workspace access.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: The resource is missing or inaccessible.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unavailable:
+      description: Authentication or resource storage is temporarily unavailable.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: The project is not native, the key already exists, the segment is locked, the webhook endpoint limit was reached, or the job, memory, or glossary is managed elsewhere or archived.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    PayloadTooLarge:
+      description: The request body exceeds 256 KiB (16 MiB for a strings batch, 25 MiB for a bilingual file or a memory or glossary import).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    UnsupportedMediaType:
+      description: The request body has an unsupported media type.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }

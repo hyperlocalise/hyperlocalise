@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Copy01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CopyIcon, CodeIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { FormattedMessage } from "react-intl";
 import { toast } from "sonner";
@@ -22,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
 
 import { projectNativeConnectCliPanelMessages } from "./project-native-connect-cli-panel.messages";
+import { ProjectSettingsSectionHeading } from "./project-settings-section-heading";
 
 function buildSampleI18nYaml(projectId: string) {
   return `hyperlocalise:
@@ -55,14 +55,12 @@ export function ProjectNativeConnectCliPanel({
 
   return (
     <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
-      <div>
-        <TypographyP size="small" weight="medium" tone="content">
-          <FormattedMessage {...projectNativeConnectCliPanelMessages.title} />
-        </TypographyP>
-        <TypographyP className="mt-1" size="small" tone="subtle">
-          <FormattedMessage {...projectNativeConnectCliPanelMessages.description} />
-        </TypographyP>
-      </div>
+      <ProjectSettingsSectionHeading
+        icon={CodeIcon}
+        tone="beam"
+        title={<FormattedMessage {...projectNativeConnectCliPanelMessages.title} />}
+        description={<FormattedMessage {...projectNativeConnectCliPanelMessages.description} />}
+      />
 
       <div className="space-y-2">
         <TypographyP
@@ -84,7 +82,7 @@ export function ProjectNativeConnectCliPanel({
             size="sm"
             onClick={() => copyValue(projectId, "projectId")}
           >
-            <HugeiconsIcon icon={Copy01Icon} className="size-3.5" />
+            <CopyIcon className="size-3.5" />
             {copiedField === "projectId" ? (
               <FormattedMessage {...projectNativeConnectCliPanelMessages.copied} />
             ) : (
@@ -111,7 +109,7 @@ export function ProjectNativeConnectCliPanel({
             size="sm"
             onClick={() => copyValue(sampleConfig, "config")}
           >
-            <HugeiconsIcon icon={Copy01Icon} className="size-3.5" />
+            <CopyIcon className="size-3.5" />
             {copiedField === "config" ? (
               <FormattedMessage {...projectNativeConnectCliPanelMessages.copied} />
             ) : (

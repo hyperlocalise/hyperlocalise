@@ -15,8 +15,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useIntl } from "react-intl";
 import { z } from "zod";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { SparklesIcon } from "@hugeicons/core-free-icons";
+import { SparkleIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,6 +24,9 @@ import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/u
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
+import { readApiResponseError } from "@/lib/api-error";
+import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
 import { cn } from "@/lib/primitives/cn";
 import { imageTextRegionsSchema } from "@/lib/projects/files/image-text-layers";
 import {
@@ -205,7 +207,7 @@ export function ContentEditorVideoWorkspace(props: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ timestamp, frame: canvas.toDataURL("image/png") }),
       });
-      if (!response.ok) throw new Error("extraction_failed");
+      if (!response.ok) throw await readApiResponseError(response, "extraction_failed");
       const { frameText } = frameResponseSchema.parse(await response.json());
       if (controller.signal.aborted) return;
       const remaining = MAX_VIDEO_TEXT_ELEMENTS - draft.elements.length;
@@ -222,8 +224,16 @@ export function ContentEditorVideoWorkspace(props: {
       if (!elements.length) setNotice(intl.formatMessage(messages.noText));
       else if (frameText.regions.length > remaining)
         setNotice(intl.formatMessage(messages.limit, { count: MAX_VIDEO_TEXT_ELEMENTS }));
-    } catch {
-      if (!controller.signal.aborted) setError(intl.formatMessage(messages.extractError));
+    } catch (cause) {
+      if (!controller.signal.aborted) {
+        setError(
+          intl.formatMessage(
+            isAiCreditExhaustedError(cause)
+              ? aiCreditExhaustedMessages.exhausted
+              : messages.extractError,
+          ),
+        );
+      }
     } finally {
       requestRef.current = null;
       if (!controller.signal.aborted) setExtracting(false);
@@ -240,8 +250,16 @@ export function ContentEditorVideoWorkspace(props: {
       if (!mountedRef.current) return;
       setApplied(JSON.stringify(draft));
       setView("target");
-    } catch {
-      if (mountedRef.current) setError(intl.formatMessage(messages.generateError));
+    } catch (cause) {
+      if (mountedRef.current) {
+        setError(
+          intl.formatMessage(
+            isAiCreditExhaustedError(cause)
+              ? aiCreditExhaustedMessages.exhausted
+              : messages.generateError,
+          ),
+        );
+      }
     } finally {
       generatingRef.current = false;
       if (mountedRef.current) setGenerating(false);
@@ -490,7 +508,7 @@ export function ContentEditorVideoWorkspace(props: {
                   {generating || props.isBusy ? (
                     <Spinner />
                   ) : (
-                    <HugeiconsIcon icon={SparklesIcon} data-icon="inline-start" aria-hidden />
+                    <SparkleIcon data-icon="inline-start" aria-hidden />
                   )}
                   {intl.formatMessage(
                     generating || props.isBusy

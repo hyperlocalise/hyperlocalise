@@ -12,12 +12,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createApiClient } from "@/lib/api-client";
+import { useMemo } from "react";
 
-const api = createApiClient();
+import type { HyperlabGoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
-export function hyperlabClient() {
-  return api.api.orgs[":organizationSlug"].hyperlab;
+export type { HyperlabGoSvcClient };
+
+export function useHyperlabClient(): HyperlabGoSvcClient {
+  const { client } = useGoSvcClient();
+  return useMemo(() => client.hyperlab, [client]);
 }
 
 export const hyperlabQueryKeys = {

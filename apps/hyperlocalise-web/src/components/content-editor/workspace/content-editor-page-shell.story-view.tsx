@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState, type ComponentProps } from "react";
+import { useEffect, useMemo, useState, type ComponentProps, type ReactNode } from "react";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
@@ -34,6 +34,7 @@ type ContentEditorPageShellStoryViewProps = {
   initialSelectedSourcePath: string;
   workspaceBySourcePath: Record<string, ContentEditorPageShellWorkspaceEntry>;
   targetLocales?: string[];
+  headerTrailing?: ReactNode;
 } & Omit<
   ComponentProps<typeof ContentEditorWorkspaceContainer>,
   "initialState" | "initialViewMode"
@@ -44,6 +45,7 @@ export function ContentEditorPageShellStoryView({
   initialSelectedSourcePath,
   workspaceBySourcePath,
   targetLocales = ["vi", "fr-FR"],
+  headerTrailing,
   className,
   ...workspaceProps
 }: ContentEditorPageShellStoryViewProps) {
@@ -101,6 +103,7 @@ export function ContentEditorPageShellStoryView({
         onSelectFile: setSelectedSourcePath,
         onLocaleChange: setTargetLocale,
       }}
+      headerTrailing={headerTrailing}
       className="mx-0 my-0 h-svh sm:mx-0 lg:mx-0"
     >
       <ContentEditorWorkspaceContainer

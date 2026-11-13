@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { type FormEvent, useEffect, useId, useState } from "react";
-import { SaveIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { FloppyDiskIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -159,7 +158,7 @@ export function TeamDialog({
               <FormattedMessage {...teamDialogMessages.cancel} />
             </Button>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? <Spinner /> : <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />}
+              {isSaving ? <Spinner /> : <FloppyDiskIcon />}
               {isSaving ? (
                 <FormattedMessage {...teamDialogMessages.saving} />
               ) : mode === "create" ? (

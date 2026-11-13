@@ -289,6 +289,39 @@ describe("workspace automation dispatcher", () => {
     });
   });
 
+  it("records attached skills on the run and ignores caller-supplied skill ids", async () => {
+    const scope = await seedDispatchScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Research brief",
+        instructions: "",
+        triggerConfig: { mode: "manual" },
+        toolConfig: { webSearch: { enabled: true, provider: "auto" } },
+        skillIds: ["research-web"],
+      }),
+    );
+
+    await dispatchManualWorkspaceAutomationRun({
+      automation,
+      idempotencyKey: `manual:${automation.id}:skills`,
+      inputSnapshot: { skillIds: ["post-to-slack"] },
+      queue: {
+        async enqueue() {
+          return { ids: ["workflow-1"] };
+        },
+      },
+    });
+
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(runs[0]?.inputSnapshot.skillIds).toEqual(["research-web"]);
+    expect(runs[0]?.inputSnapshot.effectiveInstructions).toContain("## Research the web");
+  });
+
   it("does not queue on-demand runs for GitHub push automations", async () => {
     const scope = await seedDispatchScope();
     const automation = expectOk(

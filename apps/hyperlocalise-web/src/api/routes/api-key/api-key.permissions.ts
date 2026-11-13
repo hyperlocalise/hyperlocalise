@@ -25,6 +25,8 @@ export const apiKeyScopeCapabilityMap = {
   "jobs:write": "jobs:write",
   "files:read": "projects:read",
   "files:write": "jobs:create",
+  "memories:read": "memories:read",
+  "memories:write": "memories:write",
 } as const satisfies Record<ApiKeyPermission, OrganizationCapability>;
 
 export function getGrantableApiKeyPermissions(

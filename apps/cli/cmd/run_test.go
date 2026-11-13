@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
@@ -142,6 +145,141 @@ func TestRunDryRunRecognizesSubtitleFiles(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "planned_total=1") || !strings.Contains(out.String(), filepath.ToSlash(targetPath)) {
 		t.Fatalf("expected .srt dry-run task, got %q", out.String())
+	}
+	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no target file written in dry-run, stat err=%v", err)
+	}
+}
+
+func TestRunDryRunRecognizesINIFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "locales", "en-US", "messages.ini")
+	targetPath := filepath.Join(dir, "locales", "fr-FR", "messages.ini")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("[Home]\nwelcome=Welcome\n"), 0o600); err != nil {
+		t.Fatalf("write source ini: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en-US","targets":["fr-FR"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr-FR"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command ini dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=1") || !strings.Contains(out.String(), filepath.ToSlash(targetPath)) {
+		t.Fatalf("expected .ini dry-run task, got %q", out.String())
+	}
+	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no target file written in dry-run, stat err=%v", err)
+	}
+}
+
+func TestRunDryRunRecognizesRESWFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "Strings", "en-US", "Resources.resw")
+	targetPath := filepath.Join(dir, "Strings", "fr-FR", "Resources.resw")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="Welcome.Text" xml:space="preserve">
+    <value>Welcome back</value>
+  </data>
+</root>`), 0o600); err != nil {
+		t.Fatalf("write source resw: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en-US","targets":["fr-FR"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr-FR"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command resw dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=1") || !strings.Contains(out.String(), filepath.ToSlash(targetPath)) {
+		t.Fatalf("expected .resw dry-run task, got %q", out.String())
+	}
+	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no target file written in dry-run, stat err=%v", err)
+	}
+}
+
+func TestRunDryRunRecognizesQtLinguistFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "translations", "app_en.ts")
+	targetPath := filepath.Join(dir, "translations", "app_fr.ts")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="en_US">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Welcome back</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+</TS>`), 0o600); err != nil {
+		t.Fatalf("write source qt ts: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en-US","targets":["fr-FR"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr-FR"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command qt ts dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=1") || !strings.Contains(out.String(), filepath.ToSlash(targetPath)) {
+		t.Fatalf("expected .ts dry-run task, got %q", out.String())
 	}
 	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
 		t.Fatalf("expected no target file written in dry-run, stat err=%v", err)
@@ -1607,6 +1745,30 @@ func TestRunForceFlagPlumbedToServiceInput(t *testing.T) {
 	}
 }
 
+func TestRunKeepCompletedOnFailureFlagPlumbedToServiceInput(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	received := false
+	runFunc = func(_ context.Context, input runsvc.Input) (runsvc.Report, error) {
+		received = input.KeepCompletedOnFailure
+		return runsvc.Report{}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--keep-completed-on-failure"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with keep-completed-on-failure: %v", err)
+	}
+	if !received {
+		t.Fatalf("expected --keep-completed-on-failure to set runsvc.Input.KeepCompletedOnFailure")
+	}
+}
+
 func TestRunMaxTranslationsFlagPlumbedToServiceInput(t *testing.T) {
 	originalRunFunc := runFunc
 	t.Cleanup(func() { runFunc = originalRunFunc })
@@ -1896,6 +2058,71 @@ func TestRunWritesMachineReadableArtifact(t *testing.T) {
 	}
 }
 
+func TestRunWritesMachineReadableArtifactIncludesMTUsage(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	dir := t.TempDir()
+	reportPath := filepath.Join(dir, "reports", "run-report.json")
+	runFunc = func(_ context.Context, _ runsvc.Input) (runsvc.Report, error) {
+		return runsvc.Report{
+			PlannedTotal:    2,
+			ExecutableTotal: 2,
+			Succeeded:       2,
+			TokenUsage:      runsvc.TokenUsage{PromptTokens: 100, CompletionTokens: 30, TotalTokens: 130},
+			LocaleUsage:     map[string]runsvc.TokenUsage{"fr": {PromptTokens: 100, CompletionTokens: 30, TotalTokens: 130}},
+			MTUsage:         runsvc.MTUsage{SourceChars: 40, TranslatedChars: 44, RequestCount: 2, DurationMillis: 150},
+			LocaleMTUsage:   map[string]runsvc.MTUsage{"de": {SourceChars: 40, TranslatedChars: 44, RequestCount: 2, DurationMillis: 150}},
+			MTUsageByProfile: map[string]runsvc.MTProfileUsage{
+				"google-default": {Provider: "google", MTUsage: runsvc.MTUsage{SourceChars: 40, TranslatedChars: 44, RequestCount: 2, DurationMillis: 150}},
+			},
+			Batches: []runsvc.BatchUsage{
+				{TargetLocale: "fr", TargetPath: "dist/fr/strings.json", EntryKey: "hello", TranslationType: "llm", TokenUsage: runsvc.TokenUsage{PromptTokens: 100, CompletionTokens: 30, TotalTokens: 130}},
+				{TargetLocale: "de", TargetPath: "dist/de/strings.json", EntryKey: "hello", TranslationType: "mt", MTUsage: runsvc.MTUsage{SourceChars: 40, TranslatedChars: 44}},
+			},
+		}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--output", reportPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with output artifact: %v", err)
+	}
+
+	content, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read report artifact: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode report artifact: %v", err)
+	}
+	if payload["sourceChars"] != float64(40) || payload["translatedChars"] != float64(44) || payload["requestCount"] != float64(2) || payload["durationMs"] != float64(150) {
+		t.Fatalf("expected MT usage aggregate fields in summary report artifact, got %+v", payload)
+	}
+	localeMTUsage, ok := payload["localeMTUsage"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected localeMTUsage object, got %+v", payload["localeMTUsage"])
+	}
+	if _, ok := localeMTUsage["de"]; !ok {
+		t.Fatalf("expected de locale MT usage in report artifact, got %+v", localeMTUsage)
+	}
+	byProfile, ok := payload["mtUsageByProfile"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected mtUsageByProfile object, got %+v", payload["mtUsageByProfile"])
+	}
+	if _, ok := byProfile["google-default"]; !ok {
+		t.Fatalf("expected google-default profile usage in report artifact, got %+v", byProfile)
+	}
+	if _, ok := payload["batches"]; ok {
+		t.Fatalf("default --output-detail is summary; artifact must not include batches, got %+v", payload["batches"])
+	}
+}
+
 func TestWriteRunReportIncludesRichTokenLineOnlyWhenRelevant(t *testing.T) {
 	t.Parallel()
 
@@ -1942,9 +2169,12 @@ func TestRunWritesFullArtifactIncludesBatches(t *testing.T) {
 	reportPath := filepath.Join(dir, "full-report.json")
 	runFunc = func(_ context.Context, _ runsvc.Input) (runsvc.Report, error) {
 		return runsvc.Report{
-			PlannedTotal:    1,
-			ExecutableTotal: 1,
-			Batches:         []runsvc.BatchUsage{{TargetLocale: "fr", TargetPath: "/t.json", EntryKey: "k", TokenUsage: runsvc.TokenUsage{PromptTokens: 1, CompletionTokens: 2, TotalTokens: 3}}},
+			PlannedTotal:    2,
+			ExecutableTotal: 2,
+			Batches: []runsvc.BatchUsage{
+				{TargetLocale: "fr", TargetPath: "/t.json", EntryKey: "k", TranslationType: "llm", TokenUsage: runsvc.TokenUsage{PromptTokens: 1, CompletionTokens: 2, TotalTokens: 3}},
+				{TargetLocale: "de", TargetPath: "/u.json", EntryKey: "k2", TranslationType: "mt", MTUsage: runsvc.MTUsage{SourceChars: 5, TranslatedChars: 6}},
+			},
 		}, nil
 	}
 
@@ -1964,8 +2194,28 @@ func TestRunWritesFullArtifactIncludesBatches(t *testing.T) {
 	if err := json.Unmarshal(content, &payload); err != nil {
 		t.Fatalf("decode report artifact: %v", err)
 	}
-	if _, ok := payload["batches"]; !ok {
-		t.Fatalf("full artifact should include batches")
+	batches, ok := payload["batches"].([]any)
+	if !ok || len(batches) != 2 {
+		t.Fatalf("full artifact should include both batch rows, got %+v", payload["batches"])
+	}
+	var sawLLM, sawMT bool
+	for _, b := range batches {
+		row, ok := b.(map[string]any)
+		if !ok {
+			t.Fatalf("unexpected batch row shape: %+v", b)
+		}
+		switch row["translationType"] {
+		case "llm":
+			sawLLM = true
+		case "mt":
+			sawMT = true
+			if row["sourceChars"] != float64(5) || row["translatedChars"] != float64(6) {
+				t.Fatalf("mt batch row missing MT usage fields: %+v", row)
+			}
+		}
+	}
+	if !sawLLM || !sawMT {
+		t.Fatalf("expected one llm and one mt batch row, got %+v", batches)
 	}
 }
 
@@ -2118,5 +2368,440 @@ func TestRunDryRunFileFilterResolvesRelativeToConfigDirectory(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "dry_run=true") {
 		t.Fatalf("expected dry-run output, got %q", out.String())
+	}
+}
+
+func newFakeGoogleTranslateServer(t *testing.T, requests *atomic.Int64) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requests != nil {
+			requests.Add(1)
+		}
+		var body struct {
+			Q []string `json:"q"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		type translation struct {
+			TranslatedText string `json:"translatedText"`
+		}
+		translations := make([]translation, len(body.Q))
+		for i, q := range body.Q {
+			translations[i] = translation{TranslatedText: strings.ToUpper(q)}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{"translations": translations},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func newFakeOllamaChatServer(t *testing.T, content string) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"id": "chatcmpl-test",
+			"object": "chat.completion",
+			"choices": [{"index": 0, "message": {"role": "assistant", "content": "` + content + `"}, "finish_reason": "stop"}],
+			"usage": {"prompt_tokens": 12, "completion_tokens": 3, "total_tokens": 15}
+		}`))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestRunMTOnlyConfigTranslatesViaGoogle(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	const apiKeyEnv = "TEST_RUN_MT_ONLY_GOOGLE_API_KEY"
+	t.Setenv(apiKeyEnv, "sentinel-google-key")
+
+	var requests atomic.Int64
+	server := newFakeGoogleTranslateServer(t, &requests)
+
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini"}}},
+	  "mt": {"profiles":{"google_default":{"provider":"google","api_key_env":"` + apiKeyEnv + `","base_url":"` + server.URL + `"}}},
+	  "translation": {"default":{"type":"mt","profile":"google_default"}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	reportPath := filepath.Join(dir, "report.json")
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--output", reportPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run mt-only config: %v (output=%s)", err, out.String())
+	}
+	if !strings.Contains(out.String(), "succeeded=1 failed=0") {
+		t.Fatalf("expected one succeeded task, got %q", out.String())
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("expected exactly 1 request to the fake Google server, got %d", got)
+	}
+
+	targetContent, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target file: %v", err)
+	}
+	if !strings.Contains(string(targetContent), "HELLO") {
+		t.Fatalf("expected MT-translated content in target file, got %q", string(targetContent))
+	}
+
+	lockPath := filepath.Join(dir, ".hyperlocalise.lock.json")
+	if _, statErr := os.Stat(lockPath); statErr != nil {
+		t.Fatalf("expected lock file to be created: %v", statErr)
+	}
+
+	reportBytes, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read report artifact: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(reportBytes, &payload); err != nil {
+		t.Fatalf("decode report artifact: %v", err)
+	}
+	if payload["sourceChars"] != float64(5) || payload["translatedChars"] != float64(5) || payload["requestCount"] != float64(1) {
+		t.Fatalf("expected run-level MT usage aggregate (sourceChars/translatedChars/requestCount), got %+v", payload)
+	}
+	byProfile, ok := payload["mtUsageByProfile"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected mtUsageByProfile in report artifact, got %+v", payload)
+	}
+	googleUsage, ok := byProfile["google_default"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected google_default profile usage in mtUsageByProfile, got %+v", byProfile)
+	}
+	if googleUsage["provider"] != "google" || googleUsage["sourceChars"] != float64(5) || googleUsage["translatedChars"] != float64(5) || googleUsage["requestCount"] != float64(1) {
+		t.Fatalf("expected google_default usage to carry provider identity and counts, got %+v", googleUsage)
+	}
+	localeUsage, ok := payload["localeMTUsage"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected localeMTUsage in report artifact, got %+v", payload)
+	}
+	if _, ok := localeUsage["fr"]; !ok {
+		t.Fatalf("expected fr locale MT usage, got %+v", localeUsage)
+	}
+	if payload["promptTokens"] != float64(0) || payload["completionTokens"] != float64(0) || payload["totalTokens"] != float64(0) {
+		t.Fatalf("expected zero LLM token usage for an MT-only run, got %+v", payload)
+	}
+
+	out2 := bytes.NewBuffer(nil)
+	cmd2 := newRootCmd("")
+	cmd2.SetOut(out2)
+	cmd2.SetErr(out2)
+	cmd2.SetArgs([]string{"run", "--config", configPath})
+	if err := cmd2.Execute(); err != nil {
+		t.Fatalf("second run (lock reuse): %v (output=%s)", err, out2.String())
+	}
+	if !strings.Contains(out2.String(), "skipped_by_lock=1") {
+		t.Fatalf("expected second run to skip via lock reuse, got %q", out2.String())
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("expected no additional request to the fake Google server on lock reuse, got %d total", got)
+	}
+}
+
+func TestRunMixedMTAndLLMConfig(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	mtSourcePath := filepath.Join(dir, "content", "ui", "en.json")
+	mtTargetPath := filepath.Join(dir, "dist", "ui", "fr.json")
+	llmSourcePath := filepath.Join(dir, "content", "docs", "en.json")
+	llmTargetPath := filepath.Join(dir, "dist", "docs", "fr.json")
+	for _, p := range []string{mtSourcePath, llmSourcePath} {
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatalf("create source dir for %s: %v", p, err)
+		}
+	}
+	if err := os.WriteFile(mtSourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write mt source file: %v", err)
+	}
+	if err := os.WriteFile(llmSourcePath, []byte(`{"greeting":"Hi there"}`), 0o600); err != nil {
+		t.Fatalf("write llm source file: %v", err)
+	}
+
+	const apiKeyEnv = "TEST_RUN_MIXED_GOOGLE_API_KEY"
+	t.Setenv(apiKeyEnv, "sentinel-google-key")
+	googleServer := newFakeGoogleTranslateServer(t, nil)
+
+	ollamaServer := newFakeOllamaChatServer(t, "BONJOUR-LLM")
+	t.Setenv("OLLAMA_BASE_URL", ollamaServer.URL)
+	t.Setenv("OLLAMA_API_KEY", "sentinel-ollama-key")
+
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {
+	    "ui": {"files":[{"from":"` + filepath.ToSlash(mtSourcePath) + `","to":"` + filepath.ToSlash(mtTargetPath) + `"}]},
+	    "docs": {"files":[{"from":"` + filepath.ToSlash(llmSourcePath) + `","to":"` + filepath.ToSlash(llmTargetPath) + `"}]}
+	  },
+	  "groups": {
+	    "mt-group": {"targets":["fr"],"buckets":["ui"]},
+	    "llm-group": {"targets":["fr"],"buckets":["docs"]}
+	  },
+	  "llm": {"profiles":{"default":{"provider":"ollama","model":"test-model"}}},
+	  "mt": {"profiles":{"google_default":{"provider":"google","api_key_env":"` + apiKeyEnv + `","base_url":"` + googleServer.URL + `"}}},
+	  "translation": {
+	    "default": {"type":"llm","profile":"default"},
+	    "rules": [{"priority":100,"group":"mt-group","type":"mt","profile":"google_default"}]
+	  }
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	reportPath := filepath.Join(dir, "report.json")
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--output", reportPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run mixed mt/llm config: %v (output=%s)", err, out.String())
+	}
+	if !strings.Contains(out.String(), "succeeded=2 failed=0") {
+		t.Fatalf("expected both tasks to succeed, got %q", out.String())
+	}
+
+	mtContent, err := os.ReadFile(mtTargetPath)
+	if err != nil {
+		t.Fatalf("read mt target file: %v", err)
+	}
+	if !strings.Contains(string(mtContent), "HELLO") {
+		t.Fatalf("expected MT-translated content in mt target file, got %q", string(mtContent))
+	}
+	llmContent, err := os.ReadFile(llmTargetPath)
+	if err != nil {
+		t.Fatalf("read llm target file: %v", err)
+	}
+	if !strings.Contains(string(llmContent), "BONJOUR-LLM") {
+		t.Fatalf("expected LLM-translated content in llm target file, got %q", string(llmContent))
+	}
+
+	reportBytes, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read report artifact: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(reportBytes, &payload); err != nil {
+		t.Fatalf("decode report artifact: %v", err)
+	}
+
+	if payload["promptTokens"] != float64(12) || payload["completionTokens"] != float64(3) || payload["totalTokens"] != float64(15) {
+		t.Fatalf("expected LLM token usage from the ollama task, got %+v", payload)
+	}
+	if payload["sourceChars"] != float64(5) || payload["translatedChars"] != float64(5) || payload["requestCount"] != float64(1) {
+		t.Fatalf("expected MT usage aggregate from the mt task, got %+v", payload)
+	}
+	byProfile, ok := payload["mtUsageByProfile"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected mtUsageByProfile in report artifact, got %+v", payload)
+	}
+	googleUsage, ok := byProfile["google_default"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected google_default profile usage in mtUsageByProfile, got %+v", byProfile)
+	}
+	if googleUsage["provider"] != "google" || googleUsage["sourceChars"] != float64(5) || googleUsage["translatedChars"] != float64(5) {
+		t.Fatalf("expected google_default usage to carry provider identity and counts, got %+v", googleUsage)
+	}
+	if payload["sourceChars"] == payload["totalTokens"] {
+		t.Fatalf("sanity check collided: sourceChars and totalTokens should be independently derived, got %+v", payload)
+	}
+}
+
+func TestRunMissingMTCredentialFailsSafely(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	const missingEnv = "TEST_RUN_MISSING_MT_CREDENTIAL_GOOGLE_API_KEY"
+	if _, ok := os.LookupEnv(missingEnv); ok {
+		t.Fatalf("precondition failed: %s must not be set in the test environment", missingEnv)
+	}
+
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini"}}},
+	  "mt": {"profiles":{"google_default":{"provider":"google","api_key_env":"` + missingEnv + `","base_url":"https://mt.example.invalid"}}},
+	  "translation": {"default":{"type":"mt","profile":"google_default"}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected run to fail when the MT credential env var is unset")
+	}
+	if !strings.Contains(err.Error(), missingEnv) {
+		t.Fatalf("expected error to identify the missing env var %q, got %v", missingEnv, err)
+	}
+	if !strings.Contains(err.Error(), "is not set") {
+		t.Fatalf("expected error to explain the env var is not set, got %v", err)
+	}
+	if _, statErr := os.Stat(targetPath); !os.IsNotExist(statErr) {
+		t.Fatalf("expected no target file written when the run fails before execution, stat err=%v", statErr)
+	}
+}
+
+func TestRunDeepLProfileRejectsNonStandardBaseURL(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	const apiKeyEnv = "TEST_RUN_DEEPL_BAD_BASE_URL_API_KEY"
+	t.Setenv(apiKeyEnv, "sentinel-deepl-key")
+
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini"}}},
+	  "mt": {"profiles":{"deepl_default":{"provider":"deepl","api_key_env":"` + apiKeyEnv + `","base_url":"https://mt.example.invalid"}}},
+	  "translation": {"default":{"type":"mt","profile":"deepl_default"}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected run to fail for a non-standard DeepL base_url")
+	}
+	if !strings.Contains(err.Error(), "must be the DeepL Free or Pro base URL") {
+		t.Fatalf("expected DeepL base_url validation error, got %v", err)
+	}
+	if _, statErr := os.Stat(targetPath); !os.IsNotExist(statErr) {
+		t.Fatalf("expected no target file written when the run fails before execution, stat err=%v", statErr)
+	}
+}
+
+func TestRunLegacyLLMOnlyConfigUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	ollamaServer := newFakeOllamaChatServer(t, "BONJOUR-LEGACY")
+	t.Setenv("OLLAMA_BASE_URL", ollamaServer.URL)
+	t.Setenv("OLLAMA_API_KEY", "sentinel-ollama-key")
+
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"ollama","model":"test-model"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	reportPath := filepath.Join(dir, "report.json")
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--output", reportPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run legacy llm-only config: %v (output=%s)", err, out.String())
+	}
+	if !strings.Contains(out.String(), "succeeded=1 failed=0") {
+		t.Fatalf("expected one succeeded task, got %q", out.String())
+	}
+
+	targetContent, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target file: %v", err)
+	}
+	if !strings.Contains(string(targetContent), "BONJOUR-LEGACY") {
+		t.Fatalf("expected LLM-translated content in target file, got %q", string(targetContent))
+	}
+
+	reportBytes, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read report artifact: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(reportBytes, &payload); err != nil {
+		t.Fatalf("decode report artifact: %v", err)
+	}
+	if payload["promptTokens"] != float64(12) || payload["completionTokens"] != float64(3) || payload["totalTokens"] != float64(15) {
+		t.Fatalf("expected LLM token usage unchanged from the legacy path, got %+v", payload)
+	}
+	for _, field := range []string{"sourceChars", "translatedChars", "requestCount", "durationMs", "localeMTUsage", "mtUsageByProfile"} {
+		if _, ok := payload[field]; ok {
+			t.Fatalf("expected no MT usage field %q for an all-legacy-LLM run, got %+v", field, payload)
+		}
 	}
 }

@@ -13,6 +13,7 @@
 import type { IntlShape } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
 
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import { getIntegrationCopyDescriptors } from "@/lib/integrations/integration-catalog.copy";
 import {
   getIntegrationCatalogEntry,
@@ -29,14 +30,9 @@ import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external
 
 export const workspaceComingSoonCollaborationSlugs = ["microsoft-teams", "jira", "linear"] as const;
 
-export const workspaceComingSoonGuidelineSlugs = ["google-drive", "sharepoint"] as const;
+export const workspaceComingSoonGuidelineSlugs = ["sharepoint"] as const;
 
-export const workspaceComingSoonCustomerEngagementSlugs = [
-  "braze",
-  "iterable",
-  "customer-io",
-  "loops",
-] as const;
+export const workspaceComingSoonCustomerEngagementSlugs = [] as const;
 
 export const workspaceComingSoonExperimentationSlugs = ["statsig"] as const;
 
@@ -54,18 +50,21 @@ export const workspacePipesGuidelineSlugs = [
 
 export const workspacePipesCustomerEngagementSlugs = [
   "intercom",
+  "iterable",
+  "braze",
+  "customer-io",
   "hubspot",
+  "loops",
   "mailchimp",
   "sendgrid",
   "resend",
 ] as const satisfies readonly PipesProviderSlug[];
 
-export const workspacePipesCmsSlugs = [
-  "webflow",
-  "sanity",
-] as const satisfies readonly PipesProviderSlug[];
+/** Webflow uses a custom connection panel; generic Pipes rows are unused for CMS today. */
+export const workspacePipesCmsSlugs = [] as const satisfies readonly PipesProviderSlug[];
 
 export const workspacePipesSeoToolSlugs = [
+  "google-search-console",
   "similarweb",
 ] as const satisfies readonly PipesProviderSlug[];
 
@@ -142,7 +141,7 @@ export function resolveTmsIntegrationConfigs(intl: IntlShape): readonly TmsInteg
     const descriptors = getIntegrationCopyDescriptors(entry.slug);
     const name = descriptors ? intl.formatMessage(descriptors.name) : entry.slug;
     const detail = descriptors ? intl.formatMessage(descriptors.tagline) : "";
-    const logo = entry.logoSrc ?? "/images/logo.png";
+    const logo = entry.logoSrc ?? brandLogomarkSrc;
     const icon = getIntegrationIconForSlug(entry.slug);
 
     if (entry.tmsProviderKind === "native") {

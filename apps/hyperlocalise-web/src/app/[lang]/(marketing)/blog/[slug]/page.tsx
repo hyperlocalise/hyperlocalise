@@ -16,6 +16,7 @@ import { notFound } from "next/navigation";
 
 import { BlogPostPage } from "@/components/marketing/blog/blog-post-page";
 import { JsonLd } from "@/components/seo/json-ld";
+import { brandLogomarkAbsoluteUrl } from "@/lib/brand/brand-assets";
 import { jsonLdInLanguage } from "@/lib/seo/json-ld-in-language";
 import {
   DEFAULT_APP_LOCALE,
@@ -27,7 +28,7 @@ import { getPostBySlug, getPostSlugs, getRelevantPosts } from "@/lib/blog/blog-p
 import { getBlogPostPath } from "@/lib/blog/blog-post-path";
 import { getBlogPostCoverAbsoluteUrl } from "@/lib/blog/get-blog-post-cover-url";
 import { markdownToHtml } from "@/lib/blog/markdown-to-html";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 import { SITE_URL } from "@/lib/seo/site-url";
 
 function getLocalesWithBlogPost(slug: string): AppLocale[] {
@@ -69,13 +70,13 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
       path: `/blog/${post.slug}`,
       locales: availableLocales,
     }),
-    openGraph: {
+    openGraph: localizedOpenGraph(locale, `/blog/${post.slug}`, {
       title: post.title,
       description: post.excerpt,
       type: "article",
       publishedTime: post.date,
       images: [imageUrl],
-    },
+    }),
     twitter: {
       card: "summary_large_image",
       title: post.title,
@@ -117,7 +118,7 @@ function buildArticleJsonLd(
       name: "Hyperlocalise",
       logo: {
         "@type": "ImageObject",
-        url: `${SITE_URL}/images/logo.png`,
+        url: brandLogomarkAbsoluteUrl,
       },
     },
   };
@@ -134,7 +135,7 @@ export default async function BlogPostRoute({ params }: BlogPostRouteProps) {
     notFound();
   }
 
-  const htmlContent = await markdownToHtml(post.content);
+  const htmlContent = await markdownToHtml(post.content, { locale });
   const jsonLd = buildArticleJsonLd(post, locale);
   const relatedPosts = getRelevantPosts(slug, locale);
 

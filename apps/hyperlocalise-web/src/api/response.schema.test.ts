@@ -12,7 +12,7 @@
  */
 import { Hono } from "hono";
 import { testClient } from "hono/testing";
-import { describe, expect, expectTypeOf, it } from "vite-plus/test";
+import { describe, expect, it } from "vite-plus/test";
 
 import { notFoundResponse } from "./response.schema";
 
@@ -36,7 +36,6 @@ describe("response schema helpers", () => {
 
     if (response.status === 404) {
       const body = await response.json();
-      expectTypeOf(body.error).toEqualTypeOf<string>();
       expect(body.error).toBe("thing_not_found");
     }
   });

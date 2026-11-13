@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { Cancel01Icon, ZoomInAreaIcon, ZoomOutAreaIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { XIcon, MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon } from "@phosphor-icons/react";
 import {
   useCallback,
   useEffect,
@@ -450,7 +449,7 @@ function ImageLightboxViewport({ alt, imageUrl, markers = [] }: ImageLightboxVie
                 disabled={scale <= MIN_LIGHTBOX_SCALE}
                 aria-label={intl.formatMessage(imageLightboxMessages.zoomOut)}
               >
-                <HugeiconsIcon icon={ZoomOutAreaIcon} strokeWidth={2} />
+                <MagnifyingGlassMinusIcon />
               </Button>
             }
           />
@@ -486,7 +485,7 @@ function ImageLightboxViewport({ alt, imageUrl, markers = [] }: ImageLightboxVie
                 disabled={scale >= MAX_LIGHTBOX_SCALE}
                 aria-label={intl.formatMessage(imageLightboxMessages.zoomIn)}
               >
-                <HugeiconsIcon icon={ZoomInAreaIcon} strokeWidth={2} />
+                <MagnifyingGlassPlusIcon />
               </Button>
             }
           />
@@ -558,7 +557,7 @@ export function ImageLightbox({
                         className="text-white hover:bg-white/10 hover:text-white"
                         aria-label={intl.formatMessage(imageLightboxMessages.close)}
                       >
-                        <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+                        <XIcon />
                       </Button>
                     }
                   />

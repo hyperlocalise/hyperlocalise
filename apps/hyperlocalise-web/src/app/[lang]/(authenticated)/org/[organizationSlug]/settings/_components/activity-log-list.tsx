@@ -12,20 +12,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createElement } from "react";
 import Link from "next/link";
-import { useIntl } from "react-intl";
+import { useIntl, type MessageDescriptor } from "react-intl";
 import {
   BookOpenTextIcon,
-  Building06Icon,
-  FolderLibraryIcon,
-  Key01Icon,
-  PuzzleIcon,
-  UserGroup02Icon,
+  BuildingOfficeIcon,
+  FoldersIcon,
+  KeyIcon,
+  PuzzlePieceIcon,
+  UsersThreeIcon,
   DatabaseIcon,
-  File01Icon,
-  TextFontIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  FileIcon,
+  GitBranchIcon,
+  ChatCircleIcon,
+  GlobeIcon,
+  TextTIcon,
+} from "@phosphor-icons/react";
 
 import type { ImplementedActivityEventType } from "@/lib/activity-log/activity-log-contract";
 import { Badge } from "@/components/ui/badge";
@@ -35,28 +38,46 @@ import { cn } from "@/lib/primitives/cn";
 
 import { activityLogsPageContentMessages as messages } from "./activity-logs-page-content.messages";
 
+export type ActivityLogActor = {
+  credentialId: string | null;
+  credentialName?: string | null;
+  displayName: string;
+  keyPrefix?: string | null;
+  kind: string;
+  userId: string | null;
+};
+
 export type ActivityLogItem = {
-  actor: { displayName: string; kind: string; userId: string | null };
+  actor: ActivityLogActor;
   createdAt: string;
   eventType: ImplementedActivityEventType;
   id: string;
   payload: Record<string, unknown>;
-  target: { displayName: string | null; href: string | null; kind: string };
+  target: { displayName: string | null; href: string | null; id?: string; kind: string };
 };
 
 const eventActions = {
   member_invited: messages.memberInvitedAction,
   member_invite_resent: messages.memberInviteResentAction,
+  member_invite_revoked: messages.memberInviteRevokedAction,
+  member_joined: messages.memberJoinedAction,
   member_role_changed: messages.memberRoleChangedAction,
   member_removed: messages.memberRemovedAction,
+  member_left: messages.memberLeftAction,
   workspace_updated: messages.workspaceUpdatedAction,
+  workspace_archived: messages.workspaceArchivedAction,
   personal_access_token_created: messages.personalAccessTokenCreatedAction,
   personal_access_token_revoked: messages.personalAccessTokenRevokedAction,
+  organization_api_key_created: messages.organizationApiKeyCreatedAction,
+  organization_api_key_revoked: messages.organizationApiKeyRevokedAction,
   integration_connected: messages.integrationConnectedAction,
   integration_disconnected: messages.integrationDisconnectedAction,
+  integration_credential_revealed: messages.integrationCredentialRevealedAction,
+  integration_credential_rotated: messages.integrationCredentialRotatedAction,
   project_created: messages.projectCreatedAction,
   project_deleted: messages.projectDeletedAction,
   project_settings_changed: messages.projectSettingsChangedAction,
+  project_strings_updated: messages.projectStringsUpdatedAction,
   glossary_created: messages.glossaryCreatedAction,
   glossary_deleted: messages.glossaryDeletedAction,
   glossary_imported: messages.glossaryImportedAction,
@@ -73,11 +94,26 @@ const eventActions = {
   job_created: messages.jobCreatedAction,
   job_cancelled: messages.jobCancelledAction,
   job_failed: messages.jobFailedAction,
+  job_updated: messages.jobUpdatedAction,
+  automation_created: messages.automationCreatedAction,
+  automation_deleted: messages.automationDeletedAction,
   automation_run_started: messages.automationRunStartedAction,
   automation_enabled: messages.automationEnabledAction,
   automation_disabled: messages.automationDisabledAction,
+  visual_workflow_created: messages.visualWorkflowCreatedAction,
+  visual_workflow_deleted: messages.visualWorkflowDeletedAction,
+  visual_workflow_published: messages.visualWorkflowPublishedAction,
+  visual_workflow_enabled: messages.visualWorkflowEnabledAction,
+  visual_workflow_disabled: messages.visualWorkflowDisabledAction,
+  visual_workflow_run_started: messages.visualWorkflowRunStartedAction,
+  visual_workflow_approval_requested: messages.visualWorkflowApprovalRequestedAction,
+  visual_workflow_approval_decided: messages.visualWorkflowApprovalDecidedAction,
+  query_created: messages.queryCreatedAction,
+  query_deleted: messages.queryDeletedAction,
+  query_imported: messages.queryImportedAction,
   file_uploaded: messages.fileUploadedAction,
   file_translations_imported: messages.fileTranslationsImportedAction,
+  string_segment_translation_updated: messages.stringSegmentTranslationUpdatedAction,
   string_segment_approved: messages.stringSegmentApprovedAction,
   string_segment_status_changed: messages.stringSegmentStatusChangedAction,
   string_segment_hidden: messages.stringSegmentHiddenAction,
@@ -85,40 +121,65 @@ const eventActions = {
   string_segment_locked: messages.stringSegmentLockedAction,
   string_segment_unlocked: messages.stringSegmentUnlockedAction,
   string_segment_commented: messages.stringSegmentCommentedAction,
-};
+  dictionary_created: messages.dictionaryCreatedAction,
+  dictionary_deleted: messages.dictionaryDeletedAction,
+  dictionary_imported: messages.dictionaryImportedAction,
+  dictionary_project_attached: messages.dictionaryProjectAttachedAction,
+  linked_domain_created: messages.linkedDomainCreatedAction,
+  linked_domain_verified: messages.linkedDomainVerifiedAction,
+  linked_domain_cancelled: messages.linkedDomainCancelledAction,
+  linked_domain_markets_changed: messages.linkedDomainMarketsChangedAction,
+} satisfies Record<ImplementedActivityEventType, MessageDescriptor>;
+
+export const activityLogEventActions = eventActions;
 
 type ActivityVisual = {
   className: string;
-  icon: typeof UserGroup02Icon;
+  icon: typeof UsersThreeIcon;
 };
 
 function activityVisual(eventType: ImplementedActivityEventType): ActivityVisual {
   if (eventType.startsWith("member_")) {
-    return { icon: UserGroup02Icon, className: "bg-info/10 text-info" };
+    return { icon: UsersThreeIcon, className: "bg-info/10 text-info" };
   }
-  if (eventType === "workspace_updated") {
-    return { icon: Building06Icon, className: "bg-primary/10 text-primary" };
+  if (eventType.startsWith("workspace_")) {
+    return { icon: BuildingOfficeIcon, className: "bg-primary/10 text-primary" };
   }
-  if (eventType.startsWith("personal_access_token_")) {
-    return { icon: Key01Icon, className: "bg-warning/10 text-warning" };
+  if (
+    eventType.startsWith("personal_access_token_") ||
+    eventType.startsWith("organization_api_key_")
+  ) {
+    return { icon: KeyIcon, className: "bg-warning/10 text-warning" };
   }
   if (eventType.startsWith("integration_")) {
-    return { icon: PuzzleIcon, className: "bg-success/10 text-success" };
+    return { icon: PuzzlePieceIcon, className: "bg-success/10 text-success" };
   }
   if (eventType.startsWith("project_")) {
-    return { icon: FolderLibraryIcon, className: "bg-primary/10 text-primary" };
+    return { icon: FoldersIcon, className: "bg-primary/10 text-primary" };
   }
   if (eventType.startsWith("glossary_")) {
     return { icon: BookOpenTextIcon, className: "bg-warning/10 text-warning" };
   }
   if (eventType.startsWith("automation_")) {
-    return { icon: PuzzleIcon, className: "bg-success/10 text-success" };
+    return { icon: PuzzlePieceIcon, className: "bg-success/10 text-success" };
+  }
+  if (eventType.startsWith("visual_workflow_")) {
+    return { icon: GitBranchIcon, className: "bg-primary/10 text-primary" };
+  }
+  if (eventType.startsWith("query_")) {
+    return { icon: ChatCircleIcon, className: "bg-info/10 text-info" };
   }
   if (eventType.startsWith("file_")) {
-    return { icon: File01Icon, className: "bg-primary/10 text-primary" };
+    return { icon: FileIcon, className: "bg-primary/10 text-primary" };
   }
   if (eventType.startsWith("string_segment_")) {
-    return { icon: TextFontIcon, className: "bg-warning/10 text-warning" };
+    return { icon: TextTIcon, className: "bg-warning/10 text-warning" };
+  }
+  if (eventType.startsWith("dictionary_")) {
+    return { icon: BookOpenTextIcon, className: "bg-warning/10 text-warning" };
+  }
+  if (eventType.startsWith("linked_domain_")) {
+    return { icon: GlobeIcon, className: "bg-success/10 text-success" };
   }
   return { icon: DatabaseIcon, className: "bg-info/10 text-info" };
 }
@@ -138,16 +199,20 @@ function relativeTime(
 }
 
 function targetDisplayName(item: ActivityLogItem): string | null {
+  // The person who left is the actor already shown on the row.
+  if (item.eventType === "member_left") return null;
   if (item.target.displayName) return item.target.displayName;
   if (
-    (item.eventType === "integration_connected" || item.eventType === "integration_disconnected") &&
+    item.eventType.startsWith("integration_") &&
     typeof item.payload.integrationKind === "string"
   ) {
     return item.payload.integrationKind;
   }
   if (
     (item.eventType === "personal_access_token_created" ||
-      item.eventType === "personal_access_token_revoked") &&
+      item.eventType === "personal_access_token_revoked" ||
+      item.eventType === "organization_api_key_created" ||
+      item.eventType === "organization_api_key_revoked") &&
     typeof item.payload.keyPrefix === "string"
   ) {
     return item.payload.keyPrefix;
@@ -155,13 +220,49 @@ function targetDisplayName(item: ActivityLogItem): string | null {
   return null;
 }
 
+function userFilterValue(actor: ActivityLogActor): string | null {
+  if (actor.userId) {
+    return `user:${actor.userId}`;
+  }
+  if (actor.kind === "system" || actor.kind === "agent") {
+    return actor.kind;
+  }
+  return null;
+}
+
+function apiKeyLabel(actor: ActivityLogActor): string | null {
+  if (actor.kind !== "api_key" && !actor.credentialId) {
+    return null;
+  }
+  return actor.credentialName || actor.keyPrefix || actor.credentialId;
+}
+
+function payloadEntries(payload: Record<string, unknown>): Array<[string, string]> {
+  return Object.entries(payload).flatMap(([key, value]) => {
+    if (value == null || value === "") {
+      return [];
+    }
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      return [[key, String(value)]];
+    }
+    if (Array.isArray(value) && value.every((item) => typeof item !== "object")) {
+      return [[key, value.map(String).join(", ")]];
+    }
+    return [];
+  });
+}
+
 export function ActivityLogList({
   activityLogs,
   now = Date.now(),
+  onActorFilter,
+  organizationSlug,
   variant = "card",
 }: {
   activityLogs: ActivityLogItem[];
   now?: number;
+  onActorFilter?: (value: string) => void;
+  organizationSlug?: string;
   variant?: "card" | "plain";
 }) {
   const intl = useIntl();
@@ -173,6 +274,10 @@ export function ActivityLogList({
         const target = displayName ? ` · ${displayName}` : "";
         const relative = relativeTime(item.createdAt, now);
         const visual = activityVisual(item.eventType);
+        const userFilter = userFilterValue(item.actor);
+        const keyLabel = apiKeyLabel(item.actor);
+        const occurredAt = new Date(item.createdAt).toLocaleString();
+        const details = payloadEntries(item.payload);
         return (
           <li
             key={item.id}
@@ -185,7 +290,7 @@ export function ActivityLogList({
               )}
               aria-hidden="true"
             >
-              <HugeiconsIcon icon={visual.icon} strokeWidth={1.8} />
+              {createElement(visual.icon, {})}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -199,6 +304,44 @@ export function ActivityLogList({
                 <Badge variant="outline">{item.actor.kind}</Badge>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                {userFilter && onActorFilter ? (
+                  <button
+                    type="button"
+                    className="underline underline-offset-2 hover:text-foreground"
+                    onClick={() => onActorFilter(userFilter)}
+                    aria-label={intl.formatMessage(messages.filterByActor, {
+                      name: item.actor.displayName,
+                    })}
+                  >
+                    {item.actor.displayName}
+                  </button>
+                ) : null}
+                {keyLabel ? (
+                  item.actor.credentialId && onActorFilter ? (
+                    <button
+                      type="button"
+                      className="underline underline-offset-2 hover:text-foreground"
+                      onClick={() => onActorFilter(`api_key:${item.actor.credentialId}`)}
+                      aria-label={intl.formatMessage(messages.filterByApiKey, { name: keyLabel })}
+                    >
+                      {item.actor.keyPrefix
+                        ? intl.formatMessage(messages.viaApiKeyWithPrefix, {
+                            name: item.actor.credentialName || keyLabel,
+                            prefix: item.actor.keyPrefix,
+                          })
+                        : intl.formatMessage(messages.viaApiKey, { name: keyLabel })}
+                    </button>
+                  ) : (
+                    <span>
+                      {item.actor.keyPrefix
+                        ? intl.formatMessage(messages.viaApiKeyWithPrefix, {
+                            name: item.actor.credentialName || keyLabel,
+                            prefix: item.actor.keyPrefix,
+                          })
+                        : intl.formatMessage(messages.viaApiKey, { name: keyLabel })}
+                    </span>
+                  )
+                ) : null}
                 {item.target.href && displayName ? (
                   <Link
                     className="underline underline-offset-2 hover:text-foreground"
@@ -207,13 +350,130 @@ export function ActivityLogList({
                     {displayName}
                   </Link>
                 ) : null}
-                <span title={new Date(item.createdAt).toLocaleString()}>
+                {organizationSlug && item.actor.userId ? (
+                  <Link
+                    className="underline underline-offset-2 hover:text-foreground"
+                    href={`/org/${organizationSlug}/settings/members`}
+                  >
+                    {intl.formatMessage(messages.viewMember)}
+                  </Link>
+                ) : null}
+                {organizationSlug && item.actor.credentialId ? (
+                  <Link
+                    className="underline underline-offset-2 hover:text-foreground"
+                    href={`/org/${organizationSlug}/settings/api-keys`}
+                  >
+                    {intl.formatMessage(messages.viewApiKeys)}
+                  </Link>
+                ) : null}
+                <span title={occurredAt}>
                   {new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(
                     relative.value,
                     relative.unit,
                   )}
                 </span>
               </div>
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                  {intl.formatMessage(messages.showDetails)}
+                </summary>
+                <dl
+                  className="mt-2 grid gap-1 text-xs text-muted-foreground"
+                  aria-label={intl.formatMessage(messages.detailsLabel)}
+                >
+                  <div>
+                    <dt className="inline font-medium text-foreground">
+                      {intl.formatMessage(messages.actorKindDetail)}
+                    </dt>
+                    {": "}
+                    <dd className="inline font-mono">{item.actor.kind}</dd>
+                  </div>
+                  {item.actor.userId ? (
+                    <div>
+                      <dt className="inline font-medium text-foreground">
+                        {intl.formatMessage(messages.userIdDetail)}
+                      </dt>
+                      {": "}
+                      <dd className="inline font-mono">{item.actor.userId}</dd>
+                    </div>
+                  ) : null}
+                  {item.actor.credentialId ? (
+                    <div>
+                      <dt className="inline font-medium text-foreground">
+                        {intl.formatMessage(messages.credentialIdDetail)}
+                      </dt>
+                      {": "}
+                      <dd className="inline font-mono">{item.actor.credentialId}</dd>
+                    </div>
+                  ) : null}
+                  {item.actor.credentialName ? (
+                    <div>
+                      <dt className="inline font-medium text-foreground">
+                        {intl.formatMessage(messages.credentialNameDetail)}
+                      </dt>
+                      {": "}
+                      <dd className="inline">{item.actor.credentialName}</dd>
+                    </div>
+                  ) : null}
+                  {item.actor.keyPrefix ? (
+                    <div>
+                      <dt className="inline font-medium text-foreground">
+                        {intl.formatMessage(messages.keyPrefixDetail)}
+                      </dt>
+                      {": "}
+                      <dd className="inline font-mono">{item.actor.keyPrefix}</dd>
+                    </div>
+                  ) : null}
+                  <div>
+                    <dt className="inline font-medium text-foreground">
+                      {intl.formatMessage(messages.eventTypeDetail)}
+                    </dt>
+                    {": "}
+                    <dd className="inline font-mono">{item.eventType}</dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-medium text-foreground">
+                      {intl.formatMessage(messages.targetKindDetail)}
+                    </dt>
+                    {": "}
+                    <dd className="inline font-mono">{item.target.kind}</dd>
+                  </div>
+                  {item.target.id ? (
+                    <div>
+                      <dt className="inline font-medium text-foreground">
+                        {intl.formatMessage(messages.targetIdDetail)}
+                      </dt>
+                      {": "}
+                      <dd className="inline font-mono">{item.target.id}</dd>
+                    </div>
+                  ) : null}
+                  <div>
+                    <dt className="inline font-medium text-foreground">
+                      {intl.formatMessage(messages.occurredAtDetail)}
+                    </dt>
+                    {": "}
+                    <dd className="inline">{occurredAt}</dd>
+                  </div>
+                  {details.length > 0 ? (
+                    <div>
+                      <dt className="font-medium text-foreground">
+                        {intl.formatMessage(messages.payloadDetail)}
+                      </dt>
+                      <dd>
+                        <ul className="mt-1 space-y-0.5">
+                          {details.map(([key, value]) => (
+                            <li key={key}>
+                              <span className="font-mono">{key}</span>
+                              {": "}
+                              {value}
+                            </li>
+                          ))}
+                        </ul>
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </details>
             </div>
           </li>
         );

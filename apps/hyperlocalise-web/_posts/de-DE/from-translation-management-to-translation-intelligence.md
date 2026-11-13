@@ -24,7 +24,7 @@ Seit mehr als zwei Jahrzehnten konzentriert sich die Lokalisierungstechnologie a
 
 Übersetzungsmanagementsysteme halfen Organisationen dabei, Tabellenkalkulationen, E-Mail-Verläufe, voneinander getrennte Anbieter und den manuellen Dateiaustausch durch strukturierte Workflows zu ersetzen. Sie zentralisierten mehrsprachige Inhalte, koordinierten Übersetzer und Prüfer, pflegten Terminologie, verwendeten frühere Übersetzungen wieder und verfolgten die Auslieferung über verschiedene Märkte hinweg.
 
-Dies war eine wichtige Weiterentwicklung. Übersetzungen ließen sich dadurch leichter steuern, messen und in umfassendere Content-Prozesse integrieren. [RWS](https://www.rws.com/glossary/translation-management/) beschreibt Übersetzungsmanagement als die Koordination von Menschen, Prozessen und Technologien, die erforderlich ist, um Inhalte effizient und konsistent in verschiedene Sprachen zu übersetzen.
+This was an important evolution. Translation became easier to govern, measure, and integrate into broader content operations. [RWS](https://www.rws.com/glossary/translation-management/) describes translation management as the coordination of people, processes, and technology required to translate content efficiently and consistently across languages.
 
 Aber die Umgebung, in der die Lokalisierung erfolgt, hat sich geändert.
 
@@ -86,7 +86,7 @@ Aber Sprachgewandtheit sollte nicht mit Korrektheit verwechselt werden.
 
 Eine KI-generierte Übersetzung kann natürlich klingen und dennoch das Produkt missverstehen, den falschen freigegebenen Begriff auswählen, eine Vorgabe der Benutzeroberfläche verletzen oder die Absicht der Ausgangsnachricht nicht wahren.
 
-Die Forschung zur maschinellen Übersetzung zeigt weiterhin, dass die Übersetzungsqualität von mehr abhängt als von der sprachlichen Flüssigkeit auf Satzebene. [Dokumentkontext, Fachwissen, Diskurs, Terminologie und die beabsichtigte Verwendung](https://www.sciencedirect.com/science/article/pii/S2589004224021035) können alle beeinflussen, ob eine Übersetzung angemessen ist.
+Research into machine translation continues to show that translation quality depends on more than sentence-level fluency. [Document context, domain knowledge, discourse, terminology, and intended use](https://www.sciencedirect.com/science/article/pii/S2589004224021035) can all affect whether a translation is appropriate.
 
 Diese Unterscheidung wird immer wichtiger, je überzeugender die Ausgaben von KI werden.
 
@@ -96,7 +96,7 @@ Die entscheidende Frage ist daher nicht einfach, ob KI übersetzen kann.
 
 Es geht darum, ob das System dem richtigen Modell oder der richtigen Person die richtigen Belege, Anweisungen, Einschränkungen und das richtige Organisationswissen bereitstellen kann.
 
-Das ist die Aufgabe von Translation Intelligence.
+Das ist die Aufgabe der Übersetzungsintelligenz.
 
 ## Was ist Translation Intelligence?
 
@@ -126,7 +126,7 @@ Bei einer Produktbezeichnung kann dies den neuesten Screenshot, den Namen der Ko
 
 Translation Intelligence macht Kontext operativ statt optional.
 
-Wie in [What Is Translation Intelligence?](/blog/what-is-translation-intelligence)erläutert, wird es immer einfacher, Übersetzungen selbst zu erstellen. Die schwierigere und besser zu verteidigende Fähigkeit besteht darin, zu verstehen, welches Wissen das Ergebnis beeinflussen sollte.
+As explored in [What Is Translation Intelligence?](/blog/what-is-translation-intelligence), translation itself is becoming easier to generate. The harder and more defensible capability is understanding which knowledge should influence the result.
 
 ## Von Workflow-Automatisierung zu intelligenter Recherche
 
@@ -140,7 +140,7 @@ Ein intelligenteres System kann den Quellinhalt prüfen, die relevante Funktion 
 
 Hier werden KI-Agenten besonders wertvoll.
 
-Anstatt darauf zu warten, dass Lokalisierungsteams Informationen manuell zusammenstellen, können [Agents](/product/agents-automation) Kontext aus verbundenen Systemen sammeln und ihn direkt im Übersetzungsworkflow verfügbar machen.
+Instead of waiting for localisation teams to manually assemble information, [agents](/product/agents-automation) can gather context from connected systems and make it available directly inside the translation workflow.
 
 Ein Agent kann möglicherweise bei der Beantwortung helfen:
 
@@ -192,7 +192,7 @@ Dies schafft ein effektiveres Human-in-the-Loop-Modell.
 
 Linguisten und Marktexperten verbringen weniger Zeit damit, vorhersehbare Inhalte zu prüfen, und mehr Zeit mit Entscheidungen, die kulturelles Urteilsvermögen, strategische Interpretation oder Verantwortung erfordern.
 
-Das ist auch die Richtung des [next-generation CAT experience](/product/next-gen-cat-tool): nicht Menschen aus der Lokalisierung zu entfernen, sondern ihnen besseren Kontext, relevantere Empfehlungen und einen klareren Überblick darüber zu geben, wo ihr Fachwissen gefragt ist.
+That is also the direction of the [next-generation CAT experience](/product/next-gen-cat-tool): not removing humans from localisation, but giving them better context, more relevant recommendations, and a clearer view of where their expertise matters.
 
 ## Von der Qualitätssicherung zur kontinuierlichen Evaluierung
 
@@ -280,7 +280,7 @@ Von statischen sprachlichen Ressourcen zu sich selbst weiterentwickelndem Wissen
 
 Von Übersetzungsmanagement zu Übersetzungsintelligenz.
 
-Hyperlocalise arbeitet auf diese Zukunft hin – mit [KI-Agenten](/product/agents-automation), einem [CAT-Erlebnis der nächsten Generation](/product/next-gen-cat-tool) und einer [sich selbst weiterentwickelnden Kontext-Engine](/product/guidelines), die globalen Teams dabei helfen soll, mit weniger manueller Recherche bessere Übersetzungen zu erstellen.
+Hyperlocalise is building toward this future through [AI agents](/product/agents-automation), a [next-generation CAT experience](/product/next-gen-cat-tool), and a [self-evolving context engine](/product/guidelines) designed to help global teams produce better translations with less manual investigation.
 
 Die nächste Generation von Lokalisierungssoftware wird nicht einfach nur Übersetzungen verwalten.
 
@@ -288,8 +288,9 @@ Es wird die Organisation intelligenter darin machen, wie sie über verschiedene 
 
 ## Weiterführende Informationen
 
-- [Was ist Übersetzungsintelligenz?](/blog/what-is-translation-intelligence)
+- [What Is Translation Intelligence?](/blog/what-is-translation-intelligence)
+- [So wählen Sie einen kontinuierlichen Lokalisierungsworkflow aus](/blog/how-to-choose-a-continuous-localisation-workflow)
 - [Hyperlocalise](/)
-- [Übersetzungsmanagement-Übersicht — RWS](https://www.rws.com/glossary/translation-management/)
-- [Kontextbewusste maschinelle Übersetzungsforschung — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
-- [Menschliche Bewertung und Kontext auf Dokumentebene bei der maschinellen Übersetzung — arXiv](https://arxiv.org/abs/2104.14478)
+- [Translation management overview — RWS](https://www.rws.com/glossary/translation-management/)
+- [Context-aware machine translation research — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
+- [Human evaluation and document-level context in machine translation — arXiv](https://arxiv.org/abs/2104.14478)

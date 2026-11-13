@@ -12,35 +12,21 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  AlertCircleIcon,
-  CheckmarkCircle02Icon,
-  InformationCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useSpellcheckDictionaryContext } from "@/components/content-editor/project-file/spellcheck-dictionary-context";
 import { cn } from "@/lib/primitives/cn";
 
 import {
   formatCheckRowBackgroundClass,
-  formatCheckStatusClass,
+  formatCheckStatusBadgeVariant,
 } from "@/components/content-editor/segment/content-editor-tone";
 import { contentEditorFormatChecksMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
 
-function FormatCheckIcon({ status }: { status: ContentEditorFormatCheck["status"] }) {
-  const className = cn("size-4 shrink-0", formatCheckStatusClass(status));
-
-  switch (status) {
-    case "pass":
-      return <HugeiconsIcon icon={CheckmarkCircle02Icon} className={className} />;
-    case "fail":
-      return <HugeiconsIcon icon={AlertCircleIcon} className={className} />;
-    default:
-      return <HugeiconsIcon icon={InformationCircleIcon} className={className} />;
-  }
-}
+import { ContentEditorFormatCheckStatusIcon } from "./content-editor-format-check-status-icon";
 
 function formatCheckStatusLabel(
   status: ContentEditorFormatCheck["status"],
@@ -60,17 +46,18 @@ function formatCheckStatusLabel(
 
 export function ContentEditorFormatChecks({ checks }: { checks: ContentEditorFormatCheck[] }) {
   const intl = useIntl();
+  const dictionary = useSpellcheckDictionaryContext();
 
   if (checks.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+      <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-sm text-subtle-foreground">
         <FormattedMessage {...contentEditorFormatChecksMessages.emptyChecks} />
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl">
+    <div className="overflow-hidden rounded-lg border border-border">
       <ul className="divide-y divide-border">
         {checks.map((check) => (
           <li
@@ -80,20 +67,36 @@ export function ContentEditorFormatChecks({ checks }: { checks: ContentEditorFor
               formatCheckRowBackgroundClass(check.status),
             )}
           >
-            <FormatCheckIcon status={check.status} />
+            <ContentEditorFormatCheckStatusIcon status={check.status} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm font-medium text-foreground">{check.label}</p>
-                <span
-                  className={cn(
-                    "shrink-0 text-xs font-medium",
-                    formatCheckStatusClass(check.status),
-                  )}
-                >
+                <Badge variant={formatCheckStatusBadgeVariant(check.status)} className="shrink-0">
                   {formatCheckStatusLabel(check.status, intl)}
-                </span>
+                </Badge>
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{check.message}</p>
+              <p className="mt-1 text-sm leading-relaxed text-subtle-foreground">{check.message}</p>
+              {check.category === "spelling" &&
+              check.status !== "pass" &&
+              dictionary.canAddWords &&
+              check.relatedTokens?.[0] ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  disabled={dictionary.isAdding}
+                  onClick={() => {
+                    void dictionary.addWord(check.relatedTokens![0]);
+                  }}
+                >
+                  {dictionary.isAdding ? (
+                    <FormattedMessage {...contentEditorFormatChecksMessages.addingToDictionary} />
+                  ) : (
+                    <FormattedMessage {...contentEditorFormatChecksMessages.addToDictionary} />
+                  )}
+                </Button>
+              ) : null}
             </div>
           </li>
         ))}

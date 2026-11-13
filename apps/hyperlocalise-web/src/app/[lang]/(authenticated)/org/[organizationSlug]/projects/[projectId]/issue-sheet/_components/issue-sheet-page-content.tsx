@@ -12,8 +12,7 @@
  */
 "use client";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Copy01Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CopyIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
@@ -38,8 +37,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import type { IssueSheetImportFormat } from "@/lib/projects/issue-sheet/issue-sheet-import-format";
 
 import { buildIssueDetailHref } from "../../../../_components/issue-detail/issue-detail-utils";
 import { IssueBulkActionBar } from "../../../../_components/issue-bulk-action-bar";
@@ -56,6 +56,7 @@ import { ProjectPageShell, ProjectSectionHeader } from "../../_components/projec
 import { useProjectPageQuery } from "../../_components/project-page-shell";
 import { IssueSheetCreateIssueDialog } from "./issue-sheet-create-issue-dialog";
 import { IssueSheetImportDialog } from "./issue-sheet-import-dialog";
+import { IssueSheetImportMenu } from "./issue-sheet-import-menu";
 import { useRouter } from "next/navigation";
 
 const columnTypeValues = ["text", "long_text", "select", "user"] as const;
@@ -105,10 +106,12 @@ export function IssueSheetPageContent({
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useIssueListUrlState();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importFormat, setImportFormat] = useState<IssueSheetImportFormat>("csv");
 
   const requestFailed = intl.formatMessage(messages.requestFailed);
   const apiQuery = issueListStateToApiQuery(state);
@@ -116,18 +119,11 @@ export function IssueSheetPageContent({
   const issueSheetQuery = useQuery({
     queryKey,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].$get({
-        param: { organizationSlug, projectId },
-        query: apiQuery,
-      } as never);
-      if (response.status !== 200) {
-        throw new Error(
-          (await readApiResponseError(response, requestFailed)).message || requestFailed,
-        );
+      try {
+        return await goSvcClient.issueSheet.list(organizationSlug, projectId, apiQuery);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, requestFailed), { cause: error });
       }
-      return response.json();
     },
   });
 
@@ -176,20 +172,24 @@ export function IssueSheetPageContent({
     <ProjectPageShell>
       <div className="space-y-6">
         <ProjectSectionHeader
-          icon={Copy01Icon}
+          icon={CopyIcon}
           section={intl.formatMessage(messages.sectionTitle)}
-          description={intl.formatMessage(messages.sectionDescription)}
           actions={
             <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setImportDialogOpen(true)}>
-                <FormattedMessage {...messages.importCsv} />
-              </Button>
+              <IssueSheetImportMenu
+                variant="ghost"
+                size="sm"
+                onSelectFormat={(nextFormat) => {
+                  setImportFormat(nextFormat);
+                  setImportDialogOpen(true);
+                }}
+              />
               <Button variant="ghost" size="sm" onClick={() => setColumnDialogOpen(true)}>
-                <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
+                <PlusIcon data-icon="inline-start" />
                 <FormattedMessage {...messages.column} />
               </Button>
               <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-                <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
+                <PlusIcon data-icon="inline-start" />
                 <FormattedMessage {...messages.issue} />
               </Button>
             </div>
@@ -287,6 +287,7 @@ export function IssueSheetPageContent({
         projectId={projectId}
         columns={data?.columns ?? []}
         onImported={refresh}
+        format={importFormat}
       />
     </ProjectPageShell>
   );
@@ -306,6 +307,7 @@ function CreateColumnDialog({
   onCreated: () => Promise<void>;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const requestFailed = intl.formatMessage(messages.requestFailed);
   const [icon, setIcon] = useState<string | null>(null);
 
@@ -323,24 +325,17 @@ function CreateColumnDialog({
         .map((option) => option.trim())
         .filter(Boolean)
         .map((option) => ({ id: option, label: option }));
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].columns.$post({
-        param: { organizationSlug, projectId },
-        json: {
+      try {
+        return await goSvcClient.issueSheet.columns.create(organizationSlug, projectId, {
           key: formString(formData, "key"),
           label: formString(formData, "label"),
           type,
           icon,
           config: type === "select" ? { options } : {},
-        },
-      } as never);
-      if (response.status !== 201) {
-        throw new Error(
-          (await readApiResponseError(response, requestFailed)).message || requestFailed,
-        );
+        });
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, requestFailed), { cause: error });
       }
-      return response.json();
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.columnAdded));

@@ -1,0 +1,371 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { describe, expect, it } from "vite-plus/test";
+
+import { createDefaultConfig } from "@/lib/visual-workflows/catalog/node-catalog";
+import { applyVisualWorkflowGraphConnection } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
+import type {
+  VisualWorkflowRfEdge,
+  VisualWorkflowRfNode,
+} from "@/lib/visual-workflows/schema/types";
+import { presentVisualWorkflowEdges, visualWorkflowViewCenter } from "./visual-workflow-canvas";
+
+function node(id: string, type: VisualWorkflowRfNode["data"]["catalogType"]): VisualWorkflowRfNode {
+  return {
+    id,
+    type,
+    position: { x: 0, y: 0 },
+    data: {
+      catalogType: type,
+      config: createDefaultConfig(type),
+      runStatus: "idle",
+    },
+  };
+}
+
+function executionEdge(
+  id: string,
+  source: string,
+  target: string,
+  sourceHandle = "success",
+): VisualWorkflowRfEdge {
+  return {
+    id,
+    source,
+    target,
+    sourceHandle,
+    targetHandle: "input",
+    data: {
+      kind: "execution",
+    },
+  };
+}
+
+const nodes = [node("trigger", "trigger.manual"), node("request", "action.http")];
+
+describe("applyVisualWorkflowGraphConnection edge kinds", () => {
+  it("creates an execution edge for execution ports", () => {
+    const {
+      edges: [edge],
+    } = applyVisualWorkflowGraphConnection(nodes, [], {
+      source: "trigger",
+      target: "request",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    expect(edge).toMatchObject({
+      sourceHandle: "success",
+      targetHandle: "input",
+      data: { kind: "execution" },
+    });
+  });
+
+  it("normalizes omitted execution handles to stable port IDs", () => {
+    const {
+      edges: [edge],
+    } = applyVisualWorkflowGraphConnection(nodes, [], {
+      source: "trigger",
+      target: "request",
+      sourceHandle: null,
+      targetHandle: null,
+    });
+
+    expect(edge).toMatchObject({
+      sourceHandle: "success",
+      targetHandle: "input",
+      data: { kind: "execution" },
+    });
+  });
+
+  it("creates a data edge and keeps its stable port IDs", () => {
+    const executionGraph = applyVisualWorkflowGraphConnection(nodes, [], {
+      source: "trigger",
+      target: "request",
+      sourceHandle: "success",
+      targetHandle: "input",
+    });
+
+    const { edges } = applyVisualWorkflowGraphConnection(nodes, executionGraph.edges, {
+      source: "trigger",
+      target: "request",
+      sourceHandle: "triggeredAt",
+      targetHandle: "url",
+    });
+    const edge = edges.find((candidate) => candidate.data?.kind === "data");
+
+    expect(edge).toMatchObject({
+      sourceHandle: "triggeredAt",
+      targetHandle: "url",
+      data: { kind: "data" },
+      label: "triggeredAt → url",
+      style: { strokeDasharray: "5 4" },
+    });
+  });
+});
+
+describe("presentVisualWorkflowEdges", () => {
+  it("draws a Loop's Each item steps in blue and every other execution wire grey", () => {
+    const loopNodes = [
+      node("trigger", "trigger.manual"),
+      node("loop", "logic.for_each"),
+      node("body", "logic.set"),
+      node("body-end", "logic.set"),
+      node("after", "logic.set"),
+      node("summary", "logic.set"),
+    ];
+
+    const edges = [
+      executionEdge("trigger-loop", "trigger", "loop"),
+      executionEdge("loop-body", "loop", "body", "each"),
+      executionEdge("body-end", "body", "body-end"),
+      executionEdge("loop-after", "loop", "after", "done"),
+      executionEdge("after-summary", "after", "summary"),
+    ];
+
+    const presented = presentVisualWorkflowEdges(loopNodes, edges);
+
+    const colour = (id: string) =>
+      (presented.find((edge) => edge.id === id)?.style as Record<string, unknown> | undefined)?.[
+        "--xy-edge-stroke"
+      ];
+
+    // Each item steps stand out in blue; every other execution wire is the same grey.
+    expect(colour("loop-body")).toBe("var(--primary)");
+    expect(colour("body-end")).toBe("var(--primary)");
+    expect(colour("trigger-loop")).toBe("var(--muted-foreground)");
+    expect(colour("loop-after")).toBe("var(--muted-foreground)");
+    expect(colour("after-summary")).toBe("var(--muted-foreground)");
+    for (const edge of presented) {
+      // No inline stroke, so React Flow's selected style still darkens a selected wire.
+      expect(edge.style).toMatchObject({
+        strokeWidth: 2,
+        "--xy-edge-stroke-selected": "var(--foreground)",
+      });
+      expect(edge.style?.stroke).toBeUndefined();
+    }
+
+    // The way the workflow runs is read from the handles, so execution edges carry no arrowhead.
+    expect(presented.every((edge) => edge.markerEnd === undefined)).toBe(true);
+  });
+
+  it("outlines a label's letters in the canvas colour instead of boxing them", () => {
+    const presented = presentVisualWorkflowEdges(
+      [node("branch", "logic.if"), node("slack", "action.notify_slack")],
+      [{ ...executionEdge("branch-slack", "branch", "slack", "false"), label: "false" }],
+    );
+
+    expect(presented[0]).toMatchObject({
+      label: "false",
+      labelShowBg: false,
+      labelStyle: { paintOrder: "stroke", stroke: "var(--sidebar)" },
+    });
+  });
+
+  it("keeps data edges visually distinct from loop execution regions", () => {
+    const loopNodes = [node("loop", "logic.for_each"), node("body", "logic.set")];
+
+    const edges: VisualWorkflowRfEdge[] = [
+      executionEdge("loop-body", "loop", "body", "each"),
+      {
+        id: "loop-body-data",
+        source: "loop",
+        target: "body",
+        sourceHandle: "item",
+        targetHandle: "value",
+        data: {
+          kind: "data",
+        },
+      },
+    ];
+
+    const presented = presentVisualWorkflowEdges(loopNodes, edges);
+    const data = presented.find((edge) => edge.id === "loop-body-data");
+
+    expect(data?.style?.strokeDasharray).toBeUndefined();
+    expect(data).toMatchObject({
+      label: "item → value",
+      labelShowBg: false,
+      markerEnd: { type: "arrowclosed" },
+    });
+  });
+
+  it("attaches a data wire and an execution wire of the same name to different handles", () => {
+    const read = node("read", "action.file_read");
+    const edges: VisualWorkflowRfEdge[] = [
+      executionEdge("on-error", "read", "request", "error"),
+      {
+        id: "error-value",
+        source: "read",
+        target: "request",
+        sourceHandle: "error",
+        targetHandle: "body",
+        data: { kind: "data" },
+      },
+    ];
+
+    const presented = presentVisualWorkflowEdges([read, node("request", "action.http")], edges);
+
+    expect(presented.find((edge) => edge.id === "on-error")).toMatchObject({
+      sourceHandle: "error",
+      targetHandle: "input",
+    });
+    expect(presented.find((edge) => edge.id === "error-value")).toMatchObject({
+      sourceHandle: "data:error",
+      targetHandle: "data:body",
+      label: "error → body",
+    });
+  });
+
+  it("shows dynamic input names instead of stable port IDs on data edges", () => {
+    const trigger = node("trigger", "trigger.manual");
+    trigger.data.outputFields = [{ path: "customerName", type: "string" }];
+    const template = node("template", "logic.text_template");
+    template.data.config = {
+      kind: "logic.text_template",
+      template: "Hello {{name}}",
+      placeholders: [
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          name: "name",
+          type: "string",
+          missingBehavior: "required",
+        },
+      ],
+    };
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "name-binding",
+        source: "trigger",
+        target: "template",
+        sourceHandle: "customerName",
+        targetHandle: "value.11111111-1111-4111-8111-111111111111",
+        data: { kind: "data" },
+      },
+    ];
+
+    expect(presentVisualWorkflowEdges([trigger, template], edges)[0]?.label).toBe(
+      "customerName → name",
+    );
+  });
+});
+
+describe("presentVisualWorkflowEdges wire weights and reference lines", () => {
+  function slackReading(message: string): VisualWorkflowRfNode {
+    const slack = node("slack", "action.notify_slack");
+    slack.data.config = { ...slack.data.config, message } as typeof slack.data.config;
+    return slack;
+  }
+
+  it("draws execution wires thick, and data wires solid with their dashes dropped", () => {
+    const presented = presentVisualWorkflowEdges(
+      [node("trigger", "trigger.manual"), node("request", "action.http")],
+      [
+        executionEdge("run", "trigger", "request"),
+        {
+          id: "wire",
+          source: "trigger",
+          target: "request",
+          sourceHandle: "triggeredAt",
+          targetHandle: "url",
+          data: { kind: "data" },
+          style: { strokeDasharray: "5 4" },
+        },
+      ],
+    );
+
+    expect(presented.find((edge) => edge.id === "run")?.style).toMatchObject({ strokeWidth: 2 });
+    const wire = presented.find((edge) => edge.id === "wire");
+    expect(wire?.style?.strokeDasharray).toBeUndefined();
+    expect(wire?.style?.strokeWidth).toBeUndefined();
+    expect(wire?.selectable).toBeUndefined();
+  });
+
+  it("draws a dashed line that cannot be touched for each field a setting's text reads", () => {
+    const presented = presentVisualWorkflowEdges(
+      [
+        node("trigger", "trigger.manual"),
+        node("http", "action.http"),
+        slackReading(
+          "{{ nodes.http.status }} for {{ trigger.triggeredAt }}, {{ nodes.http.json.items.0 }} and {{ nodes.http.status }}",
+        ),
+      ],
+      [executionEdge("run", "trigger", "http"), executionEdge("next", "http", "slack")],
+    );
+
+    const lines = presented.filter((edge) => edge.data?.kind === "reference");
+    expect(
+      lines.map(
+        (line) => `${line.source}.${line.sourceHandle} -> ${line.target}.${line.targetHandle}`,
+      ),
+    ).toEqual([
+      "http.data:status -> slack.data:message",
+      "trigger.data:triggeredAt -> slack.data:message",
+      "http.data:json -> slack.data:message",
+    ]);
+    expect(lines[0]).toMatchObject({
+      selectable: false,
+      deletable: false,
+      focusable: false,
+      reconnectable: false,
+      interactionWidth: 0,
+      style: { strokeDasharray: "5 4", pointerEvents: "none" },
+    });
+  });
+
+  it("draws no line for a setting fed by a wire, or for a step that is gone", () => {
+    const presented = presentVisualWorkflowEdges(
+      [
+        node("trigger", "trigger.manual"),
+        node("http", "action.http"),
+        slackReading("{{ nodes.http.status }} {{ nodes.gone.status }}"),
+      ],
+      [
+        {
+          id: "wire",
+          source: "trigger",
+          target: "slack",
+          sourceHandle: "triggeredAt",
+          targetHandle: "message",
+          data: { kind: "data" },
+        },
+      ],
+    );
+
+    expect(presented.filter((edge) => edge.data?.kind === "reference")).toEqual([]);
+  });
+});
+
+describe("visualWorkflowViewCenter", () => {
+  const reactFlow = {
+    // A view panned by 100 and 50 at half zoom.
+    screenToFlowPosition: ({ x, y }: { x: number; y: number }) => ({
+      x: (x - 100) / 0.5,
+      y: (y - 50) / 0.5,
+    }),
+  };
+
+  it("gives the canvas position under the middle of the canvas's box", () => {
+    expect(
+      visualWorkflowViewCenter(reactFlow, { left: 300, top: 150, width: 800, height: 400 }),
+    ).toEqual({ x: 1200, y: 600 });
+  });
+
+  it("gives nothing before the canvas is ready or while it has no size", () => {
+    expect(visualWorkflowViewCenter(null, { left: 0, top: 0, width: 800, height: 400 })).toBeNull();
+    expect(visualWorkflowViewCenter(reactFlow, undefined)).toBeNull();
+    expect(
+      visualWorkflowViewCenter(reactFlow, { left: 0, top: 0, width: 0, height: 0 }),
+    ).toBeNull();
+  });
+});

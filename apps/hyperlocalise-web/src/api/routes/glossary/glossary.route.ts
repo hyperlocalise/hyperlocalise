@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { count, desc, eq, and } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -20,61 +20,32 @@ import { badRequestResponse } from "@/api/response.schema";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
-import { Glossary, type NativeGlossary } from "@/lib/glossary/glossary";
+import { type NativeGlossary } from "@/lib/glossary/glossary";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
 import { isUserMemberOfTeam } from "@/lib/glossary/attached-team-glossaries";
-import {
-  queryNativeGlossaryTermCountForGlossary,
-  queryNativeGlossaryTermCounts,
-} from "@/lib/glossary/query-glossary-term-counts";
-import { NativeGlossary as NativeGlossaryProduct } from "@/lib/glossary/native-glossary";
-import { loadGlossaryInterchangeDocument } from "@/lib/glossary/interchange/glossary-interchange";
-import { GlossaryFormatFactory } from "@/lib/glossary/interchange/glossary-format-factory";
-import { getGlossaryImportReport } from "@/lib/glossary/interchange/glossary-import-reports";
-import { getStoredFileContent } from "@/lib/file-storage/records";
-import type { FileStorageAdapter } from "@/lib/file-storage/types";
+import { queryNativeGlossaryTermCountForGlossary } from "@/lib/glossary/query-glossary-term-counts";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
-import {
-  queryNativeGlossaryLanguages,
-  queryNativeGlossaryLanguagesForGlossary,
-} from "@/lib/glossary/query-glossary-languages";
+import { queryNativeGlossaryLanguagesForGlossary } from "@/lib/glossary/query-glossary-languages";
 import {
   queryGlossaryTeamNamesById,
   resolveGlossaryTeamName,
 } from "@/lib/glossary/query-glossary-team-names";
-import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
-import {
-  getOwnedProject,
-  getOwnedProjectRecord,
-  projectNotFoundResponse,
-} from "../project/project.shared";
+import { projectNotFoundResponse } from "../project/project.shared";
 import { createGlossaryConceptRoutes } from "./glossary-concept.route";
-import { buildGlossaryListWhere } from "./glossary-list-filters";
 import {
-  attachGlossaryProjectBodySchema,
   createGlossaryBodySchema,
   glossaryIdParamsSchema,
-  glossaryProjectParamsSchema,
-  listGlossaryQuerySchema,
-  glossaryExportQuerySchema,
-  updateGlossaryBodySchema,
-  type AttachGlossaryProjectBody,
   type CreateGlossaryBody,
   type GlossaryRecord,
-  type ListGlossaryQuery,
 } from "./glossary.schema";
 import {
-  externalGlossaryLocaleReadonlyResponse,
-  externalTmsGlossaryImmutableResponse,
   forbiddenResponse,
   glossaryTeamMembershipRequiredResponse,
   glossaryTeamNativeProjectRequiredResponse,
   glossaryTeamNotFoundResponse,
   glossaryTeamProjectRequiredResponse,
-  glossarySourceLocaleAttachedProjectsResponse,
-  glossarySourceLocaleExistingTermsResponse,
   invalidGlossaryPayloadResponse,
   isGlossaryManageAllowed,
   resolveCreateGlossaryControlLevel,
@@ -97,59 +68,6 @@ function toGlossaryRecordWithTeamName(
     projectCount,
     resolveGlossaryTeamName(glossary, teamNamesById),
   );
-}
-
-type GlossaryListResult = {
-  glossaries: NativeGlossary[];
-  total: number;
-  languagesByGlossaryId: Map<string, ReturnType<typeof toGlossaryRecord>["languages"]>;
-  termCountsByGlossaryId: Map<string, number>;
-  projectCountsByGlossaryId: Map<string, number>;
-  productsByGlossaryId: Map<string, Glossary>;
-};
-
-async function listGlossaries(
-  auth: ApiAuthContext,
-  query?: ListGlossaryQuery,
-): Promise<GlossaryListResult> {
-  const limit = query?.limit ?? 50;
-  const offset = query?.offset ?? 0;
-  const where = await buildGlossaryListWhere(auth, query);
-
-  const [glossaries, totalRow] = await Promise.all([
-    db
-      .select()
-      .from(schema.glossaries)
-      .where(where)
-      .orderBy(desc(schema.glossaries.createdAt))
-      .limit(limit)
-      .offset(offset),
-    db.select({ value: count() }).from(schema.glossaries).where(where),
-  ]);
-
-  const productsByGlossaryId = new Map<string, Glossary>();
-  for (const glossary of glossaries) {
-    const product = getGlossaryProduct({ auth, glossary });
-    if (product) {
-      productsByGlossaryId.set(glossary.id, product);
-    }
-  }
-
-  const [languagesByGlossaryId, termCountsByGlossaryId, projectCountsByGlossaryId] =
-    await Promise.all([
-      queryNativeGlossaryLanguages(glossaries),
-      queryNativeGlossaryTermCounts(glossaries),
-      Glossary.queryProjectCounts([...productsByGlossaryId.values()]),
-    ]);
-
-  return {
-    glossaries,
-    total: totalRow[0]?.value ?? 0,
-    languagesByGlossaryId,
-    termCountsByGlossaryId,
-    projectCountsByGlossaryId,
-    productsByGlossaryId,
-  };
 }
 
 type CreateNativeGlossaryResult =
@@ -304,16 +222,6 @@ const validateGlossaryParams = validator("param", (value, c) => {
   return parsed.data;
 });
 
-const validateGlossaryProjectParams = validator("param", (value, c) => {
-  const parsed = glossaryProjectParamsSchema.safeParse(value);
-
-  if (!parsed.success) {
-    return glossaryNotFoundResponse(c);
-  }
-
-  return parsed.data;
-});
-
 const validateCreateGlossaryBody = validator("json", (value, c) => {
   const parsed = createGlossaryBodySchema.safeParse(value);
 
@@ -324,200 +232,10 @@ const validateCreateGlossaryBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateAttachGlossaryProjectBody = validator("json", (value, c) => {
-  const parsed = attachGlossaryProjectBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidGlossaryPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateUpdateGlossaryBody = validator("json", (value, c) => {
-  if (value && typeof value === "object" && "controlLevel" in value) {
-    return invalidGlossaryPayloadResponse(c);
-  }
-
-  const parsed = updateGlossaryBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidGlossaryPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateListGlossaryQuery = validator("query", (value, _c) => {
-  const parsed = listGlossaryQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return undefined;
-  }
-
-  return parsed.data;
-});
-
-const validateGlossaryExportQuery = validator("query", (value, c) => {
-  const parsed = glossaryExportQuerySchema.safeParse(value);
-  if (!parsed.success) return badRequestResponse(c, "invalid_glossary_export_payload");
-  return parsed.data;
-});
-
-function glossaryDownloadFilename(name: string, extension: string, scope: "complete" | "filtered") {
-  const sanitized =
-    name
-      .normalize("NFKC")
-      .replace(/[^\p{L}\p{N}._-]+/gu, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 120) || "glossary";
-  return `${sanitized}${scope === "filtered" ? "-filtered" : ""}.${extension}`;
-}
-
-export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorageAdapter } = {}) {
+export function createGlossaryRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
-    .route("/:glossaryId/concepts", createGlossaryConceptRoutes(options))
-    .get("/", validateListGlossaryQuery, async (c) => {
-      const query = c.req.valid("query");
-      const {
-        glossaries,
-        total,
-        languagesByGlossaryId,
-        termCountsByGlossaryId,
-        projectCountsByGlossaryId,
-        productsByGlossaryId,
-      } = await listGlossaries(c.var.auth, query);
-      const teamNamesById = await queryGlossaryTeamNamesById(glossaries);
-      const records = await mapWithConcurrency(glossaries, 5, async (glossary) => {
-        const product = productsByGlossaryId.get(glossary.id);
-        const termCount =
-          glossary.source === "native" ? (termCountsByGlossaryId.get(glossary.id) ?? 0) : undefined;
-        const projectCount = projectCountsByGlossaryId.get(glossary.id) ?? 0;
-        if (product) {
-          const remote = await product.get();
-          const languages = languagesByGlossaryId.get(glossary.id);
-          return languages
-            ? toGlossaryRecordWithTeamName(
-                remote ?? glossary,
-                teamNamesById,
-                languages,
-                termCount,
-                projectCount,
-              )
-            : toGlossaryRecordWithTeamName(
-                remote ?? glossary,
-                teamNamesById,
-                undefined,
-                termCount,
-                projectCount,
-              );
-        }
-        return toGlossaryRecordWithTeamName(
-          glossary,
-          teamNamesById,
-          languagesByGlossaryId.get(glossary.id),
-          termCount,
-          projectCount,
-        );
-      });
-      return c.json(
-        {
-          glossaries: records,
-          total,
-        },
-        200,
-      );
-    })
-    .get("/:glossaryId/export", validateGlossaryParams, validateGlossaryExportQuery, async (c) => {
-      const { glossaryId } = c.req.valid("param");
-      const query = c.req.valid("query");
-      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-      if (!glossary) return glossaryNotFoundResponse(c);
-
-      if (glossary.source !== "native") {
-        return badRequestResponse(
-          c,
-          "glossary_export_unsupported",
-          "This provider-backed glossary does not expose a supported export capability.",
-        );
-      }
-
-      const document = await loadGlossaryInterchangeDocument({
-        glossary,
-        search: query.scope === "filtered" ? query.search : undefined,
-        locale: query.scope === "filtered" ? (query.locales ?? query.locale) : undefined,
-      });
-      const serialized = GlossaryFormatFactory.create(query.format).serialize(document);
-      if (serialized.errors.length > 0) {
-        return badRequestResponse(
-          c,
-          serialized.errors[0]?.code ?? "glossary_export_failed",
-          serialized.errors[0]?.message,
-          { diagnostics: serialized.errors },
-        );
-      }
-
-      c.header("Content-Type", GlossaryFormatFactory.create(query.format).mimeType);
-      c.header(
-        "Content-Disposition",
-        `attachment; filename*=UTF-8''${encodeURIComponent(glossaryDownloadFilename(glossary.name, query.format, query.scope))}`,
-      );
-      c.header("Cache-Control", "no-store");
-      c.header("Content-Security-Policy", "default-src 'none'; sandbox;");
-      c.header("X-Content-Type-Options", "nosniff");
-      c.header("X-Download-Options", "noopen");
-      c.header("X-Hyperlocalise-Export-Warning-Count", String(serialized.warnings.length));
-      await enqueueActivityLogEvent({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        eventType: "glossary_exported",
-        organizationId: c.var.auth.organization.localOrganizationId,
-        payload: { resourceId: glossary.id },
-        targetId: glossary.id,
-        targetKind: "glossary",
-      });
-      return c.body(Buffer.from(serialized.content));
-    })
-    .get("/:glossaryId/import-reports/:reportId", validateGlossaryParams, async (c) => {
-      const { glossaryId } = c.req.valid("param");
-      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-      if (!glossary) return glossaryNotFoundResponse(c);
-      const report = await getGlossaryImportReport({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        glossaryId,
-        reportId: c.req.param("reportId"),
-      });
-      if (!report) return glossaryNotFoundResponse(c);
-      return c.json({ report: report.run, entries: report.entries }, 200);
-    })
-    .get("/:glossaryId/import-reports/:reportId/backup", validateGlossaryParams, async (c) => {
-      const { glossaryId } = c.req.valid("param");
-      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-      if (!glossary) return glossaryNotFoundResponse(c);
-      const report = await getGlossaryImportReport({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        glossaryId,
-        reportId: c.req.param("reportId"),
-      });
-      if (!report?.run.backupFileId) return glossaryNotFoundResponse(c);
-      const stored = await getStoredFileContent({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        fileId: report.run.backupFileId,
-        adapter: options.fileStorageAdapter,
-      });
-      c.header("Content-Type", stored.file.contentType);
-      c.header(
-        "Content-Disposition",
-        `attachment; filename*=UTF-8''${encodeURIComponent(stored.file.filename)}`,
-      );
-      c.header("Cache-Control", "no-store");
-      c.header("Content-Security-Policy", "default-src 'none'; sandbox;");
-      c.header("X-Content-Type-Options", "nosniff");
-      c.header("X-Download-Options", "noopen");
-      return c.body(stored.content);
-    })
+    .route("/:glossaryId/concepts", createGlossaryConceptRoutes())
     .post("/", validateCreateGlossaryBody, async (c) => {
       const payload = c.req.valid("json");
       const controlLevel = resolveCreateGlossaryControlLevel(
@@ -645,250 +363,5 @@ export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorage
         },
         200,
       );
-    })
-    .get("/:glossaryId/projects", validateGlossaryParams, async (c) => {
-      const params = c.req.valid("param");
-      const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
-
-      if (!glossary) {
-        return glossaryNotFoundResponse(c);
-      }
-
-      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
-      return c.json({ projects: product ? await product.listProjects() : [] }, 200);
-    })
-    .post(
-      "/:glossaryId/projects",
-      validateGlossaryParams,
-      validateAttachGlossaryProjectBody,
-      async (c) => {
-        if (!isGlossaryManageAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
-        }
-
-        const params = c.req.valid("param");
-        const payload: AttachGlossaryProjectBody = c.req.valid("json");
-        const [glossary, project] = await Promise.all([
-          getOwnedGlossary(c.var.auth, params.glossaryId),
-          getOwnedProject(c.var.auth, payload.projectId),
-        ]);
-
-        if (!glossary) {
-          return glossaryNotFoundResponse(c);
-        }
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
-        const projectRecord = await getOwnedProjectRecord(c.var.auth, payload.projectId);
-        if (!projectRecord) {
-          return projectNotFoundResponse(c);
-        }
-        if (!projectRecord.sourceLocale) {
-          return badRequestResponse(
-            c,
-            "glossary_source_locale_mismatch",
-            "The selected project uses a different source locale",
-          );
-        }
-
-        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
-        if (!product) return externalTmsGlossaryImmutableResponse(c);
-
-        if (product instanceof NativeGlossaryProduct) {
-          const result = await product.attachProjectWithGuard(project.id, payload.priority, {
-            source: projectRecord.source,
-            sourceLocale: projectRecord.sourceLocale,
-          });
-          switch (result.status) {
-            case "source_locale_mismatch":
-              return badRequestResponse(
-                c,
-                "glossary_source_locale_mismatch",
-                "The selected project uses a different source locale",
-              );
-            case "team_native_project_required":
-              return glossaryTeamNativeProjectRequiredResponse(c);
-            case "not_found":
-              return glossaryNotFoundResponse(c);
-            case "attached":
-              break;
-          }
-        } else {
-          if (projectRecord.sourceLocale !== glossary.sourceLocale) {
-            return badRequestResponse(
-              c,
-              "glossary_source_locale_mismatch",
-              "The selected project uses a different source locale",
-            );
-          }
-          await product.attachProject(project.id, payload.priority);
-        }
-
-        await enqueueActivityLogEvent({
-          actorCredentialId: null,
-          actorKind: "user",
-          actorUserId: c.var.auth.user.localUserId,
-          eventType: "glossary_project_attached",
-          organizationId: c.var.auth.organization.localOrganizationId,
-          payload: { projectId: project.id, resourceId: glossary.id },
-          targetId: project.id,
-          targetKind: "project",
-        });
-        return c.json({ projects: await product.listProjects() }, 200);
-      },
-    )
-    .delete("/:glossaryId/projects/:projectId", validateGlossaryProjectParams, async (c) => {
-      if (!isGlossaryManageAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const [glossary, project] = await Promise.all([
-        getOwnedGlossary(c.var.auth, params.glossaryId),
-        getOwnedProject(c.var.auth, params.projectId),
-      ]);
-
-      if (!glossary) {
-        return glossaryNotFoundResponse(c);
-      }
-      if (!project) {
-        return projectNotFoundResponse(c);
-      }
-
-      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
-      if (!product) return externalTmsGlossaryImmutableResponse(c);
-
-      if (product instanceof NativeGlossaryProduct) {
-        const result = await product.detachProjectWithTeamGuard(project.id);
-        if (result === "team_project_required") {
-          return glossaryTeamProjectRequiredResponse(c);
-        }
-      } else {
-        await product.detachProject(project.id);
-      }
-
-      await enqueueActivityLogEvent({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        eventType: "glossary_project_detached",
-        organizationId: c.var.auth.organization.localOrganizationId,
-        payload: { projectId: project.id, resourceId: glossary.id },
-        targetId: project.id,
-        targetKind: "project",
-      });
-
-      return c.body(null, 204);
-    })
-    .patch("/:glossaryId", validateGlossaryParams, validateUpdateGlossaryBody, async (c) => {
-      if (!isGlossaryManageAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const payload = c.req.valid("json");
-      const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
-
-      if (!glossary) {
-        return glossaryNotFoundResponse(c);
-      }
-      if (glossary.source !== "native" && payload.sourceLocale !== undefined) {
-        return externalGlossaryLocaleReadonlyResponse(c);
-      }
-
-      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
-      if (!product) return externalTmsGlossaryImmutableResponse(c);
-
-      const needsAttachmentGuard =
-        product instanceof NativeGlossaryProduct &&
-        payload.sourceLocale !== undefined &&
-        payload.sourceLocale !== glossary.sourceLocale;
-
-      if (needsAttachmentGuard) {
-        const result = await product.updateWithAttachmentGuard(payload);
-        switch (result.status) {
-          case "source_locale_attached_projects":
-            return glossarySourceLocaleAttachedProjectsResponse(c);
-          case "source_locale_existing_terms":
-            return glossarySourceLocaleExistingTermsResponse(c);
-          case "not_found":
-            return glossaryNotFoundResponse(c);
-          case "updated": {
-            const termCount = await queryNativeGlossaryTermCountForGlossary(result.glossary);
-            const projectCount = await product.queryProjectCount();
-            const teamNamesById = await queryGlossaryTeamNamesById([result.glossary]);
-            return c.json(
-              {
-                glossary: toGlossaryRecordWithTeamName(
-                  result.glossary,
-                  teamNamesById,
-                  undefined,
-                  termCount,
-                  projectCount,
-                ),
-              },
-              200,
-            );
-          }
-        }
-      }
-
-      const updated = await product.update(payload);
-
-      if (!updated) {
-        return glossaryNotFoundResponse(c);
-      }
-
-      const termCount =
-        updated.source === "native"
-          ? await queryNativeGlossaryTermCountForGlossary(updated)
-          : undefined;
-      const projectCount = await product.queryProjectCount();
-      const teamNamesById = await queryGlossaryTeamNamesById([updated]);
-      return c.json(
-        {
-          glossary: toGlossaryRecordWithTeamName(
-            updated,
-            teamNamesById,
-            undefined,
-            termCount,
-            projectCount,
-          ),
-        },
-        200,
-      );
-    })
-    .delete("/:glossaryId", validateGlossaryParams, async (c) => {
-      if (!isGlossaryManageAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
-
-      if (!glossary) {
-        return glossaryNotFoundResponse(c);
-      }
-
-      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
-      if (!product) return externalTmsGlossaryImmutableResponse(c);
-      const deleted = await product.delete();
-
-      if (!deleted) {
-        return glossaryNotFoundResponse(c);
-      }
-
-      await enqueueActivityLogEvent({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        eventType: "glossary_deleted",
-        organizationId: c.var.auth.organization.localOrganizationId,
-        payload: { name: glossary.name, resourceId: glossary.id },
-        targetId: glossary.id,
-        targetKind: "glossary",
-      });
-
-      return c.body(null, 204);
     });
 }

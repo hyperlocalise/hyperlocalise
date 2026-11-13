@@ -52,7 +52,13 @@ func (s *Service) retryMarkdownASTParityScope(ctx context.Context, in *markdownP
 		if len(tasks) == 0 {
 			return fmt.Errorf("markdown parity retry: no tasks planned for source=%q target=%q locale=%q", output.sourcePath, targetPath, output.targetLocale)
 		}
-		for _, task := range tasks {
+
+		llmTasks, _ := partitionMTTasks(tasks)
+		if len(llmTasks) == 0 {
+			return fmt.Errorf("markdown parity retry: MT-translated output for %q failed structural validation against the source template and is not retried (%s)", targetPath, strings.Join(parityMsgs, "; "))
+		}
+
+		for _, task := range llmTasks {
 			t := task
 			materializeTaskPrompts(&t)
 			if strings.TrimSpace(fixCtx) != "" {

@@ -17,14 +17,52 @@ import {
   formatInternalMarkupForDisplay,
   hasInternalMarkup,
   internalMarkupLabel,
+  stripInternalMarkupSentinels,
+  stripLeakedInternalMarkupFromStoredMessage,
+  stripLeakedInternalMarkupNames,
 } from "./content-editor-internal-markup";
 
 const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
 const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
 const ht0 = "\u001eHLHTPH_AABBCCDDEEFF_0\u001f";
 const lq0 = "\u001eHLLQPH_112233445566_0\u001f";
+const ue0 = "\u001eHLUEPH_AABBCCDDEEFF_0\u001f";
 
 describe("cat internal markup helpers", () => {
+  it("labels Word and PowerPoint formatting sentinels", () => {
+    const message = "Read the \u001eHLOXPH_6F30_0\u001fterms\u001eHLOXPH_6330_1\u001f first.";
+
+    expect(formatInternalMarkupForDisplay(message)).toBe("Read the OX#0termsOX#1 first.");
+    expect(extractInternalMarkupSpans(message).map((span) => span.family)).toEqual(["OX", "OX"]);
+  });
+
+  it("hides leaked Office token names next to the labels", () => {
+    const open = "\u001eHLOXPH_6F30_0\u001f";
+    const close = "\u001eHLOXPH_6330_1\u001f";
+    const stored = `${open}HLOXPH_6F30_0 RECETTE${close} HLOXPH_6330_1 Pancakes à la fraise`;
+
+    expect(formatInternalMarkupForDisplay(stored)).toBe("OX#0RECETTEOX#1 Pancakes à la fraise");
+    expect(
+      formatInternalMarkupForDisplay("OX#0 HLOXPH_6F30_0 RECETTE OX#1 HLOXPH_6330_1 Pancakes"),
+    ).toBe("OX#0 RECETTE OX#1 Pancakes");
+    expect(stripLeakedInternalMarkupNames("OX#0 HLOXPH_6F30_0 RECETTE OX#1")).toBe(
+      "OX#0 RECETTE OX#1",
+    );
+    expect(
+      stripLeakedInternalMarkupFromStoredMessage(
+        `${open}HLOXPH_6F30_0 レシピ${close} HLOXPH_6330_1 いちごとバニラのパンケーキ`,
+      ),
+    ).toBe(`${open}レシピ${close} いちごとバニラのパンケーキ`);
+  });
+
+  it("removes sentinels so only visible text is counted", () => {
+    const stored =
+      "\u001eHLOXPH_6F30_0\u001fレシピ\u001eHLOXPH_6330_1\u001f\n\nいちごとバニラのパンケーキ";
+
+    expect(stripInternalMarkupSentinels(stored)).toBe("レシピ\n\nいちごとバニラのパンケーキ");
+    expect(stripInternalMarkupSentinels(stored)).toHaveLength(18);
+  });
+
   it("extracts markdown boundary sentinels with short labels", () => {
     const message = `${md0}next-generation CAT tool${md1}`;
     const spans = extractInternalMarkupSpans(message);
@@ -57,6 +95,22 @@ describe("cat internal markup helpers", () => {
     expect(spans.every((span) => span.literal.startsWith("\u001e"))).toBe(true);
   });
 
+  it("extracts Unreal PO sentinels", () => {
+    const message = `${ue0}Display Name`;
+    const spans = extractInternalMarkupSpans(message);
+
+    expect(spans).toEqual([
+      {
+        family: "UE",
+        index: 0,
+        literal: ue0,
+        start: 0,
+        end: ue0.length,
+        label: "UE#0",
+      },
+    ]);
+  });
+
   it("formats sentinels for plain-text display without leaking control bytes", () => {
     const formatted = formatInternalMarkupForDisplay(
       `Global teams need a ${md0}next-generation CAT tool${md1} today.`,
@@ -76,6 +130,7 @@ describe("cat internal markup helpers", () => {
     expect(internalMarkupLabel("MD", 2)).toBe("MD#2");
     expect(internalMarkupLabel("HT", 0)).toBe("HT#0");
     expect(internalMarkupLabel("LQ", 11)).toBe("LQ#11");
+    expect(internalMarkupLabel("UE", 0)).toBe("UE#0");
   });
 
   it("returns no spans for empty or non-sentinel text", () => {

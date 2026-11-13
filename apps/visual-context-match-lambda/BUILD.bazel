@@ -1,0 +1,14 @@
+go_binary(
+    name = "visual-context-match",
+    srcs = [
+        "contract.go",
+        "image.go",
+        "main.go",
+        "matcher.go",
+        "repository.go",
+        "textract.go",
+        "worker.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/visual-context-match-lambda",
+    visibility = ["//visibility:public"],
+)

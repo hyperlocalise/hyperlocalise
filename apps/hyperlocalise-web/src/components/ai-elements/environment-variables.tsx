@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Copy01Icon, Tick02Icon, ViewIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CopyIcon, CheckIcon, EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -21,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/primitives/cn";
 import type { ComponentProps, HTMLAttributes } from "react";
 import {
+  createElement,
   createContext,
   useCallback,
   useContext,
@@ -124,11 +124,7 @@ export const EnvironmentVariablesToggle = ({
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <span className="text-muted-foreground text-xs">
-        {showValues ? (
-          <HugeiconsIcon icon={ViewIcon} size={14} />
-        ) : (
-          <HugeiconsIcon icon={ViewOffSlashIcon} size={14} />
-        )}
+        {showValues ? <EyeIcon size={14} /> : <EyeSlashIcon size={14} />}
       </span>
       <Switch
         aria-label={intl.formatMessage(environmentVariablesMessages.toggleVisibilityAria)}
@@ -302,7 +298,7 @@ export const EnvironmentVariableCopyButton = ({
     [],
   );
 
-  const Icon = isCopied ? Tick02Icon : Copy01Icon;
+  const Icon = isCopied ? CheckIcon : CopyIcon;
 
   const tooltipText = isCopied
     ? intl.formatMessage(environmentVariablesMessages.copied)
@@ -324,7 +320,7 @@ export const EnvironmentVariableCopyButton = ({
             variant="ghost"
             {...props}
           >
-            {children ?? <HugeiconsIcon icon={Icon} size={12} />}
+            {children ?? createElement(Icon, { size: 12 })}
           </Button>
         }
       />

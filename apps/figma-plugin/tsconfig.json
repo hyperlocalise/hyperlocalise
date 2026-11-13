@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "lib": ["dom", "dom.iterable", "es2020"],
     "types": ["node", "@figma/plugin-typings"],
     "composite": false,

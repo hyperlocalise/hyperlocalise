@@ -15,24 +15,31 @@ import {
   canonicalPathLocale,
   clampScore,
   clipFindingEvidence,
+  comparableUrl,
   creditFinding,
   formatFindingWhere,
   htmlLangMatchesPathLocale,
   htmlLangSuggestionForPathLocale,
+  isValidHreflangCode,
   isWellFormedHtmlLang,
   languageOf,
   languagesMatch,
   LOCALE_SUBDOMAIN,
   looksPrimarilyEnglish,
   pageLocale,
+  passingShareScore,
   pathLocaleFromUrl,
   pathWithoutLocale,
   textHasEasternArabicDigits,
   textHasGregorianCalendarSignals,
   textHasHijriCalendarSignals,
   textHasWesternDigits,
+  urlRoutingLocale,
 } from "../shared";
 import type { HeuristicCreditOutcome, HeuristicScorer } from "../types";
+
+/** Mixed prefix/subdomain routing is a "watch" item, not a pass. */
+const INCONSISTENT_ROUTING_MAX_SCORE = 80;
 
 function scored(score: number, findings: LocalisationAuditFinding[]): HeuristicCreditOutcome {
   return { status: "scored", score: clampScore(score), findings };
@@ -44,7 +51,7 @@ function isSuccessful(page: LocalisationAuditCrawledPage): boolean {
 
 const scoreLocaleDetection: HeuristicScorer = (context) => {
   const findings: LocalisationAuditFinding[] = [];
-  let score = 100;
+  const failingPages = new Set<string>();
   const okPages = context.pages.filter(isSuccessful);
   if (okPages.length === 0) {
     return scored(0, [
@@ -67,8 +74,9 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
   for (const page of okPages) {
     if (!page.htmlLang) {
       missingLangPages.push(page);
+      failingPages.add(page.url);
     } else if (!isWellFormedHtmlLang(page.htmlLang)) {
-      score -= 12;
+      failingPages.add(page.url);
       findings.push(
         creditFinding({
           id: `locale-detection-invalid-${findings.length}`,
@@ -88,7 +96,7 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
     const pathLocale = pathLocaleFromUrl(page.url);
     if (pathLocale && page.htmlLang && !htmlLangMatchesPathLocale(page.htmlLang, pathLocale)) {
       const suggested = htmlLangSuggestionForPathLocale(pathLocale);
-      score -= 18;
+      failingPages.add(page.url);
       findings.push(
         creditFinding({
           id: `locale-detection-mismatch-${findings.length}`,
@@ -108,7 +116,6 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
 
   if (missingLangPages.length > 0) {
     const missingLang = missingLangPages.length;
-    score -= Math.min(60, missingLang * 20);
     const sampleUrls = missingLangPages
       .slice(0, 3)
       .map((page) => page.url)
@@ -135,16 +142,15 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
       }),
     );
   }
-  return scored(score, findings);
+  return scored(passingShareScore(okPages.length, failingPages.size), findings);
 };
 
 const scoreLocaleRouting: HeuristicScorer = (context) => {
   const findings: LocalisationAuditFinding[] = [];
-  let score = 100;
   const failed = context.pages.filter((page) => !isSuccessful(page));
+  let score = passingShareScore(context.pages.length, failed.length);
   for (const page of failed.slice(0, 5)) {
     const critical = page.status === 404;
-    score -= critical ? 28 : 12;
     findings.push(
       creditFinding({
         id: `locale-routing-http-${page.status}-${findings.length}`,
@@ -175,7 +181,7 @@ const scoreLocaleRouting: HeuristicScorer = (context) => {
     }
   }
   if (strategies.size > 1) {
-    score -= 10;
+    score = Math.min(score, INCONSISTENT_ROUTING_MAX_SCORE);
     findings.push(
       creditFinding({
         id: "locale-routing-inconsistent",
@@ -192,17 +198,18 @@ const scoreLocaleRouting: HeuristicScorer = (context) => {
     );
   }
 
+  // Locale coverage is applied once, as the overall-score coverage factor.
+  // Do not also deduct it here.
   if (context.detectedLocales.length <= 1) {
-    score -= 28;
     findings.push(
       creditFinding({
         id: "locale-routing-single-locale",
         creditId: "locale-routing",
         category: "technical",
-        severity: "medium",
+        severity: "info",
         title: "Only one locale signal detected",
         summary:
-          "The sample found little evidence of multi-locale routing (hreflang, locale prefixes, or html lang variety).",
+          "The sample found little evidence of multi-locale routing (hreflang, locale prefixes, or html lang variety). The overall score is scaled down for limited locale coverage.",
         where: formatFindingWhere({ section: "Sampled pages", tag: "document" }),
         url: context.pages[0]?.url,
         evidence: `Detected locale signals: ${context.detectedLocales.map((entry) => entry.locale).join(", ") || "none"}`,
@@ -211,8 +218,6 @@ const scoreLocaleRouting: HeuristicScorer = (context) => {
         confidence: 90,
       }),
     );
-  } else if (context.detectedLocales.length === 2) {
-    score -= 8;
   }
 
   return scored(score, findings);
@@ -310,7 +315,7 @@ const scoreHreflang: HeuristicScorer = (context) => {
   const okPages = context.pages.filter(isSuccessful);
   const hasHreflang = okPages.some((page) => page.hreflang.length > 0);
   if (!hasHreflang) {
-    return scored(38, [
+    return scored(0, [
       creditFinding({
         id: "hreflang-missing",
         creditId: "hreflang",
@@ -331,20 +336,46 @@ const scoreHreflang: HeuristicScorer = (context) => {
     ]);
   }
 
-  let score = 100;
-  const byUrl = new Map(context.pages.map((page) => [page.url, page]));
+  const byUrl = new Map<string, LocalisationAuditCrawledPage>();
+  for (const page of context.pages) {
+    for (const url of [page.url, page.finalUrl]) {
+      const key = url ? comparableUrl(url) : null;
+      if (key) byUrl.set(key, page);
+    }
+  }
+  const failingPages = new Set<string>();
+  const hreflangTag = '<link rel="alternate" hreflang>';
+  const where = formatFindingWhere({ section: "Document head", tag: hreflangTag });
+
+  const missingOnPages = okPages.filter((page) => page.hreflang.length === 0);
+  for (const page of missingOnPages) failingPages.add(page.url);
+  if (missingOnPages.length > 0) {
+    findings.push(
+      creditFinding({
+        id: "hreflang-partial",
+        creditId: "hreflang",
+        category: "technical",
+        severity: "medium",
+        title: "hreflang missing on some localized pages",
+        summary: `${missingOnPages.length} of ${okPages.length} sampled pages have no hreflang alternates while others do.`,
+        where,
+        url: missingOnPages[0]?.url,
+        evidence: `No hreflang on ${missingOnPages
+          .slice(0, 3)
+          .map((page) => page.url)
+          .join(", ")}`,
+        advice: "Emit the same reciprocal hreflang set on every localized version of a page.",
+        confidence: 95,
+      }),
+    );
+  }
 
   for (const page of okPages) {
     if (page.hreflang.length === 0) continue;
-    const self = page.hreflang.some((entry) => {
-      try {
-        return new URL(entry.href, page.url).toString() === new URL(page.url).toString();
-      } catch {
-        return entry.href === page.url;
-      }
-    });
+    const pageKey = comparableUrl(page.url);
+    const self = page.hreflang.some((entry) => comparableUrl(entry.href, page.url) === pageKey);
     if (!self) {
-      score -= 8;
+      failingPages.add(page.url);
       findings.push(
         creditFinding({
           id: `hreflang-self-${findings.length}`,
@@ -353,10 +384,7 @@ const scoreHreflang: HeuristicScorer = (context) => {
           severity: "medium",
           title: "Missing hreflang self-reference",
           summary: "The page lists hreflang alternates but does not include itself.",
-          where: formatFindingWhere({
-            section: "Document head",
-            tag: '<link rel="alternate" hreflang>',
-          }),
+          where,
           url: page.url,
           evidence: page.hreflang
             .slice(0, 4)
@@ -368,8 +396,8 @@ const scoreHreflang: HeuristicScorer = (context) => {
         }),
       );
     }
+    // x-default is recommended, not required (same as Google and Lighthouse).
     if (!page.hreflang.some((entry) => entry.locale.toLowerCase() === "x-default")) {
-      score -= 6;
       findings.push(
         creditFinding({
           id: `hreflang-xdefault-${findings.length}`,
@@ -378,10 +406,7 @@ const scoreHreflang: HeuristicScorer = (context) => {
           severity: "low",
           title: "Missing x-default hreflang",
           summary: "hreflang is present but does not declare an x-default fallback.",
-          where: formatFindingWhere({
-            section: "Document head",
-            tag: '<link rel="alternate" hreflang>',
-          }),
+          where,
           url: page.url,
           evidence: 'hreflang is present but none of the alternates use hreflang="x-default".',
           advice: "Add an x-default hreflang fallback for users whose locale is not listed.",
@@ -390,12 +415,29 @@ const scoreHreflang: HeuristicScorer = (context) => {
     }
 
     for (const entry of page.hreflang) {
+      if (!isValidHreflangCode(entry.locale)) {
+        failingPages.add(page.url);
+        findings.push(
+          creditFinding({
+            id: `hreflang-code-${findings.length}`,
+            creditId: "hreflang",
+            category: "technical",
+            severity: "high",
+            title: "Invalid hreflang language or region code",
+            summary: `hreflang="${entry.locale}" is not a valid ISO 639-1 language with an optional ISO 3166-1 region, so search engines ignore it.`,
+            where,
+            url: page.url,
+            evidence: `<link rel="alternate" hreflang="${entry.locale}" href="${entry.href}">`,
+            advice:
+              "Use a valid code such as en-GB (not en-UK), es-419, or zh-Hant, or x-default for the fallback.",
+            confidence: 98,
+          }),
+        );
+      }
       if (entry.locale.toLowerCase() === "x-default") continue;
-      let absolute: string;
-      try {
-        absolute = new URL(entry.href, page.url).toString();
-      } catch {
-        score -= 10;
+      const absolute = comparableUrl(entry.href, page.url);
+      if (!absolute) {
+        failingPages.add(page.url);
         findings.push(
           creditFinding({
             id: `hreflang-invalid-${findings.length}`,
@@ -404,10 +446,7 @@ const scoreHreflang: HeuristicScorer = (context) => {
             severity: "high",
             title: "Invalid hreflang URL",
             summary: `Alternate link for ${entry.locale} is not a valid URL.`,
-            where: formatFindingWhere({
-              section: "Document head",
-              tag: '<link rel="alternate" hreflang>',
-            }),
+            where,
             url: page.url,
             evidence: `<link rel="alternate" hreflang="${entry.locale}" href="${entry.href}">`,
             advice: `Use an absolute, valid URL for the ${entry.locale} hreflang alternate.`,
@@ -415,11 +454,10 @@ const scoreHreflang: HeuristicScorer = (context) => {
         );
         continue;
       }
-      const target =
-        byUrl.get(absolute) ??
-        [...byUrl.values()].find((candidate) => candidate.url === entry.href);
-      if (target && !isSuccessful(target)) {
-        score -= 22;
+      const target = byUrl.get(absolute);
+      if (!target || target === page) continue;
+      if (!isSuccessful(target)) {
+        failingPages.add(page.url);
         findings.push(
           creditFinding({
             id: `hreflang-broken-${findings.length}`,
@@ -428,44 +466,55 @@ const scoreHreflang: HeuristicScorer = (context) => {
             severity: "critical",
             title: `hreflang target returns HTTP ${target.status}`,
             summary: `Alternate link for ${entry.locale} points to a failing URL.`,
-            where: formatFindingWhere({
-              section: "Document head",
-              tag: '<link rel="alternate" hreflang>',
-            }),
-            url: absolute,
-            evidence: `<link rel="alternate" hreflang="${entry.locale}" href="${absolute}"> returns HTTP ${target.status}`,
+            where,
+            url: target.url,
+            evidence: `<link rel="alternate" hreflang="${entry.locale}" href="${target.url}"> returns HTTP ${target.status}`,
             advice: `Fix the ${entry.locale} hreflang target so it returns a successful HTML response.`,
             confidence: 100,
+          }),
+        );
+        continue;
+      }
+      if (target.hreflang.length === 0) continue;
+      const linksBack = target.hreflang.some(
+        (back) =>
+          back.locale.toLowerCase() !== "x-default" &&
+          comparableUrl(back.href, target.url) === pageKey,
+      );
+      if (!linksBack) {
+        failingPages.add(page.url);
+        findings.push(
+          creditFinding({
+            id: `hreflang-reciprocal-${findings.length}`,
+            creditId: "hreflang",
+            category: "technical",
+            severity: "high",
+            title: "hreflang is not reciprocal",
+            summary: `This page lists ${target.url} as its ${entry.locale} alternate, but that page does not link back. Search engines ignore one-way hreflang.`,
+            where,
+            url: page.url,
+            evidence: `${page.url} → ${target.url} (hreflang="${entry.locale}"), no return link`,
+            advice:
+              "Make every alternate list the same full set of URLs, including a link back to this page.",
+            confidence: 96,
           }),
         );
       }
     }
   }
 
-  return scored(score, findings);
+  return scored(passingShareScore(okPages.length, failingPages.size), findings);
 };
 
 const scoreCanonicalUrls: HeuristicScorer = (context) => {
   const findings: LocalisationAuditFinding[] = [];
-  let score = 100;
   const okPages = context.pages.filter(isSuccessful);
   const withCanonical = okPages.filter((page) => page.canonical);
+  // Like Lighthouse, a page without a canonical is not a failure; only wrong ones are.
   if (withCanonical.length === 0) {
-    return scored(72, [
-      creditFinding({
-        id: "canonical-missing",
-        creditId: "canonical-urls",
-        category: "technical",
-        severity: "medium",
-        title: "Canonical URLs are missing",
-        summary: "Sampled pages did not declare a canonical URL.",
-        where: formatFindingWhere({ section: "Document head", tag: '<link rel="canonical">' }),
-        url: okPages[0]?.url,
-        evidence: 'No <link rel="canonical"> was found on sampled pages.',
-        advice: "Add a canonical URL that points at this locale’s own page.",
-      }),
-    ]);
+    return { status: "na" };
   }
+  const failingPages = new Set<string>();
 
   for (const page of withCanonical) {
     const pageLoc = pageLocale(page);
@@ -473,7 +522,7 @@ const scoreCanonicalUrls: HeuristicScorer = (context) => {
     try {
       canonicalUrl = new URL(page.canonical!, page.url);
     } catch {
-      score -= 12;
+      failingPages.add(page.url);
       findings.push(
         creditFinding({
           id: `canonical-invalid-${findings.length}`,
@@ -490,10 +539,9 @@ const scoreCanonicalUrls: HeuristicScorer = (context) => {
       );
       continue;
     }
-    const canonicalPathToken = pathLocaleFromUrl(canonicalUrl.toString());
-    const canonicalLocale = canonicalPathToken ? canonicalPathLocale(canonicalPathToken) : null;
+    const canonicalLocale = urlRoutingLocale(canonicalUrl.toString());
     if (pageLoc && canonicalLocale && !languagesMatch(pageLoc, canonicalLocale)) {
-      score -= 30;
+      failingPages.add(page.url);
       findings.push(
         creditFinding({
           id: `canonical-locale-${findings.length}`,
@@ -512,7 +560,7 @@ const scoreCanonicalUrls: HeuristicScorer = (context) => {
     }
   }
 
-  return scored(score, findings);
+  return scored(passingShareScore(withCanonical.length, failingPages.size), findings);
 };
 
 const scoreLocalizedSeoMetadata: HeuristicScorer = (context) => {
@@ -688,7 +736,14 @@ const scoreSitemap: HeuristicScorer = (context) => {
     );
   }
 
-  if (context.detectedLocales.length > 1) {
+  // Sites that localize on separate ccTLDs keep locales in other sitemaps we do not fetch.
+  const routedLanguagesOnSite = new Set(
+    context.pages.flatMap((page) => {
+      const locale = urlRoutingLocale(page.url);
+      return locale ? [languageOf(locale)] : [];
+    }),
+  );
+  if (context.detectedLocales.length > 1 && routedLanguagesOnSite.size > 0) {
     if (sitemap.localizedUrls.length === 0) {
       score -= 40;
       findings.push(
@@ -698,30 +753,25 @@ const scoreSitemap: HeuristicScorer = (context) => {
           category: "technical",
           severity: "medium",
           title: "Sitemap is missing localized URLs",
-          summary: "A sitemap was found, but sampled entries do not include locale-prefixed URLs.",
+          summary:
+            "A sitemap was found, but sampled entries include no locale URLs or hreflang alternates.",
           where: formatFindingWhere({ section: "Sitemap", tag: "sitemap.xml" }),
           url: sitemap.sitemapUrls[0],
           evidence: sitemap.sitemapUrls[0]
-            ? `Sitemap ${sitemap.sitemapUrls[0]} has no locale-prefixed URLs in the sample`
-            : "A sitemap was found, but sampled entries have no locale-prefixed URLs.",
+            ? `Sitemap ${sitemap.sitemapUrls[0]} has no locale URLs in the sample`
+            : "A sitemap was found, but sampled entries have no locale URLs.",
           advice: "Include localized URLs in the sitemap for every published locale.",
           confidence: 90,
         }),
       );
     } else {
-      const pathLanguagesOnSite = new Set(
-        context.pages.flatMap((page) => {
-          const pathLocale = pathLocaleFromUrl(page.url);
-          return pathLocale ? [languageOf(pathLocale)] : [];
-        }),
-      );
       const languagesInSitemap = new Set(
         sitemap.localizedUrls.flatMap((url) => {
-          const pathLocale = pathLocaleFromUrl(url);
-          return pathLocale ? [languageOf(pathLocale)] : [];
+          const locale = urlRoutingLocale(url);
+          return locale ? [languageOf(locale)] : [];
         }),
       );
-      const missingLanguages = [...pathLanguagesOnSite].filter(
+      const missingLanguages = [...routedLanguagesOnSite].filter(
         (language) => !languagesInSitemap.has(language),
       );
       if (missingLanguages.length > 0) {
@@ -733,11 +783,11 @@ const scoreSitemap: HeuristicScorer = (context) => {
             category: "technical",
             severity: "medium",
             title: "Sitemap omits some published locales",
-            summary: `Locale-prefixed pages for ${missingLanguages.join(", ")} do not appear in sampled sitemap URLs.`,
+            summary: `Localized pages for ${missingLanguages.join(", ")} do not appear in sampled sitemap URLs.`,
             where: formatFindingWhere({ section: "Sitemap", tag: "sitemap.xml" }),
             url: sitemap.sitemapUrls[0],
             evidence: `Sitemap locales in sample: ${[...languagesInSitemap].join(", ") || "none"}; missing: ${missingLanguages.join(", ")}`,
-            advice: "Include URLs for every published locale prefix in the sitemap.",
+            advice: "Include URLs for every published locale in the sitemap.",
             confidence: 88,
           }),
         );
@@ -754,16 +804,18 @@ const scoreStructuredData: HeuristicScorer = (context) => {
     return { status: "na" };
   }
   const findings: LocalisationAuditFinding[] = [];
-  let score = 100;
+  const failingPages = new Set<string>();
+  let missingInLanguage = 0;
   for (const page of pages) {
     const locale = pageLocale(page);
     for (const node of page.jsonLd) {
+      // inLanguage is optional in schema.org; only a wrong value fails the page.
       if (!node.inLanguage) {
-        score -= 8;
+        missingInLanguage += 1;
         continue;
       }
       if (locale && !languagesMatch(node.inLanguage, locale)) {
-        score -= 18;
+        failingPages.add(page.url);
         findings.push(
           creditFinding({
             id: `jsonld-language-${findings.length}`,
@@ -784,13 +836,13 @@ const scoreStructuredData: HeuristicScorer = (context) => {
       }
     }
   }
-  if (findings.length === 0 && score < 100) {
+  if (findings.length === 0 && missingInLanguage > 0) {
     findings.push(
       creditFinding({
         id: "jsonld-missing-inlanguage",
         creditId: "structured-data",
         category: "technical",
-        severity: "low",
+        severity: "info",
         title: "Structured data omits inLanguage",
         summary: "JSON-LD is present but does not declare inLanguage on sampled pages.",
         where: formatFindingWhere({
@@ -803,7 +855,7 @@ const scoreStructuredData: HeuristicScorer = (context) => {
       }),
     );
   }
-  return scored(score, findings);
+  return scored(passingShareScore(pages.length, failingPages.size), findings);
 };
 
 const CURRENCY_BY_LANGUAGE: Record<string, RegExp> = {
@@ -817,8 +869,8 @@ const CURRENCY_BY_LANGUAGE: Record<string, RegExp> = {
 
 const scoreInternationalFormatting: HeuristicScorer = (context) => {
   const findings: LocalisationAuditFinding[] = [];
-  let sawPattern = false;
-  let mismatches = 0;
+  const inspectedPages = new Set<string>();
+  const failingPages = new Set<string>();
   for (const page of context.pages.filter(isSuccessful)) {
     const locale = pageLocale(page);
     if (!locale) continue;
@@ -828,11 +880,11 @@ const scoreInternationalFormatting: HeuristicScorer = (context) => {
     const hasDollar = /\$\d/.test(text);
     const hasEuro = /€/.test(text);
     if (expected && expected.test(text)) {
-      sawPattern = true;
+      inspectedPages.add(page.url);
     }
     if (language !== "en" && hasDollar && !hasEuro && expected) {
-      sawPattern = true;
-      mismatches += 1;
+      inspectedPages.add(page.url);
+      failingPages.add(page.url);
       findings.push(
         creditFinding({
           id: `formatting-currency-${findings.length}`,
@@ -851,8 +903,8 @@ const scoreInternationalFormatting: HeuristicScorer = (context) => {
 
     if (language === "ar") {
       if (textHasEasternArabicDigits(text)) {
-        sawPattern = true;
-        mismatches += 1;
+        inspectedPages.add(page.url);
+        failingPages.add(page.url);
         findings.push(
           creditFinding({
             id: `formatting-arabic-numerals-${findings.length}`,
@@ -874,12 +926,12 @@ const scoreInternationalFormatting: HeuristicScorer = (context) => {
           }),
         );
       } else if (textHasWesternDigits(text)) {
-        sawPattern = true;
+        inspectedPages.add(page.url);
       }
 
       if (textHasHijriCalendarSignals(text) && !textHasGregorianCalendarSignals(text)) {
-        sawPattern = true;
-        mismatches += 1;
+        inspectedPages.add(page.url);
+        failingPages.add(page.url);
         findings.push(
           creditFinding({
             id: `formatting-hijri-calendar-${findings.length}`,
@@ -898,36 +950,35 @@ const scoreInternationalFormatting: HeuristicScorer = (context) => {
           }),
         );
       } else if (textHasGregorianCalendarSignals(text)) {
-        sawPattern = true;
+        inspectedPages.add(page.url);
       }
     }
   }
-  if (!sawPattern) {
+  if (inspectedPages.size === 0) {
     return { status: "na" };
   }
-  return scored(mismatches > 0 ? Math.max(40, 90 - mismatches * 14) : 90, findings);
+  return scored(passingShareScore(inspectedPages.size, failingPages.size), findings);
 };
 
 const scoreAccessibilityLocalisation: HeuristicScorer = (context) => {
   const findings: LocalisationAuditFinding[] = [];
-  let score = 100;
+  const failingPages = new Set<string>();
   let inspected = 0;
+  let ambiguousSamples: { samples: string[]; locale: string } | null = null;
   for (const page of context.pages.filter(isSuccessful)) {
     const locale = pageLocale(page);
     if (!locale || languageOf(locale) === "en") continue;
     const samples = [...page.ariaLabels, ...page.altTexts.map((item) => item.alt)];
     if (samples.length === 0) continue;
-    inspected += 1;
+    // Latin-script locales share too much vocabulary with English to judge by script.
     if (isLatinAmbiguous(locale)) {
-      return {
-        status: "inconclusive",
-        findings,
-        evidence: { samples: samples.slice(0, 8), locale },
-      };
+      ambiguousSamples ??= { samples: samples.slice(0, 8), locale };
+      continue;
     }
+    inspected += 1;
     const englishSamples = samples.filter((sample) => looksPrimarilyEnglish(sample));
     if (englishSamples.length > 0) {
-      score -= 18;
+      failingPages.add(page.url);
       findings.push(
         creditFinding({
           id: `a11y-untranslated-${findings.length}`,
@@ -948,9 +999,11 @@ const scoreAccessibilityLocalisation: HeuristicScorer = (context) => {
     }
   }
   if (inspected === 0) {
-    return { status: "na" };
+    return ambiguousSamples
+      ? { status: "inconclusive", findings, evidence: ambiguousSamples }
+      : { status: "na" };
   }
-  return scored(score, findings);
+  return scored(passingShareScore(inspected, failingPages.size), findings);
 };
 
 function isLatinAmbiguous(locale: string): boolean {

@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { siGithub, siGitlab } from "simple-icons";
 
@@ -186,7 +185,7 @@ export function RepositorySelector({
             <span className="max-w-44 truncate">
               {selectedRepository?.fullName || intl.formatMessage(messages.repoPlaceholder)}
             </span>
-            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5 shrink-0" />
+            <CaretDownIcon className="size-3.5 shrink-0" />
           </RepositorySelectorTrigger>
         }
       />

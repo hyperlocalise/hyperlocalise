@@ -12,14 +12,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon, BrainIcon, DotIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { CaretDownIcon, BrainIcon, CircleIcon, type Icon } from "@phosphor-icons/react";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/primitives/cn";
 import type { ComponentProps, ReactNode } from "react";
-import { createContext, memo, useContext, useMemo } from "react";
+import { createElement, createContext, memo, useContext, useMemo } from "react";
 import { FormattedMessage } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
 
@@ -88,12 +87,11 @@ export const ChainOfThoughtHeader = memo(
           )}
           {...props}
         >
-          <HugeiconsIcon icon={BrainIcon} className="size-4" />
+          <BrainIcon className="size-4" />
           <span className="flex-1 text-start">
             {children ?? <FormattedMessage {...chainOfThoughtMessages.header} />}
           </span>
-          <HugeiconsIcon
-            icon={ArrowDown01Icon}
+          <CaretDownIcon
             className={cn("size-4 transition-transform", isOpen ? "rotate-180" : "rotate-0")}
           />
         </CollapsibleTrigger>
@@ -103,7 +101,7 @@ export const ChainOfThoughtHeader = memo(
 );
 
 export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
-  icon?: IconSvgElement;
+  icon?: Icon;
   label: ReactNode;
   description?: ReactNode;
   status?: "complete" | "active" | "pending";
@@ -118,7 +116,7 @@ const stepStatusStyles = {
 export const ChainOfThoughtStep = memo(
   ({
     className,
-    icon: Icon = DotIcon,
+    icon: Icon = CircleIcon,
     label,
     description,
     status = "complete",
@@ -135,7 +133,7 @@ export const ChainOfThoughtStep = memo(
       {...props}
     >
       <div className="relative mt-0.5">
-        <HugeiconsIcon icon={Icon} className="size-4" />
+        {createElement(Icon, { className: "size-4" })}
         <div className="absolute top-7 bottom-0 start-1/2 -mx-px w-px bg-border" />
       </div>
       <div className="flex-1 space-y-2 overflow-hidden">

@@ -18,7 +18,7 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	}
 	switch ext {
-	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd", ".strings", ".stringsdict", ".xcstrings", ".csv", ".arb", ".ftl", ".html", ".htm", ".liquid", ".php", ".xml", ".resx", ".properties", ".srt", ".vtt":
+	case ".xlf", ".xlif", ".xliff", ".po", ".pot", ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd", ".adoc", ".asciidoc", ".asc", ".txt", ".strings", ".stringsdict", ".xcstrings", ".csv", ".tsv", ".toml", ".arb", ".ftl", ".html", ".htm", ".liquid", ".php", ".xml", ".resx", ".resw", ".properties", ".ini", ".srt", ".vtt", ".sbv", ".svg":
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	case ".json", ".jsonc":
 		content, err := s.marshalJSONTargetWithFallback(path, sourcePath, values, pruneKeys)
@@ -26,6 +26,20 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 	case ".yaml", ".yml":
 		content, err := s.marshalYAMLTargetWithFallback(path, sourcePath, values, pruneKeys)
 		return content, nil, err
+	case ".lottie":
+		content, err := s.marshalDotLottieTarget(path, sourcePath, values)
+		return content, nil, err
+	case ".xlsx":
+		content, err := s.marshalXLSXTarget(path, sourcePath, sourceLocale, targetLocale, values)
+		return content, nil, err
+	case ".docx":
+		content, err := s.marshalOfficeTarget(path, sourcePath, values, translationfileparser.MarshalDOCX)
+		return content, nil, err
+	case ".pptx":
+		content, err := s.marshalOfficeTarget(path, sourcePath, values, translationfileparser.MarshalPPTX)
+		return content, nil, err
+	case ".pdf":
+		return s.marshalPDFTarget(path, sourcePath, values)
 	default:
 		return nil, nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
@@ -40,13 +54,32 @@ func isMarkdownFileExt(ext string) bool {
 	}
 }
 
+func isAsciiDocFileExt(ext string) bool {
+	switch ext {
+	case ".adoc", ".asciidoc", ".asc":
+		return true
+	default:
+		return false
+	}
+}
+
 func isHTMLFileExt(ext string) bool {
 	return ext == ".html" || ext == ".htm"
+}
+
+func isPlainTextFileExt(ext string) bool {
+	return ext == ".txt"
 }
 
 func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale string, values map[string]string, stagedEntries map[string]string) ([]byte, []string, error) {
 	if isMarkdownFileExt(ext) {
 		return s.marshalMarkdownTarget(path, sourcePath, stagedEntries)
+	}
+	if isAsciiDocFileExt(ext) {
+		return s.marshalAsciiDocTarget(path, sourcePath, stagedEntries)
+	}
+	if isPlainTextFileExt(ext) {
+		return s.marshalPlainTextTarget(path, sourcePath, stagedEntries)
 	}
 	if isHTMLFileExt(ext) {
 		return s.marshalHTMLTarget(path, sourcePath, stagedEntries)
@@ -54,8 +87,8 @@ func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale
 	if ext == ".liquid" {
 		return s.marshalLiquidTarget(path, sourcePath, stagedEntries)
 	}
-	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".strings" || ext == ".stringsdict" || ext == ".xcstrings" || ext == ".arb" || ext == ".ftl" || ext == ".php" || ext == ".xml" || ext == ".resx" || ext == ".properties" || ext == ".srt" || ext == ".vtt" || isJSTSLocaleModuleExt(ext) {
-		content, err := s.marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale, values)
+	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".pot" || ext == ".strings" || ext == ".stringsdict" || ext == ".xcstrings" || ext == ".arb" || ext == ".ftl" || ext == ".php" || ext == ".xml" || ext == ".resx" || ext == ".resw" || ext == ".properties" || ext == ".ini" || ext == ".toml" || ext == ".srt" || ext == ".vtt" || ext == ".sbv" || ext == ".svg" || isJSTSLocaleModuleExt(ext) {
+		content, err := s.marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 		return content, nil, err
 	}
 
@@ -71,12 +104,18 @@ func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale
 			return nil, nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
 		return content, nil, nil
+	case ".tsv":
+		content, err := marshalTSVTarget(template, values, targetLocale)
+		if err != nil {
+			return nil, nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil, nil
 	default:
 		return nil, nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
 }
 
-func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale string, values map[string]string) ([]byte, error) {
+func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale string, values, stagedEntries map[string]string) ([]byte, error) {
 	sourceTemplate, err := s.readProjectFile(sourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
@@ -112,6 +151,14 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 				if translationfileparser.SubtitleCueStructureEqual(sourceTemplate, targetTemplate, translationfileparser.SubtitleVTT) {
 					template = targetTemplate
 				}
+			case ext == ".sbv":
+				if translationfileparser.SubtitleCueStructureEqual(sourceTemplate, targetTemplate, translationfileparser.SubtitleSBV) {
+					template = targetTemplate
+				}
+			case ext == ".xlf" || ext == ".xlif" || ext == ".xliff":
+				if hasExactKeySet(targetEntries, values) && translationfileparser.XLIFFSourceStructureEqual(sourceTemplate, targetTemplate) {
+					template = targetTemplate
+				}
 			case hasExactKeySet(targetEntries, values):
 				template = targetTemplate
 			}
@@ -125,8 +172,8 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
 		return content, nil
-	case ".po":
-		content, err := translationfileparser.MarshalPOFile(template, values)
+	case ".po", ".pot":
+		content, err := translationfileparser.MarshalPOFileForLocale(template, values, targetLocale)
 		if err != nil {
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
@@ -180,7 +227,7 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
 		return content, nil
-	case ".resx":
+	case ".resx", ".resw":
 		content, err := translationfileparser.MarshalGenericXMLWithTargetLocale(template, values, sourceLocale, targetLocale)
 		if err != nil {
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
@@ -188,6 +235,12 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 		return content, nil
 	case ".properties":
 		content, err := translationfileparser.MarshalJavaProperties(template, values)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
+	case ".ini":
+		content, err := translationfileparser.MarshalINI(template, values)
 		if err != nil {
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
@@ -204,7 +257,32 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
 		return content, nil
+	case ".sbv":
+		content, err := translationfileparser.MarshalSubtitles(template, values, translationfileparser.SubtitleSBV)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
+	case ".toml":
+		content, err := translationfileparser.MarshalTOML(template, values)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
+	case ".svg":
+		content, err := translationfileparser.MarshalSVG(template, values)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
 	default:
+		if ext == ".ts" && translationfileparser.LooksLikeQtLinguistTS(template) {
+			content, err := translationfileparser.MarshalQtLinguistStaged(template, values, stagedEntries, sourceLocale, targetLocale)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+			}
+			return content, nil
+		}
 		if isJSTSLocaleModuleExt(ext) {
 			content, err := translationfileparser.MarshalJSTSLocaleModule(template, values)
 			if err != nil {
@@ -214,6 +292,65 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 		}
 		return nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
+}
+
+// dotLottie targets are localized copies of the source archive, so they are always
+// rebuilt from the source to carry over animation and asset changes.
+func (s *Service) marshalDotLottieTarget(path, sourcePath string, values map[string]string) ([]byte, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+	content, err := translationfileparser.MarshalDotLottie(sourceTemplate, values)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+	}
+	return content, nil
+}
+
+// Excel targets are always written into a copy of the source workbook so new
+// rows, sheets, and formatting carry over. When the target path is the source
+// path, that copy already holds the other locales' columns.
+func (s *Service) marshalXLSXTarget(path, sourcePath, sourceLocale, targetLocale string, values map[string]string) ([]byte, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+	content, err := translationfileparser.MarshalXLSX(sourceTemplate, values, sourceLocale, targetLocale)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+	}
+	return content, nil
+}
+
+// Word and PowerPoint targets are written into a copy of the source package,
+// because paragraph keys address the source's structure.
+func (s *Service) marshalOfficeTarget(path, sourcePath string, values map[string]string, marshal func([]byte, map[string]string) ([]byte, error)) ([]byte, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+	content, err := marshal(sourceTemplate, values)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+	}
+	return content, nil
+}
+
+func (s *Service) marshalPDFTarget(path, sourcePath string, values map[string]string) ([]byte, []string, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+	content, overflow, err := translationfileparser.MarshalPDF(sourceTemplate, values)
+	if err != nil {
+		return nil, nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+	}
+	var warnings []string
+	if len(overflow) > 0 {
+		warnings = []string{fmt.Sprintf("pdf text overflow for %d blocks in %q (keys: %s)", len(overflow), path, strings.Join(overflow, ", "))}
+	}
+	return content, warnings, nil
 }
 
 func isJSTSLocaleModuleExt(ext string) bool {
@@ -271,6 +408,59 @@ func markdownASTParityFlushError(targetPath string, sourceTemplate, marshaledCon
 		return fmt.Errorf("flush outputs: markdown AST parity mismatch for %q: %w", targetPath, err)
 	}
 	return nil
+}
+
+func (s *Service) marshalAsciiDocTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+
+	targetTemplate, err := s.readProjectFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			content, diags := translationfileparser.MarshalAsciiDocWithDiagnostics(sourceTemplate, stagedEntries)
+			return content, asciiDocRenderWarnings(path, diags), nil
+		}
+		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
+	}
+
+	content, diags := translationfileparser.MarshalAsciiDocWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate, stagedEntries)
+	return content, asciiDocRenderWarnings(path, diags), nil
+}
+
+func (s *Service) marshalPlainTextTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+
+	targetTemplate, err := s.readProjectFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return translationfileparser.MarshalPlainText(sourceTemplate, stagedEntries), nil, nil
+		}
+		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
+	}
+
+	aligned := translationfileparser.AlignPlainTextTargetToSource(sourceTemplate, targetTemplate)
+	for key, text := range stagedEntries {
+		aligned[key] = text
+	}
+	return translationfileparser.MarshalPlainText(sourceTemplate, aligned), nil, nil
+}
+
+func asciiDocRenderWarnings(path string, diags translationfileparser.AsciiDocRenderDiagnostics) []string {
+	if len(diags.SourceFallbackKeys) == 0 {
+		return nil
+	}
+	keys := slices.Clone(diags.SourceFallbackKeys)
+	slices.Sort(keys)
+	keys = slices.Compact(keys)
+	if len(keys) > 3 {
+		return []string{fmt.Sprintf("asciidoc render fell back to source for %d segments in %q due to unrecoverable placeholder corruption (first keys: %s)", len(keys), path, strings.Join(keys[:3], ", "))}
+	}
+	return []string{fmt.Sprintf("asciidoc render fell back to source for %d segments in %q due to unrecoverable placeholder corruption (keys: %s)", len(keys), path, strings.Join(keys, ", "))}
 }
 
 func (s *Service) marshalHTMLTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {

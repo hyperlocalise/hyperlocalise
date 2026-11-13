@@ -22,6 +22,7 @@ import {
   isSidebarCustomColumn,
   issueSheetColumnValueString,
   listDetailPanelColumns,
+  reconcileSameIssueCustomColumnDrafts,
 } from "./issue-sheet-column-utils";
 
 function column(overrides: Partial<IssueSheetColumn> = {}): IssueSheetColumn {
@@ -36,6 +37,37 @@ function column(overrides: Partial<IssueSheetColumn> = {}): IssueSheetColumn {
     hidden: false,
     icon: null,
     ...overrides,
+  };
+}
+
+function issue(values: Record<string, unknown>): IssueDetailIssue {
+  return {
+    id: "issue_1",
+    identifier: "WEB-1",
+    title: "Issue",
+    description: "",
+    issueType: "general_question",
+    status: "open",
+    targetLocale: null,
+    sourcePath: null,
+    segmentId: null,
+    translationKeyId: null,
+    linkedCommentId: null,
+    linkedAgentRunId: null,
+    linkKind: null,
+    linkLabel: null,
+    linkUrl: null,
+    templateKey: null,
+    assigneeUserId: null,
+    reporter: null,
+    assignee: null,
+    key: null,
+    sourceText: null,
+    createdAt: "2026-07-21T00:00:00.000Z",
+    updatedAt: "2026-07-21T00:00:00.000Z",
+    resolvedAt: null,
+    values,
+    isWatching: false,
   };
 }
 
@@ -77,34 +109,7 @@ describe("issue-sheet-column-utils", () => {
   });
 
   it("detects unsaved custom column drafts", () => {
-    const issue = {
-      id: "issue_1",
-      identifier: "WEB-1",
-      title: "Issue",
-      description: "",
-      issueType: "general_question",
-      status: "open",
-      targetLocale: null,
-      sourcePath: null,
-      segmentId: null,
-      translationKeyId: null,
-      linkedCommentId: null,
-      linkedAgentRunId: null,
-      linkKind: null,
-      linkLabel: null,
-      linkUrl: null,
-      templateKey: null,
-      assigneeUserId: null,
-      reporter: null,
-      assignee: null,
-      key: null,
-      sourceText: null,
-      createdAt: "2026-07-21T00:00:00.000Z",
-      updatedAt: "2026-07-21T00:00:00.000Z",
-      resolvedAt: null,
-      values: { sprint: "S24", context: "Saved context" },
-      isWatching: false,
-    } satisfies IssueDetailIssue;
+    const currentIssue = issue({ sprint: "S24", context: "Saved context" });
     const columns = [
       column({ key: "sprint", type: "select" }),
       column({ key: "notes", type: "text" }),
@@ -112,13 +117,92 @@ describe("issue-sheet-column-utils", () => {
     ];
 
     expect(
-      areCustomColumnDraftsDirty(issue, columns, {
+      areCustomColumnDraftsDirty(currentIssue, columns, {
         notes: "Updated note",
         context: "Saved context",
       }),
     ).toBe(true);
     expect(
-      areCustomColumnDraftsDirty(issue, columns, buildCustomColumnDrafts(issue, columns)),
+      areCustomColumnDraftsDirty(
+        currentIssue,
+        columns,
+        buildCustomColumnDrafts(currentIssue, columns),
+      ),
     ).toBe(false);
+  });
+
+  it("adds missing custom column drafts without clobbering local edits", () => {
+    const currentIssue = issue({ notes: "Saved note", context: "Saved context" });
+    const columns = [
+      column({ key: "notes", type: "text" }),
+      column({ key: "context", type: "enrichment" }),
+    ];
+
+    const { nextBaselineDrafts, nextDrafts } = reconcileSameIssueCustomColumnDrafts(
+      currentIssue,
+      columns,
+      { notes: "Saved note" },
+      { notes: "Edited note" },
+    );
+
+    expect(nextBaselineDrafts).toEqual({
+      notes: "Saved note",
+      context: "Saved context",
+    });
+    expect(nextDrafts).toEqual({
+      notes: "Edited note",
+      context: "Saved context",
+    });
+  });
+
+  it("refreshes unchanged custom column drafts when the saved value changes", () => {
+    const currentIssue = issue({ notes: "Newer note", context: "Newer context" });
+    const columns = [
+      column({ key: "notes", type: "text" }),
+      column({ key: "context", type: "enrichment" }),
+    ];
+    const staleDrafts = { notes: "Saved note", context: "Saved context" };
+
+    expect(areCustomColumnDraftsDirty(currentIssue, columns, staleDrafts)).toBe(true);
+
+    const { nextBaselineDrafts, nextDrafts } = reconcileSameIssueCustomColumnDrafts(
+      currentIssue,
+      columns,
+      staleDrafts,
+      { notes: "Saved note", context: "Edited context" },
+    );
+
+    expect(nextBaselineDrafts).toEqual({
+      notes: "Newer note",
+      context: "Newer context",
+    });
+    expect(nextDrafts).toEqual({
+      notes: "Newer note",
+      context: "Edited context",
+    });
+    expect(areCustomColumnDraftsDirty(currentIssue, columns, nextDrafts)).toBe(true);
+    expect(
+      areCustomColumnDraftsDirty(currentIssue, columns, {
+        notes: "Newer note",
+        context: "Newer context",
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps identical draft records when same-issue values are already current", () => {
+    const currentIssue = issue({ notes: "Saved note" });
+    const columns = [column({ key: "notes", type: "text" })];
+    const baselineDrafts = { notes: "Saved note" };
+    const currentDrafts = { notes: "Saved note" };
+
+    const { nextBaselineDrafts, nextDrafts } = reconcileSameIssueCustomColumnDrafts(
+      currentIssue,
+      columns,
+      baselineDrafts,
+      currentDrafts,
+    );
+
+    expect(nextBaselineDrafts).toBe(baselineDrafts);
+    expect(nextDrafts).toBe(currentDrafts);
   });
 });

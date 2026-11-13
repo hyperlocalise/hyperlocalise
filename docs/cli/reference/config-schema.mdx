@@ -9,19 +9,24 @@ description: "Concise reference for the hyperlocalise i18n config schema."
 - `buckets`
 - `groups`
 - `llm`
+- `translation` (optional)
+- `mt` (optional)
 - `storage` (required for `sync`)
 - `cache` (optional)
+- `qa` (optional)
 
 ## `locales`
 
 - `source` (string, required)
 - `targets` (string array, required)
 - `fallbacks` (object, optional)
+- `copies` (object, optional): map of copy locale -> origin locale. The copy locale is written without a new translation. See [i18n config](/cli/configuration/i18n-config).
 
 ## `buckets`
 
 - map of bucket name -> bucket definition
 - `files` array with `from` and `to` templates, and optional `srx` (`default` | `html` | `markdown` | project-relative SRX 2.0 file)
+- Optional `files[].cloud_path` preserves the Cloud source identity for `sync push` and `sync pull` independently of local paths. It accepts `{{source}}` and the same glob suffix as `from`; omission uses the config-relative source path.
 
 ## `groups`
 
@@ -36,10 +41,28 @@ description: "Concise reference for the hyperlocalise i18n config schema."
 - supported providers: `openai` | `azure_openai` | `anthropic` | `gemini` | `bedrock` | `lmstudio` | `groq` | `mistral` | `ollama` | `openrouter` | `ai_gateway`
 - `rules` array with `priority`, `group`, `profile`
 
+## `translation`
+
+- `default` (object, required): `{ type: llm | mt, profile: <name> }`
+- `rules` (array, optional): entries with `priority`, `group`, `type` (`llm` | `mt`), `profile`
+- mutually exclusive with `llm.rules`
+- `type: llm` profiles resolve against `llm.profiles`; `type: mt` profiles resolve against `mt.profiles`
+
+## `mt`
+
+- `profiles` map of profile name -> `{ provider, api_key_env, base_url }`
+- supported providers: `google` | `deepl`
+- `api_key_env` (required): name of the environment variable holding the API key
+- `base_url`: optional for `google`; required for `deepl` and must be `https://api.deepl.com` or `https://api-free.deepl.com`
+
 ## `storage`
 
 - `adapter`: `poeditor` | `lilt` | `lokalise` | `crowdin` | `phrase` | `smartling`
 - `config`: adapter-specific fields
+
+## `qa`
+
+- `policy_file` (string, optional): path to a version `1` QA policy JSON file. `check` uses it when `--qa-policy` is omitted. See [validate](/cli/commands/validate).
 
 ## `cache`
 
@@ -70,6 +93,14 @@ Use `buckets.*.files[].from` and `to` to point at `.ftl` files for Mozilla Fluen
 
 Use `buckets.*.files[].from` and `to` to point at per-locale `.properties` resource bundles, for example `messages_{{source}}.properties` -> `messages_{{target}}.properties`.
 
+## INI workflow note
+
+Use `buckets.*.files[].from` and `to` to point at per-locale `.ini` files, for example `locales/{{source}}/messages.ini` -> `locales/{{target}}/messages.ini`. Sectioned keys flatten as `section.key`.
+
 ## Subtitle workflow note
 
-Use `buckets.*.files[].from` and `to` to point at `.srt` or `.vtt` subtitle files, for example `captions/{{source}}.srt` -> `captions/{{target}}.srt`. Cue payload text is translated; timestamps and WebVTT metadata stay in the file structure.
+Use `buckets.*.files[].from` and `to` to point at `.srt`, `.vtt`, or `.sbv` subtitle files, for example `captions/{{source}}.srt` -> `captions/{{target}}.srt`. Cue payload text is translated; timestamps and WebVTT metadata stay in the file structure.
+
+## TOML, TSV, and SVG workflow notes
+
+Use matching source and target extensions for TOML locale files (`.toml`), tab-separated catalogs (`.tsv`), and SVG text (`.svg`). TOML translates string leaves only. TSV follows the same key/value and locale-column layouts as CSV. SVG extracts `text`, `tspan`, `textPath`, `title`, and `desc` spans.

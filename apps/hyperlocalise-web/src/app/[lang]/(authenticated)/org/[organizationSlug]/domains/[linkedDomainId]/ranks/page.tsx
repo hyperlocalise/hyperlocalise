@@ -10,8 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability } from "@/api/auth/policy";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+import { requireAppCapability } from "@/lib/workos/app-auth";
+
 import { DomainRanksView } from "../../_components/domain-ranks-view";
 import { DomainResearchShell } from "../../_components/domain-research-shell";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "domainRanks");
+}
 
 export default async function DomainRanksPage({
   params,
@@ -19,12 +27,14 @@ export default async function DomainRanksPage({
   params: Promise<{ organizationSlug: string; linkedDomainId: string }>;
 }) {
   const { organizationSlug, linkedDomainId } = await params;
+  const auth = await requireAppCapability("projects:read", { organizationSlug });
 
   return (
     <DomainResearchShell
       organizationSlug={organizationSlug}
       linkedDomainId={linkedDomainId}
       surface="ranks"
+      canEditLocales={hasCapability(auth.membership.role, "projects:create")}
     >
       <DomainRanksView linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} />
     </DomainResearchShell>

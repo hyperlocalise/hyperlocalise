@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/postgres"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -49,7 +50,7 @@ type PGStore struct {
 }
 
 func NewPGStore(ctx context.Context, databaseURL string) (*PGStore, error) {
-	pool, err := pgxpool.New(ctx, databaseURL)
+	pool, err := postgres.NewPool(ctx, databaseURL)
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,7 @@
  */
 import { openJobStatusValues } from "@/api/routes/project/job.schema";
 import { createLogger } from "@/lib/log";
+import { DEFAULT_QA_POLICY } from "@/lib/qa/qa-policy";
 import * as schema from "@/lib/database/schema";
 import type {
   ProjectFileContentEditorComment,
@@ -19,6 +20,8 @@ import type {
   ProjectFileContentEditorTranslation,
   ProjectFileContent,
   ProjectFileDetailResponse,
+  ProjectFileProgressRecord,
+  ProjectHiddenFileRecord,
 } from "@/api/routes/project/project.schema";
 import {
   buildSourceStringsPreviewContent,
@@ -36,12 +39,14 @@ import {
   paginateCatQueueSortBuckets,
   shouldPaginateCrowdinUntranslatedFirst,
 } from "@/lib/projects/content-editor/content-editor-queue-sort-buckets";
+import { catQueueHasServerSideFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { legacyProviderContentEditorSegmentLimit } from "@/api/routes/project/project.schema";
 import {
   buildCrowdinFileQueueCroql,
   CROWDIN_GLOSSARY_LIST_LIMIT,
   CrowdinApiClient,
   CrowdinApiError,
+  crowdinSourceStringKey,
   extractCrowdinApiErrorSummary,
   isCrowdinCroqlWithinLimit,
   type CrowdinProject,
@@ -50,6 +55,7 @@ import {
   type CrowdinSourceString,
   type CrowdinStringComment,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import { findCrowdinHiddenFileIds } from "@/lib/providers/adapters/crowdin/crowdin-hidden-files";
 import { crowdinTmsProvider } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import {
@@ -667,7 +673,12 @@ function buildLiveProviderProject(input: {
     // template config to read — same empty default as an unconfigured native project.
     issueTemplateConfig: {},
     automaticallyGroupIdenticalStrings: false,
+    approvedTranslationsOnSourceChange: "stay_approved",
+    sourceTextEditable: false,
     contentEditorGroupingRevision: 0,
+    qaScanCadence: "off",
+    qaCheckPolicy: DEFAULT_QA_POLICY,
+    qaScanLastRunAt: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -1046,7 +1057,7 @@ function mapCrowdinSourceStringToCatSegment(
 ) {
   return {
     externalStringId: String(sourceString.id),
-    key: sourceString.identifier,
+    key: crowdinSourceStringKey(sourceString),
     sourceText: crowdinCatSourceTextValue(sourceString.text),
     context: sourceString.context,
     type: sourceString.type ?? null,
@@ -1073,7 +1084,7 @@ function buildCrowdinSourceStringsPreviewContent(input: {
 
   const entries = input.strings.map((sourceString) => ({
     id: sourceString.id,
-    key: sourceString.identifier,
+    key: crowdinSourceStringKey(sourceString),
     text:
       typeof sourceString.text === "string"
         ? sourceString.text
@@ -1208,6 +1219,8 @@ async function buildCrowdinLiveCatFile(input: {
             fileId,
             targetLocale: input.targetLocale,
             queueFilter: paginationInput.queueFilter,
+            queueFilterQualifier: paginationInput.queueFilterQualifier,
+            advancedFilter: paginationInput.advancedFilter,
             search: paginationInput.search,
             statusBand: band,
           });
@@ -1236,16 +1249,16 @@ async function buildCrowdinLiveCatFile(input: {
       });
       truncated = pagination.hasMore;
     } else {
-      const croql =
-        paginationInput.search?.trim() ||
-        (paginationInput.queueFilter && paginationInput.queueFilter !== "all")
-          ? buildCrowdinFileQueueCroql({
-              fileId,
-              targetLocale: input.targetLocale,
-              queueFilter: paginationInput.queueFilter,
-              search: paginationInput.search,
-            })
-          : undefined;
+      const croql = catQueueHasServerSideFilter(paginationInput)
+        ? buildCrowdinFileQueueCroql({
+            fileId,
+            targetLocale: input.targetLocale,
+            queueFilter: paginationInput.queueFilter,
+            queueFilterQualifier: paginationInput.queueFilterQualifier,
+            advancedFilter: paginationInput.advancedFilter,
+            search: paginationInput.search,
+          })
+        : undefined;
       const page = await client.listSourceStringsPage(projectId, {
         fileId: croql ? undefined : fileId,
         croql: croql ?? undefined,
@@ -2253,12 +2266,86 @@ export async function listTmsProviderLiveFilesForProject(
       project: projectMetadata,
     }),
   );
-
   if (options?.limit === null) {
     return mapped;
   }
 
   return mapped.slice(0, options?.limit ?? 500);
+}
+
+/**
+ * Per-file translation and approval progress for one target locale, keyed by
+ * provider file id. Crowdin only; other providers return no rows.
+ */
+export async function listTmsProviderLiveFileProgress(
+  organizationId: string,
+  externalProjectId: string,
+  options: { locale: string; actorUserId?: string | null },
+): Promise<ProjectFileProgressRecord[]> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options.actorUserId,
+  });
+  const projectId = Number(externalProjectId);
+  if (context.providerKind !== "crowdin" || !Number.isInteger(projectId) || projectId <= 0) {
+    return [];
+  }
+
+  const client = new CrowdinApiClient({
+    token: context.secretMaterial,
+    baseUrl: context.credential.baseUrl ?? undefined,
+  });
+  try {
+    const rows = await client.listLanguageFileProgress(projectId, options.locale);
+    return rows.map((row) => ({
+      externalResourceId: String(row.fileId),
+      translationProgress: row.translationProgress,
+      approvalProgress: row.approvalProgress,
+      phrases: row.phrases,
+    }));
+  } catch (error) {
+    // Progress only decorates the file tree; never fail the editor over it.
+    logger.warn("tms_provider_live_crowdin_file_progress_failed", {
+      organizationId: context.organizationId,
+      externalProjectId,
+      status: error instanceof CrowdinApiError ? error.status : null,
+    });
+    return [];
+  }
+}
+
+/**
+ * Provider file ids whose strings are all hidden. Crowdin only; other providers
+ * have no hidden strings and return no rows.
+ */
+export async function listTmsProviderLiveHiddenFiles(
+  organizationId: string,
+  externalProjectId: string,
+  options?: { actorUserId?: string | null },
+): Promise<ProjectHiddenFileRecord[]> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  const projectId = Number(externalProjectId);
+  if (context.providerKind !== "crowdin" || !Number.isInteger(projectId) || projectId <= 0) {
+    return [];
+  }
+
+  const client = new CrowdinApiClient({
+    token: context.secretMaterial,
+    baseUrl: context.credential.baseUrl ?? undefined,
+  });
+  try {
+    const hiddenFileIds = await findCrowdinHiddenFileIds(client, projectId);
+    return [...hiddenFileIds].map((fileId) => ({ externalResourceId: String(fileId) }));
+  } catch (error) {
+    // Hidden flags only decorate the file tree; never fail the editor over them.
+    logger.warn("tms_provider_live_crowdin_hidden_files_failed", {
+      organizationId: context.organizationId,
+      externalProjectId,
+      status: error instanceof CrowdinApiError ? error.status : null,
+    });
+    return [];
+  }
 }
 
 async function buildTmsProviderLiveFileDetail(
@@ -2428,6 +2515,44 @@ export async function getTmsProviderLiveCatFile(
   });
 }
 
+export async function getTmsProviderLiveCatLabels(
+  organizationId: string,
+  externalProjectId: string,
+  options?: { actorUserId?: string | null },
+) {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  if (context.providerKind !== "crowdin") {
+    return [];
+  }
+
+  const projectId = Number(externalProjectId);
+  if (Number.isNaN(projectId)) {
+    throw new TmsProviderLiveError(
+      "invalid_crowdin_project_or_file_id",
+      "Crowdin project identifier is invalid.",
+    );
+  }
+
+  try {
+    const client = new CrowdinApiClient({
+      token: context.secretMaterial,
+      baseUrl: context.credential.baseUrl ?? undefined,
+    });
+    const labels = await client.listLabels(projectId);
+    return labels.map((label) => ({
+      id: String(label.id),
+      title: label.title,
+    }));
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+    throw error;
+  }
+}
+
 export const CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE =
   "This Crowdin project has too many files to open All Files at once. Select a single file to view strings instead.";
 
@@ -2569,12 +2694,16 @@ async function buildCrowdinLiveContentEditorAllFiles(input: {
       fileIds,
       targetLocale: input.targetLocale,
       queueFilter: paginationInput.queueFilter,
+      queueFilterQualifier: paginationInput.queueFilterQualifier,
+      advancedFilter: paginationInput.advancedFilter,
       search: paginationInput.search,
       statusBand,
     });
     const croqlProjectWide = buildCrowdinFileQueueCroql({
       targetLocale: input.targetLocale,
       queueFilter: paginationInput.queueFilter,
+      queueFilterQualifier: paginationInput.queueFilterQualifier,
+      advancedFilter: paginationInput.advancedFilter,
       search: paginationInput.search,
       statusBand,
     });

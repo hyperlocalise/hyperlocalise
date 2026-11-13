@@ -32,6 +32,7 @@ export type ContentEditorEditorPanelProps = {
   isCommentsLoading?: boolean;
   isSegmentTargetLoading?: boolean;
   isImageBusy?: boolean;
+  isImageGenerating?: boolean;
   canApprove?: boolean;
   canAddComment?: boolean;
   canEditTranslations?: boolean;
@@ -55,8 +56,12 @@ export type ContentEditorEditorPanelProps = {
   onAskQuestion: () => void;
   onGenerateAiRecommendation?: () => void;
   aiRecommendationError?: string;
+  /** The suggestion was refused for used-up AI credit, so it is not offered again. */
+  aiRecommendationCreditExhausted?: boolean;
   onPrevious: () => void;
   onNext: () => void;
+  onPreviousUntranslated?: () => void;
+  onNextUntranslated?: () => void;
   hasPreviousSegment: boolean;
   hasNextSegment: boolean;
   segmentShareUrl?: string | null;
@@ -65,5 +70,10 @@ export type ContentEditorEditorPanelProps = {
   onTreatAsVideo?: (treatAsVideo: boolean) => void;
   onRegenerateImage?: () => void;
   onUploadImage?: (file: File) => void;
-  onToggleLocked?: () => void;
+  onToggleLocked?: () => void | Promise<void>;
+  /**
+   * When true, renders the keyboard shortcut hint bar below the action buttons.
+   * Enabled only in Translator persona when the adaptive workspace is active.
+   */
+  showKeyboardHints?: boolean;
 };

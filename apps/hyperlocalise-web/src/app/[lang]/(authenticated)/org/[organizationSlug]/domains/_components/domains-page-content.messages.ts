@@ -15,16 +15,15 @@
 import { defineMessages } from "react-intl";
 
 export const domainsPageContentMessages = defineMessages({
+  pageTitle: {
+    defaultMessage: "Domains",
+    id: "HGWh4sPGlW",
+    description: "Domains list page heading",
+  },
   editLocales: {
     defaultMessage: "Edit locales",
     id: "icuWnstCMG",
     description: "Edit locales for a domain in the list",
-  },
-  pageDescription: {
-    defaultMessage:
-      "Manage each domain and its locales. Open a domain to explore research by locale.",
-    id: "2NdI8ju66r",
-    description: "Domains workspace page description",
   },
   loadError: {
     defaultMessage: "Could not load linked domains.",
@@ -46,10 +45,10 @@ export const domainsPageContentMessages = defineMessages({
     id: "8wa1gB5MCA",
     description: "Empty state description when the workspace has no claimed domains",
   },
-  linkDomain: {
-    defaultMessage: "Link domain",
-    id: "RjCKAD/IFR",
-    description: "Open the link domain dialog",
+  addDomain: {
+    defaultMessage: "Add a domain",
+    id: "sxd8EorFWf",
+    description: "Open the add-domain dialog",
   },
   columnDomain: {
     defaultMessage: "Domain",
@@ -80,11 +79,6 @@ export const domainsPageContentMessages = defineMessages({
     defaultMessage: "Open",
     id: "NBDQ/KtIXb",
     description: "Open a linked domain home",
-  },
-  continueVerification: {
-    defaultMessage: "Verify",
-    id: "ANFQka6p0Z",
-    description: "Link to continue verifying a pending linked domain",
   },
   scoreUnavailable: {
     defaultMessage: "—",

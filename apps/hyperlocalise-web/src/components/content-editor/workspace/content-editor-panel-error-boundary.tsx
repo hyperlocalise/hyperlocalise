@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { AlertCircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { WarningCircleIcon } from "@phosphor-icons/react";
 import { type ErrorInfo, type ReactNode } from "react";
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
 import { FormattedMessage } from "react-intl";
@@ -28,6 +27,7 @@ export type ContentEditorPanelErrorBoundaryScope =
   | "queue"
   | "editor"
   | "intelligence"
+  | "files"
   | "workspace";
 
 type ContentEditorPanelErrorBoundaryProps = {
@@ -41,6 +41,7 @@ const panelTitleMessageByScope = {
   queue: contentEditorPanelErrorBoundaryMessages.queuePanelTitle,
   editor: contentEditorPanelErrorBoundaryMessages.editorPanelTitle,
   intelligence: contentEditorPanelErrorBoundaryMessages.intelligencePanelTitle,
+  files: contentEditorPanelErrorBoundaryMessages.filesPanelTitle,
   workspace: contentEditorPanelErrorBoundaryMessages.workspaceTitle,
 } as const;
 
@@ -74,7 +75,7 @@ function ContentEditorPanelErrorFallback({
       role="alert"
     >
       <Alert variant="destructive" className="max-w-md">
-        <HugeiconsIcon icon={AlertCircleIcon} />
+        <WarningCircleIcon />
         <AlertTitle>
           <FormattedMessage {...panelTitleMessageByScope[scope]} />
         </AlertTitle>

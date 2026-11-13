@@ -1,9 +1,9 @@
 ---
-title: "Content Editor"
-description: "Review multilingual content in context in the Cloud workspace."
+title: "Review translations"
+description: "Review multilingual content in context in the Platform workspace."
 ---
 
-The Content Editor is the review surface of Hyperlocalise Cloud. Open a file, edit segments, and save reviewed translations with product context attached.
+Use the Content Editor to inspect source and target text, correct translations, and approve content for a locale. Generation and approval are separate steps: review completed job output before delivering it.
 
 ## Open the Content Editor
 
@@ -27,15 +27,34 @@ The Content Editor has three tabs:
 
 When the file has a website preview, you also get **Desktop preview**, **Tablet preview**, and **Mobile preview**. Use **Highlight translatable**, then click a string to load it in **Selected string**.
 
+Native `.html` and `.htm` files keep the key queue (`html.body.h1`, `html.p.strong`) and also offer **File view** of the stored page. That view is a preview and code pane, not the markdown document editor. If the queue is empty, check the ingest status on the file: extracting and failed ingest are shown instead of a silent empty list. Re-upload an older HTML file if keys still look like `html.143b270a32602d41`. See [Translate HTML](/cli/reference/formats/html).
+
 ## Edit a segment
 
 Select a row in **Queue** or click a string in the preview. The Content Editor loads source, target, and suggestions from translation memory, glossary, and AI.
 
 On a native project, **Approve** saves the current target text. On a TMS-backed project, **Save to provider** (or **Approve**) writes the target back to the provider.
 
-Some roles can inspect strings but cannot write translations back.
+The editor header shows **Ingest** and **Push** only for the open file:
 
-Format checks on the segment include **Placeholders & ICU** and **Length**. Fix those before you approve.
+- [Google Drive](/integrations/google-drive) — **Ingest** and **Push to Google Drive**
+- [Intercom](/platform/connections/intercom) — **Ingest** and **Push to Intercom**
+- [Sanity](/platform/connections/sanity) — **Ingest** and **Push to Sanity**
+- [Braze](/platform/connections/braze) — **Ingest** and **Push to Braze**
+
+Those actions stay hidden on other files and on the all-files queue. **Ingest** queues the same import as Automations **Run now**. Push writes copies or drafts to the connected service. Those actions do not publish. **Push to Braze** writes locale-suffixed email-template copies or campaign/Canvas translation maps, depending on the open file.
+
+Translators can prepare drafts; approval requires a reviewer, localization manager, or administrator with project access. See [Roles and permissions](/platform/workspace/roles). Coming from Phrase Strings: a translation it calls **verified** is **Approved** here, and an **unverified** one is **Needs review**.
+
+On native projects, the context panel also shows a string's **Tags** and its design link (**Open design**), such as a Figma frame where the string appears. Admins, localization managers, and developers can add and remove tags and add, change, or remove the link there. To tag many strings at once, tick them, open the selection menu, and choose **Edit tags…**. A tag is up to 64 letters, digits, `_` or `-`.
+
+When a string's source text changes, from a new file upload, a repository sync, an integration import or the API, its approved translations stay approved unless the project's **When source text changes** setting is **Needs review**. Then they go back to **Needs review** with their text kept, so a reviewer can update it to the new source and approve it again. See [Update source content safely](/platform/guides/update-source-content#recheck-approved-wording).
+
+### Edit source text
+
+In a project with **Allow source text editing** turned on, administrators, localization managers and developers can change a string's source text from the **Source text** section of the side panel: select the pencil, edit the text, and select **Save source text** (or press ⌘↵). In a project set to send approved translations to review when source text changes, tick **Keep translations approved** for a typo or punctuation fix. The section appears on strings in JSON, JSONC and ARB files, not on hidden strings or in the merged-strings view; a string locked in any language can't be edited. An upload or repository sync keeps the edit, and a GitLab sync sends it back to the repository; see [Edit source text in Hyperlocalise](/platform/guides/update-source-content#edit-source-text-in-hyperlocalise).
+
+Format checks on the segment include **Placeholders & ICU** and **Length**. Fix those before you approve. Unreal Engine tags in gettext `.po` files appear as chips such as **UE#0**; keep them and translate the words around them. See [Unreal Engine rich text in gettext PO](/cli/reference/formats/gettext#unreal-engine-rich-text).
 
 ## Filter the queue
 
@@ -50,23 +69,72 @@ Common filters:
 - **Has issues**
 - **Skipped**
 - **Hidden**
+- **Not hidden** (native and Crowdin projects only)
 - **Unsaved translations**
 
-Provider-specific filters such as **QA issues** and **Machine translations** appear when the connected TMS supports them.
+Provider-specific filters such as **QA issues** and **Machine translations** appear when the connected TMS supports them. On native projects, the advanced filter's labels are the strings' tags. To filter by tag, type `tag:` and the tag's name in the search box and pick it from the suggestions, or click a tag in the context panel. Each tag shows as a pill inside the search box; remove it with its ×, or with Backspace in an empty box. Quick filters keep the tags, as they keep the search text.
 
-**Download** exports the filtered view. **Load more** continues the infinite-scroll list.
+To put strings into a task for people, tick them, open the selection menu, and choose **Add to a task…**. The task takes only the ticked strings. The editor loads 50 strings at a time, so for a bigger task scroll to load more, then choose **Select all**. See [Tasks made of strings](/platform/translation/jobs#tasks-made-of-strings). To tick or untick a run of strings, click one tick box, then hold Shift and click another: every string between them is ticked or unticked to match the box you Shift-clicked.
+
+To translate the ticked strings with AI, choose **Add to a task…** in the selection menu on a native project, set **Task type** to **AI translation** on the **New task** tab, pick the languages (the editor's language is ticked first), and choose **Translate**. The strings are translated in the background and their translations update as each one finishes. By default only missing translations are filled, along with Needs review translations that just repeat the source; tick **Also replace translations that are not approved yet** to redo all unapproved ones. Approved translations, locked strings, and hidden strings are never changed, and every result is **Needs review**. An answer that only repeats the source is not saved; it is sent back once like the problems below (one-word strings such as brand names, strings made only of placeholders, and languages that share the source's language, such as English (UK) from English (US), may stay the same). An answer that is empty, over the string's max length, misses a glossary term, or breaks a placeholder or the file's format is sent back to the AI once with what was wrong. If the second answer still breaks a placeholder or the format or is unusable, that language is left untranslated and listed as failed on the job; one that only misses a glossary term is saved for review. The work runs as a job you can follow from the toast's **Open job** or the project's **Jobs** page, and it is charged like a file translation job.
+
+### Machine or human
+
+Every translation in a native project records whether a machine or a person wrote its text. Use **Filter queue** → **Machine or human** to narrow the queue to one label, and see each version's label in the string's history.
+
+| Label | Meaning |
+| --- | --- |
+| **Machine** | Written by a translation job or the agent, and not changed since. Approving it unchanged keeps it **Machine**. |
+| **Machine, post-edited** | Machine text a person then changed. |
+| **Human** | Written by a person, with no machine text before it. |
+| **Unknown** | Imported from a file or an integration that doesn't say who wrote it. |
+
+Approving or rejecting a translation never changes its label; only a change to the text does. Translations written before November 2026 were labelled from their history: a save with no earlier machine version is **Human**.
+
+**Load more** continues the infinite-scroll list.
+
+### Download filtered view
+
+Use **Download** on the queue toolbar (download icon next to **Filter queue**) to export the segments you see after filters and search—not the whole project file.
+
+1. Set **Filter queue** and **Search key, source, or translation…** the way you want the export scoped.
+2. Open **Download** and pick a format:
+
+| Format | Typical use |
+| --- | --- |
+| **CSV** | Spreadsheets, scripts, quick review |
+| **TMX** | Translation memory tools |
+| **XLF** / **XLIFF** | XLIFF 1.2 workflows (same content; filename extension differs) |
+| **XLSX** | Excel review or handoff |
+
+Each row includes the segment key, source text, target text (empty when untranslated), locales, and source file path when the queue spans multiple files.
+
+Exports include up to **5,000** matching segments. If more segments match your filters, the download contains the first 5,000 in queue order; narrow filters or search to export a smaller slice.
+
+If nothing matches the current filters, download fails with a message that no segments match.
+
+### Import a bilingual file
+
+On a native project, use **Import bilingual file…** in the queue **More actions** menu to re-import a CSV, TMX, XLF, XLIFF, or XLSX file you exported from this editor. Matching keys in the current locale are updated. Empty targets are skipped so untranslated strings stay empty.
+
+Use this to repair inline tags or placeholders outside the editor, then bring the corrected targets back. The import is scoped to the open file, or to every file when you are in the all-files queue. Locale must match the current target locale. The same **5,000**-string cap applies.
+
+Provider-backed projects cannot re-import bilingual files.
+
+For complete target files, use the project’s **Download translations** action. See [Download translated files](/platform/translation/download) to choose the correct export.
 
 ## Board
 
 Open **Board** in the project or workspace sidebar when a segment needs a tracker item instead of an in-line comment. Filter the queue with **Has issues** to find those strings.
 
-Create, list, read, and update Board items from coding agents through the hosted [MCP server](/platform/mcp) (`list_issues`, `get_issue`, `create_issue`, `update_issue`). Issue writes require a role that can write translations back to the project.
+Include the file, key, locale, and decision needed in the issue. See [Resolve translation issues](/platform/translation/issues). Issue writes require a role that can write translations back to the project.
 
-## Content Editor behavior
+## Merge identical strings
 
-Project **Settings** → **Translation & Content Editor behavior** controls how source strings are grouped. **Show exact source-text duplicates as a shared group** collapses identical source text when the workspace refreshes.
+Open **View** → **Show strings** and choose **Merge identical strings** to collapse exact source-text duplicates into one row. Translate that row once and every unlocked copy in the current file scope updates. Rows whose copies already disagree show **Different translations**.
+
+Project **Settings** → **Translation & Content Editor behavior** → **Automatically merge identical strings** sets the default for the project. See [Merge strings](/platform/translation/merge-strings) for when to use it, how to switch views, and how **Apply to all** works.
 
 ## Next
 
-- [Knowledge](/platform/knowledge)
-- [Automations](/platform/automations)
+[Download translated files](/platform/translation/download) after review, or [prepare a review handoff](/platform/guides/review-handoff) for another teammate. See [translation quality troubleshooting](/platform/help/quality) if checks or suggestions do not match your expectations.

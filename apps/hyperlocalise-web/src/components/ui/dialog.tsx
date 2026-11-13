@@ -18,8 +18,7 @@ import { FormattedMessage } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 import { Button } from "@/components/ui/button";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { XIcon } from "@phosphor-icons/react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { dialogMessages } from "@/components/ui/dialog.messages";
 
@@ -80,7 +79,7 @@ function DialogContent({
                   data-slot="dialog-close"
                   render={
                     <Button variant="ghost" className="absolute top-4 end-4" size="icon-sm">
-                      <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+                      <XIcon />
                       <span className="sr-only">
                         <FormattedMessage {...dialogMessages.close} />
                       </span>

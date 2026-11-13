@@ -15,8 +15,8 @@ import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "dri
 import { organizations } from "./organizations";
 
 /**
- * Stores Crowdin App install credentials from installed/uninstall events.
- * Separate from TMS credentials; used for Crowdin App JWT/install lifecycle.
+ * @deprecated Historical Crowdin embed app installations. Retained for existing data;
+ * the embed app no longer reads or writes this table.
  */
 export const crowdinAppInstallations = pgTable(
   "crowdin_app_installations",

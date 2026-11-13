@@ -13,12 +13,11 @@
  * Version 2.0 or later.
  */
 import {
-  CustomerSupportIcon,
-  DashboardSquare01Icon,
-  RefreshIcon,
-  SecurityCheckIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  HeadsetIcon,
+  SquaresFourIcon,
+  ArrowClockwiseIcon,
+  ShieldCheckIcon,
+} from "@phosphor-icons/react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -64,7 +63,7 @@ export function ErrorRecovery({
       <Empty className="max-w-xl border border-border bg-card px-6 py-12 shadow-sm sm:px-12">
         <EmptyHeader>
           <EmptyMedia variant="icon">
-            <HugeiconsIcon icon={SecurityCheckIcon} strokeWidth={1.75} />
+            <ShieldCheckIcon />
           </EmptyMedia>
           <EmptyTitle className="font-heading text-2xl font-semibold text-balance">
             {title}
@@ -74,7 +73,7 @@ export function ErrorRecovery({
 
         <EmptyContent className="max-w-md gap-3 sm:flex-row sm:justify-center">
           <Button className="w-full sm:w-auto" onClick={retry}>
-            <HugeiconsIcon data-icon="inline-start" icon={RefreshIcon} strokeWidth={2} />
+            <ArrowClockwiseIcon data-icon="inline-start" />
             {tryAgainLabel}
           </Button>
           <Button
@@ -83,7 +82,7 @@ export function ErrorRecovery({
             nativeButton={false}
             render={<Link href={dashboardHref} />}
           >
-            <HugeiconsIcon data-icon="inline-start" icon={DashboardSquare01Icon} strokeWidth={2} />
+            <SquaresFourIcon data-icon="inline-start" />
             {dashboardLabel}
           </Button>
           <Button
@@ -92,7 +91,7 @@ export function ErrorRecovery({
             nativeButton={false}
             render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
           >
-            <HugeiconsIcon data-icon="inline-start" icon={CustomerSupportIcon} strokeWidth={2} />
+            <HeadsetIcon data-icon="inline-start" />
             {supportLabel}
           </Button>
         </EmptyContent>

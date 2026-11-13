@@ -8,13 +8,18 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/entrysplit"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/spf13/cobra"
 )
 
 func newEntriesCmd() *cobra.Command {
 	var locale string
+	var sourceLocale string
 	var sourcePath string
+	var srxSpec string
+	var importSettingsPath string
 
 	cmd := &cobra.Command{
 		Use:          "entries <translation-file>",
@@ -31,7 +36,20 @@ func newEntriesCmd() *cobra.Command {
 				return fmt.Errorf("read entries input %q: %w", path, err)
 			}
 
-			entries, err := readEntriesCommandOutput(path, content, strings.TrimSpace(sourcePath), strings.TrimSpace(locale))
+			importOptions, err := loadEntriesImportOptions(strings.TrimSpace(importSettingsPath))
+			if err != nil {
+				return err
+			}
+
+			entries, err := readEntriesCommandOutput(
+				path,
+				content,
+				strings.TrimSpace(sourcePath),
+				strings.TrimSpace(sourceLocale),
+				strings.TrimSpace(locale),
+				strings.TrimSpace(srxSpec),
+				importOptions,
+			)
 			if err != nil {
 				return err
 			}
@@ -54,15 +72,53 @@ func newEntriesCmd() *cobra.Command {
 		"target locale for multi-locale files such as .xcstrings",
 	)
 	cmd.Flags().StringVar(
+		&sourceLocale,
+		"source-locale",
+		"",
+		"source locale for files that store locales as columns, such as .xlsx (defaults to --locale)",
+	)
+	cmd.Flags().StringVar(
 		&sourcePath,
 		"source",
 		"",
-		"source file used to align markdown/MDX target documents onto source slot ids",
+		"source file used to align markdown/MDX/AsciiDoc target documents onto source slot ids",
+	)
+	cmd.Flags().StringVar(
+		&srxSpec,
+		"srx",
+		"",
+		"split string values with SRX 2.0 (default, html, markdown, or path to an SRX file)",
+	)
+	cmd.Flags().StringVar(
+		&importSettingsPath,
+		"import-settings",
+		"",
+		"JSON file of per-format import filters (HTML excluded elements, JSON key paths, Excel columns)",
 	)
 	return cmd
 }
 
-func readEntriesCommandOutput(path string, content []byte, sourcePath, locale string) (map[string]translationfileparser.EntriesCommandOutputValue, error) {
+func loadEntriesImportOptions(path string) (translationfileparser.ImportOptions, error) {
+	if path == "" {
+		return translationfileparser.ImportOptions{}, nil
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return translationfileparser.ImportOptions{}, fmt.Errorf("read import settings %q: %w", path, err)
+	}
+	opts, err := translationfileparser.ParseImportOptionsJSON(raw)
+	if err != nil {
+		return translationfileparser.ImportOptions{}, fmt.Errorf("decode import settings %q: %w", path, err)
+	}
+	return opts, nil
+}
+
+func readEntriesCommandOutput(
+	path string,
+	content []byte,
+	sourcePath, sourceLocale, locale, srxSpec string,
+	importOptions translationfileparser.ImportOptions,
+) (map[string]translationfileparser.EntriesCommandOutputValue, error) {
 	if sourcePath != "" {
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext == ".md" || ext == ".mdx" {
@@ -77,19 +133,89 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, locale st
 			mdx := ext == ".mdx"
 			sourceDoc := translationfileparser.ParseMarkdownDocumentIR(sourceContent, mdx)
 			aligned := translationfileparser.AlignMarkdownTargetToSource(sourceContent, content, mdx)
-			return translationfileparser.EncodeDocumentEntriesCommandOutput(sourceDoc.WithBlockText(aligned)), nil
+			return encodeDocumentEntriesCommandOutput(sourceDoc.WithBlockText(aligned), path, content, locale, srxSpec)
+		}
+		if translationfileparser.IsAsciiDocDocumentExtension(path) {
+			if !translationfileparser.IsAsciiDocDocumentExtension(sourcePath) {
+				return nil, fmt.Errorf("entries source extension %q does not match target extension %q", filepath.Ext(sourcePath), ext)
+			}
+			sourceContent, err := os.ReadFile(sourcePath)
+			if err != nil {
+				return nil, fmt.Errorf("read entries source %q: %w", sourcePath, err)
+			}
+			sourceDoc := translationfileparser.ParseAsciiDocDocumentIR(sourceContent)
+			aligned := translationfileparser.AlignAsciiDocTargetToSource(sourceContent, content)
+			return encodeDocumentEntriesCommandOutput(sourceDoc.WithBlockText(aligned), path, content, locale, srxSpec)
+		}
+		if translationfileparser.IsPlainTextDocumentExtension(path) {
+			if !translationfileparser.IsPlainTextDocumentExtension(sourcePath) {
+				return nil, fmt.Errorf("entries source extension %q does not match target extension %q", filepath.Ext(sourcePath), ext)
+			}
+			sourceContent, err := os.ReadFile(sourcePath)
+			if err != nil {
+				return nil, fmt.Errorf("read entries source %q: %w", sourcePath, err)
+			}
+			sourceDoc := translationfileparser.ParsePlainTextDocumentIR(sourceContent)
+			aligned := translationfileparser.AlignPlainTextTargetToSource(sourceContent, content)
+			return encodeDocumentEntriesCommandOutput(sourceDoc.WithBlockText(aligned), path, content, locale, srxSpec)
 		}
 	}
 
 	if translationfileparser.IsMarkdownDocumentExtension(path) {
 		doc := translationfileparser.ParseMarkdownDocumentIR(content, translationfileparser.IsMarkdownDocumentMDX(path))
-		return translationfileparser.EncodeDocumentEntriesCommandOutput(doc), nil
+		return encodeDocumentEntriesCommandOutput(doc, path, content, locale, srxSpec)
+	}
+	if translationfileparser.IsAsciiDocDocumentExtension(path) {
+		doc := translationfileparser.ParseAsciiDocDocumentIR(content)
+		return encodeDocumentEntriesCommandOutput(doc, path, content, locale, srxSpec)
+	}
+	if translationfileparser.IsPlainTextDocumentExtension(path) {
+		doc := translationfileparser.ParsePlainTextDocumentIR(content)
+		return encodeDocumentEntriesCommandOutput(doc, path, content, locale, srxSpec)
 	}
 
 	strategy := translationfileparser.NewDefaultStrategy()
-	entries, err := strategy.ParseIngestEntries(path, content, locale)
+	entries, err := strategy.ParseIngestEntriesWithOptions(path, content, sourceLocale, locale, importOptions)
 	if err != nil {
 		return nil, err
 	}
+
+	if strings.TrimSpace(srxSpec) != "" {
+		doc, err := entrysplit.CompileSpec(srxSpec)
+		if err != nil {
+			return nil, err
+		}
+		parserMode := runsvc.ParserModeForSource(path, content)
+		entries, _, err = entrysplit.ApplyToIngestEntries(doc, path, parserMode, locale, entries)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return translationfileparser.EncodeEntriesCommandOutput(entries), nil
+}
+
+func encodeDocumentEntriesCommandOutput(
+	doc translationfileparser.ParsedDocument,
+	path string,
+	content []byte,
+	locale string,
+	srxSpec string,
+) (map[string]translationfileparser.EntriesCommandOutputValue, error) {
+	entries := doc.IngestEntries()
+	if entries == nil {
+		entries = map[string]translationfileparser.IngestEntry{}
+	}
+	if strings.TrimSpace(srxSpec) != "" {
+		srxDoc, err := entrysplit.CompileSpec(srxSpec)
+		if err != nil {
+			return nil, err
+		}
+		parserMode := runsvc.ParserModeForSource(path, content)
+		entries, _, err = entrysplit.ApplyToIngestEntries(srxDoc, path, parserMode, locale, entries)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return translationfileparser.EncodeDocumentEntriesCommandOutputFromEntries(doc, entries), nil
 }

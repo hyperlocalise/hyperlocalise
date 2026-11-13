@@ -20,12 +20,25 @@ vi.mock("./activity-log-writer", () => ({
   enqueueActivityLogEvent: enqueueActivityLogEventMock,
 }));
 
+const { trackMock } = vi.hoisted(() => ({
+  trackMock: vi.fn(),
+}));
+
+vi.mock("@/lib/analytics/server", () => ({
+  serverAnalytics: { track: trackMock },
+}));
+
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import {
+  enqueueAutomationCreatedActivity,
+  enqueueAutomationDeletedActivity,
   enqueueAutomationRunStartedActivity,
   enqueueAutomationStatusActivity,
   enqueueJobCancelledActivity,
   enqueueJobCreatedActivity,
   enqueueJobFailedActivity,
+  enqueueJobUpdatedActivity,
+  jobUpdatedFields,
   stableJobFailureCode,
 } from "./job-automation-events";
 
@@ -38,6 +51,30 @@ const userActor = {
 describe("job and automation activity events", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("records job updates without the owner's identity", async () => {
+    expect(jobUpdatedFields({ title: "Launch", ownerWorkosUserId: "user_2", dueAt: null })).toEqual(
+      ["title", "dueAt", "owner"],
+    );
+
+    await enqueueJobUpdatedActivity({
+      ...userActor,
+      changedFields: ["owner"],
+      jobId: "job_1",
+      kind: "proofread",
+      organizationId: "org_1",
+      projectId: null,
+    });
+
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith({
+      ...userActor,
+      eventType: "job_updated",
+      organizationId: "org_1",
+      payload: { changedFields: ["owner"], jobId: "job_1", kind: "proofread" },
+      targetId: "job_1",
+      targetKind: "job",
+    });
   });
 
   it("records the safe job lifecycle payload and actor", async () => {
@@ -84,6 +121,14 @@ describe("job and automation activity events", () => {
       targetId: "job_1",
       targetKind: "job",
     });
+    expect(trackMock).toHaveBeenNthCalledWith(1, PRODUCT_USAGE_ANALYTICS_EVENTS.jobCreated, {
+      feature: "translation",
+      source: "web",
+    });
+    expect(trackMock).toHaveBeenNthCalledWith(2, PRODUCT_USAGE_ANALYTICS_EVENTS.jobCancelled, {
+      feature: "translation",
+      source: "web",
+    });
   });
 
   it("keeps stable failure codes and rejects raw messages", async () => {
@@ -109,6 +154,45 @@ describe("job and automation activity events", () => {
           jobId: "job_1",
           kind: "review",
           status: "failed",
+        },
+      }),
+    );
+  });
+
+  it("records automation create and delete", async () => {
+    await enqueueAutomationCreatedActivity({
+      ...userActor,
+      automationId: "automation_1",
+      name: "Daily localization check",
+      organizationId: "org_1",
+      status: "active",
+    });
+    await enqueueAutomationDeletedActivity({
+      ...userActor,
+      automationId: "automation_1",
+      name: "Daily localization check",
+      organizationId: "org_1",
+    });
+
+    expect(enqueueActivityLogEventMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        eventType: "automation_created",
+        payload: {
+          automationId: "automation_1",
+          name: "Daily localization check",
+          status: "active",
+        },
+      }),
+    );
+    expect(enqueueActivityLogEventMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        eventType: "automation_deleted",
+        payload: {
+          automationId: "automation_1",
+          name: "Daily localization check",
+          status: "archived",
         },
       }),
     );

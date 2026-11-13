@@ -1,0 +1,153 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const { createWorkspace } = vi.hoisted(() => ({ createWorkspace: vi.fn() }));
+
+vi.mock("@/lib/agent-runtime/workspaces/vercel-sandbox-runtime", () => ({
+  createVercelSandboxWorkspace: createWorkspace,
+}));
+
+import { DEFAULT_QA_POLICY } from "./qa-policy";
+import {
+  QaCliUnavailableError,
+  QaSandboxStopError,
+  validateQaPageInSandbox,
+} from "./validate-page-in-sandbox";
+
+describe("validateQaPageInSandbox", () => {
+  const writeFile = vi.fn();
+  const runCommand = vi.fn();
+  const readFile = vi.fn();
+  const stop = vi.fn();
+  const input = {
+    policy: DEFAULT_QA_POLICY,
+    glossaryTerms: [],
+    acceptedWordsByLocale: {},
+    segments: [
+      {
+        id: "0",
+        sourceText: "Hello",
+        targetText: "Bonjour",
+        sourcePath: "en.json",
+        targetLocale: "fr-FR",
+        maxLength: 0,
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    createWorkspace.mockResolvedValue({
+      id: "sbx_test",
+      writeFile,
+      runCommand,
+      readFile,
+      stop,
+    });
+    runCommand.mockResolvedValue({ exitCode: 0, output: "" });
+    readFile.mockResolvedValue(JSON.stringify({ results: [{ id: "0", checks: [] }] }));
+  });
+
+  it("writes the captured policy and segments, then stops the sandbox", async () => {
+    await expect(validateQaPageInSandbox(input)).resolves.toEqual([{ id: "0", checks: [] }]);
+    expect(createWorkspace).toHaveBeenCalledWith({
+      timeoutMs: 10 * 60 * 1000,
+      imageScope: "qa",
+      sandboxOptions: { snapshotExpiration: 0, keepLastSnapshots: { count: 1 } },
+    });
+    expect(runCommand).toHaveBeenCalledWith("bash", [
+      "-lc",
+      expect.stringMatching(/fetch-dictionaries\.sh/),
+    ]);
+    expect(writeFile).toHaveBeenCalledWith(
+      ".hyperlocalise-qa/policy.json",
+      expect.stringContaining('"version":1'),
+    );
+    expect(writeFile).toHaveBeenCalledWith(
+      ".hyperlocalise-qa/segments.json",
+      expect.stringContaining('"sourceText":"Hello"'),
+    );
+    expect(runCommand).toHaveBeenCalledWith("bash", ["-lc", "rm -rf .hyperlocalise-qa"]);
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("sends guideline severity as a warning so an older CLI accepts the policy", async () => {
+    await validateQaPageInSandbox({
+      ...input,
+      policy: {
+        ...DEFAULT_QA_POLICY,
+        guideline: { enabled: true, severity: "error" },
+      },
+    });
+    const policyCall = writeFile.mock.calls.find(
+      (call) => call[0] === ".hyperlocalise-qa/policy.json",
+    );
+    const policy = JSON.parse(String(policyCall?.[1])) as {
+      checks: { guideline: { enabled: boolean; severity: string } };
+    };
+    expect(policy.checks.guideline).toEqual({ enabled: true, severity: "warning" });
+  });
+
+  it("keeps a policy error from the CLI and drops segment text", async () => {
+    runCommand
+      .mockResolvedValueOnce({ exitCode: 0, output: "" })
+      .mockResolvedValueOnce({ exitCode: 0, output: "" })
+      .mockResolvedValueOnce({
+        exitCode: 1,
+        output: "Error: load QA policy: guideline severity must be warning\nWelcome to Acme",
+      });
+    await expect(validateQaPageInSandbox(input)).rejects.toThrow(
+      "QA CLI validation failed (exit 1): load QA policy: guideline severity must be warning",
+    );
+  });
+
+  it("omits CLI output that is not a policy error", async () => {
+    runCommand
+      .mockResolvedValueOnce({ exitCode: 0, output: "" })
+      .mockResolvedValueOnce({ exitCode: 0, output: "" })
+      .mockResolvedValueOnce({ exitCode: 2, output: "panic: Welcome to Acme" });
+    await expect(validateQaPageInSandbox(input)).rejects.toThrow(
+      /^QA CLI validation failed \(exit 2\)$/,
+    );
+  });
+
+  it("classifies an old CLI and still stops the sandbox", async () => {
+    runCommand.mockResolvedValueOnce({ exitCode: 1, output: "unknown command" });
+    await expect(validateQaPageInSandbox(input)).rejects.toBeInstanceOf(QaCliUnavailableError);
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("still stops the sandbox when a write fails", async () => {
+    const error = Object.assign(new Error("Vercel sandbox command failed: bash"), {
+      name: "VercelSandboxCommandError",
+    });
+    writeFile.mockRejectedValueOnce(error);
+    await expect(validateQaPageInSandbox(input)).rejects.toBe(error);
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("rejects when stop fails after a successful validation", async () => {
+    stop.mockRejectedValueOnce(new Error("sandbox stop failed"));
+    await expect(validateQaPageInSandbox(input)).rejects.toBeInstanceOf(QaSandboxStopError);
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the validation error when stop also fails", async () => {
+    const writeError = new Error("write failed");
+    writeFile.mockRejectedValueOnce(writeError);
+    stop.mockRejectedValueOnce(new Error("sandbox stop failed"));
+    await expect(validateQaPageInSandbox(input)).rejects.toBe(writeError);
+    expect(stop).toHaveBeenCalledOnce();
+  });
+});

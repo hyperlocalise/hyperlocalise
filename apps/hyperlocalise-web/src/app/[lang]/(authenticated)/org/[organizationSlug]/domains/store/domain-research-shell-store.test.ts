@@ -33,6 +33,23 @@ describe("DomainResearchShellStore", () => {
     expect(store.locale?.id).toBe(catalog.domain.locales[0]?.id);
     expect(store.isPending).toBe(false);
     expect(store.showResearchContent).toBe(true);
+    expect(store.showSearchConsoleSurface).toBe(false);
+  });
+
+  it("shows Search Console without keyword or rank catalog data", () => {
+    const catalog = getResearchPrototypeCatalog("hyperlocalise-com")!;
+    const store = new DomainResearchShellStore({
+      organizationSlug: "acme",
+      linkedDomainId: catalog.domain.id,
+      surface: "search-console",
+      requestedLocaleId: "germany-de",
+    });
+    store.setResearchData({ catalog });
+    store.setLoadStatus("success");
+
+    expect(store.activeCatalog).toBeNull();
+    expect(store.showResearchContent).toBe(false);
+    expect(store.showSearchConsoleSurface).toBe(true);
   });
 
   it("builds locale-aware research hrefs", () => {
@@ -46,5 +63,46 @@ describe("DomainResearchShellStore", () => {
     expect(store.hrefForLocale("germany-de")).toContain("/org/acme/domains/domain-1/keywords?");
     expect(store.hrefForLocale("germany-de")).toContain("locale=germany-de");
     expect(store.hrefForLocale("germany-de")).toContain("foo=bar");
+    expect(store.hrefWithoutLocale()).toBe("/org/acme/domains/domain-1/keywords?foo=bar");
+  });
+
+  it("uses saved linked-domain market ids instead of catalog locales", () => {
+    const catalog = getResearchPrototypeCatalog("hyperlocalise-com")!;
+    const store = new DomainResearchShellStore({
+      organizationSlug: "acme",
+      linkedDomainId: catalog.domain.id,
+      surface: "overview",
+      requestedLocaleId: "france-fr",
+    });
+    store.setResearchData({
+      catalog,
+      linkedDomain: {
+        id: catalog.domain.id,
+        organizationId: "org",
+        domainKey: catalog.domain.domainKey,
+        domainSlug: "hyperlocalise-com",
+        sourceUrl: catalog.domain.sourceUrl,
+        marketIds: ["germany-de"],
+        status: "verified",
+        preferredMethod: null,
+        verifiedMethod: "dns_txt",
+        verifiedAt: null,
+        localisationAuditId: null,
+        projectId: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        challenges: {
+          token: "t",
+          dnsTxt: { host: "_hyperlocalise-verify", value: "t" },
+          htmlFile: { path: "/p", url: "https://x/p", body: "t" },
+          metaTag: { html: "<meta />" },
+        },
+        auditScore: null,
+      },
+    });
+    store.setLoadStatus("success");
+
+    expect(store.domain?.locales.map((locale) => locale.id)).toEqual(["germany-de"]);
+    expect(store.locale?.id).toBe("germany-de");
   });
 });

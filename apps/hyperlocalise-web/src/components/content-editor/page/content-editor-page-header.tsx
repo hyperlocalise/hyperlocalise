@@ -13,17 +13,21 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { observer } from "mobx-react-lite";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, SidebarIcon } from "@phosphor-icons/react";
+import { useIntl } from "react-intl";
 
 import {
   ContentEditorFileTreePicker,
   ContentEditorLocaleSelect,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/content-editor-header-pickers";
+import { resolveVisibleContentEditorFiles } from "@/components/content-editor/files/content-editor-visible-files";
 import { ContentEditorActivityLogButton } from "@/components/content-editor/activity-log/content-editor-activity-log-dialog";
+import { ContentEditorShortcutHint } from "@/components/content-editor/editor/content-editor-shortcut-hints";
 import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { contentEditorWorkspaceViewMessages } from "@/components/content-editor/workspace/content-editor-workspace.messages";
 import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
 
@@ -32,13 +36,21 @@ import type { ContentEditorPageActions } from "./content-editor-page-shell";
 export const ContentEditorPageHeader = observer(function ContentEditorPageHeader({
   backHref,
   actions,
+  headerTrailing,
 }: {
   backHref: string;
   actions: ContentEditorPageActions;
+  headerTrailing?: ReactNode;
 }) {
-  const page = useContentEditorWorkspace().page;
+  const intl = useIntl();
+  const workspace = useContentEditorWorkspace();
+  const page = workspace.page;
+  const ui = workspace.ui;
+  const isFileViewOrDesigner =
+    ui.adaptiveWorkspaceEnabled && (ui.isFileView || ui.isDesignerPersona);
   const showFilePicker = page.files.length > 0 || page.allFiles;
-
+  // The queue toolbar's View and "…" menus own these outside file view.
+  const showChromeShortcuts = ui.isFileView;
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
       <div className="flex min-w-0 shrink-0 items-center gap-2">
@@ -48,13 +60,37 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
           className="size-8 shrink-0"
           render={<Link href={backHref} />}
         >
-          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+          <ArrowLeftIcon className="size-4" />
         </Button>
 
+        {showChromeShortcuts && page.showFileSidebar ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="relative hidden size-8 shrink-0 lg:inline-flex"
+            aria-pressed={!ui.filesPanelCollapsed}
+            aria-label={intl.formatMessage(
+              ui.filesPanelCollapsed
+                ? contentEditorWorkspaceViewMessages.showFilesPanel
+                : contentEditorWorkspaceViewMessages.hideFilesPanel,
+            )}
+            onClick={() => ui.toggleFilesPanel()}
+          >
+            <SidebarIcon className="size-4 text-foreground" />
+            <ContentEditorShortcutHint shortcut="toggleFilesPanel" placement="below" />
+          </Button>
+        ) : null}
+
         {showFilePicker ? (
-          <div className="lg:hidden">
+          <div className={isFileViewOrDesigner ? "inline-flex" : "lg:hidden"}>
             <ContentEditorFileTreePicker
-              files={page.files}
+              files={resolveVisibleContentEditorFiles(
+                page.files,
+                ui.hiddenFilesHidden,
+                page.allFiles ? null : page.selectedSourcePath,
+              )}
+              fileProgress={page.fileProgress}
               selectedSourcePath={page.selectedSourcePath ?? ""}
               onSelectFile={actions.onSelectFile}
               allFilesSelected={page.allFiles}
@@ -78,7 +114,8 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
           />
         ) : null}
 
-        {page.showActivityLog &&
+        {showChromeShortcuts &&
+        page.showActivityLog &&
         page.organizationSlug &&
         page.projectId &&
         page.activitySourcePath ? (
@@ -90,7 +127,10 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
         ) : null}
       </div>
 
-      <ContentEditorQueueToolbarHost />
+      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+        {headerTrailing}
+        <ContentEditorQueueToolbarHost />
+      </div>
     </div>
   );
 });

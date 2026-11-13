@@ -26,6 +26,7 @@ import {
 } from "@/lib/billing/agent-runtime-usage";
 
 import type { WorkspaceOrchestratorSession } from "../context";
+import { composeSkillToolInstructions } from "../workspace-skill-instructions";
 import { createCrowdinReviewTools } from "./crowdin-review-tools";
 
 const CROWDIN_TOOL_STEP_LIMIT = 10;
@@ -46,7 +47,7 @@ export function createUseCrowdinTool(session: WorkspaceOrchestratorSession) {
     description:
       "Look up Crowdin glossary, translation memory, style guidance, and translation recommendations for strings under review. Pass source strings, locales, and surrounding context from prior steps.",
     inputSchema: useCrowdinInputSchema,
-    execute: async ({ objective }, { abortSignal } = {}) => {
+    execute: async ({ objective }, { abortSignal, toolCallId } = {}) => {
       const crowdin = session.automation.toolConfig.crowdin;
       const projectId = crowdin?.projectId?.trim();
       if (!crowdin?.enabled || !projectId) {
@@ -76,9 +77,15 @@ export function createUseCrowdinTool(session: WorkspaceOrchestratorSession) {
         timeout: WORKFLOW_AGENT_TIMEOUT,
       });
 
+      const taskInstructions = composeSkillToolInstructions({
+        skillIds: session.automation.skillIds ?? [],
+        tool: "use_crowdin",
+        customerInstructions: session.automation.instructions,
+      });
+
       const result = await withAgentRuntimeUsageMetering({
         organizationId: session.organizationId,
-        operationKey: `workspace-crowdin:${session.run.id}:agent_runs`,
+        operationKey: `workspace-crowdin:${session.run.id}:${toolCallId ?? crypto.randomUUID()}:agent_runs`,
         source: "workspace_crowdin_agent",
         dimensions: {
           surface: "automation",
@@ -86,6 +93,7 @@ export function createUseCrowdinTool(session: WorkspaceOrchestratorSession) {
           project_id: projectId,
         },
         extractTokenUsage: extractGenerateResultTokenUsage,
+        aiCreditModelId: resolveWorkspaceAutomationModel(session.automation.model),
         run: () =>
           agent.generate({
             abortSignal,
@@ -95,9 +103,7 @@ export function createUseCrowdinTool(session: WorkspaceOrchestratorSession) {
                 content: [
                   `Objective: ${objective}`,
                   `Crowdin project: ${projectId}`,
-                  session.automation.instructions.trim()
-                    ? `Automation instructions:\n${session.automation.instructions.trim()}`
-                    : null,
+                  taskInstructions ? `Automation instructions:\n${taskInstructions}` : null,
                 ]
                   .filter((line): line is string => Boolean(line))
                   .join("\n\n"),

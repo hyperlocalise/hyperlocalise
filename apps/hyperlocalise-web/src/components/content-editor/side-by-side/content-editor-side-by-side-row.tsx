@@ -13,25 +13,39 @@
  * Version 2.0 or later.
  */
 import {
-  Copy01Icon,
+  CopyIcon,
   EraserIcon,
-  Image01Icon,
+  ImageIcon,
+  FloppyDiskIcon,
+  LockIcon,
   TranslateIcon,
-  Video01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { useMemo } from "react";
+  VideoIcon,
+} from "@phosphor-icons/react";
+import { observer } from "mobx-react-lite";
+import { useMemo, useState, type ReactNode } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { useSegmentActivityOpener } from "../activity-log/content-editor-segment-activity";
+import {
+  ContentEditorDifferentTranslationsBadge,
+  ContentEditorGroupVariantsGate,
+} from "../groups/content-editor-group-variants";
+import { ContentEditorOccurrenceBadge } from "../groups/content-editor-occurrence-badge";
+import { useHasGroupTranslationVariants } from "../groups/use-content-editor-group-variants";
+
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Box } from "@/components/ui/layout/box";
+import { Row } from "@/components/ui/layout/row";
+import { Rows } from "@/components/ui/layout/rows";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { Text } from "@/components/ui/typography";
 import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
 import { useAiFeaturesUpgradeHref } from "@/lib/billing/ai-features-upgrade-href";
 
-import { ContentEditorEditorAiRecommendation } from "@/components/content-editor/editor/content-editor-editor-ai-recommendation";
 import {
   ContentEditorEditorImageSourceSection,
   ContentEditorEditorImageTargetSection,
@@ -55,11 +69,17 @@ import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
 } from "@/components/content-editor/segment/content-editor-segment-status";
+import {
+  CONTENT_EDITOR_SEGMENT_CHECKBOX_ATTRIBUTE,
+  ContentEditorSegmentCheckbox,
+} from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import { ContentEditorSegmentTags } from "@/components/content-editor/segment/content-editor-segment-tags";
-import { ContentEditorShareSegmentButton } from "@/components/content-editor/segment/content-editor-share-segment-button";
+import { ContentEditorSegmentActionsMenu } from "@/components/content-editor/segment/content-editor-segment-actions-menu";
+import { ContentEditorSegmentLockToggle } from "@/components/content-editor/segment/content-editor-segment-lock-toggle";
 import {
   contentEditorEditorPanelMessages,
+  contentEditorLockedStringMessages,
   contentEditorSideBySidePanelMessages,
 } from "@/components/content-editor/shared/content-editor.messages";
 import type {
@@ -68,8 +88,24 @@ import type {
   ContentEditorSegmentIntelligence,
 } from "@/components/content-editor/shared/types";
 
-import { ContentEditorSideBySideFormatCheckIcon } from "./content-editor-side-by-side-format-check-icon";
-import { ContentEditorSideBySideFormatChecksReveal } from "./content-editor-side-by-side-format-checks-reveal";
+import { ContentEditorSideBySideAiSuggestion } from "./content-editor-side-by-side-ai-suggestion";
+import {
+  SIDE_BY_SIDE_CHECK_AREA_CLASS_NAME,
+  SIDE_BY_SIDE_GRID_CLASS_NAME,
+  SIDE_BY_SIDE_SELECTION_GRID_CLASS_NAME,
+  SIDE_BY_SIDE_SOURCE_AREA_CLASS_NAME,
+  SIDE_BY_SIDE_STATUS_AREA_CLASS_NAME,
+  SIDE_BY_SIDE_TARGET_AREA_CLASS_NAME,
+} from "./content-editor-side-by-side-grid";
+import { ContentEditorSideBySideInlineQa } from "./content-editor-side-by-side-inline-qa";
+import {
+  actionableFormatChecks,
+  qaHighlightTokens,
+  replacesQaTermAsWholeWord,
+} from "./content-editor-side-by-side-qa";
+import { ContentEditorSideBySideQaStatus } from "./content-editor-side-by-side-qa-status";
+
+const CELL_BOX_CLASS_NAME = "rounded-md border border-border bg-background px-3 py-2";
 
 function isImageEditorSegment(segment: ContentEditorSegment) {
   return segment.contentKind === "image_file" || segment.contentKind === "image_url";
@@ -87,7 +123,7 @@ function hasAssetTarget(segment: ContentEditorSegment) {
   return Boolean(segment.targetAssetUrl || segment.targetText.trim());
 }
 
-export function ContentEditorSideBySideRow({
+export const ContentEditorSideBySideRow = observer(function ContentEditorSideBySideRow({
   segment,
   isFocused,
   isHovered,
@@ -96,20 +132,18 @@ export function ContentEditorSideBySideRow({
   isTargetLoading,
   isApproving = false,
   isSavingDraft = false,
-  isPostingComment = false,
-  isLookingUpContext = false,
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   isImageBusy = false,
+  isImageGenerating = false,
   canUseAiRecommendation = false,
   intelligence = null,
   aiRecommendationError,
+  aiRecommendationCreditExhausted = false,
   formatChecks = [],
   primaryActionLabel,
   segmentShareUrl = null,
   onFocus,
-  onHover,
-  onLeave,
   onTargetChange,
   onApprove,
   onSaveDraft,
@@ -120,10 +154,13 @@ export function ContentEditorSideBySideRow({
   onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
+  onToggleLocked,
+  checkedSegmentIds,
+  onCheckedChange,
 }: {
   segment: ContentEditorSegment;
   isFocused: boolean;
-  isHovered: boolean;
+  isHovered?: boolean;
   isDirty: boolean;
   canEdit: boolean;
   isTargetLoading: boolean;
@@ -134,15 +171,15 @@ export function ContentEditorSideBySideRow({
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   isImageBusy?: boolean;
+  isImageGenerating?: boolean;
   canUseAiRecommendation?: boolean;
   intelligence?: ContentEditorSegmentIntelligence | null;
   aiRecommendationError?: string;
+  aiRecommendationCreditExhausted?: boolean;
   formatChecks?: ContentEditorFormatCheck[];
   primaryActionLabel?: string;
   segmentShareUrl?: string | null;
   onFocus: () => void;
-  onHover: () => void;
-  onLeave: () => void;
   onTargetChange: (value: string) => void;
   onApprove?: () => void;
   onSaveDraft?: () => void;
@@ -153,34 +190,38 @@ export function ContentEditorSideBySideRow({
   onTreatAsVideo?: (treatAsVideo: boolean) => void;
   onRegenerateImage?: () => void;
   onUploadImage?: (file: File) => void;
+  onToggleLocked?: () => void | Promise<void>;
+  checkedSegmentIds?: ReadonlySet<string>;
+  /** Shows the bulk-selection tick box when set (Select mode). */
+  onCheckedChange?: (checked: boolean, extendRange: boolean) => void;
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
   const upgradeHref = useAiFeaturesUpgradeHref();
+  const openActivity = useSegmentActivityOpener();
+  const [isPointerHovered, setIsPointerHovered] = useState(false);
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorEditorPanelMessages.approve);
-  const isActive = isFocused || isHovered;
+  const isActive = isFocused || (isHovered ?? isPointerHovered);
   const isImageSegment = isImageEditorSegment(segment);
   const isVideoSegment = isVideoEditorSegment(segment);
   const isAssetSegment = isAssetEditorSegment(segment);
   const showVideoSource = isVideoSegment || Boolean(segment.looksLikeVideoUrl);
   const showImageSource = isImageSegment || Boolean(segment.looksLikeImageUrl);
   const sourceMessageAnalysis = useMemo(
-    () => (isAssetSegment ? null : analyzeCatMessageFormat(segment.sourceText)),
-    [isAssetSegment, segment.sourceText],
+    () =>
+      isAssetSegment
+        ? null
+        : analyzeCatMessageFormat(segment.sourceText, {
+            messageFormat: segment.messageFormat,
+            placeholderPatterns: segment.placeholderPatterns,
+          }),
+    [isAssetSegment, segment.messageFormat, segment.placeholderPatterns, segment.sourceText],
   );
   const hasApprovingTarget = isAssetSegment
     ? hasAssetTarget(segment)
     : segment.targetText.trim().length > 0;
-  const isActionBlocked =
-    isApproving ||
-    isSavingDraft ||
-    isPostingComment ||
-    isLookingUpContext ||
-    isAiSuggestionLoading ||
-    isFormatChecksLoading ||
-    isTargetLoading ||
-    isImageBusy;
+  const isActionBlocked = isApproving || isSavingDraft || isTargetLoading || isImageBusy;
   // Show Approve whenever the focused row has a target to approve — including clean
   // "Needs review" drafts (AI/job-written) that the reviewer has not edited yet.
   const canTriggerApprove =
@@ -209,74 +250,106 @@ export function ContentEditorSideBySideRow({
   );
   const treatAsImage = segment.contentKind === "image_url";
   const treatAsVideo = segment.contentKind === "video_url";
-  const showAiRecommendation =
+  const showAiSuggestion =
     isFocused &&
     canEditTarget &&
     !isAssetSegment &&
     (canUseAiRecommendation || Boolean(upgradeHref)) &&
     Boolean(intelligence) &&
     Boolean(onUseAiSuggestion);
-  const actionableFormatChecks = useMemo(
-    () => formatChecks.filter((check) => check.status !== "pass"),
-    [formatChecks],
+  const qaIssues = useMemo(() => actionableFormatChecks(formatChecks), [formatChecks]);
+  const firstQaIssue = isFormatChecksLoading ? undefined : qaIssues[0];
+  const highlightWholeTerm = replacesQaTermAsWholeWord(firstQaIssue);
+  const highlightTokens = useMemo(
+    () => qaHighlightTokens(firstQaIssue, segment.targetText),
+    [firstQaIssue, segment.targetText],
   );
-  const showFormatCheckIcon =
-    !isAssetSegment && (isFormatChecksLoading || actionableFormatChecks.length > 0);
-  const revealFormatChecks = showFormatCheckIcon && isActive;
-  const showActionBar = showReviewActions || showIssueSheetAction;
+  const highlightStatus = firstQaIssue?.status === "fail" ? "fail" : "warn";
+  const showCollapsedQaStatus =
+    !isFocused && !isAssetSegment && (isFormatChecksLoading || formatChecks.length > 0);
+  const showInlineQa =
+    isFocused && !isAssetSegment && (isFormatChecksLoading || qaIssues.length > 0);
+  const showStringMenu =
+    isFocused && (Boolean(segmentShareUrl) || showIssueSheetAction || Boolean(openActivity));
+  const showLockToggle = isFocused && canEdit && Boolean(onToggleLocked);
+  const isLockedTextTarget = Boolean(segment.isLocked) && !isAssetSegment;
+  const showToolbarLockToggle = showLockToggle && !isLockedTextTarget;
+  const showActionBar = showReviewActions || showStringMenu || showToolbarLockToggle;
   const copySourceLabel = intl.formatMessage(contentEditorEditorPanelMessages.copySource);
   const clearTargetLabel = intl.formatMessage(contentEditorEditorPanelMessages.clearTarget);
   const segmentTags = segment.tags ?? [];
-  const showShareButton = isFocused && Boolean(segmentShareUrl);
-  const shareButton =
-    showShareButton && segmentShareUrl ? (
-      <ContentEditorShareSegmentButton segmentShareUrl={segmentShareUrl} size="icon-xs" />
-    ) : null;
-  const statusAndTags = (
-    <div className="flex flex-wrap items-center gap-1.5">
+  const hasTranslationVariants = useHasGroupTranslationVariants(segment, segment.targetLocale);
+  const statusBadges = (
+    <Box display="flex" flexWrap="wrap" alignItems="center" gap="0.5u">
       {isTargetLoading || !shouldShowSegmentStatusBadge(segment.status, segment.isHidden) ? null : (
         <SegmentStatusBadge status={segment.status} />
       )}
+      {hasTranslationVariants ? <ContentEditorDifferentTranslationsBadge /> : null}
       {segment.isHidden ? <ContentEditorHiddenStringBadge /> : null}
       {segment.isLocked ? <ContentEditorLockedStringBadge /> : null}
-      {segmentTags.length > 0 ? <ContentEditorSegmentTags tags={segmentTags} /> : null}
-    </div>
+    </Box>
   );
-  const sourceKeyMeta = (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <ContentEditorSegmentKeyMeta
-        segmentKey={segment.key}
-        sourcePath={segment.sourcePath}
-        trailing={shareButton}
-      />
-      {statusAndTags}
-    </div>
-  );
+  const showMediaSourceEditor = isFocused && (showVideoSource || showImageSource);
+  const treatAsImageButton =
+    showTreatAsImageAction && !showMediaSourceEditor ? (
+      <Button
+        type="button"
+        variant={treatAsImage ? "secondary" : "outline"}
+        size="xs"
+        disabled={!canEditTarget || isImageBusy}
+        onClick={() => onTreatAsImage?.(!treatAsImage)}
+        title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsImageTitle)}
+      >
+        <ImageIcon className="size-3" aria-hidden />
+        <FormattedMessage
+          {...(treatAsImage
+            ? contentEditorEditorPanelMessages.treatAsText
+            : contentEditorEditorPanelMessages.treatAsImage)}
+        />
+      </Button>
+    ) : null;
+  const treatAsVideoButton =
+    showTreatAsVideoAction && !showMediaSourceEditor ? (
+      <Button
+        type="button"
+        variant={treatAsVideo ? "secondary" : "outline"}
+        size="xs"
+        disabled={!canEditTarget || isImageBusy}
+        onClick={() => onTreatAsVideo?.(!treatAsVideo)}
+        title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsVideoTitle)}
+      >
+        <VideoIcon className="size-3" aria-hidden />
+        <FormattedMessage
+          {...(treatAsVideo
+            ? contentEditorEditorPanelMessages.treatAsText
+            : contentEditorEditorPanelMessages.treatAsVideo)}
+        />
+      </Button>
+    ) : null;
   const copyClearActions = showCopyClearActions ? (
-    <div className="flex items-center gap-0.5">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-xs"
-        onClick={() => onTargetChange(segment.sourceText)}
-        disabled={isTargetLoading}
-        aria-label={copySourceLabel}
-        title={copySourceLabel}
+    <TooltipProvider>
+      <div
+        className={cn(
+          "flex items-center gap-0.5 transition-opacity",
+          !isFocused && "opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100",
+        )}
       >
-        <HugeiconsIcon icon={Copy01Icon} aria-hidden />
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-xs"
-        onClick={() => onTargetChange("")}
-        disabled={isTargetLoading || segment.targetText.length === 0}
-        aria-label={clearTargetLabel}
-        title={clearTargetLabel}
-      >
-        <HugeiconsIcon icon={EraserIcon} aria-hidden />
-      </Button>
-    </div>
+        <IconActionButton
+          label={copySourceLabel}
+          disabled={isTargetLoading}
+          onClick={() => onTargetChange(segment.sourceText)}
+        >
+          <CopyIcon className="size-4" aria-hidden />
+        </IconActionButton>
+        <IconActionButton
+          label={clearTargetLabel}
+          disabled={isTargetLoading || segment.targetText.length === 0}
+          onClick={() => onTargetChange("")}
+        >
+          <EraserIcon className="size-4" aria-hidden />
+        </IconActionButton>
+      </div>
+    </TooltipProvider>
   ) : null;
 
   useHotkeys(
@@ -285,7 +358,8 @@ export function ContentEditorSideBySideRow({
       const activeElement = document.activeElement;
       if (
         activeElement instanceof HTMLElement &&
-        activeElement.dataset.contentEditorCommentInput === "true"
+        (activeElement.dataset.contentEditorCommentInput === "true" ||
+          activeElement.hasAttribute(CONTENT_EDITOR_SEGMENT_CHECKBOX_ATTRIBUTE))
       ) {
         return;
       }
@@ -303,70 +377,135 @@ export function ContentEditorSideBySideRow({
     [canTriggerApprove, isFocused, onApprove],
   );
 
-  const reviewActions = showActionBar ? (
-    <div className="flex flex-wrap items-center gap-2">
-      {showReviewActions ? (
-        <>
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            className="h-8 gap-1.5 px-2.5"
-            onClick={onApprove}
-            disabled={!canTriggerApprove}
-          >
-            {isApproving ? <Spinner className="size-3.5 text-primary-foreground" /> : null}
-            {resolvedPrimaryActionLabel}
-            <ContentEditorEditorShortcutKbd
-              shortcut="approve"
-              isMac={isMac}
-              className="bg-primary-foreground/15 text-primary-foreground"
-            />
-          </Button>
-          {onSaveDraft && !isAssetSegment ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 px-2.5"
-              onClick={onSaveDraft}
-              disabled={!canTriggerApprove}
-            >
-              {isSavingDraft ? <Spinner className="size-3.5" /> : null}
-              <FormattedMessage {...contentEditorEditorPanelMessages.saveAsDraft} />
-            </Button>
-          ) : null}
-        </>
-      ) : null}
-      {showIssueSheetAction ? (
+  const primaryActions = showReviewActions ? (
+    <>
+      <Button
+        type="button"
+        variant="default"
+        size="sm"
+        onClick={onApprove}
+        disabled={!canTriggerApprove}
+      >
+        {isApproving ? <Spinner className="size-3.5 text-primary-foreground" /> : null}
+        {resolvedPrimaryActionLabel}
+        <ContentEditorEditorShortcutKbd
+          shortcut="approve"
+          isMac={isMac}
+          className="bg-primary-foreground/15 text-primary-foreground"
+        />
+      </Button>
+      {onSaveDraft && !isAssetSegment ? (
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 gap-1.5 px-2.5"
-          onClick={onAddToIssueSheet}
-          disabled={isActionBlocked}
+          onClick={onSaveDraft}
+          disabled={!canTriggerApprove}
         >
-          <FormattedMessage {...contentEditorEditorPanelMessages.addToIssueSheet} />
+          {isSavingDraft ? <Spinner className="size-3" /> : <FloppyDiskIcon className="size-3.5" />}
+          <FormattedMessage {...contentEditorEditorPanelMessages.draftAction} />
         </Button>
       ) : null}
-    </div>
+    </>
   ) : null;
+  const secondaryActions = showStringMenu ? (
+    <ContentEditorSegmentActionsMenu
+      segmentShareUrl={segmentShareUrl}
+      onAddToIssueSheet={showIssueSheetAction ? onAddToIssueSheet : undefined}
+      isAddToIssueSheetDisabled={isActionBlocked}
+      activity={{
+        segmentId: segment.id,
+        sourcePath: segment.sourcePath,
+        targetLocale: segment.targetLocale,
+        label: segment.key,
+      }}
+    />
+  ) : null;
+  const renderTargetToolbar = (trigger: ReactNode) => {
+    if (!trigger && !showActionBar) {
+      return null;
+    }
+
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {primaryActions}
+        <div className="ms-auto flex items-center gap-0.5">
+          {trigger}
+          {showToolbarLockToggle && onToggleLocked ? (
+            <ContentEditorSegmentLockToggle
+              isLocked={Boolean(segment.isLocked)}
+              onToggle={onToggleLocked}
+              disabled={isActionBlocked}
+            />
+          ) : null}
+          {secondaryActions}
+        </div>
+      </div>
+    );
+  };
+  const reviewActions = renderTargetToolbar(null);
+  const lockedTextTarget = (
+    <Rows spacing="1.5u">
+      <div className={cn(CELL_BOX_CLASS_NAME, "bg-muted/40")}>
+        {segment.targetText.trim() ? (
+          <Text size="small" wrapStyle="pretty">
+            <ContentEditorMessagePreview
+              message={segment.targetText}
+              placeholderPatterns={segment.placeholderPatterns}
+              companionMessage={segment.sourceText}
+            />
+          </Text>
+        ) : (
+          <Text size="small" tone="subtle">
+            <FormattedMessage {...contentEditorSideBySidePanelMessages.noTranslation} />
+          </Text>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <LockIcon className="size-3.5 text-muted-foreground" aria-hidden />
+        <Text size="xsmall" tone="subtle">
+          <FormattedMessage {...contentEditorLockedStringMessages.lockedBanner} />
+        </Text>
+        <div className="ms-auto flex items-center gap-0.5">
+          {showLockToggle && onToggleLocked ? (
+            <ContentEditorSegmentLockToggle
+              isLocked
+              showLabel
+              onToggle={onToggleLocked}
+              disabled={isActionBlocked}
+            />
+          ) : null}
+          {secondaryActions}
+        </div>
+      </div>
+    </Rows>
+  );
 
   return (
     <div
       className={cn(
-        "grid grid-cols-2 gap-0 border-b border-border transition-colors",
-        isActive && "bg-grove-500/5",
-        isFocused && "ring-1 ring-inset ring-grove-400/30",
+        onCheckedChange ? SIDE_BY_SIDE_SELECTION_GRID_CLASS_NAME : SIDE_BY_SIDE_GRID_CLASS_NAME,
+        "group/row gap-y-2 border-b border-border px-4 py-3 transition-colors",
+        isFocused ? "bg-primary/5" : isActive && "bg-muted/40",
       )}
-      onMouseEnter={onHover}
-      onMouseLeave={onLeave}
+      onMouseEnter={() => setIsPointerHovered(true)}
+      onMouseLeave={() => setIsPointerHovered(false)}
       onFocus={onFocus}
     >
-      <div className={cn("min-w-0 border-r border-border px-4", isFocused ? "py-4" : "py-3")}>
-        {isFocused && showVideoSource ? (
-          <div className="space-y-2.5">
+      {onCheckedChange ? (
+        <ContentEditorSegmentCheckbox
+          className={SIDE_BY_SIDE_CHECK_AREA_CLASS_NAME}
+          segmentId={segment.id}
+          segmentKey={segment.key}
+          checkedSegmentIds={checkedSegmentIds}
+          onCheckedChange={onCheckedChange}
+        />
+      ) : null}
+      <div className={SIDE_BY_SIDE_STATUS_AREA_CLASS_NAME}>{statusBadges}</div>
+
+      <div className={SIDE_BY_SIDE_SOURCE_AREA_CLASS_NAME}>
+        <Rows spacing="1u">
+          {isFocused && showVideoSource ? (
             <ContentEditorEditorVideoSourceSection
               segment={segment}
               canEdit={canEditTarget}
@@ -374,14 +513,7 @@ export function ContentEditorSideBySideRow({
               onTreatAsVideo={onTreatAsVideo}
               onRegenerate={onRegenerateImage}
             />
-            <div className="flex min-w-0 items-start justify-between gap-2">
-              {statusAndTags}
-              {shareButton}
-            </div>
-            {copyClearActions}
-          </div>
-        ) : isFocused && showImageSource ? (
-          <div className="space-y-2.5">
+          ) : isFocused && showImageSource ? (
             <ContentEditorEditorImageSourceSection
               segment={segment}
               canEdit={canEditTarget}
@@ -389,15 +521,8 @@ export function ContentEditorSideBySideRow({
               onTreatAsImage={onTreatAsImage}
               onRegenerate={onRegenerateImage}
             />
-            <div className="flex min-w-0 items-start justify-between gap-2">
-              {statusAndTags}
-              {shareButton}
-            </div>
-            {copyClearActions}
-          </div>
-        ) : isVideoSegment ? (
-          <div className="space-y-2.5">
-            <button type="button" className="w-full space-y-2.5 text-left" onClick={onFocus}>
+          ) : isVideoSegment ? (
+            <button type="button" className="w-full text-left" onClick={onFocus}>
               <ContentEditorVideoPreview
                 src={
                   segment.contentKind === "video_file"
@@ -407,31 +532,9 @@ export function ContentEditorSideBySideRow({
                 emptyLabel={intl.formatMessage(contentEditorEditorPanelMessages.videoSourceEmpty)}
                 className="min-h-24"
               />
-              {sourceKeyMeta}
             </button>
-            {showTreatAsVideoAction ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Button
-                  type="button"
-                  variant={treatAsVideo ? "secondary" : "outline"}
-                  size="xs"
-                  disabled={!canEditTarget || isImageBusy}
-                  onClick={() => onTreatAsVideo?.(!treatAsVideo)}
-                  title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsVideoTitle)}
-                >
-                  <HugeiconsIcon icon={Video01Icon} className="size-3" aria-hidden />
-                  <FormattedMessage
-                    {...(treatAsVideo
-                      ? contentEditorEditorPanelMessages.treatAsText
-                      : contentEditorEditorPanelMessages.treatAsVideo)}
-                  />
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        ) : isImageSegment ? (
-          <div className="space-y-2.5">
-            <button type="button" className="w-full space-y-2.5 text-left" onClick={onFocus}>
+          ) : isImageSegment ? (
+            <button type="button" className="w-full text-left" onClick={onFocus}>
               <ContentEditorImagePreview
                 src={
                   segment.contentKind === "image_file"
@@ -442,83 +545,48 @@ export function ContentEditorSideBySideRow({
                 emptyLabel={intl.formatMessage(contentEditorEditorPanelMessages.imageSourceEmpty)}
                 className="min-h-24"
               />
-              {sourceKeyMeta}
             </button>
-            {showTreatAsImageAction ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Button
-                  type="button"
-                  variant={treatAsImage ? "secondary" : "outline"}
-                  size="xs"
-                  disabled={!canEditTarget || isImageBusy}
-                  onClick={() => onTreatAsImage?.(!treatAsImage)}
-                  title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsImageTitle)}
-                >
-                  <HugeiconsIcon icon={Image01Icon} className="size-3" aria-hidden />
-                  <FormattedMessage
-                    {...(treatAsImage
-                      ? contentEditorEditorPanelMessages.treatAsText
-                      : contentEditorEditorPanelMessages.treatAsImage)}
-                  />
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <div className="flex min-w-0 flex-col gap-2">
-            <p className="text-sm leading-relaxed text-foreground">
-              <ContentEditorMessagePreview message={segment.sourceText} />
-            </p>
-            {sourceKeyMeta}
-            {copyClearActions || showTreatAsImageAction || showTreatAsVideoAction ? (
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                {copyClearActions}
-                {showTreatAsImageAction ? (
-                  <Button
-                    type="button"
-                    variant={treatAsImage ? "secondary" : "outline"}
-                    size="xs"
-                    disabled={!canEditTarget || isImageBusy}
-                    onClick={() => onTreatAsImage?.(!treatAsImage)}
-                    title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsImageTitle)}
-                  >
-                    <HugeiconsIcon icon={Image01Icon} className="size-3" aria-hidden />
-                    <FormattedMessage
-                      {...(treatAsImage
-                        ? contentEditorEditorPanelMessages.treatAsText
-                        : contentEditorEditorPanelMessages.treatAsImage)}
-                    />
-                  </Button>
-                ) : null}
-                {showTreatAsVideoAction ? (
-                  <Button
-                    type="button"
-                    variant={treatAsVideo ? "secondary" : "outline"}
-                    size="xs"
-                    disabled={!canEditTarget || isImageBusy}
-                    onClick={() => onTreatAsVideo?.(!treatAsVideo)}
-                    title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsVideoTitle)}
-                  >
-                    <HugeiconsIcon icon={Video01Icon} className="size-3" aria-hidden />
-                    <FormattedMessage
-                      {...(treatAsVideo
-                        ? contentEditorEditorPanelMessages.treatAsText
-                        : contentEditorEditorPanelMessages.treatAsVideo)}
-                    />
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        )}
+          ) : (
+            <div className={CELL_BOX_CLASS_NAME}>
+              <Text size="small" wrapStyle="pretty">
+                <ContentEditorMessagePreview
+                  message={segment.sourceText}
+                  placeholderPatterns={segment.placeholderPatterns}
+                  companionMessage={segment.targetText}
+                />
+              </Text>
+            </div>
+          )}
+          <ContentEditorSegmentKeyMeta
+            segmentKey={segment.key}
+            sourcePath={segment.sourcePath}
+            keyClassName="text-xs font-medium text-foreground"
+            trailing={
+              (segment.occurrenceCount ?? 0) > 1 ? (
+                <ContentEditorOccurrenceBadge
+                  count={segment.occurrenceCount!}
+                  divergent={hasTranslationVariants}
+                />
+              ) : null
+            }
+          />
+          {segmentTags.length > 0 ? <ContentEditorSegmentTags tags={segmentTags} /> : null}
+          {copyClearActions || treatAsImageButton || treatAsVideoButton ? (
+            <Box display="flex" flexWrap="wrap" alignItems="center" gap="0.5u">
+              {copyClearActions}
+              {treatAsImageButton}
+              {treatAsVideoButton}
+            </Box>
+          ) : null}
+        </Rows>
       </div>
 
-      <div className={cn("min-w-0 px-4", isFocused ? "py-4" : "py-2.5")}>
+      <div className={cn(SIDE_BY_SIDE_TARGET_AREA_CLASS_NAME, "relative")}>
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             {isFocused && canEdit ? (
               isVideoSegment ? (
-                <div className="space-y-3.5">
+                <Rows spacing="1u">
                   <ContentEditorEditorVideoTargetSection
                     segment={segment}
                     canEdit={canEditTarget}
@@ -528,44 +596,81 @@ export function ContentEditorSideBySideRow({
                     onRegenerate={onRegenerateImage}
                   />
                   {reviewActions}
-                </div>
+                </Rows>
               ) : isImageSegment ? (
-                <div className="space-y-3.5">
+                <Rows spacing="1u">
                   <ContentEditorEditorImageTargetSection
                     segment={segment}
                     canEdit={canEditTarget}
                     isBusy={isImageBusy}
+                    isGenerating={isImageGenerating}
                     isLoading={isTargetLoading}
                     onUpload={onUploadImage}
                     onRegenerate={onRegenerateImage}
                   />
                   {reviewActions}
-                </div>
+                </Rows>
               ) : isTargetLoading && !segment.targetText.trim() ? (
                 <Skeleton className="h-10 w-full rounded-lg" />
+              ) : isLockedTextTarget ? (
+                lockedTextTarget
               ) : (
-                <div className="space-y-3.5">
-                  <ContentEditorTargetEditor
-                    sourceText={segment.sourceText}
-                    value={segment.targetText}
-                    maxLength={segment.maxLength}
-                    compact
-                    onChange={onTargetChange}
-                  />
-                  {sourceMessageAnalysis ? (
-                    <ContentEditorIcuStructureSummary blocks={sourceMessageAnalysis.icuBlocks} />
-                  ) : null}
-                  {showAiRecommendation && intelligence && onUseAiSuggestion ? (
-                    <ContentEditorEditorAiRecommendation
-                      intelligence={intelligence}
-                      isLoading={isAiSuggestionLoading}
-                      error={aiRecommendationError}
-                      onUseAiSuggestion={onUseAiSuggestion}
-                      onGenerateAiRecommendation={onGenerateAiRecommendation}
+                <ContentEditorGroupVariantsGate
+                  segment={segment}
+                  locale={segment.targetLocale}
+                  ai={
+                    intelligence && (canUseAiRecommendation || Boolean(upgradeHref))
+                      ? {
+                          intelligence,
+                          isLoading: Boolean(isAiSuggestionLoading),
+                          error: aiRecommendationError,
+                          aiCreditExhausted: aiRecommendationCreditExhausted,
+                          onGenerateAiRecommendation,
+                        }
+                      : undefined
+                  }
+                  actions={secondaryActions}
+                >
+                  <Rows spacing="1.5u">
+                    <ContentEditorTargetEditor
+                      sourceText={segment.sourceText}
+                      value={segment.targetText}
+                      maxLength={segment.maxLength}
+                      messageFormat={segment.messageFormat}
+                      placeholderPatterns={segment.placeholderPatterns}
+                      compact
+                      highlightTokens={highlightTokens}
+                      highlightStatus={highlightStatus}
+                      highlightWholeTerm={highlightWholeTerm}
+                      onChange={onTargetChange}
                     />
-                  ) : null}
-                  {reviewActions}
-                </div>
+                    {showInlineQa ? (
+                      <ContentEditorSideBySideInlineQa
+                        formatChecks={formatChecks}
+                        isLoading={isFormatChecksLoading}
+                        targetText={segment.targetText}
+                        onFix={onTargetChange}
+                      />
+                    ) : null}
+                    {sourceMessageAnalysis ? (
+                      <ContentEditorIcuStructureSummary blocks={sourceMessageAnalysis.icuBlocks} />
+                    ) : null}
+                    {showAiSuggestion && intelligence && onUseAiSuggestion ? (
+                      <ContentEditorSideBySideAiSuggestion
+                        key={segment.id}
+                        intelligence={intelligence}
+                        isLoading={isAiSuggestionLoading}
+                        error={aiRecommendationError}
+                        aiCreditExhausted={aiRecommendationCreditExhausted}
+                        onUseAiSuggestion={onUseAiSuggestion}
+                        onGenerateAiRecommendation={onGenerateAiRecommendation}
+                        renderToolbar={renderTargetToolbar}
+                      />
+                    ) : (
+                      renderTargetToolbar(null)
+                    )}
+                  </Rows>
+                </ContentEditorGroupVariantsGate>
               )
             ) : (
               <button type="button" className="w-full bg-transparent text-left" onClick={onFocus}>
@@ -587,12 +692,14 @@ export function ContentEditorSideBySideRow({
                       className="min-h-24"
                     />
                   ) : (
-                    <p className="flex items-center gap-2 text-sm text-muted-foreground italic">
-                      <HugeiconsIcon icon={Video01Icon} className="size-4" aria-hidden />
-                      <FormattedMessage
-                        {...contentEditorSideBySidePanelMessages.clickToLocalizeVideo}
-                      />
-                    </p>
+                    <Row spacing="1u" alignY="center">
+                      <VideoIcon className="size-4" aria-hidden />
+                      <Text size="small" tone="subtle">
+                        <FormattedMessage
+                          {...contentEditorSideBySidePanelMessages.clickToLocalizeVideo}
+                        />
+                      </Text>
+                    </Row>
                   )
                 ) : isImageSegment ? (
                   isTargetLoading && !hasAssetTarget(segment) ? (
@@ -613,51 +720,97 @@ export function ContentEditorSideBySideRow({
                       className="min-h-24"
                     />
                   ) : (
-                    <p className="flex items-center gap-2 text-sm text-muted-foreground italic">
-                      <HugeiconsIcon icon={Image01Icon} className="size-4" aria-hidden />
-                      <FormattedMessage
-                        {...contentEditorSideBySidePanelMessages.clickToLocalizeImage}
-                      />
-                    </p>
+                    <Row spacing="1u" alignY="center">
+                      <ImageIcon className="size-4" aria-hidden />
+                      <Text size="small" tone="subtle">
+                        <FormattedMessage
+                          {...contentEditorSideBySidePanelMessages.clickToLocalizeImage}
+                        />
+                      </Text>
+                    </Row>
                   )
                 ) : isTargetLoading && !segment.targetText.trim() ? (
-                  <Skeleton className="h-6 w-3/4 rounded-full" />
+                  <Skeleton className="h-10 w-full rounded-md" />
                 ) : segment.targetText.trim() ? (
-                  <p className="text-sm leading-relaxed text-foreground">
-                    <ContentEditorMessagePreview message={segment.targetText} />
-                  </p>
+                  <div className={CELL_BOX_CLASS_NAME}>
+                    <Text size="small" wrapStyle="pretty">
+                      <ContentEditorMessagePreview
+                        message={segment.targetText}
+                        placeholderPatterns={segment.placeholderPatterns}
+                        companionMessage={segment.sourceText}
+                        highlightTokens={highlightTokens}
+                        highlightStatus={highlightStatus}
+                        highlightWholeTerm={highlightWholeTerm}
+                      />
+                    </Text>
+                  </div>
                 ) : (
-                  <p className="flex items-center gap-2 text-sm text-muted-foreground italic">
-                    <HugeiconsIcon icon={TranslateIcon} className="size-4" aria-hidden />
-                    <FormattedMessage
-                      defaultMessage="Click to translate"
-                      id="G3IbmWT2r1"
-                      description="Placeholder when a side-by-side row has no translation yet"
-                    />
-                  </p>
+                  <div className={cn(CELL_BOX_CLASS_NAME, "border-dashed")}>
+                    <Row spacing="1u" alignY="center">
+                      <TranslateIcon className="size-4" aria-hidden />
+                      <Text size="small" tone="subtle">
+                        <FormattedMessage
+                          defaultMessage="Click to translate"
+                          id="G3IbmWT2r1"
+                          description="Placeholder when a side-by-side row has no translation yet"
+                        />
+                      </Text>
+                    </Row>
+                  </div>
                 )}
               </button>
             )}
           </div>
-          {showFormatCheckIcon ? (
-            <ContentEditorSideBySideFormatCheckIcon
-              formatChecks={formatChecks}
-              isLoading={isFormatChecksLoading}
-              className="mt-0.5"
-            />
+          {showCollapsedQaStatus ? (
+            <div className="shrink-0 pt-2">
+              <ContentEditorSideBySideQaStatus
+                formatChecks={formatChecks}
+                isLoading={isFormatChecksLoading}
+                onActivate={onFocus}
+              />
+            </div>
           ) : null}
         </div>
-        {showFormatCheckIcon ? (
-          <ContentEditorSideBySideFormatChecksReveal
-            open={revealFormatChecks}
-            formatChecks={actionableFormatChecks}
-            isLoading={isFormatChecksLoading}
-          />
-        ) : null}
         {isDirty ? (
-          <span className="mt-2 inline-block size-1.5 rounded-full bg-bud-400" aria-hidden />
+          <span
+            className="absolute right-1 bottom-1 size-1.5 rounded-full bg-bud-400"
+            aria-hidden
+          />
         ) : null}
       </div>
     </div>
+  );
+});
+
+function IconActionButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0"
+            disabled={disabled}
+            onClick={onClick}
+            aria-label={label}
+          />
+        }
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }

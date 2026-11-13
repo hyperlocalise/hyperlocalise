@@ -12,18 +12,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useRef, useState } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
 import {
-  ArrowDown01Icon,
-  Copy01Icon,
-  Delete02Icon,
-  Key01Icon,
-  SaveIcon,
-  Tick02Icon,
-  ViewIcon,
-  ViewOffSlashIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  CaretDownIcon,
+  CopyIcon,
+  TrashIcon,
+  KeyIcon,
+  FloppyDiskIcon,
+  CheckIcon,
+  EyeIcon,
+  EyeSlashIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 import { toast } from "sonner";
 
@@ -145,10 +144,7 @@ function CrowdinOAuthSetupFields({
                         : tmsProviderCredentialPanelMessages.copyOAuthCallbackUrlAriaLabel,
                     )}
                   >
-                    <HugeiconsIcon
-                      icon={redirectUriCopied ? Tick02Icon : Copy01Icon}
-                      strokeWidth={1.8}
-                    />
+                    {createElement(redirectUriCopied ? CheckIcon : CopyIcon, {})}
                   </InputGroupButton>
                 }
               />
@@ -217,11 +213,7 @@ function CrowdinOAuthSetupFields({
           {intl.formatMessage(tmsProviderCredentialPanelMessages.oauthClientSecretLabel)}
         </FieldLabel>
         <div className="relative">
-          <HugeiconsIcon
-            icon={Key01Icon}
-            strokeWidth={1.8}
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-          />
+          <KeyIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id={oauthClientSecretFieldId}
             type={showSecret ? "text" : "password"}
@@ -246,11 +238,7 @@ function CrowdinOAuthSetupFields({
                 : tmsProviderCredentialPanelMessages.showSecretAriaLabel,
             )}
           >
-            {showSecret ? (
-              <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
-            ) : (
-              <HugeiconsIcon icon={ViewIcon} size={16} />
-            )}
+            {showSecret ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
           </button>
         </div>
       </Field>
@@ -528,13 +516,11 @@ export function TmsProviderCredentialPanel({
                 className="h-8 w-full justify-between px-2 text-muted-foreground hover:text-foreground"
               >
                 {intl.formatMessage(tmsProviderCredentialPanelMessages.reconnectOAuthApp)}
-                <HugeiconsIcon
-                  icon={ArrowDown01Icon}
+                <CaretDownIcon
                   className={cn(
                     "size-3.5 shrink-0 transition-transform",
                     oauthReconnectOpen && "rotate-180",
                   )}
-                  strokeWidth={2}
                 />
               </Button>
             }
@@ -590,11 +576,7 @@ export function TmsProviderCredentialPanel({
             {intl.formatMessage(tmsProviderCredentialPanelMessages.apiTokenSecretLabel)}
           </FieldLabel>
           <div className="relative">
-            <HugeiconsIcon
-              icon={Key01Icon}
-              strokeWidth={1.8}
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            />
+            <KeyIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id={secretFieldId}
               type={showSecret ? "text" : "password"}
@@ -616,11 +598,7 @@ export function TmsProviderCredentialPanel({
                   : tmsProviderCredentialPanelMessages.showSecretAriaLabel,
               )}
             >
-              {showSecret ? (
-                <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
-              ) : (
-                <HugeiconsIcon icon={ViewIcon} size={16} />
-              )}
+              {showSecret ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
             </button>
           </div>
         </Field>
@@ -637,13 +615,11 @@ export function TmsProviderCredentialPanel({
                 className="h-8 w-full justify-between px-2 text-muted-foreground hover:text-foreground"
               >
                 {intl.formatMessage(tmsProviderCredentialPanelMessages.advancedSettings)}
-                <HugeiconsIcon
-                  icon={ArrowDown01Icon}
+                <CaretDownIcon
                   className={cn(
                     "size-3.5 shrink-0 transition-transform",
                     advancedSettingsOpen && "rotate-180",
                   )}
-                  strokeWidth={2}
                 />
               </Button>
             }
@@ -668,14 +644,14 @@ export function TmsProviderCredentialPanel({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         {credential && userIsAdmin ? (
           <Button type="button" variant="outline" onClick={onDisconnect} disabled={isDisconnecting}>
-            <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+            <TrashIcon />
             {intl.formatMessage(tmsProviderCredentialPanelMessages.disconnect)}
           </Button>
         ) : (
           <div />
         )}
         <Button type="submit" disabled={!canSubmit || isSaving} className="sm:ms-auto">
-          <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+          <FloppyDiskIcon />
           {isSaving
             ? intl.formatMessage(tmsProviderCredentialPanelMessages.saving)
             : isCrowdinPatMode

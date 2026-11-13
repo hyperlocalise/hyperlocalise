@@ -196,4 +196,4 @@ Fehlender Kontext ist.
 
 Translation Intelligence is how modern localisation teams close that gap.
 
-Für den umfassenderen Wandel von Übersetzung hin zu marktreifer Kommunikation siehe [Hyperlokalisierung: Warum globales Wachstum mehr als Übersetzung braucht](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).
+Für den umfassenderen Wandel von Übersetzung hin zu marktreifer Kommunikation siehe [Hyperlokalisierung: Warum globales Wachstum mehr als Übersetzung braucht](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation). Wie Sie diese Ideen bei der Bewertung von Plattformen anwenden, erfahren Sie unter [So wählen Sie einen kontinuierlichen Lokalisierungsworkflow aus](/blog/how-to-choose-a-continuous-localisation-workflow).

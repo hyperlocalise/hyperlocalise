@@ -1,0 +1,35 @@
+---
+title: "Choose your CLI workflow"
+sidebarTitle: "Choose a workflow"
+description: "Connect to Hyperlocalise Platform, translate locally, or work with your existing TMS."
+---
+
+For a shared team workflow, start with Hyperlocalise Platform. Keep source files and delivery in your repository while your team manages translation and review in Platform. [Install the CLI](/cli/getting-started/install), then [connect your project](/platform/cli).
+
+Local translation and existing TMS integrations are also available. Each path uses its own configuration and credentials.
+
+| Your goal | Configuration | Credentials | Start here |
+| --- | --- | --- | --- |
+| Share sources and translations with Hyperlocalise Platform | File mappings plus a top-level `hyperlocalise` block | Platform API key | [Connect the CLI](/platform/cli) |
+| Translate files locally and review in Git | `locales`, `buckets`, and `llm.profiles` in `i18n.yml` | Your AI provider's credentials; local models have their own setup | [Translate your first file](/cli/getting-started/quickstart) |
+| Upload and download files in an existing TMS | Provider-specific config or flags | The TMS account's credentials | [TMS file commands](/cli/storage/overview#provider-file-commands) |
+
+## Use Hyperlocalise Platform
+
+Use `hyperlocalise sync push` to upload sources and `hyperlocalise sync pull` to retrieve project translations. Generation and human approval happen separately in Platform. A successful push does not mean translations were generated.
+
+Follow [Connect the CLI](/platform/cli) for the project ID, credentials, and a complete configuration.
+
+## Translate locally
+
+Use `hyperlocalise run --dry-run` to preview, `hyperlocalise run` to generate, and `hyperlocalise check` to check the result. Review the target diff before committing it with the lockfile. See [Translate changed strings](/cli/workflows/translate-changed-strings) for later updates.
+
+## Keep your existing TMS
+
+Use `hyperlocalise crowdin`, `lokalise`, `phrase`, or `smartling` for the documented provider file workflows. Each has its own configuration and supported operations.
+
+The separate [experimental entry-sync workflow](/cli/storage/overview#shared-tms-entry-sync) uses `sync` with `storage.adapter` and flat JSON translation entries. It is not interchangeable with provider file commands. If a `hyperlocalise` block is also present, `sync` chooses Platform.
+
+## Next
+
+Follow the guide for your chosen path with one file and one locale. Verify the output before adding [CI automation](/cli/workflows/ci-automation).

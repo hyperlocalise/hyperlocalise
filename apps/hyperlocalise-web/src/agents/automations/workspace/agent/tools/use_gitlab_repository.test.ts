@@ -20,8 +20,11 @@ import type {
 import type { WorkspaceOrchestratorSession } from "../context";
 import { createUseGitlabRepositoryTool } from "./use_gitlab_repository";
 
+import { err, ok } from "@/lib/primitives/result/results";
+
 const mocks = vi.hoisted(() => ({
-  resolveGitLabProjectContext: vi.fn(),
+  loadGitLabProjectContext: vi.fn(),
+  getGitLabConnection: vi.fn(async (..._args: unknown[]): Promise<unknown> => null),
   createGitlabRepositorySandbox: vi.fn(),
   stopGitlabRepositorySandbox: vi.fn(),
   toolLoopGenerate: vi.fn(),
@@ -33,8 +36,12 @@ vi.mock("@/lib/database/client", () => ({
   db: {},
 }));
 
+vi.mock("@/lib/gitlab/connections", () => ({
+  getGitLabConnection: (...args: unknown[]) => mocks.getGitLabConnection(...args),
+}));
+
 vi.mock("@/lib/gitlab/repository-context", () => ({
-  resolveGitLabProjectContext: (...args: unknown[]) => mocks.resolveGitLabProjectContext(...args),
+  loadGitLabProjectContext: (...args: unknown[]) => mocks.loadGitLabProjectContext(...args),
 }));
 
 vi.mock("@/lib/gitlab/gitlab-repository-sandbox", () => ({
@@ -117,7 +124,7 @@ function session(
     toolConfig: overrides.toolConfig ?? {
       gitlab: { enabled: true, workosUserId: "user_workos" },
     },
-    model: "openai/gpt-5.6-luna",
+    model: "openai/gpt-6-luna",
     configVersion: 1,
     nextRunAt: null,
     createdAt: new Date().toISOString(),
@@ -159,7 +166,7 @@ const toolOptions = { toolCallId: "call-1", messages: [], context: {} };
 describe("createUseGitlabRepositoryTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.resolveGitLabProjectContext.mockResolvedValue(gitlabContext);
+    mocks.loadGitLabProjectContext.mockResolvedValue(ok(gitlabContext));
     mocks.createGitlabRepositorySandbox.mockResolvedValue("sbx-gitlab-1");
     mocks.stopGitlabRepositorySandbox.mockResolvedValue(undefined);
     mocks.toolLoopGenerate.mockResolvedValue({ text: "GitLab digest ready" });
@@ -177,12 +184,14 @@ describe("createUseGitlabRepositoryTool", () => {
       ),
     ).rejects.toThrow("gitlab_repository_target_required");
 
-    expect(mocks.resolveGitLabProjectContext).not.toHaveBeenCalled();
+    expect(mocks.loadGitLabProjectContext).not.toHaveBeenCalled();
     expect(mocks.createGitlabRepositorySandbox).not.toHaveBeenCalled();
   });
 
   it("rejects when the GitLab project cannot be resolved", async () => {
-    mocks.resolveGitLabProjectContext.mockResolvedValue(null);
+    mocks.loadGitLabProjectContext.mockResolvedValue(
+      err({ code: "gitlab_not_found", message: "GitLab could not find that project." }),
+    );
 
     await expect(
       createUseGitlabRepositoryTool(session()).execute!({}, toolOptions),
@@ -196,7 +205,7 @@ describe("createUseGitlabRepositoryTool", () => {
 
     const payload = await createUseGitlabRepositoryTool(current).execute!({}, toolOptions);
 
-    expect(mocks.resolveGitLabProjectContext).toHaveBeenCalledWith({
+    expect(mocks.loadGitLabProjectContext).toHaveBeenCalledWith({
       localOrganizationId: "org-1",
       workosUserId: "user_workos",
       pathWithNamespace: "acme/platform/web",
@@ -229,7 +238,42 @@ describe("createUseGitlabRepositoryTool", () => {
     expect(mocks.stopGitlabRepositorySandbox).toHaveBeenCalledWith("sbx-gitlab-1");
   });
 
-  it("rejects when GitLab is not connected through Pipes", async () => {
+  it("asks to reconnect when a person's GitLab.com sign-in is refused", async () => {
+    mocks.loadGitLabProjectContext.mockResolvedValue(
+      err({ code: "gitlab_unauthorized", message: "GitLab rejected the connected account token." }),
+    );
+
+    await expect(
+      createUseGitlabRepositoryTool(session()).execute!({}, toolOptions),
+    ).rejects.toThrow("gitlab_not_connected");
+  });
+
+  it("reports a refused token as that, not as a missing project or connection", async () => {
+    mocks.getGitLabConnection.mockResolvedValueOnce({ serverUrl: "https://git.acme.example" });
+    mocks.loadGitLabProjectContext.mockResolvedValue(
+      err({ code: "gitlab_unauthorized", message: "GitLab rejected the connected account token." }),
+    );
+
+    await expect(
+      createUseGitlabRepositoryTool(session()).execute!({}, toolOptions),
+    ).rejects.toThrow("gitlab_token_rejected");
+  });
+
+  it("reports a server that can't be reached as that, not as a missing connection", async () => {
+    mocks.loadGitLabProjectContext.mockResolvedValue(
+      err({ code: "gitlab_request_failed", message: "GitLab request failed.", status: 0 }),
+    );
+
+    await expect(
+      createUseGitlabRepositoryTool(session()).execute!({}, toolOptions),
+    ).rejects.toThrow("gitlab_request_failed");
+  });
+
+  it("reports not connected when there is no GitLab access", async () => {
+    mocks.loadGitLabProjectContext.mockResolvedValue(
+      err({ code: "gitlab_not_connected", message: "Connect GitLab in Integrations." }),
+    );
+
     await expect(
       createUseGitlabRepositoryTool(
         session({
@@ -238,7 +282,6 @@ describe("createUseGitlabRepositoryTool", () => {
       ).execute!({}, toolOptions),
     ).rejects.toThrow("gitlab_not_connected");
 
-    expect(mocks.resolveGitLabProjectContext).not.toHaveBeenCalled();
     expect(mocks.createGitlabRepositorySandbox).not.toHaveBeenCalled();
   });
 

@@ -14,21 +14,15 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   FILE_TRANSLATION_MAX_SANDBOX_TIMEOUT_MS,
-  FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
-  FILE_TRANSLATION_MIN_PAGES,
   calculateFileTranslationMaxPages,
   calculateFileTranslationSandboxTimeoutMs,
   countPendingFileTranslations,
+  nextFileTranslationPageDecision,
   parseDeferredByLimit,
 } from "./file-translation-pagination";
 
 describe("file translation pagination", () => {
-  it("checkpoints after 100 translations", () => {
-    expect(FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION).toBe(100);
-  });
-
   it("budgets pages from the workload with one recovery page", () => {
-    expect(FILE_TRANSLATION_MIN_PAGES).toBe(2);
     expect(calculateFileTranslationMaxPages(1)).toBe(2);
     expect(calculateFileTranslationMaxPages(500_000)).toBe(5_001);
   });
@@ -58,6 +52,86 @@ describe("file translation pagination", () => {
     expect(calculateFileTranslationSandboxTimeoutMs(1_000_000)).toBe(
       FILE_TRANSLATION_MAX_SANDBOX_TIMEOUT_MS,
     );
+  });
+});
+
+describe("nextFileTranslationPageDecision", () => {
+  it("continues paging after a partial CLI page so failed keys can resume", () => {
+    expect(
+      nextFileTranslationPageDecision({
+        cliHardFailure: false,
+        invalidCount: 0,
+        pendingCount: 1,
+        acceptedCount: 99,
+        deferredByLimit: 0,
+        failedCount: 1,
+      }),
+    ).toBe("continue");
+  });
+
+  it("finishes when every pending key was accepted", () => {
+    expect(
+      nextFileTranslationPageDecision({
+        cliHardFailure: false,
+        invalidCount: 0,
+        pendingCount: 0,
+        acceptedCount: 99,
+        deferredByLimit: 0,
+        failedCount: 1,
+      }),
+    ).toBe("done");
+  });
+
+  it("aborts a hard CLI failure so leftover locales can retry", () => {
+    expect(
+      nextFileTranslationPageDecision({
+        cliHardFailure: true,
+        invalidCount: 0,
+        pendingCount: 100,
+        acceptedCount: 0,
+        deferredByLimit: 0,
+        failedCount: 1,
+      }),
+    ).toBe("abort");
+  });
+
+  it("aborts a zero-progress page so paging cannot spin forever", () => {
+    expect(
+      nextFileTranslationPageDecision({
+        cliHardFailure: false,
+        invalidCount: 0,
+        pendingCount: 12,
+        acceptedCount: 0,
+        deferredByLimit: 0,
+        failedCount: 0,
+      }),
+    ).toBe("abort");
+  });
+
+  it("aborts when the sandbox emitted invalid translations", () => {
+    expect(
+      nextFileTranslationPageDecision({
+        cliHardFailure: false,
+        invalidCount: 2,
+        pendingCount: 8,
+        acceptedCount: 4,
+        deferredByLimit: 0,
+        failedCount: 0,
+      }),
+    ).toBe("abort");
+  });
+
+  it("continues when the page deferred remaining keys by session limit", () => {
+    expect(
+      nextFileTranslationPageDecision({
+        cliHardFailure: false,
+        invalidCount: 0,
+        pendingCount: 20,
+        acceptedCount: 0,
+        deferredByLimit: 20,
+        failedCount: 0,
+      }),
+    ).toBe("continue");
   });
 });
 

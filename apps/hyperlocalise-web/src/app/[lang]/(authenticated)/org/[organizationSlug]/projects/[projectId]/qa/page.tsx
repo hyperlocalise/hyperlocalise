@@ -1,0 +1,47 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { hasCapability } from "@/api/auth/policy";
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
+import { QaProjectPageContent } from "./_components/qa-project-page-content";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectQa");
+}
+
+export default function ProjectQaPage({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; projectId: string }>;
+}) {
+  return <ProjectQaLoader params={params} />;
+}
+
+async function ProjectQaLoader({
+  params,
+}: {
+  params: Promise<{ organizationSlug: string; projectId: string }>;
+}) {
+  const { organizationSlug, projectId } = await params;
+  const auth = await requireAppAuthContext({ organizationSlug });
+  const canPromoteFindings = hasCapability(auth.membership.role, "write_back:translation");
+
+  return (
+    <QaProjectPageContent
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      canPromoteFindings={canPromoteFindings}
+    />
+  );
+}

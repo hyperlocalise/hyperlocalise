@@ -13,12 +13,12 @@
  * Version 2.0 or later.
  */
 import { FormattedMessage } from "react-intl";
-import { Copy01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CopyIcon } from "@phosphor-icons/react";
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
+import { useIssueDetailLinkScope } from "./issue-detail-link-scope";
 import { buildIssueDetailHref } from "./issue-detail-utils";
 import { issueDuplicateBannerMessages as messages } from "./issue-duplicate-banner.messages";
 import type { IssueRelationship } from "./use-issue-relationships-query";
@@ -31,6 +31,7 @@ export function IssueDuplicateBanner({
   organizationSlug: string;
   relationships: IssueRelationship[];
 }) {
+  const detailScope = useIssueDetailLinkScope();
   const canonical = relationships.find(
     (relationship) => relationship.presentedKind === "duplicate_of",
   );
@@ -40,7 +41,7 @@ export function IssueDuplicateBanner({
 
   return (
     <Alert className="mb-3">
-      <HugeiconsIcon icon={Copy01Icon} strokeWidth={1.8} />
+      <CopyIcon />
       <AlertTitle>
         <FormattedMessage {...messages.title} />
       </AlertTitle>
@@ -61,6 +62,7 @@ export function IssueDuplicateBanner({
                 organizationSlug,
                 projectId: canonical.otherIssue.projectId,
                 issueId: canonical.otherIssue.issueId,
+                scope: detailScope,
               })}
             />
           }

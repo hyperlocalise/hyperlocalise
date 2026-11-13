@@ -16,13 +16,8 @@ import { defineMessages } from "react-intl";
 
 export const finalCtaSectionMessages = defineMessages({
   headline: {
-    defaultMessage: "Built for localisation teams. Available soon.",
-    id: "KCoITTErMU",
+    defaultMessage: "Built for localisation teams. Start free today.",
+    id: "gHUxugs0eg",
     description: "Marketing homepage final call-to-action section headline",
-  },
-  joinEarlyAccess: {
-    defaultMessage: "Request a Demo",
-    id: "/SBgalTEEE",
-    description: "Primary call-to-action button on the marketing homepage final section",
   },
 });

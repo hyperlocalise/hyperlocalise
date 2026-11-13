@@ -1,0 +1,8 @@
+ALTER TABLE "projects" ADD COLUMN "qa_check_policy" jsonb DEFAULT '{"not_localized":{"enabled":true,"severity":"error"},"whitespace_only":{"enabled":true,"severity":"warning"},"same_as_source":{"enabled":true,"severity":"warning"},"escaped_char_mismatch":{"enabled":true,"severity":"warning"},"length":{"enabled":true,"severity":"error"},"placeholder_mismatch":{"enabled":true,"severity":"error"},"glossary_violation":{"enabled":true,"severity":"warning"},"format":{"enabled":true,"severity":"error"},"spelling":{"enabled":true,"severity":"warning"},"numbers_mismatch":{"enabled":false,"severity":"warning"},"punctuation_mismatch":{"enabled":false,"severity":"warning"},"character_case_mismatch":{"enabled":false,"severity":"warning"}}'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "translation_qa_findings" ADD COLUMN "status" text DEFAULT 'open' NOT NULL;--> statement-breakpoint
+ALTER TABLE "translation_qa_findings" ADD COLUMN "ignore_reason" text;--> statement-breakpoint
+ALTER TABLE "translation_qa_findings" ADD COLUMN "reviewed_by_user_id" uuid;--> statement-breakpoint
+ALTER TABLE "translation_qa_findings" ADD COLUMN "reviewed_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "translation_qa_findings" ADD COLUMN "rule_version" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "translation_qa_runs" ADD COLUMN "check_policy" jsonb DEFAULT '{}'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "translation_qa_findings" ADD CONSTRAINT "translation_qa_findings_reviewed_by_user_id_users_id_fk" FOREIGN KEY ("reviewed_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;

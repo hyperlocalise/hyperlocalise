@@ -14,49 +14,91 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { config as loadDotenv } from "dotenv";
-import pluginFormatjs from "eslint-plugin-formatjs";
 import { defineConfig } from "vite-plus";
+import type { DummyRuleMap } from "vite-plus/lint";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 loadDotenv({ path: path.join(rootDir, ".env") });
+if (process.env.CI === "true") {
+  loadDotenv({ path: path.join(rootDir, "ci/vitest-defaults.env") });
+}
+
+// Keep in sync with eslint-plugin-formatjs `configs.strict`. Do not import the
+// plugin here: Storybook loads this Vite config, and the plugin pulls
+// `@unicode/unicode-17.0.0` (tens of thousands of files) that CI installs often
+// omit. `jsPlugins` still loads it when `vp lint` runs.
+const formatjsStrictRules: DummyRuleMap = {
+  "formatjs/no-offset": "error",
+  "formatjs/enforce-default-message": ["error", "literal"],
+  "formatjs/enforce-description": ["error", "literal"],
+  "formatjs/enforce-placeholders": "error",
+  "formatjs/no-emoji": "error",
+  "formatjs/no-multiple-whitespaces": "error",
+  "formatjs/no-multiple-plurals": "error",
+  "formatjs/no-complex-selectors": ["error", { limit: 20 }],
+  "formatjs/no-useless-message": "error",
+  "formatjs/prefer-pound-in-plural": "error",
+  "formatjs/no-missing-icu-plural-one-placeholders": "error",
+  "formatjs/enforce-id": ["error", { idInterpolationPattern: "[sha512:contenthash:base64:10]" }],
+  "formatjs/enforce-plural-rules": ["error", { one: true, other: true }],
+  "formatjs/no-literal-string-in-jsx": [
+    "error",
+    { props: { include: [["*", "{label,placeholder,title}"]] } },
+  ],
+  "formatjs/blocklist-elements": [
+    "error",
+    [
+      "selectordinal",
+      {
+        type: "select",
+        allow: { variable: "gender", options: ["male", "female", "other"] },
+      },
+    ],
+  ],
+  "formatjs/prefer-full-sentence": "error",
+};
 
 const formatjsRulesOff = Object.fromEntries(
-  Object.entries({
-    ...pluginFormatjs.configs.strict.rules,
-  }).map(([rule]) => [rule, "off"]),
+  Object.keys(formatjsStrictRules).map((rule) => [rule, "off" as const]),
 );
 
-// Keep Hyperlocalise-synced target catalogs as pulled (see i18n.yml targets).
-const translatedLocales = ["de-DE", "fr-FR", "vi-VN", "zh-CN"] as const;
-const translatedIgnorePatterns = translatedLocales.flatMap((locale) => [
-  `_posts/${locale}/**`,
-  `lang/${locale}.json`,
-]);
+// Locale catalogs stay as committed. Do not list locales here — a new
+// `_posts/<locale>` or `lang/<locale>.json` must not fail `vp check`.
+const localeCatalogIgnorePatterns = ["_posts/**", "lang/*.json"] as const;
 
 const isCi = process.env.CI === "true";
 
 export default defineConfig({
   cacheDir: ".cache/vite",
   fmt: {
-    ignorePatterns: ["drizzle/**", "pnpm-*.yaml", ...translatedIgnorePatterns],
+    ignorePatterns: [
+      "drizzle/**",
+      "pnpm-*.yaml",
+      "public/mockServiceWorker.js",
+      ...localeCatalogIgnorePatterns,
+    ],
   },
   lint: {
     // Match tsconfig exclude: browser e2e is local-only (vite.e2e.config.ts).
-    ignorePatterns: ["drizzle/**", "pnpm-*.yaml", "src/e2e/**", ...translatedIgnorePatterns],
+    ignorePatterns: [
+      "drizzle/**",
+      "pnpm-*.yaml",
+      "public/mockServiceWorker.js",
+      "src/e2e/**",
+      ...localeCatalogIgnorePatterns,
+    ],
     options: { typeAware: true, typeCheck: true },
     jsPlugins: ["eslint-plugin-formatjs"],
     rules: {
-      ...pluginFormatjs.configs.strict.rules,
+      ...formatjsStrictRules,
       // Most UI is not localized yet; re-enable as /localise coverage grows.
       "formatjs/no-literal-string-in-jsx": "off",
     },
     overrides: [
       {
         files: ["**/*.stories.ts", "**/*.stories.tsx", "**/*.test.ts", "**/*.test.tsx"],
-        rules: formatjsRulesOff as Partial<
-          Record<keyof typeof pluginFormatjs.configs.strict.rules, "off">
-        >,
+        rules: formatjsRulesOff,
       },
     ],
   },
@@ -65,13 +107,13 @@ export default defineConfig({
     silent: "passed-only",
     pool: "threads",
     reporters: isCi ? ["dot", "github-actions"] : ["default"],
-    setupFiles: ["./src/test/setup-dom.ts"],
+    // Files in a worker share one module graph. setup-module-mocks resets
+    // modules that depend on vi.mock targets so mocks do not leak between files.
+    // https://vitest.dev/guide/improving-performance#test-isolation
+    isolate: false,
+    setupFiles: ["./src/test/setup-module-mocks.ts", "./src/test/setup-dom.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["src/e2e/**"],
-    experimental: {
-      fsModuleCache: true,
-      fsModuleCachePath: ".cache/vitest",
-    },
     deps: {
       optimizer: {
         ssr: {
@@ -79,6 +121,12 @@ export default defineConfig({
           include: [
             "drizzle-orm",
             "drizzle-orm/node-postgres",
+            // The schema mixes `sql` from the package root with builders from
+            // `drizzle-orm/pg-core`. Every drizzle specifier must resolve to
+            // the same bundled copy: two instances break drizzle's `is()`
+            // identity checks and crash schema evaluation with
+            // `SyntaxError: "undefined" is not valid JSON`.
+            "drizzle-orm/pg-core",
             "hono",
             "pg",
             "react",

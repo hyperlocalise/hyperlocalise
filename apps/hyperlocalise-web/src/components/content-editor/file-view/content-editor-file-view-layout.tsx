@@ -59,15 +59,16 @@ export function FileViewWorkspaceContent({
   layout,
   children,
 }: {
-  layout: "split" | "single";
+  /** `wide` is a single pane that fills the width two split panes would take. */
+  layout: "split" | "single" | "wide";
   children: ReactNode;
 }) {
   return (
     <div
       className={
-        layout === "split"
-          ? "mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col"
-          : "mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col"
+        layout === "single"
+          ? "mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col"
+          : "mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col"
       }
     >
       {children}
@@ -82,20 +83,16 @@ export function FileViewPaneColumn({ children }: { children: ReactNode }) {
 export function FileViewPane({
   title,
   toolbar,
-  footer,
   children,
 }: {
   title: ReactNode;
   toolbar?: ReactNode;
-  footer?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <FileViewPaneLabel>{title}</FileViewPaneLabel>
-      <FileViewPage toolbar={toolbar} footer={footer}>
-        {children}
-      </FileViewPage>
+      <FileViewPage toolbar={toolbar}>{children}</FileViewPage>
     </div>
   );
 }
@@ -108,15 +105,7 @@ function FileViewPaneLabel({ children }: { children: ReactNode }) {
   );
 }
 
-export function FileViewPage({
-  toolbar,
-  footer,
-  children,
-}: {
-  toolbar?: ReactNode;
-  footer?: ReactNode;
-  children: ReactNode;
-}) {
+export function FileViewPage({ toolbar, children }: { toolbar?: ReactNode; children: ReactNode }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       {toolbar ? (
@@ -127,13 +116,6 @@ export function FileViewPage({
         </div>
       ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-      {footer ? (
-        <div className="shrink-0 border-t border-border/60 px-3 py-3">
-          <Row spacing="1u" align="end" alignY="center">
-            {footer}
-          </Row>
-        </div>
-      ) : null}
     </div>
   );
 }

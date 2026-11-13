@@ -20,7 +20,7 @@ const {
 } = vi.hoisted(() => ({
   selectMock: vi.fn(),
   decryptProviderCredentialMock: vi.fn(),
-  getManagedLanguageModelMock: vi.fn(() => ({ kind: "gateway", modelId: "openai/gpt-5.6-luna" })),
+  getManagedLanguageModelMock: vi.fn(() => ({ kind: "gateway", modelId: "openai/gpt-6-luna" })),
   resolveProviderLanguageModelMock: vi.fn(
     (input: { provider: string; apiKey: string; model: string }) => ({
       kind: input.provider,
@@ -45,12 +45,14 @@ vi.mock("@/lib/database/client", () => ({
           orderBy: () => ({
             limit: selectMock,
           }),
+          limit: selectMock,
         }),
       }),
     }),
   },
   schema: {
     organizationLlmProviderCredentials: {
+      id: "id",
       provider: "provider",
       defaultModel: "defaultModel",
       encryptionAlgorithm: "encryptionAlgorithm",
@@ -71,11 +73,33 @@ vi.mock("@/lib/security/provider-credential-crypto", () => ({
 
 vi.mock("@/lib/providers/language-model", () => ({
   getManagedLanguageModel: getManagedLanguageModelMock,
-  hyperlocaliseManagedGatewayModelId: "openai/gpt-5.6-luna",
+  hyperlocaliseManagedGatewayModelId: "openai/gpt-6-luna",
   resolveProviderLanguageModel: resolveProviderLanguageModelMock,
 }));
 
-import { resolveHyperlocaliseAgentLanguageModel } from "./organization-language-model";
+import {
+  organizationHasOwnModelKey,
+  resolveHyperlocaliseAgentLanguageModel,
+} from "./organization-language-model";
+
+describe("organizationHasOwnModelKey", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("is true when the organization has saved a key, without decrypting it", async () => {
+    selectMock.mockResolvedValue([{ id: "credential_1" }]);
+
+    await expect(organizationHasOwnModelKey("org_1")).resolves.toBe(true);
+    expect(decryptProviderCredentialMock).not.toHaveBeenCalled();
+  });
+
+  it("is false when the organization has no key", async () => {
+    selectMock.mockResolvedValue([]);
+
+    await expect(organizationHasOwnModelKey("org_1")).resolves.toBe(false);
+  });
+});
 
 describe("resolveHyperlocaliseAgentLanguageModel", () => {
   beforeEach(() => {
@@ -88,9 +112,9 @@ describe("resolveHyperlocaliseAgentLanguageModel", () => {
     await expect(
       resolveHyperlocaliseAgentLanguageModel({ organizationId: "org_1" }),
     ).resolves.toEqual({
-      model: { kind: "gateway", modelId: "openai/gpt-5.6-luna" },
+      model: { kind: "gateway", modelId: "openai/gpt-6-luna" },
       source: "gateway",
-      modelId: "openai/gpt-5.6-luna",
+      modelId: "openai/gpt-6-luna",
     });
   });
 
@@ -117,7 +141,7 @@ describe("resolveHyperlocaliseAgentLanguageModel", () => {
         apiKey: "sk-ant",
       },
       source: "anthropic",
-      modelId: "claude-sonnet-4-6",
+      modelId: "anthropic/claude-sonnet-4.6",
     });
     expect(getManagedLanguageModelMock).not.toHaveBeenCalled();
     expect(resolveProviderLanguageModelMock).toHaveBeenCalledWith({
@@ -126,4 +150,59 @@ describe("resolveHyperlocaliseAgentLanguageModel", () => {
       model: "claude-sonnet-4-6",
     });
   });
+
+  it.each([
+    {
+      provider: "gemini",
+      defaultModel: "gemini-2.5-pro",
+      apiKey: "sk-gemini",
+      modelId: "google/gemini-2.5-pro",
+    },
+    {
+      provider: "groq",
+      defaultModel: "llama-3.3-70b",
+      apiKey: "sk-groq",
+      modelId: "groq/llama-3.3-70b",
+    },
+    {
+      provider: "mistral",
+      defaultModel: "mistral-large-latest",
+      apiKey: "sk-mistral",
+      modelId: "mistral/mistral-large-latest",
+    },
+  ] as const)(
+    "routes $provider BYOK through resolveProviderLanguageModel",
+    async ({ provider, defaultModel, apiKey, modelId }) => {
+      selectMock.mockResolvedValue([
+        {
+          provider,
+          defaultModel,
+          encryptionAlgorithm: "aes-256-gcm",
+          ciphertext: "cipher",
+          iv: "iv",
+          authTag: "tag",
+          keyVersion: 1,
+        },
+      ]);
+      decryptProviderCredentialMock.mockReturnValue(apiKey);
+
+      await expect(
+        resolveHyperlocaliseAgentLanguageModel({ organizationId: "org_1" }),
+      ).resolves.toEqual({
+        model: {
+          kind: provider,
+          modelId: defaultModel,
+          apiKey,
+        },
+        source: provider,
+        modelId,
+      });
+      expect(resolveProviderLanguageModelMock).toHaveBeenCalledWith({
+        provider,
+        apiKey,
+        model: defaultModel,
+      });
+      expect(getManagedLanguageModelMock).not.toHaveBeenCalled();
+    },
+  );
 });

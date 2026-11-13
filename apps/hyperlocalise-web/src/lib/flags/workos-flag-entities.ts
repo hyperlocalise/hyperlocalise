@@ -13,7 +13,12 @@
 export const WORKSPACE_AUTOMATIONS_FLAG = "workspace-automations";
 export const WORKSPACE_KNOWLEDGE_FLAG = "workspace-knowledge";
 export const WORKSPACE_VISUAL_MOCK_FLAG = "workspace-visual-mock";
-export const WORKSPACE_VISUAL_WORKFLOWS_FLAG = "workspace-visual-workflows";
+/** Autumn boolean feature id for Automation Workflow (visual workflows). */
+export const WORKSPACE_AUTOMATION_WORKFLOW_FLAG = "automation_workflow";
+/** @deprecated Use WORKSPACE_AUTOMATION_WORKFLOW_FLAG */
+export const WORKSPACE_VISUAL_WORKFLOWS_FLAG = WORKSPACE_AUTOMATION_WORKFLOW_FLAG;
+/** Autumn boolean feature id for Queries / issue sheet surfaces. */
+export const WORKSPACE_QUERIES_BOARD_FLAG = "queries-board";
 export const WORKSPACE_DOMAINS_FLAG = "workspace-domains";
 export const WORKSPACE_GLOSSARY_SEARCH_FLAG = "workspace-glossary-search";
 export const WORKSPACE_HYPERLAB_FLAG = "workspace-hyperlab";
@@ -30,6 +35,7 @@ export type WorkspaceFeatureFlagState = {
   knowledge: boolean;
   visualMock: boolean;
   visualWorkflows: boolean;
+  queriesBoard: boolean;
   domains: boolean;
   glossarySearch: boolean;
   hyperlab: boolean;
@@ -41,6 +47,7 @@ export const DISABLED_WORKSPACE_FEATURE_FLAGS: WorkspaceFeatureFlagState = {
   knowledge: false,
   visualMock: false,
   visualWorkflows: false,
+  queriesBoard: false,
   domains: false,
   glossarySearch: false,
   hyperlab: false,

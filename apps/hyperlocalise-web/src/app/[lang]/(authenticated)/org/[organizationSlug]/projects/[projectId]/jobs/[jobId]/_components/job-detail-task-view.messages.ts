@@ -35,4 +35,9 @@ export const jobDetailTaskViewMessages = defineMessages({
     id: "iPC/1o5vbg",
     description: "Tab label for the job comments panel",
   },
+  reportTab: {
+    defaultMessage: "Report",
+    id: "lJypQuzM0X",
+    description: "Tab label for the task's own report: its words, cost, time and pricing",
+  },
 });

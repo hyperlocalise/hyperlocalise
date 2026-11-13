@@ -199,6 +199,45 @@ func TestSyncTMSPullDryRunDoesNotWriteFiles(t *testing.T) {
 	}
 }
 
+func TestSyncTMSPullUnknownProvenanceConflictsWithoutOverwrite(t *testing.T) {
+	t.Setenv("HL652_E2E_TOKEN", "test-token")
+	t.Setenv("LOKALISE_API_TOKEN", "")
+	srv, _ := startLokaliseKeysServer(t, []mockLokaliseKey{{
+		KeyID:   1,
+		KeyName: map[string]string{"web": "hello"},
+		Translations: []map[string]string{{
+			"language_iso": "fr",
+			"translation":  "bonjour",
+		}},
+	}})
+
+	dir := t.TempDir()
+	langDir := filepath.Join(dir, "lang")
+	if err := os.MkdirAll(langDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	// No sidecar: JSONStore marks origin unknown — must conflict, not overwrite.
+	if err := os.WriteFile(filepath.Join(langDir, "fr.json"), []byte("{\"hello\":\"handwritten-local\"}\n"), 0o644); err != nil {
+		t.Fatalf("write locale: %v", err)
+	}
+	configPath := writeTMSAdapterConfig(t, dir, `"apiBaseURL": "`+srv.URL+`"`)
+
+	out, err := runSyncCobra(t, "sync", "pull", "--config", configPath, "--fail-on-conflict")
+	if err == nil || !strings.Contains(err.Error(), "pull conflicts detected") {
+		t.Fatalf("expected fail-on-conflict error, got %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "conflicts=1") {
+		t.Fatalf("expected conflict report: %s", out)
+	}
+	content, err := os.ReadFile(filepath.Join(langDir, "fr.json"))
+	if err != nil {
+		t.Fatalf("read locale: %v", err)
+	}
+	if !strings.Contains(string(content), "handwritten-local") {
+		t.Fatalf("unknown-provenance conflict should not overwrite local value: %s", content)
+	}
+}
+
 func TestSyncTMSPullFailOnConflict(t *testing.T) {
 	t.Setenv("HL652_E2E_TOKEN", "test-token")
 	t.Setenv("LOKALISE_API_TOKEN", "")

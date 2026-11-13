@@ -8,6 +8,65 @@ import (
 	"testing"
 )
 
+func BenchmarkExtractMessagesFromReactIntlEdgeCaseSource(b *testing.B) {
+	source := `import { defineMessage, defineMessages, FormattedHTMLMessage, FormattedMessage, useIntl } from "react-intl";
+
+export const messages = defineMessages(({
+  0: {
+    id: "edge.0",
+    defaultMessage: "Zero",
+  },
+  0x10n: {
+    id: "edge.hex",
+    defaultMessage: "Hex",
+  },
+  标题: {
+    id: "edge.unicode",
+    defaultMessage: "Title" as const,
+  },
+}));
+
+export const concatenated = defineMessage({
+  id: "edge.concat",
+  defaultMessage: ("Hello " + "world"),
+});
+
+export const arrayMessage = defineMessage({
+  id: "edge.array",
+  defaultMessage: ["Hello ", "wo" + "rld"],
+});
+
+export function Edge(intl: ReturnType<typeof useIntl>) {
+  return (
+    <>
+      {intl.formatMessage?.<string>({
+        id: "edge.optional",
+        defaultMessage: "Optional",
+      })}
+      {intl.formatMessage!({
+        id: "edge.nonnull",
+        defaultMessage: "Non-null",
+      })}
+      <FormattedMessage id="edge.children">Hello children</FormattedMessage>
+      <FormattedHTMLMessage id="edge.html">Hello <b>html</b></FormattedHTMLMessage>
+      <FormattedMessage id="edge.jsx-concat" defaultMessage={"Hello " + "world"} />
+    </>
+  );
+}
+`
+
+	b.ReportAllocs()
+	for b.Loop() {
+		messages, err := extractMessagesFromReactIntlSource(source, "src/Edge.tsx")
+		if err != nil {
+			b.Fatalf("extract: %v", err)
+		}
+		if len(messages) < 9 {
+			b.Fatalf("extracted %d messages, want at least 9", len(messages))
+		}
+	}
+}
+
 func BenchmarkExtractMessagesFromReactIntlSource(b *testing.B) {
 	source, file := makeExtractBenchmarkSource(120)
 

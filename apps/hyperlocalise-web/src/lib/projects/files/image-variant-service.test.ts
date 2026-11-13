@@ -44,6 +44,7 @@ vi.mock("@/lib/agents/image-generation", () => ({
 }));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
+import { ManagedAiCreditAccessError } from "@/lib/billing/managed-ai-credit";
 import { db, schema } from "@/lib/database/client";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 import { MAX_PUBLIC_HTTP_RESPONSE_BYTES } from "@/lib/security/public-http-fetch";
@@ -284,5 +285,125 @@ describe("image variant approved locks", () => {
       status: "approved",
       storedFileId: null,
     });
+  });
+});
+
+describe("image variant generation billing", () => {
+  async function localizeFromFetchedUrl(input: { force?: boolean } = {}) {
+    const { organization, project } = await createStoredProjectFixture();
+    undiciMock.fetch.mockResolvedValue(
+      new Response(Buffer.from("source-image"), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      }),
+    );
+
+    const result = await localizeAndStoreImageVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      sourceUrl: "https://cdn.example.com/assets/hero.png",
+      provenance: "agent",
+      force: input.force,
+    });
+
+    return { organization, project, result };
+  }
+
+  it("maps generation availability errors to ai_credit_unavailable", async () => {
+    regenerateImageFromAttachment.mockRejectedValue(
+      new ManagedAiCreditAccessError({
+        code: "ai_credit_pricing_not_configured",
+        surface: "image",
+      }),
+    );
+
+    const { result } = await localizeFromFetchedUrl();
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) {
+      throw new Error("expected image generation to fail when credit is unavailable");
+    }
+    expect(result.error).toEqual({
+      code: "ai_credit_unavailable",
+      message: "AI credit pricing is not configured for image",
+    });
+  });
+
+  it("uses a unique attempt key for every generation, including unforced regenerations", async () => {
+    regenerateImageFromAttachment.mockRejectedValue(new Error("stop after key check"));
+
+    const first = await localizeFromFetchedUrl();
+    const firstKey = vi.mocked(regenerateImageFromAttachment).mock.calls[0]?.[3]?.operationKey;
+    expect(firstKey).toMatch(
+      new RegExp(
+        `^image-localization:variant:${first.project.id}:assets/hero\\.png:fr-FR:attempt:[0-9a-f-]{36}$`,
+      ),
+    );
+
+    regenerateImageFromAttachment.mockClear();
+    const second = await localizeFromFetchedUrl();
+    const secondKey = vi.mocked(regenerateImageFromAttachment).mock.calls[0]?.[3]?.operationKey;
+    expect(secondKey).toMatch(
+      new RegExp(
+        `^image-localization:variant:${second.project.id}:assets/hero\\.png:fr-FR:attempt:[0-9a-f-]{36}$`,
+      ),
+    );
+    expect(firstKey).not.toBe(secondKey);
+  });
+});
+
+describe("image variant generation cancellation", () => {
+  it("does not replace the variant when the request is aborted during generation", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const [variant] = await db
+      .insert(schema.projectImageVariants)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        sourcePath: "assets/hero.png",
+        targetLocale: "fr-FR",
+        status: "draft",
+        provenance: "manual",
+      })
+      .returning();
+    undiciMock.fetch.mockResolvedValue(
+      new Response(Buffer.from("source-image"), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      }),
+    );
+    const abort = new AbortController();
+    regenerateImageFromAttachment.mockImplementation(async () => {
+      abort.abort();
+      return { image: Buffer.from("localized-image"), mimeType: "image/png" };
+    });
+
+    const result = await localizeAndStoreImageVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      sourceUrl: "https://cdn.example.com/assets/hero.png",
+      provenance: "agent",
+      signal: abort.signal,
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) {
+      throw new Error("expected aborted generation to be discarded");
+    }
+    expect(result.error).toEqual({ code: "aborted" });
+    expect(vi.mocked(regenerateImageFromAttachment).mock.calls[0]?.[4]).toEqual({
+      signal: abort.signal,
+    });
+
+    const [storedVariant] = await db
+      .select()
+      .from(schema.projectImageVariants)
+      .where(eq(schema.projectImageVariants.id, variant.id))
+      .limit(1);
+    expect(storedVariant).toMatchObject({ status: "draft", storedFileId: null });
   });
 });

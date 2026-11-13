@@ -15,8 +15,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { DownloadSimpleIcon, TranslateIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import type {
@@ -30,9 +29,16 @@ import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
+import {
+  isSourceFileIngestInProgress,
+  sourceFileIngestPollIntervalMs,
+} from "@/lib/projects/files/source-file-ingest-state";
 import { formatBytes } from "./project-files-shared";
 import { projectFileDetailPanelMessages as messages } from "./project-file-detail-panel.messages";
+import { SourceFileIngestStatus } from "./source-file-ingest-status";
 import { CreateTranslationJobDialog } from "./create-translation-job-dialog";
 import { ImportTranslationsDialog } from "./import-translations-dialog";
 import {
@@ -106,6 +112,7 @@ export function ProjectFileDetailPanel({
   encodedJobId?: string | null;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const sourcePath = file?.sourcePath ?? null;
   const externalResourceId = file?.provider?.externalResourceId ?? null;
   const loadDetailsFailed = intl.formatMessage(messages.loadDetailsFailedShort);
@@ -119,6 +126,11 @@ export function ProjectFileDetailPanel({
       encodedJobId,
     ),
     enabled: Boolean(sourcePath),
+    refetchInterval: (query) => {
+      const latestVersion = query.state.data?.versions[0];
+      const ingestState = latestVersion?.ingestState ?? file?.ingestState;
+      return isSourceFileIngestInProgress(ingestState) ? sourceFileIngestPollIntervalMs : false;
+    },
     queryFn: async () => {
       if (encodedJobId) {
         const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
@@ -159,18 +171,12 @@ export function ProjectFileDetailPanel({
     queryKey: ["project", organizationSlug, projectId],
     enabled: Boolean(file && !file.provider && !encodedJobId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
-        param: { organizationSlug, projectId },
-      });
-
-      if (!response.ok) {
-        throw new Error(await readApiError(response, loadProjectFailed));
+      try {
+        const body = await goSvcClient.project.get(organizationSlug, projectId);
+        return body.project;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, loadProjectFailed), { cause: error });
       }
-
-      const body = (await response.json()) as {
-        project: { targetLocales: string[]; sourceLocale: string | null };
-      };
-      return body.project;
     },
   });
 
@@ -273,6 +279,8 @@ export function ProjectFileDetailPanelView({
   const latestVersion = detail?.versions[0];
   const displayByteSize = latestVersion?.byteSize ?? file.byteSize;
   const provider = file.provider;
+  const ingestState = latestVersion?.ingestState ?? file.ingestState;
+  const ingestError = latestVersion?.ingestError ?? file.ingestError;
 
   const jobsByLocale = detail?.jobsByLocale ?? [];
   const orderedJobsByLocale = highlightLocale
@@ -343,6 +351,9 @@ export function ProjectFileDetailPanelView({
             <FormattedMessage {...messages.hash} values={{ hash: latestVersion.sourceHash }} />
           </TypographyP>
         ) : null}
+        {!provider ? (
+          <SourceFileIngestStatus ingestState={ingestState} ingestError={ingestError} />
+        ) : null}
         {provider ? (
           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
             {provider.format ? (
@@ -377,7 +388,7 @@ export function ProjectFileDetailPanelView({
           <div className="flex flex-wrap gap-2 pt-1">
             <AiFeatureAction organizationSlug={organizationSlug} size="sm">
               <Button type="button" size="sm" onClick={() => setTranslateDialogOpen(true)}>
-                <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
+                <TranslateIcon />
                 <FormattedMessage {...messages.translateWithAgent} />
               </Button>
             </AiFeatureAction>
@@ -387,7 +398,7 @@ export function ProjectFileDetailPanelView({
               variant="outline"
               onClick={() => setImportDialogOpen(true)}
             >
-              <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
+              <UploadSimpleIcon />
               <FormattedMessage {...messages.importTranslations} />
             </Button>
             {downloadableLocales.length > 0
@@ -399,7 +410,7 @@ export function ProjectFileDetailPanelView({
                     variant="outline"
                     onClick={() => downloadTranslation(locale)}
                   >
-                    <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
+                    <DownloadSimpleIcon />
                     <FormattedMessage {...messages.downloadLocale} values={{ locale }} />
                   </Button>
                 ))

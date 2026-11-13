@@ -1,6 +1,7 @@
 import type { Preview } from "@storybook/nextjs-vite";
 import { Geist_Mono, Inter } from "next/font/google";
-import { initialize, mswLoader } from "msw-storybook-addon";
+import { setupWorker } from "msw/browser";
+import { mswLoader } from "msw-storybook-addon/csf3";
 import "@pierre/trees/web-components";
 
 import "../src/app/globals.css";
@@ -13,8 +14,6 @@ import { SUPPORTED_APP_LOCALES } from "../src/lib/app-i18n/locales";
 import { cn } from "../src/lib/primitives/cn";
 import { mswHandlers } from "./msw-handlers";
 import { StorybookDecorator, type StorybookTheme } from "./storybook-decorator";
-
-initialize({ onUnhandledRequest: "bypass" });
 
 const inter = Inter({
   subsets: ["latin", "latin-ext", "vietnamese"],
@@ -92,14 +91,20 @@ const preview: Preview = {
                   <Story />
                 </BrandThemeProvider>
               </div>
-              <Toaster richColors closeButton />
+              <Toaster />
             </TooltipProvider>
           </StorybookDecorator>
         </ThemeProvider>
       </QueryProvider>
     ),
   ],
-  loaders: [mswLoader],
+  loaders: [
+    mswLoader(async () => {
+      const worker = setupWorker();
+      await worker.start({ onUnhandledFrame: "bypass", quiet: true });
+      return worker;
+    }),
+  ],
   parameters: {
     controls: {
       matchers: {

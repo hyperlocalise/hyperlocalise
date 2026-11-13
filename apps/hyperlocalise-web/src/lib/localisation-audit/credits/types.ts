@@ -27,6 +27,11 @@ export type LocalisationAuditCreditDefinition = {
   title: string;
   mode: CreditMode;
   rubric: string;
+  /**
+   * Relative weight inside the dimension, like a Lighthouse audit weight.
+   * Only heuristic results count; AI-assessed (`luna`) results are shown but unscored.
+   */
+  weight: number;
 };
 
 export type AuditCreditContext = {

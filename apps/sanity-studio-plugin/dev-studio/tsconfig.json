@@ -1,0 +1,4 @@
+{
+  "extends": "../tsconfig.settings",
+  "include": [".", "../sanity.config.ts", "../sanity.cli.ts"]
+}

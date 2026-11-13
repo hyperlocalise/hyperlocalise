@@ -128,9 +128,19 @@ describe("segmentMatchesQueueFilter", () => {
     expect(filterCatQueueSegments(segments, "hidden").map((segment) => segment.id)).toEqual(["a"]);
   });
 
+  it("excludes hidden segments from not hidden", () => {
+    const segments = [createSegment({ id: "a", isHidden: true }), createSegment({ id: "b" })];
+
+    expect(filterCatQueueSegments(segments, "not_hidden").map((segment) => segment.id)).toEqual([
+      "b",
+    ]);
+  });
+
   it("matches hidden source strings", () => {
     expect(segmentMatchesQueueFilter(createSegment({ isHidden: true }), "hidden")).toBe(true);
     expect(segmentMatchesQueueFilter(createSegment(), "hidden")).toBe(false);
+    expect(segmentMatchesQueueFilter(createSegment({ isHidden: true }), "not_hidden")).toBe(false);
+    expect(segmentMatchesQueueFilter(createSegment(), "not_hidden")).toBe(true);
   });
 
   it("matches unsaved drafts from isDirty", () => {
@@ -144,12 +154,17 @@ describe("segmentMatchesQueueFilter", () => {
 });
 
 describe("resolveAvailableCatQueueFilters", () => {
-  it("includes hidden for native and Crowdin projects", () => {
+  it("includes hidden and not hidden for native and Crowdin projects", () => {
     expect(resolveAvailableCatQueueFilters(null)).toContain("hidden");
+    expect(resolveAvailableCatQueueFilters(null)).toContain("not_hidden");
     expect(resolveAvailableCatQueueFilters("crowdin")).toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("crowdin")).toContain("not_hidden");
     expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("not_hidden");
     expect(resolveAvailableCatQueueFilters("lokalise")).not.toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("lokalise")).not.toContain("not_hidden");
     expect(resolveAvailableCatQueueFilters("smartling")).not.toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("smartling")).not.toContain("not_hidden");
   });
 
   it("includes has issues for Crowdin projects", () => {
@@ -171,14 +186,22 @@ describe("resolveAvailableCatQueueFilters", () => {
     expect(resolveAvailableCatQueueFilters("smartling")).toContain("has_issues");
   });
 
-  it("includes Crowdin extra filters only for Crowdin", () => {
+  it("includes extra filters only for providers that support them", () => {
     expect(resolveAvailableCatQueueFilters("crowdin")).toEqual(
       expect.arrayContaining(["unsaved", "qa_issues", "machine_translated", "with_comments"]),
     );
-    expect(resolveAvailableCatQueueFilters("native")).not.toContain("qa_issues");
+    expect(resolveAvailableCatQueueFilters("native")).toContain("qa_issues");
+    expect(resolveAvailableCatQueueFilters("native")).toContain("machine_translated");
+    expect(resolveAvailableCatQueueFilters("native")).toContain("with_comments");
+    expect(resolveAvailableCatQueueFilters("native")).toContain("has_issues");
+    expect(resolveAvailableCatQueueFilters("native")).toContain("origin");
+    expect(resolveAvailableCatQueueFilters("crowdin")).not.toContain("origin");
+    expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("qa_issues");
     expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("machine_translated");
+    expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("origin");
     expect(resolveAvailableCatQueueFilters(null)).toContain("unsaved");
-    expect(resolveAvailableCatQueueFilters(null)).not.toContain("with_comments");
+    expect(resolveAvailableCatQueueFilters(null)).toContain("with_comments");
+    expect(resolveAvailableCatQueueFilters(null)).toContain("origin");
   });
 });
 

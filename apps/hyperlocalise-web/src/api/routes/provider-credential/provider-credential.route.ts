@@ -14,6 +14,11 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
+import {
+  enqueueIntegrationCredentialRevealedActivity,
+  enqueueIntegrationDisconnectedActivity,
+} from "@/lib/activity-log/integration-events";
 import {
   deleteOrganizationProviderCredential,
   listOrganizationProviderCredentialSummaries,
@@ -91,7 +96,7 @@ export function createProviderCredentialRoutes() {
       const payload = c.req.valid("json");
 
       try {
-        const providerCredential = await upsertOrganizationProviderCredential({
+        const { credential: providerCredential } = await upsertOrganizationProviderCredential({
           organizationId: c.var.auth.organization.localOrganizationId,
           userId: c.var.auth.user.localUserId,
           provider: payload.provider,
@@ -121,6 +126,13 @@ export function createProviderCredentialRoutes() {
           return providerCredentialNotFoundResponse(c);
         }
 
+        await enqueueIntegrationCredentialRevealedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          connectionId: `${c.var.auth.organization.localOrganizationId}:${revealedCredential.summary.provider}`,
+          integrationKind: revealedCredential.summary.provider,
+          organizationId: c.var.auth.organization.localOrganizationId,
+        });
+
         return c.json({ providerCredential: revealedCredential }, 200);
       } catch (error) {
         if (error instanceof Error && error.message === "forbidden") {
@@ -147,6 +159,13 @@ export function createProviderCredentialRoutes() {
         if (!deleted) {
           return providerCredentialNotFoundResponse(c);
         }
+
+        await enqueueIntegrationDisconnectedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          connectionId: `${c.var.auth.organization.localOrganizationId}:${provider}`,
+          integrationKind: provider,
+          organizationId: c.var.auth.organization.localOrganizationId,
+        });
 
         return c.body(null, 204);
       } catch (error) {

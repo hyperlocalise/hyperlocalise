@@ -118,6 +118,32 @@ func TestLoad_ScoutEdgeCases(t *testing.T) {
 			errContains: "duplicate locale",
 		},
 		{
+			name: "invalid copies whitespace origin",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-AU"],
+			    "copies": {"en-AU": "   "}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x"}}}
+			}`,
+			errContains: "origin must not be empty",
+		},
+		{
+			name: "invalid copies unknown origin locale",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-AU", "en-GB"],
+			    "copies": {"en-AU": "en-NZ"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x"}}}
+			}`,
+			errContains: "must be in locales.targets or locales.source",
+		},
+		{
 			name: "invalid hyperlocalise api_base_url invalid scheme/host",
 			content: `{
 			  "locales": {"source": "en-US", "targets": ["es-ES"]},

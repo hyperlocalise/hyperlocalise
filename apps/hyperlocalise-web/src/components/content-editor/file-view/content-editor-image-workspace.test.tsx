@@ -19,6 +19,7 @@ import {
   ContentEditorImageWorkspace,
   imageTextLayersEndpoint,
 } from "./content-editor-image-workspace";
+import { ApiResponseError } from "@/lib/api-error";
 import type { ImageTextLayers } from "@/lib/projects/files/image-text-layers";
 
 const initialLayers: ImageTextLayers = {
@@ -104,6 +105,25 @@ describe("image workspace", () => {
     expect(fetchMock.mock.calls[1]?.[1]).toEqual(expect.objectContaining({ method: "POST" }));
     expect(fetchMock.mock.calls[2]?.[1]).toEqual(expect.objectContaining({ method: "POST" }));
   });
+  it("says the AI credit is used up when extraction is refused for it, without a retry", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url, options) =>
+        options?.method === "POST"
+          ? Response.json({ error: "ai_credit_exhausted", message: "used up" }, { status: 402 })
+          : Response.json({ textLayers: null }),
+      ),
+    );
+    const user = userEvent.setup();
+    show();
+
+    await user.click(await screen.findByRole("button", { name: "Extract text" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Your workspace has used all of its AI credit.",
+    );
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+  });
   it("saves edited wording before regeneration and preserves the target locale", async () => {
     let savedBody: ImageTextLayers | undefined;
     const steps: string[] = [];
@@ -133,6 +153,84 @@ describe("image workspace", () => {
     await waitFor(() => expect(onRegenerate).toHaveBeenCalledTimes(1));
     expect(steps).toEqual(["save", "generate"]);
     expect(savedBody?.regions[0].translations.fr.text).toBe("Plus près");
+  });
+  it("shows the generation card while localising and offers a retry when it fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url, options) =>
+        Response.json({
+          textLayers:
+            options?.method === "PATCH"
+              ? {
+                  ...JSON.parse(options.body),
+                  revision: "00000000-0000-4000-8000-000000000002",
+                }
+              : initialLayers,
+        }),
+      ),
+    );
+    let fail!: (error: Error) => void;
+    const onRegenerate = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            fail = reject;
+          }),
+      )
+      .mockResolvedValueOnce(undefined);
+    const user = userEvent.setup();
+    show({ onRegenerate });
+    await user.type(await screen.findByLabelText("Exact replacement (fr)"), "Plus près");
+    await user.click(screen.getByRole("button", { name: "Save & regenerate" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Save & regenerate" }),
+    );
+
+    expect(
+      await screen.findByRole("progressbar", { name: "Generating image" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fail(new Error("unavailable"));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(onRegenerate).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole("progressbar")).not.toBeInTheDocument());
+  });
+  it("says the AI credit is used up when localising is refused for it, without a retry", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ textLayers: initialLayers })),
+    );
+    const onRegenerate = vi
+      .fn()
+      .mockRejectedValue(
+        new ApiResponseError("used up", { code: "ai_credit_exhausted", status: 402 }),
+      );
+    const user = userEvent.setup();
+    show({ onRegenerate });
+    await user.type(await screen.findByLabelText("Exact replacement (fr)"), "Plus près");
+    await user.click(screen.getByRole("button", { name: "Save & regenerate" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Save & regenerate" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Your workspace has used all of its AI credit.",
+    );
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+  });
+  it("shows the generation card for a generation started elsewhere", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ textLayers: null })),
+    );
+    show({ isGenerating: true });
+
+    expect(
+      await screen.findByRole("progressbar", { name: "Generating image" }),
+    ).toBeInTheDocument();
   });
   it("does not generate after a failed save and retains edits", async () => {
     vi.stubGlobal(

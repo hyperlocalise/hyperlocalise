@@ -20,6 +20,11 @@ import { useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { ImageGenerationLoadingCard } from "@/components/ui/image-generation-loading-card";
+import { useImageNaturalSize } from "@/components/content-editor/shared/use-image-natural-size";
+import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
+import { readApiResponseError } from "@/lib/api-error";
+import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
 import { cn } from "@/lib/primitives/cn";
 import {
   imageTextLayersSchema,
@@ -36,6 +41,8 @@ type ImageWorkspaceProps = {
   sourcePaneVisible: boolean;
   canEdit: boolean;
   isBusy: boolean;
+  /** True while a generation started outside this workspace is in flight. */
+  isGenerating?: boolean;
   isLoading: boolean;
   actions: ReactNode;
   onDirtyChange: (dirty: boolean) => void;
@@ -66,6 +73,8 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
   const mutationRef = useRef<AbortController | null>(null);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [failedInstructions, setFailedInstructions] = useState<string | null>(null);
+  const [generationRefused, setGenerationRefused] = useState(false);
   const [previewOutdated, setPreviewOutdated] = useState(false);
   const [observedTarget, setObservedTarget] = useState(props.targetSrc);
 
@@ -73,6 +82,7 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "idle" | "extracting" | "saving">("loading");
   const [error, setError] = useState<string | null>(null);
+  const [errorRefused, setErrorRefused] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -91,6 +101,8 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
   const [endpoint, setEndpoint] = useState<string | null>(null);
   const selected = layers?.regions.find((region) => region.id === selectedId) ?? layers?.regions[0];
   const busy = props.isBusy || generating || status !== "idle";
+  const showGenerationCard = generating || Boolean(props.isGenerating);
+  const sourceSize = useImageNaturalSize(props.sourceSrc);
   const transition = { duration: reduceMotion ? 0 : 0.2, ease: "easeOut" as const };
   useEffect(() => {
     const controller = new AbortController();
@@ -106,6 +118,7 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
     }
     setStatus("loading");
     setError(null);
+    setErrorRefused(false);
     void fetch(path, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("load");
@@ -137,6 +150,7 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
     mutationRef.current = controller;
     setStatus(method === "POST" ? "extracting" : "saving");
     setError(null);
+    setErrorRefused(false);
     setSaved(false);
     try {
       const response = await fetch(endpoint, {
@@ -150,7 +164,7 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
         setConflict(true);
         throw new Error("conflict");
       }
-      if (!response.ok) throw new Error("request");
+      if (!response.ok) throw await readApiResponseError(response, "request");
       const body = await response.json();
       const next = imageTextLayersSchema.parse(body.textLayers);
       if (controller.signal.aborted) return false;
@@ -167,13 +181,16 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
       return true;
     } catch (cause) {
       if (controller.signal.aborted) return false;
+      setErrorRefused(isAiCreditExhaustedError(cause));
       setError(
         intl.formatMessage(
           cause instanceof Error && cause.message === "conflict"
             ? messages.conflict
-            : method === "POST"
-              ? messages.extractError
-              : messages.saveError,
+            : isAiCreditExhaustedError(cause)
+              ? aiCreditExhaustedMessages.exhausted
+              : method === "POST"
+                ? messages.extractError
+                : messages.saveError,
         ),
       );
       return false;
@@ -186,13 +203,21 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
     if (!props.onRegenerate) return;
     if (dirty && !(await persist("PATCH"))) throw new Error("save_failed");
     setGenerating(true);
+    setFailedInstructions(null);
+    setGenerationRefused(false);
+    setGenerateOpen(false);
+    setWipe(false);
+    setView("target");
     try {
       await props.onRegenerate({ instructions: instructions || undefined });
       if (!mountedRef.current) return;
       setPreviewOutdated(false);
       props.onDirtyChange(false);
-      setView("target");
-      setGenerateOpen(false);
+    } catch (cause) {
+      if (mountedRef.current) {
+        setFailedInstructions(instructions);
+        setGenerationRefused(isAiCreditExhaustedError(cause));
+      }
     } finally {
       if (mountedRef.current) setGenerating(false);
     }
@@ -342,16 +367,18 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
                 transition={transition}
                 className="min-w-0 border border-border/60 bg-card shadow-sm"
                 aria-label={intl.formatMessage(
-                  displaySource ? messages.sourceAlt : messages.targetAlt,
+                  displaySource && !showGenerationCard ? messages.sourceAlt : messages.targetAlt,
                 )}
               >
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
                   <h2 className="text-sm font-medium">
-                    {wipe
-                      ? `${originalLabel} / ${translatedLabel}`
-                      : displaySource
-                        ? originalLabel
-                        : translatedLabel}
+                    {showGenerationCard
+                      ? translatedLabel
+                      : wipe
+                        ? `${originalLabel} / ${translatedLabel}`
+                        : displaySource
+                          ? originalLabel
+                          : translatedLabel}
                   </h2>
                   <div className="flex flex-wrap gap-2">
                     {props.actions}
@@ -378,7 +405,15 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
                     ) : null}
                   </div>
                 </div>
-                {props.isLoading ? (
+                {showGenerationCard ? (
+                  <div className="bg-muted/30 p-4 sm:p-6">
+                    <ImageGenerationLoadingCard
+                      width={sourceSize?.width}
+                      height={sourceSize?.height}
+                      maxHeight="70vh"
+                    />
+                  </div>
+                ) : props.isLoading ? (
                   <div className="flex min-h-72 items-center justify-center">
                     <Spinner />
                   </div>
@@ -398,17 +433,38 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
                     {intl.formatMessage(messages.emptyTarget)}
                   </p>
                 )}
-                {wipe ? (
+                {wipe && !showGenerationCard ? (
                   <p className="border-t px-4 py-2 text-xs text-muted-foreground">
                     {intl.formatMessage(messages.dividerHint)}
                   </p>
+                ) : null}
+                {failedInstructions !== null && !showGenerationCard ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t p-4">
+                    <p role="alert" className="text-sm text-destructive">
+                      {intl.formatMessage(
+                        generationRefused
+                          ? aiCreditExhaustedMessages.exhausted
+                          : messages.generationError,
+                      )}
+                    </p>
+                    {generationRefused ? null : (
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        disabled={!props.canEdit || busy || conflict}
+                        onClick={() => void generate(failedInstructions).catch(() => undefined)}
+                      >
+                        {intl.formatMessage(messages.retry)}
+                      </Button>
+                    )}
+                  </div>
                 ) : null}
                 {previewOutdated ? (
                   <p role="status" className="border-t p-4 text-sm text-muted-foreground">
                     {intl.formatMessage(messages.previewOutdated)}
                   </p>
                 ) : null}
-                {!props.targetSrc ? (
+                {!props.targetSrc && !showGenerationCard ? (
                   <p className="border-t p-4 text-sm text-muted-foreground">
                     {intl.formatMessage(messages.noTarget)}
                   </p>
@@ -530,18 +586,20 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
                   <p role="alert" className="text-sm text-destructive">
                     {error}
                   </p>
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => {
-                      if (conflict) setReload((value) => value + 1);
-                      else if (!layers) void persist("POST");
-                      else void persist("PATCH");
-                    }}
-                  >
-                    {intl.formatMessage(conflict ? messages.reload : messages.retry)}
-                  </Button>
+                  {errorRefused ? null : (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => {
+                        if (conflict) setReload((value) => value + 1);
+                        else if (!layers) void persist("POST");
+                        else void persist("PATCH");
+                      }}
+                    >
+                      {intl.formatMessage(conflict ? messages.reload : messages.retry)}
+                    </Button>
+                  )}
                 </div>
               ) : null}
               {dirty ? (

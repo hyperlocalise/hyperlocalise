@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 const unknownLiquidFilePath = "<unknown>"
@@ -138,7 +139,7 @@ func parseLiquidDocument(filePath string, content []byte) (liquidDocument, map[s
 
 	liquidReplacer := newLiquidReplacer(liquidPlaceholders)
 
-	htmlDoc, _, err := parseHTMLDocument(masked)
+	htmlDoc, _, err := parseHTMLDocumentFoldingInline(masked)
 	if err != nil {
 		return liquidDocument{}, nil, err
 	}
@@ -193,8 +194,7 @@ func maskLiquidSyntax(filePath string, content []byte) ([]byte, map[string]strin
 				return nil, nil, &LiquidParseError{FilePath: filePath, Offset: i, Message: "unclosed liquid tag delimiter"}
 			}
 			tag := content[i:end]
-			tagName := liquidTagName(tag)
-			if isLiquidSkippedBlockStart(tagName) {
+			if tagName := liquidSkippedBlockName(tag); tagName != "" {
 				blockEnd, ok := findLiquidSkippedBlockEnd(content, end, tagName)
 				if !ok {
 					return nil, nil, &LiquidParseError{FilePath: filePath, Offset: i, Message: "unclosed liquid " + tagName + " block"}
@@ -249,27 +249,29 @@ func appendLiquidBoundaryPlaceholder(literal string, placeholders map[string]str
 }
 
 func liquidPlaceholderToken(index int, literal string) string {
-	// BOLT OPTIMIZATION: Reduce allocations by using a stack buffer for hashing
-	// (avoids heap for short literals) and manually encoding hex in uppercase
-	// to avoid extra string operations.
+	// BOLT OPTIMIZATION: Format placeholder token directly into a stack buffer
+	// to avoid strings.Builder heap allocations.
 	var buf [64]byte
 	hInput := strconv.AppendInt(buf[:0], int64(index), 10)
 	hInput = append(hInput, ':')
 	hInput = append(hInput, literal...)
 	sum := sha256.Sum256(hInput)
 
-	var res strings.Builder
-	res.Grow(32)
-	res.WriteString("\x1eHLLQPH_")
+	var tokBuf [48]byte
+	n := copy(tokBuf[:], "\x1eHLLQPH_")
 	for i := 0; i < 6; i++ {
 		b := sum[i]
-		res.WriteByte(hexDigits[b>>4])
-		res.WriteByte(hexDigits[b&0x0f])
+		tokBuf[n] = hexDigits[b>>4]
+		tokBuf[n+1] = hexDigits[b&0x0f]
+		n += 2
 	}
-	res.WriteByte('_')
-	res.WriteString(strconv.Itoa(index))
-	res.WriteByte('\x1f')
-	return res.String()
+	tokBuf[n] = '_'
+	n++
+	idxBytes := strconv.AppendInt(tokBuf[n:n], int64(index), 10)
+	n += len(idxBytes)
+	tokBuf[n] = '\x1f'
+	n++
+	return string(tokBuf[:n])
 }
 
 func updateLiquidHTMLTagState(input []byte, index int, ch byte, inHTMLTag *bool, htmlQuote *byte) {
@@ -344,9 +346,9 @@ func findLiquidDelimiterEnd(input []byte, start int, close []byte) (int, bool) {
 	return 0, false
 }
 
-func liquidTagName(tag []byte) string {
-	// BOLT OPTIMIZATION: Avoid multiple strings.Trim* and strings.Fields calls
-	// by manually scanning for the tag name in the []byte.
+// BOLT OPTIMIZATION: liquidSkippedBlockName inspects tag bytes directly and matches
+// skipped block names without heap string allocations or strings.ToLower calls.
+func liquidSkippedBlockName(tag []byte) string {
 	s := tag
 	if bytes.HasPrefix(s, []byte("{%")) {
 		s = s[2:]
@@ -360,26 +362,58 @@ func liquidTagName(tag []byte) string {
 		return ""
 	}
 
-	// Find the first word
 	end := 0
 	for end < len(s) && !isSpace(s[end]) {
 		end++
 	}
+	name := s[:end]
 
-	return strings.ToLower(string(s[:end]))
+	switch len(name) {
+	case 3:
+		if equalFoldASCIIBytes(name, "raw") {
+			return "raw"
+		}
+	case 6:
+		if equalFoldASCIIBytes(name, "schema") {
+			return "schema"
+		}
+	case 7:
+		if equalFoldASCIIBytes(name, "comment") {
+			return "comment"
+		}
+	case 10:
+		if equalFoldASCIIBytes(name, "javascript") {
+			return "javascript"
+		}
+		if equalFoldASCIIBytes(name, "stylesheet") {
+			return "stylesheet"
+		}
+	}
+	return ""
+}
+
+func equalFoldASCIIBytes(b []byte, s string) bool {
+	if len(b) != len(s) {
+		return false
+	}
+	for i := 0; i < len(b); i++ {
+		c1 := b[i]
+		c2 := s[i]
+		if c1 >= 'A' && c1 <= 'Z' {
+			c1 += 'a' - 'A'
+		}
+		if c2 >= 'A' && c2 <= 'Z' {
+			c2 += 'a' - 'A'
+		}
+		if c1 != c2 {
+			return false
+		}
+	}
+	return true
 }
 
 func isSpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
-}
-
-func isLiquidSkippedBlockStart(tagName string) bool {
-	switch tagName {
-	case "raw", "comment", "schema", "javascript", "stylesheet":
-		return true
-	default:
-		return false
-	}
 }
 
 var liquidSkippedBlockEndPatterns = map[string]*regexp.Regexp{
@@ -404,22 +438,37 @@ func findLiquidSkippedBlockEnd(input []byte, from int, tagName string) (int, boo
 }
 
 func liquidPartHasTranslatableText(part htmlPart) bool {
-	// Optimization: instead of removing each placeholder via strings.ReplaceAll in a loop
-	// (which causes O(N*M) allocations), we skip any text between sentinel delimiters.
+	// BOLT OPTIMIZATION: Fast ASCII byte loop to skip sentinel delimiters and check for
+	// translatable alphanumerics without UTF-8 rune decoding.
 	inPlaceholder := false
-	for _, r := range part.source {
-		if r == '\x1e' {
+	s := part.source
+	for i := 0; i < len(s); {
+		b := s[i]
+		if b == '\x1e' {
 			inPlaceholder = true
+			i++
 			continue
 		}
-		if r == '\x1f' {
+		if b == '\x1f' {
 			inPlaceholder = false
+			i++
 			continue
 		}
 		if !inPlaceholder {
+			if b < 0x80 {
+				if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') {
+					return true
+				}
+				i++
+				continue
+			}
+			r, size := utf8.DecodeRuneInString(s[i:])
 			if unicode.IsLetter(r) || unicode.IsDigit(r) {
 				return true
 			}
+			i += size
+		} else {
+			i++
 		}
 	}
 	return false
@@ -550,12 +599,21 @@ var liquidInternalPlaceholderPattern = regexp.MustCompile(`\x1eHL(?:LQ|HT)PH_[A-
 // LiquidInternalPlaceholderTokens returns sorted internal Liquid/HTML sentinel
 // tokens found in s.
 func LiquidInternalPlaceholderTokens(s string) []string {
+	// BOLT OPTIMIZATION: Fast path to bypass regex matching when no sentinel control bytes exist.
+	if !strings.Contains(s, "\x1e") {
+		return nil
+	}
 	matches := liquidInternalPlaceholderPattern.FindAllString(s, -1)
 	slices.Sort(matches)
 	return matches
 }
 
 func liquidSyntaxPlaceholderTokens(s string) []string {
+	// BOLT OPTIMIZATION: Fast path to bypass LiquidInternalPlaceholderTokens regex scanning,
+	// slice allocation, and sorting when no Liquid sentinel placeholders are present.
+	if !strings.Contains(s, "HLLQPH_") {
+		return nil
+	}
 	tokens := LiquidInternalPlaceholderTokens(s)
 	out := tokens[:0]
 	for _, token := range tokens {

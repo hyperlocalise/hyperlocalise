@@ -25,11 +25,6 @@ export const visualWorkflowsPageMessages = defineMessages({
     id: "XEIB3MxFUn",
     description: "Title for the visual workflows list page",
   },
-  pageDescription: {
-    defaultMessage: "Build deterministic automation graphs with triggers, actions, and branching.",
-    id: "H9KS8ECUJ/",
-    description: "Description for the visual workflows list page",
-  },
   newWorkflow: {
     defaultMessage: "New workflow",
     id: "vj1b+ydRtP",
@@ -84,5 +79,25 @@ export const visualWorkflowsPageMessages = defineMessages({
     defaultMessage: "Could not delete this workflow.",
     id: "it5kPOtvZj",
     description: "Toast when visual workflow deletion fails",
+  },
+  statusDraft: {
+    defaultMessage: "Draft",
+    id: "XVyJ8t4WfM",
+    description: "Visual workflow list status for unpublished drafts",
+  },
+  statusActive: {
+    defaultMessage: "Active",
+    id: "//TpvvzaTN",
+    description: "Visual workflow list status when the workflow is live",
+  },
+  statusPaused: {
+    defaultMessage: "Paused",
+    id: "ksFVpxkIyn",
+    description: "Visual workflow list status when the workflow is paused",
+  },
+  statusArchived: {
+    defaultMessage: "Archived",
+    id: "ovGZxV6gQB",
+    description: "Visual workflow list status when the workflow is archived",
   },
 });

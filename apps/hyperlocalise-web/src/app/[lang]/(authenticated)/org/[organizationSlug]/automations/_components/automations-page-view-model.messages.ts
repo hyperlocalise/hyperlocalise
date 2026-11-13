@@ -45,6 +45,26 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "J210+x7u6p",
     description: "Trigger label for a web chat automation in the list",
   },
+  triggerContentSync: {
+    defaultMessage: "Content sync",
+    id: "6NDLX93t5d",
+    description: "Trigger label for a content sync automation in the list",
+  },
+  toolContentful: {
+    defaultMessage: "Contentful",
+    id: "Ccr0NcCtO0",
+    description: "Tool badge when a content sync uses Contentful",
+  },
+  toolIntercom: {
+    defaultMessage: "Intercom",
+    id: "NGl2apEpYb",
+    description: "Tool badge when a content sync uses Intercom",
+  },
+  toolSanity: {
+    defaultMessage: "Sanity",
+    id: "YhWT741eyC",
+    description: "Tool badge when an automation uses Sanity",
+  },
   toolKnowledgeFiles: {
     defaultMessage: "Knowledge files",
     id: "l0dInWPeYD",
@@ -79,6 +99,56 @@ export const automationsPageViewModelMessages = defineMessages({
     defaultMessage: "MCP Server",
     id: "RLPdxshxAq",
     description: "Tool badge when an automation uses an MCP server",
+  },
+  toolBraze: {
+    defaultMessage: "Braze",
+    id: "h0hMmM+3k4",
+    description: "Tool badge when an automation uses Braze",
+  },
+  toolIterable: {
+    defaultMessage: "Iterable",
+    id: "+aXAY2+kkC",
+    description: "Tool badge when an automation uses Iterable",
+  },
+  toolCustomerIo: {
+    defaultMessage: "Customer.io",
+    id: "H+501fU+xu",
+    description: "Tool badge when an automation uses Customer.io",
+  },
+  toolHubspot: {
+    defaultMessage: "HubSpot",
+    id: "15zAdlHpmJ",
+    description: "Tool badge when an automation uses HubSpot",
+  },
+  toolMailchimp: {
+    defaultMessage: "Mailchimp",
+    id: "m+3SVatJRr",
+    description: "Tool badge when an automation uses Mailchimp",
+  },
+  toolCrowdin: {
+    defaultMessage: "Crowdin",
+    id: "Qw/ZLtBjN0",
+    description: "Tool badge when an automation uses Crowdin",
+  },
+  toolWebSearch: {
+    defaultMessage: "Web search",
+    id: "sHLZ/8LZoH",
+    description: "Tool badge when an automation uses web search",
+  },
+  toolSemrush: {
+    defaultMessage: "Semrush",
+    id: "ijeBZJPxQs",
+    description: "Tool badge when an automation uses Semrush",
+  },
+  toolZernio: {
+    defaultMessage: "Zernio",
+    id: "zQBuwK1cWP",
+    description: "Tool badge when an automation uses Zernio",
+  },
+  toolAhrefs: {
+    defaultMessage: "Ahrefs",
+    id: "3UVVqU60g6",
+    description: "Tool badge when an automation uses Ahrefs",
   },
   unknownCreator: {
     defaultMessage: "Unknown",

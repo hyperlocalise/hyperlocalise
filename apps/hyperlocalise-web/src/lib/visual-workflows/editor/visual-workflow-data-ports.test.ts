@@ -1,0 +1,511 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { describe, expect, it } from "vite-plus/test";
+
+import { createDefaultConfig } from "../catalog/node-catalog";
+import type { VisualWorkflowRfEdge, VisualWorkflowRfNode } from "../schema/types";
+import {
+  getVisualWorkflowDataEdgeBinding,
+  getVisualWorkflowDataPorts,
+} from "./visual-workflow-data-ports";
+
+function node(
+  id: string,
+  type: VisualWorkflowRfNode["data"]["catalogType"],
+  data: Partial<VisualWorkflowRfNode["data"]> = {},
+): VisualWorkflowRfNode {
+  return {
+    id,
+    type,
+    position: { x: 0, y: 0 },
+    data: {
+      catalogType: type,
+      config: createDefaultConfig(type),
+      runStatus: "idle",
+      ...data,
+    },
+  };
+}
+
+describe("getVisualWorkflowDataPorts", () => {
+  it("exposes typed optional Try / Catch error outputs", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("boundary", "logic.try_catch"),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([]);
+    expect(ports.outputs).toEqual([
+      {
+        id: "errorCode",
+        label: "errorCode",
+        type: "string",
+        optional: true,
+        connectionCount: 0,
+      },
+      {
+        id: "errorMessage",
+        label: "errorMessage",
+        type: "string",
+        optional: true,
+        connectionCount: 0,
+      },
+      {
+        id: "failedNodeId",
+        label: "failedNodeId",
+        type: "string",
+        optional: true,
+        connectionCount: 0,
+      },
+      {
+        id: "attempt",
+        label: "attempt",
+        type: "object",
+        optional: true,
+        connectionCount: 0,
+      },
+    ]);
+  });
+
+  it("returns typed contract inputs and outputs", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("request", "action.http"),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([
+      {
+        id: "url",
+        label: "url",
+        type: "string",
+        optional: false,
+        connectionCount: 0,
+      },
+      {
+        id: "body",
+        label: "body",
+        type: "unknown",
+        optional: true,
+        connectionCount: 0,
+      },
+    ]);
+
+    expect(ports.outputs).toContainEqual({
+      id: "status",
+      label: "status",
+      type: "number",
+      optional: false,
+      connectionCount: 0,
+    });
+
+    expect(ports.outputs).toContainEqual({
+      id: "ok",
+      label: "ok",
+      type: "boolean",
+      optional: false,
+      connectionCount: 0,
+    });
+  });
+
+  it("returns dynamic Call Workflow inputs and outputs by stable field ID", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("call", "flow.call_workflow", {
+        config: {
+          kind: "flow.call_workflow",
+          workflowId: "22222222-2222-4222-8222-222222222222",
+          version: 3,
+          inputFields: [{ id: "customer-id", name: "Customer", type: "string", required: true }],
+          outputFields: [{ id: "result-id", name: "Result", type: "object", required: false }],
+        },
+      }),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([
+      {
+        id: "value.customer-id",
+        label: "value.customer-id",
+        type: "string",
+        optional: false,
+        connectionCount: 0,
+      },
+    ]);
+    expect(ports.outputs).toEqual([
+      {
+        id: "value.result-id",
+        label: "value.result-id",
+        type: "object",
+        optional: true,
+        connectionCount: 0,
+      },
+    ]);
+  });
+
+  it("exposes dynamic Coalesce inputs with configured labels and stable IDs", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("coalesce", "logic.coalesce", {
+        config: {
+          kind: "logic.coalesce",
+          inputs: [
+            { id: "primary", name: "Requested locale", type: "string" },
+            { id: "fallback", name: "Default locale", type: "string", defaultValue: "en" },
+          ],
+          treatNullAsMissing: true,
+          treatEmptyStringAsMissing: true,
+          treatEmptyArrayAsMissing: false,
+          treatEmptyObjectAsMissing: false,
+        },
+      }),
+      edges: [
+        {
+          id: "primary-data",
+          source: "trigger",
+          target: "coalesce",
+          sourceHandle: "triggeredAt",
+          targetHandle: "value.primary",
+          data: { kind: "data" },
+        },
+      ],
+    });
+
+    expect(ports.inputs).toEqual([
+      {
+        id: "value.primary",
+        label: "Requested locale",
+        type: "string",
+        optional: true,
+        connectionCount: 1,
+      },
+      {
+        id: "value.fallback",
+        label: "Default locale",
+        type: "string",
+        optional: true,
+        connectionCount: 0,
+      },
+    ]);
+  });
+
+  it("exposes typed Compare operands and boolean output", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("compare", "logic.compare", {
+        config: {
+          kind: "logic.compare",
+          operator: "equal",
+          operands: [
+            { id: "left", name: "Current locale", type: "string" },
+            { id: "right", name: "Requested locale", type: "string" },
+          ],
+        },
+      }),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([
+      {
+        id: "value.left",
+        label: "Current locale",
+        type: "string",
+        optional: false,
+        connectionCount: 0,
+      },
+      {
+        id: "value.right",
+        label: "Requested locale",
+        type: "string",
+        optional: false,
+        connectionCount: 0,
+      },
+    ]);
+    expect(ports.outputs).toEqual([
+      { id: "result", label: "result", type: "boolean", optional: false, connectionCount: 0 },
+    ]);
+  });
+
+  it("returns dynamic Set ports without duplicates", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("set", "logic.set", {
+        config: {
+          kind: "logic.set",
+          assignments: [
+            { key: "status", value: "ready" },
+            { key: "status", value: "complete" },
+          ],
+        },
+        inputs: {
+          status: { kind: "literal", value: "ready" },
+          count: { kind: "literal", value: 1 },
+        },
+      }),
+      edges: [],
+    });
+
+    expect(ports.inputs.map((port) => port.id)).toEqual(["status", "count"]);
+
+    expect(ports.outputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "status",
+          type: "string",
+        }),
+        expect.objectContaining({
+          id: "count",
+          type: "number",
+        }),
+      ]),
+    );
+  });
+
+  it("counts only data-edge connections", () => {
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "data-edge",
+        source: "trigger",
+        target: "request",
+        sourceHandle: "triggeredAt",
+        targetHandle: "url",
+        data: { kind: "data" },
+      },
+      {
+        id: "execution-edge",
+        source: "trigger",
+        target: "request",
+        sourceHandle: "success",
+        targetHandle: "input",
+        data: { kind: "execution" },
+      },
+    ];
+
+    const requestPorts = getVisualWorkflowDataPorts({
+      node: node("request", "action.http"),
+      edges,
+    });
+
+    const triggerPorts = getVisualWorkflowDataPorts({
+      node: node("trigger", "trigger.manual"),
+      edges,
+    });
+
+    expect(requestPorts.inputs).toContainEqual(
+      expect.objectContaining({
+        id: "url",
+        connectionCount: 1,
+      }),
+    );
+
+    expect(triggerPorts.outputs).toContainEqual(
+      expect.objectContaining({
+        id: "triggeredAt",
+        connectionCount: 1,
+      }),
+    );
+  });
+
+  it("includes declared custom output fields", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("agent", "ai.agent", {
+        outputFields: [
+          {
+            path: "metadata.score",
+            type: "number",
+            optional: true,
+          },
+        ],
+      }),
+      edges: [],
+    });
+
+    expect(ports.outputs).toContainEqual({
+      id: "metadata.score",
+      label: "metadata.score",
+      type: "number",
+      optional: true,
+      connectionCount: 0,
+    });
+  });
+
+  it("does not expose an empty dynamic Set port", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("set", "logic.set"),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([]);
+    expect(ports.outputs).toEqual([]);
+  });
+
+  it("exposes typed Return values as connectable data inputs", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("return", "flow.return", {
+        config: {
+          kind: "flow.return",
+          outputs: [
+            { id: "order-id", name: "orderId", type: "string" },
+            { id: "accepted", name: "accepted", type: "boolean" },
+          ],
+        },
+      }),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([
+      {
+        id: "value.order-id",
+        label: "value.order-id",
+        type: "string",
+        optional: false,
+        connectionCount: 0,
+      },
+      {
+        id: "value.accepted",
+        label: "value.accepted",
+        type: "boolean",
+        optional: false,
+        connectionCount: 0,
+      },
+    ]);
+  });
+
+  it("does not expose secret bindings as output ports", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("set", "logic.set", {
+        inputs: {
+          publicValue: {
+            kind: "literal",
+            value: "visible",
+          },
+          apiToken: {
+            kind: "secret",
+            credentialId: "00000000-0000-4000-8000-000000000001",
+          },
+        },
+      }),
+      edges: [],
+    });
+
+    expect(ports.outputs).toContainEqual(
+      expect.objectContaining({
+        id: "publicValue",
+      }),
+    );
+
+    expect(ports.outputs).not.toContainEqual(
+      expect.objectContaining({
+        id: "apiToken",
+      }),
+    );
+  });
+});
+
+describe("getVisualWorkflowDataEdgeBinding", () => {
+  it("derives a reference binding from an incoming data edge", () => {
+    const binding = getVisualWorkflowDataEdgeBinding({
+      nodeId: "request",
+      portId: "url",
+      edges: [
+        {
+          id: "data-edge",
+          source: "trigger",
+          target: "request",
+          sourceHandle: "payload.urls.0",
+          targetHandle: "url",
+          data: { kind: "data" },
+        },
+      ],
+    });
+
+    expect(binding).toEqual({
+      kind: "reference",
+      nodeId: "trigger",
+      path: ["payload", "urls", 0],
+    });
+  });
+
+  it("ignores execution edges", () => {
+    const binding = getVisualWorkflowDataEdgeBinding({
+      nodeId: "request",
+      portId: "url",
+      edges: [
+        {
+          id: "execution-edge",
+          source: "trigger",
+          target: "request",
+          sourceHandle: "success",
+          targetHandle: "url",
+          data: { kind: "execution" },
+        },
+      ],
+    });
+
+    expect(binding).toBeUndefined();
+  });
+
+  it("exposes mode-specific typed Array Transform ports", () => {
+    const reduce = getVisualWorkflowDataPorts({
+      node: node("transform", "logic.array_transform", {
+        config: {
+          kind: "logic.array_transform",
+          operation: "reduce",
+          collection: "[]",
+          itemType: "object",
+          resultType: "number",
+          initialValue: 0,
+        },
+      }),
+      edges: [],
+    });
+
+    expect(reduce.inputs.map(({ id, type, optional }) => ({ id, type, optional }))).toEqual([
+      { id: "collection", type: "array", optional: false },
+      { id: "initialValue", type: "number", optional: false },
+    ]);
+    expect(reduce.outputs.map(({ id, type, optional }) => ({ id, type, optional }))).toEqual([
+      { id: "item", type: "object", optional: false },
+      { id: "index", type: "number", optional: false },
+      { id: "count", type: "number", optional: false },
+      { id: "accumulator", type: "number", optional: false },
+      { id: "value", type: "number", optional: false },
+    ]);
+
+    const find = getVisualWorkflowDataPorts({
+      node: node("transform", "logic.array_transform", {
+        config: {
+          kind: "logic.array_transform",
+          operation: "find",
+          collection: "[]",
+          itemType: "string",
+          resultType: "string",
+        },
+      }),
+      edges: [],
+    });
+    expect(find.inputs.map((port) => port.id)).toEqual(["collection"]);
+    expect(find.outputs.map(({ id, type, optional }) => ({ id, type, optional }))).toEqual([
+      { id: "item", type: "string", optional: false },
+      { id: "index", type: "number", optional: false },
+      { id: "count", type: "number", optional: false },
+      { id: "value", type: "string", optional: true },
+      { id: "found", type: "boolean", optional: false },
+    ]);
+  });
+
+  it("returns undefined after the data edge is removed", () => {
+    expect(
+      getVisualWorkflowDataEdgeBinding({
+        nodeId: "request",
+        portId: "url",
+        edges: [],
+      }),
+    ).toBeUndefined();
+  });
+});

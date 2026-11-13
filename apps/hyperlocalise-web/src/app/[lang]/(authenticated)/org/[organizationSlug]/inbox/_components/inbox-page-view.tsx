@@ -12,16 +12,24 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { FormattedMessage } from "react-intl";
+import { useIntl } from "react-intl";
 
-import { Box } from "@/components/ui/layout/box";
+import { Skeleton } from "@/components/ui/skeleton";
 
+import type { ChatTurnControls } from "./chat-turn-controls";
 import { ConversationPanel } from "./conversation-panel";
 import { inboxChatSplitPaneClassName } from "./inbox-chat-split-pane";
 import type { ChatComposerSendOptions } from "./inbox-api";
 import { InboxIssuePanel } from "./inbox-issue-panel";
-import { InboxList, type InboxSelection } from "./inbox-list";
+import {
+  InboxList,
+  type InboxItemHref,
+  type InboxListItemSelection,
+  type InboxSelection,
+} from "./inbox-list";
+import type { InboxListFilters } from "./inbox-list-filters";
 import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
+import { InboxQaNotificationPanel } from "./inbox-qa-notification-panel";
 import type { InboxIssueNotification } from "./inbox-notifications-api";
 import { inboxNotificationsMessages } from "./inbox-notifications.messages";
 import type {
@@ -38,6 +46,9 @@ export function InboxPageView({
   conversationsIsLoading,
   currentUser,
   draft = "",
+  draftProjectId,
+  draftRepositoryKey,
+  filters,
   hasMoreNotifications,
   isLoadingMoreNotifications,
   isSending,
@@ -47,14 +58,19 @@ export function InboxPageView({
   jobsIsLoading,
   messages,
   messagesIsLoading,
+  itemHref,
   notifications,
   notificationsIsError,
   notificationsIsLoading,
   onDraftChange,
+  onDraftProjectChange,
+  onDraftRepositoryChange,
+  onFiltersChange,
   onLoadMoreNotifications,
   onMarkAllRead,
-  onSelectConversation,
-  onSelectNotification,
+  onSelectItem,
+  onDeletedQuery,
+  canDeleteQueries = false,
   onSendMessage,
   organizationSlug,
   selectedConversation,
@@ -62,6 +78,7 @@ export function InboxPageView({
   selectedNotificationIsLoading,
   selection,
   streamedAssistant,
+  turnControls,
   unreadNotificationCount,
 }: {
   conversations: Conversation[];
@@ -69,6 +86,9 @@ export function InboxPageView({
   conversationsIsLoading: boolean;
   currentUser: InboxCurrentUser;
   draft?: string;
+  draftProjectId?: string;
+  draftRepositoryKey?: string;
+  filters?: InboxListFilters;
   hasMoreNotifications: boolean;
   isLoadingMoreNotifications: boolean;
   isSending: boolean;
@@ -78,14 +98,19 @@ export function InboxPageView({
   jobsIsLoading: boolean;
   messages: ConversationMessage[];
   messagesIsLoading: boolean;
+  itemHref?: InboxItemHref;
   notifications: InboxIssueNotification[];
   notificationsIsError: boolean;
   notificationsIsLoading: boolean;
   onDraftChange?: (draft: string) => void;
+  onDraftProjectChange?: (projectId: string) => void;
+  onDraftRepositoryChange?: (repositoryKey: string) => void;
+  onFiltersChange?: (filters: InboxListFilters) => void;
   onLoadMoreNotifications: () => void;
   onMarkAllRead: () => void;
-  onSelectConversation: (conversationId: string) => void;
-  onSelectNotification: (notificationId: string) => void;
+  onSelectItem: (selection: InboxListItemSelection) => void;
+  onDeletedQuery?: () => void;
+  canDeleteQueries?: boolean;
   onSendMessage: (
     text: string,
     files: File[],
@@ -95,10 +120,12 @@ export function InboxPageView({
   selectedConversation: Conversation | undefined;
   selectedNotification: InboxIssueNotification | undefined;
   selectedNotificationIsLoading: boolean;
+  turnControls?: ChatTurnControls;
   selection: InboxSelection;
   streamedAssistant: StreamedAssistantMessage | null;
   unreadNotificationCount: number;
 }) {
+  const intl = useIntl();
   const listIsLoading = conversationsIsLoading || notificationsIsLoading;
   const listIsError = conversationsIsError || notificationsIsError;
   const selectionKey =
@@ -119,72 +146,102 @@ export function InboxPageView({
         <InboxPanelErrorBoundary
           scope="list"
           className="max-h-[40svh] min-h-0 shrink-0 lg:h-full lg:max-h-none lg:shrink"
-          resetKeys={[
-            selectionKey,
-            conversations.length,
-            notifications.length,
-            conversationsIsLoading,
-            notificationsIsLoading,
-          ]}
+          resetKeys={[conversations.length, notifications.length]}
         >
           <InboxList
             conversations={conversations}
             currentUser={currentUser}
+            filters={filters}
             hasMoreNotifications={hasMoreNotifications}
             isError={listIsError}
             isLoading={listIsLoading}
             isLoadingMoreNotifications={isLoadingMoreNotifications}
             notifications={notifications}
+            onFiltersChange={onFiltersChange}
             onLoadMoreNotifications={onLoadMoreNotifications}
             onMarkAllRead={onMarkAllRead}
-            onSelectConversation={onSelectConversation}
-            onSelectNotification={onSelectNotification}
+            onSelectItem={onSelectItem}
+            itemHref={itemHref}
             selection={selection}
             unreadNotificationCount={unreadNotificationCount}
           />
         </InboxPanelErrorBoundary>
 
-        {selection?.kind === "notification" ? (
-          selectedNotification ? (
-            <InboxIssuePanel
-              organizationSlug={organizationSlug}
-              projectId={selectedNotification.projectId}
-              issueId={selectedNotification.issueId}
-            />
-          ) : selectedNotificationIsLoading ? (
-            <Box
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              padding="3u"
-              height="full"
-              aria-busy="true"
-              aria-label="Loading notification"
-            >
-              <span className="text-sm text-muted-foreground">
-                <FormattedMessage {...inboxNotificationsMessages.issuePanelLoading} />
-              </span>
-            </Box>
-          ) : null
-        ) : (
-          <ConversationPanel
-            conversation={selectedConversation}
-            currentUser={currentUser}
-            draft={draft}
-            isComposingNew={selection?.kind === "new"}
-            isSending={isSending}
-            isStreaming={isStreaming}
-            jobs={jobs}
-            jobsIsLoading={jobsIsLoading}
-            messages={messages}
-            messagesIsLoading={messagesIsLoading}
-            onDraftChange={onDraftChange}
-            onSendMessage={onSendMessage}
-            organizationSlug={organizationSlug}
-            streamedAssistant={streamedAssistant}
-          />
-        )}
+        <InboxPanelErrorBoundary
+          scope="messages"
+          className="min-h-0 min-w-0 flex-1"
+          resetKeys={[selectionKey]}
+        >
+          <div key={selectionKey} className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+            {selection?.kind === "notification" ? (
+              selectedNotification ? (
+                selectedNotification.issueId ? (
+                  <InboxIssuePanel
+                    organizationSlug={organizationSlug}
+                    projectId={selectedNotification.projectId}
+                    issueId={selectedNotification.issueId}
+                    canDelete={canDeleteQueries}
+                    onDeleted={onDeletedQuery}
+                  />
+                ) : (
+                  <InboxQaNotificationPanel
+                    notification={selectedNotification}
+                    organizationSlug={organizationSlug}
+                  />
+                )
+              ) : selectedNotificationIsLoading ? (
+                <section
+                  className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+                  aria-busy="true"
+                  aria-label={intl.formatMessage(inboxNotificationsMessages.issuePanelLoading)}
+                >
+                  <InboxIssuePanelSkeleton />
+                </section>
+              ) : null
+            ) : (
+              <ConversationPanel
+                conversation={selectedConversation}
+                currentUser={currentUser}
+                draft={draft}
+                draftProjectId={draftProjectId}
+                draftRepositoryKey={draftRepositoryKey}
+                isComposingNew={selection?.kind === "new"}
+                isSending={isSending}
+                isStreaming={isStreaming}
+                jobs={jobs}
+                jobsIsLoading={jobsIsLoading}
+                messages={messages}
+                messagesIsLoading={messagesIsLoading}
+                onDraftChange={onDraftChange}
+                onDraftProjectChange={onDraftProjectChange}
+                onDraftRepositoryChange={onDraftRepositoryChange}
+                onSendMessage={onSendMessage}
+                organizationSlug={organizationSlug}
+                streamedAssistant={streamedAssistant}
+                turnControls={turnControls}
+              />
+            )}
+          </div>
+        </InboxPanelErrorBoundary>
       </div>
     </main>
+  );
+}
+
+function InboxIssuePanelSkeleton() {
+  return (
+    <div className="grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] overflow-hidden md:grid-cols-[minmax(0,1fr)_22rem] md:grid-rows-none">
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-6 py-5">
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+      <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto border-t border-border bg-muted/20 px-4 py-5 md:border-t-0 md:border-s">
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="ml-auto h-7 w-24" />
+        <Skeleton className="ml-auto h-7 w-20" />
+        <Skeleton className="ml-auto h-7 w-28" />
+      </aside>
+    </div>
   );
 }

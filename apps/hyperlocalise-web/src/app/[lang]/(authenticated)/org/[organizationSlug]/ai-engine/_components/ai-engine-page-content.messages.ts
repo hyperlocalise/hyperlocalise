@@ -20,12 +20,6 @@ export const aiEnginePageContentMessages = defineMessages({
     id: "YEHmCLlYeR",
     description: "AI Engine page heading",
   },
-  pageDescription: {
-    defaultMessage:
-      "Connect one or more model providers and set the workspace default for Hyperlocalise Agent. Included models stay available even when BYOK providers are connected.",
-    id: "6du8XKbuUv",
-    description: "AI Engine page description",
-  },
   providerSectionTitle: {
     defaultMessage: "Provider",
     id: "Niev/tzFno",
@@ -111,9 +105,8 @@ export const aiEnginePageContentMessages = defineMessages({
     description: "Hyperlocalise Agent Translation capability name",
   },
   capabilityTranslationDescription: {
-    defaultMessage:
-      "File and string translation jobs, batch localization, and translation subagents.",
-    id: "nqV2qZ+dzM",
+    defaultMessage: "Translates strings in chat and creates file and batch translation jobs.",
+    id: "9EZj17Y9iS",
     description: "Hyperlocalise Agent Translation capability description",
   },
   capabilityCodingName: {

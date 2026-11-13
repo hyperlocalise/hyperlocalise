@@ -23,7 +23,7 @@ tags:
 
 许多本地化团队都面临着加快进度、减少人工工作，并在不增加人员编制的情况下支持更多语言的压力。AI 翻译显然是解决方案的一部分，但对于大多数团队来说，问题并不在于是否应该使用 AI。更难的问题在于，如何引入 AI 翻译，同时不打乱现有的系统、工作流程和供应商关系。
 
-对于已经在使用[Phrase](https://phrase.com)、[Lokalise](https://lokalise.com)、[Crowdin](https://crowdin.com)、[Smartling](https://www.smartling.com)或其他翻译管理系统的公司来说，替换 TMS 很少是正确的第一步。这些平台通常深度嵌入产品发布流程、内容工作流、供应商运营、翻译记忆库、术语管理、审核周期和报告体系中。彻底替换项目可能会带来数月的迁移工作，而团队在此之前几乎看不到任何实质性改善。
+For companies already using [Phrase](https://phrase.com), [Lokalise](https://lokalise.com), [Crowdin](https://crowdin.com), [Smartling](https://www.smartling.com), or another translation management system, replacing the TMS is rarely the right first move. These platforms often sit deeply inside product release processes, content workflows, vendor operations, translation memory, glossary management, review cycles, and reporting. A rip-and-replace project can create months of migration work before the team sees any meaningful improvement.
 
 更好的方法是将 AI 翻译作为现有本地化工作流程周围的智能层加入其中。企业无需替换 TMS，而是可以利用 AI 对其进行增强：收集上下文、准备翻译任务、提升翻译质量、为审校人员提供支持，并跨工具学习以往的决策。
 
@@ -65,7 +65,7 @@ Phrase、Lokalise、Crowdin 和 Smartling 已经提供了强大的本地化基�
 
 它应该**从反馈中学习**。最有价值的本地化知识往往出现在初次翻译经过审校之后：某个短语为何被拒绝、语气为何被调整、某个市场为何更偏好一种表达，或直译为何效果不佳。如果这些反馈消失在评论和电子表格中，AI 就无法随着时间推移不断改进。
 
-如需进一步了解为何上下文与输出同等重要，请参阅[AI 翻译还不够：全球团队为何需要了解上下文的本地化](/blog/ai-translation-is-not-enough-context-aware-localisation)。
+For more on why context matters as much as output, see [AI Translation Is Not Enough: Why Global Teams Need Context-Aware Localisation](/blog/ai-translation-is-not-enough-context-aware-localisation).
 
 ## 与 TMS 无关的模型
 
@@ -93,7 +93,7 @@ Hyperlocalise 专注于三个领域。
 
 **第三，它创建了一个自我演进的知识层。** 每一条获批准的译文、被拒绝的建议、术语表更新、审校者评论以及针对特定市场的决策，都可以成为组织本地化智能的一部分。随着时间的推移，这不仅能减少重复错误，还能让未来的翻译更加一致、更符合语境，并更快获得批准。
 
-这建立在与[翻译智能](/blog/what-is-translation-intelligence)相同的基础之上：这套基础设施将分散的产品、品牌、UI、市场和审校人员知识转化为更出色的本地化决策。
+This builds on the same foundation as [translation intelligence](/blog/what-is-translation-intelligence): the infrastructure that turns scattered product, brand, UI, market, and reviewer knowledge into better localisation decisions.
 
 ## 实际益处
 
@@ -116,3 +116,5 @@ Phrase、Lokalise、Crowdin 和 Smartling 都已大力投入 AI 驱动的本地�
 借助 Hyperlocalise，团队可以将 AI 翻译智能引入现有的本地化技术栈，在各工具之间关联上下文，为人工审校人员提供支持，并构建一个不断改进的知识层。
 
 AI 翻译不应迫使团队重新开始。它应该帮助团队从现有进度更快地推进。
+
+有关这一选择背后的评估标准——产品背景、人工审核、TMS 互操作性和发布就绪度——请参阅[如何选择持续本地化工作流](/blog/how-to-choose-a-continuous-localisation-workflow)。

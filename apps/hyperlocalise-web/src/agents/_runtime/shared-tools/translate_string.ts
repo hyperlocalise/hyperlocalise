@@ -15,8 +15,10 @@ import { z } from "zod";
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { loadSharedSkill } from "@/agents/_runtime/loader";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import { trackStringTranslationTokenUsage } from "@/lib/billing/agent-runtime-usage";
 import { loadOrganizationTranslationGenerator } from "@/lib/translation/generation";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/context";
+import { toolCanAccessProject } from "@/lib/tools/tool-access";
 
 const translateStringInputSchema = z.object({
   projectId: z.string().trim().min(1).optional(),
@@ -41,8 +43,9 @@ export type TranslateStringOutput = z.infer<typeof translateStringOutputSchema>;
 
 export async function executeTranslateString(
   input: TranslateStringInput & { projectId: string },
+  organizationId: string,
 ): Promise<TranslateStringOutput> {
-  const generator = await loadOrganizationTranslationGenerator(input.projectId);
+  const generator = await loadOrganizationTranslationGenerator(input.projectId, organizationId);
   if (!generator.ok) {
     throw new Error(generator.message);
   }
@@ -69,22 +72,33 @@ export async function executeTranslateString(
     contextSnapshot: contextSnapshot.ok ? contextSnapshot.snapshot : undefined,
   });
 
+  await trackStringTranslationTokenUsage({
+    organizationId: organizationId,
+    source: "chat_translate_string",
+    projectId: input.projectId,
+    tokenUsage: result.tokenUsage,
+  });
+
   return { translations: result.translations };
 }
 
-export function createTranslateStringTool(ctx?: Pick<ToolContext, "projectId">) {
+export function createTranslateStringTool(ctx: ToolContext) {
   return defineAgentTool({
     description:
       "Translate source text into one or more target locales using project translation context, glossary, and translation memory.",
     inputSchema: translateStringInputSchema,
     outputSchema: translateStringOutputSchema,
     execute: async (input) => {
-      const projectId = input.projectId ?? ctx?.projectId;
+      const projectId = input.projectId ?? ctx.projectId;
       if (!projectId) {
         throw new Error("translate_string requires projectId in tool input or agent context.");
       }
 
-      return executeTranslateString({ ...input, projectId });
+      if (!(await toolCanAccessProject(ctx, projectId))) {
+        throw new Error("Project not found or not accessible.");
+      }
+
+      return executeTranslateString({ ...input, projectId }, ctx.organizationId);
     },
   });
 }

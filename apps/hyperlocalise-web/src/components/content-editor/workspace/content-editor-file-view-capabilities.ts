@@ -14,15 +14,31 @@ import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
 import type { ContentEditorContentKind } from "@/components/content-editor/shared/types";
 import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-view-mode";
 
-export type ContentEditorFileViewFamily = "image" | "video" | "text" | "office" | "document";
+export type ContentEditorFileViewFamily =
+  | "image"
+  | "video"
+  | "text"
+  | "office"
+  | "document"
+  | "office-segments"
+  | "pdf-segments";
 
-export type ContentEditorFileViewerId = "image" | "video" | "docx" | "xlsx" | "pptx" | "markdown";
+export type ContentEditorFileViewerId =
+  | "image"
+  | "video"
+  | "docx"
+  | "xlsx"
+  | "pptx"
+  | "markdown"
+  | "html"
+  | "pdf";
 
 export type ContentEditorFileViewCapabilities = {
   family: ContentEditorFileViewFamily;
@@ -35,7 +51,35 @@ const SEGMENT_VIEWS = [
   "comfortable",
   "side-by-side",
 ] as const satisfies readonly ContentEditorWorkspaceViewMode[];
+const MULTILINGUAL_SEGMENT_VIEWS = [
+  ...SEGMENT_VIEWS,
+  "multilingual",
+] as const satisfies readonly ContentEditorWorkspaceViewMode[];
 const FILE_ONLY_VIEWS = ["file"] as const satisfies readonly ContentEditorWorkspaceViewMode[];
+const DOCUMENT_AND_SEGMENT_VIEWS = [
+  ...SEGMENT_VIEWS,
+  "file",
+] as const satisfies readonly ContentEditorWorkspaceViewMode[];
+const DOCUMENT_AND_MULTILINGUAL_VIEWS = [
+  ...MULTILINGUAL_SEGMENT_VIEWS,
+  "file",
+] as const satisfies readonly ContentEditorWorkspaceViewMode[];
+const MULTILINGUAL_IMAGE_VIEWS = [
+  ...FILE_ONLY_VIEWS,
+  "multilingual",
+] as const satisfies readonly ContentEditorWorkspaceViewMode[];
+
+function isNativeCatProvider(providerKind?: string | null): boolean {
+  return providerKind == null || providerKind === "native";
+}
+
+function segmentViews(multilingualViewAvailable?: boolean) {
+  return multilingualViewAvailable ? MULTILINGUAL_SEGMENT_VIEWS : SEGMENT_VIEWS;
+}
+
+function documentAndSegmentViews(multilingualViewAvailable?: boolean) {
+  return multilingualViewAvailable ? DOCUMENT_AND_MULTILINGUAL_VIEWS : DOCUMENT_AND_SEGMENT_VIEWS;
+}
 
 function extensionOf(sourcePath: string): string | null {
   const basename = sourcePath.split(/[\\/]/).pop() ?? sourcePath;
@@ -63,14 +107,19 @@ function officeViewerIdForExtension(extension: string | null): ContentEditorFile
 export function resolveCatFileViewCapabilities(input: {
   sourcePath?: string | null;
   contentKind?: ContentEditorContentKind | null;
+  /** Crowdin and other TMS providers already expose markdown as string segments. */
+  providerKind?: string | null;
+  /** The multilingual table needs a locale/key configuration the workspace may not have. */
+  multilingualViewAvailable?: boolean;
 }): ContentEditorFileViewCapabilities {
   const sourcePath = input.sourcePath?.trim() ?? "";
   const contentKind = input.contentKind ?? null;
+  const nativeProject = isNativeCatProvider(input.providerKind);
 
   if (contentKind === "image_file" || inferSupportedImageTranslationFileFormat(sourcePath)) {
     return {
       family: "image",
-      availableViews: FILE_ONLY_VIEWS,
+      availableViews: input.multilingualViewAvailable ? MULTILINGUAL_IMAGE_VIEWS : FILE_ONLY_VIEWS,
       defaultView: "file",
       viewerId: "image",
     };
@@ -85,7 +134,44 @@ export function resolveCatFileViewCapabilities(input: {
     };
   }
 
+  if (inferSupportedPdfTranslationFileFormat(sourcePath)) {
+    if (!nativeProject) {
+      return {
+        family: "text",
+        availableViews: segmentViews(input.multilingualViewAvailable),
+        defaultView: "side-by-side",
+        viewerId: null,
+      };
+    }
+    return {
+      family: "pdf-segments",
+      availableViews: documentAndSegmentViews(input.multilingualViewAvailable),
+      defaultView: "side-by-side",
+      viewerId: "pdf",
+    };
+  }
+
   const extension = extensionOf(sourcePath);
+  // Office files ingested as keyed segments. Legacy uploads with no keys keep `office_file`
+  // segments and the stored-file viewer below.
+  if (contentKind !== "office_file" && inferSupportedOfficeTranslationFileFormat(sourcePath)) {
+    if (!nativeProject) {
+      return {
+        family: "text",
+        availableViews: segmentViews(input.multilingualViewAvailable),
+        defaultView: "side-by-side",
+        viewerId: null,
+      };
+    }
+
+    return {
+      family: "office-segments",
+      availableViews: documentAndSegmentViews(input.multilingualViewAvailable),
+      defaultView: "side-by-side",
+      viewerId: officeViewerIdForExtension(extension) ?? "docx",
+    };
+  }
+
   const officeFormat =
     contentKind === "office_file" || inferSupportedOfficeTranslationFileFormat(sourcePath);
   if (officeFormat) {
@@ -98,18 +184,28 @@ export function resolveCatFileViewCapabilities(input: {
   }
 
   if (contentKind === "document" || inferSupportedDocumentTranslationFileFormat(sourcePath)) {
+    if (!nativeProject) {
+      return {
+        family: "text",
+        availableViews: segmentViews(input.multilingualViewAvailable),
+        defaultView: "side-by-side",
+        viewerId: null,
+      };
+    }
+
     return {
       family: "document",
-      availableViews: FILE_ONLY_VIEWS,
+      availableViews: documentAndSegmentViews(input.multilingualViewAvailable),
       defaultView: "file",
-      viewerId: "markdown",
+      viewerId:
+        inferSupportedDocumentTranslationFileFormat(sourcePath) === "html" ? "html" : "markdown",
     };
   }
 
   // String Content Editor files and unknown paths stay in segment views.
   return {
     family: "text",
-    availableViews: SEGMENT_VIEWS,
+    availableViews: segmentViews(input.multilingualViewAvailable),
     defaultView: "side-by-side",
     viewerId: null,
   };
@@ -127,4 +223,85 @@ export function clampCatWorkspaceViewMode(
 
 export function isCatFileViewAvailable(capabilities: ContentEditorFileViewCapabilities) {
   return capabilities.availableViews.includes("file");
+}
+
+export type ContentEditorDocumentView = {
+  externalStringId: string;
+  sourceAssetUrl?: string | null;
+  targetAssetUrl?: string | null;
+  imageVariantId?: string | null;
+};
+
+/** File view overlays the source-file ID, which is not a queue key segment. */
+export function isCatDocumentFileViewSegmentId(
+  segmentId: string,
+  documentView?: { externalStringId: string } | null,
+) {
+  return documentView != null && documentView.externalStringId === segmentId;
+}
+
+/** File view for native documents should edit the stored file, not the selected key. */
+export function overlayCatDocumentFileViewSegment<
+  T extends {
+    id: string;
+    key: string;
+    sourceText: string;
+    contentKind?: ContentEditorContentKind;
+    sourceAssetUrl?: string | null;
+    targetAssetUrl?: string | null;
+    imageVariantId?: string | null;
+    targetText?: string;
+    sourcePath?: string;
+  },
+>(
+  segment: T,
+  fileContext: {
+    sourcePath: string;
+    documentView?: ContentEditorDocumentView | null;
+  },
+): T {
+  const documentView = fileContext.documentView;
+  if (!documentView || segment.contentKind === "document") {
+    return segment;
+  }
+
+  return {
+    ...segment,
+    id: documentView.externalStringId,
+    key: fileContext.sourcePath,
+    sourceText: fileContext.sourcePath,
+    sourcePath: fileContext.sourcePath,
+    contentKind: "document",
+    sourceAssetUrl: documentView.sourceAssetUrl ?? null,
+    targetAssetUrl: documentView.targetAssetUrl ?? null,
+    imageVariantId: documentView.imageVariantId ?? null,
+    ...(segment.targetText !== undefined ? { targetText: documentView.targetAssetUrl ?? "" } : {}),
+  };
+}
+
+export function isCatImageFileSegment(input: {
+  sourcePath?: string | null;
+  contentKind?: ContentEditorContentKind | null;
+}) {
+  return resolveCatFileViewCapabilities(input).family === "image";
+}
+
+/** All Files queues mix file kinds; the gallery only shows the selected image file. */
+export function contentEditorMultilingualGallerySegments<
+  T extends {
+    id: string;
+    sourcePath?: string | null;
+    contentKind?: ContentEditorContentKind | null;
+  },
+>(queueSegments: readonly T[], selectedSegment: T | null | undefined): T[] {
+  if (!selectedSegment || !isCatImageFileSegment(selectedSegment)) {
+    return [];
+  }
+  const selectedPath = selectedSegment.sourcePath?.trim();
+  if (!selectedPath) {
+    return [selectedSegment];
+  }
+  return queueSegments.filter(
+    (segment) => segment.sourcePath === selectedPath && isCatImageFileSegment(segment),
+  );
 }

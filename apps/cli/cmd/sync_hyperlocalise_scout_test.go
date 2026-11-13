@@ -68,15 +68,21 @@ func TestInferHyperlocaliseFileFormat_Scout(t *testing.T) {
 		{"i18n/messages.XLIFF", "xliff"},
 		{"i18n/messages.XLF", "xliff"},
 		{"po/fr.PO", "po"},
+		{"translations/app_de.TS", "qt-ts"},
 		{"public/index.HTML", "html"},
+		{"emails/welcome.HTM", "html"},
 		{"docs/readme.MD", "markdown"},
 		{"docs/guide.MDX", "mdx"},
+		{"docs/guide.ADOC", "asciidoc"},
+		{"docs/manual.ASCIIDOC", "asciidoc"},
+		{"docs/notes.ASC", "asciidoc"},
 		{"ios/en.lproj/Localizable.STRINGS", "strings"},
 		{"ios/en.lproj/Localizable.STRINGSDICT", "stringsdict"},
 		{"ios/Localizable.XCSTRINGS", "xcstrings"},
 		{"data/items.CSV", "csv"},
 		{"locales/en.FTL", "fluent"},
 		{"config/labels.PROPERTIES", "properties"},
+		{"locales/messages.INI", "ini"},
 		{"subtitles/fr.SRT", "srt"},
 		{"subtitles/fr.VTT", "vtt"},
 		{"assets/logo.PNG", "png"},
@@ -137,6 +143,15 @@ func TestContentTypeForPath_Scout(t *testing.T) {
 		{
 			name: "custom fallback for properties",
 			path: "locales/messages.properties",
+			check: func(t *testing.T, got string) {
+				if got != "text/plain" {
+					t.Errorf("got %q, want text/plain", got)
+				}
+			},
+		},
+		{
+			name: "custom fallback for ini",
+			path: "locales/messages.ini",
 			check: func(t *testing.T, got string) {
 				if got != "text/plain" {
 					t.Errorf("got %q, want text/plain", got)

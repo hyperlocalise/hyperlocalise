@@ -12,9 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { createElement, useEffect, useMemo, useRef, useState } from "react";
+import { CopyIcon, CheckIcon } from "@phosphor-icons/react";
 import { siGmail } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
@@ -231,7 +230,7 @@ export function EmailIntegrationRow({
                         : emailIntegrationRowMessages.copyAriaLabel,
                     )}
                   >
-                    <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.8} />
+                    {createElement(copied ? CheckIcon : CopyIcon, {})}
                   </InputGroupButton>
                 }
               />

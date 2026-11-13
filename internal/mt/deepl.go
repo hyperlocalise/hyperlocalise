@@ -68,9 +68,10 @@ func (c *DeepLClient) Translate(ctx context.Context, req Request) (Response, err
 	targetLang := deeplTargetLanguageCode(req.TargetLocale)
 
 	translations := make([]string, 0, len(req.Sources))
+	requestCount := 0
 	for start := 0; start < len(req.Sources); start += deeplMaxTextsPerRequest {
 		if err := ctx.Err(); err != nil {
-			return Response{}, err
+			return Response{RequestCount: requestCount}, err
 		}
 
 		end := start + deeplMaxTextsPerRequest
@@ -79,13 +80,14 @@ func (c *DeepLClient) Translate(ctx context.Context, req Request) (Response, err
 		}
 
 		chunkTranslations, err := c.translateChunk(ctx, sourceLang, targetLang, req.Sources[start:end])
+		requestCount++
 		if err != nil {
-			return Response{}, err
+			return Response{RequestCount: requestCount}, err
 		}
 		translations = append(translations, chunkTranslations...)
 	}
 
-	return Response{Translations: translations}, nil
+	return Response{Translations: translations, RequestCount: requestCount}, nil
 }
 
 func (c *DeepLClient) translateChunk(ctx context.Context, sourceLang, targetLang string, sources []string) ([]string, error) {

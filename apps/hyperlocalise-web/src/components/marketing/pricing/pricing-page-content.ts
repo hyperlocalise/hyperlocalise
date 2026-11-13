@@ -12,24 +12,60 @@
  */
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
+import { getPricingIrisGroupCopy, getPricingIrisModelSummaries } from "./pricing-iris-model-copy";
+import { pricingIrisVendorNames } from "./pricing-iris-models";
+import {
+  getPricingCatalogEntries,
+  type PricingModelAccess,
+  type PricingModelJob,
+  type PricingModelProviderId,
+  type PricingModelSurface,
+  type PricingWriterCopyKey,
+} from "./pricing-model-catalog";
+
 export type PricingPlanId = "free" | "starter" | "growth" | "enterprise";
 
 export type PricingPlanCta = {
   label: string;
-  kind: "coming_soon" | "demo";
+  kind: "signup" | "demo";
 };
 
 export type PricingPlan = {
   id: PricingPlanId;
   name: string;
+  /** Accessible plan title for card heading (for example "Starter: $20 per month"). */
+  cardHeading: string;
+  /** Optional badge beside the plan name (for example Auto-enable on Free). */
+  badge: string | null;
   price: string;
   priceSuffix: string | null;
   description: string;
   popular: boolean;
   includesFrom: string | null;
   features: string[];
+  /** Icon key for each entry in `features`, in the same order. */
+  featureIcons: PricingFeatureIcon[];
   cta: PricingPlanCta;
 };
+
+export type PricingFeatureIcon =
+  | "projects"
+  | "seats"
+  | "integrations"
+  | "ai"
+  | "queries"
+  | "credit"
+  | "automations"
+  | "agent-runs"
+  | "translation"
+  | "workflow"
+  | "limits"
+  | "sso"
+  | "sla"
+  | "support"
+  | "security"
+  | "guidelines"
+  | "guideline-checks";
 
 export type PricingMatrixCell =
   | { kind: "check" }
@@ -39,6 +75,8 @@ export type PricingMatrixCell =
 export type PricingMatrixRow = {
   id: string;
   label: string;
+  /** Optional supporting copy shown under the row label in the comparison matrix. */
+  detail?: string;
   cells: Record<PricingPlanId, PricingMatrixCell>;
 };
 
@@ -58,31 +96,93 @@ export const pricingPlanOrder: readonly PricingPlanId[] = [
 
 export function getPricingPlans(locale: string): PricingPlan[] {
   const intl = getIntlShape(locale);
-  const comingSoon = intl.formatMessage({
-    defaultMessage: "Coming soon",
-    id: "DwOm/o1t0O",
-    description: "Disabled CTA label on Free, Starter, and Growth pricing cards",
+  const startForFree = intl.formatMessage({
+    defaultMessage: "Start for free",
+    id: "+FcGOPQu9Z",
+    description: "Free plan CTA label on the pricing page",
+  });
+  const getStarted = intl.formatMessage({
+    defaultMessage: "Get started",
+    id: "8Oyr38Aj4F",
+    description: "Paid self-serve plan CTA label on the pricing page",
   });
   const perMonth = intl.formatMessage({
     defaultMessage: "/mo.",
     id: "clr4hixI6B",
     description: "Monthly price suffix on pricing cards",
   });
+  const formatCardHeading = (planName: string, priceLabel: string) =>
+    intl.formatMessage(
+      {
+        defaultMessage: "{planName}: {priceLabel}",
+        id: "gSGjmPxLZ8",
+        description: "Accessible pricing card heading combining plan name and price",
+      },
+      { planName, priceLabel },
+    );
+  const formatMonthlyCardHeading = (planName: string, priceLabel: string) =>
+    intl.formatMessage(
+      {
+        defaultMessage: "{planName}: {priceLabel} per month",
+        id: "jP0mfL7DgW",
+        description: "Accessible pricing card heading for a monthly paid plan",
+      },
+      { planName, priceLabel },
+    );
+
+  const freePlanName = intl.formatMessage({
+    defaultMessage: "Free Plan",
+    id: "71I+YToKV7",
+    description: "Free plan name on the pricing page",
+  });
+  const freePlanPrice = intl.formatMessage({
+    defaultMessage: "Free",
+    id: "UL0g2ZIWhm",
+    description: "Free plan price on the pricing page",
+  });
+  const starterPlanName = intl.formatMessage({
+    defaultMessage: "Starter",
+    id: "dBWJx9vBQt",
+    description: "Starter plan name on the pricing page",
+  });
+  const starterPlanPrice = intl.formatMessage({
+    defaultMessage: "$20",
+    id: "cTTX9n9kbk",
+    description: "Starter plan price on the pricing page",
+  });
+  const growthPlanName = intl.formatMessage({
+    defaultMessage: "Growth Plan",
+    id: "0x5bWok1f2",
+    description: "Growth plan name on the pricing page",
+  });
+  const growthPlanPrice = intl.formatMessage({
+    defaultMessage: "$2,000",
+    id: "y9blutdtEE",
+    description: "Growth plan price on the pricing page",
+  });
+  const enterprisePlanName = intl.formatMessage({
+    defaultMessage: "Enterprise",
+    id: "Bgy156rCP9",
+    description: "Enterprise plan name on the pricing page",
+  });
+  const enterprisePlanPrice = intl.formatMessage({
+    defaultMessage: "Custom",
+    id: "fMyeM5BW3s",
+    description: "Enterprise plan price label on the pricing page",
+  });
 
   return [
     {
       id: "free",
-      name: intl.formatMessage({
-        defaultMessage: "Free",
-        id: "7QPFtqQQDE",
-        description: "Free plan name on the pricing page",
+      name: freePlanName,
+      cardHeading: formatCardHeading(freePlanName, freePlanPrice),
+      badge: intl.formatMessage({
+        defaultMessage: "Auto-enable",
+        id: "/a2VqYlgh4",
+        description: "Badge on the Free pricing plan indicating automatic provisioning",
       }),
-      price: intl.formatMessage({
-        defaultMessage: "$0",
-        id: "BBge+5Sj1e",
-        description: "Free plan price on the pricing page",
-      }),
-      priceSuffix: perMonth,
+      price: freePlanPrice,
+      priceSuffix: null,
       description: intl.formatMessage({
         defaultMessage: "Evaluate Hyperlocalise with a single-seat workspace.",
         id: "4Xya9zkpLQ",
@@ -91,11 +191,6 @@ export function getPricingPlans(locale: string): PricingPlan[] {
       popular: false,
       includesFrom: null,
       features: [
-        intl.formatMessage({
-          defaultMessage: "2 integrations",
-          id: "9LcPjakBL/",
-          description: "Free plan feature: integration limit",
-        }),
         intl.formatMessage({
           defaultMessage: "1 project",
           id: "73DwGFhZM/",
@@ -107,20 +202,15 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Free plan feature: seat limit",
         }),
       ],
-      cta: { label: comingSoon, kind: "coming_soon" },
+      featureIcons: ["projects", "seats"],
+      cta: { label: startForFree, kind: "signup" },
     },
     {
       id: "starter",
-      name: intl.formatMessage({
-        defaultMessage: "Starter",
-        id: "dBWJx9vBQt",
-        description: "Starter plan name on the pricing page",
-      }),
-      price: intl.formatMessage({
-        defaultMessage: "$20",
-        id: "cTTX9n9kbk",
-        description: "Starter plan price on the pricing page",
-      }),
+      name: starterPlanName,
+      cardHeading: formatMonthlyCardHeading(starterPlanName, starterPlanPrice),
+      badge: null,
+      price: starterPlanPrice,
       priceSuffix: perMonth,
       description: intl.formatMessage({
         defaultMessage: "For small teams that need more seats and projects.",
@@ -135,6 +225,11 @@ export function getPricingPlans(locale: string): PricingPlan[] {
       }),
       features: [
         intl.formatMessage({
+          defaultMessage: "2 integrations",
+          id: "v0pahqQ3yE",
+          description: "Starter plan feature: integration limit",
+        }),
+        intl.formatMessage({
           defaultMessage: "Unlimited projects",
           id: "iRIRASFRNC",
           description: "Starter plan feature: unlimited projects",
@@ -144,21 +239,50 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           id: "uc3WQiSxaw",
           description: "Starter plan feature: seat limit",
         }),
+        intl.formatMessage({
+          defaultMessage: "AI Feature",
+          id: "EtJmzwZSzn",
+          description: "Paid plan feature: AI feature access",
+        }),
+        intl.formatMessage({
+          defaultMessage: "Queries Board",
+          id: "+zBo713DAu",
+          description: "Starter plan feature: Queries Board access",
+        }),
+        intl.formatMessage({
+          defaultMessage: "$20 per month AI credit",
+          id: "fnuHA5r7aQ",
+          description: "Starter plan feature: included monthly AI credit",
+        }),
+        intl.formatMessage({
+          defaultMessage: "20 guideline checks per week",
+          id: "LljPoRBdjK",
+          description: "Starter plan feature: weekly guideline check quota",
+        }),
+        intl.formatMessage({
+          defaultMessage: "Guidelines",
+          id: "l+omfB57gF",
+          description: "Paid plan feature: Guidelines access",
+        }),
       ],
-      cta: { label: comingSoon, kind: "coming_soon" },
+      featureIcons: [
+        "integrations",
+        "projects",
+        "seats",
+        "ai",
+        "queries",
+        "credit",
+        "guideline-checks",
+        "guidelines",
+      ],
+      cta: { label: getStarted, kind: "signup" },
     },
     {
       id: "growth",
-      name: intl.formatMessage({
-        defaultMessage: "Growth",
-        id: "01P9p4MvIA",
-        description: "Growth plan name on the pricing page",
-      }),
-      price: intl.formatMessage({
-        defaultMessage: "$2,000",
-        id: "y9blutdtEE",
-        description: "Growth plan price on the pricing page",
-      }),
+      name: growthPlanName,
+      cardHeading: formatMonthlyCardHeading(growthPlanName, growthPlanPrice),
+      badge: null,
+      price: growthPlanPrice,
       priceSuffix: perMonth,
       description: intl.formatMessage({
         defaultMessage: "For teams running localisation in production every week.",
@@ -173,18 +297,8 @@ export function getPricingPlans(locale: string): PricingPlan[] {
       }),
       features: [
         intl.formatMessage({
-          defaultMessage: "2,000 agent runs per month",
-          id: "saGDzW8Kz5",
-          description: "Growth plan feature: agent run quota",
-        }),
-        intl.formatMessage({
-          defaultMessage: "2,000 AI tokens per month",
-          id: "LzbIVm9zfG",
-          description: "Growth plan feature: AI token quota",
-        }),
-        intl.formatMessage({
-          defaultMessage: "20 agent automations",
-          id: "D92aikcKtb",
+          defaultMessage: "20 automations",
+          id: "9J3EZADGbx",
           description: "Growth plan feature: automation limit",
         }),
         intl.formatMessage({
@@ -193,9 +307,19 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Growth plan feature: integration limit",
         }),
         intl.formatMessage({
+          defaultMessage: "Unlimited projects",
+          id: "iRIRASFRNC",
+          description: "Starter plan feature: unlimited projects",
+        }),
+        intl.formatMessage({
           defaultMessage: "Unlimited seats",
           id: "7X4JZ1+tNc",
           description: "Growth plan feature: unlimited seats",
+        }),
+        intl.formatMessage({
+          defaultMessage: "2,000 agent runs per month",
+          id: "saGDzW8Kz5",
+          description: "Growth plan feature: agent run quota",
         }),
         intl.formatMessage({
           defaultMessage: "Unlimited translation jobs",
@@ -203,25 +327,58 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Growth plan feature: unlimited translation jobs",
         }),
         intl.formatMessage({
-          defaultMessage: "AI features",
-          id: "YtKo2CQ5hL",
-          description: "Growth plan feature: AI feature access",
+          defaultMessage: "AI Feature",
+          id: "EtJmzwZSzn",
+          description: "Paid plan feature: AI feature access",
+        }),
+        intl.formatMessage({
+          defaultMessage: "Automation Workflow",
+          id: "bfWw2Q3euR",
+          description: "Growth plan feature: Automation Workflow access",
+        }),
+        intl.formatMessage({
+          defaultMessage: "Queries Board",
+          id: "+zBo713DAu",
+          description: "Starter plan feature: Queries Board access",
+        }),
+        intl.formatMessage({
+          defaultMessage: "$2,000 per month AI credit",
+          id: "blxqR2KvgQ",
+          description: "Growth plan feature: included monthly AI credit",
+        }),
+        intl.formatMessage({
+          defaultMessage: "2,000 guideline checks per week",
+          id: "xV9j96h4Sa",
+          description: "Growth plan feature: weekly guideline check quota",
+        }),
+        intl.formatMessage({
+          defaultMessage: "Guidelines",
+          id: "l+omfB57gF",
+          description: "Paid plan feature: Guidelines access",
         }),
       ],
-      cta: { label: comingSoon, kind: "coming_soon" },
+      featureIcons: [
+        "automations",
+        "integrations",
+        "projects",
+        "seats",
+        "agent-runs",
+        "translation",
+        "ai",
+        "workflow",
+        "queries",
+        "credit",
+        "guideline-checks",
+        "guidelines",
+      ],
+      cta: { label: getStarted, kind: "signup" },
     },
     {
       id: "enterprise",
-      name: intl.formatMessage({
-        defaultMessage: "Enterprise",
-        id: "Bgy156rCP9",
-        description: "Enterprise plan name on the pricing page",
-      }),
-      price: intl.formatMessage({
-        defaultMessage: "Custom",
-        id: "fMyeM5BW3s",
-        description: "Enterprise plan price label on the pricing page",
-      }),
+      name: enterprisePlanName,
+      cardHeading: formatCardHeading(enterprisePlanName, enterprisePlanPrice),
+      badge: null,
+      price: enterprisePlanPrice,
       priceSuffix: null,
       description: intl.formatMessage({
         defaultMessage: "For organizations that need custom limits and support.",
@@ -261,6 +418,7 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Enterprise plan feature: security review help",
         }),
       ],
+      featureIcons: ["limits", "sso", "sla", "support", "security"],
       cta: {
         label: intl.formatMessage({
           defaultMessage: "Contact Sales",
@@ -336,7 +494,7 @@ export function getPricingMatrixSections(locale: string): PricingMatrixSection[]
             description: "Pricing matrix row label for integrations",
           }),
           cells: {
-            free: { kind: "text", value: "2" },
+            free: { kind: "dash" },
             starter: { kind: "text", value: "2" },
             growth: { kind: "text", value: "5" },
             enterprise: { kind: "text", value: custom },
@@ -345,9 +503,15 @@ export function getPricingMatrixSections(locale: string): PricingMatrixSection[]
         {
           id: "automations",
           label: intl.formatMessage({
-            defaultMessage: "Agent Automations",
-            id: "kwCQeTqeyE",
+            defaultMessage: "Automations",
+            id: "llbzw/iXGP",
             description: "Pricing matrix row label for automations",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage:
+              "Scheduled and GitHub-triggered agent playbooks (not the visual workflow editor).",
+            id: "P+MaWGCLAB",
+            description: "Pricing matrix detail for agent automation quota row",
           }),
           cells: {
             free: { kind: "dash" },
@@ -388,14 +552,20 @@ export function getPricingMatrixSections(locale: string): PricingMatrixSection[]
         {
           id: "ai-tokens",
           label: intl.formatMessage({
-            defaultMessage: "AI tokens / month",
-            id: "1wUO7p+IGh",
-            description: "Pricing matrix row label for AI tokens",
+            defaultMessage: "AI credit / month",
+            id: "csr373/O34",
+            description: "Pricing matrix row label for included monthly AI credit",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage:
+              "Managed model usage draws down your monthly AI credit balance at published rates.",
+            id: "2AFaXwgQin",
+            description: "Pricing matrix detail explaining monthly AI credit",
           }),
           cells: {
             free: { kind: "dash" },
-            starter: { kind: "dash" },
-            growth: { kind: "text", value: "2,000" },
+            starter: { kind: "text", value: "$20" },
+            growth: { kind: "text", value: "$2,000" },
             enterprise: { kind: "text", value: custom },
           },
         },
@@ -419,6 +589,222 @@ export function getPricingMatrixSections(locale: string): PricingMatrixSection[]
             defaultMessage: "AI features",
             id: "bUBd4XGtBI",
             description: "Pricing matrix row label for AI features",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "check" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+      ],
+    },
+    {
+      id: "guidelines",
+      title: intl.formatMessage({
+        defaultMessage: "Guidelines",
+        id: "QoE8dVpJFP",
+        description: "Pricing matrix section title for Guidelines",
+      }),
+      description: intl.formatMessage({
+        defaultMessage:
+          "Your brand and style rules, checked against copy and remembered by the agent.",
+        id: "Ck9Q3FTTik",
+        description: "Pricing matrix section description for Guidelines",
+      }),
+      rows: [
+        {
+          id: "guidelines-access",
+          label: intl.formatMessage({
+            defaultMessage: "Guidelines",
+            id: "aD74hNO0Gf",
+            description: "Pricing matrix row label for Guidelines access",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage:
+              "Upload style guides and brand docs for the workspace or a single project.",
+            id: "jR18LljICi",
+            description: "Pricing matrix detail explaining Guidelines",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "check" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "guideline-checks",
+          label: intl.formatMessage({
+            defaultMessage: "Guideline checks / week",
+            id: "HVLwZCD46Y",
+            description: "Pricing matrix row label for the weekly guideline check quota",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage: "Check copy against your guidelines before it ships.",
+            id: "V6jqG39WLh",
+            description: "Pricing matrix detail explaining guideline checks",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "text", value: "20" },
+            growth: { kind: "text", value: "2,000" },
+            enterprise: { kind: "text", value: custom },
+          },
+        },
+      ],
+    },
+    {
+      id: "queries-automation",
+      title: intl.formatMessage({
+        defaultMessage: "Queries & automation",
+        id: "cBjVvDkrw1",
+        description: "Pricing matrix section title for Queries and Automation Workflow",
+      }),
+      description: intl.formatMessage({
+        defaultMessage:
+          "Collaboration for copy and context issues, plus repeatable workflow tooling for production teams.",
+        id: "7uZBXW8hcA",
+        description: "Pricing matrix section description for Queries and Automation Workflow",
+      }),
+      rows: [
+        {
+          id: "queries-board",
+          label: intl.formatMessage({
+            defaultMessage: "Queries Board",
+            id: "28A/J2yeKB",
+            description: "Pricing matrix row label for Queries Board",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage:
+              "Central place to log localization questions, triage copy issues, and keep reviewers aligned.",
+            id: "F+TDVIQeN4",
+            description: "Pricing matrix detail for Queries Board overview row",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "check" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "queries-workspace-project",
+          label: intl.formatMessage({
+            defaultMessage: "Workspace & project views",
+            id: "x5xGik3YFl",
+            description: "Pricing matrix row for Queries workspace and project surfaces",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage: "Org-wide Queries list and per-project boards tied to your content.",
+            id: "7611x1JIeq",
+            description: "Pricing matrix detail for Queries workspace and project views",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "check" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "queries-collaboration",
+          label: intl.formatMessage({
+            defaultMessage: "Comments, assignees & links",
+            id: "2emviDP0f7",
+            description: "Pricing matrix row for Queries collaboration features",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage: "Thread on issues, assign owners, and relate work across projects.",
+            id: "8P9Vlj8jx9",
+            description: "Pricing matrix detail for Queries collaboration features",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "check" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "queries-import-bulk",
+          label: intl.formatMessage({
+            defaultMessage: "CSV import & bulk updates",
+            id: "/GQj3K56LL",
+            description: "Pricing matrix row for Queries import and bulk actions",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "check" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "automation-workflow",
+          label: intl.formatMessage({
+            defaultMessage: "Automation Workflow",
+            id: "oQ4ei78nry",
+            description: "Pricing matrix row label for Automation Workflow",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage:
+              "Visual, deterministic workflows—fixed steps and approvals instead of one-off agent chat.",
+            id: "g/rzrQHbSt",
+            description: "Pricing matrix detail for Automation Workflow overview row",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "dash" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "automation-visual-editor",
+          label: intl.formatMessage({
+            defaultMessage: "Visual workflow editor",
+            id: "IVt01o++9g",
+            description: "Pricing matrix row for Automation Workflow visual editor",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage:
+              "Compose triggers, branches, and actions on a canvas with typed bindings.",
+            id: "8mV6lAbiyf",
+            description: "Pricing matrix detail for Automation Workflow visual editor",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "dash" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "automation-integrations",
+          label: intl.formatMessage({
+            defaultMessage: "HTTP, webhooks & AI steps",
+            id: "TrBjo12/3b",
+            description: "Pricing matrix row for Automation Workflow step types",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "dash" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "automation-runs",
+          label: intl.formatMessage({
+            defaultMessage: "Manual test & scheduled runs",
+            id: "1Bz70bU/oj",
+            description: "Pricing matrix row for Automation Workflow execution",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage: "Dry-run drafts, publish versions, and run on a schedule or on demand.",
+            id: "Yzbs+0FanB",
+            description: "Pricing matrix detail for Automation Workflow execution",
           }),
           cells: {
             free: { kind: "dash" },
@@ -508,6 +894,493 @@ export type PricingAiFeature = {
   title: string;
   description: string;
 };
+
+export type PricingBrowserModel = {
+  modelId: string;
+  name: string;
+  providerId: PricingModelProviderId;
+  providerName: string;
+  job: PricingModelJob;
+  access: PricingModelAccess;
+  summary: string;
+  story: string;
+  useWhen: string;
+  billingLabel: string;
+  highlight: string | null;
+  recommended: boolean;
+  /** Where the model is picked, which sets the label beside its id. */
+  surface: PricingModelSurface;
+};
+
+export type PricingModelFilterOption = {
+  id: string;
+  label: string;
+};
+
+export type PricingModelsSectionContent = {
+  heading: string;
+  subcopy: string;
+  searchLabel: string;
+  searchPlaceholder: string;
+  jobFilterLabel: string;
+  accessFilterLabel: string;
+  scopeFilterLabel: string;
+  scopes: readonly PricingModelFilterOption[];
+  jobs: readonly PricingModelFilterOption[];
+  accessOptions: readonly PricingModelFilterOption[];
+  columnModel: string;
+  columnHelpsWith: string;
+  columnBilling: string;
+  useWhenLabel: string;
+  modelIdLabel: string;
+  irisModelIdLabel: string;
+  models: readonly PricingBrowserModel[];
+  emptyRecommendedTitle: string;
+  emptyRecommendedBody: string;
+  showEveryModelLabel: string;
+  emptyTitle: string;
+  emptyBody: string;
+  clearFiltersLabel: string;
+  listLabel: string;
+  footnote: string;
+};
+
+export function getPricingModelsSectionContent(locale: string): PricingModelsSectionContent {
+  const intl = getIntlShape(locale);
+
+  const includedBilling = intl.formatMessage({
+    defaultMessage: "Included",
+    id: "qDPDjijqjg",
+    description: "Badge and filter for a model included with paid plans",
+  });
+  const byokBilling = intl.formatMessage({
+    defaultMessage: "Your account",
+    id: "fxjFqNjim9",
+    description: "Badge and filter for a model billed to the customer's provider account",
+  });
+  const workspaceDefault = intl.formatMessage({
+    defaultMessage: "Workspace default",
+    id: "J3VsxKxltT",
+    description: "Highlight for the default writing model on the pricing page",
+  });
+
+  const providerNames = {
+    ...pricingIrisVendorNames,
+    openai: intl.formatMessage({
+      defaultMessage: "OpenAI",
+      id: "ebSc/SgRuM",
+      description: "OpenAI provider name on the pricing BYOK section",
+    }),
+    anthropic: intl.formatMessage({
+      defaultMessage: "Anthropic",
+      id: "zgB7RcHWk8",
+      description: "Anthropic provider name on the pricing BYOK section",
+    }),
+    gemini: intl.formatMessage({
+      defaultMessage: "Google Gemini",
+      id: "4I4RDHWJ2Q",
+      description: "Google Gemini provider name on the pricing BYOK section",
+    }),
+  } as const satisfies Record<PricingModelProviderId, string>;
+
+  const copy = {
+    luna: {
+      summary: intl.formatMessage({
+        defaultMessage: "Chat, translation, and coding",
+        id: "ow1T0+Vk+a",
+        description: "Summary for the default writing model on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "This is the writer on paid plans. Ask it about a string, run a translation job, or let a coding agent draft a change. Usage comes out of your monthly AI credit. Connect your own OpenAI key if you want OpenAI to bill this model instead.",
+        id: "Ino5JbBMsK",
+        description: "Story for the default writing model on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want one default the whole workspace can share.",
+        id: "MoH++be9F6",
+        description: "Situation for the default writing model on the pricing page",
+      }),
+    },
+    "luna-fast": {
+      summary: intl.formatMessage({
+        defaultMessage: "Quicker replies from Luna",
+        id: "i8AxYRXb9E",
+        description: "Summary for the fast Luna model on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "A faster Luna for the same chat, translation, and coding work. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own OpenAI key if you want OpenAI to bill it instead.",
+        id: "fPXZYLvS43",
+        description: "Story for the fast Luna model on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want the same Luna writer, with quicker replies.",
+        id: "akrLncuXTs",
+        description: "Situation for the fast Luna model on the pricing page",
+      }),
+    },
+    "openai-writer": {
+      summary: intl.formatMessage({
+        defaultMessage: "Chat, translation, and coding",
+        id: "Hv8dudDiIO",
+        description: "Summary for an included OpenAI writing model on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Use it for chat, translation, and coding. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own OpenAI key if you want OpenAI to bill this model instead.",
+        id: "T2qLjqNIRT",
+        description: "Story for an included OpenAI writing model on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want this OpenAI model for chat, translation, or coding.",
+        id: "rzB2qvVXWW",
+        description: "Situation for an included OpenAI writing model on the pricing page",
+      }),
+    },
+    "openai-fast": {
+      summary: intl.formatMessage({
+        defaultMessage: "Quicker replies for writing",
+        id: "r4DslyI+Ba",
+        description: "Summary for a faster included OpenAI model on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "A faster version for chat, translation, and coding. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own OpenAI key if you want OpenAI to bill it instead.",
+        id: "x7rTF4CYcT",
+        description: "Story for a faster included OpenAI model on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want quicker replies from this OpenAI model.",
+        id: "ZqN2yepK3V",
+        description: "Situation for a faster included OpenAI model on the pricing page",
+      }),
+    },
+    sonnet: {
+      summary: intl.formatMessage({
+        defaultMessage: "Longer drafts and review",
+        id: "n5ZuB985rS",
+        description: "Summary for Claude Sonnet on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Connect an Anthropic key and use Sonnet for longer drafts and review notes. Anthropic bills this usage. It does not draw down your monthly AI credit.",
+        id: "t9wxr1NNC0",
+        description: "Story for Claude Sonnet on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want a second writer for longer text.",
+        id: "/SJnfuawRk",
+        description: "Situation for Claude Sonnet on the pricing page",
+      }),
+    },
+    opus: {
+      summary: intl.formatMessage({
+        defaultMessage: "A more careful pass",
+        id: "Pb5w1LHor2",
+        description: "Summary for Claude Opus on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Connect an Anthropic key and use Opus when the wording needs extra attention. Anthropic bills this usage. It does not draw down your monthly AI credit.",
+        id: "JTdejUyr0G",
+        description: "Story for Claude Opus on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "The wording needs extra attention.",
+        id: "oAdWI3pqoy",
+        description: "Situation for Claude Opus on the pricing page",
+      }),
+    },
+    haiku: {
+      summary: intl.formatMessage({
+        defaultMessage: "Shorter turns",
+        id: "5vxosjDykR",
+        description: "Summary for Claude Haiku on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Connect an Anthropic key and use Haiku for shorter turns. Anthropic bills this usage. It does not draw down your monthly AI credit.",
+        id: "G715x+6MXV",
+        description: "Story for Claude Haiku on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want shorter turns and quicker replies.",
+        id: "YCaD+nC2OM",
+        description: "Situation for Claude Haiku on the pricing page",
+      }),
+    },
+    "gemini-flash": {
+      summary: intl.formatMessage({
+        defaultMessage: "Quick drafts",
+        id: "1hnHBtSh2K",
+        description: "Summary for Gemini Flash on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Connect a Gemini key and use Flash to move through a long list of strings. Google bills this usage. It does not draw down your monthly AI credit.",
+        id: "3BtQulEZ6Y",
+        description: "Story for Gemini Flash on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You have many short strings and want quick drafts.",
+        id: "9ia5fOVQ3G",
+        description: "Situation for Gemini Flash on the pricing page",
+      }),
+    },
+    "gemini-pro": {
+      summary: intl.formatMessage({
+        defaultMessage: "Harder drafts",
+        id: "qWuPZZeIC0",
+        description: "Summary for Gemini Pro on the pricing page",
+      }),
+      story: intl.formatMessage({
+        defaultMessage:
+          "Connect a Gemini key and use Pro for harder drafts. Google bills this usage. It does not draw down your monthly AI credit.",
+        id: "hRiPxjtqBZ",
+        description: "Story for Gemini Pro on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "You want a more careful Google model for harder drafts.",
+        id: "upsJCx/arg",
+        description: "Situation for Gemini Pro on the pricing page",
+      }),
+    },
+  } as const satisfies Record<
+    PricingWriterCopyKey,
+    { summary: string; story: string; useWhen: string }
+  >;
+
+  const irisGroupCopy = getPricingIrisGroupCopy(intl);
+  const irisSummaries = getPricingIrisModelSummaries(intl);
+
+  const billingLabels = {
+    included: includedBilling,
+    byok: byokBilling,
+  } as const satisfies Record<PricingModelAccess, string>;
+
+  return {
+    heading: intl.formatMessage({
+      defaultMessage: "Models your team can use",
+      id: "rc9DBDztDD",
+      description: "Heading for the models section on the pricing page",
+    }),
+    subcopy: intl.formatMessage({
+      defaultMessage:
+        "Paid plans include writing models, plus every image, video, voice, and sound model in Iris. Those draw from your monthly AI credit. Connect OpenAI, Anthropic, or Gemini when you want a writer billed to that account.",
+      id: "TYdpmDdWse",
+      description: "Supporting copy for the models section on the pricing page",
+    }),
+    searchLabel: intl.formatMessage({
+      defaultMessage: "Search models",
+      id: "Zhasquwx2x",
+      description: "Accessible label for the pricing model search field",
+    }),
+    searchPlaceholder: intl.formatMessage({
+      defaultMessage: "Search by name or job",
+      id: "Fb4AJ4nGEX",
+      description: "Placeholder for the pricing model search field",
+    }),
+    jobFilterLabel: intl.formatMessage({
+      defaultMessage: "Filter by job",
+      id: "DT7M7vytkc",
+      description: "Accessible label for the pricing model job filter",
+    }),
+    accessFilterLabel: intl.formatMessage({
+      defaultMessage: "Filter by billing",
+      id: "GpCoXXS8l1",
+      description: "Accessible label for the pricing model billing filter",
+    }),
+    scopeFilterLabel: intl.formatMessage({
+      defaultMessage: "Choose how many models to show",
+      id: "YGFB2mB2iu",
+      description: "Accessible label for the pricing model list scope",
+    }),
+    scopes: [
+      {
+        id: "recommended",
+        label: intl.formatMessage({
+          defaultMessage: "Recommended",
+          id: "N/76NIMu0h",
+          description: "Filter that shows the short model list on the pricing page",
+        }),
+      },
+      {
+        id: "all",
+        label: intl.formatMessage({
+          defaultMessage: "Every model",
+          id: "WojZwK+028",
+          description: "Filter that shows the full model list on the pricing page",
+        }),
+      },
+    ],
+    jobs: [
+      {
+        id: "all",
+        label: intl.formatMessage({
+          defaultMessage: "All",
+          id: "nLIx9rcSZg",
+          description: "Filter label for every model job on the pricing page",
+        }),
+      },
+      {
+        id: "write",
+        label: intl.formatMessage({
+          defaultMessage: "Writing",
+          id: "ZMuADiRtdx",
+          description: "Filter label for writing models on the pricing page",
+        }),
+      },
+      {
+        id: "speak",
+        label: intl.formatMessage({
+          defaultMessage: "Voice",
+          id: "LRVFAS5BU6",
+          description: "Filter label for voice models on the pricing page",
+        }),
+      },
+      {
+        id: "listen",
+        label: intl.formatMessage({
+          defaultMessage: "Listening",
+          id: "UQJXYycHuy",
+          description: "Filter label for transcription models on the pricing page",
+        }),
+      },
+      {
+        id: "picture",
+        label: intl.formatMessage({
+          defaultMessage: "Pictures",
+          id: "4NRfGc3Yk+",
+          description: "Filter label for image models on the pricing page",
+        }),
+      },
+      {
+        id: "video",
+        label: intl.formatMessage({
+          defaultMessage: "Video",
+          id: "wCP+A1rntn",
+          description: "Filter label for video models on the pricing page",
+        }),
+      },
+      {
+        id: "sound",
+        label: intl.formatMessage({
+          defaultMessage: "Music & sound",
+          id: "K7nUTSGC5h",
+          description: "Filter label for music and sound effect models on the pricing page",
+        }),
+      },
+    ],
+    accessOptions: [
+      {
+        id: "all",
+        label: intl.formatMessage({
+          defaultMessage: "Any billing",
+          id: "6W4y3PFOV8",
+          description: "Filter label for every billing type on the pricing page",
+        }),
+      },
+      { id: "included", label: includedBilling },
+      { id: "byok", label: byokBilling },
+    ],
+    columnModel: intl.formatMessage({
+      defaultMessage: "Model",
+      id: "Up335i7GML",
+      description: "Column label for the model name on the pricing page",
+    }),
+    columnHelpsWith: intl.formatMessage({
+      defaultMessage: "What it helps with",
+      id: "mCz1OMRk2y",
+      description: "Column label for what a pricing model is used for",
+    }),
+    columnBilling: intl.formatMessage({
+      defaultMessage: "Billing",
+      id: "i70eKYLUvJ",
+      description: "Column label for how a pricing model is billed",
+    }),
+    useWhenLabel: intl.formatMessage({
+      defaultMessage: "Use it when",
+      id: "I3a2YDu+oy",
+      description: "Label above the situation a pricing model fits",
+    }),
+    modelIdLabel: intl.formatMessage({
+      defaultMessage: "In AI Engine",
+      id: "9Cdevjsa8b",
+      description: "Label for the technical model id in the pricing model detail",
+    }),
+    irisModelIdLabel: intl.formatMessage({
+      defaultMessage: "In Iris",
+      id: "4Yjt4O6mA1",
+      description: "Label for the Iris model id in the pricing model detail",
+    }),
+    models: getPricingCatalogEntries().map((entry) => {
+      const entryCopy =
+        entry.copy.kind === "writer"
+          ? copy[entry.copy.key]
+          : {
+              ...irisGroupCopy[entry.copy.group],
+              summary: irisSummaries[entry.modelId] ?? "",
+            };
+      return {
+        modelId: entry.modelId,
+        name: entry.name,
+        providerId: entry.providerId,
+        providerName: providerNames[entry.providerId],
+        job: entry.job,
+        access: entry.access,
+        summary: entryCopy.summary,
+        story: entryCopy.story,
+        useWhen: entryCopy.useWhen,
+        billingLabel: billingLabels[entry.access],
+        highlight: entry.highlight ? workspaceDefault : null,
+        recommended: entry.recommended,
+        surface: entry.surface,
+      };
+    }),
+    emptyRecommendedTitle: intl.formatMessage({
+      defaultMessage: "Nothing recommended matches",
+      id: "mWtA0VdJue",
+      description: "Title when the recommended pricing models do not match the search",
+    }),
+    emptyRecommendedBody: intl.formatMessage({
+      defaultMessage: "Look through every model, or clear the search.",
+      id: "9M6xjAhsYc",
+      description: "Help text when the recommended pricing models do not match the search",
+    }),
+    showEveryModelLabel: intl.formatMessage({
+      defaultMessage: "Show every model",
+      id: "kRkY9YXl2W",
+      description: "Button that expands the pricing model list to the full catalog",
+    }),
+    emptyTitle: intl.formatMessage({
+      defaultMessage: "No models match",
+      id: "yj4HofLXjM",
+      description: "Title when pricing model filters return nothing",
+    }),
+    emptyBody: intl.formatMessage({
+      defaultMessage: "Try another job, or clear the search.",
+      id: "LRjbYLhwbi",
+      description: "Help text when pricing model filters return nothing",
+    }),
+    clearFiltersLabel: intl.formatMessage({
+      defaultMessage: "Clear filters",
+      id: "UvSp5y/OIh",
+      description: "Button that resets pricing model search and filters",
+    }),
+    listLabel: intl.formatMessage({
+      defaultMessage: "Models",
+      id: "JKmR2EOv2K",
+      description: "Accessible label for the pricing model list",
+    }),
+    footnote: intl.formatMessage({
+      defaultMessage:
+        "Connect a key in AI Engine on Starter, Growth, or Enterprise. Ask, Translation, Coding, file translation, and automations follow the workspace default. Speech, transcription, images, and video stay included.",
+      id: "r6qom0JjbO",
+      description: "Footnote under the model list on the pricing page",
+    }),
+  };
+}
 
 export function getPricingAiFeatures(locale: string): PricingAiFeature[] {
   const intl = getIntlShape(locale);
@@ -667,8 +1540,8 @@ export function getPricingPageCopy(locale: string) {
     }),
     aiFeaturesSubcopy: intl.formatMessage({
       defaultMessage:
-        "Included on Growth and Enterprise. Clear answers on your copy, UI context, and localisation workflow.",
-      id: "KHXRS/XkKV",
+        "Included on Starter, Growth, and Enterprise. Clear answers on your copy, UI context, and localisation workflow.",
+      id: "ULysfP8wxM",
       description: "Supporting copy under the AI features heading on the pricing page",
     }),
     undecidedHeading: intl.formatMessage({

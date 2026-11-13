@@ -5,12 +5,16 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
 )
 
 // ExtraPlaceholderPattern matches printf-style (%s, %d, %1$s, %(name)s, %@,
-// %{name}) and shell/template-style (${name}, $name$) placeholders. It is
-// exported so other packages (e.g. spellcheck) can recognize the same
-// placeholder syntax without duplicating the regex.
+// %{name}), Qt Linguist (%1, %n, %L1, %Ln), i18next nesting ($t(key)), and
+// shell/template-style (${name}, $name$) placeholders. Mustache and i18next
+// interpolations ({{name}}) are collected separately by ExtractInterpolations.
+// The pattern is exported so other packages (e.g. spellcheck) can recognize
+// the same placeholder syntax without duplicating the regex.
 //
 // BOLT OPTIMIZATION: Combine individual placeholder patterns into a single
 // regex to reduce the number of passes over the input string. The order of
@@ -21,11 +25,65 @@ var ExtraPlaceholderPattern = regexp.MustCompile(
 		`%[-+ #0]*[0-9]*(?:\.[0-9]*)?(?:ll|l|hh|h)?[diuXxfsSFeEgGcC]\b|` +
 		`%(?:[0-9]+\$|\([A-Za-z_][\w]*\))?@|` +
 		`%\{[ \w.-]+\}|` +
+		`\$t\([A-Za-z_][\w./:-]*\)|` +
 		`\$\{[A-Za-z_][\w.-]*\}|` +
-		`\$[A-Za-z_][\w.+-]*\$`,
+		`\$[A-Za-z_][\w.+-]*\$|` +
+		`%(?:L?(?:\d+|n))`,
 )
 
 func extractExtraPlaceholders(text string) []string {
+	return extractExtraPlaceholdersFor(MessageFormatAuto, text)
+}
+
+func extractExtraPlaceholdersFor(format MessageFormat, text string) []string {
+	classic := extractClassicExtraPlaceholders(text)
+	if !format.parsesInterpolations() {
+		return withoutI18nextNesting(classic)
+	}
+	interpolations := extractInterpolationPlaceholderLiterals(text)
+	if len(interpolations) == 0 {
+		return classic
+	}
+	if len(classic) == 0 {
+		return interpolations
+	}
+	out := append(interpolations, classic...)
+	slices.Sort(out)
+	return out
+}
+
+func withoutI18nextNesting(placeholders []string) []string {
+	if len(placeholders) == 0 {
+		return placeholders
+	}
+	out := placeholders[:0]
+	for _, placeholder := range placeholders {
+		if !strings.HasPrefix(placeholder, "$t(") {
+			out = append(out, placeholder)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func extractInterpolationPlaceholderLiterals(text string) []string {
+	spans := icuparser.ExtractInterpolations(text)
+	if len(spans) == 0 {
+		return nil
+	}
+	out := make([]string, len(spans))
+	for i, span := range spans {
+		out[i] = span.Literal
+	}
+	if len(out) > 1 {
+		slices.Sort(out)
+	}
+	return out
+}
+
+func extractClassicExtraPlaceholders(text string) []string {
 	// BOLT OPTIMIZATION: Fast-path for strings without potential placeholders
 	// to avoid regex execution overhead (~2-5x faster for non-placeholder text).
 	if text == "" || !strings.ContainsAny(text, "%$") {
@@ -56,18 +114,21 @@ func extractExtraPlaceholders(text string) []string {
 
 		// Printf-style %% escapes a literal percent. Skip matches whose
 		// leading '%' is the second half of an escape pair (e.g. %%@).
-		if match[0] != '%' || !IsEscapedPercentAt(text, matchStart) {
-			if out == nil {
-				out = make([]string, 0, 4)
-			}
-			out = append(out, match)
+		if match[0] == '%' && IsEscapedPercentAt(text, matchStart) {
+			pos = advanceExtraPlaceholderPos(pos, matchEnd)
+			continue
+		}
+		// Bare Qt tokens (%1, %n, %L1) must not steal printf/ObjC tails such as %1$s or %10@.
+		if isQtBarePlaceholder(match) && extraPlaceholderHasFormatContinuation(text, matchEnd) {
+			pos = matchStart + 1
+			continue
 		}
 
-		if matchEnd <= pos {
-			pos++
-		} else {
-			pos = matchEnd
+		if out == nil {
+			out = make([]string, 0, 4)
 		}
+		out = append(out, match)
+		pos = advanceExtraPlaceholderPos(pos, matchEnd)
 	}
 
 	if len(out) == 0 {
@@ -96,19 +157,49 @@ func IsEscapedPercentAt(text string, index int) bool {
 	return count%2 == 0
 }
 
+func advanceExtraPlaceholderPos(pos, matchEnd int) int {
+	if matchEnd <= pos {
+		return pos + 1
+	}
+	return matchEnd
+}
+
+var qtBarePlaceholderPattern = regexp.MustCompile(`^%(?:L?(?:\d+|n))$`)
+
+func isQtBarePlaceholder(match string) bool {
+	return qtBarePlaceholderPattern.MatchString(match)
+}
+
+func extraPlaceholderHasFormatContinuation(text string, end int) bool {
+	if end >= len(text) {
+		return false
+	}
+	c := text[end]
+	return c == '$' || c == '@' || c == '('
+}
+
+// ValidateExtraPlaceholderParity reports dropped or added printf, Qt, and
+// template placeholders between source and translation.
+func ValidateExtraPlaceholderParity(source, translated string) error {
+	return validateExtraPlaceholderParity(source, translated)
+}
+
 func validateExtraPlaceholderParity(source, translated string) error {
-	_, err := validateExtraPlaceholderParityWithTokens(source, translated)
+	_, err := validateExtraPlaceholderParityWithTokens(MessageFormatAuto, source, translated)
 	return err
 }
 
-func validateExtraPlaceholderParityWithTokens(source, translated string) (bool, error) {
+func validateExtraPlaceholderParityWithTokens(format MessageFormat, source, translated string) (bool, error) {
 	// BOLT OPTIMIZATION: Dual-string fast-path when neither source nor translated contains
-	// placeholder signal characters (% or $).
-	if !strings.ContainsAny(source, "%$") && !strings.ContainsAny(translated, "%$") {
+	// placeholder signal characters (%, $, or mustache/i18next "{{").
+	if !strings.ContainsAny(source, "%$") &&
+		!strings.ContainsAny(translated, "%$") &&
+		!strings.Contains(source, "{{") &&
+		!strings.Contains(translated, "{{") {
 		return false, nil
 	}
-	expected := extractExtraPlaceholders(source)
-	got := extractExtraPlaceholders(translated)
+	expected := extractExtraPlaceholdersFor(format, source)
+	got := extractExtraPlaceholdersFor(format, translated)
 	if stringSlicesEqual(expected, got) {
 		return len(expected) > 0, nil
 	}

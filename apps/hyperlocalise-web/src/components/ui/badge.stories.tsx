@@ -10,8 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Alert02Icon, CheckmarkCircle02Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { WarningIcon, CheckCircleIcon, GitBranchIcon } from "@phosphor-icons/react/ssr";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
 
@@ -54,19 +53,19 @@ export const Overview: Story = {
         <h2 className="text-sm font-medium text-muted-foreground">States</h2>
         <div className="flex flex-wrap items-center gap-3">
           <Badge variant="success">
-            <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} data-icon="inline-start" />
+            <CheckCircleIcon data-icon="inline-start" />
             Synced
           </Badge>
           <Badge variant="outline">
-            <HugeiconsIcon icon={GitBranchIcon} strokeWidth={2} data-icon="inline-start" />
+            <GitBranchIcon data-icon="inline-start" />
             main
           </Badge>
           <Badge variant="destructive">
-            <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} data-icon="inline-start" />
+            <WarningIcon data-icon="inline-start" />
             Blocked
           </Badge>
           <Badge variant="warning">
-            <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} data-icon="inline-start" />
+            <WarningIcon data-icon="inline-start" />
             Needs review
           </Badge>
         </div>

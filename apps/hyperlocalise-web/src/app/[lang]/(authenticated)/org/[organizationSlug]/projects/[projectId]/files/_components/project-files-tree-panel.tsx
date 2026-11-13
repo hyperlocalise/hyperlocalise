@@ -18,19 +18,39 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileProgressRecord,
+  ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api-client-instance";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
+import {
+  isSourceFileIngestInProgress,
+  sourceFileIngestPollIntervalMs,
+} from "@/lib/projects/files/source-file-ingest-state";
 
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
 import { ProjectFilesTree } from "./project-files-tree";
 import type { ProjectFileTreeActionsConfig } from "./project-file-tree-context-menu";
+import type { ProjectFilesTreeFileReceipts, ProjectFilesTreeFileSends } from "./project-files-tree";
 import { projectFilesTreePanelMessages as messages } from "./project-files-tree-panel.messages";
 import { dedupeProjectFilesBySourcePath } from "./project-files-shared";
+import {
+  fetchTranslationAsSourceReceipts,
+  fetchTranslationAsSourceSends,
+  showsTranslationSourceMarks,
+  translationAsSourceReceiptsQueryKey,
+  translationAsSourceSendsQueryKey,
+} from "./translation-as-source-sent-mark";
 
 export const PROJECT_FILES_PAGE_SIZE = 500;
 export const PROJECT_FILES_MAX_LIMIT = 1_000;
@@ -88,28 +108,111 @@ export function findCachedProjectFiles(
 }
 
 export async function fetchProjectFiles(
+  goSvcClient: GoSvcClient,
   organizationSlug: string,
   projectId: string,
   limit: number = PROJECT_FILES_PAGE_SIZE,
   branch?: string | null,
   loadFailedMessage = "Failed to load project files",
 ) {
-  const params = new URLSearchParams({ limit: String(limit) });
   const trimmedBranch = branch?.trim();
-  if (trimmedBranch) {
-    params.set("branch", trimmedBranch);
+  if (parseProviderProjectId(projectId)) {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (trimmedBranch) {
+      params.set("branch", trimmedBranch);
+    }
+
+    const response = await fetch(`${apiPath(organizationSlug, projectId)}?${params.toString()}`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      throw await readApiResponseError(response, loadFailedMessage);
+    }
+
+    const body = (await response.json()) as { files: ProjectFileRecord[] };
+    return body.files;
   }
 
-  const response = await fetch(`${apiPath(organizationSlug, projectId)}?${params.toString()}`, {
-    method: "GET",
-  });
+  try {
+    const body = await goSvcClient.project.files(organizationSlug, projectId, {
+      limit,
+      ...(trimmedBranch ? { branch: trimmedBranch } : {}),
+    });
+    return body.files as ProjectFileRecord[];
+  } catch (error) {
+    throw new Error(goSvcErrorMessage(error, loadFailedMessage), { cause: error });
+  }
+}
 
-  if (!response.ok) {
-    throw await readApiResponseError(response, loadFailedMessage);
+export function projectFileProgressQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  locale: string,
+) {
+  return ["project-file-progress", organizationSlug, projectId, locale] as const;
+}
+
+/** Per-file progress for one locale. Native projects read go-svc; TMS projects read Hono. */
+export async function fetchProjectFileProgress(
+  goSvcClient: GoSvcClient,
+  organizationSlug: string,
+  projectId: string,
+  locale: string,
+): Promise<ProjectFileProgressRecord[]> {
+  if (parseProviderProjectId(projectId)) {
+    const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+      "file-progress"
+    ].$get({
+      param: { organizationSlug, projectId },
+      query: { locale },
+    });
+    if (!response.ok) {
+      throw await readApiResponseError(response, "Failed to load file progress");
+    }
+    const body = await response.json();
+    return "files" in body ? body.files : [];
   }
 
-  const body = (await response.json()) as { files: ProjectFileRecord[] };
+  const body = await goSvcClient.project.fileProgress(organizationSlug, projectId, locale);
   return body.files;
+}
+
+export function projectHiddenFilesQueryKey(organizationSlug: string, projectId: string) {
+  return ["project-hidden-files", organizationSlug, projectId] as const;
+}
+
+/** Provider file ids whose strings are all hidden. Native files already carry `isHidden`. */
+export async function fetchProjectHiddenFileIds(
+  organizationSlug: string,
+  projectId: string,
+): Promise<Set<string>> {
+  const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+    "hidden-files"
+  ].$get({
+    param: { organizationSlug, projectId },
+  });
+  if (!response.ok) {
+    throw await readApiResponseError(response, "Failed to load hidden files");
+  }
+  const body = await response.json();
+  return new Set("files" in body ? body.files.map((file) => file.externalResourceId) : []);
+}
+
+/** Flags provider files listed in `hiddenFileIds` as hidden. */
+export function markHiddenProjectFiles(
+  files: ProjectFileRecord[],
+  hiddenFileIds: ReadonlySet<string> | undefined,
+): ProjectFileRecord[] {
+  if (!hiddenFileIds?.size) {
+    return files;
+  }
+  return files.map((file) => {
+    const externalResourceId = file.provider?.externalResourceId;
+    return externalResourceId && hiddenFileIds.has(externalResourceId)
+      ? { ...file, isHidden: true }
+      : file;
+  });
 }
 
 function apiPath(organizationSlug: string, projectId: string) {
@@ -130,6 +233,8 @@ function ProjectFilesTreeBody({
   onActivateFile,
   contentEditorOpenHint,
   fileActions,
+  fileSends,
+  fileReceipts,
 }: {
   projectId: string;
   files: ProjectFileRecord[];
@@ -138,6 +243,8 @@ function ProjectFilesTreeBody({
   onActivateFile?: (sourcePath: string) => void;
   contentEditorOpenHint?: string | null;
   fileActions?: ProjectFileTreeActionsConfig;
+  fileSends?: ProjectFilesTreeFileSends;
+  fileReceipts?: ProjectFilesTreeFileReceipts;
 }) {
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
   const isProviderProject = projectCapabilities.isProviderProject;
@@ -178,6 +285,8 @@ function ProjectFilesTreeBody({
           onSelectFile={onSelectSourcePath}
           onActivateFile={onActivateFile}
           fileActions={fileActions}
+          fileSends={fileSends}
+          fileReceipts={fileReceipts}
         />
       </div>
     </div>
@@ -193,6 +302,8 @@ function ProjectFilesTreeQueryResult({
   onActivateFile,
   contentEditorOpenHint,
   fileActions,
+  fileSends,
+  fileReceipts,
 }: {
   error: unknown;
   projectId: string;
@@ -202,6 +313,8 @@ function ProjectFilesTreeQueryResult({
   onActivateFile?: (sourcePath: string) => void;
   contentEditorOpenHint?: string | null;
   fileActions?: ProjectFileTreeActionsConfig;
+  fileSends?: ProjectFilesTreeFileSends;
+  fileReceipts?: ProjectFilesTreeFileReceipts;
 }) {
   if (error) {
     throw error;
@@ -216,6 +329,8 @@ function ProjectFilesTreeQueryResult({
       onActivateFile={onActivateFile}
       contentEditorOpenHint={contentEditorOpenHint}
       fileActions={fileActions}
+      fileSends={fileSends}
+      fileReceipts={fileReceipts}
     />
   );
 }
@@ -245,6 +360,7 @@ export function ProjectFilesTreePanel({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [fileLimit, setFileLimit] = useState(PROJECT_FILES_PAGE_SIZE);
   const [autoAdvanceExhausted, setAutoAdvanceExhausted] = useState(false);
   const fetchLimit = Math.min(fileLimit + 1, PROJECT_FILES_MAX_LIMIT);
@@ -253,8 +369,38 @@ export function ProjectFilesTreePanel({
   const filesQuery = useQuery({
     queryKey,
     queryFn: () =>
-      fetchProjectFiles(organizationSlug, projectId, fetchLimit, branch, loadFailedMessage),
+      fetchProjectFiles(
+        goSvcClient,
+        organizationSlug,
+        projectId,
+        fetchLimit,
+        branch,
+        loadFailedMessage,
+      ),
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
+    refetchInterval: (query) => {
+      const files = query.state.data ?? [];
+      return files.some((file) => isSourceFileIngestInProgress(file.ingestState))
+        ? sourceFileIngestPollIntervalMs
+        : false;
+    },
+  });
+
+  const showsMarks = showsTranslationSourceMarks(projectId, branch);
+  // Files sent to another project as its source; a failure only leaves them unmarked.
+  const sendsQuery = useQuery({
+    queryKey: translationAsSourceSendsQueryKey(organizationSlug, projectId),
+    enabled: showsMarks,
+    queryFn: () => fetchTranslationAsSourceSends(organizationSlug, projectId),
+    // Read again each time the page opens, so an approval made in the editor is seen.
+    staleTime: 0,
+  });
+  // Files sent here from another project; a failure only leaves them unmarked.
+  const receiptsQuery = useQuery({
+    queryKey: translationAsSourceReceiptsQueryKey(organizationSlug, projectId),
+    enabled: showsMarks,
+    queryFn: () => fetchTranslationAsSourceReceipts(organizationSlug, projectId),
+    staleTime: 0,
   });
 
   const fetchedFiles = filesQuery.data ?? [];
@@ -267,7 +413,11 @@ export function ProjectFilesTreePanel({
   useEffect(() => {
     setAutoAdvanceExhausted(false);
     setFileLimit(PROJECT_FILES_PAGE_SIZE);
-  }, [branch, selectedSourcePath]);
+  }, [organizationSlug, projectId, branch]);
+
+  useEffect(() => {
+    setAutoAdvanceExhausted(false);
+  }, [selectedSourcePath]);
 
   useEffect(() => {
     onLoadedFilesChange?.(files);
@@ -361,6 +511,8 @@ export function ProjectFilesTreePanel({
             onActivateFile={onActivateFile}
             contentEditorOpenHint={contentEditorOpenHint}
             fileActions={fileActions}
+            fileSends={showsMarks ? sendsQuery.data : undefined}
+            fileReceipts={showsMarks ? receiptsQuery.data : undefined}
           />
           {hasMoreFiles ? (
             <div className="shrink-0 border-t border-border p-2">

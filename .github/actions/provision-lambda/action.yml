@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Provision Lambda
+description: Update an existing ZIP-based Lambda function from a versioned S3 artifact
+inputs:
+  function-parameter-name:
+    description: SSM parameter containing the existing Lambda function name or ARN
+    required: true
+  bucket:
+    description: S3 bucket containing the Lambda artifact
+    required: true
+  s3-key:
+    description: S3 object key for the Lambda artifact
+    required: true
+  version-id:
+    description: Version ID of the uploaded S3 artifact
+    required: true
+outputs:
+  function-name:
+    description: Resolved Lambda function name or ARN
+    value: ${{ steps.resolve.outputs.function-name }}
+  update:
+    description: JSON summary returned by Lambda after updating the function code
+    value: ${{ steps.deploy.outputs.update }}
+runs:
+  using: composite
+  steps:
+    - name: Resolve Lambda function
+      id: resolve
+      shell: bash
+      env:
+        FUNCTION_PARAMETER_NAME: ${{ inputs.function-parameter-name }}
+      run: |
+        set -euo pipefail
+
+        function_name="$(aws ssm get-parameter \
+          --name "${FUNCTION_PARAMETER_NAME}" \
+          --query 'Parameter.Value' \
+          --output text)"
+
+        if [[ -z "${function_name}" || "${function_name}" == "None" ]]; then
+          echo "SSM parameter is missing or empty: ${FUNCTION_PARAMETER_NAME}" >&2
+          exit 1
+        fi
+
+        echo "Resolved Lambda function from ${FUNCTION_PARAMETER_NAME}"
+        echo "function-name=${function_name}" >> "${GITHUB_OUTPUT}"
+
+    - name: Provision Lambda from artifact
+      id: deploy
+      shell: bash
+      env:
+        FUNCTION_NAME: ${{ steps.resolve.outputs.function-name }}
+        BUCKET: ${{ inputs.bucket }}
+        S3_KEY: ${{ inputs.s3-key }}
+        VERSION_ID: ${{ inputs.version-id }}
+      run: |
+        set -euo pipefail
+
+        update_json="$(aws lambda update-function-code \
+          --function-name "${FUNCTION_NAME}" \
+          --s3-bucket "${BUCKET}" \
+          --s3-key "${S3_KEY}" \
+          --s3-object-version "${VERSION_ID}" \
+          --query '{version:Version,codeSha256:CodeSha256,lastModified:LastModified}' \
+          --output json | jq -c .)"
+
+        aws lambda wait function-updated-v2 \
+          --function-name "${FUNCTION_NAME}"
+
+        status="$(aws lambda get-function \
+          --function-name "${FUNCTION_NAME}" \
+          --query 'Configuration.LastUpdateStatus' \
+          --output text)"
+
+        if [[ "${status}" != "Successful" ]]; then
+          echo "Lambda update did not complete successfully: ${status}" >&2
+          exit 1
+        fi
+
+        echo "update=${update_json}" >> "${GITHUB_OUTPUT}"

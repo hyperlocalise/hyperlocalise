@@ -16,12 +16,22 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
+  enqueueActivityLogEventsMock: vi.fn().mockResolvedValue([]),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+}));
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: mocks.enqueueActivityLogEventMock,
+  enqueueActivityLogEvents: mocks.enqueueActivityLogEventsMock,
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -40,8 +50,8 @@ import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
 const client = testClient<AppType>(createApp());
-const apiKeyFixture = createApiKeyTestFixture(client);
-const projectFixture = createProjectTestFixture(client);
+const apiKeyFixture = createApiKeyTestFixture();
+const projectFixture = createProjectTestFixture();
 
 describe("canvaConnectionRoutes", () => {
   beforeAll(async () => {
@@ -59,10 +69,9 @@ describe("canvaConnectionRoutes", () => {
     const headers = await apiKeyFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Canva Connection Key",
     });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
 
     const projectResponse = await projectFixture.createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as { project: { id: string } };
@@ -72,10 +81,8 @@ describe("canvaConnectionRoutes", () => {
         param: { organizationSlug },
         json: {
           displayName: "Marketing Canva",
-          apiKeyId: apiKeyBody.apiKey.id,
+          apiKeyId: apiKey.id,
           projectId: projectBody.project.id,
-          sourceLocale: "en",
-          targetLocales: ["es", "fr"],
         },
       },
       { headers },
@@ -83,12 +90,91 @@ describe("canvaConnectionRoutes", () => {
 
     expect(response.status).toBe(201);
     const body = (await response.json()) as {
-      canvaConnection: { displayName: string; connectionTokenPrefix: string };
+      canvaConnection: {
+        displayName: string;
+        connectionTokenPrefix: string;
+        sourceLocale: string;
+        targetLocales: string[];
+      };
       connectionToken: string;
     };
     expect(body.canvaConnection.displayName).toBe("Marketing Canva");
+    expect(body.canvaConnection.sourceLocale).toBe("en-US");
+    expect(body.canvaConnection.targetLocales).toEqual(["fr-FR", "de-DE"]);
     expect(body.connectionToken).toMatch(/^hl_canva_/);
     expect(body.canvaConnection.connectionTokenPrefix).toBe(body.connectionToken.slice(0, 12));
+  });
+
+  it("creates a Canva connection without a project", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    const headers = await apiKeyFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Canva Unbound Key",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["canva-connections"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Unbound Canva",
+          apiKeyId: apiKey.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      canvaConnection: { projectId: string | null; sourceLocale: string; targetLocales: string[] };
+    };
+    expect(body.canvaConnection.projectId).toBeNull();
+    expect(body.canvaConnection.sourceLocale).toBe("");
+    expect(body.canvaConnection.targetLocales).toEqual([]);
+  });
+
+  it("records a credential rotation when the connection token is regenerated", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    const headers = await apiKeyFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Canva Rotation Key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const createResponse = await client.api.orgs[":organizationSlug"]["canva-connections"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Rotating Canva",
+          apiKeyId: apiKey.id,
+          projectId: projectBody.project.id,
+        },
+      },
+      { headers },
+    );
+    const created = (await createResponse.json()) as { canvaConnection: { id: string } };
+    mocks.enqueueActivityLogEventMock.mockClear();
+
+    const response = await client.api.orgs[":organizationSlug"]["canva-connections"][
+      ":connectionId"
+    ]["regenerate-token"].$post(
+      { param: { organizationSlug, connectionId: created.canvaConnection.id } },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "integration_credential_rotated",
+        payload: { connectionId: created.canvaConnection.id, integrationKind: "canva" },
+        targetId: created.canvaConnection.id,
+        targetKind: "integration",
+      }),
+    );
   });
 
   it("rejects Canva connection creation for members without write access", async () => {
@@ -103,8 +189,6 @@ describe("canvaConnectionRoutes", () => {
           displayName: "Blocked",
           apiKeyId: "00000000-0000-4000-8000-000000000001",
           projectId: "project_test",
-          sourceLocale: "en",
-          targetLocales: ["es"],
         },
       },
       { headers },
@@ -118,10 +202,9 @@ describe("canvaConnectionRoutes", () => {
     const headers = await apiKeyFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Canva Claim Key",
     });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
     const projectResponse = await projectFixture.createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as { project: { id: string } };
 
@@ -130,10 +213,8 @@ describe("canvaConnectionRoutes", () => {
         param: { organizationSlug },
         json: {
           displayName: "Claim Canva",
-          apiKeyId: apiKeyBody.apiKey.id,
+          apiKeyId: apiKey.id,
           projectId: projectBody.project.id,
-          sourceLocale: "en",
-          targetLocales: ["es"],
         },
       },
       { headers },

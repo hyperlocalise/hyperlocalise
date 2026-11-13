@@ -27,10 +27,13 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { GlossaryResponse } from "@/api/routes/glossary/glossary.schema";
 import { apiClient } from "@/lib/api-client-instance";
-import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
+import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { cn } from "@/lib/primitives/cn";
+import { useProjectPageQuery } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/project-page-shell";
 
 import {
   getAppShellBreadcrumbs,
@@ -42,8 +45,11 @@ import {
   buildOrganizationPath,
   buildProjectPath,
   parseDomainRoute,
+  parseGlossaryRoute,
+  parseGuidelineRoute,
   parseProjectRoute,
   parseTeamRoute,
+  parseTranslationMemoryRoute,
 } from "./navigation-config";
 import { ProjectBreadcrumbSelector } from "./project-breadcrumb-selector";
 import { useAppShellStore } from "./store/app-shell-store-context";
@@ -54,6 +60,22 @@ type AppShellBreadcrumbProps = {
 };
 
 type SelectorCrumbKind = "project" | "team" | "domain";
+
+function sameBreadcrumbHref(left: string | undefined, right: string | undefined) {
+  if (left === right) {
+    return true;
+  }
+
+  if (!left || !right) {
+    return false;
+  }
+
+  try {
+    return decodeURIComponent(left) === decodeURIComponent(right);
+  } catch {
+    return false;
+  }
+}
 
 function isProjectBreadcrumbCrumb(
   crumb: AppShellBreadcrumbItem,
@@ -67,7 +89,7 @@ function isProjectBreadcrumbCrumb(
   }
 
   const projectHref = buildProjectPath(organizationSlug, projectId);
-  return crumb.href === projectHref || crumb.href === undefined;
+  return sameBreadcrumbHref(crumb.href, projectHref) || crumb.href === undefined;
 }
 
 function isTeamBreadcrumbCrumb(
@@ -250,49 +272,35 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
 }: AppShellBreadcrumbProps) {
   const intl = useIntl();
   const store = useAppShellStore();
+  const { client: goSvcClient } = useGoSvcClient();
   const pathname = usePathname();
   const projectRoute = parseProjectRoute(pathname);
   const teamRoute = parseTeamRoute(pathname);
   const domainRoute = parseDomainRoute(pathname);
+  const glossaryRoute = parseGlossaryRoute(pathname);
+  const translationMemoryRoute = parseTranslationMemoryRoute(pathname);
+  const guidelineRoute = parseGuidelineRoute(pathname);
   const resolvedOrganizationSlug =
     projectRoute?.organizationSlug ??
     teamRoute?.organizationSlug ??
     domainRoute?.organizationSlug ??
+    glossaryRoute?.organizationSlug ??
+    translationMemoryRoute?.organizationSlug ??
+    guidelineRoute?.organizationSlug ??
     organizationSlug;
 
-  const projectQuery = useQuery({
-    queryKey: ["translation-project", resolvedOrganizationSlug, projectRoute?.projectId],
-    enabled: Boolean(projectRoute?.projectId),
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
-        param: {
-          organizationSlug: resolvedOrganizationSlug,
-          projectId: projectRoute!.projectId,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to load project (${response.status})`);
-      }
-      const body = (await response.json()) as { project: { name: string } };
-      return body.project;
-    },
-  });
+  const projectQuery = useProjectPageQuery(
+    resolvedOrganizationSlug,
+    projectRoute?.projectId ?? "",
+    { enabled: Boolean(projectRoute?.projectId) },
+  );
 
   const teamQuery = useQuery({
     queryKey: ["workspace-team", resolvedOrganizationSlug, teamRoute?.teamId],
     enabled: Boolean(teamRoute?.teamId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].teams[":teamId"].$get({
-        param: {
-          organizationSlug: resolvedOrganizationSlug,
-          teamId: teamRoute!.teamId,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to load team (${response.status})`);
-      }
-      const body = (await response.json()) as { team: { name: string } };
-      return body.team;
+      const response = await goSvcClient.team.get(resolvedOrganizationSlug, teamRoute!.teamId);
+      return response.team;
     },
   });
 
@@ -302,21 +310,72 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
       Boolean(domainRoute?.linkedDomainId) &&
       isLiveDomainResearchId(domainRoute?.linkedDomainId ?? ""),
     queryFn: async () => {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(resolvedOrganizationSlug)}/linked-domains/${encodeURIComponent(domainRoute!.linkedDomainId)}`,
+      const body = await goSvcClient.domains.getLinkedDomain(
+        resolvedOrganizationSlug,
+        domainRoute!.linkedDomainId,
       );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(body.message || body.error || "Failed to load domain");
-      }
-      if (!body.linkedDomain) {
-        throw new Error("Failed to load domain");
-      }
       return body.linkedDomain;
+    },
+  });
+
+  const glossaryQuery = useQuery({
+    queryKey: ["glossary", resolvedOrganizationSlug, glossaryRoute?.glossaryId],
+    enabled: Boolean(glossaryRoute?.glossaryId),
+    queryFn: async () => {
+      const glossaryId = glossaryRoute!.glossaryId;
+      if (parseLiveProviderGlossaryId(glossaryId)) {
+        const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
+          ":glossaryId"
+        ].$get({
+          param: { organizationSlug: resolvedOrganizationSlug, glossaryId },
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to load glossary (${response.status})`);
+        }
+        return (await response.json()) as GlossaryResponse;
+      }
+
+      return (await goSvcClient.glossary.get(
+        resolvedOrganizationSlug,
+        glossaryId,
+      )) as GlossaryResponse;
+    },
+  });
+
+  const guidelineDocumentQuery = useQuery({
+    queryKey: [
+      "guideline-document",
+      guidelineRoute?.organizationSlug,
+      guidelineRoute?.projectId,
+      guidelineRoute?.documentId,
+    ],
+    enabled: Boolean(guidelineRoute?.documentId),
+    queryFn: ({ signal }) =>
+      goSvcClient.guidelines.getDocument(
+        guidelineRoute!.organizationSlug,
+        guidelineRoute!.documentId!,
+        undefined,
+        { signal },
+      ),
+  });
+
+  const translationMemoryQuery = useQuery({
+    queryKey: ["translation-memory", resolvedOrganizationSlug, translationMemoryRoute?.memoryId],
+    enabled: Boolean(translationMemoryRoute?.memoryId),
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
+        ":memoryId"
+      ].$get({
+        param: {
+          organizationSlug: resolvedOrganizationSlug,
+          memoryId: translationMemoryRoute!.memoryId,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to load translation memory (${response.status})`);
+      }
+      const body = (await response.json()) as { memory: { name: string } };
+      return body.memory;
     },
   });
 
@@ -328,6 +387,13 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
       teamNameLoading: teamQuery.isPending,
       domainName: domainQuery.data?.domainKey,
       domainNameLoading: domainQuery.isLoading,
+      glossaryName: glossaryQuery.data?.glossary?.name,
+      glossaryNameLoading: glossaryQuery.isPending,
+      translationMemoryName: translationMemoryQuery.data?.name,
+      translationMemoryNameLoading: translationMemoryQuery.isPending,
+      guidelineDocumentTitle: guidelineDocumentQuery.data?.title,
+      guidelineDocumentTitleLoading:
+        Boolean(guidelineRoute?.documentId) && guidelineDocumentQuery.isPending,
     }),
   );
 

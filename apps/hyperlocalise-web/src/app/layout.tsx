@@ -13,7 +13,14 @@
 import type { Metadata } from "next";
 
 import { RootHtml } from "@/components/root-layout/root-html";
+import {
+  brandLogomarkDarkModePngSrc,
+  brandLogomarkDarkModeSvgSrc,
+  brandLogomarkLightModeSvgSrc,
+} from "@/lib/brand/brand-assets";
+import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { PRIVATE_ROBOTS } from "@/lib/seo/robots-metadata";
+import { appLocaleToBcp47Tag } from "@/lib/seo/bcp47-locale";
 import { SITE_URL } from "@/lib/seo/site-url";
 
 import "./globals.css";
@@ -24,12 +31,25 @@ export const metadata: Metadata = {
   description:
     "Hyperlocalise is an AI workforce that helps teams launch globally in days — with market nuance, translation, and first-class human review.",
   robots: PRIVATE_ROBOTS,
+  icons: {
+    icon: [
+      { url: brandLogomarkLightModeSvgSrc, type: "image/svg+xml" },
+      {
+        url: brandLogomarkDarkModeSvgSrc,
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+    apple: brandLogomarkDarkModePngSrc,
+  },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <RootHtml>{children}</RootHtml>;
+  const locale = await getAppLocale();
+
+  return <RootHtml htmlLang={appLocaleToBcp47Tag(locale)}>{children}</RootHtml>;
 }

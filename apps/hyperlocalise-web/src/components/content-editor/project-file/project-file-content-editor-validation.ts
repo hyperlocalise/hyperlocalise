@@ -10,6 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { QA_MODES } from "@/lib/qa/check-catalogue";
+import { applyEditorQaPolicy, DEFAULT_QA_POLICY, type QaCheckPolicy } from "@/lib/qa/qa-policy";
+import { createContentEditorRequestScheduler } from "@/components/content-editor/shared/content-editor-request-scheduler";
 import { z } from "zod";
 
 import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
@@ -17,10 +20,14 @@ import type {
   ContentEditorFormatCheck,
   ContentEditorFormatCheckCategory,
 } from "@/components/content-editor/shared/types";
-import { readApiError } from "@/lib/api-error";
+import { GoSvcClientError, type GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import type { MessageFormat } from "@/lib/i18n/message-format";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
 
 import { projectFileCatValidationMessages } from "./project-file-content-editor-validation.messages";
+
+const scheduleValidation = createContentEditorRequestScheduler(3);
 
 const CAT_FORMAT_CHECK_CATEGORIES = [
   "length",
@@ -49,13 +56,7 @@ const contentEditorSegmentValidationResponseSchema = z.object({
 
 export const CAT_SEGMENT_SPELLING_MODE = "spelling" as const;
 
-export const CAT_SEGMENT_QA_MODES = [
-  "not_localized",
-  "whitespace_only",
-  "same_as_source",
-  "escaped_char_mismatch",
-  CAT_SEGMENT_SPELLING_MODE,
-] as const;
+export const CAT_SEGMENT_QA_MODES = QA_MODES;
 
 export function isBcp47LanguageTag(value: string): boolean {
   if (!value) {
@@ -86,10 +87,14 @@ export async function fetchCatSegmentValidation(
     sourcePath: string;
     targetLocale: string;
     maxLength?: number;
+    messageFormat?: MessageFormat | null;
+    placeholderPatterns?: readonly string[] | null;
+    acceptedWords?: readonly string[];
     signal?: AbortSignal;
     intl: ContentEditorFormatMessageIntl;
+    policy?: QaCheckPolicy;
   },
-  fetcher: typeof fetch = fetch,
+  goSvcClient: GoSvcClient,
 ): Promise<Result<ContentEditorFormatCheck[], ContentEditorSegmentValidationError>> {
   if (!CAT_SEGMENT_VALIDATION_ENABLED) {
     return ok([]);
@@ -100,33 +105,60 @@ export async function fetchCatSegmentValidation(
   );
   const targetLocale = input.targetLocale.trim();
   const canRequestSpelling = isBcp47LanguageTag(targetLocale);
+  const modePolicy = input.policy ?? DEFAULT_QA_POLICY;
+  const availableModes = CAT_SEGMENT_QA_MODES.filter((mode) => modePolicy[mode].enabled);
   const modes =
     canRequestSpelling && CAT_SEGMENT_SPELLING_ENABLED
-      ? CAT_SEGMENT_QA_MODES
-      : CAT_SEGMENT_QA_MODES.filter((mode) => mode !== CAT_SEGMENT_SPELLING_MODE);
+      ? availableModes
+      : availableModes.filter((mode) => mode !== CAT_SEGMENT_SPELLING_MODE);
 
   const responseResult = await fromThrowableAsync(
-    fetcher("/api/go-svc/v1/validate/segment", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        sourceText: input.sourceText,
-        targetText: input.targetText,
-        sourcePath: input.sourcePath,
-        ...(input.maxLength != null && input.maxLength > 0 ? { maxLength: input.maxLength } : {}),
-        ...(targetLocale ? { targetLocale } : {}),
-        modes,
-      }),
-      signal: input.signal,
-    }),
+    scheduleValidation(
+      () =>
+        goSvcClient.cat.validateSegment(
+          {
+            sourceText: input.sourceText,
+            targetText: input.targetText,
+            sourcePath: input.sourcePath,
+            ...(input.maxLength != null && input.maxLength > 0
+              ? { maxLength: input.maxLength }
+              : {}),
+            ...(input.messageFormat ? { messageFormat: input.messageFormat } : {}),
+            ...(input.placeholderPatterns?.length
+              ? { placeholderPatterns: [...input.placeholderPatterns] }
+              : {}),
+            ...(targetLocale ? { targetLocale } : {}),
+            ...(input.acceptedWords && input.acceptedWords.length > 0
+              ? { acceptedWords: capResolvedSpellcheckWords(input.acceptedWords) }
+              : {}),
+            modes,
+          },
+          { signal: input.signal },
+        ),
+      input.signal,
+    ),
   );
 
   if (isErr(responseResult)) {
     if (input.signal?.aborted) {
       return err({ code: "aborted" });
+    }
+
+    if (responseResult.error instanceof GoSvcClientError) {
+      if (responseResult.error.code === "invalid_response") {
+        return err({
+          code: "invalid_response",
+          message: input.intl.formatMessage(projectFileCatValidationMessages.invalidJson),
+        });
+      }
+
+      if (
+        responseResult.error.code === "network_error" ||
+        responseResult.error.code === "missing_access_token"
+      ) {
+        console.warn("[cat-validation] Go service request failed", responseResult.error);
+        return err({ code: "service_error", message: requestFailedMessage });
+      }
     }
 
     return err({
@@ -136,23 +168,7 @@ export async function fetchCatSegmentValidation(
     });
   }
 
-  const response = responseResult.value;
-  if (!response.ok) {
-    return err({
-      code: "service_error",
-      message: await readApiError(response, requestFailedMessage),
-    });
-  }
-
-  const bodyResult = await fromThrowableAsync(response.json());
-  if (isErr(bodyResult)) {
-    return err({
-      code: "invalid_response",
-      message: input.intl.formatMessage(projectFileCatValidationMessages.invalidJson),
-    });
-  }
-
-  const parsed = contentEditorSegmentValidationResponseSchema.safeParse(bodyResult.value);
+  const parsed = contentEditorSegmentValidationResponseSchema.safeParse(responseResult.value);
   if (!parsed.success) {
     return err({
       code: "invalid_response",
@@ -165,5 +181,5 @@ export async function fetchCatSegmentValidation(
     (check) => !(skippedModes.has(CAT_SEGMENT_SPELLING_MODE) && check.category === "spelling"),
   );
 
-  return ok(checks);
+  return ok(input.policy ? applyEditorQaPolicy(checks, input.policy) : checks);
 }

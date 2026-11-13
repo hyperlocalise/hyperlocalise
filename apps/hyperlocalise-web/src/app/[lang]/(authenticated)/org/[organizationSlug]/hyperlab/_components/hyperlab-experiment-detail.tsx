@@ -13,9 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Add01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -70,6 +68,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
 
+import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { HyperlabExperimentQueryBridge } from "../store/hyperlab-query-bridge";
 import {
   HyperlabWorkspaceProvider,
@@ -77,7 +76,7 @@ import {
 } from "../store/hyperlab-workspace-context";
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabAllocation,
@@ -132,10 +131,13 @@ const HyperlabExperimentDetailConnected = observer(function HyperlabExperimentDe
   canWrite: boolean;
 }) {
   const intl = useIntl();
-  const router = useRouter();
   const queryClient = useQueryClient();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const { experiment: experimentStore, ui: uiStore } = useHyperlabWorkspace();
+  // One guard for the page's three cards: only one can be active at a time.
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(
+    experimentStore.detailsDirty || experimentStore.rolloutDirty || experimentStore.splitDirty,
+  );
 
   const detailQuery = useQuery({
     queryKey: hyperlabQueryKeys.experiment(organizationSlug, experimentId),
@@ -324,7 +326,7 @@ const HyperlabExperimentDetailConnected = observer(function HyperlabExperimentDe
     },
     onSuccess: () => {
       toast.success(intl.formatMessage(messages.deleteSuccess));
-      router.push(`/org/${organizationSlug}/hyperlab/experiments`);
+      leaveTo(`/org/${organizationSlug}/hyperlab/experiments`);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : intl.formatMessage(messages.loadError));
@@ -351,9 +353,9 @@ const HyperlabExperimentDetailConnected = observer(function HyperlabExperimentDe
   return (
     <>
       <HyperlabExperimentQueryBridge snapshot={detailQuery.data} />
+      {leaveGuardDialog}
       <HyperlabPageShell
         title={experiment?.name ?? intl.formatMessage(messages.experimentsTitle)}
-        description={intl.formatMessage(messages.experimentsDescription)}
         backHref={`/org/${organizationSlug}/hyperlab/experiments`}
         actions={
           experiment && canWrite ? (
@@ -713,11 +715,7 @@ const HyperlabExperimentDetailConnected = observer(function HyperlabExperimentDe
                       onOpenChange={(open) => uiStore.setAddVariantOpen(open)}
                     >
                       <DialogTrigger render={<Button variant="secondary" />}>
-                        <HugeiconsIcon
-                          icon={Add01Icon}
-                          strokeWidth={1.8}
-                          data-icon="inline-start"
-                        />
+                        <PlusIcon data-icon="inline-start" />
                         <FormattedMessage {...messages.addVariant} />
                       </DialogTrigger>
                       <DialogContent>
@@ -810,7 +808,7 @@ const HyperlabVariantCard = observer(function HyperlabVariantCard({
   onRefresh: () => Promise<void>;
 }) {
   const intl = useIntl();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const { ui: uiStore } = useHyperlabWorkspace();
   const audienceId = uiStore.getVariantAudienceDraft(variant.id, variant.audienceId ?? "");
   const sheetOpen = uiStore.isVariantSheetOpen(variant.id);
@@ -906,7 +904,7 @@ const HyperlabVariantCard = observer(function HyperlabVariantCard({
           {canWrite && canDeleteVariant ? (
             <AlertDialog>
               <AlertDialogTrigger render={<Button variant="ghost" size="sm" />}>
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
+                <TrashIcon data-icon="inline-start" />
                 <FormattedMessage {...messages.deleteVariant} />
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -974,7 +972,7 @@ const HyperlabVariantCard = observer(function HyperlabVariantCard({
                   size="sm"
                   onClick={() => uiStore.setVariantSheetOpen(variant.id, true)}
                 >
-                  <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
+                  <PlusIcon data-icon="inline-start" />
                   <FormattedMessage {...messages.attachFlag} />
                 </Button>
               ) : null}
@@ -1057,7 +1055,7 @@ function AttachFlagSheet({
   onRefresh: () => Promise<void>;
 }) {
   const intl = useIntl();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const available = flags.filter(
     (flag) => flag.kind === "experiment" && !assignedFlagIds.has(flag.id),
   );

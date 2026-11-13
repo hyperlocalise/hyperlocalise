@@ -1,0 +1,107 @@
+---
+title: "Add translation guidelines"
+description: "Give translators and agents the tone, audience, and product context they need."
+---
+
+Use **Guideline** for instructions that cannot be expressed as a term pair: audience, voice, product context, market preferences, and examples. Put required term translations in a glossary and reusable sentence pairs in a translation memory.
+
+Every guideline is a document. Upload a file, or write the guidance that Hyperlocalise saves as a document for you. There is no separate typed note: whatever you write becomes a document record with its own revisions.
+
+## Scope
+
+Workspace **Guideline** stores shared context as org-wide documents with no project set. Project **Guideline** stores project-specific context as documents owned by that project. The workspace list only shows org-wide files. A project file is not visible on the workspace page, and one project never sees another project's files.
+
+Org-wide documents with no project assignment apply to every project. Open a document to scope it down to specific projects in its **Projects** section: once the first project is assigned, the document applies only to listed projects. Assignment filters translation, guideline checks, and automation recall for that project. The project Guideline page does not change assignment.
+
+## Write or upload a guideline
+
+1. Open workspace **Guideline** for shared context, or the project’s **Guideline** for project-specific context.
+2. Select **Add sources** to open the **Upload guideline** page, then drop a file or select **Write a guideline** to type the guidance. Typed text is saved as a document.
+3. Wait for the document's status to change from **Processing** to **Ready** under **Uploaded guidelines**.
+4. Open the document and optionally scope it to projects: an unassigned org-wide document applies to every project; assigning a first project limits it to listed projects.
+
+To change a document later, open **Edit** on its row. The dialog shows the current file so you can replace it, and text documents also keep an editor. Replacing the file or editing the content saves a new revision; editing only the title updates it in place. Supported uploads are PDF, Word, and text files, up to 25 MB and one file at a time. Hyperlocalise extracts the text and indexes it for search. Scanned PDFs without a text layer show **Failed** with “No readable text was found”; export the document with selectable text and upload it again. Very long files are truncated, and the document shows a notice when that happens. Options marked **Coming soon**, such as connector-based imports, are not available upload paths.
+
+Admins and localization managers can upload, edit, delete, and assign documents. Other members can view them.
+
+### Setup wizard guidance
+
+The engine-setup wizard keeps a managed document titled **Setup wizard guidance** with the voice and rules it learned from your site. Edit it like any other document: the wizard merges into your edits instead of overwriting them, so your changes are preserved. Do not rename it; the wizard finds it by that exact title and creates a new one if it cannot. It is an unassigned org-wide document, so it applies to every project; assigning projects on its page scopes it down.
+
+## Use guidelines efficiently
+
+Give each document one job. Put rules that must be followed on every segment in a short document, and turn **Always apply** on. Put long reference material in a separate document, and leave **Always apply** off.
+
+### Passages
+
+A passage is a block of the document’s text, not a topic you name. A blank line starts a new passage. Search matches the words in that block.
+
+Separate each rule with a blank line, and keep the rule and its example in the same paragraph. A match then still includes the instruction.
+
+```text
+Shipping
+Orders ship within two business days. Tracking is emailed after dispatch.
+
+Billing
+Invoices are sent on the 1st. Say “invoice”, not “bill”.
+
+Support
+Contact support from the Help menu. Do not promise a response time.
+```
+
+Translating “Where is my invoice?” can return the Billing passage and leave Shipping and Support out.
+
+### Always apply
+
+**Always apply** controls whether a ready guideline is sent in full, or only when a passage matches the current text. It does not change which projects the document covers.
+
+Leave **Always apply** off for longer reference material, such as the manual above. Hyperlocalise searches the document and keeps only passages that match the text being translated or checked. Those passages can be left out when the prompt is full. If nothing matches, the document is not sent.
+
+Turn **Always apply** on for a short document that must be included every time it is in scope, such as a banned-word list or this voice sheet:
+
+```text
+Tone: clear and direct. Avoid slang.
+French: use “vous”, never “tu”.
+Keep the product name Hyperlocalise unchanged.
+```
+
+The whole document is sent whenever it is in scope, including when search finds nothing and when search is unavailable. Translating “Save your changes.” still includes “use vous, never tu”, because the document is sent in full.
+
+Keep an always-applied document short. If the full text does not fit, a guideline check does not run, and a translation omits the whole document instead of cutting it off. Leave a long manual off.
+
+Uploaded documents apply to every target locale, so name the market inside the document when a rule only applies to one language.
+
+### Turn on the QA check
+
+Turn on the **Guidelines** check so the editor flags text that breaks these documents. **Always apply** still decides whether that check sees the whole document or only matching passages.
+
+Open the project **QA** page, then **Check settings**. Under **Checks included**, turn on **Guidelines**, set **Severity** to **Warning** or **Error**, and select **Save check settings**. **Guidelines** stays off until you save it.
+
+The editor runs the check while you translate. A warning shows the issue and still allows saving. An error blocks saving when the editor has already reported the issue. A project scan does not run this check.
+
+## What to include
+
+Use a short document with concrete examples. The sheet below is a good **Always apply** document: it is short, and those rules must be present every time. See [Use guidelines efficiently](#use-guidelines-efficiently).
+
+```text
+Audience: people buying their first subscription.
+Tone: clear, warm, and direct. Avoid slang.
+Product names: keep Hyperlocalise unchanged.
+French: use “vous” consistently.
+Buttons: prefer a short action verb.
+Preserve variables, URLs, and ICU message structure.
+```
+
+Add the approved wording and a counterexample when a rule could be ambiguous.
+
+## Use it in translation
+
+Attach the relevant knowledge when configuring an [automation](/platform/automation/create-automation), and name it in one-off requests. Review a representative sample to confirm the instruction has the intended effect. Updating a guideline does not retroactively rewrite or approve existing translations.
+
+Keep a clear owner for the document so project and workspace guidance do not give conflicting instructions. See [Language resources](/platform/knowledge).
+
+## Check text against guidelines
+
+Turn on [the editor QA check](#turn-on-the-qa-check) so translators see guideline findings while they work. Agents can also check source text or translations with the [`check_guidelines` MCP tool](/platform/developers/mcp-tools#guideline-checks). Send up to 50 segments with an optional project and target locale. Each finding points to the exact text that breaks a rule and quotes the guideline passage it relies on. Findings without a supporting guideline passage are discarded.
+
+An empty result means no guideline violation was found. It does not confirm that the translation is accurate, so keep reviewing a sample. Each checked segment counts toward your plan's guideline check usage.

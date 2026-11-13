@@ -12,24 +12,20 @@
  */
 import { createMiddleware } from "hono/factory";
 
+import { DEFAULT_CANVA_EDITOR_ORIGINS, isCanvaAppsIframeOrigin } from "@/lib/canva/origins";
 import { env } from "@/lib/env";
-
-const DEFAULT_CANVA_ORIGINS = [
-  "https://app.canva.com",
-  "https://www.canva.com",
-  "https://canva.com",
-];
 
 function parseAllowedOrigins(): Set<string> {
   const configured = env.CANVA_CORS_ORIGINS?.split(",").map((origin) => origin.trim()) ?? [];
-  const origins = new Set([...DEFAULT_CANVA_ORIGINS, ...configured].filter(Boolean));
+  const origins = new Set<string>([...DEFAULT_CANVA_EDITOR_ORIGINS, ...configured].filter(Boolean));
+
+  if (env.CANVA_APP_ORIGIN) {
+    origins.add(env.CANVA_APP_ORIGIN);
+  }
 
   if (env.NODE_ENV === "development") {
     origins.add("http://localhost:8080");
     origins.add("https://localhost:8080");
-    if (env.CANVA_APP_ORIGIN) {
-      origins.add(env.CANVA_APP_ORIGIN);
-    }
   }
 
   return origins;
@@ -37,9 +33,17 @@ function parseAllowedOrigins(): Set<string> {
 
 const allowedOrigins = parseAllowedOrigins();
 
+export function isAllowedCanvaCorsOrigin(origin: string | undefined): origin is string {
+  if (!origin) {
+    return false;
+  }
+
+  return allowedOrigins.has(origin) || isCanvaAppsIframeOrigin(origin);
+}
+
 export const canvaCorsMiddleware = createMiddleware(async (c, next) => {
   const origin = c.req.header("origin");
-  const allowOrigin = origin && allowedOrigins.has(origin) ? origin : null;
+  const allowOrigin = isAllowedCanvaCorsOrigin(origin) ? origin : null;
 
   if (allowOrigin) {
     c.header("Access-Control-Allow-Origin", allowOrigin);

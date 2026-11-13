@@ -72,6 +72,9 @@ describe("persistDocumentVariantBytesStep", () => {
         filename: "guide.md",
         sourceJobId: "job_1",
       }),
-    ).rejects.toThrow("failed to persist document variant: approved_locked");
+    ).rejects.toMatchObject({
+      name: "FileTranslationWorkflowError",
+      code: "document_variant_failed",
+    });
   });
 });

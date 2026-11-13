@@ -411,7 +411,7 @@ func TestRunFailsWhenSourceFileMissing(t *testing.T) {
 func TestRunFailsOnUnsupportedSourceFormat(t *testing.T) {
 	svc := newTestService()
 	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
-		cfg := testConfig("/tmp/source.toml", "/tmp/out.json")
+		cfg := testConfig("/tmp/source.xyz", "/tmp/out.json")
 		return &cfg, nil
 	}
 	svc.readFile = func(_ string) ([]byte, error) {
@@ -1130,6 +1130,275 @@ func TestRunContinueOnErrorReturnsPartialFailureReport(t *testing.T) {
 	}
 }
 
+func TestRunKeepCompletedOnFailureResumesOnlyFailedKey(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	files := map[string][]byte{
+		sourcePath: []byte(`{"ok":"hello","bad":"boom"}`),
+		targetPath: []byte(`{"existing":"v"}`),
+	}
+	var lockState lockfile.File
+	failBoom := true
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		content, ok := files[path]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return content, nil
+	}
+	svc.writeFile = func(path string, content []byte) error {
+		files[path] = append([]byte(nil), content...)
+		return nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		cloned := lockState
+		if cloned.RunCompleted == nil {
+			cloned.RunCompleted = map[string]lockfile.RunCompletion{}
+		}
+		if cloned.RunCheckpoint == nil {
+			cloned.RunCheckpoint = map[string]lockfile.RunCheckpoint{}
+		}
+		return &cloned, nil
+	}
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		lockState = f
+		return nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if req.Source == "boom" && failBoom {
+			return "", errors.New("translation failed")
+		}
+		return strings.ToUpper(req.Source), nil
+	}
+
+	first, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
+	if err != nil {
+		t.Fatalf("first run: %v", err)
+	}
+	if first.Succeeded != 1 || first.Failed != 1 || first.PersistedToLock != 1 {
+		t.Fatalf("unexpected first run report: %+v", first)
+	}
+
+	failBoom = false
+	second, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
+	if err != nil {
+		t.Fatalf("second run: %v", err)
+	}
+	if second.SkippedByLock != 1 || second.ExecutableTotal != 1 || second.Succeeded != 1 || second.Failed != 0 {
+		t.Fatalf("expected resume of only the failed key, got %+v", second)
+	}
+}
+
+func TestRunKeepCompletedOnFailureRollsBackLockWhenFinalizeWriteFails(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	lockState := &lockfile.File{LocaleStates: map[string]lockfile.LocaleCheckpoint{}, RunCompleted: map[string]lockfile.RunCompletion{}}
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		return lockState, nil
+	}
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		*lockState = f
+		return nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"ok":"hello","bad":"boom"}`), nil
+		case targetPath:
+			return []byte(`{"existing":"v"}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if req.Source == "boom" {
+			return "", errors.New("translation failed")
+		}
+		return strings.ToUpper(req.Source), nil
+	}
+	svc.writeFile = func(path string, _ []byte) error {
+		if path == targetPath {
+			return errors.New("disk full")
+		}
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
+	if err == nil {
+		t.Fatal("expected finalize write failure")
+	}
+	if report.Succeeded != 1 || report.Failed != 1 {
+		t.Fatalf("unexpected execution totals: %+v", report)
+	}
+	if len(lockState.RunCompleted) != 0 {
+		t.Fatalf("expected lock rollback after failed write, got %+v", lockState.RunCompleted)
+	}
+}
+
+func TestRunKeepCompletedOnFailureRollsBackLaterUnwrittenTargets(t *testing.T) {
+	svc := newTestService()
+	sourceA := "/tmp/source-a.json"
+	sourceB := "/tmp/source-b.json"
+	targetA := "/tmp/out-a.json"
+	targetB := "/tmp/out-b.json"
+	lockState := &lockfile.File{LocaleStates: map[string]lockfile.LocaleCheckpoint{}, RunCompleted: map[string]lockfile.RunCompletion{}}
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourceA, targetA)
+		cfg.Buckets["ui"] = config.BucketConfig{
+			Files: []config.BucketFileMapping{
+				{From: sourceA, To: targetA},
+				{From: sourceB, To: targetB},
+			},
+		}
+		return &cfg, nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		return lockState, nil
+	}
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		*lockState = f
+		return nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourceA:
+			return []byte(`{"ok":"hello","bad":"boom"}`), nil
+		case sourceB:
+			return []byte(`{"ok":"world","bad":"boom"}`), nil
+		case targetA, targetB:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if req.Source == "boom" {
+			return "", errors.New("translation failed")
+		}
+		return strings.ToUpper(req.Source), nil
+	}
+	svc.writeFile = func(path string, _ []byte) error {
+		if path == targetA {
+			return errors.New("disk full")
+		}
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true, Workers: 1})
+	if err == nil {
+		t.Fatal("expected finalize write failure")
+	}
+	if report.Succeeded != 2 || report.Failed != 2 {
+		t.Fatalf("unexpected execution totals: %+v", report)
+	}
+	if _, ok := lockState.RunCompleted[taskIdentity(targetA, "ok")]; ok {
+		t.Fatalf("expected failed target lock entry to be rolled back, got %+v", lockState.RunCompleted)
+	}
+	if _, ok := lockState.RunCompleted[taskIdentity(targetB, "ok")]; ok {
+		t.Fatalf("expected later unwritten target lock entry to be rolled back, got %+v", lockState.RunCompleted)
+	}
+}
+
+func TestRunKeepCompletedOnFailurePreservesPriorLockEntriesWhenFinalizeWriteFails(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	files := map[string][]byte{
+		sourcePath: []byte(`{"ok":"hello","bad":"boom","worse":"explode"}`),
+		targetPath: []byte(`{"existing":"v"}`),
+	}
+	var lockState lockfile.File
+	failBoom := true
+	failExplode := true
+	failWrite := false
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		content, ok := files[path]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return content, nil
+	}
+	svc.writeFile = func(path string, content []byte) error {
+		if failWrite && path == targetPath {
+			return errors.New("disk full")
+		}
+		files[path] = append([]byte(nil), content...)
+		return nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		cloned := lockState
+		if cloned.RunCompleted == nil {
+			cloned.RunCompleted = map[string]lockfile.RunCompletion{}
+		}
+		if cloned.RunCheckpoint == nil {
+			cloned.RunCheckpoint = map[string]lockfile.RunCheckpoint{}
+		}
+		return &cloned, nil
+	}
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		lockState = f
+		return nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if req.Source == "boom" && failBoom {
+			return "", errors.New("translation failed")
+		}
+		if req.Source == "explode" && failExplode {
+			return "", errors.New("translation failed")
+		}
+		return strings.ToUpper(req.Source), nil
+	}
+
+	first, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
+	if err != nil {
+		t.Fatalf("first run: %v", err)
+	}
+	if first.Succeeded != 1 || first.Failed != 2 || first.PersistedToLock != 1 {
+		t.Fatalf("unexpected first run report: %+v", first)
+	}
+	priorID := taskIdentity(targetPath, "ok")
+	if _, ok := lockState.RunCompleted[priorID]; !ok {
+		t.Fatalf("expected first-run success to stay completed, got %+v", lockState.RunCompleted)
+	}
+
+	failBoom = false
+	failWrite = true
+	_, err = svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
+	if err == nil {
+		t.Fatal("expected second-run finalize write failure")
+	}
+	if _, ok := lockState.RunCompleted[priorID]; !ok {
+		t.Fatalf("expected prior completed key to survive failed write, got %+v", lockState.RunCompleted)
+	}
+	if _, ok := lockState.RunCompleted[taskIdentity(targetPath, "bad")]; ok {
+		t.Fatalf("expected this-run key to be rolled back after failed write, got %+v", lockState.RunCompleted)
+	}
+
+	failWrite = false
+	failExplode = false
+	third, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
+	if err != nil {
+		t.Fatalf("third run: %v", err)
+	}
+	if third.SkippedByLock != 1 || third.ExecutableTotal != 2 || third.Succeeded != 2 || third.Failed != 0 {
+		t.Fatalf("expected resume of only the unfinished keys, got %+v", third)
+	}
+}
+
 func TestRunLockWriterBatchesAndFlushesOnShutdown(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"
@@ -1562,6 +1831,78 @@ func TestRunMigratesLegacyCompletedLockEntriesOnSkip(t *testing.T) {
 	}
 	if completion.TaskHash == "" {
 		t.Fatalf("expected migrated task hash, got %+v", completion)
+	}
+}
+
+func TestRunPrefillOnlyPersistsLockfile(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	entryID := taskIdentity(targetPath, "hello")
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello"}`), nil
+		case targetPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		t.Fatal("translate should not be called for prefill-only run")
+		return "", nil
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	saveCalls := 0
+	var saved lockfile.File
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		saveCalls++
+		saved = f
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{
+		Force:             true,
+		PrefilledByLocale: map[string]map[string]string{"fr": {"hello": "Bonjour"}},
+	})
+	if err != nil {
+		t.Fatalf("prefill-only run: %v", err)
+	}
+	if report.SkippedByLock != 1 || report.ExecutableTotal != 0 {
+		t.Fatalf("unexpected report: %+v", report)
+	}
+	if saveCalls == 0 {
+		t.Fatal("expected lockfile write for prefill-only run")
+	}
+	completion, ok := saved.RunCompleted[entryID]
+	if !ok {
+		t.Fatalf("expected prefilled completion %q, got %+v", entryID, saved.RunCompleted)
+	}
+	if completion.SourceHash == "" || completion.TaskHash == "" {
+		t.Fatalf("expected source and task hashes, got %+v", completion)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(written, &payload); err != nil {
+		t.Fatalf("decode prefilled output: %v", err)
+	}
+	if payload["hello"] != "Bonjour" {
+		t.Fatalf("expected prefilled output, got %+v", payload)
 	}
 }
 
@@ -3353,6 +3694,51 @@ func TestRunWritesCSVPerLocaleLayoutIntoTargetLocaleColumn(t *testing.T) {
 	}
 }
 
+func TestRunReadsTSVSourceLocaleWhenItIsNotTheFirstValueColumn(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.tsv"
+	targetPath := "/tmp/out.tsv"
+	source := "id\tfr\ten\nhello\tBonjour\tHello\n"
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if req.Source != "Hello" {
+			return "", errors.New("unexpected source text " + req.Source)
+		}
+		return "Salut", nil
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+
+	out := string(written)
+	if !strings.Contains(out, "hello\tSalut\tHello") {
+		t.Fatalf("expected English source and French target column, got %q", out)
+	}
+}
+
 func TestRunPreservesExistingCSVTargetLocaleValuesForUnchangedKeys(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.csv"
@@ -4147,6 +4533,29 @@ llm:
 	}
 }
 
+func TestPlanTasksSkipsEmptySourceText(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"a":"one","b":"","c":"   "}`), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	targetPath := filepath.Join(dir, "fr.json")
+	cfg := testConfig(sourcePath, targetPath)
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+
+	tasks, _, err := svc.planTasks(&cfg, "", "", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("planTasks: %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task for the non-empty source, got %d: %+v", len(tasks), tasks)
+	}
+	if tasks[0].EntryKey != "a" {
+		t.Fatalf("entry key=%q, want a", tasks[0].EntryKey)
+	}
+}
+
 func TestPlanTasksFixTargetsFiltersTasks(t *testing.T) {
 	dir := t.TempDir()
 	sourcePath := filepath.Join(dir, "en.json")
@@ -4420,6 +4829,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.po":          []byte("msgid \"hello\"\nmsgstr \"Hello\"\n"),
 		"/tmp/source.md":          []byte("# Hello\n"),
 		"/tmp/source.mdx":         []byte("# Hello\n"),
+		"/tmp/source.adoc":        []byte("= Hello\n"),
 		"/tmp/source.strings":     []byte("\"hello\" = \"Hello\";\n"),
 		"/tmp/source.stringsdict": []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict><key>hello</key><string>Hello</string></dict></plist>"),
 		"/tmp/source.xcstrings":   []byte(`{"sourceLanguage":"en","strings":{"hello":{"localizations":{"en":{"stringUnit":{"state":"translated","value":"Hello"}}}}},"version":"1.0"}`),
@@ -4431,9 +4841,15 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.ts":          []byte(`export default { hello: "Hello" };`),
 		"/tmp/source.xml":         []byte(`<locale><message key="hello">Hello</message></locale>`),
 		"/tmp/source.resx":        []byte(`<root><data name="hello"><value>Hello</value></data></root>`),
+		"/tmp/source.resw":        []byte(`<root><data name="hello"><value>Hello</value></data></root>`),
 		"/tmp/source.properties":  []byte("hello=Hello\n"),
+		"/tmp/source.ini":         []byte("hello=Hello\n"),
 		"/tmp/source.srt":         []byte("1\n00:00:00,000 --> 00:00:01,000\nHello\n"),
 		"/tmp/source.vtt":         []byte("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n"),
+		"/tmp/source.tsv":         []byte("key\tsource\ttarget\nhello\tHello\tHello\n"),
+		"/tmp/source.toml":        []byte("hello = \"Hello\"\n"),
+		"/tmp/source.sbv":         []byte("0:00:00.000,0:00:01.000\nHello\n"),
+		"/tmp/source.svg":         []byte("<svg><text>Hello</text></svg>"),
 	}
 	svc.readFile = func(path string) ([]byte, error) {
 		if b, ok := sourceTemplate[path]; ok {
@@ -4452,6 +4868,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.po", source: "/tmp/source.po"},
 		{target: "/tmp/out.md", source: "/tmp/source.md"},
 		{target: "/tmp/out.mdx", source: "/tmp/source.mdx"},
+		{target: "/tmp/out.adoc", source: "/tmp/source.adoc"},
 		{target: "/tmp/out.strings", source: "/tmp/source.strings"},
 		{target: "/tmp/out.stringsdict", source: "/tmp/source.stringsdict"},
 		{target: "/tmp/out.xcstrings", source: "/tmp/source.xcstrings"},
@@ -4464,15 +4881,21 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.js", source: "/tmp/source.ts"},
 		{target: "/tmp/out.xml", source: "/tmp/source.xml"},
 		{target: "/tmp/out.resx", source: "/tmp/source.resx"},
+		{target: "/tmp/out.resw", source: "/tmp/source.resw"},
 		{target: "/tmp/out.properties", source: "/tmp/source.properties"},
+		{target: "/tmp/out.ini", source: "/tmp/source.ini"},
 		{target: "/tmp/out.srt", source: "/tmp/source.srt"},
 		{target: "/tmp/out.vtt", source: "/tmp/source.vtt"},
+		{target: "/tmp/out.tsv", source: "/tmp/source.tsv"},
+		{target: "/tmp/out.toml", source: "/tmp/source.toml"},
+		{target: "/tmp/out.sbv", source: "/tmp/source.sbv"},
+		{target: "/tmp/out.svg", source: "/tmp/source.svg"},
 	}
 
 	for _, tc := range cases {
 		values := map[string]string{"hello": "Bonjour"}
 		ext := strings.ToLower(filepath.Ext(tc.target))
-		if ext == ".liquid" || ext == ".srt" || ext == ".vtt" || ext == ".md" || ext == ".mdx" {
+		if ext == ".liquid" || ext == ".srt" || ext == ".vtt" || ext == ".sbv" || ext == ".svg" || ext == ".md" || ext == ".mdx" || ext == ".adoc" {
 			entries, err := svc.newParser().Parse(tc.source, sourceTemplate[tc.source])
 			if err != nil {
 				t.Fatalf("parse %s source: %v", tc.target, err)
@@ -4659,7 +5082,7 @@ export default {
 	content, err := svc.marshalSourceTemplateTarget(".ts", targetPath, sourcePath, "en", "fr", map[string]string{
 		"title": "Salut",
 		"cta":   "Acheter",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal js/ts target: %v", err)
 	}
@@ -5041,7 +5464,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForXLIFFWhenAllKeysPres
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".xlf", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".xlf", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5074,7 +5497,7 @@ msgstr "Bonjour"
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5101,7 +5524,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForStringsWhenAllKeysPr
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".strings", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".strings", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5128,7 +5551,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForFluentWhenAllKeysPre
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".ftl", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".ftl", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5172,7 +5595,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForStringsdictWhenAllKe
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".stringsdict", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".stringsdict", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5211,7 +5634,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForARBWhenAllKeysPresen
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5266,7 +5689,7 @@ func TestMarshalSourceTemplateTargetARBAppendsMissingKeysAndCarriesSourceMetadat
 	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{
 		"hello":   "Salut",
 		"goodbye": "Au revoir",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5327,7 +5750,7 @@ func TestMarshalSourceTemplateTargetARBUsesSourceFallbackWhenTargetInvalid(t *te
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5374,7 +5797,7 @@ msgstr "Supprimer"
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"keep": "Garder"})
+	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"keep": "Garder"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5415,7 +5838,7 @@ msgstr "Supprimer"
 	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5454,7 +5877,7 @@ msgstr "New value"
 	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5503,7 +5926,7 @@ func TestMarshalSourceTemplateTargetDeletesAndInsertsKeyForXLIFF(t *testing.T) {
 	content, err := svc.marshalSourceTemplateTarget(".xlf", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5540,7 +5963,7 @@ func TestMarshalSourceTemplateTargetDeletesAndInsertsKeyForStrings(t *testing.T)
 	content, err := svc.marshalSourceTemplateTarget(".strings", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5589,7 +6012,7 @@ func TestMarshalSourceTemplateTargetDeletesAndInsertsKeyForStringsdict(t *testin
 	content, err := svc.marshalSourceTemplateTarget(".stringsdict", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -6545,6 +6968,56 @@ func TestRunExperimentalContextMemoryIsSharedAcrossLocales(t *testing.T) {
 	}
 	if memoryMismatches != 0 {
 		t.Fatalf("expected shared locale-agnostic memory context, mismatches=%d", memoryMismatches)
+	}
+}
+
+func TestRunHTMLSkipsEntityOnlyCells(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "page.html")
+	targetPath := filepath.Join(dir, "fr.html")
+	template := []byte(`<table><tr><td>&nbsp;</td><td>Hello</td><td>&amp;</td></tr></table>`)
+	if err := os.WriteFile(sourcePath, template, 0o644); err != nil {
+		t.Fatalf("write html: %v", err)
+	}
+	cfg := testConfig(sourcePath, targetPath)
+	svc := newTestService()
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) { return &cfg, nil }
+	svc.readFile = func(path string) ([]byte, error) {
+		if path == sourcePath {
+			return os.ReadFile(sourcePath)
+		}
+		if path == targetPath {
+			return nil, os.ErrNotExist
+		}
+		return nil, filepath.ErrBadPattern
+	}
+	var translated []string
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		translated = append(translated, req.Source)
+		return "Bonjour", nil
+	}
+	svc.writeFile = func(path string, data []byte) error {
+		return os.WriteFile(path, data, 0o644)
+	}
+	svc.numCPU = func() int { return 1 }
+
+	report, err := svc.Run(context.Background(), Input{Workers: 1})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if report.Failed != 0 {
+		t.Fatalf("unexpected failures: %+v", report.Failures)
+	}
+	if len(translated) != 1 || translated[0] != "Hello" {
+		t.Fatalf("translated=%v, want [Hello]", translated)
+	}
+	out, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	got := string(out)
+	if !strings.Contains(got, "&nbsp;") || !strings.Contains(got, "Bonjour") || !strings.Contains(got, "&amp;") {
+		t.Fatalf("target=%q", got)
 	}
 }
 

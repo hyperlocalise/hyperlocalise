@@ -77,6 +77,21 @@ describe("resolveProjectFileContentEditorPagination", () => {
       paginated: true,
     });
   });
+
+  it("parses qualifier and advanced filter query params", () => {
+    expect(
+      resolveProjectFileContentEditorPagination({
+        queueFilter: "qa_issues",
+        queueFilterQualifier: "spelling",
+        queueAdvanced: JSON.stringify({ stringType: "icu", visibility: "hidden" }),
+      }),
+    ).toMatchObject({
+      queueFilter: "qa_issues",
+      queueFilterQualifier: "spelling",
+      advancedFilter: { stringType: "icu", visibility: "hidden" },
+      paginated: true,
+    });
+  });
 });
 
 describe("buildCatFilePagination", () => {

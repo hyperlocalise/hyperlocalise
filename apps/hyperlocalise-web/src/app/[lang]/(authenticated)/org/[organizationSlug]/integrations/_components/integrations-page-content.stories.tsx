@@ -82,6 +82,7 @@ export const Default: Story = {
     await expect(canvas.getByText("Zernio")).toBeInTheDocument();
     await expect(canvas.getByText("Semrush")).toBeInTheDocument();
     await expect(canvas.getByText("Ahrefs")).toBeInTheDocument();
+    await expect(canvas.getByText("Google Search Console")).toBeInTheDocument();
     await expect(canvas.getByText("Similarweb")).toBeInTheDocument();
     await expect(canvas.getByText("Slack")).toBeInTheDocument();
     await expect(canvas.getByText("Email")).toBeInTheDocument();
@@ -208,10 +209,12 @@ export const ReadOnly: Story = {
     await expect(canvas.getAllByRole("button", { name: "View only" }).length).toBeGreaterThan(0);
 
     await userEvent.click(canvas.getByRole("tab", { name: "Customer engagement" }));
-    await userEvent.click(canvas.getByRole("button", { name: "View only" }));
-    await expect(canvas.getByTestId("workos-pipes-widget")).toHaveTextContent(
-      "intercom Pipes widget",
-    );
+    await expect(canvas.getByText("Intercom")).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Connect" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Manage" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
+    await expect(canvas.queryByTestId("workos-pipes-widget")).not.toBeInTheDocument();
+    await expect(canvas.getAllByText("Admins can connect").length).toBeGreaterThan(0);
   },
 };
 

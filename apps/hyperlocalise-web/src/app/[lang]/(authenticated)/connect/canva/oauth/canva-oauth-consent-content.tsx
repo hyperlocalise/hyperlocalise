@@ -26,7 +26,7 @@ type ConsentConnectionOption = {
   enabled: boolean;
   organizationName: string;
   organizationSlug: string | null;
-  projectName: string;
+  projectName: string | null;
 };
 
 export function CanvaOauthConsentContent({
@@ -85,7 +85,8 @@ export function CanvaOauthConsentContent({
                 <option key={connection.connectionId} value={connection.connectionId}>
                   {connection.organizationName}
                   {connection.organizationSlug ? ` (${connection.organizationSlug})` : ""}
-                  {` · ${connection.displayName} · ${connection.projectName}`}
+                  {` · ${connection.displayName}`}
+                  {connection.projectName ? ` · ${connection.projectName}` : ""}
                 </option>
               ))}
             </select>

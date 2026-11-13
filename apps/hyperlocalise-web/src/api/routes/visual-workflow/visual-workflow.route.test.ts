@@ -17,10 +17,18 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 const {
+  enqueueVisualWorkflowCreatedActivityMock,
+  enqueueVisualWorkflowDeletedActivityMock,
+  enqueueVisualWorkflowPublishedActivityMock,
+  enqueueVisualWorkflowStatusActivityMock,
   resolveApiAuthContextFromSessionMock,
   visualWorkflowExecutionEnqueueMock,
-  workspaceVisualWorkflowsFlagRunMock,
+  isAutumnBooleanFeatureEnabledMock,
 } = vi.hoisted(() => ({
+  enqueueVisualWorkflowCreatedActivityMock: vi.fn(),
+  enqueueVisualWorkflowDeletedActivityMock: vi.fn(),
+  enqueueVisualWorkflowPublishedActivityMock: vi.fn(),
+  enqueueVisualWorkflowStatusActivityMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -28,7 +36,15 @@ const {
       null,
   ),
   visualWorkflowExecutionEnqueueMock: vi.fn(async () => ({ ids: ["visual-workflow-run-1"] })),
-  workspaceVisualWorkflowsFlagRunMock: vi.fn(async () => true),
+  isAutumnBooleanFeatureEnabledMock: vi.fn(async () => true),
+}));
+
+vi.mock("@/lib/activity-log/visual-workflow-events", () => ({
+  enqueueVisualWorkflowCreatedActivity: enqueueVisualWorkflowCreatedActivityMock,
+  enqueueVisualWorkflowDeletedActivity: enqueueVisualWorkflowDeletedActivityMock,
+  enqueueVisualWorkflowPublishedActivity: enqueueVisualWorkflowPublishedActivityMock,
+  enqueueVisualWorkflowRunStartedActivity: vi.fn(),
+  enqueueVisualWorkflowStatusActivity: enqueueVisualWorkflowStatusActivityMock,
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -39,15 +55,9 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return {
-    ...actual,
-    workspaceVisualWorkflowsFlag: {
-      run: workspaceVisualWorkflowsFlagRunMock,
-    },
-  };
-});
+vi.mock("@/lib/billing/autumn-boolean-feature-access", () => ({
+  isAutumnBooleanFeatureEnabled: isAutumnBooleanFeatureEnabledMock,
+}));
 
 vi.mock("@/workflows/adapters", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/workflows/adapters")>();
@@ -64,6 +74,7 @@ import type { AppType } from "@/api/typed-app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { buildVisualWorkflowManualIdempotencyKey } from "@/lib/visual-workflows/dispatch/idempotency";
+import { getVisualWorkflowTestSetup } from "@/lib/visual-workflows/visual-workflow-test-setup";
 
 const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
@@ -74,7 +85,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
-  workspaceVisualWorkflowsFlagRunMock.mockResolvedValue(true);
+  isAutumnBooleanFeatureEnabledMock.mockResolvedValue(true);
   await fixture.cleanup();
 });
 
@@ -93,6 +104,172 @@ async function getOrganizationId(workosOrganizationId: string) {
 }
 
 describe("visual workflow routes", () => {
+  it("round-trips execution and data edges through persistence", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const definition = {
+      schemaVersion: 3 as const,
+      name: "Persisted edge kinds",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual" as const,
+          config: { kind: "trigger.manual" as const },
+        },
+        {
+          id: "set",
+          type: "logic.set" as const,
+          config: { kind: "logic.set" as const, assignments: [] },
+        },
+      ],
+      edges: [
+        {
+          id: "execution",
+          kind: "execution" as const,
+          source: "trigger",
+          target: "set",
+          sourcePortId: "success",
+          targetPortId: "input",
+        },
+        {
+          id: "data",
+          kind: "data" as const,
+          source: "trigger",
+          target: "set",
+          sourcePortId: "triggeredAt",
+          targetPortId: "value",
+        },
+      ],
+      editor: {
+        positions: {
+          trigger: { x: 0, y: 0 },
+          set: { x: 240, y: 0 },
+        },
+      },
+    };
+
+    const createdResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"].$post(
+      {
+        param: { organizationSlug },
+        json: { name: definition.name, definition },
+      },
+      { headers },
+    );
+
+    expect(createdResponse.status).toBe(201);
+    const created = (await createdResponse.json()) as {
+      visualWorkflow: { id: string };
+    };
+
+    const readResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].$get(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(readResponse.status).toBe(200);
+    await expect(readResponse.json()).resolves.toMatchObject({
+      visualWorkflow: {
+        definition: {
+          schemaVersion: 3,
+          edges: definition.edges,
+        },
+      },
+    });
+  });
+
+  it("saves a draft's test setup encrypted, without entries for steps the draft lacks", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
+    const definition = {
+      schemaVersion: 3 as const,
+      name: "Test setup",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual" as const,
+          config: { kind: "trigger.manual" as const },
+        },
+      ],
+      edges: [],
+      editor: { positions: { trigger: { x: 0, y: 0 } } },
+    };
+    const createdResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"].$post(
+      { param: { organizationSlug }, json: { name: definition.name, definition } },
+      { headers },
+    );
+    const created = (await createdResponse.json()) as { visualWorkflow: { id: string } };
+    const visualWorkflowId = created.visualWorkflow.id;
+
+    const updatedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].$patch(
+      {
+        param: { organizationSlug, visualWorkflowId },
+        json: {
+          expectedRevision: 1,
+          definition,
+          testSetup: {
+            data: { trigger: { secretName: "Ada" }, gone: { status: 200 } },
+            realNodeIds: ["gone"],
+            failures: { gone: { code: "timeout" } },
+          },
+        },
+      },
+      { headers },
+    );
+    expect(updatedResponse.status).toBe(200);
+
+    await expect(getVisualWorkflowTestSetup({ organizationId, visualWorkflowId })).resolves.toEqual(
+      { data: { trigger: { secretName: "Ada" } }, realNodeIds: [], failures: {} },
+    );
+    const [row] = await db
+      .select({ encryptedTestSetup: schema.visualWorkflows.encryptedTestSetup })
+      .from(schema.visualWorkflows)
+      .where(eq(schema.visualWorkflows.id, visualWorkflowId));
+    // Match the JSON string value, not a random base64 substring in authTag/ciphertext.
+    expect(JSON.stringify(row?.encryptedTestSetup)).not.toContain('"Ada"');
+
+    // A save from an out-of-date draft changes neither the draft nor its test setup.
+    const staleResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].$patch(
+      {
+        param: { organizationSlug, visualWorkflowId },
+        json: {
+          expectedRevision: 1,
+          definition,
+          testSetup: { data: { trigger: { secretName: "Stale" } }, realNodeIds: [], failures: {} },
+        },
+      },
+      { headers },
+    );
+    expect(staleResponse.status).toBe(409);
+    await expect(getVisualWorkflowTestSetup({ organizationId, visualWorkflowId })).resolves.toEqual(
+      { data: { trigger: { secretName: "Ada" } }, realNodeIds: [], failures: {} },
+    );
+
+    const refusedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].$patch(
+      {
+        param: { organizationSlug, visualWorkflowId },
+        json: { expectedRevision: 2, testSetup: { live: true } as never },
+      },
+      { headers },
+    );
+    expect(refusedResponse.status).toBe(400);
+  });
+
   it("creates, reads, updates, and lists visual workflows for an operator", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
@@ -113,6 +290,13 @@ describe("visual workflow routes", () => {
     };
     expect(created.visualWorkflow.name).toBe("Lead ping");
     expect(created.visualWorkflow.status).toBe("draft");
+    expect(enqueueVisualWorkflowCreatedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        name: "Lead ping",
+        visualWorkflowId: created.visualWorkflow.id,
+      }),
+    );
 
     const listedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"].$get(
       {
@@ -170,6 +354,13 @@ describe("visual workflow routes", () => {
       { headers },
     );
     expect(deletedResponse.status).toBe(204);
+    expect(enqueueVisualWorkflowDeletedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        name: "Lead ping v2",
+        visualWorkflowId: created.visualWorkflow.id,
+      }),
+    );
 
     const listedAfterDelete = await client.api.orgs[":organizationSlug"]["visual-workflows"].$get(
       {
@@ -223,7 +414,7 @@ describe("visual workflow routes", () => {
     const organizationSlug = identity.organization.slug ?? "missing-slug";
     const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
     const scheduledDefinition = {
-      schemaVersion: 2 as const,
+      schemaVersion: 3 as const,
       name: "Delete then revive",
       nodes: [
         {
@@ -270,6 +461,34 @@ describe("visual workflow routes", () => {
     };
     expect(published.visualWorkflow.status).toBe("active");
     expect(published.visualWorkflow.triggerFingerprint).toBeTruthy();
+    expect(enqueueVisualWorkflowPublishedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        name: "Delete then revive",
+        visualWorkflowId: created.visualWorkflow.id,
+      }),
+    );
+
+    const pausedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].$patch(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+        json: { expectedRevision: 2, status: "paused" },
+      },
+      { headers },
+    );
+    expect(pausedResponse.status).toBe(200);
+    expect(enqueueVisualWorkflowStatusActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        status: "paused",
+        visualWorkflowId: created.visualWorkflow.id,
+      }),
+    );
 
     const deletedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
       ":visualWorkflowId"
@@ -317,8 +536,8 @@ describe("visual workflow routes", () => {
     expect(row?.nextRunAt).toBeNull();
   });
 
-  it("returns forbidden when the visual workflows feature flag is disabled", async () => {
-    workspaceVisualWorkflowsFlagRunMock.mockResolvedValue(false);
+  it("returns forbidden when the Automation Workflow entitlement is disabled", async () => {
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(false);
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
@@ -345,7 +564,7 @@ describe("visual workflow routes", () => {
         json: {
           name: "Manual run workflow",
           definition: {
-            schemaVersion: 2,
+            schemaVersion: 3,
             name: "Manual run workflow",
             nodes: [
               {
@@ -545,6 +764,42 @@ describe("visual workflow routes", () => {
     expect(missingRunResponse.status).toBe(404);
     await expect(missingRunResponse.json()).resolves.toMatchObject({
       error: "visual_workflow_run_not_found",
+    });
+  });
+
+  it("returns a resource-keyed webhook URL for a saved workflow", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createdResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"].$post(
+      {
+        param: { organizationSlug },
+        json: { name: "Inbound webhook" },
+      },
+      { headers },
+    );
+    expect(createdResponse.status).toBe(201);
+    const created = (await createdResponse.json()) as { visualWorkflow: { id: string } };
+
+    const response = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ]["webhook-url"].$get(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+        query: { tokenVersion: "1" },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toEqual({
+      webhookUrl: {
+        url: expect.stringContaining(`/api/webhooks/visual-workflows/${created.visualWorkflow.id}`),
+      },
     });
   });
 });

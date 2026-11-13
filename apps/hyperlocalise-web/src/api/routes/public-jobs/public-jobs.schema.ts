@@ -10,13 +10,18 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createHash } from "node:crypto";
+
 import { z } from "zod";
 
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import {
+  fileJobBranchSchema,
+  keysTranslationJobInputSchema,
   maxTranslationMetadataEntries,
   maxTranslationTargetLocales,
 } from "@/api/routes/project/job.schema";
+import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { supportedFileTranslationFileFormats } from "@/lib/translation/file-formats";
 
 const publicJobMetadataSchema = z
@@ -26,10 +31,21 @@ const publicJobMetadataSchema = z
   })
   .optional();
 
+export const maxPublicJobIdempotencyKeyLength = 255;
+
+/** Fields every public job takes, whatever its input. Stored as the in-app job editor stores them. */
+const createPublicJobSharedFields = {
+  title: z.string().trim().min(1).max(256).optional(),
+  description: z.string().trim().max(2_048).optional(),
+  dueAt: z.string().datetime({ offset: true }).optional(),
+  ownerEmail: z.string().trim().email().max(320).optional(),
+};
+
 export const createPublicJobBodySchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("string"),
     projectId: projectIdSchema,
+    ...createPublicJobSharedFields,
     stringInput: z.object({
       sourceText: z.string().trim().min(1).max(100_000),
       sourceLocale: z.string().trim().min(1).max(32),
@@ -45,6 +61,7 @@ export const createPublicJobBodySchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("file"),
     projectId: projectIdSchema,
+    ...createPublicJobSharedFields,
     fileInput: z.object({
       sourceFileId: z.string().trim().min(1).max(128),
       fileFormat: z.enum(supportedFileTranslationFileFormats),
@@ -54,19 +71,110 @@ export const createPublicJobBodySchema = z.discriminatedUnion("type", [
         .min(1)
         .max(maxTranslationTargetLocales),
       metadata: publicJobMetadataSchema,
+      branch: fileJobBranchSchema.optional(),
+    }),
+  }),
+  z.object({
+    type: z.literal("keys"),
+    projectId: projectIdSchema,
+    ...createPublicJobSharedFields,
+    keysInput: keysTranslationJobInputSchema.refine((input) => input.overwriteUnapproved !== true, {
+      message: "overwriteUnapproved is for AI translation only",
+      path: ["overwriteUnapproved"],
     }),
   }),
 ]);
+
+// Printable ASCII without spaces, so keys compare exactly.
+export const publicJobIdempotencyKeySchema = z
+  .string()
+  .min(1)
+  .max(maxPublicJobIdempotencyKeyLength)
+  .regex(/^[\x21-\x7e]+$/);
 
 export const jobIdParamsSchema = z.object({
   jobId: z.string().trim().min(1).max(128),
 });
 
-export const latestPublicJobQuerySchema = z.object({
-  projectId: projectIdSchema,
-  sourcePath: z.string().trim().min(1).max(2048),
-});
-
 export type CreatePublicJobBody = z.infer<typeof createPublicJobBodySchema>;
 export type JobIdParams = z.infer<typeof jobIdParamsSchema>;
-export type LatestPublicJobQuery = z.infer<typeof latestPublicJobQuerySchema>;
+
+function sortedMetadata(metadata: Record<string, string> | undefined) {
+  if (!metadata) {
+    return undefined;
+  }
+  const keys = Object.keys(metadata).sort();
+  if (keys.length === 0) {
+    return undefined;
+  }
+  const sorted: Record<string, string> = {};
+  for (const key of keys) {
+    sorted[key] = metadata[key]!;
+  }
+  return sorted;
+}
+
+function hashedLocale(value: string) {
+  return canonicalizeLocale(value) ?? value;
+}
+
+/**
+ * SHA-256 of the create body after trimming, lowercasing `ownerEmail`,
+ * normalising `dueAt` to UTC, sorting metadata keys, and (for key jobs)
+ * canonicalising locales and sorting the selection, so a retry that only
+ * changes those forms still matches the first request.
+ */
+export function hashPublicJobRequest(payload: CreatePublicJobBody) {
+  const title = payload.title || undefined;
+  const description = payload.description || undefined;
+  const dueAt = payload.dueAt ? new Date(payload.dueAt).toISOString() : undefined;
+  const ownerEmail = payload.ownerEmail?.toLowerCase() || undefined;
+  const shared = { title, description, dueAt, ownerEmail };
+
+  const sorted = (values: string[] | undefined) =>
+    values ? [...new Set(values)].sort() : undefined;
+  const canonical =
+    payload.type === "keys"
+      ? {
+          type: payload.type,
+          projectId: payload.projectId,
+          ...shared,
+          keysInput: {
+            sourceLocale: hashedLocale(payload.keysInput.sourceLocale),
+            targetLocales: sorted(payload.keysInput.targetLocales.map(hashedLocale)),
+            metadata: sortedMetadata(payload.keysInput.metadata),
+            stringIds: sorted(payload.keysInput.stringIds),
+            keys: sorted(payload.keysInput.keys),
+            tags: sorted(payload.keysInput.tags),
+          },
+        }
+      : payload.type === "string"
+        ? {
+            type: payload.type,
+            projectId: payload.projectId,
+            ...shared,
+            stringInput: {
+              sourceText: payload.stringInput.sourceText,
+              sourceLocale: payload.stringInput.sourceLocale,
+              targetLocales: payload.stringInput.targetLocales,
+              metadata: sortedMetadata(payload.stringInput.metadata),
+              context: payload.stringInput.context,
+              maxLength: payload.stringInput.maxLength,
+            },
+          }
+        : {
+            type: payload.type,
+            projectId: payload.projectId,
+            ...shared,
+            fileInput: {
+              sourceFileId: payload.fileInput.sourceFileId,
+              fileFormat: payload.fileInput.fileFormat,
+              sourceLocale: payload.fileInput.sourceLocale,
+              targetLocales: payload.fileInput.targetLocales,
+              metadata: sortedMetadata(payload.fileInput.metadata),
+              branch: payload.fileInput.branch,
+            },
+          };
+
+  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
+}

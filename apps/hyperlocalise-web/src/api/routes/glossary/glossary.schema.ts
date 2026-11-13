@@ -85,6 +85,7 @@ export const glossaryConceptPageQuerySchema = z.object({
   importBatchId: z.string().uuid().optional(),
   partOfSpeech: glossaryPartOfSpeechSchema.optional(),
   termType: glossaryTermTypeSchema.optional(),
+  gender: glossaryGenderSchema.optional(),
   modifiedFrom: z.string().datetime().optional(),
   modifiedTo: z.string().datetime().optional(),
   includeArchived: queryBooleanSchema.default(false),
@@ -170,24 +171,27 @@ export const updateGlossaryBodySchema = z
     },
   );
 
-export const importGlossaryTermsBodySchema = z.object({
-  format: z.enum(["csv", "tbx", "xlsx"]),
-  content: z.string().min(1).max(14_000_000),
-  sourceFilename: z.string().trim().max(255).optional(),
-  contentEncoding: z.enum(["utf8", "base64"]).optional(),
-  mode: z.enum(["preview", "create", "update", "merge", "replace"]).default("merge"),
-  previewForMode: z.enum(["create", "update", "merge", "replace"]).default("merge"),
-  strictLocale: z.boolean().default(true),
-  localeMapping: z.record(z.string(), localeInputSchema).default({}),
-  previewReportId: z.string().uuid().optional(),
-});
+const glossaryExportLocalesSchema = z.preprocess((value) => {
+  if (value === undefined) return undefined;
+  return Array.isArray(value) ? value : [value];
+}, z.array(localeInputSchema).max(100).optional());
 
 export const glossaryExportQuerySchema = z.object({
   format: z.enum(["csv", "tbx", "xlsx"]).default("tbx"),
   scope: z.enum(["complete", "filtered"]).default("complete"),
   search: z.string().trim().max(200).optional(),
   locale: localeInputSchema.optional(),
-  locales: z.array(localeInputSchema).max(100).optional(),
+  locales: glossaryExportLocalesSchema,
+  reviewStatus: glossaryReviewStatusSchema.optional(),
+  termReviewStatus: z.string().trim().min(1).max(50).optional(),
+  linguisticStatus: glossaryTermStatusSchema.optional(),
+  partOfSpeech: glossaryPartOfSpeechSchema.optional(),
+  termType: glossaryTermTypeSchema.optional(),
+  gender: glossaryGenderSchema.optional(),
+  provenance: z.enum(["manual", "sync"]).optional(),
+  forbidden: queryBooleanSchema.optional(),
+  createdByUserId: z.string().uuid().optional(),
+  modifiedFrom: z.string().datetime().optional(),
 });
 
 export const createGlossaryConceptTermBodySchema = z.object({
@@ -425,6 +429,15 @@ export const glossaryConceptPageResponseSchema = z.object({
   }),
 });
 
+export const glossaryConceptAuthorsResponseSchema = z.object({
+  authors: z.array(
+    z.object({
+      userId: z.string(),
+      displayName: z.string(),
+    }),
+  ),
+});
+
 export const glossaryTermPageResponseSchema = z.object({
   terms: z.array(glossaryConceptTermRecordSchema),
   nextCursor: z.string().nullable(),
@@ -489,7 +502,6 @@ export type GlossaryTermPageQuery = z.infer<typeof glossaryTermPageQuerySchema>;
 export type GlossaryHistoryQuery = z.infer<typeof glossaryHistoryQuerySchema>;
 export type CreateGlossaryBody = z.infer<typeof createGlossaryBodySchema>;
 export type UpdateGlossaryBody = z.infer<typeof updateGlossaryBodySchema>;
-export type ImportGlossaryTermsBody = z.infer<typeof importGlossaryTermsBodySchema>;
 export type GlossaryExportQuery = z.infer<typeof glossaryExportQuerySchema>;
 export type AttachGlossaryProjectBody = z.infer<typeof attachGlossaryProjectBodySchema>;
 export type CreateGlossaryConceptBody = z.infer<typeof createGlossaryConceptBodySchema>;

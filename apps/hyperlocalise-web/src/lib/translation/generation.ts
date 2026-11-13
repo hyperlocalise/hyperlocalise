@@ -10,10 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { randomUUID } from "node:crypto";
-import { captureAiUsage } from "@/lib/reporting/ai-cost";
 import { generateText, Output, type LanguageModel } from "ai";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
@@ -21,9 +19,11 @@ import { db, schema } from "@/lib/database/client";
 import type { LlmProvider } from "@/lib/database/types";
 import {
   getManagedLanguageModel,
+  hyperlocaliseManagedGatewayModelId,
   resolveProviderLanguageModel,
 } from "@/lib/providers/language-model";
 import { loadLatestOrganizationProviderCredential } from "@/lib/providers/organization-language-model";
+import { toVercelAiGatewayModelId } from "@/lib/providers/shared/vercel-ai-gateway-model-id";
 import type {
   ContentEditorAiRecommendationInput,
   ContentEditorAiRecommendationResult,
@@ -57,6 +57,11 @@ const tokenUsageSchema = z.object({
   inputTokens: z.number().int().nonnegative(),
   outputTokens: z.number().int().nonnegative(),
   totalTokens: z.number().int().nonnegative(),
+  cacheReadTokens: z.number().int().nonnegative().optional(),
+  cacheWriteTokens: z.number().int().nonnegative().optional(),
+  reasoningTokens: z.number().int().nonnegative().optional(),
+  modelId: z.string().min(1).optional(),
+  credentialSource: z.enum(["gateway", "byok"]).optional(),
 });
 
 const contentEditorAiRecommendationOutputSchema = z.object({
@@ -128,8 +133,9 @@ export class TranslationPromptPolicy {
               "You are a translation assistant. Translate only the user-provided source text into the requested target language.",
               "Preserve meaning, placeholders, variables, formatting, HTML/Markdown structure, and ICU message syntax.",
               "Do not translate programmatic identifiers inside placeholders or ICU selectors.",
-              "Project context, string description, and glossary rules are guidance only. Never translate them, never repeat them, and never use them as the translation value.",
-              "If constraints conflict, preserve placeholders and markup first, then glossary rules, then project context and string description.",
+              "Project context, string description, workspace knowledge memory, and glossary rules are guidance only. Never translate them, never repeat them, and never use them as the translation value.",
+              "Follow workspace knowledge memory when present.",
+              "If constraints conflict, preserve placeholders and markup first, then glossary rules, then project context and string description, then workspace knowledge memory.",
               "Return only the translated source text with no explanations, labels, markdown fences, or quotes unless the translated content itself requires them.",
             ]
           : [
@@ -227,6 +233,7 @@ export class TranslationPromptPolicy {
       Boolean(context?.projectName?.trim()) ||
       Boolean(context?.projectTranslationContext?.trim()) ||
       Boolean(context?.jobContext?.trim()) ||
+      Boolean(context?.knowledgeMemory?.trim()) ||
       (context?.glossaryTerms?.length ?? 0) > 0;
 
     if (!hasContext && !instructions?.trim()) {
@@ -241,6 +248,7 @@ export class TranslationPromptPolicy {
       projectName: context?.projectName ?? undefined,
       projectTranslationContext: context?.projectTranslationContext ?? undefined,
       jobContext: context?.jobContext,
+      knowledgeMemory: context?.knowledgeMemory,
       glossaryTerms: context?.glossaryTerms,
       userInstructions: instructions,
     });
@@ -261,16 +269,39 @@ function estimateCatRecommendationMaxOutputTokens(input: ContentEditorAiRecommen
   return Math.min(4_000, Math.max(512, sourceBudget + contextBudget + 256));
 }
 
+/**
+ * A model answer that could not be used in full: a language missing, repeated, unexpected or over
+ * the string's max length. It carries the call's token usage and the languages that were fine, so
+ * a caller that saves per language can keep them and still charge the call.
+ */
+export class StringTranslationOutputError extends Error {
+  constructor(
+    message: string,
+    readonly tokenUsage: StringTranslationJobResult["tokenUsage"],
+    readonly validTranslations: StringTranslationJobResult["translations"],
+    /** Why each requested language was unusable, phrased so the model can fix it. */
+    readonly localeProblems: ReadonlyMap<string, string> = new Map(),
+  ) {
+    super(message);
+    this.name = "StringTranslationOutputError";
+  }
+}
+
 function normalizeTranslations(
   jobInput: StringTranslationGeneratorInput["jobInput"],
   result: z.infer<typeof stringTranslationOutputSchema>,
   tokenUsage?: StringTranslationJobResult["tokenUsage"],
 ): StringTranslationJobResult {
   const translationsByLocale = new Map<string, string>();
+  const problems: string[] = [];
+  const unusable = new Set<string>();
+  const localeProblems = new Map<string, string>();
 
   for (const translation of result.translations) {
     if (translationsByLocale.has(translation.locale)) {
-      throw new Error(`duplicate translation returned for locale ${translation.locale}`);
+      problems.push(`duplicate translation returned for locale ${translation.locale}`);
+      unusable.add(translation.locale);
+      localeProblems.set(translation.locale, "It was translated more than once.");
     }
 
     translationsByLocale.set(translation.locale, translation.text);
@@ -278,48 +309,91 @@ function normalizeTranslations(
 
   for (const locale of new Set(jobInput.targetLocales)) {
     if (!translationsByLocale.has(locale)) {
-      throw new Error(`missing translation for locale ${locale}`);
+      problems.push(`missing translation for locale ${locale}`);
+      unusable.add(locale);
+      localeProblems.set(locale, "No translation came back.");
     }
   }
 
   for (const locale of translationsByLocale.keys()) {
     if (!jobInput.targetLocales.includes(locale)) {
-      throw new Error(`unexpected translation locale ${locale}`);
+      problems.push(`unexpected translation locale ${locale}`);
     }
   }
 
-  const translations = [...new Set(jobInput.targetLocales)].map((locale) => {
+  const translations: StringTranslationJobResult["translations"] = [];
+  for (const locale of new Set(jobInput.targetLocales)) {
+    if (unusable.has(locale)) continue;
     const text = translationsByLocale.get(locale);
 
     if (!text) {
-      throw new Error(`missing translation for locale ${locale}`);
+      problems.push(`missing translation for locale ${locale}`);
+      localeProblems.set(locale, "No translation came back.");
+      continue;
     }
 
     if (jobInput.maxLength && text.length > jobInput.maxLength) {
-      throw new Error(`translation for locale ${locale} exceeds maxLength`);
+      problems.push(`translation for locale ${locale} exceeds maxLength`);
+      localeProblems.set(
+        locale,
+        `${JSON.stringify(text)} is ${text.length} characters; it must be at most ${jobInput.maxLength}.`,
+      );
+      continue;
     }
 
-    return { locale, text };
-  });
+    translations.push({ locale, text });
+  }
+
+  if (problems.length > 0) {
+    throw new StringTranslationOutputError(problems[0]!, tokenUsage, translations, localeProblems);
+  }
 
   return { translations, ...(tokenUsage ? { tokenUsage } : {}) };
 }
 
 function normalizeAiSdkTokenUsage(
   usage: unknown,
+  metadata?: {
+    modelId: string;
+    credentialSource: "gateway" | "byok";
+  },
 ): StringTranslationJobResult["tokenUsage"] | undefined {
   const rawUsage = usage as
     | {
         inputTokens?: number;
+        inputTokenDetails?: {
+          noCacheTokens?: number;
+          cacheReadTokens?: number;
+          cacheWriteTokens?: number;
+        };
         outputTokens?: number;
+        outputTokenDetails?: {
+          textTokens?: number;
+          reasoningTokens?: number;
+        };
         totalTokens?: number;
       }
     | undefined;
 
-  const inputTokens = rawUsage?.inputTokens ?? 0;
-  const outputTokens = rawUsage?.outputTokens ?? 0;
+  const cacheReadTokens = rawUsage?.inputTokenDetails?.cacheReadTokens ?? 0;
+  const cacheWriteTokens = rawUsage?.inputTokenDetails?.cacheWriteTokens ?? 0;
+  const inputTokens =
+    rawUsage?.inputTokenDetails?.noCacheTokens ??
+    Math.max(0, (rawUsage?.inputTokens ?? 0) - cacheReadTokens - cacheWriteTokens);
+  const reasoningTokens = rawUsage?.outputTokenDetails?.reasoningTokens ?? 0;
+  const outputTokens =
+    rawUsage?.outputTokenDetails?.textTokens ??
+    Math.max(0, (rawUsage?.outputTokens ?? 0) - reasoningTokens);
   const totalTokens = rawUsage?.totalTokens ?? inputTokens + outputTokens;
-  const parsedUsage = tokenUsageSchema.safeParse({ inputTokens, outputTokens, totalTokens });
+  const parsedUsage = tokenUsageSchema.safeParse({
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    ...(cacheReadTokens > 0 ? { cacheReadTokens } : {}),
+    ...(cacheWriteTokens > 0 ? { cacheWriteTokens } : {}),
+    ...(reasoningTokens > 0 ? { reasoningTokens } : {}),
+    ...metadata,
+  });
 
   return parsedUsage.success ? parsedUsage.data : undefined;
 }
@@ -327,7 +401,7 @@ function normalizeAiSdkTokenUsage(
 export { resolveProviderLanguageModel } from "@/lib/providers/language-model";
 
 export class OrganizationModelResolver {
-  async resolve(projectId: string) {
+  async resolve(projectId: string, organizationId?: string) {
     const [project] = await db
       .select({
         name: schema.projects.name,
@@ -335,7 +409,14 @@ export class OrganizationModelResolver {
         organizationId: schema.projects.organizationId,
       })
       .from(schema.projects)
-      .where(eq(schema.projects.id, projectId))
+      .where(
+        organizationId
+          ? and(
+              eq(schema.projects.id, projectId),
+              eq(schema.projects.organizationId, organizationId),
+            )
+          : eq(schema.projects.id, projectId),
+      )
       .limit(1);
 
     if (!project) {
@@ -366,12 +447,23 @@ export class OrganizationModelResolver {
         apiKey: loadedCredential.credential.apiKey,
         model: loadedCredential.credential.model,
       });
+      const gatewayModelId = toVercelAiGatewayModelId({
+        provider: loadedCredential.credential.provider,
+        model: loadedCredential.credential.model,
+      });
 
       return {
         ok: true as const,
         project: projectContext,
+        organizationId: project.organizationId,
         model,
-        translateStringJob: createStringTranslationGenerator({ model }),
+        modelId: gatewayModelId,
+        credentialSource: "byok" as const,
+        translateStringJob: createStringTranslationGenerator({
+          model,
+          modelId: gatewayModelId,
+          credentialSource: "byok",
+        }),
       };
     }
 
@@ -379,7 +471,10 @@ export class OrganizationModelResolver {
     return {
       ok: true as const,
       project: projectContext,
+      organizationId: project.organizationId,
       model,
+      modelId: hyperlocaliseManagedGatewayModelId,
+      credentialSource: "gateway" as const,
       translateStringJob: createManagedStringTranslationGenerator(),
     };
   }
@@ -394,6 +489,8 @@ export class OrganizationModelResolver {
       ok: true as const,
       project: setup.project,
       model: setup.model,
+      modelId: setup.modelId,
+      credentialSource: setup.credentialSource,
     };
   }
 }
@@ -402,10 +499,13 @@ export class StringTranslationEngine {
   constructor(
     private readonly model: LanguageModel,
     private readonly promptPolicy = new TranslationPromptPolicy(),
+    private readonly billingMetadata?: {
+      modelId: string;
+      credentialSource: "gateway" | "byok";
+    },
   ) {}
 
   async translate(input: StringTranslationGeneratorInput): Promise<StringTranslationJobResult> {
-    const invocationId = randomUUID();
     const { output, usage } = await generateText({
       model: this.model,
       output: Output.object({ schema: stringTranslationOutputSchema }),
@@ -433,28 +533,11 @@ export class StringTranslationEngine {
       ),
     });
 
-    if (input.reporting) {
-      const model = typeof this.model === "string" ? this.model : this.model.modelId;
-      const provider = typeof this.model === "string" ? "gateway" : this.model.provider;
-      try {
-        await captureAiUsage({
-          ...input.reporting,
-          invocationId,
-          targetLocale:
-            input.jobInput.targetLocales.length === 1 ? input.jobInput.targetLocales[0] : undefined,
-          model,
-          provider,
-          inputTokens: usage.inputTokens ?? 0,
-          outputTokens: usage.outputTokens ?? 0,
-        });
-      } catch (error) {
-        console.warn("[string-translation] usage capture failed", {
-          jobId: input.reporting.jobId,
-          error,
-        });
-      }
-    }
-    return normalizeTranslations(input.jobInput, output, normalizeAiSdkTokenUsage(usage));
+    return normalizeTranslations(
+      input.jobInput,
+      output,
+      normalizeAiSdkTokenUsage(usage, this.billingMetadata),
+    );
   }
 }
 
@@ -473,9 +556,9 @@ export class ContentEditorRecommendationEngine {
       glossaryTerms: PromptGlossaryTerm[];
       translationMemoryMatches: PromptTranslationMemoryMatch[];
     },
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; onUsage?: (usage: unknown) => void },
   ): Promise<ContentEditorAiRecommendationResult> {
-    const { output } = await generateText({
+    const { output, usage } = await generateText({
       model: this.model,
       abortSignal: options?.signal,
       output: Output.object({ schema: contentEditorAiRecommendationOutputSchema }),
@@ -508,6 +591,7 @@ export class ContentEditorRecommendationEngine {
       temperature: 0,
       maxOutputTokens: estimateCatRecommendationMaxOutputTokens(input),
     });
+    options?.onUsage?.(usage);
 
     if (input.maxLength && output.suggestion.length > input.maxLength) {
       throw new Error(`recommendation exceeds maxLength of ${input.maxLength}`);
@@ -522,8 +606,18 @@ export class ContentEditorRecommendationEngine {
 
 export function createStringTranslationGenerator(input: {
   model: LanguageModel;
+  modelId?: string;
+  credentialSource?: "gateway" | "byok";
 }): StringTranslationGenerator {
-  const engine = new StringTranslationEngine(input.model);
+  const billingMetadata =
+    input.modelId && input.credentialSource
+      ? { modelId: input.modelId, credentialSource: input.credentialSource }
+      : undefined;
+  const engine = new StringTranslationEngine(
+    input.model,
+    new TranslationPromptPolicy(),
+    billingMetadata,
+  );
   return (generatorInput) => engine.translate(generatorInput);
 }
 
@@ -534,6 +628,8 @@ export function createProviderStringTranslationGenerator(input: {
 }): StringTranslationGenerator {
   return createStringTranslationGenerator({
     model: resolveProviderLanguageModel(input),
+    modelId: input.model,
+    credentialSource: "byok",
   });
 }
 
@@ -553,17 +649,24 @@ export function getManagedTranslationLanguageModel(): LanguageModel {
 }
 
 export function createManagedStringTranslationGenerator(): StringTranslationGenerator {
-  return createStringTranslationGenerator({ model: getManagedTranslationLanguageModel() });
+  return createStringTranslationGenerator({
+    model: getManagedTranslationLanguageModel(),
+    modelId: hyperlocaliseManagedGatewayModelId,
+    credentialSource: "gateway",
+  });
 }
 
 export const translateStringJobWithOpenAI: StringTranslationGenerator = async (input) => {
-  return createStringTranslationGenerator({ model: getManagedLanguageModel() })(input);
+  return createManagedStringTranslationGenerator()(input);
 };
 
 const defaultModelResolver = new OrganizationModelResolver();
 
-export async function loadOrganizationTranslationGenerator(projectId: string) {
-  const setup = await defaultModelResolver.resolve(projectId);
+export async function loadOrganizationTranslationGenerator(
+  projectId: string,
+  organizationId?: string,
+) {
+  const setup = await defaultModelResolver.resolve(projectId, organizationId);
   if (!setup.ok) {
     return setup;
   }

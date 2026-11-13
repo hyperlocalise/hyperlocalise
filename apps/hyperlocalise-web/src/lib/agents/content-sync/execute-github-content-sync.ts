@@ -15,10 +15,19 @@ import { and, eq, like } from "drizzle-orm";
 import { canPushToGitHubRepository } from "@/lib/agents/repository-write-gate";
 import { db, schema } from "@/lib/database/client";
 import { uploadRepositorySourceFilesFromSandbox } from "@/lib/file-storage/upload-repository-source-files";
-import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedSourceUploadFormat,
+  inferSupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 import { runSandboxCommand } from "@/lib/translation/sandbox";
 import { isSafeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { loadProjectHtmlTranslationDownload } from "@/lib/projects/files/html-translation-download";
+import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import {
+  loadProjectOfficeTranslationDownload,
+  officeTranslationDownloadFilename,
+} from "@/lib/projects/files/office-translation-download";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 import { createLogger } from "@/lib/log";
 
@@ -33,7 +42,12 @@ import {
 } from "@/lib/agents/github/github-repository-automation-pull-translations-pr";
 import { buildPullTranslationsBranchName } from "@/lib/agents/github/github-repository-automation-pull-translations-branch";
 
-import { buildContentSyncPushCandidate } from "./content-sync-export";
+import {
+  buildContentSyncLocalePath,
+  buildContentSyncLottiePushTarget,
+  buildContentSyncPushCandidate,
+  isContentSyncOfficeCompatiblePath,
+} from "./content-sync-export";
 import { rewriteContentSyncProviderPath, rewriteContentSyncSourcePath } from "./content-sync-paths";
 import type { ContentSyncConfig } from "./content-sync-types";
 
@@ -62,6 +76,7 @@ export async function executeGithubContentSync(input: {
   automationId: string;
   runId: string;
   syncConfig: ContentSyncConfig;
+  pullRequestBranchKey?: string;
 }): Promise<Result<ContentSyncSummary, ContentSyncError>> {
   const [repository] = await db
     .select()
@@ -136,7 +151,7 @@ export async function executeGithubContentSync(input: {
       const folderCheck = await runSandboxCommand(
         sandboxId,
         "git",
-        ["ls-files", "--error-unmatch", input.syncConfig.providerFolder],
+        ["ls-files", "--error-unmatch", "--", input.syncConfig.providerFolder],
         { output: "stdout" },
       );
       if (folderCheck.exitCode !== 0) {
@@ -192,6 +207,7 @@ export async function executeGithubContentSync(input: {
       baseBranch: head.branch,
       baseSha: head.sha,
       syncConfig: input.syncConfig,
+      pullRequestBranchKey: input.pullRequestBranchKey,
     });
 
     if (isErr(pushResult)) {
@@ -229,6 +245,7 @@ async function pushGithubTranslations(input: {
   baseBranch: string;
   baseSha: string;
   syncConfig: ContentSyncConfig;
+  pullRequestBranchKey?: string;
 }): Promise<Result<{ written: number; pullRequestUrl?: string }, ContentSyncError>> {
   const installationId = Number.parseInt(input.installationId, 10);
   if (!Number.isFinite(installationId)) {
@@ -284,6 +301,55 @@ async function pushGithubTranslations(input: {
     }
 
     for (const locale of targetLocales) {
+      if (isContentSyncOfficeCompatiblePath(providerPath)) {
+        const officeDownload = await loadProjectOfficeTranslationDownload({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          sourcePath: file.sourcePath,
+          targetLocale: locale,
+        });
+        if (isErr(officeDownload)) {
+          logger.warn(
+            { projectId: input.projectId, errorCode: officeDownload.error.code },
+            "content sync skipped Office export",
+          );
+          continue;
+        }
+        if (officeDownload.value && officeDownload.value.translatedKeyCount > 0) {
+          candidates.push({
+            targetPath: officeTranslationDownloadFilename(
+              buildContentSyncLocalePath(providerPath, locale),
+              officeDownload.value,
+            ),
+            content: officeDownload.value.content,
+          });
+        }
+        continue;
+      }
+
+      if (inferSupportedTranslationFileFormat(file.sourcePath) === "html") {
+        const htmlDownload = await loadProjectHtmlTranslationDownload({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          sourcePath: file.sourcePath,
+          targetLocale: locale,
+        });
+        if (isErr(htmlDownload)) {
+          logger.warn(
+            { projectId: input.projectId, errorCode: htmlDownload.error.code },
+            "content sync skipped HTML export",
+          );
+          continue;
+        }
+        if (htmlDownload.value && htmlDownload.value.translatedKeyCount > 0) {
+          candidates.push({
+            targetPath: buildContentSyncLocalePath(providerPath, locale),
+            content: htmlDownload.value.content,
+          });
+        }
+        continue;
+      }
+
       const result = await loadProjectTranslationsAsPrefilledEntries({
         organizationId: input.organizationId,
         projectId: input.projectId,
@@ -291,15 +357,62 @@ async function pushGithubTranslations(input: {
         targetLocale: locale,
         readyTranslationsOnly: true,
       });
+      const lottieTarget = buildContentSyncLottiePushTarget({
+        providerPath,
+        locale,
+        translatedKeyCount: result.translatedKeyCount,
+        prefilled: result.prefilled,
+      });
+      if (lottieTarget) {
+        const lottieDownload = await loadProjectLottieTranslationDownload({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          sourcePath: file.sourcePath,
+          prefilled: result.prefilled,
+        });
+        if (isErr(lottieDownload) || !lottieDownload.value) {
+          logger.warn(
+            {
+              projectId: input.projectId,
+              errorCode: isErr(lottieDownload) ? lottieDownload.error.code : "not_lottie",
+            },
+            "content sync skipped Lottie export",
+          );
+          continue;
+        }
+        candidates.push({
+          targetPath: lottieTarget.targetPath,
+          content: lottieDownload.value.content,
+        });
+        continue;
+      }
+
       const candidate = buildContentSyncPushCandidate({
         providerPath,
         locale,
         translatedKeyCount: result.translatedKeyCount,
         prefilled: result.prefilled,
       });
-      if (candidate) {
-        candidates.push(candidate);
+      if (!candidate) {
+        continue;
       }
+
+      const lottieDownload = await loadProjectLottieTranslationDownload({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: file.sourcePath,
+        prefilled: result.prefilled,
+      });
+      if (isErr(lottieDownload)) {
+        logger.warn(
+          { projectId: input.projectId, errorCode: lottieDownload.error.code },
+          "content sync skipped Lottie export",
+        );
+        continue;
+      }
+      candidates.push(
+        lottieDownload.value ? { ...candidate, content: lottieDownload.value.content } : candidate,
+      );
     }
   }
 
@@ -335,14 +448,16 @@ async function pushGithubTranslations(input: {
     githubRepositoryId: input.githubRepositoryId,
     baseBranch: input.baseBranch,
     baseSha: input.baseSha,
-    branchName: buildPullTranslationsBranchName(input.runId),
+    branchName: buildPullTranslationsBranchName(input.pullRequestBranchKey ?? input.runId),
     paths: targetPaths,
     candidates: exportCandidates,
     linkedTranslationJobIds: [],
+    reuseBranch: input.pullRequestBranchKey !== undefined,
   });
 
   return ok({
-    written: candidates.length,
+    // An open pull request that already has these files is left alone, so nothing was sent.
+    written: pr.pushed ? candidates.length : 0,
     pullRequestUrl: pr.pullRequestUrl,
   });
 }

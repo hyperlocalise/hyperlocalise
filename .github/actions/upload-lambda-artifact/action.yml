@@ -1,0 +1,112 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Build and upload Lambda artifact
+description: Build, package, resolve an artifact bucket from SSM, and upload a Lambda artifact to S3
+inputs:
+  build-command:
+    description: Shell command used to build the Lambda executable
+    required: true
+  binary-path:
+    description: Path to the Lambda executable produced by the build command
+    required: true
+  s3-key:
+    description: S3 object key for the Lambda artifact
+    required: true
+  bucket-parameter-name:
+    description: SSM parameter containing the artifact bucket name
+    required: true
+  content-type:
+    description: Content type for the uploaded artifact
+    default: application/zip
+outputs:
+  bucket:
+    description: Resolved S3 artifact bucket name
+    value: ${{ steps.resolve.outputs.bucket }}
+  s3-uri:
+    description: S3 URI of the uploaded artifact
+    value: ${{ steps.upload.outputs.s3-uri }}
+  version-id:
+    description: S3 object version ID of the uploaded artifact
+    value: ${{ steps.upload.outputs.version-id }}
+runs:
+  using: composite
+  steps:
+    - name: Build and package artifact
+      id: package
+      shell: bash
+      env:
+        BUILD_COMMAND: ${{ inputs.build-command }}
+        BINARY_PATH: ${{ inputs.binary-path }}
+      run: |
+        set -euo pipefail
+
+        bash -c "${BUILD_COMMAND}"
+
+        if [[ ! -f "${BINARY_PATH}" ]]; then
+          echo "Lambda binary does not exist: ${BINARY_PATH}" >&2
+          exit 1
+        fi
+
+        artifact_dir="${RUNNER_TEMP}/lambda-artifact"
+        artifact_path="${artifact_dir}/artifact.zip"
+        entrypoint="$(basename "${BINARY_PATH}")"
+        mkdir -p "${artifact_dir}"
+
+        zip -j "${artifact_path}" "${BINARY_PATH}"
+
+        if [[ "$(unzip -Z1 "${artifact_path}" | sort)" != "${entrypoint}" ]]; then
+          echo "Lambda artifact must contain exactly one root-level executable" >&2
+          unzip -Z1 "${artifact_path}" >&2
+          exit 1
+        fi
+
+        echo "artifact-path=${artifact_path}" >> "${GITHUB_OUTPUT}"
+
+    - name: Resolve artifact bucket
+      id: resolve
+      shell: bash
+      env:
+        BUCKET_PARAMETER_NAME: ${{ inputs.bucket-parameter-name }}
+      run: |
+        set -euo pipefail
+
+        bucket="$(aws ssm get-parameter \
+          --name "${BUCKET_PARAMETER_NAME}" \
+          --query 'Parameter.Value' \
+          --output text)"
+
+        if [[ -z "${bucket}" || "${bucket}" == "None" ]]; then
+          echo "SSM parameter is missing or empty: ${BUCKET_PARAMETER_NAME}" >&2
+          exit 1
+        fi
+
+        echo "Resolved Lambda artifact bucket from ${BUCKET_PARAMETER_NAME}"
+        echo "bucket=${bucket}" >> "${GITHUB_OUTPUT}"
+
+    - name: Upload artifact
+      id: upload
+      shell: bash
+      env:
+        ARTIFACT_PATH: ${{ steps.package.outputs.artifact-path }}
+        BUCKET: ${{ steps.resolve.outputs.bucket }}
+        CONTENT_TYPE: ${{ inputs.content-type }}
+        S3_KEY: ${{ inputs.s3-key }}
+      run: |
+        set -euo pipefail
+
+        version_id="$(aws s3api put-object \
+          --bucket "${BUCKET}" \
+          --key "${S3_KEY}" \
+          --body "${ARTIFACT_PATH}" \
+          --content-type "${CONTENT_TYPE}" \
+          --query 'VersionId' \
+          --output text)"
+
+        if [[ -z "${version_id}" || "${version_id}" == "None" ]]; then
+          echo "S3 did not return a version ID for s3://${BUCKET}/${S3_KEY}" >&2
+          exit 1
+        fi
+
+        s3_uri="s3://${BUCKET}/${S3_KEY}"
+        echo "Uploaded ${s3_uri} (version ${version_id})"
+        echo "s3-uri=${s3_uri}" >> "${GITHUB_OUTPUT}"
+        echo "version-id=${version_id}" >> "${GITHUB_OUTPUT}"

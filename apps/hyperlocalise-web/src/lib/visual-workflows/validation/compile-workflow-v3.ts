@@ -1,0 +1,599 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { getWorkflowInputFields, getWorkflowOutputFields } from "../catalog/node-contracts";
+import type {
+  CanonicalVisualWorkflowNode,
+  VisualWorkflowIssueReason,
+  VisualNodeConfig,
+  VisualWorkflowV3Definition,
+  VisualWorkflowV3Edge,
+  WorkflowBinding,
+  VisualWorkflowDefinition,
+} from "../schema/types";
+import { isTriggerType } from "../catalog/node-catalog";
+import {
+  computeFlowBodyNodeIdsFromV3Edges,
+  computeForEachBodyNodeIdsFromV3Edges,
+  computeTryCatchBodyNodeIdsFromV3Edges,
+} from "../editor/for-each-body-membership";
+import { getAllowedExecutionSourceHandles } from "./execution-handles";
+
+export type VisualWorkflowV3CompilationIssue = {
+  code:
+    | "invalid_edge"
+    | "invalid_source_port"
+    | "invalid_target_port"
+    | "conflicting_data_input"
+    | "incompatible_data_types"
+    | "execution_cycle"
+    | "terminal_node_outgoing_edge"
+    | "missing_required_input"
+    | "invalid_try_catch_region"
+    | "overlapping_try_catch_region";
+  edgeId?: string;
+  nodeId?: string;
+  /** The input of the step that is at fault, by its name, when the issue is about one. */
+  field?: string;
+  reason?: VisualWorkflowIssueReason;
+};
+
+export type CompiledVisualWorkflowV3Definition = {
+  definition: VisualWorkflowV3Definition;
+  executionEdges: Extract<VisualWorkflowV3Edge, { kind: "execution" }>[];
+  issues: VisualWorkflowV3CompilationIssue[];
+};
+
+function comparisonOperandTypesAreCompatible(
+  config: Extract<VisualNodeConfig, { kind: "logic.compare" }>,
+): boolean {
+  const types = config.operands.map((operand) => operand.type);
+  if (config.locale && !types.every((type) => type === "string")) return false;
+  if (types.includes("unknown")) return true;
+
+  switch (config.operator) {
+    case "and":
+    case "or":
+    case "not":
+      return types.every((type) => type === "boolean");
+    case "starts_with":
+    case "ends_with":
+      return types.length === 2 && types.every((type) => type === "string");
+    case "greater_than":
+    case "greater_than_or_equal":
+    case "less_than":
+    case "less_than_or_equal":
+      return (
+        types.length === 2 &&
+        types[0] === types[1] &&
+        (types[0] === "string" || types[0] === "number")
+      );
+    case "contains":
+      return (
+        types.length === 2 &&
+        ((types[0] === "string" && types[1] === "string") || types[0] === "array")
+      );
+    case "equal":
+    case "not_equal":
+      return types.length === 2 && types[0] === types[1];
+  }
+}
+
+function isScopedCollectionOutputPort(
+  source: CanonicalVisualWorkflowNode,
+  portId: string,
+): boolean {
+  const root = portId.split(".")[0];
+  if (source.type === "logic.for_each") return root === "item" || root === "index";
+  if (source.type !== "logic.array_transform" || source.config.kind !== "logic.array_transform") {
+    return false;
+  }
+  return (
+    root === "item" ||
+    root === "index" ||
+    (root === "accumulator" && source.config.operation === "reduce")
+  );
+}
+
+function hasDataSourcePort(node: CanonicalVisualWorkflowNode, portId: string): boolean {
+  const fields = getWorkflowOutputFields(node);
+
+  return fields.some(
+    (field) =>
+      field.path === portId ||
+      (["unknown", "object", "array"].includes(field.type) && portId.startsWith(`${field.path}.`)),
+  );
+}
+
+function hasDataTargetPort(node: CanonicalVisualWorkflowNode, portId: string): boolean {
+  if (portId === "input") {
+    return false;
+  }
+
+  if (node.config.kind === "logic.merge" && portId.startsWith("value.")) {
+    const inputId = portId.slice("value.".length);
+    return node.config.inputs.some((input) => input.id === inputId);
+  }
+
+  if (node.config.kind === "flow.return" && portId.startsWith("value.")) {
+    const outputId = portId.slice("value.".length);
+    return node.config.outputs.some((output) => output.id === outputId);
+  }
+
+  if (getWorkflowInputFields(node).some((field) => field.name === portId)) {
+    return true;
+  }
+
+  if (node.type === "logic.set") {
+    return true;
+  }
+
+  return node.type === "action.http" && /^(headers|body)\./.test(portId);
+}
+
+function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> {
+  return new Set(
+    getAllowedExecutionSourceHandles(node).filter((handle): handle is string => handle !== null),
+  );
+}
+
+function executionTargetPortIds(node: CanonicalVisualWorkflowNode): Set<string> {
+  if (node.config.kind === "logic.merge") {
+    return new Set(node.config.inputs.map((input) => input.id));
+  }
+
+  return new Set(["input"]);
+}
+
+function hasExecutionCycle(
+  definition: VisualWorkflowV3Definition,
+  executionEdges: readonly Extract<VisualWorkflowV3Edge, { kind: "execution" }>[],
+): boolean {
+  const incomingCountByNodeId = new Map(definition.nodes.map((node) => [node.id, 0]));
+
+  const outgoingByNodeId = new Map(
+    definition.nodes.map((node) => [
+      node.id,
+      [] as Extract<VisualWorkflowV3Edge, { kind: "execution" }>[],
+    ]),
+  );
+
+  for (const edge of executionEdges) {
+    outgoingByNodeId.get(edge.source)?.push(edge);
+
+    incomingCountByNodeId.set(edge.target, (incomingCountByNodeId.get(edge.target) ?? 0) + 1);
+  }
+
+  const queue = [...incomingCountByNodeId]
+    .filter(([, incomingCount]) => incomingCount === 0)
+    .map(([nodeId]) => nodeId);
+
+  let visitedNodeCount = 0;
+
+  while (queue.length > 0) {
+    const nodeId = queue.shift()!;
+    visitedNodeCount += 1;
+
+    for (const edge of outgoingByNodeId.get(nodeId) ?? []) {
+      const incomingCount = (incomingCountByNodeId.get(edge.target) ?? 0) - 1;
+
+      incomingCountByNodeId.set(edge.target, incomingCount);
+
+      if (incomingCount === 0) {
+        queue.push(edge.target);
+      }
+    }
+  }
+
+  return visitedNodeCount !== definition.nodes.length;
+}
+
+const HUMAN_APPROVAL_REQUIRED_FIELDS = ["reviewerId", "prompt", "deadline"] as const;
+
+function hasConfiguredHumanApprovalField(
+  node: CanonicalVisualWorkflowNode,
+  field: (typeof HUMAN_APPROVAL_REQUIRED_FIELDS)[number],
+): boolean {
+  if (node.config.kind !== "flow.human_approval") return false;
+
+  const configuredValue =
+    field === "reviewerId"
+      ? node.config.reviewerId
+      : field === "prompt"
+        ? node.config.prompt
+        : node.config.deadline;
+
+  if (typeof configuredValue === "string" && configuredValue.trim().length > 0) {
+    return true;
+  }
+
+  const binding = node.inputs?.[field];
+  if (!binding) return false;
+
+  if (binding.kind !== "literal") {
+    return true;
+  }
+
+  return typeof binding.value === "string" && binding.value.trim().length > 0;
+}
+
+function validateHumanApprovalInputs(
+  node: CanonicalVisualWorkflowNode,
+): VisualWorkflowV3CompilationIssue[] {
+  if (node.config.kind !== "flow.human_approval") return [];
+
+  const issues: VisualWorkflowV3CompilationIssue[] = [];
+
+  for (const field of HUMAN_APPROVAL_REQUIRED_FIELDS) {
+    if (!hasConfiguredHumanApprovalField(node, field)) {
+      issues.push({
+        code: "missing_required_input",
+        nodeId: node.id,
+        field,
+        reason: "required",
+      });
+    }
+
+    const binding = node.inputs?.[field];
+    if (
+      binding?.kind === "literal" &&
+      binding.value !== undefined &&
+      typeof binding.value !== "string"
+    ) {
+      issues.push({
+        code: "incompatible_data_types",
+        nodeId: node.id,
+        field,
+      });
+    }
+  }
+
+  for (const field of ["artifactReference", "jobReference"] as const) {
+    const binding = node.inputs?.[field];
+
+    if (
+      binding?.kind === "literal" &&
+      binding.value !== undefined &&
+      typeof binding.value !== "string"
+    ) {
+      issues.push({
+        code: "incompatible_data_types",
+        nodeId: node.id,
+        field,
+      });
+    }
+  }
+
+  return issues;
+}
+
+export function compileVisualWorkflowV3Definition(
+  definition: VisualWorkflowV3Definition,
+): CompiledVisualWorkflowV3Definition {
+  const issues: VisualWorkflowV3CompilationIssue[] = [];
+
+  const nodes = definition.nodes.map((node) => ({
+    ...node,
+    inputs: node.inputs
+      ? {
+          ...node.inputs,
+        }
+      : undefined,
+  }));
+
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+
+  const executionEdgeCandidates = definition.edges.filter(
+    (edge): edge is Extract<VisualWorkflowV3Edge, { kind: "execution" }> =>
+      edge.kind === "execution",
+  );
+
+  const executionEdges: Extract<VisualWorkflowV3Edge, { kind: "execution" }>[] = [];
+
+  const dataEdges = definition.edges.filter(
+    (edge): edge is Extract<VisualWorkflowV3Edge, { kind: "data" }> => edge.kind === "data",
+  );
+
+  const dataTargetCounts = new Map<string, number>();
+
+  for (const edge of dataEdges) {
+    const targetKey = JSON.stringify([edge.target, edge.targetPortId]);
+
+    dataTargetCounts.set(targetKey, (dataTargetCounts.get(targetKey) ?? 0) + 1);
+  }
+
+  for (const edge of executionEdgeCandidates) {
+    const source = nodesById.get(edge.source);
+    const target = nodesById.get(edge.target);
+
+    if (!source || !target) {
+      issues.push({
+        code: "invalid_edge",
+        edgeId: edge.id,
+      });
+      continue;
+    }
+
+    if (["flow.stop", "flow.return", "flow.fail"].includes(source.type)) {
+      issues.push({
+        code: "terminal_node_outgoing_edge",
+        edgeId: edge.id,
+        nodeId: source.id,
+      });
+      continue;
+    }
+
+    if (!executionSourcePortIds(source).has(edge.sourcePortId)) {
+      issues.push({
+        code: "invalid_source_port",
+        edgeId: edge.id,
+        nodeId: source.id,
+      });
+      continue;
+    }
+
+    if (isTriggerType(target.type) || !executionTargetPortIds(target).has(edge.targetPortId)) {
+      issues.push({
+        code: "invalid_target_port",
+        edgeId: edge.id,
+        nodeId: target.id,
+      });
+      continue;
+    }
+
+    executionEdges.push(edge);
+  }
+
+  if (hasExecutionCycle(definition, executionEdges)) {
+    issues.push({
+      code: "execution_cycle",
+    });
+  }
+
+  const tryCatchRegions = nodes
+    .filter((node) => node.type === "logic.try_catch")
+    .map((node) => ({
+      nodeId: node.id,
+      bodyNodeIds: computeTryCatchBodyNodeIdsFromV3Edges(node.id, executionEdges),
+    }));
+
+  for (const region of tryCatchRegions) {
+    if (region.bodyNodeIds.length === 0) {
+      issues.push({ code: "invalid_try_catch_region", nodeId: region.nodeId });
+    }
+  }
+
+  for (const [index, left] of tryCatchRegions.entries()) {
+    const leftIds = new Set(left.bodyNodeIds);
+
+    for (const right of tryCatchRegions.slice(index + 1)) {
+      const rightIds = new Set(right.bodyNodeIds);
+      const intersects = [...leftIds].some((nodeId) => rightIds.has(nodeId));
+      if (!intersects) continue;
+
+      const leftStrictlyContainsRight =
+        leftIds.size > rightIds.size && [...rightIds].every((nodeId) => leftIds.has(nodeId));
+      const rightStrictlyContainsLeft =
+        rightIds.size > leftIds.size && [...leftIds].every((nodeId) => rightIds.has(nodeId));
+
+      if (!leftStrictlyContainsRight && !rightStrictlyContainsLeft) {
+        issues.push({ code: "overlapping_try_catch_region", nodeId: right.nodeId });
+      }
+    }
+  }
+
+  for (const edge of dataEdges) {
+    const source = nodesById.get(edge.source);
+    const target = nodesById.get(edge.target);
+
+    if (!source || !target) {
+      issues.push({
+        code: "invalid_edge",
+        edgeId: edge.id,
+      });
+      continue;
+    }
+
+    if (["flow.stop", "flow.return", "flow.fail"].includes(source.type)) {
+      issues.push({
+        code: "terminal_node_outgoing_edge",
+        edgeId: edge.id,
+        nodeId: source.id,
+      });
+      continue;
+    }
+
+    if (!hasDataSourcePort(source, edge.sourcePortId)) {
+      issues.push({
+        code: "invalid_source_port",
+        edgeId: edge.id,
+        nodeId: source.id,
+      });
+      continue;
+    }
+
+    if (isScopedCollectionOutputPort(source, edge.sourcePortId)) {
+      const bodyNodeIds = new Set(computeForEachBodyNodeIdsFromV3Edges(source.id, executionEdges));
+      if (!bodyNodeIds.has(target.id)) {
+        issues.push({
+          code: "invalid_source_port",
+          edgeId: edge.id,
+          nodeId: source.id,
+        });
+        continue;
+      }
+    }
+
+    if (!hasDataTargetPort(target, edge.targetPortId)) {
+      issues.push({
+        code: "invalid_target_port",
+        edgeId: edge.id,
+        nodeId: target.id,
+      });
+      continue;
+    }
+
+    const sourceField = getWorkflowOutputFields(source).find(
+      (field) => field.path === edge.sourcePortId,
+    );
+
+    const targetField = getWorkflowInputFields(target).find(
+      (field) => field.name === edge.targetPortId,
+    );
+
+    if (
+      sourceField &&
+      targetField &&
+      sourceField.type !== "unknown" &&
+      targetField.type !== "unknown" &&
+      sourceField.type !== targetField.type
+    ) {
+      issues.push({
+        code: "incompatible_data_types",
+        edgeId: edge.id,
+        nodeId: target.id,
+      });
+      continue;
+    }
+
+    const targetKey = JSON.stringify([edge.target, edge.targetPortId]);
+
+    if ((dataTargetCounts.get(targetKey) ?? 0) > 1) {
+      issues.push({
+        code: "conflicting_data_input",
+        edgeId: edge.id,
+        nodeId: target.id,
+      });
+      continue;
+    }
+
+    const inputs: Record<string, WorkflowBinding> = {
+      ...target.inputs,
+    };
+
+    if (Object.hasOwn(inputs, edge.targetPortId)) {
+      issues.push({
+        code: "conflicting_data_input",
+        edgeId: edge.id,
+        nodeId: target.id,
+      });
+      continue;
+    }
+
+    inputs[edge.targetPortId] = {
+      kind: "reference",
+      nodeId: source.id,
+      path: edge.sourcePortId.split("."),
+      ...(target.config.kind === "logic.merge" ||
+      target.config.kind === "logic.coalesce" ||
+      targetField?.required === false
+        ? { optional: true }
+        : {}),
+    };
+
+    target.inputs = inputs;
+  }
+
+  for (const node of nodes) {
+    if (node.config.kind === "flow.human_approval") {
+      issues.push(...validateHumanApprovalInputs(node));
+      continue;
+    }
+
+    if (
+      node.config.kind !== "flow.return" &&
+      node.config.kind !== "flow.call_workflow" &&
+      node.config.kind !== "logic.create_object" &&
+      node.config.kind !== "logic.merge_objects" &&
+      node.config.kind !== "logic.select_path" &&
+      node.config.kind !== "logic.coalesce" &&
+      node.config.kind !== "logic.compare" &&
+      node.config.kind !== "logic.text_template" &&
+      node.config.kind !== "logic.concatenate"
+    )
+      continue;
+
+    for (const field of getWorkflowInputFields(node)) {
+      if (field.required && !Object.hasOwn(node.inputs ?? {}, field.name)) {
+        issues.push({
+          code: "missing_required_input",
+          nodeId: node.id,
+          field: field.name,
+          reason: "required",
+        });
+      }
+    }
+
+    if (
+      node.config.kind === "logic.select_path" &&
+      node.config.path.length === 0 &&
+      !Object.hasOwn(node.inputs ?? {}, "path")
+    ) {
+      issues.push({
+        code: "missing_required_input",
+        nodeId: node.id,
+        field: "path",
+        reason: "required",
+      });
+    }
+
+    if (node.config.kind === "logic.compare" && !comparisonOperandTypesAreCompatible(node.config)) {
+      issues.push({
+        code: "incompatible_data_types",
+        nodeId: node.id,
+      });
+    }
+  }
+
+  return {
+    definition: {
+      ...definition,
+      nodes,
+    },
+    executionEdges,
+    issues,
+  };
+}
+
+export function toVisualWorkflowExecutionDefinition(
+  compiled: CompiledVisualWorkflowV3Definition,
+): VisualWorkflowDefinition {
+  const nodesById = new Map(compiled.definition.nodes.map((node) => [node.id, node]));
+  const executionSourceHandle = (
+    edge: Extract<VisualWorkflowV3Edge, { kind: "execution" }>,
+  ): string | null => {
+    if (edge.sourcePortId !== "success") return edge.sourcePortId;
+    const source = nodesById.get(edge.source);
+    return source && getAllowedExecutionSourceHandles(source).includes(null) ? null : "success";
+  };
+
+  return {
+    schemaVersion: 2,
+    name: compiled.definition.name,
+    nodes: compiled.definition.nodes.map((node) => {
+      const bodyNodeIds = computeFlowBodyNodeIdsFromV3Edges(
+        node.type,
+        node.id,
+        compiled.definition.edges,
+      );
+      return bodyNodeIds ? { ...node, bodyNodeIds } : node;
+    }),
+    edges: compiled.executionEdges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: executionSourceHandle(edge),
+      targetHandle: edge.targetPortId === "input" ? null : edge.targetPortId,
+    })),
+    editor: compiled.definition.editor,
+  };
+}

@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import Image from "next/image";
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRightIcon } from "@phosphor-icons/react";
 import type { SimpleIcon } from "simple-icons";
 import { FormattedMessage } from "react-intl";
 
@@ -108,11 +107,7 @@ export function ModelProviderCard({
         >
           <span>{footerLabel}</span>
           {interactive ? (
-            <HugeiconsIcon
-              icon={ArrowRight01Icon}
-              strokeWidth={1.8}
-              className="size-4 transition-transform group-hover:translate-x-0.5 group-disabled:translate-x-0"
-            />
+            <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5 group-disabled:translate-x-0" />
           ) : null}
         </div>
       ) : null}

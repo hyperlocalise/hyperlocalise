@@ -14,8 +14,7 @@
  */
 import { useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { UnfoldMoreIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretUpDownIcon } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -94,7 +93,7 @@ export function AutomationTimeZoneSelect({
         }
       >
         <span className="min-w-0 truncate">{selectedLabel}</span>
-        <HugeiconsIcon icon={UnfoldMoreIcon} strokeWidth={2} data-icon="inline-end" />
+        <CaretUpDownIcon data-icon="inline-end" />
       </PopoverTrigger>
       <PopoverContent align="start" className="min-w-72 p-0" sideOffset={4}>
         <Command shouldFilter={false}>

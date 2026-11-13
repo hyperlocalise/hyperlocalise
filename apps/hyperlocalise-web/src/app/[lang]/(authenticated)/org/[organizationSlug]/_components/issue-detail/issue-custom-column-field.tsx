@@ -31,9 +31,7 @@ import { issueCustomColumnFieldMessages as messages } from "./issue-custom-colum
 import { issueSheetColumnValueString } from "./issue-sheet-column-utils";
 import type { IssueSheetColumn } from "./issue-sheet-column-types";
 import type { AssignableIssueMember } from "./use-assignable-issue-members";
-
-const ghostSelectTriggerClassName =
-  "h-8 max-w-full justify-end border-transparent bg-transparent px-1.5 shadow-none hover:bg-muted/60 focus-visible:border-ring";
+import { issuePropertyControlClassName } from "./issue-property-control";
 
 export function IssueCustomColumnField({
   column,
@@ -82,7 +80,7 @@ export function IssueCustomColumnField({
         disabled={disabled}
       >
         <SelectTrigger
-          className={variant === "sidebar" ? ghostSelectTriggerClassName : "w-full max-w-xs"}
+          className={variant === "sidebar" ? issuePropertyControlClassName : "w-full max-w-xs"}
         >
           <SelectValue placeholder={emptyValue} />
         </SelectTrigger>
@@ -107,7 +105,7 @@ export function IssueCustomColumnField({
         isLoading={membersLoading}
         disabled={disabled}
         size={variant === "sidebar" ? "ghost" : "default"}
-        triggerClassName={variant === "sidebar" ? ghostSelectTriggerClassName : undefined}
+        triggerClassName={variant === "sidebar" ? issuePropertyControlClassName : undefined}
         onChange={(assigneeUserId) => {
           onChange(assigneeUserId ?? "");
         }}
@@ -144,7 +142,7 @@ export function IssueCustomColumnField({
         disabled={disabled}
         placeholder={placeholder}
         rows={3}
-        className="min-h-20 w-full"
+        className="min-h-20 w-full border-transparent bg-transparent px-2 shadow-none hover:bg-accent focus-visible:border-ring focus-visible:bg-accent"
       />
     );
   }
@@ -158,8 +156,8 @@ export function IssueCustomColumnField({
       placeholder={emptyValue}
       variant={variant === "sidebar" ? "inline" : "default"}
       className={cn(
-        variant === "sidebar" && "text-end",
-        variant === "main" ? "w-full" : "w-44 max-w-full",
+        variant === "sidebar" && "w-full px-2 text-start hover:bg-accent",
+        variant === "main" ? "w-full" : "max-w-full",
       )}
     />
   );

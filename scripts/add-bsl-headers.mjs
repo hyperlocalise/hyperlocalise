@@ -9,7 +9,6 @@
  *
  * Examples:
  *   node scripts/add-bsl-headers.mjs
- *   node scripts/add-bsl-headers.mjs apps/mac-app
  *   node scripts/add-bsl-headers.mjs --check
  */
 
@@ -22,7 +21,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_APPS = [
     "apps/hyperlocalise-web",
     "apps/canva-app",
-    "apps/mac-app",
 ];
 
 const SOURCE_EXTENSIONS = new Set([
@@ -33,7 +31,6 @@ const SOURCE_EXTENSIONS = new Set([
     ".mjs",
     ".cjs",
     ".css",
-    ".swift",
 ]);
 
 const SKIP_DIR_NAMES = new Set([

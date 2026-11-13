@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect } from "storybook/test";
+import { expect, userEvent } from "storybook/test";
 import { DomainsPageContent } from "./domains-page-content";
 import {
   domainResearchMswHandlers,
@@ -45,6 +45,19 @@ export const Empty: Story = {
   },
   play: async ({ canvas }) => {
     await expect(await canvas.findByText("No linked domains yet")).toBeInTheDocument();
-    await expect(await canvas.findByRole("button", { name: "Link domain" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Add a domain" })).toBeInTheDocument();
+  },
+};
+
+export const LinkNewDomainFromOrganization: Story = {
+  parameters: {
+    msw: { handlers: emptyLinkedDomainsMswHandlers() },
+  },
+  play: async ({ canvas }) => {
+    await userEvent.click(await canvas.findByRole("button", { name: "Add a domain" }));
+    await expect(canvas.getByRole("dialog")).toBeInTheDocument();
+
+    await userEvent.type(canvas.getByRole("textbox", { name: "Domain" }), "docs.acme.com");
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
   },
 };

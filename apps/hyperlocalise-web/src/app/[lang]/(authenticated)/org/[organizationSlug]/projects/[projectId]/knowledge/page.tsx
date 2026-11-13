@@ -13,23 +13,21 @@
 import { hasCapability } from "@/api/auth/policy";
 import { KnowledgePageContent } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-page-content";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
-import {
-  getWorkspaceFeatureFlagEnabled,
-  workspaceKnowledgeFlag,
-} from "@/lib/flags/workspace-flags";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { getAutumnWorkspaceBooleanFeatureEnabled } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectGuideline");
+}
 
 export default function ProjectKnowledgePage({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectKnowledgePageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ProjectKnowledgePageLoader params={params} />;
 }
 
 async function ProjectKnowledgePageLoader({
@@ -39,7 +37,10 @@ async function ProjectKnowledgePageLoader({
 }) {
   const { organizationSlug, projectId } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  const knowledgeEnabled = await getWorkspaceFeatureFlagEnabled(workspaceKnowledgeFlag, auth);
+  const knowledgeEnabled = await getAutumnWorkspaceBooleanFeatureEnabled(
+    autumnFeatureIds.guidelines,
+    auth,
+  );
 
   if (!knowledgeEnabled) {
     return <FeatureTeaserPage feature="guideline" scope="project" />;

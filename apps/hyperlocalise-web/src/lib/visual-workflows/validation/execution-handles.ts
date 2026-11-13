@@ -1,0 +1,123 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { VisualCatalogType, VisualNodeConfig } from "../schema/types";
+
+export type VisualWorkflowHandleSource = {
+  type: VisualCatalogType;
+  config: VisualNodeConfig;
+};
+
+export function getAllowedExecutionSourceHandles(
+  node: VisualWorkflowHandleSource,
+): Array<string | null> {
+  if (["flow.stop", "flow.return", "flow.fail"].includes(node.type)) {
+    return [];
+  }
+  if (node.type === "logic.if") {
+    return ["true", "false"];
+  }
+  if (node.type === "logic.json_parse" || node.type === "logic.schema_validate") {
+    return ["success", "invalid"];
+  }
+  if (node.type === "logic.json_stringify") {
+    return ["success", "error"];
+  }
+  if (["action.file_read", "action.file_write", "action.file_convert"].includes(node.type)) {
+    return ["success", "error"];
+  }
+  if (node.config.kind === "logic.switch") {
+    return [...node.config.cases.map((entry) => entry.id), "default"];
+  }
+  if (["logic.for_each", "logic.array_transform"].includes(node.type)) {
+    return ["each", "done"];
+  }
+  if (node.type === "logic.retry") {
+    return ["attempt", "succeeded", "exhausted"];
+  }
+  if (node.type === "flow.human_approval") {
+    return ["approved", "rejected", "changes_requested", "timed_out"];
+  }
+  if (node.type === "flow.wait") {
+    return ["completed", "timed_out", "error"];
+  }
+  if (node.type === "logic.merge") {
+    return ["completed", "timed_out", "error"];
+  }
+  if (node.config.kind === "logic.sequence") {
+    return node.config.outputs.map((output) => output.id);
+  }
+  if (node.type === "logic.try_catch") {
+    return ["try", "success", "catch", "finally"];
+  }
+  return [
+    null,
+    "success",
+    ...("onError" in node.config && node.config.onError === "branch" ? (["error"] as const) : []),
+  ];
+}
+
+export function getPrimaryExecutionSourceHandle(node: VisualWorkflowHandleSource): string | null {
+  if (node.type === "logic.if") {
+    return "true";
+  }
+  if (
+    node.type === "logic.json_parse" ||
+    node.type === "logic.json_stringify" ||
+    node.type === "logic.schema_validate"
+  ) {
+    return "success";
+  }
+  if (["action.file_read", "action.file_write", "action.file_convert"].includes(node.type)) {
+    return "success";
+  }
+  if (node.config.kind === "logic.switch") {
+    return node.config.cases[0]?.id ?? "default";
+  }
+  if (["logic.for_each", "logic.array_transform"].includes(node.type)) {
+    return "each";
+  }
+  if (node.type === "logic.retry") {
+    return "attempt";
+  }
+  if (node.type === "flow.human_approval") {
+    return "approved";
+  }
+  if (node.type === "flow.wait") {
+    return "completed";
+  }
+  if (node.type === "logic.merge") {
+    return "completed";
+  }
+  if (node.config.kind === "logic.sequence") {
+    return node.config.outputs[0]?.id ?? null;
+  }
+  if (node.type === "logic.try_catch") {
+    return "try";
+  }
+  return null;
+}
+
+export function coerceExecutionSourceHandle(rawHandle?: string | null): string | null {
+  return rawHandle === undefined || rawHandle === "" ? null : rawHandle;
+}
+
+export function normalizeExecutionSourceHandle(
+  node: VisualWorkflowHandleSource,
+  rawHandle?: string | null,
+): { ok: true; handle: string | null } | { ok: false } {
+  const handle = coerceExecutionSourceHandle(rawHandle);
+  if (!getAllowedExecutionSourceHandles(node).includes(handle)) {
+    return { ok: false };
+  }
+  return { ok: true, handle };
+}

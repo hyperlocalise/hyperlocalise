@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon, ExternalLinkIcon, Message01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, ArrowSquareOutIcon, ChatTextIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -164,7 +163,7 @@ const providers = {
       `https://t3.chat/new?${new URLSearchParams({
         q,
       })}`,
-    icon: <HugeiconsIcon icon={Message01Icon} />,
+    icon: <ChatTextIcon />,
   },
   v0: {
     createUrl: (q: string) =>
@@ -235,7 +234,7 @@ export const OpenInTrigger = ({ children, ...props }: OpenInTriggerProps) => {
       {children ?? (
         <Button type="button" variant="outline">
           {intl.formatMessage(openInChatMessages.openInChat)}
-          <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" />
+          <CaretDownIcon className="size-4" />
         </Button>
       )}
     </DropdownMenuTrigger>
@@ -262,7 +261,7 @@ export const OpenInChatGPT = (props: OpenInChatGPTProps) => {
     >
       <span className="shrink-0">{providers.chatgpt.icon}</span>
       <span className="flex-1">{intl.formatMessage(openInChatMessages.openInChatGpt)}</span>
-      <HugeiconsIcon icon={ExternalLinkIcon} className="size-4 shrink-0" />
+      <ArrowSquareOutIcon className="size-4 shrink-0" />
     </DropdownMenuItem>
   );
 };
@@ -287,7 +286,7 @@ export const OpenInClaude = (props: OpenInClaudeProps) => {
     >
       <span className="shrink-0">{providers.claude.icon}</span>
       <span className="flex-1">{intl.formatMessage(openInChatMessages.openInClaude)}</span>
-      <HugeiconsIcon icon={ExternalLinkIcon} className="size-4 shrink-0" />
+      <ArrowSquareOutIcon className="size-4 shrink-0" />
     </DropdownMenuItem>
   );
 };
@@ -312,7 +311,7 @@ export const OpenInT3 = (props: OpenInT3Props) => {
     >
       <span className="shrink-0">{providers.t3.icon}</span>
       <span className="flex-1">{intl.formatMessage(openInChatMessages.openInT3Chat)}</span>
-      <HugeiconsIcon icon={ExternalLinkIcon} className="size-4 shrink-0" />
+      <ArrowSquareOutIcon className="size-4 shrink-0" />
     </DropdownMenuItem>
   );
 };
@@ -337,7 +336,7 @@ export const OpenInScira = (props: OpenInSciraProps) => {
     >
       <span className="shrink-0">{providers.scira.icon}</span>
       <span className="flex-1">{intl.formatMessage(openInChatMessages.openInScira)}</span>
-      <HugeiconsIcon icon={ExternalLinkIcon} className="size-4 shrink-0" />
+      <ArrowSquareOutIcon className="size-4 shrink-0" />
     </DropdownMenuItem>
   );
 };
@@ -362,7 +361,7 @@ export const OpenInv0 = (props: OpenInv0Props) => {
     >
       <span className="shrink-0">{providers.v0.icon}</span>
       <span className="flex-1">{intl.formatMessage(openInChatMessages.openInV0)}</span>
-      <HugeiconsIcon icon={ExternalLinkIcon} className="size-4 shrink-0" />
+      <ArrowSquareOutIcon className="size-4 shrink-0" />
     </DropdownMenuItem>
   );
 };
@@ -387,7 +386,7 @@ export const OpenInCursor = (props: OpenInCursorProps) => {
     >
       <span className="shrink-0">{providers.cursor.icon}</span>
       <span className="flex-1">{intl.formatMessage(openInChatMessages.openInCursor)}</span>
-      <HugeiconsIcon icon={ExternalLinkIcon} className="size-4 shrink-0" />
+      <ArrowSquareOutIcon className="size-4 shrink-0" />
     </DropdownMenuItem>
   );
 };

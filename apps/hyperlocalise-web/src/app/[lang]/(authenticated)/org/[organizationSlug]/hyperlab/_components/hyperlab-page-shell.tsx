@@ -14,8 +14,7 @@
  */
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft01Icon, FlaskConicalIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, FlaskIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -26,13 +25,11 @@ import { hyperlabMessages as messages } from "./hyperlab.messages";
 
 export function HyperlabPageShell({
   title,
-  description,
   actions,
   backHref,
   children,
 }: {
   title: string;
-  description: string;
   actions?: ReactNode;
   backHref?: string;
   children: ReactNode;
@@ -50,15 +47,14 @@ export function HyperlabPageShell({
             nativeButton={false}
             render={<Link href={backHref} />}
           >
-            <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.8} data-icon="inline-start" />
+            <ArrowLeftIcon data-icon="inline-start" />
             <FormattedMessage {...messages.backToList} />
           </Button>
         ) : null}
         <PageHeader
-          icon={FlaskConicalIcon}
+          icon={FlaskIcon}
           label={intl.formatMessage(messages.workspaceLabel)}
           title={title}
-          description={description}
           actions={actions}
         />
         {children}

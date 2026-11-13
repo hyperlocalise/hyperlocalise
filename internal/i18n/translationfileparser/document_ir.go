@@ -13,8 +13,10 @@ const DocumentEntriesMetaKey = "__hl_document"
 type DocumentFormat string
 
 const (
-	DocumentFormatMarkdown DocumentFormat = "markdown"
-	DocumentFormatMDX      DocumentFormat = "mdx"
+	DocumentFormatMarkdown  DocumentFormat = "markdown"
+	DocumentFormatMDX       DocumentFormat = "mdx"
+	DocumentFormatAsciiDoc  DocumentFormat = "asciidoc"
+	DocumentFormatPlainText DocumentFormat = "txt"
 )
 
 // DocumentBlockKind distinguishes CMS fields (frontmatter) from body blocks.
@@ -40,7 +42,7 @@ type DocumentBlock struct {
 	Text        string            `json:"text"`
 }
 
-// ParsedDocument is the public markdown/MDX document IR.
+// ParsedDocument is the public document IR for markdown, MDX, and AsciiDoc.
 type ParsedDocument struct {
 	Format DocumentFormat  `json:"format"`
 	Parts  []DocumentPart  `json:"parts"`
@@ -66,6 +68,29 @@ func IsMarkdownDocumentMDX(path string) bool {
 func ParseMarkdownDocumentIR(content []byte, mdx bool) ParsedDocument {
 	doc, _ := parseMarkdownDocument(stripBOM(content), mdx)
 	return parsedDocumentFromMarkdown(doc, mdx)
+}
+
+func markdownIngestEntries(content []byte, mdx bool) map[string]IngestEntry {
+	doc, _ := parseMarkdownDocument(stripBOM(content), mdx)
+	return applyContextByKey(parsedDocumentFromMarkdown(doc, mdx).ingestEntries(), markdownEntryContext(doc, mdx))
+}
+
+func markdownEntryContext(doc markdownDocument, mdx bool) map[string]string {
+	ctx := make(map[string]string, len(doc.parts))
+	for _, kc := range doc.keyContexts() {
+		if kc.partIndex < 0 || kc.partIndex >= len(doc.parts) {
+			continue
+		}
+		part := doc.parts[kc.partIndex]
+		if part.key == "" {
+			continue
+		}
+		ctx[part.key] = buildMarkdownSegmentContext(mdx, kc.path, kc.prevLiteral, kc.nextLiteral)
+	}
+	if len(ctx) == 0 {
+		return nil
+	}
+	return ctx
 }
 
 func parsedDocumentFromMarkdown(doc markdownDocument, mdx bool) ParsedDocument {
@@ -108,6 +133,11 @@ func parsedDocumentFromMarkdown(doc markdownDocument, mdx bool) ParsedDocument {
 	return out
 }
 
+// IngestEntries returns translatable document slots for ingest and SRX splitting.
+func (d ParsedDocument) IngestEntries() map[string]IngestEntry {
+	return d.ingestEntries()
+}
+
 func (d ParsedDocument) ingestEntries() map[string]IngestEntry {
 	if len(d.Blocks) == 0 {
 		return nil
@@ -143,7 +173,20 @@ func (d ParsedDocument) WithBlockText(values map[string]string) ParsedDocument {
 // EncodeDocumentEntriesCommandOutput emits `hl entries` JSON for a document:
 // block records plus the reserved document envelope.
 func EncodeDocumentEntriesCommandOutput(doc ParsedDocument) map[string]EntriesCommandOutputValue {
-	out := EncodeEntriesCommandOutput(doc.ingestEntries())
+	entries := doc.ingestEntries()
+	if entries == nil {
+		entries = map[string]IngestEntry{}
+	}
+	return EncodeDocumentEntriesCommandOutputFromEntries(doc, entries)
+}
+
+// EncodeDocumentEntriesCommandOutputFromEntries emits document `hl entries` JSON from
+// pre-split ingest entries (for example after SRX segmentation).
+func EncodeDocumentEntriesCommandOutputFromEntries(
+	doc ParsedDocument,
+	entries map[string]IngestEntry,
+) map[string]EntriesCommandOutputValue {
+	out := EncodeEntriesCommandOutput(entries)
 	if out == nil {
 		out = map[string]EntriesCommandOutputValue{}
 	}

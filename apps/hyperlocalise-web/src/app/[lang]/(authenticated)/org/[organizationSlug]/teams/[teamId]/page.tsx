@@ -12,20 +12,20 @@
  */
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { TeamDetailPageContent } from "../_components/team-detail-page-content";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "teamDetail");
+}
 
 export default function TeamDetailPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string; teamId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <TeamDetailPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <TeamDetailPageLoader params={params} />;
 }
 
 async function TeamDetailPageLoader({

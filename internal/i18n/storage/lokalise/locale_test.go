@@ -49,6 +49,34 @@ func TestResolvePullLocalesExplicitLocalesWin(t *testing.T) {
 	}
 }
 
+func TestResolvePullLocalesBlankEntryIDsFallThroughToTargetLanguages(t *testing.T) {
+	req := storage.PullRequest{
+		EntryIDs: []storage.EntryID{
+			{Key: "hello", Locale: ""},
+			{Key: "world", Locale: "   "},
+		},
+	}
+	got := resolvePullLocales(req, []string{"fr", "de"})
+	if len(got) != 2 || got[0] != "fr" || got[1] != "de" {
+		t.Fatalf("resolvePullLocales = %#v, want [fr de]", got)
+	}
+}
+
+func TestResolvePullLocalesSkipsBlankAndDedupesEntryLocales(t *testing.T) {
+	req := storage.PullRequest{
+		EntryIDs: []storage.EntryID{
+			{Key: "a", Locale: "vi"},
+			{Key: "b", Locale: ""},
+			{Key: "c", Locale: "en-US"},
+			{Key: "d", Locale: "vi"},
+		},
+	}
+	got := resolvePullLocales(req, []string{"fr"})
+	if len(got) != 2 || got[0] != "en-US" || got[1] != "vi" {
+		t.Fatalf("resolvePullLocales = %#v, want [en-US vi]", got)
+	}
+}
+
 func TestToLokaliseLanguageISO(t *testing.T) {
 	if got := toLokaliseLanguageISO("en-US"); got != "en_US" {
 		t.Fatalf("toLokaliseLanguageISO = %q, want en_US", got)

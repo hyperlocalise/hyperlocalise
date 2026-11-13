@@ -11,7 +11,17 @@
  * Version 2.0 or later.
  */
 import { sql } from "drizzle-orm";
-import { check, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  check,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { organizations, users } from "./organizations";
 import { projects } from "./projects";
@@ -149,5 +159,129 @@ export const projectKnowledgeMemoryRevisions = pgTable(
       sql`char_length(${table.summary}) <= 160`,
     ),
     check("project_knowledge_memory_revisions_version_check", sql`${table.version} >= 1`),
+  ],
+);
+
+/**
+ * @deprecated The typed workspace guideline note is retired; org-wide guideline
+ * documents use guideline_document_projects instead. The table is created by
+ * migration 0181 so fresh databases match the historical shape, but nothing
+ * reads or writes it.
+ */
+export const workspaceGuidelineProjects = pgTable(
+  "workspace_guideline_projects",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("workspace_guideline_projects_org_project_key").on(
+      table.organizationId,
+      table.projectId,
+    ),
+    index("idx_workspace_guideline_projects_org").on(table.organizationId),
+    index("idx_workspace_guideline_projects_project").on(table.projectId),
+  ],
+);
+
+/**
+ * Attaches an org-wide uploaded guideline document to selected projects.
+ * `is_global = true` means every project including future ones; `false` with
+ * zero rows means no project (the upload default); `false` with rows means
+ * only the listed projects. Only documents with a null project_id can be
+ * attached.
+ */
+export const guidelineDocumentProjects = pgTable(
+  "guideline_document_projects",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => guidelineDocuments.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("guideline_document_projects_document_project_key").on(
+      table.documentId,
+      table.projectId,
+    ),
+    index("idx_guideline_document_projects_org").on(table.organizationId),
+    index("idx_guideline_document_projects_project").on(table.projectId),
+  ],
+);
+
+/**
+ * Stores uploaded guideline documents. Extraction and indexing run asynchronously
+ * in the guideline ingest worker; `revisionId` identifies the content to index.
+ *
+ * `projectId` is deprecated and is not rewritten. New rows leave it NULL and
+ * use `guideline_document_projects`. A stored project_id still applies only
+ * to that project. `locale` is deprecated and is not copied into `locales`.
+ * A non-empty `locales` array is the only locale match. An empty array with
+ * a NULL locale means all locales; an empty array with `locale` set means
+ * that locale only. `isGlobal` false with no assignment rows means no project
+ * (the upload default). `isGlobal` true means every project. Existing rows
+ * are not backfilled.
+ */
+export const guidelineDocuments = pgTable(
+  "guideline_documents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** @deprecated Project-owned guidelines are retired; always NULL for new rows. */
+    projectId: text("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    /** @deprecated Use locales; NULL stays for unmigrated rows. */
+    locale: text("locale"),
+    /** Per-guideline BCP 47 locales. Empty with a NULL locale means all locales. */
+    locales: text("locales").array().notNull().default([]),
+    isGlobal: boolean("is_global").notNull().default(false),
+    title: text("title").notNull(),
+    storageLocationId: text("storage_location_id").notNull(),
+    storageKey: text("storage_key").notNull(),
+    filename: text("filename").notNull(),
+    contentType: text("content_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    content: text("content").notNull().default(""),
+    truncated: boolean("truncated").notNull().default(false),
+    revisionId: uuid("revision_id").notNull().defaultRandom(),
+    version: integer("version").notNull().default(1),
+    mandatory: boolean("mandatory").notNull().default(false),
+    status: text("status").notNull().default("processing"),
+    errorCode: text("error_code"),
+    indexedRevisionId: uuid("indexed_revision_id"),
+    enqueuedAt: timestamp("enqueued_at", { withTimezone: true }).notNull().defaultNow(),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_guideline_documents_org_project").on(table.organizationId, table.projectId),
+    index("idx_guideline_documents_status_enqueued_at").on(table.status, table.enqueuedAt),
+    check("guideline_documents_content_length_check", sql`char_length(${table.content}) <= 50000`),
+    check("guideline_documents_title_length_check", sql`char_length(${table.title}) <= 200`),
+    check(
+      "guideline_documents_status_check",
+      sql`${table.status} in ('processing', 'ready', 'failed')`,
+    ),
+    check("guideline_documents_version_check", sql`${table.version} >= 1`),
   ],
 );

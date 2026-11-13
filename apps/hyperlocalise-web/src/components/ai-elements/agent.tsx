@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Robot01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { RobotIcon } from "@phosphor-icons/react";
 import {
   Accordion,
   AccordionContent,
@@ -45,7 +44,7 @@ export type AgentHeaderProps = ComponentProps<"div"> & {
 export const AgentHeader = memo(({ className, name, model, ...props }: AgentHeaderProps) => (
   <div className={cn("flex w-full items-center justify-between gap-4 p-3", className)} {...props}>
     <div className="flex items-center gap-2">
-      <HugeiconsIcon icon={Robot01Icon} className="size-4 text-muted-foreground" />
+      <RobotIcon className="size-4 text-muted-foreground" />
       <span className="font-medium text-sm">{name}</span>
       {model && (
         <Badge className="font-mono text-xs" variant="secondary">

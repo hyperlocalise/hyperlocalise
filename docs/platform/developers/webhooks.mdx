@@ -1,0 +1,116 @@
+---
+title: "Job webhooks"
+sidebarTitle: "Webhooks"
+description: "Receive a signed HTTP POST when a job is created, changes status, is reassigned, or gets a new due date, title, or description."
+---
+
+Webhooks tell your systems about job changes, so you do not have to poll the jobs API. Hyperlocalise Platform records each change immediately and sends one signed `POST` per change to each endpoint you register, usually within a minute.
+
+Every change to a job is sent, whoever made it: the Platform UI, the API, the CLI, an automation, or a connected TMS.
+
+## Add an endpoint
+
+1. Open **Settings** → **Webhooks**.
+2. Select **Add endpoint**.
+3. Enter an HTTPS URL on a public host.
+4. Optionally limit the endpoint to one project. Leave **All projects** selected to receive every project.
+5. Tick the changes to receive. Leave them all unticked to receive every change.
+6. Copy the signing secret. It is shown once. Select **Rotate secret** to replace it.
+
+Select **Send test** to send a `webhook.test` event. Select **Recent deliveries** to see what was sent, each response status, and the next retry.
+
+You need the API keys permission to manage webhooks.
+
+## Manage endpoints with the API
+
+Admins and localization managers can register the same endpoints with a personal access token. Send `jobs:write` on the token. Create, update, rotate, and delete use `https://public-api.hyperlocalise.com`.
+
+```bash
+curl --fail-with-body -X POST "https://public-api.hyperlocalise.com/v1/webhook-endpoints" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://hooks.example.com/hyperlocalise","eventTypes":["job.status_changed"]}'
+```
+
+The JSON response includes `secret` once. Store it. Rotate it with `POST /v1/webhook-endpoints/{endpointId}/rotate-secret`. List endpoints with `GET /v1/webhook-endpoints` (`jobs:read`). See the [OpenAPI document](https://public-api.hyperlocalise.com/openapi.yaml) for update, delete, and recent deliveries.
+
+Send a test event from **Settings** → **Webhooks**.
+
+## Events
+
+| Type | Sent when |
+| --- | --- |
+| `job.created` | A job is created. |
+| `job.status_changed` | A job moves to another status. |
+| `job.assignee_changed` | A job is assigned to someone else, or to or from the agent. |
+| `job.due_date_changed` | A job's due date is set, changed, or cleared. |
+| `job.details_changed` | A job's title or description changes. |
+
+Due date, title, and description changes are sent for jobs created in Hyperlocalise Platform, not for jobs synced from a connected TMS.
+
+An endpoint with no changes ticked receives every type, including types added later, so ignore types you do not handle.
+
+Statuses are `queued`, `running`, `succeeded`, `failed`, `waiting_for_review`, and `cancelled`.
+
+## Payload
+
+```json
+{
+  "id": "6f1c2a4e-0b8e-4c1e-9d0f-2b6a8c1d3e5f",
+  "type": "job.status_changed",
+  "createdAt": "2026-11-09T08:15:30.120Z",
+  "data": {
+    "job": {
+      "id": "job_01J...",
+      "projectId": "proj_...",
+      "kind": "translation",
+      "status": "succeeded",
+      "previousStatus": "running",
+      "assigneeType": "agent"
+    }
+  }
+}
+```
+
+For types other than `job.status_changed`, `previousStatus` is the same as `status`.
+
+The payload holds IDs and statuses only. Call the [jobs API](/platform/api#read-jobs) with the job ID for details.
+
+## Verify signatures
+
+Signatures follow the [Standard Webhooks](https://www.standardwebhooks.com) specification. Each request carries three headers:
+
+| Header | Value |
+| --- | --- |
+| `webhook-id` | Delivery ID. It stays the same across retries, so use it to drop duplicates. |
+| `webhook-timestamp` | Send time in Unix seconds. |
+| `webhook-signature` | `v1,` then the base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{raw body}`, keyed with the base64-decoded secret after `whsec_`. |
+
+Any Standard Webhooks library verifies these headers. For example, in Node.js:
+
+```ts
+import { Webhook } from "standardwebhooks";
+
+const webhook = new Webhook(process.env.HYPERLOCALISE_WEBHOOK_SECRET);
+
+export async function POST(request: Request) {
+  const body = await request.text();
+  const event = webhook.verify(body, Object.fromEntries(request.headers));
+  // Handle event.type and event.data.job here.
+  return new Response(null, { status: 204 });
+}
+```
+
+Verify the raw body before you parse it. Reject requests whose timestamp is more than five minutes old.
+
+## Retries
+
+Return any `2xx` status within 10 seconds to accept a delivery. Hyperlocalise Platform does not follow redirects.
+
+Failed deliveries are retried after 1 minute, 5 minutes, 30 minutes, 2 hours, 5 hours, 10 hours, and 10 hours, so for about 28 hours in all. Deliveries can arrive out of order; use `createdAt` to order them.
+
+After 40 failed attempts in a row, the endpoint is disabled. A disabled endpoint receives nothing, and deliveries still queued for it are dropped. Fix the receiver, then select **Enable** in **Settings** → **Webhooks**.
+
+## Start automations on job changes
+
+To act on job changes inside Hyperlocalise Platform, use the **Job changed** trigger in a [visual automation](/platform/automations). It takes the same filters for project, job kind, change type, and new status.

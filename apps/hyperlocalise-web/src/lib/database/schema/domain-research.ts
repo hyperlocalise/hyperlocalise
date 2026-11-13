@@ -60,6 +60,10 @@ export const domainResearchKeywords = pgTable(
     volume: integer("volume").notNull().default(0),
     kd: integer("kd").notNull().default(0),
     cpc: doublePrecision("cpc").notNull().default(0),
+    competition: doublePrecision("competition"),
+    monthlySearches: jsonb("monthly_searches").$type<{ month: string; volume: number }[]>(),
+    cpcCurrency: text("cpc_currency").notNull().default("USD"),
+    metricsCapturedAt: timestamp("metrics_captured_at", { withTimezone: true }),
     intent: text("intent").$type<DomainResearchKeywordIntent>().notNull().default("informational"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -139,7 +143,7 @@ export const domainResearchRankSnapshots = pgTable(
 );
 
 /**
- * Latest live SERP snapshot for a keyword + market.
+ * Latest live SERP snapshot for a keyword + market + device.
  */
 export const domainResearchSerpSnapshots = pgTable(
   "domain_research_serp_snapshots",
@@ -154,15 +158,17 @@ export const domainResearchSerpSnapshots = pgTable(
     keyword: text("keyword").notNull(),
     locationCode: integer("location_code").notNull(),
     languageCode: text("language_code").notNull(),
+    device: text("device").notNull().default("desktop"),
     results: jsonb("results").$type<DomainResearchSerpSnapshotRow[]>().notNull(),
     capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("uq_domain_research_serp_domain_market_kw").on(
+    uniqueIndex("uq_domain_research_serp_domain_market_kw_device").on(
       table.linkedDomainId,
       table.locationCode,
       table.languageCode,
       table.keyword,
+      table.device,
     ),
     index("idx_domain_research_serp_domain").on(table.linkedDomainId),
   ],

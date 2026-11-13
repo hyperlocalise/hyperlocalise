@@ -1,0 +1,585 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
+	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
+	"github.com/jackc/pgx/v5"
+)
+
+const (
+	projectRequestTimeout    = 30 * time.Second
+	projectFilesDefaultLimit = 500
+	projectFilesMaxLimit     = 1000
+)
+
+type projectAPI struct {
+	pool        dictionaryPool
+	membership  organizationMembershipLookup
+	autumn      *autumn.Client
+	activityLog activityLogPublisher
+	// tms reads live TMS projects; nil when the web app can't mint tokens.
+	tms *tmsImports
+
+	testBeforeUpdateWrite func()
+	testBeforeLocaleLock  func()
+	testAfterGlossaryLock func()
+}
+
+type projectActor struct {
+	userID, organizationID, role string
+}
+
+func (a projectActor) canReadAllTeams() bool {
+	return a.role == "admin" || a.role == "localization_manager"
+}
+
+func (a projectActor) canCreateProjects() bool {
+	return a.role == "admin" || a.role == "localization_manager" || a.role == "developer"
+}
+
+func (a projectActor) canMutateProjects() bool {
+	return a.canCreateProjects()
+}
+
+func (a projectActor) canManageContentEditorBehavior() bool {
+	return a.role == "admin" || a.role == "localization_manager"
+}
+
+func (a projectActor) canReadJobs() bool {
+	return hasOrganizationCapability(a.role, "jobs:read")
+}
+
+func (a projectActor) canCreateJobs() bool {
+	return hasOrganizationCapability(a.role, "jobs:create")
+}
+
+func (a projectActor) canWriteJobs() bool {
+	return hasOrganizationCapability(a.role, "jobs:write")
+}
+
+type projectError struct {
+	status        int
+	code, message string
+	details       map[string]any
+}
+
+func (e *projectError) Error() string { return e.code }
+
+func projectFailure(status int, code, message string) error {
+	return &projectError{status: status, code: code, message: message}
+}
+
+func projectFailureDetails(status int, code, message string, details map[string]any) error {
+	return &projectError{status: status, code: code, message: message, details: details}
+}
+
+func projectNotFound() error {
+	return projectFailure(http.StatusNotFound, "project_not_found", "Project not found")
+}
+
+func projectForbidden() error {
+	return projectFailure(http.StatusForbidden, "forbidden", "Insufficient permissions")
+}
+
+func projectJSON(ctx context.Context, w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(value); err != nil {
+		slog.WarnContext(ctx, "project_response_write_failed")
+	}
+}
+
+func writeProjectError(w http.ResponseWriter, r *http.Request, phase string, err error) {
+	var failure *projectError
+	if !errors.As(err, &failure) {
+		logRequestFailure(r, "project_request_failed", phase, err)
+		failure = &projectError{status: 500, code: "internal_error", message: "Internal server error"}
+	} else {
+		logRequestFailure(r, "project_request_failed", phase, err, "status", failure.status, "code", failure.code)
+	}
+	body := map[string]any{"error": failure.code, "message": failure.message}
+	if len(failure.details) > 0 {
+		body["details"] = failure.details
+	}
+	projectJSON(r.Context(), w, failure.status, body)
+}
+
+func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
+	projects := orgRoutePrefix + "/projects"
+	project := projects + "/{projectId}"
+	route := func(pattern string, fn func(*http.Request, projectActor) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
+	}
+	route("GET "+projects, bindActor(api, (*projectAPI).listHandler))
+	route("POST "+projects, bindActor(api, (*projectAPI).createHandler))
+	api.registerTemplates(route)
+	route("GET "+project, bindActor(api, (*projectAPI).getHandler))
+	route("PATCH "+project, bindActor(api, (*projectAPI).updateHandler))
+	route("DELETE "+project, bindActor(api, (*projectAPI).deleteHandler))
+	route("GET "+project+"/locale-progress", bindActor(api, (*projectAPI).localeProgressHandler))
+	route("GET "+project+"/open-job-count", bindActor(api, (*projectAPI).openJobCountHandler))
+	route("GET "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).contentEditorBehaviorHandler))
+	route("PATCH "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).updateContentEditorBehaviorHandler))
+	route("GET "+project+"/content-editor-behavior/preview", bindActor(api, (*projectAPI).contentEditorBehaviorPreviewHandler))
+	route("GET "+orgRoutePrefix+"/tms/projects", bindActor(api, (*projectAPI).liveProjectsHandler))
+	route("GET "+orgRoutePrefix+"/tms/jobs", bindActor(api, (*projectAPI).liveWorkspaceJobsHandler))
+	route("GET "+project+"/files", bindActor(api, (*projectAPI).filesHandler))
+	route("GET "+project+"/files/branches", bindActor(api, (*projectAPI).fileBranchesHandler))
+	route("GET "+project+"/hidden-files", bindActor(api, (*projectAPI).hiddenFilesHandler))
+	route("GET "+project+"/file-progress", bindActor(api, (*projectAPI).fileProgressHandler))
+	route("GET "+project+"/members", bindActor(api, (*projectAPI).liveProjectMembersHandler))
+	route("GET "+project+"/jobs", bindActor(api, (*projectAPI).projectJobsListHandler))
+	route("POST "+project+"/jobs", bindActor(api, (*projectAPI).projectJobsCreateHandler))
+	route("GET "+project+"/jobs/{jobId}", bindActor(api, (*projectAPI).projectJobDetailHandler))
+	route("GET "+project+"/jobs/{jobId}/status", bindActor(api, (*projectAPI).projectJobStatusHandler))
+	route("GET "+project+"/jobs/{jobId}/files", bindActor(api, (*projectAPI).projectJobFilesHandler))
+	route("GET "+project+"/jobs/{jobId}/comments", bindActor(api, (*projectAPI).projectJobCommentsHandler))
+	route("GET "+orgRoutePrefix+"/workspace-files", bindActor(api, (*projectAPI).workspaceFilesHandler))
+	route("GET "+orgRoutePrefix+"/jobs", bindActor(api, (*projectAPI).orgJobsListHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobDetailHandler))
+	route("PATCH "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobUpdateHandler))
+	route("PATCH "+orgRoutePrefix+"/jobs/{jobId}/description", bindActor(api, (*projectAPI).orgJobDescriptionHandler))
+	route("DELETE "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobDeleteHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}/files", bindActor(api, (*projectAPI).orgJobFilesHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}/comments", bindActor(api, (*projectAPI).orgJobCommentsHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}/events", bindActor(api, (*projectAPI).orgJobEventsHandler))
+}
+
+func (api *projectAPI) actor(ctx context.Context, claims AuthClaims, slug string) (projectActor, error) {
+	resolved, err := resolveOrganizationActor(ctx, api.pool, api.membership, claims, slug)
+	if err != nil {
+		return projectActor{}, mapOrganizationAccessError(err, projectFailure)
+	}
+	return projectActor(resolved), nil
+}
+
+func (api *projectAPI) handle(fn func(*http.Request, projectActor) (any, int, error)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		if denyBrowserMutation(r) {
+			writeProjectError(w, r, "origin_guard", projectFailure(403, "forbidden", "Cross-origin request denied"))
+			return
+		}
+		if api.pool == nil {
+			writeProjectError(w, r, "availability", projectFailure(503, "projects_unavailable", "Projects are unavailable"))
+			return
+		}
+		timeout := projectRequestTimeout
+		if liveTMSRequest(r) {
+			timeout = tmsLiveRequestTimeout
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
+		defer cancel()
+		r = r.WithContext(ctx)
+		claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
+		if !ok {
+			writeProjectError(w, r, "auth", projectFailure(401, "unauthorized", "Unauthorized"))
+			return
+		}
+		actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
+		if err != nil {
+			writeProjectError(w, r, "resolve_actor", err)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, projectBodyLimit)
+		value, status, err := fn(r, actor)
+		if err != nil {
+			writeProjectError(w, r, "handle", err)
+			return
+		}
+		if status == http.StatusNoContent {
+			w.WriteHeader(status)
+			return
+		}
+		projectJSON(ctx, w, status, value)
+	})
+}
+
+func normalizedNativeProjectID(raw string) (string, error) {
+	projectID := normalizeDictionaryProjectID(raw)
+	if projectID == "" || len(projectID) > 256 || strings.HasPrefix(projectID, "ext:") {
+		return "", projectNotFound()
+	}
+	return projectID, nil
+}
+
+func (api *projectAPI) listHandler(r *http.Request, actor projectActor) (any, int, error) {
+	statement := `
+		select coalesce(jsonb_agg(jsonb_build_object(
+			'id', p.id,
+			'organizationId', p.organization_id,
+			'teamId', p.team_id,
+			'createdByUserId', p.created_by_user_id,
+			'name', p.name,
+			'identifier', p.identifier,
+			'description', p.description,
+			'translationContext', p.translation_context,
+			'source', p.source,
+			'externalProviderKind', p.external_provider_kind,
+			'externalProjectId', p.external_project_id,
+			'sourceLocale', p.source_locale,
+			'targetLocales', p.target_locales,
+			'externalProjectUrl', p.external_project_url,
+			'isActive', p.is_active,
+			'lastSyncedAt', p.last_synced_at,
+			'lastSyncErrorAt', p.last_sync_error_at,
+			'lastSyncErrorMessage', p.last_sync_error_message,
+			'createdAt', p.created_at,
+			'updatedAt', p.updated_at,
+			'openJobCount', coalesce(open_jobs.count, 0)
+		) order by p.updated_at desc), '[]'::jsonb)
+		from projects p
+		left join (
+			select j.project_id, count(*)::int
+			from jobs j
+			where j.organization_id = $1
+				and j.status in ('queued', 'running', 'waiting_for_review')
+			group by j.project_id
+		) open_jobs on open_jobs.project_id = p.id
+		where p.organization_id = $1
+			and p.source = 'native'
+			and p.is_active
+			and ` + formatQaProjectTeamAccessSQL(2, 3, 1)
+
+	var projects json.RawMessage
+	if err := api.pool.QueryRow(
+		r.Context(),
+		statement,
+		actor.organizationID,
+		actor.canReadAllTeams(),
+		actor.userID,
+	).Scan(&projects); err != nil {
+		return nil, 0, fmt.Errorf("list native projects: %w", err)
+	}
+	return map[string]json.RawMessage{"projects": projects}, http.StatusOK, nil
+}
+
+func (api *projectAPI) openJobCountHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if id, live := parseLiveProjectID(r.PathValue("projectId")); live {
+		return api.liveOpenJobCount(r, actor, id)
+	}
+	projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
+	if err != nil {
+		return nil, 0, err
+	}
+	var exists bool
+	var openJobCount int
+	if err := api.pool.QueryRow(r.Context(), `
+		with project as (
+			select p.id, p.organization_id
+			from projects p
+			where p.id = $1 and p.organization_id = $2 and p.source = 'native'
+				and `+formatQaProjectTeamAccessSQL(3, 4, 2)+`
+		)
+		select exists(select 1 from project),
+			(select count(*)::int
+				from jobs j
+				join project p on p.id = j.project_id and p.organization_id = j.organization_id
+				where j.status in ('queued', 'running', 'waiting_for_review'))
+		`,
+		projectID,
+		actor.organizationID,
+		actor.canReadAllTeams(),
+		actor.userID,
+	).Scan(&exists, &openJobCount); err != nil {
+		return nil, 0, fmt.Errorf("count native project open jobs: %w", err)
+	}
+	if !exists {
+		return nil, 0, projectNotFound()
+	}
+	return map[string]int{"openJobCount": openJobCount}, http.StatusOK, nil
+}
+
+func (api *projectAPI) contentEditorBehaviorHandler(r *http.Request, actor projectActor) (any, int, error) {
+	projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
+	if err != nil {
+		return nil, 0, err
+	}
+	behavior, err := loadContentEditorBehavior(r.Context(), api.pool, projectID, actor)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, 0, projectNotFound()
+	}
+	if err != nil {
+		return nil, 0, fmt.Errorf("get native project content editor behavior: %w", err)
+	}
+	return behavior.response(actor), http.StatusOK, nil
+}
+
+type contentEditorBehavior struct {
+	automaticallyGroupIdenticalStrings bool
+	groupingRevision                   int
+	approvedTranslationsOnSourceChange string
+	sourceTextEditable                 bool
+}
+
+func loadContentEditorBehavior(ctx context.Context, db interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, projectID string, actor projectActor,
+) (contentEditorBehavior, error) {
+	var behavior contentEditorBehavior
+	err := db.QueryRow(ctx, `
+		select p.automatically_group_identical_strings, p.cat_grouping_revision,
+			p.approved_translations_on_source_change, p.source_text_editable
+		from projects p
+		where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(3, 4, 2),
+		projectID,
+		actor.organizationID,
+		actor.canReadAllTeams(),
+		actor.userID,
+	).Scan(&behavior.automaticallyGroupIdenticalStrings, &behavior.groupingRevision, &behavior.approvedTranslationsOnSourceChange,
+		&behavior.sourceTextEditable)
+	return behavior, err
+}
+
+func (b contentEditorBehavior) response(actor projectActor) map[string]any {
+	return map[string]any{
+		"contentEditorBehavior": map[string]any{
+			"automaticallyGroupIdenticalStrings": b.automaticallyGroupIdenticalStrings,
+			"groupingRevision":                   b.groupingRevision,
+			"approvedTranslationsOnSourceChange": b.approvedTranslationsOnSourceChange,
+			"sourceTextEditable":                 b.sourceTextEditable,
+			"canManage":                          actor.canManageContentEditorBehavior(),
+			// The content editor's source text control; the same roles the editor route allows.
+			"canEditSourceText": b.sourceTextEditable && actor.canMutateProjects(),
+			// Editing tags and the design link in the content editor; the editor route allows the same roles.
+			"canEditKeyDetails": actor.canMutateProjects(),
+		},
+	}
+}
+
+type projectFilesQuery struct {
+	limit, offset int
+	search        string
+	empty         bool
+	locale        string
+	branch        string
+}
+
+func parseProjectFilesQuery(values url.Values) (projectFilesQuery, error) {
+	query := projectFilesQuery{
+		limit:  projectFilesDefaultLimit,
+		search: strings.TrimSpace(values.Get("search")),
+		locale: strings.TrimSpace(values.Get("locale")),
+	}
+	invalid := func() (projectFilesQuery, error) {
+		return projectFilesQuery{}, projectFailure(400, "invalid_project_files_query", "Invalid project files query parameters")
+	}
+	if len(query.search) > 256 || len(query.locale) > 32 {
+		return invalid()
+	}
+	var err error
+	if raw := strings.TrimSpace(values.Get("limit")); raw != "" {
+		query.limit, err = strconv.Atoi(raw)
+		if err != nil || query.limit < 1 || query.limit > projectFilesMaxLimit {
+			return invalid()
+		}
+	}
+	if raw := strings.TrimSpace(values.Get("offset")); raw != "" {
+		query.offset, err = strconv.Atoi(raw)
+		if err != nil || query.offset < 0 {
+			return invalid()
+		}
+	}
+	origin := strings.TrimSpace(values.Get("origin"))
+	resourceType := strings.TrimSpace(values.Get("resourceType"))
+	providerKind := strings.TrimSpace(values.Get("providerKind"))
+	syncState := strings.TrimSpace(values.Get("syncState"))
+	branch := strings.TrimSpace(values.Get("branch"))
+	validOrigin := map[string]bool{"": true, "all": true, "repository": true, "provider": true}
+	validResourceType := map[string]bool{"": true, "all": true, "file": true, "key": true}
+	validProviderKind := map[string]bool{"": true, "all": true, "crowdin": true, "smartling": true, "phrase": true, "lokalise": true}
+	if !validOrigin[origin] || !validResourceType[resourceType] || !validProviderKind[providerKind] ||
+		len(syncState) > 64 || len(branch) > 256 || (values.Has("branch") && branch == "") {
+		return invalid()
+	}
+	query.branch = branch
+	query.empty = origin == "provider" || resourceType == "key" ||
+		(providerKind != "" && providerKind != "all") ||
+		(syncState != "" && syncState != "all" && syncState != "repository")
+	return query, nil
+}
+
+func (api *projectAPI) filesHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if id, live := parseLiveProjectID(r.PathValue("projectId")); live {
+		return api.liveFiles(r, actor, id)
+	}
+	projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
+	if err != nil {
+		return nil, 0, err
+	}
+	query, err := parseProjectFilesQuery(r.URL.Query())
+	if err != nil {
+		return nil, 0, err
+	}
+	files, err := api.files(r.Context(), actor, projectID, query)
+	if err != nil {
+		return nil, 0, err
+	}
+	return map[string]json.RawMessage{"files": files}, http.StatusOK, nil
+}
+
+func (api *projectAPI) files(ctx context.Context, actor projectActor, projectID string, query projectFilesQuery) (json.RawMessage, error) {
+	args := []any{projectID, actor.organizationID, actor.canReadAllTeams(), actor.userID}
+	filters := []string{"ranked.version_rank = 1"}
+	if query.empty {
+		filters = append(filters, "false")
+	}
+	if query.search != "" {
+		args = append(args, "%"+query.search+"%")
+		filters = append(filters, fmt.Sprintf("(ranked.source_path ilike $%d or ranked.filename ilike $%d)", len(args), len(args)))
+	}
+	if query.locale != "" && query.locale != "all" {
+		args = append(args, query.locale)
+		filters = append(filters, fmt.Sprintf("p.target_locales ? $%d", len(args)))
+	}
+	args = append(args, nativeproject.ResolveBranchName(query.branch))
+	filters = append(filters, fmt.Sprintf("ranked.branch_name = $%d", len(args)))
+	args = append(args, query.limit, query.offset)
+	limitPosition := len(args) - 1
+	offsetPosition := len(args)
+
+	statement := `
+		with project as (
+			select p.id, p.organization_id, p.target_locales
+			from projects p
+			where p.id = $1 and p.organization_id = $2 and p.source = 'native'
+				and ` + formatQaProjectTeamAccessSQL(3, 4, 2) + `
+		),
+		ranked as (
+			select v.id as version_id, v.repository_source_file_id, v.source_path, v.source_hash, v.commit_sha,
+				v.workflow_run_id, v.created_at as uploaded_at, v.stored_file_id,
+				v.ingest_state, v.ingest_error,
+				f.metadata, f.filename, f.byte_size,
+				sf.branch_name,
+				row_number() over (
+					partition by v.repository_source_file_id
+					order by v.created_at desc, v.id desc
+				) as version_rank
+			from repository_source_file_versions v
+			join project p on p.id = v.project_id and p.organization_id = v.organization_id
+			join repository_source_files sf on sf.id = v.repository_source_file_id
+			join stored_files f on f.id = v.stored_file_id
+				and f.organization_id = v.organization_id
+				and f.project_id = v.project_id
+			where f.role = 'source' and f.source_kind = 'repository_file'
+		),
+		selected as (
+			select ranked.*
+			from ranked
+			cross join project p
+			where ` + strings.Join(filters, " and ") + `
+			order by ranked.source_path
+			limit $` + strconv.Itoa(limitPosition) + ` offset $` + strconv.Itoa(offsetPosition) + `
+		),
+		latest_jobs as (
+			select distinct on (d.source_file_version_id)
+				d.source_file_version_id, j.id, j.status, j.created_at, d.type
+			from translation_job_details d
+			join jobs j on j.id = d.job_id
+			join selected s on s.version_id = d.source_file_version_id
+			where j.organization_id = $2 and j.project_id = $1
+			order by d.source_file_version_id, j.created_at desc, j.id desc
+		),
+		latest_locale_jobs as (
+			select distinct on (d.source_file_version_id, locale.value)
+				d.source_file_version_id, locale.value as locale, j.status
+			from translation_job_details d
+			join jobs j on j.id = d.job_id
+			join selected s on s.version_id = d.source_file_version_id
+			cross join lateral jsonb_array_elements_text(
+				case
+					when jsonb_typeof(j.input_payload->'targetLocales') = 'array'
+					then j.input_payload->'targetLocales'
+					else '[]'::jsonb
+				end
+			) locale(value)
+			where j.organization_id = $2 and j.project_id = $1
+			order by d.source_file_version_id, locale.value, j.created_at desc, j.id desc
+		),
+		hidden_files as (
+			select k.repository_source_file_id
+			from project_translation_keys k
+			join selected s on s.repository_source_file_id = k.repository_source_file_id
+			where k.organization_id = $2 and k.project_id = $1
+				and ` + editorCatExcludeCalloutFenceSQL("k") + `
+			group by k.repository_source_file_id
+			having bool_and(k.is_hidden)
+		)
+		select exists(select 1 from project),
+			coalesce((
+				select jsonb_agg(
+					jsonb_build_object(
+						'origin', 'repository',
+						'sourcePath', s.source_path,
+						'sourceHash', s.source_hash,
+						'commitSha', s.commit_sha,
+						'workflowRunId', s.workflow_run_id,
+						'uploadedAt', s.uploaded_at,
+						'storedFileId', s.stored_file_id,
+						'metadata', s.metadata,
+						'filename', s.filename,
+						'byteSize', s.byte_size,
+						'ingestState', s.ingest_state,
+						'ingestError', s.ingest_error,
+						'isHidden', exists(
+							select 1 from hidden_files h
+							where h.repository_source_file_id = s.repository_source_file_id
+						),
+						'provider', null,
+						'latestJob', case when j.id is null then null else jsonb_build_object(
+							'id', j.id,
+							'status', j.status,
+							'createdAt', j.created_at,
+							'type', j.type
+						) end
+					) || case
+						when jsonb_array_length(p.target_locales) = 0 then '{}'::jsonb
+						else jsonb_build_object(
+							'localeReadiness', (
+								select jsonb_object_agg(locale.value, coalesce(
+									case lj.status
+										when 'succeeded' then 'ready'
+										when 'waiting_for_review' then 'needs_review'
+										when 'failed' then 'stale'
+										when 'cancelled' then 'stale'
+										when 'queued' then 'in_progress'
+										when 'running' then 'in_progress'
+										else 'missing'
+									end,
+									'missing'
+								))
+								from jsonb_array_elements_text(p.target_locales) locale(value)
+								left join latest_locale_jobs lj
+									on lj.source_file_version_id = s.version_id
+									and lj.locale = locale.value
+							)
+						)
+					end
+					order by s.source_path
+				)
+				from selected s
+				cross join project p
+				left join latest_jobs j on j.source_file_version_id = s.version_id
+			), '[]'::jsonb)`
+
+	var exists bool
+	var files json.RawMessage
+	if err := api.pool.QueryRow(ctx, statement, args...).Scan(&exists, &files); err != nil {
+		return nil, fmt.Errorf("list native project files: %w", err)
+	}
+	if !exists {
+		return nil, projectNotFound()
+	}
+	return files, nil
+}

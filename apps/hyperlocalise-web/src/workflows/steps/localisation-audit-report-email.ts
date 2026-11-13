@@ -23,6 +23,7 @@ import {
   buildLocalisationAuditVerifyUrl,
   hashLocalisationAuditReportToken,
 } from "@/lib/localisation-audit/email-unlock";
+import { asPublishedLocalisationAudit } from "@/lib/localisation-audit/report-coverage";
 import {
   findLocalisationAuditById,
   findLocalisationAuditLeadById,
@@ -55,7 +56,8 @@ export async function sendLocalisationAuditReportEmailStep(input: {
     };
   }
 
-  const audit = await findLocalisationAuditById(lead.auditId);
+  const found = await findLocalisationAuditById(lead.auditId);
+  const audit = found ? asPublishedLocalisationAudit(found) : null;
   if (!audit || audit.status !== "succeeded" || !audit.report || audit.score == null) {
     await markLocalisationAuditLeadEmailFailed({
       leadId: input.leadId,

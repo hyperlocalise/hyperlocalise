@@ -39,7 +39,6 @@ export type ToolManifest = {
 };
 
 export const toolManifests = [
-  { name: "task", domain: "tms", sideEffect: "none" },
   { name: "createTranslationJob", domain: "translation", sideEffect: "external_write" },
   { name: "translate_string", domain: "translation", sideEffect: "none" },
   { name: "check_crowdin_progress", domain: "tms", sideEffect: "none" },
@@ -49,7 +48,6 @@ export const toolManifests = [
   { name: "get_project_context", domain: "project", sideEffect: "none" },
   { name: "update_interaction_project", domain: "project", sideEffect: "workspace_write" },
   { name: "get_knowledge_memory", domain: "knowledge", sideEffect: "none" },
-  { name: "update_knowledge_memory", domain: "knowledge", sideEffect: "workspace_write" },
   { name: "todoWrite", domain: "session", sideEffect: "none" },
   { name: "fetch", domain: "web", sideEffect: "none" },
   {

@@ -35,10 +35,12 @@ export const contentEditorQueueFilterValues: ContentEditorQueueFilter[] = [
   "unsaved",
   "qa_issues",
   "machine_translated",
+  "origin",
   "with_comments",
   "has_issues",
   "skipped",
   "hidden",
+  "not_hidden",
 ];
 
 export const contentEditorQueueSortValues: ContentEditorQueueSort[] = [
@@ -56,16 +58,26 @@ export function isQueueFilterSupportedForProvider(
   filter: ContentEditorQueueFilter,
   providerKind: string | null | undefined,
 ) {
-  if (filter === "hidden") {
+  if (filter === "hidden" || filter === "not_hidden" || filter === "qa_issues") {
     return providerKind == null || providerKind === "native" || providerKind === "crowdin";
   }
 
   if (filter === "has_issues") {
-    return providerKind === "crowdin" || providerKind === "smartling" || providerKind === null;
+    return (
+      providerKind === "crowdin" ||
+      providerKind === "smartling" ||
+      providerKind === "native" ||
+      providerKind === null
+    );
   }
 
-  if (filter === "qa_issues" || filter === "machine_translated" || filter === "with_comments") {
-    return providerKind === "crowdin";
+  if (filter === "origin") {
+    // Origin is recorded on native translations only.
+    return providerKind === "native" || providerKind === null;
+  }
+
+  if (filter === "machine_translated" || filter === "with_comments") {
+    return providerKind === "crowdin" || providerKind === "native" || providerKind === null;
   }
 
   if (
@@ -200,10 +212,14 @@ export function segmentMatchesQueueFilterFromInput(
       return input.status === "skipped";
     case "hidden":
       return Boolean(input.isHidden);
+    case "not_hidden":
+      return !input.isHidden;
     case "qa_issues":
     case "machine_translated":
+    case "origin":
     case "with_comments":
-      // Crowdin CroQL is the source of truth; keep locally overridden rows visible.
+      // The server (Crowdin CroQL or the latest native QA scan) is the source of truth;
+      // keep locally overridden rows visible.
       return true;
     default:
       return true;

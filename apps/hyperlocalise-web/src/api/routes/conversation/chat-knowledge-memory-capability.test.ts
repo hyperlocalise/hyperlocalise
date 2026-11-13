@@ -12,18 +12,18 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { workspaceKnowledgeFlagRunMock } = vi.hoisted(() => ({
-  workspaceKnowledgeFlagRunMock: vi.fn(),
+const { isAutumnBooleanFeatureEnabledMock } = vi.hoisted(() => ({
+  isAutumnBooleanFeatureEnabledMock: vi.fn(),
 }));
 
-vi.mock("@/lib/flags/workspace-flags", () => ({
-  workspaceKnowledgeFlag: { run: workspaceKnowledgeFlagRunMock },
+vi.mock("@/lib/billing/autumn-boolean-feature-access", () => ({
+  isAutumnBooleanFeatureEnabled: isAutumnBooleanFeatureEnabledMock,
 }));
 
 import { resolveChatKnowledgeMemoryCapability } from "./chat-knowledge-memory-capability";
 
 const auth = {
-  organization: { workosOrganizationId: "org_workos_123" },
+  organization: { localOrganizationId: "org_local_123", workosOrganizationId: "org_workos_123" },
   user: { workosUserId: "user_workos_123" },
 } as never;
 
@@ -32,26 +32,25 @@ describe("resolveChatKnowledgeMemoryCapability", () => {
     vi.clearAllMocks();
   });
 
-  it("returns true only when the organization flag resolves to true", async () => {
-    workspaceKnowledgeFlagRunMock.mockResolvedValue(true);
+  it("checks the Autumn guidelines feature for the local organization", async () => {
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(true);
 
     await expect(resolveChatKnowledgeMemoryCapability(auth)).resolves.toBe(true);
 
-    const identify = workspaceKnowledgeFlagRunMock.mock.calls[0]?.[0].identify;
-    expect(identify()).toEqual({
-      organization: { id: "org_workos_123" },
-      user: { id: "user_workos_123" },
+    expect(isAutumnBooleanFeatureEnabledMock).toHaveBeenCalledWith({
+      organizationId: "org_local_123",
+      featureId: "guidelines",
     });
   });
 
-  it.each([false, undefined, null])("fails closed for a %s result", async (result) => {
-    workspaceKnowledgeFlagRunMock.mockResolvedValue(result);
+  it("fails closed when Autumn denies the feature", async () => {
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(false);
 
     await expect(resolveChatKnowledgeMemoryCapability(auth)).resolves.toBe(false);
   });
 
-  it("fails closed when flag evaluation throws", async () => {
-    workspaceKnowledgeFlagRunMock.mockRejectedValue(new Error("flag unavailable"));
+  it("fails closed when the Autumn check throws", async () => {
+    isAutumnBooleanFeatureEnabledMock.mockRejectedValue(new Error("autumn unavailable"));
 
     await expect(resolveChatKnowledgeMemoryCapability(auth)).resolves.toBe(false);
   });

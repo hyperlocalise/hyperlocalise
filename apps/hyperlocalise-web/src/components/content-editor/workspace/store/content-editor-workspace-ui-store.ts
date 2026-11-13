@@ -12,25 +12,103 @@
  */
 import { makeAutoObservable } from "mobx";
 
+import { sameSegmentIdList } from "@/components/content-editor/side-by-side/content-editor-side-by-side-visible-range";
+import type { ContentEditorFileViewerId } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
+import {
+  readCatFileViewSourcePaneVisible,
+  writeCatFileViewSourcePaneVisible,
+} from "@/components/content-editor/file-view/content-editor-file-view-source-pane";
 import {
   contentEditorPageLimitForViewMode,
   readCatWorkspaceViewMode,
   writeCatWorkspaceViewMode,
   type ContentEditorWorkspaceViewMode,
 } from "@/components/content-editor/workspace/content-editor-workspace-view-mode";
+import {
+  readCatDetailsPanelCollapsed,
+  readCatFilesPanelCollapsed,
+  readCatHiddenFilesHidden,
+  readCatShortcutHintsHidden,
+  writeCatDetailsPanelCollapsed,
+  writeCatFilesPanelCollapsed,
+  writeCatHiddenFilesHidden,
+  writeCatShortcutHintsHidden,
+} from "@/components/content-editor/workspace/content-editor-workspace-panel-state";
+import {
+  DESIGNER_PERSONA_FILE_FAMILIES,
+  defaultPersonaForFileFamily,
+  readCatWorkspacePersona,
+  writeCatWorkspacePersona,
+  type ContentEditorWorkspacePersona,
+} from "@/components/content-editor/workspace/content-editor-workspace-persona";
+import {
+  contentEditorFilteredExportFormats,
+  type ContentEditorFilteredExportFormat,
+} from "@/lib/projects/content-editor/content-editor-filtered-export";
+
+/** Dialogs opened from the queue toolbar's "…" menu. */
+export type ContentEditorChromeDialog = "export" | "import" | "activity" | "shortcuts";
 
 export class ContentEditorWorkspaceUiStore {
   viewMode: ContentEditorWorkspaceViewMode;
-  hoveredSegmentId: string | null = null;
-  previewLoadingSegmentId: string | null = null;
-  previewTargetLoading = false;
-  previewCommentsLoading = false;
   /** True while the translation/editor pane is waiting for a new file snapshot. */
   translationViewLoading = false;
+  /** Rows intersecting the side-by-side scrollport. Used for QA after hydration. */
   visibleSideBySideSegmentIds: string[] = [];
+  /** Rendered side-by-side rows, including overscan. Used to fetch translations. */
+  loadSideBySideSegmentIds: string[] = [];
+  /** Bumped when the reviewer asks to open the full QA list in the sidebar. */
+  qaDetailsRevealNonce = 0;
+  /** True when the workspace was given a multilingual table configuration. */
+  multilingualViewAvailable = false;
+  /** Left file tree pane is collapsed to zero width. */
+  filesPanelCollapsed = readCatFilesPanelCollapsed();
+  /** Right segment details pane is collapsed to zero width. */
+  detailsPanelCollapsed = readCatDetailsPanelCollapsed();
+  /** Keyboard shortcut strip under the editor is turned off. */
+  shortcutHintsHidden = readCatShortcutHintsHidden();
+  /** Files whose strings are all hidden are left out of the file tree and picker. */
+  hiddenFilesHidden = readCatHiddenFilesHidden();
+  /** Toolbar dialog currently open, if any. Only one can be open at a time. */
+  chromeDialog: ContentEditorChromeDialog | null = null;
+  /** Format picked in the filtered export dialog; kept across openings. */
+  exportFormat: ContentEditorFilteredExportFormat = contentEditorFilteredExportFormats[0];
+  /** Image layer editor has unsaved edits that should block approve. */
+  fileViewImageLayersDirty = false;
+  /** Video editor has unsaved edits that should block approve. */
+  fileViewVideoDirty = false;
+  /** Document/HTML editor has unsaved edits that should block approve. */
+  fileViewDocumentReviewBlocked = true;
+  /** Generate/regenerate instructions dialog is open. */
+  fileViewGenerateDialogOpen = false;
+  /** AI context drawer is open in file view. */
+  fileViewAiDrawerOpen = false;
+  /** Source/original pane is visible next to the target. */
+  fileViewSourcePaneVisible = readCatFileViewSourcePaneVisible(true);
+  #fileViewViewerId: ContentEditorFileViewerId | null | undefined;
   // Explicit initial modes (e.g. marketing demos) must not overwrite the
   // visitor's real CAT workspace preference.
   #persistViewMode: boolean;
+
+  /**
+   * Whether the adaptive workspace persona system is active.
+   * Controlled by the release-content-editor-adaptive-workspace release flag.
+   */
+  adaptiveWorkspaceEnabled = false;
+
+  /**
+   * Current workspace persona. Stored per-file-family so switching between
+   * an image file and a string file remembers a separate preference for each.
+   * Null means the persona has not been resolved yet for the current file family.
+   */
+  workspacePersona: ContentEditorWorkspacePersona | null = null;
+
+  /**
+   * File family used to scope persona persistence (e.g. "image", "text").
+   * Starts as null so the initial applyFileFamily("text") does not early return
+   * before reading saved preferences from localStorage.
+   */
+  #currentFileFamily: string | null = null;
 
   constructor(initialViewMode?: ContentEditorWorkspaceViewMode) {
     this.viewMode = initialViewMode ?? readCatWorkspaceViewMode();
@@ -50,42 +128,291 @@ export class ContentEditorWorkspaceUiStore {
     return this.viewMode === "file";
   }
 
-  setViewMode(mode: ContentEditorWorkspaceViewMode) {
-    this.viewMode = mode;
-    if (this.#persistViewMode) {
-      writeCatWorkspaceViewMode(mode);
+  get resolvedPersona(): ContentEditorWorkspacePersona {
+    return this.workspacePersona ?? defaultPersonaForFileFamily(this.#currentFileFamily ?? "text");
+  }
+
+  get isDesignerPersona(): boolean {
+    return this.resolvedPersona === "designer";
+  }
+
+  get isReviewerPersona(): boolean {
+    return this.resolvedPersona === "reviewer";
+  }
+
+  get isTranslatorPersona(): boolean {
+    return this.resolvedPersona === "translator";
+  }
+
+  setAdaptiveWorkspaceEnabled(enabled: boolean) {
+    if (this.adaptiveWorkspaceEnabled === enabled) {
+      return;
+    }
+    this.adaptiveWorkspaceEnabled = enabled;
+    if (enabled && this.#currentFileFamily) {
+      const isDesignerFamily = Boolean(
+        this.#currentFileFamily &&
+        DESIGNER_PERSONA_FILE_FAMILIES.has(this.#currentFileFamily as never),
+      );
+      if (isDesignerFamily) {
+        this.#applyPersonaLayout(this.resolvedPersona, { persistViewMode: false });
+      } else {
+        const savedViewMode = readCatWorkspaceViewMode();
+        if (savedViewMode === "multilingual" && this.multilingualViewAvailable) {
+          this.setViewMode("multilingual", { persistViewMode: false });
+        } else {
+          this.#applyPersonaLayout(this.resolvedPersona, { persistViewMode: false });
+        }
+      }
     }
   }
 
-  setHoveredSegment(segmentId: string | null) {
-    this.hoveredSegmentId = segmentId;
+  setViewMode(mode: ContentEditorWorkspaceViewMode, options?: { persistViewMode?: boolean }) {
+    const previousMode = this.viewMode;
+    this.viewMode = mode;
+    const shouldPersistViewMode = (options?.persistViewMode ?? true) && this.#persistViewMode;
+    if (shouldPersistViewMode) {
+      if (
+        !this.adaptiveWorkspaceEnabled ||
+        mode === "multilingual" ||
+        (previousMode === "multilingual" && mode !== "file")
+      ) {
+        writeCatWorkspaceViewMode(mode);
+      }
+    }
+    if (mode !== "side-by-side") {
+      this.setSideBySideViewport({ visibleSegmentIds: [], loadSegmentIds: [] });
+    }
+    if (this.adaptiveWorkspaceEnabled && this.#persistViewMode) {
+      const isFileOnlyDesignerFamily = Boolean(
+        this.#currentFileFamily &&
+        DESIGNER_PERSONA_FILE_FAMILIES.has(this.#currentFileFamily as never) &&
+        this.#currentFileFamily !== "document",
+      );
+      const targetPersona: ContentEditorWorkspacePersona | null =
+        mode === "side-by-side"
+          ? isFileOnlyDesignerFamily
+            ? null
+            : "reviewer"
+          : mode === "comfortable"
+            ? isFileOnlyDesignerFamily
+              ? null
+              : "translator"
+            : mode === "file"
+              ? "designer"
+              : null;
+      if (targetPersona && this.workspacePersona !== targetPersona) {
+        this.workspacePersona = targetPersona;
+        writeCatWorkspacePersona(this.#currentFileFamily ?? "text", targetPersona);
+      }
+    }
   }
 
-  clearHoveredSegment() {
-    this.hoveredSegmentId = null;
+  #applyPersonaLayout(
+    persona: ContentEditorWorkspacePersona,
+    options?: { persistViewMode?: boolean },
+  ) {
+    if (!this.#persistViewMode) {
+      return;
+    }
+    if (persona === "designer") {
+      this.setViewMode("file", options);
+    } else if (persona === "reviewer") {
+      this.setViewMode("side-by-side", options);
+    } else if (persona === "translator") {
+      this.setViewMode("comfortable", options);
+    }
   }
 
-  setVisibleSideBySideSegmentIds(segmentIds: string[]) {
-    if (
-      this.visibleSideBySideSegmentIds.length === segmentIds.length &&
-      this.visibleSideBySideSegmentIds.every((segmentId, index) => segmentId === segmentIds[index])
-    ) {
+  /**
+   * Called when the active file family changes (e.g. switching from a string
+   * file to an image file). Loads the stored persona preference for the new
+   * family, falling back to the auto-detected default.
+   */
+  applyFileFamily(fileFamily: string) {
+    if (this.#currentFileFamily === fileFamily) {
       return;
     }
 
-    this.visibleSideBySideSegmentIds = segmentIds;
+    this.#currentFileFamily = fileFamily;
+    const stored = readCatWorkspacePersona(fileFamily);
+    this.workspacePersona = stored;
+
+    if (this.adaptiveWorkspaceEnabled) {
+      const isDesignerFamily = Boolean(
+        fileFamily && DESIGNER_PERSONA_FILE_FAMILIES.has(fileFamily as never),
+      );
+      if (isDesignerFamily) {
+        this.#applyPersonaLayout(this.resolvedPersona, { persistViewMode: false });
+      } else {
+        const savedViewMode = readCatWorkspaceViewMode();
+        if (savedViewMode === "multilingual" && this.multilingualViewAvailable) {
+          this.setViewMode("multilingual", { persistViewMode: false });
+        } else {
+          this.#applyPersonaLayout(this.resolvedPersona, { persistViewMode: false });
+        }
+      }
+    }
   }
 
-  setPreviewLoadingState(
-    segmentId: string | null,
-    state: { isTargetLoading: boolean; isCommentsLoading: boolean },
-  ) {
-    this.previewLoadingSegmentId = segmentId;
-    this.previewTargetLoading = state.isTargetLoading;
-    this.previewCommentsLoading = state.isCommentsLoading;
+  /**
+   * Explicitly set the workspace persona. Persists the choice under the
+   * current file family so it is restored on future visits, and drives the
+   * corresponding workspace layout preset.
+   */
+  setWorkspacePersona(persona: ContentEditorWorkspacePersona, fileFamily?: string) {
+    const family = fileFamily ?? this.#currentFileFamily ?? "text";
+    this.#currentFileFamily = family;
+    this.workspacePersona = persona;
+    writeCatWorkspacePersona(family, persona);
+    this.#applyPersonaLayout(persona);
+  }
+
+  setFilesPanelCollapsed(collapsed: boolean, options?: { persist?: boolean }) {
+    if (this.filesPanelCollapsed === collapsed) {
+      return;
+    }
+
+    this.filesPanelCollapsed = collapsed;
+    if (options?.persist ?? true) {
+      writeCatFilesPanelCollapsed(collapsed);
+    }
+  }
+
+  toggleFilesPanel() {
+    this.setFilesPanelCollapsed(!this.filesPanelCollapsed);
+  }
+
+  setDetailsPanelCollapsed(collapsed: boolean, options?: { persist?: boolean }) {
+    if (this.detailsPanelCollapsed === collapsed) {
+      return;
+    }
+
+    this.detailsPanelCollapsed = collapsed;
+    if (options?.persist ?? true) {
+      writeCatDetailsPanelCollapsed(collapsed);
+    }
+  }
+
+  toggleDetailsPanel() {
+    this.setDetailsPanelCollapsed(!this.detailsPanelCollapsed);
+  }
+
+  setShortcutHintsHidden(hidden: boolean) {
+    if (this.shortcutHintsHidden === hidden) {
+      return;
+    }
+
+    this.shortcutHintsHidden = hidden;
+    writeCatShortcutHintsHidden(hidden);
+  }
+
+  setHiddenFilesHidden(hidden: boolean) {
+    if (this.hiddenFilesHidden === hidden) {
+      return;
+    }
+
+    this.hiddenFilesHidden = hidden;
+    writeCatHiddenFilesHidden(hidden);
+  }
+
+  openChromeDialog(dialog: ContentEditorChromeDialog) {
+    this.chromeDialog = dialog;
+  }
+
+  closeChromeDialog() {
+    this.chromeDialog = null;
+  }
+
+  setExportFormat(format: ContentEditorFilteredExportFormat) {
+    this.exportFormat = format;
+  }
+
+  revealQaDetails() {
+    this.setDetailsPanelCollapsed(false);
+    this.qaDetailsRevealNonce += 1;
+  }
+
+  setSideBySideViewport(input: { visibleSegmentIds: string[]; loadSegmentIds: string[] }) {
+    const visibleUnchanged = sameSegmentIdList(
+      this.visibleSideBySideSegmentIds,
+      input.visibleSegmentIds,
+    );
+    const loadUnchanged = sameSegmentIdList(this.loadSideBySideSegmentIds, input.loadSegmentIds);
+    if (visibleUnchanged && loadUnchanged) {
+      return;
+    }
+
+    if (!visibleUnchanged) {
+      this.visibleSideBySideSegmentIds = input.visibleSegmentIds;
+    }
+    if (!loadUnchanged) {
+      this.loadSideBySideSegmentIds = input.loadSegmentIds;
+    }
   }
 
   setTranslationViewLoading(loading: boolean) {
     this.translationViewLoading = loading;
+  }
+
+  setMultilingualViewAvailable(available: boolean) {
+    if (this.multilingualViewAvailable === available) {
+      return;
+    }
+    this.multilingualViewAvailable = available;
+    if (available && this.adaptiveWorkspaceEnabled && this.#persistViewMode) {
+      const isDesignerFamily = Boolean(
+        this.#currentFileFamily &&
+        DESIGNER_PERSONA_FILE_FAMILIES.has(this.#currentFileFamily as never),
+      );
+      if (!isDesignerFamily && readCatWorkspaceViewMode() === "multilingual") {
+        this.setViewMode("multilingual", { persistViewMode: false });
+      }
+    }
+  }
+
+  applyFileViewViewer(viewerId: ContentEditorFileViewerId | null) {
+    if (this.#fileViewViewerId === viewerId) {
+      return;
+    }
+    this.#fileViewViewerId = viewerId;
+    const isDocumentViewer = viewerId === "markdown" || viewerId === "html";
+    this.fileViewSourcePaneVisible = readCatFileViewSourcePaneVisible(!isDocumentViewer);
+    this.fileViewImageLayersDirty = false;
+    this.fileViewVideoDirty = false;
+    this.fileViewDocumentReviewBlocked = true;
+    this.fileViewGenerateDialogOpen = false;
+    this.fileViewAiDrawerOpen = false;
+  }
+
+  setFileViewImageLayersDirty(dirty: boolean) {
+    this.fileViewImageLayersDirty = dirty;
+  }
+
+  setFileViewVideoDirty(dirty: boolean) {
+    this.fileViewVideoDirty = dirty;
+  }
+
+  setFileViewDocumentReviewBlocked(blocked: boolean) {
+    this.fileViewDocumentReviewBlocked = blocked;
+  }
+
+  setFileViewGenerateDialogOpen(open: boolean) {
+    this.fileViewGenerateDialogOpen = open;
+  }
+
+  setFileViewAiDrawerOpen(open: boolean) {
+    this.fileViewAiDrawerOpen = open;
+  }
+
+  setFileViewSourcePaneVisible(visible: boolean, options?: { persist?: boolean }) {
+    this.fileViewSourcePaneVisible = visible;
+    if (options?.persist ?? true) {
+      writeCatFileViewSourcePaneVisible(visible);
+    }
+  }
+
+  toggleFileViewSourcePane() {
+    this.setFileViewSourcePaneVisible(!this.fileViewSourcePaneVisible);
   }
 }

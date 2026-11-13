@@ -12,13 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  ArrowRight01Icon,
-  File01Icon,
-  Folder01Icon,
-  FolderOpenIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRightIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@phosphor-icons/react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/primitives/cn";
 import type { HTMLAttributes, ReactNode } from "react";
@@ -166,8 +160,7 @@ export const FileTreeFolder = ({
                 />
               }
             >
-              <HugeiconsIcon
-                icon={ArrowRight01Icon}
+              <ArrowRightIcon
                 className={cn(
                   "size-4 shrink-0 text-muted-foreground transition-transform",
                   isExpanded && "rotate-90",
@@ -181,9 +174,9 @@ export const FileTreeFolder = ({
             >
               <FileTreeIcon>
                 {isExpanded ? (
-                  <HugeiconsIcon icon={FolderOpenIcon} className="size-4 text-blue-500" />
+                  <FolderOpenIcon className="size-4 text-blue-500" />
                 ) : (
-                  <HugeiconsIcon icon={Folder01Icon} className="size-4 text-blue-500" />
+                  <FolderIcon className="size-4 text-blue-500" />
                 )}
               </FileTreeIcon>
               <FileTreeName>{name}</FileTreeName>
@@ -259,7 +252,7 @@ export const FileTreeFile = ({
             {/* Spacer for alignment */}
             <span className="size-4 shrink-0" />
             <FileTreeIcon>
-              {icon ?? <HugeiconsIcon icon={File01Icon} className="size-4 text-muted-foreground" />}
+              {icon ?? <FileIcon className="size-4 text-muted-foreground" />}
             </FileTreeIcon>
             <FileTreeName>{name}</FileTreeName>
           </>

@@ -1,0 +1,1182 @@
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/csv"
+	"encoding/hex"
+	"encoding/json"
+	"encoding/xml"
+	"errors"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"golang.org/x/text/language"
+)
+
+type glossaryImportPayload struct {
+	Format          string            `json:"format"`
+	Content         string            `json:"content"`
+	ReportID        *string           `json:"reportId,omitempty"`
+	ContentEncoding *string           `json:"contentEncoding"`
+	SourceFilename  *string           `json:"sourceFilename"`
+	Mode            *string           `json:"mode"`
+	PreviewForMode  *string           `json:"previewForMode"`
+	StrictLocale    *bool             `json:"strictLocale"`
+	LocaleMapping   map[string]string `json:"localeMapping"`
+}
+
+type glossaryImportConcept struct {
+	ID          string
+	PrimaryTerm string
+	Subject     string
+	Definition  string
+	Note        string
+	Terms       []glossaryImportTerm
+}
+
+type glossaryImportTerm struct {
+	ID           string
+	Locale       string
+	Term         string
+	Description  string
+	Note         string
+	PartOfSpeech string
+	Status       string
+	Forbidden    bool
+}
+
+type glossaryImportDiagnostic struct {
+	Severity  string  `json:"severity"`
+	Code      string  `json:"code"`
+	Message   string  `json:"message"`
+	SourceRow *int    `json:"sourceRow,omitempty"`
+	ConceptID *string `json:"conceptId,omitempty"`
+	TermID    *string `json:"termId,omitempty"`
+	Field     *string `json:"field,omitempty"`
+}
+
+func (api *glossaryAPI) exportGlossaryHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	value, status, err := api.exportGlossary(r, g)
+	if err == nil {
+		api.publishActivity(r.Context(), activityLogEventInput{
+			ActorUserID:    actor.userID,
+			EventType:      "glossary_exported",
+			OrganizationID: actor.organizationID,
+			Payload:        map[string]any{"resourceId": g.ID},
+			TargetID:       g.ID,
+			TargetKind:     "glossary",
+		})
+	}
+	return value, status, err
+}
+
+func (api *glossaryAPI) getGlossaryImportReportHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	reportID := r.PathValue("reportId")
+	if !validGlossaryID(reportID) {
+		return nil, 0, missingGlossary()
+	}
+	return api.getGlossaryImportReport(r.Context(), actor, g, reportID)
+}
+
+func (api *glossaryAPI) getGlossaryImportBackupHandler(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	reportID := r.PathValue("reportId")
+	if !validGlossaryID(reportID) {
+		return nil, 0, missingGlossary()
+	}
+	if api.objects == nil {
+		return nil, 0, glossaryFailure(503, "object_storage_unavailable", "Glossary object storage is unavailable")
+	}
+	var location, key, filename, contentType string
+	err := api.pool.QueryRow(r.Context(), `select coalesce(backup_object_location,''), coalesce(backup_object_key,''), coalesce(source_filename,''), 'application/xml; charset=utf-8' from glossary_import_runs where id=$1 and glossary_id=$2 and organization_id=$3 and operation='import' and status='completed'`, reportID, g.ID, actor.organizationID).Scan(&location, &key, &filename, &contentType)
+	if errorsIsNoRows(err) {
+		return nil, 0, missingGlossary()
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	if key == "" {
+		return nil, 0, glossaryFailure(409, "glossary_backup_not_ready", "The glossary backup is not ready")
+	}
+	store, err := api.objects.Resolve(location)
+	if err != nil {
+		return nil, 0, err
+	}
+	body, _, err := store.Get(r.Context(), key)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = body.Close() }()
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, 0, err
+	}
+	if filename == "" {
+		filename = "glossary-backup.tbx"
+	} else {
+		filename = "glossary-backup-" + filename
+	}
+	return interchangeDownload{contentType: contentType, filename: filename, body: data}, http.StatusOK, nil
+}
+
+func (api *glossaryAPI) getGlossaryImportReport(ctx context.Context, actor glossaryActor, g glossaryRecord, reportID string) (any, int, error) {
+	var (
+		id, orgID, glossaryID, operation, format, mode, status string
+		createdBy                                              *string
+		sourceFilename, sourceSha, backupFileID                *string
+		sourceObjectLocation, sourceObjectKey                  *string
+		resultObjectLocation, resultObjectKey                  *string
+		resultFilename, resultContentType                      *string
+		backupObjectLocation, backupObjectKey                  *string
+		errorCode, errorMessage                                *string
+		options, sourceTotals, counts                          []byte
+		createdAt                                              time.Time
+		completedAt                                            *time.Time
+	)
+	err := api.pool.QueryRow(ctx, `select id, organization_id, glossary_id, operation, created_by_user_id, format, mode, status, source_filename, source_sha256, options, source_totals, counts, backup_file_id, source_object_location, source_object_key, result_object_location, result_object_key, result_filename, result_content_type, backup_object_location, backup_object_key, error_code, error_message, created_at, completed_at from glossary_import_runs where id=$1 and glossary_id=$2 and organization_id=$3`, reportID, g.ID, actor.organizationID).Scan(
+		&id, &orgID, &glossaryID, &operation, &createdBy, &format, &mode, &status, &sourceFilename, &sourceSha, &options, &sourceTotals, &counts, &backupFileID, &sourceObjectLocation, &sourceObjectKey, &resultObjectLocation, &resultObjectKey, &resultFilename, &resultContentType, &backupObjectLocation, &backupObjectKey, &errorCode, &errorMessage, &createdAt, &completedAt,
+	)
+	if errorsIsNoRows(err) {
+		return nil, 0, missingGlossary()
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	entries := []map[string]any{}
+	rows, err := api.pool.Query(ctx, `select id, severity, code, message, source_row, concept_id, term_id, field, created_at from glossary_import_report_entries where run_id=$1 order by created_at, id`, reportID)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var entryID, severity, code, message string
+		var sourceRow *int
+		var conceptID, termID, field *string
+		var entryCreated time.Time
+		if err := rows.Scan(&entryID, &severity, &code, &message, &sourceRow, &conceptID, &termID, &field, &entryCreated); err != nil {
+			return nil, 0, err
+		}
+		entries = append(entries, map[string]any{
+			"id": entryID, "severity": severity, "code": code, "message": message,
+			"sourceRow": sourceRow, "conceptId": conceptID, "termId": termID, "field": field,
+			"createdAt": formatGlossaryTime(entryCreated),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	_ = sourceObjectLocation
+	_ = sourceObjectKey
+	_ = resultObjectLocation
+	_ = backupObjectLocation
+	_ = backupObjectKey
+	report := map[string]any{
+		"id": id, "organizationId": orgID, "glossaryId": glossaryID, "operation": operation, "createdByUserId": createdBy,
+		"format": format, "mode": mode, "status": status, "sourceFilename": sourceFilename,
+		"sourceSha256": sourceSha, "options": jsonObjectOrEmpty(options), "sourceTotals": jsonObjectOrEmpty(sourceTotals),
+		"counts": jsonObjectOrEmpty(counts), "backupFileId": backupFileID,
+		"resultFilename": resultFilename, "resultContentType": resultContentType,
+		"resultReady": resultObjectKey != nil && *resultObjectKey != "",
+		"backupReady": backupObjectKey != nil && *backupObjectKey != "",
+		"errorCode":   errorCode, "errorMessage": errorMessage,
+		"createdAt": formatGlossaryTime(createdAt), "completedAt": formatGlossaryTimePtr(completedAt),
+	}
+	return map[string]any{"report": report, "entries": entries}, 200, nil
+}
+
+func errorsIsNoRows(err error) bool {
+	return err != nil && (err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows"))
+}
+
+func jsonObjectOrEmpty(raw []byte) json.RawMessage {
+	if len(raw) == 0 {
+		return json.RawMessage(`{}`)
+	}
+	return json.RawMessage(raw)
+}
+
+//nolint:unused // Retained for the legacy synchronous report implementation during migration.
+func (api *glossaryAPI) importGlossaryConcepts(r *http.Request, actor glossaryActor, g glossaryRecord) (any, int, error) {
+	if err := api.requireConceptWrite(r.Context(), actor, g); err != nil {
+		return nil, 0, err
+	}
+	var payload glossaryImportPayload
+	if err := readGlossaryBody(r, []string{"format", "content", "contentEncoding", "sourceFilename", "mode", "previewForMode", "strictLocale", "localeMapping"}, &payload); err != nil {
+		return nil, 0, err
+	}
+	format := strings.ToLower(trimGlossaryInput(payload.Format))
+	if format != "csv" && format != "tbx" && format != "xlsx" {
+		return nil, 0, invalidGlossary()
+	}
+	if format == "xlsx" {
+		return nil, 0, glossaryFailure(501, "not_implemented", "XLSX glossary import is not available on the native Go service yet")
+	}
+	mode := "merge"
+	if payload.Mode != nil && *payload.Mode != "" {
+		mode = *payload.Mode
+	}
+	switch mode {
+	case "preview", "create", "update", "merge", "replace":
+	default:
+		return nil, 0, invalidGlossary()
+	}
+	content := payload.Content
+	if payload.ContentEncoding != nil && strings.EqualFold(*payload.ContentEncoding, "base64") {
+		decoded, err := base64.StdEncoding.DecodeString(content)
+		if err != nil {
+			return nil, 0, invalidGlossary()
+		}
+		content = string(decoded)
+	}
+	concepts, diagnostics := parseGlossaryImport(format, content)
+	concepts, diagnostics = applyGlossaryImportLocaleOptions(g, payload, concepts, diagnostics)
+	concepts, diagnostics = filterGlossaryImportConcepts(g, payload, concepts, diagnostics)
+	if mode == "preview" {
+		counts := glossaryImportCounts(concepts, diagnostics)
+		reportID, err := api.persistGlossaryImportRun(r.Context(), api.pool, actor, g, payload, mode, "preview", concepts, counts, diagnostics, nil)
+		if err != nil {
+			return nil, 0, err
+		}
+		return map[string]any{
+			"reportId":    reportID,
+			"imported":    0,
+			"skipped":     counts["skipped"],
+			"diagnostics": diagnostics,
+			"planned": map[string]any{
+				"concepts": len(concepts),
+				"terms":    countImportTerms(concepts),
+				"counts":   counts,
+			},
+		}, 200, nil
+	}
+	if mode == "replace" && glossaryImportHasErrors(diagnostics) {
+		counts := glossaryImportCounts(concepts, diagnostics)
+		reportID, err := api.persistGlossaryImportRun(r.Context(), api.pool, actor, g, payload, mode, "failed", concepts, counts, diagnostics, nil)
+		if err != nil {
+			return nil, 0, err
+		}
+		return map[string]any{
+			"reportId":     reportID,
+			"imported":     0,
+			"updated":      0,
+			"merged":       0,
+			"skipped":      counts["skipped"],
+			"diagnostics":  diagnostics,
+			"backupFileId": nil,
+		}, 400, nil
+	}
+	applied, counts, applyDiagnostics, reportID, err := api.applyGlossaryImport(r.Context(), actor, g, payload, mode, concepts, diagnostics)
+	if err != nil {
+		return nil, 0, err
+	}
+	api.bumpGlossaryCache(r.Context(), actor, g.ID)
+	diagnostics = append(diagnostics, applyDiagnostics...)
+	api.publishActivity(r.Context(), activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "glossary_imported",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"batchId":    reportID,
+			"itemCount":  countImportTerms(concepts),
+			"resourceId": g.ID,
+		},
+		TargetID:   g.ID,
+		TargetKind: "glossary",
+	})
+	return map[string]any{
+		"reportId":     reportID,
+		"concepts":     applied,
+		"imported":     counts["created"],
+		"updated":      counts["updated"],
+		"merged":       counts["merged"],
+		"skipped":      counts["skipped"],
+		"diagnostics":  diagnostics,
+		"backupFileId": nil,
+	}, 201, nil
+}
+
+//nolint:unused // Used by the legacy synchronous implementation retained for compatibility.
+func glossaryImportHasErrors(diagnostics []glossaryImportDiagnostic) bool {
+	for _, d := range diagnostics {
+		if d.Severity == "error" {
+			return true
+		}
+	}
+	return false
+}
+
+func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPayload, concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
+	knownLocales := glossaryLanguages(g)
+	out := make([]glossaryImportConcept, 0, len(concepts))
+	for _, concept := range concepts {
+		terms := make([]glossaryImportTerm, 0, len(concept.Terms))
+		for _, term := range concept.Terms {
+			raw := strings.ReplaceAll(trimGlossaryInput(term.Locale), "_", "-")
+			mapped := raw
+			explicitMappingMatched := false
+			mappedByCrowdin := false
+			if payload.LocaleMapping != nil {
+				if replacement, ok := payload.LocaleMapping[raw]; ok {
+					explicitMappingMatched = true
+					mapped = strings.ReplaceAll(trimGlossaryInput(replacement), "_", "-")
+				} else if replacement, ok := payload.LocaleMapping[term.Locale]; ok {
+					explicitMappingMatched = true
+					mapped = strings.ReplaceAll(trimGlossaryInput(replacement), "_", "-")
+				}
+			}
+			if !explicitMappingMatched && strings.EqualFold(payload.Format, "tbx") {
+				if crowdinLocale, ok := resolveCrowdinGlossaryLocale(raw, knownLocales); ok && !strings.EqualFold(crowdinLocale, raw) {
+					mapped = crowdinLocale
+					mappedByCrowdin = true
+				}
+			}
+			canonical, valid := canonicalGlossaryImportLocale(mapped)
+			if !valid {
+				id := concept.ID
+				termID := term.ID
+				field := "locale"
+				message := "Term locale is not a valid BCP 47 language tag"
+				if strings.TrimSpace(mapped) == "" {
+					message = "Term locale is missing"
+				}
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "error", Code: "invalid_locale", Message: message,
+					ConceptID: &id, TermID: &termID, Field: &field,
+				})
+				continue
+			}
+			term.Locale = canonical
+			if mappedByCrowdin {
+				id := concept.ID
+				termID := term.ID
+				field := "locale"
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "warning", Code: "locale_mapped",
+					Message:   "Crowdin language ID was mapped to the configured glossary locale",
+					ConceptID: &id, TermID: &termID, Field: &field,
+				})
+			}
+			terms = append(terms, term)
+		}
+		if len(terms) == 0 {
+			if len(concept.Terms) > 0 {
+				id := concept.ID
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "error", Code: "concept_has_no_valid_terms", Message: "Concept has no valid terms and was not imported",
+					ConceptID: &id,
+				})
+			}
+			continue
+		}
+		concept.Terms = terms
+		out = append(out, concept)
+	}
+	return out, diagnostics
+}
+
+// crowdinDefaultGlossaryLocales maps Crowdin bare language IDs to native BCP-47
+// locales. Used when glossary locale coverage is inferred from terms rather than
+// preconfigured on the glossary record.
+var crowdinDefaultGlossaryLocales = map[string]string{
+	"ar": "ar-SA",
+	"de": "de-DE",
+	"en": "en-US",
+	"es": "es-ES",
+	"fa": "fa-IR",
+	"fr": "fr-FR",
+	"he": "he-IL",
+	"hi": "hi-IN",
+	"id": "id-ID",
+	"it": "it-IT",
+	"ja": "ja-JP",
+	"ko": "ko-KR",
+	"nl": "nl-NL",
+	"pl": "pl-PL",
+	"pt": "pt-BR",
+	"ro": "ro-RO",
+	"ru": "ru-RU",
+	"sv": "sv-SE",
+	"th": "th-TH",
+	"tr": "tr-TR",
+	"uk": "uk-UA",
+	"vi": "vi-VN",
+	"zh": "zh-CN",
+}
+
+func refreshGlossaryLocaleCoverage(ctx context.Context, tx dictionaryDB, glossaryID, sourceLocale string) error {
+	_, err := tx.Exec(ctx, `
+		update glossaries g
+		set locale_coverage = coalesce(
+			(select jsonb_agg(locale order by locale)
+			 from (
+			   select distinct locale
+			   from glossary_terms
+			   where glossary_id = $1
+			     and locale is not null
+			     and btrim(locale) <> ''
+			     and lower(locale) <> lower($2)
+			 ) locales),
+			'[]'::jsonb
+		),
+		-- Writers that cannot bump go-svc's Valkey revision rely on updated_at to invalidate cached reads.
+		updated_at = now()
+		where g.id = $1`, glossaryID, sourceLocale)
+	return err
+}
+
+func filterGlossaryImportConcepts(g glossaryRecord, payload glossaryImportPayload, concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
+	strict := payload.StrictLocale == nil || *payload.StrictLocale
+	sourceCanon, _ := canonicalGlossaryImportLocale(g.SourceLocale)
+	sourceKey := strings.ToLower(sourceCanon)
+	for i := range concepts {
+		concept := concepts[i]
+		if strict && sourceKey != "" {
+			hasSource := false
+			for _, term := range concept.Terms {
+				if strings.ToLower(strings.TrimSpace(term.Locale)) == sourceKey {
+					hasSource = true
+					break
+				}
+			}
+			if !hasSource {
+				id := concept.ID
+				field := "sourceLocale"
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "error", Code: "missing_source_locale", Message: "Concept has no term in the glossary source locale",
+					ConceptID: &id, Field: &field,
+				})
+			}
+		}
+	}
+	return filterGlossaryImportConceptsByDiagnostics(concepts, diagnostics)
+}
+
+func filterGlossaryImportConceptsByDiagnostics(concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
+	termErrorKeys := make(map[string]struct{})
+	conceptBlockingIDs := make(map[string]struct{})
+	for _, entry := range diagnostics {
+		if entry.Severity != "error" || entry.ConceptID == nil {
+			continue
+		}
+		if entry.TermID != nil {
+			termErrorKeys[*entry.ConceptID+"\x00"+*entry.TermID] = struct{}{}
+			continue
+		}
+		conceptBlockingIDs[*entry.ConceptID] = struct{}{}
+	}
+	out := make([]glossaryImportConcept, 0, len(concepts))
+	for _, concept := range concepts {
+		if _, blocked := conceptBlockingIDs[concept.ID]; blocked {
+			continue
+		}
+		terms := make([]glossaryImportTerm, 0, len(concept.Terms))
+		for _, term := range concept.Terms {
+			if _, blocked := termErrorKeys[concept.ID+"\x00"+term.ID]; blocked {
+				continue
+			}
+			terms = append(terms, term)
+		}
+		if len(terms) == 0 {
+			if len(concept.Terms) > 0 {
+				id := concept.ID
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "error", Code: "concept_has_no_valid_terms", Message: "Concept has no valid terms and was not imported",
+					ConceptID: &id,
+				})
+			}
+			continue
+		}
+		concept.Terms = terms
+		out = append(out, concept)
+	}
+	return out, diagnostics
+}
+
+func canonicalGlossaryImportLocale(raw string) (string, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || len(trimmed) > 35 || strings.Contains(trimmed, " ") {
+		return "", false
+	}
+	normalized := strings.ReplaceAll(trimmed, "_", "-")
+	tag, err := language.Parse(normalized)
+	if err != nil {
+		return "", false
+	}
+	return tag.String(), true
+}
+
+func resolveCrowdinGlossaryLocale(raw string, locales []glossaryLanguage) (string, bool) {
+	raw = strings.ToLower(strings.TrimSpace(strings.ReplaceAll(raw, "_", "-")))
+	if raw == "" {
+		return "", false
+	}
+	var match string
+	for _, language := range locales {
+		locale := strings.TrimSpace(language.Locale)
+		normalizedLocale := strings.ToLower(strings.ReplaceAll(locale, "_", "-"))
+		if normalizedLocale == raw {
+			return locale, true
+		}
+		if strings.Contains(raw, "-") {
+			continue
+		}
+		parts := strings.SplitN(normalizedLocale, "-", 2)
+		if len(parts) != 2 || parts[0] != raw {
+			continue
+		}
+		if match != "" && !strings.EqualFold(match, locale) {
+			return "", false
+		}
+		match = locale
+	}
+	if match != "" {
+		return match, true
+	}
+	if strings.Contains(raw, "-") {
+		return raw, false
+	}
+	if preferred, ok := crowdinDefaultGlossaryLocales[raw]; ok {
+		return preferred, true
+	}
+	return raw, false
+}
+
+func countImportTerms(concepts []glossaryImportConcept) int {
+	n := 0
+	for _, c := range concepts {
+		n += len(c.Terms)
+	}
+	return n
+}
+
+func glossaryImportCounts(concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) map[string]int {
+	counts := map[string]int{
+		"conceptsRead": len(concepts), "termsRead": countImportTerms(concepts),
+		"conceptsCreated": 0, "termsCreated": 0, "conceptsUpdated": 0, "termsUpdated": 0,
+		"conceptsMerged": 0, "termsMerged": 0, "conceptsSkipped": 0, "termsSkipped": 0,
+		"conceptsFailed": 0, "termsFailed": 0, "created": 0, "updated": 0, "merged": 0,
+		"skipped": 0, "warned": 0, "failed": 0,
+	}
+	for _, d := range diagnostics {
+		switch d.Severity {
+		case "warning":
+			counts["warned"]++
+		case "error":
+			counts["failed"]++
+		}
+	}
+	return counts
+}
+
+//nolint:unused // Parser helpers remain covered by interchange unit tests during the async migration.
+func parseGlossaryImport(format, content string) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
+	if format == "tbx" {
+		return parseGlossaryTBX(content)
+	}
+	return parseGlossaryCSV(content)
+}
+
+type csvHeaderIndices struct {
+	conceptID    int
+	conceptKey   int
+	locale       int
+	term         int
+	primaryTerm  int
+	subject      int
+	definition   int
+	conceptNote  int
+	termNote     int
+	note         int
+	termID       int
+	description  int
+	partOfSpeech int
+	status       int
+}
+
+func newCSVHeaderIndices() csvHeaderIndices {
+	return csvHeaderIndices{
+		conceptID:    -1,
+		conceptKey:   -1,
+		locale:       -1,
+		term:         -1,
+		primaryTerm:  -1,
+		subject:      -1,
+		definition:   -1,
+		conceptNote:  -1,
+		termNote:     -1,
+		note:         -1,
+		termID:       -1,
+		description:  -1,
+		partOfSpeech: -1,
+		status:       -1,
+	}
+}
+
+const glossaryCSVCapacityHintCap = 65_536
+
+func glossaryCSVCapacityHint(content string) int {
+	return min(strings.Count(content, "\n")+1, glossaryCSVCapacityHintCap)
+}
+
+func parseGlossaryCSV(content string) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
+	diagnostics := []glossaryImportDiagnostic{}
+	reader := csv.NewReader(strings.NewReader(strings.TrimPrefix(content, "\ufeff")))
+	reader.FieldsPerRecord = -1
+	// BOLT OPTIMIZATION: Reuse record slice to eliminate row allocations during streaming CSV parsing.
+	reader.ReuseRecord = true
+
+	firstRow, err := reader.Read()
+	if err == io.EOF {
+		return nil, diagnostics
+	}
+	if err != nil {
+		return nil, []glossaryImportDiagnostic{{Severity: "error", Code: "invalid_csv", Message: "Unable to parse CSV content"}}
+	}
+
+	indices := newCSVHeaderIndices()
+	hasHeader := false
+	for _, cell := range firstRow {
+		key := strings.ToLower(strings.TrimSpace(cell))
+		if key == "conceptid" || key == "locale" || key == "term" || key == "primaryterm" {
+			hasHeader = true
+			break
+		}
+	}
+
+	if hasHeader {
+		for j, cell := range firstRow {
+			key := strings.ToLower(strings.TrimSpace(cell))
+			switch key {
+			case "conceptid":
+				indices.conceptID = j
+			case "conceptkey":
+				indices.conceptKey = j
+			case "locale":
+				indices.locale = j
+			case "term":
+				indices.term = j
+			case "primaryterm":
+				indices.primaryTerm = j
+			case "subject":
+				indices.subject = j
+			case "definition":
+				indices.definition = j
+			case "conceptnote":
+				indices.conceptNote = j
+			case "termnote":
+				indices.termNote = j
+			case "note":
+				indices.note = j
+			case "termid":
+				indices.termID = j
+			case "description":
+				indices.description = j
+			case "partofspeech":
+				indices.partOfSpeech = j
+			case "status":
+				indices.status = j
+			}
+		}
+	} else {
+		indices.conceptID = 0
+		indices.locale = 1
+		indices.term = 2
+	}
+
+	cellVal := func(row []string, idx int) string {
+		if idx < 0 || idx >= len(row) {
+			return ""
+		}
+		v := strings.TrimSpace(row[idx])
+		if v == "" {
+			return ""
+		}
+		return unescapeGlossaryCSVFormula(v)
+	}
+
+	// Quoted CSV fields may contain newlines, so physical line count is not a
+	// record count. Cap the hint so a single multiline cell cannot reserve
+	// millions of empty map and slice slots.
+	hint := glossaryCSVCapacityHint(content)
+	byConcept := make(map[string]*glossaryImportConcept, hint)
+	order := make([]string, 0, hint)
+
+	rowNum := 1
+	processRow := func(row []string) {
+		conceptID := cellVal(row, indices.conceptID)
+		if conceptID == "" {
+			conceptID = cellVal(row, indices.conceptKey)
+		}
+		locale := strings.ReplaceAll(cellVal(row, indices.locale), "_", "-")
+		termText := cellVal(row, indices.term)
+		if conceptID == "" {
+			conceptID = termText
+		}
+		if conceptID == "" || locale == "" || termText == "" {
+			n := rowNum
+			diagnostics = append(diagnostics, glossaryImportDiagnostic{Severity: "error", Code: "invalid_csv_row", Message: "Row is missing conceptId, locale, or term", SourceRow: &n})
+			return
+		}
+		concept, ok := byConcept[conceptID]
+		if !ok {
+			concept = &glossaryImportConcept{
+				ID:          conceptID,
+				PrimaryTerm: cellVal(row, indices.primaryTerm),
+				Subject:     cellVal(row, indices.subject),
+				Definition:  cellVal(row, indices.definition),
+				Note:        firstNonEmpty(cellVal(row, indices.conceptNote), cellVal(row, indices.note)),
+			}
+			if concept.PrimaryTerm == "" {
+				concept.PrimaryTerm = termText
+			}
+			byConcept[conceptID] = concept
+			order = append(order, conceptID)
+		}
+		termID := cellVal(row, indices.termID)
+		if termID == "" {
+			termID = uuid.NewString()
+		}
+		concept.Terms = append(concept.Terms, glossaryImportTerm{
+			ID: termID, Locale: locale, Term: termText,
+			Description: cellVal(row, indices.description), Note: firstNonEmpty(cellVal(row, indices.termNote), cellVal(row, indices.note)),
+			PartOfSpeech: cellVal(row, indices.partOfSpeech), Status: firstNonEmpty(cellVal(row, indices.status), "draft"),
+		})
+	}
+
+	if !hasHeader {
+		processRow(firstRow)
+	}
+
+	for {
+		rowNum++
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, []glossaryImportDiagnostic{{Severity: "error", Code: "invalid_csv", Message: "Unable to parse CSV content"}}
+		}
+		processRow(row)
+	}
+
+	concepts := make([]glossaryImportConcept, 0, len(order))
+	for _, id := range order {
+		concepts = append(concepts, *byConcept[id])
+	}
+	return concepts, diagnostics
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+type tbxEntry struct {
+	ID       string       `xml:"id,attr"`
+	Descrips []tbxDescrip `xml:"descrip"`
+	LangSecs []tbxLangSec `xml:"langSec"`
+	LangSets []tbxLangSec `xml:"langSet"`
+}
+
+type tbxDescrip struct {
+	Type  string `xml:"type,attr"`
+	Value string `xml:",chardata"`
+}
+
+type tbxLangSec struct {
+	Lang     string       `xml:"lang,attr"`
+	TermSecs []tbxTermSec `xml:"termSec"`
+	Tigs     []tbxTermSec `xml:"tig"`
+	Ntigs    []tbxNtig    `xml:"ntig"`
+}
+
+type tbxTermNote struct {
+	Type  string `xml:"type,attr"`
+	Value string `xml:",chardata"`
+}
+
+type tbxTermSec struct {
+	ID        string        `xml:"id,attr"`
+	Term      string        `xml:"term"`
+	TermNotes []tbxTermNote `xml:"termNote"`
+	Descrips  []tbxDescrip  `xml:"descrip"`
+}
+
+type tbxNtig struct {
+	ID        string        `xml:"id,attr"`
+	TermGrp   tbxTermSec    `xml:"termGrp"`
+	TermNotes []tbxTermNote `xml:"termNote"`
+	Descrips  []tbxDescrip  `xml:"descrip"`
+}
+
+func parseGlossaryTBX(content string) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
+	diagnostics := []glossaryImportDiagnostic{}
+	decoder := xml.NewDecoder(strings.NewReader(content))
+	concepts := make([]glossaryImportConcept, 0, strings.Count(content, "<conceptEntry")+strings.Count(content, "<termEntry"))
+	for {
+		tok, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, []glossaryImportDiagnostic{{Severity: "error", Code: "invalid_tbx", Message: "Unable to parse TBX content"}}
+		}
+		se, ok := tok.(xml.StartElement)
+		if !ok || (se.Name.Local != "conceptEntry" && se.Name.Local != "termEntry") {
+			continue
+		}
+		var entry tbxEntry
+		if err := decoder.DecodeElement(&entry, &se); err != nil {
+			diagnostics = append(diagnostics, glossaryImportDiagnostic{Severity: "error", Code: "invalid_tbx_concept", Message: "Unable to parse terminology entry"})
+			continue
+		}
+		conceptID := strings.TrimPrefix(entry.ID, "c-")
+		if conceptID == "" {
+			conceptID = uuid.NewString()
+		}
+		concept := glossaryImportConcept{ID: conceptID}
+		for _, d := range entry.Descrips {
+			switch strings.ToLower(strings.TrimSpace(d.Type)) {
+			case "subjectfield", "subject", "concept_domain", "domain":
+				concept.Subject = strings.TrimSpace(d.Value)
+			case "definition", "concept_definition":
+				concept.Definition = strings.TrimSpace(d.Value)
+			}
+		}
+		for _, lang := range append(append([]tbxLangSec{}, entry.LangSecs...), entry.LangSets...) {
+			locale := strings.ReplaceAll(attrOr(lang.Lang, seLang(lang)), "_", "-")
+			bags := append(append([]tbxTermSec{}, lang.TermSecs...), lang.Tigs...)
+			for _, nested := range lang.Ntigs {
+				bag := nested.TermGrp
+				if strings.TrimSpace(bag.ID) == "" {
+					bag.ID = nested.ID
+				}
+				bag.TermNotes = append(append([]tbxTermNote{}, bag.TermNotes...), nested.TermNotes...)
+				bag.Descrips = append(append([]tbxDescrip{}, bag.Descrips...), nested.Descrips...)
+				bags = append(bags, bag)
+			}
+			for _, term := range bags {
+				text := strings.TrimSpace(term.Term)
+				if text == "" || locale == "" {
+					continue
+				}
+				termID := strings.TrimPrefix(term.ID, "t-")
+				if termID == "" {
+					termID = uuid.NewString()
+				}
+				if concept.PrimaryTerm == "" {
+					concept.PrimaryTerm = text
+				}
+				imported := glossaryImportTerm{ID: termID, Locale: locale, Term: text, Status: "draft"}
+				applyGlossaryTBXTermNotes(&imported, term.TermNotes, term.Descrips)
+				concept.Terms = append(concept.Terms, imported)
+			}
+		}
+		if len(concept.Terms) == 0 {
+			continue
+		}
+		concepts = append(concepts, concept)
+	}
+	if len(concepts) == 0 && (strings.Contains(content, "<termEntry") || strings.Contains(content, "<conceptEntry")) {
+		diagnostics = append(diagnostics, glossaryImportDiagnostic{
+			Severity: "error",
+			Code:     "tbx_entries_unreadable",
+			Message:  "TBX document contains term entries that could not be imported",
+		})
+	}
+	return concepts, diagnostics
+}
+
+func applyGlossaryTBXTermNotes(term *glossaryImportTerm, notes []tbxTermNote, descrips []tbxDescrip) {
+	for _, d := range descrips {
+		if strings.EqualFold(strings.TrimSpace(d.Type), "forbidden") && isGlossaryTBXTrue(d.Value) {
+			term.Forbidden = true
+		}
+	}
+	for _, note := range notes {
+		typ := strings.ToLower(strings.TrimSpace(note.Type))
+		value := strings.TrimSpace(note.Value)
+		switch typ {
+		case "partofspeech", "pos":
+			term.PartOfSpeech = value
+		case "forbidden":
+			term.Forbidden = isGlossaryTBXTrue(value) || strings.EqualFold(value, "forbidden")
+		case "preferred":
+			if isGlossaryTBXTrue(value) {
+				term.Status = "preferred"
+			}
+		case "administrativestatus", "normativeauthorization":
+			normalized := strings.ToLower(strings.ReplaceAll(value, " ", ""))
+			if normalized == "forbiddenterm" || normalized == "forbidden" {
+				term.Forbidden = true
+			}
+			if normalized == "preferredterm-admn-sts" || normalized == "preferredterm" {
+				term.Status = "preferred"
+			}
+		case "status":
+			switch strings.ToLower(value) {
+			case "approved":
+				if term.Status != "preferred" {
+					term.Status = "admitted"
+				}
+			case "preferred":
+				term.Status = "preferred"
+			case "forbidden", "forbiddenterm":
+				term.Forbidden = true
+			}
+		}
+	}
+}
+
+func isGlossaryTBXTrue(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "true", "yes", "1":
+		return true
+	default:
+		return false
+	}
+}
+
+func seLang(lang tbxLangSec) string { return lang.Lang }
+
+func attrOr(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
+var errGlossaryImportTermIDConflict = errors.New("glossary import term id conflict")
+
+func isGlossaryImportTermConflict(err error) bool {
+	return errors.Is(err, errGlossaryImportTermIDConflict)
+}
+
+func lookupImportGlossaryTerm(ctx context.Context, db dictionaryDB, glossaryID, conceptID, termID, locale, text string) (string, bool, error) {
+	if validGlossaryID(termID) {
+		var existing string
+		err := db.QueryRow(ctx, `select id from glossary_terms where glossary_id=$1 and concept_id=$2 and id=$3 and archived_at is null`, glossaryID, conceptID, termID).Scan(&existing)
+		if err == nil {
+			return existing, true, nil
+		}
+		if !errorsIsNoRows(err) {
+			return "", false, err
+		}
+		var otherConcept string
+		conflictErr := db.QueryRow(ctx, `select concept_id from glossary_terms where glossary_id=$1 and id=$2 and archived_at is null`, glossaryID, termID).Scan(&otherConcept)
+		if conflictErr == nil {
+			return "", false, errGlossaryImportTermIDConflict
+		}
+		if !errorsIsNoRows(conflictErr) {
+			return "", false, conflictErr
+		}
+	}
+	var existing string
+	err := db.QueryRow(ctx, `select id from glossary_terms where glossary_id=$1 and concept_id=$2 and locale=$3 and lower(term)=lower($4) and archived_at is null limit 1`, glossaryID, conceptID, locale, text).Scan(&existing)
+	if err == nil {
+		return existing, false, nil
+	}
+	if errorsIsNoRows(err) {
+		return "", false, nil
+	}
+	return "", false, err
+}
+
+//nolint:unused // Retained for the legacy synchronous report implementation during migration.
+func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryActor, g glossaryRecord, payload glossaryImportPayload, mode string, concepts []glossaryImportConcept, parseDiagnostics []glossaryImportDiagnostic) ([]glossaryConceptRecord, map[string]int, []glossaryImportDiagnostic, string, error) {
+	counts := glossaryImportCounts(concepts, parseDiagnostics)
+	diagnostics := []glossaryImportDiagnostic{}
+	appliedIDs := []string{}
+	tx, err := api.pool.Begin(ctx)
+	if err != nil {
+		return nil, nil, nil, "", err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if mode == "replace" {
+		if _, err := tx.Exec(ctx, `delete from glossary_concepts where glossary_id=$1`, g.ID); err != nil {
+			return nil, nil, nil, "", err
+		}
+	}
+	for _, incoming := range concepts {
+		existingID := ""
+		exists := false
+		if validGlossaryID(incoming.ID) {
+			lookupErr := tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and id=$2 and archived_at is null`, g.ID, incoming.ID).Scan(&existingID)
+			exists = lookupErr == nil
+			if lookupErr != nil && !errorsIsNoRows(lookupErr) {
+				return nil, nil, nil, "", lookupErr
+			}
+		}
+		if !exists && !validGlossaryID(incoming.ID) {
+			lookupErr := tx.QueryRow(ctx, `select id from glossary_concepts where glossary_id=$1 and lower(primary_term)=lower($2) and archived_at is null limit 1`, g.ID, incoming.PrimaryTerm).Scan(&existingID)
+			exists = lookupErr == nil
+			if lookupErr != nil && !errorsIsNoRows(lookupErr) {
+				return nil, nil, nil, "", lookupErr
+			}
+		}
+		switch mode {
+		case "create":
+			if exists {
+				counts["skipped"]++
+				counts["conceptsSkipped"]++
+				continue
+			}
+		case "update":
+			if !exists {
+				counts["failed"]++
+				counts["conceptsFailed"]++
+				id := incoming.ID
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{Severity: "error", Code: "concept_not_found", Message: "Concept not found for update", ConceptID: &id})
+				continue
+			}
+		}
+		primary := incoming.PrimaryTerm
+		if primary == "" && len(incoming.Terms) > 0 {
+			primary = incoming.Terms[0].Term
+		}
+		var conceptID string
+		if exists {
+			conceptID = existingID
+			_, err = tx.Exec(ctx, `update glossary_concepts set primary_term=$3, subject=$4, definition=$5, note=$6, modified_by_user_id=$7, version=version+1, updated_at=now() where id=$1 and glossary_id=$2`, conceptID, g.ID, primary, incoming.Subject, incoming.Definition, incoming.Note, actor.userID)
+			if err != nil {
+				return nil, nil, nil, "", err
+			}
+			if mode == "merge" || mode == "replace" {
+				counts["merged"]++
+				counts["conceptsMerged"]++
+			} else {
+				counts["updated"]++
+				counts["conceptsUpdated"]++
+			}
+		} else {
+			conceptID = incoming.ID
+			if !validGlossaryID(conceptID) {
+				conceptID = uuid.NewString()
+			}
+			err = tx.QueryRow(ctx, `insert into glossary_concepts (id, glossary_id, primary_term, subject, definition, note, created_by_user_id, modified_by_user_id) values ($1,$2,$3,$4,$5,$6,$7,$7) returning id`, conceptID, g.ID, primary, incoming.Subject, incoming.Definition, incoming.Note, actor.userID).Scan(&conceptID)
+			if err != nil {
+				return nil, nil, nil, "", err
+			}
+			counts["created"]++
+			counts["conceptsCreated"]++
+		}
+		for _, term := range incoming.Terms {
+			locale := strings.ReplaceAll(trimGlossaryInput(term.Locale), "_", "-")
+			text := trimGlossaryInput(term.Term)
+			if locale == "" || text == "" {
+				continue
+			}
+			termExists, _, termErr := lookupImportGlossaryTerm(ctx, tx, g.ID, conceptID, term.ID, locale, text)
+			if termErr != nil {
+				if isGlossaryImportTermConflict(termErr) {
+					counts["failed"]++
+					id := term.ID
+					conceptRef := conceptID
+					diagnostics = append(diagnostics, glossaryImportDiagnostic{
+						Severity: "error", Code: "term_id_conflict", Message: "Term id belongs to another concept in this glossary",
+						ConceptID: &conceptRef, TermID: &id,
+					})
+					continue
+				}
+				return nil, nil, nil, "", termErr
+			}
+			if termExists != "" {
+				if mode == "create" {
+					counts["termsSkipped"]++
+					counts["skipped"]++
+					continue
+				}
+				_, err = tx.Exec(ctx, `update glossary_terms set locale=$4, term=$5, source_term=$5, target_term=$5, description=$6, note=$7, part_of_speech=$8, status=$9, forbidden=$10, modified_by_user_id=$11, version=version+1, updated_at=now() where id=$1 and concept_id=$2 and glossary_id=$3`,
+					termExists, conceptID, g.ID, locale, text, term.Description, term.Note, term.PartOfSpeech, firstNonEmpty(term.Status, "draft"), term.Forbidden, actor.userID)
+				if err != nil {
+					return nil, nil, nil, "", err
+				}
+				counts["termsMerged"]++
+				continue
+			}
+			status := firstNonEmpty(term.Status, "draft")
+			forbidden := term.Forbidden
+			_, err = insertGlossaryTerm(ctx, tx, g, conceptID, actor.userID, glossaryConceptTermInput{
+				Locale: locale, Term: text, Description: &term.Description, Note: &term.Note, PartOfSpeech: &term.PartOfSpeech, Status: &status, Forbidden: &forbidden,
+			})
+			if err != nil {
+				return nil, nil, nil, "", err
+			}
+			counts["termsCreated"]++
+			counts["created"]++
+		}
+		appliedIDs = append(appliedIDs, conceptID)
+	}
+	allDiagnostics := append(append([]glossaryImportDiagnostic{}, parseDiagnostics...), diagnostics...)
+	reportID, err := api.persistGlossaryImportRun(ctx, tx, actor, g, payload, mode, "completed", concepts, counts, allDiagnostics, nil)
+	if err != nil {
+		return nil, nil, nil, "", err
+	}
+	if err := refreshGlossaryLocaleCoverage(ctx, tx, g.ID, g.SourceLocale); err != nil {
+		return nil, nil, nil, "", err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, nil, nil, "", err
+	}
+	applied := []glossaryConceptRecord{}
+	for _, conceptID := range appliedIDs {
+		value, _, getErr := api.getConcept(ctx, g, conceptID)
+		if getErr != nil {
+			continue
+		}
+		if envelope, ok := value.(map[string]any); ok {
+			if concept, ok := envelope["concept"].(glossaryConceptRecord); ok {
+				applied = append(applied, concept)
+			}
+		}
+	}
+	return applied, counts, diagnostics, reportID, nil
+}
+
+//nolint:unused // Retained for the legacy synchronous report implementation during migration.
+func (api *glossaryAPI) persistGlossaryImportRun(ctx context.Context, db dictionaryDB, actor glossaryActor, g glossaryRecord, payload glossaryImportPayload, mode, status string, concepts []glossaryImportConcept, counts map[string]int, diagnostics []glossaryImportDiagnostic, backupFileID *string) (string, error) {
+	options, _ := json.Marshal(map[string]any{
+		"strictLocale":  payload.StrictLocale == nil || *payload.StrictLocale,
+		"localeMapping": payload.LocaleMapping,
+	})
+	sourceTotals, _ := json.Marshal(map[string]int{"concepts": len(concepts), "terms": countImportTerms(concepts)})
+	countsJSON, _ := json.Marshal(counts)
+	sum := sha256.Sum256([]byte(payload.Content))
+	sha := hex.EncodeToString(sum[:])
+	var reportID string
+	if payload.ReportID != nil && *payload.ReportID != "" {
+		reportID = *payload.ReportID
+		_, err := db.Exec(ctx, `update glossary_import_runs set format=$2, mode=$3, status=$4, source_filename=$5, source_sha256=$6, options=$7::jsonb, source_totals=$8::jsonb, counts=$9::jsonb, backup_file_id=$10, error_code=null, error_message=null, completed_at=now() where id=$1 and organization_id=$11 and glossary_id=$12`, reportID, strings.ToLower(payload.Format), mode, status, payload.SourceFilename, sha, options, sourceTotals, countsJSON, backupFileID, actor.organizationID, g.ID)
+		if err != nil {
+			return "", err
+		}
+		if _, err := db.Exec(ctx, `delete from glossary_import_report_entries where run_id=$1`, reportID); err != nil {
+			return "", err
+		}
+	} else {
+		err := db.QueryRow(ctx, `insert into glossary_import_runs (organization_id, glossary_id, created_by_user_id, operation, format, mode, status, source_filename, source_sha256, options, source_totals, counts, backup_file_id, completed_at) values ($1,$2,$3,'import',$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12,now()) returning id`,
+			actor.organizationID, g.ID, actor.userID, strings.ToLower(payload.Format), mode, status, payload.SourceFilename, sha, options, sourceTotals, countsJSON, backupFileID,
+		).Scan(&reportID)
+		if err != nil {
+			return "", err
+		}
+	}
+	for _, d := range diagnostics {
+		if _, err := db.Exec(ctx, `insert into glossary_import_report_entries (run_id, severity, code, message, source_row, concept_id, term_id, field) values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+			reportID, d.Severity, d.Code, d.Message, d.SourceRow, d.ConceptID, d.TermID, d.Field); err != nil {
+			return "", err
+		}
+	}
+	return reportID, nil
+}

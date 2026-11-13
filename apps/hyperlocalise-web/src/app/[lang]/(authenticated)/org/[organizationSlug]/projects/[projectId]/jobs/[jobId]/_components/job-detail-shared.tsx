@@ -14,8 +14,7 @@
  */
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowLeft02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretLeftIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -37,7 +36,7 @@ export function defaultRenderBackLink({
       variant="ghost"
       className="-ms-2 mb-2 text-muted-foreground hover:bg-muted hover:text-foreground"
     >
-      <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={1.8} />
+      <CaretLeftIcon />
       {children}
     </Button>
   );

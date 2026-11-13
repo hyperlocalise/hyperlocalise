@@ -1,6 +1,8 @@
 package runsvc
 
 import (
+	"archive/zip"
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -12,9 +14,52 @@ import (
 
 func TestMarshalTargetFileUnsupportedExtension(t *testing.T) {
 	svc := newTestService()
-	_, _, err := svc.marshalTargetFile("/tmp/out.txt", "/tmp/src.txt", "en", "fr", map[string]string{"hello": "Bonjour"}, nil, nil)
+	_, _, err := svc.marshalTargetFile("/tmp/out.xyz", "/tmp/src.xyz", "en", "fr", map[string]string{"hello": "Bonjour"}, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "unsupported target file extension") {
 		t.Fatalf("expected unsupported extension error, got %v", err)
+	}
+}
+
+func TestMarshalTargetFileDotLottieUsesSourceArchive(t *testing.T) {
+	animation := `{"v":"5.7.4","fr":30,"ip":0,"op":60,"layers":[{"ty":5,"nm":"Title","t":{"d":{"k":[{"s":{"t":"Hello"},"t":0}]}}}]}`
+	var archive bytes.Buffer
+	writer := zip.NewWriter(&archive)
+	for name, content := range map[string]string{"manifest.json": `{"version":"2"}`, "a/intro.json": animation} {
+		entry, err := writer.Create(name)
+		if err != nil {
+			t.Fatalf("create %q: %v", name, err)
+		}
+		if _, err := entry.Write([]byte(content)); err != nil {
+			t.Fatalf("write %q: %v", name, err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close archive: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/en/intro.lottie":
+			return archive.Bytes(), nil
+		case "/tmp/fr/intro.lottie":
+			return []byte("stale target"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	key := "a/intro.json#layers[0].t.d.k[0].s.t"
+	content, _, err := svc.marshalTargetFile("/tmp/fr/intro.lottie", "/tmp/en/intro.lottie", "en", "fr", map[string]string{key: "Bonjour"}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal dotlottie target: %v", err)
+	}
+	values, err := translationfileparser.NewDefaultStrategy().Parse("/tmp/fr/intro.lottie", content)
+	if err != nil {
+		t.Fatalf("parse dotlottie target: %v", err)
+	}
+	if got := values[key]; got != "Bonjour" {
+		t.Fatalf("expected translated text, got %q", got)
 	}
 }
 
@@ -113,7 +158,7 @@ func TestMarshalSourceTemplateTargetRejectsAndroidXMLAtNonAndroidPath(t *testing
 		return nil, os.ErrNotExist
 	}
 
-	_, err := svc.marshalSourceTemplateTarget(".xml", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour"})
+	_, err := svc.marshalSourceTemplateTarget(".xml", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour"}, nil)
 	if err == nil || !strings.Contains(err.Error(), "require a specialized parser") {
 		t.Fatalf("expected specialized Android XML path error, got %v", err)
 	}
@@ -295,7 +340,7 @@ func TestMarshalSourceTemplateTargetFallsBackToSourceOnKeyMismatch(t *testing.T)
 
 	svc := newTestService()
 	svc.readFile = os.ReadFile
-	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour"})
+	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source template target: %v", err)
 	}
@@ -378,7 +423,7 @@ func TestMarshalSourceTemplateTargetXCStringsWritesTargetLocale(t *testing.T) {
 		"hello":                    "Bonjour %@",
 		"item_count::plural.one":   "%lld article",
 		"item_count::plural.other": "%lld articles",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal xcstrings target: %v", err)
 	}
@@ -471,7 +516,7 @@ func TestMarshalSourceTemplateTargetXCStringsPrefersTargetLocaleTemplate(t *test
 	content, err := svc.marshalSourceTemplateTarget(".xcstrings", targetPath, sourcePath, "en", "fr", map[string]string{
 		"item_count::plural.one":   "%lld article",
 		"item_count::plural.other": "%lld articles",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal xcstrings target: %v", err)
 	}
@@ -559,7 +604,7 @@ func TestMarshalSourceTemplateTargetXCStringsPreservesTargetOnlySubset(t *testin
 	svc.readFile = os.ReadFile
 	content, err := svc.marshalSourceTemplateTarget(".xcstrings", targetPath, sourcePath, "en", "fr", map[string]string{
 		"hello": "Bonjour",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal xcstrings target: %v", err)
 	}
@@ -573,6 +618,136 @@ func TestMarshalSourceTemplateTargetXCStringsPreservesTargetOnlySubset(t *testin
 	}
 	if !strings.Contains(string(content), `"comment": "Target-only reviewer note"`) {
 		t.Fatalf("expected target-only metadata to be preserved: %s", content)
+	}
+}
+
+func TestMarshalSourceTemplateTargetRESW(t *testing.T) {
+	sourcePath := filepath.Join(t.TempDir(), "source.resw")
+	targetPath := filepath.Join(t.TempDir(), "target.resw")
+	source := `<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="AppTitle" xml:space="preserve">
+    <value>Contoso</value>
+  </data>
+  <data name="Welcome.Text" xml:space="preserve">
+    <value>Welcome back</value>
+    <comment>Home screen heading</comment>
+  </data>
+</root>`
+	target := `<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="AppTitle" xml:space="preserve">
+    <value>Contoso</value>
+  </data>
+  <data name="Welcome.Text" xml:space="preserve">
+    <value>Salut</value>
+    <comment>Home screen heading</comment>
+  </data>
+</root>`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("write source resw: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o644); err != nil {
+		t.Fatalf("write target resw: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".resw", targetPath, sourcePath, "en-US", "fr-FR", map[string]string{
+		"AppTitle":     "Contoso",
+		"Welcome.Text": "Bonjour",
+	}, nil)
+	if err != nil {
+		t.Fatalf("marshal resw target: %v", err)
+	}
+	got := string(content)
+	if !strings.Contains(got, "<comment>Home screen heading</comment>") {
+		t.Fatalf("expected comment metadata to be preserved, got %q", got)
+	}
+	if !strings.Contains(got, "<value>Bonjour</value>") {
+		t.Fatalf("expected translated resw value, got %q", got)
+	}
+	if strings.Contains(got, "<value>Welcome back</value>") || strings.Contains(got, "<value>Salut</value>") {
+		t.Fatalf("expected source and previous target values to be replaced, got %q", got)
+	}
+}
+
+func TestMarshalSourceTemplateTargetQtLinguist(t *testing.T) {
+	sourcePath := filepath.Join(t.TempDir(), "source.ts")
+	targetPath := filepath.Join(t.TempDir(), "target.ts")
+	source := `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="en_US">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Welcome back</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+</TS>`
+	target := `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="fr_FR">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Welcome back</source>
+        <translation>Salut</translation>
+    </message>
+</context>
+</TS>`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("write source qt ts: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o644); err != nil {
+		t.Fatalf("write target qt ts: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".ts", targetPath, sourcePath, "en-US", "fr-FR", map[string]string{
+		"MainWindow|Welcome back": "Bonjour",
+	}, nil)
+	if err != nil {
+		t.Fatalf("marshal qt linguist target: %v", err)
+	}
+	got := string(content)
+	if !strings.Contains(got, ">Bonjour</translation>") {
+		t.Fatalf("expected translated Qt message, got %q", got)
+	}
+	if !strings.Contains(got, `language="fr_FR"`) {
+		t.Fatalf("expected target locale on TS root, got %q", got)
+	}
+	if strings.Contains(got, ">Welcome back</translation>") || strings.Contains(got, ">Salut</translation>") {
+		t.Fatalf("expected source and previous target values to be replaced, got %q", got)
+	}
+}
+
+func TestMarshalSourceTemplateTargetINI(t *testing.T) {
+	sourcePath := filepath.Join(t.TempDir(), "source.ini")
+	targetPath := filepath.Join(t.TempDir(), "target.ini")
+	source := "; Checkout\n[Home]\nhello = Hello {0}\n"
+	target := "; Checkout translated\n[Home]\nhello = Salut {0}\n"
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("write source ini: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o644); err != nil {
+		t.Fatalf("write target ini: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".ini", targetPath, sourcePath, "en", "fr", map[string]string{"Home.hello": "Bonjour {0}"}, nil)
+	if err != nil {
+		t.Fatalf("marshal ini target: %v", err)
+	}
+	got := string(content)
+	if !strings.Contains(got, "; Checkout translated") {
+		t.Fatalf("expected target comments to be preserved, got %q", got)
+	}
+	if !strings.Contains(got, "hello = Bonjour {0}") {
+		t.Fatalf("expected translated ini value, got %q", got)
 	}
 }
 
@@ -590,7 +765,7 @@ func TestMarshalSourceTemplateTargetJavaProperties(t *testing.T) {
 
 	svc := newTestService()
 	svc.readFile = os.ReadFile
-	content, err := svc.marshalSourceTemplateTarget(".properties", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour {0}"})
+	content, err := svc.marshalSourceTemplateTarget(".properties", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour {0}"}, nil)
 	if err != nil {
 		t.Fatalf("marshal properties target: %v", err)
 	}
@@ -618,7 +793,7 @@ func TestMarshalSourceTemplateTargetSubtitles(t *testing.T) {
 
 	svc := newTestService()
 	svc.readFile = os.ReadFile
-	content, err := svc.marshalSourceTemplateTarget(".srt", targetPath, sourcePath, "en", "fr", map[string]string{"srt.0001": "Bonjour"})
+	content, err := svc.marshalSourceTemplateTarget(".srt", targetPath, sourcePath, "en", "fr", map[string]string{"srt.0001": "Bonjour"}, nil)
 	if err != nil {
 		t.Fatalf("marshal srt target: %v", err)
 	}
@@ -649,7 +824,7 @@ func TestMarshalSourceTemplateTargetSubtitlesRejectsStaleTimings(t *testing.T) {
 	content, err := svc.marshalSourceTemplateTarget(".srt", targetPath, sourcePath, "en", "fr", map[string]string{
 		"srt.0001": "Nouvelle intro",
 		"srt.0002": "Bonjour",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal srt target: %v", err)
 	}

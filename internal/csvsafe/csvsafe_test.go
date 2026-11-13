@@ -26,6 +26,32 @@ func TestEscapeFormula(t *testing.T) {
 	}
 }
 
+func TestHasFormulaTrigger(t *testing.T) {
+	tests := []struct {
+		in   string
+		want bool
+	}{
+		{"", false},
+		{"   ", false},
+		{"hello", false},
+		{"a=b", false},
+		{"=1", true},
+		{"+cmd", true},
+		{"-sum", true},
+		{"@evil", true},
+		{"  =1", true},
+		{"\tlead", true},
+		{" \rlead", true},
+		{"\nlead", true},
+		{"＝1", false},
+	}
+	for _, tt := range tests {
+		if got := HasFormulaTrigger(tt.in); got != tt.want {
+			t.Fatalf("HasFormulaTrigger(%q) = %v, want %v", tt.in, got, tt.want)
+		}
+	}
+}
+
 func TestEscapeRow(t *testing.T) {
 	got := EscapeRow([]string{"ok", "=bad"})
 	want := []string{"ok", "'=bad"}

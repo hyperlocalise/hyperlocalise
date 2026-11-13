@@ -1,0 +1,39 @@
+---
+title: "v1.13.4"
+description: "Go CLI release notes for v1.13.4."
+---
+
+`hl run` translates Excel workbooks, Word documents, and PowerPoint decks. Markdown translations that come back as real links, heading ids, or callouts are stored with their placeholders restored. Flat JSON keys that contain dots stay flat when the target file is written.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.13.4) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.13.3...v1.13.4)
+
+## Breaking changes
+
+None.
+
+## Features
+
+- Add [Excel workbooks](https://github.com/hyperlocalise/hyperlocalise/pull/2887) (`.xlsx`). Each visible sheet is a multilingual string table when the first row names the source locale, or a cell document keyed by address such as `Sheet1!B3`. A workbook can mix both layouts. Row keys come from a key column; a missing or duplicate key falls back to the sheet and row, such as `Sheet1!5:5`. Comments go to the model as context, and length-limit columns set the maximum length. Writeback copies the source workbook, so formulas, numbers, dates, booleans, hidden sheets, and other locales stay in place. A target locale with no column is added after the last used column, copying the source column's width and cell styles. Existing target cells are kept. Rich text inside a cell is written back as plain text, and cell formatting stays. Map `from` to the same path to keep every locale in one workbook, or use `{{target}}` for one workbook per locale. Lock entries for a shared `.xlsx`, `.csv`, or `.tsv` target include the locale (`path::key::fr`) so two locales of the same key stay distinct. Older `path::key` entries still match. See [Translate Excel workbooks](/cli/reference/formats/xlsx).
+- Add [`hl entries --source-locale`](https://github.com/hyperlocalise/hyperlocalise/pull/2887) for files that store locales as columns. `hl entries strings.xlsx --source-locale en --locale fr` prints the French column. Without `--source-locale`, `--locale` names the source column.
+- Add [Word documents](https://github.com/hyperlocalise/hyperlocalise/pull/2893) (`.docx`) and [PowerPoint decks](https://github.com/hyperlocalise/hyperlocalise/pull/2893) (`.pptx`). Paragraphs are keyed by part and position, such as `word/document.xml#12` or `ppt/slides/slide3.xml#4`. Word reads the body, table cells, text boxes, headers, footers, footnotes, and endnotes. Tracked insertions are translated and tracked deletions are left out. PowerPoint reads slide text boxes, placeholders, and table cells in presentation order, and copies speaker notes, layouts, masters, charts, and SmartArt unchanged. Most of a paragraph's formatting is the translation style; other runs, links, and objects are placeholders that writeback restores. An existing target is updated in place, and untranslated paragraphs keep their source text. The CLI does not parse legacy `.xls`, `.doc`, or `.ppt` files. See [Translate Word documents](/cli/reference/formats/docx) and [Translate PowerPoint decks](/cli/reference/formats/pptx).
+- Restore [markdown placeholders](https://github.com/hyperlocalise/hyperlocalise/pull/2775) when a translation comes back as real markdown. Links, Intercom `{#heading-id}` anchors, and `:::callout` fences are turned back into `HLMDPH` tokens before the segment is stored, so writeback can expand them. A candidate whose tokens still do not match the source fails validation.
+
+## Fixes
+
+- Update [flat dotted JSON keys](https://github.com/hyperlocalise/hyperlocalise/pull/2870) in place on flush. A catalog whose keys are literal strings such as `figma.k.A` keeps those keys when `hl run` writes the file. A string that already lives under a nested object, such as `figma` → `k.A`, is still updated there.
+
+## Performance
+
+- [JSX extraction](https://github.com/hyperlocalise/hyperlocalise/pull/2895) allocates the React Intl attribute map only after a message attribute matches.
+
+## Tests
+
+- Excel shared-workbook locales, preserved columns for locales outside the run, and writeback from the source workbook.
+- `hl entries --source-locale` reading an `.xlsx` target column.
+- Word paragraph extract with context, in-place merge of an existing `.docx`, and PowerPoint writeback from the source deck.
+- Markdown recovery of Intercom links into `HLMDPH` tokens.
+- Flat dotted JSON keys, including a mixed catalog that already nests part of the path.
+
+## Maintenance
+
+- Bump Go dependencies, including excelize for security fixes ([#2797](https://github.com/hyperlocalise/hyperlocalise/pull/2797), [#2873](https://github.com/hyperlocalise/hyperlocalise/pull/2873)), Phrase Go to v4.33.0, OpenAI Go to v3.76.0, Bubble Tea to v2.1.0, and `golang.org/x/net` to v0.61.0.

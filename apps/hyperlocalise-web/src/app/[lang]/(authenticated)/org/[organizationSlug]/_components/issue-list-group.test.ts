@@ -45,11 +45,23 @@ describe("groupIssuesByStatus", () => {
   it("keeps summary-backed groups before their rows are loaded", () => {
     const groups = groupIssuesByStatus([{ id: "1", status: "open" }], {
       summary: { open: 40, inProgress: 3, resolved: 0, wontFix: 0 },
+      hasMore: true,
     });
 
     expect(groups.map((group) => [group.status, group.count, group.issues.length])).toEqual([
       ["open", 40, 1],
       ["in_progress", 3, 0],
+    ]);
+  });
+
+  it("hides summary-backed groups after pagination is exhausted", () => {
+    const groups = groupIssuesByStatus([{ id: "1", status: "open" }], {
+      summary: { open: 1, inProgress: 0, resolved: 0, wontFix: 3 },
+      hasMore: false,
+    });
+
+    expect(groups.map((group) => [group.status, group.count, group.issues.length])).toEqual([
+      ["open", 1, 1],
     ]);
   });
 });

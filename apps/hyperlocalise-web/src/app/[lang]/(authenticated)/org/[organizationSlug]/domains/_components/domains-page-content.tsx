@@ -12,8 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Add01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon } from "@phosphor-icons/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -22,14 +23,16 @@ import { buildDomainPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TypographyP } from "@/components/ui/typography";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { cn } from "@/lib/primitives/cn";
 
-import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { DomainsPageStoreProvider, useDomainsPageStore } from "../store/domains-store-context";
-import { DomainsPageQueryBridge } from "../store/domains-page-query-bridge";
+import { DomainsPageQueryBridge, linkedDomainsQueryKey } from "../store/domains-page-query-bridge";
 
-import { DomainLinkDialog } from "./domain-link-dialog";
+import { AddDomainDialog } from "./add-domain-dialog";
 import { DomainResearchEmpty } from "./domain-research-empty";
 import { DomainStatusBadge } from "./domain-status-badge";
 import { domainsPageContentMessages as messages } from "./domains-page-content.messages";
@@ -42,44 +45,69 @@ const LIST_GRID_CLASS =
 export function DomainsPageContent({
   organizationSlug,
   allowLinkDomains,
+  initialDomainSlug,
 }: {
   organizationSlug: string;
   allowLinkDomains: boolean;
+  initialDomainSlug?: string;
 }) {
   return (
     <DomainsPageStoreProvider organizationSlug={organizationSlug}>
       <DomainsPageQueryBridge />
-      <DomainsPageView allowLinkDomains={allowLinkDomains} />
+      <DomainsPageView allowLinkDomains={allowLinkDomains} initialDomainSlug={initialDomainSlug} />
     </DomainsPageStoreProvider>
   );
 }
 
 const DomainsPageView = observer(function DomainsPageView({
   allowLinkDomains,
+  initialDomainSlug,
 }: {
   allowLinkDomains: boolean;
+  initialDomainSlug?: string;
 }) {
   const intl = useIntl();
   const router = useOrgRouter();
+  const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const store = useDomainsPageStore();
+  const openedClaimRef = useRef(false);
 
-  const linkDomainAction = allowLinkDomains ? (
-    <Button type="button" size="sm" onClick={() => store.openLinkDialog()}>
-      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-      <FormattedMessage {...messages.linkDomain} />
+  useEffect(() => {
+    if (!allowLinkDomains || !initialDomainSlug || openedClaimRef.current) return;
+    openedClaimRef.current = true;
+    store.openAddDomainDialog();
+    router.replace(`/org/${store.organizationSlug}/domains`, { scroll: false });
+  }, [allowLinkDomains, initialDomainSlug, router, store]);
+  const projectsQuery = useQuery({
+    queryKey: ["translation-projects", store.organizationSlug, "domain-link"],
+    enabled: allowLinkDomains && store.addDomainDialogOpen,
+    queryFn: async () => {
+      try {
+        const body = await goSvcClient.project.list(store.organizationSlug);
+        return body.projects.map((project) => ({ id: project.id, name: project.name }));
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load projects"), { cause: error });
+      }
+    },
+  });
+
+  const addDomainAction = allowLinkDomains ? (
+    <Button type="button" size="sm" onClick={() => store.openAddDomainDialog()}>
+      <PlusIcon />
+      Add a domain
     </Button>
   ) : undefined;
 
   return (
     <WorkspacePageShell>
       <div className={styles.header}>
-        <PageHeader
-          icon={Globe02Icon}
-          label="Workspace"
-          title="Domains"
-          description={intl.formatMessage(messages.pageDescription)}
-          actions={store.hasDomains ? linkDomainAction : undefined}
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-medium tracking-tight text-foreground">
+            <FormattedMessage {...messages.pageTitle} />
+          </h1>
+          {store.hasDomains ? addDomainAction : null}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -116,7 +144,7 @@ const DomainsPageView = observer(function DomainsPageView({
             <DomainResearchEmpty
               title={<FormattedMessage {...messages.emptyTitle} />}
               description={<FormattedMessage {...messages.emptyDescription} />}
-              action={linkDomainAction}
+              action={addDomainAction}
             />
           </div>
         ) : (
@@ -149,6 +177,19 @@ const DomainsPageView = observer(function DomainsPageView({
                   </span>
                   <DomainStatusBadge status={domain.status} />
                   <div className="flex flex-wrap justify-end gap-2">
+                    {allowLinkDomains && domain.status === "verified" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={() => {
+                          const linkedDomain = store.linkedDomainById(domain.id);
+                          if (linkedDomain) store.openEditLocales(linkedDomain);
+                        }}
+                      >
+                        <FormattedMessage {...messages.editLocales} />
+                      </Button>
+                    ) : null}
                     <Button
                       size="sm"
                       variant="outline"
@@ -160,18 +201,6 @@ const DomainsPageView = observer(function DomainsPageView({
                     >
                       <FormattedMessage {...messages.openDomain} />
                     </Button>
-                    {domain.status !== "verified" && domain.domainSlug ? (
-                      <Button
-                        size="sm"
-                        render={
-                          <OrgNavLink
-                            href={`/org/${store.organizationSlug}/link-domain/${domain.domainSlug}`}
-                          />
-                        }
-                      >
-                        <FormattedMessage {...messages.continueVerification} />
-                      </Button>
-                    ) : null}
                   </div>
                 </div>
               </li>
@@ -181,13 +210,31 @@ const DomainsPageView = observer(function DomainsPageView({
       </div>
 
       {allowLinkDomains ? (
-        <DomainLinkDialog
-          variant="live"
-          open={store.linkDialogOpen}
-          onOpenChange={(open) => store.setLinkDialogOpen(open)}
+        <AddDomainDialog
+          open={store.addDomainDialogOpen}
+          onOpenChange={(open) => store.setAddDomainDialogOpen(open)}
+          organizationSlug={store.organizationSlug}
+          mode={store.editLinkedDomain ? "edit" : "create"}
+          initialStep={store.editLinkedDomain ? "markets" : "details"}
+          initialLinkedDomain={store.editLinkedDomain ?? undefined}
+          initialSelectedMarketIds={store.editLinkedDomain?.marketIds ?? []}
+          initialDomainSlug={store.editLinkedDomain ? undefined : initialDomainSlug}
           existingDomains={store.domains}
-          onContinue={(domainKey) => {
-            router.push(store.linkDomainPath(domainKey));
+          projects={projectsQuery.data ?? []}
+          projectsLoading={projectsQuery.isPending}
+          onComplete={() => {
+            void queryClient.invalidateQueries({
+              queryKey: linkedDomainsQueryKey(store.organizationSlug),
+            });
+            if (!store.editLinkedDomain) {
+              router.push(`/org/${store.organizationSlug}/domains`);
+            }
+          }}
+          onVerified={(domain) => {
+            void queryClient.invalidateQueries({
+              queryKey: linkedDomainsQueryKey(store.organizationSlug),
+            });
+            router.push(buildDomainPath(store.organizationSlug, domain.id, "overview"));
           }}
         />
       ) : null}

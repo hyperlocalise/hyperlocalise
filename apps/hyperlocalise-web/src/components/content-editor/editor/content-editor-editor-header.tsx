@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -21,18 +20,17 @@ import { Button } from "@/components/ui/button";
 
 import { ContentEditorHiddenStringBadge } from "@/components/content-editor/segment/content-editor-hidden-string-badge";
 import { ContentEditorLockedStringBadge } from "@/components/content-editor/segment/content-editor-locked-string-badge";
+import { ContentEditorSegmentActionsMenu } from "@/components/content-editor/segment/content-editor-segment-actions-menu";
+import { ContentEditorSegmentLockToggle } from "@/components/content-editor/segment/content-editor-segment-lock-toggle";
 import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
 } from "@/components/content-editor/segment/content-editor-segment-status";
-import { ContentEditorShareSegmentButton } from "@/components/content-editor/segment/content-editor-share-segment-button";
-import {
-  contentEditorEditorPanelMessages,
-  contentEditorLockedStringMessages,
-} from "@/components/content-editor/shared/content-editor.messages";
+import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 
 import { getCatShortcutLabel } from "./content-editor-keyboard-shortcuts";
+import { ContentEditorShortcutHint } from "./content-editor-shortcut-hints";
 
 export function ContentEditorEditorHeader({
   segment,
@@ -45,8 +43,10 @@ export function ContentEditorEditorHeader({
   isMac,
   onPrevious,
   onNext,
+  isNavigationBlocked = false,
   canEditTranslations = false,
   onToggleLocked,
+  onAddToIssueSheet,
 }: {
   segment: ContentEditorSegment;
   segmentPosition: number;
@@ -58,8 +58,10 @@ export function ContentEditorEditorHeader({
   isMac: boolean;
   onPrevious: () => void;
   onNext: () => void;
+  isNavigationBlocked?: boolean;
   canEditTranslations?: boolean;
-  onToggleLocked?: () => void;
+  onToggleLocked?: () => void | Promise<void>;
+  onAddToIssueSheet?: () => void;
 }) {
   const intl = useIntl();
 
@@ -88,40 +90,50 @@ export function ContentEditorEditorHeader({
       </div>
       <div className="flex items-center gap-1">
         {canEditTranslations && onToggleLocked ? (
-          <Button variant="outline" size="xs" onClick={onToggleLocked}>
-            <FormattedMessage
-              {...(segment.isLocked
-                ? contentEditorLockedStringMessages.unlock
-                : contentEditorLockedStringMessages.lock)}
-            />
-          </Button>
+          <ContentEditorSegmentLockToggle
+            isLocked={Boolean(segment.isLocked)}
+            onToggle={onToggleLocked}
+            disabled={isNavigationBlocked}
+          />
         ) : null}
-        {segmentShareUrl ? (
-          <ContentEditorShareSegmentButton segmentShareUrl={segmentShareUrl} />
-        ) : null}
+        <ContentEditorSegmentActionsMenu
+          segmentShareUrl={segmentShareUrl}
+          onAddToIssueSheet={onAddToIssueSheet}
+          isAddToIssueSheetDisabled={isNavigationBlocked}
+          activity={{
+            segmentId: segment.id,
+            sourcePath: segment.sourcePath,
+            targetLocale: segment.targetLocale,
+            label: segment.key,
+          }}
+        />
         <Button
           variant="ghost"
           size="icon-sm"
+          className="relative"
           onClick={onPrevious}
-          disabled={!hasPreviousSegment}
+          disabled={isNavigationBlocked || !hasPreviousSegment}
           aria-label={intl.formatMessage(contentEditorEditorPanelMessages.previousSegmentAria)}
           title={intl.formatMessage(contentEditorEditorPanelMessages.previousSegmentTitle, {
             shortcut: getCatShortcutLabel(isMac, "previous"),
           })}
         >
-          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+          <ArrowLeftIcon className="size-4" />
+          <ContentEditorShortcutHint shortcut="previous" placement="below" />
         </Button>
         <Button
           variant="ghost"
           size="icon-sm"
+          className="relative"
           onClick={onNext}
-          disabled={!hasNextSegment}
+          disabled={isNavigationBlocked || !hasNextSegment}
           aria-label={intl.formatMessage(contentEditorEditorPanelMessages.nextSegmentAria)}
           title={intl.formatMessage(contentEditorEditorPanelMessages.nextSegmentTitle, {
             shortcut: getCatShortcutLabel(isMac, "next"),
           })}
         >
-          <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+          <ArrowRightIcon className="size-4" />
+          <ContentEditorShortcutHint shortcut="next" placement="below" />
         </Button>
       </div>
     </div>

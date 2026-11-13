@@ -24,6 +24,7 @@ describe("ContentEditorFileGenerateDialog", () => {
     ["image", "translate on-screen text"],
     ["video", "match the original pacing"],
     ["markdown", "preserve MDX components"],
+    ["html", "preserve HTML structure"],
     ["docx", "heading styles"],
     ["xlsx", "formula cells"],
     ["pptx", "slide layout"],

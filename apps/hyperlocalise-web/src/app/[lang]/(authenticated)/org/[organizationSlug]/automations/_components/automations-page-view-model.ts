@@ -14,13 +14,29 @@ import type { IntlShape } from "react-intl";
 
 import {
   WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES,
+  listWorkspaceAutomationTemplateCategories,
   listWorkspaceAutomationTemplates,
   type WorkspaceAutomationTemplate,
   type WorkspaceAutomationTemplateCategory,
 } from "@/lib/agents/workspace-automation-templates";
-import type {
-  WorkspaceAutomationRecord,
-  WorkspaceAutomationTriggerConfig,
+import {
+  hasWorkspaceAutomationAhrefsTool,
+  hasWorkspaceAutomationBrazeCampaignsTool,
+  hasWorkspaceAutomationBrazeTool,
+  hasWorkspaceAutomationContentfulWorkflow,
+  hasWorkspaceAutomationCrowdinTool,
+  hasWorkspaceAutomationCustomerIoTool,
+  hasWorkspaceAutomationHubspotTool,
+  hasWorkspaceAutomationMailchimpTool,
+  hasWorkspaceAutomationIterableTool,
+  hasWorkspaceAutomationIntercomTool,
+  hasWorkspaceAutomationSanityTool,
+  hasWorkspaceAutomationSemrushTool,
+  hasWorkspaceAutomationWebSearchTool,
+  hasWorkspaceAutomationZernioTool,
+  isContentSyncAutomation,
+  type WorkspaceAutomationRecord,
+  type WorkspaceAutomationTriggerConfig,
 } from "@/lib/agents/workspace-automation-types";
 
 import { automationsPageViewModelMessages } from "./automations-page-view-model.messages";
@@ -51,7 +67,10 @@ export function resolveAutomationPageStats(automations: WorkspaceAutomationRecor
   };
 }
 
-export function resolveSortedAutomationTemplates(templates: WorkspaceAutomationTemplate[]) {
+export function resolveSortedAutomationTemplates(
+  templates: WorkspaceAutomationTemplate[],
+  options: { usableFirst?: boolean } = {},
+) {
   const categoryOrder = WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES.map((category) => category.id);
 
   return listWorkspaceAutomationTemplates(undefined, templates).toSorted((left, right) => {
@@ -59,6 +78,9 @@ export function resolveSortedAutomationTemplates(templates: WorkspaceAutomationT
     const rightIndex = categoryOrder.indexOf(right.category);
     if (leftIndex !== rightIndex) {
       return leftIndex - rightIndex;
+    }
+    if (options.usableFirst && left.activatable !== right.activatable) {
+      return left.activatable ? -1 : 1;
     }
 
     return left.name.localeCompare(right.name);
@@ -68,7 +90,9 @@ export function resolveSortedAutomationTemplates(templates: WorkspaceAutomationT
 export function resolveTemplateCategoryTabs(templates: WorkspaceAutomationTemplate[]) {
   const counts = new Map<WorkspaceAutomationTemplateCategory, number>();
   for (const template of templates) {
-    counts.set(template.category, (counts.get(template.category) ?? 0) + 1);
+    for (const category of listWorkspaceAutomationTemplateCategories(template)) {
+      counts.set(category, (counts.get(category) ?? 0) + 1);
+    }
   }
 
   return WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES.filter((category) => counts.has(category.id));
@@ -113,7 +137,16 @@ export function resolveAutomationCreatorName(
 export function resolveAutomationTriggerLabel(
   intl: IntlShape,
   triggerConfig: WorkspaceAutomationTriggerConfig,
+  automation?: WorkspaceAutomationRecord,
 ) {
+  if (automation && isContentSyncAutomation(automation)) {
+    const resourceKey = automation.syncConfig?.resourceKey.trim();
+    if (resourceKey) {
+      return resourceKey;
+    }
+    return intl.formatMessage(automationsPageViewModelMessages.triggerContentSync);
+  }
+
   if (triggerConfig.mode === "scheduled") {
     return intl.formatMessage(automationsPageViewModelMessages.triggerScheduled);
   }
@@ -132,28 +165,158 @@ export function resolveAutomationTriggerLabel(
   return intl.formatMessage(automationsPageViewModelMessages.triggerManual);
 }
 
-export function resolveAutomationTools(intl: IntlShape, automation: WorkspaceAutomationRecord) {
-  const tools: string[] = [];
-  if (automation.toolConfig.github?.enabled) {
-    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolGithub));
+export const AUTOMATION_LIST_TOOL_IDS = [
+  "github",
+  "gitlab",
+  "slack",
+  "email",
+  "githubComment",
+  "mcp",
+  "knowledgeFiles",
+  "contentful",
+  "intercom",
+  "sanity",
+  "braze",
+  "iterable",
+  "customerIo",
+  "hubspot",
+  "mailchimp",
+  "crowdin",
+  "webSearch",
+  "semrush",
+  "zernio",
+  "ahrefs",
+] as const;
+
+export type AutomationListToolId = (typeof AUTOMATION_LIST_TOOL_IDS)[number];
+
+export type AutomationListTool = {
+  id: AutomationListToolId;
+  label: string;
+};
+
+function addTool(tools: AutomationListTool[], id: AutomationListToolId, label: string) {
+  if (tools.some((tool) => tool.id === id)) {
+    return;
   }
-  if (automation.toolConfig.gitlab?.enabled) {
-    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolGitlab));
+  tools.push({ id, label });
+}
+
+export function resolveAutomationTools(
+  intl: Pick<IntlShape, "formatMessage">,
+  automation: WorkspaceAutomationRecord,
+): AutomationListTool[] {
+  if (isContentSyncAutomation(automation)) {
+    const provider = automation.syncConfig?.provider;
+    if (provider === "gitlab") {
+      return [
+        {
+          id: "gitlab",
+          label: intl.formatMessage(automationsPageViewModelMessages.toolGitlab),
+        },
+      ];
+    }
+    if (provider === "contentful") {
+      return [
+        {
+          id: "contentful",
+          label: intl.formatMessage(automationsPageViewModelMessages.toolContentful),
+        },
+      ];
+    }
+    if (provider === "intercom") {
+      return [
+        {
+          id: "intercom",
+          label: intl.formatMessage(automationsPageViewModelMessages.toolIntercom),
+        },
+      ];
+    }
+    return [
+      { id: "github", label: intl.formatMessage(automationsPageViewModelMessages.toolGithub) },
+    ];
   }
-  if (automation.toolConfig.slack?.enabled) {
-    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolSlack));
+
+  const tools: AutomationListTool[] = [];
+  const { toolConfig } = automation;
+  if (toolConfig.github?.enabled) {
+    addTool(tools, "github", intl.formatMessage(automationsPageViewModelMessages.toolGithub));
   }
-  if (automation.toolConfig.email?.enabled) {
-    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolEmail));
+  if (toolConfig.gitlab?.enabled) {
+    addTool(tools, "gitlab", intl.formatMessage(automationsPageViewModelMessages.toolGitlab));
   }
-  if (automation.toolConfig.githubComment?.enabled) {
-    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolGithubComment));
+  if (toolConfig.slack?.enabled) {
+    addTool(tools, "slack", intl.formatMessage(automationsPageViewModelMessages.toolSlack));
   }
-  if (automation.toolConfig.mcp?.enabled) {
-    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolMcpServer));
+  if (toolConfig.email?.enabled) {
+    addTool(tools, "email", intl.formatMessage(automationsPageViewModelMessages.toolEmail));
   }
-  if (automation.toolConfig.knowledgeFiles?.enabled) {
-    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolKnowledgeFiles));
+  if (toolConfig.githubComment?.enabled) {
+    addTool(
+      tools,
+      "githubComment",
+      intl.formatMessage(automationsPageViewModelMessages.toolGithubComment),
+    );
+  }
+  if (toolConfig.mcp?.enabled) {
+    addTool(tools, "mcp", intl.formatMessage(automationsPageViewModelMessages.toolMcpServer));
+  }
+  if (toolConfig.knowledgeFiles?.enabled) {
+    addTool(
+      tools,
+      "knowledgeFiles",
+      intl.formatMessage(automationsPageViewModelMessages.toolKnowledgeFiles),
+    );
+  }
+  if (hasWorkspaceAutomationContentfulWorkflow(toolConfig)) {
+    addTool(
+      tools,
+      "contentful",
+      intl.formatMessage(automationsPageViewModelMessages.toolContentful),
+    );
+  }
+  if (hasWorkspaceAutomationIntercomTool(toolConfig)) {
+    addTool(tools, "intercom", intl.formatMessage(automationsPageViewModelMessages.toolIntercom));
+  }
+  if (hasWorkspaceAutomationSanityTool(toolConfig)) {
+    addTool(tools, "sanity", intl.formatMessage(automationsPageViewModelMessages.toolSanity));
+  }
+  if (
+    hasWorkspaceAutomationBrazeTool(toolConfig) ||
+    hasWorkspaceAutomationBrazeCampaignsTool(toolConfig)
+  ) {
+    addTool(tools, "braze", intl.formatMessage(automationsPageViewModelMessages.toolBraze));
+  }
+  if (hasWorkspaceAutomationIterableTool(toolConfig)) {
+    addTool(tools, "iterable", intl.formatMessage(automationsPageViewModelMessages.toolIterable));
+  }
+  if (hasWorkspaceAutomationCustomerIoTool(toolConfig)) {
+    addTool(
+      tools,
+      "customerIo",
+      intl.formatMessage(automationsPageViewModelMessages.toolCustomerIo),
+    );
+  }
+  if (hasWorkspaceAutomationHubspotTool(toolConfig)) {
+    addTool(tools, "hubspot", intl.formatMessage(automationsPageViewModelMessages.toolHubspot));
+  }
+  if (hasWorkspaceAutomationMailchimpTool(toolConfig)) {
+    addTool(tools, "mailchimp", intl.formatMessage(automationsPageViewModelMessages.toolMailchimp));
+  }
+  if (hasWorkspaceAutomationCrowdinTool(toolConfig)) {
+    addTool(tools, "crowdin", intl.formatMessage(automationsPageViewModelMessages.toolCrowdin));
+  }
+  if (hasWorkspaceAutomationWebSearchTool(toolConfig)) {
+    addTool(tools, "webSearch", intl.formatMessage(automationsPageViewModelMessages.toolWebSearch));
+  }
+  if (hasWorkspaceAutomationSemrushTool(toolConfig)) {
+    addTool(tools, "semrush", intl.formatMessage(automationsPageViewModelMessages.toolSemrush));
+  }
+  if (hasWorkspaceAutomationZernioTool(toolConfig)) {
+    addTool(tools, "zernio", intl.formatMessage(automationsPageViewModelMessages.toolZernio));
+  }
+  if (hasWorkspaceAutomationAhrefsTool(toolConfig)) {
+    addTool(tools, "ahrefs", intl.formatMessage(automationsPageViewModelMessages.toolAhrefs));
   }
   return tools;
 }

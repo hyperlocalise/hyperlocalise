@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { UnfoldMoreIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretUpDownIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -145,7 +144,7 @@ export const PlanTrigger = ({ className, children, ...props }: PlanTriggerProps)
   >
     {children ?? (
       <>
-        <HugeiconsIcon icon={UnfoldMoreIcon} className="size-4" />
+        <CaretUpDownIcon className="size-4" />
         <span className="sr-only">
           <FormattedMessage {...planMessages.togglePlanAria} />
         </span>

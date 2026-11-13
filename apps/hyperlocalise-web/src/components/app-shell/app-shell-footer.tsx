@@ -16,13 +16,12 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import {
   BookOpenTextIcon,
-  CheckmarkCircle02Icon,
-  Copy01Icon,
-  CustomerSupportIcon,
-  MinusSignCircleIcon,
-  TextFontIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  BookmarkIcon,
+  CopyIcon,
+  HeadsetIcon,
+  MinusCircleIcon,
+  TextTIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type { InboxCurrentUser } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-types";
@@ -50,6 +49,7 @@ import { Box } from "@/components/ui/layout/box";
 import { Column } from "@/components/ui/layout/column";
 import { Columns } from "@/components/ui/layout/columns";
 import { Row } from "@/components/ui/layout/row";
+import { Spinner } from "@/components/ui/spinner";
 import { SUPPORT_EMAIL } from "@/lib/support-contact";
 
 import { appShellFooterMessages } from "./app-shell-footer.messages";
@@ -64,6 +64,16 @@ const ContentEditorStyleGuideSheet = dynamic(
   { ssr: false },
 );
 
+const ContentEditorGuidelineSheet = dynamic(
+  () =>
+    import("@/components/content-editor/guideline/content-editor-guideline-sheet").then(
+      (module) => ({
+        default: module.ContentEditorGuidelineSheet,
+      }),
+    ),
+  { ssr: false },
+);
+
 export function AppShellFooter({
   organizationSlug,
   projectId = null,
@@ -71,6 +81,7 @@ export function AppShellFooter({
   showGlossaryGuidance = false,
   showIssueGuidance = false,
   showStyleGuide = false,
+  showGuideline = false,
   canWriteProjects = false,
   currentUser,
 }: {
@@ -80,6 +91,7 @@ export function AppShellFooter({
   showGlossaryGuidance?: boolean;
   showIssueGuidance?: boolean;
   showStyleGuide?: boolean;
+  showGuideline?: boolean;
   canWriteProjects?: boolean;
   currentUser?: InboxCurrentUser;
 }) {
@@ -87,7 +99,10 @@ export function AppShellFooter({
   const showChatDock = Boolean(organizationSlug && currentUser);
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
   const [styleGuideMounted, setStyleGuideMounted] = useState(false);
-  const canShowStyleGuide = showStyleGuide && Boolean(projectId);
+  const [guidelineOpen, setGuidelineOpen] = useState(false);
+  const [guidelineMounted, setGuidelineMounted] = useState(false);
+  const canShowGuideline = showGuideline && Boolean(projectId);
+  const canShowStyleGuide = showStyleGuide && Boolean(projectId) && !canShowGuideline;
 
   useEffect(() => {
     if (!canShowStyleGuide) {
@@ -95,6 +110,13 @@ export function AppShellFooter({
       setStyleGuideMounted(false);
     }
   }, [canShowStyleGuide]);
+
+  useEffect(() => {
+    if (!canShowGuideline) {
+      setGuidelineOpen(false);
+      setGuidelineMounted(false);
+    }
+  }, [canShowGuideline]);
 
   const glossaryGuidanceStatus = useSyncExternalStore(
     subscribeCatGlossaryGuidance,
@@ -129,6 +151,20 @@ export function AppShellFooter({
             ) : null}
             <Column width="content">
               <Row spacing="1u" alignY="center">
+                {canShowGuideline && projectId ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setGuidelineMounted(true);
+                      setGuidelineOpen(true);
+                    }}
+                    aria-label={intl.formatMessage(appShellFooterMessages.guidelineAriaLabel)}
+                  >
+                    <BookmarkIcon data-icon="inline-start" />
+                    <FormattedMessage {...appShellFooterMessages.guidelineLabel} />
+                  </Button>
+                ) : null}
                 {canShowStyleGuide && projectId ? (
                   <Button
                     type="button"
@@ -139,7 +175,7 @@ export function AppShellFooter({
                     }}
                     aria-label={intl.formatMessage(appShellFooterMessages.styleGuideAriaLabel)}
                   >
-                    <HugeiconsIcon icon={TextFontIcon} strokeWidth={2} data-icon="inline-start" />
+                    <TextTIcon data-icon="inline-start" />
                     <FormattedMessage {...appShellFooterMessages.styleGuideLabel} />
                   </Button>
                 ) : null}
@@ -148,46 +184,52 @@ export function AppShellFooter({
                     type="button"
                     variant="ghost"
                     onClick={requestCatGlossaryGuidance}
-                    aria-label={intl.formatMessage(
-                      glossaryGuidanceStatus.matchCount > 0 ||
-                        glossaryGuidanceStatus.preferredCount > 0 ||
-                        glossaryGuidanceStatus.notRecommendedCount > 0
-                        ? appShellFooterMessages.glossaryGuidanceAvailableAriaLabel
-                        : appShellFooterMessages.glossaryGuidanceAriaLabel,
-                    )}
+                    aria-busy={glossaryGuidanceStatus.isLoading}
                   >
-                    <HugeiconsIcon
-                      icon={BookOpenTextIcon}
-                      strokeWidth={2}
-                      data-icon="inline-start"
-                    />
+                    <BookOpenTextIcon data-icon="inline-start" />
                     <FormattedMessage {...appShellFooterMessages.glossaryGuidanceLabel} />
-                    {glossaryGuidanceStatus.preferredCount > 0 ? (
-                      <span className="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-500">
-                        <HugeiconsIcon
-                          icon={CheckmarkCircle02Icon}
-                          strokeWidth={2}
-                          className="size-4"
-                          aria-hidden="true"
-                        />
-                        <span className="tabular-nums">
-                          {glossaryGuidanceStatus.preferredCount}
-                        </span>
-                      </span>
-                    ) : null}
-                    {glossaryGuidanceStatus.notRecommendedCount > 0 ? (
-                      <span className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-500">
-                        <HugeiconsIcon
-                          icon={MinusSignCircleIcon}
-                          strokeWidth={2}
-                          className="size-4"
-                          aria-hidden="true"
-                        />
-                        <span className="tabular-nums">
-                          {glossaryGuidanceStatus.notRecommendedCount}
-                        </span>
-                      </span>
-                    ) : null}
+                    {glossaryGuidanceStatus.isLoading ? (
+                      <Spinner
+                        className="size-3.5 text-muted-foreground"
+                        aria-label={intl.formatMessage(
+                          appShellFooterMessages.glossaryGuidanceLoading,
+                        )}
+                      />
+                    ) : (
+                      <>
+                        {glossaryGuidanceStatus.matchCount > 0 ? (
+                          <span
+                            data-glossary-guidance-match-count
+                            className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-beam-100 px-1.5 text-xs font-semibold tabular-nums text-beam-900 dark:bg-beam-900/40 dark:text-beam-100"
+                          >
+                            <span aria-hidden="true">{glossaryGuidanceStatus.matchCount}</span>
+                            <span className="sr-only">
+                              <FormattedMessage
+                                {...appShellFooterMessages.glossaryGuidanceMatchCount}
+                                values={{ count: glossaryGuidanceStatus.matchCount }}
+                              />
+                            </span>
+                          </span>
+                        ) : null}
+                        {glossaryGuidanceStatus.notRecommendedCount > 0 ? (
+                          <span
+                            data-glossary-guidance-not-recommended-count
+                            className="inline-flex h-5 items-center gap-0.5 rounded-full bg-rose-500/10 pe-1.5 ps-1 text-xs font-semibold tabular-nums text-rose-600 dark:text-rose-300"
+                          >
+                            <MinusCircleIcon className="size-3.5" aria-hidden="true" />
+                            <span aria-hidden="true">
+                              {glossaryGuidanceStatus.notRecommendedCount}
+                            </span>
+                            <span className="sr-only">
+                              <FormattedMessage
+                                {...appShellFooterMessages.glossaryGuidanceNotRecommendedCount}
+                                values={{ count: glossaryGuidanceStatus.notRecommendedCount }}
+                              />
+                            </span>
+                          </span>
+                        ) : null}
+                      </>
+                    )}
                   </Button>
                 ) : null}
                 {showIssueGuidance && issueGuidanceStatus.available ? (
@@ -204,7 +246,7 @@ export function AppShellFooter({
                         : undefined,
                     )}
                   >
-                    <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} data-icon="inline-start" />
+                    <CopyIcon data-icon="inline-start" />
                     <FormattedMessage {...appShellFooterMessages.issueGuidanceLabel} />
                     {issueGuidanceStatus.openIssueCount > 0 ? (
                       <span className="tabular-nums text-xs font-medium text-flame-900 dark:text-flame-100">
@@ -221,11 +263,7 @@ export function AppShellFooter({
                   render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
                   aria-label={intl.formatMessage(appShellFooterMessages.emailSupportAriaLabel)}
                 >
-                  <HugeiconsIcon
-                    icon={CustomerSupportIcon}
-                    strokeWidth={2}
-                    data-icon="inline-start"
-                  />
+                  <HeadsetIcon data-icon="inline-start" />
                   <FormattedMessage {...appShellFooterMessages.supportLabel} />
                 </Button>
               </Row>
@@ -233,6 +271,15 @@ export function AppShellFooter({
           </Columns>
         </Box>
       </div>
+      {canShowGuideline && projectId && guidelineMounted ? (
+        <ContentEditorGuidelineSheet
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          open={guidelineOpen}
+          onOpenChange={setGuidelineOpen}
+          canWriteProjects={canWriteProjects}
+        />
+      ) : null}
       {canShowStyleGuide && projectId && styleGuideMounted ? (
         <ContentEditorStyleGuideSheet
           organizationSlug={organizationSlug}

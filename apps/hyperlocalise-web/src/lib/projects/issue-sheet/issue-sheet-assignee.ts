@@ -13,7 +13,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
-import { formatMemberDisplayName } from "@/api/routes/member/member.shared";
+import { formatMemberDisplayName } from "@/lib/members/member-management";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";

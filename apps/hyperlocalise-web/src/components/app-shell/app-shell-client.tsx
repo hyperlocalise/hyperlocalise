@@ -12,10 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { CSSProperties, ReactNode } from "react";
-import Image from "next/image";
+import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { FormattedMessage, useIntl } from "react-intl";
+import { useIntl } from "react-intl";
 
 import {
   Sidebar,
@@ -27,32 +26,34 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/primitives/cn";
+import { annotateNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
 import { AppShellNavigation } from "./app-shell-navigation";
 import { TmsUserConnectButton } from "./tms-user-connect-button";
 import { TmsUserOAuthErrorToast } from "./tms-user-oauth-error-toast";
 import {
+  buildGlobalNavigationGroups,
   isOrganizationSettingsPath,
   parseProjectRoute,
   type NavigationGroup,
 } from "./navigation-config";
 import { AppShellHeaderActions } from "./store/app-shell-header-actions";
+import { AppShellSessionProvider } from "./store/app-shell-session-context";
 import { AppShellStoreProvider } from "./store/app-shell-store-context";
 import { SidebarStoreBridge } from "./store/sidebar-store-bridge";
 import type { WorkspaceFeatureFlagState } from "@/lib/flags/workos-flag-entities";
 import type { TmsUserConnectCta } from "@/lib/providers/credentials/tms-user-connection-shared";
 import { useTmsUserConnectCta } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-user-connect-cta";
 import { NavUser } from "./nav-user";
+import { OrganizationSwitcher } from "./organization-switcher";
 import { Separator } from "@/components/ui/separator";
-import { TypographyP } from "@/components/ui/typography";
 import { AppShellFooter } from "./app-shell-footer";
-
-import { appShellClientMessages } from "./app-shell-client.messages";
+import { UpdateAnnouncer } from "./update-announcer/update-announcer";
 
 type AppShellClientProps = {
   autumnConfigured?: boolean;
   children: ReactNode;
-  navigationGroups: readonly NavigationGroup[];
+  navigationGroups?: readonly NavigationGroup[];
   workspaceFeatureFlags: WorkspaceFeatureFlagState;
   activeOrganization: {
     name: string;
@@ -66,8 +67,11 @@ type AppShellClientProps = {
   showApiKeysLink?: boolean;
   showBillingLink?: boolean;
   showMembersLink?: boolean;
+  canInviteMembers?: boolean;
   canWriteProjects?: boolean;
+  canDeleteQueries?: boolean;
   user: {
+    id: string;
     name: string;
     email: string;
     avatarUrl?: string;
@@ -85,147 +89,151 @@ export function AppShellClient({
   showApiKeysLink = false,
   showBillingLink = false,
   showMembersLink = false,
+  canInviteMembers = false,
   canWriteProjects = false,
+  canDeleteQueries = false,
   user,
 }: AppShellClientProps) {
   const intl = useIntl();
   const pathname = usePathname();
   const organizationSlug = activeOrganization.slug ?? "";
+  const resolvedNavigationGroups = useMemo(
+    () =>
+      navigationGroups ??
+      annotateNavigationByWorkspaceFlags(
+        buildGlobalNavigationGroups(organizationSlug, intl),
+        workspaceFeatureFlags,
+      ),
+    [intl, navigationGroups, organizationSlug, workspaceFeatureFlags],
+  );
   const projectRoute = parseProjectRoute(pathname);
   const isContentEditorWorkspaceRoute =
     pathname.includes("/strings") || pathname.includes("/files/content-editor");
+  const knowledgeEnabled = workspaceFeatureFlags.knowledge;
   const isOrgSettingsRoute = isOrganizationSettingsPath(pathname);
   const tmsUserConnectQuery = useTmsUserConnectCta(organizationSlug, {
     enabled: Boolean(organizationSlug),
     initialData: tmsUserConnectCta,
   });
   const resolvedTmsUserConnectCta = tmsUserConnectQuery.data ?? tmsUserConnectCta;
+  const currentUser = useMemo(
+    () => ({
+      avatarUrl: user.avatarUrl ?? null,
+      email: user.email,
+      name: user.name,
+    }),
+    [user.avatarUrl, user.email, user.name],
+  );
 
   return (
-    <AppShellStoreProvider
-      defaultNavigationGroups={navigationGroups}
-      workspaceFeatureFlags={workspaceFeatureFlags}
-    >
-      <TmsUserOAuthErrorToast />
-      <SidebarProvider
-        defaultOpen
-        style={
-          {
-            "--app-shell-content-height":
-              "calc(100svh - var(--app-shell-header-height) - var(--app-shell-footer-height))",
-            "--app-shell-plan-footer-height": "calc(3rem + env(safe-area-inset-bottom))",
-            "--app-shell-footer-height":
-              "calc(var(--app-shell-plan-footer-height) + var(--app-shell-dock-height, 0px))",
-            "--sidebar-width": "15rem",
-          } as CSSProperties
-        }
-        className="min-h-svh bg-background text-foreground"
+    <AppShellSessionProvider canDeleteQueries={canDeleteQueries} currentUser={currentUser}>
+      <AppShellStoreProvider
+        defaultNavigationGroups={resolvedNavigationGroups}
+        workspaceFeatureFlags={workspaceFeatureFlags}
       >
-        <SidebarStoreBridge />
-        <Sidebar
-          variant="sidebar"
-          collapsible="icon"
-          style={{ viewTransitionName: "app-shell-sidebar" }}
-        >
-          <SidebarHeader className="gap-3 border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
-            <div className="flex items-center gap-2.5 rounded-xl px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-              <Image
-                src="/images/logo.png"
-                width={28}
-                height={28}
-                sizes="28px"
-                alt={intl.formatMessage(appShellClientMessages.logoAlt)}
-                className="size-7 shrink-0 rounded-lg"
-              />
-              <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                <TypographyP
-                  className="text-sidebar-foreground"
-                  lineClamp={1}
-                  size="small"
-                  weight="medium"
-                >
-                  <FormattedMessage {...appShellClientMessages.brandName} />
-                </TypographyP>
-              </div>
-            </div>
-          </SidebarHeader>
-
-          <SidebarContent className="gap-0 px-2 pt-2 pb-[var(--app-shell-footer-height)]">
-            <AppShellNavigation organizationSlug={organizationSlug} />
-          </SidebarContent>
-
-          <SidebarRail />
-        </Sidebar>
-
-        <SidebarInset className="h-svh max-h-svh min-h-0 overflow-hidden bg-background pb-[var(--app-shell-footer-height)]">
-          <div
-            className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/96 backdrop-blur"
-            style={{ viewTransitionName: "app-shell-header" }}
-          >
-            <div className="flex h-(--app-shell-header-height) items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-              <div className="flex min-w-0 items-center gap-3">
-                <SidebarTrigger className="-ms-1" />
-                <Separator
-                  orientation="vertical"
-                  className="me-2 data-vertical:h-4 data-vertical:self-auto"
-                />
-                <AppShellBreadcrumb organizationSlug={organizationSlug} />
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <AppShellHeaderActions />
-                {resolvedTmsUserConnectCta.showConnectCta && organizationSlug ? (
-                  <TmsUserConnectButton
-                    organizationSlug={organizationSlug}
-                    providerKind={resolvedTmsUserConnectCta.providerKind}
-                    providerDisplayName={resolvedTmsUserConnectCta.providerDisplayName}
-                    connectMethod={resolvedTmsUserConnectCta.connectMethod}
-                  />
-                ) : null}
-                <NavUser
-                  organizationSlug={activeOrganization.slug ?? ""}
-                  organizations={organizations}
-                  showApiKeysLink={showApiKeysLink}
-                  showBillingLink={showBillingLink}
-                  showMembersLink={showMembersLink}
-                  user={{
-                    name: user.name,
-                    email: user.email,
-                    avatar: user.avatarUrl ?? "",
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div
-            className={cn(
-              "flex min-h-0 flex-1 flex-col",
-              isOrgSettingsRoute ? "overflow-hidden" : "overflow-y-auto px-4 py-5 sm:px-6 lg:px-8",
-            )}
-          >
-            {children}
-          </div>
-        </SidebarInset>
-
-        <AppShellFooter
-          organizationSlug={organizationSlug}
-          projectId={projectRoute?.projectId ?? null}
-          showPlan={showBillingLink && autumnConfigured}
-          showGlossaryGuidance={isContentEditorWorkspaceRoute}
-          showIssueGuidance={isContentEditorWorkspaceRoute}
-          showStyleGuide={isContentEditorWorkspaceRoute}
-          canWriteProjects={canWriteProjects}
-          currentUser={
-            organizationSlug
-              ? {
-                  avatarUrl: user.avatarUrl ?? null,
-                  email: user.email,
-                  name: user.name,
-                }
-              : undefined
+        <TmsUserOAuthErrorToast />
+        <SidebarProvider
+          defaultOpen
+          style={
+            {
+              "--app-shell-content-height":
+                "calc(100svh - var(--app-shell-header-height) - var(--app-shell-footer-height))",
+              "--app-shell-plan-footer-height": "calc(3rem + env(safe-area-inset-bottom))",
+              "--app-shell-footer-height":
+                "calc(var(--app-shell-plan-footer-height) + var(--app-shell-dock-height, 0px))",
+              "--sidebar-width": "15rem",
+            } as CSSProperties
           }
-        />
-      </SidebarProvider>
-    </AppShellStoreProvider>
+          className="min-h-svh bg-background text-foreground"
+        >
+          <SidebarStoreBridge />
+          <Sidebar
+            variant="sidebar"
+            collapsible="icon"
+            style={{ viewTransitionName: "app-shell-sidebar" }}
+          >
+            <SidebarHeader className="h-(--app-shell-header-height) shrink-0 justify-center border-b border-sidebar-border px-2 py-0 group-data-[collapsible=icon]:items-center">
+              <OrganizationSwitcher
+                activeOrganization={activeOrganization}
+                organizations={organizations}
+                showMembersLink={showMembersLink}
+                canInviteMembers={canInviteMembers}
+              />
+            </SidebarHeader>
+
+            <SidebarContent className="gap-0 px-2 pt-2 pb-[var(--app-shell-footer-height)]">
+              <AppShellNavigation organizationSlug={organizationSlug} />
+            </SidebarContent>
+
+            <SidebarRail />
+          </Sidebar>
+
+          <SidebarInset className="h-svh max-h-svh min-h-0 overflow-hidden bg-background pb-[var(--app-shell-footer-height)]">
+            <div
+              className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/96 backdrop-blur"
+              style={{ viewTransitionName: "app-shell-header" }}
+            >
+              <div className="flex h-(--app-shell-header-height) items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+                <div className="flex min-w-0 items-center gap-3">
+                  <SidebarTrigger className="-ms-1" />
+                  <Separator
+                    orientation="vertical"
+                    className="me-2 data-vertical:h-4 data-vertical:self-auto"
+                  />
+                  <AppShellBreadcrumb organizationSlug={organizationSlug} />
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <AppShellHeaderActions />
+                  {resolvedTmsUserConnectCta.showConnectCta && organizationSlug ? (
+                    <TmsUserConnectButton
+                      organizationSlug={organizationSlug}
+                      providerKind={resolvedTmsUserConnectCta.providerKind}
+                      providerDisplayName={resolvedTmsUserConnectCta.providerDisplayName}
+                      connectMethod={resolvedTmsUserConnectCta.connectMethod}
+                    />
+                  ) : null}
+                  <NavUser
+                    organizationSlug={activeOrganization.slug ?? ""}
+                    showApiKeysLink={showApiKeysLink}
+                    showBillingLink={showBillingLink}
+                    showMembersLink={showMembersLink}
+                    user={{
+                      name: user.name,
+                      email: user.email,
+                      avatar: user.avatarUrl ?? "",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                "flex min-h-0 flex-1 flex-col",
+                isOrgSettingsRoute
+                  ? "overflow-hidden"
+                  : "overflow-y-auto px-4 py-4 sm:px-6 lg:px-8",
+              )}
+            >
+              {children}
+            </div>
+          </SidebarInset>
+
+          <UpdateAnnouncer organizationSlug={organizationSlug} userId={user.id} />
+
+          <AppShellFooter
+            organizationSlug={organizationSlug}
+            projectId={projectRoute?.projectId ?? null}
+            showPlan={showBillingLink && autumnConfigured}
+            showGlossaryGuidance={isContentEditorWorkspaceRoute}
+            showIssueGuidance={isContentEditorWorkspaceRoute}
+            showGuideline={knowledgeEnabled && isContentEditorWorkspaceRoute}
+            showStyleGuide={!knowledgeEnabled && isContentEditorWorkspaceRoute}
+            canWriteProjects={canWriteProjects}
+            currentUser={organizationSlug ? currentUser : undefined}
+          />
+        </SidebarProvider>
+      </AppShellStoreProvider>
+    </AppShellSessionProvider>
   );
 }

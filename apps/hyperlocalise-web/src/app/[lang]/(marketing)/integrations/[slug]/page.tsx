@@ -15,16 +15,21 @@ import { notFound } from "next/navigation";
 
 import { IntegrationDetailPage } from "@/components/marketing/integrations/integration-detail-page";
 import {
+  buildIntegrationBreadcrumbJsonLd,
+  buildIntegrationFaqJsonLd,
+} from "@/components/marketing/integrations/integration-detail-json-ld";
+import {
   getMarketingIntegrationBySlug,
   integrationSlugs,
 } from "@/components/marketing/integrations/integrations-page-content";
+import { JsonLd } from "@/components/seo/json-ld";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import {
   DEFAULT_APP_LOCALE,
   normalizeAppLocale,
   SUPPORTED_APP_LOCALES,
 } from "@/lib/app-i18n/locales";
-import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
+import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 import { getIntegrationRouteMetadata } from "./integration-route-metadata";
 
@@ -58,11 +63,11 @@ export async function generateMetadata({ params }: IntegrationRouteProps): Promi
     description,
     keywords,
     alternates: getLocalizedAlternates({ locale, path: `/integrations/${slug}` }),
-    openGraph: {
+    openGraph: localizedOpenGraph(locale, `/integrations/${slug}`, {
       title,
       description,
       type: "website",
-    },
+    }),
   };
 }
 
@@ -75,5 +80,14 @@ export default async function IntegrationRoutePage({ params }: IntegrationRouteP
     notFound();
   }
 
-  return <IntegrationDetailPage integration={integration} />;
+  const faqJsonLd = buildIntegrationFaqJsonLd(locale, integration);
+  const breadcrumbJsonLd = buildIntegrationBreadcrumbJsonLd(locale, integration);
+
+  return (
+    <>
+      {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}
+      <JsonLd data={breadcrumbJsonLd} />
+      <IntegrationDetailPage integration={integration} locale={locale} />
+    </>
+  );
 }

@@ -12,15 +12,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  File01Icon,
-  LanguageSquareIcon,
+  FileIcon,
+  TranslateIcon,
   PauseIcon,
   PlayIcon,
-  Rocket01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  RocketLaunchIcon,
+} from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useIntl } from "react-intl";
@@ -88,17 +87,17 @@ export function ContentOpsMockStage({
     () => ({
       id: "campaign",
       automationName: intl.formatMessage(contentOpsMockStageMessages.campaignAutomationName),
-      triggerIcon: <HugeiconsIcon icon={Rocket01Icon} strokeWidth={1.8} className="size-3.5" />,
+      triggerIcon: <RocketLaunchIcon className="size-3.5" />,
       triggerLabel: intl.formatMessage(contentOpsMockStageMessages.triggerGtmBrief),
       instructions: intl.formatMessage(contentOpsMockStageMessages.campaignInstructions),
       tools: [
         {
-          icon: <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-3.5" />,
+          icon: <FileIcon className="size-3.5" />,
           label: intl.formatMessage(contentOpsMockStageMessages.toolCms),
           description: intl.formatMessage(contentOpsMockStageMessages.toolCmsDescription),
         },
         {
-          icon: <HugeiconsIcon icon={LanguageSquareIcon} strokeWidth={1.8} className="size-3.5" />,
+          icon: <TranslateIcon className="size-3.5" />,
           label: intl.formatMessage(contentOpsMockStageMessages.toolTranslate),
           description: intl.formatMessage(contentOpsMockStageMessages.toolTranslateDescription),
         },
@@ -197,11 +196,9 @@ export function ContentOpsMockStage({
               : contentOpsMockStageMessages.autoplayResume,
           )}
         >
-          <HugeiconsIcon
-            icon={autoplayEnabled && !shouldReduceMotion ? PauseIcon : PlayIcon}
-            strokeWidth={2}
-            className="size-3.5"
-          />
+          {createElement(autoplayEnabled && !shouldReduceMotion ? PauseIcon : PlayIcon, {
+            className: "size-3.5",
+          })}
         </button>
       </div>
 

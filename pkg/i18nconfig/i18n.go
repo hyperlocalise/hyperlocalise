@@ -50,13 +50,40 @@ type I18NConfig struct {
 	Hyperlocalise *HyperlocaliseConfig    `json:"hyperlocalise,omitempty"`
 	Storage       *StorageConfig          `json:"storage,omitempty"`
 	Cache         CacheConfig             `json:"cache,omitempty"`
+	Spellcheck    *SpellcheckConfig       `json:"spellcheck,omitempty"`
+	QA            *QAConfig               `json:"qa,omitempty"`
 }
 
-// LocaleConfig configures source/target locales and fallback hierarchy.
+// QAConfig points to a local snapshot of the project's cloud QA policy.
+type QAConfig struct {
+	PolicyFile string `json:"policy_file,omitempty"`
+}
+
+// SpellcheckConfig points at resolved per-locale allow-list files.
+type SpellcheckConfig struct {
+	DictionaryDir string `json:"dictionary_dir,omitempty"`
+}
+
+// LocaleConfig configures source/target locales, fallback hierarchy, and copies.
 type LocaleConfig struct {
 	Source    string              `json:"source" jsonschema:"required"`
 	Targets   []string            `json:"targets" jsonschema:"required"`
 	Fallbacks map[string][]string `json:"fallbacks,omitempty"`
+	// Copies maps a target locale to the locale whose catalog should be copied
+	// instead of translated. Example: en-AU copies en-GB.
+	Copies map[string]string `json:"copies,omitempty"`
+}
+
+// CopyOrigin returns the locale that locale copies, if configured.
+func (c LocaleConfig) CopyOrigin(locale string) (string, bool) {
+	if len(c.Copies) == 0 {
+		return "", false
+	}
+	origin, ok := c.Copies[locale]
+	if !ok || strings.TrimSpace(origin) == "" {
+		return "", false
+	}
+	return origin, true
 }
 
 // BucketConfig defines file mappings for a bucket.
@@ -64,10 +91,15 @@ type BucketConfig struct {
 	Files []BucketFileMapping `json:"files" jsonschema:"required"`
 }
 
+// MaxCloudSourcePathLength matches the Hyperlocalise API sourcePath limit on upload and download.
+const MaxCloudSourcePathLength = 2048
+
 // BucketFileMapping defines source/target file paths for a bucket.
 type BucketFileMapping struct {
 	From string `json:"from" jsonschema:"required"`
 	To   string `json:"to" jsonschema:"required"`
+	// CloudPath preserves the Cloud source identity independently of local paths.
+	CloudPath string `json:"cloud_path,omitempty"`
 	// SRX is an optional sentence-segmentation spec for `run`.
 	// Use a built-in template name (default, html, markdown) or a project-relative SRX 2.0 file.
 	SRX string `json:"srx,omitempty"`
@@ -295,6 +327,9 @@ func (c I18NConfig) Validate() error {
 	if err := c.validateCache(); err != nil {
 		return err
 	}
+	if err := c.validateSpellcheck(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -402,6 +437,10 @@ func (c I18NConfig) validateLocales() (map[string]struct{}, error) {
 		return nil, err
 	}
 
+	if err := c.validateCopies(targetSet); err != nil {
+		return nil, err
+	}
+
 	return targetSet, nil
 }
 
@@ -447,10 +486,88 @@ func (c I18NConfig) validateFallbacks(targetSet map[string]struct{}) error {
 	return nil
 }
 
+func (c I18NConfig) validateCopies(targetSet map[string]struct{}) error {
+	for locale, origin := range c.Locales.Copies {
+		if _, exists := targetSet[locale]; !exists {
+			return fmt.Errorf("locales.copies.%s: copy key must exist in locales.targets", locale)
+		}
+
+		if strings.TrimSpace(origin) == "" {
+			return fmt.Errorf("locales.copies.%s: origin must not be empty", locale)
+		}
+
+		if origin == locale {
+			return fmt.Errorf("locales.copies.%s: self-reference is not allowed", locale)
+		}
+
+		if origin != c.Locales.Source {
+			if _, exists := targetSet[origin]; !exists {
+				return fmt.Errorf("locales.copies.%s: origin %q must be in locales.targets or locales.source", locale, origin)
+			}
+		}
+
+		if _, originIsCopy := c.Locales.Copies[origin]; originIsCopy {
+			return fmt.Errorf("locales.copies.%s: origin %q is itself a copy locale; copy from that locale's origin instead", locale, origin)
+		}
+
+		if _, hasFallback := c.Locales.Fallbacks[locale]; hasFallback {
+			return fmt.Errorf("locales.copies.%s: must not also be set in locales.fallbacks", locale)
+		}
+	}
+
+	return nil
+}
+
+func (c I18NConfig) spellcheckDictionaryDir() string {
+	if c.Spellcheck == nil {
+		return ""
+	}
+	return strings.TrimSpace(c.Spellcheck.DictionaryDir)
+}
+
+func (c I18NConfig) validateSpellcheck() error {
+	dir := c.spellcheckDictionaryDir()
+	if dir == "" {
+		return nil
+	}
+	normalized := filepath.ToSlash(dir)
+	for _, segment := range strings.Split(normalized, "/") {
+		if segment == ".." {
+			return fmt.Errorf("spellcheck.dictionary_dir must not contain parent directory traversal")
+		}
+	}
+	return nil
+}
+
+// ResolveSpellcheckDictionaryDir returns the overlay directory from --dictionary-dir,
+// then spellcheck.dictionary_dir. Relative paths join configDir.
+func ResolveSpellcheckDictionaryDir(cfg *I18NConfig, flagDir, configDir string) string {
+	dir := strings.TrimSpace(flagDir)
+	if dir == "" && cfg != nil {
+		dir = cfg.spellcheckDictionaryDir()
+	}
+	if dir == "" {
+		return ""
+	}
+	if filepath.IsAbs(dir) {
+		return dir
+	}
+	if strings.TrimSpace(configDir) == "" {
+		return dir
+	}
+	return filepath.Join(configDir, dir)
+}
+
 func (c I18NConfig) validateProjectPaths(configDir string) error {
 	root, err := canonicalPathForContainment(configDir)
 	if err != nil {
 		return fmt.Errorf("resolve config directory: %w", err)
+	}
+
+	if dir := c.spellcheckDictionaryDir(); dir != "" {
+		if err := validateProjectPath(root, dir); err != nil {
+			return fmt.Errorf("spellcheck.dictionary_dir: %w", err)
+		}
 	}
 
 	for bucketName, bucket := range c.Buckets {
@@ -612,6 +729,10 @@ func validateBucket(name string, bucket BucketConfig) error {
 
 		if strings.TrimSpace(file.To) == "" {
 			return fmt.Errorf("buckets.%s.files[%d].to: must not be empty", name, i)
+		}
+
+		if err := ValidateCloudPathMapping(file); err != nil {
+			return fmt.Errorf("buckets.%s.files[%d].cloud_path: %w", name, i, err)
 		}
 
 		fromSuffix := getFileSuffix(file.From)
@@ -920,6 +1041,42 @@ func (c I18NConfig) validateCache() error {
 	}
 	if c.Cache.TimeoutSeconds < 0 {
 		return fmt.Errorf("cache.timeout_seconds: must be >= 0")
+	}
+	return nil
+}
+
+// ValidateCloudPathMapping validates a logical Cloud path, without filesystem access.
+func ValidateCloudPathMapping(file BucketFileMapping) error {
+	if file.CloudPath == "" {
+		return nil
+	}
+	pattern := file.CloudPath
+	if strings.TrimSpace(pattern) != pattern || strings.ContainsAny(pattern, "\\:\x00\r\n") {
+		return fmt.Errorf("must be a relative slash-separated path")
+	}
+	for _, segment := range strings.Split(pattern, "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return fmt.Errorf("must not contain empty, dot, or parent segments")
+		}
+	}
+	if strings.ContainsAny(strings.ReplaceAll(pattern, "{{source}}", "en"), "{}") || strings.Contains(pattern, "[locale]") {
+		return fmt.Errorf("only the {{source}} locale placeholder is supported")
+	}
+	fromGlob := strings.IndexAny(file.From, "*?[")
+	cloudGlob := strings.IndexAny(pattern, "*?[")
+	if (fromGlob < 0) != (cloudGlob < 0) || (fromGlob >= 0 && file.From[fromGlob:] != pattern[cloudGlob:]) {
+		return fmt.Errorf("must preserve the source glob suffix")
+	}
+	if getFileSuffix(file.From) != getFileSuffix(pattern) {
+		return fmt.Errorf("must preserve the source file extension")
+	}
+	return nil
+}
+
+// ValidateCloudSourcePathLength rejects resolved Cloud identities longer than the API allows.
+func ValidateCloudSourcePathLength(path string) error {
+	if len(path) > MaxCloudSourcePathLength {
+		return fmt.Errorf("exceeds %d characters (got %d)", MaxCloudSourcePathLength, len(path))
 	}
 	return nil
 }

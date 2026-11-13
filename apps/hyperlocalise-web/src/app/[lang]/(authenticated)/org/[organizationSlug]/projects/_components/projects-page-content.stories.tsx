@@ -79,7 +79,7 @@ const meta = {
     },
     msw: {
       handlers: [
-        http.get("*/api/orgs/:organizationSlug/projects", () =>
+        http.get("*/v1/orgs/:organizationSlug/projects", () =>
           HttpResponse.json({
             projects: projects.filter((project) => project.source === "native"),
           }),

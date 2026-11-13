@@ -19,7 +19,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 
-import { and, eq, gt, isNotNull, isNull, lt, ne } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, lt } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import type { EvlogVariables } from "evlog/hono";
 
@@ -32,7 +32,7 @@ import {
 import { db, schema } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { env } from "@/lib/env";
-import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+import { excludeReplacingWorkosMembershipSql } from "@/lib/workos/constants";
 import { isCompactJwt } from "@/lib/workos/agent-access-token";
 
 export type McpAuthVariables = EvlogVariables["Variables"] & {
@@ -366,7 +366,7 @@ export async function resolveAuthoritativeMcpSessionAuth(
         eq(schema.organizationMemberships.userId, session.userId),
         eq(schema.organizationMemberships.organizationId, session.organizationId),
         isNotNull(schema.organizationMemberships.workosMembershipId),
-        ne(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+        excludeReplacingWorkosMembershipSql(schema.organizationMemberships.workosMembershipId),
       ),
     )
     .limit(1);

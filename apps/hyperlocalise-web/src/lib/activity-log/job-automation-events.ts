@@ -12,6 +12,13 @@
  */
 import "server-only";
 
+import {
+  PRODUCT_USAGE_ANALYTICS_EVENTS,
+  productUsageJobFeature,
+  productUsageSourceForActorKind,
+} from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
+
 import type { ActivityActorKind } from "./activity-log-contract";
 import { enqueueActivityLogEvent } from "./activity-log-writer";
 
@@ -54,6 +61,10 @@ export function stableJobFailureCode(value: unknown): string {
 }
 
 export async function enqueueJobCreatedActivity(input: JobActivityInput) {
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.jobCreated, {
+    feature: productUsageJobFeature(input.kind),
+    source: productUsageSourceForActorKind(input.actorKind),
+  });
   return enqueueActivityLogEvent({
     ...activityActor(input),
     eventType: "job_created",
@@ -67,11 +78,54 @@ export async function enqueueJobCreatedActivity(input: JobActivityInput) {
 export async function enqueueJobCancelledActivity(
   input: Omit<JobActivityInput, "status"> & { status: "cancelled" },
 ) {
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.jobCancelled, {
+    feature: productUsageJobFeature(input.kind),
+    source: productUsageSourceForActorKind(input.actorKind),
+  });
   return enqueueActivityLogEvent({
     ...activityActor(input),
     eventType: "job_cancelled",
     organizationId: input.organizationId,
     payload: jobPayload(input),
+    targetId: input.jobId,
+    targetKind: "job",
+  });
+}
+
+export type JobUpdatedField = "title" | "description" | "dueAt" | "owner";
+
+/**
+ * Names the fields a job update set. The owner is reported as "owner", so no user id or email
+ * reaches the activity log.
+ */
+export function jobUpdatedFields(body: {
+  title?: unknown;
+  description?: unknown;
+  dueAt?: unknown;
+  ownerWorkosUserId?: unknown;
+}): JobUpdatedField[] {
+  const fields: JobUpdatedField[] = [];
+  if (body.title !== undefined) fields.push("title");
+  if (body.description !== undefined) fields.push("description");
+  if (body.dueAt !== undefined) fields.push("dueAt");
+  if (body.ownerWorkosUserId !== undefined) fields.push("owner");
+  return fields;
+}
+
+/** The public API records the same event and payload for its job updates. */
+export async function enqueueJobUpdatedActivity(
+  input: Omit<JobActivityInput, "status"> & { changedFields: readonly JobUpdatedField[] },
+) {
+  return enqueueActivityLogEvent({
+    ...activityActor(input),
+    eventType: "job_updated",
+    organizationId: input.organizationId,
+    payload: {
+      changedFields: input.changedFields,
+      jobId: input.jobId,
+      kind: input.kind,
+      ...(input.projectId ? { projectId: input.projectId } : {}),
+    },
     targetId: input.jobId,
     targetKind: "job",
   });
@@ -98,6 +152,38 @@ type AutomationActivityInput = ActivityActor & {
   name: string;
   organizationId: string;
 };
+
+export async function enqueueAutomationCreatedActivity(
+  input: AutomationActivityInput & { status: "active" | "archived" | "paused" },
+) {
+  return enqueueActivityLogEvent({
+    ...activityActor(input),
+    eventType: "automation_created",
+    organizationId: input.organizationId,
+    payload: {
+      automationId: input.automationId,
+      name: input.name,
+      status: input.status,
+    },
+    targetId: input.automationId,
+    targetKind: "automation",
+  });
+}
+
+export async function enqueueAutomationDeletedActivity(input: AutomationActivityInput) {
+  return enqueueActivityLogEvent({
+    ...activityActor(input),
+    eventType: "automation_deleted",
+    organizationId: input.organizationId,
+    payload: {
+      automationId: input.automationId,
+      name: input.name,
+      status: "archived",
+    },
+    targetId: input.automationId,
+    targetKind: "automation",
+  });
+}
 
 export async function enqueueAutomationRunStartedActivity(
   input: AutomationActivityInput & { runId: string; triggerSource: string },

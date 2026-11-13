@@ -32,8 +32,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import type { IssueSheetImportFormat } from "@/lib/projects/issue-sheet/issue-sheet-import-format";
 
 import { IssueSheetImportDialog } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-import-dialog";
 import { issuesProjectImportDialogMessages } from "./issues-project-import-dialog.messages";
@@ -44,13 +45,16 @@ export function IssuesProjectImportDialog({
   organizationSlug,
   projects,
   onImported,
+  format,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   organizationSlug: string;
   projects: { id: string; name: string }[];
   onImported: () => Promise<void>;
+  format?: IssueSheetImportFormat;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [importOpen, setImportOpen] = useState(false);
 
@@ -69,17 +73,11 @@ export function IssuesProjectImportDialog({
     queryKey: ["issue-sheet", organizationSlug, selectedProjectId, "import-columns"],
     enabled: Boolean(selectedProjectId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].$get({
-        param: { organizationSlug, projectId: selectedProjectId },
-      } as never);
-      if (response.status !== 200) {
-        throw new Error(
-          (await readApiResponseError(response, "Request failed")).message || "Request failed",
-        );
+      try {
+        return await goSvcClient.issueSheet.columns.list(organizationSlug, selectedProjectId);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Request failed"), { cause: error });
       }
-      return response.json();
     },
   });
 
@@ -157,6 +155,7 @@ export function IssuesProjectImportDialog({
           projectId={selectedProjectId}
           columns={issueSheetQuery.data?.columns ?? []}
           onImported={onImported}
+          format={format}
         />
       ) : null}
     </>

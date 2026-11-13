@@ -11,6 +11,45 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestComposeSegmentValidationForwardsMessageFormat(t *testing.T) {
+	var got segmentvalidate.MessageFormat
+	h := &handler{
+		validate: func(req segmentvalidate.Request) []segmentvalidate.Check {
+			got = req.MessageFormat
+			return nil
+		},
+		spellChecker: NoopSpellChecker{},
+	}
+
+	_, _, err := h.composeSegmentValidation(context.Background(), validateSegmentRequest{
+		SourceText:    "Hello {{name}}",
+		TargetText:    "Bonjour",
+		SourcePath:    "/messages/en.json",
+		MessageFormat: " I18NEXT ",
+	}, "", false)
+
+	require.NoError(t, err)
+	require.Equal(t, segmentvalidate.MessageFormatI18next, got)
+}
+
+func TestComposeSegmentValidationDefaultsUnknownMessageFormat(t *testing.T) {
+	var got segmentvalidate.MessageFormat
+	h := &handler{
+		validate: func(req segmentvalidate.Request) []segmentvalidate.Check {
+			got = req.MessageFormat
+			return nil
+		},
+		spellChecker: NoopSpellChecker{},
+	}
+
+	_, _, err := h.composeSegmentValidation(context.Background(), validateSegmentRequest{
+		MessageFormat: "gettext",
+	}, "", false)
+
+	require.NoError(t, err)
+	require.Equal(t, segmentvalidate.MessageFormatAuto, got)
+}
+
 func TestComposeSegmentValidationSpellingNotRequested(t *testing.T) {
 	fake := &fakeSpellChecker{}
 	h := &handler{

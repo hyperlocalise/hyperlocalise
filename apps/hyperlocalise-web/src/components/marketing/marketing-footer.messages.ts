@@ -37,7 +37,8 @@ export const marketingFooterMessages = defineMessages({
   },
   brandWordmark: {
     defaultMessage: "Hyperlocalise",
-    id: "nqI6KIqpLi",
-    description: "Large brand wordmark centered on the marketing footer image",
+    id: "Lvi06Dtb0e",
+    description:
+      "Accessible label for the large brand wordmark image centered on the marketing footer image",
   },
 });

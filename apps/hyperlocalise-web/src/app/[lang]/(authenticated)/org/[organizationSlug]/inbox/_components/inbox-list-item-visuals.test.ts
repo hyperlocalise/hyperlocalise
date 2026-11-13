@@ -36,6 +36,9 @@ describe("getConversationListItemVisual", () => {
     expect(getConversationListItemVisual("github_agent", intl).typeIconLabel).toBe("GitHub");
     expect(getConversationListItemVisual("slack_agent", intl).typeIconLabel).toBe("Slack");
     expect(getConversationListItemVisual("web_chat", intl).typeIconLabel).toBe("Web chat");
+    expect(getConversationListItemVisual("workflow_approval", intl).typeIconLabel).toBe(
+      "Workflow approval",
+    );
   });
 });
 
@@ -49,6 +52,15 @@ describe("getNotificationListItemVisual", () => {
     );
     expect(getNotificationListItemVisual("assignee_changed", intl).typeIconLabel).toBe(
       "Assignee change",
+    );
+    expect(getNotificationListItemVisual("qa_errors_increased", intl).typeIconLabel).toBe(
+      "QA errors",
+    );
+    expect(getNotificationListItemVisual("qa_errors_increased", intl).badgeClassName).toBe(
+      "text-amber-900 dark:text-amber-700",
+    );
+    expect(getNotificationListItemVisual("qa_scan_failed", intl).typeIconLabel).toBe(
+      "QA scan failed",
     );
   });
 });

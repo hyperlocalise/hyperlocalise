@@ -17,6 +17,9 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { CreateTranslationJobDialog } from "./create-translation-job-dialog";
 import { DownloadTranslationsDialog } from "./download-translations-dialog";
 import { ImportTranslationsDialog } from "./import-translations-dialog";
+import { ProjectFileImportSettingsDialog } from "./project-file-import-settings-dialog";
+import { ProjectFileMessageFormatDialog } from "./project-file-message-format-dialog";
+import { ProjectFileSegmentationDialog } from "./project-file-segmentation-dialog";
 import type { useProjectFileActions } from "./use-project-file-actions";
 
 export function ProjectFileActionDialogs({
@@ -40,6 +43,7 @@ export function ProjectFileActionDialogs({
         file={file}
         sourceLocale={actions.sourceLocale}
         targetLocales={actions.stableTargetLocales}
+        branch={actions.branch}
       />
       <ImportTranslationsDialog
         open={actions.importDialogOpen}
@@ -58,6 +62,33 @@ export function ProjectFileActionDialogs({
         initialSourcePath={file.sourcePath}
         targetLocales={actions.targetLocales}
       />
+      {actions.segmentationDialogOpen ? (
+        <ProjectFileSegmentationDialog
+          open={actions.segmentationDialogOpen}
+          onOpenChange={actions.setSegmentationDialogOpen}
+          organizationSlug={actions.organizationSlug}
+          projectId={actions.projectId}
+          sourcePath={file.sourcePath}
+        />
+      ) : null}
+      {actions.messageFormatDialogOpen ? (
+        <ProjectFileMessageFormatDialog
+          open={actions.messageFormatDialogOpen}
+          onOpenChange={actions.setMessageFormatDialogOpen}
+          organizationSlug={actions.organizationSlug}
+          projectId={actions.projectId}
+          sourcePath={file.sourcePath}
+        />
+      ) : null}
+      {actions.importSettingsDialogOpen ? (
+        <ProjectFileImportSettingsDialog
+          open={actions.importSettingsDialogOpen}
+          onOpenChange={actions.setImportSettingsDialogOpen}
+          organizationSlug={actions.organizationSlug}
+          projectId={actions.projectId}
+          sourcePath={file.sourcePath}
+        />
+      ) : null}
     </>
   );
 }

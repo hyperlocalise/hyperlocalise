@@ -1,0 +1,44 @@
+---
+title: "v1.9.0"
+description: "Go CLI release notes for v1.9.0."
+---
+
+`run` and `eval` can now use OpenRouter and Vercel AI Gateway as LLM providers. This release also fails closed on incomplete OpenAI-compatible completions, tightens Crowdin upload/error handling, and speeds up planning, scoring, and several file parsers.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.9.0) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.8.28...v1.9.0)
+
+## Breaking changes
+
+None.
+
+## Features
+
+- Add [Vercel AI Gateway](https://github.com/hyperlocalise/hyperlocalise/pull/1848) as an LLM provider for `run` and `eval`. Set `llm.profiles.<name>.provider` to `ai_gateway` and export `AI_GATEWAY_API_KEY`. Model IDs such as `openai/gpt-5.6-luna` pass through to `https://ai-gateway.vercel.sh/v1`. Image localization stays OpenAI-only.
+- Add [OpenRouter](https://github.com/hyperlocalise/hyperlocalise/pull/1804) as an LLM provider (`openrouter`). Auth via `OPENROUTER_API_KEY`; override the base URL with `OPENROUTER_BASE_URL`. Model IDs pass through unchanged.
+
+## Fixes
+
+- Reject incomplete or failed OpenAI-compatible completions instead of writing truncated translations. Fail closed on choice-level errors, `finish_reason` of `error` / `length` / `content_filter`, and `tool_calls` / `function_call`. Transient 502/503/504 errors stay retryable. ([#1810](https://github.com/hyperlocalise/hyperlocalise/pull/1810))
+- Send the raw filename in the Crowdin `Crowdin-API-FileName` header instead of query-escaping it, so names with spaces are not mangled. ([#1839](https://github.com/hyperlocalise/hyperlocalise/pull/1839))
+- Align Crowdin `SourceStringsUpload` attributes with API v2 (`fileId`, `maxLen`, `omitempty` on optional fields). ([#1823](https://github.com/hyperlocalise/hyperlocalise/pull/1823))
+- Surface Crowdin 400 error payloads instead of a generic status message, and allow the documented project-level notification roles. ([#1801](https://github.com/hyperlocalise/hyperlocalise/pull/1801))
+
+## Performance
+
+- Faster SHA-512 lock fingerprinting during planning (`hex.EncodeToString` instead of `fmt.Sprintf("%x")`): about 28% faster on large catalogs, 11% fewer allocations. ([#1753](https://github.com/hyperlocalise/hyperlocalise/pull/1753))
+- ICU parser plain-text fast path: about 19% faster and 60% fewer allocations on keys with no placeholders. ([#1775](https://github.com/hyperlocalise/hyperlocalise/pull/1775))
+- JS/TS locale module parser: about 35% faster parse and 60% fewer allocations; marshal about 30% faster. ([#1799](https://github.com/hyperlocalise/hyperlocalise/pull/1799))
+- Mozilla Fluent parser: about 45% fewer allocations via capacity hints and indent/comment fast paths. ([#1786](https://github.com/hyperlocalise/hyperlocalise/pull/1786))
+- Zero-allocation brace-placeholder scanner in eval scoring (replaces regex). ([#1821](https://github.com/hyperlocalise/hyperlocalise/pull/1821))
+- Lower allocation cost when building the selection catalog (pre-sized maps, `slices.SortFunc`). ([#1809](https://github.com/hyperlocalise/hyperlocalise/pull/1809))
+- Segment profile validation fast paths and slice capacity hints. ([#1837](https://github.com/hyperlocalise/hyperlocalise/pull/1837))
+
+## Tests
+
+- Env loader, CLI telemetry, sync risk detection, SHA-512 fingerprint oracles, and brace-placeholder scanner coverage.
+- Parser coverage for Apple `.stringsdict`, CSV, Liquid target fallback, Fluent attribute indents, JS/TS locale edges, and the ICU plain-text fast path.
+- Incomplete LLM completion and locale-path helper regressions.
+
+## Maintenance
+
+- Bump Go dependencies (OpenAI SDK v3.50.0, WorkOS v10.1.1, OpenTelemetry v1.45.0). ([#1751](https://github.com/hyperlocalise/hyperlocalise/pull/1751))

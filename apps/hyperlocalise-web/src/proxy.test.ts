@@ -13,7 +13,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { buildCrowdinAppFrameAncestorsCsp } from "@/lib/crowdin-app/frame-ancestors";
 import { APP_LOCALE_HEADER_NAME } from "@/lib/app-i18n/locales";
 import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
 import proxy, { config, ensureRequestUrlHeader, isUnsupportedLocalePath } from "./proxy";
@@ -52,8 +51,8 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/mcp")).toBe(false);
     expect(isUnsupportedLocalePath("/mcp/callback")).toBe(false);
     expect(isUnsupportedLocalePath("/mcp/consent")).toBe(false);
-    expect(isUnsupportedLocalePath("/crowdin-app/inbox")).toBe(false);
-    expect(isUnsupportedLocalePath("/crowdin-app/manifest.json")).toBe(false);
+    expect(isUnsupportedLocalePath("/connect/sanity/oauth/callback")).toBe(false);
+    expect(isUnsupportedLocalePath("/connect/figma/oauth/callback")).toBe(false);
   });
 
   it("allows opaque UUID roots used by BotID challenge scripts", () => {
@@ -82,6 +81,7 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/company")).toBe(false);
     expect(isUnsupportedLocalePath("/contact")).toBe(false);
     expect(isUnsupportedLocalePath("/startups")).toBe(false);
+    expect(isUnsupportedLocalePath("/iris")).toBe(false);
     expect(isUnsupportedLocalePath("/localisation-audit")).toBe(false);
     expect(isUnsupportedLocalePath("/localisation-audit/stripe-com")).toBe(false);
     expect(isUnsupportedLocalePath("/chat/acme/11111111-1111-4111-8111-111111111111")).toBe(false);
@@ -209,6 +209,16 @@ describe("proxy", () => {
     expect(authkitProxyMock).not.toHaveBeenCalled();
   });
 
+  it("redirects iris paths without a locale prefix", async () => {
+    authkitProxyMock.mockReset();
+
+    const response = await proxy(createRequest("/iris"), {} as never);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe("https://www.hyperlocalise.com/en/iris");
+    expect(authkitProxyMock).not.toHaveBeenCalled();
+  });
+
   it("delegates /api paths to AuthKit instead of returning 404", async () => {
     authkitProxyMock.mockReset();
     authkitProxyMock.mockResolvedValueOnce(NextResponse.next());
@@ -244,41 +254,6 @@ describe("proxy", () => {
 
     expect(response?.status).not.toBe(404);
     expect(authkitProxyMock).toHaveBeenCalledOnce();
-  });
-
-  it("runs Crowdin App iframe pages through AuthKit before applying frame-ancestors CSP", async () => {
-    authkitProxyMock.mockReset();
-    authkitProxyMock.mockResolvedValueOnce(NextResponse.next());
-
-    const response = await proxy(createRequest("/crowdin-app/inbox"), {} as never);
-
-    expect(authkitProxyMock).toHaveBeenCalledOnce();
-    expect(response?.status).toBe(200);
-    expect(response?.headers.get(`x-middleware-request-${REQUEST_URL_HEADER}`)).toBe(
-      "https://www.hyperlocalise.com/crowdin-app/inbox",
-    );
-    expect(response?.headers.get("Content-Security-Policy")).toBe(
-      buildCrowdinAppFrameAncestorsCsp(),
-    );
-    expect(response?.headers.get("X-Frame-Options")).toBeNull();
-  });
-
-  it("keeps AuthKit redirects inside the Crowdin App iframe", async () => {
-    authkitProxyMock.mockReset();
-    authkitProxyMock.mockResolvedValueOnce(
-      NextResponse.redirect("https://www.hyperlocalise.com/auth/sign-in"),
-    );
-
-    const response = await proxy(createRequest("/crowdin-app/inbox"), {} as never);
-
-    expect(response?.status).toBe(503);
-    expect(await response?.text()).toBe("Crowdin app unavailable");
-    expect(response?.headers.get("location")).toBeNull();
-    expect(response?.headers.get("Cache-Control")).toBe("no-store");
-    expect(response?.headers.get("Content-Security-Policy")).toBe(
-      buildCrowdinAppFrameAncestorsCsp(),
-    );
-    expect(response?.headers.get("X-Frame-Options")).toBeNull();
   });
 });
 

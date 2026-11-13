@@ -20,6 +20,7 @@ import {
 } from "@/lib/activity-log/job-automation-events";
 import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
+import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
 import {
   formatUsageControlError,
   reserveUsageEvent,
@@ -39,7 +40,10 @@ import {
   inferSupportedTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
+import type { GenerationTrigger } from "@/lib/translation/generation-provenance";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
+
+import { nativeFileJobSourceDisplayFields } from "./native-job-source-file-display";
 
 export type CreateFileTranslationJobInput = {
   organizationId: string;
@@ -47,12 +51,28 @@ export type CreateFileTranslationJobInput = {
   createdByUserId?: string | null;
   apiKeyId?: string | null;
   ownerUserId?: string | null;
+  assigneeType?: "user" | "agent" | null;
   sourceFileId: string;
   sourceLocale: string;
   targetLocales: string[];
   fileFormat?: SupportedTranslationFileFormat;
   metadata?: Record<string, string>;
+  ignoreTranslationMemory?: boolean;
+  branchName?: string | null;
 };
+
+function resolveFileTranslationJobAssignee(input: {
+  assigneeType?: "user" | "agent" | null;
+  ownerUserId?: string | null;
+}): { assigneeType: "user" | "agent" | null; ownerUserId: string | null } {
+  if (input.assigneeType === "agent") {
+    return { assigneeType: "agent", ownerUserId: null };
+  }
+  if (input.assigneeType === "user" || input.ownerUserId) {
+    return { assigneeType: "user", ownerUserId: input.ownerUserId ?? null };
+  }
+  return { assigneeType: null, ownerUserId: input.ownerUserId ?? null };
+}
 
 export type CreateFileTranslationJobResult =
   | {
@@ -75,6 +95,8 @@ export type EnqueueExistingFileTranslationJobInput = {
   organizationId: string;
   jobId: string;
   jobQueue: JobQueue<TranslationJobEventData>;
+  /** Who started the translation, kept in the job's generation provenance. */
+  trigger?: GenerationTrigger;
 };
 
 export type EnqueueExistingFileTranslationJobResult =
@@ -123,9 +145,16 @@ export function mergeNativeFileTranslationJobMetadata(
   metadata?: Record<string, string>,
   at: Date = new Date(),
 ): Record<string, string> {
+  const display = nativeFileJobSourceDisplayFields({
+    filename: metadata?.sourceFilename ?? filename,
+    sourcePath: metadata?.sourcePath,
+  });
+
   return {
-    title: buildNativeFileTranslationJobTitle(filename, at),
+    title: buildNativeFileTranslationJobTitle(display.sourceFilename, at),
     ...metadata,
+    sourceFilename: display.sourceFilename,
+    sourcePath: display.sourcePath,
   };
 }
 
@@ -136,28 +165,26 @@ async function markFileTranslationJobEnqueueFailed(input: {
   error: unknown;
 }) {
   try {
-    const [failedJob] = await db
-      .update(schema.jobs)
-      .set({
+    const [failedJob] = await updateJobs(db, {
+      set: {
         status: "failed",
         lastError:
           input.error instanceof Error ? input.error.message : "translation job queue unavailable",
-      })
-      .where(
-        and(
-          eq(schema.jobs.organizationId, input.organizationId),
-          eq(schema.jobs.id, input.jobId),
-          ne(schema.jobs.status, "failed"),
-          ...(input.projectId ? [eq(schema.jobs.projectId, input.projectId)] : []),
-        ),
-      )
-      .returning({
+      },
+      where: and(
+        eq(schema.jobs.organizationId, input.organizationId),
+        eq(schema.jobs.id, input.jobId),
+        ne(schema.jobs.status, "failed"),
+        ...(input.projectId ? [eq(schema.jobs.projectId, input.projectId)] : []),
+      ),
+      returning: {
         apiKeyId: schema.jobs.apiKeyId,
         createdByUserId: schema.jobs.createdByUserId,
         id: schema.jobs.id,
         kind: schema.jobs.kind,
         projectId: schema.jobs.projectId,
-      });
+      },
+    });
 
     if (!failedJob) return;
 
@@ -278,12 +305,26 @@ export async function createFileTranslationJob(
     };
   }
 
+  const sourcePathFromFile =
+    sourceFile.metadata &&
+    typeof sourceFile.metadata === "object" &&
+    !Array.isArray(sourceFile.metadata) &&
+    typeof sourceFile.metadata.sourcePath === "string"
+      ? sourceFile.metadata.sourcePath
+      : null;
+
+  const branchName = input.branchName?.trim() || undefined;
   const inputPayload = {
     sourceFileId: input.sourceFileId,
     fileFormat,
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
-    metadata: mergeNativeFileTranslationJobMetadata(sourceFile.filename, input.metadata),
+    metadata: mergeNativeFileTranslationJobMetadata(sourceFile.filename, {
+      ...(sourcePathFromFile ? { sourcePath: sourcePathFromFile } : {}),
+      ...input.metadata,
+    }),
+    ...(input.ignoreTranslationMemory ? { ignoreTranslationMemory: true } : {}),
+    ...(branchName ? { branch: branchName } : {}),
   };
 
   const jobId = `job_${randomUUID()}`;
@@ -303,26 +344,28 @@ export async function createFileTranslationJob(
         organizationId: input.organizationId,
         projectId: input.projectId,
         fileId: input.sourceFileId,
+        branchName,
       });
 
-      const [createdJob] = await tx
-        .insert(schema.jobs)
-        .values({
+      const assignee = resolveFileTranslationJobAssignee(input);
+      const [createdJob] = await insertJobs(tx, {
+        values: {
           id: jobId,
           organizationId: input.organizationId,
           projectId: input.projectId,
           createdByUserId: input.createdByUserId ?? null,
           apiKeyId: input.apiKeyId ?? null,
-          ownerUserId: input.ownerUserId ?? null,
-          assigneeType: input.ownerUserId ? "user" : null,
+          ownerUserId: assignee.ownerUserId,
+          assigneeType: assignee.assigneeType,
           kind: "translation",
           status: "queued",
           inputPayload,
-        })
-        .returning({
+        },
+        returning: {
           id: schema.jobs.id,
           projectId: schema.jobs.projectId,
-        });
+        },
+      });
 
       await tx.insert(schema.translationJobDetails).values({
         jobId,
@@ -442,14 +485,15 @@ export async function enqueueExistingFileTranslationJob(
     };
   }
 
-  await db
-    .update(schema.jobs)
-    .set({
+  await updateJobs(db, {
+    set: {
       assigneeType: "agent",
       ownerUserId: null,
+      ...(input.trigger ? { generationProvenance: { trigger: input.trigger } } : {}),
       updatedAt: new Date(),
-    })
-    .where(and(eq(schema.jobs.id, job.id), eq(schema.jobs.organizationId, input.organizationId)));
+    },
+    where: and(eq(schema.jobs.id, job.id), eq(schema.jobs.organizationId, input.organizationId)),
+  });
 
   const enqueued = await enqueueFileTranslationJobEvent({
     organizationId: input.organizationId,

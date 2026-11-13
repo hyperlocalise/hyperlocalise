@@ -117,6 +117,63 @@ describe("IssueNotificationService", () => {
     expect(rows.every((row) => row.recipientUserId !== actor.id)).toBe(true);
   });
 
+  it("returns populated and absent priorities from list and getById", async () => {
+    const { actor, assigneeUserId, memberIdentity, organization, project } =
+      await createProjectWithAssignee();
+
+    const prioritizedIssue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "Priority notification",
+        assigneeUserId,
+        priority: "P0",
+      },
+    });
+    const unprioritizedIssue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "Unprioritized notification",
+        assigneeUserId,
+      },
+    });
+
+    await authFixture.authHeadersFor(memberIdentity);
+    const auth = globalThis.__testApiAuthContext!;
+    const listed = await notificationService.list(auth, { limit: 10 });
+    const prioritizedNotification = listed.notifications.find(
+      (notification) => notification.issueId === prioritizedIssue.id,
+    );
+    const unprioritizedNotification = listed.notifications.find(
+      (notification) => notification.issueId === unprioritizedIssue.id,
+    );
+
+    expect(prioritizedNotification).toMatchObject({
+      issueId: prioritizedIssue.id,
+      priority: "P0",
+    });
+    expect(unprioritizedNotification).toMatchObject({
+      issueId: unprioritizedIssue.id,
+      priority: null,
+    });
+
+    await expect(
+      notificationService.getById(auth, prioritizedNotification!.id),
+    ).resolves.toMatchObject({
+      issueId: prioritizedIssue.id,
+      priority: "P0",
+    });
+    await expect(
+      notificationService.getById(auth, unprioritizedNotification!.id),
+    ).resolves.toMatchObject({
+      issueId: unprioritizedIssue.id,
+      priority: null,
+    });
+  });
+
   it("dedupes repeated assignment notifications for the same assignee", async () => {
     const { actor, assigneeUserId, organization, project } = await createProjectWithAssignee();
     const issue = await issueSheetService.createIssue({

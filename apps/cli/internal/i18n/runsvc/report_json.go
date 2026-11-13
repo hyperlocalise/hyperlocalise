@@ -41,15 +41,18 @@ type SummaryJSONReport struct {
 	Failed          int       `json:"failed"`
 	PersistedToLock int       `json:"persistedToLock"`
 	TokenUsage
-	LocaleUsage                 map[string]TokenUsage `json:"localeUsage,omitempty"`
-	Failures                    []Failure             `json:"failures,omitempty"`
-	PruneCandidateCount         int                   `json:"pruneCandidateCount,omitempty"`
-	PruneApplied                int                   `json:"pruneApplied"`
-	ContextMemoryEnabled        bool                  `json:"contextMemoryEnabled,omitempty"`
-	ContextMemoryScope          string                `json:"contextMemoryScope,omitempty"`
-	ContextMemoryGenerated      int                   `json:"contextMemoryGenerated,omitempty"`
-	ContextMemoryFallbackGroups int                   `json:"contextMemoryFallbackGroups,omitempty"`
-	Warnings                    []string              `json:"warnings,omitempty"`
+	LocaleUsage map[string]TokenUsage `json:"localeUsage,omitempty"`
+	MTUsage
+	LocaleMTUsage               map[string]MTUsage        `json:"localeMTUsage,omitempty"`
+	MTUsageByProfile            map[string]MTProfileUsage `json:"mtUsageByProfile,omitempty"`
+	Failures                    []Failure                 `json:"failures,omitempty"`
+	PruneCandidateCount         int                       `json:"pruneCandidateCount,omitempty"`
+	PruneApplied                int                       `json:"pruneApplied"`
+	ContextMemoryEnabled        bool                      `json:"contextMemoryEnabled,omitempty"`
+	ContextMemoryScope          string                    `json:"contextMemoryScope,omitempty"`
+	ContextMemoryGenerated      int                       `json:"contextMemoryGenerated,omitempty"`
+	ContextMemoryFallbackGroups int                       `json:"contextMemoryFallbackGroups,omitempty"`
+	Warnings                    []string                  `json:"warnings,omitempty"`
 }
 
 // ReportForJSON returns either the full Report or a summary-shaped value for json.Marshal.
@@ -88,6 +91,20 @@ func SummaryJSONReportFrom(r Report) SummaryJSONReport {
 			localeUsage[locale] = tokenUsageWithoutRaw(NormalizeTokenUsage(usage))
 		}
 	}
+	localeMTUsage := map[string]MTUsage(nil)
+	if len(r.LocaleMTUsage) > 0 {
+		localeMTUsage = make(map[string]MTUsage, len(r.LocaleMTUsage))
+		for locale, usage := range r.LocaleMTUsage {
+			localeMTUsage[locale] = usage
+		}
+	}
+	mtUsageByProfile := map[string]MTProfileUsage(nil)
+	if len(r.MTUsageByProfile) > 0 {
+		mtUsageByProfile = make(map[string]MTProfileUsage, len(r.MTUsageByProfile))
+		for profile, usage := range r.MTUsageByProfile {
+			mtUsageByProfile[profile] = usage
+		}
+	}
 	return SummaryJSONReport{
 		GeneratedAt:                 r.GeneratedAt,
 		ConfigPath:                  r.ConfigPath,
@@ -100,6 +117,9 @@ func SummaryJSONReportFrom(r Report) SummaryJSONReport {
 		PersistedToLock:             r.PersistedToLock,
 		TokenUsage:                  tokenUsageWithoutRaw(NormalizeTokenUsage(r.TokenUsage)),
 		LocaleUsage:                 localeUsage,
+		MTUsage:                     r.MTUsage,
+		LocaleMTUsage:               localeMTUsage,
+		MTUsageByProfile:            mtUsageByProfile,
 		Failures:                    r.Failures,
 		PruneCandidateCount:         len(r.PruneCandidates),
 		PruneApplied:                r.PruneApplied,

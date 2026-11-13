@@ -13,8 +13,9 @@
  * Version 2.0 or later.
  */
 import * as React from "react";
-import { ComputerIcon, Moon02Icon, Sun01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { flushSync } from "react-dom";
+import { Menu as MenuPrimitive } from "@base-ui/react/menu";
+import { DesktopIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { useTheme } from "next-themes";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -34,14 +35,14 @@ type ThemeOption = "light" | "dark" | "system";
 
 function ThemeToggleIcon({ theme }: { theme: ThemeOption }) {
   if (theme === "dark") {
-    return <HugeiconsIcon icon={Moon02Icon} strokeWidth={2} className="size-4" />;
+    return <MoonIcon className="size-4" />;
   }
 
   if (theme === "system") {
-    return <HugeiconsIcon icon={ComputerIcon} strokeWidth={2} className="size-4" />;
+    return <DesktopIcon className="size-4" />;
   }
 
-  return <HugeiconsIcon icon={Sun01Icon} strokeWidth={2} className="size-4" />;
+  return <SunIcon className="size-4" />;
 }
 
 function useThemeToggleState() {
@@ -61,45 +62,73 @@ function useThemeToggleState() {
       : activeTheme
     : "system";
 
-  return { activeTheme, mounted, setTheme, triggerTheme };
+  const changeTheme = React.useCallback(
+    (nextTheme: ThemeOption) => {
+      if (typeof document.startViewTransition !== "function") {
+        setTheme(nextTheme);
+        return;
+      }
+
+      // Crossfade one snapshot of the page so every surface changes together,
+      // instead of only the elements that happen to have color transitions.
+      const root = document.documentElement;
+      root.dataset.themeTransition = "";
+      const transition = document.startViewTransition(() => {
+        flushSync(() => setTheme(nextTheme));
+      });
+      void transition.finished.finally(() => {
+        delete root.dataset.themeTransition;
+      });
+    },
+    [setTheme],
+  );
+
+  return { activeTheme, mounted, changeTheme, triggerTheme };
 }
 
-function ThemeMenuRadioGroup() {
+const THEME_SEGMENTS = [
+  { value: "light", icon: SunIcon, label: themeToggleMessages.light },
+  { value: "dark", icon: MoonIcon, label: themeToggleMessages.dark },
+  { value: "system", icon: DesktopIcon, label: themeToggleMessages.system },
+] as const;
+
+/** Icon-only segmented control. Must be rendered inside a `DropdownMenuContent`. */
+function ThemeMenuSegmentedControl() {
   const intl = useIntl();
-  const { activeTheme, setTheme } = useThemeToggleState();
+  const { activeTheme, changeTheme } = useThemeToggleState();
 
   return (
-    <DropdownMenuRadioGroup
+    <MenuPrimitive.RadioGroup
       aria-label={intl.formatMessage(themeToggleMessages.colorThemeAria)}
       value={activeTheme}
-      onValueChange={(value) => setTheme(value as ThemeOption)}
+      onValueChange={(value) => changeTheme(value as ThemeOption)}
+      className="mx-1 my-1 grid grid-cols-3 gap-1 rounded-xl bg-muted p-1"
     >
-      <DropdownMenuRadioItem value="light">
-        <HugeiconsIcon icon={Sun01Icon} strokeWidth={2} className="size-4" />
-        <FormattedMessage {...themeToggleMessages.light} />
-      </DropdownMenuRadioItem>
-      <DropdownMenuRadioItem value="dark">
-        <HugeiconsIcon icon={Moon02Icon} strokeWidth={2} className="size-4" />
-        <FormattedMessage {...themeToggleMessages.dark} />
-      </DropdownMenuRadioItem>
-      <DropdownMenuRadioItem value="system">
-        <HugeiconsIcon icon={ComputerIcon} strokeWidth={2} className="size-4" />
-        <FormattedMessage {...themeToggleMessages.system} />
-      </DropdownMenuRadioItem>
-    </DropdownMenuRadioGroup>
+      {THEME_SEGMENTS.map(({ value, icon: Icon, label }) => (
+        <MenuPrimitive.RadioItem
+          key={value}
+          value={value}
+          aria-label={intl.formatMessage(label)}
+          title={intl.formatMessage(label)}
+          className="flex h-8 cursor-default items-center justify-center rounded-lg text-muted-foreground outline-hidden transition-[background-color,color,box-shadow] duration-150 select-none data-checked:bg-background data-checked:text-foreground data-checked:shadow-sm data-highlighted:text-foreground data-highlighted:ring-2 data-highlighted:ring-ring/40 data-checked:dark:bg-accent"
+        >
+          <Icon className="size-4" />
+        </MenuPrimitive.RadioItem>
+      ))}
+    </MenuPrimitive.RadioGroup>
   );
 }
 
 type ThemeToggleProps = {
-  variant?: "dropdown" | "menu";
+  variant?: "dropdown" | "segmented";
 };
 
 export function ThemeToggle({ variant = "dropdown" }: ThemeToggleProps) {
   const intl = useIntl();
-  const { activeTheme, setTheme, triggerTheme } = useThemeToggleState();
+  const { activeTheme, changeTheme, triggerTheme } = useThemeToggleState();
 
-  if (variant === "menu") {
-    return <ThemeMenuRadioGroup />;
+  if (variant === "segmented") {
+    return <ThemeMenuSegmentedControl />;
   }
 
   return (
@@ -127,18 +156,18 @@ export function ThemeToggle({ variant = "dropdown" }: ThemeToggleProps) {
         <DropdownMenuRadioGroup
           aria-label={intl.formatMessage(themeToggleMessages.colorThemeAria)}
           value={activeTheme}
-          onValueChange={(value) => setTheme(value as ThemeOption)}
+          onValueChange={(value) => changeTheme(value as ThemeOption)}
         >
           <DropdownMenuRadioItem value="light">
-            <HugeiconsIcon icon={Sun01Icon} strokeWidth={2} className="size-4" />
+            <SunIcon className="size-4" />
             <FormattedMessage {...themeToggleMessages.light} />
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="dark">
-            <HugeiconsIcon icon={Moon02Icon} strokeWidth={2} className="size-4" />
+            <MoonIcon className="size-4" />
             <FormattedMessage {...themeToggleMessages.dark} />
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="system">
-            <HugeiconsIcon icon={ComputerIcon} strokeWidth={2} className="size-4" />
+            <DesktopIcon className="size-4" />
             <FormattedMessage {...themeToggleMessages.system} />
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>

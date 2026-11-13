@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect } from "storybook/test";
+import { expect, userEvent } from "storybook/test";
 
 import type {
   MemoryEntryRecord,
@@ -24,6 +24,24 @@ import { TranslationMemoryDetailPageContent } from "./translation-memory-detail-
 
 const fixedNow = "2026-06-07T12:00:00.000Z";
 const memoryId = "11111111-1111-4111-8111-111111111111";
+
+const allowedCapability = { allowed: true, reason: null } as const;
+const readOnlyCapability = { allowed: false, reason: "read_only" } as const;
+
+function nativeMemoryCapabilities(): NonNullable<MemoryRecord["capabilities"]> {
+  return {
+    read: allowedCapability,
+    search: allowedCapability,
+    edit: allowedCapability,
+    review: allowedCapability,
+    import: allowedCapability,
+    export: allowedCapability,
+    bulk_mutation: allowedCapability,
+    archive: allowedCapability,
+    restore: allowedCapability,
+    delete: allowedCapability,
+  };
+}
 
 function createMemory(overrides: Partial<MemoryRecord> = {}): MemoryRecord {
   return {
@@ -48,6 +66,7 @@ function createMemory(overrides: Partial<MemoryRecord> = {}): MemoryRecord {
     lastSyncErrorMessage: null,
     createdAt: fixedNow,
     updatedAt: fixedNow,
+    capabilities: nativeMemoryCapabilities(),
     ...overrides,
   };
 }
@@ -90,6 +109,16 @@ const providerMemoryFixture = createMemory({
   segmentCount: 50_000,
   syncState: "synced",
   capabilityMode: "live_search",
+  capabilities: {
+    ...nativeMemoryCapabilities(),
+    edit: readOnlyCapability,
+    review: readOnlyCapability,
+    import: readOnlyCapability,
+    bulk_mutation: readOnlyCapability,
+    archive: readOnlyCapability,
+    restore: readOnlyCapability,
+    delete: readOnlyCapability,
+  },
 });
 
 const entriesFixture: MemoryEntryRecord[] = [
@@ -168,12 +197,13 @@ export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findByRole("heading", { name: "Product UI" })).toBeInTheDocument();
     await expect(canvas.getByText("Workspace")).toBeInTheDocument();
-    await expect(canvas.getByText("Core product translations")).toBeInTheDocument();
     await expect(canvas.getByText("Checkout")).toBeInTheDocument();
     await expect(canvas.getByText("Paiement")).toBeInTheDocument();
     await expect(canvas.getByText("Save changes")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add entry" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Export TMX" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Import" })).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "More translation memory actions" }));
+    await expect(canvas.getByRole("menuitem", { name: "Import" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Marketing Site" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Assign to project" })).toBeInTheDocument();
   },
@@ -194,10 +224,8 @@ export const Empty: Story = {
   }),
   play: async ({ canvas }) => {
     await expect(await canvas.findByRole("heading", { name: "Product UI" })).toBeInTheDocument();
-    await expect(
-      canvas.getByText("Manage translation examples and assign this memory to projects."),
-    ).toBeInTheDocument();
     await expect(canvas.getByText("No entries yet.")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Import TMX or CSV" })).toBeInTheDocument();
     await expect(canvas.getByText("No projects assigned yet.")).toBeInTheDocument();
   },
 };
@@ -218,7 +246,9 @@ export const ProviderReadOnly: Story = {
       canvas.queryByRole("button", { name: "Assign to project" }),
     ).not.toBeInTheDocument();
     await expect(canvas.getByText("Checkout")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Export TMX" })).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "More translation memory actions" }),
+    ).toBeInTheDocument();
   },
 };
 
@@ -226,7 +256,20 @@ export const ReadOnlyMember: Story = {
   args: {
     canManageMemories: false,
   },
-  parameters: createDetailStoryParameters({ memory: memoryFixture }),
+  parameters: createDetailStoryParameters({
+    memory: createMemory({
+      capabilities: {
+        ...nativeMemoryCapabilities(),
+        edit: readOnlyCapability,
+        review: readOnlyCapability,
+        import: readOnlyCapability,
+        bulk_mutation: readOnlyCapability,
+        archive: readOnlyCapability,
+        restore: readOnlyCapability,
+        delete: readOnlyCapability,
+      },
+    }),
+  }),
   play: async ({ canvas }) => {
     await expect(await canvas.findByRole("heading", { name: "Product UI" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Add entry" })).not.toBeInTheDocument();

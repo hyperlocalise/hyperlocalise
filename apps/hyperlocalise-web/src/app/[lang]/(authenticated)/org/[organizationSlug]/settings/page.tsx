@@ -11,19 +11,19 @@
  * Version 2.0 or later.
  */
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 import { GeneralSettingsPageContent } from "./_components/settings-pages";
-import { OrgPageSuspense } from "../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "settings");
+}
 
 export default function SettingsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <SettingsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <SettingsPageLoader params={params} />;
 }
 
 async function SettingsPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {

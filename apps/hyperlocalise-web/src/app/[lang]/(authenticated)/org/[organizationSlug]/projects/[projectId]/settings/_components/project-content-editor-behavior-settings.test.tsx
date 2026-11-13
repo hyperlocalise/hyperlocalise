@@ -20,44 +20,48 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { ProjectContentEditorBehaviorSettings } from "./project-content-editor-behavior-settings";
 
+const apiMocks = vi.hoisted(() => ({
+  contentEditorBehavior: vi.fn(),
+  previewContentEditorBehavior: vi.fn(),
+  updateContentEditorBehavior: vi.fn(),
+}));
+
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-function renderSettings(canManage = true) {
-  const requests: Array<{ url: string; init?: RequestInit }> = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      requests.push({ url, init });
-      if (url.endsWith("/preview")) {
-        return new Response(JSON.stringify({ preview: { affectedOccurrences: 7, groups: 3 } }), {
-          status: 200,
-        });
-      }
-      if (init?.method === "PATCH") {
-        return new Response(
-          JSON.stringify({
-            contentEditorBehavior: {
-              automaticallyGroupIdenticalStrings: true,
-              groupingRevision: 1,
-              canManage: true,
-            },
-          }),
-          { status: 200 },
-        );
-      }
-      return new Response(
-        JSON.stringify({
-          contentEditorBehavior: {
-            automaticallyGroupIdenticalStrings: false,
-            groupingRevision: 0,
-            canManage,
-          },
-        }),
-        { status: 200 },
-      );
-    }),
-  );
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      project: {
+        contentEditorBehavior: apiMocks.contentEditorBehavior,
+        previewContentEditorBehavior: apiMocks.previewContentEditorBehavior,
+        updateContentEditorBehavior: apiMocks.updateContentEditorBehavior,
+      },
+    },
+    loading: false,
+  }),
+}));
+
+function renderSettings(canManage = true, sourceTextEditable = false) {
+  apiMocks.contentEditorBehavior.mockResolvedValue({
+    contentEditorBehavior: {
+      automaticallyGroupIdenticalStrings: false,
+      groupingRevision: 0,
+      approvedTranslationsOnSourceChange: "stay_approved",
+      sourceTextEditable,
+      canManage,
+    },
+  });
+  apiMocks.previewContentEditorBehavior.mockResolvedValue({
+    preview: { affectedOccurrences: 7, groups: 3 },
+  });
+  apiMocks.updateContentEditorBehavior.mockResolvedValue({
+    contentEditorBehavior: {
+      automaticallyGroupIdenticalStrings: true,
+      groupingRevision: 1,
+      approvedTranslationsOnSourceChange: "stay_approved",
+      canManage: true,
+    },
+  });
   render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
@@ -71,35 +75,78 @@ function renderSettings(canManage = true) {
       </IntlProvider>
     </QueryClientProvider>,
   );
-  return requests;
 }
 
 afterEach(() => {
   vi.restoreAllMocks();
-  vi.unstubAllGlobals();
 });
 
 describe("ProjectContentEditorBehaviorSettings", () => {
   it("previews impact and promises translations remain unchanged before enabling", async () => {
     const user = userEvent.setup();
-    const requests = renderSettings();
+    renderSettings();
     const setting = await screen.findByRole("switch", {
-      name: "Automatically group identical strings",
+      name: "Automatically merge identical strings",
     });
 
     await user.click(setting);
 
-    expect(await screen.findByText(/7 occurrences into 3 groups/)).toBeInTheDocument();
+    expect(await screen.findByText(/7 occurrences into 3 strings/)).toBeInTheDocument();
     expect(screen.getByText(/Existing translations will not be changed/)).toBeInTheDocument();
-    expect(requests.some(({ url }) => url.endsWith("/preview"))).toBe(true);
+    expect(apiMocks.previewContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1");
+  });
+
+  it("saves what happens to approved translations when source text changes", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    const setting = await screen.findByRole("combobox", { name: "When source text changes" });
+    expect(setting).toHaveTextContent("Stays approved");
+
+    await user.click(setting);
+    await user.click(await screen.findByRole("option", { name: "Needs review" }));
+
+    await waitFor(() =>
+      expect(apiMocks.updateContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1", {
+        approvedTranslationsOnSourceChange: "needs_review",
+      }),
+    );
+    expect(apiMocks.previewContentEditorBehavior).not.toHaveBeenCalled();
+  });
+
+  it("turns source text editing on at once and asks before turning it off", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await user.click(await screen.findByRole("switch", { name: "Allow source text editing" }));
+    await waitFor(() =>
+      expect(apiMocks.updateContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1", {
+        sourceTextEditable: true,
+      }),
+    );
+  });
+
+  it("warns that edits not yet in the files are replaced when editing is turned off", async () => {
+    const user = userEvent.setup();
+    renderSettings(true, true);
+    await user.click(await screen.findByRole("switch", { name: "Allow source text editing" }));
+
+    expect(await screen.findByText("Stop editing source text here?")).toBeInTheDocument();
+    expect(apiMocks.updateContentEditorBehavior).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Stop editing here" }));
+    await waitFor(() =>
+      expect(apiMocks.updateContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1", {
+        sourceTextEditable: false,
+      }),
+    );
   });
 
   it("keeps the setting read-only for non-managers", async () => {
     renderSettings(false);
     const setting = await screen.findByRole("switch", {
-      name: "Automatically group identical strings",
+      name: "Automatically merge identical strings",
     });
     await waitFor(() => expect(setting).toHaveAttribute("aria-disabled", "true"));
-    expect(screen.getByText("Only project managers can change this setting.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Only admins and localization managers can change these settings."),
+    ).toBeInTheDocument();
   });
 });

@@ -12,7 +12,7 @@
  */
 
 /** Lightweight managed model ids (no SDK / env imports). */
-export const hyperlocaliseImageModelId = "openai/gpt-image-2.5-flare";
+export const hyperlocaliseImageModelId = "openai/gpt-image-2.6-flare";
 export const hyperlocaliseVideoModelId = "bytedance/seedance-2.5";
 export const hyperlocaliseTtsModelId = "fish-audio/s2.1-pro";
 export const hyperlocaliseTranscribeModelId = "google/gemini-3.5-transcribe";

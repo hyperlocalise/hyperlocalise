@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowRight01Icon, PlayIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRightIcon, PlayIcon } from "@phosphor-icons/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -41,6 +40,7 @@ import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 import { cn } from "@/lib/primitives/cn";
 
 import { multilingualContentStudioPageMessages as messages } from "./multilingual-content-studio-page.messages";
+import { ProductHowItWorksNarrativeSection } from "./product-how-it-works-narrative-section";
 
 const formatIds = ["text", "slides", "images", "video"] as const;
 type FormatId = (typeof formatIds)[number];
@@ -113,7 +113,7 @@ const PUBLISHED_PAGE_COPY = {
     meta: "8. September 2026 · 4 Min. Lesezeit",
     imageAlt: "Nächtliche Lichter der Städte auf der Erde, aus dem Weltraum fotografiert",
   },
-  ja: {
+  "ja-JP": {
     languageName: "日本語",
     category: "Daylight ジャーナル",
     title: "いつもと違う光で、世界を見つめる。",
@@ -146,16 +146,28 @@ const PUBLISHED_PAGE_COPY = {
     meta: "8 tháng 9, 2026 · 4 phút đọc",
     imageAlt: "Ánh đèn thành phố trên Trái Đất về đêm, được chụp từ không gian",
   },
-} as const satisfies Record<AppLocale | "ja", unknown>;
+} as const satisfies Partial<Record<AppLocale, unknown>>;
 
-const PUBLISHED_PAGE_LOCALES = Object.keys(PUBLISHED_PAGE_COPY) as Array<
-  keyof typeof PUBLISHED_PAGE_COPY
->;
+type PublishedPageLocale = keyof typeof PUBLISHED_PAGE_COPY;
+
+const PUBLISHED_PAGE_LOCALES = Object.keys(PUBLISHED_PAGE_COPY) as PublishedPageLocale[];
+
+function resolvePublishedPageLocale(locale: AppLocale): PublishedPageLocale {
+  if (locale in PUBLISHED_PAGE_COPY) {
+    return locale as PublishedPageLocale;
+  }
+
+  return "en";
+}
 
 function WebPublishingSection() {
   const locale = useAppLocale();
-  const [language, setLanguage] = useState<keyof typeof PUBLISHED_PAGE_COPY>(locale);
-  const orderedLocales = [locale, ...PUBLISHED_PAGE_LOCALES.filter((value) => value !== locale)];
+  const publishedLocale = resolvePublishedPageLocale(locale);
+  const [language, setLanguage] = useState<PublishedPageLocale>(publishedLocale);
+  const orderedLocales = [
+    publishedLocale,
+    ...PUBLISHED_PAGE_LOCALES.filter((value) => value !== publishedLocale),
+  ];
   const article = PUBLISHED_PAGE_COPY[language];
 
   return (
@@ -390,7 +402,7 @@ function FormatPreview({ format }: { format: FormatId }) {
         <div className="overflow-hidden rounded-md">
           <CampaignArtwork />
           <div className="flex items-center gap-3 bg-white p-3 text-xs text-[#43556c]">
-            <HugeiconsIcon icon={PlayIcon} className="size-4 text-[#172541]" />
+            <PlayIcon className="size-4 text-[#172541]" />
             <span>00:08 / 00:30</span>
             <div className="h-1 flex-1 bg-[#cae7ff]">
               <div className="h-1 w-2/5 bg-[#006bff]" />
@@ -672,8 +684,7 @@ export function MultilingualContentStudioPage() {
                 nativeButton={false}
                 render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
               >
-                <FormattedMessage {...messages.requestDemo} />{" "}
-                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                <FormattedMessage {...messages.requestDemo} /> <ArrowRightIcon className="size-4" />
               </Button>
               <Button
                 size="lg"
@@ -709,6 +720,8 @@ export function MultilingualContentStudioPage() {
             </span>
           </div>
         </section>
+
+        <ProductHowItWorksNarrativeSection narrative={messages.howItWorksNarrative} />
 
         <ContentFormats />
 
@@ -894,7 +907,7 @@ export function MultilingualContentStudioPage() {
                   render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
                 >
                   <FormattedMessage {...messages.requestDemo} />{" "}
-                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                  <ArrowRightIcon className="size-4" />
                 </Button>
                 <span className="text-xs text-[#e5edf9]">
                   <FormattedMessage {...messages.ctaNote} />

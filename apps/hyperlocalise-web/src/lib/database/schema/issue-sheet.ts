@@ -29,6 +29,7 @@ import { agentRuns } from "./agents";
 import { organizations, users } from "./organizations";
 import { projectTranslationComments, projectTranslationKeys } from "./project-strings";
 import { projects } from "./projects";
+import { translationQaRuns } from "./translation-qa";
 
 export type IssueSheetColumnConfig = {
   options?: { id: string; label: string; color?: string }[];
@@ -377,11 +378,17 @@ export type IssueNotificationType =
   | "mentioned"
   | "comment"
   | "status_changed"
-  | "assignee_changed";
+  | "assignee_changed"
+  | "qa_errors_increased"
+  | "qa_scan_failed";
 
 export type IssueNotificationPayload = {
+  /** Notification subject: the issue title, or the project name for QA alerts. */
   issueTitle: string;
   projectId: string;
+  errorCount?: number;
+  errorsChange?: number;
+  errorCode?: string | null;
   commentId?: string;
   commentExcerpt?: string;
   previousStatus?: string;
@@ -422,7 +429,8 @@ export const issueSheetSubscriptions = pgTable(
 
 /**
  * In-app inbox notifications for Issue Sheet activity (assignment, mentions,
- * comments, and relevant changes for subscribers).
+ * comments, and relevant changes for subscribers) and QA scan alerts. Every row
+ * references exactly one subject: an issue or a QA run.
  */
 export const issueNotifications = pgTable(
   "issue_notifications",
@@ -440,9 +448,8 @@ export const issueNotifications = pgTable(
     actorUserId: uuid("actor_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
-    issueId: uuid("issue_id")
-      .notNull()
-      .references(() => issueSheetIssues.id, { onDelete: "cascade" }),
+    issueId: uuid("issue_id").references(() => issueSheetIssues.id, { onDelete: "cascade" }),
+    qaRunId: uuid("qa_run_id").references(() => translationQaRuns.id, { onDelete: "cascade" }),
     type: text("type").$type<IssueNotificationType>().notNull(),
     dedupeKey: text("dedupe_key").notNull(),
     payload: jsonb("payload")
@@ -469,6 +476,11 @@ export const issueNotifications = pgTable(
       table.readAt,
     ),
     index("idx_issue_notifications_issue").on(table.issueId),
+    index("idx_issue_notifications_qa_run").on(table.qaRunId),
+    check(
+      "issue_notifications_single_subject",
+      sql`num_nonnulls(${table.issueId}, ${table.qaRunId}) = 1`,
+    ),
     index("idx_issue_notifications_email_digest").on(
       table.emailedAt,
       table.readAt,

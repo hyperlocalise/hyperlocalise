@@ -11,11 +11,22 @@
  * Version 2.0 or later.
  */
 import {
+  buildDefaultContentSyncTriggerMode,
+  contentSyncNeedsProviderFolder,
+  defaultContentSyncName,
+  defaultContentSyncProjectFolder,
+  type ContentSyncConfig,
+  type ContentSyncProvider,
+} from "./content-sync/content-sync-types";
+import {
+  DEFAULT_WORKSPACE_AUTOMATION_KIND,
   DEFAULT_WORKSPACE_AUTOMATION_MODEL,
   resolveWorkspaceAutomationGithubEvents,
+  resolveWorkspaceAutomationKind,
   resolveWorkspaceAutomationModel,
   type WorkspaceAutomationGithubToolMode,
   type WorkspaceAutomationGithubTriggerEvent,
+  type WorkspaceAutomationKind,
   type WorkspaceAutomationModel,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationRepositoryTarget,
@@ -24,8 +35,18 @@ import {
   type WorkspaceAutomationWebSearchProvider,
 } from "./workspace-automation-types";
 import type { EmailProviderSlug } from "@/lib/email/constants";
+import {
+  DEFAULT_GOOGLE_DRIVE_TRANSLATION_OUTPUT,
+  resolveGoogleDriveTranslationOutput,
+  type GoogleDriveTranslationOutput,
+} from "@/lib/google-drive/translation-filename";
+import { listUnsupportedSanitySourceDocumentTypes } from "@/lib/sanity/locale-catalog";
+import { sanityDocumentTypeTitle } from "@/lib/sanity/localization-mode";
 import { parseSlackConversationId } from "./slack/channel-query";
 import { isValidAutomationTimeZone } from "./automation-time-zones";
+import { hasWorkspaceAutomationScheduledWorkflow } from "./workspace-automation-scheduled-workflow";
+import { applySkillToolsToWorkspaceAutomationForm } from "./workspace-automation-skill-form";
+import { validateWorkspaceAutomationSkills } from "./workspace-automation-skills";
 import {
   getWorkspaceAutomationTemplate,
   type WorkspaceAutomationTemplate,
@@ -40,11 +61,18 @@ export type WorkspaceAutomationTriggerMode =
   | "web_chat";
 
 export type WorkspaceAutomationFormState = {
+  kind: WorkspaceAutomationKind;
   name: string;
   instructions: string;
+  skillIds: string[];
   model: WorkspaceAutomationModel;
   status: "active" | "paused";
   projectId: string;
+  syncProvider: ContentSyncProvider;
+  syncConnectionId: string;
+  syncResourceKey: string;
+  syncProviderFolder: string;
+  syncProjectFolder: string;
   triggerMode: WorkspaceAutomationTriggerMode;
   pushBranches: string[];
   githubEvents: WorkspaceAutomationGithubTriggerEvent[];
@@ -85,7 +113,6 @@ export type WorkspaceAutomationFormState = {
   listIssuesEnabled: boolean;
   createIssueEnabled: boolean;
   knowledgeEnabled: boolean;
-  knowledgeAllowUpdates: boolean;
   knowledgeFilesEnabled: boolean;
   mcpEnabled: boolean;
   mcpConnectionId: string;
@@ -94,6 +121,89 @@ export type WorkspaceAutomationFormState = {
   zernioEnabled: boolean;
   zernioConnectionId: string;
   ahrefsEnabled: boolean;
+  intercomEnabled: boolean;
+  googleDriveEnabled: boolean;
+  googleDriveFolderIds: string[];
+  googleDriveFileIds: string[];
+  googleDriveTargetLocales: string[];
+  googleDriveIncludeTranslatedFiles: boolean;
+  googleDriveTranslationOutput: GoogleDriveTranslationOutput;
+  sanityEnabled: boolean;
+  sanityProjectId: string;
+  sanityDataset: string;
+  sanityDocumentTypes: string[];
+  sanityDocumentTypeModes: Record<string, "document" | "field">;
+  sanityLocaleCatalogDocumentType: string;
+  sanityLocaleCatalogTagField: string;
+  sanityLocaleCatalogTitleField: string;
+  sanityLanguages: string[];
+  sanityLanguagesByType: Record<string, string[]>;
+  sanitySourceLocale: string;
+  sanityTargetLocales: string[];
+  sanityIncludeDrafts: boolean;
+  sanityOverwriteSanityDrafts: boolean;
+  sanityExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  webflowEnabled: boolean;
+  webflowConnectionId: string;
+  webflowSiteId: string;
+  webflowCollectionIds: string[];
+  webflowSourceLocale: string;
+  webflowTargetLocales: string[];
+  webflowExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  webflowRunQa: boolean;
+  webflowPublishOnPush: boolean;
+  brazeEnabled: boolean;
+  brazeCampaignsEnabled: boolean;
+  customerIoEnabled: boolean;
+  loopsEnabled: boolean;
+  loopsSourceLocale: string;
+  hubspotEnabled: boolean;
+  hubspotSourceLocale: string;
+  hubspotEmailIds: string[];
+  hubspotFormIds: string[];
+  hubspotBlogPostIds: string[];
+  hubspotLandingPageIds: string[];
+  hubspotWebsitePageIds: string[];
+  hubspotMessageTemplateIds: string[];
+  hubspotExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  hubspotOverwriteWhenRemoteNewer: boolean;
+  mailchimpEnabled: boolean;
+  mailchimpSourceLocale: string;
+  mailchimpCampaignIds: string[];
+  mailchimpTemplateIds: string[];
+  mailchimpExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  mailchimpOverwriteWhenRemoteNewer: boolean;
+  customerIoBroadcastIds: string[];
+  customerIoCampaignIds: string[];
+  customerIoNewsletterIds: string[];
+  customerIoTransactionalMessageIds: string[];
+  customerIoBroadcastActions: Record<string, string[]>;
+  customerIoCampaignActions: Record<string, string[]>;
+  customerIoNewsletterActions: Record<string, string[]>;
+  customerIoTransactionalMessageActions: Record<string, string[]>;
+  customerIoExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  customerIoOverwriteWhenRemoteNewer: boolean;
+  brazeSourceLocale: string;
+  brazeTemplateIds: string[];
+  brazeContentBlockIds: string[];
+  brazeCampaignIds: string[];
+  brazeCanvasIds: string[];
+  brazeExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  brazeOverwriteWhenRemoteNewer: boolean;
+  iterableEnabled: boolean;
+  iterableSourceLocale: string;
+  iterableTemplateIds: string[];
+  iterableSnippetIds: string[];
+  iterableExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  intercomRestEndpoint: "us" | "eu" | "au";
+  intercomHelpCenterId: string;
+  intercomHelpCenterLocales: string[];
+  intercomSourceLocale: string;
+  intercomTargetLocales: string[];
+  intercomCollectionIds: string[];
+  intercomIncludeDrafts: boolean;
+  intercomOverwriteIntercomDrafts: boolean;
+  intercomExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   crowdinEnabled: boolean;
   crowdinProjectId: string;
   webSearchEnabled: boolean;
@@ -105,6 +215,21 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     return true;
   }
   if (form.contentfulEnabled) {
+    return true;
+  }
+  if (
+    form.intercomEnabled ||
+    form.googleDriveEnabled ||
+    form.sanityEnabled ||
+    form.webflowEnabled ||
+    form.brazeEnabled ||
+    form.brazeCampaignsEnabled ||
+    form.customerIoEnabled ||
+    form.iterableEnabled ||
+    form.loopsEnabled ||
+    form.hubspotEnabled ||
+    form.mailchimpEnabled
+  ) {
     return true;
   }
   if (form.createNativeTmsJobEnabled || form.assignTranslateWithAgentEnabled) {
@@ -138,14 +263,45 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "semrushConnectionId"
     | "zernioConnectionId"
     | "ahrefs"
+    | "intercom"
+    | "intercomHelpCenterId"
+    | "intercomSourceLocale"
+    | "googleDrive"
+    | "sanity"
+    | "sanityProjectId"
+    | "sanityDataset"
+    | "sanityDocumentTypes"
+    | "sanitySourceLocale"
+    | "sanityTargetLocales"
+    | "webflow"
+    | "webflowConnectionId"
+    | "webflowCollectionIds"
+    | "webflowSourceLocale"
+    | "braze"
+    | "brazeSourceLocale"
+    | "iterable"
+    | "iterableSourceLocale"
+    | "customerIo"
+    | "loops"
+    | "hubspot"
     | "crowdinProjectId"
     | "scheduledTimezone"
+    | "skills"
+    | "syncConnectionId"
+    | "syncProviderFolder"
+    | "syncProjectFolder"
     | "form",
     string
   >
 >;
 
 export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
+  skill_not_found: "A selected skill is no longer available. Remove it and try again.",
+  skill_trigger_incompatible:
+    "A selected skill does not work with this trigger. Remove it or change the trigger.",
+  skill_tools_required: "A selected skill needs a tool that was removed. Add the skill again.",
+  cms_translation_skills_exclusive: "Choose one CMS translation skill per automation.",
+  instructions_or_skill_required: "Add a skill or write instructions.",
   github_repository_target_required: "Choose a GitHub repository before enabling GitHub tools.",
   gitlab_repository_target_required: "Choose a GitLab project before enabling GitLab tools.",
   gitlab_github_exclusive: "GitHub and GitLab cannot be enabled on the same automation.",
@@ -163,7 +319,52 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_push_branches_required: "Add at least one branch pattern for GitHub triggers.",
   github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
-    "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
+  intercom_not_connected: "Connect Intercom in Integrations before using it.",
+  intercom_pipes_needs_reauthorization: "Reconnect Intercom in Integrations, then try again.",
+  intercom_pipes_unavailable: "Intercom is unavailable until WorkOS Pipes is configured.",
+  intercom_help_center_required: "Choose an Intercom Help Center.",
+  intercom_target_locales_unmapped:
+    "One or more selected Intercom target locales do not exist on this Help Center.",
+  intercom_source_locale_unmapped:
+    "The source locale does not match an Intercom Help Center locale.",
+  intercom_source_locale_mismatch:
+    "The Intercom source locale must be the same language as the project source locale.",
+  sanity_not_connected: "Connect Sanity in Integrations before using it.",
+  sanity_pipes_needs_reauthorization: "Reconnect Sanity in Integrations, then try again.",
+  sanity_pipes_unavailable: "Sanity is unavailable until WorkOS Pipes is configured.",
+  sanity_project_required: "Choose a Sanity project and dataset.",
+  sanity_document_types_required: "Choose at least one Sanity document type.",
+  sanity_target_locales_unmapped:
+    "One or more selected Sanity target locales do not exist on this dataset.",
+  sanity_source_locale_unmapped: "The source locale does not match a Sanity language tag.",
+  sanity_source_locale_mismatch:
+    "The Sanity source locale must be the same language as the project source locale.",
+  webflow_not_connected: "Connect Webflow in Integrations before using it.",
+  webflow_connection_required: "Choose a Webflow connection.",
+  webflow_collection_ids_required: "Choose at least one Webflow collection.",
+  webflow_source_locale_mismatch:
+    "The Webflow primary locale must match the project source locale.",
+  braze_not_connected: "Connect Braze in Integrations before using it.",
+  braze_pipes_needs_reauthorization: "Reconnect Braze in Integrations, then try again.",
+  braze_pipes_unavailable: "Braze is unavailable until WorkOS Pipes is configured.",
+  braze_endpoint_missing: "Save a Braze REST cluster in Integrations before using it.",
+  braze_source_locale_mismatch:
+    "The Braze source locale must be the same language as the project source locale.",
+  braze_skills_exclusive:
+    "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.",
+  customer_io_not_connected: "Connect Customer.io in Integrations before using it.",
+  customer_io_pipes_needs_reauthorization: "Reconnect Customer.io in Integrations, then try again.",
+  customer_io_pipes_unavailable: "Customer.io is unavailable until WorkOS Pipes is configured.",
+  loops_not_connected: "Connect Loops in Integrations before using it.",
+  loops_pipes_needs_reauthorization: "Reconnect Loops in Integrations, then try again.",
+  loops_pipes_unavailable: "Loops is unavailable until WorkOS Pipes is configured.",
+  hubspot_not_connected: "Connect HubSpot in Integrations before using it.",
+  hubspot_pipes_needs_reauthorization: "Reconnect HubSpot in Integrations, then try again.",
+  hubspot_pipes_unavailable: "HubSpot is unavailable until WorkOS Pipes is configured.",
+  iterable_not_connected: "Connect Iterable in Integrations before using it.",
+  iterable_pipes_needs_reauthorization: "Reconnect Iterable in Integrations, then try again.",
+  iterable_pipes_unavailable: "Iterable is unavailable until WorkOS Pipes is configured.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -206,6 +407,11 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_repository_not_enabled: "Enable this repository before configuring automation.",
   github_repository_archived: "Archived repositories cannot use automations.",
   project_not_found: "The selected project could not be found.",
+  content_sync_config_required: "Choose a source, resource, and project folder.",
+  content_sync_provider_folder_required: "Add the folder on the connected source.",
+  content_sync_folder_invalid: "Choose a safe relative folder path.",
+  content_sync_duplicate: "This project already syncs that source folder.",
+  content_sync_connection_required: "Connect this source in Integrations first.",
 };
 
 export function selectableAutomationRepositories<
@@ -220,11 +426,18 @@ export function selectableAutomationRepositories<
 
 export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomationFormState {
   return {
+    kind: DEFAULT_WORKSPACE_AUTOMATION_KIND,
     name: "",
     instructions: "",
+    skillIds: [],
     model: DEFAULT_WORKSPACE_AUTOMATION_MODEL,
     status: "active",
     projectId: "",
+    syncProvider: "github",
+    syncConnectionId: "",
+    syncResourceKey: "",
+    syncProviderFolder: "locales",
+    syncProjectFolder: "",
     triggerMode: "manual",
     pushBranches: ["main"],
     githubEvents: ["push"],
@@ -265,7 +478,6 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     listIssuesEnabled: false,
     createIssueEnabled: false,
     knowledgeEnabled: false,
-    knowledgeAllowUpdates: false,
     knowledgeFilesEnabled: false,
     mcpEnabled: false,
     mcpConnectionId: "",
@@ -274,6 +486,89 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     zernioEnabled: false,
     zernioConnectionId: "",
     ahrefsEnabled: false,
+    intercomEnabled: false,
+    googleDriveEnabled: false,
+    googleDriveFolderIds: [],
+    googleDriveFileIds: [],
+    googleDriveTargetLocales: [],
+    googleDriveIncludeTranslatedFiles: false,
+    googleDriveTranslationOutput: DEFAULT_GOOGLE_DRIVE_TRANSLATION_OUTPUT,
+    sanityEnabled: false,
+    sanityProjectId: "",
+    sanityDataset: "",
+    sanityDocumentTypes: [],
+    sanityDocumentTypeModes: {},
+    sanityLocaleCatalogDocumentType: "locale",
+    sanityLocaleCatalogTagField: "tag",
+    sanityLocaleCatalogTitleField: "name",
+    sanityLanguages: [],
+    sanityLanguagesByType: {},
+    sanitySourceLocale: "en",
+    sanityTargetLocales: [],
+    sanityIncludeDrafts: true,
+    sanityOverwriteSanityDrafts: true,
+    sanityExistingTranslationPolicy: "seed_empty",
+    webflowEnabled: false,
+    webflowConnectionId: "",
+    webflowSiteId: "",
+    webflowCollectionIds: [],
+    webflowSourceLocale: "en",
+    webflowTargetLocales: [],
+    webflowExistingTranslationPolicy: "seed_empty",
+    webflowRunQa: true,
+    webflowPublishOnPush: false,
+    brazeEnabled: false,
+    brazeCampaignsEnabled: false,
+    customerIoEnabled: false,
+    loopsEnabled: false,
+    loopsSourceLocale: "en",
+    hubspotEnabled: false,
+    hubspotSourceLocale: "en",
+    hubspotEmailIds: [],
+    hubspotFormIds: [],
+    hubspotBlogPostIds: [],
+    hubspotLandingPageIds: [],
+    hubspotWebsitePageIds: [],
+    hubspotMessageTemplateIds: [],
+    hubspotExistingTranslationPolicy: "seed_empty",
+    hubspotOverwriteWhenRemoteNewer: true,
+    mailchimpEnabled: false,
+    mailchimpSourceLocale: "en",
+    mailchimpCampaignIds: [],
+    mailchimpTemplateIds: [],
+    mailchimpExistingTranslationPolicy: "seed_empty",
+    mailchimpOverwriteWhenRemoteNewer: true,
+    customerIoBroadcastIds: [],
+    customerIoCampaignIds: [],
+    customerIoNewsletterIds: [],
+    customerIoTransactionalMessageIds: [],
+    customerIoBroadcastActions: {},
+    customerIoCampaignActions: {},
+    customerIoNewsletterActions: {},
+    customerIoTransactionalMessageActions: {},
+    customerIoExistingTranslationPolicy: "seed_empty",
+    customerIoOverwriteWhenRemoteNewer: true,
+    brazeSourceLocale: "en",
+    brazeTemplateIds: [],
+    brazeContentBlockIds: [],
+    brazeCampaignIds: [],
+    brazeCanvasIds: [],
+    brazeExistingTranslationPolicy: "seed_empty",
+    brazeOverwriteWhenRemoteNewer: true,
+    iterableEnabled: false,
+    iterableSourceLocale: "",
+    iterableTemplateIds: [],
+    iterableSnippetIds: [],
+    iterableExistingTranslationPolicy: "seed_empty",
+    intercomRestEndpoint: "us",
+    intercomHelpCenterId: "",
+    intercomHelpCenterLocales: [],
+    intercomSourceLocale: "en",
+    intercomTargetLocales: [],
+    intercomCollectionIds: [],
+    intercomIncludeDrafts: true,
+    intercomOverwriteIntercomDrafts: true,
+    intercomExistingTranslationPolicy: "seed_empty",
     crowdinEnabled: false,
     crowdinProjectId: "",
     webSearchEnabled: false,
@@ -299,12 +594,30 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const semrush = automation.toolConfig.semrush;
   const zernio = automation.toolConfig.zernio;
   const ahrefs = automation.toolConfig.ahrefs;
+  const intercom = automation.toolConfig.intercom;
+  const googleDrive = automation.toolConfig.googleDrive;
+  const sanity = automation.toolConfig.sanity;
+  const webflow = automation.toolConfig.webflow;
+  const braze = automation.toolConfig.braze;
+  const brazeCampaigns = automation.toolConfig.brazeCampaigns;
+  const customerIo = automation.toolConfig.customerIo;
+  const iterable = automation.toolConfig.iterable;
+  const loops = automation.toolConfig.loops;
+  const hubspot = automation.toolConfig.hubspot;
+  const mailchimp = automation.toolConfig.mailchimp;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
   return {
+    kind: resolveWorkspaceAutomationKind(automation.kind),
     name: automation.name,
     instructions: automation.instructions,
+    skillIds: automation.skillIds ?? [],
+    syncProvider: automation.syncConfig?.provider ?? "github",
+    syncConnectionId: automation.syncConfig?.connectionId ?? "",
+    syncResourceKey: automation.syncConfig?.resourceKey ?? "",
+    syncProviderFolder: automation.syncConfig?.providerFolder ?? "locales",
+    syncProjectFolder: automation.syncConfig?.projectFolder ?? "",
     model: resolveWorkspaceAutomationModel(automation.model),
     status: automation.status === "paused" ? "paused" : "active",
     projectId: automation.projectId ?? "",
@@ -368,7 +681,6 @@ export function createWorkspaceAutomationFormStateFromRecord(
     listIssuesEnabled: Boolean(listIssues?.enabled),
     createIssueEnabled: Boolean(createIssue?.enabled),
     knowledgeEnabled: Boolean(knowledge?.enabled),
-    knowledgeAllowUpdates: Boolean(knowledge?.allowUpdates),
     knowledgeFilesEnabled: Boolean(knowledgeFiles?.enabled),
     mcpEnabled: Boolean(mcp?.enabled),
     mcpConnectionId: mcp?.connectionId ?? "",
@@ -377,6 +689,130 @@ export function createWorkspaceAutomationFormStateFromRecord(
     zernioEnabled: Boolean(zernio?.enabled),
     zernioConnectionId: zernio?.connectionId ?? "",
     ahrefsEnabled: Boolean(ahrefs?.enabled),
+    intercomEnabled: Boolean(intercom?.enabled),
+    googleDriveEnabled: Boolean(googleDrive?.enabled),
+    googleDriveFolderIds: googleDrive?.folderIds ? [...googleDrive.folderIds] : [],
+    googleDriveFileIds: googleDrive?.fileIds ? [...googleDrive.fileIds] : [],
+    googleDriveTargetLocales: googleDrive?.targetLocales ? [...googleDrive.targetLocales] : [],
+    googleDriveIncludeTranslatedFiles: Boolean(googleDrive?.includeTranslatedFiles),
+    googleDriveTranslationOutput: resolveGoogleDriveTranslationOutput(
+      googleDrive?.translationOutput,
+    ),
+    sanityEnabled: Boolean(sanity?.enabled),
+    sanityProjectId: sanity?.projectId ?? "",
+    sanityDataset: sanity?.dataset ?? "",
+    sanityDocumentTypes: sanity?.documentTypes ? [...sanity.documentTypes] : [],
+    sanityDocumentTypeModes: sanity?.documentTypeModes ? { ...sanity.documentTypeModes } : {},
+    sanityLocaleCatalogDocumentType: sanity?.localeCatalog?.documentType ?? "locale",
+    sanityLocaleCatalogTagField: sanity?.localeCatalog?.tagField ?? "tag",
+    sanityLocaleCatalogTitleField: sanity?.localeCatalog?.titleField ?? "name",
+    sanityLanguages: sanity?.languages ? [...sanity.languages] : [],
+    sanityLanguagesByType: sanity?.languagesByType ? { ...sanity.languagesByType } : {},
+    sanitySourceLocale: sanity?.sourceLocale ?? "en",
+    sanityTargetLocales: [],
+    sanityIncludeDrafts: Boolean(sanity?.includeDrafts),
+    sanityOverwriteSanityDrafts: Boolean(sanity?.overwriteSanityDrafts),
+    sanityExistingTranslationPolicy:
+      sanity?.existingTranslationPolicy === "refresh_imported" ||
+      sanity?.existingTranslationPolicy === "overwrite_all"
+        ? sanity.existingTranslationPolicy
+        : "seed_empty",
+    webflowEnabled: Boolean(webflow?.enabled),
+    webflowConnectionId: webflow?.connectionId ?? "",
+    webflowSiteId: webflow?.siteId ?? "",
+    webflowCollectionIds: webflow?.collectionIds ? [...webflow.collectionIds] : [],
+    webflowSourceLocale: webflow?.sourceLocale ?? "en",
+    webflowTargetLocales: webflow?.targetLocales ? [...webflow.targetLocales] : [],
+    webflowExistingTranslationPolicy:
+      webflow?.existingTranslationPolicy === "refresh_imported" ||
+      webflow?.existingTranslationPolicy === "overwrite_all"
+        ? webflow.existingTranslationPolicy
+        : "seed_empty",
+    webflowRunQa: webflow?.runQa ?? true,
+    webflowPublishOnPush: webflow?.publishOnPush ?? false,
+    brazeEnabled: Boolean(braze?.enabled),
+    brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
+    customerIoEnabled: Boolean(customerIo?.enabled),
+    loopsEnabled: Boolean(loops?.enabled),
+    loopsSourceLocale: loops?.sourceLocale ?? "en",
+    hubspotEnabled: Boolean(hubspot?.enabled),
+    hubspotSourceLocale: hubspot?.sourceLocale ?? "en",
+    hubspotEmailIds: hubspot?.emailIds ? [...hubspot.emailIds] : [],
+    hubspotFormIds: hubspot?.formIds ? [...hubspot.formIds] : [],
+    hubspotBlogPostIds: hubspot?.blogPostIds ? [...hubspot.blogPostIds] : [],
+    hubspotLandingPageIds: hubspot?.landingPageIds ? [...hubspot.landingPageIds] : [],
+    hubspotWebsitePageIds: hubspot?.websitePageIds ? [...hubspot.websitePageIds] : [],
+    hubspotMessageTemplateIds: hubspot?.messageTemplateIds ? [...hubspot.messageTemplateIds] : [],
+    hubspotExistingTranslationPolicy:
+      hubspot?.existingTranslationPolicy === "refresh_imported" ||
+      hubspot?.existingTranslationPolicy === "overwrite_all"
+        ? hubspot.existingTranslationPolicy
+        : "seed_empty",
+    hubspotOverwriteWhenRemoteNewer: hubspot?.overwriteWhenRemoteNewer !== false,
+    mailchimpEnabled: Boolean(mailchimp?.enabled),
+    mailchimpSourceLocale: mailchimp?.sourceLocale ?? "en",
+    mailchimpCampaignIds: mailchimp?.campaignIds ? [...mailchimp.campaignIds] : [],
+    mailchimpTemplateIds: mailchimp?.templateIds ? [...mailchimp.templateIds] : [],
+    mailchimpExistingTranslationPolicy:
+      mailchimp?.existingTranslationPolicy === "refresh_imported" ||
+      mailchimp?.existingTranslationPolicy === "overwrite_all"
+        ? mailchimp.existingTranslationPolicy
+        : "seed_empty",
+    mailchimpOverwriteWhenRemoteNewer: mailchimp?.overwriteWhenRemoteNewer !== false,
+    customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
+    customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
+    customerIoNewsletterIds: customerIo?.newsletterIds ? [...customerIo.newsletterIds] : [],
+    customerIoTransactionalMessageIds: customerIo?.transactionalMessageIds
+      ? [...customerIo.transactionalMessageIds]
+      : [],
+    customerIoBroadcastActions: { ...customerIo?.broadcastActions },
+    customerIoCampaignActions: { ...customerIo?.campaignActions },
+    customerIoNewsletterActions: { ...customerIo?.newsletterActions },
+    customerIoTransactionalMessageActions: { ...customerIo?.transactionalMessageActions },
+    customerIoExistingTranslationPolicy:
+      customerIo?.existingTranslationPolicy === "refresh_imported" ||
+      customerIo?.existingTranslationPolicy === "overwrite_all"
+        ? customerIo.existingTranslationPolicy
+        : "seed_empty",
+    customerIoOverwriteWhenRemoteNewer: customerIo?.overwriteWhenRemoteNewer !== false,
+    brazeSourceLocale: brazeCampaigns?.sourceLocale ?? braze?.sourceLocale ?? "en",
+    brazeTemplateIds: braze?.templateIds ? [...braze.templateIds] : [],
+    brazeContentBlockIds: braze?.contentBlockIds ? [...braze.contentBlockIds] : [],
+    brazeCampaignIds: brazeCampaigns?.campaignIds ? [...brazeCampaigns.campaignIds] : [],
+    brazeCanvasIds: brazeCampaigns?.canvasIds ? [...brazeCampaigns.canvasIds] : [],
+    brazeExistingTranslationPolicy:
+      (brazeCampaigns?.existingTranslationPolicy ?? braze?.existingTranslationPolicy) ===
+        "refresh_imported" ||
+      (brazeCampaigns?.existingTranslationPolicy ?? braze?.existingTranslationPolicy) ===
+        "overwrite_all"
+        ? ((brazeCampaigns?.existingTranslationPolicy ?? braze?.existingTranslationPolicy) as
+            | "refresh_imported"
+            | "overwrite_all")
+        : "seed_empty",
+    brazeOverwriteWhenRemoteNewer:
+      (brazeCampaigns?.overwriteWhenRemoteNewer ?? braze?.overwriteWhenRemoteNewer) !== false,
+    iterableEnabled: Boolean(iterable?.enabled),
+    iterableSourceLocale: iterable?.sourceLocale?.trim() || "",
+    iterableTemplateIds: iterable?.templateIds ? [...iterable.templateIds] : [],
+    iterableSnippetIds: iterable?.snippetIds ? [...iterable.snippetIds] : [],
+    iterableExistingTranslationPolicy:
+      iterable?.existingTranslationPolicy === "refresh_imported" ||
+      iterable?.existingTranslationPolicy === "overwrite_all"
+        ? iterable.existingTranslationPolicy
+        : "seed_empty",
+    intercomRestEndpoint: intercom?.restEndpoint ?? "us",
+    intercomHelpCenterId: intercom?.helpCenterId ?? "",
+    intercomHelpCenterLocales: intercom?.helpCenterLocales ? [...intercom.helpCenterLocales] : [],
+    intercomSourceLocale: intercom?.sourceLocale ?? "en",
+    intercomTargetLocales: intercom?.targetLocales ? [...intercom.targetLocales] : [],
+    intercomCollectionIds: intercom?.collectionIds ? [...intercom.collectionIds] : [],
+    intercomIncludeDrafts: Boolean(intercom?.includeDrafts),
+    intercomOverwriteIntercomDrafts: Boolean(intercom?.overwriteIntercomDrafts),
+    intercomExistingTranslationPolicy:
+      intercom?.existingTranslationPolicy === "refresh_imported" ||
+      intercom?.existingTranslationPolicy === "overwrite_all"
+        ? intercom.existingTranslationPolicy
+        : "seed_empty",
     crowdinEnabled: Boolean(crowdin?.enabled),
     crowdinProjectId: crowdin?.projectId ?? "",
     webSearchEnabled: Boolean(webSearch?.enabled),
@@ -403,11 +839,12 @@ export function applyTemplateToWorkspaceAutomationFormState(
   base: WorkspaceAutomationFormState,
   template: WorkspaceAutomationTemplate,
 ): WorkspaceAutomationFormState {
-  return {
+  return applySkillToolsToWorkspaceAutomationForm({
     ...base,
     ...template.defaultForm,
     name: template.defaultForm.name ?? template.name,
     instructions: template.defaultForm.instructions ?? template.instructions,
+    skillIds: template.defaultForm.skillIds ?? base.skillIds,
     pushBranches: template.defaultForm.pushBranches ?? base.pushBranches,
     githubEvents: template.defaultForm.githubEvents ?? base.githubEvents,
     emailRecipients: template.defaultForm.emailRecipients ?? base.emailRecipients,
@@ -415,7 +852,7 @@ export function applyTemplateToWorkspaceAutomationFormState(
       template.defaultForm.contentfulContentTypeIds ?? base.contentfulContentTypeIds,
     contentfulTargetLocales:
       template.defaultForm.contentfulTargetLocales ?? base.contentfulTargetLocales,
-  };
+  });
 }
 
 export function applyWorkspaceAutomationProjectSelection(
@@ -436,19 +873,85 @@ export function applyWorkspaceAutomationProjectSelection(
         : form.contentfulTargetLocales.filter((locale) => project.targetLocales.includes(locale));
   }
 
+  if (form.loopsEnabled && project) {
+    next.loopsSourceLocale = project.sourceLocale ?? form.loopsSourceLocale;
+  }
+
+  if (form.hubspotEnabled && project) {
+    next.hubspotSourceLocale = project.sourceLocale ?? form.hubspotSourceLocale;
+  }
+
+  if (form.mailchimpEnabled && project) {
+    next.mailchimpSourceLocale = project.sourceLocale ?? form.mailchimpSourceLocale;
+  }
+
+  if (form.iterableEnabled && project) {
+    next.iterableSourceLocale = project.sourceLocale ?? "";
+  }
+
   return next;
 }
 
-export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationFormState): {
+export type WorkspaceAutomationAgentWritePayload = {
+  kind?: "agent";
   name: string;
   instructions: string;
+  skillIds: string[];
   model: WorkspaceAutomationModel;
   status: "active" | "paused";
   projectId?: string;
   triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
-} {
+};
+
+export type WorkspaceAutomationContentSyncWritePayload = {
+  kind: "content_sync";
+  name: string;
+  model?: WorkspaceAutomationModel;
+  status: "active" | "paused";
+  projectId?: string;
+  triggerConfig: WorkspaceAutomationTriggerConfig;
+  repositoryTarget?: WorkspaceAutomationRepositoryTarget;
+  syncConfig: ContentSyncConfig;
+  toolConfig: WorkspaceAutomationToolConfig;
+};
+
+export type WorkspaceAutomationWritePayload =
+  | WorkspaceAutomationAgentWritePayload
+  | WorkspaceAutomationContentSyncWritePayload;
+
+export function formStateToWorkspaceAutomationPayload(
+  form: WorkspaceAutomationFormState,
+): WorkspaceAutomationWritePayload {
+  if (form.kind === "content_sync") {
+    const resourceKey = form.syncResourceKey.trim();
+    const projectFolder =
+      form.syncProjectFolder.trim() ||
+      defaultContentSyncProjectFolder({
+        provider: form.syncProvider,
+        resourceKey,
+      });
+    return {
+      kind: "content_sync",
+      name:
+        form.name.trim() || defaultContentSyncName({ provider: form.syncProvider, resourceKey }),
+      status: form.status,
+      projectId: form.projectId.trim() || undefined,
+      triggerConfig: { mode: buildDefaultContentSyncTriggerMode(form.syncProvider) },
+      syncConfig: {
+        provider: form.syncProvider,
+        connectionId: form.syncConnectionId.trim(),
+        resourceKey,
+        providerFolder: contentSyncNeedsProviderFolder(form.syncProvider)
+          ? form.syncProviderFolder.trim()
+          : "",
+        projectFolder,
+      },
+      toolConfig: {},
+    };
+  }
+
   const triggerConfig: WorkspaceAutomationTriggerConfig =
     form.triggerMode === "scheduled"
       ? {
@@ -510,7 +1013,10 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
       ? {
           slack: {
             enabled: true,
-            channelId: form.slackChannelId.trim() || undefined,
+            // A pasted channel link or mention is stored as the ID it names.
+            channelId:
+              parseSlackConversationId(form.slackChannelId) ??
+              (form.slackChannelId.trim() || undefined),
           },
         }
       : {}),
@@ -544,6 +1050,167 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
             overwriteDraftLocales: form.contentfulOverwriteDraftLocales,
             runQa: form.contentfulRunQa,
             writeDrafts: form.contentfulWriteDrafts,
+          },
+        }
+      : {}),
+    ...(form.brazeEnabled
+      ? {
+          braze: {
+            enabled: true,
+            sourceLocale: form.brazeSourceLocale.trim() || "en",
+            templateIds: form.brazeTemplateIds,
+            contentBlockIds: form.brazeContentBlockIds,
+            existingTranslationPolicy: form.brazeExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.brazeOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.brazeCampaignsEnabled
+      ? {
+          brazeCampaigns: {
+            enabled: true,
+            sourceLocale: form.brazeSourceLocale.trim() || "en",
+            campaignIds: form.brazeCampaignIds,
+            canvasIds: form.brazeCanvasIds,
+            existingTranslationPolicy: form.brazeExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.brazeOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.iterableEnabled
+      ? {
+          iterable: {
+            enabled: true,
+            ...(form.iterableSourceLocale.trim()
+              ? { sourceLocale: form.iterableSourceLocale.trim() }
+              : {}),
+            templateIds: form.iterableTemplateIds,
+            snippetIds: form.iterableSnippetIds,
+            existingTranslationPolicy: form.iterableExistingTranslationPolicy,
+          },
+        }
+      : {}),
+    ...(form.customerIoEnabled
+      ? {
+          customerIo: {
+            enabled: true,
+            broadcastIds: form.customerIoBroadcastIds,
+            campaignIds: form.customerIoCampaignIds,
+            newsletterIds: form.customerIoNewsletterIds,
+            transactionalMessageIds: form.customerIoTransactionalMessageIds,
+            broadcastActions: form.customerIoBroadcastActions,
+            campaignActions: form.customerIoCampaignActions,
+            newsletterActions: form.customerIoNewsletterActions,
+            transactionalMessageActions: form.customerIoTransactionalMessageActions,
+            existingTranslationPolicy: form.customerIoExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.customerIoOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.loopsEnabled
+      ? {
+          loops: {
+            enabled: true,
+            sourceLocale: form.loopsSourceLocale.trim() || "en",
+            transactionalIds: [],
+            campaignIds: [],
+            workflowIds: [],
+            existingTranslationPolicy: "seed_empty",
+            overwriteWhenRemoteNewer: true,
+          },
+        }
+      : {}),
+    ...(form.hubspotEnabled
+      ? {
+          hubspot: {
+            enabled: true,
+            sourceLocale: form.hubspotSourceLocale.trim() || "en",
+            emailIds: form.hubspotEmailIds,
+            formIds: form.hubspotFormIds,
+            blogPostIds: form.hubspotBlogPostIds,
+            landingPageIds: form.hubspotLandingPageIds,
+            websitePageIds: form.hubspotWebsitePageIds,
+            messageTemplateIds: form.hubspotMessageTemplateIds,
+            existingTranslationPolicy: form.hubspotExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.hubspotOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.mailchimpEnabled
+      ? {
+          mailchimp: {
+            enabled: true,
+            campaignIds: form.mailchimpCampaignIds,
+            templateIds: form.mailchimpTemplateIds,
+            existingTranslationPolicy: form.mailchimpExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.mailchimpOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.intercomEnabled
+      ? {
+          intercom: {
+            enabled: true,
+            restEndpoint: form.intercomRestEndpoint,
+            helpCenterId: form.intercomHelpCenterId.trim() || undefined,
+            helpCenterLocales: form.intercomHelpCenterLocales,
+            collectionIds: form.intercomCollectionIds,
+            sourceLocale: form.intercomSourceLocale.trim() || "en",
+            targetLocales: form.intercomTargetLocales,
+            includeDrafts: form.intercomIncludeDrafts,
+            overwriteIntercomDrafts: form.intercomOverwriteIntercomDrafts,
+            existingTranslationPolicy: form.intercomExistingTranslationPolicy,
+          },
+        }
+      : {}),
+    ...(form.googleDriveEnabled
+      ? {
+          googleDrive: {
+            enabled: true,
+            folderIds: form.googleDriveFolderIds,
+            fileIds: form.googleDriveFileIds,
+            targetLocales: form.googleDriveTargetLocales,
+            includeTranslatedFiles: form.googleDriveIncludeTranslatedFiles,
+            translationOutput: form.googleDriveTranslationOutput,
+            existingTranslationPolicy: "seed_empty",
+          },
+        }
+      : {}),
+    ...(form.sanityEnabled
+      ? {
+          sanity: {
+            enabled: true,
+            projectId: form.sanityProjectId.trim() || undefined,
+            dataset: form.sanityDataset.trim() || undefined,
+            documentTypes: form.sanityDocumentTypes,
+            documentTypeModes: form.sanityDocumentTypeModes,
+            localeCatalog: {
+              documentType: form.sanityLocaleCatalogDocumentType.trim() || "locale",
+              tagField: form.sanityLocaleCatalogTagField.trim() || "tag",
+              titleField: form.sanityLocaleCatalogTitleField.trim() || "name",
+            },
+            languages: form.sanityLanguages,
+            languagesByType: form.sanityLanguagesByType,
+            sourceLocale: form.sanitySourceLocale.trim() || "en",
+            targetLocales: [],
+            includeDrafts: form.sanityIncludeDrafts,
+            overwriteSanityDrafts: form.sanityOverwriteSanityDrafts,
+            existingTranslationPolicy: form.sanityExistingTranslationPolicy,
+          },
+        }
+      : {}),
+    ...(form.webflowEnabled
+      ? {
+          webflow: {
+            enabled: true,
+            connectionId: form.webflowConnectionId || undefined,
+            siteId: form.webflowSiteId.trim() || undefined,
+            collectionIds: form.webflowCollectionIds,
+            sourceLocale: form.webflowSourceLocale.trim() || "en",
+            targetLocales: form.webflowTargetLocales,
+            existingTranslationPolicy: form.webflowExistingTranslationPolicy,
+            runQa: form.webflowRunQa,
+            publishOnPush: form.webflowPublishOnPush,
           },
         }
       : {}),
@@ -583,9 +1250,6 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
       ? {
           knowledge: {
             enabled: true,
-            // Defense in depth: even if the UI's dependency between the two toggles ever drifts,
-            // updates can never be serialized as allowed without recall also being enabled.
-            allowUpdates: form.knowledgeAllowUpdates,
           },
         }
       : {}),
@@ -650,6 +1314,7 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
   return {
     name: form.name.trim(),
     instructions: form.instructions.trim(),
+    skillIds: form.skillIds,
     model: resolveWorkspaceAutomationModel(form.model),
     status: form.status,
     ...(projectId ? { projectId } : {}),
@@ -664,16 +1329,54 @@ export function validateWorkspaceAutomationFormState(
 ): WorkspaceAutomationFieldErrors {
   const errors: WorkspaceAutomationFieldErrors = {};
 
+  if (form.kind === "content_sync") {
+    if (!form.projectId.trim()) {
+      errors.projectId = "Choose a Hyperlocalise project.";
+    }
+    if (!form.syncConnectionId.trim() || !form.syncResourceKey.trim()) {
+      errors.syncConnectionId = "Choose a connected source.";
+    }
+    if (contentSyncNeedsProviderFolder(form.syncProvider) && !form.syncProviderFolder.trim()) {
+      errors.syncProviderFolder = "Add the folder on the connected source.";
+    }
+    if (
+      !form.syncProjectFolder.trim() &&
+      !defaultContentSyncProjectFolder({
+        provider: form.syncProvider,
+        resourceKey: form.syncResourceKey,
+      })
+    ) {
+      errors.syncProjectFolder = "Add a project folder.";
+    }
+    return errors;
+  }
+
   if (!form.name.trim()) {
     errors.name = "Name is required.";
   }
 
-  if (!form.instructions.trim()) {
-    errors.instructions = "Instructions are required.";
+  if (!form.instructions.trim() && form.skillIds.length === 0) {
+    errors.instructions = WORKSPACE_AUTOMATION_API_ERROR_MESSAGES.instructions_or_skill_required;
+  }
+
+  const payload = formStateToWorkspaceAutomationPayload(form);
+  const skillProblem = validateWorkspaceAutomationSkills({
+    skillIds: form.skillIds,
+    triggerMode: form.triggerMode,
+    toolConfig: payload.toolConfig,
+  });
+  if (skillProblem) {
+    errors.skills = WORKSPACE_AUTOMATION_API_ERROR_MESSAGES[skillProblem];
   }
 
   if (workspaceAutomationFormNeedsProject(form) && !form.projectId.trim()) {
     errors.projectId = "Choose a Hyperlocalise project.";
+  }
+
+  if (form.iterableEnabled && !form.iterableSourceLocale.trim()) {
+    errors.iterableSourceLocale = form.projectId.trim()
+      ? "Choose a source locale."
+      : "Choose a project above to pick a source locale.";
   }
 
   if (form.githubEnabled) {
@@ -720,6 +1423,14 @@ export function validateWorkspaceAutomationFormState(
     errors.scheduledTimezone = "Choose a valid timezone.";
   }
 
+  if (
+    form.triggerMode === "scheduled" &&
+    !errors.trigger &&
+    !hasWorkspaceAutomationScheduledWorkflow(payload.toolConfig)
+  ) {
+    errors.trigger = WORKSPACE_AUTOMATION_API_ERROR_MESSAGES.scheduled_workflow_required;
+  }
+
   if (form.slackEnabled && !parseSlackConversationId(form.slackChannelId)) {
     errors.slackChannelId = "Enter a valid Slack channel ID.";
   }
@@ -730,6 +1441,66 @@ export function validateWorkspaceAutomationFormState(
     }
     if (!form.emailFrom.trim()) {
       errors.emailFrom = "Add a verified sender address.";
+    }
+  }
+
+  if (form.intercomEnabled) {
+    if (!form.intercomHelpCenterId.trim()) {
+      errors.intercomHelpCenterId = "Choose an Intercom Help Center.";
+    }
+    if (form.intercomHelpCenterLocales.length === 0 && form.intercomTargetLocales.length === 0) {
+      errors.intercomHelpCenterId = "Load Help Center locales before saving.";
+    }
+  }
+
+  if (
+    form.googleDriveEnabled &&
+    form.googleDriveFolderIds.length === 0 &&
+    form.googleDriveFileIds.length === 0
+  ) {
+    errors.googleDrive = "Choose at least one connected Google Drive folder or file.";
+  }
+
+  if (form.sanityEnabled) {
+    if (!form.sanityProjectId.trim() || !form.sanityDataset.trim()) {
+      errors.sanityProjectId = "Choose a Sanity project and dataset.";
+    }
+    if (form.sanityDocumentTypes.length === 0) {
+      errors.sanityDocumentTypes = "Choose at least one document type.";
+    }
+    if (form.sanityLanguages.length === 0) {
+      errors.sanityDataset = "Load dataset languages before saving.";
+    }
+    if (!form.sanitySourceLocale.trim()) {
+      errors.sanitySourceLocale =
+        "Choose a Sanity source locale that matches the project source language.";
+    } else if (form.sanityDocumentTypes.length > 0 && form.sanityLanguages.length > 0) {
+      const typeLanguages = new Map(
+        Object.entries(form.sanityLanguagesByType).map(([name, languages]) => [name, languages]),
+      );
+      const unsupported = listUnsupportedSanitySourceDocumentTypes({
+        sourceLocale: form.sanitySourceLocale,
+        documentTypes: form.sanityDocumentTypes,
+        languagesByType: form.sanityLanguagesByType,
+        fallbackLanguages: form.sanityLanguages,
+        typeLanguages,
+      });
+      if (unsupported.length > 0) {
+        errors.sanitySourceLocale = `Source locale ${form.sanitySourceLocale} is not available for: ${unsupported.map((typeName) => sanityDocumentTypeTitle(typeName)).join(", ")}.`;
+      }
+    }
+  }
+
+  if (form.webflowEnabled) {
+    if (!form.webflowConnectionId) {
+      errors.webflowConnectionId = "Choose a Webflow connection.";
+    }
+    if (form.webflowCollectionIds.length === 0) {
+      errors.webflowCollectionIds = "Choose at least one Webflow collection.";
+    }
+    if (!form.webflowSourceLocale.trim()) {
+      errors.webflowSourceLocale =
+        "Choose a Webflow source locale that matches the project source language.";
     }
   }
 
@@ -781,6 +1552,27 @@ export function validateWorkspaceAutomationFormState(
   return errors;
 }
 
+/**
+ * The errors still worth showing once the form has changed: those the form's own checks still
+ * find. One the server reported, or one for a field since put right, goes. Returns the same
+ * object when nothing goes, so the caller's state does not change.
+ */
+export function pruneWorkspaceAutomationFieldErrors(
+  errors: Record<string, string | undefined>,
+  form: WorkspaceAutomationFormState,
+): Record<string, string | undefined> {
+  const shown = Object.keys(errors).filter((key) => errors[key]);
+  if (shown.length === 0) {
+    return errors;
+  }
+  const current: Record<string, string | undefined> = validateWorkspaceAutomationFormState(form);
+  const kept = shown.filter((key) => current[key]);
+  if (kept.length === shown.length) {
+    return errors;
+  }
+  return Object.fromEntries(kept.map((key) => [key, errors[key]]));
+}
+
 export function mapWorkspaceAutomationApiErrorToFieldErrors(
   errorCode: string,
 ): WorkspaceAutomationFieldErrors {
@@ -790,6 +1582,13 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
   }
 
   switch (errorCode) {
+    case "skill_not_found":
+    case "skill_trigger_incompatible":
+    case "skill_tools_required":
+    case "cms_translation_skills_exclusive":
+      return { skills: message };
+    case "instructions_or_skill_required":
+      return { instructions: message };
     case "github_repository_target_required":
     case "github_repository_not_enabled":
     case "github_repository_archived":
@@ -856,11 +1655,75 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "ahrefs_pipes_needs_reauthorization":
     case "ahrefs_pipes_unavailable":
       return { ahrefs: message };
+    case "intercom_not_connected":
+    case "intercom_pipes_needs_reauthorization":
+    case "intercom_pipes_unavailable":
+      return { intercom: message };
+    case "intercom_help_center_required":
+    case "intercom_target_locales_unmapped":
+      return { intercomHelpCenterId: message };
+    case "intercom_source_locale_unmapped":
+    case "intercom_source_locale_mismatch":
+      return { intercomSourceLocale: message };
+    case "sanity_not_connected":
+    case "sanity_pipes_needs_reauthorization":
+    case "sanity_pipes_unavailable":
+      return { sanity: message };
+    case "sanity_project_required":
+      return { sanityProjectId: message, sanityDataset: message };
+    case "sanity_document_types_required":
+      return { sanityDocumentTypes: message };
+    case "sanity_target_locales_unmapped":
+      return { sanityTargetLocales: message };
+    case "sanity_source_locale_unmapped":
+    case "sanity_source_locale_mismatch":
+      return { sanitySourceLocale: message };
+    case "webflow_not_connected":
+      return { webflow: message };
+    case "webflow_connection_required":
+      return { webflowConnectionId: message };
+    case "webflow_collection_ids_required":
+      return { webflowCollectionIds: message };
+    case "webflow_source_locale_mismatch":
+      return { webflowSourceLocale: message };
+    case "braze_not_connected":
+    case "braze_pipes_needs_reauthorization":
+    case "braze_pipes_unavailable":
+    case "braze_endpoint_missing":
+    case "braze_skills_exclusive":
+      return { braze: message };
+    case "braze_source_locale_mismatch":
+      return { brazeSourceLocale: message };
+    case "customer_io_not_connected":
+    case "customer_io_pipes_needs_reauthorization":
+    case "customer_io_pipes_unavailable":
+      return { customerIo: message };
+    case "loops_not_connected":
+    case "loops_pipes_needs_reauthorization":
+    case "loops_pipes_unavailable":
+      return { loops: message };
+    case "hubspot_not_connected":
+    case "hubspot_pipes_needs_reauthorization":
+    case "hubspot_pipes_unavailable":
+      return { hubspot: message };
+    case "iterable_not_connected":
+    case "iterable_pipes_needs_reauthorization":
+    case "iterable_pipes_unavailable":
+      return { iterable: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":
     case "crowdin_not_connected":
       return { crowdinProjectId: message };
+    case "content_sync_config_required":
+      return { syncConnectionId: message };
+    case "content_sync_provider_folder_required":
+      return { syncProviderFolder: message };
+    case "content_sync_folder_invalid":
+      return { syncProjectFolder: message };
+    case "content_sync_duplicate":
+    case "content_sync_connection_required":
+      return { form: message };
     default:
       return { form: message };
   }
@@ -872,14 +1735,37 @@ export function workspaceAutomationFormSupportsOnDemandRun(
   return triggerMode === "manual" || triggerMode === "scheduled";
 }
 
+/** The form as a save would store it, where that differs from what was typed. */
+function storedWorkspaceAutomationForm(
+  form: WorkspaceAutomationFormState,
+): WorkspaceAutomationFormState {
+  const slackChannelId = parseSlackConversationId(form.slackChannelId);
+  return slackChannelId && slackChannelId !== form.slackChannelId
+    ? { ...form, slackChannelId }
+    : form;
+}
+
+/**
+ * A pasted Slack channel link and the ID it is saved as count as the same value, so a form left
+ * holding the link is not unsaved once the ID has been stored.
+ */
 export function workspaceAutomationFormHasChanges(
   current: WorkspaceAutomationFormState,
   saved: WorkspaceAutomationFormState,
 ) {
-  return JSON.stringify(current) !== JSON.stringify(saved);
+  return (
+    JSON.stringify(storedWorkspaceAutomationForm(current)) !==
+    JSON.stringify(storedWorkspaceAutomationForm(saved))
+  );
 }
 
 export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationFormState) {
+  if (form.kind === "content_sync") {
+    return Boolean(
+      form.projectId.trim() && form.syncConnectionId.trim() && form.syncResourceKey.trim(),
+    );
+  }
+
   if (form.triggerMode === "web_chat") {
     return true;
   }
@@ -891,6 +1777,17 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.emailEnabled ||
     form.githubCommentEnabled ||
     form.contentfulEnabled ||
+    form.intercomEnabled ||
+    form.googleDriveEnabled ||
+    form.sanityEnabled ||
+    form.webflowEnabled ||
+    form.brazeEnabled ||
+    form.brazeCampaignsEnabled ||
+    form.customerIoEnabled ||
+    form.iterableEnabled ||
+    form.loopsEnabled ||
+    form.hubspotEnabled ||
+    form.mailchimpEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||

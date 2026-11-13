@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { OrganizationIssuesListQuery } from "@/lib/go-svc/go-svc-client.types";
 import {
   ISSUE_LIST_SORT_DIRECTIONS,
   ISSUE_LIST_SORT_FIELDS,
@@ -20,6 +21,7 @@ import {
   type IssueListView,
   type IssuePriority,
 } from "@/lib/projects/issue-sheet/issue-list-constants";
+import { translationQaScanCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
 
 export const ISSUE_STATUS_FILTERS = ["open", "in_progress", "resolved", "wont_fix"] as const;
 
@@ -44,6 +46,7 @@ export type IssueListUrlState = {
   issueType?: IssueTypeFilter;
   priority?: IssuePriority;
   locale?: string;
+  qaCheckType?: TranslationQaCheckType;
   assignee?: IssueAssigneeFilter;
   projectId?: string;
   search: string;
@@ -84,6 +87,7 @@ export function parseIssueListSearchParams(
   const priority = readAllowedValue(searchParams, "priority", ISSUE_PRIORITIES);
   const assignee = readAllowedValue(searchParams, "assignee", ISSUE_ASSIGNEE_FILTERS);
   const locale = searchParams.get("locale")?.trim() || undefined;
+  const qaCheckType = readAllowedValue(searchParams, "qaCheckType", translationQaScanCheckTypes);
   const search = searchParams.get("search")?.trim() ?? "";
   const projectId = options?.includeProject
     ? searchParams.get("projectId")?.trim() || undefined
@@ -95,6 +99,7 @@ export function parseIssueListSearchParams(
     issueType,
     priority,
     locale,
+    qaCheckType,
     assignee,
     projectId,
     search,
@@ -122,6 +127,9 @@ export function buildIssueListSearchParams(
   }
   if (state.locale) {
     params.set("locale", state.locale);
+  }
+  if (state.qaCheckType) {
+    params.set("qaCheckType", state.qaCheckType);
   }
   if (state.assignee) {
     params.set("assignee", state.assignee);
@@ -209,13 +217,13 @@ export function defaultSortDirForField(sort: IssueListSortField): IssueListSortD
 export function issueListStateToApiQuery(
   state: IssueListUrlState,
   options?: { includeProject?: boolean; limit?: number; offset?: number },
-) {
-  const query: Record<string, string> = {
+): OrganizationIssuesListQuery {
+  const query: OrganizationIssuesListQuery = {
     view: state.view,
     sort: state.sort,
     sortDir: state.sortDir,
-    limit: String(options?.limit ?? 50),
-    offset: String(options?.offset ?? 0),
+    limit: options?.limit ?? 50,
+    offset: options?.offset ?? 0,
   };
   if (state.status) {
     query.status = state.status;
@@ -228,6 +236,9 @@ export function issueListStateToApiQuery(
   }
   if (state.locale) {
     query.locale = state.locale;
+  }
+  if (state.qaCheckType) {
+    query.qaCheckType = state.qaCheckType;
   }
   if (state.assignee) {
     query.assignee = state.assignee;

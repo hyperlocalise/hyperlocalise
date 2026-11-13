@@ -1,0 +1,234 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+"use client";
+
+import { defineMessages } from "react-intl";
+
+export const activityTabMessages = defineMessages({
+  sourceWords: {
+    id: "SRJvcrQLW0",
+    defaultMessage: "Source words",
+    description: "Activity card: words of source text that arrived, each text counted once",
+  },
+  sourceWordsDetail: {
+    id: "WaNJ4aXPOt",
+    defaultMessage: "Unique words that arrived, translation step",
+    description: "Detail under the source words card",
+  },
+  wordsToTranslate: {
+    id: "afxCn+1ZKq",
+    defaultMessage: "Words to translate",
+    description: "Activity card: source words times the languages they go into",
+  },
+  wordsToTranslateDetail: {
+    id: "/QuCM2WH7H",
+    defaultMessage: "Source words × their languages",
+    description: "Detail under the words to translate card",
+  },
+  wordsFinished: {
+    id: "zqxYomx0Lt",
+    defaultMessage: "Words finished",
+    description: "Activity card: words translated in the chosen dates",
+  },
+  wordsFinishedDetail: {
+    id: "U0tjqKI8s2",
+    defaultMessage: "Translation step only",
+    description: "Detail under the words finished card",
+  },
+  progress: {
+    id: "3UK3mwksnd",
+    defaultMessage: "Progress",
+    description: "Activity card: share of the arrived words that are finished",
+  },
+  progressDetail: {
+    id: "hbZPBR2/zu",
+    defaultMessage: "Of the words that arrived in these dates",
+    description: "Detail under the progress card",
+  },
+  wordsReviewed: {
+    id: "FP74d1HjBN",
+    defaultMessage: "Words reviewed",
+    description: "Activity card: words approved in the period, at the review step",
+  },
+  wordsReviewedDetail: {
+    id: "DN1I9bj4t4",
+    defaultMessage: "Approved in these dates · review step",
+    description: "Detail under the words reviewed card",
+  },
+  chartStep: {
+    id: "a6JR5uFWOp",
+    defaultMessage: "Step",
+    description: "Label of the switch choosing which step the finished words chart shows",
+  },
+  finishedPerDay: {
+    id: "XDo7GTXYVG",
+    defaultMessage: "Finished words per day",
+    description: "Title of the chart of finished words for each day",
+  },
+  finishedPerWeek: {
+    id: "u1jIBm+6lH",
+    defaultMessage: "Finished words per week",
+    description: "Title of the chart of finished words for each week",
+  },
+  finishedChartDetail: {
+    id: "FNPiHoJg9V",
+    defaultMessage: "{step} step · by where the text came from",
+    description: "Subtitle of the finished words chart",
+  },
+  fromMemory: {
+    id: "HqGUF6r5uP",
+    defaultMessage: "Translation memory",
+    description: "Chart series: finished text taken from the translation memory",
+  },
+  fromAi: {
+    id: "AR6134JvR2",
+    defaultMessage: "AI",
+    description: "Chart series: finished text written by an AI model",
+  },
+  fromImport: {
+    id: "hDeWLLJPZV",
+    defaultMessage: "Imported",
+    description: "Chart series: finished text that was imported",
+  },
+  fromUnknown: {
+    id: "3cKXuel9Qg",
+    defaultMessage: "Not recorded",
+    description: "Chart series: finished text whose source was not recorded",
+  },
+  unchangedNote: {
+    id: "s97IP+3F+5",
+    defaultMessage:
+      "People finished {people} words at the {step} step; {share} of those kept the text they were given as it was.",
+    description:
+      "Note under the finished words chart: how much of what people finished was kept as given",
+  },
+  people: {
+    id: "WvlADP+aHH",
+    defaultMessage: "Written by people",
+    description: "Chart series: finished text that people wrote themselves",
+  },
+  automatic: {
+    id: "jVog1L+ji6",
+    defaultMessage: "Automatic",
+    description: "Chart series: work done automatically",
+  },
+  chartSummary: {
+    id: "1N8A6OFNKq",
+    defaultMessage:
+      "{finished} words finished from {from} to {to}, {people} of them by people, by where the text came from",
+    description: "Accessible description of the finished words chart",
+  },
+  weekOf: {
+    id: "7nK/m58QnJ",
+    defaultMessage: "Week of {date}",
+    description: "Chart label for a week, by its first day",
+  },
+  finishedByLanguage: {
+    id: "1I5rpsAmJB",
+    defaultMessage: "Finished words by language",
+    description: "Title of the list of finished words for each language",
+  },
+  finishedByLanguageDetail: {
+    id: "pgKfGrCl0q",
+    defaultMessage: "{step} step",
+    description: "Subtitle of the finished words by language list",
+  },
+  stepTimes: {
+    id: "OrrrzJPB4V",
+    defaultMessage: "Time on each step",
+    description: "Title of the table of time spent per step",
+  },
+  stepTimesDetail: {
+    id: "ynP3RQlErz",
+    defaultMessage: "Logged by people, and run time of automated steps",
+    description: "Subtitle of the time on each step table",
+  },
+  stepColumn: {
+    id: "G483RkGMWe",
+    defaultMessage: "Step",
+    description: "Column heading: the step",
+  },
+  timeColumn: {
+    id: "9KWpst0O1R",
+    defaultMessage: "Time",
+    description: "Column heading: time spent",
+  },
+  whoColumn: {
+    id: "9omEGD7x49",
+    defaultMessage: "Who or runs",
+    description: "Column heading: how many people logged time, or how many runs there were",
+  },
+  loggedStep: {
+    id: "qm69Nmggik",
+    defaultMessage: "{step} (logged)",
+    description: "A step whose time people logged",
+  },
+  taskRuns: {
+    id: "ZRW72rNvup",
+    defaultMessage: "Translation task runs",
+    description: "Automated time: translation tasks from start to finish",
+  },
+  taskRunStage: {
+    id: "SaUIWMakVt",
+    defaultMessage: "Task runs: {stage}",
+    description: "Automated time: one stage of translation task runs, such as Translating",
+  },
+  stage_preparing: {
+    id: "P+kQwSEjlX",
+    defaultMessage: "Preparing",
+    description:
+      "Task run stage: setting up, reading the file's strings, the glossary, guidelines and memory",
+  },
+  stage_reusing_memory: {
+    id: "Nh0Fmco1Vb",
+    defaultMessage: "Reusing memory",
+    description: "Task run stage: filling strings from the translation memory",
+  },
+  stage_translating: {
+    id: "Lx93ycVSAl",
+    defaultMessage: "Translating",
+    description: "Task run stage: the AI translating each language",
+  },
+  stage_finishing: {
+    id: "Zr+JVX5HFw",
+    defaultMessage: "Finishing",
+    description: "Task run stage: writing and storing the translated files",
+  },
+  stage_other: {
+    id: "klJCqIQ+RC",
+    defaultMessage: "Other",
+    description:
+      "Task run stage: time outside every stage, for runs without stage events, such as image and video runs",
+  },
+  stepTimesFiltersNote: {
+    id: "v0Xqg0bjFB",
+    defaultMessage:
+      "Automated run time follows the dates and project, not the task or step chosen. With a language chosen, only task runs that reached it count: Reusing memory and Translating show that language's own time, while Preparing, Finishing and the total cover the whole run.",
+    description: "Note on the time on each step table while a task, language or step filter is set",
+  },
+  workflowStep: {
+    id: "LMZ8bk3MgG",
+    defaultMessage: "Workflow: {step}",
+    description: "Automated time: a step of a visual workflow",
+  },
+  peopleCount: {
+    id: "PatbUgdWQn",
+    defaultMessage: "{count, plural, one {# person} other {# people}}",
+    description: "How many people logged time",
+  },
+  runsCount: {
+    id: "DuSuCv67tO",
+    defaultMessage: "{count, plural, one {# run} other {# runs}}",
+    description: "How many automated runs there were",
+  },
+});

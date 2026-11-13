@@ -52,6 +52,7 @@ describe("memory-list", () => {
         lastSyncedAt: null,
         lastSyncErrorAt: null,
         lastSyncErrorMessage: null,
+        projectCount: 1,
         createdAt: "2026-05-01T00:00:00.000Z",
         updatedAt: "2026-05-01T00:00:00.000Z",
       },
@@ -88,6 +89,7 @@ describe("memory-list", () => {
     expect(native.capabilityLabel).toBe("Workspace managed");
     expect(native.localeSummary).toBe("en, de");
     expect(native.segmentCountLabel).toBe("1.2k");
+    expect(native.projectCount).toBe(1);
     expect(provider.capabilityLabel).toBe("Live search");
     expect(provider.localeSummary).toBe("en, fr, de +1");
     expect(provider.segmentCountLabel).toBe("50.0k");

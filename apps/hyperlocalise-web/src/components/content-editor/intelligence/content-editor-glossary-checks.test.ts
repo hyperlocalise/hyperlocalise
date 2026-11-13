@@ -73,7 +73,7 @@ describe("glossaryFormatChecksForSegment", () => {
   it("flags forbidden terms that appear in the target", () => {
     const checks = glossaryFormatChecksForSegment(
       "Review awaiting approval",
-      "Review đang chờ phê duyệt",
+      "Đánh giá đang chờ phê duyệt",
       glossaryTerms,
       testIntl,
     );
@@ -83,7 +83,33 @@ describe("glossaryFormatChecksForSegment", () => {
         id: "glossary-forbidden-term-review-forbidden",
         status: "fail",
         category: "glossary",
-        relatedTokens: ["Review"],
+        relatedTokens: ["Đánh giá"],
+      }),
+    ]);
+  });
+
+  it("flags a forbidden target term even when it differs from the source term", () => {
+    const checks = glossaryFormatChecksForSegment(
+      "Cancel the booking",
+      "Bitte Stornierung vermeiden",
+      [
+        {
+          id: "term-cancel-forbidden",
+          source: "Cancel",
+          target: "Stornierung",
+          approved: false,
+          forbidden: true,
+        },
+      ],
+      testIntl,
+    );
+
+    expect(checks).toEqual([
+      expect.objectContaining({
+        id: "glossary-forbidden-term-cancel-forbidden",
+        status: "fail",
+        category: "glossary",
+        relatedTokens: ["Stornierung"],
       }),
     ]);
   });

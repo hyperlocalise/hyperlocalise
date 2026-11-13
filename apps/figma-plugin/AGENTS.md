@@ -12,13 +12,28 @@ This plugin uses [Vite+](https://vite.plus) (`vp`) for formatting (oxfmt), linti
 
 Do not install Vitest, Oxlint, or Oxfmt directly. Import test utilities from `vite-plus/test`.
 
-The plugin UI talks to `hyperlocalise-web` over HTTPS. Set
-`HYPERLOCALISE_APP_URL` when developing against a local app.
+The plugin UI talks to `hyperlocalise-web`. The app URL is embedded at build
+time from the Vite mode in [`vite/app-url.ts`](./vite/app-url.ts): `vp run build`
+uses `https://www.hyperlocalise.com`, and `vp run dev` and tests use
+`http://localhost:3000`. There is no env var.
+
+The plugin UI uses **Preact** and [`@create-figma-plugin/ui`](https://yuanqing.github.io/create-figma-plugin/ui/) for Figma-native controls (`Button`, `Dropdown`, `Textbox`, etc.). Import `@create-figma-plugin/ui/css/base.css` from `ui.css`.
 
 Figma bundling uses two Vite builds:
 
-- `vite.config.ts` — React UI inlined into `dist/ui.html` via `vite-plugin-singlefile`
+- `vite.config.ts` — Preact UI inlined into `dist/ui.html` via `vite-plugin-singlefile`
 - `vite.code.config.ts` — plugin sandbox logic bundled to `dist/code.js`
+
+## Workflow invariants
+
+- **Upload** is collect-only (`POST /api/integrations/figma/collect`). Do not enqueue a translation job from Upload.
+- **Apply** remaps to the stored source file (`pullFigmaSourcePage` + `remapExtractedSegmentsToSource`) before writing. Do not use live canvas text as `sourceByKey`.
+- Stamped nodes get the requested locale or reset to stored source. They must not keep a previous target locale when the new locale has no real translation.
+- **Design context** links text layers to existing project keys (`hyperlocalise:key-link:v1`), not to `figma.k.*` stamps. Match never overwrites an existing link.
+- **Preview** keeps the original text in `hyperlocalise:preview-source:v1` until Restore. Upload and design scans read that text (`sourceTextOf`), never the preview. Apply clears it.
+- **Sync to editor** sends one frame per request (PNG, or JPEG when the PNG is over ~4 MB of base64) to `POST /api/integrations/figma/visual-context`. Keep requests under Vercel's 4.5 MB body limit.
+
+End-user steps: [Localize Figma](../../docs/platform/connections/figma.mdx). Plugin overview: [README.md](./README.md).
 
 ## Before Finalizing
 

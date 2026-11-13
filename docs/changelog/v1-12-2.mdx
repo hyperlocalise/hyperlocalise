@@ -1,0 +1,36 @@
+---
+title: "v1.12.2"
+description: "Go CLI release notes for v1.12.2."
+---
+
+`hl extract` keeps more FormatJS/react-intl messages that 1.12.1 dropped: numeric and Unicode `defineMessages` keys, wrapped and optional calls, static concatenations and array `defaultMessage` values, and JSX / `FormattedHTMLMessage` children. Dynamic leftovers such as `("Hello ") + name` stay unextracted. `hl run --max-translations` keeps SRX sibling spans together so a limit cannot write a mixed translated/source sentence.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.12.2) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.12.1...v1.12.2)
+
+## Breaking changes
+
+None.
+
+## Features
+
+None.
+
+## Fixes
+
+- Extract [numeric and computed `defineMessages` keys](https://github.com/hyperlocalise/hyperlocalise/pull/2514) (unquoted decimals, quoted numbers, separators, hex/binary/octal/bigint), Unicode identifiers including combining marks, `satisfies` / type arguments, wrapping parentheses, and optional / non-null `formatMessage` calls.
+- Join [static concatenations and string arrays](https://github.com/hyperlocalise/hyperlocalise/pull/2514) into `defaultMessage`, including parenthesized `"Hello " + "world"` and JSX attribute arrays. Skip leftover dynamic concat (`("Hello ") + name`) instead of treating the quoted prefix as a complete message.
+- Use [JSX children as `defaultMessage`](https://github.com/hyperlocalise/hyperlocalise/pull/2514) for `FormattedMessage` and `FormattedHTMLMessage`, decode HTML entities, and ignore render-prop children. Attribute `defaultMessage` still wins over children.
+- Make [`hl run --max-translations`](https://github.com/hyperlocalise/hyperlocalise/pull/2512) treat SRX sibling spans (`key#srx.0`, `key#srx.1`, …) as one unit so a cut cannot flush a target with some spans translated and the rest still source text.
+
+## Performance
+
+- [XLIFF target detection](https://github.com/hyperlocalise/hyperlocalise/pull/2511) skips `xml.Decoder` when the unit content does not contain `target`.
+
+## Tests
+
+- Extract catalog coverage for numeric keys, FormatJS call/value shapes, leftover concat rejection, combining-mark keys, and identifier-boundary false positives.
+- SRX `max-translations` sibling atomicity on planning and writeback.
+
+## Maintenance
+
+None.

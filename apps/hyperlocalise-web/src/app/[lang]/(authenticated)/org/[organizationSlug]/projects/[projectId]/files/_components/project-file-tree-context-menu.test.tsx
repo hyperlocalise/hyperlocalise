@@ -51,6 +51,9 @@ describe("ProjectFileTreeContextMenu", () => {
           capabilities={{
             canOpenCat: true,
             canTranslateWithAgent: true,
+            canConfigureSegmentation: true,
+            canConfigureImportSettings: true,
+            canUseTranslationAsSource: false,
             contentEditorHref: "/cat",
             isNativeFile: true,
             translateDisabledTitle: undefined,
@@ -99,6 +102,9 @@ describe("ProjectFileTreeContextMenu", () => {
             capabilities={{
               canOpenCat: true,
               canTranslateWithAgent: true,
+              canConfigureSegmentation: true,
+              canConfigureImportSettings: true,
+              canUseTranslationAsSource: false,
               contentEditorHref: "/cat",
               isNativeFile: true,
               translateDisabledTitle: undefined,
@@ -134,6 +140,9 @@ describe("ProjectFileTreeContextMenu", () => {
             capabilities={{
               canOpenCat: true,
               canTranslateWithAgent: true,
+              canConfigureSegmentation: true,
+              canConfigureImportSettings: true,
+              canUseTranslationAsSource: false,
               contentEditorHref: "/cat",
               isNativeFile: true,
               translateDisabledTitle: undefined,
@@ -152,6 +161,52 @@ describe("ProjectFileTreeContextMenu", () => {
       expect(events).toEqual(["close"]);
       vi.runAllTimers();
       expect(events).toEqual(["close", "download"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("offers use translation as source only when the file allows it", () => {
+    vi.useFakeTimers();
+    try {
+      const onUseTranslationAsSource = vi.fn();
+      const file = createProjectFileRecord({ sourcePath: "docs/brief.docx" });
+      const renderMenu = (canUseTranslationAsSource: boolean) =>
+        render(
+          <IntlProvider locale="en" messages={{}}>
+            <ProjectFileTreeContextMenu
+              file={file}
+              context={{ close: vi.fn() } as unknown as ContextMenuOpenContext}
+              fileActions={{
+                organizationSlug: "acme",
+                projectId: "proj_1",
+                highlightLocale: null,
+                projectTargetLocales: ["en"],
+                onViewStrings: vi.fn(),
+                onUseTranslationAsSource,
+              }}
+              capabilities={{
+                canOpenCat: true,
+                canTranslateWithAgent: true,
+                canConfigureSegmentation: true,
+                canConfigureImportSettings: false,
+                canUseTranslationAsSource,
+                contentEditorHref: "/cat",
+                isNativeFile: true,
+                translateDisabledTitle: undefined,
+              }}
+            />
+          </IntlProvider>,
+        );
+
+      const hidden = renderMenu(false);
+      expect(screen.queryByRole("button", { name: "Use translation as source…" })).toBeNull();
+      hidden.unmount();
+
+      renderMenu(true);
+      screen.getByRole("button", { name: "Use translation as source…" }).click();
+      vi.runAllTimers();
+      expect(onUseTranslationAsSource).toHaveBeenCalledWith(file);
     } finally {
       vi.useRealTimers();
     }

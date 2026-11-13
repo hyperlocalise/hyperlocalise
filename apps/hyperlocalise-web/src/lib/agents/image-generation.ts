@@ -13,7 +13,8 @@
 import { generateImage } from "ai";
 
 import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
-import { getManagedImageModel } from "@/lib/providers/language-model";
+import { getManagedAiPricingConfig } from "@/lib/billing/managed-ai-pricing";
+import { getManagedImageModel, hyperlocaliseImageModelId } from "@/lib/providers/language-model";
 
 export type ImageGenerationResult = {
   image: Buffer;
@@ -33,13 +34,32 @@ function getImageModel() {
   return getManagedImageModel();
 }
 
+function imageGenerationId(providerMetadata: unknown) {
+  if (!providerMetadata || typeof providerMetadata !== "object") return undefined;
+  const gateway = Reflect.get(providerMetadata, "gateway");
+  if (!gateway || typeof gateway !== "object") return undefined;
+  const generationId = Reflect.get(gateway, "generationId");
+  return typeof generationId === "string" ? generationId : undefined;
+}
+
 /**
  * Generates a new image from the uploaded source image and user intent.
  */
 async function generateImageFromPrompt(
   imageBuffer: Buffer,
   prompt: string,
-): Promise<{ image: Buffer; mimeType: string }> {
+  signal?: AbortSignal,
+): Promise<{
+  image: Buffer;
+  mimeType: string;
+  imageCount: number;
+  tokenUsage: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  } | null;
+  providerGenerationId?: string;
+}> {
   const model = getImageModel();
 
   const result = await generateImage({
@@ -49,6 +69,7 @@ async function generateImageFromPrompt(
       text: prompt,
     },
     n: 1,
+    abortSignal: signal,
   });
 
   const generatedImage = result.images[0];
@@ -59,6 +80,16 @@ async function generateImageFromPrompt(
   return {
     image: Buffer.from(generatedImage.uint8Array),
     mimeType: generatedImage.mediaType,
+    imageCount: result.images.length,
+    tokenUsage:
+      (result.usage?.totalTokens ?? 0) > 0
+        ? {
+            inputTokens: result.usage.inputTokens ?? 0,
+            outputTokens: result.usage.outputTokens ?? 0,
+            totalTokens: result.usage.totalTokens ?? 0,
+          }
+        : null,
+    providerGenerationId: imageGenerationId(result.providerMetadata),
   };
 }
 
@@ -72,6 +103,7 @@ export async function regenerateImageFromAttachment(
   _mimeType: string,
   userText: string,
   billing?: ImageGenerationBilling,
+  options: { signal?: AbortSignal } = {},
 ): Promise<ImageGenerationResult> {
   // The AI SDK image prompt accepts the source image as a Buffer and infers media type from bytes.
   const prompt = userText.trim();
@@ -80,24 +112,48 @@ export async function regenerateImageFromAttachment(
   }
 
   const run = async () => {
-    const generated = await generateImageFromPrompt(imageBuffer, prompt);
-    return { ...generated, prompt };
+    const generated = await generateImageFromPrompt(imageBuffer, prompt, options.signal);
+    return {
+      image: generated.image,
+      mimeType: generated.mimeType,
+      prompt,
+      billing: {
+        imageCount: generated.imageCount,
+        tokenUsage: generated.tokenUsage,
+        providerGenerationId: generated.providerGenerationId,
+      },
+    };
   };
 
   if (!billing) {
-    return run();
+    const result = await run();
+    return { image: result.image, mimeType: result.mimeType, prompt: result.prompt };
   }
 
-  return withAgentRuntimeUsageMetering({
+  const source = billing.source ?? "image_localization";
+  const dimensions = {
+    surface: "image",
+    agent_surface: "image_localization",
+    ...billing.dimensions,
+  };
+  const result = await withAgentRuntimeUsageMetering({
     organizationId: billing.organizationId,
     operationKey: billing.operationKey,
-    source: billing.source ?? "image_localization",
+    source,
     interactionId: billing.interactionId,
-    dimensions: {
-      surface: "image",
-      agent_surface: "image_localization",
-      ...billing.dimensions,
-    },
+    dimensions,
     run,
+    extractTokenUsage: (generated) =>
+      generated.billing.tokenUsage ?? {
+        inputTokens: 0,
+        outputTokens: generated.billing.imageCount,
+        totalTokens: generated.billing.imageCount,
+      },
+    aiCreditModelId: (generated) =>
+      generated.billing.tokenUsage
+        ? hyperlocaliseImageModelId
+        : getManagedAiPricingConfig().imageModelId,
+    aiCreditCredentialSource: "gateway",
   });
+  return { image: result.image, mimeType: result.mimeType, prompt: result.prompt };
 }

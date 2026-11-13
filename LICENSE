@@ -1,9 +1,9 @@
 Repository License Notice
 
 This MIT License applies to this repository except for directories that include
-their own license file. The web application in apps/hyperlocalise-web/, the
-Canva app in apps/canva-app/, and the Mac app in apps/mac-app/ are licensed
-separately under the Business Source License 1.1. See each directory's LICENSE
+their own license file. The web application in apps/hyperlocalise-web/ and the
+Canva app in apps/canva-app/ are licensed separately under the Business Source
+License 1.1. See each directory's LICENSE
 file for the applicable terms.
 
 MIT License

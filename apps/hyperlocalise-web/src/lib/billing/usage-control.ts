@@ -13,10 +13,21 @@
 import { eq } from "drizzle-orm";
 
 import { usageFeatureIds, type UsageFeatureId } from "@/lib/billing/autumn-ids";
+import {
+  billableAutumnTokenUsage,
+  formatManagedAiCreditError,
+  trackAutumnAiTokens,
+  type AiCreditCredentialSource,
+  type AiCreditTokenUsage,
+  type AutumnTrackTokensInput,
+  type ManagedAiCreditError,
+} from "@/lib/billing/managed-ai-credit";
+import { normalizeUsdAmount } from "@/lib/billing/managed-ai-pricing";
 import type { DatabaseClient } from "@/lib/database/client";
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { startReportingAtAiUse } from "@/lib/reporting/reporting-start";
 import {
   PRODUCT_USAGE_ANALYTICS_EVENTS,
   productUsageEventForAutumnEventName,
@@ -70,7 +81,8 @@ export type TrackUsageEventResult = {
 export type UsageControlError =
   | ReserveUsageEventError
   | MarkUsageEventSucceededError
-  | TrackUsageEventError;
+  | TrackUsageEventError
+  | ManagedAiCreditError;
 
 export function formatUsageControlError(error: UsageControlError): string {
   switch (error.code) {
@@ -82,6 +94,8 @@ export function formatUsageControlError(error: UsageControlError): string {
       return `usage event ${error.operationKey} must be succeeded before tracking, got ${error.status}`;
     case "autumn_usage_tracking_failed":
       return error.message;
+    case "ai_credit_pricing_not_configured":
+      return formatManagedAiCreditError(error);
   }
 }
 
@@ -93,6 +107,8 @@ export async function reserveUsageEvent(input: {
   source: string;
   quantity?: number;
   dimensions?: UsageEventDimensions;
+  modelId?: string;
+  credentialSource?: AiCreditCredentialSource;
   jobId?: string;
   interactionId?: string;
 }): Promise<Result<UsageEventReference, ReserveUsageEventError>> {
@@ -106,11 +122,13 @@ export async function reserveUsageEvent(input: {
       source: input.source,
       quantity: input.quantity ?? 1,
       dimensions: input.dimensions,
+      modelId: input.modelId,
+      credentialSource: input.credentialSource,
       jobId: input.jobId,
       interactionId: input.interactionId,
     })
     .onConflictDoNothing({ target: schema.usageEvents.operationKey })
-    .returning({ id: schema.usageEvents.id });
+    .returning({ id: schema.usageEvents.id, createdAt: schema.usageEvents.createdAt });
 
   if (event) {
     if (input.featureId === usageFeatureIds.translationJobs) {
@@ -119,7 +137,11 @@ export async function reserveUsageEvent(input: {
         source: "translation_job",
       });
     }
-    return ok(event);
+    // Reports' AI usage and Costs count token rows from the workspace's Reports start.
+    if (input.featureId === usageFeatureIds.aiTokens) {
+      await startReportingAtAiUse(input.organizationId, event.createdAt);
+    }
+    return ok({ id: event.id });
   }
 
   const [existing] = await database
@@ -232,15 +254,13 @@ async function trackUsageEventInAutumn(input: {
   });
 }
 
-export type AiTokenUsage = {
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-};
+export type AiTokenUsage = AiCreditTokenUsage;
+
+type TrackAiTokensFn = (input: AutumnTrackTokensInput) => Promise<{ value: number }>;
 
 /**
  * Track AI Credit (`ai_tokens`) for model token burn after a billed job/run.
- * Uses a derived idempotency key so it never collides with the parent meter event.
+ * Autumn prices the event from model ID plus input/output tokens. BYOK is $0.
  */
 export async function trackAiCreditUsageInAutumn(input: {
   db?: DatabaseClient;
@@ -248,16 +268,29 @@ export async function trackAiCreditUsageInAutumn(input: {
   parentOperationKey: string;
   tokenUsage: AiTokenUsage;
   source: string;
+  modelId?: string;
+  credentialSource?: AiCreditCredentialSource;
   jobId?: string;
   interactionId?: string;
+  /** Extra details stored on the token row, such as `project_id`. */
+  dimensions?: UsageEventDimensions;
   autumnApiKey?: string;
   fetchFn?: typeof fetch;
+  trackTokens?: TrackAiTokensFn;
 }): Promise<Result<TrackUsageEventResult, UsageControlError>> {
   if (input.tokenUsage.totalTokens <= 0) {
     return ok({ status: "already_tracked" });
   }
 
   const operationKey = `${input.parentOperationKey}:ai_tokens`;
+  if (!input.modelId) {
+    return err({
+      code: "ai_credit_pricing_not_configured",
+      surface: input.source,
+    });
+  }
+
+  const credentialSource = input.credentialSource ?? "gateway";
   const reserveResult = await reserveUsageEvent({
     db: input.db,
     organizationId: input.organizationId,
@@ -265,9 +298,12 @@ export async function trackAiCreditUsageInAutumn(input: {
     operationKey,
     source: input.source,
     quantity: input.tokenUsage.totalTokens,
+    modelId: input.modelId,
+    credentialSource,
     jobId: input.jobId,
     interactionId: input.interactionId,
     dimensions: {
+      ...input.dimensions,
       autumn_event_name: "ai_tokens.consumed",
       unit: "model_tokens",
       input_tokens: input.tokenUsage.inputTokens,
@@ -285,6 +321,7 @@ export async function trackAiCreditUsageInAutumn(input: {
     operationKey,
     quantity: input.tokenUsage.totalTokens,
     dimensions: {
+      ...input.dimensions,
       autumn_event_name: "ai_tokens.consumed",
       unit: "model_tokens",
       input_tokens: input.tokenUsage.inputTokens,
@@ -302,12 +339,135 @@ export async function trackAiCreditUsageInAutumn(input: {
     token_band: tokenBand(input.tokenUsage.totalTokens),
   });
 
-  return trackUsageEventInAutumnByOperationKey({
+  return trackAiTokensInAutumnByOperationKey({
     db: input.db,
     operationKey,
+    organizationId: input.organizationId,
+    modelId: input.modelId,
+    credentialSource,
+    tokenUsage: input.tokenUsage,
     autumnApiKey: input.autumnApiKey,
-    fetchFn: input.fetchFn,
+    trackTokens: input.trackTokens,
   });
+}
+
+async function trackAiTokensInAutumnByOperationKey(input: {
+  db?: DatabaseClient;
+  operationKey: string;
+  organizationId: string;
+  modelId: string;
+  credentialSource: AiCreditCredentialSource;
+  tokenUsage: AiTokenUsage;
+  autumnApiKey?: string;
+  trackTokens?: TrackAiTokensFn;
+}): Promise<Result<TrackUsageEventResult, TrackUsageEventError | ManagedAiCreditError>> {
+  const database = input.db ?? db;
+  const [event] = await database
+    .select()
+    .from(schema.usageEvents)
+    .where(eq(schema.usageEvents.operationKey, input.operationKey))
+    .limit(1);
+
+  if (!event) {
+    return err({ code: "usage_event_not_found", operationKey: input.operationKey });
+  }
+
+  if (event.status === "tracking_succeeded") return ok({ status: "already_tracked" });
+
+  if (!canTrackUsageEventStatus(event.status)) {
+    return err({
+      code: "usage_event_not_trackable",
+      operationKey: input.operationKey,
+      status: event.status,
+    });
+  }
+
+  if (input.credentialSource === "byok") {
+    const [updatedEvent] = await database
+      .update(schema.usageEvents)
+      .set({
+        status: "tracking_succeeded",
+        amountUsd: normalizeUsdAmount(0),
+        modelId: input.modelId,
+        autumnTrackError: null,
+      })
+      .where(eq(schema.usageEvents.id, event.id))
+      .returning({ id: schema.usageEvents.id });
+
+    if (!updatedEvent) {
+      return err({ code: "usage_event_not_found", operationKey: input.operationKey });
+    }
+    return ok({ status: "tracking_succeeded" });
+  }
+
+  const autumnApiKey = input.autumnApiKey ?? env.AUTUMN_API_KEY;
+  if (!autumnApiKey && !input.trackTokens) {
+    const [updatedEvent] = await database
+      .update(schema.usageEvents)
+      .set({ status: "tracking_pending", autumnTrackError: "autumn_not_configured" })
+      .where(eq(schema.usageEvents.id, event.id))
+      .returning({ id: schema.usageEvents.id });
+
+    if (!updatedEvent) {
+      return err({ code: "usage_event_not_found", operationKey: input.operationKey });
+    }
+    return ok({ status: "tracking_pending" });
+  }
+
+  const [pendingEvent] = await database
+    .update(schema.usageEvents)
+    .set({ status: "tracking_pending", autumnTrackError: null, modelId: input.modelId })
+    .where(eq(schema.usageEvents.id, event.id))
+    .returning({ id: schema.usageEvents.id });
+
+  if (!pendingEvent) {
+    return err({ code: "usage_event_not_found", operationKey: input.operationKey });
+  }
+
+  try {
+    const trackTokens =
+      input.trackTokens ?? ((params) => trackAutumnAiTokens(autumnApiKey!, params));
+    const tracked = await trackTokens({
+      customerId: input.organizationId,
+      modelId: input.modelId,
+      ...billableAutumnTokenUsage(input.credentialSource, input.tokenUsage),
+    });
+    const [trackedEvent] = await database
+      .update(schema.usageEvents)
+      .set({
+        status: "tracking_succeeded",
+        amountUsd: normalizeUsdAmount(positiveNumber(tracked.value)),
+        autumnTrackedAt: new Date(),
+        autumnTrackError: null,
+      })
+      .where(eq(schema.usageEvents.id, event.id))
+      .returning({ id: schema.usageEvents.id });
+
+    if (!trackedEvent) {
+      return err({ code: "usage_event_not_found", operationKey: input.operationKey });
+    }
+    return ok({ status: "tracking_succeeded" });
+  } catch (error) {
+    const message = autumnTrackErrorMessage(error);
+    const [failedEvent] = await database
+      .update(schema.usageEvents)
+      .set({ status: "tracking_failed", autumnTrackError: message })
+      .where(eq(schema.usageEvents.id, event.id))
+      .returning({ id: schema.usageEvents.id });
+
+    if (!failedEvent) {
+      return err({ code: "usage_event_not_found", operationKey: input.operationKey });
+    }
+    return err({
+      code: "autumn_usage_tracking_failed",
+      operationKey: input.operationKey,
+      message,
+    });
+  }
+}
+
+function positiveNumber(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : 0;
 }
 
 export async function trackUsageEventInAutumnByOperationKey(input: {
@@ -404,12 +564,15 @@ export async function completeAndTrackBillableUsage(input: {
   autumnEventName: string;
   unit?: string;
   tokenUsage?: AiTokenUsage | null;
+  aiCreditModelId?: string;
+  aiCreditCredentialSource?: AiCreditCredentialSource;
   jobId?: string;
   interactionId?: string;
   aiCreditSource?: string;
   dimensions?: UsageEventDimensions;
   autumnApiKey?: string;
   fetchFn?: typeof fetch;
+  trackTokens?: TrackAiTokensFn;
 }): Promise<Result<TrackUsageEventResult, UsageControlError>> {
   const tokenUsage = input.tokenUsage && input.tokenUsage.totalTokens > 0 ? input.tokenUsage : null;
 
@@ -445,10 +608,6 @@ export async function completeAndTrackBillableUsage(input: {
     fetchFn: input.fetchFn,
   });
 
-  if (!trackUsageResult.ok) {
-    return trackUsageResult;
-  }
-
   if (tokenUsage) {
     const aiCreditResult = await trackAiCreditUsageInAutumn({
       db: input.db,
@@ -456,10 +615,13 @@ export async function completeAndTrackBillableUsage(input: {
       parentOperationKey: input.operationKey,
       tokenUsage,
       source: input.aiCreditSource ?? "ai_token_usage",
+      modelId: input.aiCreditModelId,
+      credentialSource: input.aiCreditCredentialSource,
       jobId: input.jobId,
       interactionId: input.interactionId,
       autumnApiKey: input.autumnApiKey,
       fetchFn: input.fetchFn,
+      trackTokens: input.trackTokens,
     });
 
     if (!aiCreditResult.ok) {

@@ -12,9 +12,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { ComponentProps } from "react";
-import { Chat01Icon, FileSearchIcon, Image01Icon, FileVideoIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  ChatCircleIcon,
+  FileMagnifyingGlassIcon,
+  ImageIcon,
+  FileVideoIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, type MessageDescriptor, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -23,8 +27,7 @@ import { Rows } from "@/components/ui/layout/rows";
 
 import { chatDockMessages } from "./chat-dock.messages";
 import type { ChatDockPageContext } from "./chat-dock-store";
-
-type Icon = ComponentProps<typeof HugeiconsIcon>["icon"];
+import { createElement } from "react";
 
 type Suggestion = {
   id: string;
@@ -55,7 +58,7 @@ export function buildChatDockSuggestions(
     return [
       {
         id: "segment-context",
-        icon: FileSearchIcon,
+        icon: FileMagnifyingGlassIcon,
         label: formatMessage(chatDockMessages.suggestionSegmentContext, {
           source: sourceLabel,
         }),
@@ -69,14 +72,14 @@ export function buildChatDockSuggestions(
   return [
     {
       id: "find-context",
-      icon: FileSearchIcon,
+      icon: FileMagnifyingGlassIcon,
       label: formatMessage(chatDockMessages.suggestionFindContext),
       // Trailing space lets the user finish typing the string.
       prompt: `${formatMessage(chatDockMessages.promptFindContext)} `,
     },
     {
       id: "localize-image",
-      icon: Image01Icon,
+      icon: ImageIcon,
       label: formatMessage(chatDockMessages.suggestionLocalizeImage),
       prompt: `${formatMessage(chatDockMessages.promptLocalizeImage)} `,
     },
@@ -119,11 +122,7 @@ export function ChatDockEmptyState({
           borderRadius="standard"
           padding="1u"
         >
-          <HugeiconsIcon
-            icon={Chat01Icon}
-            strokeWidth={1.8}
-            className="size-5 text-muted-foreground"
-          />
+          <ChatCircleIcon className="size-5 text-muted-foreground" />
         </Box>
 
         <Rows spacing="0.5u" align="center">
@@ -152,7 +151,7 @@ export function ChatDockEmptyState({
               className="h-8 gap-1.5 rounded-full bg-background text-xs font-medium"
               onClick={() => onSelectSuggestion(suggestion.prompt)}
             >
-              <HugeiconsIcon icon={suggestion.icon} strokeWidth={1.8} className="size-3.5" />
+              {createElement(suggestion.icon, { className: "size-3.5" })}
               {suggestion.label}
             </Button>
           ))}

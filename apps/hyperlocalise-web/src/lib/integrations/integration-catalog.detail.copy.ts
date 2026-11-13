@@ -31,7 +31,7 @@ export const integrationDetailCopy = {
       },
       {
         title: {
-          defaultMessage: "Localization-aware PR review",
+          defaultMessage: "Localisation-aware PR review",
           id: "intGitHubCapPrTitle",
           description: "GitHub capability title for PR review",
         },
@@ -50,7 +50,7 @@ export const integrationDetailCopy = {
         },
         description: {
           defaultMessage:
-            "Let agents propose localization fixes and open pull requests directly from review findings.",
+            "Let agents propose localisation fixes and open pull requests directly from review findings.",
           id: "intGitHubCapAgentDesc",
           description: "GitHub capability description for agent fixes",
         },
@@ -170,7 +170,7 @@ export const integrationDetailCopy = {
         },
         description: {
           defaultMessage:
-            "Open Integrations in your workspace, find GitHub, and click Connect to install the app on your organization.",
+            "After a demo or sign-in, install the Hyperlocalise GitHub App on the organization that owns your repos.",
           id: "intGitHubSetup1Desc",
           description: "GitHub setup step description",
         },
@@ -196,7 +196,7 @@ export const integrationDetailCopy = {
         },
         description: {
           defaultMessage:
-            "Turn on push and pull request triggers in Automations so workflows run when your team ships code.",
+            "Turn on pull request and push triggers so missing translations surface before merge.",
           id: "intGitHubSetup3Desc",
           description: "GitHub setup step description",
         },
@@ -464,7 +464,7 @@ export const integrationDetailCopy = {
         },
         description: {
           defaultMessage:
-            "Mention the localization bot to ask about project status, string context, or review queues.",
+            "Mention the localisation bot to ask about project status, string context, or review queues.",
           id: "intSlackCapAgentDesc",
           description: "Slack capability description",
         },
@@ -571,7 +571,7 @@ export const integrationDetailCopy = {
         },
         description: {
           defaultMessage:
-            "From workspace Integrations, click Connect on Slack and authorize the app for your workspace.",
+            "After a demo or sign-in, connect Slack and authorize the workspace that should receive review requests.",
           id: "intSlackSetup1Desc",
           description: "Slack setup step description",
         },

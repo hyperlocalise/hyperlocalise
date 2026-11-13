@@ -14,8 +14,39 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { getResearchPrototypeDomain } from "@/lib/domains/research-prototype";
+import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 
 import { DomainsPageStore } from "./domains-page-store";
+
+const linkedDomainFixture = (): LinkedDomainPublic => ({
+  id: "ld_test",
+  organizationId: "org_test",
+  domainKey: "acme.com",
+  domainSlug: "acme-com",
+  sourceUrl: "https://acme.com",
+  marketIds: ["france-fr"],
+  status: "verified",
+  preferredMethod: null,
+  verifiedMethod: "dns_txt",
+  verifiedAt: "2026-01-01T00:00:00.000Z",
+  localisationAuditId: null,
+  projectId: null,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  challenges: {
+    token: "hyperlocalise-site-verification=test",
+    dnsTxt: { host: "_hyperlocalise-verify", value: "hyperlocalise-site-verification=test" },
+    htmlFile: {
+      path: "/.well-known/hyperlocalise-verification.txt",
+      url: "https://acme.com/.well-known/hyperlocalise-verification.txt",
+      body: "hyperlocalise-site-verification=test",
+    },
+    metaTag: {
+      html: '<meta name="hyperlocalise-site-verification" content="hyperlocalise-site-verification=test" />',
+    },
+  },
+  auditScore: null,
+});
 
 describe("DomainsPageStore", () => {
   it("tracks empty and populated list states", () => {
@@ -30,22 +61,56 @@ describe("DomainsPageStore", () => {
     expect(store.hasDomains).toBe(true);
   });
 
-  it("opens the link dialog for new domains and edit mode for locales", () => {
+  it("opens the add-domain dialog for new domains and edit mode for locales", () => {
     const store = new DomainsPageStore("acme");
-    const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
+    const linkedDomain = linkedDomainFixture();
 
-    store.openLinkDialog();
-    expect(store.linkDialogOpen).toBe(true);
-    expect(store.linkDialogDomain).toBeUndefined();
+    store.openAddDomainDialog();
+    expect(store.addDomainDialogOpen).toBe(true);
+    expect(store.editLinkedDomain).toBeNull();
 
-    store.setLinkDialogOpen(false);
-    store.openEditLocales(domain);
-    expect(store.linkDialogOpen).toBe(true);
-    expect(store.linkDialogDomain).toEqual(domain);
+    store.setAddDomainDialogOpen(false);
+    store.hydrateAddDomainDialog({
+      step: "connect",
+      domain: "stale.com",
+      claimDomainSlug: null,
+      linkedDomain: null,
+      recommendations: [],
+      selectedMarketIds: ["france-fr"],
+    });
+    store.openEditLocales(linkedDomain);
+    expect(store.addDomainDialogOpen).toBe(true);
+    expect(store.editLinkedDomain).toEqual(linkedDomain);
+    expect(store.addDomainStep).toBe("details");
+    expect(store.addDomainSelectedMarketIds).toEqual([]);
   });
 
-  it("builds the org link-domain path from a hostname", () => {
+  it("hydrates and advances the add-domain wizard", () => {
     const store = new DomainsPageStore("acme");
-    expect(store.linkDomainPath("shop.example.com")).toMatch(/^\/org\/acme\/link-domain\/[a-z-]+$/);
+
+    store.hydrateAddDomainDialog({
+      step: "details",
+      domain: "acme.com",
+      claimDomainSlug: "acme-com",
+      linkedDomain: null,
+      recommendations: [],
+      selectedMarketIds: ["france-fr"],
+    });
+    expect(store.addDomainKey).toBe("acme.com");
+    expect(store.addDomainClaimSlug).toBe("acme-com");
+    expect(store.addDomainSelectedMarketIds).toEqual(["france-fr"]);
+
+    store.setAddDomainStep("markets");
+    store.toggleAddDomainMarket("germany-de", true);
+    store.toggleAddDomainMarket("france-fr", false);
+    store.setAddDomainError("Pick at least one market");
+    expect(store.addDomainStep).toBe("markets");
+    expect(store.addDomainSelectedMarketIds).toEqual(["germany-de"]);
+    expect(store.addDomainError).toBe("Pick at least one market");
+
+    store.setAddDomainDialogOpen(false);
+    expect(store.addDomainKey).toBe("");
+    expect(store.addDomainSelectedMarketIds).toEqual([]);
+    expect(store.addDomainError).toBeNull();
   });
 });

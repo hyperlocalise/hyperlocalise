@@ -367,6 +367,7 @@ func TestMicrosoftClientTranslateChunksByElementCount(t *testing.T) {
 	resp, err := client.Translate(t.Context(), Request{SourceLocale: "en", TargetLocale: "fr", Sources: sources})
 	require.NoError(t, err)
 	require.Equal(t, 2, calls)
+	require.Equal(t, 2, resp.RequestCount)
 	require.Equal(t, []int{microsoftMaxTextsPerRequest, 1}, sizesSeen)
 
 	want := make([]string, len(sources))
@@ -402,6 +403,7 @@ func TestMicrosoftClientTranslateChunksByCharacterBudget(t *testing.T) {
 	resp, err := client.Translate(t.Context(), Request{SourceLocale: "en", TargetLocale: "fr", Sources: sources})
 	require.NoError(t, err)
 	require.Equal(t, 2, calls)
+	require.Equal(t, 2, resp.RequestCount)
 	require.Equal(t, []int{40000, 20000}, charsSeen)
 
 	want := make([]string, len(sources))

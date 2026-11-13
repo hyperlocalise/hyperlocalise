@@ -16,6 +16,7 @@ import {
   assignableRolesForActor,
   canActorAssignRole,
   canActorManageTarget,
+  formatMemberDisplayName,
   getMembershipStatusLabel,
   getRoleBadgeClassName,
   getRoleBadgeVariant,
@@ -24,6 +25,23 @@ import {
 } from "./member-management";
 
 describe("member-management", () => {
+  it("formats a member display name from profile fields or email", () => {
+    expect(
+      formatMemberDisplayName({
+        firstName: "Ada",
+        lastName: "Lovelace",
+        email: "ada@example.com",
+      }),
+    ).toBe("Ada Lovelace");
+    expect(
+      formatMemberDisplayName({
+        firstName: null,
+        lastName: null,
+        email: "ada@example.com",
+      }),
+    ).toBe("ada@example.com");
+  });
+
   it("labels membership status for the members UI", () => {
     expect(getMembershipStatusLabel("invited")).toBe("Pending");
     expect(getMembershipStatusLabel("active")).toBe("Active");

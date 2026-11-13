@@ -1,0 +1,57 @@
+---
+title: "Create a project"
+description: "Create a native project, choose its languages, and prepare it for your first source upload."
+---
+
+Create a project for content that shares a source language, language resources, and review workflow. A website, mobile app, or documentation set can each have its own project.
+
+## Choose where your content lives
+
+| Your content | Start with |
+| --- | --- |
+| Files you want to manage in Hyperlocalise Platform | A native project, using the steps below |
+| Files already managed in a supported TMS | A [TMS connection](/platform/tms), then open the provider's project |
+
+Native projects store source files and translations in Platform. Connected projects use provider-owned content and language settings. Creating a native project does not import an existing TMS project.
+
+## Before you start
+
+Sign in to the intended workspace. You need permission to create projects and room within the workspace's project allowance. Check [roles and permissions](/platform/workspace/roles) or ask an administrator if you cannot create a project.
+
+Choose the source locale actually used in your files and at least one target locale. Include the region your product expects, such as `en-US` or `fr-FR`. Use separate projects for content with different source languages.
+
+## Create the project
+
+1. Open **Projects** and select **Create project**. In a workspace using a TMS workflow with no native projects, the button is **Create native project**.
+2. If your workspace has [project templates](/platform/projects/templates), optionally pick one in **Start from**. The languages and description fill in from the template, and its translation memories, glossaries, team and editor settings are applied when you save.
+3. Enter a **Name** your team can recognize, such as `Checkout`. Names can contain up to 200 characters.
+4. Choose the source locale.
+5. Choose the target locales. Remove any preselected languages you do not need. The source locale cannot also be a target.
+6. Optionally expand **Settings** and add a **Description** for scope, ownership, or release notes.
+7. Select **Save project**.
+
+<Note>
+The form starts with `en-US` as the source and `fr-FR` and `de-DE` as targets. Check these values before saving; they may not match your content.
+</Note>
+
+## Check the result
+
+After saving, the dialog closes and **Project created** appears. Find the project in the list, open it, and check **Settings** → **Locales**. Confirm the source language and target languages before uploading content.
+
+For example, a `Checkout` project with source `en-US` and target `fr-FR` is ready for an English checkout file and its French translations. Creating the project does not upload files or generate translations.
+
+You can update native project details and locales later in [project settings](/platform/projects/settings). Changing the source locale label does not translate existing source text; read [Manage project languages](/platform/projects/languages) before making that change.
+
+## Cannot create a project?
+
+| What you see | What to do |
+| --- | --- |
+| A name or locale validation error | Enter a non-empty name of at most 200 characters, select at least one target locale, and remove the source locale from targets. |
+| A project-limit message | Ask an administrator to check [billing and usage](/platform/workspace/billing). Retrying does not increase the allowance. |
+| “Unable to verify project limits” | Try again later. If it persists, [contact support](/platform/help/contact-support) with the timestamp and error. |
+| An access error | Confirm the workspace and your [role and project access](/platform/projects/access). |
+| The project is missing from the list | Clear the search, confirm the workspace, and refresh the list before creating another project. |
+
+## Next
+
+[Upload source files](/platform/projects/files), or follow [Your first translation](/platform/getting-started) with a sample file. Add [language resources](/platform/knowledge) and [reviewer access](/platform/projects/access) before expanding the work.

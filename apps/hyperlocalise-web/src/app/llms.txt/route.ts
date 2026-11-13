@@ -48,36 +48,69 @@ const productLinks: LlmsLink[] = [
   },
 ];
 
-const useCaseLinks: LlmsLink[] = [
+const integrationLinks: LlmsLink[] = [
   {
-    title: "Product localisation",
-    href: `${SITE_URL}/en/use-cases/product-localisation`,
-    description: "Product localisation that keeps up with every release",
+    title: "GitHub",
+    href: `${SITE_URL}/en/integrations/github`,
+    description: "Catch missing translations before a GitHub pull request merges",
   },
   {
-    title: "Marketing localisation",
-    href: `${SITE_URL}/en/use-cases/marketing-localisation`,
-    description: "Campaign localisation that protects brand voice in every market",
+    title: "Slack",
+    href: `${SITE_URL}/en/integrations/slack`,
+    description: "Send localisation review requests into the Slack channel that owns the launch",
+  },
+  {
+    title: "Crowdin",
+    href: `${SITE_URL}/en/integrations/crowdin`,
+    description: "Keep Crowdin as the TMS of record while Hyperlocalise runs review around it",
+  },
+];
+
+const useCaseLinks: LlmsLink[] = [
+  {
+    title: "Localisation operations",
+    href: `${SITE_URL}/en/use-cases/localisation-operations`,
+    description: "Run your whole localisation programme from one place",
+  },
+  {
+    title: "Quality and guidelines",
+    href: `${SITE_URL}/en/use-cases/localisation-quality-monitoring`,
+    description: "Catch translation issues before your customers do",
   },
   {
     title: "Help center localisation",
     href: `${SITE_URL}/en/use-cases/help-center-localisation`,
-    description: "Support content that stays current in every language",
+    description: "Keep every help article current in every language",
   },
   {
-    title: "GitHub release localisation",
+    title: "Market entry",
+    href: `${SITE_URL}/en/use-cases/market-entry`,
+    description: "Find the markets worth entering, then win them",
+  },
+  {
+    title: "Global campaigns",
+    href: `${SITE_URL}/en/use-cases/marketing-localisation`,
+    description: "Take every campaign global without losing your brand voice",
+  },
+  {
+    title: "Market experiments",
+    href: `${SITE_URL}/en/use-cases/market-experimentation`,
+    description: "Test what works in one market, then roll it out everywhere",
+  },
+  {
+    title: "Pull request localisation",
     href: `${SITE_URL}/en/use-cases/github-release-localisation`,
-    description: "Localisation checks that run with every pull request",
+    description: "Localisation that runs in your pull requests",
   },
   {
-    title: "Localisation quality monitoring",
-    href: `${SITE_URL}/en/use-cases/localisation-quality-monitoring`,
-    description: "Catch translation drift before your customers do",
+    title: "CLI and API",
+    href: `${SITE_URL}/en/use-cases/localisation-cli-and-api`,
+    description: "Localisation as code, from your terminal and CI",
   },
   {
-    title: "Localisation operations",
-    href: `${SITE_URL}/en/use-cases/localisation-operations`,
-    description: "One operations layer across your entire localisation stack",
+    title: "AI coding agents",
+    href: `${SITE_URL}/en/use-cases/localisation-for-ai-coding-agents`,
+    description: "Localise from Claude Code, Codex, and Cursor over MCP",
   },
 ];
 
@@ -116,6 +149,10 @@ ${formatLinks(productLinks)}
 
 ${formatLinks(useCaseLinks)}
 
+## Integrations
+
+${formatLinks(integrationLinks)}
+
 ## Docs
 
 - [Documentation](https://hyperlocalise.dev): Product docs and guides for Hyperlocalise.
@@ -124,11 +161,14 @@ ${formatLinks(useCaseLinks)}
 ## Company
 
 - [Homepage](${SITE_URL}/en): Marketing homepage for the agentic localisation platform.
+- [Pricing](${SITE_URL}/en/pricing): Compare Free, Starter, Growth, and Enterprise plans for Hyperlocalise — agentic localisation for teams shipping global product content.
+- [Company](${SITE_URL}/en/company): Meet the Hyperlocalise founders and our mission: an AI workforce that acts like your team of local experts.
 - [Blog](${SITE_URL}/en/blog): Product updates and writing on localisation operations.
 - [Trust Center](https://app.aus.vanta.com/hyperlocalise.com/trust/su9x7fcjfa8q700wu9pt2u): Security, privacy, and subprocessors.
 - [Privacy](${SITE_URL}/en/privacy): Privacy policy.
 - [Terms](${SITE_URL}/en/terms): Cloud Service Agreement terms.
 - [Contact](${SITE_URL}/en/contact): Reach the Hyperlocalise team.
+- [Iris](${SITE_URL}/en/iris): Iris is Hyperlocalise's AI localisation engine for multilingual assets. It creates and localises images, video, motion, and audio for every language.
 
 ## Optional
 

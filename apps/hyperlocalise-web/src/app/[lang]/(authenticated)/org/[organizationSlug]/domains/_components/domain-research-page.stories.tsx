@@ -17,7 +17,9 @@ import { DomainOverviewView } from "./domain-overview-view";
 import { DomainKeywordsView } from "./domain-keywords-view";
 import { DomainRanksView } from "./domain-ranks-view";
 import { DomainBrandView } from "./domain-brand-view";
+import { DomainAuditView } from "./domain-audit-view";
 import { DomainPromptsView } from "./domain-prompts-view";
+import { DomainSearchConsoleView } from "./domain-search-console-view";
 import { domainResearchMswHandlers } from "./domain-research-msw-handlers";
 
 function DomainResearchPage({
@@ -38,6 +40,16 @@ function DomainResearchPage({
     ranks: <DomainRanksView linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} />,
     brand: <DomainBrandView linkedDomainId={linkedDomainId} />,
     prompts: <DomainPromptsView linkedDomainId={linkedDomainId} />,
+    "search-console": (
+      <DomainSearchConsoleView
+        linkedDomainId={linkedDomainId}
+        organizationSlug={organizationSlug}
+        canManageConnection
+      />
+    ),
+    audit: (
+      <DomainAuditView linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} canRun />
+    ),
   };
   return (
     <DomainResearchShell
@@ -65,7 +77,7 @@ const meta = {
   argTypes: {
     surface: {
       control: "select",
-      options: ["overview", "keywords", "ranks", "brand", "prompts"],
+      options: ["overview", "keywords", "ranks", "brand", "prompts", "search-console"],
     },
     linkedDomainId: {
       control: "select",
@@ -80,6 +92,7 @@ export const Keywords: Story = { args: { surface: "keywords" } };
 export const Ranks: Story = { args: { surface: "ranks" } };
 export const Brand: Story = { args: { surface: "brand" } };
 export const Prompts: Story = { args: { surface: "prompts" } };
+export const SearchConsole: Story = { args: { surface: "search-console" } };
 export const EmptyRanks: Story = { args: { surface: "ranks", linkedDomainId: "docs-acme-com" } };
 export const PendingVerification: Story = {
   args: { surface: "keywords", linkedDomainId: "help-acme-com" },
@@ -96,6 +109,18 @@ export const LocaleWithoutResearch: Story = {
     nextjs: {
       navigation: {
         pathname: "/en/org/domains-preview/domains/hyperlocalise-com/overview",
+        query: { locale: "germany-de" },
+      },
+    },
+  },
+};
+
+export const SearchConsoleWithoutKeywordData: Story = {
+  args: { surface: "search-console" },
+  parameters: {
+    nextjs: {
+      navigation: {
+        pathname: "/en/org/domains-preview/domains/hyperlocalise-com/search-console",
         query: { locale: "germany-de" },
       },
     },

@@ -17,9 +17,8 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
-  WORKSPACE_DOMAINS_FLAG,
-  WORKSPACE_HYPERLAB_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
+  WORKSPACE_QUERIES_BOARD_FLAG,
   WORKSPACE_REPORTS_FLAG,
 } from "@/lib/flags/workos-flag-entities";
 import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
@@ -32,6 +31,7 @@ import {
   buildHyperlabNavigationItems,
   buildHyperlabPath,
   buildOrganizationPath,
+  buildProjectNavigationGroups,
   buildProjectNavigationItems,
   buildProjectPath,
   buildTeamPath,
@@ -205,35 +205,51 @@ describe("path builders", () => {
     const items = groups.flatMap((group) => group.items);
     const byLabel = new Map(items.map((item) => [item.label, item]));
 
-    expect(byLabel.get("Inbox")?.href).toBe("/org/acme/inbox");
+    expect(byLabel.get("New Request")?.href).toBe("/org/acme/inbox/new");
+    expect(byLabel.get("New Request")?.exact).toBe(true);
+    expect(byLabel.get("Overview")?.href).toBe("/org/acme/dashboard");
     expect(byLabel.get("Projects")?.href).toBe("/org/acme/projects");
-    expect(byLabel.get("New Request")).toMatchObject({
-      href: "/org/acme/inbox/new",
-      exact: true,
-    });
-    expect(byLabel.get("AI Engine")?.href).toBe("/org/acme/ai-engine");
-    expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
-    expect(byLabel.get("Guideline")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
-    expect(byLabel.get("Queries")?.featureFlagKey).toBeUndefined();
-    expect(byLabel.get("Domains")?.featureFlagKey).toBe(WORKSPACE_DOMAINS_FLAG);
-    expect(byLabel.get("Hyperlab")?.href).toBe("/org/acme/hyperlab");
-    expect(byLabel.get("Hyperlab")?.featureFlagKey).toBe(WORKSPACE_HYPERLAB_FLAG);
+    expect(byLabel.get("Inbox")?.href).toBe("/org/acme/inbox");
+    expect(byLabel.get("My Jobs")?.href).toBe("/org/acme/my-work");
+    expect(byLabel.get("Queries")?.href).toBe("/org/acme/issues");
     expect(byLabel.get("Reports")?.href).toBe("/org/acme/reports");
     expect(byLabel.get("Reports")?.featureFlagKey).toBe(WORKSPACE_REPORTS_FLAG);
+    expect(byLabel.get("Glossaries")?.href).toBe("/org/acme/glossaries");
+    expect(byLabel.get("Translation Memories")?.href).toBe("/org/acme/translation-memories");
+    expect(byLabel.get("Dictionaries")?.href).toBe("/org/acme/dictionaries");
+    expect(byLabel.get("Guideline")?.href).toBe("/org/acme/knowledge");
+    expect(byLabel.get("Guideline")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
+    expect(byLabel.get("QA")?.href).toBe("/org/acme/qa");
+    expect(byLabel.get("Automations")?.href).toBe("/org/acme/automations");
+    expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
+    expect(byLabel.get("Settings")?.href).toBe("/org/acme/settings");
 
-    expect(groups.map((group) => group.label)).toEqual([undefined, "Agents", "Workspace"]);
-    expect(groups[1]?.items.map((item) => item.label)).toEqual([
-      "New Request",
-      "Automations",
-      "AI Engine",
+    expect(groups.map((group) => group.label)).toEqual([
+      undefined,
+      "Workspace",
+      "Content Intelligence",
+      undefined,
     ]);
     expect(groups[0]?.items.map((item) => item.label)).toEqual([
+      "New Request",
+      "Overview",
+      "Projects",
+    ]);
+    expect(groups[1]?.items.map((item) => item.label)).toEqual([
       "Inbox",
       "My Jobs",
       "Queries",
-      "Overview",
       "Reports",
+      "QA",
+      "Automations",
     ]);
+    expect(groups[2]?.items.map((item) => item.label)).toEqual([
+      "Glossaries",
+      "Translation Memories",
+      "Dictionaries",
+      "Guideline",
+    ]);
+    expect(groups[3]?.items.map((item) => item.label)).toEqual(["Settings"]);
   });
 
   it("builds project navigation items scoped to the project", () => {
@@ -241,25 +257,56 @@ describe("path builders", () => {
 
     expect(items.map((item) => [item.label, item.href])).toEqual([
       ["Overview", "/org/acme/projects/proj_1"],
-      ["Reports", "/org/acme/projects/proj_1/reports"],
       ["Files", "/org/acme/projects/proj_1/files"],
       ["Content Editor", "/org/acme/projects/proj_1/strings"],
+      ["Video Editor", "/org/acme/projects/proj_1/videos"],
+      ["Branches", "/org/acme/projects/proj_1/branches"],
+      ["QA", "/org/acme/projects/proj_1/qa"],
+      ["Guideline", "/org/acme/projects/proj_1/knowledge"],
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
       ["Queries", "/org/acme/projects/proj_1/issue-sheet"],
       ["Automations", "/org/acme/projects/proj_1/automations"],
-      ["Guideline", "/org/acme/projects/proj_1/knowledge"],
+      ["Reports", "/org/acme/projects/proj_1/reports"],
       ["Settings", "/org/acme/projects/proj_1/settings"],
     ]);
-    expect(items.find((item) => item.label === "Queries")?.featureFlagKey).toBeUndefined();
-    expect(items.find((item) => item.label === "Automations")?.featureFlagKey).toBe(
-      WORKSPACE_AUTOMATIONS_FLAG,
-    );
-    expect(items.find((item) => item.label === "Guideline")?.featureFlagKey).toBe(
-      WORKSPACE_KNOWLEDGE_FLAG,
+    expect(items.find((item) => item.label === "Queries")?.featureFlagKey).toBe(
+      WORKSPACE_QUERIES_BOARD_FLAG,
     );
     expect(items.find((item) => item.label === "Reports")?.featureFlagKey).toBe(
       WORKSPACE_REPORTS_FLAG,
     );
+    expect(items.find((item) => item.label === "Automations")?.featureFlagKey).toBe(
+      WORKSPACE_AUTOMATIONS_FLAG,
+    );
+    expect(items.find((item) => item.label === "Video Editor")?.badge).toBe("Coming soon");
+    expect(items.find((item) => item.label === "Video Editor")?.disabled).toBe(true);
+  });
+
+  it("builds project navigation groups scoped to the project", () => {
+    const groups = buildProjectNavigationGroups("acme", "proj_1", intl);
+
+    expect(groups.map((group) => group.label)).toEqual([
+      undefined,
+      "Content Studio",
+      "Workspace",
+      undefined,
+    ]);
+    expect(groups[0]?.items.map((item) => item.label)).toEqual(["Overview"]);
+    expect(groups[1]?.items.map((item) => item.label)).toEqual([
+      "Files",
+      "Content Editor",
+      "Video Editor",
+    ]);
+    expect(groups[2]?.items.map((item) => item.label)).toEqual([
+      "Branches",
+      "QA",
+      "Guideline",
+      "Jobs",
+      "Queries",
+      "Automations",
+      "Reports",
+    ]);
+    expect(groups[3]?.items.map((item) => item.label)).toEqual(["Settings"]);
   });
 
   it("builds domain navigation items scoped to the linked domain", () => {
@@ -271,6 +318,8 @@ describe("path builders", () => {
       ["Rank tracking", "/org/acme/domains/ld_1/ranks"],
       ["AI visibility", "/org/acme/domains/ld_1/brand"],
       ["Prompt explorer", "/org/acme/domains/ld_1/prompts"],
+      ["Search Console", "/org/acme/domains/ld_1/search-console"],
+      ["Localisation audit", "/org/acme/domains/ld_1/audit"],
     ]);
   });
 
@@ -430,6 +479,9 @@ describe("buildDomainPath", () => {
     expect(buildDomainPath("acme", "ld_1")).toBe("/org/acme/domains/ld_1");
     expect(buildDomainPath("acme", "ld_1", "overview")).toBe("/org/acme/domains/ld_1");
     expect(buildDomainPath("acme", "ld_1", "prompts")).toBe("/org/acme/domains/ld_1/prompts");
+    expect(buildDomainPath("acme", "ld_1", "search-console")).toBe(
+      "/org/acme/domains/ld_1/search-console",
+    );
   });
 });
 
@@ -461,11 +513,68 @@ describe("buildProjectNavigationItems", () => {
     expect(items.find((item) => item.label === "Content Editor")).toBeUndefined();
   });
 
+  it("includes Branches for native projects and hides it for provider projects", () => {
+    const items = buildProjectNavigationItems("acme", "proj_1", intl);
+    expect(items.find((item) => item.label === "Branches")?.href).toBe(
+      "/org/acme/projects/proj_1/branches",
+    );
+
+    const providerId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+    const providerItems = buildProjectNavigationItems("acme", providerId, intl);
+    expect(providerItems.find((item) => item.label === "Branches")).toBeUndefined();
+  });
+
+  it("hides QA for provider projects", () => {
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+    const items = buildProjectNavigationItems("acme", projectId, intl);
+    expect(items.find((item) => item.label === "QA")).toBeUndefined();
+  });
+
+  it("hides Reports for provider projects, which Reports does not record", () => {
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+    const items = buildProjectNavigationItems("acme", projectId, intl);
+    expect(items.find((item) => item.label === "Reports")).toBeUndefined();
+  });
+
+  it("includes a workspace Automations item gated by the workspace automations flag", () => {
+    const groups = buildGlobalNavigationGroups("acme", intl);
+    const automationsItem = groups
+      .flatMap((group) => group.items)
+      .find((item) => item.label === "Automations");
+
+    expect(automationsItem?.href).toBe("/org/acme/automations");
+    expect(automationsItem?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
+  });
+
+  it("includes a project Guideline item gated by the workspace knowledge flag", () => {
+    const items = buildProjectNavigationItems("acme", "proj_1", intl);
+    const guidelineItem = items.find((item) => item.label === "Guideline");
+    expect(guidelineItem?.href).toBe("/org/acme/projects/proj_1/knowledge");
+    expect(guidelineItem?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
+  });
+
   it("includes an Automations item gated by the workspace automations flag", () => {
     const items = buildProjectNavigationItems("acme", "proj_1", intl);
     const automationsItem = items.find((item) => item.label === "Automations");
     expect(automationsItem?.href).toBe("/org/acme/projects/proj_1/automations");
     expect(automationsItem?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
+  });
+
+  it("includes a disabled Video Editor item with Coming soon badge", () => {
+    const items = buildProjectNavigationItems("acme", "proj_1", intl);
+    const videoEditorItem = items.find((item) => item.label === "Video Editor");
+    expect(videoEditorItem?.href).toBe("/org/acme/projects/proj_1/videos");
+    expect(videoEditorItem?.badge).toBe("Coming soon");
+    expect(videoEditorItem?.disabled).toBe(true);
   });
 });
 

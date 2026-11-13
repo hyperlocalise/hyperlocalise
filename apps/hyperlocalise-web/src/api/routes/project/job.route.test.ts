@@ -22,32 +22,33 @@ import { app, createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
-import * as tmsProviderAssigneeCandidates from "@/lib/providers/jobs/tms-provider-assignee-candidates";
-import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
-import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
-import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import { err, ok } from "@/lib/primitives/result/results";
-import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
+import {
+  AI_CREDIT_EXHAUSTED_CODE,
+  AI_CREDIT_EXHAUSTED_MESSAGE,
+  AI_FEATURES_REQUIRED_CODE,
+  AI_FEATURES_REQUIRED_MESSAGE,
+} from "@/lib/billing/ai-features";
 
 import { createProjectTestFixture } from "./project.fixture";
-import { createTeamTestFixture } from "../team/team.fixture";
 import { insertStoredSourceFile } from "../public-jobs/public-jobs.fixture";
-import type { ProjectResponse } from "./project.schema";
-import type { TeamResponse } from "../team/team.schema";
-import type { WorkspaceJobsResponse } from "./job.schema";
 
 const {
   enqueueJobCancelledActivityMock,
   enqueueJobCreatedActivityMock,
   enqueueJobFailedActivityMock,
+  enqueueJobUpdatedActivityMock,
   ensureAiFeaturesAllowedMock,
   resolveApiAuthContextFromSessionMock,
+  startTaskAnalysisMock,
 } = vi.hoisted(() => ({
   enqueueJobCancelledActivityMock: vi.fn(),
   enqueueJobCreatedActivityMock: vi.fn(),
   enqueueJobFailedActivityMock: vi.fn(),
+  enqueueJobUpdatedActivityMock: vi.fn(),
   ensureAiFeaturesAllowedMock: vi.fn(),
+  startTaskAnalysisMock: vi.fn(async () => undefined),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -72,15 +73,22 @@ vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/activity-log/job-automation-events", () => ({
+vi.mock("@/lib/reporting/task-analysis-start", () => ({
+  startTaskAnalysis: startTaskAnalysisMock,
+}));
+
+vi.mock("@/lib/activity-log/job-automation-events", async (importOriginal) => ({
   enqueueJobCancelledActivity: enqueueJobCancelledActivityMock,
   enqueueJobCreatedActivity: enqueueJobCreatedActivityMock,
   enqueueJobFailedActivity: enqueueJobFailedActivityMock,
+  enqueueJobUpdatedActivity: enqueueJobUpdatedActivityMock,
+  jobUpdatedFields: (
+    await importOriginal<typeof import("@/lib/activity-log/job-automation-events")>()
+  ).jobUpdatedFields,
 }));
 
 const client = testClient<AppType>(app);
-const projectFixture = createProjectTestFixture(client);
-const teamFixture = createTeamTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -123,319 +131,6 @@ async function insertNativeJob(input: {
     .returning();
 }
 
-describe("workspace job list", () => {
-  it("filters assigned and created jobs for the current user", async () => {
-    const { identity, organization, project, user } =
-      await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-
-    const [createdNativeJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      createdByUserId: user.id,
-    });
-    const [ownedNativeJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      ownerUserId: user.id,
-    });
-    const [otherNativeJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-    });
-
-    await upsertExternalTmsJobRecords({
-      organizationId: organization.id,
-      projectId: project.id,
-      providerKind: "crowdin",
-      externalProjectId: "crowdin-project",
-      tasks: [
-        {
-          externalJobId: "assigned-to-current-user",
-          externalStatus: "todo",
-          title: "Assigned to current user",
-          assignedUsers: [identity.user.email.toUpperCase()],
-        },
-        {
-          externalJobId: "assigned-to-other-user",
-          externalStatus: "todo",
-          title: "Assigned to other user",
-          assignedUsers: ["someone-else@example.com"],
-        },
-      ],
-    });
-
-    const assignedResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
-        query: { relationship: "assigned", limit: "100" },
-      },
-      { headers },
-    );
-
-    expect(assignedResponse.status).toBe(200);
-    const assignedBody = (await assignedResponse.json()) as WorkspaceJobsResponse;
-    const assignedJobIds = assignedBody.jobs.map((job) => job.id);
-
-    expect(assignedJobIds).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("assigned-to-current-user"),
-        ownedNativeJob.id,
-      ]),
-    );
-    expect(assignedJobIds).not.toEqual(expect.arrayContaining([createdNativeJob.id]));
-    expect(assignedJobIds).not.toEqual(expect.arrayContaining([otherNativeJob.id]));
-    expect(assignedJobIds).not.toEqual(
-      expect.arrayContaining([expect.stringContaining("other-user")]),
-    );
-
-    const createdResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
-        query: { relationship: "created", limit: "100" },
-      },
-      { headers },
-    );
-
-    expect(createdResponse.status).toBe(200);
-    const createdBody = (await createdResponse.json()) as WorkspaceJobsResponse;
-    const createdJobIds = createdBody.jobs.map((job) => job.id);
-
-    expect(createdJobIds).toEqual(expect.arrayContaining([createdNativeJob.id]));
-    expect(createdJobIds).not.toEqual(expect.arrayContaining([ownedNativeJob.id]));
-    expect(createdJobIds).not.toEqual(
-      expect.arrayContaining([expect.stringContaining("assigned-to-current-user")]),
-    );
-  });
-
-  it("returns assigned provider jobs for translators without team project access", async () => {
-    const admin = projectFixture.createWorkosIdentityWithRole("admin");
-    const translator = projectFixture.createWorkosIdentityForOrganization(
-      admin.organization,
-      "translator",
-    );
-
-    await projectFixture.authHeadersFor(admin);
-    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
-    const defaultTeam = await ensureDefaultWorkspaceTeam(organizationId);
-    const providerProjectId = encodeProviderProjectId({
-      providerKind: "crowdin",
-      externalProjectId: "provider-project",
-    });
-
-    await db.insert(schema.projects).values({
-      id: providerProjectId,
-      identifier: uniqueTestProjectIdentifier(),
-      organizationId,
-      teamId: defaultTeam.id,
-      name: "Provider project",
-      description: "",
-      translationContext: "",
-      source: "external_tms",
-      externalProviderKind: "crowdin",
-      externalProjectId: "provider-project",
-      sourceLocale: "en-US",
-      targetLocales: ["fr-FR"],
-      isActive: true,
-    });
-
-    await upsertExternalTmsJobRecords({
-      organizationId,
-      projectId: providerProjectId,
-      providerKind: "crowdin",
-      externalProjectId: "provider-project",
-      tasks: [
-        {
-          externalJobId: "assigned-to-translator",
-          externalStatus: "todo",
-          title: "Assigned to translator",
-          assignedUsers: [translator.user.email],
-        },
-        {
-          externalJobId: "assigned-to-someone-else",
-          externalStatus: "todo",
-          title: "Assigned to someone else",
-          assignedUsers: ["someone-else@example.com"],
-        },
-      ],
-    });
-
-    const translatorHeaders = await projectFixture.authHeadersFor(translator);
-
-    const assignedResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
-      {
-        param: { organizationSlug: translator.organization.slug ?? "missing-slug" },
-        query: { relationship: "assigned", limit: "100" },
-      },
-      { headers: translatorHeaders },
-    );
-
-    expect(assignedResponse.status).toBe(200);
-    const assignedBody = (await assignedResponse.json()) as WorkspaceJobsResponse;
-    expect(assignedBody.jobs.map((job) => job.id)).toEqual(
-      expect.arrayContaining([expect.stringContaining("assigned-to-translator")]),
-    );
-    expect(assignedBody.jobs.map((job) => job.id)).not.toEqual(
-      expect.arrayContaining([expect.stringContaining("assigned-to-someone-else")]),
-    );
-
-    const workspaceResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
-      {
-        param: { organizationSlug: translator.organization.slug ?? "missing-slug" },
-        query: { limit: "100" },
-      },
-      { headers: translatorHeaders },
-    );
-
-    expect(workspaceResponse.status).toBe(200);
-    const workspaceBody = (await workspaceResponse.json()) as WorkspaceJobsResponse;
-    expect(workspaceBody.jobs).toEqual([]);
-
-    const createdResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
-      {
-        param: { organizationSlug: translator.organization.slug ?? "missing-slug" },
-        query: { relationship: "created", limit: "100" },
-      },
-      { headers: translatorHeaders },
-    );
-
-    expect(createdResponse.status).toBe(200);
-    const createdBody = (await createdResponse.json()) as WorkspaceJobsResponse;
-    expect(createdBody.jobs).toEqual([]);
-  });
-
-  it("does not match assigned jobs via substring assignee candidates", async () => {
-    const assigneeCandidatesSpy = vi
-      .spyOn(tmsProviderAssigneeCandidates, "getCurrentUserProviderAssigneeCandidates")
-      .mockResolvedValue(["lee"]);
-
-    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-
-    await upsertExternalTmsJobRecords({
-      organizationId: organization.id,
-      projectId: project.id,
-      providerKind: "crowdin",
-      externalProjectId: "crowdin-project",
-      tasks: [
-        {
-          externalJobId: "assigned-to-ashlee",
-          externalStatus: "todo",
-          title: "Assigned to Ashlee",
-          assignedUsers: ["Ashlee Johnson"],
-        },
-        {
-          externalJobId: "assigned-to-current-user",
-          externalStatus: "todo",
-          title: "Assigned to current user",
-          assignedUsers: ["lee"],
-        },
-      ],
-    });
-
-    const assignedResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
-        query: { relationship: "assigned", limit: "100" },
-      },
-      { headers },
-    );
-
-    expect(assignedResponse.status).toBe(200);
-    const assignedBody = (await assignedResponse.json()) as WorkspaceJobsResponse;
-    const assignedJobIds = assignedBody.jobs.map((job) => job.id);
-
-    expect(assignedJobIds).toEqual(
-      expect.arrayContaining([expect.stringContaining("assigned-to-current-user")]),
-    );
-    expect(assignedJobIds).not.toEqual(
-      expect.arrayContaining([expect.stringContaining("assigned-to-ashlee")]),
-    );
-
-    assigneeCandidatesSpy.mockRestore();
-  });
-
-  it("does not return created jobs for projects outside the current team scope", async () => {
-    const admin = projectFixture.createWorkosIdentityWithRole("admin");
-    const member = projectFixture.createWorkosIdentityForOrganization(admin.organization, "member");
-    const { organization: adminOrganization } =
-      await projectFixture.createLocalWorkosIdentity(admin);
-
-    await projectFixture.authHeadersFor(member);
-
-    const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Team" });
-    expect(teamAlphaResponse.status).toBe(201);
-    const teamAlphaBody = (await teamAlphaResponse.json()) as TeamResponse;
-
-    const teamBetaResponse = await teamFixture.createTeamViaApi(admin, { name: "Beta Team" });
-    expect(teamBetaResponse.status).toBe(201);
-    const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
-
-    await db.insert(schema.teamMemberships).values({
-      teamId: teamAlphaBody.team.id,
-      userId: await projectFixture.getLocalUserId(member.user.workosUserId),
-      role: "member",
-    });
-
-    const alphaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "Alpha Project",
-          teamId: teamAlphaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(admin) },
-    );
-    expect(alphaProjectResponse.status).toBe(201);
-    const alphaProjectBody = (await alphaProjectResponse.json()) as ProjectResponse;
-
-    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "Beta Project",
-          teamId: teamBetaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["de-DE"],
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(admin) },
-    );
-    expect(betaProjectResponse.status).toBe(201);
-    const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
-
-    const memberUserId = await projectFixture.getLocalUserId(member.user.workosUserId);
-    await insertNativeJob({
-      organizationId: adminOrganization.id,
-      projectId: alphaProjectBody.project.id,
-      createdByUserId: memberUserId,
-    });
-    await insertNativeJob({
-      organizationId: adminOrganization.id,
-      projectId: betaProjectBody.project.id,
-      createdByUserId: memberUserId,
-    });
-
-    const createdResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
-      {
-        param: { organizationSlug: member.organization.slug ?? "missing-slug" },
-        query: { relationship: "created", limit: "100" },
-      },
-      { headers: await projectFixture.authHeadersFor(member) },
-    );
-
-    expect(createdResponse.status).toBe(200);
-    const createdBody = (await createdResponse.json()) as WorkspaceJobsResponse;
-    const createdProjectIds = createdBody.jobs.map((job) => job.projectId);
-
-    expect(createdProjectIds).toEqual([alphaProjectBody.project.id]);
-    expect(createdProjectIds).not.toContain(betaProjectBody.project.id);
-  });
-});
-
 describe("project job create", () => {
   const enqueueJob = vi.fn(async (event: TranslationJobEventData) => ({
     ids: [event.jobId],
@@ -447,7 +142,7 @@ describe("project job create", () => {
       },
     }),
   );
-  const createFixture = createProjectTestFixture(createClient);
+  const createFixture = createProjectTestFixture();
 
   afterEach(async () => {
     vi.clearAllMocks();
@@ -562,6 +257,399 @@ describe("project job create", () => {
     expect(ensureAiFeaturesAllowedMock).not.toHaveBeenCalled();
   });
 
+  it("creates a key job as a task for people on the picked visible strings", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const [sourceFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({ organizationId: organization.id, projectId: project.id, sourcePath: "en.json" })
+      .returning({ id: schema.repositorySourceFiles.id });
+    const keyRows = await db
+      .insert(schema.projectTranslationKeys)
+      .values(
+        ["a", "b"].map((key) => ({
+          organizationId: organization.id,
+          projectId: project.id,
+          repositorySourceFileId: sourceFile!.id,
+          key,
+          sourceText: key,
+          normalizedSourceText: key,
+          isHidden: key === "b",
+        })),
+      )
+      .returning({ id: schema.projectTranslationKeys.id });
+    const request = (stringIds: string[]) =>
+      createClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
+        {
+          param: {
+            organizationSlug: identity.organization.slug ?? "missing-slug",
+            projectId: project.id,
+          },
+          json: {
+            type: "keys",
+            title: "Checkout",
+            keysInput: { sourceLocale: "en-US", targetLocales: ["fr-FR"], stringIds },
+          },
+        },
+        { headers },
+      );
+
+    const response = await request(keyRows.map((row) => row.id));
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string; kind: string; status: string } };
+    expect(body.job).toMatchObject({ kind: "proofread", status: "waiting_for_review" });
+    const linked = await db
+      .select({ id: schema.translationJobKeys.translationKeyId })
+      .from(schema.translationJobKeys)
+      .where(eq(schema.translationJobKeys.jobId, body.job.id));
+    expect(linked).toEqual([{ id: keyRows[0]!.id }]);
+    expect(enqueueJob).not.toHaveBeenCalled();
+    // Reports records the task's own strings, as it does a file's for a file task.
+    expect(startTaskAnalysisMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobId: body.job.id,
+        step: "review",
+        repositorySourceFileId: null,
+      }),
+    );
+
+    const hiddenOnly = await request([keyRows[1]!.id]);
+    expect(hiddenOnly.status).toBe(400);
+    await expect(hiddenOnly.json()).resolves.toMatchObject({ error: "no_strings_matched" });
+  });
+
+  it("creates a key job from key names or tags and skips hidden or file-less strings", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const [sourceFile, hiddenFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values([
+        { organizationId: organization.id, projectId: project.id, sourcePath: "en.json" },
+        { organizationId: organization.id, projectId: project.id, sourcePath: "hidden.json" },
+      ])
+      .returning({ id: schema.repositorySourceFiles.id });
+    const [visible] = await db
+      .insert(schema.projectTranslationKeys)
+      .values([
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          repositorySourceFileId: sourceFile!.id,
+          key: "cta.buy",
+          sourceText: "Buy",
+          normalizedSourceText: "buy",
+          tags: ["checkout", "web"],
+        },
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          repositorySourceFileId: hiddenFile!.id,
+          key: "cta.buy",
+          sourceText: "Hidden",
+          normalizedSourceText: "hidden",
+          isHidden: true,
+          tags: ["checkout", "web"],
+        },
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          repositorySourceFileId: sourceFile!.id,
+          key: "cta.cancel",
+          sourceText: "Cancel",
+          normalizedSourceText: "cancel",
+          tags: ["checkout"],
+        },
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          key: "cta.buy",
+          sourceText: "Orphan",
+          normalizedSourceText: "orphan",
+        },
+      ])
+      .returning({ id: schema.projectTranslationKeys.id });
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+    const byKeys = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param,
+        json: {
+          type: "keys",
+          title: "By key",
+          keysInput: {
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            keys: ["cta.buy"],
+            metadata: { workflowTaskStep: "edit", ticket: "T-9" },
+          },
+        },
+      },
+      { headers },
+    );
+    expect(byKeys.status).toBe(201);
+    const byKeysBody = (await byKeys.json()) as { job: { id: string } };
+    const linkedKeys = await db
+      .select({ id: schema.translationJobKeys.translationKeyId })
+      .from(schema.translationJobKeys)
+      .where(eq(schema.translationJobKeys.jobId, byKeysBody.job.id));
+    expect(linkedKeys).toEqual([{ id: visible!.id }]);
+    const [stored] = await db
+      .select({ inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, byKeysBody.job.id));
+    expect(stored?.inputPayload).toMatchObject({
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      metadata: { ticket: "T-9" },
+    });
+    expect(
+      (stored?.inputPayload as { metadata?: Record<string, string> } | undefined)?.metadata,
+    ).not.toHaveProperty("workflowTaskStep");
+
+    const byTags = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param,
+        json: {
+          type: "keys",
+          title: "By tags",
+          keysInput: {
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            tags: ["checkout", "web"],
+          },
+        },
+      },
+      { headers },
+    );
+    expect(byTags.status).toBe(201);
+    const byTagsBody = (await byTags.json()) as { job: { id: string } };
+    const linkedTags = await db
+      .select({ id: schema.translationJobKeys.translationKeyId })
+      .from(schema.translationJobKeys)
+      .where(eq(schema.translationJobKeys.jobId, byTagsBody.job.id));
+    expect(linkedTags).toEqual([{ id: visible!.id }]);
+
+    const none = await createClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
+      {
+        param,
+        json: {
+          type: "keys",
+          title: "Missing",
+          keysInput: { sourceLocale: "en-US", targetLocales: ["fr-FR"], keys: ["does.not.exist"] },
+        },
+      },
+      { headers },
+    );
+    expect(none.status).toBe(400);
+    await expect(none.json()).resolves.toMatchObject({ error: "no_strings_matched" });
+  });
+
+  it("creates a key job for AI translation that is queued, charged and counted as open", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const [sourceFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({ organizationId: organization.id, projectId: project.id, sourcePath: "en.json" })
+      .returning({ id: schema.repositorySourceFiles.id });
+    const [key] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: sourceFile!.id,
+        key: "a",
+        sourceText: "a",
+        normalizedSourceText: "a",
+      })
+      .returning({ id: schema.projectTranslationKeys.id });
+
+    const response = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "keys",
+          kind: "translation",
+          title: "Checkout",
+          keysInput: {
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            stringIds: [key!.id],
+            overwriteUnapproved: true,
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string; kind: string; status: string } };
+    expect(body.job).toMatchObject({ kind: "translation", status: "queued" });
+    expect(enqueueJob).toHaveBeenCalledWith({
+      kind: "translation",
+      jobId: body.job.id,
+      projectId: project.id,
+      type: "keys",
+    });
+    const [stored] = await db
+      .select({ inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, body.job.id));
+    expect(stored?.inputPayload).toMatchObject({ overwriteUnapproved: true });
+    const reserved = await db
+      .select({ operationKey: schema.usageEvents.operationKey })
+      .from(schema.usageEvents)
+      .where(eq(schema.usageEvents.operationKey, `job:${body.job.id}:translation_jobs`));
+    expect(reserved).toHaveLength(1);
+  });
+
+  it("adds strings to an open key job once, and refuses a closed one", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const [sourceFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({ organizationId: organization.id, projectId: project.id, sourcePath: "en.json" })
+      .returning({ id: schema.repositorySourceFiles.id });
+    const keyRows = await db
+      .insert(schema.projectTranslationKeys)
+      .values(
+        ["a", "b"].map((key) => ({
+          organizationId: organization.id,
+          projectId: project.id,
+          repositorySourceFileId: sourceFile!.id,
+          key,
+          sourceText: key,
+          normalizedSourceText: key,
+        })),
+      )
+      .returning({ id: schema.projectTranslationKeys.id });
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+    const created = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param,
+        json: {
+          type: "keys",
+          title: "Checkout",
+          keysInput: {
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            stringIds: [keyRows[0]!.id],
+          },
+        },
+      },
+      { headers },
+    );
+    const jobId = ((await created.json()) as { job: { id: string } }).job.id;
+    startTaskAnalysisMock.mockClear();
+    const add = () =>
+      createClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs[":jobId"].keys.$post(
+        { param: { ...param, jobId }, json: { stringIds: keyRows.map((row) => row.id) } },
+        { headers },
+      );
+
+    const first = await add();
+    expect(first.status).toBe(200);
+    await expect(first.json()).resolves.toEqual({ added: 1 });
+    // The added string is counted for Reports too.
+    expect(startTaskAnalysisMock).toHaveBeenCalledTimes(1);
+    expect(startTaskAnalysisMock).toHaveBeenCalledWith({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId,
+      step: "review",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      repositorySourceFileId: null,
+    });
+    const again = await add();
+    await expect(again.json()).resolves.toEqual({ added: 0 });
+    expect(startTaskAnalysisMock).toHaveBeenCalledTimes(1);
+
+    await db.update(schema.jobs).set({ status: "succeeded" }).where(eq(schema.jobs.id, jobId));
+    const closed = await add();
+    expect(closed.status).toBe(409);
+  });
+
+  it("refuses to add strings past the key job limit or to a job that isn't a key job", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const rows = await db.$client.query<{ id: string }>(
+      `WITH file AS (
+         INSERT INTO repository_source_files (organization_id, project_id, source_path)
+         VALUES ($1, $2, 'en.json') RETURNING id
+       )
+       INSERT INTO project_translation_keys (organization_id, project_id, repository_source_file_id, key, source_text, normalized_source_text)
+       SELECT $1, $2, file.id, 'k.' || n, 'x', 'x' FROM file, generate_series(1, 5001) n RETURNING project_translation_keys.id`,
+      [organization.id, project.id],
+    );
+    const ids = rows.rows.map((row) => row.id);
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+    const created = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param,
+        json: {
+          type: "keys",
+          title: "Big",
+          keysInput: {
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            stringIds: ids.slice(0, 1),
+          },
+        },
+      },
+      { headers },
+    );
+    const jobId = ((await created.json()) as { job: { id: string } }).job.id;
+
+    const tooMany = await createClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs[
+      ":jobId"
+    ].keys.$post({ param: { ...param, jobId }, json: { stringIds: ids.slice(1) } }, { headers });
+    expect(tooMany.status).toBe(400);
+    await expect(tooMany.json()).resolves.toMatchObject({ error: "too_many_strings" });
+    const linked = await db
+      .select({ id: schema.translationJobKeys.translationKeyId })
+      .from(schema.translationJobKeys)
+      .where(eq(schema.translationJobKeys.jobId, jobId));
+    expect(linked).toHaveLength(1);
+
+    const [aiJob] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      kind: "proofread",
+      status: "waiting_for_review",
+    });
+    await db.insert(schema.translationJobDetails).values({ jobId: aiJob!.id, type: "file" });
+    const notKeys = await createClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs[
+      ":jobId"
+    ].keys.$post(
+      { param: { ...param, jobId: aiJob!.id }, json: { stringIds: ids.slice(0, 1) } },
+      { headers },
+    );
+    expect(notKeys.status).toBe(409);
+    await expect(notKeys.json()).resolves.toMatchObject({ error: "not_key_job" });
+  });
+
   it("defaults file job metadata.title from filename and UTC time", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);
@@ -594,7 +682,16 @@ describe("project job create", () => {
     );
 
     expect(response.status).toBe(201);
-    const body = (await response.json()) as { job: { id: string } };
+    const body = (await response.json()) as {
+      job: {
+        id: string;
+        sourceFilename?: string | null;
+        sourcePath?: string | null;
+        inputPayload: {
+          metadata?: { title?: string; sourceFilename?: string; sourcePath?: string };
+        };
+      };
+    };
     const [job] = await db
       .select({ inputPayload: schema.jobs.inputPayload })
       .from(schema.jobs)
@@ -607,6 +704,18 @@ describe("project job create", () => {
     expect(
       (job?.inputPayload as { metadata?: { title?: string } } | undefined)?.metadata?.title,
     ).toMatch(/^messages\.json · \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    expect(
+      (
+        job?.inputPayload as
+          | { metadata?: { sourceFilename?: string; sourcePath?: string } }
+          | undefined
+      )?.metadata,
+    ).toMatchObject({
+      sourceFilename: "messages.json",
+      sourcePath: "messages.json",
+    });
+    expect(body.job.sourceFilename).toBe("messages.json");
+    expect(body.job.sourcePath).toBe("messages.json");
     expect(enqueueJob).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "translation",
@@ -660,6 +769,100 @@ describe("project job create", () => {
       metadata: {
         title: "Release notes · JP + KO",
       },
+    });
+  });
+
+  it("stores ignoreTranslationMemory on native file create", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const response = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            ignoreTranslationMemory: true,
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string } };
+    const [job] = await db
+      .select({ inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, body.job.id))
+      .limit(1);
+
+    expect(job?.inputPayload).toMatchObject({
+      ignoreTranslationMemory: true,
+    });
+  });
+
+  it("records a proofread task's strings for Reports in the background", async () => {
+    startTaskAnalysisMock.mockClear();
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+      sourceKind: "repository_file",
+      metadata: { sourcePath: "locales/messages.json" },
+    });
+
+    const response = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          kind: "proofread",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string } };
+    // The analysis runs off the request: the route only starts it, with the task's file.
+    expect(startTaskAnalysisMock).toHaveBeenCalledWith({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: body.job.id,
+      step: "review",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      repositorySourceFileId: expect.any(String),
     });
   });
 
@@ -816,6 +1019,142 @@ describe("project job create", () => {
     expect(proofreadUsage).toEqual([]);
   });
 
+  it("marks a native proofread task done once, hidden from people outside its teams", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const createResponse = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: {
+          type: "file",
+          title: "Proofread mark done",
+          kind: "proofread",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { job: { id: string; status: string } };
+
+    const markDone = () =>
+      createClient.api.orgs[":organizationSlug"].jobs[":jobId"]["mark-done"].$post(
+        { param: { organizationSlug, jobId: created.job.id } },
+        { headers },
+      );
+
+    const translator = createFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    const translatorResponse = await createClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "mark-done"
+    ].$post(
+      { param: { organizationSlug, jobId: created.job.id } },
+      { headers: await createFixture.authHeadersFor(translator) },
+    );
+    // A translator outside the project's teams cannot see the task at all.
+    expect(translatorResponse.status).toBe(404);
+
+    const doneResponse = await markDone();
+    expect(doneResponse.status).toBe(200);
+    const done = (await doneResponse.json()) as { job: { status: string } };
+    expect(done.job.status).toBe("succeeded");
+    const events = await db
+      .select({ type: schema.jobEvents.type })
+      .from(schema.jobEvents)
+      .where(eq(schema.jobEvents.jobId, created.job.id));
+    expect(events).toEqual([{ type: "job_marked_done" }]);
+
+    expect((await markDone()).status).toBe(409);
+  });
+
+  it("lets a teammate translator mark done only a proofread assigned to them", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    if (!project.teamId) {
+      throw new Error("expected project team");
+    }
+    const headers = await createFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const createResponse = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: {
+          type: "file",
+          title: "Proofread assignee mark done",
+          kind: "proofread",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { job: { id: string } };
+
+    const translator = createFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    const translatorHeaders = await createFixture.authHeadersFor(translator);
+    const translatorAuth = globalThis.__testApiAuthContext;
+    if (!translatorAuth) {
+      throw new Error("expected translator auth context");
+    }
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: project.teamId,
+      userId: translatorAuth.user.localUserId,
+      role: "member",
+    });
+
+    const markDoneAsTranslator = () =>
+      createClient.api.orgs[":organizationSlug"].jobs[":jobId"]["mark-done"].$post(
+        { param: { organizationSlug, jobId: created.job.id } },
+        { headers: translatorHeaders },
+      );
+
+    expect((await markDoneAsTranslator()).status).toBe(403);
+
+    await db
+      .update(schema.jobs)
+      .set({ ownerUserId: translatorAuth.user.localUserId, assigneeType: "user" })
+      .where(eq(schema.jobs.id, created.job.id));
+
+    const assignedResponse = await markDoneAsTranslator();
+    expect(assignedResponse.status).toBe(200);
+    const assigned = (await assignedResponse.json()) as { job: { status: string } };
+    expect(assigned.job.status).toBe("succeeded");
+  });
+
   it("cancels native proofread jobs stuck in waiting_for_review", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);
@@ -873,9 +1212,15 @@ describe("project job create", () => {
       .where(eq(schema.jobs.id, created.job.id))
       .limit(1);
     expect(job?.status).toBe("cancelled");
+
+    const events = await db
+      .select({ type: schema.jobEvents.type, actorUserId: schema.jobEvents.actorUserId })
+      .from(schema.jobEvents)
+      .where(eq(schema.jobEvents.jobId, created.job.id));
+    expect(events).toEqual([{ type: "job_cancelled", actorUserId: expect.any(String) }]);
   });
 
-  it("marks native proofread jobs stuck in waiting_for_review as failed", async () => {
+  it("rejects mark-failed for human-assigned native jobs", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);
     const sourceFile = await insertStoredSourceFile({
@@ -922,9 +1267,72 @@ describe("project job create", () => {
       },
       { headers },
     );
+    expect(markFailedResponse.status).toBe(409);
+    await expect(markFailedResponse.json()).resolves.toMatchObject({
+      error: "job_action_unavailable",
+    });
+  });
+
+  it("marks agent-assigned native jobs as failed", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const createResponse = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          title: "Agent translation",
+          kind: "translation",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { job: { id: string } };
+
+    await db
+      .update(schema.jobs)
+      .set({ assigneeType: "agent", ownerUserId: null })
+      .where(eq(schema.jobs.id, created.job.id));
+
+    const markFailedResponse = await createClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "mark-failed"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: created.job.id,
+        },
+      },
+      { headers },
+    );
     expect(markFailedResponse.status).toBe(200);
     const failed = (await markFailedResponse.json()) as { job: { id: string; status: string } };
     expect(failed.job.status).toBe("failed");
+
+    const events = await db
+      .select({ type: schema.jobEvents.type })
+      .from(schema.jobEvents)
+      .where(eq(schema.jobEvents.jobId, created.job.id));
+    expect(events).toEqual([{ type: "job_marked_failed" }]);
   });
 
   it("rejects cancel and mark-failed for provider-backed waiting_for_review jobs", async () => {
@@ -1055,140 +1463,59 @@ describe("project job create", () => {
     expect(body.error).toBe("organization_job_budget_exceeded");
     expect(enqueueJob).not.toHaveBeenCalled();
   });
-});
 
-describe("project job list triage", () => {
-  it("filters Overview triage statuses and ranks review before failed before in-progress", async () => {
-    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-    const now = Date.now();
-    const hoursAgo = (hours: number) => new Date(now - hours * 60 * 60 * 1000);
-
-    const [queuedJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      status: "queued",
-      updatedAt: hoursAgo(1),
-    });
-    const [failedJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      status: "failed",
-      updatedAt: hoursAgo(2),
-    });
-    const [reviewJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      status: "waiting_for_review",
-      updatedAt: hoursAgo(3),
-    });
-    const [succeededJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      status: "succeeded",
-      updatedAt: hoursAgo(0.5),
-    });
-    const [staleReviewJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      status: "waiting_for_review",
-      updatedAt: new Date(now - 8 * 24 * 60 * 60 * 1000),
-    });
-
-    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$get(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          projectId: project.id,
-        },
-        query: {
-          triage: true,
-          limit: "10",
-        },
-      },
-      { headers },
+  it("holds back an AI key job when the open-job budget is used, but not a key job for people", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const [sourceFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({ organizationId: organization.id, projectId: project.id, sourcePath: "en.json" })
+      .returning({ id: schema.repositorySourceFiles.id });
+    const [key] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: sourceFile!.id,
+        key: "a",
+        sourceText: "a",
+        normalizedSourceText: "a",
+      })
+      .returning({ id: schema.projectTranslationKeys.id });
+    await db.insert(schema.jobs).values(
+      Array.from({ length: 50 }, () => ({
+        id: `job_${randomUUID()}`,
+        organizationId: organization.id,
+        projectId: project.id,
+        kind: "translation" as const,
+        status: "queued" as const,
+        inputPayload: { sourceLocale: "en-US", targetLocales: ["fr-FR"] },
+      })),
     );
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { jobs: Array<{ id: string; status: string }> };
-    expect(body.jobs.map((job) => job.id)).toEqual([reviewJob.id, failedJob.id, queuedJob.id]);
-    expect(body.jobs.map((job) => job.status)).toEqual(["waiting_for_review", "failed", "queued"]);
-    expect(body.jobs.some((job) => job.id === succeededJob.id)).toBe(false);
-    expect(body.jobs.some((job) => job.id === staleReviewJob.id)).toBe(false);
-  });
-});
-
-describe("workspace job list triage", () => {
-  it("ranks organization triage jobs review before failed before in-progress", async () => {
-    const { identity, organization, project, user } =
-      await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-    const now = Date.now();
-    const hoursAgo = (hours: number) => new Date(now - hours * 60 * 60 * 1000);
-
-    const [queuedJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      ownerUserId: user.id,
-      status: "queued",
-      updatedAt: hoursAgo(1),
-    });
-    const [failedJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      ownerUserId: user.id,
-      status: "failed",
-      updatedAt: hoursAgo(2),
-    });
-    const [reviewJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      ownerUserId: user.id,
-      status: "waiting_for_review",
-      updatedAt: hoursAgo(3),
-    });
-    const [succeededJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      ownerUserId: user.id,
-      status: "succeeded",
-      updatedAt: hoursAgo(0.5),
-    });
-    const [unownedReviewJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      status: "waiting_for_review",
-      updatedAt: hoursAgo(0.25),
-    });
-    const [staleReviewJob] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      ownerUserId: user.id,
-      status: "waiting_for_review",
-      updatedAt: new Date(now - 8 * 24 * 60 * 60 * 1000),
-    });
-
-    const response = await client.api.orgs[":organizationSlug"].jobs.$get(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
+    const create = (kind: "translation" | "proofread") =>
+      createClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
+        {
+          param: {
+            organizationSlug: identity.organization.slug ?? "missing-slug",
+            projectId: project.id,
+          },
+          json: {
+            type: "keys",
+            kind,
+            title: "Checkout",
+            keysInput: { sourceLocale: "en-US", targetLocales: ["fr-FR"], stringIds: [key!.id] },
+          },
         },
-        query: {
-          triage: true,
-          relationship: "assigned",
-          limit: "10",
-        },
-      },
-      { headers },
-    );
+        { headers },
+      );
 
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { jobs: Array<{ id: string; status: string }> };
-    expect(body.jobs.map((job) => job.id)).toEqual([reviewJob.id, failedJob.id, queuedJob.id]);
-    expect(body.jobs.map((job) => job.status)).toEqual(["waiting_for_review", "failed", "queued"]);
-    expect(body.jobs.some((job) => job.id === succeededJob.id)).toBe(false);
-    expect(body.jobs.some((job) => job.id === unownedReviewJob.id)).toBe(false);
-    expect(body.jobs.some((job) => job.id === staleReviewJob.id)).toBe(false);
+    const translation = await create("translation");
+    expect(translation.status).toBe(429);
+    await expect(translation.json()).resolves.toMatchObject({
+      error: "organization_job_budget_exceeded",
+    });
+    expect((await create("proofread")).status).toBe(201);
+    expect(enqueueJob).not.toHaveBeenCalled();
   });
 });
 
@@ -1230,6 +1557,89 @@ describe("workspace job update", () => {
       title: "Updated launch copy",
       description: "Please prioritize EU locales",
     });
+    expect(enqueueJobUpdatedActivityMock).toHaveBeenCalledWith({
+      actorCredentialId: null,
+      actorKind: "user",
+      actorUserId: user.id,
+      changedFields: ["title", "description", "owner"],
+      jobId: job.id,
+      kind: "translation",
+      organizationId: organization.id,
+      projectId: project.id,
+    });
+  });
+
+  it("persists and clears a native job due date", async () => {
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+
+    const dueAt = "2026-05-01T17:00:00.000Z";
+    const setDue = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: { dueAt },
+      },
+      { headers },
+    );
+
+    expect(setDue.status).toBe(200);
+    const setBody = (await setDue.json()) as { job: { dueAt: string | null } };
+    expect(setBody.job.dueAt).toBe(dueAt);
+
+    const [stored] = await db
+      .select({ dueAt: schema.jobs.dueAt })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, job.id))
+      .limit(1);
+    expect(stored?.dueAt?.toISOString()).toBe(dueAt);
+
+    const clearDue = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: { dueAt: null },
+      },
+      { headers },
+    );
+
+    expect(clearDue.status).toBe(200);
+    const clearedBody = (await clearDue.json()) as { job: { dueAt: string | null } };
+    expect(clearedBody.job.dueAt).toBeNull();
+  });
+
+  it("rejects a due date that is not an offset datetime", async () => {
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: { dueAt: "2026-05-01" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
   });
 
   it("unassigns a native job owner", async () => {
@@ -1456,7 +1866,7 @@ describe("workspace job agent AI gates", () => {
       },
     }),
   );
-  const agentFixture = createProjectTestFixture(agentClient);
+  const agentFixture = createProjectTestFixture();
 
   afterEach(async () => {
     vi.clearAllMocks();
@@ -1600,11 +2010,11 @@ describe("workspace job agent AI gates", () => {
     expect(enqueueProviderAgentTranslation).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects run-agent when AI features are not allowed", async () => {
+  it("rejects retry when the AI credit is used up and leaves the job failed", async () => {
     ensureAiFeaturesAllowedMock.mockResolvedValue(
       err({
-        code: AI_FEATURES_REQUIRED_CODE,
-        message: AI_FEATURES_REQUIRED_MESSAGE,
+        code: AI_CREDIT_EXHAUSTED_CODE,
+        message: AI_CREDIT_EXHAUSTED_MESSAGE,
       }),
     );
     const { identity, organization, project, user } =
@@ -1616,23 +2026,13 @@ describe("workspace job agent AI gates", () => {
       projectId: project.id,
       createdByUserId: user.id,
       status: "failed",
-      inputPayload: {
-        sourceLocale: "en-US",
-        targetLocales: ["fr-FR"],
-        fileInput: {
-          sourceFileId: `file_${randomUUID()}`,
-          fileFormat: "json",
-        },
-      },
     });
     await db.insert(schema.translationJobDetails).values({
       jobId: job.id,
-      type: "file",
+      type: "string",
     });
 
-    const response = await agentClient.api.orgs[":organizationSlug"].jobs[":jobId"][
-      "run-agent"
-    ].$post(
+    const response = await agentClient.api.orgs[":organizationSlug"].jobs[":jobId"].retry.$post(
       {
         param: {
           organizationSlug: identity.organization.slug ?? "missing-slug",
@@ -1642,10 +2042,10 @@ describe("workspace job agent AI gates", () => {
       { headers },
     );
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(402);
     await expect(response.json()).resolves.toMatchObject({
-      error: AI_FEATURES_REQUIRED_CODE,
-      message: AI_FEATURES_REQUIRED_MESSAGE,
+      error: AI_CREDIT_EXHAUSTED_CODE,
+      message: AI_CREDIT_EXHAUSTED_MESSAGE,
     });
     expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
       organizationId: organization.id,

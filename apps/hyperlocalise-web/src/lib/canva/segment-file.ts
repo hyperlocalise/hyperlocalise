@@ -10,40 +10,107 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { CanvaDesignSegment } from "./types";
+import { createHash } from "node:crypto";
 
-const SEGMENT_KEY_PREFIX = "canva.segment.";
+export const SEGMENT_KEY_PREFIX = "canva.segment.";
+export const SOURCE_TEXT_KEY_PREFIX = "canva.t.";
 
-export function segmentKey(pageIndex: number, contentIndex: number, regionIndex: number): string {
-  return `${SEGMENT_KEY_PREFIX}${pageIndex}.${contentIndex}.${regionIndex}`;
+const SHORT_DIGEST_LENGTH = 16;
+
+export function normalizeSegmentText(text: string): string {
+  return text.normalize("NFKC").replace(/\s+/g, " ").trim();
 }
 
-export function segmentsToTranslationFile(segments: CanvaDesignSegment[]): Record<string, string> {
-  const entries: Record<string, string> = {};
+export function sourceTextDigest(normalizedText: string): string {
+  return createHash("sha256").update(normalizedText, "utf8").digest("hex");
+}
 
-  for (const segment of segments) {
-    if (segment.text.trim().length === 0) {
+export function sourceTextKeyFromDigest(digest: string, useFull = false): string {
+  return `${SOURCE_TEXT_KEY_PREFIX}${useFull ? digest : digest.slice(0, SHORT_DIGEST_LENGTH)}`;
+}
+
+export function sourceTextKey(text: string): string {
+  return sourceTextKeyFromDigest(sourceTextDigest(normalizeSegmentText(text)));
+}
+
+export function isSourceTextKey(key: string): boolean {
+  return key.startsWith(SOURCE_TEXT_KEY_PREFIX);
+}
+
+export function pageNeedsReupload(sourceFile: Record<string, string>): boolean {
+  return !Object.keys(sourceFile).some(isSourceTextKey);
+}
+
+export function buildSourceTextPageFile(
+  texts: string[],
+  digestFn: (normalizedText: string) => string = sourceTextDigest,
+): Record<string, string> {
+  const unique = new Map<string, string>();
+  for (const text of texts) {
+    const normalized = normalizeSegmentText(text);
+    if (!normalized || unique.has(normalized)) {
       continue;
     }
-    entries[segment.key] = segment.text;
+    unique.set(normalized, text);
   }
 
+  const digestByNormalized = new Map<string, string>();
+  const prefixCounts = new Map<string, number>();
+  for (const normalized of unique.keys()) {
+    const digest = digestFn(normalized);
+    digestByNormalized.set(normalized, digest);
+    const prefix = digest.slice(0, SHORT_DIGEST_LENGTH);
+    prefixCounts.set(prefix, (prefixCounts.get(prefix) ?? 0) + 1);
+  }
+
+  const entries: Record<string, string> = {};
+  for (const [normalized, raw] of unique) {
+    const digest = digestByNormalized.get(normalized) ?? digestFn(normalized);
+    const useFull = (prefixCounts.get(digest.slice(0, SHORT_DIGEST_LENGTH)) ?? 0) > 1;
+    entries[sourceTextKeyFromDigest(digest, useFull)] = raw;
+  }
   return entries;
+}
+
+function isKnownSegmentKey(key: string): boolean {
+  return key.startsWith(SOURCE_TEXT_KEY_PREFIX) || key.startsWith(SEGMENT_KEY_PREFIX);
 }
 
 export function parseTranslationFile(content: Record<string, unknown>): Record<string, string> {
   const translations: Record<string, string> = {};
-
   for (const [key, value] of Object.entries(content)) {
-    if (!key.startsWith(SEGMENT_KEY_PREFIX) || typeof value !== "string") {
-      continue;
+    if (typeof value === "string" && isKnownSegmentKey(key)) {
+      translations[key] = value;
     }
-    translations[key] = value;
   }
-
   return translations;
 }
 
 export function buildSourcePath(designId: string): string {
   return `canva/designs/${designId}.json`;
+}
+
+export function pageFileNumber(pageIndex: number): number {
+  return pageIndex + 1;
+}
+
+export function buildPageFileName(pageIndex: number): string {
+  return `page-${pageFileNumber(pageIndex)}.json`;
+}
+
+function canvaPathSegment(value: string): string {
+  return (
+    value
+      .trim()
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "untitled"
+  );
+}
+
+export function buildPageSourcePath(
+  designSlug: string,
+  designId: string,
+  pageIndex: number,
+): string {
+  return `canva/designs/${designSlug}-${canvaPathSegment(designId)}/${buildPageFileName(pageIndex)}`;
 }

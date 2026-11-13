@@ -15,14 +15,14 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Delete02Icon, LinkSquare02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TrashIcon, ArrowSquareOutIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
 
+import { useIssueDetailLinkScope } from "./issue-detail-link-scope";
 import { buildIssueDetailHref } from "./issue-detail-utils";
 import { IssueRelationshipKindIcon, relationshipKindLabel } from "./issue-relationship-kind";
 import { issueRelationshipSectionMessages as messages } from "./issue-relationship-section.messages";
@@ -64,6 +64,7 @@ function RelationshipRow({
   disabled: boolean;
 }) {
   const intl = useIntl();
+  const detailScope = useIssueDetailLinkScope();
   return (
     <div className="group flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-muted/40">
       <IssueStatusIcon status={relationship.otherIssue.status} />
@@ -72,6 +73,7 @@ function RelationshipRow({
           organizationSlug,
           projectId: relationship.otherIssue.projectId,
           issueId: relationship.otherIssue.issueId,
+          scope: detailScope,
         })}
         className="min-w-0 flex-1 truncate text-sm text-foreground hover:underline"
       >
@@ -86,7 +88,7 @@ function RelationshipRow({
         className="opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
         onClick={onRemove}
       >
-        <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} className="size-3.5" />
+        <TrashIcon className="size-3.5" />
       </Button>
     </div>
   );
@@ -136,11 +138,7 @@ export function IssueRelationshipSection({
           weight="medium"
           tone="content"
         >
-          <HugeiconsIcon
-            icon={LinkSquare02Icon}
-            strokeWidth={1.8}
-            className="size-3.5 text-muted-foreground"
-          />
+          <ArrowSquareOutIcon className="size-3.5 text-muted-foreground" />
           <FormattedMessage {...messages.heading} />
         </TypographyP>
         <IssueRelationshipPicker

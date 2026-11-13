@@ -49,9 +49,11 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByText("Can you localize the hero section for French and German?"),
-    ).toBeInTheDocument();
+    const userMessage = canvas.getByText(
+      "Can you localize the hero section for French and German?",
+    );
+    await expect(userMessage).toBeInTheDocument();
+    await expect(userMessage.closest(".bg-primary")).toBeInTheDocument();
     await expect(
       canvas.getByText(
         "I'll start by extracting the hero strings and creating translation jobs for French and German.",

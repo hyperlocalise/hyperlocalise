@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
 func TestInitCommand(t *testing.T) {
@@ -41,6 +43,42 @@ func TestInitCommand(t *testing.T) {
 	}
 	if strings.Contains(string(written), "\n  rules:\n") {
 		t.Fatalf("starter template should omit llm.rules")
+	}
+}
+
+func TestInitCommandGeneratesLoadableConfig(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	cmd := newInitCmd()
+	cmd.SetOut(bytes.NewBufferString(""))
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute init command: %v", err)
+	}
+
+	cfg, err := config.LoadForCLI(configTemplateFilename)
+	if err != nil {
+		t.Fatalf("load generated config: %v", err)
+	}
+
+	if got, want := cfg.Locales.Source, "en-US"; got != want {
+		t.Fatalf("locales.source = %q, want %q", got, want)
+	}
+	if got, want := len(cfg.Locales.Targets), 1; got != want {
+		t.Fatalf("len(locales.targets) = %d, want %d", got, want)
+	}
+	profile, ok := cfg.LLM.Profiles["default"]
+	if !ok {
+		t.Fatal("llm.profiles.default is missing")
+	}
+	if got, want := profile.Provider, "openai"; got != want {
+		t.Fatalf("llm.profiles.default.provider = %q, want %q", got, want)
+	}
+	if cfg.Translation != nil {
+		t.Fatalf("translation should stay commented out in the generated config, got %+v", cfg.Translation)
+	}
+	if cfg.MT != nil {
+		t.Fatalf("mt should stay commented out in the generated config, got %+v", cfg.MT)
 	}
 }
 

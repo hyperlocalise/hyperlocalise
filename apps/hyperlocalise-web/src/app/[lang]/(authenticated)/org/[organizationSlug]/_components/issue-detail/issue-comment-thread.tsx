@@ -15,8 +15,7 @@
 import { useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
-import { Delete02Icon, Edit02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TrashIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 
 import {
   extractMentionIdsFromMarkdown,
@@ -40,7 +39,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { cn } from "@/lib/primitives/cn";
 
@@ -48,6 +47,7 @@ import { formatRelativeTimestamp } from "../workspace-files-shared";
 import { IssueCommentComposer } from "./issue-comment-composer";
 import { issueCommentMessages as messages } from "./issue-comment.messages";
 import { useIssueDetailGuardedNavigate } from "./issue-detail-navigation-guard";
+import { useIssueDetailLinkScope } from "./issue-detail-link-scope";
 import {
   buildIssueDetailHref,
   issuePriorityLabel,
@@ -101,6 +101,7 @@ function IssueCommentBody({
 }) {
   const intl = useIntl();
   const navigateGuarded = useIssueDetailGuardedNavigate();
+  const detailScope = useIssueDetailLinkScope();
   const { updateComment, deleteComment } = useIssueCommentMutations({
     organizationSlug,
     projectId,
@@ -140,6 +141,7 @@ function IssueCommentBody({
           organizationSlug,
           projectId: mention.projectId,
           issueId: mention.id,
+          scope: detailScope,
         }),
       );
       return;
@@ -220,7 +222,7 @@ function IssueCommentBody({
                   setIsEditing(true);
                 }}
               >
-                <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} className="size-3.5" />
+                <PencilSimpleIcon className="size-3.5" />
               </Button>
             ) : null}
             {comment.canDelete ? (
@@ -233,7 +235,7 @@ function IssueCommentBody({
                 disabled={deleteComment.isPending}
                 onClick={() => setIsDeleteOpen(true)}
               >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} className="size-3.5" />
+                <TrashIcon className="size-3.5" />
               </Button>
             ) : null}
           </div>
@@ -608,6 +610,7 @@ export function IssueCommentThread({
   issueId: string;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const feedQuery = useIssueFeedQuery({ organizationSlug, projectId, issueId });
   const { createComment } = useIssueCommentMutations({
     organizationSlug,
@@ -620,14 +623,17 @@ export function IssueCommentThread({
     usersSectionLabel: intl.formatMessage(markdownEditorMessages.mentionUsersSection),
     issuesSectionLabel: intl.formatMessage(markdownEditorMessages.mentionIssuesSection),
     search: async (query) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].mentions.$get({
-        param: { organizationSlug },
-        query: { q: query, projectId, issueId, limit: "5" },
-      } as never);
-      if (response.status !== 200) {
+      const body = await goSvcClient.inbox
+        .mentions(organizationSlug, {
+          q: query,
+          projectId,
+          issueId,
+          limit: 5,
+        })
+        .catch(() => null);
+      if (!body) {
         return { users: [], issues: [] };
       }
-      const body = await response.json();
       return {
         users: body.mentionSuggestions.users.map((user) => ({
           kind: "user" as const,

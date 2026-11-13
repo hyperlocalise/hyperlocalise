@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Copy01Icon, EraserIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CopyIcon, EraserIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
 import { FormattedMessage } from "react-intl";
 
@@ -31,6 +30,7 @@ import {
   ContentEditorIcuStructureSummary,
   ContentEditorTargetEditor,
 } from "./content-editor-target-editor";
+import { ContentEditorShortcutHint } from "./content-editor-shortcut-hints";
 
 export function ContentEditorEditorTargetSection({
   segment,
@@ -48,8 +48,12 @@ export function ContentEditorEditorTargetSection({
   onClearTarget: () => void;
 }) {
   const sourceMessageAnalysis = useMemo(
-    () => analyzeCatMessageFormat(segment.sourceText),
-    [segment.sourceText],
+    () =>
+      analyzeCatMessageFormat(segment.sourceText, {
+        messageFormat: segment.messageFormat,
+        placeholderPatterns: segment.placeholderPatterns,
+      }),
+    [segment.messageFormat, segment.placeholderPatterns, segment.sourceText],
   );
 
   return (
@@ -68,30 +72,42 @@ export function ContentEditorEditorTargetSection({
         ) : null}
         {canEditTarget ? (
           <div className="flex flex-wrap items-center gap-1">
-            <Button variant="ghost" size="xs" onClick={onCopySource} disabled={isLoading}>
-              <HugeiconsIcon icon={Copy01Icon} className="size-3" aria-hidden />
+            <Button
+              variant="ghost"
+              size="xs"
+              className="relative"
+              onClick={onCopySource}
+              disabled={isLoading}
+            >
+              <CopyIcon className="size-3" aria-hidden />
               <FormattedMessage {...contentEditorEditorPanelMessages.copySource} />
+              <ContentEditorShortcutHint shortcut="copySource" />
             </Button>
             <Button
               variant="ghost"
               size="xs"
+              className="relative"
               onClick={onClearTarget}
               disabled={isLoading || segment.targetText.length === 0}
             >
-              <HugeiconsIcon icon={EraserIcon} className="size-3" aria-hidden />
+              <EraserIcon className="size-3" aria-hidden />
               <FormattedMessage {...contentEditorEditorPanelMessages.clearTarget} />
+              <ContentEditorShortcutHint shortcut="clearTarget" />
             </Button>
           </div>
         ) : null}
       </div>
       {isLoading ? (
-        <Skeleton className="h-28 w-full rounded-md" />
+        <Skeleton className="min-h-36 w-full rounded-2xl" />
       ) : (
         <ContentEditorTargetEditor
           key={segment.id}
           sourceText={segment.sourceText}
+          sourcePath={segment.sourcePath}
           value={segment.targetText}
           maxLength={segment.maxLength}
+          messageFormat={segment.messageFormat}
+          placeholderPatterns={segment.placeholderPatterns}
           onChange={onTargetChange}
           disabled={!canEditTarget}
         />

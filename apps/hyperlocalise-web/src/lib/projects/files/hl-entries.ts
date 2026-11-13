@@ -11,11 +11,14 @@
  * Version 2.0 or later.
  */
 import type { ProjectSourceStringEntry } from "@/api/routes/project/project.schema";
+import { isMarkdownCalloutFenceEntry } from "@/lib/markdown/markdown-callout-fence";
 
 export type HlEntryRecord = {
   text: string;
   maxLength?: number;
   context?: string | null;
+  /** Content sub-filter from import settings. Not persisted on source strings. */
+  format?: "html" | "icu";
 };
 
 export type HlEntriesPayload = Record<string, string | HlEntryRecord>;
@@ -45,7 +48,10 @@ export function hlEntriesPayloadToStringMap(payload: HlEntriesPayload): Record<s
   return out;
 }
 
-export function entriesFromHlOutput(payload: HlEntriesPayload): ProjectSourceStringEntry[] {
+export function entriesFromHlOutput(
+  payload: HlEntriesPayload,
+  preserveEmptySourceText = false,
+): ProjectSourceStringEntry[] {
   return Object.entries(payload)
     .filter(([key]) => !isReservedHlEntriesKey(key))
     .map(([key, value]) => {
@@ -65,7 +71,12 @@ export function entriesFromHlOutput(payload: HlEntriesPayload): ProjectSourceStr
         ...(maxLength !== undefined ? { maxLength } : {}),
       };
     })
-    .filter((entry) => entry.key.length > 0 && entry.text.trim().length > 0);
+    .filter(
+      (entry) =>
+        entry.key.length > 0 &&
+        (preserveEmptySourceText || entry.text.trim().length > 0) &&
+        !isMarkdownCalloutFenceEntry(entry.key, entry.text),
+    );
 }
 
 export function parseHlEntriesJson(raw: unknown): HlEntriesPayload {

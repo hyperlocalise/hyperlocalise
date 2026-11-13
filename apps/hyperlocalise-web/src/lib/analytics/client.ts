@@ -16,6 +16,7 @@ import { sendGAEvent } from "@next/third-parties/google";
 import { track } from "@vercel/analytics";
 
 import { Analytics } from "./analytics";
+import { capturePostHogClientEvent } from "./posthog-client";
 
 export const clientAnalytics = new Analytics([
   (name, properties) => {
@@ -23,5 +24,8 @@ export const clientAnalytics = new Analytics([
   },
   (name, properties) => {
     sendGAEvent("event", name, properties ?? {});
+  },
+  (name, properties) => {
+    capturePostHogClientEvent(name, properties);
   },
 ]);

@@ -14,20 +14,20 @@ import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { getWorkspaceFeatureFlagEnabled, workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { JobDetailPageContent } from "./_components/job-detail-page-content";
-import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectJobDetail");
+}
 
 export default function ProjectJobDetailPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string; jobId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectJobDetailPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ProjectJobDetailPageLoader params={params} />;
 }
 
 async function ProjectJobDetailPageLoader({
@@ -39,6 +39,7 @@ async function ProjectJobDetailPageLoader({
   const projectId = normalizeProjectId(rawProjectId);
   const auth = await requireAppAuthContext({ organizationSlug });
   const canEditJobFields = hasCapability(auth.membership.role, "jobs:write");
+  const canMarkAnyTaskDone = hasCapability(auth.membership.role, "reviews:approve");
   const canEditSharedCredentialProviderJobFields = isWorkspaceOperatorRole(auth.membership.role);
   const reportsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceReportsFlag, auth);
 
@@ -48,6 +49,8 @@ async function ProjectJobDetailPageLoader({
       organizationSlug={organizationSlug}
       projectId={projectId}
       canEditJobFields={canEditJobFields}
+      canMarkAnyTaskDone={canMarkAnyTaskDone}
+      currentUserId={auth.user.localUserId}
       canEditSharedCredentialProviderJobFields={canEditSharedCredentialProviderJobFields}
       reportsEnabled={reportsEnabled}
     />

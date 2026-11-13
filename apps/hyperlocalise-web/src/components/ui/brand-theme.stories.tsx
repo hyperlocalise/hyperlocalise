@@ -59,7 +59,7 @@ export const Overview: Story = {
       <ThemeSpecimen
         theme="marketing"
         title="Launch in every market"
-        subtitle="Inter Bold headings"
+        subtitle="Inter Semibold headings"
       />
       <ThemeSpecimen theme="product" title="Review queue" subtitle="Inter Semibold headings" />
     </div>

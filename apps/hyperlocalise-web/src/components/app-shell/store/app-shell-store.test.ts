@@ -12,7 +12,7 @@
  */
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { Chat01Icon } from "@hugeicons/core-free-icons";
+import { ChatCircleIcon } from "@phosphor-icons/react/ssr";
 
 import { createAppShellStore } from "./app-shell-store";
 import type { SidebarApi } from "./sidebar-store";
@@ -23,7 +23,7 @@ const sampleGroups = [
       {
         label: "Inbox",
         href: "/org/acme/inbox",
-        icon: Chat01Icon,
+        icon: ChatCircleIcon,
       },
     ],
   },
@@ -147,7 +147,7 @@ describe("AppShellStore", () => {
           {
             label: "Wizard",
             href: "/org/acme/wizard",
-            icon: Chat01Icon,
+            icon: ChatCircleIcon,
           },
         ],
       },
@@ -175,13 +175,13 @@ describe("AppShellStore", () => {
     const firstGroups = [
       {
         label: "First",
-        items: [{ label: "One", href: "/one", icon: Chat01Icon }],
+        items: [{ label: "One", href: "/one", icon: ChatCircleIcon }],
       },
     ] as const;
     const nextGroups = [
       {
         label: "Next",
-        items: [{ label: "Two", href: "/two", icon: Chat01Icon }],
+        items: [{ label: "Two", href: "/two", icon: ChatCircleIcon }],
       },
     ] as const;
 
@@ -365,7 +365,7 @@ describe("NavigationStore", () => {
   it("returns default groups after clearing custom mode", () => {
     const store = createAppShellStore(sampleGroups);
     const customGroups = [
-      { label: "Custom", items: [{ label: "Wizard", href: "/w", icon: Chat01Icon }] },
+      { label: "Custom", items: [{ label: "Wizard", href: "/w", icon: ChatCircleIcon }] },
     ] as const;
 
     store.navigation.setCustomNavigation(customGroups, {
@@ -385,7 +385,7 @@ describe("NavigationStore", () => {
   it("enters custom mode without a project context", () => {
     const store = createAppShellStore(sampleGroups);
     const customGroups = [
-      { label: "Custom", items: [{ label: "Wizard", href: "/w", icon: Chat01Icon }] },
+      { label: "Custom", items: [{ label: "Wizard", href: "/w", icon: ChatCircleIcon }] },
     ] as const;
 
     store.navigation.setCustomNavigation(customGroups);
@@ -399,7 +399,7 @@ describe("NavigationStore", () => {
   it("stores domain context for custom domain navigation", () => {
     const store = createAppShellStore(sampleGroups);
     const customGroups = [
-      { label: "Domain", items: [{ label: "Overview", href: "/d", icon: Chat01Icon }] },
+      { label: "Domain", items: [{ label: "Overview", href: "/d", icon: ChatCircleIcon }] },
     ] as const;
 
     store.navigation.setCustomNavigation(customGroups, {

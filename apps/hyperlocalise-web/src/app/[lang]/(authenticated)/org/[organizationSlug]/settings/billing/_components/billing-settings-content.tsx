@@ -24,6 +24,9 @@ import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
 import { TypographyP } from "@/components/ui/typography";
 import { PlanUsageHashScroll } from "@/components/billing/plan-usage-hash-scroll";
+import { clientAnalytics } from "@/lib/analytics/client";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   getActiveSubscription,
   availablePlansSectionId,
@@ -34,7 +37,6 @@ import {
 } from "@/lib/billing/plan-usage";
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { billingBalanceFeatureIds } from "@/lib/billing/usage-feature-labels";
-import { apiClient } from "@/lib/api-client-instance";
 
 import { billingSettingsContentMessages } from "./billing-settings-content.messages";
 import { SettingsPageBody, SettingsPageHeader } from "../../_components/settings-page-chrome";
@@ -78,15 +80,19 @@ function BillingSettingsHeader() {
   const intl = useIntl();
 
   return (
-    <SettingsPageHeader
-      eyebrow={intl.formatMessage(billingSettingsContentMessages.pageLabel)}
-      title={intl.formatMessage(billingSettingsContentMessages.pageTitle)}
-      description={intl.formatMessage(billingSettingsContentMessages.pageDescription)}
-    />
+    <SettingsPageHeader title={intl.formatMessage(billingSettingsContentMessages.pageTitle)} />
   );
 }
 
-function formatUsageValue(intl: IntlShape, value: number) {
+function formatUsageValue(intl: IntlShape, featureId: string, value: number) {
+  if (featureId === autumnFeatureIds.aiTokens) {
+    return intl.formatNumber(value, {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    });
+  }
   return intl.formatNumber(value, { maximumFractionDigits: 0 });
 }
 
@@ -229,6 +235,7 @@ function ConfiguredBillingSettingsPanel({
   organizationSlug: string;
 }) {
   const intl = useIntl();
+  const { client, loading: goSvcLoading } = useGoSvcClient();
   const [actionPending, setActionPending] = useState<string | null>(null);
   const {
     data: customer,
@@ -242,17 +249,9 @@ function ConfiguredBillingSettingsPanel({
   const { data: plans, isLoading: plansLoading, error: plansError } = useListPlans();
   const resourceUsageQuery = useQuery({
     queryKey: ["billing-resource-usage", organizationSlug],
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].billing["resource-usage"].$get(
-        {
-          param: { organizationSlug },
-        },
-      );
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(billingSettingsContentMessages.resourceUsageLoadFailed));
-      }
-
-      const body = await response.json();
+    enabled: !goSvcLoading,
+    queryFn: async ({ signal }) => {
+      const body = await client.billing.resourceUsage(organizationSlug, { signal });
       return body.resourceUsage;
     },
   });
@@ -310,7 +309,17 @@ function ConfiguredBillingSettingsPanel({
   }
 
   async function handleAttachPlan(planId: string) {
-    await runBillingAction(`attach-${planId}`, () => attach({ planId }));
+    clientAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.checkoutStarted, {
+      status: "started",
+      source: "billing",
+    });
+    await runBillingAction(`attach-${planId}`, async () => {
+      await attach({ planId });
+      clientAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.planAttached, {
+        status: "succeeded",
+        source: "billing",
+      });
+    });
   }
 
   async function handleCancelSubscription() {
@@ -507,8 +516,8 @@ function ConfiguredBillingSettingsPanel({
                       <FormattedMessage
                         {...billingSettingsContentMessages.usageUsed}
                         values={{
-                          usage: formatUsageValue(intl, row.usage),
-                          granted: formatUsageValue(intl, row.granted),
+                          usage: formatUsageValue(intl, row.featureId, row.usage),
+                          granted: formatUsageValue(intl, row.featureId, row.granted),
                         }}
                       />
                     )}
@@ -517,14 +526,18 @@ function ConfiguredBillingSettingsPanel({
                     <TypographyP className="leading-none" size="xsmall" tone="subtlest">
                       <FormattedMessage
                         {...billingSettingsContentMessages.usageRemaining}
-                        values={{ remaining: formatUsageValue(intl, row.remaining) }}
+                        values={{
+                          remaining: formatUsageValue(intl, row.featureId, row.remaining),
+                        }}
                       />
                     </TypographyP>
                   ) : row.usageUnavailable ? (
                     <TypographyP className="leading-none" size="xsmall" tone="subtlest">
                       <FormattedMessage
                         {...billingSettingsContentMessages.planLimit}
-                        values={{ granted: formatUsageValue(intl, row.granted) }}
+                        values={{
+                          granted: formatUsageValue(intl, row.featureId, row.granted),
+                        }}
                       />
                     </TypographyP>
                   ) : null}

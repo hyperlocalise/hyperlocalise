@@ -69,7 +69,7 @@ function ToolbarStory({
 }
 
 const meta = {
-  title: "App/Issues/Toolbar",
+  title: "App/Queries/Toolbar",
   component: ToolbarStory,
   parameters: {
     layout: "padded",

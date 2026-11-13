@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -47,8 +46,8 @@ export type MessageContentProps = HTMLAttributes<HTMLDivElement>;
 export const MessageContent = ({ children, className, ...props }: MessageContentProps) => (
   <div
     className={cn(
-      "is-user:dark flex w-fit min-w-0 max-w-full flex-col gap-2 overflow-hidden text-sm",
-      "group-[.is-user]:ms-auto group-[.is-user]:rounded-lg group-[.is-user]:bg-muted group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground",
+      "flex w-fit min-w-0 max-w-full flex-col gap-2 overflow-hidden text-sm",
+      "group-[.is-user]:ms-auto group-[.is-user]:rounded-2xl group-[.is-user]:bg-primary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-primary-foreground",
       "group-[.is-assistant]:text-foreground",
       className,
     )}
@@ -247,7 +246,7 @@ export const MessageBranchPrevious = ({ children, ...props }: MessageBranchPrevi
             variant="ghost"
             {...props}
           >
-            {children ?? <HugeiconsIcon icon={ArrowLeft01Icon} size={14} />}
+            {children ?? <ArrowLeftIcon size={14} />}
           </Button>
         }
       />
@@ -278,7 +277,7 @@ export const MessageBranchNext = ({ children, ...props }: MessageBranchNextProps
             variant="ghost"
             {...props}
           >
-            {children ?? <HugeiconsIcon icon={ArrowRight01Icon} size={14} />}
+            {children ?? <ArrowRightIcon size={14} />}
           </Button>
         }
       />

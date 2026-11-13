@@ -13,29 +13,99 @@
  * Version 2.0 or later.
  */
 import type { ComponentProps, ReactNode } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 import { workspaceResourceSharedMessages as messages } from "./workspace-resource-shared.messages";
+import { createElement } from "react";
+import { type Icon } from "@phosphor-icons/react";
 
-export type Icon = ComponentProps<typeof HugeiconsIcon>["icon"];
+export type { Icon };
+
 export type Tone = "safe" | "watch" | "risk" | "info";
 
 type WorkspacePageShellProps = ComponentProps<"main">;
 
 export function WorkspacePageShell({ children, className, ...props }: WorkspacePageShellProps) {
   return (
-    <main className={cn("flex w-full flex-col gap-6 p-4", className)} {...props}>
+    <main className={cn("flex w-full flex-col gap-4", className)} {...props}>
       {children}
     </main>
   );
 }
+
+export function WorkspaceResourceSection({
+  title,
+  count,
+  headerActions,
+  children,
+}: {
+  title: string;
+  count?: number;
+  headerActions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section aria-label={title} className="flex min-w-0 flex-col gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-sm font-medium text-foreground">
+          {title}
+          {count === undefined ? null : (
+            <span className="ml-2 font-normal tabular-nums text-muted-foreground">{count}</span>
+          )}
+        </h2>
+        {headerActions ? <div className="min-w-0 sm:max-w-sm">{headerActions}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function WorkspaceResourceListFrame({
+  children,
+  className,
+  ...props
+}: ComponentProps<"div">) {
+  return (
+    <div className={cn("overflow-hidden rounded-lg border border-border", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export function WorkspaceResourceEmpty({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-3 px-4 py-8">
+      <div className="space-y-1">
+        <TypographyP size="small" weight="medium" tone="content">
+          {title}
+        </TypographyP>
+        {description ? (
+          <TypographyP className="max-w-lg text-pretty" size="small" tone="subtle">
+            {description}
+          </TypographyP>
+        ) : null}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+export const workspaceResourceRowClassName =
+  "grid gap-2 px-4 py-3 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_7rem_8rem] md:items-center";
 
 export function WorkspaceFilterField({
   label,
@@ -71,68 +141,47 @@ export function toneClass(tone: Tone) {
 }
 
 export function PageHeader({
-  icon,
-  label,
   title,
-  description,
-  descriptionDetail,
   statusLabel,
   actions,
+  children,
 }: {
   icon: Icon;
   label?: string;
   title: string;
-  description: string;
-  descriptionDetail?: string;
   statusLabel?: string;
   actions?: ReactNode;
+  children?: ReactNode;
 }) {
+  const hasToolbar = Boolean(children || statusLabel || actions);
+
   return (
-    <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div className="max-w-2xl">
-        {label ? (
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground antialiased">
-            <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4 shrink-0" />
-            <span>{label}</span>
-          </div>
-        ) : null}
-        <TypographyH1
-          className={cn("text-2xl md:text-2xl", label ? "mt-2" : "flex items-center gap-2")}
-          weight="medium"
-          tone="content"
-        >
-          {label ? (
-            title
-          ) : (
-            <>
-              <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-5 shrink-0" />
-              {title}
-            </>
+    <>
+      <h1 className="sr-only">{title}</h1>
+      {hasToolbar ? (
+        <div
+          className={cn(
+            "flex flex-col gap-3 sm:flex-row sm:items-center",
+            children ? "sm:justify-between" : "sm:justify-end",
           )}
-        </TypographyH1>
-        <TypographyP className="mt-2 leading-6" wrapStyle="pretty" size="small" tone="subtle">
-          {description}
-        </TypographyP>
-        {descriptionDetail ? (
-          <TypographyP className="mt-1.5 leading-6" wrapStyle="pretty" size="small" tone="subtle">
-            {descriptionDetail}
-          </TypographyP>
-        ) : null}
-      </div>
-      {statusLabel || actions ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {statusLabel ? (
-            <Badge
-              variant="outline"
-              className="h-8 w-fit rounded-lg border-border bg-muted text-subtle-foreground"
-            >
-              {statusLabel}
-            </Badge>
+        >
+          {children ? <div className="min-w-0 flex-1">{children}</div> : null}
+          {statusLabel || actions ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+              {statusLabel ? (
+                <Badge
+                  variant="outline"
+                  className="h-8 w-fit rounded-lg border-border bg-muted text-subtle-foreground"
+                >
+                  {statusLabel}
+                </Badge>
+              ) : null}
+              {actions}
+            </div>
           ) : null}
-          {actions}
         </div>
       ) : null}
-    </section>
+    </>
   );
 }
 
@@ -208,11 +257,7 @@ export function ResourceCard({
             <CardTitle className="text-xl text-foreground">{title}</CardTitle>
             <CardDescription className="mt-1 text-muted-foreground">{description}</CardDescription>
           </div>
-          <HugeiconsIcon
-            icon={icon}
-            strokeWidth={1.8}
-            className="mt-1 size-5 text-muted-foreground"
-          />
+          {createElement(icon, { className: "mt-1 size-5 text-muted-foreground" })}
         </div>
       </CardHeader>
       <Separator className="bg-skeleton" />

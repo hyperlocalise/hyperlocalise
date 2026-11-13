@@ -12,16 +12,27 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { memo, useMemo, type ReactNode } from "react";
-import { Chat01Icon, SparklesIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
+import { createElement, memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ChatCircleIcon, CheckCircleIcon, FunnelIcon, SparkleIcon } from "@phosphor-icons/react";
+import Link from "next/link";
+import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyMuted, TypographySmall } from "@/components/ui/typography";
 import { stripMarkdown } from "@/lib/markdown/strip-markdown";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -29,19 +40,37 @@ import {
   getNotificationListItemVisual,
   type InboxListItemVisual,
 } from "./inbox-list-item-visuals";
+import {
+  DEFAULT_INBOX_LIST_FILTERS,
+  filterInboxIndexItems,
+  INBOX_CONVERSATION_TYPE_FILTERS,
+  INBOX_NOTIFICATION_TYPE_FILTERS,
+  INBOX_PRIORITY_FILTERS,
+  INBOX_READ_FILTERS,
+  isInboxListFiltersActive,
+  type InboxIndexItem,
+  type InboxListFilters,
+  type InboxPriorityFilter,
+  type InboxTypeFilter,
+} from "./inbox-list-filters";
 import { inboxListMessages } from "./inbox-list.messages";
 import type { InboxIssueNotification } from "./inbox-notifications-api";
 import { inboxNotificationsMessages } from "./inbox-notifications.messages";
 import {
   formatRelativeTime,
   getConversationParticipantAvatar,
+  getSourceLabel,
   type Conversation,
   type InboxCurrentUser,
 } from "./inbox-types";
 
-export type InboxIndexItem =
-  | { kind: "conversation"; conversation: Conversation; sortAt: string }
-  | { kind: "notification"; notification: InboxIssueNotification; sortAt: string };
+export type { InboxIndexItem };
+
+export type InboxListItemSelection =
+  | { kind: "conversation"; id: string }
+  | { kind: "notification"; id: string };
+
+export type InboxItemHref = (item: InboxListItemSelection) => string;
 
 export type InboxSelection =
   | { kind: "conversation"; id: string }
@@ -72,6 +101,25 @@ export function resolveInboxSelection(input: {
     return { kind: "notification", id: input.firstNotificationId };
   }
   return null;
+}
+
+export function inboxSelectionsEqual(left: InboxSelection, right: InboxSelection): boolean {
+  if (left === right) {
+    return true;
+  }
+  if (!left || !right) {
+    return false;
+  }
+  if (left.kind === "new" && right.kind === "new") {
+    return true;
+  }
+  if (left.kind === "conversation" && right.kind === "conversation") {
+    return left.id === right.id;
+  }
+  if (left.kind === "notification" && right.kind === "notification") {
+    return left.id === right.id;
+  }
+  return false;
 }
 
 /** Plain-text secondary line for notification rows (strips mention markdown etc.). */
@@ -108,7 +156,219 @@ export function buildInboxIndexItems(
   });
 }
 
-function notificationPreviewMessage(type: InboxIssueNotification["type"]): MessageDescriptor {
+const readFilterMessage = {
+  all: inboxListMessages.filterReadAll,
+  unread: inboxListMessages.filterReadUnread,
+  read: inboxListMessages.filterReadRead,
+} as const;
+
+function inboxTypeFilterLabel(type: InboxTypeFilter, intl: IntlShape): string {
+  switch (type) {
+    case "all":
+      return intl.formatMessage(inboxListMessages.filterTypeAll);
+    case "conversations":
+      return intl.formatMessage(inboxListMessages.filterTypeConversations);
+    case "notifications":
+      return intl.formatMessage(inboxListMessages.filterTypeNotifications);
+    case "chat_ui":
+    case "email_agent":
+    case "github_agent":
+    case "slack_agent":
+    case "web_chat":
+      return getSourceLabel(type, intl);
+    case "assigned":
+      return intl.formatMessage(inboxNotificationsMessages.assignedType);
+    case "mentioned":
+      return intl.formatMessage(inboxNotificationsMessages.mentionedType);
+    case "comment":
+      return intl.formatMessage(inboxNotificationsMessages.commentType);
+    case "status_changed":
+      return intl.formatMessage(inboxNotificationsMessages.statusChangedType);
+    case "assignee_changed":
+      return intl.formatMessage(inboxNotificationsMessages.assigneeChangedType);
+    case "qa_errors_increased":
+      return intl.formatMessage(inboxNotificationsMessages.qaErrorsIncreasedType);
+    case "qa_scan_failed":
+      return intl.formatMessage(inboxNotificationsMessages.qaScanFailedType);
+    default:
+      return assertNever(type);
+  }
+}
+
+function inboxPriorityFilterLabel(priority: InboxPriorityFilter, intl: IntlShape): string {
+  switch (priority) {
+    case "all":
+      return intl.formatMessage(inboxListMessages.filterPriorityAll);
+    case "P0":
+      return intl.formatMessage(inboxListMessages.filterPriorityP0);
+    case "P1":
+      return intl.formatMessage(inboxListMessages.filterPriorityP1);
+    case "P2":
+      return intl.formatMessage(inboxListMessages.filterPriorityP2);
+    case "none":
+      return intl.formatMessage(inboxListMessages.filterPriorityNone);
+    default:
+      return assertNever(priority);
+  }
+}
+
+function InboxListFiltersToolbar({
+  filters,
+  onFiltersChange,
+  onMarkAllRead,
+}: {
+  filters: InboxListFilters;
+  onFiltersChange: (filters: InboxListFilters) => void;
+  onMarkAllRead?: () => void;
+}) {
+  const intl = useIntl();
+  const priorityActive = filters.priority !== "all";
+  const typeActive = filters.type !== "all";
+
+  return (
+    <div className="flex shrink-0 flex-col gap-1.5 border-b border-border px-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <div
+          role="group"
+          aria-label={intl.formatMessage(inboxListMessages.filterReadAria)}
+          className="flex min-w-0 items-center gap-0.5"
+        >
+          {INBOX_READ_FILTERS.map((read) => {
+            const isActive = filters.read === read;
+            return (
+              <Button
+                key={read}
+                type="button"
+                variant="ghost"
+                size="xs"
+                aria-pressed={isActive}
+                className={cn(isActive && "bg-muted text-foreground")}
+                onClick={() => onFiltersChange({ ...filters, read })}
+              >
+                <FormattedMessage {...readFilterMessage[read]} />
+              </Button>
+            );
+          })}
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className={cn("gap-1 font-normal", typeActive && "border-grove-400/40")}
+                  aria-label={intl.formatMessage(inboxListMessages.filterTypeAria)}
+                />
+              }
+            >
+              <FunnelIcon className="size-3" />
+              <span className="max-w-24 truncate">{inboxTypeFilterLabel(filters.type, intl)}</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuRadioGroup
+                value={filters.type}
+                onValueChange={(value) =>
+                  onFiltersChange({ ...filters, type: value as InboxTypeFilter })
+                }
+              >
+                <DropdownMenuRadioItem value="all">
+                  <FormattedMessage {...inboxListMessages.filterTypeAll} />
+                </DropdownMenuRadioItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    <FormattedMessage {...inboxListMessages.filterTypeGroupConversations} />
+                  </DropdownMenuLabel>
+                  {INBOX_CONVERSATION_TYPE_FILTERS.map((type) => (
+                    <DropdownMenuRadioItem key={type} value={type}>
+                      {inboxTypeFilterLabel(type, intl)}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    <FormattedMessage {...inboxListMessages.filterTypeGroupNotifications} />
+                  </DropdownMenuLabel>
+                  {INBOX_NOTIFICATION_TYPE_FILTERS.map((type) => (
+                    <DropdownMenuRadioItem key={type} value={type}>
+                      {inboxTypeFilterLabel(type, intl)}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className={cn("gap-1 font-normal", priorityActive && "border-grove-400/40")}
+                  aria-label={intl.formatMessage(inboxListMessages.filterPriorityAria)}
+                />
+              }
+            >
+              <span className="max-w-20 truncate">
+                {inboxPriorityFilterLabel(filters.priority, intl)}
+              </span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuRadioGroup
+                value={filters.priority}
+                onValueChange={(value) =>
+                  onFiltersChange({ ...filters, priority: value as InboxPriorityFilter })
+                }
+              >
+                {INBOX_PRIORITY_FILTERS.map((priority) => (
+                  <DropdownMenuRadioItem key={priority} value={priority}>
+                    {inboxPriorityFilterLabel(priority, intl)}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      {onMarkAllRead ? (
+        <div className="flex items-center justify-end">
+          <Button type="button" variant="ghost" size="xs" onClick={onMarkAllRead}>
+            <FormattedMessage {...inboxNotificationsMessages.markAllRead} />
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function notificationPreviewText(
+  notification: InboxIssueNotification,
+  actorName: string,
+  intl: IntlShape,
+): string {
+  switch (notification.type) {
+    case "qa_errors_increased":
+      return intl.formatMessage(inboxNotificationsMessages.qaErrorsIncreased, {
+        count: notification.payload.errorsChange ?? 0,
+      });
+    case "qa_scan_failed":
+      return intl.formatMessage(inboxNotificationsMessages.qaScanFailed);
+    default:
+      return notificationSecondaryText(
+        notification.payload.commentExcerpt,
+        intl.formatMessage(issueNotificationPreviewMessage(notification.type), {
+          actor: actorName,
+          issueTitle: notification.payload.issueTitle,
+        }),
+      );
+  }
+}
+
+function issueNotificationPreviewMessage(type: InboxIssueNotification["type"]): MessageDescriptor {
   switch (type) {
     case "assigned":
       return inboxNotificationsMessages.assigned;
@@ -128,48 +388,80 @@ function notificationPreviewMessage(type: InboxIssueNotification["type"]): Messa
 export const InboxList = memo(function InboxList({
   conversations,
   currentUser,
+  filters: filtersProp,
   hasMoreNotifications,
   isError,
   isLoading,
   isLoadingMoreNotifications,
   notifications,
+  onFiltersChange,
   onLoadMoreNotifications,
   onMarkAllRead,
-  onSelectConversation,
-  onSelectNotification,
+  onSelectItem,
+  itemHref,
   selection,
   unreadNotificationCount,
 }: {
   conversations: Conversation[];
   currentUser: InboxCurrentUser;
+  filters?: InboxListFilters;
   hasMoreNotifications: boolean;
   isError: boolean;
   isLoading: boolean;
   isLoadingMoreNotifications: boolean;
   notifications: InboxIssueNotification[];
+  onFiltersChange?: (filters: InboxListFilters) => void;
   onLoadMoreNotifications: () => void;
   onMarkAllRead?: () => void;
-  onSelectConversation: (conversationId: string) => void;
-  onSelectNotification: (notificationId: string) => void;
+  onSelectItem: (selection: InboxListItemSelection) => void;
+  itemHref?: InboxItemHref;
   selection: InboxSelection;
   unreadNotificationCount: number;
 }) {
-  const items = useMemo(
+  const [uncontrolledFilters, setUncontrolledFilters] = useState<InboxListFilters>(
+    DEFAULT_INBOX_LIST_FILTERS,
+  );
+  const filters = filtersProp ?? uncontrolledFilters;
+  const setFilters = onFiltersChange ?? setUncontrolledFilters;
+  const allItems = useMemo(
     () => buildInboxIndexItems(conversations, notifications),
     [conversations, notifications],
   );
-
+  const items = useMemo(() => filterInboxIndexItems(allItems, filters), [allItems, filters]);
+  const filtersActive = isInboxListFiltersActive(filters);
   const isComposingNew = selection?.kind === "new";
+  const showMarkAllRead = unreadNotificationCount > 0 && onMarkAllRead;
+  const isFilteredEmpty = !isLoading && !isError && allItems.length > 0 && items.length === 0;
+  const canLoadMoreFilteredPage = isFilteredEmpty && hasMoreNotifications;
+  const autoLoadPageKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!canLoadMoreFilteredPage || isLoadingMoreNotifications) {
+      return;
+    }
+    const pageKey = `${filters.priority}:${filters.read}:${filters.type}:${notifications.length}`;
+    if (autoLoadPageKeyRef.current === pageKey) {
+      return;
+    }
+    autoLoadPageKeyRef.current = pageKey;
+    onLoadMoreNotifications();
+  }, [
+    canLoadMoreFilteredPage,
+    filters.read,
+    filters.priority,
+    filters.type,
+    isLoadingMoreNotifications,
+    notifications.length,
+    onLoadMoreNotifications,
+  ]);
 
   return (
     <section className="flex max-h-[40svh] min-h-0 shrink-0 flex-col overflow-hidden border-border lg:h-full lg:max-h-none lg:shrink lg:border-r">
-      {unreadNotificationCount > 0 && onMarkAllRead ? (
-        <div className="flex shrink-0 items-center justify-end border-b border-border px-2 py-1.5">
-          <Button type="button" variant="ghost" size="xs" onClick={onMarkAllRead}>
-            <FormattedMessage {...inboxNotificationsMessages.markAllRead} />
-          </Button>
-        </div>
-      ) : null}
+      <InboxListFiltersToolbar
+        filters={filters}
+        onFiltersChange={setFilters}
+        onMarkAllRead={showMarkAllRead ? onMarkAllRead : undefined}
+      />
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {isLoading ? (
           <ConversationListSkeleton />
@@ -178,9 +470,33 @@ export const InboxList = memo(function InboxList({
             <FormattedMessage {...inboxNotificationsMessages.loadError} />
           </TypographyMuted>
         ) : items.length === 0 && !isComposingNew ? (
-          <TypographyMuted className="px-3 py-4">
-            <FormattedMessage {...inboxNotificationsMessages.empty} />
-          </TypographyMuted>
+          <div className="flex flex-col items-start gap-2 px-3 py-4">
+            <TypographyMuted>
+              <FormattedMessage
+                {...(filtersActive && isFilteredEmpty
+                  ? hasMoreNotifications
+                    ? inboxListMessages.filterEmptyHasMore
+                    : inboxListMessages.filterEmpty
+                  : inboxNotificationsMessages.empty)}
+              />
+            </TypographyMuted>
+            {filtersActive && isFilteredEmpty ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => setFilters(DEFAULT_INBOX_LIST_FILTERS)}
+              >
+                <FormattedMessage {...inboxListMessages.clearFilters} />
+              </Button>
+            ) : null}
+            {hasMoreNotifications ? (
+              <InboxLoadMoreNotifications
+                disabled={isLoadingMoreNotifications}
+                onLoadMore={onLoadMoreNotifications}
+              />
+            ) : null}
+          </div>
         ) : (
           <div className="flex flex-col gap-1">
             {isComposingNew ? <NewRequestListItem /> : null}
@@ -193,7 +509,8 @@ export const InboxList = memo(function InboxList({
                   isSelected={
                     selection?.kind === "conversation" && selection.id === item.conversation.id
                   }
-                  onSelect={onSelectConversation}
+                  href={itemHref?.({ kind: "conversation", id: item.conversation.id })}
+                  onSelect={(id) => onSelectItem({ kind: "conversation", id })}
                 />
               ) : (
                 <NotificationListItem
@@ -202,23 +519,16 @@ export const InboxList = memo(function InboxList({
                   isSelected={
                     selection?.kind === "notification" && selection.id === item.notification.id
                   }
-                  onSelect={onSelectNotification}
+                  href={itemHref?.({ kind: "notification", id: item.notification.id })}
+                  onSelect={(id) => onSelectItem({ kind: "notification", id })}
                 />
               ),
             )}
             {hasMoreNotifications ? (
-              <div className="px-2 py-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="w-full"
-                  disabled={isLoadingMoreNotifications}
-                  onClick={onLoadMoreNotifications}
-                >
-                  <FormattedMessage {...inboxNotificationsMessages.loadMore} />
-                </Button>
-              </div>
+              <InboxLoadMoreNotifications
+                disabled={isLoadingMoreNotifications}
+                onLoadMore={onLoadMoreNotifications}
+              />
             ) : null}
           </div>
         )}
@@ -227,13 +537,36 @@ export const InboxList = memo(function InboxList({
   );
 });
 
+function InboxLoadMoreNotifications({
+  disabled,
+  onLoadMore,
+}: {
+  disabled: boolean;
+  onLoadMore: () => void;
+}) {
+  return (
+    <div className="w-full px-2 py-1">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="w-full"
+        disabled={disabled}
+        onClick={onLoadMore}
+      >
+        <FormattedMessage {...inboxNotificationsMessages.loadMore} />
+      </Button>
+    </div>
+  );
+}
+
 function listItemClassName(isSelected: boolean, isUnread = false) {
   return cn(
     "grid w-full grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md px-2 py-2.5 text-left transition-colors",
     isSelected
       ? "bg-accent text-foreground"
-      : "text-foreground hover:bg-muted hover:text-foreground",
-    isUnread && !isSelected && "bg-muted/40",
+      : "text-foreground hover:bg-subtle hover:text-foreground",
+    isUnread && !isSelected && "bg-subtle",
   );
 }
 
@@ -251,12 +584,10 @@ function InboxListItemAvatar({
         className="absolute -end-0.5 -bottom-0.5 z-10 flex size-[18px] items-center justify-center rounded-full bg-card shadow-sm ring-2 ring-background"
         aria-label={visual.typeIconLabel}
       >
-        <HugeiconsIcon
-          icon={visual.typeIcon}
-          strokeWidth={2}
-          size={12}
-          className={cn("shrink-0", visual.badgeClassName)}
-        />
+        {createElement(visual.typeIcon, {
+          size: 12,
+          className: cn("shrink-0", visual.badgeClassName),
+        })}
       </span>
     </div>
   );
@@ -297,7 +628,7 @@ function InboxListItemContent({
 const NewRequestListItem = memo(function NewRequestListItem() {
   const intl = useIntl();
   const visual: InboxListItemVisual = {
-    typeIcon: SparklesIcon,
+    typeIcon: SparkleIcon,
     typeIconLabel: intl.formatMessage(inboxListMessages.newRequestTitle),
     badgeClassName: "text-primary",
   };
@@ -306,7 +637,7 @@ const NewRequestListItem = memo(function NewRequestListItem() {
     <div aria-current="page" className={listItemClassName(true)}>
       <InboxListItemAvatar visual={visual}>
         <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
-          <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-4" />
+          <ChatCircleIcon className="size-4" />
         </AvatarFallback>
       </InboxListItemAvatar>
       <InboxListItemContent
@@ -345,11 +676,13 @@ function ConversationListSkeleton() {
 const ConversationListItem = memo(function ConversationListItem({
   conversation,
   currentUser,
+  href,
   isSelected,
   onSelect,
 }: {
   conversation: Conversation;
   currentUser: InboxCurrentUser;
+  href?: string;
   isSelected: boolean;
   onSelect: (conversationId: string) => void;
 }) {
@@ -364,13 +697,8 @@ const ConversationListItem = memo(function ConversationListItem({
     : intl.formatMessage(inboxListMessages.noMessagesYet);
   const visual = getConversationListItemVisual(conversation.source, intl);
 
-  return (
-    <button
-      type="button"
-      aria-pressed={isSelected}
-      onClick={() => onSelect(conversation.id)}
-      className={listItemClassName(isSelected)}
-    >
+  const content = (
+    <>
       <InboxListItemAvatar visual={visual}>
         {participantAvatar.imageUrl ? (
           <AvatarImage src={participantAvatar.imageUrl} alt={participantAvatar.alt} />
@@ -384,15 +712,38 @@ const ConversationListItem = memo(function ConversationListItem({
         subtitle={preview}
         timestamp={formatRelativeTime(conversation.lastMessageAt, intl)}
       />
+    </>
+  );
+  const className = cn(listItemClassName(isSelected), "no-underline");
+
+  return href ? (
+    <Link
+      href={href}
+      aria-current={isSelected ? "page" : undefined}
+      onNavigate={() => onSelect(conversation.id)}
+      className={className}
+    >
+      {content}
+    </Link>
+  ) : (
+    <button
+      type="button"
+      aria-current={isSelected ? "page" : undefined}
+      onClick={() => onSelect(conversation.id)}
+      className={className}
+    >
+      {content}
     </button>
   );
 });
 
 const NotificationListItem = memo(function NotificationListItem({
+  href,
   notification,
   isSelected,
   onSelect,
 }: {
+  href?: string;
   notification: InboxIssueNotification;
   isSelected: boolean;
   onSelect: (notificationId: string) => void;
@@ -400,28 +751,18 @@ const NotificationListItem = memo(function NotificationListItem({
   const intl = useIntl();
   const actorName =
     notification.actor?.displayName || intl.formatMessage(inboxNotificationsMessages.someone);
-  const preview = intl.formatMessage(notificationPreviewMessage(notification.type), {
-    actor: actorName,
-    issueTitle: notification.payload.issueTitle,
-  });
-  const secondary = notificationSecondaryText(notification.payload.commentExcerpt, preview);
+  const secondary = notificationPreviewText(notification, actorName, intl);
   const isUnread = !notification.readAt;
   const avatarLabel = actorName.slice(0, 1).toUpperCase() || "?";
   const visual = getNotificationListItemVisual(notification.type, intl);
-
-  return (
-    <button
-      type="button"
-      aria-pressed={isSelected}
-      onClick={() => onSelect(notification.id)}
-      className={listItemClassName(isSelected, isUnread)}
-    >
+  const content = (
+    <>
       <InboxListItemAvatar visual={visual}>
         {notification.actor?.avatarUrl ? (
           <AvatarImage src={notification.actor.avatarUrl} alt={actorName} />
         ) : null}
         <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
-          {avatarLabel}
+          {notification.qaRunId ? <CheckCircleIcon className="size-4" /> : avatarLabel}
         </AvatarFallback>
       </InboxListItemAvatar>
       <InboxListItemContent
@@ -430,6 +771,30 @@ const NotificationListItem = memo(function NotificationListItem({
         timestamp={formatRelativeTime(notification.createdAt, intl)}
         titleWeight={isUnread ? "bold" : "regular"}
       />
+    </>
+  );
+
+  const className = cn(listItemClassName(isSelected, isUnread), "no-underline");
+
+  return href ? (
+    <Link
+      href={href}
+      aria-current={isSelected ? "page" : undefined}
+      data-unread={isUnread ? "true" : undefined}
+      onNavigate={() => onSelect(notification.id)}
+      className={className}
+    >
+      {content}
+    </Link>
+  ) : (
+    <button
+      type="button"
+      aria-current={isSelected ? "page" : undefined}
+      data-unread={isUnread ? "true" : undefined}
+      onClick={() => onSelect(notification.id)}
+      className={className}
+    >
+      {content}
     </button>
   );
 });

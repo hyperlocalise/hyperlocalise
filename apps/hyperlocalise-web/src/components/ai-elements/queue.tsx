@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon, AttachmentIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, PaperclipIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -158,7 +157,7 @@ export const QueueItemFile = ({ children, className, ...props }: QueueItemFilePr
     className={cn("flex items-center gap-1 rounded border bg-muted px-2 py-1 text-xs", className)}
     {...props}
   >
-    <HugeiconsIcon icon={AttachmentIcon} size={12} />
+    <PaperclipIcon size={12} />
     <span className="max-w-[100px] truncate">{children}</span>
   </span>
 );
@@ -222,10 +221,7 @@ export const QueueSectionLabel = ({
 
   return (
     <span className={cn("flex items-center gap-2", className)} {...props}>
-      <HugeiconsIcon
-        icon={ArrowDown01Icon}
-        className="size-4 transition-transform group-data-[state=closed]:-rotate-90"
-      />
+      <CaretDownIcon className="size-4 transition-transform group-data-[state=closed]:-rotate-90" />
       {icon}
       <span>
         {count === undefined

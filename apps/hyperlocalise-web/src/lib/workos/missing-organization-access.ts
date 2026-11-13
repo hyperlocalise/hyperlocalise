@@ -17,7 +17,7 @@ import { reconcileWorkosMembershipsForUser } from "@/api/auth/workos-membership-
 import { promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
-import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+import { isReplacingWorkosMembershipSql } from "@/lib/workos/constants";
 
 const logger = createLogger("missing-organization-access");
 
@@ -25,7 +25,7 @@ const pendingMembershipConditions = [
   eq(schema.organizations.lifecycleStatus, "active"),
   or(
     isNull(schema.organizationMemberships.workosMembershipId),
-    eq(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+    isReplacingWorkosMembershipSql(schema.organizationMemberships.workosMembershipId),
   ),
 ];
 
@@ -66,13 +66,16 @@ export async function hasPendingOrganizationMembershipForWorkosUser(
 type RedirectForMissingOrganizationAccessInput = {
   email: string;
   workosUserId?: string;
+  emailVerified?: boolean;
 };
 
 export async function redirectForMissingOrganizationAccess(
   input: RedirectForMissingOrganizationAccessInput | string,
 ): Promise<never> {
-  const { email, workosUserId } =
-    typeof input === "string" ? { email: input, workosUserId: undefined } : input;
+  const { email, workosUserId, emailVerified } =
+    typeof input === "string"
+      ? { email: input, workosUserId: undefined, emailVerified: false }
+      : input;
 
   if (await hasPendingOrganizationMembership(email)) {
     if (workosUserId) {
@@ -102,6 +105,12 @@ export async function redirectForMissingOrganizationAccess(
             }
           : {}),
       });
+    }
+
+    // The picker lists a verified person's invitations with Accept, and lets them create
+    // a workspace when none can be accepted, such as one being replaced.
+    if (workosUserId && emailVerified) {
+      redirect("/auth/select-organization");
     }
 
     redirect("/auth/access-denied?reason=pending-invite");

@@ -66,9 +66,9 @@ describe("plan usage helpers", () => {
   });
 
   it("computes usage progress and summary copy", () => {
-    expect(getUsageProgressPercent({ usage: 1_200_000, granted: 2_000_000 })).toBe(60);
-    expect(formatPrimaryUsageSummary({ usage: 1_200_000, granted: 2_000_000 })).toMatch(
-      /1\.2M.*2M.*AI credits used/,
+    expect(getUsageProgressPercent({ usage: 12, granted: 20 })).toBe(60);
+    expect(formatPrimaryUsageSummary({ usage: 12, granted: 20 })).toMatch(
+      /\$12\.00.*\$20\.00.*AI credit used/,
     );
   });
 
@@ -83,9 +83,9 @@ describe("plan usage helpers", () => {
       ],
       balances: {
         ai_tokens: {
-          usage: 1_200_000,
-          granted: 2_000_000,
-          remaining: 800_000,
+          usage: 1_200,
+          granted: 2_000,
+          remaining: 800,
         },
       },
       plans: [{ id: "enterprise", name: "Enterprise" }],
@@ -95,7 +95,7 @@ describe("plan usage helpers", () => {
     expect(summary.renewalCopy).toMatch(/^Renews on /);
     expect(summary.renewalLabel).toContain("2027");
     expect(summary.usageProgressPercent).toBe(60);
-    expect(summary.usageSummary).toMatch(/AI credits used/);
+    expect(summary.usageSummary).toMatch(/AI credit used/);
 
     const cancelingSummary = resolvePlanUsageSummary({
       subscriptions: [
@@ -108,9 +108,9 @@ describe("plan usage helpers", () => {
       ],
       balances: {
         ai_tokens: {
-          usage: 1_200_000,
-          granted: 2_000_000,
-          remaining: 800_000,
+          usage: 1_200,
+          granted: 2_000,
+          remaining: 800,
         },
       },
       plans: [{ id: "enterprise", name: "Enterprise" }],
@@ -126,7 +126,7 @@ describe("plan usage helpers", () => {
         isScheduledForCancel: false,
         renewalLabel: null,
         renewalCopy: null,
-        usageSummary: "0 / 0 AI credits used",
+        usageSummary: "$0.00 / $0.00 AI credit used",
         usageProgressPercent: null,
         unlimited: false,
       }),
@@ -138,7 +138,7 @@ describe("plan usage helpers", () => {
         isScheduledForCancel: false,
         renewalLabel: "Aug 24, 2027",
         renewalCopy: "Renews on Aug 24, 2027",
-        usageSummary: "1.2M / 2M AI credits used",
+        usageSummary: "$1,200.00 / $2,000.00 AI credit used",
         usageProgressPercent: 60,
         unlimited: false,
       }),

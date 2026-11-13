@@ -42,6 +42,7 @@ type MockVirtualizer = {
     lane: number;
   }>;
   getTotalSize: () => number;
+  scrollToIndex: (index: number, options: { align: string }) => void;
   measureElement: () => undefined;
 };
 
@@ -73,6 +74,7 @@ vi.mock("@tanstack/react-virtual", () => ({
     const virtualizer: MockVirtualizer = {
       getVirtualItems: () => virtualItems,
       getTotalSize: () => count * rowHeight,
+      scrollToIndex: vi.fn(),
       measureElement: () => undefined,
     };
 
@@ -209,7 +211,7 @@ describe("ContentEditorWorkspaceContainer queue navigation", () => {
     await user.click(targetEditor);
     await user.keyboard(" unsaved");
     await user.click(await screen.findByRole("button", { name: "Filter queue" }));
-    await user.click(await screen.findByRole("menuitemradio", { name: "Approved" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Approved" }));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Filter queue" })).toHaveTextContent("Approved");
@@ -261,7 +263,11 @@ describe("ContentEditorWorkspaceContainer side-by-side approve", () => {
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     await waitFor(() =>
-      expect(onApprove).toHaveBeenCalledWith("seg-02", expect.stringContaining(" unsaved")),
+      expect(onApprove).toHaveBeenCalledWith(
+        "seg-02",
+        expect.stringContaining(" unsaved"),
+        expect.objectContaining({ formatChecks: expect.any(Array) }),
+      ),
     );
   });
 });

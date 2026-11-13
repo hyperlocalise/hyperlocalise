@@ -32,6 +32,7 @@ import type { ActivityLogEventInput } from "@/lib/activity-log/activity-log-cont
 import { createLogger } from "@/lib/log";
 import * as schema from "@/lib/database/schema";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
+import { sendOnboardingWelcomeEmail } from "@/lib/onboarding/onboarding-welcome-email-service";
 import { type WorkosWebhookEvent, workosWebhookEventSchema } from "./workos-webhook.schema";
 
 const logger = createLogger("workos-webhook");
@@ -142,6 +143,7 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
     await removePendingOrganizationMembershipForInvite(db, {
       workosOrganizationId,
       email,
+      recordActivity: true,
     });
 
     return;
@@ -157,13 +159,22 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
 
     await promoteInvitedPlaceholderUser(db, { email, workosUserId });
 
-    await syncWorkosUser(db, {
+    const syncedUser = await syncWorkosUser(db, {
       workosUserId,
       email,
       firstName: readString(data, "first_name", "firstName"),
       lastName: readString(data, "last_name", "lastName"),
       avatarUrl: readString(data, "profile_picture_url", "avatar", "avatar_url"),
     });
+
+    if (event.event === "user.created") {
+      await sendOnboardingWelcomeEmail({
+        userId: syncedUser.id,
+        email: syncedUser.email,
+        firstName: readString(data, "first_name", "firstName"),
+        database: db,
+      });
+    }
 
     return;
   }
@@ -293,24 +304,28 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
       throw error;
     }
 
-    await syncWorkosIdentity(db, {
-      user: {
-        workosUserId,
-        email: existingUser.email,
-        firstName: readString(data, "first_name", "firstName", "user_first_name"),
-        lastName: readString(data, "last_name", "lastName", "user_last_name"),
-        avatarUrl: readString(data, "profile_picture_url", "avatar", "avatar_url"),
+    await syncWorkosIdentity(
+      db,
+      {
+        user: {
+          workosUserId,
+          email: existingUser.email,
+          firstName: readString(data, "first_name", "firstName", "user_first_name"),
+          lastName: readString(data, "last_name", "lastName", "user_last_name"),
+          avatarUrl: readString(data, "profile_picture_url", "avatar", "avatar_url"),
+        },
+        organization: {
+          workosOrganizationId,
+          name: existingOrg.name,
+          slug: existingOrg.slug ?? undefined,
+        },
+        membership: {
+          workosMembershipId,
+          role,
+        },
       },
-      organization: {
-        workosOrganizationId,
-        name: existingOrg.name,
-        slug: existingOrg.slug ?? undefined,
-      },
-      membership: {
-        workosMembershipId,
-        role,
-      },
-    });
+      { recordActivity: true },
+    );
   }
 }
 

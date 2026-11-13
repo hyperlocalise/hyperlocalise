@@ -1,4 +1,9 @@
-import type { FigmaFileInfo, SandboxToUiMessage, UiToSandboxMessage } from "./plugin-messages";
+import type {
+  FigmaFileInfo,
+  FigmaPageOption,
+  SandboxToUiMessage,
+  UiToSandboxMessage,
+} from "./plugin-messages";
 import { SETTINGS_STORAGE_KEY } from "./plugin-messages";
 import {
   PAGE_BINDING_KEY,
@@ -6,19 +11,52 @@ import {
   serializePageJobBinding,
   type FigmaPageJobBinding,
 } from "./page-binding";
-import { createFigmaSegment } from "./segment-file";
+import { buildFigmaApplyTextIndex, resolveFigmaApplyTarget } from "./apply-translations";
+import { normalizeSegmentText } from "./segment-normalize";
+import { loadFontsForTextNodes } from "./load-text-node-fonts";
+import { createFigmaSegment, readStampedSegmentKey } from "./segment-file";
+import { clampPluginUiHeight, PLUGIN_UI_WIDTH } from "./plugin-ui-size";
 import { hadLegacyFigmaSession, mergeSettings } from "./settings";
+import {
+  clearPreviewSource,
+  collectDesignFrames,
+  countPreviewedNodes,
+  exportDesignFrame,
+  previewTranslations,
+  readFileLink,
+  readSelectedDesignText,
+  restorePreviewSource,
+  saveFileLink,
+  scanDesignText,
+  selectNodes,
+  sourceTextOf,
+  writeKeyLinks,
+} from "./design-sandbox";
 
-figma.showUI(__html__, { themeColors: true, width: 360, height: 720 });
+figma.showUI(__html__, {
+  themeColors: true,
+  width: PLUGIN_UI_WIDTH,
+  height: clampPluginUiHeight(280),
+});
 
 figma.on("currentpagechange", () => {
-  postToUi({ type: "page-changed", file: currentFileInfo(), binding: readPageBinding() });
+  postToUi({
+    type: "page-changed",
+    file: currentFileInfo(),
+    pages: listPages(),
+    binding: readPageBinding(),
+  });
 });
 
 figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
   try {
     if (msg.type === "cancel") {
       figma.closePlugin();
+      return;
+    }
+
+    if (msg.type === "resize-ui") {
+      figma.ui.resize(PLUGIN_UI_WIDTH, clampPluginUiHeight(msg.height));
       return;
     }
 
@@ -33,6 +71,7 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
         type: "ready",
         settings,
         file: currentFileInfo(),
+        pages: listPages(),
         binding: readPageBinding(),
         legacySessionCleared,
       });
@@ -57,17 +96,89 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
       return;
     }
 
+    if (msg.type === "binding-read") {
+      const page = await pageNode(msg.pageId);
+      postToUi({
+        type: "binding-loaded",
+        pageId: msg.pageId,
+        binding: page ? readPageBindingOnPage(page) : null,
+      });
+      return;
+    }
+
     if (msg.type === "extract") {
-      const textNodes = collectTextNodes();
-      const segments = extractSegments(textNodes, msg.preserveFormatting);
-      postToUi({ type: "extracted", segments, file: currentFileInfo() });
+      const page = await requirePage(msg.pageId);
+      const textNodes = msg.wholePage ? collectAllTextNodesOnPage(page) : collectTextNodes(page);
+      const segments = extractSegments(textNodes);
+      postToUi({ type: "extracted", segments, file: fileInfoForPage(page) });
       return;
     }
 
     if (msg.type === "apply") {
-      const textNodes = collectTextNodes();
-      const count = await applyTranslations(textNodes, msg.translations, msg.preserveFormatting);
+      const page = await requirePage(msg.pageId);
+      const textNodes = collectAllTextNodesOnPage(page);
+      const count = await applyTranslations(textNodes, msg.translations, msg.sourceByKey);
       postToUi({ type: "applied", count });
+      return;
+    }
+
+    if (msg.type === "design-scan") {
+      const page = await requirePage(msg.pageId);
+      postToUi({
+        type: "design-scanned",
+        nodes: scanDesignText(page, msg.selectionOnly),
+        fileLink: readFileLink(),
+        figmaFileKey: figma.fileKey ?? null,
+        previewing: countPreviewedNodes(page),
+      });
+      return;
+    }
+
+    if (msg.type === "design-selection") {
+      const page = await requirePage(msg.pageId);
+      postToUi({ type: "design-selection-read", nodes: readSelectedDesignText(page) });
+      return;
+    }
+
+    if (msg.type === "design-link") {
+      postToUi({ type: "design-linked", count: await writeKeyLinks(msg.links) });
+      return;
+    }
+
+    if (msg.type === "design-frames") {
+      const page = await requirePage(msg.pageId);
+      postToUi({ type: "design-frames-read", ...collectDesignFrames(page) });
+      return;
+    }
+
+    if (msg.type === "design-export-frame") {
+      postToUi({ type: "design-frame-exported", frame: await exportDesignFrame(msg.frame) });
+      return;
+    }
+
+    if (msg.type === "design-preview") {
+      const page = await requirePage(msg.pageId);
+      postToUi({
+        type: "design-previewed",
+        ...(await previewTranslations(page, msg.translations)),
+      });
+      return;
+    }
+
+    if (msg.type === "design-restore") {
+      const page = await requirePage(msg.pageId);
+      postToUi({ type: "design-restored", count: await restorePreviewSource(page) });
+      return;
+    }
+
+    if (msg.type === "design-select-nodes") {
+      postToUi({ type: "design-nodes-selected", count: await selectNodes(msg.nodeIds) });
+      return;
+    }
+
+    if (msg.type === "design-file-link-set") {
+      saveFileLink(msg.url);
+      postToUi({ type: "design-file-link-saved" });
     }
   } catch (error) {
     postToUi({
@@ -78,7 +189,39 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
 };
 
 function readPageBinding(): FigmaPageJobBinding | null {
-  return parsePageJobBinding(figma.currentPage.getPluginData(PAGE_BINDING_KEY));
+  return readPageBindingOnPage(figma.currentPage);
+}
+
+function readPageBindingOnPage(page: PageNode): FigmaPageJobBinding | null {
+  return parsePageJobBinding(page.getPluginData(PAGE_BINDING_KEY));
+}
+
+function listPages(): FigmaPageOption[] {
+  return figma.root.children
+    .filter((node): node is PageNode => node.type === "PAGE")
+    .map((page) => ({
+      pageId: page.id,
+      pageName: page.name,
+    }));
+}
+
+async function requirePage(pageId: string): Promise<PageNode> {
+  const page = await pageNode(pageId);
+  if (!page) {
+    throw new Error("Page not found.");
+  }
+  // `dynamic-page` only loads the current page; `findAll` throws on other pages until loaded.
+  await page.loadAsync();
+  return page;
+}
+
+function fileInfoForPage(page: PageNode): FigmaFileInfo {
+  return {
+    fileKey: resolveFileKey(),
+    fileName: figma.root.name,
+    pageId: page.id,
+    pageName: page.name,
+  };
 }
 
 async function pageNode(pageId: string): Promise<PageNode | null> {
@@ -114,9 +257,10 @@ function resolveFileKey(): string {
     return existing;
   }
 
+  const webCrypto = globalThis.crypto;
   const generated =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? `local-${crypto.randomUUID()}`
+    webCrypto && typeof webCrypto.randomUUID === "function"
+      ? `local-${webCrypto.randomUUID()}`
       : `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   figma.root.setPluginData(LOCAL_FILE_ID_KEY, generated);
   return generated;
@@ -131,8 +275,8 @@ function currentFileInfo(): FigmaFileInfo {
   };
 }
 
-function collectTextNodes(): TextNode[] {
-  const selected = figma.currentPage.selection.flatMap((node) => {
+function collectTextNodes(page: PageNode): TextNode[] {
+  const selected = page.selection.flatMap((node) => {
     if (node.type === "TEXT") {
       return [node];
     }
@@ -146,41 +290,30 @@ function collectTextNodes(): TextNode[] {
     return selected;
   }
 
-  return figma.currentPage.findAll((node) => node.type === "TEXT") as TextNode[];
+  return collectAllTextNodesOnPage(page);
 }
 
-function extractSegments(nodes: TextNode[], preserveFormatting: boolean) {
+function collectAllTextNodesOnPage(page: PageNode): TextNode[] {
+  return page.findAll((node) => node.type === "TEXT") as TextNode[];
+}
+
+function extractSegments(nodes: TextNode[]) {
   const segments = [];
 
   for (const node of nodes) {
-    if (!node.characters.trim()) {
+    // A design-context preview keeps the real source text in plugin data.
+    const text = sourceTextOf(node);
+    if (!text.trim()) {
       continue;
     }
 
-    if (!preserveFormatting) {
-      segments.push(
-        createFigmaSegment({
-          nodeId: node.id,
-          regionIndex: 0,
-          text: node.characters,
-        }),
-      );
-      continue;
-    }
-
-    const styled = node.getStyledTextSegments(["fontName"]);
-    styled.forEach((segment, regionIndex) => {
-      if (!segment.characters.trim()) {
-        return;
-      }
-      segments.push(
-        createFigmaSegment({
-          nodeId: node.id,
-          regionIndex,
-          text: segment.characters,
-        }),
-      );
-    });
+    segments.push(
+      createFigmaSegment({
+        node,
+        regionIndex: 0,
+        text: normalizeSegmentText(text),
+      }),
+    );
   }
 
   return segments;
@@ -189,74 +322,58 @@ function extractSegments(nodes: TextNode[], preserveFormatting: boolean) {
 async function applyTranslations(
   nodes: TextNode[],
   translations: Record<string, string>,
-  preserveFormatting: boolean,
+  sourceByKey: Record<string, string>,
 ) {
   let applied = 0;
+  const textIndex = buildFigmaApplyTextIndex({ sourceByKey, translations });
+  const updates: Array<{ node: TextNode; nextText: string }> = [];
 
   for (const node of nodes) {
-    if (!node.characters.trim()) {
+    // During a design-context preview the canvas shows a translation; match on the source.
+    const nodeText = sourceTextOf(node);
+    if (!nodeText.trim()) {
       continue;
     }
 
-    await loadFontsForNode(node);
-
-    if (!preserveFormatting) {
-      const nextText =
-        translations[
-          createFigmaSegment({
-            nodeId: node.id,
-            regionIndex: 0,
-            text: node.characters,
-          }).key
-        ];
-      if (!nextText || nextText === node.characters) {
-        continue;
-      }
-      node.characters = nextText;
-      applied += 1;
+    const stampedKey = readStampedSegmentKey(node);
+    const nextText = resolveFigmaApplyTarget({
+      nodeText,
+      stampedKey,
+      translations,
+      textIndex,
+      sourceByKey,
+    });
+    if (!nextText) {
+      continue;
+    }
+    if (nextText === node.characters) {
+      clearPreviewSource(node);
       continue;
     }
 
-    const styled = node.getStyledTextSegments(["fontName"]);
-    for (let index = styled.length - 1; index >= 0; index -= 1) {
-      const segment = styled[index];
-      if (!segment) {
-        continue;
-      }
-      const nextText =
-        translations[
-          createFigmaSegment({
-            nodeId: node.id,
-            regionIndex: index,
-            text: segment.characters,
-          }).key
-        ];
-      if (!nextText || nextText === segment.characters) {
-        continue;
-      }
+    updates.push({ node, nextText });
+  }
 
-      node.deleteCharacters(segment.start, segment.end);
-      node.insertCharacters(segment.start, nextText);
-      await figma.loadFontAsync(segment.fontName);
-      node.setRangeFontName(segment.start, segment.start + nextText.length, segment.fontName);
-      applied += 1;
-    }
+  const writable = updates.filter((entry) => !entry.node.hasMissingFont);
+  const skippedMissingFont = updates.length - writable.length;
+  if (skippedMissingFont > 0) {
+    figma.notify(
+      `Skipped ${skippedMissingFont} text ${skippedMissingFont === 1 ? "layer" : "layers"} with missing fonts.`,
+    );
+  }
+
+  if (writable.length === 0) {
+    return 0;
+  }
+
+  await loadFontsForTextNodes(writable.map((entry) => entry.node));
+
+  for (const { node, nextText } of writable) {
+    node.characters = nextText;
+    // Apply supersedes a design-context preview; Restore must not undo it.
+    clearPreviewSource(node);
+    applied += 1;
   }
 
   return applied;
-}
-
-async function loadFontsForNode(node: TextNode) {
-  if (node.fontName !== figma.mixed) {
-    await figma.loadFontAsync(node.fontName);
-    return;
-  }
-
-  const length = node.characters.length;
-  for (let index = 0; index < length; index += 1) {
-    const fontName = node.getRangeFontName(index, index + 1);
-    if (fontName !== figma.mixed) {
-      await figma.loadFontAsync(fontName);
-    }
-  }
 }

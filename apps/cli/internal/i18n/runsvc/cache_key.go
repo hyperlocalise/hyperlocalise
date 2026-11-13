@@ -25,9 +25,9 @@ func sourceContextFingerprint(task Task) string {
 
 func sourceContextFingerprintForLock(task Task) string {
 	effectiveContext := sanitizePromptContext(task.SourceContext, maxSourceContextLen)
-	if isMarkdownEntryKey(task.EntryKey) {
-		// Markdown context is prompt-only. Including structural or adjacent hints
-		// in the lock hash makes unchanged md.<hash> entries miss after inserts.
+	if isDocumentEntryKey(task.EntryKey) {
+		// Document context is prompt-only. Including structural or adjacent hints
+		// in the lock hash makes unchanged md./adoc. entries miss after inserts.
 		effectiveContext = markdownLockSourceContext
 	}
 	return hashSourceText(strings.Join([]string{
@@ -39,7 +39,7 @@ func sourceContextFingerprintForLock(task Task) string {
 // Non-Markdown tasks reuse the precomputed sourceContextFingerprint; Markdown keeps
 // the lock-specific constant context so structural hints do not invalidate entries.
 func lockSourceContextFingerprint(task Task) string {
-	if isMarkdownEntryKey(task.EntryKey) {
+	if isDocumentEntryKey(task.EntryKey) {
 		return sourceContextFingerprintForLock(task)
 	}
 	return task.sourceContextFingerprint
@@ -47,6 +47,18 @@ func lockSourceContextFingerprint(task Task) string {
 
 func isMarkdownEntryKey(key string) bool {
 	return strings.HasPrefix(strings.TrimSpace(key), "md.")
+}
+
+func isAsciiDocEntryKey(key string) bool {
+	return strings.HasPrefix(strings.TrimSpace(key), "adoc.")
+}
+
+func isPlainTextEntryKey(key string) bool {
+	return strings.HasPrefix(strings.TrimSpace(key), "txt.")
+}
+
+func isDocumentEntryKey(key string) bool {
+	return isMarkdownEntryKey(key) || isAsciiDocEntryKey(key) || isPlainTextEntryKey(key)
 }
 
 func legacyMarkdownContextSensitiveLockTaskHashCandidates(task Task) []string {
@@ -174,26 +186,41 @@ func precomputeStableTaskCacheFields(task *Task) {
 	}
 
 	if isImageTask(*task) {
-		task.sourceTextHash = strings.TrimSpace(task.sourceFingerprint)
-		task.sourceContextFingerprint = sourceContextFingerprint(Task{})
+		if task.sourceTextHash == "" {
+			task.sourceTextHash = strings.TrimSpace(task.sourceFingerprint)
+		}
+		if task.sourceContextFingerprint == "" {
+			task.sourceContextFingerprint = sourceContextFingerprint(Task{})
+		}
 		return
 	}
 
-	task.sourceTextHash = hashSourceText(normalizeSourceForCache(task.SourceText))
-	task.sourceContextFingerprint = sourceContextFingerprint(*task)
+	if task.sourceTextHash == "" {
+		task.sourceTextHash = hashSourceText(normalizeSourceForCache(task.SourceText))
+	}
+	if task.sourceContextFingerprint == "" {
+		task.sourceContextFingerprint = sourceContextFingerprint(*task)
+	}
 }
 
 func lockTaskHash(task Task) string {
 	precomputeStableTaskCacheFields(&task)
-	return lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), false)
+	return lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), false, true)
+}
+
+// legacyPreTranslationTypeLockTaskHash reproduces the pre-translation-type
+// hash for backward-compatible LLM lock matching.
+func legacyPreTranslationTypeLockTaskHash(task Task) string {
+	precomputeStableTaskCacheFields(&task)
+	return lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), false, false)
 }
 
 func legacyContextSensitiveLockTaskHash(task Task) string {
 	precomputeStableTaskCacheFields(&task)
-	return lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, false)
+	return lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, false, false)
 }
 
-func lockTaskHashWithContextFingerprint(task Task, sourceContextFingerprint string, includeLegacyDefaults bool) string {
+func lockTaskHashWithContextFingerprint(task Task, sourceContextFingerprint string, includeLegacyDefaults bool, includeTranslationType bool) string {
 	parts := []string{
 		"source_norm_hash=" + task.sourceTextHash,
 		"source_locale=" + strings.TrimSpace(task.SourceLocale),
@@ -201,8 +228,14 @@ func lockTaskHashWithContextFingerprint(task Task, sourceContextFingerprint stri
 		"provider=" + strings.TrimSpace(task.Provider),
 		"model=" + strings.TrimSpace(task.Model),
 		"profile=" + strings.TrimSpace(task.ProfileName),
-		"prompt_version_hash=" + strings.TrimSpace(task.PromptVersion),
 	}
+	if includeTranslationType {
+		parts = append(parts, "translation_type="+strings.TrimSpace(task.TranslationType))
+		if origin := strings.TrimSpace(task.CopyFrom); origin != "" {
+			parts = append(parts, "copy_from="+origin)
+		}
+	}
+	parts = append(parts, "prompt_version_hash="+strings.TrimSpace(task.PromptVersion))
 	if includeLegacyDefaults {
 		parts = append(parts, "glossary_termbase_version_hash=none")
 	}
@@ -243,10 +276,10 @@ func legacyDefaultRetrievalSnapshot() string {
 
 func legacyDefaultLockTaskHash(task Task) string {
 	precomputeStableTaskCacheFields(&task)
-	return lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), true)
+	return lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), true, false)
 }
 
 func legacyDefaultContextSensitiveLockTaskHash(task Task) string {
 	precomputeStableTaskCacheFields(&task)
-	return lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, true)
+	return lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, true, false)
 }

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Mic01Icon, SquareIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { MicrophoneIcon, SquareIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
@@ -391,8 +390,8 @@ export const SpeechInput = ({
         aria-label={ariaLabel}
       >
         {isProcessing && <Spinner />}
-        {!isProcessing && isListening && <HugeiconsIcon icon={SquareIcon} className="size-4" />}
-        {!(isProcessing || isListening) && <HugeiconsIcon icon={Mic01Icon} className="size-4" />}
+        {!isProcessing && isListening && <SquareIcon className="size-4" />}
+        {!(isProcessing || isListening) && <MicrophoneIcon className="size-4" />}
       </Button>
     </div>
   );

@@ -16,6 +16,7 @@ import {
   buildCrowdinGlossaryConcordanceUrl,
   buildGlossaryConceptDetailUrl,
   buildGlossaryDetailUrl,
+  glossaryUsesNativeDetailPage,
   resolveGlossaryDetailId,
 } from "./glossary-detail-id";
 
@@ -111,6 +112,19 @@ describe("buildCrowdinGlossaryConcordanceUrl", () => {
         externalResourceId: "718785",
       }),
     ).toBe("/org/test-glossary/glossaries/crowdin:glossary:718785");
+  });
+});
+
+describe("glossaryUsesNativeDetailPage", () => {
+  const nativeId = "22222222-2222-4222-8222-222222222222";
+
+  it("uses the native detail page for native and mirrored uuid glossaries", () => {
+    expect(glossaryUsesNativeDetailPage(nativeId, "native")).toBe(true);
+    expect(glossaryUsesNativeDetailPage(nativeId, "external_tms")).toBe(true);
+  });
+
+  it("uses the provider detail page for live Crowdin glossary ids", () => {
+    expect(glossaryUsesNativeDetailPage("crowdin:glossary:718785", "external_tms")).toBe(false);
   });
 });
 

@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useMemo, useState } from "react";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { useIntl, type MessageDescriptor } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -363,12 +362,7 @@ export function PartOfSpeechPicker({
         ) : (
           <span className="truncate text-muted-foreground">—</span>
         )}
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
-          strokeWidth={2}
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
+        <CaretDownIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </PopoverTrigger>
       <PopoverContent
         align="start"
@@ -435,12 +429,7 @@ export function GenderPicker({
         ) : (
           <span className="truncate text-muted-foreground">—</span>
         )}
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
-          strokeWidth={2}
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
+        <CaretDownIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </PopoverTrigger>
       <PopoverContent
         align="start"
@@ -505,12 +494,7 @@ export function TermTypePicker({
         ) : (
           <span className="truncate text-muted-foreground">—</span>
         )}
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
-          strokeWidth={2}
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
+        <CaretDownIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </PopoverTrigger>
       <PopoverContent
         align="start"

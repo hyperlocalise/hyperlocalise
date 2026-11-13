@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -21,8 +21,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 const sandboxMocks = vi.hoisted(() => {
   const get = vi.fn();
   const runCommand = vi.fn();
+  const writeFiles = vi.fn();
 
-  return { get, runCommand };
+  return { get, runCommand, writeFiles };
 });
 
 vi.mock("@vercel/sandbox", () => ({
@@ -32,7 +33,8 @@ vi.mock("@vercel/sandbox", () => ({
 }));
 
 import {
-  buildSandboxWriteFileScript,
+  buildSandboxWritePathGuardScript,
+  DEFAULT_SANDBOX_COMMAND_TIMEOUT_MS,
   SANDBOX_WRITE_GIT_METADATA_DENIED,
   SANDBOX_WRITE_OUTSIDE_WORKSPACE,
   SANDBOX_WRITE_SYMLINK_DENIED,
@@ -50,8 +52,8 @@ async function createWorkspaceRoot() {
   return root;
 }
 
-async function runWriteGuard(cwd: string, path: string, content: string) {
-  const script = buildSandboxWriteFileScript(path, Buffer.from(content).toString("base64"));
+async function runWriteGuard(cwd: string, path: string) {
+  const script = buildSandboxWritePathGuardScript(path);
   try {
     await execFileAsync("bash", ["-c", script], { cwd });
     return { exitCode: 0 };
@@ -148,6 +150,40 @@ describe("VercelSandboxRuntime", () => {
     expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
       "bash",
       expect.arrayContaining(["-lc", expect.stringContaining(`printf '%s' "$resolved"`)]),
+      expect.anything(),
+    );
+  });
+
+  it("bounds every command with a default timeout and abort signal", async () => {
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      exitCode: 0,
+      output: async () => "ok",
+    });
+    sandboxMocks.get.mockResolvedValueOnce({ runCommand: sandboxMocks.runCommand });
+
+    const runtime = new VercelSandboxRuntime("sbx_123");
+    await runtime.runCommand("hl", ["check"]);
+
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith("hl", ["check"], {
+      timeoutMs: DEFAULT_SANDBOX_COMMAND_TIMEOUT_MS,
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it("passes a caller timeout through to the sandbox", async () => {
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      exitCode: 0,
+      output: async () => "",
+    });
+    sandboxMocks.get.mockResolvedValueOnce({ runCommand: sandboxMocks.runCommand });
+
+    const runtime = new VercelSandboxRuntime("sbx_123");
+    await runtime.runCommand("git", ["status"], { timeoutMs: 1_000 });
+
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
+      "git",
+      ["status"],
+      expect.objectContaining({ timeoutMs: 1_000 }),
     );
   });
 
@@ -176,10 +212,89 @@ describe("VercelSandboxRuntime", () => {
     await expect(runtime.writeFile("../outside.txt", "pwned")).rejects.toThrow(
       "Path resolves outside the workspace.",
     );
+    expect(sandboxMocks.writeFiles).not.toHaveBeenCalled();
     expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
       "bash",
       expect.arrayContaining(["-lc", expect.stringContaining("realpath -m")]),
+      expect.anything(),
     );
+  });
+
+  it("writes file bytes through the sandbox file API instead of command args", async () => {
+    const content = `{"segments":[{"sourceText":"${"Hello ".repeat(200)}"}]}`;
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      exitCode: 0,
+      output: async () => "",
+    });
+    sandboxMocks.writeFiles.mockResolvedValueOnce(undefined);
+    sandboxMocks.get
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      })
+      .mockResolvedValueOnce({
+        writeFiles: sandboxMocks.writeFiles,
+      });
+
+    const runtime = new VercelSandboxRuntime("sbx_123");
+    await runtime.writeFile(".hyperlocalise-qa/segments.json", content);
+
+    expect(sandboxMocks.writeFiles).toHaveBeenCalledWith([
+      { path: ".hyperlocalise-qa/segments.json", content: Buffer.from(content) },
+    ]);
+    const script = String(sandboxMocks.runCommand.mock.calls[0]?.[1]?.[1] ?? "");
+    expect(script).not.toContain(content);
+    expect(script).not.toContain(Buffer.from(content).toString("base64"));
+  });
+
+  it("wraps sandbox writeFiles API failures with provider error context", async () => {
+    const apiError = Object.assign(new Error("Status code 400 is not ok"), {
+      response: {
+        status: 400,
+        statusText: "Bad Request",
+        url: "https://vercel.com/api/v2/sandboxes/sessions/sbx_123/fs/write?teamId=team_123",
+      },
+      json: {
+        error: {
+          code: "command_failed",
+          message: "Invalid command payload",
+          requestId: "req_123",
+        },
+      },
+    });
+
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      exitCode: 0,
+      output: async () => "",
+    });
+    sandboxMocks.writeFiles.mockRejectedValueOnce(apiError);
+    sandboxMocks.get
+      .mockResolvedValueOnce({
+        runCommand: sandboxMocks.runCommand,
+      })
+      .mockResolvedValueOnce({
+        writeFiles: sandboxMocks.writeFiles,
+      });
+
+    const runtime = new VercelSandboxRuntime("sbx_123");
+    try {
+      await runtime.writeFile(".hyperlocalise-qa/segments.json", "{}");
+      throw new Error("Expected writeFile to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(VercelSandboxCommandError);
+      expect(serializeErrorForLog(error)).toMatchObject({
+        name: "VercelSandboxCommandError",
+        sandboxId: "sbx_123",
+        command: "writeFiles",
+        argCount: 1,
+        responseStatus: 400,
+        responseStatusText: "Bad Request",
+        responseUrl:
+          "https://vercel.com/api/v2/sandboxes/sessions/sbx_123/fs/write?teamId=team_123",
+        providerErrorCode: "command_failed",
+        providerErrorMessage: "Invalid command payload",
+        providerRequestId: "req_123",
+      });
+    }
   });
 
   it("maps git-metadata write denials from the sandbox guard", async () => {
@@ -195,32 +310,32 @@ describe("VercelSandboxRuntime", () => {
     await expect(
       runtime.writeFile(".git/config", "[core]\nfsmonitor=sh ./payload\n"),
     ).rejects.toThrow("Writes under .git/ are not allowed.");
+    expect(sandboxMocks.writeFiles).not.toHaveBeenCalled();
     expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
       "bash",
       expect.arrayContaining(["-lc", expect.stringContaining("realpath -m")]),
+      expect.anything(),
     );
   });
 });
 
-describe("buildSandboxWriteFileScript", () => {
+describe("buildSandboxWritePathGuardScript", () => {
   afterEach(async () => {
     await Promise.all(
       tempRoots.splice(0).map((root) => rm(root, { force: true, recursive: true })),
     );
   });
 
-  it("writes a new file inside the workspace root", async () => {
+  it("creates parent directories without writing file bytes", async () => {
     const root = await createWorkspaceRoot();
-    await mkdir(join(root, "src"), { recursive: true });
 
-    await expect(runWriteGuard(root, "src/mock.tsx", "export const value = 1;\n")).resolves.toEqual(
-      {
-        exitCode: 0,
-      },
-    );
-    await expect(readFile(join(root, "src/mock.tsx"), "utf8")).resolves.toBe(
-      "export const value = 1;\n",
-    );
+    await expect(runWriteGuard(root, "src/nested/mock.tsx")).resolves.toEqual({
+      exitCode: 0,
+    });
+    await expect(readdir(join(root, "src/nested"))).resolves.toEqual([]);
+    await expect(readFile(join(root, "src/nested/mock.tsx"), "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
   });
 
   it("refuses to follow a planted leaf symlink out of the workspace", async () => {
@@ -231,7 +346,7 @@ describe("buildSandboxWriteFileScript", () => {
     await writeFile(outsideFile, "original");
     await symlink(outsideFile, join(root, "playwright"));
 
-    await expect(runWriteGuard(root, "playwright", "pwned")).resolves.toEqual({
+    await expect(runWriteGuard(root, "playwright")).resolves.toEqual({
       exitCode: SANDBOX_WRITE_SYMLINK_DENIED,
     });
     await expect(readFile(outsideFile, "utf8")).resolves.toBe("original");
@@ -245,9 +360,7 @@ describe("buildSandboxWriteFileScript", () => {
     await writeFile(join(outsideDir, "node_modules", "playwright", "index.js"), "original");
     await symlink(outsideDir, join(root, "runtime"));
 
-    await expect(
-      runWriteGuard(root, "runtime/node_modules/playwright/index.js", "pwned"),
-    ).resolves.toEqual({
+    await expect(runWriteGuard(root, "runtime/node_modules/playwright/index.js")).resolves.toEqual({
       exitCode: SANDBOX_WRITE_OUTSIDE_WORKSPACE,
     });
     await expect(
@@ -260,7 +373,7 @@ describe("buildSandboxWriteFileScript", () => {
     const escapeName = `sandbox-write-escape-${Date.now()}.txt`;
     const outsideFile = join(root, "..", escapeName);
 
-    await expect(runWriteGuard(root, `../${escapeName}`, "pwned")).resolves.toEqual({
+    await expect(runWriteGuard(root, `../${escapeName}`)).resolves.toEqual({
       exitCode: SANDBOX_WRITE_OUTSIDE_WORKSPACE,
     });
     await rm(outsideFile, { force: true });
@@ -270,14 +383,11 @@ describe("buildSandboxWriteFileScript", () => {
     const root = await createWorkspaceRoot();
     await mkdir(join(root, ".git"), { recursive: true });
 
-    await expect(
-      runWriteGuard(root, ".git/config", "[core]\nfsmonitor=sh ./payload\n"),
-    ).resolves.toEqual({
+    await expect(runWriteGuard(root, ".git/config")).resolves.toEqual({
       exitCode: SANDBOX_WRITE_GIT_METADATA_DENIED,
     });
-    await expect(runWriteGuard(root, ".gitignore", "node_modules\n")).resolves.toEqual({
+    await expect(runWriteGuard(root, ".gitignore")).resolves.toEqual({
       exitCode: 0,
     });
-    await expect(readFile(join(root, ".gitignore"), "utf8")).resolves.toBe("node_modules\n");
   });
 });

@@ -15,12 +15,15 @@
 import { useEffect, useLayoutEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import {
-  Download01Icon,
-  LeftToRightListBulletIcon,
+  BracketsCurlyIcon,
+  DownloadSimpleIcon,
+  FunnelIcon,
+  ListBulletsIcon,
+  GearSixIcon,
+  PaperPlaneRightIcon,
   TranslateIcon,
-  Upload01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  UploadSimpleIcon,
+} from "@phosphor-icons/react";
 
 import { FormattedMessage } from "react-intl";
 
@@ -44,6 +47,10 @@ export type ProjectFileTreeActionsConfig = {
   onTranslateFile?: (file: ProjectFileRecord) => void;
   onImportFile?: (file: ProjectFileRecord) => void;
   onDownloadFile?: (file: ProjectFileRecord) => void;
+  onSegmentationSettings?: (file: ProjectFileRecord) => void;
+  onMessageFormatSettings?: (file: ProjectFileRecord) => void;
+  onImportSettings?: (file: ProjectFileRecord) => void;
+  onUseTranslationAsSource?: (file: ProjectFileRecord) => void;
 };
 
 const MENU_MIN_WIDTH_PX = 208;
@@ -149,7 +156,7 @@ export function ProjectFileTreeContextMenu({
           }
         }}
       >
-        <HugeiconsIcon icon={LeftToRightListBulletIcon} />
+        <ListBulletsIcon />
         <FormattedMessage {...messages.openEditor} />
       </Button>
       {capabilities.isNativeFile ? (
@@ -172,7 +179,7 @@ export function ProjectFileTreeContextMenu({
                 });
               }}
             >
-              <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
+              <TranslateIcon />
               <FormattedMessage {...messages.translateWithAgent} />
             </Button>
           </AiFeatureAction>
@@ -188,7 +195,7 @@ export function ProjectFileTreeContextMenu({
               });
             }}
           >
-            <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
+            <UploadSimpleIcon />
             <FormattedMessage {...messages.importTranslations} />
           </Button>
           <Button
@@ -203,9 +210,73 @@ export function ProjectFileTreeContextMenu({
               });
             }}
           >
-            <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
+            <DownloadSimpleIcon />
             <FormattedMessage {...messages.download} />
           </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full justify-start"
+            disabled={!capabilities.canConfigureSegmentation}
+            onClick={() => {
+              closeMenu();
+              runAfterMenuClose(() => {
+                fileActions.onSegmentationSettings?.(file);
+              });
+            }}
+          >
+            <GearSixIcon />
+            <FormattedMessage {...messages.segmentationSettings} />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => {
+              closeMenu();
+              runAfterMenuClose(() => {
+                fileActions.onMessageFormatSettings?.(file);
+              });
+            }}
+          >
+            <BracketsCurlyIcon />
+            <FormattedMessage {...messages.messageFormatSettings} />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full justify-start"
+            disabled={!capabilities.canConfigureImportSettings}
+            onClick={() => {
+              closeMenu();
+              runAfterMenuClose(() => {
+                fileActions.onImportSettings?.(file);
+              });
+            }}
+          >
+            <FunnelIcon />
+            <FormattedMessage {...messages.importSettings} />
+          </Button>
+          {capabilities.canUseTranslationAsSource ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => {
+                closeMenu();
+                runAfterMenuClose(() => {
+                  fileActions.onUseTranslationAsSource?.(file);
+                });
+              }}
+            >
+              <PaperPlaneRightIcon />
+              <FormattedMessage {...messages.useTranslationAsSource} />
+            </Button>
+          ) : null}
         </>
       ) : null}
     </div>

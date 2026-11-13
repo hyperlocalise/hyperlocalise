@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
 
 func TestTranslationOutputKindForSourcePath(t *testing.T) {
@@ -14,10 +15,15 @@ func TestTranslationOutputKindForSourcePath(t *testing.T) {
 	}{
 		{"/content/en/guide.md", segmentvalidate.FormatMarkdown},
 		{"file.markdown", segmentvalidate.FormatMarkdown},
+		{"/docs/guide.adoc", segmentvalidate.FormatAsciiDoc},
 		{"/srv/page.html", segmentvalidate.FormatHTML},
 		{"file.htm", segmentvalidate.FormatHTML},
 		{"captions.srt", segmentvalidate.FormatHTML},
 		{"captions.vtt", segmentvalidate.FormatWebVTT},
+		{"captions.sbv", segmentvalidate.FormatHTML},
+		{"icon.svg", segmentvalidate.FormatHTML},
+		{"messages.toml", segmentvalidate.FormatICUInvariant},
+		{"messages.tsv", segmentvalidate.FormatICUInvariant},
 		{"/srv/sections/header.liquid", segmentvalidate.FormatLiquid},
 		{"/pkg/messages.json", segmentvalidate.FormatICUInvariant},
 	}
@@ -69,6 +75,32 @@ func TestValidateTranslatedOutputMatrix(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 		})
+	}
+}
+
+func TestAcceptTranslatedOutputRecoversIntercomLinks(t *testing.T) {
+	raw := []byte("part of a live [Help Center](https://example.com/a) and in a [collection.](https://example.com/b)\n")
+	entries, err := (translationfileparser.MarkdownParser{}).Parse(raw)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	var protected string
+	for _, value := range entries {
+		protected = value
+	}
+	if !strings.Contains(protected, "\x1eHLMDPH_") {
+		t.Fatalf("expected parse to wire links, got %q", protected)
+	}
+
+	accepted, err := acceptTranslatedOutput(
+		Task{SourcePath: "intercom/help-center/article.md", SourceText: protected},
+		strings.TrimSuffix(string(raw), "\n"),
+	)
+	if err != nil {
+		t.Fatalf("accept: %v", err)
+	}
+	if !strings.Contains(accepted, "\x1eHLMDPH_") {
+		t.Fatalf("expected recovered tokens, got %q", accepted)
 	}
 }
 

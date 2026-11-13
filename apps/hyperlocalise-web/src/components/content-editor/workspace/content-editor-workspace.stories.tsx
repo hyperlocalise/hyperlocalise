@@ -62,6 +62,7 @@ export const Default: Story = {
     editing: {
       onTargetChange: fn(),
       onUseAiSuggestion: fn(),
+      onSetMaxLength: fn(),
     },
     review: {
       onApprove: fn(),
@@ -98,11 +99,9 @@ export const Default: Story = {
         "Cached repository context: this card is rendered in the dashboard overview after a project sync.",
       ),
     ).toBeInTheDocument();
-    await expect(
-      canvas.getByRole("button", { name: "Re-run repository context lookup for this string" }),
-    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Refresh context/ })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Approve" })).toBeInTheDocument();
-    await expect(canvasElement.querySelectorAll('[data-slot="kbd"]')).toHaveLength(8);
+    await expect(canvasElement.querySelectorAll('[data-slot="kbd"]')).toHaveLength(10);
   },
 };
 
@@ -125,7 +124,7 @@ export const MobileReview: Story = {
       lookupSegmentContext: async () => "Found this string in the dashboard review card.",
     },
     review: { onApprove: fn() },
-    editing: { onUseAiSuggestion: fn() },
+    editing: { onUseAiSuggestion: fn(), onSetMaxLength: fn() },
   },
   play: async ({ args, canvasElement }) => {
     window.resizeTo(390, 844);
@@ -137,8 +136,8 @@ export const MobileReview: Story = {
     await expect(canvas.getByRole("tab", { name: "Queue" })).toBeInTheDocument();
     await expect(canvas.getByRole("tab", { name: "AI" })).toBeInTheDocument();
 
-    await userEvent.click(canvas.getByRole("button", { name: "Find context" }));
     await userEvent.click(canvas.getByRole("tab", { name: "AI" }));
+    await userEvent.click(await canvas.findByRole("button", { name: /Find context/ }));
     await expect(
       await canvas.findByText("Found this string in the dashboard review card."),
     ).toBeInTheDocument();

@@ -1,7 +1,8 @@
-import { cleanup, render, waitFor, within } from "@testing-library/react";
+import { cleanup, render, waitFor } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { App } from "./app";
+import { DEFAULT_APP_URL, DEFAULT_SETTINGS } from "./settings";
 import type { FigmaPageJobBinding } from "./page-binding";
 import type { FigmaPageJob, PluginSettings, SandboxToUiMessage } from "./plugin-messages";
 
@@ -19,23 +20,44 @@ const succeededJob: FigmaPageJob = {
   jobId: "job_figma",
   status: "succeeded",
   projectId: "proj_1",
-  sourcePath: "figma/files/file-1/pages/page-1.json",
+  sourcePath: "figma/files/file-1/page-1.json",
   targetLocales: ["es"],
   lastError: null,
-  translationsByLocale: { es: { "figma.segment.1:1.0": "Hola" } },
+  translationsByLocale: { es: { "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV": "Hola" } },
+};
+
+const sessionFixture = {
+  organization: { slug: "acme", name: "Acme", id: "org_1" },
+  project: {
+    id: "proj_1",
+    name: "Marketing",
+    sourceLocale: "en",
+    targetLocales: ["es"],
+  },
+  projects: [{ id: "proj_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] }],
+  connection: {
+    id: "conn_1",
+    displayName: "Test",
+    sourceLocale: "en",
+    targetLocales: ["es"],
+  },
 };
 
 const signedInSettings: PluginSettings = {
-  appUrl: "https://app.hyperlocalise.com",
-  personalAccessToken: "hl_test_token",
-  userEmail: "dev@example.com",
+  appUrl: DEFAULT_APP_URL,
+  accessToken: null,
+  refreshToken: null,
+  connectionToken: "hl_figma_test",
+  personalAccessToken: null,
+  userEmail: null,
   organizationSlug: "acme",
   organizationName: "Acme",
   projectId: "proj_1",
-  sourceLocale: "en",
-  targetLocales: ["es"],
+  selectedLocale: "es",
+  selectedPageIds: ["page-1"],
   preserveFormatting: true,
   lastJobId: null,
+  appliedLocaleByPage: {},
 };
 
 function jsonResponse(body: unknown, status = 200) {
@@ -50,19 +72,141 @@ function jsonResponse(body: unknown, status = 200) {
 function workspaceResponse(input: RequestInfo | URL) {
   const url = requestUrl(input);
   if (url.includes("/api/integrations/figma/session")) {
-    return jsonResponse({
-      session: {
-        user: { email: "dev@example.com", localUserId: "user_1" },
-        organization: { slug: "acme", name: "Acme", id: "org_1" },
-      },
-    });
-  }
-  if (url.includes("/api/integrations/figma/projects")) {
-    return jsonResponse({
-      projects: [{ id: "proj_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] }],
-    });
+    return jsonResponse({ session: sessionFixture });
   }
   return null;
+}
+
+function localeStatusesResponse(input?: {
+  pageIds?: string[];
+  sourceCollected?: boolean;
+  targetStatus?: FigmaPageJob["status"] | "missing";
+}) {
+  const pageIds = input?.pageIds ?? ["page-1"];
+  const sourceCollected = input?.sourceCollected ?? false;
+  const targetStatus = input?.targetStatus ?? "succeeded";
+  return jsonResponse({
+    locales: [
+      {
+        locale: "en",
+        isSource: true,
+        pages: pageIds.map((pageId) => ({
+          pageId,
+          status: sourceCollected ? "succeeded" : "missing",
+        })),
+      },
+      {
+        locale: "es",
+        isSource: false,
+        pages: pageIds.map((pageId) => ({
+          pageId,
+          status: targetStatus,
+        })),
+      },
+    ],
+    pages: [],
+  });
+}
+
+function figmaFetchHandler(
+  input: RequestInfo | URL,
+  overrides?: {
+    currentJob?: FigmaPageJob | null;
+    localeStatuses?: ReturnType<typeof localeStatusesResponse>;
+    collect?: Promise<Response> | Response;
+    jobsPost?: Promise<Response> | Response;
+    translations?: Promise<Response> | Response;
+  },
+) {
+  const url = requestUrl(input);
+  const workspace = workspaceResponse(input);
+  if (workspace) {
+    return workspace;
+  }
+  if (url.includes("/api/integrations/figma/locales")) {
+    return overrides?.localeStatuses ?? localeStatusesResponse({ targetStatus: "succeeded" });
+  }
+  if (url.includes("/api/integrations/figma/jobs/current")) {
+    if (url.includes("pageId=page-2")) {
+      return jsonResponse({ job: null });
+    }
+    return jsonResponse({ job: overrides?.currentJob ?? null });
+  }
+  if (url.includes("/api/integrations/figma/collect")) {
+    const collect = overrides?.collect;
+    return collect instanceof Promise
+      ? collect
+      : (collect ??
+          jsonResponse(
+            {
+              projectId: "proj_1",
+              sourceFileId: "file_collected",
+              sourcePath: "figma/files/file-1/page-1.json",
+              segmentCount: 1,
+            },
+            201,
+          ));
+  }
+  if (url.endsWith("/api/integrations/figma/jobs")) {
+    const jobsPost = overrides?.jobsPost;
+    return jobsPost instanceof Promise
+      ? jobsPost
+      : (jobsPost ?? jsonResponse({ error: "not_found" }, 404));
+  }
+  if (url.includes("/api/integrations/figma/translations")) {
+    const translations = overrides?.translations;
+    if (translations instanceof Promise) {
+      return translations;
+    }
+    if (translations) {
+      return translations;
+    }
+    const params = new URL(url, "http://localhost").searchParams;
+    const locale = params.get("locale");
+    if (locale === "en") {
+      return jsonResponse({
+        sourcePage: {
+          locale: "en",
+          sourcePath: "figma/files/file-1/page-1.json",
+          needsReupload: false,
+          entries: [],
+        },
+      });
+    }
+    return jsonResponse({ error: "not_found" }, 404);
+  }
+  if (url.includes("/api/integrations/figma/health")) {
+    return jsonResponse({ ok: true, figmaOauthConfigured: false });
+  }
+  return jsonResponse({ error: "not_found" }, 404);
+}
+
+function postToUi(message: SandboxToUiMessage) {
+  window.dispatchEvent(
+    new MessageEvent("message", {
+      data: { pluginMessage: message },
+    }),
+  );
+}
+
+const filePages = [
+  { pageId: "page-1", pageName: "Home" },
+  { pageId: "page-2", pageName: "About" },
+];
+
+function readyMessage(binding: FigmaPageJobBinding | null) {
+  postToUi({
+    type: "ready",
+    settings: signedInSettings,
+    file: {
+      fileKey: "file-1",
+      fileName: "Marketing",
+      pageId: "page-1",
+      pageName: "Home",
+    },
+    pages: filePages,
+    binding,
+  });
 }
 
 function pluginMessages(postMessage: { mock: { calls: unknown[][] } }) {
@@ -78,28 +222,6 @@ function pluginMessages(postMessage: { mock: { calls: unknown[][] } }) {
   });
 }
 
-function postToUi(message: SandboxToUiMessage) {
-  window.dispatchEvent(
-    new MessageEvent("message", {
-      data: { pluginMessage: message },
-    }),
-  );
-}
-
-function readyMessage(binding: FigmaPageJobBinding | null) {
-  postToUi({
-    type: "ready",
-    settings: signedInSettings,
-    file: {
-      fileKey: "file-1",
-      fileName: "Marketing",
-      pageId: "page-1",
-      pageName: "Home",
-    },
-    binding,
-  });
-}
-
 describe("Figma plugin UI", () => {
   afterEach(() => {
     cleanup();
@@ -107,21 +229,113 @@ describe("Figma plugin UI", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders PAT connect before a token is stored", () => {
+  it("renders connect before a connection token is stored", async () => {
     const result = render(<App />);
 
-    expect(result.getByRole("button", { name: "Connect" })).toBeTruthy();
-    expect(result.getByText("Personal access token")).toBeTruthy();
-    expect(result.getByText("Hyperlocalise URL")).toBeTruthy();
-    expect(result.queryByRole("button", { name: "Create job and generate" })).toBeNull();
+    postToUi({
+      type: "ready",
+      settings: DEFAULT_SETTINGS,
+      file: {
+        fileKey: "file-1",
+        fileName: "Marketing",
+        pageId: "page-1",
+        pageName: "Home",
+      },
+      pages: filePages,
+      binding: null,
+    });
+
+    await waitFor(() => {
+      expect(result.getByRole("button", { name: "Connect Hyperlocalise" })).toBeTruthy();
+    });
+    expect(result.getByRole("button", { name: "Connect with token" })).toBeTruthy();
+    expect(result.queryByRole("button", { name: "Upload and translate" })).toBeNull();
   });
 
-  it("clears a legacy sealed session and prompts to reconnect with a PAT", async () => {
+  it("refreshes an expired OAuth session instead of clearing stored tokens", async () => {
+    let sessionCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = requestUrl(input);
+      if (url.includes("/api/integrations/figma/session")) {
+        sessionCalls += 1;
+        if (sessionCalls === 1) {
+          return jsonResponse({ error: "figma_access_token_invalid" }, 401);
+        }
+        return jsonResponse({ session: sessionFixture });
+      }
+      if (url.includes("/api/integrations/figma/health")) {
+        return jsonResponse({
+          ok: true,
+          figmaOauthConfigured: true,
+          figmaOauthClientId: "figma-plugin",
+        });
+      }
+      if (url.includes("/api/oauth/figma/token")) {
+        return jsonResponse({
+          access_token: "hl_figma_at_new",
+          refresh_token: "hl_figma_rt_new",
+          expires_in: 3600,
+          token_type: "Bearer",
+          scope: "figma",
+        });
+      }
+      return figmaFetchHandler(input);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const postMessage = vi.spyOn(window.parent, "postMessage");
+
     const result = render(<App />);
     postToUi({
       type: "ready",
       settings: {
         ...signedInSettings,
+        connectionToken: null,
+        accessToken: "hl_figma_at_expired",
+        refreshToken: "hl_figma_rt_old",
+      },
+      file: {
+        fileKey: "file-1",
+        fileName: "Marketing",
+        pageId: "page-1",
+        pageName: "Home",
+      },
+      pages: filePages,
+      binding: null,
+    });
+
+    await waitFor(() => {
+      expect(result.getByRole("button", { name: "Upload" })).toBeTruthy();
+    });
+    expect(result.queryByRole("button", { name: "Connect Hyperlocalise" })).toBeNull();
+    expect(
+      postMessage.mock.calls.some(([payload]) => {
+        if (!payload || typeof payload !== "object" || !("pluginMessage" in payload)) {
+          return false;
+        }
+        const message = (
+          payload as {
+            pluginMessage: {
+              type?: string;
+              settings?: { accessToken?: string; refreshToken?: string };
+            };
+          }
+        ).pluginMessage;
+        return (
+          message.type === "storage-set" &&
+          message.settings?.accessToken === "hl_figma_at_new" &&
+          message.settings.refreshToken === "hl_figma_rt_new"
+        );
+      }),
+    ).toBe(true);
+  });
+
+  it("clears a legacy sealed session and prompts to reconnect", async () => {
+    const result = render(<App />);
+    postToUi({
+      type: "ready",
+      settings: {
+        ...signedInSettings,
+        connectionToken: null,
         personalAccessToken: null,
         userEmail: null,
       },
@@ -131,42 +345,20 @@ describe("Figma plugin UI", () => {
         pageId: "page-1",
         pageName: "Home",
       },
+      pages: filePages,
       binding: null,
       legacySessionCleared: true,
     });
 
     await waitFor(() => {
-      expect(
-        result.getByText(
-          "Your previous Hyperlocalise sign-in is no longer supported. Connect with a personal access token.",
-        ),
-      ).toBeTruthy();
+      expect(result.getByText(/Connect with a connection token from Integrations/)).toBeTruthy();
     });
   });
 
-  it("hydrates the page job card and keeps Close enabled", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = requestUrl(input);
-      if (url.includes("/api/integrations/figma/session")) {
-        return jsonResponse({
-          session: {
-            user: { email: "dev@example.com", localUserId: "user_1" },
-            organization: { slug: "acme", name: "Acme", id: "org_1" },
-          },
-        });
-      }
-      if (url.includes("/api/integrations/figma/projects")) {
-        return jsonResponse({
-          projects: [
-            { id: "proj_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] },
-          ],
-        });
-      }
-      if (url.includes("/api/integrations/figma/jobs/current")) {
-        return jsonResponse({ job: succeededJob });
-      }
-      return jsonResponse({ error: "not_found" }, 404);
-    });
+  it("hydrates the page job without showing job details", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      figmaFetchHandler(input, { currentJob: succeededJob }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     const postMessage = vi.spyOn(window.parent, "postMessage");
 
@@ -174,22 +366,17 @@ describe("Figma plugin UI", () => {
     readyMessage({
       projectId: "proj_1",
       jobId: "job_stale",
-      sourcePath: "figma/files/file-1/pages/page-1.json",
+      sourcePath: "figma/files/file-1/page-1.json",
     });
 
-    const card = await waitFor(() => result.getByLabelText("Page job"));
-    expect(within(card).getByText("Ready")).toBeTruthy();
-    expect(within(card).getByText("job_figma")).toBeTruthy();
-    expect(result.getByRole("link", { name: "Open in Hyperlocalise" }).getAttribute("href")).toBe(
-      "https://app.hyperlocalise.com/org/acme/projects/proj_1/jobs/job_figma",
-    );
-    expect((result.getByRole("button", { name: "Close" }) as HTMLButtonElement).disabled).toBe(
-      false,
-    );
-    expect(
-      (result.getByRole("button", { name: "Pull translations into Figma" }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(false);
+    await waitFor(() => {
+      expect((result.getByRole("button", { name: "Apply" }) as HTMLButtonElement).disabled).toBe(
+        false,
+      );
+    });
+    expect(result.queryByLabelText("Page job")).toBeNull();
+    expect(result.queryByLabelText("Translation progress")).toBeNull();
+    expect(result.getByRole("button", { name: "Translate" })).toBeTruthy();
 
     expect(fetchMock.mock.calls.some(([input]) => requestUrl(input).includes("jobs/current"))).toBe(
       true,
@@ -206,125 +393,118 @@ describe("Figma plugin UI", () => {
     );
   });
 
-  it("does not offer Generate or Pull for a failed page job", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = requestUrl(input);
-      if (url.includes("/api/integrations/figma/session")) {
-        return jsonResponse({
-          session: {
-            user: { email: "dev@example.com", localUserId: "user_1" },
-            organization: { slug: "acme", name: "Acme", id: "org_1" },
-          },
-        });
-      }
-      if (url.includes("/api/integrations/figma/projects")) {
-        return jsonResponse({
-          projects: [
-            { id: "proj_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] },
-          ],
-        });
-      }
-      if (url.includes("/api/integrations/figma/jobs/current")) {
-        return jsonResponse({
-          job: {
-            ...succeededJob,
-            status: "failed",
-            lastError: "provider_timeout",
-            translationsByLocale: {},
-          },
-        });
-      }
-      return jsonResponse({ error: "not_found" }, 404);
-    });
+  it("disables Apply for a failed page job", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      figmaFetchHandler(input, {
+        currentJob: {
+          ...succeededJob,
+          status: "failed",
+          lastError: "provider_timeout",
+          translationsByLocale: {},
+        },
+        localeStatuses: localeStatusesResponse({ targetStatus: "failed" }),
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = render(<App />);
     readyMessage({
       projectId: "proj_1",
       jobId: "job_stale",
-      sourcePath: "figma/files/file-1/pages/page-1.json",
-    });
-
-    const card = await waitFor(() => result.getByLabelText("Page job"));
-    expect(within(card).getByText("Failed")).toBeTruthy();
-    expect(
-      (result.getByRole("button", { name: "Generate job" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    expect(
-      (result.getByRole("button", { name: "Pull translations into Figma" }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
-  });
-
-  it("hides the job card when the server has no job for the page", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = requestUrl(input);
-      if (url.includes("/api/integrations/figma/session")) {
-        return jsonResponse({
-          session: {
-            user: { email: "dev@example.com", localUserId: "user_1" },
-            organization: { slug: "acme", name: "Acme", id: "org_1" },
-          },
-        });
-      }
-      if (url.includes("/api/integrations/figma/projects")) {
-        return jsonResponse({
-          projects: [
-            { id: "proj_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] },
-          ],
-        });
-      }
-      if (url.includes("/api/integrations/figma/jobs/current")) {
-        return jsonResponse({ job: null });
-      }
-      return jsonResponse({ error: "not_found" }, 404);
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = render(<App />);
-    readyMessage({
-      projectId: "proj_1",
-      jobId: "job_stale",
-      sourcePath: "figma/files/file-1/pages/page-1.json",
+      sourcePath: "figma/files/file-1/page-1.json",
     });
 
     await waitFor(() => {
-      expect(result.getByText(/dev@example.com/)).toBeTruthy();
+      expect((result.getByRole("button", { name: "Apply" }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+    });
+    expect(result.queryByLabelText("Page job")).toBeNull();
+    await waitFor(() => {
+      expect(result.getByText("provider_timeout")).toBeTruthy();
+    });
+  });
+
+  it("hides job progress when the server has no job for the page", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      figmaFetchHandler(input, {
+        currentJob: null,
+        localeStatuses: localeStatusesResponse({ targetStatus: "missing" }),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = render(<App />);
+    readyMessage({
+      projectId: "proj_1",
+      jobId: "job_stale",
+      sourcePath: "figma/files/file-1/page-1.json",
+    });
+
+    await waitFor(() => {
+      expect(result.getByText(/Project:/)).toBeTruthy();
       expect(result.queryByLabelText("Page job")).toBeNull();
     });
-    expect(
-      (result.getByRole("button", { name: "Pull translations into Figma" }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
+    expect((result.getByRole("button", { name: "Apply" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
   });
 
-  it("disables Pull while another action is running", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      return workspaceResponse(input) ?? jsonResponse({ job: succeededJob });
-    });
+  it("disables Apply while another action is running", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      figmaFetchHandler(input, { currentJob: succeededJob }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = render(<App />);
     readyMessage({
       projectId: "proj_1",
       jobId: "job_stale",
-      sourcePath: "figma/files/file-1/pages/page-1.json",
+      sourcePath: "figma/files/file-1/page-1.json",
     });
 
     await waitFor(() => {
-      expect(
-        (result.getByRole("button", { name: "Pull translations into Figma" }) as HTMLButtonElement)
-          .disabled,
-      ).toBe(false);
+      expect((result.getByRole("button", { name: "Apply" }) as HTMLButtonElement).disabled).toBe(
+        false,
+      );
     });
 
-    result.getByRole("button", { name: "Extract text" }).click();
+    result.getByRole("button", { name: "Upload" }).click();
+    postToUi({
+      type: "extracted",
+      segments: [
+        { key: "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV", nodeId: "1:1", regionIndex: 0, text: "Hello" },
+      ],
+      file: {
+        fileKey: "file-1",
+        fileName: "Marketing",
+        pageId: "page-1",
+        pageName: "Home",
+      },
+    });
 
     await waitFor(() => {
-      expect(
-        (result.getByRole("button", { name: "Pull translations into Figma" }) as HTMLButtonElement)
-          .disabled,
-      ).toBe(true);
+      expect(result.getByText("Upload to Hyperlocalise")).toBeTruthy();
+    });
+
+    result.getByRole("button", { name: "Upload pages" }).click();
+    postToUi({
+      type: "extracted",
+      segments: [
+        { key: "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV", nodeId: "1:1", regionIndex: 0, text: "Hello" },
+      ],
+      file: {
+        fileKey: "file-1",
+        fileName: "Marketing",
+        pageId: "page-1",
+        pageName: "Home",
+      },
+    });
+
+    await waitFor(() => {
+      expect((result.getByRole("button", { name: "Apply" }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
     });
   });
 
@@ -333,23 +513,12 @@ describe("Figma plugin UI", () => {
     const pullResponse = new Promise<Response>((resolve) => {
       resolvePull = resolve;
     });
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = requestUrl(input);
-      const workspace = workspaceResponse(input);
-      if (workspace) {
-        return workspace;
-      }
-      if (url.includes("/jobs/current")) {
-        if (url.includes("pageId=page-2")) {
-          return jsonResponse({ job: null });
-        }
-        return jsonResponse({ job: succeededJob });
-      }
-      if (url.includes("/translations")) {
-        return pullResponse;
-      }
-      return jsonResponse({ error: "not_found" }, 404);
-    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      figmaFetchHandler(input, {
+        currentJob: succeededJob,
+        translations: pullResponse,
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     const postMessage = vi.spyOn(window.parent, "postMessage");
 
@@ -357,14 +526,20 @@ describe("Figma plugin UI", () => {
     readyMessage({
       projectId: "proj_1",
       jobId: "job_figma",
-      sourcePath: "figma/files/file-1/pages/page-1.json",
+      sourcePath: "figma/files/file-1/page-1.json",
     });
 
-    await waitFor(() => result.getByLabelText("Page job"));
-    result.getByRole("button", { name: "Pull translations into Figma" }).click();
+    await waitFor(() => {
+      expect((result.getByRole("button", { name: "Apply" }) as HTMLButtonElement).disabled).toBe(
+        false,
+      );
+    });
+    result.getByRole("button", { name: "Apply" }).click();
 
     await waitFor(() => {
-      expect(result.getByRole("button", { name: "Pulling…" })).toBeTruthy();
+      expect(
+        (result.getByRole("button", { name: "Translate" }) as HTMLButtonElement).disabled,
+      ).toBe(true);
     });
 
     postToUi({
@@ -375,6 +550,7 @@ describe("Figma plugin UI", () => {
         pageId: "page-2",
         pageName: "About",
       },
+      pages: filePages,
       binding: null,
     });
 
@@ -414,36 +590,31 @@ describe("Figma plugin UI", () => {
     });
   });
 
-  it("keeps a created job on the originating page after a page change", async () => {
-    let resolveCreate: ((value: Response) => void) | undefined;
-    const createResponse = new Promise<Response>((resolve) => {
-      resolveCreate = resolve;
+  it("finishes collect on the originating page after a page change", async () => {
+    let resolveCollect: ((value: Response) => void) | undefined;
+    const collectResponse = new Promise<Response>((resolve) => {
+      resolveCollect = resolve;
     });
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = requestUrl(input);
-      const workspace = workspaceResponse(input);
-      if (workspace) {
-        return workspace;
-      }
-      if (url.includes("/jobs/current")) {
-        return jsonResponse({ job: null });
-      }
-      if (url.endsWith("/api/integrations/figma/jobs")) {
-        return createResponse;
-      }
-      return jsonResponse({ error: "not_found" }, 404);
-    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      figmaFetchHandler(input, {
+        currentJob: null,
+        collect: collectResponse,
+        localeStatuses: localeStatusesResponse({ sourceCollected: true }),
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     const postMessage = vi.spyOn(window.parent, "postMessage");
 
     const result = render(<App />);
     readyMessage(null);
 
-    await waitFor(() => result.getByRole("button", { name: "Extract text" }));
-    result.getByRole("button", { name: "Extract text" }).click();
+    await waitFor(() => result.getByRole("button", { name: "Upload" }));
+    result.getByRole("button", { name: "Upload" }).click();
     postToUi({
       type: "extracted",
-      segments: [{ key: "figma.segment.1:1.0", nodeId: "1:1", regionIndex: 0, text: "Hello" }],
+      segments: [
+        { key: "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV", nodeId: "1:1", regionIndex: 0, text: "Hello" },
+      ],
       file: {
         fileKey: "file-1",
         fileName: "Marketing",
@@ -453,14 +624,25 @@ describe("Figma plugin UI", () => {
     });
 
     await waitFor(() => {
-      expect(
-        (result.getByRole("button", { name: "Create job only" }) as HTMLButtonElement).disabled,
-      ).toBe(false);
+      expect(result.getByText("Upload to Hyperlocalise")).toBeTruthy();
     });
 
-    result.getByRole("button", { name: "Create job only" }).click();
+    result.getByRole("button", { name: "Upload pages" }).click();
+    postToUi({
+      type: "extracted",
+      segments: [
+        { key: "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV", nodeId: "1:1", regionIndex: 0, text: "Hello" },
+      ],
+      file: {
+        fileKey: "file-1",
+        fileName: "Marketing",
+        pageId: "page-1",
+        pageName: "Home",
+      },
+    });
+
     await waitFor(() => {
-      expect(result.getByRole("button", { name: "Creating…" })).toBeTruthy();
+      expect(pluginMessages(postMessage).some((message) => message?.type === "extract")).toBe(true);
     });
 
     postToUi({
@@ -471,29 +653,24 @@ describe("Figma plugin UI", () => {
         pageId: "page-2",
         pageName: "About",
       },
+      pages: filePages,
       binding: null,
     });
 
-    resolveCreate!(
-      await jsonResponse({
-        job: {
-          jobId: "job_created",
-          generated: false,
+    resolveCollect!(
+      await jsonResponse(
+        {
           projectId: "proj_1",
-          sourcePath: "figma/files/file-1/pages/page-1.json",
+          sourceFileId: "file_collected",
+          sourcePath: "figma/files/file-1/page-1.json",
+          segmentCount: 1,
         },
-      }),
+        201,
+      ),
     );
 
     await waitFor(() => {
-      expect(
-        pluginMessages(postMessage).some(
-          (message) =>
-            message?.type === "binding-set" &&
-            message.pageId === "page-1" &&
-            message.binding?.jobId === "job_created",
-        ),
-      ).toBe(true);
+      expect(result.getByText(/Uploaded 1 page file/)).toBeTruthy();
     });
 
     expect(
@@ -501,11 +678,11 @@ describe("Figma plugin UI", () => {
         (message) =>
           message?.type === "binding-set" &&
           message.pageId === "page-2" &&
-          message.binding?.jobId === "job_created",
+          message.binding?.jobId != null,
       ),
     ).toBe(false);
     await waitFor(() => {
-      expect(result.queryByText("job_created")).toBeNull();
+      expect(result.queryByText("file_collected")).toBeNull();
     });
   });
 });

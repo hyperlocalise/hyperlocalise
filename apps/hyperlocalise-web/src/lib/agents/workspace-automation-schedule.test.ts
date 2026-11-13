@@ -26,7 +26,7 @@ function automation(
     authorName: null,
     name: "Nightly research",
     instructions: "Search the web.",
-    model: "openai/gpt-5.6-luna",
+    model: "openai/gpt-6-luna",
     projectId: null,
     repositoryTarget: { kind: "none" },
     configVersion: 1,

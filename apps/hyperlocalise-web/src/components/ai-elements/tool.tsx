@@ -18,13 +18,12 @@ import { ImageLightbox } from "@/components/ui/image-lightbox/image-lightbox";
 import { cn } from "@/lib/primitives/cn";
 import type { DynamicToolUIPart, ToolUIPart } from "ai";
 import {
-  ArrowRight01Icon,
-  CheckmarkCircle02Icon,
+  ArrowRightIcon,
+  CheckCircleIcon,
   CircleIcon,
-  Clock01Icon,
-  MultiplicationSignCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  ClockIcon,
+  XCircleIcon,
+} from "@phosphor-icons/react";
 import type { ComponentProps, ReactNode } from "react";
 import { isValidElement } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -71,33 +70,13 @@ const statusMessageKeys: Record<ToolPart["state"], keyof typeof toolMessages> = 
 };
 
 const statusIcons: Record<ToolPart["state"], ReactNode> = {
-  "approval-requested": (
-    <HugeiconsIcon icon={Clock01Icon} strokeWidth={2} className="size-4 text-yellow-600" />
-  ),
-  "approval-responded": (
-    <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4 text-blue-600" />
-  ),
-  "input-available": (
-    <HugeiconsIcon icon={Clock01Icon} strokeWidth={2} className="size-4 animate-pulse" />
-  ),
-  "input-streaming": <HugeiconsIcon icon={CircleIcon} strokeWidth={2} className="size-4" />,
-  "output-available": (
-    <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4 text-green-600" />
-  ),
-  "output-denied": (
-    <HugeiconsIcon
-      icon={MultiplicationSignCircleIcon}
-      strokeWidth={2}
-      className="size-4 text-orange-600"
-    />
-  ),
-  "output-error": (
-    <HugeiconsIcon
-      icon={MultiplicationSignCircleIcon}
-      strokeWidth={2}
-      className="size-4 text-red-600"
-    />
-  ),
+  "approval-requested": <ClockIcon className="size-4 text-yellow-600" />,
+  "approval-responded": <CheckCircleIcon className="size-4 text-blue-600" />,
+  "input-available": <ClockIcon className="size-4 animate-pulse" />,
+  "input-streaming": <CircleIcon className="size-4" />,
+  "output-available": <CheckCircleIcon className="size-4 text-green-600" />,
+  "output-denied": <XCircleIcon className="size-4 text-orange-600" />,
+  "output-error": <XCircleIcon className="size-4 text-red-600" />,
 };
 
 const INPUT_DETAIL_KEYS = [
@@ -261,10 +240,7 @@ function ToolJsonSection({
   return (
     <Collapsible defaultOpen={defaultOpen} className={cn("overflow-hidden", className)}>
       <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-1.5 py-0.5 text-start">
-        <HugeiconsIcon
-          icon={ArrowRight01Icon}
-          className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90"
-        />
+        <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
         <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
           {label}
         </span>

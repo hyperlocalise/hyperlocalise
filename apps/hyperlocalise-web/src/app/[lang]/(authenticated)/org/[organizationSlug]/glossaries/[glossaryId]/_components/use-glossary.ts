@@ -18,7 +18,12 @@ import { useIntl } from "react-intl";
 import type { GlossaryResponse } from "@/api/routes/glossary/glossary.schema";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { getLocaleLabel } from "@/lib/i18n/locales";
+
+import { glossaryUsesNativeDetailPage } from "@/lib/glossary/glossary-detail-id";
+import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 
@@ -32,19 +37,31 @@ export function useGlossary({
   canManageGlossaries: boolean;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const glossaryQuery = useQuery({
     queryKey: ["glossary", organizationSlug, glossaryId],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$get(
-        {
+      if (parseLiveProviderGlossaryId(glossaryId)) {
+        const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
+          ":glossaryId"
+        ].$get({
           param: { organizationSlug, glossaryId },
-        },
-      );
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.loadGlossaryFailed)),
-        );
-      return (await response.json()) as GlossaryResponse;
+        });
+        if (!response.ok) {
+          throw new Error(
+            await readApiError(response, intl.formatMessage(messages.loadGlossaryFailed)),
+          );
+        }
+        return (await response.json()) as GlossaryResponse;
+      }
+
+      try {
+        return (await goSvcClient.glossary.get(organizationSlug, glossaryId)) as GlossaryResponse;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadGlossaryFailed)), {
+          cause: error,
+        });
+      }
     },
   });
   const glossary = glossaryQuery.data?.glossary;
@@ -58,9 +75,10 @@ export function useGlossary({
       (glossary?.source === "external_tms" && glossary.externalProviderKind === "crowdin")) &&
     (canManage || (glossaryQuery.data?.canContribute ?? false));
   const isNative = glossary?.source === "native";
+  const usesNativeDetail = glossaryUsesNativeDetailPage(glossaryId, glossary?.source);
   const isLiveCrowdin =
     glossary?.source === "external_tms" && glossary.externalProviderKind === "crowdin";
-  const isConceptGlossary = Boolean(isNative || isLiveCrowdin);
+  const isConceptGlossary = Boolean(usesNativeDetail || isLiveCrowdin);
   const sourceLanguage = glossary?.languages.find((language) => language.isSource) ?? {
     locale: glossary?.sourceLocale ?? "",
     name: getLocaleLabel(glossary?.sourceLocale ?? ""),
@@ -72,6 +90,7 @@ export function useGlossary({
     canManage,
     canContribute,
     isNative,
+    usesNativeDetail,
     isLiveCrowdin,
     isConceptGlossary,
     sourceLanguage,

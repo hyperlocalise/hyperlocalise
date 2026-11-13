@@ -3,6 +3,9 @@ package runsvc
 import (
 	"bytes"
 	"context"
+	"image"
+	"image/color"
+	"image/png"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -20,6 +23,46 @@ func imageTestConfig(sourcePath, targetPath string) config.I18NConfig {
 	profile.Model = "ignored-text-model"
 	cfg.LLM.Profiles["default"] = profile
 	return cfg
+}
+
+func TestConvertCopiedImagePNGToWebP(t *testing.T) {
+	t.Parallel()
+	pngBytes := func() []byte {
+		img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+		img.Set(0, 0, color.RGBA{R: 255, A: 255})
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, img); err != nil {
+			t.Fatalf("encode png: %v", err)
+		}
+		return buf.Bytes()
+	}()
+	if detectImageFormat(pngBytes) != "png" {
+		t.Fatalf("fixture format=%q, want png", detectImageFormat(pngBytes))
+	}
+
+	same, err := convertCopiedImage(pngBytes, "png")
+	if err != nil {
+		t.Fatalf("same-format convert: %v", err)
+	}
+	if !bytes.Equal(same, pngBytes) {
+		t.Fatal("same-format convert should keep original bytes")
+	}
+
+	webpBytes, err := convertCopiedImage(pngBytes, "webp")
+	if err != nil {
+		t.Fatalf("png to webp: %v", err)
+	}
+	if detectImageFormat(webpBytes) != "webp" {
+		t.Fatalf("converted format=%q, want webp", detectImageFormat(webpBytes))
+	}
+
+	jpegBytes, err := convertCopiedImage(pngBytes, "jpeg")
+	if err != nil {
+		t.Fatalf("png to jpeg: %v", err)
+	}
+	if detectImageFormat(jpegBytes) != "jpeg" {
+		t.Fatalf("converted format=%q, want jpeg", detectImageFormat(jpegBytes))
+	}
 }
 
 func TestImageCheckpointStoresHashAndReadsTargetFile(t *testing.T) {

@@ -24,7 +24,7 @@ function automation(overrides: Partial<WorkspaceAutomationRecord> = {}): Workspa
     status: "active",
     name: "Test automation",
     instructions: "",
-    model: "openai/gpt-5.6-luna",
+    model: "openai/gpt-6-luna",
     projectId: null,
     triggerConfig: { mode: "manual" },
     repositoryTarget: { kind: "none" },
@@ -56,6 +56,213 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     );
 
     expect(plan.tools).toEqual(["run_github_workflows", "notify_slack"]);
+  });
+
+  it("plans import-only tools for Intercom automations", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          intercom: {
+            enabled: true,
+            restEndpoint: "us",
+            helpCenterId: "hc-1",
+            helpCenterLocales: ["en", "de"],
+            sourceLocale: "en",
+            targetLocales: [],
+            collectionIds: [],
+            includeDrafts: false,
+            overwriteIntercomDrafts: false,
+            existingTranslationPolicy: "seed_empty",
+          },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["import_intercom_articles"]);
+  });
+
+  it("keeps enabled notifications after the Intercom step", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          intercom: {
+            enabled: true,
+            restEndpoint: "us",
+            helpCenterId: "hc-1",
+            helpCenterLocales: ["en", "de"],
+            sourceLocale: "en",
+            targetLocales: [],
+            collectionIds: [],
+            includeDrafts: false,
+            overwriteIntercomDrafts: false,
+            existingTranslationPolicy: "seed_empty",
+          },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["import_intercom_articles", "notify_slack"]);
+  });
+
+  it("plans push-only tools when operation is push_approved", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          intercom: {
+            enabled: true,
+            restEndpoint: "us",
+            helpCenterId: "hc-1",
+            helpCenterLocales: ["en", "de"],
+            sourceLocale: "en",
+            targetLocales: [],
+            collectionIds: [],
+            includeDrafts: false,
+            overwriteIntercomDrafts: false,
+            existingTranslationPolicy: "seed_empty",
+          },
+        },
+      }),
+      { operation: "push_approved" },
+    );
+
+    expect(plan.tools).toEqual(["push_intercom_translations"]);
+  });
+
+  it("keeps enabled notifications after an Intercom push", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          intercom: {
+            enabled: true,
+            restEndpoint: "us",
+            helpCenterId: "hc-1",
+            helpCenterLocales: ["en", "de"],
+            sourceLocale: "en",
+            targetLocales: [],
+            collectionIds: [],
+            includeDrafts: false,
+            overwriteIntercomDrafts: false,
+            existingTranslationPolicy: "seed_empty",
+          },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+      { operation: "push_approved" },
+    );
+
+    expect(plan.tools).toEqual(["push_intercom_translations", "notify_slack"]);
+  });
+
+  it("plans import-only tools for Sanity automations", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          sanity: {
+            enabled: true,
+            projectId: "proj-1",
+            dataset: "production",
+            documentTypes: ["article"],
+            documentTypeModes: {},
+            localeCatalog: {
+              documentType: "locale",
+              tagField: "tag",
+              titleField: "name",
+            },
+            languages: ["en", "de"],
+            languagesByType: {},
+            sourceLocale: "en",
+            targetLocales: ["de"],
+            includeDrafts: true,
+            overwriteSanityDrafts: true,
+            existingTranslationPolicy: "seed_empty",
+          },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["import_sanity_documents"]);
+  });
+
+  it("plans push-only tools for Sanity when operation is push_approved", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          sanity: {
+            enabled: true,
+            projectId: "proj-1",
+            dataset: "production",
+            documentTypes: ["article"],
+            documentTypeModes: {},
+            localeCatalog: {
+              documentType: "locale",
+              tagField: "tag",
+              titleField: "name",
+            },
+            languages: ["en", "de"],
+            languagesByType: {},
+            sourceLocale: "en",
+            targetLocales: ["de"],
+            includeDrafts: true,
+            overwriteSanityDrafts: true,
+            existingTranslationPolicy: "seed_empty",
+          },
+        },
+      }),
+      { operation: "push_approved" },
+    );
+
+    expect(plan.tools).toEqual(["push_sanity_translations"]);
+  });
+
+  it("plans Braze push-only tools when operation is push_approved", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          braze: {
+            enabled: true,
+            sourceLocale: "en",
+            templateIds: [],
+            contentBlockIds: [],
+            existingTranslationPolicy: "seed_empty",
+            overwriteWhenRemoteNewer: true,
+          },
+        },
+      }),
+      { operation: "push_approved" },
+    );
+
+    expect(plan.tools).toEqual(["push_braze_templates"]);
+  });
+
+  it("plans Braze campaign import by default and push when operation is push_approved", () => {
+    const automationConfig = automation({
+      projectId: "project-1",
+      toolConfig: {
+        brazeCampaigns: {
+          enabled: true,
+          sourceLocale: "en",
+          campaignIds: [],
+          canvasIds: [],
+          existingTranslationPolicy: "seed_empty",
+          overwriteWhenRemoteNewer: true,
+        },
+      },
+    });
+
+    expect(buildWorkspaceOrchestratorPlan(automationConfig).tools).toEqual([
+      "import_braze_campaigns",
+    ]);
+    expect(
+      buildWorkspaceOrchestratorPlan(automationConfig, { operation: "push_approved" }).tools,
+    ).toEqual(["push_braze_campaigns"]);
   });
 
   it("puts contentful before github when template skill targets contentful", () => {
@@ -304,7 +511,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
             validation: false,
           },
           slack: { enabled: true, channelId: "C123" },
-          knowledge: { enabled: true, allowUpdates: false },
+          knowledge: { enabled: true },
         },
       }),
     );
@@ -312,7 +519,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["run_github_workflows", "notify_slack"]);
   });
 
-  it("does not plan save_memory when knowledge updates are allowed", () => {
+  it("does not plan save_memory: the save tool no longer exists", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
         projectId: "project-1",
@@ -325,7 +532,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
             validation: false,
           },
           slack: { enabled: true, channelId: "C123" },
-          knowledge: { enabled: true, allowUpdates: true },
+          knowledge: { enabled: true },
         },
       }),
     );
@@ -333,23 +540,47 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["run_github_workflows", "notify_slack"]);
   });
 
-  it("doesn't plan save_memory when allowUpdates is off", () => {
+  it("doesn't plan recall_memory when knowledge is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
         toolConfig: {
-          knowledge: { enabled: true, allowUpdates: false },
+          knowledge: { enabled: true },
         },
       }),
     );
 
-    expect(plan.tools).not.toContain("save_memory");
+    expect(plan.tools).not.toContain("recall_memory");
+  });
+
+  it("plans Mailchimp import by default and push when operation is push_approved", () => {
+    const automationConfig = automation({
+      projectId: "project-1",
+      toolConfig: {
+        mailchimp: {
+          enabled: true,
+          workosUserId: "user_workos",
+          sourceLocale: "en",
+          campaignIds: [],
+          templateIds: [],
+          existingTranslationPolicy: "seed_empty",
+          overwriteWhenRemoteNewer: true,
+        },
+      },
+    });
+
+    expect(buildWorkspaceOrchestratorPlan(automationConfig).tools).toEqual([
+      "import_mailchimp_content",
+    ]);
+    expect(
+      buildWorkspaceOrchestratorPlan(automationConfig, { operation: "push_approved" }).tools,
+    ).toEqual(["push_mailchimp_content"]);
   });
 });
 
 describe("planHasActionableTool", () => {
   it("is false when only knowledge recall is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
-      automation({ toolConfig: { knowledge: { enabled: true, allowUpdates: false } } }),
+      automation({ toolConfig: { knowledge: { enabled: true } } }),
     );
 
     expect(plan.tools).toEqual([]);
@@ -362,7 +593,7 @@ describe("planHasActionableTool", () => {
         projectId: "project-1",
         toolConfig: {
           slack: { enabled: true, channelId: "C123" },
-          knowledge: { enabled: true, allowUpdates: false },
+          knowledge: { enabled: true },
         },
       }),
     );
@@ -375,9 +606,9 @@ describe("planHasActionableTool", () => {
     expect(planHasActionableTool(buildWorkspaceOrchestratorPlan(automation()))).toBe(false);
   });
 
-  it("is false when knowledge recall and updates are enabled without another tool", () => {
+  it("is false when only knowledge recall is enabled, with no other tool", () => {
     const plan = buildWorkspaceOrchestratorPlan(
-      automation({ toolConfig: { knowledge: { enabled: true, allowUpdates: true } } }),
+      automation({ toolConfig: { knowledge: { enabled: true } } }),
     );
 
     expect(plan.tools).toEqual([]);

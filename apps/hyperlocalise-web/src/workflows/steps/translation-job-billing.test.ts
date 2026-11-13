@@ -50,10 +50,46 @@ afterEach(async () => {
   await projectFixture.cleanup();
 });
 
+type CapturedAutumnRequest = {
+  url: string;
+  body: Record<string, unknown>;
+};
+
 function stubAutumnFetch(status = 200) {
-  const fetchMock = vi.fn(async () => new Response(status === 200 ? "{}" : "bad", { status }));
+  const requests: CapturedAutumnRequest[] = [];
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input instanceof Request ? input.url : input);
+    const rawBody =
+      typeof init?.body === "string"
+        ? init.body
+        : init?.body instanceof Uint8Array
+          ? new TextDecoder().decode(init.body)
+          : init?.body instanceof ArrayBuffer
+            ? new TextDecoder().decode(init.body)
+            : input instanceof Request
+              ? await input.clone().text()
+              : "";
+    requests.push({
+      url,
+      body: rawBody ? (JSON.parse(rawBody) as Record<string, unknown>) : {},
+    });
+    if (url.includes("/v1/balances.track_tokens")) {
+      return new Response(
+        JSON.stringify({
+          customer_id: "org_test",
+          value: 0.01,
+          balance: null,
+        }),
+        {
+          status,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+    return new Response(status === 200 ? "{}" : "bad", { status });
+  });
   vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
-  return fetchMock;
+  return Object.assign(fetchMock, { requests });
 }
 
 async function insertRunningTranslationJob(input: {
@@ -138,15 +174,16 @@ async function getUsageEvent(operationKey: string) {
   return event;
 }
 
+function autumnRequestBodies(fetchMock: ReturnType<typeof stubAutumnFetch>) {
+  return fetchMock.requests;
+}
+
 function autumnRequestBody(fetchMock: ReturnType<typeof stubAutumnFetch>) {
-  const calls = fetchMock.mock.calls as unknown as Array<Parameters<typeof fetch>>;
-  const [, requestInit] = calls[0] ?? [];
-  const requestBody = requestInit?.body;
-  if (typeof requestBody !== "string") {
+  const [request] = autumnRequestBodies(fetchMock);
+  if (!request) {
     throw new Error("Expected Autumn request body to be a JSON string");
   }
-
-  return JSON.parse(requestBody) as Record<string, unknown>;
+  return request.body;
 }
 
 describe("translation job workflow billing", () => {
@@ -281,5 +318,153 @@ describe("translation job workflow billing", () => {
         error: "Autumn usage tracking failed with HTTP 500",
       }),
     );
+  });
+
+  it("persists leftover locales and follow-up metadata on a succeeded file job", async () => {
+    stubAutumnFetch();
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const workflowRunId = `run_${randomUUID()}`;
+    const { job } = await insertRunningTranslationJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      workflowRunId,
+      type: "file",
+      usageSource: "translation_job_create",
+    });
+
+    await completeFileTranslationJobStep({
+      jobId: job.id,
+      projectId: project.id,
+      workflowRunId,
+      outputFiles: [{ fileId: "file_de", locale: "de-DE", filename: "messages.de.json" }],
+      failedLocales: ["ja-JP", "ko-KR"],
+      followUpJobId: "job_retry",
+      message:
+        "the translation environment disconnected mid-run. This is usually temporary — try again.",
+      code: "sandbox_timeout",
+    });
+
+    await expect(getJobState(job.id)).resolves.toMatchObject({
+      status: "succeeded",
+      outcomeKind: "file_result",
+      lastError: null,
+      outcomePayload: {
+        outputFiles: [{ fileId: "file_de", locale: "de-DE", filename: "messages.de.json" }],
+        failedLocales: ["ja-JP", "ko-KR"],
+        followUpJobId: "job_retry",
+        message:
+          "the translation environment disconnected mid-run. This is usually temporary — try again.",
+        code: "sandbox_timeout",
+      },
+    });
+  });
+
+  it("meters sandbox CLI token pools against ai_tokens after a file job succeeds", async () => {
+    const fetchMock = stubAutumnFetch();
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const workflowRunId = `run_${randomUUID()}`;
+    const { job, operationKey } = await insertRunningTranslationJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      workflowRunId,
+      type: "file",
+      usageSource: "translation_job_create",
+    });
+
+    await completeFileTranslationJobStep({
+      jobId: job.id,
+      projectId: project.id,
+      workflowRunId,
+      outputFiles: [{ fileId: "file_fr", locale: "fr-FR", filename: "messages.fr.json" }],
+      tokenUsage: {
+        inputTokens: 40,
+        outputTokens: 12,
+        totalTokens: 55,
+        cacheReadTokens: 3,
+      },
+    });
+
+    await expect(getUsageEvent(operationKey)).resolves.toMatchObject({
+      featureId: "translation_jobs",
+      status: "tracking_succeeded",
+      quantity: 1,
+      dimensions: {
+        autumn_event_name: "translation_job.completed",
+        unit: "model_tokens",
+        input_tokens: 40,
+        output_tokens: 12,
+      },
+    });
+    await expect(getUsageEvent(`${operationKey}:ai_tokens`)).resolves.toMatchObject({
+      featureId: "ai_tokens",
+      status: "tracking_succeeded",
+      quantity: 55,
+      source: "translation_job_complete",
+      jobId: job.id,
+      dimensions: {
+        autumn_event_name: "ai_tokens.consumed",
+        unit: "model_tokens",
+        input_tokens: 40,
+        output_tokens: 12,
+        parent_operation_key: operationKey,
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const requests = autumnRequestBodies(fetchMock);
+    expect(requests).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          url: "https://api.useautumn.com/v1/balances.track",
+          body: expect.objectContaining({
+            feature_id: "translation_jobs",
+            value: 1,
+            idempotency_key: operationKey,
+          }),
+        }),
+        expect.objectContaining({
+          url: "https://api.useautumn.com/v1/balances.track_tokens",
+          body: expect.objectContaining({
+            model_id: "openai/gpt-6-luna",
+            input_tokens: 40,
+            output_tokens: 12,
+          }),
+        }),
+      ]),
+    );
+  });
+
+  it("meters email CLI token pools against ai_tokens after the job succeeds", async () => {
+    const fetchMock = stubAutumnFetch();
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const workflowRunId = `run_${randomUUID()}`;
+    const { job, operationKey } = await insertRunningTranslationJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      workflowRunId,
+      type: "file",
+      usageSource: "email_translation_job_create",
+    });
+
+    await markEmailTranslationJobSucceeded({
+      jobId: job.id,
+      workflowRunId,
+      sourceFilename: "welcome.html",
+      outputFilename: "welcome.fr.html",
+      targetLocale: "fr-FR",
+      tokenUsage: { inputTokens: 8, outputTokens: 3, totalTokens: 11 },
+    });
+
+    await expect(getUsageEvent(`${operationKey}:ai_tokens`)).resolves.toMatchObject({
+      featureId: "ai_tokens",
+      status: "tracking_succeeded",
+      quantity: 11,
+      source: "email_translation_job_complete",
+      jobId: job.id,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

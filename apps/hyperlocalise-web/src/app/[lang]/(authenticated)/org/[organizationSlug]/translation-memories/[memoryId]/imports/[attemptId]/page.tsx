@@ -10,21 +10,22 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
 import { TmImportAttemptDetail } from "./_components/tm-import-attempt-detail";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "translationMemoryImport");
+}
 
 export default function TranslationMemoryImportAttemptPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string; memoryId: string; attemptId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <TranslationMemoryImportAttemptLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <TranslationMemoryImportAttemptLoader params={params} />;
 }
 
 async function TranslationMemoryImportAttemptLoader({
@@ -33,13 +34,15 @@ async function TranslationMemoryImportAttemptLoader({
   params: Promise<{ organizationSlug: string; memoryId: string; attemptId: string }>;
 }) {
   const { organizationSlug, memoryId, attemptId } = await params;
-  await requireAppAuthContext({ organizationSlug });
+  const auth = await requireAppAuthContext({ organizationSlug });
 
   return (
     <TmImportAttemptDetail
       organizationSlug={organizationSlug}
       memoryId={memoryId}
       attemptId={attemptId}
+      currentUserId={auth.user.localUserId}
+      canWriteMemories={hasCapability(auth.membership.role, "memories:write")}
     />
   );
 }

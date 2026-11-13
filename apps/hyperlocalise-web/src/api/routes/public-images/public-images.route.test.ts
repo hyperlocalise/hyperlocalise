@@ -128,6 +128,49 @@ describe("publicImageRoutes", () => {
     expect(Buffer.from(await response.arrayBuffer()).toString()).toBe("# Bonjour\n");
   });
 
+  it("downloads a translated video from files/download", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: [...defaultApiKeyPermissions] })
+      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+
+    const sourcePath = "media/demo.mp4";
+    const storedFile = await createStoredFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      role: "output",
+      sourceKind: "job_output",
+      filename: "demo-fr.mp4",
+      contentType: "video/mp4",
+      content: Buffer.from("translated-video"),
+      adapter: fileStorageAdapter,
+    });
+
+    await db.insert(schema.projectVideoVariants).values({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath,
+      targetLocale: "fr",
+      storedFileId: storedFile.id,
+      status: "approved",
+      provenance: "import",
+    });
+
+    const response = await client.api.v1.projects[":projectId"].files.download.$get(
+      {
+        param: { projectId: project.id },
+        query: { sourcePath, locale: "fr" },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("video/mp4");
+    expect(response.headers.get("content-disposition")).toContain("demo-fr.mp4");
+    expect(Buffer.from(await response.arrayBuffer()).toString()).toBe("translated-video");
+  });
+
   it("returns 404 when the file variant is missing", async () => {
     const { apiKey, project } = await createPublicApiFixture();
     await db

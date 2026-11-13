@@ -21,11 +21,13 @@ import { TypographyP } from "@/components/ui/typography";
 
 import { hyperlabMessages as messages } from "./hyperlab.messages";
 import {
-  hyperlabClient,
+  useHyperlabClient,
   hyperlabQueryKeys,
   readHyperlabJson,
   type HyperlabAudience,
 } from "./hyperlab-api";
+import { HyperlabWorkspaceProvider } from "../store/hyperlab-workspace-context";
+
 import { HyperlabCreateAudienceDialog } from "./hyperlab-create-dialogs";
 import { summarizeCriterion } from "./hyperlab-criterion";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
@@ -45,8 +47,22 @@ export function HyperlabAudiencesPage({
   organizationSlug: string;
   canWrite: boolean;
 }) {
+  return (
+    <HyperlabWorkspaceProvider>
+      <HyperlabAudiencesPageView organizationSlug={organizationSlug} canWrite={canWrite} />
+    </HyperlabWorkspaceProvider>
+  );
+}
+
+function HyperlabAudiencesPageView({
+  organizationSlug,
+  canWrite,
+}: {
+  organizationSlug: string;
+  canWrite: boolean;
+}) {
   const intl = useIntl();
-  const client = hyperlabClient();
+  const client = useHyperlabClient();
   const audiencesQuery = useQuery({
     queryKey: hyperlabQueryKeys.audiences(organizationSlug),
     queryFn: async () => {
@@ -64,11 +80,7 @@ export function HyperlabAudiencesPage({
   ) : null;
 
   return (
-    <HyperlabPageShell
-      title={intl.formatMessage(messages.audiencesTitle)}
-      description={intl.formatMessage(messages.audiencesDescription)}
-      actions={createAction}
-    >
+    <HyperlabPageShell title={intl.formatMessage(messages.audiencesTitle)} actions={createAction}>
       {audiencesQuery.isError ? (
         <HyperlabLoadError
           error={audiencesQuery.error}

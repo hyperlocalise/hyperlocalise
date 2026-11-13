@@ -1,46 +1,41 @@
 ---
-title: "First project"
-description: "Set up a minimal project layout and understand expected output files."
+title: "Project layout"
+description: "Understand source files, generated translations, configuration, and the lockfile in your first project."
 ---
 
-## Minimal layout
+After the [quickstart](/cli/getting-started/quickstart), your project contains:
 
-<Tree>
-  <Tree.Folder name="apps" defaultOpen>
-    <Tree.Folder name="web" defaultOpen>
-      <Tree.Folder name="lang" defaultOpen>
-        <Tree.File name="es-ES.json" />
-      </Tree.Folder>
-    </Tree.Folder>
-    <Tree.Folder name="lab" />
-  </Tree.Folder>
-  <Tree.Folder name="packages" defaultOpen>
-    <Tree.Folder name="ui" defaultOpen>
-      <Tree.Folder name="lang" defaultOpen>
-        <Tree.File name="en-US.json" />
-      </Tree.Folder>
-    </Tree.Folder>
-  </Tree.Folder>
-  <Tree.File name="i18n.yml" />
-</Tree>
+```text
+locales/
+    en-US.json                 # Source messages
+    es-ES.json                 # Generated Spanish translations
+i18n.yml                       # Locales, paths, and provider settings
+.hyperlocalise.lock.json        # Translation progress
+.env.local                     # Local credentials; do not commit
+```
 
-## Minimal config pattern
+## What to commit
 
-Use one bucket to start:
+Keep your source files, reviewed translations, `i18n.yml`, and lockfile in version
+control. Keep API keys in your local environment or CI secrets.
 
-- `locales.source`: your source locale (for example `en-US`)
-- `locales.targets`: one target locale (for example `es-ES`)
-- `buckets.ui.files`: map source path template to target path template
-- `llm.profiles.default`: choose your provider and model
+The [lockfile](/cli/reference/lockfile-contract) lets subsequent runs reuse
+completed work. Review its changes alongside the generated files.
 
-For full fields, see [i18n config](/cli/configuration/i18n-config).
+## Add more files or locales
 
-In this setup, translations are sourced from `packages/ui/lang` and generated into `apps/web/lang`. If you omit `groups`, Hyperlocalise automatically runs every configured bucket for every target locale.
+Add a locale under `locales.targets` to generate another language. Add mappings
+under a bucket's `files` list to translate more files. Use separate buckets for
+content with different paths or settings.
 
-## Generated artifacts
+When you omit `groups`, the CLI runs every configured bucket for every target
+locale. You can keep the initial configuration small and introduce groups later.
 
-After `hyperlocalise run`:
+Use [path templates](/cli/configuration/path-templates) for shared layouts and the
+[file format guides](/cli/reference/formats/overview) for format-specific examples.
 
-- translated target files under your configured `to` paths
-- `.hyperlocalise.lock.json` in project root
-- sidecar metadata files for provenance, depending on your store layout
+## Next steps
+
+- [Configure your project](/cli/configuration/i18n-config).
+- [Translate and review local changes](/cli/workflows/local-generation).
+- [Automate the workflow in CI](/cli/workflows/ci-automation).

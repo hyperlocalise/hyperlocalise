@@ -19,6 +19,12 @@ import { defaultProjectFileContentEditorPageLimit } from "@/api/routes/project/p
 import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import {
+  canUseGoSvcCat,
+  type ContentEditorProjectSource,
+} from "@/components/content-editor/shared/content-editor-native-project";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 
 import { projectFileCatApiMessages } from "./project-file-content-editor-api.messages";
 
@@ -35,9 +41,13 @@ export function projectFileCatQueryKey(input: {
   search: string;
   queueFilter: ProjectFileContentEditorQueueFilter;
   queueSort: ProjectFileContentEditorQueueSort;
+  queueFilterQualifier?: string;
+  queueAdvanced?: string;
   limit: number;
   offset: number;
   sourcePaths?: string | null;
+  grouped?: boolean;
+  branch?: string | null;
 }) {
   return [
     "project-file-content-editor-queue",
@@ -50,9 +60,13 @@ export function projectFileCatQueryKey(input: {
     input.search,
     input.queueFilter,
     input.queueSort,
+    input.queueFilterQualifier ?? null,
+    input.queueAdvanced ?? null,
     input.limit,
     input.offset,
     input.sourcePaths ?? null,
+    input.grouped ?? false,
+    input.branch ?? null,
   ] as const;
 }
 
@@ -66,8 +80,12 @@ export function projectFileCatBaseQueryKey(input: {
   search: string;
   queueFilter: ProjectFileContentEditorQueueFilter;
   queueSort: ProjectFileContentEditorQueueSort;
+  queueFilterQualifier?: string;
+  queueAdvanced?: string;
   limit: number;
   sourcePaths?: string | null;
+  grouped?: boolean;
+  branch?: string | null;
 }) {
   return [
     "project-file-content-editor-queue",
@@ -80,12 +98,16 @@ export function projectFileCatBaseQueryKey(input: {
     input.search,
     input.queueFilter,
     input.queueSort,
+    input.queueFilterQualifier ?? null,
+    input.queueAdvanced ?? null,
     input.limit,
     input.sourcePaths ?? null,
+    input.grouped ?? false,
+    input.branch ?? null,
   ] as const;
 }
 
-const CAT_QUEUE_BASE_QUERY_KEY_LENGTH = 12;
+const CAT_QUEUE_BASE_QUERY_KEY_LENGTH = 16;
 
 function contentEditorQueuePlaceholderIdentity(key: readonly unknown[]) {
   if (
@@ -95,7 +117,18 @@ function contentEditorQueuePlaceholderIdentity(key: readonly unknown[]) {
     return null;
   }
 
-  return [key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[11]] as const;
+  return [
+    key[0],
+    key[1],
+    key[2],
+    key[3],
+    key[4],
+    key[5],
+    key[6],
+    key[13],
+    key[14],
+    key[15],
+  ] as const;
 }
 
 /**
@@ -134,6 +167,8 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
   search: string;
   queueFilter: ProjectFileContentEditorQueueFilter;
   queueSort: ProjectFileContentEditorQueueSort;
+  queueFilterQualifier?: string;
+  queueAdvanced?: string;
   limit: number;
   offset: number;
   phraseScanPage?: number;
@@ -141,29 +176,81 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
   sortBucket?: number;
   sortBucketOffset?: number;
   sourcePaths?: string | null;
+  branch?: string | null;
   intl: ContentEditorFormatMessageIntl;
+  signal?: AbortSignal;
+  goSvcClient?: GoSvcClient;
+  projectSource?: ContentEditorProjectSource | null;
 }) {
+  if (
+    input.goSvcClient &&
+    canUseGoSvcCat({
+      projectId: input.projectId,
+      projectSource: input.projectSource,
+      externalResourceId: input.externalResourceId,
+    })
+  ) {
+    try {
+      const { contentEditorQueue } = await input.goSvcClient.cat.queue(
+        input.organizationSlug,
+        input.projectId,
+        {
+          sourcePath: input.sourcePath,
+          targetLocale: input.targetLocale,
+          ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
+          ...(input.search ? { search: input.search } : {}),
+          ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
+          ...(input.queueSort !== "file_order" ? { queueSort: input.queueSort } : {}),
+          ...(input.queueFilterQualifier
+            ? { queueFilterQualifier: input.queueFilterQualifier }
+            : {}),
+          ...(input.queueAdvanced ? { queueAdvanced: input.queueAdvanced } : {}),
+          ...(input.branch ? { branch: input.branch } : {}),
+          offset: input.offset,
+          limit: input.limit,
+        },
+        { signal: input.signal },
+      );
+      return contentEditorQueue;
+    } catch (error) {
+      if (!isCatDeferredToApp(error)) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            input.intl.formatMessage(projectFileCatApiMessages.failedToLoadQueue),
+          ),
+        );
+      }
+    }
+  }
+
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
-  ].files.detail.cat.queue.$get({
-    param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
-    query: {
-      sourcePath: input.sourcePath,
-      ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
-      ...(input.resourceType ? { resourceType: input.resourceType } : {}),
-      ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
-      targetLocale: input.targetLocale,
-      offset: input.offset,
-      limit: input.limit,
-      ...(input.search ? { search: input.search } : {}),
-      ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
-      ...(input.queueSort !== "file_order" ? { queueSort: input.queueSort } : {}),
-      ...(input.phraseScanPage != null ? { phraseScanPage: input.phraseScanPage } : {}),
-      ...(input.phraseScanSkip != null ? { phraseScanSkip: input.phraseScanSkip } : {}),
-      ...(input.sortBucket != null ? { sortBucket: input.sortBucket } : {}),
-      ...(input.sortBucketOffset != null ? { sortBucketOffset: input.sortBucketOffset } : {}),
+  ].files.detail.cat.queue.$get(
+    {
+      param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
+      query: {
+        sourcePath: input.sourcePath,
+        ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
+        ...(input.resourceType ? { resourceType: input.resourceType } : {}),
+        ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
+        targetLocale: input.targetLocale,
+        offset: input.offset,
+        limit: input.limit,
+        ...(input.search ? { search: input.search } : {}),
+        ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
+        ...(input.queueSort !== "file_order" ? { queueSort: input.queueSort } : {}),
+        ...(input.queueFilterQualifier ? { queueFilterQualifier: input.queueFilterQualifier } : {}),
+        ...(input.queueAdvanced ? { queueAdvanced: input.queueAdvanced } : {}),
+        ...(input.phraseScanPage != null ? { phraseScanPage: input.phraseScanPage } : {}),
+        ...(input.phraseScanSkip != null ? { phraseScanSkip: input.phraseScanSkip } : {}),
+        ...(input.sortBucket != null ? { sortBucket: input.sortBucket } : {}),
+        ...(input.sortBucketOffset != null ? { sortBucketOffset: input.sortBucketOffset } : {}),
+        ...(input.branch ? { branch: input.branch } : {}),
+      },
     },
-  });
+    { init: { signal: input.signal } },
+  );
 
   if (response.status !== 200) {
     throw new Error(
@@ -176,6 +263,34 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
 
   const body = await response.json();
   return body.contentEditorQueue;
+}
+
+export async function fetchProjectFileContentEditorLabels(input: {
+  organizationSlug: string;
+  projectId: string;
+  intl: ContentEditorFormatMessageIntl;
+  signal?: AbortSignal;
+}) {
+  const response = await apiClient.api.orgs[":organizationSlug"].projects[
+    ":projectId"
+  ].files.detail.cat.labels.$get(
+    {
+      param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
+    },
+    { init: { signal: input.signal } },
+  );
+
+  if (response.status !== 200) {
+    throw new Error(
+      await readApiError(
+        response,
+        input.intl.formatMessage(projectFileCatApiMessages.failedToLoadQueue),
+      ),
+    );
+  }
+
+  const body = await response.json();
+  return body.labels;
 }
 
 /** @deprecated Use fetchProjectFileContentEditorQueuePage — queue panel loads via GET /cat/queue */

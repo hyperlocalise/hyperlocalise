@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { autorun } from "mobx";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { createContentEditorWorkspaceState } from "@/components/content-editor/shared/content-editor.fixture";
 
@@ -21,6 +21,55 @@ import {
   getAiSuggestionForSegment,
   resolveSegmentIntelligenceForDisplay,
 } from "./store/content-editor-workspace-store-utils";
+
+describe("editor subscription boundaries", () => {
+  it("hydrates without throwing when the localStorage identifier is missing", () => {
+    vi.stubGlobal("localStorage", undefined);
+    vi.stubGlobal("window", undefined);
+
+    try {
+      expect(() => createCatWorkspace(createContentEditorWorkspaceState())).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps the ordered queue subscription stable when a draft changes", () => {
+    const store = createCatWorkspace(createContentEditorWorkspaceState());
+    let listReads = 0;
+    let rowReads = 0;
+    const stopList = autorun(() => {
+      store.getQueuePanelSegments("all", false);
+      listReads += 1;
+    });
+    const row = store.getQueuePanelSegments("all", false)[0]!;
+    const stopRow = autorun(() => {
+      void row.targetText;
+      rowReads += 1;
+    });
+    const before = listReads;
+    store.setTargetText(row.id, "Changed translation");
+    expect(listReads).toBe(before);
+    expect(rowReads).toBe(2);
+    expect(row.targetText).toBe("Changed translation");
+    stopList();
+    stopRow();
+  });
+
+  it("keeps target and comment loading local to the requested segment", () => {
+    const store = createCatWorkspace(createContentEditorWorkspaceState());
+    const [first, second] = store.queueSegments;
+    store.setSelectedSegmentId(first!.id);
+    store.setSegmentTargetLoading(true, first!.id);
+    store.setCommentsLoading(true, first!.id);
+    expect(store.isSegmentTargetLoading).toBe(true);
+    store.setSelectedSegmentId(second!.id);
+    expect(store.isSegmentTargetLoading).toBe(false);
+    expect(store.isCommentsLoading).toBe(false);
+    store.setSelectedSegmentId(first!.id);
+    expect(store.isCommentsLoading).toBe(true);
+  });
+});
 
 describe("ContentEditorWorkspaceOrchestrator hydration", () => {
   it("preserves selected segment and unsaved target edits across server refreshes", () => {
@@ -1067,7 +1116,7 @@ describe("resolveSegmentIntelligenceForDisplay", () => {
 });
 
 describe("ContentEditorWorkspaceOrchestrator ui state", () => {
-  it("resolves intelligence segment from hover and clears hover on selection", () => {
+  it("keeps intelligence on the selected segment instead of hover", () => {
     const store = createCatWorkspace(
       createContentEditorWorkspaceState({
         selectedSegmentId: "seg-01",
@@ -1096,30 +1145,54 @@ describe("ContentEditorWorkspaceOrchestrator ui state", () => {
       }),
     );
 
-    store.ui.setHoveredSegment("seg-02");
-
-    expect(store.intelligenceSegmentId).toBe("seg-02");
-    expect(store.intelligenceSegmentView?.key).toBe("second");
+    expect(store.intelligenceSegmentId).toBe("seg-01");
+    expect(store.intelligenceSegmentView?.key).toBe("first");
 
     store.setSelectedSegmentId("seg-02");
 
     expect(store.selectedSegmentId).toBe("seg-02");
-    expect(store.ui.hoveredSegmentId).toBeNull();
     expect(store.intelligenceSegmentId).toBe("seg-02");
+    expect(store.intelligenceSegmentView?.key).toBe("second");
   });
 
-  it("tracks loading segment ids from selected and preview targets", () => {
+  it("tracks loading segment ids from the selected target", () => {
     const store = createCatWorkspace(
       createContentEditorWorkspaceState({ selectedSegmentId: "seg-01" }),
     );
 
     store.setSegmentTargetLoading(true);
-    store.ui.setPreviewLoadingState("seg-02", {
-      isTargetLoading: true,
-      isCommentsLoading: false,
+
+    expect([...store.loadingSegmentIds]).toEqual(["seg-01"]);
+  });
+
+  it("treats unhydrated side-by-side load-range rows as loading", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+          { id: "seg-03", index: 3, key: "third", sourceText: "Third" },
+        ],
+        segments: [],
+      }),
+    );
+
+    store.ui.setViewMode("side-by-side");
+    store.ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01", "seg-02"],
+      loadSegmentIds: ["seg-01", "seg-02", "seg-03"],
     });
 
-    expect([...store.loadingSegmentIds]).toEqual(["seg-01", "seg-02"]);
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-01", "seg-02", "seg-03"]);
+
+    store.applySegmentTarget("seg-02", {
+      text: "Second target",
+      externalTranslationId: "translation-2",
+      isApproved: false,
+    });
+
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-01", "seg-03"]);
   });
 
   it("includes queue target loading segment ids in side-by-side loading state", () => {
@@ -1165,6 +1238,92 @@ describe("ContentEditorWorkspaceOrchestrator ui state", () => {
     store.setTargetText("seg-02", "Typed while fetching");
 
     expect([...store.loadingSegmentIds]).toEqual(["seg-03"]);
+  });
+
+  it("stops treating failed viewport target loads as loading", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+          { id: "seg-03", index: 3, key: "third", sourceText: "Third" },
+        ],
+        segments: [],
+      }),
+    );
+
+    store.ui.setViewMode("side-by-side");
+    store.ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01", "seg-02"],
+      loadSegmentIds: ["seg-01", "seg-02", "seg-03"],
+    });
+
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-01", "seg-02", "seg-03"]);
+
+    store.markSegmentTargetLoadFailed("seg-01");
+    store.markSegmentTargetLoadFailed("seg-02");
+
+    expect([...store.loadingSegmentIds]).toEqual(["seg-03"]);
+    expect(store.hasFailedTarget("seg-01")).toBe(true);
+    expect(store.hasHydratedTarget("seg-01")).toBe(false);
+  });
+
+  it("returns a failed viewport row to loading when its target fetch retries", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+        ],
+        segments: [],
+      }),
+    );
+
+    store.ui.setViewMode("side-by-side");
+    store.ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01", "seg-02"],
+      loadSegmentIds: ["seg-01", "seg-02"],
+    });
+    store.markSegmentTargetLoadFailed("seg-02");
+
+    expect([...store.loadingSegmentIds]).toEqual(["seg-01"]);
+
+    store.setQueueTargetLoadingSegmentIds(["seg-02"]);
+
+    expect([...store.loadingSegmentIds].toSorted()).toEqual(["seg-01", "seg-02"]);
+    expect(store.hasFailedTarget("seg-02")).toBe(false);
+  });
+
+  it("clears a failed target load after the payload hydrates", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+        ],
+        segments: [],
+      }),
+    );
+
+    store.ui.setViewMode("side-by-side");
+    store.ui.setSideBySideViewport({
+      visibleSegmentIds: ["seg-01", "seg-02"],
+      loadSegmentIds: ["seg-01", "seg-02"],
+    });
+    store.markSegmentTargetLoadFailed("seg-02");
+
+    store.applySegmentTarget("seg-02", {
+      text: "Second target",
+      externalTranslationId: "translation-2",
+      isApproved: false,
+    });
+
+    expect(store.hasFailedTarget("seg-02")).toBe(false);
+    expect(store.hasHydratedTarget("seg-02")).toBe(true);
+    expect([...store.loadingSegmentIds]).toEqual(["seg-01"]);
   });
 });
 
@@ -1219,6 +1378,20 @@ describe("ContentEditorWorkspaceOrchestrator queue snapshot ingest", () => {
 });
 
 describe("ContentEditorWorkspaceOrchestrator file scope", () => {
+  it("aborts in-flight image generation when the workspace is disposed", () => {
+    const store = createCatWorkspace(createContentEditorWorkspaceState());
+    let generationSignal!: AbortSignal;
+    void store.imageGenerations.run("seg-02", "vi", (signal) => {
+      generationSignal = signal;
+      return new Promise<void>(() => {});
+    });
+
+    store.dispose();
+
+    expect(generationSignal.aborted).toBe(true);
+    expect(store.imageGenerations.runningCount).toBe(0);
+  });
+
   it("clears queue data and marks the translation view loading without dropping page chrome", () => {
     const store = createCatWorkspace(
       createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" }),
@@ -1239,6 +1412,13 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
     });
 
     expect(store.queueSegments.length).toBeGreaterThan(0);
+    let generationSignal!: AbortSignal;
+    void store.imageGenerations.run("seg-02", "vi", (signal) => {
+      generationSignal = signal;
+      return new Promise<void>(() => {});
+    });
+    expect(store.imageGenerations.runningCount).toBe(1);
+    expect(generationSignal.aborted).toBe(false);
 
     store.prepareFileScopeChange({
       sourcePath: "locales/messages.po",
@@ -1248,6 +1428,8 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
 
     expect(store.queueSegments).toEqual([]);
     expect(store.selectedSegmentId).toBe("");
+    expect(generationSignal.aborted).toBe(true);
+    expect(store.imageGenerations.runningCount).toBe(0);
     expect(store.ui.translationViewLoading).toBe(true);
     expect(store.isFileScopeCurrent(0)).toBe(false);
     expect(store.isFileScopeCurrent(store.fileScopeGeneration)).toBe(true);
@@ -1277,5 +1459,138 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
     expect(store.ui.translationViewLoading).toBe(false);
     expect(store.queueSegments.map((segment) => segment.id)).toEqual(["seg-01"]);
     expect(store.page.showFileSidebar).toBe(true);
+  });
+
+  it("resets only when the file scope key changes after the first one", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" }),
+    );
+    const nextFile = {
+      sourcePath: "locales/next.json",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+    };
+
+    store.syncFileScope("first", nextFile);
+    store.syncFileScope("first", nextFile);
+    expect(store.selectedSegmentId).toBe("seg-02");
+
+    store.syncFileScope("second", nextFile);
+    expect(store.fileScopeKey).toBe("second");
+    expect(store.selectedSegmentId).toBe("");
+    expect(store.queueSegments).toEqual([]);
+  });
+
+  it("shows the next file's rows when a native queue window was set for the previous file", () => {
+    const previousFile = createContentEditorWorkspaceState({
+      selectedSegmentId: "seg-01",
+      queueSegments: [{ id: "seg-01", index: 1, key: "first", sourceText: "First" }],
+      segments: undefined,
+    });
+    const store = createCatWorkspace(previousFile);
+    store.attachServerTargetSource({ get: () => undefined, subscribe: () => () => undefined });
+    // A second snapshot of the same file records the queue window.
+    store.ingestQueue({ ...previousFile });
+    expect(store.getQueuePanelSegments("all", true).map((segment) => segment.id)).toEqual([
+      "seg-01",
+    ]);
+
+    store.prepareFileScopeChange({
+      sourcePath: "locales/next.json",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+    });
+    store.ingestQueue(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-09",
+        queueSegments: [{ id: "seg-09", index: 1, key: "other", sourceText: "Other" }],
+        segments: undefined,
+      }),
+    );
+
+    expect(store.getQueuePanelSegments("all", true).map((segment) => segment.id)).toEqual([
+      "seg-09",
+    ]);
+  });
+
+  it("captures the outgoing image segment family before clearing the queue in an All Files workspace", () => {
+    // Arrange: All Files workspace with an image segment selected.
+    const imageSegmentId = "img-01";
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: imageSegmentId,
+        fileContext: {
+          sourcePath: "*",
+          filename: "*",
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          providerKind: null,
+          canEditTranslations: true,
+          canAddComments: true,
+        },
+        segments: [
+          {
+            id: imageSegmentId,
+            index: 1,
+            key: "hero",
+            sourceText: "",
+            targetText: "",
+            sourceLocale: "en-US",
+            targetLocale: "fr-FR",
+            status: "pending",
+            sourcePath: "assets/hero.png",
+            contentKind: "image_file",
+          },
+        ],
+        queueSegments: [
+          {
+            id: imageSegmentId,
+            index: 1,
+            key: "hero",
+            sourceText: "",
+            sourcePath: "assets/hero.png",
+            contentKind: "image_file",
+          },
+        ],
+      }),
+    );
+    store.ui.setAdaptiveWorkspaceEnabled(true);
+
+    // Act: switch to a different locale — sourcePath stays "*".
+    store.prepareFileScopeChange({
+      sourcePath: "*",
+      sourceLocale: "en-US",
+      targetLocale: "de-DE",
+    });
+
+    // Assert: the outgoing image segment must have set the designer family, not
+    // text.  Without the fix selectedSegmentView would be undefined after
+    // clearing the queue and the family would always fall back to "text".
+    expect(store.ui.workspacePersona).toBe("designer");
+  });
+
+  it("keeps the previous provider kind while a Crowdin markdown file is loading", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        fileContext: {
+          sourcePath: "locales/en.json",
+          filename: "en.json",
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          providerKind: "crowdin",
+          canEditTranslations: true,
+          canAddComments: true,
+        },
+      }),
+    );
+
+    store.prepareFileScopeChange({
+      sourcePath: "docs/intro.md",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+    });
+
+    expect(store.fileContext.providerKind).toBe("crowdin");
+    expect(store.fileContext.sourcePath).toBe("docs/intro.md");
   });
 });

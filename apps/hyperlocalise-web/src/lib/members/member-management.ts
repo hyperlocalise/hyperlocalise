@@ -69,6 +69,15 @@ export function getMembershipStatusLabel(status: MemberApiStatus): string {
   return "Active";
 }
 
+export function formatMemberDisplayName(input: {
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+}) {
+  const parts = [input.firstName, input.lastName].filter(Boolean);
+  return parts.length > 0 ? parts.join(" ") : input.email;
+}
+
 export function getMembershipStatusDescription(status: MemberApiStatus): string {
   if (status === "invited") {
     return "Invitation sent; access starts after they accept.";

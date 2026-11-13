@@ -13,7 +13,7 @@
 @reference "../../../../globals.css";
 
 .markdown {
-  @apply text-lg leading-relaxed;
+  @apply w-full min-w-0 text-lg leading-relaxed break-words;
 }
 
 .markdown p,

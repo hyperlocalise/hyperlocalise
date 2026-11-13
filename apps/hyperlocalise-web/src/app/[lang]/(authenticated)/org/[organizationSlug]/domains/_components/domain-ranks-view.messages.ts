@@ -75,6 +75,11 @@ export const domainRanksViewMessages = defineMessages({
     id: "MJXPKuSba6",
     description: "Rank tracking volume column",
   },
+  columnDevice: {
+    defaultMessage: "Device",
+    id: "U13G20SmK+",
+    description: "Rank tracking device column",
+  },
   emptyTitle: {
     defaultMessage: "No keywords tracked yet",
     id: "bbfynfwu7y",

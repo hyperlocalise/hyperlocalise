@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { nativeJobSourceFileDisplayLabel } from "@/lib/projects/jobs/native-job-source-file-display";
 
 export const OVERVIEW_LOOKBACK_DAYS = 7;
 export const OVERVIEW_ACTIVITY_LIMIT = 4;
@@ -105,6 +106,8 @@ export type OverviewJobTitleInput = {
   reviewCriteria?: string | null;
   syncConnectorKind?: string | null;
   syncDirection?: string | null;
+  sourceFilename?: string | null;
+  sourcePath?: string | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -162,8 +165,13 @@ export function resolveOverviewJobTitle(job: OverviewJobTitleInput): OverviewRes
     return { kind: "text", text: payload.sourceText.trim().slice(0, 80) };
   }
 
-  if (typeof payload.sourceFileId === "string" && payload.sourceFileId.trim()) {
-    return { kind: "text", text: payload.sourceFileId.trim() };
+  const sourceFileLabel = nativeJobSourceFileDisplayLabel({
+    inputPayload: job.inputPayload,
+    sourceFilename: job.sourceFilename,
+    sourcePath: job.sourcePath,
+  });
+  if (sourceFileLabel) {
+    return { kind: "text", text: sourceFileLabel };
   }
 
   return { kind: "id", id: job.id };
@@ -268,4 +276,51 @@ export function mergeOverviewProjectSources<T extends { id: string }>(input: {
   }
 
   return merged;
+}
+
+export type OverviewLiveProjectSource = {
+  id: string;
+  name: string;
+  source?: "native" | "external_tms";
+  externalProviderKind?: string | null;
+  sourceLocale?: string | null;
+  targetLocales?: readonly string[] | null;
+  openJobCount?: number;
+};
+
+export function overviewProjectFromLiveSource(
+  organizationSlug: string,
+  project: OverviewLiveProjectSource,
+  extras?: OverviewProjectItem,
+): OverviewProjectItem {
+  return {
+    id: project.id,
+    name: project.name,
+    source: "external_tms",
+    providerKind: project.externalProviderKind ?? extras?.providerKind ?? null,
+    domain: extras?.domain ?? null,
+    localeRoute: formatOverviewLocaleRoute(project.sourceLocale, project.targetLocales),
+    latestJobTitle: extras?.latestJobTitle ?? null,
+    latestJobAt: extras?.latestJobAt ?? null,
+    openCount: extras?.openCount ?? project.openJobCount ?? 0,
+    failedCount: extras?.failedCount ?? 0,
+    href: extras?.href ?? `/org/${organizationSlug}/projects/${encodeURIComponent(project.id)}`,
+  };
+}
+
+export function mergeOverviewProjectsWithLive(input: {
+  organizationSlug: string;
+  stored: readonly OverviewProjectItem[];
+  live: readonly OverviewLiveProjectSource[];
+}): OverviewProjectItem[] {
+  const storedById = new Map(input.stored.map((project) => [project.id, project]));
+  const live = input.live.map((project) =>
+    overviewProjectFromLiveSource(input.organizationSlug, project, storedById.get(project.id)),
+  );
+
+  return mergeOverviewProjectSources({
+    live,
+    materialized: input.stored.filter((project) => project.source === "external_tms"),
+    native: input.stored.filter((project) => project.source === "native"),
+  }).slice(0, OVERVIEW_PROJECT_LIMIT);
 }

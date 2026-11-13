@@ -72,3 +72,69 @@ describe("DashboardPageView sparkline", () => {
     expect(bars[0]?.getAttribute("data-slot")).toBe("tooltip-trigger");
   });
 });
+
+describe("DashboardPageView section status", () => {
+  it("keeps loaded sections visible while another section is still loading", () => {
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <TooltipProvider>
+          <DashboardPageView
+            organizationSlug="acme"
+            overview={dashboardOverviewFixture}
+            automationsEnabled
+            sectionStatus={{
+              metrics: { isLoading: true },
+              activity: { isError: true },
+              projects: { isLoading: false, isError: false },
+              board: { isLoading: false, isError: false },
+              automations: { isLoading: false, isError: false },
+            }}
+            onNewRequest={() => undefined}
+          />
+        </TooltipProvider>
+      </IntlProvider>,
+    );
+
+    expect(screen.getByLabelText("Loading workspace overview")).toBeInTheDocument();
+    expect(screen.getByText("Workspace overview could not be loaded.")).toBeInTheDocument();
+    expect(screen.getByText(dashboardOverviewFixture.projects[0]!.name)).toBeInTheDocument();
+    expect(screen.getByText(dashboardOverviewFixture.board[0]!.title)).toBeInTheDocument();
+    expect(
+      screen.getAllByText(dashboardOverviewFixture.automations[0]!.name).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("shows a metrics error instead of zero-filled counts", () => {
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <TooltipProvider>
+          <DashboardPageView
+            organizationSlug="acme"
+            overview={{
+              ...dashboardOverviewFixture,
+              metrics: {
+                jobs: { count: 0, series: [0, 0, 0, 0, 0, 0, 0] },
+                translations: { count: 0, series: [0, 0, 0, 0, 0, 0, 0] },
+                automations: null,
+                issues: { open: 0, p1: 0 },
+              },
+            }}
+            automationsEnabled
+            sectionStatus={{
+              metrics: { isLoading: false, isError: true },
+              activity: { isLoading: false, isError: false },
+              projects: { isLoading: false, isError: false },
+              board: { isLoading: false, isError: false },
+              automations: { isLoading: false, isError: false },
+            }}
+            onNewRequest={() => undefined}
+          />
+        </TooltipProvider>
+      </IntlProvider>,
+    );
+
+    expect(screen.getByText("Workspace overview could not be loaded.")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /Jobs by day:/ })).not.toBeInTheDocument();
+    expect(screen.getByText(dashboardOverviewFixture.projects[0]!.name)).toBeInTheDocument();
+  });
+});

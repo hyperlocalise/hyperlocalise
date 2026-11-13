@@ -16,6 +16,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -58,7 +59,7 @@ export const workspaceAutomations = pgTable(
     name: text("name").notNull(),
     instructions: text("instructions").notNull(),
     // Gateway model id used when this automation runs (orchestrator and nested agents).
-    model: text("model").notNull().default("openai/gpt-5.6-luna"),
+    model: text("model").notNull().default("openai/gpt-6-luna"),
     triggerConfig: jsonb("trigger_config")
       .$type<Record<string, unknown>>()
       .notNull()
@@ -80,6 +81,11 @@ export const workspaceAutomations = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
     syncFingerprint: text("sync_fingerprint"),
+    // Attached skill ids from the automation skill catalogue; their tools are stored in toolConfig.
+    skillIds: jsonb("skill_ids")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     // Hyperlocalise project owned by the automation header; tools read this value.
     projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     configVersion: integer("config_version").notNull().default(1),
@@ -155,6 +161,36 @@ export const workspaceAutomationRuns = pgTable(
     uniqueIndex("idx_workspace_automation_runs_github_job")
       .on(table.githubRepositoryAutomationJobId)
       .where(sql`${table.githubRepositoryAutomationJobId} IS NOT NULL`),
+  ],
+);
+
+/**
+ * Records each orchestrator tool call of a workspace automation run, so a retried workflow step
+ * can replay a finished call and refuse to repeat a side effect whose outcome is unknown.
+ */
+export const workspaceAutomationToolAttempts = pgTable(
+  "workspace_automation_tool_attempts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => workspaceAutomationRuns.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    toolCallId: text("tool_call_id").notNull(),
+    toolName: text("tool_name").notNull(),
+    status: text("status").$type<"started" | "succeeded" | "failed">().notNull(),
+    output: jsonb("output").$type<Record<string, unknown>>(),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("idx_workspace_automation_tool_attempts_call").on(table.runId, table.toolCallId),
   ],
 );
 
@@ -329,4 +365,61 @@ export const interactionMessages = pgTable(
   (table) => [
     index("idx_interaction_messages_interaction_created").on(table.interactionId, table.createdAt),
   ],
+);
+
+export type ConversationRunStatus = "running" | "completed" | "interrupted" | "failed";
+
+/**
+ * One agent turn answering one user message in a chat conversation. The row exists so the turn
+ * outlives the HTTP request that started it: the server keeps running after the client leaves,
+ * writes a snapshot of the reply as it streams, and clients that reconnect read that snapshot.
+ * `user_message_id` is unique, which also makes starting a turn idempotent.
+ */
+export const conversationRuns = pgTable(
+  "conversation_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    interactionId: uuid("interaction_id")
+      .notNull()
+      .references(() => interactions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userMessageId: uuid("user_message_id")
+      .notNull()
+      .references(() => interactionMessages.id, { onDelete: "cascade" }),
+    status: text("status").$type<ConversationRunStatus>().notNull().default("running"),
+    snapshotParts: jsonb("snapshot_parts").$type<UIMessage["parts"]>(),
+    agentMessageId: uuid("agent_message_id").references(() => interactionMessages.id, {
+      onDelete: "set null",
+    }),
+    cancelRequestedAt: timestamp("cancel_requested_at", { withTimezone: true }),
+    heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("conversation_runs_user_message_id_key").on(table.userMessageId),
+    index("idx_conversation_runs_interaction_created").on(table.interactionId, table.createdAt),
+  ],
+);
+
+/**
+ * Full tool results for an agent message whose stored parts carry a shortened copy. The chat
+ * shows the short copy and loads this one when a reader expands the tool.
+ */
+export const interactionMessageToolOutputs = pgTable(
+  "interaction_message_tool_outputs",
+  {
+    messageId: uuid("message_id")
+      .notNull()
+      .references(() => interactionMessages.id, { onDelete: "cascade" }),
+    toolCallId: text("tool_call_id").notNull(),
+    output: jsonb("output").$type<unknown>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.messageId, table.toolCallId] })],
 );

@@ -1,0 +1,163 @@
+---
+title: ".NET RESX"
+description: "Keep .NET .resx satellite assemblies in git, review string resources in Platform, and load approved locales with ResourceManager."
+---
+
+This tutorial connects a .NET app that uses [`.resx` satellite resources](https://learn.microsoft.com/dotnet/core/extensions/resource) to Hyperlocalise Platform. You keep text `data` values in the repository, review them in Platform, and let `ResourceManager` load the approved satellite files.
+
+Hyperlocalise translates text resources. It does not serialize arbitrary .NET objects. Keep images, icons, and other binary entries out of the mapped files.
+
+## Prerequisites
+
+You need:
+
+- a .NET project that stores UI strings in `.resx` files;
+- the [Hyperlocalise CLI](/cli/getting-started/install);
+- a Platform project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
+- `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
+
+The example uses satellite filenames next to the neutral resource:
+
+```text
+.
+├── Resources/
+│   ├── SharedResource.resx
+│   ├── SharedResource.fr-FR.resx
+│   └── SharedResource.de-DE.resx
+└── i18n.yml
+```
+
+WinUI and UWP apps that use `.resw` under `Strings/<locale>/` follow [Translate Windows RESW](/cli/reference/formats/resw) instead.
+
+## 1. Keep copy in RESX
+
+`Resources/SharedResource.resx`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <data name="SavedFiltersTitle" xml:space="preserve">
+    <value>Saved filters</value>
+    <comment>Heading on the saved filters screen</comment>
+  </data>
+  <data name="FilterSaved" xml:space="preserve">
+    <value>Saved {0}</value>
+    <comment>Confirmation. {0} is the filter name.</comment>
+  </data>
+  <data name="SavedFilterCount" xml:space="preserve">
+    <value>{0} saved filters</value>
+    <comment>How many filters are saved. Format with the count.</comment>
+  </data>
+</root>
+```
+
+Read those values from C#:
+
+```csharp
+var title = SharedResource.SavedFiltersTitle;
+var confirmation = string.Format(SharedResource.FilterSaved, filterName);
+var count = string.Format(SharedResource.SavedFilterCount, savedCount);
+```
+
+Keys are the `data` `name` values. `<comment>` text becomes CAT context. `resheader`, `metadata`, and XML comments stay in the file when writeback uses a target whose key set still matches the source.
+
+<Note>
+If the source gains keys, writeback uses the source file as the template. Target-only resources and target-only comments are not merged back.
+</Note>
+
+## 2. Map the catalogs
+
+Create `i18n.yml`:
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - de-DE
+
+buckets:
+  dotnet:
+    files:
+      - from: Resources/SharedResource.resx
+        to: Resources/SharedResource.{{target}}.resx
+
+hyperlocalise:
+  project_id_env: HYPERLOCALISE_PROJECT_ID
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+```
+
+Do not map `SharedResource.Designer.cs`. That file is generated from the neutral `.resx` and is not a translation catalog.
+
+## 3. Catch missing keys in the source pull request
+
+Build the project, then preview the upload:
+
+```bash
+dotnet build
+hl sync push --dry-run
+```
+
+Commit `SharedResource.resx` with the code change. A missing `name` fails the build when generated properties or `GetString` lookups do not compile.
+
+## 4. Push and review
+
+After the source pull request merges:
+
+```bash
+hl sync push
+```
+
+Start generation through a **Source upload** automation or **New Request**. In **Content Editor**, review:
+
+- composite-format placeholders such as `{0}` and `{1}`;
+- comments that explain argument order;
+- labels that must fit compact layouts.
+
+Approve the translations before pulling them back.
+
+.NET pluralization is not ICU. If a locale needs different wording for one and many, store those as separate keys or handle them in code. `unreachable_plural_case` does not apply to `{0} saved filters`.
+
+## 5. Pull and validate translations
+
+Run:
+
+```bash
+hl sync pull
+hl check --bucket dotnet --quiet
+dotnet test
+```
+
+`hl check` reports missing target keys and placeholder mismatches on `{0}`. Then set `CultureInfo.CurrentUICulture` in a test or switch the thread culture and confirm `ResourceManager` loads `SharedResource.fr-FR.resx`.
+
+Open a translation pull request containing the pulled satellite files.
+
+## Troubleshooting
+
+### Upload fails on mixed XML content
+
+Each translatable `data` entry must have a text `<value>`. Move images and other serialized objects to a resource file that is not in this bucket.
+
+### Designer properties disappeared
+
+Regenerate `SharedResource.Designer.cs` from the **neutral** `SharedResource.resx` only. Do not treat a satellite file as the designer source.
+
+### A target-only comment vanished after a new source key
+
+The key set changed, so writeback rebuilt the target from the source template. Re-add comments that should live in the satellite file, or keep shared explanations in the source `<comment>`.
+
+### The app still shows English
+
+Confirm the satellite filename uses a .NET culture name (`fr-FR`, not `fr_FR`), the file is copied to the output directory, and the running `CultureInfo` matches that name.
+
+## Next
+
+- [GitHub localisation workflow](/platform/tutorials/github-localisation-workflow)
+- [Qt Linguist TS](/platform/tutorials/qt-linguist)
+- [Translate .NET RESX](/cli/reference/formats/resx)
+- [Translate Windows RESW](/cli/reference/formats/resw)
+- [`check` reference](/cli/commands/check)

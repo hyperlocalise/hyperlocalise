@@ -12,8 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Loading03Icon, RefreshIcon, Upload01Icon, Video01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  CircleNotchIcon,
+  ArrowClockwiseIcon,
+  UploadSimpleIcon,
+  VideoIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -87,7 +91,7 @@ export function ContentEditorEditorVideoSourceSection({
             onClick={() => onTreatAsVideo?.(!treatAsVideo)}
             title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsVideoTitle)}
           >
-            <HugeiconsIcon icon={Video01Icon} className="size-3" aria-hidden />
+            <VideoIcon className="size-3" aria-hidden />
             <FormattedMessage
               {...(treatAsVideo
                 ? contentEditorEditorPanelMessages.treatAsText
@@ -105,9 +109,9 @@ export function ContentEditorEditorVideoSourceSection({
             onClick={onRegenerate}
           >
             {isBusy ? (
-              <HugeiconsIcon icon={Loading03Icon} className="size-3 animate-spin" aria-hidden />
+              <CircleNotchIcon className="size-3 animate-spin" aria-hidden />
             ) : (
-              <HugeiconsIcon icon={RefreshIcon} className="size-3" aria-hidden />
+              <ArrowClockwiseIcon className="size-3" aria-hidden />
             )}
             <FormattedMessage {...contentEditorEditorPanelMessages.regenerateVideo} />
           </Button>
@@ -150,7 +154,7 @@ export function ContentEditorEditorVideoTargetSection({
 
       {isLoading ? (
         <div className="flex min-h-40 items-center justify-center border border-dashed border-border text-sm text-muted-foreground">
-          <HugeiconsIcon icon={Loading03Icon} className="size-5 animate-spin" aria-hidden />
+          <CircleNotchIcon className="size-5 animate-spin" aria-hidden />
         </div>
       ) : (
         <ContentEditorVideoPreview
@@ -169,9 +173,9 @@ export function ContentEditorEditorVideoTargetSection({
             onClick={onRegenerate}
           >
             {isBusy ? (
-              <HugeiconsIcon icon={Loading03Icon} className="size-3 animate-spin" aria-hidden />
+              <CircleNotchIcon className="size-3 animate-spin" aria-hidden />
             ) : (
-              <HugeiconsIcon icon={RefreshIcon} className="size-3" aria-hidden />
+              <ArrowClockwiseIcon className="size-3" aria-hidden />
             )}
             <FormattedMessage {...contentEditorEditorPanelMessages.regenerateVideo} />
           </Button>
@@ -183,7 +187,7 @@ export function ContentEditorEditorVideoTargetSection({
               !canEdit || isBusy ? "pointer-events-none opacity-50" : ""
             }`}
           >
-            <HugeiconsIcon icon={Upload01Icon} className="size-3" aria-hidden />
+            <UploadSimpleIcon className="size-3" aria-hidden />
             <FormattedMessage {...contentEditorEditorPanelMessages.uploadVideo} />
             <input
               type="file"

@@ -464,11 +464,15 @@ export class ProjectStringContextService extends ProjectServiceBase {
         dimensions: usageDimensions,
       });
 
-      const result = await runSubagent("repository", {
-        toolContext,
-        task: `Find repository context for localization key "${input.key}".`,
-        instructions,
-      });
+      const result = await runSubagent(
+        "repository",
+        {
+          toolContext,
+          task: `Find repository context for localization key "${input.key}".`,
+          instructions,
+        },
+        { usageSource: "project_file_string_context_lookup" },
+      );
 
       const summary = result.text.trim();
       if (!summary) {

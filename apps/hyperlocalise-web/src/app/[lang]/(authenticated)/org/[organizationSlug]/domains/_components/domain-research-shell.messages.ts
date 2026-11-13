@@ -25,6 +25,16 @@ export const domainResearchShellMessages = defineMessages({
     id: "D6IBUTnPaw",
     description: "Manage domain locales from research",
   },
+  noLocalesTitle: {
+    defaultMessage: "No research locales yet",
+    id: "tkQdxeGO1o",
+    description: "Title when a verified domain has no saved research locales",
+  },
+  noLocalesDescription: {
+    defaultMessage: "This domain has no research locales.",
+    id: "eQHvXLzoHf",
+    description: "Explanation when a verified domain has no saved research locales",
+  },
   localeScope: {
     defaultMessage: "Applies to every research view.",
     id: "3bYYLdUKAu",
@@ -40,12 +50,6 @@ export const domainResearchShellMessages = defineMessages({
       "There is no preview research for {locale}. Choose another locale to explore available data.",
     id: "Zln5rf1e7d",
     description: "Missing locale research explanation",
-  },
-  shellDescription: {
-    defaultMessage:
-      "{count, plural, one {# locale configured} other {# locales configured}}. Verification applies to the whole domain.",
-    id: "4+P6YOB0GC",
-    description: "Domain research header description",
   },
   sectionLabel: {
     defaultMessage: "Domains",

@@ -17,14 +17,21 @@ import {
   repositoryTargetSchema,
   toolConfigSchema,
   triggerConfigSchema,
+  WORKSPACE_AUTOMATION_INSTRUCTIONS_MAX_CHARS,
+  WORKSPACE_AUTOMATION_NAME_MAX_CHARS,
   workspaceAutomationConfigSchema,
   workspaceAutomationModelSchema,
+  workspaceAutomationSkillIdsSchema,
   workspaceAutomationStatusSchema,
 } from "@/lib/agents/workspace-automation-types";
 import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const workspaceAutomationIdParamSchema = z.object({
   automationId: z.string().uuid(),
+});
+
+export const getWorkspaceAutomationQuerySchema = z.object({
+  includePushArticles: z.string().optional(),
 });
 
 export const workspaceAutomationKnowledgeFileIdParamSchema = z.object({
@@ -41,8 +48,9 @@ export const listWorkspaceAutomationsQuerySchema = z.object({
 
 const agentAutomationCreateFields = {
   status: workspaceAutomationStatusSchema.optional(),
-  name: z.string().trim().min(1).max(120),
-  instructions: z.string().trim().min(1).max(20_000),
+  name: z.string().trim().min(1).max(WORKSPACE_AUTOMATION_NAME_MAX_CHARS),
+  instructions: z.string().trim().max(WORKSPACE_AUTOMATION_INSTRUCTIONS_MAX_CHARS).default(""),
+  skillIds: workspaceAutomationSkillIdsSchema.optional(),
   model: workspaceAutomationModelSchema.optional(),
   nextRunAt: z.string().datetime().nullable().optional(),
 };
@@ -51,8 +59,8 @@ export const createWorkspaceAutomationBodySchema = z.union([
   z
     .object({
       status: workspaceAutomationStatusSchema.optional(),
-      name: z.string().trim().min(1).max(120),
-      instructions: z.string().trim().max(20_000).optional(),
+      name: z.string().trim().min(1).max(WORKSPACE_AUTOMATION_NAME_MAX_CHARS),
+      instructions: z.string().trim().max(WORKSPACE_AUTOMATION_INSTRUCTIONS_MAX_CHARS).optional(),
       model: workspaceAutomationModelSchema.optional(),
       nextRunAt: z.string().datetime().nullable().optional(),
       kind: z.literal("content_sync"),
@@ -68,18 +76,25 @@ export const createWorkspaceAutomationBodySchema = z.union([
       ...agentAutomationCreateFields,
       kind: z.literal("agent").optional(),
     })
-    .strict(),
+    .strict()
+    // Attached skills carry the procedure, so instructions are only required without one.
+    .refine((value) => value.instructions.length > 0 || (value.skillIds?.length ?? 0) > 0, {
+      message: "Instructions are required when no skill is attached",
+      path: ["instructions"],
+    }),
 ]);
 
 export const updateWorkspaceAutomationBodySchema = workspaceAutomationConfigSchema
   .partial()
   .extend({
     status: workspaceAutomationStatusSchema.optional(),
-    name: z.string().trim().min(1).max(120).optional(),
-    instructions: z.string().trim().max(20_000).optional(),
+    name: z.string().trim().min(1).max(WORKSPACE_AUTOMATION_NAME_MAX_CHARS).optional(),
+    instructions: z.string().trim().max(WORKSPACE_AUTOMATION_INSTRUCTIONS_MAX_CHARS).optional(),
+    skillIds: workspaceAutomationSkillIdsSchema.optional(),
     model: workspaceAutomationModelSchema.optional(),
     nextRunAt: z.string().datetime().nullable().optional(),
     syncConfig: contentSyncConfigSchema.optional(),
+    authorUserId: z.string().uuid().optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {

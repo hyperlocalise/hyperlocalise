@@ -212,6 +212,32 @@ func TestLoad(t *testing.T) {
 			}`,
 		},
 		{
+			name: "valid locale copies from sibling target",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-GB", "en-AU"],
+			    "copies": {"en-AU": "en-GB"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-GB", "en-AU"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+		},
+		{
+			name: "valid locale copies from source",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-AU"],
+			    "copies": {"en-AU": "en-US"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-AU"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+		},
+		{
 			name: "invalid unknown field rejected",
 			content: `{
 			  "locales": {"source": "en-US", "targets": ["es-ES"]},
@@ -272,6 +298,91 @@ func TestLoad(t *testing.T) {
 			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
 			}`,
 			errContains: "cycle detected",
+		},
+		{
+			name: "invalid copies key not in targets",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-GB"],
+			    "copies": {"en-AU": "en-GB"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-GB"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+			errContains: "copy key must exist in locales.targets",
+		},
+		{
+			name: "invalid copies empty origin",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-AU"],
+			    "copies": {"en-AU": ""}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-AU"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+			errContains: "origin must not be empty",
+		},
+		{
+			name: "invalid copies self reference",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-AU"],
+			    "copies": {"en-AU": "en-AU"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-AU"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+			errContains: "self-reference is not allowed",
+		},
+		{
+			name: "invalid copies origin not in targets or source",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-AU"],
+			    "copies": {"en-AU": "en-GB"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-AU"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+			errContains: "must be in locales.targets or locales.source",
+		},
+		{
+			name: "invalid copies origin is itself a copy",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-GB", "en-AU", "en-NZ"],
+			    "copies": {"en-AU": "en-GB", "en-NZ": "en-AU"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-GB"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+			errContains: "is itself a copy locale",
+		},
+		{
+			name: "invalid copies combined with fallbacks on same locale",
+			content: `{
+			  "locales": {
+			    "source": "en-US",
+			    "targets": ["en-GB", "en-AU"],
+			    "fallbacks": {"en-AU": ["en-GB"]},
+			    "copies": {"en-AU": "en-GB"}
+			  },
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["en-GB"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+			errContains: "must not also be set in locales.fallbacks",
 		},
 		{
 			name: "invalid empty buckets",
@@ -1180,6 +1291,43 @@ cache:
 	}
 }
 
+func TestLoadYAMLLocaleCopies(t *testing.T) {
+	path := writeConfigFileNamed(t, "config.yml", `
+locales:
+  source: en-US
+  targets:
+    - en-GB
+    - en-AU
+  copies:
+    en-AU: en-GB
+buckets:
+  ui:
+    files:
+      - from: lang/{{source}}.json
+        to: lang/{{target}}.json
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-4.1-mini
+`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load yaml config: %v", err)
+	}
+	if got := cfg.Locales.Copies["en-AU"]; got != "en-GB" {
+		t.Fatalf("copies[en-AU]=%q, want en-GB", got)
+	}
+	origin, ok := cfg.Locales.CopyOrigin("en-AU")
+	if !ok || origin != "en-GB" {
+		t.Fatalf("CopyOrigin(en-AU)=(%q, %t), want (en-GB, true)", origin, ok)
+	}
+	if _, ok := cfg.Locales.CopyOrigin("en-GB"); ok {
+		t.Fatalf("CopyOrigin(en-GB) should be unset")
+	}
+}
+
 func TestLoadDefaultsToYAMLBeforeJSONC(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
@@ -1387,6 +1535,95 @@ func TestValidateAcceptsNamedSRXTemplates(t *testing.T) {
 	}
 }
 
+func TestLoadSpellcheckDictionaryDir(t *testing.T) {
+	path := writeConfigFileNamed(t, "i18n.yml", `
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+buckets:
+  ui:
+    files:
+      - from: a.json
+        to: b.json
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: x
+spellcheck:
+  dictionary_dir: .hyperlocalise/dictionaries
+`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Spellcheck == nil || cfg.Spellcheck.DictionaryDir != ".hyperlocalise/dictionaries" {
+		t.Fatalf("Spellcheck.DictionaryDir = %#v", cfg.Spellcheck)
+	}
+
+	configDir := filepath.Dir(path)
+	resolved := ResolveSpellcheckDictionaryDir(cfg, "", configDir)
+	if resolved != filepath.Join(configDir, ".hyperlocalise/dictionaries") {
+		t.Fatalf("resolved dir = %q", resolved)
+	}
+
+	flagDir := filepath.Join(t.TempDir(), "override")
+	if got := ResolveSpellcheckDictionaryDir(cfg, flagDir, configDir); got != flagDir {
+		t.Fatalf("flag override = %q, want %q", got, flagDir)
+	}
+}
+
+func TestValidateRejectsSpellcheckDictionaryTraversal(t *testing.T) {
+	cfg := I18NConfig{
+		Locales: LocaleConfig{Source: "en-US", Targets: []string{"fr-FR"}},
+		Buckets: map[string]BucketConfig{
+			"ui": {Files: []BucketFileMapping{{From: "a.json", To: "b.json"}}},
+		},
+		LLM:        LLMConfig{Profiles: map[string]LLMProfile{"default": {Provider: "openai", Model: "x"}}},
+		Spellcheck: &SpellcheckConfig{DictionaryDir: "../secrets"},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected spellcheck traversal to fail Validate")
+	}
+
+	path := writeConfigFileNamed(t, "i18n.yml", `
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+buckets:
+  ui:
+    files:
+      - from: a.json
+        to: b.json
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: x
+spellcheck:
+  dictionary_dir: ../outside
+`)
+	if _, err := Load(path); err == nil {
+		t.Fatal("expected Load to reject dictionary_dir traversal")
+	}
+}
+
+func TestValidateAcceptsMissingSpellcheckConfig(t *testing.T) {
+	cfg := I18NConfig{
+		Locales: LocaleConfig{Source: "en-US", Targets: []string{"fr-FR"}},
+		Buckets: map[string]BucketConfig{
+			"ui": {Files: []BucketFileMapping{{From: "a.json", To: "b.json"}}},
+		},
+		LLM: LLMConfig{Profiles: map[string]LLMProfile{"default": {Provider: "openai", Model: "x"}}},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate without spellcheck: %v", err)
+	}
+}
+
 func TestValidateRejectsUnknownNamedSRXWithoutFilesystem(t *testing.T) {
 	cfg := I18NConfig{
 		Locales: LocaleConfig{Source: "en-US", Targets: []string{"fr-FR"}},
@@ -1417,4 +1654,75 @@ func writeConfigFileNamed(t *testing.T, name, content string) string {
 	}
 
 	return path
+}
+
+func TestCloudSourcePathLengthValidation(t *testing.T) {
+	short := strings.Repeat("a", MaxCloudSourcePathLength)
+	if err := ValidateCloudSourcePathLength(short); err != nil {
+		t.Fatal(err)
+	}
+	long := short + "b"
+	longErr := ValidateCloudSourcePathLength(long)
+	if longErr == nil {
+		t.Fatal("expected length error")
+	}
+	if !strings.Contains(longErr.Error(), "2048") {
+		t.Fatalf("unexpected error: %v", longErr)
+	}
+}
+
+func TestCloudPathMappingValidation(t *testing.T) {
+	for _, cloud := range []string{"../en.json", "/en.json", "C:/en.json", `lang\en.json`, "lang//en.json", "./en.json", "lang/{{target}}.json", "lang/[locale].json", "lang/{{unknown}}.json", "lang/en.md", "lang/*.json", " "} {
+		t.Run(cloud, func(t *testing.T) {
+			if err := ValidateCloudPathMapping(BucketFileMapping{From: "apps/web/en.json", CloudPath: cloud}); err == nil {
+				t.Fatalf("accepted invalid cloud path %q", cloud)
+			}
+		})
+	}
+	for _, mapping := range []BucketFileMapping{
+		{From: "apps/web/en.json"},
+		{From: "apps/web/en.json", CloudPath: "lang/{{source}}.json"},
+		{From: "apps/web/blog/**/*.md", CloudPath: "blog/**/*.md"},
+	} {
+		if err := ValidateCloudPathMapping(mapping); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestLoadCloudPathAlias(t *testing.T) {
+	root := t.TempDir()
+	configPath := filepath.Join(root, "i18n.yml")
+	content := `locales:
+  source: en
+  targets: [fr]
+buckets:
+  web:
+    files:
+      - from: apps/web/lang/en.json
+        to: apps/web/lang/{{target}}.json
+        cloud_path: lang/{{source}}.json
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: test
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Buckets["web"].Files[0].CloudPath; got != "lang/{{source}}.json" {
+		t.Fatalf("cloud_path = %q", got)
+	}
+	schema, err := JSONSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(schema), `"cloud_path"`) {
+		t.Fatal("schema missing cloud_path")
+	}
 }

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { ScrambleText } from "dot-anime-react";
 import { useReducedMotion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -145,10 +144,7 @@ export function ExploreToolActivity({
           }
         >
           <span className="min-w-0 truncate">{rollupLabel}</span>
-          <HugeiconsIcon
-            icon={ArrowDown01Icon}
-            className="size-3.5 shrink-0 opacity-0 transition-all group-hover:opacity-100 group-data-[state=open]:rotate-180 group-data-[state=open]:opacity-100"
-          />
+          <CaretDownIcon className="size-3.5 shrink-0 opacity-0 transition-all group-hover:opacity-100 group-data-[state=open]:rotate-180 group-data-[state=open]:opacity-100" />
         </div>
       </TaskTrigger>
       <TaskContent className="text-sm [&_>div]:mt-2 [&_>div]:space-y-0">

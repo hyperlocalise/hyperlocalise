@@ -29,8 +29,9 @@ export function ContentEditorOfficeFilePreview({
 }) {
   switch (snapshot.kind) {
     case "docx": {
+      // Univer ends paragraphs with `\r`.
       const paragraphs = plainTextFromDocument(snapshot.data)
-        .split(/\n+/)
+        .split(/[\r\n]+/)
         .map((line) => line.trim())
         .filter(Boolean);
       return (

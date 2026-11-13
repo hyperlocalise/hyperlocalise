@@ -1,0 +1,34 @@
+---
+title: "v1.13.3"
+description: "Go CLI release notes for v1.13.3."
+---
+
+`hl run --keep-completed-on-failure` keeps successful lockfile entries when another key in the same target fails, so a later run retries only leftover keys. Default `hl run` still rolls those successes back. A failed target-file write still rolls back this run's entries for every target that was not written.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.13.3) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.13.2...v1.13.3)
+
+## Breaking changes
+
+None.
+
+## Features
+
+- Add [`hl run --keep-completed-on-failure`](https://github.com/hyperlocalise/hyperlocalise/pull/2752). Successful keys stay in `.hyperlocalise.lock.json` when a sibling key fails. The next `hl run` retries only leftover keys instead of retranslating the whole target. A failed target-file write still rolls back this run's entries for every target that was not written. See [run](/cli/commands/run) and [Lockfile contract](/cli/reference/lockfile-contract).
+
+## Fixes
+
+None.
+
+## Performance
+
+None.
+
+## Tests
+
+- Mixed-success lock persistence with `--keep-completed-on-failure`.
+- Resume of only the failed key on the next `hl run`.
+- Lock rollback when the target file cannot be written, including later unwritten targets and prior lock entries that must stay.
+
+## Maintenance
+
+None.

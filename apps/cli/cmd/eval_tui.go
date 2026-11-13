@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -686,8 +688,8 @@ func (m *evalDashboardModel) experimentRows() ([]table.Column, []table.Row, []ev
 		}
 		list = append(list, row{progress: *progress})
 	}
-	sort.SliceStable(list, func(i, j int) bool {
-		return m.compareExperiments(list[i].progress, list[j].progress)
+	slices.SortStableFunc(list, func(left, right row) int {
+		return m.compareExperiments(left.progress, right.progress)
 	})
 
 	cols := evalExperimentTableColumns(m.scoreColumns, m.baseline != nil)
@@ -762,8 +764,8 @@ func (m *evalDashboardModel) caseRows() ([]table.Column, []table.Row, []evalTabl
 		}
 		list = append(list, row{run: run})
 	}
-	sort.SliceStable(list, func(i, j int) bool {
-		return m.compareRuns(list[i].run, list[j].run)
+	slices.SortStableFunc(list, func(left, right row) int {
+		return m.compareRuns(left.run, right.run)
 	})
 	cols := []table.Column{
 		{Title: "Case", Width: 24},
@@ -829,22 +831,22 @@ func (m *evalDashboardModel) assertionRows() ([]table.Column, []table.Row, []eva
 			})
 		}
 	}
-	sort.SliceStable(list, func(i, j int) bool {
+	slices.SortStableFunc(list, func(left, right row) int {
+		if m.reverse {
+			left, right = right, left
+		}
+		var order int
 		switch m.sortMode {
 		case evalDashboardSortFailures:
-			return sortBoolWithReverse(list[i].coverage > list[j].coverage, m.reverse)
+			order = cmp.Compare(right.coverage, left.coverage)
 		case evalDashboardSortScore:
-			return compareFloatPtr(list[i].score, list[j].score, m.reverse)
-		default:
-			less := list[i].experiment < list[j].experiment
-			if list[i].experiment == list[j].experiment {
-				less = list[i].assertion < list[j].assertion
-			}
-			if m.reverse {
-				return !less
-			}
-			return less
+			order = compareFloatPtrDesc(left.score, right.score)
 		}
+		return cmp.Or(
+			order,
+			cmp.Compare(left.experiment, right.experiment),
+			cmp.Compare(left.assertion, right.assertion),
+		)
 	})
 	cols := []table.Column{
 		{Title: "Experiment", Width: 28},
@@ -873,20 +875,14 @@ func (m *evalDashboardModel) errorRows() ([]table.Column, []table.Row, []evalTab
 			keys = append(keys, name)
 		}
 	}
-	sort.SliceStable(keys, func(i, j int) bool {
-		left := m.failureBuckets[keys[i]]
-		right := m.failureBuckets[keys[j]]
-		if left.count == right.count {
-			less := keys[i] < keys[j]
-			if m.reverse {
-				return !less
-			}
-			return less
-		}
+	slices.SortStableFunc(keys, func(left, right string) int {
 		if m.reverse {
-			return left.count < right.count
+			left, right = right, left
 		}
-		return left.count > right.count
+		return cmp.Or(
+			cmp.Compare(m.failureBuckets[right].count, m.failureBuckets[left].count),
+			cmp.Compare(left, right),
+		)
 	})
 	cols := []table.Column{
 		{Title: "Category", Width: 26},
@@ -1131,50 +1127,42 @@ func (m evalDashboardModel) sortModeLabel() string {
 	}
 }
 
-func (m evalDashboardModel) compareExperiments(left, right evalExperimentProgress) bool {
-	var less bool
+func (m evalDashboardModel) compareExperiments(left, right evalExperimentProgress) int {
+	if m.reverse {
+		left, right = right, left
+	}
+	var order int
 	switch m.sortMode {
 	case evalDashboardSortScore:
-		less = compareFloatPtrRaw(evalDashboardAverageValue(left.weightedScoreSum, left.completedRuns), evalDashboardAverageValue(right.weightedScoreSum, right.completedRuns))
+		order = compareFloatPtrDesc(evalDashboardAverageValue(left.weightedScoreSum, left.completedRuns), evalDashboardAverageValue(right.weightedScoreSum, right.completedRuns))
 	case evalDashboardSortPassRate:
-		less = compareFloatPtrRaw(evalDashboardPercentValue(left.passCount, left.completedRuns), evalDashboardPercentValue(right.passCount, right.completedRuns))
+		order = compareFloatPtrDesc(evalDashboardPercentValue(left.passCount, left.completedRuns), evalDashboardPercentValue(right.passCount, right.completedRuns))
 	case evalDashboardSortFailures:
-		if left.failedRuns == right.failedRuns {
-			less = left.experimentID < right.experimentID
-		} else {
-			less = left.failedRuns > right.failedRuns
-		}
+		order = cmp.Compare(right.failedRuns, left.failedRuns)
 	case evalDashboardSortLatency:
-		less = compareFloatPtrRaw(evalDashboardAverageValue(left.latencySumMS, left.completedRuns), evalDashboardAverageValue(right.latencySumMS, right.completedRuns))
-	default:
-		less = left.experimentID < right.experimentID
+		order = compareFloatPtrDesc(evalDashboardAverageValue(left.latencySumMS, left.completedRuns), evalDashboardAverageValue(right.latencySumMS, right.completedRuns))
 	}
-	if m.reverse {
-		return !less
-	}
-	return less
+	return cmp.Or(order, cmp.Compare(left.experimentID, right.experimentID))
 }
 
-func (m evalDashboardModel) compareRuns(left, right evalsvc.RunResult) bool {
-	var less bool
+func (m evalDashboardModel) compareRuns(left, right evalsvc.RunResult) int {
+	if m.reverse {
+		left, right = right, left
+	}
+	var order int
 	switch m.sortMode {
 	case evalDashboardSortScore:
-		less = compareFloatPtrRaw(floatPtr(left.FinalScore), floatPtr(right.FinalScore))
+		order = compareFloatPtrDesc(floatPtr(left.FinalScore), floatPtr(right.FinalScore))
 	case evalDashboardSortFailures:
-		less = severityForRun(left) > severityForRun(right)
+		order = cmp.Compare(severityForRun(right), severityForRun(left))
 	case evalDashboardSortLatency:
-		less = left.LatencyMS > right.LatencyMS
-	default:
-		if left.CaseID == right.CaseID {
-			less = left.ExperimentID < right.ExperimentID
-		} else {
-			less = left.CaseID < right.CaseID
-		}
+		order = cmp.Compare(right.LatencyMS, left.LatencyMS)
 	}
-	if m.reverse {
-		return !less
-	}
-	return less
+	return cmp.Or(
+		order,
+		cmp.Compare(left.CaseID, right.CaseID),
+		cmp.Compare(left.ExperimentID, right.ExperimentID),
+	)
 }
 
 func severityForRun(run evalsvc.RunResult) int {
@@ -1190,7 +1178,7 @@ func severityForRun(run evalsvc.RunResult) int {
 	}
 }
 
-func compareFloatPtrRaw(left, right *float64) bool {
+func compareFloatPtrDesc(left, right *float64) int {
 	leftValue := -1.0
 	rightValue := -1.0
 	if left != nil {
@@ -1199,25 +1187,7 @@ func compareFloatPtrRaw(left, right *float64) bool {
 	if right != nil {
 		rightValue = *right
 	}
-	if leftValue == rightValue {
-		return false
-	}
-	return leftValue > rightValue
-}
-
-func compareFloatPtr(left, right *float64, reverse bool) bool {
-	less := compareFloatPtrRaw(left, right)
-	if reverse {
-		return !less
-	}
-	return less
-}
-
-func sortBoolWithReverse(less bool, reverse bool) bool {
-	if reverse {
-		return !less
-	}
-	return less
+	return cmp.Compare(rightValue, leftValue)
 }
 
 func (m evalDashboardModel) renderStatus(status string) string {

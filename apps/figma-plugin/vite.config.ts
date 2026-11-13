@@ -1,14 +1,33 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite-plus";
+import preact from "@preact/preset-vite";
+import { defineConfig, type Plugin } from "vite-plus";
 import { viteSingleFile } from "vite-plugin-singlefile";
+
+import { hyperlocaliseAppUrlForMode } from "./vite/app-url";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const srcDir = path.join(rootDir, "src");
 
-export default defineConfig({
+/** Resolves `@create-figma-plugin/ui` side-effect CSS imports (`!../css/base.css`). */
+function createFigmaPluginSideEffectCss(): Plugin {
+  return {
+    name: "create-figma-plugin-side-effect-css",
+    resolveId(source, importer) {
+      if (!source.startsWith("!") || !source.endsWith(".css") || !importer) {
+        return null;
+      }
+      if (!importer.includes(`${path.sep}@create-figma-plugin${path.sep}`)) {
+        return null;
+      }
+      const relativePath = source.slice(1);
+      return path.normalize(path.join(path.dirname(importer), relativePath));
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => ({
   fmt: {
     ignorePatterns: ["dist/**", "pnpm-lock.yaml"],
   },
@@ -17,17 +36,26 @@ export default defineConfig({
     options: { typeAware: true, typeCheck: true },
   },
   test: {
+    // Vitest v4 compatibility: preserve mock call history.
+    // Remove after tests no longer rely on calls from setup or earlier tests.
+    // https://viteplus.dev/guide/vitest-v5#remove-unneeded-compatibility-settings
+    // https://vitest.dev/guide/migration/#clearmocks-is-enabled-by-default
+    clearMocks: false,
     root: rootDir,
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    css: true,
+    server: {
+      deps: {
+        inline: ["@create-figma-plugin/ui"],
+      },
+    },
   },
   root: srcDir,
   define: {
-    HYPERLOCALISE_APP_URL: JSON.stringify(
-      process.env.HYPERLOCALISE_APP_URL ?? "https://app.hyperlocalise.com",
-    ),
+    HYPERLOCALISE_APP_URL: JSON.stringify(hyperlocaliseAppUrlForMode(mode)),
   },
-  plugins: [react(), viteSingleFile()],
+  plugins: [createFigmaPluginSideEffectCss(), preact(), viteSingleFile()],
   resolve: {
     alias: {
       src: srcDir,
@@ -47,4 +75,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

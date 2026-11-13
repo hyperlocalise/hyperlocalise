@@ -17,12 +17,16 @@ import { db, schema } from "@/lib/database/client";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { GlossaryMatchResolution } from "@/lib/providers/contracts/glossary-matcher";
 import type { TranslationMemoryMatchResolution } from "@/lib/providers/contracts/translation-memory-matcher";
-import { composeScopedKnowledgeMemory } from "@/lib/knowledge-memory/knowledge-memory-compose";
+import type { GuidelineRetrievalTrace } from "@/lib/job-events/guideline-context-events";
+import { loadUploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
 import {
-  getKnowledgeMemoryForOrganization,
-  getKnowledgeMemoryForProject,
-} from "@/lib/knowledge-memory/knowledge-memory";
-import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
+  NO_GUIDELINES_USED,
+  glossaryUses,
+  translationMemoryUses,
+  type GlossaryUse,
+  type GuidelinesUsed,
+  type TranslationMemoryUse,
+} from "@/lib/translation/generation-provenance";
 import {
   TranslationContext,
   toContextGlossaryMatch,
@@ -55,6 +59,57 @@ async function loadProjectForContext(
 
   return project ?? null;
 }
+
+export type TranslationGuidelines = {
+  /** Guideline text for the prompt; empty when no guideline applies. */
+  text: string;
+  used: GuidelinesUsed;
+  trace: GuidelineRetrievalTrace | null;
+};
+
+const NO_TRANSLATION_GUIDELINES: TranslationGuidelines = {
+  text: "",
+  used: NO_GUIDELINES_USED,
+  trace: null,
+};
+
+/**
+ * Loads the uploaded guideline documents for a translation and records which of
+ * them reached the prompt.
+ */
+export async function loadTranslationGuidelines(input: {
+  project: Pick<
+    TranslationContextProjectRecord,
+    "id" | "name" | "organizationId" | "translationContext"
+  >;
+  sourceLocale: string;
+  targetLocales: string[];
+  sourceText: string;
+  context?: string | null;
+  metadata?: Record<string, string>;
+}): Promise<TranslationGuidelines> {
+  const uploadedGuidelines = await loadUploadedGuidelinesContext({
+    organizationId: input.project.organizationId,
+    projectId: input.project.id,
+    targetLocales: input.targetLocales,
+    sourceText: input.sourceText,
+  });
+
+  return {
+    text: uploadedGuidelines.text,
+    used: {
+      documents: uploadedGuidelines.documents,
+    },
+    trace: uploadedGuidelines.trace ?? null,
+  };
+}
+
+/** What a built context contributed to the prompt, for generation provenance. */
+export type TranslationContextUse = {
+  guidelines: GuidelinesUsed;
+  glossaries: GlossaryUse[];
+  translationMemories: TranslationMemoryUse[];
+};
 
 export class TranslationContextBuilder {
   private readonly glossaryService = new GlossaryConcordanceService();
@@ -91,37 +146,20 @@ export class TranslationContextBuilder {
 
     const providerKind = options?.providerKind ?? project.externalProviderKind ?? undefined;
 
-    const knowledgeMemoryPromise =
+    const guidelinesPromise =
       options?.knowledgeMemoryEnabled === true
-        ? Promise.all([
-            getKnowledgeMemoryForProject(project.id),
-            getKnowledgeMemoryForOrganization(project.organizationId),
-          ]).then(([projectMemory, organizationMemory]) => {
-            const selectionInput = {
-              sourceLocale: jobInput.sourceLocale,
-              targetLocales: jobInput.targetLocales,
-              sourceText: jobInput.sourceText,
-              context: jobInput.context,
-              metadata: jobInput.metadata,
-              projectName: project.name,
-              projectTranslationContext: project.translationContext,
-            };
-
-            return composeScopedKnowledgeMemory({
-              projectGuideline: selectKnowledgeMemoryContext({
-                ...selectionInput,
-                content: projectMemory.content,
-              }).compactText,
-              workspaceGuideline: selectKnowledgeMemoryContext({
-                ...selectionInput,
-                content: organizationMemory.content,
-              }).compactText,
-            });
+        ? loadTranslationGuidelines({
+            project,
+            sourceLocale: jobInput.sourceLocale,
+            targetLocales: jobInput.targetLocales,
+            sourceText: jobInput.sourceText,
+            context: jobInput.context,
+            metadata: jobInput.metadata,
           })
-        : Promise.resolve("");
+        : Promise.resolve(NO_TRANSLATION_GUIDELINES);
 
     if (options?.skipConcordance) {
-      const knowledgeMemory = await knowledgeMemoryPromise;
+      const guidelines = await guidelinesPromise;
 
       return {
         ok: true as const,
@@ -133,15 +171,20 @@ export class TranslationContextBuilder {
             translationContext: project.translationContext,
           },
           jobInput,
-          knowledgeMemory || null,
+          guidelines.text || null,
           [],
           [],
         ),
+        use: {
+          guidelines: guidelines.used,
+          glossaries: [],
+          translationMemories: [],
+        } satisfies TranslationContextUse,
       };
     }
 
-    const [knowledgeMemory, glossaryTerms, translationMemoryMatches] = await Promise.all([
-      knowledgeMemoryPromise,
+    const [guidelines, glossaryTerms, translationMemoryMatches] = await Promise.all([
+      guidelinesPromise,
       this.glossaryService
         .searchForContext({
           projectId,
@@ -183,10 +226,15 @@ export class TranslationContextBuilder {
           translationContext: project.translationContext,
         },
         jobInput,
-        knowledgeMemory || null,
+        guidelines.text || null,
         glossaryTerms,
         translationMemoryMatches,
       ),
+      use: {
+        guidelines: guidelines.used,
+        glossaries: glossaryUses(glossaryTerms),
+        translationMemories: translationMemoryUses(translationMemoryMatches),
+      } satisfies TranslationContextUse,
     };
   }
 }

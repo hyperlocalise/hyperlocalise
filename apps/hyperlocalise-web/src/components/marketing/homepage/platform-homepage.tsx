@@ -24,15 +24,29 @@ import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 import { cn } from "@/lib/primitives/cn";
 import { REQUEST_DEMO_URL } from "../request-demo";
 import { heroSectionMessages } from "../hero-section.messages";
+import { TRUSTED_BY_LOGOS } from "../trusted-by-logos";
 import { ContentOpsMockStage } from "../content-ops/content-ops-mock-stage";
 import { homepageMessages as m } from "./homepage.messages";
 import { AgentChannelPreview } from "./agent-channel-preview";
 import { McpClientLogos } from "./mcp-client-logos";
-import { ConnectedCampaign } from "./connected-campaign";
-import { hasProductPreviewVideoUrl, PRODUCT_PREVIEW_VIDEO_URL, PRODUCTS } from "./product-preview";
+import {
+  ComplianceSection,
+  CultureSection,
+  GrowthStackOverview,
+  LanguageSection,
+  LocalisationAuditCta,
+  IntegrationsSection,
+  QuickStartGuidesSection,
+  type HomepageIntegration,
+  UseCasesSection,
+} from "./growth-sections";
+import {
+  hasProductPreviewVideoUrl,
+  PRODUCT_PREVIEW_VIDEO_URL,
+  ProductPreviewVideo,
+} from "./product-preview";
 import {
   BLUSH_MESH_GRADIENT_SRC,
-  LAVENDER_MESH_GRADIENT_SRC,
   SEAFOAM_MESH_GRADIENT_SRC,
   SAGE_MESH_GRADIENT_SRC,
   SectionMeshBackground,
@@ -43,45 +57,6 @@ const HOME_STYLE = {
   "--home-ink": "#123c3b",
   "--home-paper": "#e5eee5",
 } as CSSProperties;
-
-const TRUSTED_BY_LOGOS = [
-  {
-    id: "heidi-health",
-    href: "https://www.heidihealth.com",
-    src: "/images/customers/heidi-health-logo.png",
-    alt: heroSectionMessages.heidiHealthAlt,
-    width: 800,
-    height: 332,
-    className: "h-7 sm:h-8",
-  },
-  {
-    id: "tourfinder",
-    href: "https://tourfinder.vn",
-    src: "/images/customers/tourfinder-logo.png",
-    alt: heroSectionMessages.tourfinderAlt,
-    width: 1177,
-    height: 294,
-    className: "h-6 sm:h-7",
-  },
-  {
-    id: "tourmatic",
-    href: "https://tourmatic.io",
-    src: "/images/customers/tourmatic-logo.svg",
-    alt: heroSectionMessages.tourmaticAlt,
-    width: 315,
-    height: 58,
-    className: "h-6 sm:h-7",
-  },
-  {
-    id: "weex",
-    href: "https://www.weex.com",
-    src: "/images/customers/weex-logo.svg",
-    alt: heroSectionMessages.weexAlt,
-    width: 134,
-    height: 28,
-    className: "h-6 sm:h-7",
-  },
-] as const;
 
 function SectionHeading({
   eyebrow,
@@ -176,22 +151,6 @@ function CustomerLogos({ onDark }: { onDark?: boolean }) {
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-function ProductPreviewVideo({ src }: { src: string }) {
-  const intl = useIntl();
-  return (
-    <div className="mx-auto mt-12 max-w-5xl rounded-2xl bg-white/10 p-2 sm:mt-16 sm:p-3">
-      <video
-        className="aspect-video w-full rounded-xl border border-white/15 bg-black/25"
-        src={src}
-        controls
-        playsInline
-        preload="metadata"
-        aria-label={intl.formatMessage(m.preview)}
-      />
     </div>
   );
 }
@@ -292,48 +251,6 @@ function WorkflowStep({
   );
 }
 
-function GuidelinesIllustration() {
-  return (
-    <div aria-hidden className="relative flex size-full items-center justify-center">
-      <div className="flex w-[68%] rotate-[-5deg] flex-col gap-4 rounded-xl border border-border/70 bg-background p-5 shadow-[0_18px_40px_rgba(0,35,89,0.1)] sm:p-6">
-        <div className="text-[0.65rem] font-semibold tracking-[0.14em] text-primary uppercase">
-          <FormattedMessage {...m.trustGuidelinesLabel} />
-        </div>
-        <div className="font-heading text-2xl leading-[1.15] tracking-[-0.035em] sm:text-[1.75rem]">
-          <FormattedMessage {...m.trustGuidelinesTitle} />
-        </div>
-        <div className="flex gap-1.5">
-          <span className="h-2 w-8 rounded-sm bg-primary" />
-          <span className="h-2 w-8 rounded-sm bg-dew-100" />
-          <span className="h-2 w-8 rounded-sm bg-foreground" />
-        </div>
-        <div className="text-xs text-muted-foreground">
-          <FormattedMessage {...m.trustGuidelinesNote} />
-        </div>
-      </div>
-      <div className="absolute bottom-7 right-[11%] flex rotate-[4deg] gap-1.5">
-        {[
-          { label: "EN", active: true },
-          { label: "FR", active: false },
-          { label: "JA", active: false },
-        ].map((locale) => (
-          <span
-            key={locale.label}
-            className={cn(
-              "rounded-md border px-2.5 py-2 text-xs font-semibold shadow-sm",
-              locale.active
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border/70 bg-background text-foreground",
-            )}
-          >
-            {locale.label}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function AccessIllustration() {
   const roles = [
     { initials: "MC", name: "Minh", role: m.trustAdmin },
@@ -402,7 +319,7 @@ function TrustCard({
           src={meshSrc}
           alt=""
           fill
-          sizes="(min-width: 768px) 33vw, 100vw"
+          sizes="(min-width: 768px) 50vw, 100vw"
           className="-z-20 object-cover"
         />
         <div aria-hidden className="absolute inset-0 -z-10 bg-white/25" />
@@ -438,20 +355,13 @@ function TrustAndControlSection() {
             <FormattedMessage {...m.trustBody} />
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-7 lg:gap-8">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-7 lg:gap-8">
           <TrustCard
             title={m.trustAiTitle}
             body={m.trustAiBody}
             visual={<WorkflowIllustration />}
             meshSrc={SAGE_MESH_GRADIENT_SRC}
             visualClassName="bg-blue-100"
-          />
-          <TrustCard
-            title={m.trustBrandTitle}
-            body={m.trustBrandBody}
-            visual={<GuidelinesIllustration />}
-            meshSrc={LAVENDER_MESH_GRADIENT_SRC}
-            visualClassName="bg-muted"
           />
           <TrustCard
             title={m.trustAccessTitle}
@@ -466,7 +376,15 @@ function TrustAndControlSection() {
   );
 }
 
-export function PlatformHomepage({ children, plans }: { children: ReactNode; plans: ReactNode }) {
+export function PlatformHomepage({
+  children,
+  plans,
+  integrations,
+}: {
+  children: ReactNode;
+  plans: ReactNode;
+  integrations: HomepageIntegration[];
+}) {
   const locale = useAppLocale();
   const hasPreviewVideo = hasProductPreviewVideoUrl(PRODUCT_PREVIEW_VIDEO_URL);
   return (
@@ -492,6 +410,9 @@ export function PlatformHomepage({ children, plans }: { children: ReactNode; pla
               !hasPreviewVideo && "min-h-0 flex-1 justify-center",
             )}
           >
+            <p className="text-xs font-semibold tracking-[0.18em] text-white/75 uppercase">
+              <FormattedMessage {...m.heroEyebrow} />
+            </p>
             <h1 className="font-heading text-[clamp(2.5rem,5vw,4.25rem)] leading-[1.05] text-balance">
               <FormattedMessage {...m.heroHeadline} />
             </h1>
@@ -503,7 +424,7 @@ export function PlatformHomepage({ children, plans }: { children: ReactNode; pla
                 <DemoCta />
               </div>
               <a
-                href="#explore"
+                href="#stack"
                 className="rounded-md px-4 py-3 text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4"
               >
                 <FormattedMessage {...m.explore} /> <span aria-hidden>↓</span>
@@ -516,59 +437,16 @@ export function PlatformHomepage({ children, plans }: { children: ReactNode; pla
           {hasPreviewVideo ? <ProductPreviewVideo src={PRODUCT_PREVIEW_VIDEO_URL.trim()} /> : null}
         </div>
       </section>
-      <section id="products" className={SECTION_CLASS}>
-        <SectionHeading eyebrow={m.pillarsEyebrow} title={m.pillarsTitle} body={m.pillarsBody} />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          {PRODUCTS.map((product, index) => (
-            <a
-              key={product.id}
-              href={
-                product.href.startsWith("/")
-                  ? rewriteAppLocalePath(product.href, locale)
-                  : product.href
-              }
-              className="group flex flex-col overflow-hidden rounded-xl border border-border focus-visible:outline-2 focus-visible:outline-offset-4"
-            >
-              <div className="relative isolate flex h-44 items-center justify-between overflow-hidden px-6 text-white">
-                <Image
-                  src={
-                    [
-                      "/images/mesh/mesh-gradient-1784863888954.jpg",
-                      "/images/mesh/mesh-gradient-1784864073608.jpg",
-                      "/images/vimal-s-GBg3jyGS-Ug-unsplash.jpg",
-                      "/images/mesh/mesh-gradient-1784863799475.jpg",
-                      SEAFOAM_MESH_GRADIENT_SRC,
-                    ][index]!
-                  }
-                  alt=""
-                  fill
-                  sizes="(min-width: 1024px) 240px, 50vw"
-                  className="-z-20 object-cover"
-                />
-                <div aria-hidden className="absolute inset-0 -z-10 bg-black/25" />
-                <span
-                  aria-hidden
-                  className="font-heading text-5xl transition-transform duration-150 group-hover:-translate-y-1 motion-reduce:transition-none"
-                >
-                  {product.mark}
-                </span>
-              </div>
-              <div className="flex flex-1 flex-col gap-3 p-5">
-                <h3 className="text-sm font-semibold">
-                  <FormattedMessage {...product.title} />
-                </h3>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  <FormattedMessage {...product.short} />
-                </p>
-                <span aria-hidden className="mt-auto pt-3 text-lg">
-                  ↗
-                </span>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
+      <GrowthStackOverview />
+      <LanguageSection />
+      <CultureSection />
+      <ComplianceSection />
+      <LocalisationAuditCta />
+      <IntegrationsSection integrations={integrations} />
+      <QuickStartGuidesSection />
+      {children}
       <AgentsSection />
+      <UseCasesSection />
       <section id="explore" className="scroll-mt-16">
         <div className={SECTION_CLASS}>
           <SectionHeading
@@ -579,8 +457,6 @@ export function PlatformHomepage({ children, plans }: { children: ReactNode; pla
           <ContentOpsMockStage />
         </div>
       </section>
-      <ConnectedCampaign />
-      {children}
       <TrustAndControlSection />
       <section id="plans" className="bg-muted/70">
         <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10">

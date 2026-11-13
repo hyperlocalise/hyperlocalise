@@ -48,8 +48,16 @@ function fillMissingOutputFields(
   }
 }
 
+/** The error code of a step set to fail in a test that names none. */
+export const TEST_FAILURE_CODE = "test_failure";
+
+/**
+ * Runs a step without calling out. A step with an entry in `outputs` returns it, a step in
+ * `failures` fails with that error, and a step the run works out runs its own logic.
+ */
 export function createMockWorkflowExecutor(
   outputs: Record<string, Record<string, unknown>> = {},
+  failures: Record<string, { code?: string; message?: string }> = {},
 ): VisualWorkflowInterpreterExecuteNode {
   return async ({ node, context }) => {
     const logic = executeLogicVisualWorkflowNode({ node, context, inputsResolved: true });
@@ -61,6 +69,16 @@ export function createMockWorkflowExecutor(
       fillMissingOutputFields(node, output);
       return { ...logic, output };
     }
+    const failure = failures[node.id];
+    if (failure) {
+      return {
+        ok: false,
+        error: {
+          code: failure.code?.trim() || TEST_FAILURE_CODE,
+          message: failure.message?.trim() || "This step was set to fail in the test.",
+        },
+      };
+    }
     const output = structuredClone(outputs[node.id] ?? NODE_CONTRACTS[node.type].mock);
     if (!outputs[node.id] && !node.type.startsWith("trigger.")) {
       output.simulated = true;
@@ -68,6 +86,12 @@ export function createMockWorkflowExecutor(
     if (!outputs[node.id]) {
       fillMissingOutputFields(node, output);
     }
-    return { ok: true, output };
+    return {
+      ok: true,
+      output,
+      ...(node.type === "flow.human_approval" && typeof output.decision === "string"
+        ? { switchCase: output.decision }
+        : {}),
+    };
   };
 }

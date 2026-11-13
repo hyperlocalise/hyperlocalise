@@ -17,9 +17,14 @@ import {
   getWorkspaceAutomationRunById,
   updateWorkspaceAutomationRun,
 } from "@/lib/agents/workspace-automations";
-import { isContentSyncAutomation } from "@/lib/agents/workspace-automation-types";
+import {
+  isContentSyncAutomation,
+  type WorkspaceAutomationRunStatus,
+} from "@/lib/agents/workspace-automation-types";
 
+import type { ContentSyncConfig } from "./content-sync-types";
 import { executeGithubContentSync, type ContentSyncSummary } from "./execute-github-content-sync";
+import { executeGitLabContentSync } from "./execute-gitlab-content-sync";
 
 const logger = createLogger("content-sync");
 
@@ -30,7 +35,7 @@ export async function executeContentSyncRun(input: {
   Result<
     {
       runId: string;
-      status: string;
+      status: WorkspaceAutomationRunStatus;
       planTools: string[];
       stepResults: Record<string, unknown>;
     },
@@ -147,12 +152,32 @@ export async function executeContentSyncRun(input: {
   }
 }
 
+export async function executeContentSyncConfig(input: {
+  organizationId: string;
+  projectId: string;
+  workflowId: string;
+  runId: string;
+  syncConfig: ContentSyncConfig | null;
+  /** Reuses one pull request branch across runs; defaults to a branch per run. */
+  pullRequestBranchKey?: string;
+}): Promise<Result<ContentSyncSummary, { code: string; message: string }>> {
+  return runContentSyncProvider({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    automationId: input.workflowId,
+    runId: input.runId,
+    syncConfig: input.syncConfig,
+    pullRequestBranchKey: input.pullRequestBranchKey,
+  });
+}
+
 async function runContentSyncProvider(input: {
   organizationId: string;
   projectId: string;
   automationId: string;
   runId: string;
-  syncConfig: NonNullable<Awaited<ReturnType<typeof getWorkspaceAutomationById>>>["syncConfig"];
+  syncConfig: ContentSyncConfig | null;
+  pullRequestBranchKey?: string;
 }): Promise<Result<ContentSyncSummary, { code: string; message: string }>> {
   if (!input.syncConfig) {
     return err({
@@ -168,6 +193,18 @@ async function runContentSyncProvider(input: {
       automationId: input.automationId,
       runId: input.runId,
       syncConfig: input.syncConfig,
+      pullRequestBranchKey: input.pullRequestBranchKey,
+    });
+  }
+
+  if (input.syncConfig.provider === "gitlab") {
+    return executeGitLabContentSync({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      automationId: input.automationId,
+      runId: input.runId,
+      syncConfig: input.syncConfig,
+      pullRequestBranchKey: input.pullRequestBranchKey,
     });
   }
 

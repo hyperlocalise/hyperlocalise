@@ -42,6 +42,7 @@ export type IntegrationIconKey =
   | "googledrive"
   | "atlassian"
   | "similarweb"
+  | "googlesearchconsole"
   | "webflow"
   | "sanity";
 
@@ -70,16 +71,23 @@ export type IntegrationProductDescriptor = {
   description: MessageDescriptor;
 };
 
+export type IntegrationFaqDescriptor = {
+  question: MessageDescriptor;
+  answer: MessageDescriptor;
+};
+
 export type IntegrationDetailCopyDescriptors = {
   capabilities?: readonly IntegrationCapabilityDescriptor[];
   workflows?: readonly IntegrationWorkflowDescriptor[];
   setupSteps?: readonly IntegrationSetupStepDescriptor[];
   products?: readonly IntegrationProductDescriptor[];
+  faqs?: readonly IntegrationFaqDescriptor[];
 };
 
 export type IntegrationCopyDescriptors = {
   name: MessageDescriptor;
   tagline: MessageDescriptor;
+  headline?: MessageDescriptor;
   overview?: readonly MessageDescriptor[];
   productName?: MessageDescriptor;
   productDescription?: MessageDescriptor;
@@ -100,6 +108,7 @@ export type IntegrationCatalogEntry = {
   docsUrl?: string;
   keywords?: readonly string[];
   relatedSlugs?: readonly string[];
+  relatedUseCaseSlug?: string;
   tmsProviderKind?: ExternalTmsProviderKind | "native";
 };
 
@@ -128,14 +137,21 @@ export type ResolvedIntegrationProduct = {
   description: string;
 };
 
+export type ResolvedIntegrationFaq = {
+  question: string;
+  answer: string;
+};
+
 export type ResolvedIntegrationCopy = {
   name: string;
   tagline: string;
+  headline: string;
   overview: string[];
   capabilities: ResolvedIntegrationCapability[];
   workflows: ResolvedIntegrationWorkflow[];
   setupSteps: ResolvedIntegrationSetupStep[];
   products: ResolvedIntegrationProduct[];
+  faqs: ResolvedIntegrationFaq[];
   metadata: {
     title: string;
     description: string;

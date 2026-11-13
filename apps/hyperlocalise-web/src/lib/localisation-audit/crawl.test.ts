@@ -305,6 +305,33 @@ describe("crawlLocalisationAuditSample", () => {
     expect(result.pages.some((page) => page.url === "https://example.com/ja")).toBe(true);
   });
 
+  it("fetches robots.txt and sitemaps through the renderer when it supports fetchText", async () => {
+    const { renderer, createRenderer } = mockBrowser([
+      htmlPage("https://example.com/", "<html lang='en'><title>Home</title><body>Hi</body></html>"),
+    ]);
+    const fetched: string[] = [];
+    renderer.fetchText = async (url) => {
+      fetched.push(url);
+      if (url === "https://example.com/robots.txt") {
+        return "Sitemap: https://example.com/sitemap.xml\n";
+      }
+      if (url === "https://example.com/sitemap.xml") {
+        return "<urlset><url><loc>https://example.com/fr/pricing</loc></url></urlset>";
+      }
+      return null;
+    };
+
+    const result = await crawlLocalisationAuditSample(
+      { origin: "https://example.com", sourceUrl: "https://example.com/" },
+      { createRenderer },
+    );
+
+    expect(fetched).toEqual(["https://example.com/robots.txt", "https://example.com/sitemap.xml"]);
+    expect(withPublicHttpFetchMock).not.toHaveBeenCalled();
+    expect(result.sitemap.robotsFound).toBe(true);
+    expect(result.sitemap.localizedUrls).toContain("https://example.com/fr/pricing");
+  });
+
   it("parses robots.txt and sitemap locale URLs without adding them as scored pages", async () => {
     withPublicHttpFetchMock.mockImplementation(async (url, _init, handler) => {
       if (url === "https://example.com/robots.txt") {

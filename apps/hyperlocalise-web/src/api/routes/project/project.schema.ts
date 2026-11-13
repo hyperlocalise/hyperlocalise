@@ -15,29 +15,24 @@ import { z } from "zod";
 import { successEnvelopeSchema } from "@/api/response.schema";
 import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identity/project-id";
+import { translationOrigins } from "@/lib/projects/translations/translation-origin-rule";
+import { VISUAL_CONTEXT_SCREENSHOT_MAX_BYTES } from "@/lib/translation/content-editor-visual-context";
 import {
   localeInputSchema,
   maxProjectTargetLocales,
   projectTargetLocalesSchema,
 } from "@/lib/i18n/locales";
+import { messageFormatSchema } from "@/lib/i18n/message-format";
+import { placeholderPatternsSchema } from "@/lib/i18n/placeholder-patterns";
+import {
+  repositorySourceFileImportSettingsSchema,
+  type RepositorySourceFileImportSettings,
+} from "@/lib/projects/files/source-file-import-settings-schema";
+
+export { repositorySourceFileImportSettingsSchema, type RepositorySourceFileImportSettings };
 
 export const projectIdParamsSchema = z.object({
   projectId: projectIdSchema,
-});
-
-export const updateProjectContentEditorBehaviorBodySchema = z.object({
-  automaticallyGroupIdenticalStrings: z.boolean(),
-});
-
-export const projectContentEditorBehaviorSchema = z.object({
-  automaticallyGroupIdenticalStrings: z.boolean(),
-  groupingRevision: z.number().int().nonnegative(),
-  canManage: z.boolean(),
-});
-
-export const projectContentEditorBehaviorPreviewSchema = z.object({
-  affectedOccurrences: z.number().int().nonnegative(),
-  groups: z.number().int().nonnegative(),
 });
 
 export const projectFileCatCommentIdParamsSchema = projectIdParamsSchema.extend({
@@ -190,6 +185,14 @@ export const projectsResponseSchema = z.object({
   projects: z.array(projectRecordSchema),
 });
 
+export const sourceFileIngestStateSchema = z.enum([
+  "pending",
+  "ingesting",
+  "ingested",
+  "skipped",
+  "failed",
+]);
+
 export const projectFileRecordSchema = z.object({
   origin: z.enum(["repository", "provider", "combined"]).default("repository"),
   sourcePath: z.string(),
@@ -201,6 +204,8 @@ export const projectFileRecordSchema = z.object({
   metadata: z.record(z.string(), z.unknown()),
   filename: z.string(),
   byteSize: z.number().nullable(),
+  ingestState: sourceFileIngestStateSchema.optional(),
+  ingestError: z.string().nullable().optional(),
   provider: z
     .object({
       kind: z.string(),
@@ -234,6 +239,8 @@ export const projectFileRecordSchema = z.object({
     })
     .nullable(),
   localeReadiness: z.record(z.string(), z.unknown()).optional(),
+  /** Every string in the file is hidden from translators (Crowdin-style hidden file). */
+  isHidden: z.boolean().optional(),
 });
 
 export const projectFileTranslationDownloadQuerySchema = z.object({
@@ -262,6 +269,36 @@ export const projectFilesQuerySchema = z.object({
   syncState: z.string().trim().max(64).optional(),
   branch: z.string().trim().min(1).max(256).optional(),
   projectId: optionalProjectIdSchema,
+});
+
+/** A connected TMS file whose strings are all hidden, keyed by provider file id. */
+export const projectHiddenFileRecordSchema = z.object({
+  externalResourceId: z.string(),
+});
+
+export const projectHiddenFilesResponseSchema = z.object({
+  files: z.array(projectHiddenFileRecordSchema),
+});
+
+export const projectFileProgressQuerySchema = z.object({
+  locale: z.string().trim().min(1).max(32),
+});
+
+/** Per-file progress for one target locale. Native rows key on `sourcePath`, TMS rows on `externalResourceId`. */
+export const projectFileProgressRecordSchema = z.object({
+  sourcePath: z.string().optional(),
+  externalResourceId: z.string().optional(),
+  translationProgress: z.number(),
+  approvalProgress: z.number(),
+  phrases: z.object({
+    total: z.number(),
+    translated: z.number(),
+    approved: z.number(),
+  }),
+});
+
+export const projectFileProgressResponseSchema = z.object({
+  files: z.array(projectFileProgressRecordSchema),
 });
 
 export const projectProviderBranchesResponseSchema = z.object({
@@ -294,8 +331,10 @@ export const projectFileCatQueueFilterSchema = z.enum([
   "reviewed",
   "has_issues",
   "hidden",
+  "not_hidden",
   "qa_issues",
   "machine_translated",
+  "origin",
   "with_comments",
 ]);
 
@@ -316,35 +355,63 @@ export const projectFileCatQuerySchema = z.object({
   search: z.string().trim().max(256).optional(),
   queueFilter: projectFileCatQueueFilterSchema.optional(),
   queueSort: projectFileCatQueueSortSchema.optional(),
+  /** Submenu qualifier for QA, machine translation, or unresolved-issue filters. */
+  queueFilterQualifier: z.string().trim().min(1).max(64).optional(),
+  /** JSON blob of Crowdin-style advanced CAT filters. */
+  queueAdvanced: z.string().trim().min(1).max(4096).optional(),
   offset: z.coerce.number().int().min(0).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   phraseScanPage: z.coerce.number().int().min(1).optional(),
   phraseScanSkip: z.coerce.number().int().min(0).optional(),
   sortBucket: z.coerce.number().int().min(0).max(2).optional(),
   sortBucketOffset: z.coerce.number().int().min(0).optional(),
+  /** Native only. Collapses identical source strings into one segment with `occurrenceCount`. */
+  grouped: z.enum(["true"]).optional(),
+  /** Native version branch. Defaults to `main` in go-svc. */
+  branch: z.string().trim().min(1).max(128).optional(),
+});
+
+export const projectFileCatLabelSchema = z.object({
+  id: z.string().trim().min(1).max(64),
+  title: z.string().trim().min(1).max(256),
+});
+
+export const projectFileCatLabelsResponseSchema = z.object({
+  labels: z.array(projectFileCatLabelSchema),
 });
 
 export const projectFileCatActivityLogQuerySchema = z.object({
+  segmentId: z.string().uuid().optional(),
+  groupId: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
+  targetLocale: z.string().min(1).max(128).optional(),
+  sourcePaths: z.string().optional(),
   cursor: z.string().trim().min(1).max(2048).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   sourcePath: z.string().trim().min(1).max(2048),
+  /** Comma-separated string segment event types. */
+  eventTypes: z.string().optional(),
+  actorKind: z.enum(["user", "agent", "api_key", "system"]).optional(),
+  actorUserId: z.string().uuid().optional(),
+  /** RFC 3339 time; only events at or after it. */
+  since: z.string().datetime({ offset: true }).optional(),
 });
 
-export const projectFileCatExportFormatSchema = z.enum(["csv", "tmx", "xlf", "xliff"]);
-
-export const projectFileCatExportQuerySchema = projectFileCatQuerySchema
-  .omit({
-    offset: true,
-    limit: true,
-    phraseScanPage: true,
-    phraseScanSkip: true,
-    sortBucket: true,
-    sortBucketOffset: true,
-  })
-  .extend({
-    format: projectFileCatExportFormatSchema,
-    sourceLocale: z.string().trim().min(1).max(32).optional(),
-  });
+/** Hono serves connected TMS activity, whose string IDs are provider IDs rather than UUIDs. */
+export const projectFileCatProviderActivityLogQuerySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  segmentId: z.string().trim().min(1).max(256).optional(),
+  targetLocale: z.string().min(1).max(128).optional(),
+  cursor: z.string().trim().min(1).max(2048).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  /** Comma-separated string segment event types. */
+  eventTypes: z.string().max(1024).optional(),
+  actorKind: z.enum(["user", "agent", "api_key", "system"]).optional(),
+  /** RFC 3339 time; only events at or after it. */
+  since: z.string().datetime({ offset: true }).optional(),
+});
 
 export const projectFileCatPaginationSchema = z.object({
   offset: z.number().int().min(0),
@@ -371,6 +438,17 @@ export const projectFileCatTranslationBodySchema = z.object({
   externalResourceId: z.string().trim().min(1).max(128).optional(),
   text: z.string().max(100_000),
   approve: z.boolean().optional(),
+  /**
+   * Native only. Writes the translation to every unlocked identical source string in this
+   * queue scope, or only to `occurrenceIds` when saving one translation variant.
+   */
+  group: z
+    .object({
+      sourcePath: z.string().trim().min(1).max(2048),
+      sourcePaths: z.array(z.string().trim().min(1).max(2048)).max(1000).optional(),
+      occurrenceIds: z.array(z.string().trim().min(1).max(128)).max(1000).optional(),
+    })
+    .optional(),
 });
 
 export const projectFileCatStatusBodySchema = z.object({
@@ -464,6 +542,8 @@ export const projectFileUploadBodySchema = z.object({
   sourceHash: z.string().trim().min(1).max(256).optional(),
   commitSha: z.string().trim().min(1).max(256).optional(),
   workflowRunId: z.string().trim().min(1).max(256).optional(),
+  keepApproved: z.enum(["true", "false"]).optional(),
+  branch: z.string().trim().min(1).max(128).optional(),
 });
 
 export const projectFileTranslationImportBodySchema = z.object({
@@ -524,6 +604,8 @@ export const projectFileVersionRecordSchema = z.object({
   sha256: z.string().nullable(),
   metadata: z.record(z.string(), z.unknown()),
   content: projectFileContentSchema.nullable(),
+  ingestState: sourceFileIngestStateSchema.optional(),
+  ingestError: z.string().nullable().optional(),
 });
 
 export const projectFileOutputRecordSchema = z.object({
@@ -564,11 +646,64 @@ export const projectFileProviderJobRecordSchema = z.object({
   updatedAt: z.string(),
 });
 
+import {
+  repositorySourceFileSegmentationSettingsSchema,
+  type RepositorySourceFileSegmentationSettingsInput,
+} from "@/lib/projects/files/source-file-segmentation-schema";
+
+export {
+  repositorySourceFileSegmentationSettingsSchema,
+  type RepositorySourceFileSegmentationSettingsInput,
+};
+
+export const projectFileSegmentationQuerySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+});
+
+export const updateProjectFileSegmentationBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  segmentation: repositorySourceFileSegmentationSettingsSchema,
+});
+
+export const projectFileMessageFormatQuerySchema = projectFileSegmentationQuerySchema;
+
+export const updateProjectFileMessageFormatBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  messageFormat: messageFormatSchema,
+  placeholderPatterns: placeholderPatternsSchema.optional(),
+});
+
+export const projectFileImportSettingsQuerySchema = projectFileSegmentationQuerySchema;
+
+export const updateProjectFileImportSettingsBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  importSettings: repositorySourceFileImportSettingsSchema,
+});
+
+export const projectFileSegmentationResponseSchema = z.object({
+  segmentation: repositorySourceFileSegmentationSettingsSchema.extend({
+    supportsSegmentation: z.boolean(),
+  }),
+  reingest: z
+    .object({
+      queued: z.boolean(),
+      reason: z.string().optional(),
+      sourceFileVersionId: z.string().uuid().optional(),
+    })
+    .optional(),
+});
+
 export const projectFileDetailResponseSchema = z.object({
   file: z.object({
     sourcePath: z.string(),
     filename: z.string(),
     provider: projectFileRecordSchema.shape.provider,
+    segmentation: repositorySourceFileSegmentationSettingsSchema
+      .extend({
+        supportsSegmentation: z.boolean(),
+      })
+      .nullable()
+      .optional(),
     versions: z.array(projectFileVersionRecordSchema),
     jobsByLocale: z.array(
       z.object({
@@ -633,12 +768,81 @@ export const projectFileCatConcordanceGlossaryTermSchema = z.object({
   forbidden: z.boolean(),
 });
 
+export const projectFileCatTmSegmentRefSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("native"),
+    memoryId: z.string().uuid(),
+    entryId: z.string().uuid(),
+  }),
+  z.object({
+    kind: z.literal("external"),
+    providerKind: z.literal("crowdin"),
+    resourceId: z.string().trim().min(1),
+    externalResourceId: z.string().trim().min(1),
+    externalSegmentId: z.string().trim().min(1),
+  }),
+]);
+
 export const projectFileCatConcordanceTranslationMemoryMatchSchema = z.object({
   id: z.string(),
   sourceText: z.string(),
   targetText: z.string(),
   matchPercent: z.number(),
   contextLabel: z.string().optional(),
+  canEdit: z.boolean().optional(),
+  canDelete: z.boolean().optional(),
+  segmentRef: projectFileCatTmSegmentRefSchema.optional(),
+});
+
+export const projectFileCatTmSegmentRecordSchema = z.object({
+  id: z.string(),
+  locale: z.string().trim().min(1).max(32),
+  text: z.string().max(100_000),
+  isSource: z.boolean(),
+  version: z.number().int().positive().optional(),
+});
+
+export const projectFileCatTmSegmentSchema = z.object({
+  source: projectFileCatTmSegmentRecordSchema,
+  records: z.array(projectFileCatTmSegmentRecordSchema),
+});
+
+export const projectFileCatTmSegmentResponseSchema = z.object({
+  tmSegment: projectFileCatTmSegmentSchema,
+});
+
+export const projectFileCatTmSegmentGetQuerySchema = z.object({
+  kind: z.literal("external"),
+  providerKind: z.literal("crowdin"),
+  resourceId: z.string().trim().min(1),
+  externalResourceId: z.string().trim().min(1),
+  externalSegmentId: z.string().trim().min(1),
+  sourceLocale: z.string().trim().min(1).max(32),
+});
+
+export const projectFileCatTmSegmentPatchBodySchema = z.object({
+  kind: z.literal("external"),
+  providerKind: z.literal("crowdin"),
+  resourceId: z.string().trim().min(1),
+  externalResourceId: z.string().trim().min(1),
+  externalSegmentId: z.string().trim().min(1),
+  sourceLocale: z.string().trim().min(1).max(32),
+  sourceText: z.string().min(1).max(100_000),
+  records: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        text: z.string().max(100_000),
+      }),
+    )
+    .min(1)
+    .max(64),
+});
+
+export const projectFileCatTmSegmentDeleteQuerySchema = projectFileCatTmSegmentGetQuerySchema;
+
+export const projectFileCatTmSegmentRecordParamsSchema = projectIdParamsSchema.extend({
+  recordId: z.string().trim().min(1),
 });
 
 export const projectFileCatConcordanceResponseSchema = z.object({
@@ -673,6 +877,87 @@ export const projectFileCatVisualContextResponseSchema = z.object({
   visualContext: z.object({
     screenshots: z.array(projectFileCatVisualContextScreenshotSchema),
   }),
+});
+
+export const projectFileCatVisualContextUploadBodySchema = z.object({
+  filename: z.string().trim().min(1).max(255),
+  contentType: z.string().trim().min(1).max(128),
+  byteSize: z.number().int().positive().max(VISUAL_CONTEXT_SCREENSHOT_MAX_BYTES),
+  name: z.string().trim().max(256).optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  sourcePath: z.string().trim().min(1).max(2048).optional(),
+  externalStringId: z.string().trim().min(1).max(128).optional(),
+  marker: projectFileCatVisualContextMarkerSchema.optional(),
+});
+
+export const projectFileCatVisualContextBindingSchema = z.object({
+  id: z.string(),
+  screenshotId: z.string(),
+  externalStringId: z.string(),
+  marker: projectFileCatVisualContextMarkerSchema.nullable().optional(),
+  source: z.enum(["manual", "auto"]).optional(),
+});
+
+/** Mirrors Smartling MatchParams: scope by sourcePath or externalStringIds, not both. */
+export const projectFileCatVisualContextMatchBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048).optional(),
+  externalStringIds: z.array(z.string().trim().min(1).max(128)).max(500).optional(),
+  overrideContextOlderThanDays: z.number().int().min(1).max(3650).optional(),
+});
+
+export const projectFileCatVisualContextMatchProcessSchema = z.object({
+  id: z.string(),
+  screenshotId: z.string(),
+  status: z.enum(["queued", "in_progress", "completed", "failed"]),
+  checkedStringsCount: z.number().int().nullable(),
+  boundStringsCount: z.number().int().nullable(),
+  error: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  completedAt: z.string().nullable(),
+  bindings: z.array(projectFileCatVisualContextBindingSchema),
+});
+
+export const projectFileCatVisualContextMatchResponseSchema = z.object({
+  process: projectFileCatVisualContextMatchProcessSchema,
+});
+
+export const projectFileCatVisualContextUploadResponseSchema = z.object({
+  screenshot: z.object({
+    id: z.string(),
+    name: z.string().nullable().optional(),
+    status: z.literal("upload_pending"),
+  }),
+  binding: projectFileCatVisualContextBindingSchema.nullable().optional(),
+  upload: z.object({
+    url: z.string().min(1),
+    method: z.string().min(1),
+    headers: z.record(z.string(), z.array(z.string())),
+    expiresAt: z.string(),
+  }),
+});
+
+export const projectFileCatVisualContextFinalizeBodySchema = z.object({
+  name: z.string().trim().max(256).optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  match: projectFileCatVisualContextMatchBodySchema.optional(),
+});
+
+export const projectFileCatVisualContextFinalizeResponseSchema = z.object({
+  screenshot: projectFileCatVisualContextScreenshotSchema,
+  process: projectFileCatVisualContextMatchProcessSchema.optional(),
+});
+
+export const projectFileCatVisualContextBindBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  externalStringId: z.string().trim().min(1).max(128),
+  marker: projectFileCatVisualContextMarkerSchema.optional(),
+});
+
+export const projectFileCatVisualContextBindResponseSchema = z.object({
+  binding: projectFileCatVisualContextBindingSchema,
 });
 
 export const projectFileCatRecommendationResponseSchema = z.object({
@@ -739,6 +1024,7 @@ export const projectFileCatContentKindSchema = z.enum([
 ]);
 
 export const projectFileCatTranslationSchema = z.object({
+  revision: z.string().optional(),
   text: z.string(),
   externalTranslationId: z.string().nullable(),
   isApproved: z.boolean(),
@@ -746,7 +1032,38 @@ export const projectFileCatTranslationSchema = z.object({
   targetAssetUrl: z.string().nullable().optional(),
   imageVariantId: z.string().nullable().optional(),
   status: z.enum(["draft", "needs_review", "approved", "rejected"]).optional(),
+  /** Whether a machine or a person wrote `text`; native string targets only. */
+  origin: z.enum(translationOrigins).optional(),
 });
+
+/** Bounds apply to the rectangle, including cells not explicitly requested by callers. */
+export const CAT_TARGET_BATCH_MAX_SEGMENTS = 50;
+export const CAT_TARGET_BATCH_MAX_LOCALES = 8;
+export const CAT_TARGET_BATCH_MAX_CELLS = 200;
+export const projectFileCatTargetIdentitySchema = z.object({
+  externalStringId: z.string().trim().min(1).max(128),
+  sourcePath: z.string().trim().min(1).max(2048),
+  externalResourceId: z.string().trim().min(1).max(128).optional(),
+  resourceType: z.enum(["file", "key"]).optional(),
+});
+export const projectFileCatTargetsBodySchema = z
+  .object({
+    segments: z.array(projectFileCatTargetIdentitySchema).min(1).max(CAT_TARGET_BATCH_MAX_SEGMENTS),
+    targetLocales: z
+      .array(z.string().trim().min(1).max(32))
+      .min(1)
+      .max(CAT_TARGET_BATCH_MAX_LOCALES),
+  })
+  .refine(
+    (value) => value.segments.length * value.targetLocales.length <= CAT_TARGET_BATCH_MAX_CELLS,
+    "Translation rectangle is too large",
+  );
+export const projectFileCatTargetRowSchema = projectFileCatTargetIdentitySchema.extend({
+  targets: z.record(z.string(), projectFileCatTranslationSchema.nullable()),
+});
+export type ProjectFileCatTargetIdentity = z.infer<typeof projectFileCatTargetIdentitySchema>;
+export type ProjectFileCatTargetsInput = z.infer<typeof projectFileCatTargetsBodySchema>;
+export type ProjectFileCatTargetRow = z.infer<typeof projectFileCatTargetRowSchema>;
 
 export const projectFileCatSegmentSchema = z.object({
   externalStringId: z.string(),
@@ -755,6 +1072,9 @@ export const projectFileCatSegmentSchema = z.object({
   context: z.string().nullable(),
   type: z.string().nullable(),
   maxLength: z.number().int().positive().optional(),
+  /** Native key tags and design link, set through the public API. */
+  tags: z.array(z.string()).optional(),
+  designUrl: z.string().nullable().optional(),
   /** Hidden source string. Native TMS and Crowdin-style providers keep it visible to managers. */
   isHidden: z.boolean().optional(),
   /** Explicit CAT lock. Not derived from approved or hidden. */
@@ -765,12 +1085,23 @@ export const projectFileCatSegmentSchema = z.object({
   imageVariantId: z.string().nullable().optional(),
   looksLikeImageUrl: z.boolean().optional(),
   looksLikeVideoUrl: z.boolean().optional(),
+  sourceTextEditable: z.boolean().optional(),
   /** Present when the queue spans multiple files (`sourcePath=*`). */
   sourcePath: z.string().optional(),
   /** Provider file format for this segment's file (All Files mode). */
   format: z.string().nullable().optional(),
+  /** Placeholder syntax of this segment's file (All Files mode). */
+  messageFormat: messageFormatSchema.optional(),
+  /** Custom placeholder regexes of this segment's file (All Files mode). */
+  placeholderPatterns: z.array(z.string()).optional(),
   externalResourceId: z.string().optional(),
   resourceType: z.enum(["file", "key"]).optional(),
+  /** Grouped queues only: identical source strings in scope, including this one. */
+  occurrenceCount: z.number().int().positive().optional(),
+  /** Grouped rows: least complete status among the occurrences in the queue locale. */
+  groupStatus: z.enum(["pending", "needs_review", "reviewed"]).optional(),
+  /** Grouped rows: locales whose occurrences do not share one translation. */
+  divergentLocales: z.array(z.string()).optional(),
 });
 
 export const projectFileCatSegmentParamsSchema = z.object({
@@ -825,6 +1156,26 @@ export const projectFileCatResponseSchema = z.object({
     canContributeTeamGlossary: z.boolean().optional(),
     teamName: z.string().optional(),
     projectTeamSlug: z.string().optional(),
+    /** Stored source animation for Lottie files, used for the translated preview. */
+    lottieSourceUrl: z.string().optional(),
+    /**
+     * Native HTML/markdown/MDX/AsciiDoc files can list string keys and still open file view.
+     * File view uses this overlay instead of the selected key.
+     */
+    documentView: z
+      .object({
+        externalStringId: z.string(),
+        sourceAssetUrl: z.string().nullable().optional(),
+        targetAssetUrl: z.string().nullable().optional(),
+        imageVariantId: z.string().nullable().optional(),
+      })
+      .optional(),
+    ingestState: sourceFileIngestStateSchema.optional(),
+    ingestError: z.string().nullable().optional(),
+    /** Placeholder syntax for single-file queues. All Files queues set it per segment. */
+    messageFormat: messageFormatSchema.optional(),
+    /** Custom placeholder regexes for single-file queues. All Files queues set them per segment. */
+    placeholderPatterns: z.array(z.string()).optional(),
     segments: z.array(projectFileCatSegmentSchema),
     pagination: projectFileCatPaginationSchema.optional(),
   }),
@@ -855,9 +1206,13 @@ export type ProjectFileRecord = z.infer<typeof projectFileRecordSchema>;
 export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
 export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectProviderBranchesResponse = z.infer<typeof projectProviderBranchesResponseSchema>;
+export type ProjectFileProgressRecord = z.infer<typeof projectFileProgressRecordSchema>;
+export type ProjectHiddenFileRecord = z.infer<typeof projectHiddenFileRecordSchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileContentEditorQuery = z.infer<typeof projectFileCatQuerySchema>;
-export type ProjectFileContentEditorExportQuery = z.infer<typeof projectFileCatExportQuerySchema>;
+export type ProjectFileContentEditorActivityLogQuery = z.infer<
+  typeof projectFileCatActivityLogQuerySchema
+>;
 export type ProjectFileContentEditorQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
 export type ProjectFileContentEditorQueueSort = z.infer<typeof projectFileCatQueueSortSchema>;
 export type ProjectFileContentEditorTranslationBody = z.infer<
@@ -902,11 +1257,40 @@ export type ProjectFileContentEditorConcordanceBody = z.infer<
 export type ProjectFileContentEditorConcordanceResponse = z.infer<
   typeof projectFileCatConcordanceResponseSchema
 >;
+export type ProjectFileCatTmSegment = z.infer<typeof projectFileCatTmSegmentSchema>;
+export type ProjectFileCatTmSegmentResponse = z.infer<typeof projectFileCatTmSegmentResponseSchema>;
+export type ProjectFileCatTmSegmentPatchBody = z.infer<
+  typeof projectFileCatTmSegmentPatchBodySchema
+>;
 export type ProjectFileContentEditorVisualContextBody = z.infer<
   typeof projectFileCatVisualContextBodySchema
 >;
 export type ProjectFileContentEditorVisualContextResponse = z.infer<
   typeof projectFileCatVisualContextResponseSchema
+>;
+export type ProjectFileContentEditorVisualContextUploadBody = z.infer<
+  typeof projectFileCatVisualContextUploadBodySchema
+>;
+export type ProjectFileContentEditorVisualContextUploadResponse = z.infer<
+  typeof projectFileCatVisualContextUploadResponseSchema
+>;
+export type ProjectFileContentEditorVisualContextFinalizeBody = z.infer<
+  typeof projectFileCatVisualContextFinalizeBodySchema
+>;
+export type ProjectFileContentEditorVisualContextFinalizeResponse = z.infer<
+  typeof projectFileCatVisualContextFinalizeResponseSchema
+>;
+export type ProjectFileContentEditorVisualContextMatchBody = z.infer<
+  typeof projectFileCatVisualContextMatchBodySchema
+>;
+export type ProjectFileContentEditorVisualContextMatchResponse = z.infer<
+  typeof projectFileCatVisualContextMatchResponseSchema
+>;
+export type ProjectFileContentEditorVisualContextBindBody = z.infer<
+  typeof projectFileCatVisualContextBindBodySchema
+>;
+export type ProjectFileContentEditorVisualContextBindResponse = z.infer<
+  typeof projectFileCatVisualContextBindResponseSchema
 >;
 export type ProjectSourceStringEntry = z.infer<typeof projectSourceStringEntrySchema>;
 export type ProjectSourceStringsPreview = z.infer<typeof projectSourceStringsPreviewSchema>;

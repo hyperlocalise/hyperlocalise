@@ -31,15 +31,20 @@ import {
 import { resolveOrganizationHasTmsIntegration } from "@/lib/agent-runtime/skills/conversation-tms-integration";
 import { stopRepositorySandbox } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
+import { keepGitLabContextIfCurrent } from "@/lib/gitlab/access";
 import {
   postThreadMessageWithoutTracking,
   wrapThreadPostForInteraction,
 } from "@/lib/agent-runtime/runs/agent-run-events";
-import { AI_FEATURES_REQUIRED_MESSAGE, ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
+import { ensureAiFeaturesAllowed, formatAiFeaturesRefusal } from "@/lib/billing/ai-features";
 import {
+  agentTurnTokenBilling,
+  extractAiSdkTokenUsage,
+  extractGenerateResultTokenUsage,
   reserveAgentRuntimeUsage,
   trackSucceededAgentRuntimeUsage,
 } from "@/lib/billing/agent-runtime-usage";
+import type { AiTokenUsage } from "@/lib/billing/usage-control";
 import { db } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { resolveWorkspaceVisualMockFlag } from "@/lib/flags/workspace-flags";
@@ -309,10 +314,14 @@ async function processSlackMessage(
       return [{ role: chatMessage.role, content: chatMessage.content }];
     });
     const storedRepositoryContext = threadState?.repositoryGitHubContext ?? null;
-    const storedGitLabContext = threadState?.repositoryGitLabContext ?? null;
+    const storedGitLabContext = await keepGitLabContextIfCurrent({
+      localOrganizationId: organizationId,
+      context: threadState?.repositoryGitLabContext,
+    });
     const languageModel = await resolveHyperlocaliseAgentLanguageModel({
       organizationId,
     });
+    let classificationTokenUsage: AiTokenUsage | null = null;
     const classification = await classifyConversation({
       currentMessage: message.text,
       conversationText,
@@ -320,6 +329,9 @@ async function processSlackMessage(
       hasStoredRepositoryContext: Boolean(storedRepositoryContext ?? storedGitLabContext),
       surface: "slack",
       model: languageModel.model,
+      onUsage: (usage) => {
+        classificationTokenUsage = extractAiSdkTokenUsage(usage);
+      },
     });
     log.info(
       {
@@ -337,6 +349,7 @@ async function processSlackMessage(
       localUserId: membership.localUserId,
       projectId,
       conversationText,
+      currentMessageText: message.text,
       classification,
       repositorySession: threadState,
       connectorConfig,
@@ -372,6 +385,7 @@ async function processSlackMessage(
       await removeEyesReaction(thread, message);
       wrapThreadPost(thread, interactionId);
       await handleSlackImageAttachments(thread, message, {
+        languageModel,
         imageAttachments,
         conversationMessages: imageIntentMessages,
         threadState,
@@ -387,6 +401,7 @@ async function processSlackMessage(
     } else if (threadHasStoredSlackImages(threadState)) {
       await removeEyesReaction(thread, message);
       const followUpResult = await handleSlackImageFollowUp(thread, message, {
+        languageModel,
         conversationMessages: imageIntentMessages,
         threadState,
         storage: imageStorageContext,
@@ -518,6 +533,7 @@ async function processSlackMessage(
       surface: "slack",
       agent_surface: "chat",
       repository_tools: Boolean(sandboxId),
+      ...(projectId ? { project_id: projectId } : {}),
     };
     await reserveAgentRuntimeUsage({
       organizationId,
@@ -532,6 +548,13 @@ async function processSlackMessage(
       organizationId,
       operationKey: usageOperationKey,
       dimensions: usageDimensions,
+      ...agentTurnTokenBilling({
+        classificationTokenUsage,
+        turnTokenUsage: extractGenerateResultTokenUsage(result),
+        languageModel,
+      }),
+      aiCreditSource: "slack_agent_turn",
+      interactionId,
     });
 
     const screenshots = extractSuccessfulCaptureScreenshots(result);
@@ -601,7 +624,7 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
   const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: connector.organizationId });
   if (!aiFeatures.ok) {
     await thread.post({
-      markdown: AI_FEATURES_REQUIRED_MESSAGE,
+      markdown: formatAiFeaturesRefusal(aiFeatures.error),
     });
     return;
   }

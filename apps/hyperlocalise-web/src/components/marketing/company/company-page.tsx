@@ -10,8 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowUpRightIcon } from "@phosphor-icons/react/ssr";
 import Image from "next/image";
 
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
@@ -170,11 +169,7 @@ export function CompanyPage({ locale }: CompanyPageProps) {
                       className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
                       {copy.linkedInLabel}
-                      <HugeiconsIcon
-                        icon={ArrowUpRight01Icon}
-                        strokeWidth={2}
-                        className="size-3.5"
-                      />
+                      <ArrowUpRightIcon className="size-3.5" />
                     </a>
                   </div>
                 </li>

@@ -10,22 +10,32 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { OrgPageSuspense } from "../_components/org-page-suspense";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
+
 import { ProjectsPageContent } from "./_components/projects-page-content";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projects");
+}
 
 export default function ProjectsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ProjectsPageLoader params={params} />;
 }
 
 async function ProjectsPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
-  return <ProjectsPageContent organizationSlug={organizationSlug} />;
+  const auth = await requireAppAuthContext({ organizationSlug });
+  // go-svc lets admins and localization managers manage templates; workspace:update is the web
+  // capability those two roles share.
+  return (
+    <ProjectsPageContent
+      organizationSlug={organizationSlug}
+      canManageTemplates={auth.capabilities.includes("workspace:update")}
+    />
+  );
 }

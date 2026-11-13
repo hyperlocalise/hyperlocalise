@@ -16,13 +16,13 @@ import { useId, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { Alert02Icon, ArrowDown01Icon, Delete02Icon, PuzzleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { WarningIcon, CaretDownIcon, TrashIcon, PuzzlePieceIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
 import { hasCapability } from "@/api/auth/policy";
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createApiClient } from "@/lib/api-client";
@@ -65,6 +65,9 @@ import {
   SourceControlIntegrationsSection,
 } from "./agent-integrations-section";
 import { CanvaConnectionPanel } from "./canva-connection-panel";
+import { FigmaConnectionPanel } from "./figma-connection-panel";
+import { SanityConnectionPanel } from "./sanity-connection-panel";
+import { WebflowConnectionPanel } from "./webflow-connection-panel";
 import {
   ContentfulConnectionPanel,
   type ContentfulConnectionForm,
@@ -615,10 +618,8 @@ function TmsIntegrationRow({
                 ) : (
                   <FormattedMessage {...integrationRowMessages.connect} />
                 )}
-                <HugeiconsIcon
-                  icon={ArrowDown01Icon}
+                <CaretDownIcon
                   className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
-                  strokeWidth={2}
                 />
               </Button>
             }
@@ -807,36 +808,38 @@ export function IntegrationsPageContent({
   }
 
   return (
-    <WorkspacePageShell>
+    <WorkspacePageShell className="min-w-0">
       <PageHeader
-        icon={PuzzleIcon}
+        icon={PuzzlePieceIcon}
         label={intl.formatMessage(integrationsPageContentMessages.pageLabel)}
         title={intl.formatMessage(integrationsPageContentMessages.pageTitle)}
-        description={intl.formatMessage(integrationsPageContentMessages.pageDescription)}
       />
 
       {integrationError ? (
         <Alert variant="destructive">
-          <HugeiconsIcon icon={Alert02Icon} strokeWidth={1.8} />
+          <WarningIcon />
           <AlertTitle>{integrationError.title}</AlertTitle>
           <AlertDescription>{integrationError.description}</AlertDescription>
         </Alert>
       ) : null}
 
       <Tabs
+        className="min-w-0"
         value={categoryFilter}
         onValueChange={(value) => setCategoryFilter(value as IntegrationCategoryFilter)}
       >
-        <TabsList>
-          <TabsTrigger value="all">
-            <FormattedMessage {...integrationsPageContentMessages.categoryFilterAll} />
-          </TabsTrigger>
-          {visibleCategoryIds.map((categoryId) => (
-            <TabsTrigger key={categoryId} value={categoryId}>
-              <FormattedMessage {...INTEGRATION_CATEGORY_MESSAGES[categoryId]} />
+        <div className="min-w-0 max-w-full overflow-x-auto">
+          <TabsList className="w-max">
+            <TabsTrigger className="flex-none" value="all">
+              <FormattedMessage {...integrationsPageContentMessages.categoryFilterAll} />
             </TabsTrigger>
-          ))}
-        </TabsList>
+            {visibleCategoryIds.map((categoryId) => (
+              <TabsTrigger key={categoryId} className="flex-none" value={categoryId}>
+                <FormattedMessage {...INTEGRATION_CATEGORY_MESSAGES[categoryId]} />
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
         <Rows ref={categoryListRef} spacing="3u">
           {showCategory("source-control") ? (
             <IntegrationCategorySection categoryId="source-control">
@@ -1011,7 +1014,7 @@ export function IntegrationsPageContent({
                 description={intl.formatMessage(
                   integrationsPageContentMessages.contentPublishingFilesDetail,
                 )}
-                icon={<IntegrationLogo src="/images/logo.png" />}
+                icon={<IntegrationLogo src={brandLogomarkSrc} />}
                 iconMuted
                 action="coming-soon"
               />
@@ -1063,6 +1066,13 @@ export function IntegrationsPageContent({
                 />
               </CollapsibleIntegrationRow>
               <CanvaConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+              <FigmaConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+              <SanityConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+              <WebflowConnectionPanel
+                organizationSlug={organizationSlug}
+                disabled={!userIsAdmin}
+                isLast={workspacePipesCmsSlugs.length === 0}
+              />
               {workspacePipesCmsSlugs.map((slug, index) => (
                 <PipesConnectionPanel
                   key={slug}
@@ -1107,7 +1117,7 @@ export function IntegrationsPageContent({
               <IntegrationRow
                 name={intl.formatMessage(integrationsPageContentMessages.hyperSeoName)}
                 description={intl.formatMessage(integrationsPageContentMessages.hyperSeoDetail)}
-                icon={<IntegrationLogo src="/images/logo.png" />}
+                icon={<IntegrationLogo src={brandLogomarkSrc} />}
                 iconMuted
                 action="coming-soon"
               />
@@ -1186,7 +1196,7 @@ export function IntegrationsPageContent({
                   });
                 }}
               >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                <TrashIcon />
                 {deleteExternalTms.isPending
                   ? intl.formatMessage(integrationsPageContentMessages.disconnecting)
                   : intl.formatMessage(integrationsPageContentMessages.disconnect)}

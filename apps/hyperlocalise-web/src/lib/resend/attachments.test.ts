@@ -42,6 +42,12 @@ describe("inferAttachmentContentType", () => {
   });
 
   it("marks supported text translation outputs with explicit UTF-8 content types", () => {
+    expect(inferAttachmentContentType("messages.po")).toBe(
+      "text/x-gettext-translation; charset=utf-8",
+    );
+    expect(inferAttachmentContentType("messages.pot")).toBe(
+      "text/x-gettext-translation-template; charset=utf-8",
+    );
     expect(inferAttachmentContentType("messages.csv")).toBe("text/csv; charset=utf-8");
     expect(inferAttachmentContentType("guide.mdx")).toBe("text/markdown; charset=utf-8");
     expect(inferAttachmentContentType("Localizable.strings")).toBe("text/plain; charset=utf-8");
@@ -52,6 +58,12 @@ describe("inferAttachmentContentType", () => {
     expect(inferAttachmentContentType("messages.yaml")).toBe("text/yaml; charset=utf-8");
     expect(inferAttachmentContentType("captions.srt")).toBe("application/x-subrip; charset=utf-8");
     expect(inferAttachmentContentType("captions.vtt")).toBe("text/vtt; charset=utf-8");
+    expect(inferAttachmentContentType("captions.sbv")).toBe("text/plain; charset=utf-8");
+    expect(inferAttachmentContentType("messages.tsv")).toBe(
+      "text/tab-separated-values; charset=utf-8",
+    );
+    expect(inferAttachmentContentType("messages.toml")).toBe("application/toml; charset=utf-8");
+    expect(inferAttachmentContentType("mark.svg")).toBe("image/svg+xml; charset=utf-8");
   });
 
   it("falls back to octet-stream for unknown or extensionless files", () => {

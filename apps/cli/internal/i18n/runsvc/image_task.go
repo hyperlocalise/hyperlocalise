@@ -1,14 +1,19 @@
 package runsvc
 
 import (
+	"bytes"
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"mime"
 	"path/filepath"
 	"strings"
 
+	"github.com/HugoSmits86/nativewebp"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 )
 
@@ -44,6 +49,56 @@ func imageOutputFormat(path string) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported image target extension %q for %q", filepath.Ext(path), path)
 	}
+}
+
+func convertCopiedImage(content []byte, outputFormat string) ([]byte, error) {
+	format := strings.ToLower(strings.TrimSpace(outputFormat))
+	if format == "jpg" {
+		format = "jpeg"
+	}
+	if format == "" {
+		return append([]byte(nil), content...), nil
+	}
+	if len(content) == 0 {
+		return nil, fmt.Errorf("empty image content")
+	}
+	if detected := detectImageFormat(content); detected == format {
+		return append([]byte(nil), content...), nil
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(content))
+	if err != nil {
+		return nil, fmt.Errorf("decode image: %w", err)
+	}
+	var buf bytes.Buffer
+	switch format {
+	case "png":
+		err = png.Encode(&buf, img)
+	case "jpeg":
+		err = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90})
+	case "webp":
+		err = nativewebp.Encode(&buf, img, nil)
+	default:
+		return nil, fmt.Errorf("unsupported image output format %q", outputFormat)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("encode image as %s: %w", format, err)
+	}
+	if buf.Len() == 0 {
+		return nil, fmt.Errorf("encode image as %s: empty output", format)
+	}
+	return buf.Bytes(), nil
+}
+
+func detectImageFormat(content []byte) string {
+	_, format, err := image.DecodeConfig(bytes.NewReader(content))
+	if err != nil {
+		return ""
+	}
+	if format == "jpg" {
+		return "jpeg"
+	}
+	return format
 }
 
 func imageSourceFingerprint(content []byte) string {

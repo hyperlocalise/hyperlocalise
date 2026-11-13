@@ -197,12 +197,87 @@ func TestJoinRestoresLeadingWhitespace(t *testing.T) {
 	}
 }
 
-func TestJoinFallsBackToSourceWhenTranslationMissing(t *testing.T) {
+func TestJoinLeavesMissingTranslationsEmpty(t *testing.T) {
 	t.Parallel()
 	spans := []Span{{Text: "Hello."}, {Text: " World."}}
 	got := Join(spans, []string{"Bonjour."})
-	if got != "Bonjour. World." {
-		t.Fatalf("join = %q", got)
+	if got != "Bonjour." {
+		t.Fatalf("join = %q, want Bonjour. without source fallback", got)
+	}
+}
+
+func TestJoinSpanValuesJoinsFullyTranslatedKeys(t *testing.T) {
+	t.Parallel()
+	sourceSpans := map[string]string{
+		"intro#srx.0": "Hello.",
+		"intro#srx.1": " World.",
+	}
+	got := JoinSpanValues(map[string]string{
+		"intro#srx.0": "Bonjour.",
+		"intro#srx.1": "Monde.",
+		"title":       "Accueil",
+	}, sourceSpans)
+
+	if len(got) != 2 || got["intro"] != "Bonjour. Monde." || got["title"] != "Accueil" {
+		t.Fatalf("joined = %#v", got)
+	}
+}
+
+func TestJoinSpanValuesDropsPartlyTranslatedKeys(t *testing.T) {
+	t.Parallel()
+	sourceSpans := map[string]string{
+		"intro#srx.0": "Hello.",
+		"intro#srx.1": " World.",
+	}
+	got := JoinSpanValues(map[string]string{"intro#srx.0": "Bonjour."}, sourceSpans)
+
+	if len(got) != 0 {
+		t.Fatalf("joined = %#v, want no value for a key with an untranslated span", got)
+	}
+}
+
+// Fully translated sentences win over a whole-string value, as in the CLI's join.
+func TestJoinSpanValuesPrefersFullyTranslatedSentences(t *testing.T) {
+	t.Parallel()
+	sourceSpans := map[string]string{
+		"intro#srx.0": "Hello.",
+		"intro#srx.1": " World.",
+	}
+	got := JoinSpanValues(map[string]string{
+		"intro":       "Salut tout le monde.",
+		"intro#srx.0": "Bonjour.",
+		"intro#srx.1": "Monde.",
+	}, sourceSpans)
+
+	if len(got) != 1 || got["intro"] != "Bonjour. Monde." {
+		t.Fatalf("joined = %#v", got)
+	}
+}
+
+func TestJoinSpanValuesKeepsWhitespaceOnlySpans(t *testing.T) {
+	t.Parallel()
+	sourceSpans := map[string]string{
+		"intro#srx.0": "Hello.",
+		"intro#srx.1": " Bye.",
+		"intro#srx.2": "\n",
+	}
+	got := JoinSpanValues(map[string]string{
+		"intro#srx.0": "Bonjour.",
+		"intro#srx.1": "Au revoir.",
+	}, sourceSpans)
+
+	if got["intro"] != "Bonjour. Au revoir.\n" {
+		t.Fatalf("joined = %#v", got)
+	}
+}
+
+func TestJoinSpanValuesLeavesValuesAloneWithoutSourceSpans(t *testing.T) {
+	t.Parallel()
+	values := map[string]string{"note#srx.0": "Bonjour."}
+	got := JoinSpanValues(values, nil)
+
+	if len(got) != 1 || got["note#srx.0"] != "Bonjour." {
+		t.Fatalf("joined = %#v", got)
 	}
 }
 

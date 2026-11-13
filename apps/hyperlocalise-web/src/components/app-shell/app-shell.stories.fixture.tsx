@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { type CSSProperties, type ReactNode } from "react";
-import Image from "next/image";
-import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
+import type { IntlShape } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,22 +26,22 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import { TypographyP } from "@/components/ui/typography";
 import { getIntlShape } from "@/lib/app-i18n/intl";
+import { AutumnBillingProvider } from "@/lib/billing/autumn-billing-provider";
 import { annotateNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
 import type { WorkspaceFeatureFlagState } from "@/lib/flags/workos-flag-entities";
 import type { TmsUserConnectCta } from "@/lib/providers/credentials/tms-user-connection-shared";
 
-import { appShellClientMessages } from "./app-shell-client.messages";
 import { AppShellClient } from "./app-shell-client";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
 import { AppShellNavigation } from "./app-shell-navigation";
 import {
   buildDomainNavigationItems,
   buildGlobalNavigationGroups,
-  buildProjectNavigationItems,
+  buildProjectNavigationGroups,
 } from "./navigation-config";
 import { NavUser } from "./nav-user";
+import { OrganizationSwitcher } from "./organization-switcher";
 import { AppShellHeaderActions } from "./store/app-shell-header-actions";
 import { AppShellStoreProvider } from "./store/app-shell-store-context";
 import { SidebarStoreBridge } from "./store/sidebar-store-bridge";
@@ -55,6 +54,7 @@ export const APP_SHELL_STORY_PROJECT_ID = "project_website";
 export const APP_SHELL_STORY_LINKED_DOMAIN_ID = "hyperlocalise-com";
 
 export const appShellStoryUser = {
+  id: "user_storybook",
   name: "Minh Cung",
   email: "minh.cung@example.com",
   avatarUrl: undefined,
@@ -77,6 +77,7 @@ export const ALL_WORKSPACE_FEATURE_FLAGS: WorkspaceFeatureFlagState = {
   knowledge: true,
   visualMock: true,
   visualWorkflows: true,
+  queriesBoard: true,
   domains: true,
   glossarySearch: true,
   hyperlab: true,
@@ -91,17 +92,12 @@ export function buildAppShellStoryNavigationGroups(locale: string = "en") {
   );
 }
 
-export function buildAppShellStoryProjectNavigationGroups(locale: string = "en") {
+export function buildAppShellStoryProjectNavigationGroups(
+  locale: string = "en",
+  projectId: string = APP_SHELL_STORY_PROJECT_ID,
+) {
   const intl = getIntlShape(locale) as IntlShape;
-  return [
-    {
-      items: buildProjectNavigationItems(
-        APP_SHELL_STORY_ORGANIZATION_SLUG,
-        APP_SHELL_STORY_PROJECT_ID,
-        intl,
-      ),
-    },
-  ];
+  return buildProjectNavigationGroups(APP_SHELL_STORY_ORGANIZATION_SLUG, projectId, intl);
 }
 
 export function buildAppShellStoryDomainNavigationGroups(locale: string = "en") {
@@ -156,7 +152,7 @@ export function AppShellStoryFrame({
   autumnConfigured = false,
   tmsUserConnectCta = { showConnectCta: false },
 }: AppShellStoryFrameProps) {
-  return (
+  const appShell = (
     <AppShellClient
       activeOrganization={{
         name: "Acme Localization",
@@ -174,6 +170,16 @@ export function AppShellStoryFrame({
     >
       {children ?? <AppShellStoryPlaceholder />}
     </AppShellClient>
+  );
+
+  if (!autumnConfigured) {
+    return appShell;
+  }
+
+  return (
+    <AutumnBillingProvider organizationSlug={APP_SHELL_STORY_ORGANIZATION_SLUG}>
+      {appShell}
+    </AutumnBillingProvider>
   );
 }
 
@@ -207,7 +213,6 @@ function AppShellHeaderStoryBar({
           ) : null}
           <NavUser
             organizationSlug={APP_SHELL_STORY_ORGANIZATION_SLUG}
-            organizations={[...appShellStoryOrganizations]}
             showApiKeysLink={showAdminLinks}
             showBillingLink={showAdminLinks}
             showMembersLink={showAdminLinks}
@@ -252,13 +257,19 @@ export function AppShellHeaderStoryFrame({
   );
 }
 
-function ProjectSidebarStorySetup() {
+function ProjectSidebarStorySetup({
+  projectId = APP_SHELL_STORY_PROJECT_ID,
+  projectName = "Website localization",
+}: {
+  projectId?: string;
+  projectName?: string;
+}) {
   useAppShellNavigationCustom({
-    groups: buildAppShellStoryProjectNavigationGroups(),
+    groups: buildAppShellStoryProjectNavigationGroups("en", projectId),
     projectContext: {
       organizationSlug: APP_SHELL_STORY_ORGANIZATION_SLUG,
-      projectId: APP_SHELL_STORY_PROJECT_ID,
-      projectName: "Website localization",
+      projectId,
+      projectName,
     },
   });
 
@@ -281,12 +292,14 @@ function DomainSidebarStorySetup() {
 export function AppShellSidebarStoryFrame({
   collapsed = false,
   variant = "global",
+  projectId = APP_SHELL_STORY_PROJECT_ID,
+  projectName = "Website localization",
 }: {
   collapsed?: boolean;
   variant?: "global" | "project" | "domain";
+  projectId?: string;
+  projectName?: string;
 }) {
-  const intl = useIntl();
-
   return (
     <AppShellStoreProvider
       defaultNavigationGroups={buildAppShellStoryNavigationGroups()}
@@ -298,30 +311,18 @@ export function AppShellSidebarStoryFrame({
         className="min-h-[36rem] rounded-2xl border bg-background text-foreground"
       >
         <SidebarStoreBridge />
-        {variant === "project" ? <ProjectSidebarStorySetup /> : null}
+        {variant === "project" ? (
+          <ProjectSidebarStorySetup projectId={projectId} projectName={projectName} />
+        ) : null}
         {variant === "domain" ? <DomainSidebarStorySetup /> : null}
         <Sidebar variant="sidebar" collapsible="icon">
-          <SidebarHeader className="gap-3 border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
-            <div className="flex items-center gap-2.5 rounded-xl px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-              <Image
-                src="/images/logo.png"
-                width={28}
-                height={28}
-                sizes="28px"
-                alt={intl.formatMessage(appShellClientMessages.logoAlt)}
-                className="size-7 shrink-0 rounded-lg"
-              />
-              <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                <TypographyP
-                  className="text-sidebar-foreground"
-                  lineClamp={1}
-                  size="small"
-                  weight="medium"
-                >
-                  <FormattedMessage {...appShellClientMessages.brandName} />
-                </TypographyP>
-              </div>
-            </div>
+          <SidebarHeader className="h-(--app-shell-header-height) shrink-0 justify-center border-b border-sidebar-border px-2 py-0 group-data-[collapsible=icon]:items-center">
+            <OrganizationSwitcher
+              activeOrganization={appShellStoryOrganizations[0]}
+              organizations={[...appShellStoryOrganizations]}
+              showMembersLink
+              canInviteMembers
+            />
           </SidebarHeader>
           <SidebarContent className="gap-0 px-2 pt-2">
             <AppShellNavigation organizationSlug={APP_SHELL_STORY_ORGANIZATION_SLUG} />

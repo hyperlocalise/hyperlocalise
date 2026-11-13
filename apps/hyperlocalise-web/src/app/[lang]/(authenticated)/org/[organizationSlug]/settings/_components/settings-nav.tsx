@@ -33,16 +33,27 @@ import { settingsNavMessages as messages } from "./settings-nav.messages";
 
 const groupMessages = {
   workspace: messages.workspaceGroup,
+  "members-teams": messages.membersTeamsGroup,
+  "integrations-ai": messages.integrationsAiGroup,
+  apps: messages.appsGroup,
+  billing: messages.billingGroup,
   you: messages.youGroup,
   developer: messages.developerGroup,
 } as const satisfies Record<SettingsNavGroupId, typeof messages.workspaceGroup>;
 
 const itemMessages = {
   general: messages.general,
+  "project-templates": messages.projectTemplates,
+  members: messages.members,
+  integrations: messages.integrations,
+  "ai-engine": messages.aiEngine,
+  domains: messages.domains,
+  hyperlab: messages.hyperlab,
   billing: messages.billing,
   "activity-logs": messages.activityLogs,
   account: messages.account,
   "api-keys": messages.apiKeys,
+  webhooks: messages.webhooks,
 } as const satisfies Record<SettingsNavItemId, typeof messages.general>;
 
 export function SettingsNav({

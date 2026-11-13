@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Cancel01Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { XIcon, PlusIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -21,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { sheetMessages } from "@/components/ui/sheet.messages";
 import { cn } from "@/lib/primitives/cn";
 
+import { ShortcutHintAnchor } from "../automation-shortcut-hint";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 
 export function VisualWorkflowEditorPanel({
@@ -47,15 +47,12 @@ export function VisualWorkflowEditorPanel({
           onClick={onClose}
         />
       ) : (
-        <Button
-          type="button"
-          size="sm"
-          className="absolute end-3 bottom-16 z-10 md:hidden"
-          onClick={onOpenPicker}
-        >
-          <HugeiconsIcon icon={PlusSignIcon} className="size-4" strokeWidth={2} />
-          <FormattedMessage {...messages.addNode} />
-        </Button>
+        <ShortcutHintAnchor shortcut="addNode" className="absolute end-3 bottom-16 z-10 md:hidden">
+          <Button type="button" size="sm" onClick={onOpenPicker}>
+            <PlusIcon className="size-4" />
+            <FormattedMessage {...messages.addNode} />
+          </Button>
+        </ShortcutHintAnchor>
       )}
       <aside
         className={cn(
@@ -74,7 +71,7 @@ export function VisualWorkflowEditorPanel({
             aria-label={closeLabel}
             onClick={onClose}
           >
-            <HugeiconsIcon icon={Cancel01Icon} className="size-4" strokeWidth={2} />
+            <XIcon className="size-4" />
           </Button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>

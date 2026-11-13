@@ -15,8 +15,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import { BreadcrumbCrumbSelector } from "./breadcrumb-crumb-selector";
@@ -43,41 +43,48 @@ export function ProjectBreadcrumbSelector({
 }: ProjectBreadcrumbSelectorProps) {
   const intl = useIntl();
   const router = useOrgRouter();
+  const { client: goSvcClient } = useGoSvcClient();
   const projectsQuery = useQuery({
     queryKey: organizationProjectsQueryKey(organizationSlug),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, intl.formatMessage(messages.projectsLoadError));
+      try {
+        const body = await goSvcClient.project.list(organizationSlug);
+        return body.projects.map((project) => ({
+          value: project.id,
+          label: project.name,
+        }));
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.projectsLoadError)), {
+          cause: error,
+        });
       }
-
-      const body = await response.json();
-      return body.projects.map((project) => ({
-        value: project.id,
-        label: project.name,
-      }));
     },
   });
+
+  const options = projectsQuery.data ?? [];
+  const resolvedOptions =
+    options.some((project) => project.value === projectId) || !projectId
+      ? options
+      : [{ value: projectId, label: projectName }, ...options];
 
   function handleSelect(nextProjectId: string) {
     if (nextProjectId === projectId) {
       return;
     }
 
-    const nextPath = section
-      ? buildProjectPath(organizationSlug, nextProjectId, section)
-      : buildProjectPath(organizationSlug, nextProjectId);
-    router.push(nextPath);
+    router.push(
+      section
+        ? buildProjectPath(organizationSlug, nextProjectId, section)
+        : buildProjectPath(organizationSlug, nextProjectId),
+    );
   }
 
   return (
     <BreadcrumbCrumbSelector
       value={projectId}
       label={projectName}
-      options={projectsQuery.data ?? []}
+      href={buildProjectPath(organizationSlug, projectId)}
+      options={resolvedOptions}
       onSelect={handleSelect}
       isLoading={projectsQuery.isPending}
       isError={projectsQuery.isError}

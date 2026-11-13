@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "autumn",
+    srcs = [
+        "check.go",
+        "client.go",
+        "track.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn",
+    visibility = ["//apps/go-svc:__pkg__"],
+)
+
+go_test(
+    name = "autumn_test",
+    srcs = ["client_test.go"],
+    embed = [":autumn"],
+)

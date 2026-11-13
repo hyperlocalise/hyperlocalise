@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import { getMergedWorkspaceAutomationTemplates } from "@/lib/agents/workspace-automation-templates.server";
 import {
@@ -17,20 +18,20 @@ import {
   workspaceAutomationsFlag,
 } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { AutomationsPageContent } from "../../../automations/_components/automations-page-content";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectAutomations");
+}
 
 export default function ProjectAutomationsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectAutomationsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ProjectAutomationsPageLoader params={params} />;
 }
 
 async function ProjectAutomationsPageLoader({
@@ -47,12 +48,14 @@ async function ProjectAutomationsPageLoader({
   }
 
   const templates = getMergedWorkspaceAutomationTemplates();
+  const assistantEnabled = await canUseWorkspaceAutomationAssistant(auth);
 
   return (
     <AutomationsPageContent
       organizationSlug={organizationSlug}
       projectId={projectId}
       templates={templates}
+      assistantEnabled={assistantEnabled}
     />
   );
 }

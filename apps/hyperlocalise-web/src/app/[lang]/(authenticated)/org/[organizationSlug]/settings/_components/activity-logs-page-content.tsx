@@ -17,7 +17,8 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { type ImplementedActivityEventType } from "@/lib/activity-log/activity-log-contract";
-import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -30,7 +31,10 @@ import { activityLogsPageContentMessages as messages } from "./activity-logs-pag
 import { SettingsPageBody, SettingsPageHeader } from "./settings-page-chrome";
 
 type ActivityLogActorOption = {
+  credentialId?: string | null;
   displayName: string;
+  keyPrefix?: string | null;
+  kind?: string;
   userId: string | null;
 };
 
@@ -49,6 +53,7 @@ const activityLogsQueryKey = (
 
 export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const [eventTypes, setEventTypes] = useState<ImplementedActivityEventType[]>([]);
   const [actor, setActor] = useState("");
   const [actorLabels, setActorLabels] = useState<Record<string, string>>({});
@@ -59,20 +64,17 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
     queryKey: activityLogsQueryKey(organizationSlug, eventTypes, actor, range),
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["activity-logs"].$get({
-        param: { organizationSlug },
-        query: {
+      try {
+        return (await goSvcClient.activityLog.list(organizationSlug, {
           actor: actor || undefined,
           cursor: pageParam,
-          eventTypes: eventTypes.length ? eventTypes : [],
-          limit: "50",
+          eventTypes: eventTypes.length ? eventTypes : undefined,
+          limit: 50,
           range,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.loadErrorFallback));
+        })) as ActivityLogResponse;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadErrorFallback)));
       }
-      return (await response.json()) as ActivityLogResponse;
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
@@ -83,19 +85,31 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
   );
 
   useEffect(() => {
-    const discoveredActors = activityLogs.filter(
-      (item) => item.actor.userId && item.actor.displayName,
-    );
-    if (!discoveredActors.length) return;
+    if (!activityLogs.length) return;
 
     setActorLabels((current) => {
       let changed = false;
       const next = { ...current };
-      for (const item of discoveredActors) {
-        const value = `user:${item.actor.userId}`;
-        if (next[value] === item.actor.displayName) continue;
-        next[value] = item.actor.displayName;
-        changed = true;
+      for (const item of activityLogs) {
+        if (item.actor.userId && item.actor.displayName) {
+          const value = `user:${item.actor.userId}`;
+          if (next[value] !== item.actor.displayName) {
+            next[value] = item.actor.displayName;
+            changed = true;
+          }
+        }
+        if (item.actor.credentialId) {
+          const value = `api_key:${item.actor.credentialId}`;
+          const label = item.actor.credentialName
+            ? item.actor.keyPrefix
+              ? `${item.actor.credentialName} (${item.actor.keyPrefix})`
+              : item.actor.credentialName
+            : item.actor.keyPrefix || item.actor.displayName;
+          if (next[value] !== label) {
+            next[value] = label;
+            changed = true;
+          }
+        }
       }
       return changed ? next : current;
     });
@@ -105,11 +119,22 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
     const options = new Map(Object.entries(actorLabels));
     for (const page of activityQuery.data?.pages ?? []) {
       for (const item of page.actors) {
-        if (item.userId) options.set(`user:${item.userId}`, item.displayName);
+        if (item.userId) {
+          options.set(`user:${item.userId}`, item.displayName);
+        }
+        if (item.credentialId) {
+          const label = item.keyPrefix
+            ? `${item.displayName} (${item.keyPrefix})`
+            : item.displayName;
+          options.set(`api_key:${item.credentialId}`, label);
+        }
       }
     }
     if (actor.startsWith("user:") && !options.has(actor)) {
       options.set(actor, intl.formatMessage(messages.selectedActor));
+    }
+    if (actor.startsWith("api_key:") && !options.has(actor)) {
+      options.set(actor, intl.formatMessage(messages.selectedApiKey));
     }
     return [...options.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [activityQuery.data?.pages, actor, actorLabels, intl]);
@@ -123,11 +148,7 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
   return (
     <SettingsPageBody width="wide">
       <Rows spacing="4u">
-        <SettingsPageHeader
-          eyebrow={intl.formatMessage(messages.pageLabel)}
-          title={intl.formatMessage(messages.pageTitle)}
-          description={intl.formatMessage(messages.pageDescription)}
-        />
+        <SettingsPageHeader title={intl.formatMessage(messages.pageTitle)} />
 
         <Card size="sm">
           <CardContent>
@@ -224,7 +245,12 @@ export function ActivityLogsPageContent({ organizationSlug }: { organizationSlug
               </TypographyP>
             </Rows>
           ) : (
-            <ActivityLogList activityLogs={activityLogs} now={now} />
+            <ActivityLogList
+              activityLogs={activityLogs}
+              now={now}
+              onActorFilter={setActor}
+              organizationSlug={organizationSlug}
+            />
           )}
         </section>
 

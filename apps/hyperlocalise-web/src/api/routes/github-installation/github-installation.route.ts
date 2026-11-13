@@ -29,6 +29,8 @@ import {
 } from "@/lib/agents/github/oauth-state";
 import { getGitHubApp } from "@/lib/agents/github/app";
 import { syncInstallationRepositories } from "@/lib/agents/github/repositories";
+import { enqueueIntegrationDisconnectedActivity } from "@/lib/activity-log/integration-events";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
 import { createLogger } from "@/lib/log";
 
 import { parseGithubRepositoryAutomationSettingsPartial } from "@/lib/agents/github/github-repository-automation-settings";
@@ -505,6 +507,13 @@ export function createGithubInstallationRoutes() {
         await tx
           .delete(schema.githubInstallations)
           .where(eq(schema.githubInstallations.id, installation.id));
+      });
+
+      await enqueueIntegrationDisconnectedActivity({
+        ...sessionActivityActor(c.var.auth.user.localUserId),
+        connectionId: installation.id,
+        integrationKind: "github",
+        organizationId,
       });
 
       return c.body(null, 204);

@@ -88,7 +88,9 @@ export function resolveProviderLanguageModel(input: {
         apiKey: input.apiKey,
         ...(baseURL ? { baseURL } : {}),
       });
-      return provider(input.model);
+      // The default model targets the Responses API, which Gemini's OpenAI-compatible
+      // endpoint does not serve. Chat Completions is the surface all three document.
+      return provider.chat(input.model);
     }
   }
 }

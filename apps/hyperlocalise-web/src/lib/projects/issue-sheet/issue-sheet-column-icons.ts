@@ -90,7 +90,7 @@ export const ISSUE_SHEET_COLUMN_ICON_KEYWORDS: Record<IssueSheetColumnIconId, st
   mail: "email",
   phone: "call contact",
   location: "place map",
-  pin: "map marker",
+  pin: "map marker thumbtack",
   lock: "private secure",
   key: "access secret",
   shield: "security",

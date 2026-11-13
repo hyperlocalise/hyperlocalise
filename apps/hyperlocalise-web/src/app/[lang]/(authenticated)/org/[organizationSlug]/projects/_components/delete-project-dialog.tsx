@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Delete02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TrashIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Spinner } from "@/components/ui/spinner";
@@ -72,7 +71,7 @@ export function DeleteProjectDialog({
               }
             }}
           >
-            {isDeleting ? <Spinner /> : <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />}
+            {isDeleting ? <Spinner /> : <TrashIcon />}
             {isDeleting ? (
               <FormattedMessage {...deleteProjectDialogMessages.deleting} />
             ) : (

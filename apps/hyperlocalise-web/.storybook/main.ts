@@ -23,13 +23,14 @@ const config: StorybookConfig = {
     const workosWidgetsMock = path.resolve(storybookDir, "./mocks/workos-widgets.tsx");
     const emptyCssMock = path.resolve(storybookDir, "./mocks/empty.css");
     const aiFeaturesAccessMock = path.resolve(storybookDir, "./mocks/use-ai-features-access.ts");
+    const autoAnimateReactMock = path.resolve(storybookDir, "./mocks/auto-animate-react.ts");
 
     viteConfig.resolve ??= {};
     const existingAlias = viteConfig.resolve.alias;
 
     if (Array.isArray(existingAlias)) {
+      // Ahead of the app's own aliases: the first match wins, and "@" matches every app path.
       viteConfig.resolve.alias = [
-        ...existingAlias,
         {
           find: "@workos-inc/authkit-nextjs/components",
           replacement: authkitComponentsMock,
@@ -50,18 +51,23 @@ const config: StorybookConfig = {
           find: "@/lib/billing/use-ai-features-access",
           replacement: aiFeaturesAccessMock,
         },
+        {
+          find: "@formkit/auto-animate/react",
+          replacement: autoAnimateReactMock,
+        },
+        ...existingAlias,
       ];
     } else {
       viteConfig.resolve.alias = Object.assign(
-        {},
-        existingAlias && !Array.isArray(existingAlias) ? existingAlias : {},
         {
           "@workos-inc/authkit-nextjs/components": authkitComponentsMock,
           "@workos-inc/widgets/styles.css": emptyCssMock,
           "@radix-ui/themes/styles.css": emptyCssMock,
           "@workos-inc/widgets": workosWidgetsMock,
           "@/lib/billing/use-ai-features-access": aiFeaturesAccessMock,
+          "@formkit/auto-animate/react": autoAnimateReactMock,
         },
+        existingAlias && !Array.isArray(existingAlias) ? existingAlias : {},
       );
     }
 

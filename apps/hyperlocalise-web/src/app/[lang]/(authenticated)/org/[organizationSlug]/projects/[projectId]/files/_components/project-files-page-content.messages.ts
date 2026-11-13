@@ -20,22 +20,22 @@ export const projectFilesPageContentMessages = defineMessages({
     id: "kvA8//3BBl",
     description: "Section title for the project files page",
   },
-  descriptionProvider: {
-    defaultMessage:
-      "Browse source files from the connected TMS provider, then open one in the Content Editor when it is supported.",
-    id: "ElqTdiMapl",
-    description: "Project files page description for provider-backed projects",
-  },
-  descriptionNative: {
-    defaultMessage:
-      "Upload source files, then open one in the Content Editor to review and edit translations.",
-    id: "uhtYKc3fnS",
-    description: "Project files page description for native Hyperlocalise projects",
-  },
   addFiles: {
     defaultMessage: "Add files",
     id: "Zh1+GZ3Hje",
     description: "Button to choose source files for upload",
+  },
+  keepApprovedTranslations: {
+    defaultMessage: "Keep translations approved",
+    id: "NJW4T3bL57",
+    description:
+      "Upload checkbox that keeps approved translations approved when source text changes",
+  },
+  keepApprovedTranslationsHelp: {
+    defaultMessage:
+      "For typo or punctuation fixes. Leave it off when the meaning changed, so changed strings go back to review.",
+    id: "awzg52dTuv",
+    description: "Help text under the upload checkbox that keeps approved translations approved",
   },
   readyToUpload: {
     defaultMessage: "Ready to upload",
@@ -100,8 +100,8 @@ export const projectFilesPageContentMessages = defineMessages({
   },
   noNativeFiles: {
     defaultMessage:
-      "Use Add files above to upload JSON, YAML, XLIFF, PO, images, Office files, and other supported formats.",
-    id: "GpqbnnE7vn",
+      "Use Add files above to upload JSON, YAML, XLIFF, PO, Qt TS, images, Office files, and other supported formats.",
+    id: "fBUXcsxgXO",
     description: "Empty-state description for native projects with no uploaded files",
   },
   filesFailedToLoad: {

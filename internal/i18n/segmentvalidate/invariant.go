@@ -7,7 +7,12 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
 )
 
-func validateICUInvariantWithTokens(source, translated string) (bool, error) {
+func validateICUInvariantWithTokens(format MessageFormat, source, translated string) (bool, error) {
+	if !format.parsesICU() {
+		return false, nil
+	}
+	opts := icuparser.InvariantOptions{StrictICU: format == MessageFormatICU}
+
 	// BOLT OPTIMIZATION: Fast-path for plain text without any potential ICU structures or HTML tags.
 	// If neither the source nor the translated text contains '{' or '<', neither can contain any ICU
 	// blocks, placeholders, or tags. We can immediately return nil, skipping space trimming and the
@@ -20,7 +25,7 @@ func validateICUInvariantWithTokens(source, translated string) (bool, error) {
 	// This avoids duplicate AST construction and verification of the translated string entirely.
 	if source == translated {
 		trimmed := trimSpace(source)
-		srcInv, srcErr := icuparser.ParseInvariant(trimmed)
+		srcInv, srcErr := icuparser.ParseInvariantWithOptions(trimmed, opts)
 		if srcErr != nil {
 			return false, nil
 		}
@@ -41,7 +46,7 @@ func validateICUInvariantWithTokens(source, translated string) (bool, error) {
 	source = trimSpace(source)
 	translated = trimSpace(translated)
 
-	srcInv, srcErr := icuparser.ParseInvariant(source)
+	srcInv, srcErr := icuparser.ParseInvariantWithOptions(source, opts)
 	if srcErr != nil {
 		return false, nil
 	}
@@ -50,7 +55,7 @@ func validateICUInvariantWithTokens(source, translated string) (bool, error) {
 		return false, nil
 	}
 
-	translatedInv, translatedErr := icuparser.ParseInvariant(translated)
+	translatedInv, translatedErr := icuparser.ParseInvariantWithOptions(translated, opts)
 	if translatedErr != nil {
 		return hasTokens, fmt.Errorf(
 			"translation invariant violation: invalid ICU/braces structure | %s",

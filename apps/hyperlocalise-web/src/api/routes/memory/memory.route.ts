@@ -10,20 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { randomUUID } from "node:crypto";
-
 import { and, count, desc, eq, inArray } from "drizzle-orm";
 
-import {
-  buildAccessibleProjectsWhere,
-  buildProjectLinkedMemoryWhere,
-} from "@/api/auth/team-access";
+import { buildProjectLinkedMemoryWhere } from "@/api/auth/team-access";
 import { Hono, type Context } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
-import { validationErrorResponse } from "@/api/errors";
-import { conflictResponse, badRequestResponse } from "@/api/response.schema";
+import { badRequestResponse } from "@/api/response.schema";
 import { apiErrorResponse } from "@/api/response.schema";
 import { isErr } from "@/lib/primitives/result/results";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -32,80 +26,43 @@ import { db, schema } from "@/lib/database/client";
 import type { Memory } from "@/lib/database/types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import {
-  applyMemoryImport,
-  parseMemoryImportContent,
-  type AppliedMemoryImport,
-} from "@/lib/memory/import-memory-entries";
-import { exportMemoryEntriesTmx } from "@/lib/memory/export-memory-entries";
-import {
-  createMemoryImportAttempt,
-  finalizeMemoryImportAttempt,
   getMemoryImportAttempt,
   listMemoryImportAttempts,
-  statusFromMemoryImportReport,
 } from "@/lib/memory/memory-import-attempts";
 import { toMemoryRecord, toVirtualMemoryRecord } from "@/lib/memory/memory-records";
 import {
   capabilityDeniedReason,
   isMemoryCapabilityAllowed,
-  memoryCapabilitiesForPersistedMemory,
   resolveMemoryCapabilities,
   type MemoryCapabilityAction,
 } from "@/lib/memory/memory-capabilities";
-import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import type { MemoryImportReport } from "@/lib/memory/tmx/tmx-types";
-import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
-import { promoteApprovedProjectTranslationsToMemory } from "@/lib/projects/translations/project-translation-service";
 
-import { getOwnedProject, projectNotFoundResponse } from "../project/project.shared";
+import { getOwnedProject } from "../project/project.shared";
 import {
-  attachMemoryProjectBodySchema,
-  createMemoryEntryBodySchema,
-  createMemoryBodySchema,
-  exportMemoryEntriesQuerySchema,
-  importMemoryEntriesBodySchema,
-  listMemoryImportAttemptsQuerySchema,
-  promoteMemoryFromProjectBodySchema,
-  listMemoryEntriesQuerySchema,
-  listMemoryQuerySchema,
-  memoryEntryIdParamsSchema,
+  bulkDeleteMemoryEntriesBodySchema,
+  bulkReviewMemoryEntriesBodySchema,
   memoryIdParamsSchema,
   memoryImportAttemptParamsSchema,
-  memoryProjectParamsSchema,
-  updateMemoryEntryBodySchema,
-  updateMemoryBodySchema,
-  type AttachMemoryProjectBody,
-  type CreateMemoryEntryBody,
   type CreateMemoryBody,
-  type ExportMemoryEntriesQuery,
-  type MemoryEntryRecord,
   type MemoryImportAttemptRecord,
-  type PromoteMemoryFromProjectBody,
+  type BulkDeleteMemoryEntriesBody,
+  type BulkReviewMemoryEntriesBody,
   type ListMemoryQuery,
-  type UpdateMemoryEntryBody,
   type UpdateMemoryBody,
 } from "./memory.schema";
 import {
-  decodeMemoryEntryCursor,
-  encodeMemoryEntryCursor,
-  type MemoryEntryListFilterFields,
-} from "./memory-entry-cursor";
-import {
-  forbiddenResponse,
   invalidMemoryPayloadResponse,
-  isMemoryMutationAllowed,
   getOwnedMemory,
   ownedMemoryWhere,
   memoryEntryReadOnlyResponse,
   memoryCapabilityDeniedResponse,
   memoryNotFoundResponse,
 } from "./memory.shared";
-import { listMemoryEntriesPage } from "./memory-entry-list";
-import { getMemoryEntryDetail, toMemoryEntryDetailRecord } from "@/lib/memory/memory-entry-detail";
 import {
-  recordMemoryEntryCreatedEvent,
-  updateMemoryEntrySafely,
-} from "@/lib/memory/memory-entry-lifecycle";
+  bulkDeleteMemoryEntries,
+  bulkReviewMemoryEntries,
+  getMemoryEntryReviewSummary,
+} from "@/lib/memory/memory-entry-review";
 
 type MemoryListResult = {
   memories: Memory[];
@@ -119,8 +76,6 @@ type MemoryStore = {
   update(auth: ApiAuthContext, memoryId: string, payload: UpdateMemoryBody): Promise<Memory | null>;
   delete(auth: ApiAuthContext, memoryId: string): Promise<boolean>;
 };
-
-type MemoryEntry = typeof schema.memoryEntries.$inferSelect;
 
 type MemoryRouteContext = Context<{ Variables: AuthVariables }>;
 
@@ -164,14 +119,6 @@ async function requireMemoryCapability(
   return { value: resolved.value } as const;
 }
 
-type MemoryProjectRecord = {
-  projectId: string;
-  projectName: string;
-  priority: number;
-  sourceLocale: string | null;
-  targetLocales: string[];
-};
-
 const memoryStore: MemoryStore = {
   async list(auth, query) {
     const limit = query?.limit ?? 50;
@@ -193,9 +140,12 @@ const memoryStore: MemoryStore = {
             ),
           )
       : null;
-    const where = projectMemoryIds
-      ? and(accessWhere, inArray(schema.memories.id, projectMemoryIds))
-      : accessWhere;
+    const sourceWhere = query?.source ? eq(schema.memories.source, query.source) : undefined;
+    const where = and(
+      accessWhere,
+      projectMemoryIds ? inArray(schema.memories.id, projectMemoryIds) : undefined,
+      sourceWhere,
+    );
 
     const [memories, totalRow] = await Promise.all([
       db
@@ -258,15 +208,6 @@ const memoryStore: MemoryStore = {
   },
 };
 
-function toMemoryEntryRecord(entry: MemoryEntry): MemoryEntryRecord {
-  return toMemoryEntryDetailRecord(entry);
-}
-
-const MEMORY_IMPORT_ATTEMPT_CURSOR_FILTERS: MemoryEntryListFilterFields = {
-  sort: "created_at",
-  sortDir: "desc",
-};
-
 function toMemoryImportAttemptRecord(
   attempt: Awaited<ReturnType<typeof listMemoryImportAttempts>>["attempts"][number],
 ): MemoryImportAttemptRecord {
@@ -276,6 +217,7 @@ function toMemoryImportAttemptRecord(
     memoryId: attempt.memoryId,
     createdByUserId: attempt.createdByUserId,
     actorDisplayName: attempt.actorDisplayName,
+    operation: attempt.operation,
     status: attempt.status,
     importBatchId: attempt.id,
     format: attempt.format,
@@ -284,118 +226,22 @@ function toMemoryImportAttemptRecord(
     sourceByteSize: attempt.sourceByteSize,
     sourceSha256: attempt.sourceSha256,
     counts: attempt.counts,
+    resultFilename: attempt.resultFilename,
+    resultReady: Boolean(attempt.resultObjectKey?.trim()),
     headerSrclang: attempt.headerSrclang,
     diagnosticsTruncated: attempt.diagnosticsTruncated,
     diagnosticsAvailability: attempt.diagnosticsAvailability,
     diagnosticsExpiresAt: attempt.diagnosticsExpiresAt?.toISOString() ?? null,
     retentionPolicy: "indefinite",
     failureCode: attempt.failureCode,
+    failureMessage: attempt.failureMessage,
     createdAt: attempt.createdAt.toISOString(),
     completedAt: attempt.completedAt?.toISOString() ?? null,
   };
 }
 
-function tmxFatalResponse(
-  c: Parameters<typeof badRequestResponse>[0],
-  error: { code: string; message: string; unitCount?: number; maxUnits?: number },
-) {
-  return badRequestResponse(c, error.code, error.message, {
-    ...(error.unitCount !== undefined ? { unitCount: error.unitCount } : {}),
-    ...(error.maxUnits !== undefined ? { maxUnits: error.maxUnits } : {}),
-  });
-}
-
-async function createMemoryEntry(
-  memory: Memory,
-  payload: CreateMemoryEntryBody,
-  createdByUserId?: string,
-): Promise<MemoryEntry | null> {
-  const normalizedSourceText = normalizeTranslationMemorySourceText(payload.sourceText);
-  const existing = await db
-    .select({ id: schema.memoryEntries.id })
-    .from(schema.memoryEntries)
-    .where(
-      and(
-        eq(schema.memoryEntries.memoryId, memory.id),
-        eq(schema.memoryEntries.sourceLocale, payload.sourceLocale),
-        eq(schema.memoryEntries.targetLocale, payload.targetLocale),
-        eq(schema.memoryEntries.normalizedSourceText, normalizedSourceText),
-      ),
-    )
-    .limit(1);
-
-  if (existing.length > 0) {
-    return null;
-  }
-
-  return db.transaction(async (tx) => {
-    const [entry] = await tx
-      .insert(schema.memoryEntries)
-      .values({
-        memoryId: memory.id,
-        sourceLocale: payload.sourceLocale,
-        targetLocale: payload.targetLocale,
-        sourceText: payload.sourceText,
-        normalizedSourceText,
-        targetText: payload.targetText,
-        matchScore: payload.matchScore,
-        provenance: "manual",
-        createdByUserId,
-      })
-      .onConflictDoNothing()
-      .returning();
-
-    if (!entry) {
-      return null;
-    }
-
-    await recordMemoryEntryCreatedEvent({
-      entry,
-      actorUserId: createdByUserId,
-      client: tx,
-    });
-    return entry;
-  });
-}
-
-async function listMemoryProjects(
-  auth: ApiAuthContext,
-  memoryId: string,
-): Promise<MemoryProjectRecord[]> {
-  const accessibleProjectsWhere = await buildAccessibleProjectsWhere(auth);
-
-  return db
-    .select({
-      projectId: schema.projects.id,
-      projectName: schema.projects.name,
-      priority: schema.projectMemories.priority,
-      sourceLocale: schema.projects.sourceLocale,
-      targetLocales: schema.projects.targetLocales,
-    })
-    .from(schema.projectMemories)
-    .innerJoin(schema.projects, eq(schema.projectMemories.projectId, schema.projects.id))
-    .where(
-      and(
-        eq(schema.projectMemories.organizationId, auth.organization.localOrganizationId),
-        eq(schema.projectMemories.memoryId, memoryId),
-        accessibleProjectsWhere,
-      ),
-    )
-    .orderBy(schema.projectMemories.priority, schema.projects.name);
-}
-
 const validateMemoryParams = validator("param", (value, c) => {
   const parsed = memoryIdParamsSchema.safeParse(value);
-
-  if (!parsed.success) {
-    return memoryNotFoundResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateMemoryEntryParams = validator("param", (value, c) => {
-  const parsed = memoryEntryIdParamsSchema.safeParse(value);
 
   if (!parsed.success) {
     return memoryNotFoundResponse(c);
@@ -414,18 +260,8 @@ const validateMemoryImportAttemptParams = validator("param", (value, c) => {
   return parsed.data;
 });
 
-const validateMemoryProjectParams = validator("param", (value, c) => {
-  const parsed = memoryProjectParamsSchema.safeParse(value);
-
-  if (!parsed.success) {
-    return memoryNotFoundResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateCreateMemoryBody = validator("json", (value, c) => {
-  const parsed = createMemoryBodySchema.safeParse(value);
+const validateBulkReviewMemoryEntriesBody = validator("json", (value, c) => {
+  const parsed = bulkReviewMemoryEntriesBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidMemoryPayloadResponse(c);
@@ -434,101 +270,11 @@ const validateCreateMemoryBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateUpdateMemoryBody = validator("json", (value, c) => {
-  const parsed = updateMemoryBodySchema.safeParse(value);
+const validateBulkDeleteMemoryEntriesBody = validator("json", (value, c) => {
+  const parsed = bulkDeleteMemoryEntriesBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidMemoryPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateListMemoryEntriesQuery = validator("query", (value, c) => {
-  const parsed = listMemoryEntriesQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidMemoryPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateListMemoryImportAttemptsQuery = validator("query", (value, c) => {
-  const parsed = listMemoryImportAttemptsQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidMemoryPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateCreateMemoryEntryBody = validator("json", (value, c) => {
-  const parsed = createMemoryEntryBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidMemoryPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateUpdateMemoryEntryBody = validator("json", (value, c) => {
-  const parsed = updateMemoryEntryBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidMemoryPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateImportMemoryEntriesBody = validator("json", (value, c) => {
-  const parsed = importMemoryEntriesBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidMemoryPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateExportMemoryEntriesQuery = validator("query", (value, c) => {
-  const parsed = exportMemoryEntriesQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidMemoryPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validatePromoteMemoryFromProjectBody = validator("json", (value, c) => {
-  const parsed = promoteMemoryFromProjectBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidMemoryPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateAttachMemoryProjectBody = validator("json", (value, c) => {
-  const parsed = attachMemoryProjectBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidMemoryPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateListMemoryQuery = validator("query", (value, _c) => {
-  const parsed = listMemoryQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return undefined;
   }
 
   return parsed.data;
@@ -537,50 +283,6 @@ const validateListMemoryQuery = validator("query", (value, _c) => {
 export function createMemoryRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
-    .get("/", validateListMemoryQuery, async (c) => {
-      const query = c.req.valid("query");
-      const { memories, total } = await memoryStore.list(c.var.auth, query);
-      const records = await mapWithConcurrency(memories, 10, async (memory) =>
-        toMemoryRecord(
-          memory,
-          memoryCapabilitiesForPersistedMemory(c.var.auth, memory).capabilities,
-        ),
-      );
-      return c.json({ memories: records, total }, 200);
-    })
-    .post("/", validateCreateMemoryBody, async (c) => {
-      if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
-      const payload = c.req.valid("json");
-      const memory = await memoryStore.create(c.var.auth, payload);
-      await enqueueActivityLogEvent({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        eventType: "translation_memory_created",
-        organizationId: c.var.auth.organization.localOrganizationId,
-        payload: {
-          name: memory.name,
-          providerKind: memory.externalProviderKind ?? undefined,
-          resourceId: memory.id,
-          source: memory.source,
-        },
-        targetId: memory.id,
-        targetKind: "translation_memory",
-      });
-      const resolved = await resolveMemoryCapabilities(c.var.auth, memory.id);
-      return c.json(
-        {
-          memory:
-            resolved.kind === "resolved"
-              ? toMemoryRecord(memory, resolved.value.capabilities)
-              : toMemoryRecord(memory),
-        },
-        201,
-      );
-    })
     .get("/:memoryId", validateMemoryParams, async (c) => {
       const params = c.req.valid("param");
       const resolved = await resolveMemoryCapabilities(c.var.auth, params.memoryId);
@@ -603,61 +305,6 @@ export function createMemoryRoutes() {
       );
     })
     .get(
-      "/:memoryId/import-attempts",
-      validateMemoryParams,
-      validateListMemoryImportAttemptsQuery,
-      async (c) => {
-        const params = c.req.valid("param");
-        const query = c.req.valid("query");
-        const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-        if (!memory) return memoryNotFoundResponse(c);
-
-        let cursor: { createdAt: Date; id: string } | undefined;
-        if (query.cursor) {
-          const decoded = decodeMemoryEntryCursor(
-            query.cursor,
-            MEMORY_IMPORT_ATTEMPT_CURSOR_FILTERS,
-          );
-          if (isErr(decoded)) {
-            return badRequestResponse(c, decoded.error.code, decoded.error.message, {
-              reason: decoded.error.reason,
-            });
-          }
-          cursor = { createdAt: new Date(decoded.value.sortValue), id: decoded.value.id };
-        }
-
-        const result = await listMemoryImportAttempts({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          memoryId: memory.id,
-          limit: query.limit,
-          cursor,
-        });
-        const last = result.attempts.at(-1);
-        const nextCursor =
-          result.hasMore && last
-            ? encodeMemoryEntryCursor({
-                filters: MEMORY_IMPORT_ATTEMPT_CURSOR_FILTERS,
-                id: last.id,
-                sortValue: last.createdAt.toISOString(),
-              })
-            : null;
-
-        return c.json(
-          {
-            memoryImportAttempts: result.attempts.map(toMemoryImportAttemptRecord),
-            nextCursor,
-            total: result.total,
-            pagination: {
-              limit: query.limit,
-              returned: result.attempts.length,
-              hasMore: result.hasMore,
-            },
-          },
-          200,
-        );
-      },
-    )
-    .get(
       "/:memoryId/import-attempts/:attemptId/report",
       validateMemoryImportAttemptParams,
       async (c) => {
@@ -668,6 +315,7 @@ export function createMemoryRoutes() {
           organizationId: c.var.auth.organization.localOrganizationId,
           memoryId: memory.id,
           attemptId: params.attemptId,
+          operation: "import",
         });
         if (!result) return memoryNotFoundResponse(c);
 
@@ -689,27 +337,8 @@ export function createMemoryRoutes() {
         });
       },
     )
-    .get("/:memoryId/import-attempts/:attemptId", validateMemoryImportAttemptParams, async (c) => {
+    .get("/:memoryId/entries/review-summary", validateMemoryParams, async (c) => {
       const params = c.req.valid("param");
-      const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-      if (!memory) return memoryNotFoundResponse(c);
-      const result = await getMemoryImportAttempt({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        memoryId: memory.id,
-        attemptId: params.attemptId,
-      });
-      if (!result) return memoryNotFoundResponse(c);
-      return c.json(
-        {
-          memoryImportAttempt: toMemoryImportAttemptRecord(result.attempt),
-          diagnostics: result.diagnostics,
-        },
-        200,
-      );
-    })
-    .get("/:memoryId/entries", validateMemoryParams, validateListMemoryEntriesQuery, async (c) => {
-      const params = c.req.valid("param");
-      const query = c.req.valid("query");
       const resolved = await resolveMemoryCapabilities(c.var.auth, params.memoryId);
       if (resolved.kind !== "resolved") {
         if (resolved.kind === "unavailable") {
@@ -720,557 +349,85 @@ export function createMemoryRoutes() {
 
       const memory = resolved.value.resource.persistedMemory;
       if (!memory) {
-        return c.json(
-          {
-            memoryEntries: [],
-            nextCursor: null,
-            total: 0,
-            pagination: { limit: query?.limit ?? 50, returned: 0, hasMore: false },
-          },
-          200,
-        );
+        return c.json({ reviewSummary: { pending: 0, rejected: 0, sameAsSource: 0 } }, 200);
       }
 
-      const page = await listMemoryEntriesPage(params.memoryId, query);
-      if (isErr(page)) {
-        return validationErrorResponse(c, page.error.code, page.error.message);
-      }
-
-      return c.json(
-        {
-          memoryEntries: page.value.entries.map(toMemoryEntryRecord),
-          nextCursor: page.value.nextCursor,
-          total: page.value.total,
-          pagination: page.value.pagination,
-        },
-        200,
-      );
-    })
-    .get(
-      "/:memoryId/entries/export",
-      validateMemoryParams,
-      validateExportMemoryEntriesQuery,
-      async (c) => {
-        const params = c.req.valid("param");
-        const query: ExportMemoryEntriesQuery = c.req.valid("query");
-        const resolved = await resolveMemoryCapabilities(c.var.auth, params.memoryId);
-        if (resolved.kind !== "resolved") {
-          if (resolved.kind === "unavailable") {
-            return apiErrorResponse(c, 503, "memory_unavailable", "Translation memory unavailable");
-          }
-          return memoryNotFoundResponse(c);
-        }
-        if (!isMemoryCapabilityAllowed(resolved.value.capabilities, "export")) {
-          return memoryCapabilityDeniedResponse(
-            c,
-            "export",
-            capabilityDeniedReason(resolved.value.capabilities, "export"),
-          );
-        }
-        const memory = resolved.value.resource.persistedMemory;
-        if (!memory) {
-          return memoryCapabilityDeniedResponse(c, "export", "unsupported");
-        }
-
-        const exported = await exportMemoryEntriesTmx({
-          memoryId: memory.id,
-          memoryName: memory.name,
-          filters: {
-            sourceLocale: query.sourceLocale,
-            targetLocale: query.targetLocale,
-          },
-        });
-
-        await enqueueActivityLogEvent({
-          actorCredentialId: null,
-          actorKind: "user",
-          actorUserId: c.var.auth.user.localUserId,
-          eventType: "translation_memory_exported",
-          organizationId: c.var.auth.organization.localOrganizationId,
-          payload: { resourceId: memory.id },
-          targetId: memory.id,
-          targetKind: "translation_memory",
-        });
-
-        return c.body(exported.body, 200, {
-          "Content-Type": "application/x-tmx+xml; charset=utf-8",
-          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(exported.filename)}`,
-        });
-      },
-    )
-    .post("/:memoryId/entries", validateMemoryParams, validateCreateMemoryEntryBody, async (c) => {
-      const params = c.req.valid("param");
-      const payload = c.req.valid("json");
-      const access = await requireMemoryCapability(c, params.memoryId, "edit");
-      if ("response" in access) return access.response;
-      const memory = access.value.resource.persistedMemory;
-      if (!memory) return memoryCapabilityDeniedResponse(c, "edit", "unsupported");
-
-      const entry = await createMemoryEntry(memory, payload, c.var.auth.user.localUserId);
-      if (!entry) {
-        return conflictResponse(
-          c,
-          "duplicate_memory_entry",
-          "An entry with this source text and locale pair already exists",
-        );
-      }
-
-      return c.json({ memoryEntry: toMemoryEntryRecord(entry) }, 201);
+      return c.json({ reviewSummary: await getMemoryEntryReviewSummary(memory.id) }, 200);
     })
     .post(
-      "/:memoryId/entries/import",
+      "/:memoryId/entries/bulk-review",
       validateMemoryParams,
-      validateImportMemoryEntriesBody,
+      validateBulkReviewMemoryEntriesBody,
       async (c) => {
         const params = c.req.valid("param");
-        const payload = c.req.valid("json");
-        const access = await requireMemoryCapability(c, params.memoryId, "import");
+        const payload: BulkReviewMemoryEntriesBody = c.req.valid("json");
+        const access = await requireMemoryCapability(c, params.memoryId, "review");
         if ("response" in access) return access.response;
         const memory = access.value.resource.persistedMemory;
-        if (!memory) return memoryCapabilityDeniedResponse(c, "import", "unsupported");
+        if (!memory) return memoryCapabilityDeniedResponse(c, "review", "unsupported");
 
-        const dryRun = payload.dryRun === true;
-        const importBatchId = dryRun ? undefined : randomUUID();
-
-        const parsed = parseMemoryImportContent({
-          format: payload.format,
-          content: payload.content,
-          maxUnits: payload.maxUnits,
-        });
-        if (isErr(parsed)) {
-          if (importBatchId) {
-            const failedReport: MemoryImportReport = {
-              totalRead: parsed.error.unitCount ?? 0,
-              created: 0,
-              updated: 0,
-              variantCreated: 0,
-              skipped: 0,
-              warned: 0,
-              failed: 1,
-              issues: [
-                {
-                  severity: "error",
-                  code: parsed.error.code,
-                  message: parsed.error.message,
-                },
-              ],
-              truncatedIssues: false,
-            };
-            await db.transaction(async (tx) => {
-              await createMemoryImportAttempt({
-                id: importBatchId,
-                organizationId: c.var.auth.organization.localOrganizationId,
-                memoryId: memory.id,
-                createdByUserId: c.var.auth.user.localUserId,
-                format: payload.format,
-                content: payload.content,
-                sourceFilename: payload.sourceFilename,
-                sourceByteSize: payload.sourceByteSize,
-                maxUnits: payload.maxUnits,
-                client: tx,
-              });
-              await finalizeMemoryImportAttempt({
-                attemptId: importBatchId,
-                status: "failed",
-                report: failedReport,
-                failureCode: parsed.error.code,
-                client: tx,
-              });
-            });
-          }
-          return tmxFatalResponse(c, parsed.error);
-        }
-
-        let applied: AppliedMemoryImport;
-        if (dryRun) {
-          applied = await applyMemoryImport({
-            memory,
-            parsed: parsed.value,
-            dryRun: true,
-            createdByUserId: c.var.auth.user.localUserId,
-          });
-        } else {
-          const attemptInput = {
-            id: importBatchId!,
-            organizationId: c.var.auth.organization.localOrganizationId,
-            memoryId: memory.id,
-            createdByUserId: c.var.auth.user.localUserId,
-            format: payload.format,
-            content: payload.content,
-            sourceFilename: payload.sourceFilename,
-            sourceByteSize: payload.sourceByteSize,
-            maxUnits: payload.maxUnits,
-          };
-
-          try {
-            applied = await db.transaction(async (tx) => {
-              await createMemoryImportAttempt({ ...attemptInput, client: tx });
-              const result = await applyMemoryImport({
-                memory,
-                parsed: parsed.value,
-                createdByUserId: c.var.auth.user.localUserId,
-                importBatchId,
-                client: tx,
-              });
-              await finalizeMemoryImportAttempt({
-                attemptId: importBatchId!,
-                status: statusFromMemoryImportReport(result.report),
-                report: result.report,
-                client: tx,
-              });
-              return result;
-            });
-          } catch (error) {
-            await db
-              .transaction(async (tx) => {
-                await createMemoryImportAttempt({ ...attemptInput, client: tx });
-                await finalizeMemoryImportAttempt({
-                  attemptId: importBatchId!,
-                  status: "failed",
-                  failureCode: "unexpected_import_failure",
-                  client: tx,
-                });
-              })
-              .catch(() => undefined);
-            throw error;
-          }
-        }
-
-        if (!dryRun) {
-          await enqueueActivityLogEvent({
-            actorCredentialId: null,
-            actorKind: "user",
-            actorUserId: c.var.auth.user.localUserId,
-            eventType: "translation_memory_imported",
-            organizationId: c.var.auth.organization.localOrganizationId,
-            payload: {
-              batchId: applied.importBatchId ?? undefined,
-              itemCount: applied.report.created + applied.report.variantCreated,
-              resourceId: memory.id,
-            },
-            targetId: memory.id,
-            targetKind: "translation_memory",
-          });
-        }
-
-        return c.json(
-          {
-            memoryEntries: applied.createdEntries.map(toMemoryEntryRecord),
-            imported: applied.report.created + applied.report.variantCreated,
-            skipped: applied.report.skipped,
-            importBatchId: applied.importBatchId,
-            importAttemptId: applied.importBatchId,
-            dryRun,
-            preview: applied.preview,
-            report: applied.report,
-          },
-          dryRun ? 200 : 201,
-        );
-      },
-    )
-    .post(
-      "/:memoryId/entries/promote-from-project",
-      validateMemoryParams,
-      validatePromoteMemoryFromProjectBody,
-      async (c) => {
-        const params = c.req.valid("param");
-        const payload: PromoteMemoryFromProjectBody = c.req.valid("json");
-        const access = await requireMemoryCapability(c, params.memoryId, "edit");
-        if ("response" in access) return access.response;
-        const memory = access.value.resource.persistedMemory;
-        if (!memory) return memoryCapabilityDeniedResponse(c, "edit", "unsupported");
-
-        const project = await getOwnedProject(c.var.auth, payload.projectId);
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
-
-        const result = await promoteApprovedProjectTranslationsToMemory({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: payload.projectId,
-          memoryId: params.memoryId,
-          sourceLocale: payload.sourceLocale,
-          targetLocale: payload.targetLocale,
-          sourcePath: payload.sourcePath,
-        });
-
-        if (result.reason === "memory_not_found") {
-          return memoryNotFoundResponse(c);
-        }
-
-        if (result.reason === "memory_not_attached") {
-          return badRequestResponse(
-            c,
-            "memory_not_attached_to_project",
-            "Attach this translation memory to the project before promoting translations",
-          );
-        }
-
-        if (result.reason === "source_file_not_found") {
-          return badRequestResponse(c, "source_file_not_found", "Source file was not found");
-        }
-
-        return c.json(
-          {
-            promoted: result.promoted,
-            skipped: result.skipped,
-            reason: result.reason,
-          },
-          200,
-        );
-      },
-    )
-    .get("/:memoryId/entries/:entryId", validateMemoryEntryParams, async (c) => {
-      const params = c.req.valid("param");
-      const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-
-      if (!memory) {
-        return memoryNotFoundResponse(c);
-      }
-
-      const detail = await getMemoryEntryDetail({ memory, entryId: params.entryId });
-      if (!detail) {
-        return memoryNotFoundResponse(c);
-      }
-
-      return c.json(detail, 200);
-    })
-    .patch(
-      "/:memoryId/entries/:entryId",
-      validateMemoryEntryParams,
-      validateUpdateMemoryEntryBody,
-      async (c) => {
-        const params = c.req.valid("param");
-        const payload: UpdateMemoryEntryBody = c.req.valid("json");
-        const isReviewOnly = Object.keys(payload).every(
-          (key) => key === "expectedVersion" || key === "reviewStatus",
-        );
-        const action: MemoryCapabilityAction = isReviewOnly ? "review" : "edit";
-        const access = await requireMemoryCapability(c, params.memoryId, action);
-        if ("response" in access) return access.response;
-        const memory = access.value.resource.persistedMemory;
-        if (!memory) return memoryCapabilityDeniedResponse(c, action, "unsupported");
-
-        const result = await updateMemoryEntrySafely({
+        const result = await bulkReviewMemoryEntries({
           memory,
-          entryId: params.entryId,
-          expectedVersion: payload.expectedVersion,
+          entries: payload.entries,
+          reviewStatus: payload.reviewStatus,
           actorUserId: c.var.auth.user.localUserId,
-          updates: {
-            sourceLocale: payload.sourceLocale,
-            targetLocale: payload.targetLocale,
-            sourceText: payload.sourceText,
-            targetText: payload.targetText,
-            matchScore: payload.matchScore,
-            reviewStatus: payload.reviewStatus,
-            metadata: payload.metadata,
-          },
         });
 
         if (isErr(result)) {
-          if (result.error.code === "memory_entry_not_found") {
-            return memoryNotFoundResponse(c);
-          }
           if (result.error.code === "memory_entry_read_only") {
             return memoryEntryReadOnlyResponse(c, result.error.reason);
           }
-          if (result.error.code === "duplicate_memory_entry") {
-            return conflictResponse(
+          if (result.error.code === "stale_memory_entry") {
+            return apiErrorResponse(
               c,
-              "duplicate_memory_entry",
-              "An entry with this source text and locale pair already exists",
+              409,
+              "stale_memory_entry",
+              "A selected entry changed after it was loaded",
             );
           }
-
-          return apiErrorResponse(
+          return badRequestResponse(
             c,
-            409,
-            "stale_memory_entry",
-            "This entry changed after it was loaded",
-            { memoryEntry: toMemoryEntryDetailRecord(result.error.current) },
+            result.error.code,
+            result.error.code === "selection_too_large"
+              ? "Select at most 100 translation memory entries"
+              : "Select at least one translation memory entry",
           );
         }
 
-        const detail = await getMemoryEntryDetail({ memory, entryId: result.value.id });
-        if (!detail) {
-          return c.json({ memoryEntry: toMemoryEntryRecord(result.value) }, 200);
-        }
-
-        return c.json(detail, 200);
+        return c.json({ bulkReview: { updated: result.value.updated } }, 200);
       },
     )
-    .delete("/:memoryId/entries/:entryId", validateMemoryEntryParams, async (c) => {
-      const params = c.req.valid("param");
-      const access = await requireMemoryCapability(c, params.memoryId, "delete");
-      if ("response" in access) return access.response;
-      const memory = access.value.resource.persistedMemory;
-      if (!memory) return memoryCapabilityDeniedResponse(c, "delete", "unsupported");
-
-      const deleted = await db
-        .delete(schema.memoryEntries)
-        .where(
-          and(
-            eq(schema.memoryEntries.id, params.entryId),
-            eq(schema.memoryEntries.memoryId, memory.id),
-          ),
-        )
-        .returning({ id: schema.memoryEntries.id });
-
-      if (deleted.length === 0) {
-        return memoryNotFoundResponse(c);
-      }
-
-      return c.body(null, 204);
-    })
-    .get("/:memoryId/projects", validateMemoryParams, async (c) => {
-      const params = c.req.valid("param");
-      const memory = await memoryStore.getById(c.var.auth, params.memoryId);
-
-      if (!memory) {
-        return memoryNotFoundResponse(c);
-      }
-
-      return c.json({ projects: await listMemoryProjects(c.var.auth, params.memoryId) }, 200);
-    })
     .post(
-      "/:memoryId/projects",
+      "/:memoryId/entries/bulk-delete",
       validateMemoryParams,
-      validateAttachMemoryProjectBody,
+      validateBulkDeleteMemoryEntriesBody,
       async (c) => {
         const params = c.req.valid("param");
-        const payload: AttachMemoryProjectBody = c.req.valid("json");
-        const access = await requireMemoryCapability(c, params.memoryId, "edit");
+        const payload: BulkDeleteMemoryEntriesBody = c.req.valid("json");
+        const access = await requireMemoryCapability(c, params.memoryId, "bulk_mutation");
         if ("response" in access) return access.response;
-        const [memory, project] = await Promise.all([
-          Promise.resolve(access.value.resource.persistedMemory),
-          getOwnedProject(c.var.auth, payload.projectId),
-        ]);
+        const memory = access.value.resource.persistedMemory;
+        if (!memory) return memoryCapabilityDeniedResponse(c, "bulk_mutation", "unsupported");
 
-        if (!memory) {
-          return memoryNotFoundResponse(c);
-        }
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
-
-        await db
-          .insert(schema.projectMemories)
-          .values({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: project.id,
-            memoryId: memory.id,
-            priority: payload.priority,
-          })
-          .onConflictDoUpdate({
-            target: [schema.projectMemories.projectId, schema.projectMemories.memoryId],
-            set: { priority: payload.priority },
-          });
-
-        await enqueueActivityLogEvent({
-          actorCredentialId: null,
-          actorKind: "user",
-          actorUserId: c.var.auth.user.localUserId,
-          eventType: "translation_memory_project_attached",
-          organizationId: c.var.auth.organization.localOrganizationId,
-          payload: { projectId: project.id, resourceId: memory.id },
-          targetId: project.id,
-          targetKind: "project",
+        const result = await bulkDeleteMemoryEntries({
+          memory,
+          entryIds: payload.entryIds,
         });
 
-        return c.json({ projects: await listMemoryProjects(c.var.auth, params.memoryId) }, 200);
+        if (isErr(result)) {
+          if (result.error.code === "memory_entry_read_only") {
+            return memoryEntryReadOnlyResponse(c, result.error.reason);
+          }
+          return badRequestResponse(
+            c,
+            result.error.code,
+            result.error.code === "selection_too_large"
+              ? "Select at most 100 translation memory entries"
+              : "Select at least one translation memory entry",
+          );
+        }
+
+        return c.json({ bulkDelete: { deleted: result.value.deleted } }, 200);
       },
-    )
-    .delete("/:memoryId/projects/:projectId", validateMemoryProjectParams, async (c) => {
-      const params = c.req.valid("param");
-      const access = await requireMemoryCapability(c, params.memoryId, "edit");
-      if ("response" in access) return access.response;
-      const [memory, project] = await Promise.all([
-        Promise.resolve(access.value.resource.persistedMemory),
-        getOwnedProject(c.var.auth, params.projectId),
-      ]);
-
-      if (!memory) {
-        return memoryNotFoundResponse(c);
-      }
-      if (!project) {
-        return projectNotFoundResponse(c);
-      }
-
-      const detached = await db
-        .delete(schema.projectMemories)
-        .where(
-          and(
-            eq(schema.projectMemories.organizationId, c.var.auth.organization.localOrganizationId),
-            eq(schema.projectMemories.projectId, project.id),
-            eq(schema.projectMemories.memoryId, memory.id),
-          ),
-        )
-        .returning({ projectId: schema.projectMemories.projectId });
-
-      if (detached.length > 0) {
-        await enqueueActivityLogEvent({
-          actorCredentialId: null,
-          actorKind: "user",
-          actorUserId: c.var.auth.user.localUserId,
-          eventType: "translation_memory_project_detached",
-          organizationId: c.var.auth.organization.localOrganizationId,
-          payload: { projectId: project.id, resourceId: memory.id },
-          targetId: project.id,
-          targetKind: "project",
-        });
-      }
-
-      return c.body(null, 204);
-    })
-    .patch("/:memoryId", validateMemoryParams, validateUpdateMemoryBody, async (c) => {
-      const params = c.req.valid("param");
-      const payload = c.req.valid("json");
-      const access = await requireMemoryCapability(c, params.memoryId, "edit");
-      if ("response" in access) return access.response;
-      const memory = access.value.resource.persistedMemory;
-      if (!memory) return memoryCapabilityDeniedResponse(c, "edit", "unsupported");
-
-      const updated = await memoryStore.update(c.var.auth, params.memoryId, payload);
-
-      if (!updated) {
-        return memoryNotFoundResponse(c);
-      }
-
-      const updatedAccess = await resolveMemoryCapabilities(c.var.auth, updated.id);
-      return c.json(
-        {
-          memory:
-            updatedAccess.kind === "resolved"
-              ? toMemoryRecord(updated, updatedAccess.value.capabilities)
-              : toMemoryRecord(updated),
-        },
-        200,
-      );
-    })
-    .delete("/:memoryId", validateMemoryParams, async (c) => {
-      const params = c.req.valid("param");
-      const access = await requireMemoryCapability(c, params.memoryId, "delete");
-      if ("response" in access) return access.response;
-      const memory = access.value.resource.persistedMemory;
-      if (!memory) return memoryCapabilityDeniedResponse(c, "delete", "unsupported");
-
-      const deleted = await memoryStore.delete(c.var.auth, params.memoryId);
-
-      if (!deleted) {
-        return memoryNotFoundResponse(c);
-      }
-
-      await enqueueActivityLogEvent({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        eventType: "translation_memory_deleted",
-        organizationId: c.var.auth.organization.localOrganizationId,
-        payload: { name: memory.name, resourceId: params.memoryId },
-        targetId: params.memoryId,
-        targetKind: "translation_memory",
-      });
-
-      return c.body(null, 204);
-    });
+    );
 }

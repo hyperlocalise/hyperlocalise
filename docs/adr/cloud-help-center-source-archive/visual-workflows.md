@@ -1,0 +1,70 @@
+<!-- Historical reference, not current product documentation. -->
+---
+title: "Visual workflows"
+description: "Connect typed data between workflow nodes, test drafts safely, and publish automation versions."
+---
+
+Visual workflows compose fixed automation steps on a canvas. Your organization must have the `automation_workflow` Autumn feature enabled. Open **Automations → Visual workflows** to create or inspect a workflow.
+
+## Build and connect data
+
+1. Choose a manual, scheduled, GitHub, or source-upload trigger.
+2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, or Retry nodes.
+3. Connect execution order on the canvas.
+4. Open a node's **Inputs** section. Select a typed literal, an upstream field, or a text template. Use **Configuration** for provider and action settings.
+5. Review **Outputs** for expected fields. Test results show actual redacted values.
+
+Direct field bindings preserve objects, arrays, numbers, booleans, and null. Templates produce text, for example `Summary: {{ nodes.summarize.text }}`. Missing required values stop the action. Fields from a conditional branch need an optional binding or fallback because that branch may be skipped.
+
+HTTP JSON responses have an unknown shape until you declare output fields such as `json.items` with type `array`. Samples help discover fields but do not guarantee their presence. HTTP bodies can be structured JSON; binding resolution happens before serialization, so quotes and line breaks remain valid JSON. AI nodes can declare structured `json.*` output fields.
+
+## Loops and branching
+
+**For each** requires an array. Connect **Each item** to the body, select the body nodes in the inspector, and connect **Done** to the next step. Body nodes can read the loop's `item` and `index`. Configure collected output bindings to expose `iterationOutputs` after the loop. Items run sequentially; an empty array follows Done with an empty result. Nested loops are not supported.
+
+**Retry** wraps steps that may fail with transient errors. Connect **Attempt** to the body (same body-selection pattern as **For each**). Connect **Succeeded** when the body finishes without a retryable failure, or **Exhausted** when all attempts are used. Defaults are 3 attempts, a 1 second initial delay, 2× backoff, and jitter; the cap is 10 attempts. Only configured error codes retry (defaults include HTTP and node execution failures). Delays between attempts use durable backoff so runs survive restarts.
+
+Retry bodies cannot nest another **Retry** or **For each**. When the body calls Slack, email, AI, or non-idempotent HTTP actions, enable **Acknowledge duplicate risk** in the Retry configuration, or make HTTP calls idempotent (GET, or a custom `Idempotency-Key` header on POST). Publish validation blocks non-idempotent retry bodies without that acknowledgement. Retry outputs include `attemptNumber`, `exhausted`, and optional `lastErrorCode` / `lastErrorMessage`.
+
+Conditions use true/false connections. Switches use case/default connections. Action failures can stop, continue with a visible handled error, or select an error branch. A merge waits for all incoming connections to settle and runs if any is selected.
+
+## Test, save, and publish
+
+Tests default to **mock** mode. Enter a trigger payload and optional per-action mock outputs. Mock execution follows the same bindings, branches, and loops without calling external services.
+
+Select **live** explicitly to test real integrations. Live testing can send notifications and change external systems. It never publishes your draft.
+
+**Save** updates the draft. **Publish** validates and activates an immutable version. Active workflows continue using the published version while you edit or test. Concurrent changes return a conflict rather than overwrite another editor's work. Pause prevents new automatic runs; it does not cancel existing runs.
+
+## Credentials
+
+Create or select an organization credential for HTTP authentication. Sensitive header and body fields can reference a credential using a destination such as `headers.X-API-Key` or `body.token`. Credential APIs and the editor return metadata only. Do not place credentials in URLs or literal authentication fields. Slack and email use the existing organization connections.
+
+## Inspect and recover runs
+
+Open a historical run to see its executed graph, version, mock/live mode, and node details independently of the current draft. Details include redacted inputs and outputs, errors, iterations, and attempts. Skipped, blocked, cancelled, handled-error, and needs-attention states remain visible.
+
+Cancel stops further steps and supported requests. An external action may already have completed. If a run needs attention, inspect the provider before retrying: retry requires acknowledgement that an uncertain action might be duplicated. Successful completed actions are retained during recovery.
+
+## Limits
+
+A workflow supports 200 nodes, 400 connections, 100 loop items, and 1,000 execution steps. HTTP requests time out after 30 seconds, AI requests after 120 seconds, and a run after 15 minutes. HTTP responses must fit the shared security size limit and contain valid JSON when declared as JSON.
+
+Old definition formats must be recreated or explicitly converted before execution. New integrations, arbitrary code nodes, nested loops, and nested retry regions are outside this release.
+
+## Organization API
+
+All routes use `/api/orgs/{slug}/visual-workflows` and require organization operator access and the feature flag.
+
+| Operation | Method and suffix |
+| --- | --- |
+| Create or list | `POST /`, `GET /` |
+| Read or save draft | `GET /{id}`, `PATCH /{id}` with `expectedRevision` |
+| Publish | `POST /{id}/publish` with `expectedRevision` |
+| Test draft | `POST /{id}/test` with definition, payload, mode, mock outputs, and idempotency key |
+| Run published version | `POST /{id}/runs` with idempotency key |
+| Inspect history | `GET /{id}/runs`, `GET /{id}/runs/{runId}` |
+| Cancel or retry | `POST /{id}/runs/{runId}/cancel`, `POST /{id}/runs/{runId}/retry` |
+| Credential metadata/create | `GET /credentials`, `POST /credentials` |
+
+Responses use resource-keyed envelopes. Reusing a run idempotency key returns the existing run. A stale draft revision returns HTTP 409.

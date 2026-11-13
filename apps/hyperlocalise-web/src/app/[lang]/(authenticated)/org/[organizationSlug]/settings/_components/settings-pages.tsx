@@ -58,21 +58,10 @@ export async function GeneralSettingsPageContent({
     <SettingsPageBody width="form">
       <Rows spacing="4u">
         <SettingsPageHeader
-          eyebrow={intl.formatMessage({
-            defaultMessage: "Workspace",
-            id: "w1F8sUHcZ5",
-            description: "Eyebrow label above the workspace general settings title",
-          })}
           title={intl.formatMessage({
             defaultMessage: "General",
             id: "MtaQi7PiPN",
             description: "Workspace general settings page heading",
-          })}
-          description={intl.formatMessage({
-            defaultMessage:
-              "The name and slug used in navigation, invite links, and the workspace URL.",
-            id: "bBPogMMlZW",
-            description: "Workspace general settings page description",
           })}
         />
         <WorkspaceSettingsForm
@@ -96,21 +85,10 @@ export async function AccountSettingsPageContent({
     <SettingsPageBody width="form">
       <Rows spacing="8u">
         <SettingsPageHeader
-          eyebrow={intl.formatMessage({
-            defaultMessage: "You",
-            id: "vU/EulmzwS",
-            description: "Eyebrow label above the account settings page title",
-          })}
           title={intl.formatMessage({
             defaultMessage: "Account",
             id: "LRlVY40lAz",
             description: "Account settings page heading",
-          })}
-          description={intl.formatMessage({
-            defaultMessage:
-              "Profile details from your session, plus how Inbox updates reach email.",
-            id: "KzU9psP1Qu",
-            description: "Account settings page description",
           })}
         />
 

@@ -38,12 +38,13 @@ const mocks = vi.hoisted(() => ({
   loggerErrorMock: vi.fn(),
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: vi.fn(() => ({
-    error: mocks.loggerErrorMock,
-  })),
-  serializeErrorForLog: (error: unknown) => error,
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: vi.fn(() => createTestLogger({ error: mocks.loggerErrorMock })),
+    serializeErrorForLog: (error: unknown) => error,
+  };
+});
 
 vi.mock("@/lib/agents/slack/bot", () => ({
   getSlackBot: mocks.getSlackBotMock.mockResolvedValue({
@@ -63,7 +64,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 const client = testClient<AppType>(app);
-const fixture = createProjectTestFixture(client);
+const fixture = createProjectTestFixture();
 
 async function createStoredSlackConnector(input: {
   organizationId: string;

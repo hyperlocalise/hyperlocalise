@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useRef, type ReactNode } from "react";
-import { BubbleChatNotificationIcon, Chat01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ChatCircleDotsIcon, ChatCircleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { ChatDockEmptyState } from "@/components/app-shell/chat-dock/chat-dock-empty-state";
@@ -24,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Box } from "@/components/ui/layout/box";
 import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 
@@ -42,7 +42,9 @@ import {
   type LinkedJob,
   type StreamedAssistantMessage,
 } from "./inbox-types";
+import type { ChatTurnControls } from "./chat-turn-controls";
 import { ReplyComposer } from "./reply-composer";
+import { HumanApprovalPanel } from "./human-approval-panel";
 
 function InboxAiComposer({
   organizationSlug,
@@ -74,6 +76,8 @@ export function ConversationPanel({
   conversation,
   currentUser,
   draft = "",
+  draftProjectId,
+  draftRepositoryKey,
   isComposingNew = false,
   isSending,
   isStreaming,
@@ -82,13 +86,18 @@ export function ConversationPanel({
   messages,
   messagesIsLoading,
   onDraftChange,
+  onDraftProjectChange,
+  onDraftRepositoryChange,
   onSendMessage,
   organizationSlug,
   streamedAssistant,
+  turnControls,
 }: {
   conversation: Conversation | undefined;
   currentUser: InboxCurrentUser;
   draft?: string;
+  draftProjectId?: string;
+  draftRepositoryKey?: string;
   isComposingNew?: boolean;
   isSending: boolean;
   isStreaming: boolean;
@@ -97,6 +106,8 @@ export function ConversationPanel({
   messages: ConversationMessage[];
   messagesIsLoading: boolean;
   onDraftChange?: (draft: string) => void;
+  onDraftProjectChange?: (projectId: string) => void;
+  onDraftRepositoryChange?: (repositoryKey: string) => void;
   onSendMessage: (
     text: string,
     files: File[],
@@ -104,6 +115,8 @@ export function ConversationPanel({
   ) => void | Promise<void>;
   organizationSlug: string;
   streamedAssistant: StreamedAssistantMessage | null;
+  /** Stop and queue controls for the conversation's running turn. */
+  turnControls?: ChatTurnControls;
 }) {
   const intl = useIntl();
   const panelRef = useRef<HTMLElement>(null);
@@ -119,11 +132,7 @@ export function ConversationPanel({
         <header className="border-b border-border">
           <Box paddingX="3u" paddingY="1.5u" display="flex" alignItems="center">
             <Row spacing="1.5u" alignY="center">
-              <HugeiconsIcon
-                icon={Chat01Icon}
-                strokeWidth={1.8}
-                className="size-5 shrink-0 text-muted-foreground"
-              />
+              <ChatCircleIcon className="size-5 shrink-0 text-muted-foreground" />
               <Rows spacing="0.5u">
                 <TypographyH4 lineClamp={1} size="medium">
                   <FormattedMessage {...conversationPanelMessages.newRequestTitle} />
@@ -170,6 +179,10 @@ export function ConversationPanel({
   }
 
   if (!conversation) {
+    if (messagesIsLoading) {
+      return <ConversationPanelSkeleton />;
+    }
+
     return (
       <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
         <Box
@@ -188,27 +201,39 @@ export function ConversationPanel({
   }
 
   const isChatUi = conversation.source === "chat_ui";
-  const composerDisabled = isSending || isStreaming;
+  const isWorkflowApproval = conversation.source === "workflow_approval";
+  // With turn controls, messages sent while the agent answers are queued instead of blocked.
+  const composerDisabled = isSending || (isStreaming && !turnControls);
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <ConversationHeader conversation={conversation} jobs={jobs} jobsIsLoading={jobsIsLoading} />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <InboxPanelErrorBoundary
-          scope="messages"
-          className="min-h-0 flex-1"
-          resetKeys={[conversation.id, messages, streamedAssistant?.message]}
-        >
-          <ConversationMessageList
-            conversationId={conversation.id}
-            currentUser={currentUser}
-            isLoading={messagesIsLoading}
-            isStreaming={isStreaming}
-            messages={messages}
-            streamedAssistant={streamedAssistant}
-          />
-        </InboxPanelErrorBoundary>
+        {isWorkflowApproval ? (
+          <HumanApprovalPanel interactionId={conversation.id} organizationSlug={organizationSlug} />
+        ) : (
+          <InboxPanelErrorBoundary
+            scope="messages"
+            className="min-h-0 flex-1"
+            resetKeys={[conversation.id, messages, streamedAssistant?.message]}
+          >
+            <ConversationMessageList
+              conversationId={conversation.id}
+              currentUser={currentUser}
+              isLoading={messagesIsLoading}
+              isStreaming={isStreaming}
+              messages={messages}
+              onSelectClarificationOption={
+                isChatUi && !composerDisabled
+                  ? (option) => void onSendMessage(option, [])
+                  : undefined
+              }
+              organizationSlug={organizationSlug}
+              streamedAssistant={streamedAssistant}
+            />
+          </InboxPanelErrorBoundary>
+        )}
 
         {isChatUi ? (
           <InboxAiComposer organizationSlug={organizationSlug}>
@@ -217,15 +242,56 @@ export function ConversationPanel({
               resetKeys={[conversation.id, composerDisabled]}
             >
               <ReplyComposer
+                key={conversation.id}
                 disabled={composerDisabled}
+                draft={draft}
+                draftProjectId={draftProjectId}
+                draftRepositoryKey={draftRepositoryKey}
                 isStreaming={isStreaming}
                 lockedProjectId={conversation.projectId}
+                onDraftChange={onDraftChange}
+                onDraftProjectChange={onDraftProjectChange}
+                onDraftRepositoryChange={onDraftRepositoryChange}
                 onSend={onSendMessage}
                 organizationSlug={organizationSlug}
+                turnControls={turnControls}
               />
             </InboxPanelErrorBoundary>
           </InboxAiComposer>
         ) : null}
+      </div>
+    </section>
+  );
+}
+
+function ConversationPanelSkeleton() {
+  const intl = useIntl();
+
+  return (
+    <section
+      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
+      aria-busy="true"
+      aria-label={intl.formatMessage(conversationPanelMessages.loadingConversation)}
+    >
+      <header className="border-b border-border">
+        <Box paddingX="3u" paddingY="1.5u">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-5 w-52 bg-muted" />
+            <Skeleton className="h-4 w-36 bg-muted" />
+          </div>
+        </Box>
+      </header>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 py-5">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="flex gap-3">
+            <Skeleton className="size-8 shrink-0 rounded-full bg-muted" />
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <Skeleton className="h-4 w-24 bg-muted" />
+              <Skeleton className="h-3 w-full bg-muted" />
+              <Skeleton className="h-3 w-4/5 bg-muted" />
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -246,11 +312,7 @@ function ConversationHeader({
     <header className="border-b border-border">
       <Box paddingX="3u" paddingY="1.5u" display="flex" alignItems="center">
         <Row spacing="1.5u" alignY="start">
-          <HugeiconsIcon
-            icon={BubbleChatNotificationIcon}
-            strokeWidth={1.8}
-            className="mt-0.5 size-5 shrink-0 text-muted-foreground"
-          />
+          <ChatCircleDotsIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
           <Rows spacing="1u">
             <TypographyH4 lineClamp={1} size="medium">
               {conversation.title}

@@ -30,6 +30,7 @@ type runOptions struct {
 	interactive               bool
 	dryRun                    bool
 	force                     bool
+	keepCompletedOnFailure    bool
 	prune                     bool
 	pruneLimit                int
 	pruneForce                bool
@@ -79,6 +80,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.configPath, "config", "", "path to i18n config")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", o.dryRun, "preview planned translation work without executing")
 	cmd.Flags().BoolVar(&o.force, "force", o.force, "rerun all planned tasks and ignore lockfile skip state")
+	cmd.Flags().BoolVar(&o.keepCompletedOnFailure, "keep-completed-on-failure", o.keepCompletedOnFailure, "keep lockfile entries for successful keys when other keys in the same target fail; still rolls back if the target file cannot be written")
 	cmd.Flags().BoolVar(&o.prune, "prune", o.prune, "remove target keys that no longer exist in source files")
 	cmd.Flags().IntVar(&o.pruneLimit, "prune-max-deletions", 100, "maximum stale keys that can be deleted in one run before requiring an explicit override")
 	cmd.Flags().BoolVar(&o.pruneForce, "prune-force", o.pruneForce, "bypass prune deletion safety limit")
@@ -316,6 +318,7 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		ConfigPath:                o.configPath,
 		DryRun:                    o.dryRun,
 		Force:                     o.force,
+		KeepCompletedOnFailure:    o.keepCompletedOnFailure,
 		Prune:                     o.prune,
 		PruneLimit:                o.pruneLimit,
 		PruneForce:                o.pruneForce,

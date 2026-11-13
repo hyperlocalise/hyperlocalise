@@ -18,6 +18,12 @@ export const conversationIdParamsSchema = z.object({
   conversationId: z.uuid(),
 });
 
+export const conversationToolOutputParamsSchema = z.object({
+  conversationId: z.uuid(),
+  messageId: z.uuid(),
+  toolCallId: z.string().min(1).max(200),
+});
+
 export const repositoryProviderSchema = z.enum(["github", "gitlab"]);
 
 export const createConversationRequestSchema = z.object({
@@ -25,11 +31,4 @@ export const createConversationRequestSchema = z.object({
   projectId: optionalProjectIdSchema,
   repositoryFullName: z.string().trim().min(1).max(255).optional(),
   repositoryProvider: repositoryProviderSchema.optional(),
-});
-
-export const listConversationsQuerySchema = z.object({
-  status: z.enum(["active", "archived"]).optional(),
-  projectId: optionalProjectIdSchema,
-  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
-  cursor: z.string().optional(),
 });

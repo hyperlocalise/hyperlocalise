@@ -12,8 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { RefreshIcon, SparklesIcon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowClockwiseIcon, SparkleIcon, CheckIcon } from "@phosphor-icons/react";
+import type { ReactNode } from "react";
 import { FormattedMessage } from "react-intl";
 
 import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
@@ -29,20 +29,27 @@ export function ContentEditorEditorAiRecommendation({
   intelligence,
   isLoading,
   error,
+  aiCreditExhausted = false,
   onUseAiSuggestion,
   onGenerateAiRecommendation,
+  useActions,
   className,
 }: {
   intelligence: ContentEditorSegmentIntelligence;
   isLoading: boolean;
   error?: string;
-  onUseAiSuggestion: () => void;
+  /** Regenerating cannot help until the workspace has AI credit again. */
+  aiCreditExhausted?: boolean;
+  onUseAiSuggestion?: () => void;
   onGenerateAiRecommendation?: () => void;
+  /** Replaces the default "Use" button, e.g. to choose which translation receives the text. */
+  useActions?: ReactNode;
   className?: string;
 }) {
   const upgradeHref = useAiFeaturesUpgradeHref();
   const hasSuggestion = Boolean(intelligence.aiSuggestion);
-  const showActions = hasSuggestion || Boolean(onGenerateAiRecommendation) || Boolean(upgradeHref);
+  const canGenerate = Boolean(onGenerateAiRecommendation) && !(error && aiCreditExhausted);
+  const showActions = hasSuggestion || canGenerate || Boolean(upgradeHref);
 
   return (
     <aside
@@ -54,11 +61,7 @@ export function ContentEditorEditorAiRecommendation({
       aria-busy={isLoading}
     >
       <div className="flex items-center gap-1.5">
-        <HugeiconsIcon
-          icon={SparklesIcon}
-          className="size-3.5 shrink-0 text-grove-400"
-          aria-hidden
-        />
+        <SparkleIcon className="size-3.5 shrink-0 text-grove-400" aria-hidden />
         <p className="text-xs font-medium text-muted-foreground">
           <FormattedMessage {...contentEditorEditorPanelMessages.aiRecommendation} />
         </p>
@@ -93,19 +96,21 @@ export function ContentEditorEditorAiRecommendation({
 
       {showActions ? (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
-          {hasSuggestion ? (
+          {!hasSuggestion ? null : useActions !== undefined ? (
+            useActions
+          ) : (
             <Button variant="outline" size="xs" onClick={onUseAiSuggestion} disabled={isLoading}>
-              <HugeiconsIcon icon={Tick02Icon} className="size-3" aria-hidden />
+              <CheckIcon className="size-3" aria-hidden />
               <FormattedMessage {...contentEditorEditorPanelMessages.use} />
             </Button>
-          ) : null}
+          )}
           {upgradeHref ? (
             <UpgradePlanButton
               organizationSlug={upgradeHref.organizationSlug}
               variant="outline"
               size="xs"
             />
-          ) : onGenerateAiRecommendation ? (
+          ) : canGenerate ? (
             <Button
               variant={hasSuggestion ? "ghost" : "outline"}
               size="xs"
@@ -115,7 +120,7 @@ export function ContentEditorEditorAiRecommendation({
               {isLoading ? (
                 <Spinner className="size-3" />
               ) : (
-                <HugeiconsIcon icon={RefreshIcon} className="size-3" aria-hidden />
+                <ArrowClockwiseIcon className="size-3" aria-hidden />
               )}
               {hasSuggestion ? (
                 <FormattedMessage {...contentEditorEditorPanelMessages.regenerate} />

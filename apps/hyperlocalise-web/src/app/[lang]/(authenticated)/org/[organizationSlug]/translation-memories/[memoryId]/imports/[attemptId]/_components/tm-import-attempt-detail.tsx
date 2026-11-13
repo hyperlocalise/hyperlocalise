@@ -12,17 +12,18 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { toast } from "sonner";
 
+import type { MemoryRecord } from "@/api/routes/memory/memory.schema";
 import type {
-  MemoryImportAttemptRecord,
-  MemoryImportAttemptResponse,
-  MemoryRecord,
-} from "@/api/routes/memory/memory.schema";
+  MemoryInterchangeAttemptResponse,
+  MemoryInterchangeAttemptStatus,
+  MemoryInterchangeDiagnostic,
+} from "@/lib/go-svc/go-svc-client.types";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -30,10 +31,70 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import { readApiError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { tmImportAttemptDetailMessages as messages } from "./tm-import-attempt-detail.messages";
+
+const IMPORT_COUNT_FIELDS = [
+  ["totalRead", messages.totalRead],
+  ["created", messages.created],
+  ["updated", messages.updated],
+  ["variantCreated", messages.variants],
+  ["skipped", messages.skipped],
+  ["warned", messages.warnings],
+  ["failed", messages.failedCount],
+] as const;
+
+type InterchangeCountItem = {
+  label: (typeof IMPORT_COUNT_FIELDS)[number][1] | typeof messages.entriesExported;
+  value: number;
+};
+
+export function memoryInterchangeCountItems(attempt: {
+  operation: "import" | "export";
+  counts: Record<string, unknown> | null;
+}): InterchangeCountItem[] {
+  const counts = attempt.counts;
+  if (!counts) return [];
+  if (attempt.operation === "export") {
+    const entries = counts.entries;
+    return typeof entries === "number" && Number.isFinite(entries)
+      ? [{ label: messages.entriesExported, value: entries }]
+      : [];
+  }
+  return IMPORT_COUNT_FIELDS.map(([key, label]) => ({
+    label,
+    value: typeof counts[key] === "number" ? counts[key] : 0,
+  }));
+}
+
+export type MemoryInterchangeReportSample = {
+  sourceLocale: string;
+  targetLocale: string;
+  sourceText: string;
+  targetText: string;
+};
+
+export function memoryInterchangeReportSamples(attempt: {
+  counts: Record<string, unknown> | null;
+}): MemoryInterchangeReportSample[] {
+  const raw = attempt.counts?.samples;
+  if (!Array.isArray(raw)) return [];
+  const samples: MemoryInterchangeReportSample[] = [];
+  for (const item of raw.slice(0, 5)) {
+    if (typeof item !== "object" || item === null) continue;
+    const record = item as Record<string, unknown>;
+    if (typeof record.sourceText !== "string" || typeof record.targetText !== "string") continue;
+    samples.push({
+      sourceLocale: typeof record.sourceLocale === "string" ? record.sourceLocale : "",
+      targetLocale: typeof record.targetLocale === "string" ? record.targetLocale : "",
+      sourceText: record.sourceText,
+      targetText: record.targetText,
+    });
+  }
+  return samples;
+}
 
 class ImportReportRequestError extends Error {
   status: number;
@@ -45,7 +106,30 @@ class ImportReportRequestError extends Error {
   }
 }
 
-type MemoryImportDiagnostic = MemoryImportAttemptResponse["diagnostics"][number];
+export function TmInterchangeFailureDetails({
+  failureCode,
+  failureMessage,
+}: {
+  failureCode: string | null;
+  failureMessage?: string | null;
+}) {
+  const message = failureMessage?.trim();
+  if (!failureCode && !message) return null;
+  return (
+    <>
+      {failureCode ? (
+        <MetadataItem label={<FormattedMessage {...messages.failureCode} />}>
+          <code className="text-xs">{failureCode}</code>
+        </MetadataItem>
+      ) : null}
+      {message ? (
+        <MetadataItem label={<FormattedMessage {...messages.failureMessage} />}>
+          {message}
+        </MetadataItem>
+      ) : null}
+    </>
+  );
+}
 
 function MetadataItem({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
@@ -56,15 +140,21 @@ function MetadataItem({ label, children }: { label: ReactNode; children: ReactNo
   );
 }
 
-function StatusBadge({ status }: { status: MemoryImportAttemptRecord["status"] }) {
+function StatusBadge({ status }: { status: MemoryInterchangeAttemptStatus }) {
   const message =
-    status === "running"
-      ? messages.running
-      : status === "completed"
-        ? messages.completed
-        : status === "partially_successful"
-          ? messages.partiallySuccessful
-          : messages.failed;
+    status === "upload_pending"
+      ? messages.uploadPending
+      : status === "queued"
+        ? messages.queued
+        : status === "preview_completed"
+          ? messages.previewCompleted
+          : status === "running"
+            ? messages.running
+            : status === "completed"
+              ? messages.completed
+              : status === "partially_successful"
+                ? messages.partiallySuccessful
+                : messages.failed;
   const variant =
     status === "completed"
       ? "success"
@@ -81,7 +171,11 @@ function StatusBadge({ status }: { status: MemoryImportAttemptRecord["status"] }
   );
 }
 
-export function TmImportDiagnosticList({ diagnostics }: { diagnostics: MemoryImportDiagnostic[] }) {
+export function TmImportDiagnosticList({
+  diagnostics,
+}: {
+  diagnostics: MemoryInterchangeDiagnostic[];
+}) {
   return (
     <ul className="divide-y divide-border rounded-xl border border-border">
       {diagnostics.map((diagnostic, index) => (
@@ -114,44 +208,78 @@ export function TmImportAttemptDetail({
   organizationSlug,
   memoryId,
   attemptId,
+  currentUserId,
+  canWriteMemories,
 }: {
   organizationSlug: string;
   memoryId: string;
   attemptId: string;
+  currentUserId: string;
+  canWriteMemories: boolean;
 }) {
   const intl = useIntl();
-  const attemptQuery = useQuery({
-    queryKey: ["translation-memory-import-attempt", organizationSlug, memoryId, attemptId],
-    queryFn: async ({ signal }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ]["import-attempts"][":attemptId"].$get(
-        { param: { organizationSlug, memoryId, attemptId } },
-        { init: { signal } },
-      );
-      if (!response.ok) {
-        throw new ImportReportRequestError(
-          response.status,
-          await readApiError(response, intl.formatMessage(messages.errorTitle)),
+  const queryClient = useQueryClient();
+  const { client: goSvcClient, loading: goSvcLoading } = useGoSvcClient();
+  const [downloadPending, setDownloadPending] = useState(false);
+  const confirmImport = useMutation({
+    mutationFn: async () => {
+      try {
+        return await goSvcClient.memory.entries.queueImport(organizationSlug, memoryId, {
+          attemptId,
+          mode: "apply",
+        });
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(messages.importEntriesFailed)),
+          { cause: error },
         );
       }
-      return (await response.json()) as MemoryImportAttemptResponse;
     },
-    refetchInterval: (query) =>
-      query.state.data?.memoryImportAttempt.status === "running" ? 3_000 : false,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["translation-memory-import-attempt", organizationSlug, memoryId, attemptId],
+      });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const attemptQuery = useQuery({
+    queryKey: ["translation-memory-import-attempt", organizationSlug, memoryId, attemptId],
+    enabled: !goSvcLoading,
+    queryFn: async ({ signal }) => {
+      try {
+        return await goSvcClient.memory.importAttempts.get(organizationSlug, memoryId, attemptId, {
+          signal,
+        });
+      } catch (error) {
+        throw new ImportReportRequestError(
+          typeof error === "object" &&
+            error !== null &&
+            "status" in error &&
+            typeof error.status === "number"
+            ? error.status
+            : 500,
+          error instanceof Error ? error.message : intl.formatMessage(messages.errorTitle),
+        );
+      }
+    },
+    refetchInterval: (query) => {
+      const status = query.state.data?.memoryImportAttempt.status;
+      return status === "upload_pending" || status === "queued" || status === "running"
+        ? 3_000
+        : false;
+    },
   });
   const memoryQuery = useQuery({
     queryKey: ["translation-memory", organizationSlug, memoryId],
     queryFn: async ({ signal }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].$get({ param: { organizationSlug, memoryId } }, { init: { signal } });
-      if (!response.ok) return null;
-      const body = await response.json();
-      return body.memory as MemoryRecord;
+      try {
+        const body = await goSvcClient.memory.get(organizationSlug, memoryId, { signal });
+        return body.memory as MemoryRecord;
+      } catch {
+        return null;
+      }
     },
   });
-
   if (attemptQuery.isPending) {
     return (
       <main
@@ -183,75 +311,118 @@ export function TmImportAttemptDetail({
             />
           </AlertDescription>
         </Alert>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            render={
-              <OrgNavLink href={`/org/${organizationSlug}/translation-memories/${memoryId}`} />
-            }
-          >
-            <FormattedMessage {...messages.back} />
+        {!unavailable ? (
+          <Button type="button" onClick={() => attemptQuery.refetch()}>
+            <FormattedMessage {...messages.retry} />
           </Button>
-          {!unavailable ? (
-            <Button type="button" onClick={() => attemptQuery.refetch()}>
-              <FormattedMessage {...messages.retry} />
-            </Button>
-          ) : null}
-        </div>
+        ) : null}
       </main>
     );
   }
 
-  const { memoryImportAttempt: attempt, diagnostics } = attemptQuery.data;
+  const { memoryImportAttempt: attempt, diagnostics } =
+    attemptQuery.data as MemoryInterchangeAttemptResponse;
   const memoryLabel = memoryQuery.data?.name ?? attempt.memoryId;
   const reportUrl = `/api/orgs/${encodeURIComponent(organizationSlug)}/translation-memories/${encodeURIComponent(memoryId)}/import-attempts/${encodeURIComponent(attemptId)}/report`;
   const affectedEntriesUrl = `/org/${organizationSlug}/translation-memories/${memoryId}?origin=import&importBatchId=${encodeURIComponent(attempt.importBatchId)}`;
-  const countItems: Array<{
-    label: typeof messages.totalRead;
-    value: number;
-  }> = attempt.counts
-    ? [
-        { label: messages.totalRead, value: attempt.counts.totalRead },
-        { label: messages.created, value: attempt.counts.created },
-        { label: messages.updated, value: attempt.counts.updated },
-        { label: messages.variants, value: attempt.counts.variantCreated },
-        { label: messages.skipped, value: attempt.counts.skipped },
-        { label: messages.warnings, value: attempt.counts.warned },
-        { label: messages.failedCount, value: attempt.counts.failed },
-      ]
-    : [];
-
+  const downloadExport = async () => {
+    setDownloadPending(true);
+    try {
+      const signed = await goSvcClient.memory.importAttempts.downloadUrl(
+        organizationSlug,
+        memoryId,
+        attemptId,
+      );
+      const response = await fetch(signed.url);
+      if (!response.ok) throw new Error("download failed");
+      const url = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = signed.filename ?? `translation-memory.${attempt.format}`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      void error;
+      toast.error(intl.formatMessage(messages.downloadFailed));
+    } finally {
+      setDownloadPending(false);
+    }
+  };
+  const canConfirmPreviewImport =
+    canWriteMemories &&
+    attempt.createdByUserId === currentUserId &&
+    memoryQuery.isSuccess &&
+    memoryQuery.data != null &&
+    memoryQuery.data.status !== "archived";
+  const countItems = memoryInterchangeCountItems(attempt);
+  const reportSamples = memoryInterchangeReportSamples(attempt);
+  const showReportSamples =
+    (attempt.status === "completed" ||
+      attempt.status === "partially_successful" ||
+      attempt.status === "preview_completed") &&
+    reportSamples.length > 0;
+  const filename =
+    (attempt.operation === "export" ? attempt.resultFilename : attempt.sourceFilename) ||
+    intl.formatMessage(messages.unknown);
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <OrgNavLink
-        href={`/org/${organizationSlug}/translation-memories/${memoryId}`}
-        className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={1.8} />
-        <FormattedMessage {...messages.back} />
-      </OrgNavLink>
-
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <TypographyH1 className="text-2xl" weight="medium">
-              <FormattedMessage {...messages.title} />
+              <FormattedMessage
+                {...(attempt.operation === "export" ? messages.exportTitle : messages.title)}
+              />
             </TypographyH1>
             <StatusBadge status={attempt.status} />
           </div>
           <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...messages.subtitle} />
+            <FormattedMessage
+              {...(attempt.operation === "export" ? messages.exportSubtitle : messages.subtitle)}
+            />
           </TypographyP>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" render={<a href={reportUrl} download />}>
-            <FormattedMessage {...messages.download} />
-          </Button>
-          <Button render={<OrgNavLink href={affectedEntriesUrl} />}>
-            <FormattedMessage {...messages.affectedEntries} />
-          </Button>
+          {attempt.operation === "import" ? (
+            <>
+              <Button variant="outline" render={<a href={reportUrl} download />}>
+                <FormattedMessage {...messages.download} />
+              </Button>
+              {attempt.status === "completed" || attempt.status === "partially_successful" ? (
+                <Button render={<OrgNavLink href={affectedEntriesUrl} />}>
+                  <FormattedMessage {...messages.affectedEntries} />
+                </Button>
+              ) : null}
+            </>
+          ) : attempt.status === "completed" && attempt.resultReady ? (
+            <Button type="button" disabled={downloadPending} onClick={() => void downloadExport()}>
+              <FormattedMessage {...messages.downloadExport} />
+            </Button>
+          ) : null}
         </div>
       </header>
+
+      {attempt.operation === "import" &&
+      attempt.status === "preview_completed" &&
+      canConfirmPreviewImport ? (
+        <Alert>
+          <AlertTitle>
+            <FormattedMessage {...messages.previewCompleted} />
+          </AlertTitle>
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              <FormattedMessage {...messages.previewReadyBanner} />
+            </span>
+            <Button
+              type="button"
+              disabled={confirmImport.isPending}
+              onClick={() => confirmImport.mutate()}
+            >
+              <FormattedMessage {...messages.importEntries} />
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -267,7 +438,13 @@ export function TmImportAttemptDetail({
             <MetadataItem label={<FormattedMessage {...messages.translationMemory} />}>
               {memoryLabel}
             </MetadataItem>
-            <MetadataItem label={<FormattedMessage {...messages.actor} />}>
+            <MetadataItem
+              label={
+                <FormattedMessage
+                  {...(attempt.operation === "export" ? messages.exportedBy : messages.actor)}
+                />
+              }
+            >
               {attempt.actorDisplayName || intl.formatMessage(messages.systemActor)}
             </MetadataItem>
             <MetadataItem label={<FormattedMessage {...messages.started} />}>
@@ -285,7 +462,7 @@ export function TmImportAttemptDetail({
                 : intl.formatMessage(messages.unknown)}
             </MetadataItem>
             <MetadataItem label={<FormattedMessage {...messages.filename} />}>
-              {attempt.sourceFilename || intl.formatMessage(messages.unknown)}
+              {filename}
             </MetadataItem>
             <MetadataItem label={<FormattedMessage {...messages.byteSize} />}>
               {attempt.sourceByteSize === null
@@ -305,11 +482,10 @@ export function TmImportAttemptDetail({
             <MetadataItem label={<FormattedMessage {...messages.status} />}>
               <StatusBadge status={attempt.status} />
             </MetadataItem>
-            {attempt.failureCode ? (
-              <MetadataItem label={<FormattedMessage {...messages.failureCode} />}>
-                <code className="text-xs">{attempt.failureCode}</code>
-              </MetadataItem>
-            ) : null}
+            <TmInterchangeFailureDetails
+              failureCode={attempt.failureCode}
+              failureMessage={attempt.failureMessage}
+            />
             <MetadataItem label={<FormattedMessage {...messages.sha256} />}>
               <code className="break-all text-xs">{attempt.sourceSha256}</code>
             </MetadataItem>
@@ -329,8 +505,14 @@ export function TmImportAttemptDetail({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {attempt.counts ? (
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+          {countItems.length > 0 ? (
+            <dl
+              className={
+                countItems.length === 1
+                  ? "grid max-w-xs gap-3"
+                  : "grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7"
+              }
+            >
               {countItems.map(({ label, value }) => (
                 <div key={label.id} className="rounded-xl bg-muted/50 p-3">
                   <dt className="text-xs text-muted-foreground">
@@ -342,51 +524,90 @@ export function TmImportAttemptDetail({
             </dl>
           ) : (
             <TypographyP size="small" tone="subtle">
-              <FormattedMessage {...messages.pendingCounts} />
+              <FormattedMessage
+                {...(attempt.operation === "export"
+                  ? messages.pendingExportCounts
+                  : messages.pendingCounts)}
+              />
             </TypographyP>
           )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <FormattedMessage {...messages.diagnostics} />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {attempt.diagnosticsAvailability === "expired" ? (
-            <Alert>
-              <AlertTitle>
-                <FormattedMessage {...messages.diagnosticsExpiredTitle} />
-              </AlertTitle>
-              <AlertDescription>
-                <FormattedMessage {...messages.diagnosticsExpiredDescription} />
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <>
-              {attempt.diagnosticsTruncated ? (
-                <Alert>
-                  <AlertTitle>
-                    <FormattedMessage {...messages.diagnosticsTruncatedTitle} />
-                  </AlertTitle>
-                  <AlertDescription>
-                    <FormattedMessage {...messages.diagnosticsTruncatedDescription} />
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              {diagnostics.length > 0 ? (
-                <TmImportDiagnosticList diagnostics={diagnostics} />
-              ) : (
-                <TypographyP size="small" tone="subtle">
-                  <FormattedMessage {...messages.noDiagnostics} />
-                </TypographyP>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {showReportSamples ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <FormattedMessage {...messages.sampleEntries} />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y divide-border rounded-xl border border-border">
+              {reportSamples.map((sample, index) => (
+                <li
+                  key={`${sample.sourceLocale}-${sample.targetLocale}-${index}`}
+                  className="space-y-1 p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    {sample.sourceLocale ? (
+                      <Badge variant="secondary">{sample.sourceLocale}</Badge>
+                    ) : null}
+                    <span className="text-sm text-foreground">{sample.sourceText}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {sample.targetLocale ? (
+                      <Badge variant="secondary">{sample.targetLocale}</Badge>
+                    ) : null}
+                    <span className="text-sm text-muted-foreground">{sample.targetText}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {attempt.operation === "import" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <FormattedMessage {...messages.diagnostics} />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {attempt.diagnosticsAvailability === "expired" ? (
+              <Alert>
+                <AlertTitle>
+                  <FormattedMessage {...messages.diagnosticsExpiredTitle} />
+                </AlertTitle>
+                <AlertDescription>
+                  <FormattedMessage {...messages.diagnosticsExpiredDescription} />
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                {attempt.diagnosticsTruncated ? (
+                  <Alert>
+                    <AlertTitle>
+                      <FormattedMessage {...messages.diagnosticsTruncatedTitle} />
+                    </AlertTitle>
+                    <AlertDescription>
+                      <FormattedMessage {...messages.diagnosticsTruncatedDescription} />
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                {diagnostics.length > 0 ? (
+                  <TmImportDiagnosticList diagnostics={diagnostics} />
+                ) : (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...messages.noDiagnostics} />
+                  </TypographyP>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
     </main>
   );
 }

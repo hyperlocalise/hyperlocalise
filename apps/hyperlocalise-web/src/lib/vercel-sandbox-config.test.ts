@@ -18,6 +18,7 @@ const sandboxMocks = vi.hoisted(() => ({
 }));
 
 const releaseSandboxVcrImageEnabledMock = vi.hoisted(() => vi.fn());
+const hyperlocaliseSandboxVcrImageForScopeMock = vi.hoisted(() => vi.fn());
 
 const envMock = vi.hoisted(() => ({
   VERCEL_SANDBOX_IMAGE: undefined as string | undefined,
@@ -31,6 +32,7 @@ vi.mock("@vercel/sandbox", () => ({
 
 vi.mock("@/lib/flags/release-flags", () => ({
   isReleaseSandboxVcrImageEnabled: releaseSandboxVcrImageEnabledMock,
+  isHyperlocaliseSandboxVcrImageEnabledForScope: hyperlocaliseSandboxVcrImageForScopeMock,
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -40,14 +42,52 @@ vi.mock("@/lib/env", () => ({
 import {
   createConfiguredVercelSandbox,
   defaultVercelSandboxImage,
+  installQaSpellingSandboxCommand,
   installRequiredSandboxToolsCommand,
   sandboxChromiumDnfPackages,
-  sandboxHyperlocaliseReleaseVersion,
   sandboxPlaywrightVersion,
   sandboxRipgrepReleaseVersion,
   sandboxSnapshotExpirationMs,
   sandboxSnapshotRetentionCount,
 } from "@/lib/vercel-sandbox-config";
+import { sandboxHyperlocaliseReleaseVersion } from "@/lib/translation/sandbox-cli-version";
+
+describe("installQaSpellingSandboxCommand", () => {
+  it("stages dictionaries with root privileges into DICPATH", () => {
+    expect(installQaSpellingSandboxCommand).toContain(
+      'run_as_root bash "$REPO_ROOT/apps/go-svc/build/fetch-dictionaries.sh"',
+    );
+    expect(installQaSpellingSandboxCommand).not.toMatch(
+      /^\s*bash "\$REPO_ROOT\/apps\/go-svc\/build\/fetch-dictionaries\.sh"/m,
+    );
+  });
+
+  it("requires the full manifest dictionary set, not only en_US from the OS package", () => {
+    expect(installQaSpellingSandboxCommand).toContain("hunspell_manifest_dictionaries_ready");
+    expect(installQaSpellingSandboxCommand).not.toContain(
+      '[ -f "$DICPATH/en_US.aff" ] && [ -f "$DICPATH/en_US.dic" ]; then',
+    );
+  });
+
+  it("exits before package installs and GitHub downloads when baked dictionaries verify", () => {
+    const bakedExit = installQaSpellingSandboxCommand.indexOf(
+      "if hunspell_baked_dictionaries_ready; then",
+    );
+    const packageInstall = installQaSpellingSandboxCommand.indexOf(
+      "install_hunspell_fetch_dependencies || exit 1",
+    );
+    const manifestDownload = installQaSpellingSandboxCommand.indexOf(
+      'curl -fsSL "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/${HL_TAG}/internal/i18n/spellcheck/DICTIONARIES.md"',
+    );
+    expect(bakedExit).toBeGreaterThan(-1);
+    expect(packageInstall).toBeGreaterThan(bakedExit);
+    expect(manifestDownload).toBeGreaterThan(packageInstall);
+    expect(installQaSpellingSandboxCommand).toContain("hunspell_baked_dictionaries_ready");
+    expect(installQaSpellingSandboxCommand).toContain(
+      'sha256sum -c --quiet "$HUNSPELL_DICTIONARY_SHA256SUMS"',
+    );
+  });
+});
 
 describe("installRequiredSandboxToolsCommand", () => {
   it("installs ripgrep via apt on Debian-based sandboxes", () => {
@@ -119,6 +159,23 @@ describe("installRequiredSandboxToolsCommand", () => {
     );
     expect(installRequiredSandboxToolsCommand).toContain("command -v hl >/dev/null 2>&1");
   });
+
+  it("installs curl before GitHub release downloaders on Ubuntu images", () => {
+    expect(installRequiredSandboxToolsCommand).toContain(
+      "apt-get update && apt-get install -y curl ca-certificates",
+    );
+    expect(installRequiredSandboxToolsCommand).toContain("dnf install -y curl");
+    const curlAptIndex = installRequiredSandboxToolsCommand.indexOf(
+      "apt-get update && apt-get install -y curl ca-certificates",
+    );
+    // curl must land before the ripgrep/hl install blocks that call the release helpers.
+    expect(curlAptIndex).toBeLessThan(
+      installRequiredSandboxToolsCommand.indexOf("if ! command -v rg >/dev/null 2>&1; then"),
+    );
+    expect(curlAptIndex).toBeLessThan(
+      installRequiredSandboxToolsCommand.indexOf("if ! command -v hl >/dev/null 2>&1; then"),
+    );
+  });
 });
 
 describe("createConfiguredVercelSandbox", () => {
@@ -126,6 +183,9 @@ describe("createConfiguredVercelSandbox", () => {
     vi.clearAllMocks();
     envMock.VERCEL_SANDBOX_IMAGE = undefined;
     releaseSandboxVcrImageEnabledMock.mockResolvedValue(false);
+    hyperlocaliseSandboxVcrImageForScopeMock.mockImplementation(async (scope: string) =>
+      scope === "qa" ? false : (await releaseSandboxVcrImageEnabledMock()) === true,
+    );
     sandboxMocks.runCommand.mockResolvedValue({ exitCode: 0, output: vi.fn() });
     sandboxMocks.create.mockResolvedValue({
       name: "sandbox_123",
@@ -163,6 +223,7 @@ describe("createConfiguredVercelSandbox", () => {
     const image = "vcr.vercel.com/team/project/hyperlocalise-sandbox:latest";
     envMock.VERCEL_SANDBOX_IMAGE = image;
     releaseSandboxVcrImageEnabledMock.mockResolvedValue(true);
+    hyperlocaliseSandboxVcrImageForScopeMock.mockResolvedValue(true);
 
     await createConfiguredVercelSandbox();
 
@@ -172,6 +233,17 @@ describe("createConfiguredVercelSandbox", () => {
       }),
     );
     expect(sandboxMocks.create.mock.calls[0]?.[0]).not.toHaveProperty("runtime");
+  });
+
+  it("creates from the VCR image for QA scope when only the QA release gate is on", async () => {
+    const image = "vcr.vercel.com/team/project/hyperlocalise-sandbox:latest";
+    envMock.VERCEL_SANDBOX_IMAGE = image;
+    hyperlocaliseSandboxVcrImageForScopeMock.mockResolvedValue(true);
+
+    await createConfiguredVercelSandbox({ imageScope: "qa" });
+
+    expect(hyperlocaliseSandboxVcrImageForScopeMock).toHaveBeenCalledWith("qa");
+    expect(sandboxMocks.create).toHaveBeenCalledWith(expect.objectContaining({ image }));
   });
 
   it("keeps the managed Node image when the flag is on but the image env is unset", async () => {

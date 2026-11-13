@@ -14,8 +14,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -36,6 +35,8 @@ import { apiClient } from "@/lib/api-client-instance";
 import { readApiError } from "@/lib/api-error";
 import { cn } from "@/lib/primitives/cn";
 
+import { JobAssigneeOverflowLabel } from "./job-assignee-overflow-label";
+import { getAssigneeOverflowParts } from "./job-assignee-overflow";
 import { jobDetailAssigneeFieldMessages as messages } from "./job-detail-assignee-field.messages";
 
 function toggleValue(values: string[], value: string) {
@@ -252,10 +253,12 @@ export function CrowdinJobAssigneesField({
     return fallbackLabels;
   }, [fallbackLabels, members, selectedSet]);
 
-  const triggerLabel =
+  const emptyLabel = intl.formatMessage(messages.selectedCount, { count: 0 });
+  const { fullLabel } = getAssigneeOverflowParts(selectedLabels);
+  const triggerAria =
     selectedLabels.length > 0
-      ? selectedLabels.join(", ")
-      : intl.formatMessage(messages.selectedCount, { count: 0 });
+      ? intl.formatMessage(messages.triggerAriaWithNames, { names: fullLabel })
+      : intl.formatMessage(messages.triggerAria);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -266,17 +269,16 @@ export function CrowdinJobAssigneesField({
             variant="ghost"
             size="default"
             disabled={disabled || saveAssignees.isPending || membersQuery.isLoading}
-            aria-label={intl.formatMessage(messages.triggerAria)}
-            className="h-auto justify-between gap-2 px-2 py-1.5 font-normal hover:bg-muted/60"
+            aria-label={triggerAria}
+            title={fullLabel || undefined}
+            className="h-auto w-full min-w-0 max-w-full shrink justify-between gap-2 overflow-hidden px-2 py-1.5 font-normal hover:bg-muted/60"
           />
         }
       >
-        <span className="min-w-0 flex-1 truncate text-left text-sm">{triggerLabel}</span>
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
-          strokeWidth={2}
-          className="size-4 shrink-0 text-muted-foreground"
-        />
+        <span className="min-w-0 flex-1 text-left text-sm">
+          <JobAssigneeOverflowLabel labels={selectedLabels} emptyLabel={emptyLabel} />
+        </span>
+        <CaretDownIcon className="size-4 shrink-0 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-0" sideOffset={4}>
         <Command>

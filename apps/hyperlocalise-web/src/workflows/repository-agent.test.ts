@@ -13,6 +13,7 @@
 import { describe, expect, it, vi, beforeEach } from "vite-plus/test";
 
 vi.mock("workflow", () => ({
+  FatalError: class FatalError extends Error {},
   getWorkflowMetadata: vi.fn(() => ({ workflowRunId: "run_123" })),
 }));
 
@@ -25,6 +26,8 @@ const {
   getInstallationOctokitMock,
   getMock,
   installCommandMock,
+  meteringSpy,
+  resolveHyperlocaliseAgentLanguageModelMock,
   stopMock,
   toolLoopAgentCtor,
 } = vi.hoisted(() => {
@@ -37,9 +40,16 @@ const {
   const getMock = vi.fn(async () => ({ stop: stopMock }));
   const getInstallationOctokitMock = vi.fn(async () => ({ auth: authMock }));
   const generateMock = vi.fn(async () => ({ text: "done" }));
+  const resolveHyperlocaliseAgentLanguageModelMock = vi.fn(async () => ({
+    model: { modelId: "x" } as unknown,
+    source: "gateway" as string,
+    modelId: "openai/x",
+  }));
   const toolLoopAgentCtor = vi.fn(function ToolLoopAgent(_options: unknown) {
     return { generate: generateMock };
   });
+
+  const meteringSpy = vi.fn();
 
   return {
     authMock,
@@ -50,6 +60,8 @@ const {
     getInstallationOctokitMock,
     getMock,
     installCommandMock,
+    meteringSpy,
+    resolveHyperlocaliseAgentLanguageModelMock,
     stopMock,
     toolLoopAgentCtor,
   };
@@ -64,8 +76,24 @@ vi.mock("@/lib/agents/github/app", () => ({
 }));
 
 vi.mock("@/lib/agent-runtime/loops/hyperlocalise-agent", () => ({
-  getHyperlocaliseAgentModel: vi.fn(() => ({ modelId: "x" })),
   buildHyperlocaliseAgentInstructions: buildHyperlocaliseAgentInstructionsMock,
+}));
+
+vi.mock("@/lib/billing/agent-runtime-usage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/agent-runtime-usage")>();
+  return {
+    ...actual,
+    withAgentRuntimeUsageMetering: (
+      input: Parameters<typeof actual.withAgentRuntimeUsageMetering>[0],
+    ) => {
+      meteringSpy(input);
+      return actual.withAgentRuntimeUsageMetering(input);
+    },
+  };
+});
+
+vi.mock("@/lib/providers/organization-language-model", () => ({
+  resolveHyperlocaliseAgentLanguageModel: resolveHyperlocaliseAgentLanguageModelMock,
 }));
 
 vi.mock("@/lib/agent-runtime/tools/registry", () => ({ buildTools: buildToolsMock }));
@@ -117,6 +145,42 @@ describe("repositoryAgentWorkflow", () => {
       workflowRunId: "run_123",
       sourceReplyTarget: { source: "github", threadId: "thread_1" },
       summary: "done",
+    });
+  });
+
+  it("runs on the workspace's own model when it has one", async () => {
+    const ownModel = { modelId: "claude-sonnet-5" };
+    resolveHyperlocaliseAgentLanguageModelMock.mockResolvedValueOnce({
+      model: ownModel,
+      source: "anthropic",
+      modelId: "anthropic/claude-sonnet-5",
+    });
+
+    await repositoryAgentWorkflow(baseTask as never);
+
+    expect(resolveHyperlocaliseAgentLanguageModelMock).toHaveBeenCalledWith({
+      organizationId: "org_1",
+    });
+    expect(toolLoopAgentCtor).toHaveBeenCalledWith(expect.objectContaining({ model: ownModel }));
+    expect(meteringSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        aiCreditModelId: "anthropic/claude-sonnet-5",
+        aiCreditCredentialSource: "byok",
+      }),
+    );
+  });
+
+  it("fails without running the agent when the workspace key cannot be loaded", async () => {
+    resolveHyperlocaliseAgentLanguageModelMock.mockRejectedValueOnce(
+      new Error("organization provider credential is incomplete"),
+    );
+
+    const result = await repositoryAgentWorkflow(baseTask as never);
+
+    expect(toolLoopAgentCtor).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      ok: false,
+      error: "organization provider credential is incomplete",
     });
   });
 

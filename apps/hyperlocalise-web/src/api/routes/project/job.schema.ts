@@ -13,6 +13,10 @@
 import { z } from "zod";
 
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
+import {
+  isValidProjectBranchName,
+  normalizeProjectBranchName,
+} from "@/lib/projects/branches/project-branch-name";
 import * as schema from "@/lib/database/schema";
 import { supportedTranslationFileFormats } from "@/lib/translation/file-formats";
 
@@ -49,19 +53,71 @@ export const stringTranslationJobInputSchema = z.object({
   translationKeyId: z.string().uuid().optional(),
 });
 
+export const fileJobBranchSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .transform(normalizeProjectBranchName)
+  .refine(isValidProjectBranchName, { message: "Invalid branch name" });
+
 export const fileTranslationJobInputSchema = z.object({
   sourceFileId: z.string().trim().min(1).max(128),
   fileFormat: z.enum(supportedTranslationFileFormats),
   sourceLocale: z.string().trim().min(1).max(32),
   targetLocales: z.array(z.string().trim().min(1).max(32)).min(1).max(maxTranslationTargetLocales),
   metadata: metadataSchema,
+  /** Skip TM reuse so the agent translates untranslated strings. */
+  ignoreTranslationMemory: z.boolean().optional(),
+  /** Native version branch. Omitted jobs bind to `main`. */
+  branch: fileJobBranchSchema.optional(),
 });
+
+export const maxKeyJobStrings = 5_000;
+const maxKeyJobTags = 10;
+
+/** A key tag: letters, digits, `_` and `-`, as the content editor's label filter accepts. */
+export const keyTagSchema = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
+
+/**
+ * A key job's strings, picked one way only: by id, by key name (in any file), or by tags (the
+ * strings carrying every tag at creation). The job stores its languages; the keys go in
+ * `translation_job_keys`.
+ */
+export const keysTranslationJobInputSchema = z
+  .object({
+    sourceLocale: z.string().trim().min(1).max(32),
+    targetLocales: z
+      .array(z.string().trim().min(1).max(32))
+      .min(1)
+      .max(maxTranslationTargetLocales),
+    metadata: metadataSchema,
+    stringIds: z.array(z.string().uuid()).min(1).max(maxKeyJobStrings).optional(),
+    keys: z.array(z.string().trim().min(1).max(1_000)).min(1).max(maxKeyJobStrings).optional(),
+    tags: z.array(keyTagSchema).min(1).max(maxKeyJobTags).optional(),
+    /** AI translation only: also replace translations that are not approved yet. */
+    overwriteUnapproved: z.boolean().optional(),
+  })
+  .refine(
+    (input) =>
+      [input.stringIds, input.keys, input.tags].filter((list) => list !== undefined).length === 1,
+    { message: "Pick strings with one of stringIds, keys, or tags" },
+  );
+
+export type KeysTranslationJobInput = z.infer<typeof keysTranslationJobInputSchema>;
+
+export const addKeyJobStringsBodySchema = z.object({
+  stringIds: z.array(z.string().uuid()).min(1).max(maxKeyJobStrings),
+});
+
+const jobDueAtSchema = z.string().datetime({ offset: true });
 
 const createJobSharedFields = {
   ownerWorkosUserId: z.string().trim().min(1).max(256).optional(),
   title: z.string().trim().min(1).max(256).optional(),
   description: z.string().trim().max(2_048).optional(),
   kind: z.enum(["translation", "proofread"]).optional(),
+  dueAt: jobDueAtSchema.optional(),
 };
 
 export const createJobBodySchema = z.discriminatedUnion("type", [
@@ -75,6 +131,13 @@ export const createJobBodySchema = z.discriminatedUnion("type", [
     fileInput: fileTranslationJobInputSchema,
     ...createJobSharedFields,
   }),
+  z.object({
+    type: z.literal("keys"),
+    keysInput: keysTranslationJobInputSchema,
+    ...createJobSharedFields,
+    // A task for people unless AI translation is asked for.
+    kind: z.enum(["translation", "proofread"]).optional(),
+  }),
 ]);
 
 export const updateJobBodySchema = z
@@ -82,13 +145,15 @@ export const updateJobBodySchema = z
     title: z.string().trim().min(1).max(256).optional(),
     description: z.string().trim().max(2_048).nullable().optional(),
     ownerWorkosUserId: z.string().trim().min(1).max(256).nullable().optional(),
+    dueAt: jobDueAtSchema.nullable().optional(),
   })
   .refine(
     (body) =>
       body.title !== undefined ||
       body.description !== undefined ||
-      body.ownerWorkosUserId !== undefined,
-    { message: "At least one of title, description, or ownerWorkosUserId is required" },
+      body.ownerWorkosUserId !== undefined ||
+      body.dueAt !== undefined,
+    { message: "At least one of title, description, ownerWorkosUserId, or dueAt is required" },
   );
 
 /** Statuses counted by project `openJobCount` and listed by `open=true`. */
@@ -166,6 +231,7 @@ export const jobRecordSchema = z
     externalStatus: z.string().nullable(),
     externalTitle: z.string().nullable(),
     externalDueDate: z.string().nullable(),
+    dueAt: z.string().nullable().optional(),
     externalTargetLocales: z.array(z.string()).nullable(),
     externalAssignedUsers: z.array(z.string()).nullable(),
     externalUrl: z.string().nullable(),
@@ -175,6 +241,8 @@ export const jobRecordSchema = z
     createdAt: z.string(),
     updatedAt: z.string(),
     completedAt: z.string().nullable(),
+    sourceFilename: z.string().nullable().optional(),
+    sourcePath: z.string().nullable().optional(),
   })
   .passthrough();
 

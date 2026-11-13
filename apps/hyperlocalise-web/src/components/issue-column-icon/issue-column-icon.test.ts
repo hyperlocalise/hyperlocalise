@@ -11,19 +11,24 @@
  * Version 2.0 or later.
  */
 import { describe, expect, it } from "vite-plus/test";
-import { Tag01Icon } from "@hugeicons/core-free-icons";
+import { TagIcon } from "@phosphor-icons/react";
 
 import { resolveIssueSheetColumnIcon } from "./issue-column-icon";
 
 describe("resolveIssueSheetColumnIcon", () => {
   it("returns the tag icon for null and unknown ids", () => {
-    expect(resolveIssueSheetColumnIcon(null)).toBe(Tag01Icon);
-    expect(resolveIssueSheetColumnIcon("not-an-icon")).toBe(Tag01Icon);
+    expect(resolveIssueSheetColumnIcon(null)).toBe(TagIcon);
+    expect(resolveIssueSheetColumnIcon("not-an-icon")).toBe(TagIcon);
   });
 
   it("returns the mapped icon for a known id", () => {
     const calendar = resolveIssueSheetColumnIcon("calendar");
-    expect(calendar).not.toBe(Tag01Icon);
+    expect(calendar).not.toBe(TagIcon);
     expect(resolveIssueSheetColumnIcon("calendar")).toBe(calendar);
+  });
+
+  it("keeps distinct glyphs for similar column ids", () => {
+    expect(resolveIssueSheetColumnIcon("location")).not.toBe(resolveIssueSheetColumnIcon("pin"));
+    expect(resolveIssueSheetColumnIcon("message")).not.toBe(resolveIssueSheetColumnIcon("comment"));
   });
 });

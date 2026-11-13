@@ -25,6 +25,16 @@ export const projectsPageContentMessages = defineMessages({
     id: "ItrnRpF69X",
     description: "Fallback error when native projects fail to load",
   },
+  saveTemplateFailed: {
+    defaultMessage: "Couldn't save the template.",
+    id: "snmIqSC5Jq",
+    description: "Error when saving a project as a template fails",
+  },
+  templateSaved: {
+    defaultMessage: "Template saved. Find it in Settings, Project templates.",
+    id: "abu4wDVfOW",
+    description: "Toast after a project is saved as a template",
+  },
   createProjectFailed: {
     defaultMessage: "Unable to create project",
     id: "PqqKKd0E77",
@@ -79,17 +89,6 @@ export const projectsPageContentMessages = defineMessages({
     defaultMessage: "TMS",
     id: "aKIe8yWjB3",
     description: "Fallback label when no TMS provider name is available",
-  },
-  pageDescriptionWithTms: {
-    defaultMessage: "Manage Hyperlocalise projects and browse live TMS-synced projects.",
-    id: "PKp1AQm4Ed",
-    description: "Projects page description when a TMS provider is connected",
-  },
-  pageDescriptionWithoutTms: {
-    defaultMessage:
-      "Browse Hyperlocalise projects. Connect a TMS provider to view live provider projects alongside them.",
-    id: "HrQO2GGbYJ",
-    description: "Projects page description when no TMS provider is connected",
   },
   createNativeProject: {
     defaultMessage: "Create native project",

@@ -14,8 +14,7 @@
  */
 import type { ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { ArrowDown01Icon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, ArrowLeftIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -31,29 +30,32 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 import {
   createInboxNotificationsApi,
   notificationsUnreadCountQueryKey,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-notifications-api";
+import { useProjectPageQuery } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/project-page-shell";
 
 import { appShellNavigationMessages } from "./app-shell-navigation.messages";
 import { OrgNavLink } from "./org-nav-link";
 import {
+  annotateNavigationByWorkspaceFlags,
   annotateNavigationItemsWithWorkspaceFlags,
   groupPreviewNavigationGroups,
 } from "@/lib/flags/workspace-flag-navigation";
 import { formatInboxUnreadBadgeLabel, inboxUnreadBadgeClassName } from "./inbox-unread-badge";
 
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
-import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { summarizeQaAttention, useWorkspaceQaReports } from "@/lib/qa/use-workspace-qa-reports";
 
 import {
   buildDomainNavigationItems,
   buildHyperlabNavigationItems,
   buildOrganizationPath,
-  buildProjectNavigationItems,
+  buildProjectPath,
+  buildProjectNavigationGroups,
   isNavigationItemActive,
   parseDomainRoute,
   parseHyperlabRoute,
@@ -62,8 +64,7 @@ import {
   type NavigationItem,
 } from "./navigation-config";
 import { useAppShellStore } from "./store/app-shell-store-context";
-
-const inboxNotificationsApi = createInboxNotificationsApi(apiClient);
+import { createElement } from "react";
 
 type AppShellNavigationProps = {
   organizationSlug: string;
@@ -100,7 +101,7 @@ export const AppShellNavigation = observer(function AppShellNavigation({
           projectId={customState.projectContext.projectId}
           pathname={pathname}
           projectName={customState.projectContext.projectName}
-          items={customState.groups.flatMap((group) => group.items)}
+          groups={customState.groups}
         />
       );
     }
@@ -200,51 +201,95 @@ function ProjectNavigation({
   pathname,
   projectName,
   items,
+  groups,
 }: {
   organizationSlug: string;
   projectId: string;
   pathname: string;
   projectName?: string;
   items?: readonly NavigationItem[];
+  groups?: readonly NavigationGroup[];
 }) {
   const intl = useIntl();
-  const projectQuery = useQuery({
-    queryKey: ["translation-project", organizationSlug, projectId],
-    enabled: !projectName && !items,
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
-        param: { organizationSlug, projectId },
-      });
-      if (response.status !== 200) {
-        throw new Error(`Failed to load project (${response.status})`);
-      }
-      const body = await response.json();
-      return body.project;
-    },
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
+    enabled: !projectName && !items && !groups,
   });
 
   const store = useAppShellStore();
-  const resolvedItems = annotateNavigationItemsWithWorkspaceFlags(
-    items ?? buildProjectNavigationItems(organizationSlug, projectId, intl),
-    store.workspaceFeatureFlags,
-  );
+  const rawGroups =
+    groups ??
+    (items ? [{ items }] : buildProjectNavigationGroups(organizationSlug, projectId, intl));
+  const resolvedGroups = annotateNavigationByWorkspaceFlags(rawGroups, store.workspaceFeatureFlags);
+  const tryLabel = intl.formatMessage(appShellNavigationMessages.trySection);
+  const grouped = groupPreviewNavigationGroups(resolvedGroups, tryLabel);
   const resolvedProjectName =
     projectName ??
     projectQuery.data?.name ??
     intl.formatMessage(appShellNavigationMessages.projectFallbackName);
+  const projectsHref = buildOrganizationPath(organizationSlug, "projects");
+  const allProjectsLabel = intl.formatMessage(appShellNavigationMessages.allProjects);
 
   return (
-    <ResourceScopedNavigation
-      backHref={buildOrganizationPath(organizationSlug, "projects")}
-      backLabel={intl.formatMessage(appShellNavigationMessages.allProjects)}
-      sectionLabel={intl.formatMessage(appShellNavigationMessages.projectSection)}
-      resourceName={resolvedProjectName}
-      isNameLoading={!projectName && projectQuery.isLoading}
-      items={resolvedItems}
-      pathname={pathname}
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-    />
+    <div className="flex flex-col gap-3">
+      <SidebarGroup className="p-0">
+        <SidebarGroupContent>
+          <SidebarMenu className="gap-1">
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<OrgNavLink href={projectsHref} />}
+                tooltip={allProjectsLabel}
+                className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
+              >
+                <ArrowLeftIcon className="size-4" />
+                <span>
+                  <FormattedMessage {...appShellNavigationMessages.allProjects} />
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup className="gap-1 p-0">
+        <SidebarGroupLabel className="h-auto px-3 py-1 text-xs font-medium tracking-wide text-muted-foreground uppercase group-data-[collapsible=icon]:hidden">
+          <FormattedMessage {...appShellNavigationMessages.projectSection} />
+        </SidebarGroupLabel>
+        <div className="px-3 pb-1 group-data-[collapsible=icon]:hidden">
+          {!projectName && projectQuery.isLoading ? (
+            <Skeleton className="h-5 w-4/5" />
+          ) : (
+            <p className="truncate text-sm font-medium text-sidebar-foreground">
+              {resolvedProjectName}
+            </p>
+          )}
+        </div>
+      </SidebarGroup>
+
+      {grouped.map((group, groupIndex) => {
+        const content = (
+          <NavigationGroupItems
+            group={group}
+            pathname={pathname}
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+          />
+        );
+
+        if (!group.label) {
+          return (
+            <SidebarGroup key={`project-group-${groupIndex}`} className="p-0">
+              {content}
+            </SidebarGroup>
+          );
+        }
+
+        return (
+          <LabeledNavigationSection key={group.label} label={group.label} offset={groupIndex > 0}>
+            {content}
+          </LabeledNavigationSection>
+        );
+      })}
+    </div>
   );
 }
 
@@ -262,25 +307,13 @@ function DomainNavigation({
   items?: readonly NavigationItem[];
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const searchParams = useSearchParams();
   const domainQuery = useQuery({
     queryKey: ["linked-domain", organizationSlug, linkedDomainId],
     enabled: !domainName && !items && isLiveDomainResearchId(linkedDomainId),
     queryFn: async () => {
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}`,
-      );
-      const body = (await response.json().catch(() => ({}))) as {
-        linkedDomain?: LinkedDomainPublic;
-        message?: string;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(body.message || body.error || "Failed to load domain");
-      }
-      if (!body.linkedDomain) {
-        throw new Error("Failed to load domain");
-      }
+      const body = await goSvcClient.domains.getLinkedDomain(organizationSlug, linkedDomainId);
       return body.linkedDomain;
     },
   });
@@ -354,7 +387,7 @@ function ResourceScopedNavigation({
                 tooltip={backLabel}
                 className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
+                <ArrowLeftIcon className="size-4" />
                 <span>{backLabel}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -422,7 +455,7 @@ function HyperlabNavigation({
                 tooltip={workspaceLabel}
                 className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
+                <ArrowLeftIcon className="size-4" />
                 <span>
                   <FormattedMessage {...appShellNavigationMessages.workspace} />
                 </span>
@@ -460,11 +493,7 @@ function LabeledNavigationSection({
       <SidebarGroup className="p-0">
         <CollapsibleTrigger className="group/collapsible-trigger flex h-7 w-full items-center gap-2 rounded-md px-3 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase outline-hidden transition-[margin,opacity,color] duration-200 hover:text-sidebar-foreground focus-visible:text-sidebar-foreground group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0">
           <span className="min-w-0 flex-1 truncate">{label}</span>
-          <HugeiconsIcon
-            icon={ArrowDown01Icon}
-            strokeWidth={1.8}
-            className="size-3.5 shrink-0 transition-transform group-data-panel-open/collapsible-trigger:rotate-180"
-          />
+          <CaretDownIcon className="size-3.5 shrink-0 transition-transform group-data-panel-open/collapsible-trigger:rotate-180" />
         </CollapsibleTrigger>
         <CollapsibleContent hiddenUntilFound>{children}</CollapsibleContent>
       </SidebarGroup>
@@ -488,6 +517,8 @@ function NavigationGroupItems({
   itemSearch?: string;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
+  const inboxNotificationsApi = createInboxNotificationsApi(goSvcClient.inbox);
   const inboxHref = buildOrganizationPath(organizationSlug, "inbox");
   const unreadCountQuery = useQuery({
     queryKey: notificationsUnreadCountQueryKey(organizationSlug),
@@ -497,6 +528,12 @@ function NavigationGroupItems({
   });
   const unreadCount = unreadCountQuery.data ?? 0;
   const unreadBadgeLabel = formatInboxUnreadBadgeLabel(unreadCount);
+  const qaHref = buildOrganizationPath(organizationSlug, "qa");
+  const projectQaHref = projectId ? buildProjectPath(organizationSlug, projectId, "qa") : null;
+  const qaReportsQuery = useWorkspaceQaReports(organizationSlug, {
+    enabled: group.items.some((item) => item.href === qaHref || item.href === projectQaHref),
+  });
+  const qaReports = qaReportsQuery.data?.reports;
 
   return (
     <SidebarGroupContent>
@@ -512,8 +549,20 @@ function NavigationGroupItems({
           const previewBadgeLabel = item.preview
             ? intl.formatMessage(appShellNavigationMessages.previewBadge)
             : null;
-          const dynamicBadge = isInboxItem ? unreadBadgeLabel : null;
-          const badge = dynamicBadge ?? previewBadgeLabel ?? item.badge;
+          const qaErrors =
+            item.href === qaHref
+              ? summarizeQaAttention(qaReports).errors
+              : item.href === projectQaHref
+                ? summarizeQaAttention(qaReports, projectId).errors
+                : 0;
+          const qaErrorsLabel =
+            qaErrors > 0
+              ? intl.formatMessage(appShellNavigationMessages.qaErrorsBadge, { count: qaErrors })
+              : null;
+          const dynamicBadge = isInboxItem
+            ? unreadBadgeLabel
+            : formatInboxUnreadBadgeLabel(qaErrors);
+          const badge = qaErrorsLabel ?? dynamicBadge ?? previewBadgeLabel ?? item.badge;
           const tooltip = badge
             ? intl.formatMessage(appShellNavigationMessages.badgeSeparator, {
                 label: item.label,
@@ -525,12 +574,13 @@ function NavigationGroupItems({
           return (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
-                render={<OrgNavLink href={href} />}
-                isActive={isActive}
+                render={item.disabled ? undefined : <OrgNavLink href={href} />}
+                isActive={!item.disabled && isActive}
+                disabled={item.disabled}
                 tooltip={tooltip}
-                className={navigationButtonClass(isActive)}
+                className={navigationButtonClass(!item.disabled && isActive)}
               >
-                <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />
+                {createElement(item.icon, { className: "size-4" })}
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 {badge && !dynamicBadge ? (
                   <span className="ms-auto inline-flex shrink-0 items-center rounded-full border border-sidebar-border bg-sidebar px-1.5 py-0.5 text-[0.625rem] leading-none font-medium tracking-normal text-muted-foreground group-data-[collapsible=icon]:hidden">
@@ -540,7 +590,14 @@ function NavigationGroupItems({
               </SidebarMenuButton>
               {dynamicBadge ? (
                 <SidebarMenuBadge className={inboxUnreadBadgeClassName}>
-                  {dynamicBadge}
+                  {qaErrorsLabel ? (
+                    <>
+                      <span aria-hidden>{dynamicBadge}</span>
+                      <span className="sr-only">{qaErrorsLabel}</span>
+                    </>
+                  ) : (
+                    dynamicBadge
+                  )}
                 </SidebarMenuBadge>
               ) : null}
             </SidebarMenuItem>

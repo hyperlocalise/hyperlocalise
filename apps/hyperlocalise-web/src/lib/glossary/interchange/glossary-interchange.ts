@@ -14,6 +14,7 @@ import { eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import type { Glossary } from "@/lib/database/types";
+import { canonicalizeLocale } from "@/lib/i18n/locales";
 
 export type InterchangeSeverity = "warning" | "error";
 
@@ -46,6 +47,7 @@ export type GlossaryInterchangeTerm = {
   forbidden: boolean;
   provenance: string;
   reviewStatus: string;
+  createdByUserId?: string | null;
   metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -168,6 +170,16 @@ export async function loadGlossaryInterchangeDocument(input: {
   >;
   search?: string;
   locale?: string | readonly string[];
+  reviewStatus?: string;
+  termReviewStatus?: string;
+  linguisticStatus?: string;
+  partOfSpeech?: string;
+  termType?: string | null;
+  gender?: string | null;
+  provenance?: string;
+  forbidden?: boolean;
+  createdByUserId?: string;
+  modifiedFrom?: string;
   db?: Pick<typeof db, "select">;
 }): Promise<GlossaryInterchangeDocument> {
   const search = input.search?.trim();
@@ -182,12 +194,49 @@ export async function loadGlossaryInterchangeDocument(input: {
     .where(eq(schema.glossaryTerms.glossaryId, input.glossary.id));
 
   const locales = input.locale
-    ? new Set(typeof input.locale === "string" ? [input.locale] : input.locale)
+    ? new Set(
+        (typeof input.locale === "string" ? [input.locale] : input.locale).map(
+          (locale) => canonicalizeLocale(locale) ?? locale,
+        ),
+      )
     : null;
-  const termsByConcept = new Map<string, GlossaryInterchangeTerm[]>();
+
+  function termMatchesLocaleFilter(termLocale: string) {
+    if (!locales) return true;
+    const canonical = canonicalizeLocale(termLocale) ?? termLocale;
+    return locales.has(canonical) || locales.has(termLocale);
+  }
+
+  function termMatchesAttributeFilters(term: GlossaryInterchangeTerm) {
+    if (input.termReviewStatus && term.reviewStatus !== input.termReviewStatus) return false;
+    if (input.linguisticStatus && term.status !== input.linguisticStatus) return false;
+    if (input.partOfSpeech && term.partOfSpeech !== input.partOfSpeech) return false;
+    if (input.termType && (term.termType ?? "") !== input.termType) return false;
+    if (input.gender && (term.gender ?? "") !== input.gender) return false;
+    if (input.provenance && term.provenance !== input.provenance) return false;
+    if (input.forbidden !== undefined && term.forbidden !== input.forbidden) return false;
+    if (input.createdByUserId && term.createdByUserId !== input.createdByUserId) return false;
+    return true;
+  }
+
+  // reviewStatus is concept-level; every other input predicate above is term-level.
+  const hasTermLevelFilter =
+    locales !== null ||
+    input.termReviewStatus !== undefined ||
+    input.linguisticStatus !== undefined ||
+    input.partOfSpeech !== undefined ||
+    input.termType !== undefined ||
+    input.gender !== undefined ||
+    input.provenance !== undefined ||
+    input.forbidden !== undefined ||
+    input.createdByUserId !== undefined;
+
+  function termMatchesExportFilters(term: GlossaryInterchangeTerm) {
+    return termMatchesLocaleFilter(term.locale) && termMatchesAttributeFilters(term);
+  }
+  const allTermsByConcept = new Map<string, GlossaryInterchangeTerm[]>();
   for (const term of termRows) {
     if (!term.conceptId || !term.locale || !term.term) continue;
-    if (locales && !locales.has(term.locale)) continue;
     const mapped: GlossaryInterchangeTerm = {
       id: term.id,
       conceptId: term.conceptId,
@@ -205,57 +254,78 @@ export async function loadGlossaryInterchangeDocument(input: {
       forbidden: term.forbidden,
       provenance: term.provenance,
       reviewStatus: term.reviewStatus,
+      createdByUserId: term.createdByUserId,
       metadata: term.metadata,
       createdAt: term.createdAt.toISOString(),
       updatedAt: term.updatedAt.toISOString(),
     };
-    termsByConcept.set(term.conceptId, [...(termsByConcept.get(term.conceptId) ?? []), mapped]);
+    allTermsByConcept.set(term.conceptId, [
+      ...(allTermsByConcept.get(term.conceptId) ?? []),
+      mapped,
+    ]);
+  }
+
+  function conceptMatchesSearch(concept: (typeof conceptRows)[number]) {
+    if (!search) return true;
+    const conceptTerms = allTermsByConcept.get(concept.id) ?? [];
+    const needle = search.toLocaleLowerCase();
+    return [
+      concept.primaryTerm,
+      concept.subject,
+      concept.definition,
+      concept.note,
+      ...conceptTerms.flatMap((term) => [
+        term.term,
+        term.description,
+        term.note,
+        term.partOfSpeech,
+        term.lemma ?? "",
+      ]),
+    ].some((value) => value.toLocaleLowerCase().includes(needle));
   }
 
   return {
     glossary: input.glossary,
     concepts: conceptRows
       .filter((concept) => {
-        const conceptTerms = termsByConcept.get(concept.id) ?? [];
-        if (locales && conceptTerms.length === 0) return false;
-        if (!search) return true;
-        const needle = search.toLocaleLowerCase();
-        return [
-          concept.primaryTerm,
-          concept.subject,
-          concept.definition,
-          concept.note,
-          ...conceptTerms.flatMap((term) => [
-            term.term,
-            term.description,
-            term.note,
-            term.partOfSpeech,
-            term.lemma ?? "",
-          ]),
-        ].some((value) => value.toLocaleLowerCase().includes(needle));
+        const conceptTerms = allTermsByConcept.get(concept.id) ?? [];
+        if (!conceptTerms.some((term) => termMatchesExportFilters(term))) {
+          // Termless concepts are only exportable when no term-level filter
+          // could exclude them; otherwise they'd be absent from the filtered
+          // concept page as well.
+          if (conceptTerms.length > 0 || hasTermLevelFilter) return false;
+        }
+        if (input.reviewStatus && concept.reviewStatus !== input.reviewStatus) return false;
+        if (input.modifiedFrom && concept.updatedAt < new Date(input.modifiedFrom)) return false;
+        return conceptMatchesSearch(concept);
       })
-      .map((concept) => ({
-        id: concept.id,
-        primaryTerm: concept.primaryTerm,
-        subject: concept.subject,
-        definition: concept.definition,
-        translatable: concept.translatable,
-        note: concept.note,
-        url: concept.url,
-        figure: concept.figure,
-        languageDetails: concept.languageDetails.map((detail) => ({
-          locale: detail.locale,
-          definition: detail.definition,
-          note: detail.note,
-          userId: detail.userId,
-          createdAt: detail.createdAt,
-          updatedAt: detail.updatedAt,
-        })),
-        metadata: concept.metadata,
-        createdAt: concept.createdAt.toISOString(),
-        updatedAt: concept.updatedAt.toISOString(),
-        terms: termsByConcept.get(concept.id) ?? [],
-      })),
+      .map((concept) => {
+        const exportedTerms = (allTermsByConcept.get(concept.id) ?? []).filter((term) =>
+          termMatchesExportFilters(term),
+        );
+        return {
+          id: concept.id,
+          primaryTerm: concept.primaryTerm,
+          subject: concept.subject,
+          definition: concept.definition,
+          translatable: concept.translatable,
+          note: concept.note,
+          url: concept.url,
+          figure: concept.figure,
+          languageDetails: concept.languageDetails.map((detail) => ({
+            locale: detail.locale,
+            definition: detail.definition,
+            note: detail.note,
+            userId: detail.userId,
+            createdAt: detail.createdAt,
+            updatedAt: detail.updatedAt,
+          })),
+          metadata: concept.metadata,
+          createdAt: concept.createdAt.toISOString(),
+          updatedAt: concept.updatedAt.toISOString(),
+          terms: exportedTerms,
+        };
+      }),
   };
 }
 

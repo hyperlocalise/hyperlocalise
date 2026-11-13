@@ -10,9 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, isNull, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql, type SQL } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import {
+  DEFAULT_PROJECT_BRANCH_NAME,
+  resolvedProjectBranchName,
+} from "@/lib/projects/branches/project-branch-name";
 
 import type { FileStorageAdapter } from "./types";
 import { getFileStorageAdapter } from "./get-file-storage-adapter";
@@ -26,6 +30,7 @@ type StoredFileRole = (typeof schema.storedFileRoleEnum.enumValues)[number];
 type StoredFileSourceKind = (typeof schema.storedFileSourceKindEnum.enumValues)[number];
 
 type CreateStoredFileInput = {
+  id?: string;
   organizationId: string;
   projectId?: string | null;
   createdByUserId?: string | null;
@@ -45,6 +50,8 @@ type StoredFileScopeInput = {
   organizationId: string;
   projectId?: string | null;
   fileId: string;
+  /** Native version branch. When omitted, a shared blob prefers `main`. */
+  branchName?: string | null;
   db?: DbSelectClient;
   adapter?: FileStorageAdapter;
 };
@@ -52,12 +59,14 @@ type StoredFileScopeInput = {
 type RepositorySourceFileVersionInput = {
   storedFile: typeof schema.storedFiles.$inferSelect;
   sourcePath: string;
+  branchName?: string;
   sourceHash?: string | null;
   commitSha?: string | null;
   workflowRunId?: string | null;
   uploadedByUserId?: string | null;
   uploadedByApiKeyId?: string | null;
   uploadSurface?: string | null;
+  keepApprovedTranslations?: boolean;
   db?: DbInsertClient;
 };
 
@@ -90,10 +99,12 @@ export async function ensureRepositorySourceFile(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  branchName?: string;
   db?: DbInsertClient;
 }) {
   const dbClient = input.db ?? db;
   const sourcePath = normalizeSourcePath(input.sourcePath);
+  const branchName = input.branchName?.trim() || "main";
 
   const [sourceFile] = await dbClient
     .insert(schema.repositorySourceFiles)
@@ -101,9 +112,14 @@ export async function ensureRepositorySourceFile(input: {
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath,
+      branchName,
     })
     .onConflictDoUpdate({
-      target: [schema.repositorySourceFiles.projectId, schema.repositorySourceFiles.sourcePath],
+      target: [
+        schema.repositorySourceFiles.projectId,
+        schema.repositorySourceFiles.branchName,
+        schema.repositorySourceFiles.sourcePath,
+      ],
       set: { updatedAt: new Date() },
     })
     .returning();
@@ -153,12 +169,14 @@ export function storageKey(input: {
 
 export async function createStoredFile(input: CreateStoredFileInput) {
   const adapter = input.adapter ?? getFileStorageAdapter();
-  const id = createStoredFileId();
+  const id = input.id ?? createStoredFileId();
   const content = bytesFromContent(input.content);
   const key = storageKey({
     organizationId: input.organizationId,
     projectId: input.projectId,
-    id,
+    // Caller-chosen ids can be retried concurrently. A per-attempt key keeps a losing
+    // insert from overwriting or deleting the winning attempt's object.
+    id: input.id ? `${id}-${crypto.randomUUID()}` : id,
     filename: input.filename,
   });
   const uploaded = await adapter.put({
@@ -299,6 +317,7 @@ async function createRepositorySourceFileVersionWithDb(
   }
 
   const sourcePath = normalizeSourcePath(input.sourcePath);
+  const branchName = input.branchName?.trim() || "main";
 
   const [sourceFile] = await dbClient
     .insert(schema.repositorySourceFiles)
@@ -306,9 +325,14 @@ async function createRepositorySourceFileVersionWithDb(
       organizationId: input.storedFile.organizationId,
       projectId,
       sourcePath,
+      branchName,
     })
     .onConflictDoUpdate({
-      target: [schema.repositorySourceFiles.projectId, schema.repositorySourceFiles.sourcePath],
+      target: [
+        schema.repositorySourceFiles.projectId,
+        schema.repositorySourceFiles.branchName,
+        schema.repositorySourceFiles.sourcePath,
+      ],
       set: { updatedAt: new Date() },
     })
     .returning();
@@ -331,21 +355,7 @@ async function createRepositorySourceFileVersionWithDb(
       uploadedByUserId: input.uploadedByUserId ?? input.storedFile.createdByUserId,
       uploadedByApiKeyId: input.uploadedByApiKeyId ?? null,
       uploadSurface: input.uploadSurface ?? null,
-    })
-    .onConflictDoUpdate({
-      target: schema.repositorySourceFileVersions.storedFileId,
-      set: {
-        repositorySourceFileId: sourceFile.id,
-        organizationId: input.storedFile.organizationId,
-        projectId,
-        sourcePath,
-        sourceHash: input.sourceHash ?? input.storedFile.sha256,
-        commitSha: input.commitSha ?? null,
-        workflowRunId: input.workflowRunId ?? null,
-        uploadedByUserId: input.uploadedByUserId ?? input.storedFile.createdByUserId,
-        uploadedByApiKeyId: input.uploadedByApiKeyId ?? null,
-        uploadSurface: input.uploadSurface ?? null,
-      },
+      keepApprovedTranslations: input.keepApprovedTranslations ?? false,
     })
     .returning();
 
@@ -360,21 +370,33 @@ export async function getLatestRepositorySourceFileVersion(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  branchName?: string | null;
   db?: DbSelectClient;
 }) {
   const dbClient = input.db ?? db;
   const sourcePath = normalizeSourcePath(input.sourcePath);
+  const branchName = input.branchName?.trim() || "main";
+
+  const [sourceFile] = await dbClient
+    .select({ id: schema.repositorySourceFiles.id })
+    .from(schema.repositorySourceFiles)
+    .where(
+      and(
+        eq(schema.repositorySourceFiles.organizationId, input.organizationId),
+        eq(schema.repositorySourceFiles.projectId, input.projectId),
+        eq(schema.repositorySourceFiles.sourcePath, sourcePath),
+        eq(schema.repositorySourceFiles.branchName, branchName),
+      ),
+    )
+    .limit(1);
+  if (!sourceFile) {
+    return null;
+  }
 
   const [version] = await dbClient
     .select()
     .from(schema.repositorySourceFileVersions)
-    .where(
-      and(
-        eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
-        eq(schema.repositorySourceFileVersions.projectId, input.projectId),
-        eq(schema.repositorySourceFileVersions.sourcePath, sourcePath),
-      ),
-    )
+    .where(eq(schema.repositorySourceFileVersions.repositorySourceFileId, sourceFile.id))
     .orderBy(
       desc(schema.repositorySourceFileVersions.createdAt),
       desc(schema.repositorySourceFileVersions.id),
@@ -386,18 +408,39 @@ export async function getLatestRepositorySourceFileVersion(input: {
 
 export async function getRepositorySourceFileVersionForStoredFile(input: StoredFileScopeInput) {
   const dbClient = input.db ?? db;
-  const [version] = await dbClient
-    .select()
+  const branchName =
+    input.branchName === undefined || input.branchName === null
+      ? null
+      : resolvedProjectBranchName(input.branchName);
+
+  const [row] = await dbClient
+    .select({ version: schema.repositorySourceFileVersions })
     .from(schema.repositorySourceFileVersions)
+    .innerJoin(
+      schema.repositorySourceFiles,
+      eq(
+        schema.repositorySourceFiles.id,
+        schema.repositorySourceFileVersions.repositorySourceFileId,
+      ),
+    )
     .where(
       and(
         eq(schema.repositorySourceFileVersions.storedFileId, input.fileId),
         eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
+        input.projectId
+          ? eq(schema.repositorySourceFileVersions.projectId, input.projectId)
+          : undefined,
+        branchName ? eq(schema.repositorySourceFiles.branchName, branchName) : undefined,
       ),
+    )
+    .orderBy(
+      sql`case when ${schema.repositorySourceFiles.branchName} = ${DEFAULT_PROJECT_BRANCH_NAME} then 0 else 1 end`,
+      desc(schema.repositorySourceFileVersions.createdAt),
+      desc(schema.repositorySourceFileVersions.id),
     )
     .limit(1);
 
-  return version ?? null;
+  return row?.version ?? null;
 }
 
 export async function ensureRepositorySourceFileVersionForStoredFile(
@@ -422,6 +465,7 @@ export async function ensureRepositorySourceFileVersionForStoredFile(
     db: input.db,
     storedFile: file,
     sourcePath,
+    branchName: input.branchName ?? undefined,
     sourceHash: stringMetadata(file.metadata, "sourceHash"),
     commitSha: stringMetadata(file.metadata, "commitSha"),
     workflowRunId: stringMetadata(file.metadata, "workflowRunId"),

@@ -10,15 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { OrgPageSuspense } from "../_components/org-page-suspense";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+
 import { JobsPageContent } from "./_components/jobs-page-content";
 
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "jobs");
+}
+
 export default function JobsPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
-  return (
-    <OrgPageSuspense>
-      <JobsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <JobsPageLoader params={params} />;
 }
 
 async function JobsPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {

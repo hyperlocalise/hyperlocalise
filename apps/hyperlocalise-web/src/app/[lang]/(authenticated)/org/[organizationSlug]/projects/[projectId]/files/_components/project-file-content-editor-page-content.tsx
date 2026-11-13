@@ -13,16 +13,36 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
+import { ContentEditorWorkspaceSkeleton } from "@/components/content-editor/workspace/content-editor-workspace-skeleton";
+import { ContentEditorBrazeIngestButton } from "@/components/content-editor/page/content-editor-braze-ingest-button";
+import { ContentEditorBrazePushButton } from "@/components/content-editor/page/content-editor-braze-push-button";
+import { ContentEditorCustomerIoIngestButton } from "@/components/content-editor/page/content-editor-customer-io-ingest-button";
+import { ContentEditorCustomerIoPushButton } from "@/components/content-editor/page/content-editor-customer-io-push-button";
+import { ContentEditorIterableIngestButton } from "@/components/content-editor/page/content-editor-iterable-ingest-button";
+import { ContentEditorIterablePushButton } from "@/components/content-editor/page/content-editor-iterable-push-button";
+import { ContentEditorGoogleDriveIngestButton } from "@/components/content-editor/page/content-editor-google-drive-ingest-button";
+import { ContentEditorGoogleDrivePushButton } from "@/components/content-editor/page/content-editor-google-drive-push-button";
+import { ContentEditorIntercomIngestButton } from "@/components/content-editor/page/content-editor-intercom-ingest-button";
+import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
+import { ContentEditorHubspotIngestButton } from "@/components/content-editor/page/content-editor-hubspot-ingest-button";
+import { ContentEditorHubspotPushButton } from "@/components/content-editor/page/content-editor-hubspot-push-button";
+import { ContentEditorMailchimpIngestButton } from "@/components/content-editor/page/content-editor-mailchimp-ingest-button";
+import { ContentEditorMailchimpPushButton } from "@/components/content-editor/page/content-editor-mailchimp-push-button";
+import { ContentEditorLoopsIngestButton } from "@/components/content-editor/page/content-editor-loops-ingest-button";
+import { ContentEditorLoopsPushButton } from "@/components/content-editor/page/content-editor-loops-push-button";
+import { ContentEditorSanityIngestButton } from "@/components/content-editor/page/content-editor-sanity-ingest-button";
+import { ContentEditorSanityPushButton } from "@/components/content-editor/page/content-editor-sanity-push-button";
+import { ContentEditorWebflowIngestButton } from "@/components/content-editor/page/content-editor-webflow-ingest-button";
+import { ContentEditorWebflowPushButton } from "@/components/content-editor/page/content-editor-webflow-push-button";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
@@ -32,9 +52,12 @@ import {
 } from "@/components/content-editor/workspace/content-editor-page-navigation-guard";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { supportsProviderContentEditorFile } from "@/lib/providers/capabilities/provider-content-editor-capabilities";
 import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
 import {
+  parseProjectFileContentEditorSearchParams,
   buildProjectFileContentEditorAllFilesHref,
   buildProjectFileContentEditorHref,
   canOpenProjectFileContentEditor,
@@ -44,7 +67,15 @@ import {
   resolveProjectFileContentEditorTargetLocaleResolution,
   resolveProjectFileContentEditorTargetLocales,
 } from "@/lib/projects/project-file-content-editor-routing";
-import { buildCatNavigationSearchParams } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
+import {
+  parseCatWorkspaceQueueAdvancedParam,
+  parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceQueueFilterQualifierParam,
+  parseCatWorkspaceQueueSortParam,
+  parseCatWorkspaceSearchParam,
+  buildCatNavigationSearchParams,
+} from "@/lib/projects/content-editor/content-editor-workspace-query-params";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import type {
   ContentEditorQueueFilter,
   ContentEditorQueueSort,
@@ -62,11 +93,15 @@ import {
 } from "../../jobs/[jobId]/strings/_components/select-job-content-editor-repository";
 import {
   fetchProjectFiles,
+  fetchProjectHiddenFileIds,
   findCachedProjectFiles,
+  markHiddenProjectFiles,
   PROJECT_FILES_MAX_LIMIT,
   projectFilesQueryKey,
+  projectHiddenFilesQueryKey,
   sortFilesByPath,
 } from "./project-files-tree-panel";
+import { ContentEditorFileProgressSync } from "./content-editor-file-progress-sync";
 import { projectFileCatPageContentMessages as messages } from "./project-file-content-editor-page-content.messages";
 
 type ProjectFileContentEditorGithubRepository = {
@@ -79,7 +114,33 @@ function githubInstallationRepositoriesQueryKey(organizationSlug: string) {
   return ["github-installation-repositories", organizationSlug] as const;
 }
 
-export function ProjectFileContentEditorPageContent({
+export function ProjectFileContentEditorPageContent(
+  props: ComponentProps<typeof ProjectFileContentEditorPageContentInner>,
+) {
+  const searchParams = useSearchParams();
+  // File/locale changes within the editor are client navigation. Keep the page
+  // and file tree mounted; native history also updates Back/Forward through Next.
+  const live = searchParams?.has("sourcePath") ? Object.fromEntries(searchParams.entries()) : null;
+  return (
+    <ProjectFileContentEditorPageContentInner
+      {...props}
+      {...(live
+        ? {
+            ...parseProjectFileContentEditorSearchParams(live),
+            initialQueueFilter: parseCatWorkspaceQueueFilterParam(live.queueFilter) ?? "all",
+            initialQueueSort: parseCatWorkspaceQueueSortParam(live.queueSort) ?? "file_order",
+            initialSearch: parseCatWorkspaceSearchParam(live.search),
+            initialQueueFilterQualifier: parseCatWorkspaceQueueFilterQualifierParam(
+              live.queueFilterQualifier,
+            ),
+            initialQueueAdvanced: parseCatWorkspaceQueueAdvancedParam(live.queueAdvanced),
+          }
+        : {})}
+    />
+  );
+}
+
+function ProjectFileContentEditorPageContentInner({
   organizationSlug,
   projectId,
   sourcePath,
@@ -90,10 +151,15 @@ export function ProjectFileContentEditorPageContent({
   initialQueueFilter = "all",
   initialQueueSort = "file_order",
   initialSearch = "",
+  initialQueueFilterQualifier,
+  initialQueueAdvanced,
   externalResourceId = null,
   resourceType = null,
   branch = null,
   sourcePaths = null,
+  canWriteDictionaries = false,
+  canManageAutomations = false,
+  adaptiveWorkspaceEnabled = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -105,15 +171,21 @@ export function ProjectFileContentEditorPageContent({
   initialQueueFilter?: ContentEditorQueueFilter;
   initialQueueSort?: ContentEditorQueueSort;
   initialSearch?: string;
+  initialQueueFilterQualifier?: string;
+  initialQueueAdvanced?: ContentEditorAdvancedQueueFilter;
   externalResourceId?: string | null;
   resourceType?: "file" | "key" | null;
   branch?: string | null;
   sourcePaths?: string | null;
+  canWriteDictionaries?: boolean;
+  canManageAutomations?: boolean;
+  adaptiveWorkspaceEnabled?: boolean;
 }) {
   const intl = useIntl();
   const router = useRouter();
   const pageNavigationGuardRef = useRef<ContentEditorPageNavigationGuardRef["current"]>(null);
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const hasFileReference = Boolean(sourcePath) || allFiles;
   const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
     enabled: hasFileReference,
@@ -144,6 +216,7 @@ export function ProjectFileContentEditorPageContent({
     queryKey: projectFilesQueryKey(organizationSlug, projectId, PROJECT_FILES_MAX_LIMIT, branch),
     queryFn: () =>
       fetchProjectFiles(
+        goSvcClient,
         organizationSlug,
         projectId,
         PROJECT_FILES_MAX_LIMIT,
@@ -152,6 +225,11 @@ export function ProjectFileContentEditorPageContent({
       ),
     enabled: hasFileReference,
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
+  });
+  const hiddenFilesQuery = useQuery({
+    queryKey: projectHiddenFilesQueryKey(organizationSlug, projectId),
+    queryFn: () => fetchProjectHiddenFileIds(organizationSlug, projectId),
+    enabled: hasFileReference && Boolean(parseProviderProjectId(projectId)),
   });
 
   const repositoriesQuery = useQuery({
@@ -178,10 +256,13 @@ export function ProjectFileContentEditorPageContent({
 
   const contentEditorFiles = useMemo(
     () =>
-      sortFilesByPath(filesQuery.data ?? []).filter((entry) =>
-        canOpenProjectFileContentEditor(entry),
+      markHiddenProjectFiles(
+        sortFilesByPath(filesQuery.data ?? []).filter((entry) =>
+          canOpenProjectFileContentEditor(entry),
+        ),
+        hiddenFilesQuery.data,
       ),
-    [filesQuery.data],
+    [filesQuery.data, hiddenFilesQuery.data],
   );
 
   const canUseAllFiles = contentEditorAllFilesEnabled;
@@ -297,7 +378,7 @@ export function ProjectFileContentEditorPageContent({
             <FormattedMessage {...messages.chooseSourceFile} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} />
+            <ArrowLeftIcon />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -307,14 +388,31 @@ export function ProjectFileContentEditorPageContent({
 
   if (projectQuery.isLoading || (!canOpenFromUrlIdentity && filesQuery.isLoading)) {
     return (
-      <ProjectPageShell>
-        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
-          <Spinner />
-          <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...messages.loadingFile} />
-          </TypographyP>
-        </div>
-      </ProjectPageShell>
+      <ContentEditorPageRoot
+        initialState={createContentEditorLoadingWorkspaceState({
+          sourcePath: sourcePath ?? "",
+          sourceLocale: "",
+          targetLocale: highlightLocale ?? "",
+        })}
+        chrome={{
+          files: [],
+          selectedSourcePath: sourcePath,
+          allFiles,
+          canUseAllFiles: false,
+          targetLocale: highlightLocale ?? "",
+          targetLocales: [],
+          repositoryFullNames: [],
+          selectedRepositoryFullName: null,
+          activitySourcePath: sourcePath ?? "",
+          organizationSlug,
+          projectId,
+          showFileSidebar: true,
+        }}
+        backHref={filesHref}
+        actions={{ onSelectFile: () => undefined, onLocaleChange: () => undefined }}
+      >
+        <ContentEditorWorkspaceSkeleton />
+      </ContentEditorPageRoot>
     );
   }
 
@@ -330,7 +428,7 @@ export function ProjectFileContentEditorPageContent({
                 : intl.formatMessage(messages.unableToLoad)}
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} />
+            <ArrowLeftIcon />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -361,7 +459,7 @@ export function ProjectFileContentEditorPageContent({
             <FormattedMessage {...messages.sourceFileMissing} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} />
+            <ArrowLeftIcon />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -377,7 +475,7 @@ export function ProjectFileContentEditorPageContent({
             <FormattedMessage {...messages.providerTypeUnsupported} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} />
+            <ArrowLeftIcon />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -436,7 +534,7 @@ export function ProjectFileContentEditorPageContent({
             <FormattedMessage {...messages.chooseTargetLocale} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} />
+            <ArrowLeftIcon />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -471,7 +569,7 @@ export function ProjectFileContentEditorPageContent({
   }
 
   const handleFileChange = (nextSourcePath: string | null) => {
-    if (!nextSourcePath) {
+    if (!nextSourcePath || (!allFiles && nextSourcePath === sourcePath)) {
       return;
     }
 
@@ -497,9 +595,13 @@ export function ProjectFileContentEditorPageContent({
         branch,
         segment: null,
       });
-      router.push(
-        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`,
-      );
+      if (allFiles) {
+        router.push(
+          `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`,
+        );
+      } else {
+        window.history.pushState(null, "", `?${params.toString()}`);
+      }
     });
   };
 
@@ -536,7 +638,7 @@ export function ProjectFileContentEditorPageContent({
     setRepositoryOverride(nextRepositoryFullName);
   };
 
-  const handleLocaleChange = (nextLocale: string) => {
+  const handleLocaleChange = (nextLocale: string, segmentKey?: string) => {
     if (nextLocale === targetLocale) {
       return;
     }
@@ -547,6 +649,11 @@ export function ProjectFileContentEditorPageContent({
           locale: nextLocale,
           sourcePath: CONTENT_EDITOR_ALL_FILES_SOURCE_PATH,
         });
+        if (segmentKey) {
+          params.set("segment", segmentKey);
+          params.set("search", segmentKey);
+          params.set("queueFilter", "all");
+        }
         const section = "strings";
         router.push(
           `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/${section}?${params.toString()}`,
@@ -567,12 +674,16 @@ export function ProjectFileContentEditorPageContent({
         branch,
       });
 
-      router.push(
-        `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/content-editor?${params.toString()}`,
-      );
+      if (segmentKey) {
+        params.set("segment", segmentKey);
+        params.set("search", segmentKey);
+        params.set("queueFilter", "all");
+      }
+      window.history.pushState(null, "", `?${params.toString()}`);
     };
 
-    attemptCatPageNavigation(pageNavigationGuardRef, navigate);
+    if (segmentKey) navigate();
+    else attemptCatPageNavigation(pageNavigationGuardRef, navigate);
   };
 
   const resolvedSourcePath = allFiles
@@ -626,6 +737,152 @@ export function ProjectFileContentEditorPageContent({
       }}
       backHref={filesHref}
       actions={pageActions}
+      headerTrailing={
+        canManageAutomations ? (
+          <>
+            <ContentEditorIntercomIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorIntercomPushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorSanityIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorSanityPushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorWebflowIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorWebflowPushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorBrazeIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorBrazePushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorCustomerIoIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorCustomerIoPushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorIterableIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorLoopsIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorIterablePushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorLoopsPushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorHubspotIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorHubspotPushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorMailchimpIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorMailchimpPushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorGoogleDriveIngestButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorGoogleDrivePushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+          </>
+        ) : null
+      }
       banners={
         <>
           {repositoryBanner}
@@ -639,15 +896,18 @@ export function ProjectFileContentEditorPageContent({
         </>
       }
     >
+      <ContentEditorFileProgressSync organizationSlug={organizationSlug} projectId={projectId} />
       <ProjectFileContentEditorWorkspace
         organizationSlug={organizationSlug}
         projectId={projectId}
+        projectSource={projectQuery.data?.source}
         sourceLocale={sourceLocale}
         sourcePath={resolvedSourcePath}
         externalResourceId={allFiles ? null : resolvedExternalResourceId}
         resourceType={allFiles ? undefined : resolvedResourceType}
         targetLocale={targetLocale}
         targetLocales={workspaceTargetLocales}
+        onOpenTranslationLocale={handleLocaleChange}
         highlightLocale={highlightLocale}
         repositoryFullName={selectedRepositoryFullName}
         canLookupFreshContext={canLookupFreshCatRepositoryContext(
@@ -658,10 +918,15 @@ export function ProjectFileContentEditorPageContent({
         initialQueueFilter={initialQueueFilter}
         initialQueueSort={initialQueueSort}
         initialSearch={initialSearch}
+        initialQueueFilterQualifier={initialQueueFilterQualifier}
+        initialQueueAdvanced={initialQueueAdvanced}
         sourcePathsFilter={sourcePaths}
+        branch={branch}
         layout="fullscreen"
         className="min-h-0 flex-1"
         pageNavigationGuardRef={pageNavigationGuardRef}
+        canWriteDictionaries={canWriteDictionaries}
+        adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
       />
     </ContentEditorPageRoot>
   );

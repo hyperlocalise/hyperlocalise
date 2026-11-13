@@ -12,17 +12,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ReportsWorkspace } from "@/components/reports/reports-workspace";
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  LeftToRightListBulletIcon,
-  LinkSquare02Icon,
-  RefreshIcon,
+  ListBulletsIcon,
+  ArrowSquareOutIcon,
+  ArrowClockwiseIcon,
+  CheckCircleIcon,
   StopCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -37,15 +36,29 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
+import { TaskReport } from "@/components/reports/task-report";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   buildJobContentEditorHref,
   canOpenJobContentEditor,
 } from "@/lib/projects/job-content-editor-routing";
+import {
+  readJobFailureDetails,
+  shouldShowJobFailureDetails,
+} from "@/lib/projects/jobs/job-failure-details";
 
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
+import { buildJobDetailHref } from "../../../../../jobs/_components/jobs-view-helpers";
 
+import { isJobStatusActive } from "./build-job-activity";
+import {
+  hasJobActivityFeed,
+  JOB_ACTIVITY_POLL_INTERVAL_MS,
+  JobActivitySection,
+} from "./job-activity-section";
 import { NativeJobOwnerField } from "./job-detail-assignee-field";
 import { JobDetailEditableTitle } from "./job-detail-editable-title";
 import {
@@ -54,16 +67,20 @@ import {
 } from "./job-detail-layout-helpers";
 import { JobDetailTaskView } from "./job-detail-task-view";
 import type { JobDetailRecord } from "./job-detail-types";
+import { JobFailureNotice } from "./job-failure-notice";
 import { JobProviderDetailSection } from "./job-provider-detail-section";
 import { NativeJobDescriptionField } from "./native-job-description-field";
+import { NativeJobDueDateField } from "./native-job-due-date-field";
 import {
   isNativeFileTranslationJob,
   NativeJobSourceFilesSection,
 } from "./native-job-detail-helpers";
+import { reportsQueryKey } from "@/components/reports/reports-queries";
 import { nativeJobDetailContentMessages as messages } from "./native-job-detail-content.messages";
 import {
   canCancelJob,
   canMarkJobFailed,
+  canMarkTaskDone,
   canRetryJob,
   isProviderBackedJob,
 } from "./job-detail-types";
@@ -86,23 +103,41 @@ export function NativeJobDetailContent({
   organizationSlug,
   projectId,
   canEditJobFields = false,
+  canMarkAnyTaskDone = false,
+  currentUserId,
   reportsEnabled = false,
 }: {
   jobId: string;
   organizationSlug: string;
   projectId: string;
   canEditJobFields?: boolean;
+  /** Reviewers and managers may finish any proofread task; others only their own. */
+  canMarkAnyTaskDone?: boolean;
+  currentUserId?: string;
   reportsEnabled?: boolean;
 }) {
   const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [markDoneDialogOpen, setMarkDoneDialogOpen] = useState(false);
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const queryClient = useQueryClient();
   const jobQueryKey = ["job", organizationSlug, projectId, jobId] as const;
 
   const jobQuery = useQuery({
     queryKey: jobQueryKey,
     queryFn: async () => {
+      try {
+        const body = await goSvcClient.job.get<JobDetailRecord>(organizationSlug, jobId);
+        if (body.job.projectId !== projectId) {
+          throw new Error(intl.formatMessage(messages.jobWrongProject));
+        }
+        return body.job;
+      } catch (error) {
+        if (!(error instanceof GoSvcClientError) || error.status !== 404) {
+          throw error;
+        }
+      }
       const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$get({
         param: { organizationSlug, jobId },
       });
@@ -116,6 +151,12 @@ export function NativeJobDetailContent({
         throw new Error(intl.formatMessage(messages.jobWrongProject));
       }
       return body.job;
+    },
+    refetchInterval: (query) => {
+      const current = query.state.data;
+      return current && hasJobActivityFeed(current) && isJobStatusActive(current.status)
+        ? JOB_ACTIVITY_POLL_INTERVAL_MS
+        : false;
     },
   });
 
@@ -204,8 +245,59 @@ export function NativeJobDetailContent({
     },
   });
 
+  const markTaskDone = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+        "mark-done"
+      ].$post({
+        param: { organizationSlug, jobId },
+      });
+
+      if (response.status === 409) {
+        throw new Error(intl.formatMessage(messages.taskAlreadyClosed));
+      }
+      if (response.status === 403) {
+        throw new Error(intl.formatMessage(messages.taskNotAssignedToYou));
+      }
+      if (!response.ok) {
+        throw new Error(
+          await parseActionError(response, intl.formatMessage(messages.failedToMarkTaskDone)),
+        );
+      }
+
+      const body = (await response.json()) as { job: JobDetailRecord };
+      return body.job;
+    },
+    onSuccess: async (updatedJob) => {
+      queryClient.setQueryData(jobQueryKey, updatedJob);
+      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
+      setMarkDoneDialogOpen(false);
+      // The task's Report tab shows its fee and pricing lock, which marking done changes.
+      await queryClient.invalidateQueries({ queryKey: reportsQueryKey(organizationSlug) });
+      toast.success(intl.formatMessage(messages.taskMarkedDone));
+    },
+    onError: async (error) => {
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.failedToMarkTaskDone),
+      );
+      // Someone else may have finished or cancelled the task meanwhile.
+      setMarkDoneDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: jobQueryKey });
+    },
+  });
+
   const job = jobQuery.data;
   const layout = job ? jobDetailTaskLayoutFromRecord(job, intl) : null;
+  const jobActionPending =
+    retryJob.isPending || markJobFailed.isPending || cancelJob.isPending || markTaskDone.isPending;
+  const failureDetails = job ? readJobFailureDetails(job) : null;
+  const showFailureNotice = Boolean(
+    job && failureDetails && shouldShowJobFailureDetails(job, failureDetails),
+  );
+  const followUpHref =
+    job && failureDetails?.followUpJobId
+      ? buildJobDetailHref(organizationSlug, projectId, failureDetails.followUpJobId)
+      : null;
   const contentEditorHref = job
     ? buildJobContentEditorHref(organizationSlug, projectId, job)
     : null;
@@ -238,8 +330,26 @@ export function NativeJobDetailContent({
     },
   });
 
+  const propertyEditDisabled = jobActionPending || saveTitle.isPending;
   const properties = (layout?.properties ?? []).map((property) => {
-    if (property.id !== "assignees" || !isNativeEditable || !job) {
+    if (!isNativeEditable || !job) {
+      return property;
+    }
+    if (property.id === "due-date") {
+      return {
+        ...property,
+        value: (
+          <NativeJobDueDateField
+            organizationSlug={organizationSlug}
+            jobId={jobId}
+            dueAt={job.dueAt}
+            queryKey={jobQueryKey}
+            disabled={propertyEditDisabled}
+          />
+        ),
+      };
+    }
+    if (property.id !== "assignees") {
       return property;
     }
     return {
@@ -252,12 +362,7 @@ export function NativeJobDetailContent({
           ownerUserId={job.ownerUserId}
           assigneeType={job.assigneeType}
           queryKey={jobQueryKey}
-          disabled={
-            retryJob.isPending ||
-            markJobFailed.isPending ||
-            cancelJob.isPending ||
-            saveTitle.isPending
-          }
+          disabled={propertyEditDisabled}
         />
       ),
     };
@@ -275,7 +380,7 @@ export function NativeJobDetailContent({
           nativeButton={false}
           render={
             <a href={job.externalUrl} target="_blank" rel="noreferrer noopener">
-              <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} />
+              <ArrowSquareOutIcon />
               <FormattedMessage
                 {...messages.openInProvider}
                 values={{ providerKind: job.externalProviderKind }}
@@ -290,10 +395,10 @@ export function NativeJobDetailContent({
         <Button
           size="sm"
           variant="outline"
-          disabled={retryJob.isPending || markJobFailed.isPending || cancelJob.isPending}
+          disabled={jobActionPending}
           onClick={() => retryJob.mutate()}
         >
-          <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
+          <ArrowClockwiseIcon />
           {retryJob.isPending ? (
             <FormattedMessage {...messages.retrying} />
           ) : (
@@ -305,7 +410,7 @@ export function NativeJobDetailContent({
         <Button
           size="sm"
           variant="outline"
-          disabled={retryJob.isPending || markJobFailed.isPending || cancelJob.isPending}
+          disabled={jobActionPending}
           onClick={() => setCancelDialogOpen(true)}
         >
           <FormattedMessage {...messages.cancelJob} />
@@ -315,16 +420,29 @@ export function NativeJobDetailContent({
         <Button
           size="sm"
           variant="destructive"
-          disabled={retryJob.isPending || markJobFailed.isPending || cancelJob.isPending}
+          disabled={jobActionPending}
           onClick={() => setMarkFailedDialogOpen(true)}
         >
-          <HugeiconsIcon icon={StopCircleIcon} strokeWidth={1.8} />
+          <StopCircleIcon />
           <FormattedMessage {...messages.markAsFailed} />
+        </Button>
+      ) : null}
+      {canEditJobFields &&
+      canMarkTaskDone(job) &&
+      (canMarkAnyTaskDone || (currentUserId !== undefined && job.ownerUserId === currentUserId)) ? (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={jobActionPending}
+          onClick={() => setMarkDoneDialogOpen(true)}
+        >
+          <CheckCircleIcon />
+          <FormattedMessage {...messages.markTaskDone} />
         </Button>
       ) : null}
       {showCatAction && contentEditorHref ? (
         <Button size="sm" render={<Link href={contentEditorHref} />}>
-          <HugeiconsIcon icon={LeftToRightListBulletIcon} />
+          <ListBulletsIcon />
           <FormattedMessage {...messages.openEditor} />
         </Button>
       ) : null}
@@ -341,12 +459,7 @@ export function NativeJobDetailContent({
           <JobDetailEditableTitle
             title={layout?.title ?? jobId}
             editable={isNativeEditable}
-            disabled={
-              retryJob.isPending ||
-              markJobFailed.isPending ||
-              cancelJob.isPending ||
-              saveTitle.isPending
-            }
+            disabled={jobActionPending || saveTitle.isPending}
             onSave={async (nextTitle) => {
               await saveTitle.mutateAsync(nextTitle);
             }}
@@ -388,27 +501,48 @@ export function NativeJobDetailContent({
               )
             : undefined
         }
-        renderExtraMain={
-          job && isProviderBackedJob(job)
+        renderReportSection={
+          reportsEnabled && job && !isProviderBackedJob(job)
             ? () => (
-                <JobProviderDetailSection
-                  job={job}
-                  jobId={jobId}
+                <TaskReport
                   organizationSlug={organizationSlug}
-                  projectId={projectId}
-                  showProviderMetadata={false}
-                  showAgentActions={false}
+                  jobId={jobId}
+                  defaultStep={job.kind === "proofread" ? "review" : "translation"}
                 />
               )
-            : reportsEnabled
-              ? () => (
-                  <ReportsWorkspace
-                    organizationSlug={organizationSlug}
-                    projectId={projectId}
-                    jobId={jobId}
-                  />
-                )
-              : undefined
+            : undefined
+        }
+        renderExtraMain={
+          showFailureNotice || (job && (isProviderBackedJob(job) || hasJobActivityFeed(job)))
+            ? () => (
+                <>
+                  {showFailureNotice && failureDetails ? (
+                    <JobFailureNotice
+                      details={failureDetails}
+                      followUpHref={followUpHref}
+                      variant={job?.status === "failed" ? "failed" : "partial"}
+                    />
+                  ) : null}
+                  {job && hasJobActivityFeed(job) ? (
+                    <JobActivitySection
+                      organizationSlug={organizationSlug}
+                      projectId={projectId}
+                      job={job}
+                    />
+                  ) : null}
+                  {job && isProviderBackedJob(job) ? (
+                    <JobProviderDetailSection
+                      job={job}
+                      jobId={jobId}
+                      organizationSlug={organizationSlug}
+                      projectId={projectId}
+                      showProviderMetadata={false}
+                      showAgentActions={false}
+                    />
+                  ) : null}
+                </>
+              )
+            : undefined
         }
       />
 
@@ -438,11 +572,43 @@ export function NativeJobDetailContent({
               disabled={markJobFailed.isPending}
               onClick={() => markJobFailed.mutate()}
             >
-              <HugeiconsIcon icon={StopCircleIcon} strokeWidth={1.8} />
+              <StopCircleIcon />
               {markJobFailed.isPending ? (
                 <FormattedMessage {...messages.marking} />
               ) : (
                 <FormattedMessage {...messages.markFailedConfirm} />
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={markDoneDialogOpen}
+        onOpenChange={(open) => {
+          if (!markTaskDone.isPending) {
+            setMarkDoneDialogOpen(open);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage {...messages.markTaskDoneTitle} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <FormattedMessage {...messages.markTaskDoneDescription} />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={markTaskDone.isPending}>
+              <FormattedMessage {...messages.keepTaskOpen} />
+            </AlertDialogCancel>
+            <Button disabled={markTaskDone.isPending} onClick={() => markTaskDone.mutate()}>
+              {markTaskDone.isPending ? (
+                <FormattedMessage {...messages.markingTaskDone} />
+              ) : (
+                <FormattedMessage {...messages.markTaskDone} />
               )}
             </Button>
           </AlertDialogFooter>

@@ -63,14 +63,25 @@ import { serverAnalytics } from "@/lib/analytics/server";
 import { maxPublicUploadBytes } from "@/api/routes/public-files/public-files.schema";
 import { NativeGlossary } from "@/lib/glossary/native-glossary";
 import { err, ok } from "@/lib/primitives/result/results";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
+import type { UploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
-  resolveApiAuthContextFromSessionMock: vi.fn(
-    (options) =>
-      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
-      globalThis.__testApiAuthContext ??
-      null,
-  ),
+const { resolveApiAuthContextFromSessionMock, resolveWorkspaceKnowledgeFlagMock } = vi.hoisted(
+  () => ({
+    resolveApiAuthContextFromSessionMock: vi.fn(
+      (options) =>
+        globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+        globalThis.__testApiAuthContext ??
+        null,
+    ),
+    resolveWorkspaceKnowledgeFlagMock: vi.fn(async () => true),
+  }),
+);
+
+vi.mock("@/lib/activity-log/query-events", () => ({
+  enqueueQueryCreatedActivity: vi.fn(),
+  enqueueQueryDeletedActivity: vi.fn(),
+  enqueueQueryImportedActivity: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -80,6 +91,33 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
   };
 });
+
+vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
+
+  return {
+    ...actual,
+    resolveWorkspaceKnowledgeFlag: resolveWorkspaceKnowledgeFlagMock,
+  };
+});
+
+const { guidelineInternalCheckMock } = vi.hoisted(() => ({
+  guidelineInternalCheckMock: vi.fn(),
+}));
+
+vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
+  createGoSvcServerClient: () => ({
+    guidelines: { internalCheck: guidelineInternalCheckMock },
+  }),
+}));
+
+const loadUploadedGuidelinesContextMock = vi.hoisted(() =>
+  vi.fn(async (): Promise<UploadedGuidelinesContext> => ({ text: "", documents: [] })),
+);
+
+vi.mock("@/lib/knowledge-memory/uploaded-guidelines-context", () => ({
+  loadUploadedGuidelinesContext: loadUploadedGuidelinesContextMock,
+}));
 
 const { resolveMcpClientMetadataMock } = vi.hoisted(() => ({
   resolveMcpClientMetadataMock: vi.fn(),
@@ -111,9 +149,13 @@ vi.mock("@/lib/workflow/queues", async (importOriginal) => {
   };
 });
 
-const { ensureAiFeaturesAllowedMock } = vi.hoisted(() => ({
+const { ensureAiFeaturesAllowedMock, isAutumnBooleanFeatureEnabledMock } = vi.hoisted(() => ({
   ensureAiFeaturesAllowedMock:
     vi.fn<typeof import("@/lib/billing/ai-features").ensureAiFeaturesAllowed>(),
+  isAutumnBooleanFeatureEnabledMock:
+    vi.fn<
+      typeof import("@/lib/billing/autumn-boolean-feature-access").isAutumnBooleanFeatureEnabled
+    >(),
 }));
 
 vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
@@ -122,6 +164,16 @@ vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
   return {
     ...actual,
     ensureAiFeaturesAllowed: ensureAiFeaturesAllowedMock,
+  };
+});
+
+vi.mock("@/lib/billing/autumn-boolean-feature-access", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/billing/autumn-boolean-feature-access")>();
+
+  return {
+    ...actual,
+    isAutumnBooleanFeatureEnabled: isAutumnBooleanFeatureEnabledMock,
   };
 });
 
@@ -289,6 +341,13 @@ describe("mcpRoutes", () => {
     translationJobEnqueueMock.mockClear();
     ensureAiFeaturesAllowedMock.mockReset();
     ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
+    isAutumnBooleanFeatureEnabledMock.mockReset();
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(true);
+    resolveWorkspaceKnowledgeFlagMock.mockReset();
+    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(true);
+    guidelineInternalCheckMock.mockReset();
+    loadUploadedGuidelinesContextMock.mockReset();
+    loadUploadedGuidelinesContextMock.mockResolvedValue({ text: "", documents: [] });
   });
 
   afterEach(async () => {
@@ -2401,6 +2460,35 @@ describe("mcpRoutes", () => {
     } finally {
       updateSpy.mockRestore();
     }
+  });
+
+  it("rejects MCP issue tools when Autumn queries-board is disabled", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(false);
+
+    const createResponse = await callMcpTool(headers, "create_issue", {
+      projectId: stored.project.id,
+      title: "Should be plan-gated",
+    });
+    const createResult = await readMcpToolResult(createResponse);
+    expect(createResult.isError).toBe(true);
+    expect(createResult.output).toMatchObject({
+      error: "feature_unavailable",
+      message: "Queries is not included in your current plan.",
+    });
+
+    const listResponse = await callMcpTool(headers, "list_issues", {
+      limit: 10,
+      offset: 0,
+    });
+    const listResult = await readMcpToolResult(listResponse);
+    expect(listResult.isError).toBe(true);
+    expect(listResult.output).toMatchObject({
+      error: "feature_unavailable",
+    });
+
+    expect(isAutumnBooleanFeatureEnabledMock).toHaveBeenCalled();
   });
 
   it("advertises the create_issue tool with a bounded input schema", async () => {
@@ -9672,6 +9760,321 @@ describe("mcpRoutes", () => {
     expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
       error: "unsupported_binary_download",
     });
+  });
+
+  it("advertises get_knowledge_memory with query and bounded organization and project scopes", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/list",
+            params: {},
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        tools?: Array<{
+          name: string;
+          description?: string;
+          inputSchema?: {
+            properties?: Record<string, unknown>;
+          };
+        }>;
+      };
+    };
+
+    const tool = body.result?.tools?.find(({ name }) => name === "get_knowledge_memory");
+
+    expect(tool).toBeDefined();
+    expect(tool?.description).toContain("guideline");
+    expect(tool?.inputSchema?.properties).toMatchObject({
+      query: {
+        type: "string",
+      },
+      scope: {
+        type: "string",
+        enum: ["organization", "project"],
+        default: "organization",
+      },
+      projectId: {
+        type: "string",
+      },
+    });
+  });
+
+  it("returns organization guideline documents", async () => {
+    const headers = await authenticatedMcpHeaders();
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    loadUploadedGuidelinesContextMock.mockResolvedValueOnce({
+      text: "### Brand guide\nNever translate Hyperlocalise.",
+      documents: [
+        {
+          documentId: "doc-1",
+          revisionId: "rev-1",
+          version: 1,
+          title: "Brand guide",
+          mandatory: true,
+        },
+      ],
+    });
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "get_knowledge_memory", {
+        query: "How should the brand name be translated?",
+        scope: "organization",
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(loadUploadedGuidelinesContextMock).toHaveBeenCalledWith({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: undefined,
+      targetLocales: [],
+      sourceText: "How should the brand name be translated?",
+    });
+    expect(result.output).toEqual({
+      scope: "organization",
+      found: true,
+      text: "### Brand guide\nNever translate Hyperlocalise.",
+      documents: [
+        {
+          documentId: "doc-1",
+          revisionId: "rev-1",
+          version: 1,
+          title: "Brand guide",
+          mandatory: true,
+        },
+      ],
+    });
+
+    expect(result.output).not.toHaveProperty("projectId");
+  });
+
+  it("does not search guideline documents when Guidelines is not entitled", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(false);
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "get_knowledge_memory", {
+        query: "brand name",
+        scope: "organization",
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "knowledge_memory_unavailable",
+    });
+    expect(result.output).not.toHaveProperty("text");
+    expect(loadUploadedGuidelinesContextMock).not.toHaveBeenCalled();
+  });
+
+  it("returns project guideline documents", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    loadUploadedGuidelinesContextMock.mockResolvedValueOnce({
+      text: "### Tone\nUse formal Vietnamese.",
+      documents: [],
+    });
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "get_knowledge_memory", {
+        query: "Which tone for Vietnamese?",
+        scope: "project",
+        projectId: stored.project.id,
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(loadUploadedGuidelinesContextMock).toHaveBeenCalledWith({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      targetLocales: [],
+      sourceText: "Which tone for Vietnamese?",
+    });
+    expect(result.output).toEqual({
+      scope: "project",
+      projectId: stored.project.id,
+      found: true,
+      text: "### Tone\nUse formal Vietnamese.",
+      documents: [],
+    });
+  });
+
+  it("returns project_not_found for an inaccessible project", async () => {
+    const accessible = await fixture.createStoredProjectFixture();
+    const inaccessible = await fixture.createStoredProjectFixture();
+
+    const headers = await authenticatedMcpHeaders(accessible.identity);
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "get_knowledge_memory", {
+        query: "tone",
+        scope: "project",
+        projectId: inaccessible.project.id,
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "project_not_found",
+    });
+  });
+
+  it("checks segments against guidelines through go-svc", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const checkResult = {
+      findings: [
+        {
+          segmentId: "s1",
+          field: "target",
+          severity: "error",
+          start: 5,
+          end: 7,
+          message: "Use the formal vous.",
+          suggestion: "vous",
+          passageId: "chunk-1",
+        },
+      ],
+      passages: [{ id: "chunk-1", documentId: "doc:1", text: "Use vous." }],
+      searchAvailable: true,
+      model: "test-model",
+    };
+    guidelineInternalCheckMock.mockResolvedValue(checkResult);
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "check_guidelines", {
+        projectId: stored.project.id,
+        targetLocale: "fr-FR",
+        segments: [{ id: "s1", target: "Peux-tu aider ?" }],
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(result.output).toEqual(checkResult);
+    expect(guidelineInternalCheckMock).toHaveBeenCalledWith(auth.organization.localOrganizationId, {
+      projectId: stored.project.id,
+      sourceLocale: undefined,
+      targetLocale: "fr-FR",
+      segments: [{ id: "s1", target: "Peux-tu aider ?" }],
+      checks: undefined,
+    });
+  });
+
+  it("does not check guidelines for inaccessible projects or disabled workspaces", async () => {
+    const accessible = await fixture.createStoredProjectFixture();
+    const inaccessible = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(accessible.identity);
+
+    const forbidden = await readMcpToolResult(
+      await callMcpTool(headers, "check_guidelines", {
+        projectId: inaccessible.project.id,
+        segments: [{ id: "s1", target: "Bonjour" }],
+      }),
+    );
+    expect(forbidden.isError).toBe(true);
+    expect(forbidden.output).toMatchObject({ error: "project_not_found" });
+
+    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(false);
+    const disabled = await readMcpToolResult(
+      await callMcpTool(headers, "check_guidelines", {
+        segments: [{ id: "s1", target: "Bonjour" }],
+      }),
+    );
+    expect(disabled.isError).toBe(true);
+    expect(disabled.output).toMatchObject({ error: "knowledge_memory_unavailable" });
+    expect(guidelineInternalCheckMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces go-svc guideline check errors as tool errors", async () => {
+    const headers = await authenticatedMcpHeaders();
+    guidelineInternalCheckMock.mockRejectedValue(
+      new GoSvcClientError({
+        code: "guideline_check_limit_reached",
+        message: "Guideline check limit reached",
+        status: 402,
+      }),
+    );
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "check_guidelines", {
+        segments: [{ id: "s1", target: "Bonjour" }],
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "guideline_check_limit_reached",
+      message: "Guideline check limit reached",
+    });
+  });
+
+  it("returns no guideline documents without an error when nothing matches", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "get_knowledge_memory", {
+        query: "unrelated question",
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(result.output).toEqual({
+      scope: "organization",
+      found: false,
+      text: "",
+      documents: [],
+    });
+  });
+
+  it("rejects project guideline requests without a project ID", async () => {
+    const headers = await authenticatedMcpHeaders();
+
+    const response = await callMcpTool(headers, "get_knowledge_memory", {
+      query: "tone",
+      scope: "project",
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+
+    expect(body.result?.isError).toBe(true);
+    expect(body.result?.content?.[0]?.text).toContain("projectId");
   });
 
   it("advertises create_glossary_concept with bounded inputs", async () => {

@@ -32,8 +32,12 @@ describe("localisation audit page content", () => {
     expect(copy.crawlAccessNoteBody).toContain("firewall");
     expect(copy.crawlAccessNoteUserAgent).toBe("User agent");
     expect(copy.methodologyHeading).toBe("What we notice");
-    expect(copy.notices).toHaveLength(3);
-    expect(copy.notices[0]?.title).toBe("Voice");
+    expect(copy.notices.map((notice) => notice.title)).toEqual([
+      "Technical",
+      "Linguistic",
+      "Contextual",
+      "Visual",
+    ]);
     expect(copy.leaderboardHeading).toBe("How other sites score");
     expect(copy.leaderboardSiteColumn).toBe("Site");
     expect(copy.leaderboardScoreColumn).toBe("Score");
@@ -50,9 +54,12 @@ describe("localisation audit page content", () => {
     expect(copy.runningTitle).toBe("Running localisation audit");
     expect(copy.creditsHeading).toBe("Audit criteria");
     expect(copy.progressStepOf({ current: 2, total: 5 })).toBe("Step 2 of 5");
-    expect(copy.criteriaSummary({ passed: 8, failed: 3, na: 1 })).toBe(
-      "8 passed · 3 to fix · 1 not applicable",
+    expect(copy.criteriaSummary({ passed: 8, watch: 2, failed: 3, na: 1 })).toBe(
+      "8 passed · 2 to watch · 3 to fix · 1 not applicable",
     );
+    expect(copy.standingAhead({ ahead: 1 })).toBe("Ahead of 1 other public audit");
+    expect(copy.standingAhead({ ahead: 72 })).toBe("Ahead of 72 other public audits");
+    expect(copy.pagesExpand({ count: 6 })).toBe("Show all 6 pages");
     expect(copy.sampledPages({ count: 6 })).toContain("6 pages");
   });
 

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const {
   classifyConversationMock,
@@ -26,6 +26,8 @@ const {
   getOrganizationRepositoryConnectorConfigMock,
   resolveHyperlocaliseAgentLanguageModelMock,
   resolveGitLabPipesWorkosUserIdMock,
+  getGitLabConnectionMock,
+  loadGitLabConnectionCredentialsMock,
 } = vi.hoisted(() => ({
   classifyConversationMock: vi.fn(),
   createConversationToolLoopAgentMock: vi.fn(() => ({ stream: vi.fn() })),
@@ -43,9 +45,11 @@ const {
   resolveHyperlocaliseAgentLanguageModelMock: vi.fn(async () => ({
     model: "org-model",
     source: "gateway" as const,
-    modelId: "openai/gpt-5.6-luna",
+    modelId: "openai/gpt-6-luna",
   })),
   resolveGitLabPipesWorkosUserIdMock: vi.fn(async () => "user_workos"),
+  getGitLabConnectionMock: vi.fn(async (..._args: unknown[]): Promise<unknown> => null),
+  loadGitLabConnectionCredentialsMock: vi.fn(async (..._args: unknown[]): Promise<unknown> => null),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -101,6 +105,12 @@ vi.mock("@/lib/gitlab/gitlab-repository-sandbox", () => ({
   createGitlabRepositorySandbox: createGitlabRepositorySandboxMock,
 }));
 
+vi.mock("@/lib/gitlab/connections", () => ({
+  getGitLabConnection: (...args: unknown[]) => getGitLabConnectionMock(...args),
+  loadGitLabConnectionCredentials: (...args: unknown[]) =>
+    loadGitLabConnectionCredentialsMock(...args),
+}));
+
 vi.mock("@/lib/gitlab/pipes", () => ({
   resolveGitLabPipesWorkosUserId: resolveGitLabPipesWorkosUserIdMock,
 }));
@@ -119,16 +129,13 @@ vi.mock("@/lib/flags/workspace-flags", () => ({
   resolveWorkspaceVisualMockFlag: resolveWorkspaceVisualMockFlagMock,
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: vi.fn(() => ({
-    child: vi.fn(() => ({
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-    })),
-  })),
-  serializeErrorForLog: vi.fn((error: unknown) => ({ error })),
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: vi.fn(() => createTestLogger()),
+    serializeErrorForLog: vi.fn((error: unknown) => ({ error })),
+  };
+});
 
 import {
   buildFileTranslationInstructions,
@@ -139,6 +146,9 @@ import {
   resolveConversationRepositoryContext,
   resolveVirtualAttachedProjectContext,
 } from "./conversation-turn";
+import { err, ok } from "@/lib/primitives/result/results";
+
+loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(null));
 
 const baseClassification = {
   needsRepositoryTools: false,
@@ -264,6 +274,62 @@ describe("conversation gitlab repository sandbox reuse", () => {
     vi.clearAllMocks();
     isRepositorySandboxAvailableMock.mockResolvedValue(true);
     resolveGitLabPipesWorkosUserIdMock.mockResolvedValue("user_workos");
+    getGitLabConnectionMock.mockResolvedValue(null);
+  });
+
+  describe("with a workspace's own server", () => {
+    const connectionId = "11111111-1111-4111-8111-111111111111";
+    const serverOwner = `gitlab-connection:${connectionId}:https://git.acme.example:2026-11-03T00:00:00.000Z`;
+    const serverSession = {
+      ...repositorySession,
+      repositorySandboxSession: {
+        ...repositorySession.repositorySandboxSession,
+        credentialOwnerWorkosUserId: serverOwner,
+      },
+    };
+    const run = () =>
+      getOrCreateConversationGitlabRepositorySandbox({
+        conversationId: "conv_123",
+        surface: "web",
+        gitlabContext,
+        repositorySession: serverSession,
+        organizationId: "org_123",
+        localUserId: "user_123",
+      });
+
+    it("reuses the clone while the connection is unchanged", async () => {
+      getGitLabConnectionMock.mockResolvedValue({
+        id: connectionId,
+        serverUrl: "https://git.acme.example",
+        updatedAt: "2026-11-03T00:00:00.000Z",
+      });
+
+      const result = await run();
+
+      expect(createGitlabRepositorySandboxMock).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ sandboxId: "sandbox_gitlab_stored", sandboxCreated: false });
+    });
+
+    it("clones again once the connection is saved again", async () => {
+      getGitLabConnectionMock.mockResolvedValue({
+        id: connectionId,
+        serverUrl: "https://git.acme.example",
+        updatedAt: "2026-11-03T00:05:00.000Z",
+      });
+      createGitlabRepositorySandboxMock.mockResolvedValueOnce("sandbox_gitlab_new");
+
+      const result = await run();
+
+      expect(result).toMatchObject({
+        sandboxId: "sandbox_gitlab_new",
+        sandboxCreated: true,
+        updatedSession: {
+          repositorySandboxSession: {
+            credentialOwnerWorkosUserId: `gitlab-connection:${connectionId}:https://git.acme.example:2026-11-03T00:05:00.000Z`,
+          },
+        },
+      });
+    });
   });
 
   it("reuses a matching stored gitlab sandbox after the availability probe", async () => {
@@ -454,7 +520,7 @@ describe("conversation turn preparation", () => {
         languageModel: {
           model: "org-model",
           source: "gateway",
-          modelId: "openai/gpt-5.6-luna",
+          modelId: "openai/gpt-6-luna",
         },
         toolContext: expect.objectContaining({
           reportToolProgress,
@@ -821,5 +887,74 @@ describe("conversation turn preparation", () => {
       }),
     );
     expect(result.updatedRepositorySession?.repositoryGitLabContext).toEqual(gitlabContext);
+  });
+});
+
+describe("a remembered GitLab project that can't be used any more", () => {
+  const oldServerContext = {
+    resolved: true as const,
+    provider: "gitlab" as const,
+    projectId: 11,
+    repositoryFullName: "acme/web",
+    httpUrlToRepo: "https://git.old.example/acme/web.git",
+  };
+  const resolveFollowUp = () =>
+    resolveConversationRepositoryContext({
+      surface: "web",
+      organizationId: "org_123",
+      projectId: null,
+      conversationText: "and where is the footer copy?",
+      currentMessageText: "and where is the footer copy?",
+      classification: {
+        ...baseClassification,
+        needsRepositoryTools: true,
+        continuesRepositoryThread: true,
+      },
+      repositorySession: { repositoryGitLabContext: oldServerContext },
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resolveConversationRepositoryGitHubContextMock.mockResolvedValue({ status: "not_applicable" });
+    resolveConversationRepositoryGitLabContextMock.mockResolvedValue({ status: "not_applicable" });
+  });
+
+  afterEach(() => {
+    loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(null));
+  });
+
+  it("isn't reused after the server changes, and the agent is told to ask for a new link", async () => {
+    loadGitLabConnectionCredentialsMock.mockResolvedValue(
+      ok({ baseUrl: "https://git.new.example", accessToken: "glpat-new" }),
+    );
+
+    const result = await resolveFollowUp();
+
+    expect(result.gitlabContext).toBeNull();
+    expect(result.instructions).toContain("current GitLab server");
+    expect(result.updatedSession?.repositoryGitLabContext).toBeUndefined();
+  });
+
+  it("isn't reused when the saved token can't be read, and the agent says who can fix it", async () => {
+    loadGitLabConnectionCredentialsMock.mockResolvedValue(
+      err({ code: "gitlab_connection_decrypt_failed", message: "Unable to read" }),
+    );
+
+    const result = await resolveFollowUp();
+
+    expect(result.gitlabContext).toBeNull();
+    expect(result.instructions).toContain("under Integrations");
+    expect(result.updatedSession?.repositoryGitLabContext).toBeUndefined();
+  });
+
+  it("is still reused while the server is unchanged", async () => {
+    loadGitLabConnectionCredentialsMock.mockResolvedValue(
+      ok({ baseUrl: "https://git.old.example", accessToken: "glpat-old" }),
+    );
+
+    const result = await resolveFollowUp();
+
+    expect(result.gitlabContext).toEqual(oldServerContext);
+    expect(result.updatedSession?.repositoryGitLabContext).toEqual(oldServerContext);
   });
 });

@@ -13,17 +13,15 @@
  * Version 2.0 or later.
  */
 import {
-  CircleSmallIcon,
-  FemaleSymbolIcon,
-  Male02Icon,
-  MaleSymbolIcon,
+  CircleIcon,
+  GenderFemaleIcon,
+  GenderMaleIcon,
   PauseIcon,
   PlayIcon,
   UserIcon,
-  UserMultiple02Icon,
-  UserSwitchIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  UsersIcon,
+  UsersThreeIcon,
+} from "@phosphor-icons/react";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { Button } from "@/components/ui/button";
 import {
@@ -195,31 +193,31 @@ export const VoiceSelectorGender = ({
 
   switch (value) {
     case "male": {
-      icon = <HugeiconsIcon icon={MaleSymbolIcon} className="size-4" />;
+      icon = <GenderMaleIcon className="size-4" />;
       break;
     }
     case "female": {
-      icon = <HugeiconsIcon icon={FemaleSymbolIcon} className="size-4" />;
+      icon = <GenderFemaleIcon className="size-4" />;
       break;
     }
     case "transgender": {
-      icon = <HugeiconsIcon icon={UserSwitchIcon} className="size-4" />;
+      icon = <UsersThreeIcon className="size-4" />;
       break;
     }
     case "androgyne": {
-      icon = <HugeiconsIcon icon={Male02Icon} className="size-4" />;
+      icon = <GenderMaleIcon className="size-4" />;
       break;
     }
     case "non-binary": {
-      icon = <HugeiconsIcon icon={UserIcon} className="size-4" />;
+      icon = <UserIcon className="size-4" />;
       break;
     }
     case "intersex": {
-      icon = <HugeiconsIcon icon={UserMultiple02Icon} className="size-4" />;
+      icon = <UsersIcon className="size-4" />;
       break;
     }
     default: {
-      icon = <HugeiconsIcon icon={CircleSmallIcon} className="size-4" />;
+      icon = <CircleIcon className="size-4" />;
     }
   }
 
@@ -443,12 +441,12 @@ export const VoiceSelectorPreview = ({
     [onClick, onPlay],
   );
 
-  let icon = <HugeiconsIcon icon={PlayIcon} className="size-3" />;
+  let icon = <PlayIcon className="size-3" />;
 
   if (loading) {
     icon = <Spinner className="size-3" />;
   } else if (playing) {
-    icon = <HugeiconsIcon icon={PauseIcon} className="size-3" />;
+    icon = <PauseIcon className="size-3" />;
   }
 
   return (

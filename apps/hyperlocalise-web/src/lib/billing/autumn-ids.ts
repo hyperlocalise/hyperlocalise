@@ -32,6 +32,7 @@ export type AutumnPlanId = (typeof autumnPlanIds)[keyof typeof autumnPlanIds];
  * These include credit-system balances, non-consumable limits, and boolean gates.
  */
 export const autumnFeatureIds = {
+  /** USD-denominated AI credit system; token pricing is resolved by Autumn. */
   aiTokens: "ai_tokens",
   translationJobs: "translation_jobs",
   agentRuns: "agent_runs",
@@ -40,6 +41,14 @@ export const autumnFeatureIds = {
   automations: "automations",
   integrations: "integrations",
   aiFeatures: "ai_features",
+  /** Automation Workflow canvas and visual workflow APIs. */
+  automationWorkflow: "automation_workflow",
+  /** Workspace and project Queries / issue sheet surfaces. */
+  queriesBoard: "queries-board",
+  /** Boolean gate for guideline documents, recall, and knowledge surfaces. */
+  guidelines: "guidelines",
+  /** Consumable allowance for per-segment CAT / MCP guideline format checks (go-svc). */
+  guidelineChecks: "guideline_checks",
 } as const;
 
 export type AutumnFeatureId = (typeof autumnFeatureIds)[keyof typeof autumnFeatureIds];

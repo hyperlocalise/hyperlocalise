@@ -19,6 +19,9 @@ const {
   reserveAgentRuntimeUsageMock,
   trackSucceededAgentRuntimeUsageMock,
   addInteractionMessageMock,
+  saveConversationRunSnapshotMock,
+  finishConversationRunMock,
+  saveInteractionMessageToolOutputsMock,
 } = vi.hoisted(() => ({
   prepareConversationAgentTurnMock: vi.fn(),
   getWebConversationRepositorySessionMock: vi.fn(),
@@ -26,6 +29,9 @@ const {
   reserveAgentRuntimeUsageMock: vi.fn(),
   trackSucceededAgentRuntimeUsageMock: vi.fn(),
   addInteractionMessageMock: vi.fn(),
+  saveConversationRunSnapshotMock: vi.fn(),
+  finishConversationRunMock: vi.fn(),
+  saveInteractionMessageToolOutputsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/agent-runtime/loops/conversation-turn", () => ({
@@ -41,8 +47,27 @@ vi.mock("@/lib/agent-runtime/loops/conversation-repository-session", () => ({
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
+  addAiTokenUsage: (
+    first: Record<string, number> | null | undefined,
+    second: Record<string, number> | null | undefined,
+  ) => {
+    if (!first) return second ?? null;
+    if (!second) return first;
+    return {
+      inputTokens: first.inputTokens + second.inputTokens,
+      outputTokens: first.outputTokens + second.outputTokens,
+      totalTokens: first.totalTokens + second.totalTokens,
+    };
+  },
+  extractAiSdkTokenUsage: (usage: unknown) => usage,
   reserveAgentRuntimeUsage: reserveAgentRuntimeUsageMock,
   trackSucceededAgentRuntimeUsage: trackSucceededAgentRuntimeUsageMock,
+}));
+
+vi.mock("@/lib/conversations/conversation-runs", () => ({
+  saveConversationRunSnapshot: saveConversationRunSnapshotMock,
+  finishConversationRun: finishConversationRunMock,
+  saveInteractionMessageToolOutputs: saveInteractionMessageToolOutputsMock,
 }));
 
 vi.mock("@/lib/conversations/interactions", () => ({
@@ -279,6 +304,9 @@ describe("createWebChatAgentUIStreamResponse", () => {
     reserveAgentRuntimeUsageMock.mockResolvedValue(true);
     trackSucceededAgentRuntimeUsageMock.mockResolvedValue(undefined);
     addInteractionMessageMock.mockResolvedValue({ id: "msg_agent" });
+    saveConversationRunSnapshotMock.mockResolvedValue({ cancelRequested: false });
+    finishConversationRunMock.mockResolvedValue(undefined);
+    saveInteractionMessageToolOutputsMock.mockResolvedValue(undefined);
   });
 
   it("streams a prep status event before clarification text", async () => {
@@ -294,6 +322,7 @@ describe("createWebChatAgentUIStreamResponse", () => {
 
     const response = createWebChatAgentUIStreamResponse({
       conversationId: "conv_123",
+      runId: "run_123",
       messageText: "where is the login copy?",
       toolContext: { ...createToolContext(), knowledgeMemoryEnabled: true },
       hasTranslationAttachments: false,
@@ -336,6 +365,7 @@ describe("createWebChatAgentUIStreamResponse", () => {
 
     const response = createWebChatAgentUIStreamResponse({
       conversationId: "conv_123",
+      runId: "run_123",
       messageText: "capture the story",
       toolContext: createToolContext(),
       hasTranslationAttachments: false,
@@ -393,6 +423,7 @@ describe("createWebChatAgentUIStreamResponse", () => {
 
     const response = createWebChatAgentUIStreamResponse({
       conversationId: "conv_123",
+      runId: "run_123",
       messageText: "where is the login copy?",
       toolContext: createToolContext(),
       hasTranslationAttachments: false,
@@ -419,6 +450,565 @@ describe("createWebChatAgentUIStreamResponse", () => {
     expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         operationKey: "chat-agent-turn:msg_123:agent_runs",
+      }),
+    );
+  });
+
+  it("tracks classifier and multi-step agent token usage after the stream completes", async () => {
+    const toUIMessageStream = vi.fn(
+      () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            controller.enqueue({ type: "text-start", id: "text_1" });
+            controller.enqueue({ type: "text-delta", id: "text_1", delta: "Done." });
+            controller.enqueue({ type: "text-end", id: "text_1" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      classificationTokenUsage: {
+        inputTokens: 10,
+        outputTokens: 2,
+        totalTokens: 12,
+      },
+      languageModel: {
+        model: "openai/gpt-6-luna",
+        source: "gateway",
+        modelId: "openai/gpt-6-luna",
+      },
+      agent: {
+        stream: vi.fn(async () => ({
+          usage: Promise.resolve({
+            inputTokens: 40,
+            outputTokens: 8,
+            totalTokens: 48,
+          }),
+          toUIMessageStream,
+        })),
+      },
+      chatMessages: [],
+      clarificationFollowUp: null,
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      runId: "run_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+      usageOperationKey: "chat-agent-turn:msg_123:agent_runs",
+      languageModel: {
+        model: "openai/gpt-6-luna",
+        source: "gateway",
+        modelId: "openai/gpt-6-luna",
+      },
+    });
+
+    await readSseText(response);
+
+    expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      operationKey: "chat-agent-turn:msg_123:agent_runs",
+      dimensions: {
+        surface: "web",
+        agent_surface: "chat",
+        repository_tools: false,
+      },
+      tokenUsage: {
+        inputTokens: 50,
+        outputTokens: 10,
+        totalTokens: 60,
+      },
+      aiCreditModelId: "openai/gpt-6-luna",
+      aiCreditCredentialSource: "gateway",
+      interactionId: "conv_123",
+    });
+  });
+
+  it("tracks token usage even when assistant persistence fails", async () => {
+    const toUIMessageStream = vi.fn(
+      () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            controller.enqueue({ type: "text-start", id: "text_1" });
+            controller.enqueue({ type: "text-delta", id: "text_1", delta: "Done." });
+            controller.enqueue({ type: "text-end", id: "text_1" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      classificationTokenUsage: {
+        inputTokens: 10,
+        outputTokens: 2,
+        totalTokens: 12,
+      },
+      agent: {
+        stream: vi.fn(async () => ({
+          usage: Promise.resolve({
+            inputTokens: 40,
+            outputTokens: 8,
+            totalTokens: 48,
+          }),
+          toUIMessageStream,
+        })),
+      },
+      chatMessages: [],
+      clarificationFollowUp: null,
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+    addInteractionMessageMock.mockRejectedValueOnce(new Error("database unavailable"));
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      runId: "run_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+      usageOperationKey: "chat-agent-turn:msg_persist_fail:agent_runs",
+      languageModel: {
+        model: "openai/gpt-6-luna",
+        source: "gateway",
+        modelId: "openai/gpt-6-luna",
+      },
+    });
+
+    await readSseText(response);
+
+    expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationKey: "chat-agent-turn:msg_persist_fail:agent_runs",
+        tokenUsage: {
+          inputTokens: 50,
+          outputTokens: 10,
+          totalTokens: 60,
+        },
+        aiCreditModelId: "openai/gpt-6-luna",
+        aiCreditCredentialSource: "gateway",
+      }),
+    );
+  });
+
+  it.each([
+    {
+      name: "rejects",
+      createUsage: () => Promise.reject(new Error("usage unavailable")),
+    },
+    {
+      name: "resolves empty",
+      createUsage: () =>
+        Promise.resolve({
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+        }),
+    },
+    {
+      name: "resolves null",
+      createUsage: () => Promise.resolve(null),
+    },
+  ])("tracks classification tokens when streamed agent usage $name", async ({ createUsage }) => {
+    const toUIMessageStream = vi.fn(
+      () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            controller.enqueue({ type: "text-start", id: "text_1" });
+            controller.enqueue({ type: "text-delta", id: "text_1", delta: "Done." });
+            controller.enqueue({ type: "text-end", id: "text_1" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      classificationTokenUsage: {
+        inputTokens: 10,
+        outputTokens: 2,
+        totalTokens: 12,
+      },
+      agent: {
+        stream: vi.fn(async () => ({
+          usage: createUsage(),
+          toUIMessageStream,
+        })),
+      },
+      chatMessages: [],
+      clarificationFollowUp: null,
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      runId: "run_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+      usageOperationKey: "chat-agent-turn:msg_missing_agent_usage:agent_runs",
+      languageModel: {
+        model: "openai/gpt-6-luna",
+        source: "gateway",
+        modelId: "openai/gpt-6-luna",
+      },
+    });
+
+    await readSseText(response);
+
+    expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationKey: "chat-agent-turn:msg_missing_agent_usage:agent_runs",
+        tokenUsage: {
+          inputTokens: 10,
+          outputTokens: 2,
+          totalTokens: 12,
+        },
+        aiCreditModelId: "openai/gpt-6-luna",
+        aiCreditCredentialSource: "gateway",
+      }),
+    );
+  });
+
+  it("tracks the agent_runs meter without tokens when a completed chat reports no usage", async () => {
+    const toUIMessageStream = vi.fn(
+      () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            controller.enqueue({ type: "text-start", id: "text_1" });
+            controller.enqueue({ type: "text-delta", id: "text_1", delta: "Done." });
+            controller.enqueue({ type: "text-end", id: "text_1" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      classificationTokenUsage: null,
+      agent: {
+        stream: vi.fn(async () => ({
+          usage: Promise.resolve(null),
+          toUIMessageStream,
+        })),
+      },
+      chatMessages: [],
+      clarificationFollowUp: null,
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      runId: "run_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+      usageOperationKey: "chat-agent-turn:msg_no_usage:agent_runs",
+      languageModel: {
+        model: "openai/gpt-6-luna",
+        source: "gateway",
+        modelId: "openai/gpt-6-luna",
+      },
+    });
+
+    await readSseText(response);
+
+    expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationKey: "chat-agent-turn:msg_no_usage:agent_runs",
+        tokenUsage: null,
+        aiCreditModelId: undefined,
+        aiCreditCredentialSource: undefined,
+      }),
+    );
+  });
+
+  function preparedTurnWithStream(toUIMessageStream: (signal?: AbortSignal) => ReadableStream) {
+    const stream = vi.fn(async ({ abortSignal }: { abortSignal?: AbortSignal }) => ({
+      usage: Promise.resolve(null),
+      toUIMessageStream: () => toUIMessageStream(abortSignal),
+    }));
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      agent: { stream },
+      chatMessages: [],
+      clarificationFollowUp: null,
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+    return stream;
+  }
+
+  async function waitFor(assertion: () => void, timeoutMs = 3_000) {
+    const startedAt = Date.now();
+    while (true) {
+      try {
+        assertion();
+        return;
+      } catch (error) {
+        if (Date.now() - startedAt > timeoutMs) {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+  }
+
+  it("finishes and saves the turn after the client disconnects", async () => {
+    let releaseText: () => void = () => {};
+    const textReady = new Promise<void>((resolve) => {
+      releaseText = resolve;
+    });
+    const stream = preparedTurnWithStream(
+      () =>
+        new ReadableStream({
+          async start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            await textReady;
+            controller.enqueue({ type: "text-start", id: "text_1" });
+            controller.enqueue({ type: "text-delta", id: "text_1", delta: "Still here." });
+            controller.enqueue({ type: "text-end", id: "text_1" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    const deferred: Array<() => Promise<unknown>> = [];
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      runId: "run_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+      deferAfterResponse: (task) => deferred.push(task),
+    });
+
+    await response.body?.cancel();
+    releaseText();
+    expect(deferred).toHaveLength(1);
+    await deferred[0]?.();
+
+    expect(stream.mock.calls[0]?.[0].abortSignal?.aborted).toBe(false);
+    expect(addInteractionMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ senderType: "agent", text: "Still here." }),
+    );
+    expect(finishConversationRunMock).toHaveBeenCalledWith({
+      runId: "run_123",
+      status: "completed",
+      agentMessageId: "msg_agent",
+    });
+  });
+
+  it("stops the turn on a cancel request and keeps what it produced", async () => {
+    saveConversationRunSnapshotMock.mockResolvedValue({ cancelRequested: true });
+    preparedTurnWithStream(
+      (signal) =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            controller.enqueue({ type: "text-start", id: "text_1" });
+            controller.enqueue({ type: "text-delta", id: "text_1", delta: "Partial answer" });
+            signal?.addEventListener("abort", () => {
+              controller.enqueue({ type: "abort" });
+              controller.close();
+            });
+          },
+        }),
+    );
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      runId: "run_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+    });
+    await readSseText(response);
+
+    await waitFor(() =>
+      expect(finishConversationRunMock).toHaveBeenCalledWith({
+        runId: "run_123",
+        status: "interrupted",
+        agentMessageId: "msg_agent",
+      }),
+    );
+    expect(addInteractionMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Partial answer",
+        parts: expect.arrayContaining([
+          { type: "data-interrupted", data: { reason: "user_cancelled" } },
+        ]),
+      }),
+    );
+    expect(trackSucceededAgentRuntimeUsageMock).not.toHaveBeenCalled();
+  });
+
+  it("stores a stopped reply when the turn is stopped before any output", async () => {
+    saveConversationRunSnapshotMock.mockResolvedValue({ cancelRequested: true });
+    preparedTurnWithStream(
+      (signal) =>
+        new ReadableStream({
+          start(controller) {
+            signal?.addEventListener("abort", () => {
+              controller.enqueue({ type: "abort" });
+              controller.close();
+            });
+          },
+        }),
+    );
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      runId: "run_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+    });
+    await readSseText(response);
+
+    await waitFor(() =>
+      expect(finishConversationRunMock).toHaveBeenCalledWith({
+        runId: "run_123",
+        status: "interrupted",
+        agentMessageId: "msg_agent",
+      }),
+    );
+    expect(addInteractionMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "(stopped)",
+        parts: [{ type: "data-interrupted", data: { reason: "user_cancelled" } }],
+      }),
+    );
+  });
+
+  it("marks the turn failed when no reply could be stored", async () => {
+    preparedTurnWithStream(
+      () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            controller.enqueue({ type: "text-start", id: "text_1" });
+            controller.enqueue({ type: "text-delta", id: "text_1", delta: "Done." });
+            controller.enqueue({ type: "text-end", id: "text_1" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    addInteractionMessageMock.mockRejectedValueOnce(new Error("database unavailable"));
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      runId: "run_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+    });
+    await readSseText(response);
+
+    await waitFor(() =>
+      expect(finishConversationRunMock).toHaveBeenCalledWith({
+        runId: "run_123",
+        status: "failed",
+        agentMessageId: null,
+      }),
+    );
+  });
+
+  it("sends a shortened tool result and stores the full one", async () => {
+    const longOutput = { content: "x".repeat(5_000) };
+    preparedTurnWithStream(
+      () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            controller.enqueue({
+              type: "tool-input-available",
+              toolCallId: "call_1",
+              toolName: "readFile",
+              input: { path: "a.txt" },
+            });
+            controller.enqueue({
+              type: "tool-output-available",
+              toolCallId: "call_1",
+              output: longOutput,
+            });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      runId: "run_123",
+      messageText: "Read it",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+    });
+    const body = await readSseText(response);
+
+    expect(body).toContain("data-toolOutputTruncated");
+    expect(body).toContain("more characters");
+    expect(body).not.toContain("x".repeat(3_000));
+    await waitFor(() => expect(saveInteractionMessageToolOutputsMock).toHaveBeenCalled());
+    const saved = saveInteractionMessageToolOutputsMock.mock.calls[0]?.[0];
+    expect(saved.messageId).toBe("msg_agent");
+    expect(saved.outputs.get("call_1")).toEqual(longOutput);
+  });
+
+  it("offers clarification options as a data part", async () => {
+    prepareConversationAgentTurnMock.mockResolvedValueOnce({
+      classification: baseClassification,
+      agent: { stream: vi.fn() },
+      chatMessages: [],
+      clarificationFollowUp: "Which repository should I use?",
+      clarificationOptions: ["acme/web", "acme/api"],
+      updatedRepositorySession: null,
+      staleSandboxId: null,
+      repositorySandboxId: null,
+    });
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      runId: "run_123",
+      messageText: "fix the copy",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+    });
+    const body = await readSseText(response);
+
+    expect(body).toContain("data-clarification");
+    expect(addInteractionMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parts: expect.arrayContaining([
+          {
+            type: "data-clarification",
+            data: { question: "Which repository should I use?", options: ["acme/web", "acme/api"] },
+          },
+        ]),
+      }),
+    );
+    await waitFor(() =>
+      expect(finishConversationRunMock).toHaveBeenCalledWith({
+        runId: "run_123",
+        status: "completed",
+        agentMessageId: "msg_agent",
       }),
     );
   });

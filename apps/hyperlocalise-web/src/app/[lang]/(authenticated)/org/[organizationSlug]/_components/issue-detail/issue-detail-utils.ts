@@ -198,16 +198,40 @@ export function isExternalHttpUrl(url: string) {
   }
 }
 
+export type IssueDetailHrefScope = "organization" | "project";
+
 export function buildIssueDetailHref({
   organizationSlug,
   projectId,
   issueId,
+  scope = "project",
 }: {
   organizationSlug: string;
-  projectId: string;
+  projectId?: string;
   issueId: string;
+  scope?: IssueDetailHrefScope;
 }) {
+  if (scope === "organization" || !projectId) {
+    return `/org/${encodeURIComponent(organizationSlug)}/issues/${encodeURIComponent(issueId)}`;
+  }
+
   return `/org/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet/${encodeURIComponent(issueId)}`;
+}
+
+export function buildIssueListHref({
+  organizationSlug,
+  projectId,
+  scope = "project",
+}: {
+  organizationSlug: string;
+  projectId?: string;
+  scope?: IssueDetailHrefScope;
+}) {
+  if (scope === "organization" || !projectId) {
+    return `/org/${encodeURIComponent(organizationSlug)}/issues`;
+  }
+
+  return `/org/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
 }
 
 const ISSUE_BREADCRUMB_TITLE_MAX_LENGTH = 72;

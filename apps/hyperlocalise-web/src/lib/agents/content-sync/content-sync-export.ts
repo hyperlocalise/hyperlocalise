@@ -10,13 +10,24 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedOfficeTranslationFileFormat,
+  inferSupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 
 const JSON_COMPATIBLE_EXPORT_FORMATS = new Set(["json", "jsonc", "arb"]);
 
 export function isContentSyncJsonCompatiblePath(path: string): boolean {
   const format = inferSupportedTranslationFileFormat(path);
   return format !== null && JSON_COMPATIBLE_EXPORT_FORMATS.has(format);
+}
+
+export function isContentSyncLottieCompatiblePath(path: string): boolean {
+  return inferSupportedTranslationFileFormat(path) === "lottie";
+}
+
+export function isContentSyncOfficeCompatiblePath(path: string): boolean {
+  return inferSupportedOfficeTranslationFileFormat(path) !== null;
 }
 
 export function buildContentSyncLocalePath(providerPath: string, locale: string): string {
@@ -53,5 +64,23 @@ export function buildContentSyncPushCandidate(input: {
   return {
     targetPath: buildContentSyncLocalePath(input.providerPath, input.locale),
     content: serializeContentSyncJsonExport(input.prefilled),
+  };
+}
+
+/** Target path for dotLottie exports; binary content is built separately. */
+export function buildContentSyncLottiePushTarget(input: {
+  providerPath: string;
+  locale: string;
+  translatedKeyCount: number;
+  prefilled: Record<string, string>;
+}): { targetPath: string } | null {
+  if (!isContentSyncLottieCompatiblePath(input.providerPath)) {
+    return null;
+  }
+  if (!shouldExportContentSyncTranslations(input)) {
+    return null;
+  }
+  return {
+    targetPath: buildContentSyncLocalePath(input.providerPath, input.locale),
   };
 }

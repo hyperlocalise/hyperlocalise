@@ -11,22 +11,25 @@
  * Version 2.0 or later.
  */
 import { hasCapability } from "@/api/auth/policy";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { requireAutumnWorkspaceBooleanFeature } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { IssuesPageContent } from "./_components/issues-page-content";
-import { OrgPageSuspense } from "../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "issues");
+}
 
 export default function IssuesPage({ params }: { params: Promise<{ organizationSlug: string }> }) {
-  return (
-    <OrgPageSuspense>
-      <IssuesPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <IssuesPageLoader params={params} />;
 }
 
 async function IssuesPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
+  await requireAutumnWorkspaceBooleanFeature(autumnFeatureIds.queriesBoard, auth);
   const canEditIssues = hasCapability(auth.membership.role, "write_back:translation");
 
   return <IssuesPageContent organizationSlug={organizationSlug} canEditIssues={canEditIssues} />;

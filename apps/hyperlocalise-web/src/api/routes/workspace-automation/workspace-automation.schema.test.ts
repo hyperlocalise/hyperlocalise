@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { createWorkspaceAutomationBodySchema } from "./workspace-automation.schema";
+import {
+  createWorkspaceAutomationBodySchema,
+  updateWorkspaceAutomationBodySchema,
+} from "./workspace-automation.schema";
 
 describe("createWorkspaceAutomationBodySchema", () => {
   it("accepts a content sync payload without trigger or tool config", () => {
@@ -35,12 +38,45 @@ describe("createWorkspaceAutomationBodySchema", () => {
     }
   });
 
-  it("still requires instructions for agent automations", () => {
+  it("accepts an agent automation with a skill and no instructions", () => {
+    const parsed = createWorkspaceAutomationBodySchema.safeParse({
+      name: "Research brief",
+      triggerConfig: { mode: "manual" },
+      repositoryTarget: { kind: "none" },
+      toolConfig: { webSearch: { enabled: true } },
+      skillIds: ["research-web"],
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("still requires instructions for agent automations without a skill", () => {
     const parsed = createWorkspaceAutomationBodySchema.safeParse({
       name: "Review pull requests",
       triggerConfig: { mode: "manual" },
       repositoryTarget: { kind: "none" },
       toolConfig: {},
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+});
+
+describe("updateWorkspaceAutomationBodySchema", () => {
+  it("accepts an owner-only payload", () => {
+    const parsed = updateWorkspaceAutomationBodySchema.safeParse({
+      authorUserId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.authorUserId).toBe("11111111-1111-4111-8111-111111111111");
+    }
+  });
+
+  it("rejects a non-uuid owner", () => {
+    const parsed = updateWorkspaceAutomationBodySchema.safeParse({
+      authorUserId: "user_001",
     });
 
     expect(parsed.success).toBe(false);

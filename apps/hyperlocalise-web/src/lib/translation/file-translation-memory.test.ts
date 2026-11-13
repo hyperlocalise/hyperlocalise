@@ -18,6 +18,7 @@ type UpsertedMemoryEntry = {
   memoryId: string;
   metadata: { segmentKey: string };
   normalizedSourceText: string;
+  reviewStatus: string;
   sourceText: string;
   targetText: string;
 };
@@ -121,7 +122,13 @@ const {
     listHiddenKeysMock,
     onConflictDoUpdateMock,
     selectMock,
-    sqlMock: vi.fn((strings: TemplateStringsArray) => ({ sql: strings.join("") })),
+    sqlMock: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
+      sql: strings.reduce(
+        (result, part, index) =>
+          `${result}${part}${index < values.length ? String(values[index]) : ""}`,
+        "",
+      ),
+    })),
     valuesMock,
     whereMock,
   };
@@ -180,6 +187,7 @@ vi.mock("@/lib/database/client", () => ({
 }));
 
 import {
+  FILE_TRANSLATION_MEMORY_WRITE_BATCH_SIZE,
   persistFileTranslationMemoryEntries,
   reuseFileTranslationMemoryEntries,
 } from "./file-memory";
@@ -229,9 +237,11 @@ describe("persistFileTranslationMemoryEntries", () => {
     ).toMatchObject({
       externalKey: "job_1:fr:second",
       metadata: { segmentKey: "second" },
+      reviewStatus: "pending",
       sourceText: " hello   world ",
       targetText: "Salut le monde",
     });
+    expect(values.every((value) => value.reviewStatus === "pending")).toBe(true);
   });
 
   it("uses the database clock for conflict update timestamps", async () => {
@@ -248,7 +258,9 @@ describe("persistFileTranslationMemoryEntries", () => {
 
     expect(onConflictDoUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        setWhere: { sql: "reviewStatus <> 'approved'" },
         set: expect.objectContaining({
+          reviewStatus: { sql: "excluded.review_status" },
           updatedAt: { sql: "now()" },
           version: expect.anything(),
         }),
@@ -322,6 +334,61 @@ describe("persistFileTranslationMemoryEntries", () => {
     });
 
     expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("skips oversized segments that would exceed the Postgres index row limit", async () => {
+    listAttachedMemoryIdsMock.mockResolvedValueOnce(["memory_1"]);
+    const oversized = `<p>${"lorem ipsum ".repeat(500)}</p>`;
+
+    await persistFileTranslationMemoryEntries({
+      jobId: "job_1",
+      projectId: "project_1",
+      sourceEntries: {
+        title: "Hello",
+        "post-content": oversized,
+      },
+      sourceFileHash: "hash_1",
+      sourceLocale: "en",
+      sourcePath: "webflow/site/collection/article.json",
+      targetEntries: {
+        title: "Bonjour",
+        "post-content": `<p>${"bonjour ".repeat(500)}</p>`,
+      },
+      targetLocale: "fr",
+    });
+
+    expect(valuesMock).toHaveBeenCalledOnce();
+    const [values] = valuesMock.mock.calls[0];
+    expect(values.map((value) => value.metadata.segmentKey)).toEqual(["title"]);
+  });
+
+  it("splits large upserts so each insert stays under the Postgres bind limit", async () => {
+    listAttachedMemoryIdsMock.mockResolvedValueOnce(["memory_1"]);
+    const overflowCount = FILE_TRANSLATION_MEMORY_WRITE_BATCH_SIZE + 1;
+    const sourceEntries = Object.fromEntries(
+      Array.from({ length: overflowCount }, (_, index) => [`key_${index}`, `Source ${index}`]),
+    );
+    const targetEntries = Object.fromEntries(
+      Array.from({ length: overflowCount }, (_, index) => [`key_${index}`, `Cible ${index}`]),
+    );
+
+    await persistFileTranslationMemoryEntries({
+      jobId: "job_1",
+      projectId: "project_1",
+      sourceEntries,
+      sourceFileHash: "hash_1",
+      sourceLocale: "en",
+      sourcePath: "locales/en.json",
+      targetEntries,
+      targetLocale: "fr",
+    });
+
+    expect(valuesMock).toHaveBeenCalledTimes(2);
+    expect(onConflictDoUpdateMock).toHaveBeenCalledTimes(2);
+    const batches = valuesMock.mock.calls.map((call) => call[0]);
+    expect(batches[0]).toHaveLength(FILE_TRANSLATION_MEMORY_WRITE_BATCH_SIZE);
+    expect(batches[1]).toHaveLength(1);
+    expect(batches.flat()).toHaveLength(overflowCount);
   });
 });
 
@@ -462,5 +529,86 @@ describe("reuseFileTranslationMemoryEntries", () => {
         resourceId: "memory_1",
       }),
     ]);
+  });
+
+  it("does not reuse multi-word source copies from translation memory", async () => {
+    whereMock.mockResolvedValueOnce([
+      {
+        id: "entry_1",
+        memoryId: "memory_1",
+        sourceText: "Enable workspace knowledge",
+        sourceLocale: "en",
+        provenance: "file_job",
+        matchScore: 100,
+        externalKey: "job:fr:workspace",
+        memoryName: "Project TM",
+        externalProviderKind: null,
+        externalMemoryId: null,
+        metadata: {
+          segmentKey: "workspace",
+          sourceTextHash: createHash("sha256")
+            .update("Enable workspace knowledge", "utf8")
+            .digest("hex"),
+        },
+        normalizedSourceText: "enable workspace knowledge",
+        targetLocale: "fr",
+        targetText: "Enable workspace knowledge",
+      },
+      {
+        id: "entry_2",
+        memoryId: "memory_1",
+        sourceText: "Hyperlocalise",
+        sourceLocale: "en",
+        provenance: "file_job",
+        matchScore: 100,
+        externalKey: "job:fr:brand",
+        memoryName: "Project TM",
+        externalProviderKind: null,
+        externalMemoryId: null,
+        metadata: {
+          segmentKey: "brand",
+          sourceTextHash: createHash("sha256").update("Hyperlocalise", "utf8").digest("hex"),
+        },
+        normalizedSourceText: "hyperlocalise",
+        targetLocale: "fr",
+        targetText: "Hyperlocalise",
+      },
+    ]);
+
+    const result = await reuseFileTranslationMemoryEntries({
+      projectId: "project_1",
+      sourceEntries: {
+        workspace: "Enable workspace knowledge",
+        brand: "Hyperlocalise",
+      },
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+
+    expect(result.prefilled).toEqual({ brand: "Hyperlocalise" });
+    expect(result.matchesByKey.workspace).toBeUndefined();
+  });
+
+  it("looks up reusable memory entries in batches of 500 normalized sources", async () => {
+    whereMock.mockResolvedValue([]);
+    const sourceEntries = Object.fromEntries(
+      Array.from({ length: 501 }, (_, index) => [`key_${index}`, `Phrase ${index}`]),
+    );
+
+    await reuseFileTranslationMemoryEntries({
+      projectId: "project_1",
+      sourceEntries,
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+
+    const lookupBatches = inArrayMock.mock.calls
+      .filter((call) => call[0] === "normalizedSourceText")
+      .map((call) => call[1] as string[]);
+    expect(lookupBatches).toHaveLength(2);
+    expect(lookupBatches[0]).toHaveLength(500);
+    expect(lookupBatches[1]).toHaveLength(1);
+    expect(lookupBatches.flat()).toHaveLength(501);
+    expect(whereMock).toHaveBeenCalledTimes(2);
   });
 });

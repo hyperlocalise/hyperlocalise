@@ -63,7 +63,7 @@ import { env } from "@/lib/env";
 import { verifyGitHubState } from "@/lib/agents/github/oauth-state";
 
 const client = testClient<AppType>(createApp());
-const fixture = createProjectTestFixture(client);
+const fixture = createProjectTestFixture();
 
 async function createInstallationFixture(role: "admin" | "member" = "admin") {
   const identity = fixture.createWorkosIdentityWithRole(role);

@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMutation } from "@tanstack/react-query";
+import { useEffect, useRef, type MutableRefObject } from "react";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
 
 import {
@@ -20,31 +21,60 @@ import {
   maxNativeContentEditorHiddenStringBatch,
   type ProjectFileContentEditorQueueFile,
 } from "@/api/routes/project/project.schema";
-import { readApiError } from "@/lib/api-error";
+import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 
-import type { ContentEditorIssueType } from "@/components/content-editor/shared/types";
+import type { ContentEditorProjectSource } from "@/components/content-editor/shared/content-editor-native-project";
+import { canUseGoSvcCat } from "@/components/content-editor/shared/content-editor-native-project";
+import type {
+  ContentEditorIssueType,
+  ContentEditorQueueSegment,
+} from "@/components/content-editor/shared/types";
 
 import { requireProviderExternalResourceId } from "./project-file-content-editor-mapper";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
-import { useInvalidateCatSegmentComments } from "./use-content-editor-segment-comments";
+import {
+  projectFileCatSegmentCommentsQueryKey,
+  useInvalidateCatSegmentComments,
+} from "./use-content-editor-segment-comments";
 import {
   useInvalidateCatSegmentTarget,
   useSyncCatSegmentTargetAfterSave,
 } from "./use-content-editor-segment-target";
 import { useContentEditorMutationsMessages } from "./use-content-editor-mutations.messages";
+import { catGroupVariantsQueryKeyRoot } from "../groups/use-content-editor-group-variants";
+
+const INLINE_QUEUE_REFRESH_DELAY_MS = 750;
+
+export type ContentEditorSegmentFileIdentity = Pick<
+  ContentEditorQueueSegment,
+  "sourcePath" | "externalResourceId" | "resourceType"
+>;
+
+/**
+ * Reads identity for segments the workspace still holds after their queue page was
+ * evicted from the bounded page window, so mutations on a retained selection resolve
+ * a real source file instead of the aggregate "all files" path.
+ */
+export type ContentEditorSegmentFileIdentityLookupRef = MutableRefObject<
+  ((externalStringId: string) => ContentEditorSegmentFileIdentity | undefined) | null
+>;
 
 function resolveCatMutationFileIdentity(
   input: {
     sourcePath: string;
     contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
+    retainedSegmentIdentityRef?: ContentEditorSegmentFileIdentityLookupRef;
   },
   externalStringId: string,
   intl: IntlShape,
 ) {
-  const segment = input.contentEditorFile?.segments.find(
-    (entry) => entry.externalStringId === externalStringId,
-  );
+  const segment: ContentEditorSegmentFileIdentity | undefined =
+    input.contentEditorFile?.segments.find(
+      (entry) => entry.externalStringId === externalStringId,
+    ) ?? input.retainedSegmentIdentityRef?.current?.(externalStringId);
   const sourcePath =
     segment?.sourcePath?.trim() ||
     (isContentEditorAllFilesSourcePath(input.sourcePath) ? "" : input.sourcePath);
@@ -63,6 +93,18 @@ function resolveCatMutationFileIdentity(
   return { sourcePath, externalResourceId, resourceType };
 }
 
+export type ContentEditorGroupSaveScope = { sourcePath: string; sourcePaths?: string[] };
+
+function resolveGroupSave(
+  scope: ContentEditorGroupSaveScope | null | undefined,
+  segment: { occurrenceCount?: number } | undefined,
+  variant: { occurrenceIds: string[] } | undefined,
+) {
+  if (!scope) return null;
+  if (variant) return { ...scope, occurrenceIds: variant.occurrenceIds };
+  return (segment?.occurrenceCount ?? 0) > 1 ? scope : null;
+}
+
 function chunkItems<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += size) {
@@ -71,29 +113,172 @@ function chunkItems<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
-export function useContentEditorMutations(input: {
+/** File-tree `isHidden` and per-file progress both change when strings are hidden. */
+function invalidateContentEditorFileMetadata(
+  queryClient: QueryClient,
+  organizationSlug: string,
+  projectId: string,
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: ["project-files", organizationSlug, projectId],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["project-file-progress", organizationSlug, projectId],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["project-hidden-files", organizationSlug, projectId],
+    }),
+  ]);
+}
+
+function prefersGoSvcCat(input: {
+  goSvcClient?: GoSvcClient;
+  projectId: string;
+  projectSource?: ContentEditorProjectSource | null;
+  contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
+}) {
+  return (
+    Boolean(input.goSvcClient) &&
+    canUseGoSvcCat({
+      projectId: input.projectId,
+      projectSource: input.projectSource,
+    }) &&
+    !input.contentEditorFile?.provider
+  );
+}
+
+async function captureNativeCatTranslationSideEffectsViaApp(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
   targetLocale: string;
+  externalStringId: string;
+  text: string;
+  approve?: boolean;
+}) {
+  try {
+    await apiClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.translations["reporting-capture"].$post({
+      param: {
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+      },
+      json: {
+        sourcePath: input.sourcePath,
+        targetLocale: input.targetLocale,
+        externalStringId: input.externalStringId,
+        text: input.text,
+        approve: input.approve,
+      },
+    });
+  } catch {
+    // Reporting and product analytics capture are best-effort and must not block CAT saves.
+  }
+}
+
+async function captureNativeCatCommentProductUsageViaApp(input: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  externalStringId: string;
+  text: string;
+  type?: "comment" | "issue";
+}) {
+  try {
+    await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files.detail.cat.comments[
+      "product-usage-capture"
+    ].$post({
+      param: {
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+      },
+      json: {
+        sourcePath: input.sourcePath,
+        targetLocale: input.targetLocale,
+        externalStringId: input.externalStringId,
+        text: input.text,
+        type: input.type,
+      },
+    });
+  } catch {
+    // Product analytics capture is best-effort and must not block CAT comments.
+  }
+}
+
+async function runNativeCat<T>(
+  preferGoSvc: boolean,
+  goSvc: () => Promise<T>,
+  app: () => Promise<T>,
+  fallback: string,
+): Promise<T> {
+  if (!preferGoSvc) {
+    return app();
+  }
+
+  try {
+    return await goSvc();
+  } catch (error) {
+    if (isCatDeferredToApp(error)) {
+      return app();
+    }
+    throw new Error(goSvcErrorMessage(error, fallback));
+  }
+}
+
+export function useContentEditorMutations(input: {
+  organizationSlug: string;
+  projectId: string;
+  projectSource?: ContentEditorProjectSource | null;
+  sourcePath: string;
+  targetLocale: string;
   contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
+  retainedSegmentIdentityRef?: ContentEditorSegmentFileIdentityLookupRef;
   invalidateQueue: () => Promise<void>;
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
+  goSvcClient?: GoSvcClient;
+  /** Queue scope for grouped rows. Saves on rows with several occurrences write to all of them. */
+  groupScope?: ContentEditorGroupSaveScope | null;
 }) {
   const intl = useIntl();
+  const queryClient = useQueryClient();
   const invalidateSegmentTarget = useInvalidateCatSegmentTarget();
   const syncSegmentTargetAfterSave = useSyncCatSegmentTargetAfterSave();
   const invalidateSegmentComments = useInvalidateCatSegmentComments();
+
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRefreshes = useRef(new Set<() => Promise<void>>());
+  const flushQueueRefreshes = () => {
+    refreshTimer.current = null;
+    for (const refresh of pendingRefreshes.current) void refresh().catch(() => undefined);
+    pendingRefreshes.current.clear();
+  };
+  useEffect(
+    () => () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      for (const refresh of pendingRefreshes.current) void refresh().catch(() => undefined);
+      pendingRefreshes.current.clear();
+    },
+    [],
+  );
 
   const saveMutation = useMutation({
     mutationFn: async (mutationInput: {
       externalStringId: string;
       text: string;
       approve?: boolean;
+      deferQueueRefresh?: boolean;
+      targetLocale?: string;
+      coalesceQueueRefresh?: boolean;
+      /** Saves one translation variant: only these occurrences, identified by one of them. */
+      variant?: { sourcePath: string; occurrenceIds: string[] };
     }) => {
       const segment = input.contentEditorFile?.segments.find(
         (entry) => entry.externalStringId === mutationInput.externalStringId,
       );
+      const group = resolveGroupSave(input.groupScope, segment, mutationInput.variant);
       // Hidden is informational (hidden-string ADRs). Only an explicit lock blocks saves.
       if (segment?.isLocked) {
         throw new Error(
@@ -101,40 +286,68 @@ export function useContentEditorMutations(input: {
         );
       }
 
-      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
-        input,
-        mutationInput.externalStringId,
-        intl,
+      const { sourcePath, externalResourceId } = mutationInput.variant
+        ? { sourcePath: mutationInput.variant.sourcePath, externalResourceId: undefined }
+        : resolveCatMutationFileIdentity(input, mutationInput.externalStringId, intl);
+      const fallback = intl.formatMessage(
+        useContentEditorMutationsMessages.failedToSaveTranslation,
       );
 
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat.translations.$post({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
+      return runNativeCat(
+        prefersGoSvcCat(input),
+        async () => {
+          const body = await input.goSvcClient!.cat.saveTranslation(
+            input.organizationSlug,
+            input.projectId,
+            {
+              sourcePath,
+              targetLocale: mutationInput.targetLocale ?? input.targetLocale,
+              externalStringId: mutationInput.externalStringId,
+              text: mutationInput.text,
+              approve: mutationInput.approve,
+              ...(group ? { group } : {}),
+            },
+          );
+          // Product analytics only; Reports learns of the save from the Go service's activity
+          // event through the reporting-capture cron, so the save does not wait on this.
+          void captureNativeCatTranslationSideEffectsViaApp({
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+            sourcePath,
+            targetLocale: mutationInput.targetLocale ?? input.targetLocale,
+            externalStringId: mutationInput.externalStringId,
+            text: mutationInput.text,
+            approve: mutationInput.approve,
+          });
+          return body.translation;
         },
-        json: {
-          sourcePath,
-          targetLocale: input.targetLocale,
-          externalStringId: mutationInput.externalStringId,
-          externalResourceId,
-          text: mutationInput.text,
-          approve: mutationInput.approve,
+        async () => {
+          const response = await apiClient.api.orgs[":organizationSlug"].projects[
+            ":projectId"
+          ].files.detail.cat.translations.$post({
+            param: {
+              organizationSlug: input.organizationSlug,
+              projectId: input.projectId,
+            },
+            json: {
+              sourcePath,
+              targetLocale: mutationInput.targetLocale ?? input.targetLocale,
+              externalStringId: mutationInput.externalStringId,
+              externalResourceId,
+              text: mutationInput.text,
+              approve: mutationInput.approve,
+            },
+          });
+
+          if (response.status !== 200) {
+            throw new Error(await readApiError(response, fallback));
+          }
+
+          const body = await response.json();
+          return body.translation;
         },
-      });
-
-      if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useContentEditorMutationsMessages.failedToSaveTranslation),
-          ),
-        );
-      }
-
-      const body = await response.json();
-      return body.translation;
+        fallback,
+      );
     },
     onSuccess: async (translation, variables) => {
       input.onTranslationSaved?.(
@@ -142,6 +355,26 @@ export function useContentEditorMutations(input: {
         variables.text,
         translation.isApproved,
       );
+      const segment = input.contentEditorFile?.segments.find(
+        (entry) => entry.externalStringId === variables.externalStringId,
+      );
+      if (resolveGroupSave(input.groupScope, segment, variables.variant)) {
+        // Other occurrences may be open in any layout; refresh every cached target and variant list.
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: [
+              "project-file-content-editor-segment-target",
+              input.organizationSlug,
+              input.projectId,
+            ],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: catGroupVariantsQueryKeyRoot(input.organizationSlug, input.projectId),
+          }),
+        ]);
+        void input.invalidateQueue().catch(() => undefined);
+        return;
+      }
       const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
         input,
         variables.externalStringId,
@@ -154,14 +387,20 @@ export function useContentEditorMutations(input: {
         sourcePath,
         externalResourceId,
         resourceType,
-        targetLocale: input.targetLocale,
+        targetLocale: variables.targetLocale ?? input.targetLocale,
         externalStringId: variables.externalStringId,
       };
 
-      await Promise.all([
-        input.invalidateQueue(),
-        syncSegmentTargetAfterSave(segmentTargetInput, translation),
-      ]);
+      // Reconcile the saved target before releasing the mutation, but never wait for
+      // unrelated reads. Bulk operations refresh the queue once when complete.
+      await syncSegmentTargetAfterSave(segmentTargetInput, translation);
+      if (variables.coalesceQueueRefresh) {
+        pendingRefreshes.current.add(input.invalidateQueue);
+        if (refreshTimer.current) clearTimeout(refreshTimer.current);
+        refreshTimer.current = setTimeout(flushQueueRefreshes, INLINE_QUEUE_REFRESH_DELAY_MS);
+      } else if (!variables.deferQueueRefresh) {
+        void input.invalidateQueue().catch(() => undefined);
+      }
     },
   });
 
@@ -177,45 +416,91 @@ export function useContentEditorMutations(input: {
         mutationInput.externalStringId,
         intl,
       );
+      const fallback = intl.formatMessage(useContentEditorMutationsMessages.failedToPostComment);
 
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat.comments.$post({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
+      return runNativeCat(
+        prefersGoSvcCat(input),
+        async () => {
+          const body = await input.goSvcClient!.cat.saveComment(
+            input.organizationSlug,
+            input.projectId,
+            {
+              sourcePath,
+              targetLocale: input.targetLocale,
+              externalStringId: mutationInput.externalStringId,
+              text: mutationInput.text,
+              type: mutationInput.type,
+              issueType: mutationInput.issueType,
+            },
+          );
+          await captureNativeCatCommentProductUsageViaApp({
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+            sourcePath,
+            targetLocale: input.targetLocale,
+            externalStringId: mutationInput.externalStringId,
+            text: mutationInput.text,
+            type: mutationInput.type,
+          });
+          return body.comment;
         },
-        json: {
-          sourcePath,
-          targetLocale: input.targetLocale,
-          externalStringId: mutationInput.externalStringId,
-          externalResourceId,
-          text: mutationInput.text,
-          type: mutationInput.type,
-          issueType: mutationInput.issueType,
+        async () => {
+          const response = await apiClient.api.orgs[":organizationSlug"].projects[
+            ":projectId"
+          ].files.detail.cat.comments.$post({
+            param: {
+              organizationSlug: input.organizationSlug,
+              projectId: input.projectId,
+            },
+            json: {
+              sourcePath,
+              targetLocale: input.targetLocale,
+              externalStringId: mutationInput.externalStringId,
+              externalResourceId,
+              text: mutationInput.text,
+              type: mutationInput.type,
+              issueType: mutationInput.issueType,
+            },
+          });
+
+          if (response.status !== 200) {
+            throw new Error(await readApiError(response, fallback));
+          }
+
+          const body = await response.json();
+          return body.comment;
         },
-      });
-
-      if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useContentEditorMutationsMessages.failedToPostComment),
-          ),
-        );
-      }
-
-      const body = await response.json();
-      return body.comment;
+        fallback,
+      );
     },
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (comment, variables) => {
       const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
         input,
         variables.externalStringId,
         intl,
       );
 
-      await Promise.all([
+      const commentKey = projectFileCatSegmentCommentsQueryKey({
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+        sourcePath,
+        externalResourceId,
+        resourceType,
+        targetLocale: input.targetLocale,
+        externalStringId: variables.externalStringId,
+      });
+      await queryClient.cancelQueries({ queryKey: commentKey });
+      // Do not fabricate a complete collection when the comments have not loaded.
+      queryClient.setQueryData<Array<typeof comment>>(commentKey, (previous) =>
+        previous
+          ? previous.some((entry) => entry.externalCommentId === comment.externalCommentId)
+            ? previous.map((entry) =>
+                entry.externalCommentId === comment.externalCommentId ? comment : entry,
+              )
+            : [...previous, comment]
+          : previous,
+      );
+      void Promise.allSettled([
         input.invalidateQueue(),
         invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,
@@ -246,41 +531,72 @@ export function useContentEditorMutations(input: {
         mutationInput.externalStringId,
         intl,
       );
+      const fallback = intl.formatMessage(useContentEditorMutationsMessages.failedToResolveIssue);
 
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat.comments[":commentId"].resolve.$patch({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
-          commentId: mutationInput.externalCommentId,
+      return runNativeCat(
+        prefersGoSvcCat(input),
+        async () => {
+          const body = await input.goSvcClient!.cat.resolveComment(
+            input.organizationSlug,
+            input.projectId,
+            mutationInput.externalCommentId,
+            { sourcePath, externalResourceId },
+          );
+          return body.comment;
         },
-        json: {
-          sourcePath,
-          externalResourceId,
+        async () => {
+          const response = await apiClient.api.orgs[":organizationSlug"].projects[
+            ":projectId"
+          ].files.detail.cat.comments[":commentId"].resolve.$patch({
+            param: {
+              organizationSlug: input.organizationSlug,
+              projectId: input.projectId,
+              commentId: mutationInput.externalCommentId,
+            },
+            json: {
+              sourcePath,
+              externalResourceId,
+            },
+          });
+
+          if (response.status !== 200) {
+            throw new Error(await readApiError(response, fallback));
+          }
+
+          const body = await response.json();
+          return body.comment;
         },
-      });
-
-      if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useContentEditorMutationsMessages.failedToResolveIssue),
-          ),
-        );
-      }
-
-      const body = await response.json();
-      return body.comment;
+        fallback,
+      );
     },
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (comment, variables) => {
       const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
         input,
         variables.externalStringId,
         intl,
       );
 
-      await Promise.all([
+      const commentKey = projectFileCatSegmentCommentsQueryKey({
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+        sourcePath,
+        externalResourceId,
+        resourceType,
+        targetLocale: input.targetLocale,
+        externalStringId: variables.externalStringId,
+      });
+      await queryClient.cancelQueries({ queryKey: commentKey });
+      // Do not fabricate a complete collection when the comments have not loaded.
+      queryClient.setQueryData<Array<typeof comment>>(commentKey, (previous) =>
+        previous
+          ? previous.some((entry) => entry.externalCommentId === comment.externalCommentId)
+            ? previous.map((entry) =>
+                entry.externalCommentId === comment.externalCommentId ? comment : entry,
+              )
+            : [...previous, comment]
+          : previous,
+      );
+      void Promise.allSettled([
         input.invalidateQueue(),
         invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,
@@ -304,7 +620,10 @@ export function useContentEditorMutations(input: {
     },
   });
 
-  async function invalidateAfterImageChange(externalStringId: string) {
+  async function invalidateAfterImageChange(
+    externalStringId: string,
+    targetLocale = input.targetLocale,
+  ) {
     const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
       input,
       externalStringId,
@@ -319,7 +638,7 @@ export function useContentEditorMutations(input: {
         sourcePath,
         externalResourceId,
         resourceType,
-        targetLocale: input.targetLocale,
+        targetLocale,
         externalStringId,
       }),
     ]);
@@ -330,6 +649,9 @@ export function useContentEditorMutations(input: {
       externalStringId: string;
       instructions?: string;
       force?: boolean;
+      /** Defaults to the workspace locale; the multilingual gallery generates per locale. */
+      targetLocale?: string;
+      signal?: AbortSignal;
     }) => {
       const { sourcePath } = resolveCatMutationFileIdentity(
         input,
@@ -338,33 +660,34 @@ export function useContentEditorMutations(input: {
       );
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
-      ].files.detail.cat.images.regenerate.$post({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
+      ].files.detail.cat.images.regenerate.$post(
+        {
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          json: {
+            sourcePath,
+            targetLocale: mutationInput.targetLocale ?? input.targetLocale,
+            externalStringId: mutationInput.externalStringId,
+            instructions: mutationInput.instructions,
+            force: mutationInput.force,
+          },
         },
-        json: {
-          sourcePath,
-          targetLocale: input.targetLocale,
-          externalStringId: mutationInput.externalStringId,
-          instructions: mutationInput.instructions,
-          force: mutationInput.force,
-        },
-      });
+        { init: { signal: mutationInput.signal } },
+      );
 
       if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useContentEditorMutationsMessages.failedToRegenerateImage),
-          ),
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(useContentEditorMutationsMessages.failedToRegenerateImage),
         );
       }
 
       return response.json();
     },
     onSuccess: async (_data, variables) => {
-      await invalidateAfterImageChange(variables.externalStringId);
+      await invalidateAfterImageChange(variables.externalStringId, variables.targetLocale);
     },
   });
 
@@ -419,34 +742,51 @@ export function useContentEditorMutations(input: {
         mutationInput.externalStringId,
         intl,
       );
+      const fallback = intl.formatMessage(
+        useContentEditorMutationsMessages.failedToUpdateImageMode,
+      );
 
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat.segments[":externalStringId"]["treat-as-image"].$post({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
-          externalStringId: mutationInput.externalStringId,
-        },
-        json: {
-          sourcePath,
-          targetLocale: input.targetLocale,
-          externalStringId: mutationInput.externalStringId,
-          externalResourceId,
-          treatAsImage: mutationInput.treatAsImage,
-        },
-      });
-
-      if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateImageMode),
+      return runNativeCat(
+        prefersGoSvcCat(input),
+        () =>
+          input.goSvcClient!.cat.treatAsImage(
+            input.organizationSlug,
+            input.projectId,
+            mutationInput.externalStringId,
+            {
+              sourcePath,
+              targetLocale: input.targetLocale,
+              externalStringId: mutationInput.externalStringId,
+              externalResourceId,
+              treatAsImage: mutationInput.treatAsImage,
+            },
           ),
-        );
-      }
+        async () => {
+          const response = await apiClient.api.orgs[":organizationSlug"].projects[
+            ":projectId"
+          ].files.detail.cat.segments[":externalStringId"]["treat-as-image"].$post({
+            param: {
+              organizationSlug: input.organizationSlug,
+              projectId: input.projectId,
+              externalStringId: mutationInput.externalStringId,
+            },
+            json: {
+              sourcePath,
+              targetLocale: input.targetLocale,
+              externalStringId: mutationInput.externalStringId,
+              externalResourceId,
+              treatAsImage: mutationInput.treatAsImage,
+            },
+          });
 
-      return response.json();
+          if (response.status !== 200) {
+            throw new Error(await readApiError(response, fallback));
+          }
+
+          return response.json();
+        },
+        fallback,
+      );
     },
     onSuccess: async (_data, variables) => {
       await invalidateAfterImageChange(variables.externalStringId);
@@ -460,33 +800,49 @@ export function useContentEditorMutations(input: {
         mutationInput.externalStringId,
         intl,
       );
+      const fallback = intl.formatMessage(
+        useContentEditorMutationsMessages.failedToUpdateVideoMode,
+      );
 
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat.segments[":externalStringId"]["treat-as-video"].$post({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
-          externalStringId: mutationInput.externalStringId,
-        },
-        json: {
-          sourcePath,
-          targetLocale: input.targetLocale,
-          externalStringId: mutationInput.externalStringId,
-          treatAsVideo: mutationInput.treatAsVideo,
-        },
-      });
-
-      if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateVideoMode),
+      return runNativeCat(
+        prefersGoSvcCat(input),
+        () =>
+          input.goSvcClient!.cat.treatAsVideo(
+            input.organizationSlug,
+            input.projectId,
+            mutationInput.externalStringId,
+            {
+              sourcePath,
+              targetLocale: input.targetLocale,
+              externalStringId: mutationInput.externalStringId,
+              treatAsVideo: mutationInput.treatAsVideo,
+            },
           ),
-        );
-      }
+        async () => {
+          const response = await apiClient.api.orgs[":organizationSlug"].projects[
+            ":projectId"
+          ].files.detail.cat.segments[":externalStringId"]["treat-as-video"].$post({
+            param: {
+              organizationSlug: input.organizationSlug,
+              projectId: input.projectId,
+              externalStringId: mutationInput.externalStringId,
+            },
+            json: {
+              sourcePath,
+              targetLocale: input.targetLocale,
+              externalStringId: mutationInput.externalStringId,
+              treatAsVideo: mutationInput.treatAsVideo,
+            },
+          });
 
-      return response.json();
+          if (response.status !== 200) {
+            throw new Error(await readApiError(response, fallback));
+          }
+
+          return response.json();
+        },
+        fallback,
+      );
     },
     onSuccess: async (_data, variables) => {
       await invalidateAfterImageChange(variables.externalStringId);
@@ -498,39 +854,48 @@ export function useContentEditorMutations(input: {
       const uniqueIds = [...new Set(mutationInput.externalStringIds)];
       const chunks = chunkItems(uniqueIds, maxNativeContentEditorHiddenStringBatch);
       let updatedCount = 0;
+      const fallback = intl.formatMessage(
+        useContentEditorMutationsMessages.failedToUpdateHiddenStrings,
+      );
 
       for (const externalStringIds of chunks) {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[
-          ":projectId"
-        ].files.detail.cat.strings.hidden.$post({
-          param: {
-            organizationSlug: input.organizationSlug,
-            projectId: input.projectId,
-          },
-          json: {
-            sourcePath: input.sourcePath,
-            externalStringIds,
-            isHidden: mutationInput.isHidden,
-          },
-        });
+        const body = {
+          sourcePath: input.sourcePath,
+          externalStringIds,
+          isHidden: mutationInput.isHidden,
+        };
+        const saved = await runNativeCat(
+          prefersGoSvcCat(input),
+          () => input.goSvcClient!.cat.setHidden(input.organizationSlug, input.projectId, body),
+          async () => {
+            const response = await apiClient.api.orgs[":organizationSlug"].projects[
+              ":projectId"
+            ].files.detail.cat.strings.hidden.$post({
+              param: {
+                organizationSlug: input.organizationSlug,
+                projectId: input.projectId,
+              },
+              json: body,
+            });
 
-        if (response.status !== 200) {
-          throw new Error(
-            await readApiError(
-              response,
-              intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateHiddenStrings),
-            ),
-          );
-        }
+            if (response.status !== 200) {
+              throw new Error(await readApiError(response, fallback));
+            }
 
-        const body = await response.json();
-        updatedCount += body.updatedCount;
+            return response.json();
+          },
+          fallback,
+        );
+        updatedCount += saved.updatedCount;
       }
 
       return { updatedCount, isHidden: mutationInput.isHidden };
     },
     onSuccess: async () => {
-      await input.invalidateQueue();
+      await Promise.all([
+        input.invalidateQueue(),
+        invalidateContentEditorFileMetadata(queryClient, input.organizationSlug, input.projectId),
+      ]);
     },
   });
 
@@ -539,34 +904,40 @@ export function useContentEditorMutations(input: {
       const uniqueIds = [...new Set(mutationInput.externalStringIds)];
       const chunks = chunkItems(uniqueIds, maxCatLockedStringBatch);
       let updatedCount = 0;
+      const fallback = intl.formatMessage(
+        useContentEditorMutationsMessages.failedToUpdateLockedStrings,
+      );
 
       for (const externalStringIds of chunks) {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[
-          ":projectId"
-        ].files.detail.cat.strings.locked.$post({
-          param: {
-            organizationSlug: input.organizationSlug,
-            projectId: input.projectId,
-          },
-          json: {
-            sourcePath: input.sourcePath,
-            targetLocale: input.targetLocale,
-            externalStringIds,
-            isLocked: mutationInput.isLocked,
-          },
-        });
+        const body = {
+          sourcePath: input.sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringIds,
+          isLocked: mutationInput.isLocked,
+        };
+        const saved = await runNativeCat(
+          prefersGoSvcCat(input),
+          () => input.goSvcClient!.cat.setLocked(input.organizationSlug, input.projectId, body),
+          async () => {
+            const response = await apiClient.api.orgs[":organizationSlug"].projects[
+              ":projectId"
+            ].files.detail.cat.strings.locked.$post({
+              param: {
+                organizationSlug: input.organizationSlug,
+                projectId: input.projectId,
+              },
+              json: body,
+            });
 
-        if (response.status !== 200) {
-          throw new Error(
-            await readApiError(
-              response,
-              intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateLockedStrings),
-            ),
-          );
-        }
+            if (response.status !== 200) {
+              throw new Error(await readApiError(response, fallback));
+            }
 
-        const body = await response.json();
-        updatedCount += body.contentEditorSegmentLock.updatedCount;
+            return response.json();
+          },
+          fallback,
+        );
+        updatedCount += saved.contentEditorSegmentLock.updatedCount;
       }
 
       return { updatedCount, isLocked: mutationInput.isLocked };
@@ -583,35 +954,182 @@ export function useContentEditorMutations(input: {
         mutationInput.externalStringId,
         intl,
       );
+      const fallback = intl.formatMessage(
+        useContentEditorMutationsMessages.failedToUpdateMaxLength,
+      );
 
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat.segments[":externalStringId"]["max-length"].$post({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
-          externalStringId: mutationInput.externalStringId,
-        },
-        json: {
-          sourcePath,
-          externalStringId: mutationInput.externalStringId,
-          maxLength: mutationInput.maxLength,
-        },
-      });
-
-      if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateMaxLength),
+      return runNativeCat(
+        prefersGoSvcCat(input),
+        () =>
+          input.goSvcClient!.cat.setMaxLength(
+            input.organizationSlug,
+            input.projectId,
+            mutationInput.externalStringId,
+            {
+              sourcePath,
+              externalStringId: mutationInput.externalStringId,
+              maxLength: mutationInput.maxLength,
+            },
           ),
-        );
-      }
+        async () => {
+          const response = await apiClient.api.orgs[":organizationSlug"].projects[
+            ":projectId"
+          ].files.detail.cat.segments[":externalStringId"]["max-length"].$post({
+            param: {
+              organizationSlug: input.organizationSlug,
+              projectId: input.projectId,
+              externalStringId: mutationInput.externalStringId,
+            },
+            json: {
+              sourcePath,
+              externalStringId: mutationInput.externalStringId,
+              maxLength: mutationInput.maxLength,
+            },
+          });
 
-      return response.json();
+          if (response.status !== 200) {
+            throw new Error(await readApiError(response, fallback));
+          }
+
+          return response.json();
+        },
+        fallback,
+      );
     },
     onSuccess: async () => {
       await input.invalidateQueue();
+    },
+  });
+
+  // Tags and design links exist only on native strings, which go-svc serves.
+  const tagsMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringIds: string[];
+      addTags: string[];
+      removeTags: string[];
+    }) => {
+      const fallback = intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateTags);
+      if (!input.goSvcClient) {
+        throw new Error(fallback);
+      }
+      const chunks = chunkItems(
+        [...new Set(mutationInput.externalStringIds)],
+        maxNativeContentEditorHiddenStringBatch,
+      );
+      let updatedCount = 0;
+      try {
+        for (const externalStringIds of chunks) {
+          const saved = await input.goSvcClient.cat.setTags(
+            input.organizationSlug,
+            input.projectId,
+            {
+              sourcePath: input.sourcePath,
+              externalStringIds,
+              addTags: mutationInput.addTags,
+              removeTags: mutationInput.removeTags,
+            },
+          );
+          updatedCount += saved.updatedCount;
+        }
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, fallback), { cause: error });
+      }
+      return { updatedCount };
+    },
+    // A new tag must show in the tag suggestions and the advanced filter's list straight away.
+    // Every cached queue of the project is refreshed, not just the one on screen: a list already
+    // loaded for a tag filter would otherwise come back without the strings just tagged.
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["project-file-content-editor-queue", input.organizationSlug, input.projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["content-editor-cat-labels", input.organizationSlug, input.projectId],
+        }),
+      ]);
+    },
+  });
+
+  const designUrlMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringId: string; designUrl: string | null }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+      const fallback = intl.formatMessage(
+        useContentEditorMutationsMessages.failedToUpdateDesignUrl,
+      );
+      if (!input.goSvcClient) {
+        throw new Error(fallback);
+      }
+      try {
+        return await input.goSvcClient.cat.setDesignUrl(
+          input.organizationSlug,
+          input.projectId,
+          mutationInput.externalStringId,
+          {
+            sourcePath,
+            externalStringId: mutationInput.externalStringId,
+            designUrl: mutationInput.designUrl,
+          },
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, fallback), { cause: error });
+      }
+    },
+    onSuccess: async () => {
+      await input.invalidateQueue();
+    },
+  });
+
+  // Source text is edited only where go-svc serves the editor: native projects.
+  const sourceTextMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringId: string;
+      sourceText: string;
+      keepApproved: boolean;
+    }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+      const fallback = intl.formatMessage(
+        useContentEditorMutationsMessages.failedToUpdateSourceText,
+      );
+      if (!input.goSvcClient) {
+        throw new Error(fallback);
+      }
+      try {
+        return await input.goSvcClient.cat.setSourceText(
+          input.organizationSlug,
+          input.projectId,
+          mutationInput.externalStringId,
+          {
+            sourcePath,
+            externalStringId: mutationInput.externalStringId,
+            sourceText: mutationInput.sourceText,
+            keepApproved: mutationInput.keepApproved,
+          },
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, fallback), { cause: error });
+      }
+    },
+    // A source change can send the open string's approved translations to review.
+    onSuccess: async () => {
+      await Promise.all([
+        input.invalidateQueue(),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "project-file-content-editor-segment-target",
+            input.organizationSlug,
+            input.projectId,
+          ],
+        }),
+      ]);
     },
   });
 
@@ -634,9 +1152,22 @@ export function useContentEditorMutations(input: {
     setStringsLocked: lockedStringsMutation.mutateAsync,
     setMaxLength: maxLengthMutation.mutateAsync,
     isSavingMaxLength: maxLengthMutation.isPending,
+    setSourceText: sourceTextMutation.mutateAsync,
+    setTags: tagsMutation.mutateAsync,
+    setDesignUrl: designUrlMutation.mutateAsync,
+    isSavingKeyDetails: tagsMutation.isPending || designUrlMutation.isPending,
+    isSavingSourceText: sourceTextMutation.isPending,
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,
+    generatingImageSegmentId: regenerateImageMutation.isPending
+      ? regenerateImageMutation.variables?.externalStringId
+      : undefined,
+    isImageGenerating:
+      regenerateImageMutation.isPending &&
+      Boolean(regenerateImageMutation.variables?.externalStringId) &&
+      (regenerateImageMutation.variables?.targetLocale ?? input.targetLocale) ===
+        input.targetLocale,
     isImageBusy:
       regenerateImageMutation.isPending ||
       uploadImageMutation.isPending ||

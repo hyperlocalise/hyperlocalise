@@ -15,6 +15,22 @@
 import { defineMessages } from "react-intl";
 
 export const projectDialogMessages = defineMessages({
+  templateLabel: {
+    defaultMessage: "Start from",
+    id: "nlzYqh4Y3f",
+    description: "Label for choosing a project template in the new project dialog",
+  },
+  blankProject: {
+    defaultMessage: "Blank project",
+    id: "6AYoUAUXxF",
+    description: "Option to create a project without a template",
+  },
+  templateHint: {
+    defaultMessage:
+      "The template's translation memories, glossaries, team and editor settings are applied too.",
+    id: "FSEMG7Cgay",
+    description: "Hint shown after a project template is chosen in the new project dialog",
+  },
   nameLabel: {
     defaultMessage: "Name",
     id: "6Lz1ZPrrNj",

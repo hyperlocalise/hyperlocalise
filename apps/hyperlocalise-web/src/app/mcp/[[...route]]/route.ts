@@ -10,11 +10,18 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { after } from "next/server";
+
 import { handle } from "@/api/hono-vercel";
 
 import { createMcpRoutes } from "@/api/routes/mcp/mcp.route";
 
-const handler = handle(createMcpRoutes({ apiBasePath: "" }));
+const handler = handle(
+  createMcpRoutes({
+    apiBasePath: "",
+    deferAfterResponse: (task) => after(task),
+  }),
+);
 
 export const GET = handler;
 export const POST = handler;

@@ -29,6 +29,11 @@ vi.mock("motion/react", async (importOriginal) => ({
   AnimatePresence: ({ children }: { children: ReactNode }) => children,
 }));
 
+// The real Office viewer loads Univer; these tests only cover the panel chrome around it.
+vi.mock("./content-editor-office-file-viewer", () => ({
+  ContentEditorOfficeFileViewerPane: () => null,
+}));
+
 function imageSegment(overrides: Partial<ContentEditorSegment> = {}): ContentEditorSegment {
   return {
     id: "img-1",
@@ -53,7 +58,7 @@ describe("ContentEditorFileViewPanel", () => {
     writeCatFileViewSourcePaneVisible(true);
   });
 
-  it("focuses the document, compares the original, and blocks approval until edits are saved", async () => {
+  it("compares the original and blocks approval until document edits are saved", async () => {
     const user = userEvent.setup();
     window.localStorage.removeItem("content-editor-file-view:source-pane:v1");
     vi.stubGlobal(
@@ -74,20 +79,95 @@ describe("ContentEditorFileViewPanel", () => {
     const editor = await screen.findByLabelText("Translated document");
     const approve = screen.getByRole("button", { name: "Approve" });
     await waitFor(() => expect(approve).toBeEnabled());
-    expect(screen.queryByRole("heading", { name: "Source (en)" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Source (en)" })).not.toBeInTheDocument();
     await user.click(editor);
     await user.keyboard("!");
     await waitFor(() => expect(approve).toBeDisabled());
     await user.click(screen.getByRole("button", { name: "Compare original" }));
-    expect(screen.getByRole("heading", { name: "Source (en)" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Source (en)" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close comparison" }));
-    expect(screen.getByLabelText("Translated document")).toBe(editor);
+    expect(screen.queryByRole("region", { name: "Source (en)" })).not.toBeInTheDocument();
     expect(approve).toBeDisabled();
-    const save = screen.getByRole("button", { name: /save edits/i });
-    expect(save.closest("header")).not.toBeNull();
-    await user.click(save);
+    await user.click(screen.getByLabelText("Translated document"));
+    await user.keyboard("{Control>}s{/Control}");
     await waitFor(() => expect(approve).toBeEnabled());
     expect(onUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it("toggles comparison for plain-text files in code mode", async () => {
+    const user = userEvent.setup();
+    window.localStorage.removeItem("content-editor-file-view:source-pane:v1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("Hello\n\n---\n\n```\ncode\n```\n\nWorld\n")),
+    );
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorFileViewPanel
+          segment={imageSegment({ contentKind: "document", sourcePath: "notes.txt" })}
+          viewerId="markdown"
+          onUpload={vi.fn(async () => undefined)}
+          onApprove={vi.fn()}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const targetArea = (await screen.findByLabelText("Document source")) as HTMLTextAreaElement;
+    expect(targetArea.value).toContain("---");
+    expect(targetArea.value).toContain("```");
+    expect(screen.queryByRole("region", { name: "Source (en)" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Compare original" }));
+    expect(screen.getByRole("region", { name: "Source (en)" })).toBeInTheDocument();
+    const sourceArea = screen.getByRole("textbox", { name: "Source (en)" }) as HTMLTextAreaElement;
+    expect(sourceArea.value).toContain("---");
+    expect(sourceArea.value).toContain("```");
+
+    await user.click(screen.getByRole("button", { name: "Close comparison" }));
+    expect(screen.queryByRole("region", { name: "Source (en)" })).not.toBeInTheDocument();
+  });
+
+  it("banners an untranslated txt file and blocks approval until saved", async () => {
+    const user = userEvent.setup();
+    window.localStorage.removeItem("content-editor-file-view:source-pane:v1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("Original notes\n")),
+    );
+    const onUpload = vi.fn(async () => undefined);
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorFileViewPanel
+          segment={imageSegment({
+            id: "txt-untranslated-1",
+            contentKind: "document",
+            sourcePath: "notes.txt",
+            targetAssetUrl: null,
+            targetText: "unsaved draft",
+          })}
+          viewerId="markdown"
+          onUpload={onUpload}
+          onApprove={vi.fn()}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const targetArea = (await screen.findByLabelText("Document source")) as HTMLTextAreaElement;
+    expect(targetArea.value).toContain("Original notes");
+    expect(screen.getByText(/showing the source text as a starting point/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+
+    await user.click(targetArea);
+    await user.keyboard("!");
+    await user.click(screen.getByLabelText("Document source"));
+    await user.keyboard("{Control>}s{/Control}");
+    await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/showing the source text as a starting point/),
+      ).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(screen.getByRole("button", { name: "Approve" })).toBeEnabled());
   });
 
   it("renders source pane before translated pane", () => {
@@ -135,6 +215,33 @@ describe("ContentEditorFileViewPanel", () => {
     const input = document.querySelector('input[type="file"]');
     expect(input).toBeTruthy();
     await user.upload(input as HTMLInputElement, file);
+
+    expect(onUpload).toHaveBeenCalledWith(file);
+  });
+
+  it("offers Office file upload from the header menu", async () => {
+    const user = userEvent.setup();
+    const onUpload = vi.fn();
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorFileViewPanel
+          segment={imageSegment({ contentKind: "document", sourcePath: "brief.docx" })}
+          viewerId="docx"
+          onUpload={onUpload}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const menu = screen.getByRole("button", { name: "File actions" });
+    expect(menu.closest("header")).not.toBeNull();
+    await user.click(menu);
+    expect(
+      await screen.findByRole("menuitem", { name: "Upload translated file" }),
+    ).toBeInTheDocument();
+
+    const file = new File(["docx"], "de-brief.docx");
+    await user.upload(screen.getByLabelText("Upload translated file"), file);
 
     expect(onUpload).toHaveBeenCalledWith(file);
   });
@@ -189,6 +296,36 @@ describe("ContentEditorFileViewPanel", () => {
 
     expect(onPrevious).toHaveBeenCalledTimes(1);
     expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the HTML file preview in file view", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<table><tr><td>Cell</td></tr></table>")),
+    );
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorFileViewPanel
+          segment={imageSegment({
+            contentKind: "document",
+            sourcePath: "pages/home.html",
+            key: "pages/home.html",
+          })}
+          viewerId="html"
+          filename="home.html"
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    expect(await screen.findByTitle("Translated (de)")).toHaveAttribute(
+      "srcdoc",
+      "<table><tr><td>Cell</td></tr></table>",
+    );
+    expect(screen.getByTitle("Source (en)")).toHaveAttribute(
+      "srcdoc",
+      "<table><tr><td>Cell</td></tr></table>",
+    );
+    expect(screen.getByRole("button", { name: /Close comparison/i })).toBeInTheDocument();
   });
 
   it("closes comparison when entering a markdown viewer without a saved preference", () => {

@@ -10,15 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { hasCapability } from "@/api/auth/policy";
 import { AppShellClient } from "@/components/app-shell/app-shell-client";
-import { AppShellSkeleton } from "@/components/app-shell/app-shell-skeleton";
-import { buildGlobalNavigationGroups } from "@/components/app-shell/navigation-config";
-import { getIntlShape } from "@/lib/app-i18n/intl";
-import { getAppLocale } from "@/lib/app-i18n/server-locale";
-import { annotateNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
 import { evaluateWorkspaceFeatureFlags } from "@/lib/flags/workspace-flags";
 import { getTmsProviderConnection } from "@/lib/providers/jobs/tms-provider-live";
 import {
@@ -26,8 +21,6 @@ import {
   type TmsUserConnectCta,
 } from "@/lib/providers/credentials/tms-user-connection";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import type { IntlShape } from "react-intl";
-
 import { OrgTmsQueryProvider } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/org-tms-query-provider";
 import type { ActiveTmsProviderConnection } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-active-tms-provider";
 
@@ -37,58 +30,46 @@ export type AppShellProps = {
   organizationSlug: string;
 };
 
-export function AppShell({ autumnConfigured = false, children, organizationSlug }: AppShellProps) {
-  return (
-    <Suspense fallback={<AppShellSkeleton>{children}</AppShellSkeleton>}>
-      <AppShellWithData autumnConfigured={autumnConfigured} organizationSlug={organizationSlug}>
-        {children}
-      </AppShellWithData>
-    </Suspense>
-  );
-}
-
-type AppShellWithDataProps = {
-  autumnConfigured: boolean;
-  children: ReactNode;
-  organizationSlug: string;
-};
-
-async function AppShellWithData({
-  autumnConfigured,
+export async function AppShell({
+  autumnConfigured = false,
   children,
   organizationSlug,
-}: AppShellWithDataProps) {
+}: AppShellProps) {
   const auth = await requireAppAuthContext({ organizationSlug });
   const activeOrganizationSlug = auth.activeOrganization.slug ?? organizationSlug;
-  const intl = getIntlShape(await getAppLocale()) as IntlShape;
 
   const displayName =
     [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
     auth.sessionUser.email;
-  const workspaceFeatureFlags = await evaluateWorkspaceFeatureFlags(auth);
-  const navigationGroups = annotateNavigationByWorkspaceFlags(
-    buildGlobalNavigationGroups(activeOrganizationSlug, intl),
-    workspaceFeatureFlags,
-  );
-  const tmsUserConnectCta: TmsUserConnectCta = hasCapability(auth.membership.role, "jobs:read")
-    ? await getTmsUserConnectCtaState({
+  const workspaceFeatureFlagsPromise = evaluateWorkspaceFeatureFlags(auth);
+  const tmsUserConnectCtaPromise: Promise<TmsUserConnectCta> = hasCapability(
+    auth.membership.role,
+    "jobs:read",
+  )
+    ? getTmsUserConnectCtaState({
         organizationId: auth.activeOrganization.localOrganizationId,
         userId: auth.user.localUserId,
       })
-    : { showConnectCta: false };
-  let initialTmsProviderConnection: ActiveTmsProviderConnection | null = null;
-  if (hasCapability(auth.membership.role, "provider_credentials:read")) {
-    try {
-      initialTmsProviderConnection = await getTmsProviderConnection(
-        auth.activeOrganization.localOrganizationId,
-      );
-    } catch (error) {
-      console.error("[app-shell] Failed to prefetch TMS provider connection", {
-        organizationId: auth.activeOrganization.localOrganizationId,
-        error,
-      });
+    : Promise.resolve({ showConnectCta: false });
+  const providerConnectionPromise = (async (): Promise<ActiveTmsProviderConnection | null> => {
+    if (hasCapability(auth.membership.role, "provider_credentials:read")) {
+      try {
+        return await getTmsProviderConnection(auth.activeOrganization.localOrganizationId);
+      } catch (error) {
+        console.error("[app-shell] Failed to prefetch TMS provider connection", {
+          organizationId: auth.activeOrganization.localOrganizationId,
+          error,
+        });
+      }
     }
-  }
+    return null;
+  })();
+  const [workspaceFeatureFlags, tmsUserConnectCta, initialTmsProviderConnection] =
+    await Promise.all([
+      workspaceFeatureFlagsPromise,
+      tmsUserConnectCtaPromise,
+      providerConnectionPromise,
+    ]);
 
   return (
     <AppShellClient
@@ -99,13 +80,15 @@ async function AppShellWithData({
       showApiKeysLink={hasCapability(auth.membership.role, "api_keys:read")}
       showBillingLink={hasCapability(auth.membership.role, "billing:read")}
       showMembersLink={hasCapability(auth.membership.role, "workspace:read")}
+      canInviteMembers={hasCapability(auth.membership.role, "members:invite")}
       canWriteProjects={hasCapability(auth.membership.role, "projects:write")}
+      canDeleteQueries={hasCapability(auth.membership.role, "write_back:translation")}
       user={{
+        id: auth.user.localUserId,
         name: displayName,
         email: auth.sessionUser.email,
         avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,
       }}
-      navigationGroups={navigationGroups}
       workspaceFeatureFlags={workspaceFeatureFlags}
     >
       <OrgTmsQueryProvider

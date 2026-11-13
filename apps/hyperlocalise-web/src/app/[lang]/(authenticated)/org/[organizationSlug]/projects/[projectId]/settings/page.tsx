@@ -10,22 +10,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { isProjectMutationAllowed } from "@/api/auth/capability-guards";
 import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { ProjectSettingsPageContent } from "./_components/project-settings-page-content";
-import { OrgPageSuspense } from "../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectSettings");
+}
 
 export default function ProjectSettingsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <ProjectSettingsPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <ProjectSettingsPageLoader params={params} />;
 }
 
 async function ProjectSettingsPageLoader({
@@ -41,6 +42,7 @@ async function ProjectSettingsPageLoader({
       organizationSlug={organizationSlug}
       projectId={projectId}
       canManageCatBehavior={isWorkspaceOperatorRole(auth.membership.role)}
+      canManageSync={isProjectMutationAllowed(auth.membership.role)}
     />
   );
 }

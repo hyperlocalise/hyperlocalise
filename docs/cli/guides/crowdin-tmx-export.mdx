@@ -1,0 +1,49 @@
+---
+title: "Export Crowdin translation memory as TMX"
+sidebarTitle: "Export Crowdin TMX"
+description: "Download a source-target language pair from Crowdin translation memory as TMX with Hyperlocalise, and understand import and round-trip limitations."
+---
+
+Use `hyperlocalise crowdin tm download --format tmx` to export a Crowdin
+translation memory language pair. TMX exchanges translation-memory units; it does
+not migrate project tasks, approvals, permissions, or glossary terms.
+
+## Find the translation memory
+
+[Install Hyperlocalise](/cli/getting-started/install), set
+`CROWDIN_PERSONAL_TOKEN`, and configure `crowdin.yml` for a project your credential
+can access. The [Crowdin command guide](/cli/commands/crowdin) includes a sample.
+
+```bash
+hyperlocalise crowdin tm list
+```
+
+Choose the TM ID and the source/target language IDs you intend to export. The
+following example uses TM ID `44`, English, and French; replace them with your values.
+
+## Download TMX
+
+```bash
+hyperlocalise crowdin tm download \
+    --tm-id 44 --source-language en --target-language fr \
+    --format tmx --output ./crowdin-en-fr.tmx
+```
+
+The result is a TMX file for the requested language pair. Open it in your intended
+TM tool and inspect the language codes and sample source/target pairs before
+importing. Use a new output path when retaining an earlier export.
+
+## Can I import the export into another TMS?
+
+Use the destination's TMX import workflow if it supports this file. Check locale
+mapping, duplicate handling, and metadata preservation there. Hyperlocalise does
+not guarantee that every provider preserves the same TM fields.
+
+Crowdin `tm upload` accepts Crowdin-native TMX. Re-importing TMX produced by this
+export is best-effort, not a lossless round-trip guarantee. The CSV export is not
+compatible with the TM upload command. Test imports in a separate memory before
+updating a shared resource.
+
+For Platform, see [translation memory import/export](/platform/translation-memory-import-export).
+For Crowdin commands and formats, see [the command reference](/cli/commands/crowdin).
+Glossaries use a separate [glossary workflow](/platform/glossary-import-export).

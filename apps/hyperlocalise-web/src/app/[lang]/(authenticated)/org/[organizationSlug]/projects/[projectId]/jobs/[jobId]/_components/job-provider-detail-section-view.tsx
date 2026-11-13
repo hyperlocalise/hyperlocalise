@@ -13,9 +13,8 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
-import { AiMagicIcon, RefreshIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { createElement, useState, type ReactNode } from "react";
+import { SparkleIcon, ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
@@ -89,9 +88,9 @@ const toolbarHiddenProviderActions = new Set<JobProviderActionId>([
 function actionIcon(actionId: JobProviderActionId) {
   switch (actionId) {
     case "push_approved_changes":
-      return RefreshIcon;
+      return ArrowClockwiseIcon;
     default:
-      return AiMagicIcon;
+      return SparkleIcon;
   }
 }
 
@@ -295,7 +294,7 @@ export function JobProviderDetailSectionView({
                 title={action.disabledReason}
                 onClick={() => onStartAgentRun?.(action.id)}
               >
-                <HugeiconsIcon icon={actionIcon(action.id)} strokeWidth={1.8} />
+                {createElement(actionIcon(action.id), {})}
                 {pendingActionId === action.id ? (
                   <FormattedMessage {...messages.starting} />
                 ) : (

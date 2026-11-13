@@ -30,6 +30,16 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "BsHGinE5HI",
     description: "Translation memory import report page description",
   },
+  exportTitle: {
+    defaultMessage: "Export report",
+    id: "QsPTtPId+V",
+    description: "Translation memory export report page title",
+  },
+  exportSubtitle: {
+    defaultMessage: "A durable record of this translation memory export.",
+    id: "WsYxB1sDR5",
+    description: "Translation memory export report page description",
+  },
   loading: {
     defaultMessage: "Loading import report",
     id: "gq7HYMcSL2",
@@ -65,10 +75,36 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "DpujlokITJ",
     description: "Download a machine-readable import report",
   },
+  downloadExport: {
+    defaultMessage: "Download export",
+    id: "pJ6fZYMSIA",
+    description: "Download a completed translation memory export",
+  },
+  downloadFailed: {
+    defaultMessage: "Download failed.",
+    id: "o91utHaw2M",
+    description: "Translation memory export download error",
+  },
   affectedEntries: {
     defaultMessage: "View affected entries",
     id: "pZzJNiijOV",
     description: "View entries affected by this import",
+  },
+  importEntries: {
+    defaultMessage: "Import entries",
+    id: "cu5vz2inFd",
+    description: "Primary action to apply a completed translation memory import preview",
+  },
+  previewReadyBanner: {
+    defaultMessage:
+      "Preview is ready. Review the counts below, then import entries to write them to this translation memory.",
+    id: "HVlJ+nwIfE",
+    description: "Prompt to confirm a translation memory import after preview completes",
+  },
+  importEntriesFailed: {
+    defaultMessage: "Import could not be queued.",
+    id: "a0hmPusRk9",
+    description: "Error when confirming a translation memory import from preview",
   },
   overview: {
     defaultMessage: "Overview",
@@ -85,6 +121,11 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "uERqNSE1ZH",
     description: "Import report diagnostics heading",
   },
+  sampleEntries: {
+    defaultMessage: "Sample entries",
+    id: "Khosn9vbdG",
+    description: "Heading for representative translations on a completed import report",
+  },
   translationMemory: {
     defaultMessage: "Translation memory",
     id: "jt4oiRYF1R",
@@ -94,6 +135,11 @@ export const tmImportAttemptDetailMessages = defineMessages({
     defaultMessage: "Imported by",
     id: "stUnm5XNi2",
     description: "Import actor field label",
+  },
+  exportedBy: {
+    defaultMessage: "Exported by",
+    id: "BDtiDDe7/E",
+    description: "Export actor field label",
   },
   started: {
     defaultMessage: "Started",
@@ -140,6 +186,11 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "P95tFJIvcW",
     description: "Import failure code field label",
   },
+  failureMessage: {
+    defaultMessage: "Failure reason",
+    id: "Rgp/V+Ndcw",
+    description: "Label for a recorded translation memory export failure message",
+  },
   sourceLanguage: {
     defaultMessage: "Header source language",
     id: "gZjFsvipta",
@@ -154,6 +205,21 @@ export const tmImportAttemptDetailMessages = defineMessages({
     defaultMessage: "System",
     id: "pPyFwoj/go",
     description: "Fallback import actor",
+  },
+  uploadPending: {
+    defaultMessage: "Upload pending",
+    id: "h+UBaWw3mM",
+    description: "Pending translation memory import upload status",
+  },
+  queued: {
+    defaultMessage: "Queued",
+    id: "/9rdVrlT2+",
+    description: "Queued translation memory import status",
+  },
+  previewCompleted: {
+    defaultMessage: "Preview ready",
+    id: "Wa3kCtjTDm",
+    description: "Legacy translation memory import preview status (read-only)",
   },
   running: {
     defaultMessage: "Running",
@@ -210,10 +276,20 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "2FJ39S/f6p",
     description: "Import failed count",
   },
+  entriesExported: {
+    defaultMessage: "Entries exported",
+    id: "Uc7/iaCod8",
+    description: "Number of translation memory entries in an export",
+  },
   pendingCounts: {
     defaultMessage: "Counts will appear when the import finishes.",
     id: "jhLLn9eNRX",
     description: "Message while import counts are unavailable",
+  },
+  pendingExportCounts: {
+    defaultMessage: "The entry count will appear when the export finishes.",
+    id: "Ir8kybD8uF",
+    description: "Message while export counts are unavailable",
   },
   noDiagnostics: {
     defaultMessage: "No diagnostics were recorded for this import.",

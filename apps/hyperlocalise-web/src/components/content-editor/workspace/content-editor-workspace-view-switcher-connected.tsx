@@ -40,6 +40,8 @@ export const ContentEditorWorkspaceViewSwitcherConnected = observer(
     const capabilities = resolveCatFileViewCapabilities({
       sourcePath: selectedSegment?.sourcePath ?? store?.fileContext.sourcePath,
       contentKind: selectedSegment?.contentKind,
+      providerKind: store?.fileContext.providerKind,
+      multilingualViewAvailable: store?.ui.multilingualViewAvailable,
     });
     const resolvedAvailableViews = availableViews ?? capabilities.availableViews;
     const resolvedValue = store?.ui.viewMode ?? value ?? "comfortable";

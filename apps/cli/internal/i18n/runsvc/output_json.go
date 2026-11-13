@@ -50,6 +50,13 @@ func marshalJSONTarget(path string, template []byte, values map[string]string, p
 	if payload == nil {
 		payload = map[string]any{}
 	}
+	if translationfileparser.IsLottiePayload(payload) {
+		content, err := translationfileparser.MarshalLottie(template, values)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
+	}
 
 	allowedValues := values
 	if pruneKeys != nil {
@@ -83,6 +90,12 @@ func marshalJSONTarget(path string, template []byte, values map[string]string, p
 }
 
 func (s *Service) marshalJSONTargetWithFallback(path, sourcePath string, values map[string]string, pruneKeys map[string]struct{}) ([]byte, error) {
+	// Lottie targets are localized copies of the source animation, so always rebuild
+	// from the source to carry over non-text animation changes.
+	if sourceTemplate, srcErr := s.readProjectFile(sourcePath); srcErr == nil && translationfileparser.IsLottieJSON(sourceTemplate) {
+		return marshalJSONTarget(path, sourceTemplate, values, pruneKeys)
+	}
+
 	targetTemplate, err := s.readProjectFile(path)
 	if err == nil {
 		content, marshalErr := marshalJSONTarget(path, targetTemplate, values, pruneKeys)
@@ -342,7 +355,42 @@ type jsonPathCursor struct {
 	hasParent bool
 }
 
+func setExistingLiteralKey(node map[string]any, key, value string) bool {
+	if existing, ok := node[key]; ok {
+		if _, isString := existing.(string); isString {
+			node[key] = value
+			return true
+		}
+	}
+	for i := 0; i < len(key); i++ {
+		if key[i] != '.' {
+			continue
+		}
+		prefix := key[:i]
+		suffix := key[i+1:]
+		if prefix == "" || suffix == "" {
+			continue
+		}
+		child, ok := node[prefix]
+		if !ok {
+			continue
+		}
+		childMap, ok := child.(map[string]any)
+		if !ok {
+			continue
+		}
+		if setExistingLiteralKey(childMap, suffix, value) {
+			return true
+		}
+	}
+	return false
+}
+
 func setNestedValue(payload map[string]any, dottedKey, value string) {
+	if setExistingLiteralKey(payload, dottedKey, value) {
+		return
+	}
+
 	segments, err := parseJSONPath(dottedKey)
 	if err != nil {
 		return

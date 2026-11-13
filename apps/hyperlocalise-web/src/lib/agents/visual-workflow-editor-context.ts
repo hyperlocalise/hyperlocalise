@@ -1,0 +1,91 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { z } from "zod";
+
+import {
+  visualCatalogTypeSchema,
+  visualWorkflowV3EdgeSchema,
+} from "@/lib/visual-workflows/schema/definition-schema";
+import type { VisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/types";
+
+export const VISUAL_WORKFLOW_EDITOR_CONTEXT_KIND = "visual-workflow-editor";
+
+const MAX_ID_CHARS = 255;
+const MAX_NAME_CHARS = 500;
+const MAX_WORKFLOW_NAME_CHARS = 120;
+const MAX_RESERVED_NODE_IDS = 1000;
+
+/**
+ * A workflow as the canvas holds it: the saved definition's shape, but a step's settings may be
+ * incomplete (a Slack step before its channel is chosen) and the name may be empty while it is
+ * typed. What the workflow lacks is reported by its validation, not refused here.
+ */
+export const visualWorkflowDraftDefinitionSchema = z
+  .object({
+    schemaVersion: z.literal(3),
+    name: z.string().max(MAX_WORKFLOW_NAME_CHARS),
+    nodes: z
+      .array(
+        z
+          .object({
+            id: z.string().trim().min(1).max(128),
+            type: visualCatalogTypeSchema,
+            config: z.object({ kind: visualCatalogTypeSchema }).passthrough(),
+          })
+          .passthrough(),
+      )
+      .max(200),
+    edges: z.array(visualWorkflowV3EdgeSchema).max(400),
+    editor: z.object({
+      positions: z.record(z.string(), z.object({ x: z.number().finite(), y: z.number().finite() })),
+    }),
+  })
+  .transform((definition) => definition as unknown as VisualWorkflowV3Definition);
+
+/**
+ * What an open visual workflow editor tells the assistant with each turn: the workflow as the
+ * canvas holds it at that moment. It describes the page at that moment and is never stored.
+ */
+export const visualWorkflowEditorContextSchema = z.object({
+  kind: z.literal(VISUAL_WORKFLOW_EDITOR_CONTEXT_KIND),
+  /** Names one mounted editor, so a change is applied only to the page it was made for. */
+  editorSessionId: z.string().min(1).max(MAX_ID_CHARS),
+  visualWorkflowId: z.string().min(1).max(MAX_ID_CHARS),
+  definition: visualWorkflowDraftDefinitionSchema,
+  /** Display name of the project the workflow is in, when the page knows it. */
+  projectName: z.string().min(1).max(MAX_NAME_CHARS).nullable().optional(),
+  /**
+   * Ids no step on the canvas has that a new step must not take: those of steps removed since
+   * the editor opened, read by a setting or kept in the test setup.
+   */
+  reservedNodeIds: z.array(z.string().trim().min(1).max(128)).max(MAX_RESERVED_NODE_IDS).optional(),
+});
+
+export type VisualWorkflowEditorContext = z.infer<typeof visualWorkflowEditorContextSchema>;
+
+export function buildVisualWorkflowEditorContext(input: {
+  editorSessionId: string;
+  visualWorkflowId: string;
+  definition: VisualWorkflowV3Definition;
+  projectName?: string | null;
+  reservedNodeIds?: readonly string[];
+}): VisualWorkflowEditorContext {
+  return {
+    kind: VISUAL_WORKFLOW_EDITOR_CONTEXT_KIND,
+    editorSessionId: input.editorSessionId,
+    visualWorkflowId: input.visualWorkflowId,
+    definition: input.definition,
+    projectName: input.projectName?.trim() || null,
+    reservedNodeIds: input.reservedNodeIds?.length ? [...input.reservedNodeIds] : undefined,
+  };
+}

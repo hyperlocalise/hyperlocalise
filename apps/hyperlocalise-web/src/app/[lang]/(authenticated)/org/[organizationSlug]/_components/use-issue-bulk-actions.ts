@@ -17,8 +17,8 @@ import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type { IssueBulkActionBody } from "@/api/routes/issues/issues-bulk.schema";
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { issueBulkActionBarMessages as messages } from "./issue-bulk-action-bar.messages";
 
@@ -31,17 +31,17 @@ export function useIssueBulkActions({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
 
   const mutation = useMutation({
     mutationFn: async (body: IssueBulkActionBody) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].issues["bulk-actions"].$post({
-        param: { organizationSlug },
-        json: body,
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, intl.formatMessage(messages.bulkFailed));
+      try {
+        return await goSvcClient.issueSheet.bulkActions(organizationSlug, body);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.bulkFailed)), {
+          cause: error,
+        });
       }
-      return response.json();
     },
     onSuccess: async (result) => {
       const { bulkAction } = result;

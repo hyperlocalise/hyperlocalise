@@ -22,7 +22,7 @@ export type CanvaConnectionVariables = {
     id: string;
     organizationId: string;
     apiKeyId: string;
-    projectId: string;
+    projectId: string | null;
     sourceLocale: string;
     targetLocales: string[];
     canvaBrandId: string | null;

@@ -13,7 +13,6 @@
 import type { Bash } from "just-bash";
 import type { ToolSet } from "ai";
 
-import { hasCapability } from "@/api/auth/policy";
 import { getAgentManifest, type AgentSkillDocument } from "@/agents/_runtime/loader";
 import { createCheckCrowdinProgressTool } from "@/agents/_runtime/shared-tools/check_crowdin_progress";
 import { createSearchCrowdinGlossaryTool } from "@/agents/_runtime/shared-tools/search_crowdin_glossary";
@@ -28,10 +27,7 @@ import { buildWorkspaceTools, createTranslationJobTool } from "@/lib/agent-runti
 import { createFetchTool } from "@/lib/agent-runtime/tools/workspace/fetch";
 import { createTodoWriteTool } from "@/lib/agent-runtime/tools/workspace/todo";
 import { workspaceSessionToolNames } from "@/lib/agent-runtime/tools/workspace/tool-names";
-import {
-  createGetKnowledgeMemoryTool,
-  createUpdateKnowledgeMemoryTool,
-} from "@/lib/agent-runtime/tools/knowledge-memory-tools";
+import { createGetKnowledgeMemoryTool } from "@/lib/agent-runtime/tools/knowledge-memory-tools";
 import {
   createGetProjectContextTool,
   createListProjectsTool,
@@ -92,7 +88,6 @@ const conversationSkillToolFactories: Record<string, ConversationSkillToolFactor
   search_crowdin_glossary: (toolContext) => createSearchCrowdinGlossaryTool(toolContext),
   search_native_glossary: (toolContext) => createSearchNativeGlossaryTool(toolContext),
   get_knowledge_memory: (toolContext) => createGetKnowledgeMemoryTool(toolContext),
-  update_knowledge_memory: (toolContext) => createUpdateKnowledgeMemoryTool(toolContext),
 };
 
 function parseCommaSeparated(value: string | undefined): string[] {
@@ -246,13 +241,6 @@ export function filterAvailableConversationToolNames(
       if (!gate.allowed) {
         return false;
       }
-    }
-
-    if (
-      toolName === "update_knowledge_memory" &&
-      !hasCapability(runtime.toolContext.membershipRole, "workspace:update")
-    ) {
-      return false;
     }
 
     if (

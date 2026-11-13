@@ -23,9 +23,19 @@ import {
   uploadActivityActor,
 } from "./file-segment-events";
 
+const { trackMock } = vi.hoisted(() => ({
+  trackMock: vi.fn(),
+}));
+
 vi.mock("./activity-log-writer", () => ({
   enqueueActivityLogEvent: vi.fn(),
 }));
+
+vi.mock("@/lib/analytics/server", () => ({
+  serverAnalytics: { track: trackMock },
+}));
+
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 const enqueueMock = vi.mocked(enqueueActivityLogEvent);
 
@@ -74,6 +84,10 @@ describe("file and segment activity helpers", () => {
     });
     expect(JSON.stringify(enqueueMock.mock.calls)).not.toContain("sourceText");
     expect(JSON.stringify(enqueueMock.mock.calls)).not.toContain("targetText");
+    expect(trackMock).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.fileUploaded, {
+      status: "created",
+      source: "web",
+    });
   });
 
   it("records a translation import against the file", async () => {
@@ -113,6 +127,7 @@ describe("file and segment activity helpers", () => {
       organizationId: "org-1",
       projectId: "project-1",
       segmentId: "segment-1",
+      segmentIds: ["segment-1", "segment-2", " segment-2 ", "segment-3", "segment-4"],
       sourcePath: "locales/en.json",
     });
 
@@ -128,11 +143,17 @@ describe("file and segment activity helpers", () => {
         targetKind: "string_segment",
       }),
     );
+    expect(enqueueMock.mock.calls[0]?.[0]?.payload).not.toHaveProperty("segmentIds");
     expect(enqueueMock).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
         eventType: "string_segment_hidden",
-        payload: expect.objectContaining({ itemCount: 4 }),
+        payload: expect.objectContaining({
+          itemCount: 4,
+          segmentId: "segment-1",
+          segmentIds: ["segment-1", "segment-2", "segment-3", "segment-4"],
+        }),
+        targetId: "segment-1",
       }),
     );
   });

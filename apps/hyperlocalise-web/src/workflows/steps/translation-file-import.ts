@@ -14,16 +14,37 @@ export async function extractTranslationImportEntriesStep(input: {
   sandboxId: string;
   filePath: string;
   targetLocale: string;
+  /** Names the source column of workbooks; other formats ignore it. */
+  sourceLocale?: string | null;
 }) {
   "use step";
   const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
+  const { sandboxEntriesLocaleOptions } = await import("@/lib/translation/sandbox-cli-release");
   const result = await extractSandboxEntries(input.sandboxId, input.filePath, {
     locale: input.targetLocale,
+    ...sandboxEntriesLocaleOptions(input.filePath, input.sourceLocale, input.targetLocale),
   });
   if (!result.ok) {
     throw new Error(`failed to extract entries for ${input.filePath}: exitCode=${result.exitCode}`);
   }
   return result.entries;
+}
+
+export async function extractOfficeTranslationImportEntriesStep(input: {
+  organizationId: string;
+  projectId: string;
+  storedFileId: string;
+  sourcePath: string;
+  targetLocale: string;
+}): Promise<Record<string, string>> {
+  "use step";
+  const { loadProjectOfficeTargetEntries } =
+    await import("@/lib/projects/files/office-source-entries");
+  const entries = await loadProjectOfficeTargetEntries(input);
+  if (!entries.ok) {
+    throw new Error(`failed to extract entries from the Office file: ${entries.error.code}`);
+  }
+  return entries.value;
 }
 
 export async function importTranslationsFromEntriesStep(input: {

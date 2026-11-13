@@ -12,20 +12,16 @@
  */
 import { eq } from "drizzle-orm";
 
-import type { AppType } from "@/api/typed-app";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { generateApiKey, getApiKeyPrefix, hashApiKey } from "@/lib/security/api-keys";
 import { db, schema } from "@/lib/database/client";
-import { testClient } from "hono/testing";
 
 import {
   defaultApiKeyPermissions,
   type ApiKeyPermission,
   type CreateApiKeyBody,
 } from "./api-key.schema";
-
-type Client = ReturnType<typeof testClient<AppType>>;
 
 type InsertApiKeyInput = {
   organizationId: string;
@@ -35,27 +31,8 @@ type InsertApiKeyInput = {
   revokedAt?: Date;
 };
 
-export function createApiKeyTestFixture(client?: Client) {
+export function createApiKeyTestFixture() {
   const authFixture = createAuthTestFixture();
-
-  async function createApiKeyViaApi(
-    identity: WorkosAuthIdentity,
-    input: CreateApiKeyBody = { name: "Production Key" },
-  ) {
-    if (!client) {
-      throw new Error("createApiKeyViaApi requires a test client");
-    }
-
-    return client.api.orgs[":organizationSlug"]["api-keys"].$post(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
-        json: input,
-      },
-      {
-        headers: await authFixture.authHeadersFor(identity),
-      },
-    );
-  }
 
   async function getLocalOrganizationId(workosOrganizationId: string) {
     const [organization] = await db
@@ -89,13 +66,30 @@ export function createApiKeyTestFixture(client?: Client) {
       })
       .returning();
 
+    if (!apiKey) {
+      throw new Error("expected api key row");
+    }
+
     return { plainKey, apiKey };
+  }
+
+  async function createOwnedApiKey(
+    identity: WorkosAuthIdentity,
+    input: CreateApiKeyBody = { name: "Production Key" },
+  ) {
+    await authFixture.authHeadersFor(identity);
+    return insertApiKey({
+      organizationId: await getLocalOrganizationId(identity.organization.workosOrganizationId),
+      createdByUserId: await authFixture.getLocalUserId(identity.user.workosUserId),
+      name: input.name,
+      permissions: input.permissions,
+    });
   }
 
   return {
     authHeadersFor: authFixture.authHeadersFor,
     cleanup: authFixture.cleanup,
-    createApiKeyViaApi,
+    createOwnedApiKey,
     createWorkosIdentity: authFixture.createWorkosIdentity,
     createWorkosIdentityForOrganization: authFixture.createWorkosIdentityForOrganization,
     createWorkosIdentityWithRole: authFixture.createWorkosIdentityWithRole,

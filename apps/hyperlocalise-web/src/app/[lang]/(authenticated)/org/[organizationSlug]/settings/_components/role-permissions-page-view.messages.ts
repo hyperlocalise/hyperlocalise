@@ -25,12 +25,6 @@ export const rolePermissionsPageViewMessages = defineMessages({
     id: "0pg6zXLFtI",
     description: "Role permissions page heading",
   },
-  pageDescription: {
-    defaultMessage:
-      "What each workspace role can do. A mark means allowed. Empty means not allowed.",
-    id: "gy+E1G7FV0",
-    description: "Role permissions page description",
-  },
   backToMembers: {
     defaultMessage: "Members",
     id: "gMK6GFoBBA",
@@ -130,6 +124,11 @@ export const rolePermissionsPageViewMessages = defineMessages({
     defaultMessage: "Edit memories",
     id: "1gdAJhh6Lk",
     description: "Permission row for editing translation memories",
+  },
+  rowEditDictionaries: {
+    defaultMessage: "Edit dictionaries",
+    id: "a0im8YZ/LN",
+    description: "Permission row for editing spellcheck dictionaries",
   },
   rowViewIntegrations: {
     defaultMessage: "View integrations",

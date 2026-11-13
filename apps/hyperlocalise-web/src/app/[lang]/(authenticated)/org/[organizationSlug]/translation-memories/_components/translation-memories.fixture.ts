@@ -103,5 +103,6 @@ export function createEmptyMemoryFormFixture() {
   return {
     name: "",
     description: "",
+    importFile: null,
   };
 }

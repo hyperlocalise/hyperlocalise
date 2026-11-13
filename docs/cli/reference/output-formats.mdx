@@ -1,7 +1,10 @@
 ---
-title: "Output formats"
+title: "Command output"
 description: "Reference for run, status, and sync command output formats."
 ---
+
+This page describes output printed by commands. For files translated by the CLI,
+see [File formats](/cli/reference/formats/overview).
 
 ## `run` output (`text`)
 
@@ -54,16 +57,3 @@ Common sync warning or conflict cases include:
 - adapter only supports best-effort remote concurrency
 - unresolved remote identity for a local key during push
 - post-push verification detected a remote mismatch
-
-
-## CSV translation files
-
-When `run` writes `.csv` translation targets, output row order is deterministic for newly appended keys (sorted by key), and existing rows keep their original order.
-
-## Fluent translation files
-
-When `run` writes `.ftl` translation targets, existing comments, blank lines, and message order come from the selected template. Parsed message and attribute value spans are replaced in place. Missing top-level message keys are appended in sorted order, and unsupported Fluent terms fail before output is written.
-
-## Subtitle translation files
-
-When `run` writes `.srt` or `.vtt` translation targets, cue numbers, timestamps, positioning, WebVTT headers, and `NOTE` / `STYLE` / `REGION` blocks come from the selected template. Only cue payload text is replaced. Extra translation keys are ignored so cue counts stay aligned with the template.

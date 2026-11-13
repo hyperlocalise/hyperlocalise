@@ -12,21 +12,20 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ApiIcon, BookOpen01Icon, ConnectIcon, Robot01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import type { ComponentProps } from "react";
+import { PlugsConnectedIcon, BookOpenIcon, RobotIcon, type Icon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 
 import { developerResourcesDocUrls } from "./overview-developer-resource-urls";
 import { overviewDeveloperResourcesMessages as messages } from "./overview-developer-resources.messages";
+import { createElement } from "react";
 
 type DeveloperResourceItem = {
   href: string;
   title: typeof messages.documentationTitle;
   description: typeof messages.documentationDescription;
-  icon: ComponentProps<typeof HugeiconsIcon>["icon"];
+  icon: Icon;
 };
 
 const DEVELOPER_RESOURCE_ITEMS: readonly DeveloperResourceItem[] = [
@@ -34,25 +33,25 @@ const DEVELOPER_RESOURCE_ITEMS: readonly DeveloperResourceItem[] = [
     href: developerResourcesDocUrls.gettingStarted,
     title: messages.documentationTitle,
     description: messages.documentationDescription,
-    icon: BookOpen01Icon,
+    icon: BookOpenIcon,
   },
   {
     href: developerResourcesDocUrls.mcp,
     title: messages.mcpTitle,
     description: messages.mcpDescription,
-    icon: Robot01Icon,
+    icon: RobotIcon,
   },
   {
     href: developerResourcesDocUrls.api,
     title: messages.apiTitle,
     description: messages.apiDescription,
-    icon: ApiIcon,
+    icon: PlugsConnectedIcon,
   },
   {
     href: developerResourcesDocUrls.integrations,
     title: messages.integrationsTitle,
     description: messages.integrationsDescription,
-    icon: ConnectIcon,
+    icon: PlugsConnectedIcon,
   },
 ];
 
@@ -83,11 +82,7 @@ export function OverviewDeveloperResources({ className }: { className?: string }
               target="_blank"
             >
               <span className="inline-flex items-center gap-2">
-                <HugeiconsIcon
-                  className="size-4 shrink-0 text-muted-foreground"
-                  icon={item.icon}
-                  strokeWidth={1.8}
-                />
+                {createElement(item.icon, { className: "size-4 shrink-0 text-muted-foreground" })}
                 <span className="text-sm font-medium text-foreground underline-offset-4 group-hover:underline">
                   {intl.formatMessage(item.title)}
                 </span>

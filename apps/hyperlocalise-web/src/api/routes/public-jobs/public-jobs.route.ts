@@ -12,8 +12,8 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import { Hono } from "hono";
+import { and, eq, sql } from "drizzle-orm";
+import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
@@ -25,22 +25,43 @@ import {
 } from "@/api/auth/api-key";
 import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { getAccessibleProjectIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
-import { badRequestResponse } from "@/api/response.schema";
+import { isJobMutationAllowed } from "@/api/auth/capability-guards";
+import { hasCapability } from "@/api/auth/policy";
+import {
+  buildAccessibleJobsWhere,
+  getAccessibleProjectIds,
+  hasOrganizationWideProjectAccess,
+} from "@/api/auth/team-access";
+import {
+  badRequestResponse,
+  conflictResponse,
+  forbiddenResponse,
+  notFoundResponse,
+} from "@/api/response.schema";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { db, schema } from "@/lib/database/client";
+import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
 import {
   formatUsageControlError,
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
+import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
+import {
+  insertKeyJobKeys,
+  KeyJobSelectionFailure,
+  keyJobInputPayload,
+  keyJobSelectionMessages,
+} from "@/lib/projects/jobs/key-job";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
-  normalizeSourcePath,
 } from "@/lib/file-storage/records";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { isErr } from "@/lib/primitives/result/results";
+import { markTaskDone } from "@/lib/projects/jobs/mark-task-done";
+import { startTaskAnalysis } from "@/lib/reporting/task-analysis-start";
 import {
   enqueueJobCreatedActivity,
   enqueueJobFailedActivity,
@@ -53,23 +74,27 @@ import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import {
+  canAccessStoredFileWithProjectScope,
+  type ApiKeyProjectAccessScope,
+} from "./public-jobs.access";
+import {
   createPublicJobBodySchema,
+  hashPublicJobRequest,
   jobIdParamsSchema,
-  latestPublicJobQuerySchema,
+  publicJobIdempotencyKeySchema,
+  type CreatePublicJobBody,
 } from "./public-jobs.schema";
 import {
-  findAccessiblePublicJob,
-  publicJobOutputFiles,
-  toPublicJobEnvelope,
-} from "./public-jobs.read";
-import {
   invalidJobPayloadResponse,
-  jobNotFoundResponse,
   sourceFileNotFoundResponse,
   unsupportedSourceFileFormatResponse,
   sourceFileFormatMismatchResponse,
   jobQueueUnavailableResponse,
   projectNotFoundResponse,
+  ownerNotFoundResponse,
+  invalidIdempotencyKeyResponse,
+  idempotencyKeyReusedResponse,
+  publicJobQueueUnavailableError,
 } from "./public-jobs.shared";
 
 const validateCreateJobBody = validator("json", (value, c) => {
@@ -80,29 +105,8 @@ const validateCreateJobBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateJobIdParams = validator("param", (value, c) => {
-  const parsed = jobIdParamsSchema.safeParse(value);
-  if (!parsed.success) {
-    return jobNotFoundResponse(c);
-  }
-  return parsed.data;
-});
-
-const validateLatestPublicJobQuery = validator("query", (value, c) => {
-  const parsed = latestPublicJobQuerySchema.safeParse(value);
-  if (!parsed.success) {
-    return invalidJobPayloadResponse(c);
-  }
-  return parsed.data;
-});
-
 type CreatePublicJobRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
-};
-
-type ApiKeyProjectAccessScope = {
-  organizationId: string;
-  accessibleProjectIds: string[] | null;
 };
 
 async function resolveApiKeyProjectAccessScope(
@@ -136,52 +140,205 @@ async function getProjectForAccessScope(scope: ApiKeyProjectAccessScope, project
   return project ?? null;
 }
 
-function canAccessStoredFileWithProjectScope(
-  teamAccess: ApiAuthContext,
-  scope: ApiKeyProjectAccessScope,
-  input: {
-    organizationId: string;
-    projectId: string | null;
-    createdByUserId?: string | null;
-  },
-) {
-  if (input.organizationId !== scope.organizationId) {
-    return false;
-  }
+/** Thrown inside the create transaction when another request already holds the idempotency key. */
+class PublicJobIdempotencyConflictError extends Error {}
 
-  if (input.projectId) {
-    return (
-      scope.accessibleProjectIds === null || scope.accessibleProjectIds.includes(input.projectId)
-    );
-  }
+type PublicJobIdempotency = { key: string; requestHash: string };
 
-  if (scope.accessibleProjectIds === null) {
-    return true;
-  }
+type ReplayedPublicJob = {
+  id: string;
+  type: "string" | "file" | "keys";
+  status: string;
+  lastError: string | null;
+  outcomeKind: string | null;
+};
 
-  const uploaderId = input.createdByUserId ?? null;
-  if (uploaderId === null) {
-    return true;
-  }
-
-  return uploaderId === teamAccess.user.localUserId;
+function publicJobCreateResult(job: {
+  id: string;
+  type: "string" | "file" | "keys";
+  status: string;
+}) {
+  return { id: job.id, type: job.type, status: job.status };
 }
 
-function buildAccessibleJobsWhereFromProjectScope(scope: ApiKeyProjectAccessScope): SQL {
-  const organizationScope = eq(schema.jobs.organizationId, scope.organizationId);
+function isRecoverableQueueFailure(job: ReplayedPublicJob) {
+  return (
+    job.status === "failed" &&
+    job.lastError === publicJobQueueUnavailableError &&
+    job.outcomeKind == null
+  );
+}
 
-  if (scope.accessibleProjectIds === null) {
-    return organizationScope;
+/**
+ * The job an earlier request with this idempotency key created: `replayed` when the body matches,
+ * `reused` when the key came with a different body, null when the key is new.
+ */
+async function findIdempotentPublicJob(organizationId: string, idempotency: PublicJobIdempotency) {
+  const [existing] = await db
+    .select({
+      requestHash: schema.publicJobIdempotencyKeys.requestHash,
+      id: schema.jobs.id,
+      status: schema.jobs.status,
+      type: schema.translationJobDetails.type,
+      lastError: schema.jobs.lastError,
+      outcomeKind: schema.translationJobDetails.outcomeKind,
+    })
+    .from(schema.publicJobIdempotencyKeys)
+    .innerJoin(schema.jobs, eq(schema.jobs.id, schema.publicJobIdempotencyKeys.jobId))
+    .innerJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
+    .where(
+      and(
+        eq(schema.publicJobIdempotencyKeys.organizationId, organizationId),
+        eq(schema.publicJobIdempotencyKeys.key, idempotency.key),
+      ),
+    )
+    .limit(1);
+
+  if (!existing) {
+    return null;
   }
-
-  if (scope.accessibleProjectIds.length === 0) {
-    return sql`false`;
+  if (existing.requestHash !== idempotency.requestHash) {
+    return { kind: "reused" as const };
   }
+  return {
+    kind: "replayed" as const,
+    job: {
+      id: existing.id,
+      type: existing.type,
+      status: existing.status,
+      lastError: existing.lastError,
+      outcomeKind: existing.outcomeKind,
+    },
+  };
+}
 
-  return and(organizationScope, inArray(schema.jobs.projectId, scope.accessibleProjectIds))!;
+/** Claims a failed create-time enqueue so only one retry re-queues the job. */
+async function reclaimPublicJobAfterQueueFailure(jobId: string) {
+  const [updated] = await updateJobs(db, {
+    set: {
+      status: "queued",
+      lastError: null,
+    },
+    where: and(
+      eq(schema.jobs.id, jobId),
+      eq(schema.jobs.status, "failed"),
+      eq(schema.jobs.lastError, publicJobQueueUnavailableError),
+    ),
+    returning: { id: schema.jobs.id },
+  });
+  return updated ?? null;
+}
+
+/**
+ * The project's own spelling of a locale it accepted without regard to case, so a task's
+ * languages match its translations exactly, as tasks made in the app do.
+ */
+function projectLocaleSpelling(projectLocales: string[], locale: string) {
+  const canonical = canonicalizeLocale(locale) ?? locale;
+  return (
+    projectLocales.find((entry) => entry.toLowerCase() === canonical.toLowerCase()) ?? canonical
+  );
+}
+
+/** Finds the workspace member a client names as the job's owner, matching email without case. */
+async function findPublicJobOwner(organizationId: string, email: string) {
+  const [owner] = await db
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .innerJoin(
+      schema.organizationMemberships,
+      eq(schema.organizationMemberships.userId, schema.users.id),
+    )
+    .where(
+      and(
+        sql`lower(${schema.users.email}) = lower(${email})`,
+        eq(schema.organizationMemberships.organizationId, organizationId),
+      ),
+    )
+    .limit(1);
+  return owner ?? null;
 }
 
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
+  async function enqueueCreatedPublicJob(input: {
+    actor: ReturnType<typeof publicApiActivityActor>;
+    jobId: string;
+    kind: string;
+    organizationId: string;
+    projectId: string;
+    type: Exclude<CreatePublicJobBody["type"], "keys">;
+  }) {
+    if (!options.jobQueue) {
+      return true;
+    }
+    try {
+      await options.jobQueue.enqueue({
+        kind: "translation",
+        jobId: input.jobId,
+        projectId: input.projectId,
+        type: input.type,
+      });
+      return true;
+    } catch {
+      await updateJobs(db, {
+        set: {
+          status: "failed",
+          lastError: publicJobQueueUnavailableError,
+        },
+        where: eq(schema.jobs.id, input.jobId),
+      });
+
+      await enqueueJobFailedActivity({
+        ...input.actor,
+        errorCode: "queue_unavailable",
+        jobId: input.jobId,
+        kind: input.kind,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        status: "failed",
+      });
+      return false;
+    }
+  }
+
+  async function replayIdempotentPublicJob(
+    c: Context<{ Variables: ApiKeyAuthVariables }>,
+    earlier: ReplayedPublicJob,
+    payload: CreatePublicJobBody,
+    organizationId: string,
+    idempotency: PublicJobIdempotency,
+  ) {
+    if (payload.type !== "keys" && isRecoverableQueueFailure(earlier)) {
+      const claimed = await reclaimPublicJobAfterQueueFailure(earlier.id);
+      if (claimed) {
+        const enqueued = await enqueueCreatedPublicJob({
+          actor: publicApiActivityActor(c.var.auth),
+          jobId: earlier.id,
+          kind: "translation",
+          organizationId,
+          projectId: payload.projectId,
+          type: payload.type,
+        });
+        if (!enqueued) {
+          return jobQueueUnavailableResponse(c);
+        }
+        c.header("Idempotent-Replayed", "true");
+        return c.json(
+          { job: publicJobCreateResult({ id: earlier.id, type: earlier.type, status: "queued" }) },
+          200,
+        );
+      }
+      const current = await findIdempotentPublicJob(organizationId, idempotency);
+      if (current?.kind === "replayed") {
+        c.header("Idempotent-Replayed", "true");
+        return c.json({ job: publicJobCreateResult(current.job) }, 200);
+      }
+    }
+
+    c.header("Idempotent-Replayed", "true");
+    return c.json({ job: publicJobCreateResult(earlier) }, 200);
+  }
+
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
     .use("*", publicApiAuthMiddleware)
     .post(
@@ -195,6 +352,16 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
       async (c) => {
         const payload = c.req.valid("json");
         const organizationId = c.var.auth.organization.localOrganizationId;
+
+        let idempotency: PublicJobIdempotency | null = null;
+        const idempotencyKeyHeader = c.req.header("idempotency-key");
+        if (idempotencyKeyHeader !== undefined) {
+          const parsedKey = publicJobIdempotencyKeySchema.safeParse(idempotencyKeyHeader);
+          if (!parsedKey.success) {
+            return invalidIdempotencyKeyResponse(c);
+          }
+          idempotency = { key: parsedKey.data, requestHash: hashPublicJobRequest(payload) };
+        }
         const projectAccessScope = await resolveApiKeyProjectAccessScope(c.var.auth.teamAccess);
 
         const project = await getProjectForAccessScope(projectAccessScope, payload.projectId);
@@ -202,8 +369,58 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         if (!project) {
           return projectNotFoundResponse(c);
         }
+        if (payload.type === "keys" && project.source !== "native") {
+          return c.json(
+            {
+              error: "project_not_native",
+              message: "Tasks made of strings are for native projects",
+            },
+            409,
+          );
+        }
 
-        const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
+        // A matching body names the same project, so the access check above covers a replay too.
+        if (idempotency) {
+          const earlier = await findIdempotentPublicJob(organizationId, idempotency);
+          if (earlier?.kind === "reused") {
+            return idempotencyKeyReusedResponse(c);
+          }
+          if (earlier?.kind === "replayed") {
+            return replayIdempotentPublicJob(c, earlier.job, payload, organizationId, idempotency);
+          }
+        }
+
+        const baseInputPayload =
+          payload.type === "string"
+            ? payload.stringInput
+            : payload.type === "file"
+              ? payload.fileInput
+              : keyJobInputPayload({
+                  ...payload.keysInput,
+                  sourceLocale: projectLocaleSpelling(
+                    project.sourceLocale ? [project.sourceLocale] : [],
+                    payload.keysInput.sourceLocale,
+                  ),
+                  targetLocales: payload.keysInput.targetLocales.map((locale) =>
+                    projectLocaleSpelling(project.targetLocales, locale),
+                  ),
+                });
+        // A key job is a task for people: no AI call, no usage, never queued.
+        const isKeyJob = payload.type === "keys";
+        const title = payload.title?.trim();
+        const description = payload.description?.trim();
+        // Title and description live in metadata, where the in-app job editor keeps them.
+        const inputPayload =
+          title || description
+            ? {
+                ...baseInputPayload,
+                metadata: {
+                  ...baseInputPayload.metadata,
+                  ...(title ? { title } : {}),
+                  ...(description ? { description } : {}),
+                },
+              }
+            : baseInputPayload;
 
         const localeValidation = validateJobLocalesAgainstProject(project, {
           sourceLocale: inputPayload.sourceLocale,
@@ -213,9 +430,20 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
         }
 
-        const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(c, organizationId);
+        const aiFeaturesDenied = isKeyJob
+          ? null
+          : await rejectIfAiFeaturesUnavailable(c, organizationId);
         if (aiFeaturesDenied) {
           return aiFeaturesDenied;
+        }
+
+        let ownerUserId: string | null = null;
+        if (payload.ownerEmail) {
+          const owner = await findPublicJobOwner(organizationId, payload.ownerEmail);
+          if (!owner) {
+            return ownerNotFoundResponse(c);
+          }
+          ownerUserId = owner.id;
         }
 
         if (payload.type === "file") {
@@ -253,6 +481,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
             const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
               tx,
               organizationId,
+              { isKeyJob },
             );
             if (isErr(jobBudget)) {
               throw new OrganizationJobBudgetExceededError(jobBudget.error);
@@ -265,21 +494,43 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
                     organizationId,
                     projectId: payload.projectId,
                     fileId: payload.fileInput.sourceFileId,
+                    branchName: payload.fileInput.branch,
                   })
                 : null;
 
-            const [createdJob] = await tx
-              .insert(schema.jobs)
-              .values({
+            const [createdJob] = await insertJobs(tx, {
+              values: {
                 id: jobId,
                 organizationId,
                 projectId: payload.projectId,
-                kind: "translation",
-                status: "queued",
+                kind: isKeyJob ? "proofread" : "translation",
+                status: isKeyJob ? "waiting_for_review" : "queued",
                 inputPayload,
                 apiKeyId: storedOrganizationApiKeyId(c.var.auth),
-              })
-              .returning();
+                ownerUserId,
+                assigneeType: ownerUserId ? "user" : null,
+                dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
+              },
+              returning: "all",
+            });
+
+            if (idempotency) {
+              // A concurrent request with the same key waits here until the first commits, then
+              // finds the key taken and rolls back its own job.
+              const [claimed] = await tx
+                .insert(schema.publicJobIdempotencyKeys)
+                .values({
+                  organizationId,
+                  key: idempotency.key,
+                  requestHash: idempotency.requestHash,
+                  jobId,
+                })
+                .onConflictDoNothing()
+                .returning({ jobId: schema.publicJobIdempotencyKeys.jobId });
+              if (!claimed) {
+                throw new PublicJobIdempotencyConflictError();
+              }
+            }
 
             const [details] = await tx
               .insert(schema.translationJobDetails)
@@ -289,6 +540,19 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
                 sourceFileVersionId: sourceFileVersion?.id ?? null,
               })
               .returning();
+
+            if (payload.type === "keys") {
+              const linked = await insertKeyJobKeys(tx, {
+                organizationId,
+                projectId: payload.projectId,
+                jobId,
+                selection: payload.keysInput,
+              });
+              if (isErr(linked)) {
+                throw new KeyJobSelectionFailure(linked.error);
+              }
+              return [{ ...createdJob, type: details.type }];
+            }
 
             const usageEventResult = await reserveUsageEvent({
               db: tx,
@@ -312,6 +576,23 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
               429,
             );
           }
+          if (error instanceof KeyJobSelectionFailure) {
+            const { code } = error.selectionError;
+            return badRequestResponse(c, code, keyJobSelectionMessages[code]);
+          }
+          if (error instanceof PublicJobIdempotencyConflictError && idempotency) {
+            const earlier = await findIdempotentPublicJob(organizationId, idempotency);
+            if (earlier?.kind === "replayed") {
+              return replayIdempotentPublicJob(
+                c,
+                earlier.job,
+                payload,
+                organizationId,
+                idempotency,
+              );
+            }
+            return idempotencyKeyReusedResponse(c);
+          }
           throw error;
         }
 
@@ -324,150 +605,77 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           status: job.status,
         });
 
-        if (options.jobQueue) {
-          try {
-            await options.jobQueue.enqueue({
-              kind: "translation",
-              jobId: job.id,
-              projectId: payload.projectId,
-              type: payload.type,
-            });
-          } catch (error) {
-            await db
-              .update(schema.jobs)
-              .set({
-                status: "failed",
-                lastError:
-                  error instanceof Error ? error.message : "translation job queue unavailable",
-              })
-              .where(eq(schema.jobs.id, job.id));
+        if (payload.type === "keys") {
+          // A task for people runs no agent, so Reports records its strings now, as in the app.
+          await startTaskAnalysis({
+            organizationId,
+            projectId: payload.projectId,
+            jobId: job.id,
+            step: "review",
+            sourceLocale: inputPayload.sourceLocale,
+            targetLocales: inputPayload.targetLocales,
+            repositorySourceFileId: null,
+          });
+          return c.json(
+            { job: { id: job.id, type: payload.type, status: "waiting_for_review" } },
+            201,
+          );
+        }
 
-            await enqueueJobFailedActivity({
-              ...publicApiActivityActor(c.var.auth),
-              errorCode: "queue_unavailable",
-              jobId: job.id,
-              kind: job.kind,
-              organizationId,
-              projectId: job.projectId,
-              status: "failed",
-            });
-
-            return jobQueueUnavailableResponse(c);
-          }
+        const enqueued = await enqueueCreatedPublicJob({
+          actor: publicApiActivityActor(c.var.auth),
+          jobId: job.id,
+          kind: job.kind,
+          organizationId,
+          projectId: payload.projectId,
+          type: payload.type,
+        });
+        if (!enqueued) {
+          return jobQueueUnavailableResponse(c);
         }
 
         return c.json({ job: { id: job.id, type: payload.type, status: "queued" } }, 201);
       },
     )
-    .get(
-      "/latest",
-      requireApiKeyPermission("jobs:read"),
-      validateLatestPublicJobQuery,
+    .post(
+      "/:jobId/complete",
+      requireApiKeyPermission("jobs:write"),
+      validator("param", (value, c) => {
+        const parsed = jobIdParamsSchema.safeParse(value);
+        return parsed.success ? parsed.data : notFoundResponse(c, "job_not_found", "Job not found");
+      }),
       async (c) => {
-        const query = c.req.valid("query");
-        const organizationId = c.var.auth.organization.localOrganizationId;
-        const sourcePath = normalizeSourcePath(query.sourcePath);
-        const projectAccessScope = await resolveApiKeyProjectAccessScope(c.var.auth.teamAccess);
-        const project = await getProjectForAccessScope(projectAccessScope, query.projectId);
-
-        if (!project) {
-          return projectNotFoundResponse(c);
+        const teamAccess = c.var.auth.teamAccess;
+        const role = teamAccess.organization.membership.role;
+        if (!isJobMutationAllowed(role)) {
+          return forbiddenResponse(c);
         }
-
-        const accessibleJobsWhere = buildAccessibleJobsWhereFromProjectScope(projectAccessScope);
-
-        const [job] = await db
-          .select({
-            id: schema.jobs.id,
-            projectId: schema.jobs.projectId,
-            type: schema.translationJobDetails.type,
-            status: schema.jobs.status,
-            outcomeKind: schema.translationJobDetails.outcomeKind,
-            outcomePayload: schema.jobs.outcomePayload,
-            lastError: schema.jobs.lastError,
-            createdAt: schema.jobs.createdAt,
-            updatedAt: schema.jobs.updatedAt,
-            completedAt: schema.jobs.completedAt,
-          })
-          .from(schema.repositorySourceFileVersions)
-          .innerJoin(
-            schema.translationJobDetails,
-            eq(
-              schema.translationJobDetails.sourceFileVersionId,
-              schema.repositorySourceFileVersions.id,
-            ),
-          )
-          .innerJoin(schema.jobs, eq(schema.jobs.id, schema.translationJobDetails.jobId))
-          .where(
-            and(
-              eq(schema.repositorySourceFileVersions.organizationId, organizationId),
-              eq(schema.repositorySourceFileVersions.projectId, project.id),
-              eq(schema.repositorySourceFileVersions.sourcePath, sourcePath),
-              accessibleJobsWhere,
-              eq(schema.jobs.kind, "translation"),
-              eq(schema.jobs.status, "succeeded"),
-              eq(schema.translationJobDetails.type, "file"),
-              eq(schema.translationJobDetails.outcomeKind, "file_result"),
-            ),
-          )
-          .orderBy(desc(schema.repositorySourceFileVersions.createdAt), desc(schema.jobs.createdAt))
-          .limit(1);
-
-        if (!job) {
-          return jobNotFoundResponse(c);
+        // The same rules as Mark done in the app: reviewers and managers finish any task for
+        // people, anyone else only a task assigned to them.
+        const done = await markTaskDone({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          jobId: c.req.valid("param").jobId,
+          actorUserId: teamAccess.user.localUserId,
+          actorMayFinishAnyTask: hasCapability(role, "reviews:approve"),
+          accessWhere: await buildAccessibleJobsWhere(teamAccess),
+        });
+        if (isErr(done)) {
+          switch (done.error.code) {
+            case "job_not_found":
+              return notFoundResponse(c, "job_not_found", "Job not found");
+            case "not_task_assignee":
+              return forbiddenResponse(c);
+            case "job_action_unavailable":
+              return conflictResponse(
+                c,
+                "job_action_unavailable",
+                "Only an open task for people can be completed",
+              );
+            default:
+              return assertNever(done.error);
+          }
         }
-
-        return c.json(
-          {
-            job: {
-              id: job.id,
-              projectId: job.projectId,
-              type: job.type,
-              status: job.status,
-              createdAt: job.createdAt,
-              updatedAt: job.updatedAt,
-              completedAt: job.completedAt,
-              lastError: job.lastError,
-              outputFiles: publicJobOutputFiles(job),
-            },
-          },
-          200,
-        );
+        return c.json({ job: { id: done.value.id, status: "succeeded" } }, 200);
       },
-    )
-    .get("/:jobId", requireApiKeyPermission("jobs:read"), validateJobIdParams, async (c) => {
-      const params = c.req.valid("param");
-      const job = await findAccessiblePublicJob(c.var.auth.teamAccess, params.jobId);
-
-      if (!job) {
-        return jobNotFoundResponse(c);
-      }
-
-      return c.json({ job: toPublicJobEnvelope(job) }, 200);
-    })
-    .get("/:jobId/status", requireApiKeyPermission("jobs:read"), validateJobIdParams, async (c) => {
-      const params = c.req.valid("param");
-      const job = await findAccessiblePublicJob(c.var.auth.teamAccess, params.jobId);
-
-      if (!job) {
-        return jobNotFoundResponse(c);
-      }
-
-      return c.json(
-        {
-          job: {
-            id: job.id,
-            projectId: job.projectId,
-            kind: job.kind,
-            type: job.type,
-            status: job.status,
-            createdAt: job.createdAt,
-            updatedAt: job.updatedAt,
-            completedAt: job.completedAt,
-            lastError: job.lastError,
-          },
-        },
-        200,
-      );
-    });
+    );
 }

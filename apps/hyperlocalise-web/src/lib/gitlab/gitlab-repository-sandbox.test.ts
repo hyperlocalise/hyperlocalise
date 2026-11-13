@@ -12,9 +12,19 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { createVercelSandboxWorkspaceMock, loadGitLabPipesAccessTokenMock } = vi.hoisted(() => ({
+const {
+  createVercelSandboxWorkspaceMock,
+  loadGitLabPipesAccessTokenMock,
+  loadGitLabConnectionCredentialsMock,
+} = vi.hoisted(() => ({
   createVercelSandboxWorkspaceMock: vi.fn(),
   loadGitLabPipesAccessTokenMock: vi.fn(),
+  loadGitLabConnectionCredentialsMock: vi.fn(),
+}));
+
+vi.mock("./connections", () => ({
+  loadGitLabConnectionCredentials: loadGitLabConnectionCredentialsMock,
+  getGitLabConnection: vi.fn(),
 }));
 
 vi.mock("@/lib/agent-runtime/workspaces/vercel-sandbox-runtime", () => ({
@@ -33,6 +43,59 @@ import { createGitlabRepositorySandbox } from "./gitlab-repository-sandbox";
 describe("createGitlabRepositorySandbox", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(null));
+  });
+
+  it("clones from the workspace's server with its token, whatever an old context says", async () => {
+    loadGitLabConnectionCredentialsMock.mockResolvedValue(
+      ok({ baseUrl: "https://git.acme.example/gitlab", accessToken: "server-token" }),
+    );
+    createVercelSandboxWorkspaceMock.mockResolvedValue({ id: "sbx_gitlab" });
+
+    await createGitlabRepositorySandbox({
+      localOrganizationId: "org_1",
+      workosUserId: null,
+      gitlabContext: {
+        resolved: true,
+        provider: "gitlab",
+        projectId: 11,
+        repositoryFullName: "acme/web",
+        httpUrlToRepo: "https://old-server.example/acme/web.git",
+      },
+    });
+
+    expect(loadGitLabPipesAccessTokenMock).not.toHaveBeenCalled();
+    expect(createVercelSandboxWorkspaceMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: expect.objectContaining({
+          url: "https://git.acme.example/gitlab/acme/web.git",
+          password: "server-token",
+        }),
+      }),
+    );
+  });
+
+  it("never sends a GitLab.com token to a server named in an old context", async () => {
+    loadGitLabPipesAccessTokenMock.mockResolvedValue(ok("oauth-token"));
+    createVercelSandboxWorkspaceMock.mockResolvedValue({ id: "sbx_gitlab" });
+
+    await createGitlabRepositorySandbox({
+      localOrganizationId: "org_1",
+      workosUserId: "user_1",
+      gitlabContext: {
+        resolved: true,
+        provider: "gitlab",
+        projectId: 11,
+        repositoryFullName: "acme/web",
+        httpUrlToRepo: "https://old-server.example/acme/web.git",
+      },
+    });
+
+    expect(createVercelSandboxWorkspaceMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: expect.objectContaining({ url: "https://gitlab.com/acme/web.git" }),
+      }),
+    );
   });
 
   it("clones with oauth2 credentials and the Pipes access token", async () => {

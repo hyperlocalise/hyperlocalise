@@ -1,6 +1,7 @@
 package icuparser
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -62,6 +63,18 @@ func TestSameICUBlocks(t *testing.T) {
 			want: false,
 		},
 		{
+			name: "locale-specific CLDR categories",
+			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one", "other"}}},
+			b:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"other"}}},
+			want: true,
+		},
+		{
+			name: "exact match must stay",
+			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"=0", "one", "other"}}},
+			b:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"other"}}},
+			want: false,
+		},
+		{
 			name: "options mismatch in typed formatter",
 			a:    []BlockSignature{{Arg: "n", Type: "number", Options: []string{"currency"}}},
 			b:    []BlockSignature{{Arg: "n", Type: "number", Options: []string{"percent"}}},
@@ -109,6 +122,13 @@ func TestIsPlaceholderNameEdgeCases(t *testing.T) {
 		{"empty", "", false},
 		{"unicode", "π", true},
 		{"unicode path", "π.val", true},
+		// ASCII fast-path cases after Bolt #2463 (simple identifiers without '.' / '[').
+		{"ascii user_id", "user_id", true},
+		{"ascii dollar", "$count", true},
+		{"ascii hyphenated", "folder-name", true},
+		{"reject trailing bracket", "name]", false},
+		{"reject open bracket", "items[", false},
+		{"reject space", "user name", false},
 	}
 
 	for _, tt := range tests {
@@ -445,6 +465,57 @@ func TestNumericPlaceholderInPlaceholders(t *testing.T) {
 	if !found1 {
 		t.Errorf("expected '1' in placeholders, got %v", inv.Placeholders)
 	}
+}
+
+func TestParseInvariantPlaceholdersBeyondInitialCapacity(t *testing.T) {
+	occurrences := PLACEHOLDER_SLICE_CAP + 1
+
+	t.Run("distinct", func(t *testing.T) {
+		want := make([]string, occurrences)
+		var b strings.Builder
+		for i := range want {
+			want[i] = fmt.Sprintf("p%03d", i)
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteByte('{')
+			b.WriteString(want[i])
+			b.WriteByte('}')
+		}
+
+		inv, err := ParseInvariant(b.String())
+		if err != nil {
+			t.Fatalf("ParseInvariant failed: %v", err)
+		}
+		if !slicesEqual(inv.Placeholders, want) {
+			t.Errorf("placeholders = %v, want %v", inv.Placeholders, want)
+		}
+		if cap(inv.Placeholders) <= PLACEHOLDER_SLICE_CAP {
+			t.Errorf("cap = %d, want growth past %d", cap(inv.Placeholders), PLACEHOLDER_SLICE_CAP)
+		}
+	})
+
+	t.Run("repeated", func(t *testing.T) {
+		var b strings.Builder
+		for i := 0; i < occurrences; i++ {
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString("{name}")
+		}
+
+		inv, err := ParseInvariant(b.String())
+		if err != nil {
+			t.Fatalf("ParseInvariant failed: %v", err)
+		}
+		want := []string{"name"}
+		if !slicesEqual(inv.Placeholders, want) {
+			t.Errorf("placeholders = %v, want %v", inv.Placeholders, want)
+		}
+		if cap(inv.Placeholders) <= PLACEHOLDER_SLICE_CAP {
+			t.Errorf("cap = %d, want growth past %d", cap(inv.Placeholders), PLACEHOLDER_SLICE_CAP)
+		}
+	})
 }
 
 func TestParseInvariantDeduplicatesPlaceholders(t *testing.T) {

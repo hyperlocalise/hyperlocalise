@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
@@ -37,13 +37,51 @@ async function fetchVerifiedSlackChannel(input: {
     query: { channelId: input.channelId },
   });
   if (response.status === 404) {
-    return null;
+    // Slack not being connected is also a 404, and says nothing about the channel.
+    const body = await response.json();
+    if ("error" in body && body.error === "slack_channel_not_found") {
+      return null;
+    }
+    throw new Error("Failed to verify Slack channel");
   }
   if (response.status !== 200) {
     throw new Error("Failed to verify Slack channel");
   }
   const body = await response.json();
   return body.channel as VerifiedSlackChannel;
+}
+
+function slackChannelVerifyQueryOptions(organizationSlug: string, channelId: string) {
+  return {
+    queryKey: ["slack-channel-verify", organizationSlug, channelId],
+    queryFn: () => fetchVerifiedSlackChannel({ channelId, organizationSlug }),
+  };
+}
+
+/**
+ * Whether Slack says the channel does not exist, asked before a save. It shares the field's own
+ * lookup, so a channel the field has just checked is not asked about twice. A lookup that fails
+ * is not an answer, and does not count.
+ */
+export async function isSlackChannelMissing(input: {
+  channelId: string;
+  organizationSlug: string;
+  queryClient: QueryClient;
+}): Promise<boolean> {
+  const parsedChannelId = parseSlackConversationId(input.channelId);
+  if (!parsedChannelId) {
+    return false;
+  }
+  try {
+    const channel = await input.queryClient.fetchQuery({
+      ...slackChannelVerifyQueryOptions(input.organizationSlug, parsedChannelId),
+      // A save does not wait on retries.
+      retry: false,
+    });
+    return channel === null;
+  } catch {
+    return false;
+  }
 }
 
 function slackChannelLabel(
@@ -81,11 +119,17 @@ export function SlackChannelSelect({
   const intl = useIntl();
   const [draft, setDraft] = useState(value);
   const [debouncedDraft, setDebouncedDraft] = useState(value);
+  const [lastValue, setLastValue] = useState(value);
 
-  useEffect(() => {
-    setDraft(value);
-    setDebouncedDraft(value);
-  }, [value]);
+  if (value !== lastValue) {
+    setLastValue(value);
+    // Typing has already put this value in the draft. Anything else (undo, discard, the
+    // assistant) replaces the draft at once, with no pause before it is checked.
+    if (value !== draft.trim()) {
+      setDraft(value);
+      setDebouncedDraft(value);
+    }
+  }
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -96,12 +140,7 @@ export function SlackChannelSelect({
 
   const parsedChannelId = parseSlackConversationId(debouncedDraft.trim());
   const verifyQuery = useQuery({
-    queryKey: ["slack-channel-verify", organizationSlug, parsedChannelId],
-    queryFn: () =>
-      fetchVerifiedSlackChannel({
-        channelId: parsedChannelId!,
-        organizationSlug,
-      }),
+    ...slackChannelVerifyQueryOptions(organizationSlug, parsedChannelId ?? ""),
     enabled: slackConnected && Boolean(parsedChannelId),
   });
 
@@ -116,7 +155,9 @@ export function SlackChannelSelect({
   const verificationError = verifyQuery.isError
     ? intl.formatMessage(workspaceAutomationFormMessages.slackChannelVerifyFailed)
     : undefined;
-  const helperError = error ?? verificationError;
+  // The field's own message for a bad ID or a missing channel says more than the save's.
+  const saveError = showInvalidFormat || showNotFound ? undefined : error;
+  const helperError = saveError ?? verificationError;
   const verifiedLabel = verifiedChannel === null ? null : slackChannelLabel(intl, verifiedChannel);
 
   return (
@@ -146,17 +187,22 @@ export function SlackChannelSelect({
       {verifiedLabel ? (
         <p className={cn("text-xs text-muted-foreground")}>{verifiedLabel}</p>
       ) : null}
+      {/* The ones a save is refused for carry the mark the editor scrolls to. */}
       {showInvalidFormat ? (
-        <p className="text-xs text-destructive">
+        <p data-slot="field-error" className="text-xs text-destructive">
           <FormattedMessage {...workspaceAutomationFormMessages.invalidChannelId} />
         </p>
       ) : null}
       {showNotFound ? (
-        <p className="text-xs text-destructive">
+        <p data-slot="field-error" className="text-xs text-destructive">
           <FormattedMessage {...workspaceAutomationFormMessages.channelNotFound} />
         </p>
       ) : null}
-      {helperError ? <p className="text-xs text-destructive">{helperError}</p> : null}
+      {helperError ? (
+        <p data-slot={saveError ? "field-error" : undefined} className="text-xs text-destructive">
+          {helperError}
+        </p>
+      ) : null}
       {!helperError && !showInvalidFormat && !showNotFound && !verifiedLabel ? (
         <p className="text-xs text-muted-foreground">
           <FormattedMessage {...workspaceAutomationFormMessages.channelIdHelp} />

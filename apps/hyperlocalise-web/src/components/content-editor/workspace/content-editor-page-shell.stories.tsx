@@ -11,9 +11,10 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { fn } from "storybook/test";
-import { expect, userEvent, waitFor, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
+import { ProjectFilesBranchFilterView } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files-branch-filter-view";
+import { nativeProjectBranchesFixture } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files.fixture";
 import {
   CAT_STORY_IMAGE_SOURCE_URL,
   CAT_STORY_IMAGE_TARGET_URL,
@@ -34,6 +35,9 @@ import {
   contentEditorPageShellXlsxPath,
   createContentEditorPageShellWorkspaceBySourcePath,
 } from "./content-editor-page-shell.fixture";
+import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
+import { createContentEditorIntercomPushMswHandlers } from "@/components/content-editor/page/content-editor-intercom-push-msw-handlers";
+
 import { ContentEditorPageShellStoryView } from "./content-editor-page-shell.story-view";
 
 const meta = {
@@ -41,13 +45,19 @@ const meta = {
   component: ContentEditorPageShellStoryView,
   parameters: {
     layout: "fullscreen",
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: "/org/story/projects/story/files/content-editor",
+      },
+    },
     msw: {
       handlers: [...contentEditorDocumentMswHandlers, ...contentEditorOfficeMswHandlers],
     },
     docs: {
       description: {
         component:
-          "Full CAT page shell. Select files in the left tree to preview every supported editor format: PO, YAML, ARB, XLIFF, JSON/JSONC, HTML, strings, xcstrings, CSV, SRT, VTT, images, markdown, MDX, Word, Excel, PowerPoint, and video.",
+          "Full CAT page shell. Select files in the left tree to preview every supported editor format: PO, YAML, ARB, XLIFF, JSON/JSONC, HTML, strings, xcstrings, CSV, SRT, VTT, images, markdown, MDX, AsciiDoc, Word, Excel, PowerPoint, and video.",
       },
     },
   },
@@ -86,6 +96,7 @@ export const Default: Story = {
       onUseAiSuggestion: fn(),
       onRegenerateImage: fn(),
       onUploadImage: fn(),
+      onSetMaxLength: fn(),
     },
     review: {
       onApprove: fn(),
@@ -119,7 +130,7 @@ export const Default: Story = {
       await expect(shadowRoot.querySelector(`[data-item-path="${sourcePath}"]`)).toBeTruthy();
     }
 
-    await expect(canvas.getByText("Source string")).toBeInTheDocument();
+    await expect(canvas.getByText("Source")).toBeInTheDocument();
     await expect(canvas.getByText("Translation")).toBeInTheDocument();
     await expect(canvas.getByText("dashboard.reviews.pending.card")).toBeInTheDocument();
     await expect(canvas.getByRole("textbox", { name: "Target translation" })).toBeInTheDocument();
@@ -190,7 +201,68 @@ export const Default: Story = {
     await expect(canvas.getByRole("button", { name: "Show source" })).toBeInTheDocument();
 
     await selectFileInTree(canvasElement, contentEditorPageShellProductJsonPath);
-    await waitFor(() => expect(canvas.getByText("Source string")).toBeInTheDocument());
+    await waitFor(() => expect(canvas.getByText("Source")).toBeInTheDocument());
     await expect(canvas.getByText("dashboard.reviews.pending.card")).toBeInTheDocument();
+  },
+};
+
+export const NativeBranch: Story = {
+  args: {
+    ...Default.args,
+    headerTrailing: (
+      <ProjectFilesBranchFilterView
+        allowAllBranches={false}
+        branches={nativeProjectBranchesFixture}
+        selectedBranch="main"
+        onSelectedBranchChange={() => undefined}
+      />
+    ),
+  },
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: "/org/story/projects/story/files/content-editor",
+        query: { branch: "main" },
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const branchLabel = canvas.getByText("Branch");
+    const branchFilter = branchLabel.closest("div");
+    if (!branchFilter) {
+      throw new Error("Expected native branch filter in the CAT header");
+    }
+
+    await expect(within(branchFilter).getByRole("combobox")).toHaveTextContent("main");
+    await expect(canvas.queryByText("All branches")).not.toBeInTheDocument();
+  },
+};
+
+export const IntercomPushInHeader: Story = {
+  args: {
+    ...Default.args,
+    headerTrailing: (
+      <ContentEditorIntercomPushButton
+        organizationSlug="story"
+        projectId="story"
+        canManageAutomations
+        sourcePath="intercom/customer-support/reset-your-password.md"
+      />
+    ),
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        ...contentEditorDocumentMswHandlers,
+        ...contentEditorOfficeMswHandlers,
+        ...createContentEditorIntercomPushMswHandlers(),
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("button", { name: "Push to Intercom" })).toBeEnabled();
   },
 };

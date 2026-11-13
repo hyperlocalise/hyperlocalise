@@ -10,22 +10,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { hasCapability } from "@/api/auth/policy";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { IssueDetailPageContent } from "./_components/issue-detail-page-content";
-import { OrgPageSuspense } from "../../../../_components/org-page-suspense";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "projectQueryDetail");
+}
 
 export default function IssueDetailPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string; issueId: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <IssueDetailPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <IssueDetailPageLoader params={params} />;
 }
 
 async function IssueDetailPageLoader({
@@ -35,13 +36,14 @@ async function IssueDetailPageLoader({
 }) {
   const { organizationSlug, projectId: rawProjectId, issueId } = await params;
   const projectId = normalizeProjectId(rawProjectId);
-  await requireAppAuthContext({ organizationSlug });
+  const auth = await requireAppAuthContext({ organizationSlug });
 
   return (
     <IssueDetailPageContent
       organizationSlug={organizationSlug}
       projectId={projectId}
       issueId={issueId}
+      canDelete={hasCapability(auth.membership.role, "write_back:translation")}
     />
   );
 }

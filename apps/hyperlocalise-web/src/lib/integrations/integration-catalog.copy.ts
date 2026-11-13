@@ -21,9 +21,14 @@ export const integrationCatalogCopy = {
     },
     tagline: {
       defaultMessage:
-        "Connect GitHub so Hyperlocalise can inspect localized strings, review merge requests, and open localization fixes.",
+        "Scan string changes in pull requests, flag missing translations, and open a fix PR.",
       id: "intGitHubTagline",
       description: "GitHub integration short description",
+    },
+    headline: {
+      defaultMessage: "Catch missing translations before the GitHub PR merges",
+      id: "intGitHubHeadline",
+      description: "GitHub integration marketing page headline",
     },
     overview: [
       {
@@ -51,13 +56,14 @@ export const integrationCatalogCopy = {
       description: "GitHub integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "GitHub integration | Hyperlocalise",
+      defaultMessage:
+        "GitHub localization: catch missing translations before merge | Hyperlocalise",
       id: "intGitHubMetaTitle",
       description: "GitHub integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect GitHub to Hyperlocalise for localization-aware code review, string inspection, and agent-driven fixes.",
+        "Scan GitHub pull requests for string changes, flag missing translations, and open localisation fix PRs without leaving your repo.",
       id: "intGitHubMetaDescription",
       description: "GitHub integration marketing page meta description",
     },
@@ -70,9 +76,14 @@ export const integrationCatalogCopy = {
     },
     tagline: {
       defaultMessage:
-        "Connect GitLab.com through Pipes so Hyperlocalise can clone projects into chat and automations.",
+        "Scan GitLab.com projects for string changes and keep locale files on the branch you merge.",
       id: "ezhaX1jR0b",
       description: "GitLab integration description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Catch missing translations before the GitLab merge request lands",
+      id: "intGitLabHeadline",
+      description: "GitLab integration marketing page headline",
     },
     overview: [
       {
@@ -99,13 +110,13 @@ export const integrationCatalogCopy = {
       description: "GitLab integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "GitLab integration | Hyperlocalise",
+      defaultMessage: "GitLab localization for merge requests | Hyperlocalise",
       id: "intGitLabMetaTitle",
       description: "GitLab integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect GitLab to Hyperlocalise for localization-aware reviews and agent-driven translation workflows.",
+        "Inspect GitLab.com projects for string changes, flag missing translations, and keep locale files on the branch you merge.",
       id: "intGitLabMetaDescription",
       description: "GitLab integration marketing page meta description",
     },
@@ -117,9 +128,14 @@ export const integrationCatalogCopy = {
       description: "Slack integration name",
     },
     tagline: {
-      defaultMessage: "Coordinate localization reviews from Slack channels and threads.",
+      defaultMessage: "Send review requests and launch blockers to the channel that owns the work.",
       id: "intSlackTagline",
       description: "Slack integration short description",
+    },
+    headline: {
+      defaultMessage: "Review translations in the Slack thread that owns the launch",
+      id: "intSlackHeadline",
+      description: "Slack integration marketing page headline",
     },
     overview: [
       {
@@ -146,13 +162,13 @@ export const integrationCatalogCopy = {
       description: "Slack integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Slack integration | Hyperlocalise",
+      defaultMessage: "Slack localization reviews | Hyperlocalise",
       id: "intSlackMetaTitle",
       description: "Slack integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Slack to Hyperlocalise for localization review notifications and team coordination.",
+        "Route localisation review requests and launch blockers to the Slack channel that already owns the work.",
       id: "intSlackMetaDescription",
       description: "Slack integration marketing page meta description",
     },
@@ -165,9 +181,14 @@ export const integrationCatalogCopy = {
     },
     tagline: {
       defaultMessage:
-        "Connect to browse Crowdin projects alongside native Hyperlocalise projects. Project and job data is read live from Crowdin when you open it.",
+        "Browse Crowdin projects live. Reviewers and agents work from the current TMS state.",
       id: "F63lYTb8dq",
       description: "Crowdin TMS integration description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Keep Crowdin as your TMS. Review and launch in Hyperlocalise.",
+      id: "intCrowdinHeadline",
+      description: "Crowdin integration marketing page headline",
     },
     overview: [
       {
@@ -194,13 +215,13 @@ export const integrationCatalogCopy = {
       description: "Crowdin integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Crowdin integration | Hyperlocalise",
+      defaultMessage: "Crowdin integration for localization review | Hyperlocalise",
       id: "intCrowdinMetaTitle",
       description: "Crowdin integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Crowdin to Hyperlocalise to browse TMS projects and run agent-native localization workflows.",
+        "Keep Crowdin as your TMS. Hyperlocalise reads projects live and adds review, context, and GitHub or Slack launch workflows.",
       id: "intCrowdinMetaDescription",
       description: "Crowdin integration marketing page meta description",
     },
@@ -213,9 +234,14 @@ export const integrationCatalogCopy = {
     },
     tagline: {
       defaultMessage:
-        "Connect to browse Lokalise projects, tasks, glossaries, and translation memories with user OAuth.",
+        "OAuth into Lokalise so projects, tasks, glossaries, and memories stay in view.",
       id: "KsWSfbuaLd",
       description: "Lokalise TMS integration description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Keep Lokalise. Add review, context, and launch tools on top.",
+      id: "intLokaliseHeadline",
+      description: "Lokalise integration marketing page headline",
     },
     overview: [
       {
@@ -242,13 +268,13 @@ export const integrationCatalogCopy = {
       description: "Lokalise integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Lokalise integration | Hyperlocalise",
+      defaultMessage: "Lokalise integration for localization workflows | Hyperlocalise",
       id: "intLokaliseMetaTitle",
       description: "Lokalise integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Lokalise to Hyperlocalise for OAuth-backed TMS browsing and localization workflows.",
+        "Keep Lokalise as your TMS. Connect with OAuth to browse projects, glossaries, and memories while review happens in Hyperlocalise.",
       id: "intLokaliseMetaDescription",
       description: "Lokalise integration marketing page meta description",
     },
@@ -260,9 +286,14 @@ export const integrationCatalogCopy = {
       description: "Phrase TMS integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Connect to browse Phrase projects and jobs with user OAuth.",
+      defaultMessage: "Connect Phrase with OAuth and browse projects and jobs from one place.",
       id: "HsI1Rbh6Cp",
       description: "Phrase TMS integration description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Keep Phrase. Coordinate review without leaving Hyperlocalise.",
+      id: "intPhraseHeadline",
+      description: "Phrase integration marketing page headline",
     },
     overview: [
       {
@@ -289,13 +320,13 @@ export const integrationCatalogCopy = {
       description: "Phrase integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Phrase integration | Hyperlocalise",
+      defaultMessage: "Phrase TMS integration | Hyperlocalise",
       id: "intPhraseMetaTitle",
       description: "Phrase integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Phrase to Hyperlocalise for OAuth-backed TMS browsing and localization operations.",
+        "Keep Phrase as your TMS. Connect with OAuth to browse projects and jobs while review and launch work happen in Hyperlocalise.",
       id: "intPhraseMetaDescription",
       description: "Phrase integration marketing page meta description",
     },
@@ -307,9 +338,14 @@ export const integrationCatalogCopy = {
       description: "Smartling TMS integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Connect enterprise localization programs.",
+      defaultMessage: "Give launch owners visibility on Smartling work without replacing the TMS.",
       id: "4HsCO20k/1",
       description: "Smartling TMS integration description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Keep Smartling for enterprise translation. Run review here.",
+      id: "intSmartlingHeadline",
+      description: "Smartling integration marketing page headline",
     },
     overview: [
       {
@@ -336,13 +372,13 @@ export const integrationCatalogCopy = {
       description: "Smartling integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Smartling integration | Hyperlocalise",
+      defaultMessage: "Smartling enterprise localization integration | Hyperlocalise",
       id: "intSmartlingMetaTitle",
       description: "Smartling integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Smartling to Hyperlocalise for enterprise TMS visibility and agent-native localization workflows.",
+        "Keep Smartling as the enterprise TMS. Hyperlocalise adds review, context, and launch visibility on top.",
       id: "intSmartlingMetaDescription",
       description: "Smartling integration marketing page meta description",
     },
@@ -354,9 +390,15 @@ export const integrationCatalogCopy = {
       description: "Contentful CMS integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "CMS connector for agentic article translation and draft writeback.",
+      defaultMessage:
+        "Connect a space so article translation stays tied to the entries you publish.",
       id: "YrDOYyksrv",
       description: "Contentful CMS integration description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Translate Contentful entries and write drafts back",
+      id: "intContentfulHeadline",
+      description: "Contentful integration marketing page headline",
     },
     overview: [
       {
@@ -383,13 +425,13 @@ export const integrationCatalogCopy = {
       description: "Contentful integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Contentful integration | Hyperlocalise",
+      defaultMessage: "Contentful localization connector | Hyperlocalise",
       id: "intContentfulMetaTitle",
       description: "Contentful integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Contentful to Hyperlocalise for agentic content translation and draft writeback.",
+        "Translate Contentful entries with review in Hyperlocalise, then write drafts back to the space you publish from.",
       id: "intContentfulMetaDescription",
       description: "Contentful integration marketing page meta description",
     },
@@ -401,9 +443,14 @@ export const integrationCatalogCopy = {
       description: "Canva integration name",
     },
     tagline: {
-      defaultMessage: "Localize design assets and campaign creative from Canva.",
+      defaultMessage: "Keep campaign visuals on the same review path as product copy.",
       id: "intCanvaTagline",
       description: "Canva integration short description",
+    },
+    headline: {
+      defaultMessage: "Localise Canva creative without rebuilding the layout",
+      id: "intCanvaHeadline",
+      description: "Canva integration marketing page headline",
     },
     overview: [
       {
@@ -430,13 +477,13 @@ export const integrationCatalogCopy = {
       description: "Canva integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Canva integration | Hyperlocalise",
+      defaultMessage: "Canva design localization | Hyperlocalise",
       id: "intCanvaMetaTitle",
       description: "Canva integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Canva to Hyperlocalise for design asset localization and creative workflows.",
+        "Localise Canva designs and campaign creative without rebuilding layouts, with the same review path as product copy.",
       id: "intCanvaMetaDescription",
       description: "Canva integration marketing page meta description",
     },
@@ -448,9 +495,15 @@ export const integrationCatalogCopy = {
       description: "Intercom integration name",
     },
     tagline: {
-      defaultMessage: "Localize support content and customer messaging from Intercom.",
+      defaultMessage:
+        "Localise articles and in-product messaging with the same review process as product strings.",
       id: "intIntercomTagline",
       description: "Intercom integration short description",
+    },
+    headline: {
+      defaultMessage: "Keep help content current in every Intercom locale",
+      id: "intIntercomHeadline",
+      description: "Intercom integration marketing page headline",
     },
     overview: [
       {
@@ -477,13 +530,13 @@ export const integrationCatalogCopy = {
       description: "Intercom integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Intercom integration | Hyperlocalise",
+      defaultMessage: "Intercom help center localization | Hyperlocalise",
       id: "intIntercomMetaTitle",
       description: "Intercom integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Intercom to Hyperlocalise for support content localization and customer messaging workflows.",
+        "Localise Intercom help articles and in-product messaging with the same review process as product strings.",
       id: "intIntercomMetaDescription",
       description: "Intercom integration marketing page meta description",
     },
@@ -495,9 +548,14 @@ export const integrationCatalogCopy = {
       description: "Ahrefs integration name",
     },
     tagline: {
-      defaultMessage: "Bring SEO research into locale-aware content workflows.",
+      defaultMessage: "Feed keyword and ranking context into locale-aware content planning.",
       id: "intAhrefsTagline",
       description: "Ahrefs integration short description",
+    },
+    headline: {
+      defaultMessage: "Prioritise markets with Ahrefs search data, then localise",
+      id: "intAhrefsHeadline",
+      description: "Ahrefs integration marketing page headline",
     },
     overview: [
       {
@@ -524,13 +582,13 @@ export const integrationCatalogCopy = {
       description: "Ahrefs integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Ahrefs integration | Hyperlocalise",
+      defaultMessage: "Ahrefs SEO localization workflow | Hyperlocalise",
       id: "intAhrefsMetaTitle",
       description: "Ahrefs integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Ahrefs to Hyperlocalise for SEO-informed, locale-aware content workflows.",
+        "Use Ahrefs keyword and ranking data to choose which pages to localise, then run review in Hyperlocalise.",
       id: "intAhrefsMetaDescription",
       description: "Ahrefs integration marketing page meta description",
     },
@@ -542,9 +600,15 @@ export const integrationCatalogCopy = {
       description: "Semrush integration name",
     },
     tagline: {
-      defaultMessage: "Connect SEO intelligence to multilingual content operations.",
+      defaultMessage:
+        "Use keyword and competitive research to choose markets before translation starts.",
       id: "intSemrushTagline",
       description: "Semrush integration short description",
+    },
+    headline: {
+      defaultMessage: "Localise the pages Semrush shows you are worth winning",
+      id: "intSemrushHeadline",
+      description: "Semrush integration marketing page headline",
     },
     overview: [
       {
@@ -571,13 +635,13 @@ export const integrationCatalogCopy = {
       description: "Semrush integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Semrush integration | Hyperlocalise",
+      defaultMessage: "Semrush SEO localization workflow | Hyperlocalise",
       id: "intSemrushMetaTitle",
       description: "Semrush integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Semrush to Hyperlocalise for SEO-informed multilingual content operations.",
+        "Use Semrush keyword and competitive research to pick markets and pages, then localise them in Hyperlocalise.",
       id: "intSemrushMetaDescription",
       description: "Semrush integration marketing page meta description",
     },
@@ -589,9 +653,15 @@ export const integrationCatalogCopy = {
       description: "Zernio integration name",
     },
     tagline: {
-      defaultMessage: "Create paid ads from localized copy across Meta, Google, TikTok, and more.",
+      defaultMessage:
+        "After translation, create paid ads from one API instead of rebuilding campaigns per market.",
       id: "intZernioTagline",
       description: "Zernio integration short description",
+    },
+    headline: {
+      defaultMessage: "Turn localised copy into ads across Meta, Google, and TikTok",
+      id: "intZernioHeadline",
+      description: "Zernio integration marketing page headline",
     },
     overview: [
       {
@@ -618,13 +688,13 @@ export const integrationCatalogCopy = {
       description: "Zernio integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Zernio integration | Hyperlocalise",
+      defaultMessage: "Zernio ads localization | Hyperlocalise",
       id: "intZernioMetaTitle",
       description: "Zernio integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Zernio to Hyperlocalise to create localized ads across Meta, Google, TikTok, LinkedIn, and more.",
+        "After localisation, create paid ads across Meta, Google Ads, TikTok, LinkedIn, and more from one Zernio API.",
       id: "intZernioMetaDescription",
       description: "Zernio integration marketing page meta description",
     },
@@ -636,9 +706,15 @@ export const integrationCatalogCopy = {
       description: "Built-in market experiments product name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Test a change with some users before you show it to everyone.",
+      defaultMessage:
+        "Run copy and layout experiments per market without a separate feature-flag stack.",
       id: "Rk8U85urY5",
       description: "Built-in experiments product description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Test a locale change with some users before everyone sees it",
+      id: "intHyperlabHeadline",
+      description: "Hyperlab integration marketing page headline",
     },
     overview: [
       {
@@ -665,13 +741,13 @@ export const integrationCatalogCopy = {
       description: "Hyperlab integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Hyperlab | Hyperlocalise integrations",
+      defaultMessage: "Hyperlab localization experiments | Hyperlocalise",
       id: "intHyperlabMetaTitle",
       description: "Hyperlab integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Use Hyperlab inside Hyperlocalise to experiment with localized experiences before global rollout.",
+        "Test a locale change with some users before everyone sees it, using Hyperlab inside Hyperlocalise.",
       id: "intHyperlabMetaDescription",
       description: "Hyperlab integration marketing page meta description",
     },
@@ -683,10 +759,14 @@ export const integrationCatalogCopy = {
       description: "Statsig integration name on the integrations page",
     },
     tagline: {
-      defaultMessage:
-        "Connect Statsig to run localized experiments and ship copy behind feature flags.",
+      defaultMessage: "Run locale experiments and feature gates without leaving Hyperlocalise.",
       id: "intStatsigTagline",
       description: "Statsig integration description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Ship localised copy behind Statsig flags",
+      id: "intStatsigHeadline",
+      description: "Statsig integration marketing page headline",
     },
     overview: [
       {
@@ -713,13 +793,13 @@ export const integrationCatalogCopy = {
       description: "Statsig integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Statsig integration | Hyperlocalise",
+      defaultMessage: "Statsig localization experiments | Hyperlocalise",
       id: "intStatsigMetaTitle",
       description: "Statsig integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Statsig to Hyperlocalise to run localized experiments and ship copy behind feature flags.",
+        "Coming soon: ship localised copy behind Statsig feature flags and experiments from Hyperlocalise.",
       id: "intStatsigMetaDescription",
       description: "Statsig integration marketing page meta description",
     },
@@ -732,9 +812,14 @@ export const integrationCatalogCopy = {
     },
     tagline: {
       defaultMessage:
-        "Create Jira issues from translation blockers and keep localization work in sync.",
+        "Keep localisation work visible next to the engineering tickets that block release.",
       id: "jEkf8VDO5/",
       description: "Jira integration description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Turn translation blockers into Jira issues",
+      id: "intJiraHeadline",
+      description: "Jira integration marketing page headline",
     },
     overview: [
       {
@@ -761,13 +846,13 @@ export const integrationCatalogCopy = {
       description: "Jira integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Jira integration | Hyperlocalise",
+      defaultMessage: "Jira localization issue tracking | Hyperlocalise",
       id: "intJiraMetaTitle",
       description: "Jira integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Jira to Hyperlocalise to track localization blockers and sync launch work.",
+        "Coming soon: create Jira issues from translation blockers so localisation work sits next to the tickets that block release.",
       id: "intJiraMetaDescription",
       description: "Jira integration marketing page meta description",
     },
@@ -779,9 +864,14 @@ export const integrationCatalogCopy = {
       description: "Linear integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Create issues from translation blockers and keep launch tasks in sync.",
+      defaultMessage: "Keep launch work beside the rest of your product pipeline.",
       id: "rponYzKMZ3",
       description: "Linear integration description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Turn translation blockers into Linear issues",
+      id: "intLinearHeadline",
+      description: "Linear integration marketing page headline",
     },
     overview: [
       {
@@ -808,13 +898,13 @@ export const integrationCatalogCopy = {
       description: "Linear integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Linear integration | Hyperlocalise",
+      defaultMessage: "Linear localization issue tracking | Hyperlocalise",
       id: "intLinearMetaTitle",
       description: "Linear integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Linear to Hyperlocalise for localization issue tracking and launch coordination.",
+        "Coming soon: turn translation blockers into Linear issues so launch work stays beside the rest of your product pipeline.",
       id: "intLinearMetaDescription",
       description: "Linear integration marketing page meta description",
     },
@@ -826,9 +916,15 @@ export const integrationCatalogCopy = {
       description: "Notion integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Import style guides and market notes from Notion.",
+      defaultMessage:
+        "Import brand and market notes so drafts follow the docs your team already keeps.",
       id: "m9ESiA+Ppw",
       description: "Notion integration description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Give agents your Notion style guides",
+      id: "intNotionHeadline",
+      description: "Notion integration marketing page headline",
     },
     overview: [
       {
@@ -855,13 +951,13 @@ export const integrationCatalogCopy = {
       description: "Notion integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Notion integration | Hyperlocalise",
+      defaultMessage: "Notion style guide import for localization | Hyperlocalise",
       id: "intNotionMetaTitle",
       description: "Notion integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Notion to Hyperlocalise to import style guides and market guidance for localization agents.",
+        "Import Notion style guides and market notes so localisation drafts follow the docs your team already keeps.",
       id: "intNotionMetaDescription",
       description: "Notion integration marketing page meta description",
     },
@@ -873,9 +969,15 @@ export const integrationCatalogCopy = {
       description: "Resend integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Send localized transactional email through Resend.",
+      defaultMessage:
+        "Keep transactional email on the translation memory and review history behind it.",
       id: "HYHV9OorEn",
       description: "Resend integration description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Send reviewed copy through Resend",
+      id: "intResendHeadline",
+      description: "Resend integration marketing page headline",
     },
     overview: [
       {
@@ -902,13 +1004,13 @@ export const integrationCatalogCopy = {
       description: "Resend integration product description on marketing detail page",
     },
     metadataTitle: {
-      defaultMessage: "Resend integration | Hyperlocalise",
+      defaultMessage: "Resend transactional email localization | Hyperlocalise",
       id: "intResendMetaTitle",
       description: "Resend integration marketing page meta title",
     },
     metadataDescription: {
       defaultMessage:
-        "Connect Resend to Hyperlocalise for localized transactional email workflows.",
+        "Send reviewed, localised transactional email through Resend from the same workspace that holds memory and glossary.",
       id: "intResendMetaDescription",
       description: "Resend integration marketing page meta description",
     },
@@ -969,7 +1071,8 @@ export const integrationCatalogCopy = {
       description: "Braze integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Localize campaigns, in-app messages, and customer journeys in Braze.",
+      defaultMessage:
+        "Localize Braze email templates and Content Blocks. Campaigns and Canvas are upcoming.",
       id: "eENPAn2kRY",
       description: "Braze integration description on the integrations page",
     },
@@ -981,7 +1084,7 @@ export const integrationCatalogCopy = {
       description: "Iterable integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Localize campaigns, journeys, and in-app messages in Iterable.",
+      defaultMessage: "Localize Iterable email, in-app, push, and SMS templates plus snippets.",
       id: "SO48T+V4po",
       description: "Iterable integration description on the integrations page",
     },
@@ -1005,8 +1108,9 @@ export const integrationCatalogCopy = {
       description: "HubSpot integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Localize marketing emails, landing pages, and CRM messages in HubSpot.",
-      id: "NCfwtZnJJa",
+      defaultMessage:
+        "Localize emails, forms, blog posts, landing pages, and website pages in HubSpot.",
+      id: "bfBd1OoAHf",
       description: "HubSpot integration description on the integrations page",
     },
   },
@@ -1017,7 +1121,7 @@ export const integrationCatalogCopy = {
       description: "Mailchimp integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Localize audiences, campaigns, and automations in Mailchimp.",
+      defaultMessage: "Localize Mailchimp campaigns and code-your-own HTML templates.",
       id: "uzxy3XOTGJ",
       description: "Mailchimp integration description on the integrations page",
     },
@@ -1081,6 +1185,46 @@ export const integrationCatalogCopy = {
       id: "intSanityTagline",
       description: "Sanity integration description on the integrations page",
     },
+    headline: {
+      defaultMessage: "Translate Sanity documents and write locale drafts back",
+      id: "intSanityHeadline",
+      description: "Sanity integration marketing page headline",
+    },
+    overview: [
+      {
+        defaultMessage:
+          "Editors translate the open document or a selection of documents from Sanity Studio with the Hyperlocalise plugin, then apply the locale drafts.",
+        id: "intSanityOverview0",
+        description: "Sanity integration marketing overview paragraph",
+      },
+      {
+        defaultMessage:
+          "For bulk work, an automation imports the document types you choose from a dataset. Your team translates and reviews them in Hyperlocalise, then pushes approved translations back as drafts.",
+        id: "intSanityOverview1",
+        description: "Sanity integration marketing overview paragraph",
+      },
+    ],
+    productName: {
+      defaultMessage: "Sanity",
+      id: "intSanityProductName",
+      description: "Sanity integration product name on marketing detail page",
+    },
+    productDescription: {
+      defaultMessage: "Studio plugin, dataset imports, and locale draft writeback.",
+      id: "intSanityProductDescription",
+      description: "Sanity integration product description on marketing detail page",
+    },
+    metadataTitle: {
+      defaultMessage: "Sanity localization plugin and connector | Hyperlocalise",
+      id: "intSanityMetaTitle",
+      description: "Sanity integration marketing page meta title",
+    },
+    metadataDescription: {
+      defaultMessage:
+        "Translate Sanity documents from Studio or in bulk with review in Hyperlocalise, then write locale drafts back to your dataset.",
+      id: "intSanityMetaDescription",
+      description: "Sanity integration marketing page meta description",
+    },
   },
   similarweb: {
     name: {
@@ -1092,6 +1236,19 @@ export const integrationCatalogCopy = {
       defaultMessage: "Bring market and traffic research into locale-aware SEO workflows.",
       id: "intSimilarwebTagline",
       description: "Similarweb integration description on the integrations page",
+    },
+  },
+  "google-search-console": {
+    name: {
+      defaultMessage: "Google Search Console",
+      id: "intGoogleSearchConsoleName",
+      description: "Google Search Console integration name on the integrations page",
+    },
+    tagline: {
+      defaultMessage:
+        "Connect Search Console through Pipes to import clicks, impressions, and queries for claimed domains.",
+      id: "intGoogleSearchConsoleTagline",
+      description: "Google Search Console integration description on the integrations page",
     },
   },
   pages: {

@@ -13,13 +13,13 @@
  * Version 2.0 or later.
  */
 import { useEffect, useState, type ReactNode } from "react";
-import { PlusSignIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { FormattedMessage } from "react-intl";
 
 import { automationEditorIllustrationMessages } from "@/components/marketing/automation-editor-illustration.messages";
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import { cn } from "@/lib/primitives/cn";
 
 import { CONTENT_OPS_MOCK_INNER_CLASSNAME } from "./content-ops-mock-stage.constants";
@@ -155,7 +155,7 @@ function AgentSetupPanel({ scene }: { scene: ContentOpsTerminalScene }) {
               />
             ))}
             <div className="flex items-center gap-1.5 px-2.5 py-2 text-[0.68rem] font-medium text-muted-foreground">
-              <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.8} className="size-3.5" />
+              <PlusIcon className="size-3.5" />
               <FormattedMessage {...automationEditorIllustrationMessages.addTool} />
             </div>
           </SetupPanel>
@@ -178,7 +178,7 @@ function AgentRunPanel({
     <div className="flex min-h-0 min-h-[14rem] flex-col lg:min-h-0">
       <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3">
         <Image
-          src="/images/logo.png"
+          src={brandLogomarkSrc}
           alt="Hyperlocalise"
           width={14}
           height={14}

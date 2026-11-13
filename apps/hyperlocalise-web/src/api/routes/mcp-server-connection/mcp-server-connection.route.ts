@@ -22,6 +22,13 @@ import {
   notFoundResponse,
 } from "@/api/response.schema";
 import {
+  enqueueIntegrationConnectedActivity,
+  enqueueIntegrationDisconnectedActivity,
+} from "@/lib/activity-log/integration-events";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
+import {
   createMcpServerConnection,
   deleteMcpServerConnection,
   getMcpServerConnection,
@@ -129,6 +136,17 @@ export function createMcpServerConnectionRoutes() {
         return mapMcpServerConnectionError(c, result.error);
       }
 
+      serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
+        status: "created",
+        source: "mcp",
+      });
+      await enqueueIntegrationConnectedActivity({
+        ...sessionActivityActor(c.var.auth.user.localUserId),
+        connectionId: result.value.id,
+        integrationKind: "mcp",
+        organizationId: c.var.auth.organization.localOrganizationId,
+      });
+
       return c.json({ mcpServerConnection: result.value }, 201);
     })
     .get("/:connectionId", validateConnectionParams, async (c) => {
@@ -192,6 +210,13 @@ export function createMcpServerConnectionRoutes() {
       if (!deleted) {
         return notFoundResponse(c, "mcp_server_connection_not_found");
       }
+
+      await enqueueIntegrationDisconnectedActivity({
+        ...sessionActivityActor(c.var.auth.user.localUserId),
+        connectionId,
+        integrationKind: "mcp",
+        organizationId: c.var.auth.organization.localOrganizationId,
+      });
 
       return c.body(null, 204);
     });

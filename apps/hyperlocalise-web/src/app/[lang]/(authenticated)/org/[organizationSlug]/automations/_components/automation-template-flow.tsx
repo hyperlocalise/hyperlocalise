@@ -15,17 +15,16 @@
 
 import { Fragment } from "react";
 import {
-  Clock01Icon,
-  Comment01Icon,
-  Mail01Icon,
-  Search01Icon,
-  CheckmarkCircle02Icon,
-  SparklesIcon,
-  Task01Icon,
-  Upload01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { siGithub } from "simple-icons";
+  ClockIcon,
+  ChatTextIcon,
+  EnvelopeIcon,
+  MagnifyingGlassIcon,
+  CheckCircleIcon,
+  SparkleIcon,
+  CheckSquareIcon,
+  UploadSimpleIcon,
+} from "@phosphor-icons/react";
+import { siGithub, siGoogledrive, siIntercom, siSanity, siWebflow } from "simple-icons";
 import Image from "next/image";
 
 import {
@@ -42,12 +41,36 @@ type IconBucket =
   | "slack"
   | "email"
   | "contentful"
+  | "intercom"
+  | "sanity"
+  | "webflow"
+  | "google-drive"
+  | "braze"
+  | "iterable"
+  | "customer-io"
+  | "loops"
+  | "hubspot"
+  | "mailchimp"
   | "web-search"
   | "web-chat"
   | "upload"
   | "job"
   | "translate"
   | "validation";
+
+const BRAND_TOOL_IDS = new Set([
+  "intercom",
+  "sanity",
+  "google-drive",
+  "braze",
+  "iterable",
+  "contentful",
+  "webflow",
+  "customer-io",
+  "loops",
+  "hubspot",
+  "mailchimp",
+]);
 
 function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucket {
   switch (node.id) {
@@ -57,6 +80,7 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
     case "github-comment":
     case "push-source":
     case "pull-translations":
+    case "push-translations":
       return "github";
     case "validation":
       return "validation";
@@ -67,12 +91,34 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
     case "contentful-webhook":
     case "contentful":
       return "contentful";
+    case "intercom":
+      return "intercom";
+    case "sanity":
+      return "sanity";
+    case "webflow":
+      return "webflow";
+    case "google-drive":
+      return "google-drive";
+    case "braze":
+      return "braze";
+    case "iterable":
+      return "iterable";
+    case "customer-io":
+      return "customer-io";
+    case "loops":
+      return "loops";
+    case "hubspot":
+      return "hubspot";
+    case "mailchimp":
+      return "mailchimp";
     case "web-search":
       return "web-search";
     case "web-chat":
     case "knowledge-files":
       return "web-chat";
     case "source-upload":
+    case "content-sync":
+    case "pull-source":
       return "upload";
     case "create-job":
       return "job";
@@ -102,7 +148,7 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
         />
       );
     case "email":
-      return <HugeiconsIcon icon={Mail01Icon} className={iconClassName} strokeWidth={1.8} />;
+      return <EnvelopeIcon className={iconClassName} />;
     case "contentful":
       return (
         <Image
@@ -113,22 +159,88 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
           className={iconClassName}
         />
       );
-    case "web-search":
-      return <HugeiconsIcon icon={Search01Icon} className={iconClassName} strokeWidth={1.8} />;
-    case "web-chat":
-      return <HugeiconsIcon icon={Comment01Icon} className={iconClassName} strokeWidth={1.8} />;
-    case "upload":
-      return <HugeiconsIcon icon={Upload01Icon} className={iconClassName} strokeWidth={1.8} />;
-    case "job":
-      return <HugeiconsIcon icon={Task01Icon} className={iconClassName} strokeWidth={1.8} />;
-    case "translate":
-      return <HugeiconsIcon icon={SparklesIcon} className={iconClassName} strokeWidth={1.8} />;
-    case "validation":
+    case "intercom":
+      return <SimpleBrandIcon icon={siIntercom} colored className={iconClassName} />;
+    case "sanity":
+      return <SimpleBrandIcon icon={siSanity} colored className={iconClassName} />;
+    case "webflow":
+      return <SimpleBrandIcon icon={siWebflow} colored className={iconClassName} />;
+    case "google-drive":
+      return <SimpleBrandIcon icon={siGoogledrive} colored className={iconClassName} />;
+    case "braze":
       return (
-        <HugeiconsIcon icon={CheckmarkCircle02Icon} className={iconClassName} strokeWidth={1.8} />
+        <Image
+          src="/images/braze-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
       );
+    case "iterable":
+      return (
+        <Image
+          src="/images/iterable-logo.png"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
+      );
+    case "customer-io":
+      return (
+        <Image
+          src="/images/customerio-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
+      );
+    case "loops":
+      return (
+        <Image
+          src="/images/loops-logo.png"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
+      );
+    case "hubspot":
+      return (
+        <Image
+          src="/images/hubspot-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={iconClassName}
+        />
+      );
+    case "mailchimp":
+      return (
+        <Image
+          src="/images/mailchimp-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={iconClassName}
+        />
+      );
+    case "web-search":
+      return <MagnifyingGlassIcon className={iconClassName} />;
+    case "web-chat":
+      return <ChatTextIcon className={iconClassName} />;
+    case "upload":
+      return <UploadSimpleIcon className={iconClassName} />;
+    case "job":
+      return <CheckSquareIcon className={iconClassName} />;
+    case "translate":
+      return <SparkleIcon className={iconClassName} />;
+    case "validation":
+      return <CheckCircleIcon className={iconClassName} />;
     case "schedule":
-      return <HugeiconsIcon icon={Clock01Icon} className={iconClassName} strokeWidth={1.8} />;
+      return <ClockIcon className={iconClassName} />;
   }
 }
 
@@ -138,7 +250,11 @@ export function AutomationTemplateTriggerIcon({
   template: WorkspaceAutomationTemplate;
 }) {
   const flow = getWorkspaceAutomationTemplateFlow(template);
-  return <FlowIcon bucket={iconBucketForNode(flow.trigger)} className="size-4" />;
+  const triggerBucket = iconBucketForNode(flow.trigger);
+  const brandTool = flow.tools.find((tool) => BRAND_TOOL_IDS.has(tool.id));
+  const bucket =
+    triggerBucket === "schedule" && brandTool ? iconBucketForNode(brandTool) : triggerBucket;
+  return <FlowIcon bucket={bucket} className="size-4" />;
 }
 
 export function AutomationTemplateFlow({

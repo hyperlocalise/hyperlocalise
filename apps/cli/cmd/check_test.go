@@ -713,6 +713,151 @@ func TestCheckCommandJSONReportIncludesDefaultFindings(t *testing.T) {
 	}
 }
 
+func TestCheckCommandRecognizesINIFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "locales", "en-US", "messages.ini")
+	targetPath := filepath.Join(dir, "locales", "fr-FR", "messages.ini")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte("[Home]\nwelcome.message=Hello {0}\n"), 0o600); err != nil {
+		t.Fatalf("write source ini: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("[Home]\nwelcome.message=Bonjour\nextra=Ancien\n"), 0o600); err != nil {
+		t.Fatalf("write target ini: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr-FR"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	assertFindingType(t, report.Findings, checkPlaceholder)
+	assertFindingType(t, report.Findings, checkOrphanedKey)
+}
+
+func TestCheckCommandRecognizesRESWFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "Strings", "en-US", "Resources.resw")
+	targetPath := filepath.Join(dir, "Strings", "fr-FR", "Resources.resw")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="welcome.message" xml:space="preserve">
+    <value>Hello {0}</value>
+  </data>
+</root>`), 0o600); err != nil {
+		t.Fatalf("write source resw: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="welcome.message" xml:space="preserve">
+    <value>Bonjour</value>
+  </data>
+  <data name="extra" xml:space="preserve">
+    <value>Ancien</value>
+  </data>
+</root>`), 0o600); err != nil {
+		t.Fatalf("write target resw: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr-FR"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	assertFindingType(t, report.Findings, checkPlaceholder)
+	assertFindingType(t, report.Findings, checkOrphanedKey)
+}
+
+func TestCheckCommandRecognizesQtLinguistFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "translations", "app_en.ts")
+	targetPath := filepath.Join(dir, "translations", "app_fr.ts")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="en_US">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Hello %1</source>
+        <translation>Hello %1</translation>
+    </message>
+</context>
+</TS>`), 0o600); err != nil {
+		t.Fatalf("write source qt ts: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="fr_FR">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Hello %1</source>
+        <translation>Bonjour</translation>
+    </message>
+    <message>
+        <source>Extra</source>
+        <translation>Ancien</translation>
+    </message>
+</context>
+</TS>`), 0o600); err != nil {
+		t.Fatalf("write target qt ts: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr-FR"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	assertFindingType(t, report.Findings, checkPlaceholder)
+	assertFindingType(t, report.Findings, checkOrphanedKey)
+}
+
 func TestCheckCommandPropertiesFileRecognized(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
@@ -1633,6 +1778,41 @@ Bonjour
 			}
 		}
 	})
+}
+
+func TestCheckCommandUnreachablePluralAndLocaleSpecificCategories(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "messages", "en.json")
+	targetPath := filepath.Join(dir, "messages", "ja.json")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"count":"{count, plural, one {# file} other {# files}}"}`), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"count":"{count, plural, one {# 件} other {# 件}}"}`), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"ja"})
+
+	report := executeCheckJSON(t, configPath, "", "--no-fail")
+	assertFindingType(t, report.Findings, checkUnreachablePlural)
+	for _, finding := range report.Findings {
+		if finding.Type == checkICUShape {
+			t.Fatalf("did not expect icu_shape_mismatch for ja one/other: %+v", finding)
+		}
+	}
+
+	if err := os.WriteFile(targetPath, []byte(`{"count":"{count, plural, other {# 件}}"}`), 0o600); err != nil {
+		t.Fatalf("write other-only target: %v", err)
+	}
+	report = executeCheckJSON(t, configPath, "", "--no-fail")
+	for _, finding := range report.Findings {
+		if finding.Type == checkUnreachablePlural || finding.Type == checkICUShape {
+			t.Fatalf("other-only ja should pass: %+v", finding)
+		}
+	}
 }
 
 func TestResolveEnabledChecks(t *testing.T) {

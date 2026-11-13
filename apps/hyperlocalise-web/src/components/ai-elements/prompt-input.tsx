@@ -13,14 +13,13 @@
  * Version 2.0 or later.
  */
 import {
-  Cancel01Icon,
-  ComputerIcon,
-  CornerDownLeftIcon,
-  Image01Icon,
-  PlusSignIcon,
+  XIcon,
+  DesktopIcon,
+  ArrowElbowDownLeftIcon,
+  ImageIcon,
+  PlusIcon,
   SquareIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+} from "@phosphor-icons/react";
 import {
   Command,
   CommandEmpty,
@@ -441,7 +440,7 @@ export const PromptInputActionAddAttachments = ({
 
   return (
     <DropdownMenuItem {...props} onSelect={handleSelect}>
-      <HugeiconsIcon icon={Image01Icon} className="me-2 size-4" /> {resolvedLabel}
+      <ImageIcon className="me-2 size-4" /> {resolvedLabel}
     </DropdownMenuItem>
   );
 };
@@ -486,7 +485,7 @@ export const PromptInputActionAddScreenshot = ({
 
   return (
     <DropdownMenuItem {...props} onSelect={handleSelect}>
-      <HugeiconsIcon icon={ComputerIcon} className="me-2 size-4" />
+      <DesktopIcon className="me-2 size-4" />
       {resolvedLabel}
     </DropdownMenuItem>
   );
@@ -1141,7 +1140,7 @@ export const PromptInputActionMenuTrigger = ({
   ...props
 }: PromptInputActionMenuTriggerProps) => (
   <DropdownMenuTrigger render={<PromptInputButton className={className} {...props} />}>
-    {children ?? <HugeiconsIcon icon={PlusSignIcon} className="size-4" />}
+    {children ?? <PlusIcon className="size-4" />}
   </DropdownMenuTrigger>
 );
 
@@ -1182,14 +1181,14 @@ export const PromptInputSubmit = ({
   const isGenerating = status === "submitted" || status === "streaming";
   const intl = useIntl();
 
-  let Icon = <HugeiconsIcon icon={CornerDownLeftIcon} className="size-4" />;
+  let Icon = <ArrowElbowDownLeftIcon className="size-4" />;
 
   if (status === "submitted") {
     Icon = <Spinner />;
   } else if (status === "streaming") {
-    Icon = <HugeiconsIcon icon={SquareIcon} className="size-4" />;
+    Icon = <SquareIcon className="size-4" />;
   } else if (status === "error") {
-    Icon = <HugeiconsIcon icon={Cancel01Icon} className="size-4" />;
+    Icon = <XIcon className="size-4" />;
   }
 
   const handleClick = useCallback(

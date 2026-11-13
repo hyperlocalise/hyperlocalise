@@ -30,6 +30,9 @@ func MarshalJSON(template []byte, values map[string]string) ([]byte, error) {
 	if payload == nil {
 		payload = map[string]any{}
 	}
+	if IsLottiePayload(payload) {
+		return MarshalLottie(template, values)
+	}
 
 	formatJS, err := IsStrictFormatJSRoot(payload)
 	if err != nil {

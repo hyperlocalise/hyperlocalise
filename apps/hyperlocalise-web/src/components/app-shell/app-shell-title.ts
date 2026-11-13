@@ -36,6 +36,7 @@ type RouteTitleKey =
   | "audiences"
   | "billing"
   | "dashboard"
+  | "dictionaries"
   | "domains"
   | "experiments"
   | "files"
@@ -62,6 +63,9 @@ type RouteTitleKey =
   | "ranks"
   | "brand"
   | "qa"
+  | "reports"
+  | "search-console"
+  | "audit"
   | "reviews"
   | "settings"
   | "strings"
@@ -79,6 +83,7 @@ const PROJECT_SECTION_KEYS = {
   knowledge: true,
   locales: true,
   qa: true,
+  reports: true,
   reviews: true,
   settings: true,
   strings: true,
@@ -106,6 +111,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "audiences" ||
     value === "billing" ||
     value === "dashboard" ||
+    value === "dictionaries" ||
     value === "domains" ||
     value === "experiments" ||
     value === "files" ||
@@ -132,6 +138,9 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "ranks" ||
     value === "brand" ||
     value === "qa" ||
+    value === "reports" ||
+    value === "search-console" ||
+    value === "audit" ||
     value === "reviews" ||
     value === "settings" ||
     value === "strings" ||
@@ -242,6 +251,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         id: "cQIBb8VVUr",
         description: "App shell breadcrumb title for the workspace overview page",
       });
+    case "dictionaries":
+      return intl.formatMessage({
+        defaultMessage: "Dictionaries",
+        id: "njHQVnCm4E",
+        description: "App shell breadcrumb title for the spellcheck dictionaries page",
+      });
     case "domains":
       return intl.formatMessage({
         defaultMessage: "Domains",
@@ -344,6 +359,18 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         id: "Cx/AirNdqn",
         description: "App shell breadcrumb title for domain prompt explorer",
       });
+    case "search-console":
+      return intl.formatMessage({
+        defaultMessage: "Search Console",
+        id: "cb/1dHJtyC",
+        description: "App shell breadcrumb title for domain Search Console",
+      });
+    case "audit":
+      return intl.formatMessage({
+        defaultMessage: "Localisation audit",
+        id: "b+xGFRqtJJ",
+        description: "App shell breadcrumb title for the domain deep localisation audit",
+      });
     case "automations":
       return intl.formatMessage({
         defaultMessage: "Automations",
@@ -399,6 +426,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         id: "A4tXh3Cw8D",
         description: "App shell breadcrumb title for the QA page",
       });
+    case "reports":
+      return intl.formatMessage({
+        defaultMessage: "Reports",
+        id: "4DlOuKeJPG",
+        description: "App shell breadcrumb title for the Reports page",
+      });
     case "reviews":
       return intl.formatMessage({
         defaultMessage: "Reviews",
@@ -444,6 +477,96 @@ function formatProjectSectionTitle(intl: IntlShape, key: ProjectSectionKey): str
   return formatRouteTitle(intl, key);
 }
 
+function formatNewAutomationTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "New automation",
+    id: "h7fFvoKQMq",
+    description: "App shell breadcrumb title for the new automation page",
+  });
+}
+
+function formatVisualWorkflowsTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Visual workflows",
+    id: "Qfog4jJ47y",
+    description: "App shell breadcrumb title for the visual workflows page",
+  });
+}
+
+function formatGlossaryHistoryTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Glossary history",
+    id: "8gWnVF116T",
+    description: "App shell breadcrumb title for the glossary history page",
+  });
+}
+
+function formatGlossaryImportsTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Import/export history",
+    id: "/1gR0B+OFk",
+    description: "App shell breadcrumb title for glossary import and export history",
+  });
+}
+
+function formatGlossaryImportReportTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Interchange report",
+    id: "qAz1fyJVWy",
+    description: "App shell breadcrumb title for a glossary interchange report",
+  });
+}
+
+function formatTranslationMemoryImportReportTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Import report",
+    id: "4tAGTfwOxM",
+    description: "App shell breadcrumb title for a translation memory import report",
+  });
+}
+
+function formatGuidelineUploadTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Upload guideline",
+    id: "pwTiPpomVO",
+    description: "App shell breadcrumb title for the guideline upload page",
+  });
+}
+
+function guidelineDetailCrumb(
+  intl: IntlShape,
+  detailSegment: string,
+  options?: {
+    guidelineDocumentTitle?: string;
+    guidelineDocumentTitleLoading?: boolean;
+  },
+): AppShellBreadcrumb {
+  if (detailSegment === "upload") {
+    return { label: formatGuidelineUploadTitle(intl) };
+  }
+
+  return buildNamedResourceCrumb(
+    options?.guidelineDocumentTitle,
+    options?.guidelineDocumentTitleLoading,
+    decodePathSegment(detailSegment),
+  );
+}
+
+function buildNamedResourceCrumb(
+  name?: string,
+  nameLoading?: boolean,
+  fallbackId?: string,
+): Pick<AppShellBreadcrumb, "label" | "isLoading"> {
+  const resolvedName = name?.trim();
+  if (resolvedName) {
+    return { label: resolvedName };
+  }
+  if (nameLoading) {
+    return { label: "", isLoading: true };
+  }
+  return { label: fallbackId ?? "" };
+}
+
 export function getAppShellBreadcrumbs(
   pathname: string | null,
   intl: IntlShape,
@@ -454,6 +577,12 @@ export function getAppShellBreadcrumbs(
     teamNameLoading?: boolean;
     domainName?: string;
     domainNameLoading?: boolean;
+    glossaryName?: string;
+    glossaryNameLoading?: boolean;
+    translationMemoryName?: string;
+    translationMemoryNameLoading?: boolean;
+    guidelineDocumentTitle?: string;
+    guidelineDocumentTitleLoading?: boolean;
   },
 ): AppShellBreadcrumb[] {
   const orgRoute = parseOrgRoute(pathname);
@@ -544,6 +673,60 @@ export function getAppShellBreadcrumbs(
     return crumbs;
   }
 
+  if (section === "issues") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "issues") }];
+    }
+
+    return [
+      {
+        label: formatRouteTitle(intl, "issues"),
+        href: buildOrgPath(organizationSlug, "issues"),
+      },
+    ];
+  }
+
+  if (section === "automations") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "automations") }];
+    }
+
+    const automationsHref = buildOrgPath(organizationSlug, "automations");
+
+    if (subsection === "visual-workflows") {
+      const crumbs: AppShellBreadcrumb[] = [
+        {
+          label: formatRouteTitle(intl, "automations"),
+          href: automationsHref,
+        },
+        {
+          label: formatVisualWorkflowsTitle(intl),
+          ...(projectSection
+            ? { href: buildOrgPath(organizationSlug, "automations", "visual-workflows") }
+            : {}),
+        },
+      ];
+      return crumbs;
+    }
+
+    if (subsection === "new") {
+      return [
+        {
+          label: formatRouteTitle(intl, "automations"),
+          href: automationsHref,
+        },
+        { label: formatNewAutomationTitle(intl) },
+      ];
+    }
+
+    return [
+      {
+        label: formatRouteTitle(intl, "automations"),
+        href: automationsHref,
+      },
+    ];
+  }
+
   if (section === "members") {
     if (!subsection) {
       return [{ label: formatRouteTitle(intl, "members") }];
@@ -572,7 +755,7 @@ export function getAppShellBreadcrumbs(
 
     if (projectSection && isProjectSectionKey(projectSection)) {
       const sectionHref = buildOrgPath(organizationSlug, "projects", subsection, projectSection);
-      return [
+      const crumbs: AppShellBreadcrumb[] = [
         {
           label: formatRouteTitle(intl, "projects"),
           href: buildOrgPath(organizationSlug, "projects"),
@@ -583,6 +766,16 @@ export function getAppShellBreadcrumbs(
           href: issueIdSegment ? sectionHref : undefined,
         },
       ];
+
+      if (projectSection === "automations" && issueIdSegment === "new") {
+        crumbs.push({ label: formatNewAutomationTitle(intl) });
+      }
+
+      if (projectSection === "knowledge" && issueIdSegment) {
+        crumbs.push(guidelineDetailCrumb(intl, issueIdSegment, options));
+      }
+
+      return crumbs;
     }
 
     return [
@@ -614,6 +807,97 @@ export function getAppShellBreadcrumbs(
       crumbs.push({
         label: formatRouteTitle(intl, subsection),
       });
+    }
+
+    return crumbs;
+  }
+
+  if (section === "glossaries") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "glossaries") }];
+    }
+
+    const glossaryId = decodePathSegment(subsection);
+    const glossaryHref = buildOrgPath(organizationSlug, "glossaries", subsection);
+    const subSection = routeSegments[2];
+    const subResourceId = routeSegments[3];
+    const glossaryCrumb = buildNamedResourceCrumb(
+      options?.glossaryName,
+      options?.glossaryNameLoading,
+      glossaryId,
+    );
+    const crumbs: AppShellBreadcrumb[] = [
+      {
+        label: formatRouteTitle(intl, "glossaries"),
+        href: buildOrgPath(organizationSlug, "glossaries"),
+      },
+      {
+        ...glossaryCrumb,
+        href: subSection ? glossaryHref : undefined,
+      },
+    ];
+
+    if (subSection === "history") {
+      crumbs.push({ label: formatGlossaryHistoryTitle(intl) });
+      return crumbs;
+    }
+
+    if (subSection === "imports") {
+      const importsHref = buildOrgPath(organizationSlug, "glossaries", subsection, "imports");
+      crumbs.push({
+        label: formatGlossaryImportsTitle(intl),
+        href: subResourceId ? importsHref : undefined,
+      });
+      if (subResourceId) {
+        crumbs.push({ label: formatGlossaryImportReportTitle(intl) });
+      }
+      return crumbs;
+    }
+
+    return crumbs;
+  }
+
+  if (section === "knowledge") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "knowledge") }];
+    }
+
+    return [
+      {
+        label: formatRouteTitle(intl, "knowledge"),
+        href: buildOrgPath(organizationSlug, "knowledge"),
+      },
+      guidelineDetailCrumb(intl, subsection, options),
+    ];
+  }
+
+  if (section === "translation-memories") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "translation-memories") }];
+    }
+
+    const memoryId = decodePathSegment(subsection);
+    const memoryHref = buildOrgPath(organizationSlug, "translation-memories", subsection);
+    const subSection = routeSegments[2];
+    const subResourceId = routeSegments[3];
+    const memoryCrumb = buildNamedResourceCrumb(
+      options?.translationMemoryName,
+      options?.translationMemoryNameLoading,
+      memoryId,
+    );
+    const crumbs: AppShellBreadcrumb[] = [
+      {
+        label: formatRouteTitle(intl, "translation-memories"),
+        href: buildOrgPath(organizationSlug, "translation-memories"),
+      },
+      {
+        ...memoryCrumb,
+        href: subSection ? memoryHref : undefined,
+      },
+    ];
+
+    if (subSection === "imports" && subResourceId) {
+      crumbs.push({ label: formatTranslationMemoryImportReportTitle(intl) });
     }
 
     return crumbs;

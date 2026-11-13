@@ -22,6 +22,7 @@ import {
 import {
   buildWorkspaceContentfulWebhookAutomationIdempotencyKey,
   buildWorkspaceGithubPushAutomationIdempotencyKey,
+  buildWorkspaceIntercomPushAutomationIdempotencyKey,
   buildWorkspaceManualAutomationIdempotencyKey,
   buildWorkspaceScheduledAutomationIdempotencyKey,
   buildWorkspaceSourceUploadAutomationIdempotencyKey,
@@ -176,10 +177,13 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
     automationName: input.automation.name,
     instructions: input.automation.instructions,
     ...input.inputSnapshot,
+    skillIds: input.automation.skillIds ?? [],
   };
 
   const templateSkillId = resolveTemplateSkillId(snapshot);
-  const plan = buildWorkspaceOrchestratorPlan(input.automation, { templateSkillId });
+  const operation =
+    typeof input.inputSnapshot?.operation === "string" ? input.inputSnapshot.operation : null;
+  const plan = buildWorkspaceOrchestratorPlan(input.automation, { templateSkillId, operation });
   const skipReason =
     input.preDispatchSkipReason ??
     (!isContentSyncAutomation(input.automation) && !planHasActionableTool(plan)
@@ -226,6 +230,7 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
         ...snapshot,
         effectiveInstructions: composeWorkspaceAutomationInstructions({
           templateSkillId,
+          skillIds: snapshot.skillIds,
           userOverride: input.automation.instructions,
           triggerMode: input.automation.triggerConfig.mode,
           plan,
@@ -309,11 +314,14 @@ export async function dispatchManualWorkspaceAutomationRun(input: {
   }
 
   if (!isContentSync) {
+    const operation =
+      typeof input.inputSnapshot?.operation === "string" ? input.inputSnapshot.operation : null;
     const plan = buildWorkspaceOrchestratorPlan(input.automation, {
       templateSkillId:
         typeof input.inputSnapshot?.templateSkillId === "string"
           ? input.inputSnapshot.templateSkillId
           : null,
+      operation,
     });
     if (!planHasActionableTool(plan)) {
       return null;
@@ -325,15 +333,24 @@ export async function dispatchManualWorkspaceAutomationRun(input: {
       ? input.inputSnapshot.entryId
       : (input.automation.toolConfig.contentful?.entryId ?? null);
 
+  const isIntercomPush = input.inputSnapshot?.operation === "push_approved";
+  const idempotencyKey = isIntercomPush
+    ? buildWorkspaceIntercomPushAutomationIdempotencyKey({
+        automationId: input.automation.id,
+        configVersion: input.automation.configVersion,
+        clientKey: input.idempotencyKey,
+      })
+    : buildWorkspaceManualAutomationIdempotencyKey({
+        automationId: input.automation.id,
+        configVersion: input.automation.configVersion,
+        idempotencyKey: input.idempotencyKey,
+      });
+
   return dispatchWorkspaceAutomationViaOrchestrator({
     organizationId: input.automation.organizationId,
     automation: input.automation,
     triggerSource: "manual",
-    idempotencyKey: buildWorkspaceManualAutomationIdempotencyKey({
-      automationId: input.automation.id,
-      configVersion: input.automation.configVersion,
-      idempotencyKey: input.idempotencyKey,
-    }),
+    idempotencyKey,
     inputSnapshot: {
       ...input.inputSnapshot,
       manualIdempotencyKey: input.idempotencyKey,

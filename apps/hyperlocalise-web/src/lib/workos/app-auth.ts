@@ -26,6 +26,7 @@ import {
   setStoredActiveOrganizationSlug,
 } from "@/lib/workos/active-organization";
 import { redirectForMissingOrganizationAccess } from "@/lib/workos/missing-organization-access";
+import { hasPendingInvitationToOrganization } from "@/lib/workos/pending-invitations";
 
 export type AppAuthContext = ApiAuthContext & {
   sessionUser: NonNullable<Awaited<ReturnType<typeof withAuth>>["user"]>;
@@ -37,7 +38,35 @@ type RequireAppAuthContextOptions = {
   staleOrganizationRedirectSearch?: string;
 };
 
-export async function requireAppAuthContext(options: RequireAppAuthContextOptions = {}) {
+export async function requireAppAuthContext(
+  options: RequireAppAuthContextOptions = {},
+): Promise<AppAuthContext> {
+  const result = await resolveAppAuthContext(options, false);
+  if (!result.auth) {
+    return redirectForMissingOrganizationAccess({
+      email: result.sessionUser.email,
+      workosUserId: result.sessionUser.id,
+      emailVerified: result.sessionUser.emailVerified,
+    });
+  }
+  return result.auth;
+}
+
+/**
+ * For the pages that let someone with no workspace in, the picker (to accept an
+ * invitation) and Create workspace: `auth` is null instead of a redirect, which would send
+ * them straight back to these pages.
+ */
+export async function getAppAuthContextAllowingNoWorkspace(
+  options: Omit<RequireAppAuthContextOptions, "organizationSlug"> = {},
+) {
+  return resolveAppAuthContext(options, true);
+}
+
+async function resolveAppAuthContext(
+  options: RequireAppAuthContextOptions,
+  allowNoWorkspace: boolean,
+): Promise<{ sessionUser: AppAuthContext["sessionUser"]; auth: AppAuthContext | null }> {
   const session = await withAuth({ ensureSignedIn: true });
 
   if (!session.user) {
@@ -60,6 +89,16 @@ export async function requireAppAuthContext(options: RequireAppAuthContextOption
     });
   } catch (error) {
     if (error instanceof StaleOrganizationSlugError) {
+      // A workspace the person is invited to but has not joined yet: offer the invitation
+      // instead of sending them to another workspace.
+      if (
+        options.organizationSlug &&
+        sessionUser.emailVerified &&
+        (await hasPendingInvitationToOrganization(sessionUser.id, options.organizationSlug))
+      ) {
+        redirect("/auth/select-organization");
+      }
+
       await setStoredActiveOrganizationSlug(error.currentSlug);
       redirect(
         `/org/${error.currentSlug}/dashboard${options.staleOrganizationRedirectSearch ?? ""}`,
@@ -75,9 +114,13 @@ export async function requireAppAuthContext(options: RequireAppAuthContextOption
     }
 
     if (error instanceof Error && error.message === "organization_access_denied") {
+      if (allowNoWorkspace) {
+        return { sessionUser, auth: null };
+      }
       return redirectForMissingOrganizationAccess({
         email: sessionUser.email,
         workosUserId: sessionUser.id,
+        emailVerified: sessionUser.emailVerified,
       });
     }
 
@@ -89,16 +132,16 @@ export async function requireAppAuthContext(options: RequireAppAuthContextOption
   }
 
   if (!auth) {
-    return redirectForMissingOrganizationAccess({
-      email: sessionUser.email,
-      workosUserId: sessionUser.id,
-    });
+    return { sessionUser, auth: null };
   }
 
   return {
-    ...auth,
     sessionUser,
-  } satisfies AppAuthContext;
+    auth: {
+      ...auth,
+      sessionUser,
+    } satisfies AppAuthContext,
+  };
 }
 
 export async function requireAppCapability(

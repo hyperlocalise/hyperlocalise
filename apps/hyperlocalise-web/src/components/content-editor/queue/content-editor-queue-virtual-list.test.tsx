@@ -13,11 +13,13 @@
 // @vitest-environment happy-dom
 
 import { act } from "react";
-import { waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { contentEditorSegmentsFixture } from "@/components/content-editor/shared/content-editor.fixture";
 import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
+import { ContentEditorQueueStore } from "@/components/content-editor/workspace/store/content-editor-queue-store";
 
 import { ContentEditorQueueVirtualList } from "./content-editor-queue-virtual-list";
 
@@ -35,6 +37,9 @@ type MockVirtualItem = {
 type MockVirtualizer = {
   getVirtualItems: () => MockVirtualItem[];
   getTotalSize: () => number;
+  scrollToIndex: (index: number, options: { align: string }) => void;
+  scrollToOffset: (offset: number) => void;
+  getOffsetForIndex: (index: number, align: string) => [number, string];
   measureElement: () => undefined;
 };
 
@@ -57,6 +62,9 @@ function makeVirtualItems(indexes: number[]) {
 const virtualizer: MockVirtualizer = {
   getVirtualItems: () => virtualItems,
   getTotalSize: () => virtualizerCount * ROW_HEIGHT,
+  scrollToIndex: vi.fn(),
+  scrollToOffset: vi.fn(),
+  getOffsetForIndex: (index: number) => [index * ROW_HEIGHT, "start"],
   measureElement: () => undefined,
 };
 
@@ -122,5 +130,89 @@ describe("ContentEditorQueueVirtualList pagination", () => {
     await waitFor(() => {
       expect(onNearEnd).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("does not keep loading while the viewport stays at the same end after a page appends", async () => {
+    const onNearEnd = vi.fn();
+    const firstPage = contentEditorSegmentsFixture.slice(0, 12);
+    const nextPage = Array.from({ length: 12 }, (_, index) => ({
+      ...firstPage[index % firstPage.length]!,
+      id: `seg-next-${index}`,
+      index: firstPage.length + index + 1,
+    }));
+
+    const { rerender } = renderWithContentEditorProviders(
+      <ContentEditorQueueVirtualList
+        segments={firstPage}
+        selectedSegmentId={firstPage[0]!.id}
+        onSelectSegment={vi.fn()}
+        hasMore
+        onNearEnd={onNearEnd}
+      />,
+    );
+
+    virtualItems = makeVirtualItems([8, 9, 10, 11]);
+    act(() => {
+      onVirtualizerChange?.(virtualizer);
+    });
+    await waitFor(() => {
+      expect(onNearEnd).toHaveBeenCalledTimes(1);
+    });
+
+    virtualItems = makeVirtualItems([20, 21, 22, 23]);
+    rerender(
+      <ContentEditorQueueVirtualList
+        segments={[...firstPage, ...nextPage]}
+        selectedSegmentId={firstPage[0]!.id}
+        onSelectSegment={vi.fn()}
+        hasMore
+        onNearEnd={onNearEnd}
+      />,
+    );
+
+    expect(onNearEnd).toHaveBeenCalledTimes(1);
+
+    virtualItems = makeVirtualItems([0, 1, 2]);
+    act(() => {
+      onVirtualizerChange?.(virtualizer);
+    });
+    virtualItems = makeVirtualItems([20, 21, 22, 23]);
+    act(() => {
+      onVirtualizerChange?.(virtualizer);
+    });
+
+    await waitFor(() => {
+      expect(onNearEnd).toHaveBeenCalledTimes(2);
+    });
+  });
+});
+
+describe("ContentEditorQueueVirtualList with the queue store", () => {
+  it("shows a tick as soon as the store records it", async () => {
+    const user = userEvent.setup();
+    const store = new ContentEditorQueueStore();
+    const segments = contentEditorSegmentsFixture.slice(0, 5);
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueVirtualList
+        segments={segments}
+        selectedSegmentId={segments[0]!.id}
+        onSelectSegment={vi.fn()}
+        checkedSegmentIds={store.checkedSegmentIds}
+        showSelection
+        onToggleSegmentChecked={(segmentId, checked) => store.toggleChecked(segmentId, checked)}
+      />,
+    );
+
+    const checkbox = screen.getByRole("checkbox", { name: `Select ${segments[1]!.key}` });
+    await user.click(checkbox);
+
+    expect(store.checkedSegmentIds.has(segments[1]!.id)).toBe(true);
+    expect(checkbox).toBeChecked();
+
+    await user.click(checkbox);
+
+    expect(store.checkedSegmentIds.has(segments[1]!.id)).toBe(false);
+    expect(checkbox).not.toBeChecked();
   });
 });

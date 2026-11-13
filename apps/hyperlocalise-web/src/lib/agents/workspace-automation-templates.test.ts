@@ -16,6 +16,7 @@ import {
   formatWorkspaceAutomationTemplateInstructions,
   getWorkspaceAutomationTemplate,
   getWorkspaceAutomationTemplateFlow,
+  listWorkspaceAutomationTemplates,
   WORKSPACE_AUTOMATION_TEMPLATES_BASE,
 } from "./workspace-automation-templates";
 
@@ -63,6 +64,17 @@ describe("workspace automation templates", () => {
       ),
     ).toEqual([
       "translate-on-source-upload",
+      "translate-intercom-articles",
+      "translate-webflow-items",
+      "translate-sanity-documents",
+      "translate-google-drive-files",
+      "translate-braze-email-templates",
+      "translate-braze-campaigns",
+      "translate-iterable-templates",
+      "translate-customer-io-campaigns",
+      "translate-loops-emails",
+      "translate-mailchimp-content",
+      "translate-hubspot-content",
       "translate-contentful-article",
       "summarize-changes-daily",
       "review-code-daily",
@@ -87,6 +99,169 @@ describe("workspace automation templates", () => {
         createNativeTmsJobUseProjectTargetLocales: true,
         assignTranslateWithAgentEnabled: true,
       },
+    });
+  });
+
+  it("builds the Intercom template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-intercom-articles",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "intercom", label: "Intercom" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
+  it("builds the Sanity template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-sanity-documents",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "sanity", label: "Sanity" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
+  it("builds the Google Drive template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-google-drive-files",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+    expect(template?.category).toBe("popular");
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "google-drive", label: "Google Drive" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
+  it("lists the Customer.io template under Popular and Marketing", () => {
+    expect(
+      listWorkspaceAutomationTemplates("popular", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-customer-io-campaigns");
+    expect(
+      listWorkspaceAutomationTemplates("marketing", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-customer-io-campaigns");
+  });
+
+  it("builds the Iterable template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-iterable-templates",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "iterable", label: "Iterable" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
+  it("builds the Customer.io template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-customer-io-campaigns",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+    expect(template?.category).toBe("popular");
+    expect(template?.extraCategories).toEqual(["marketing"]);
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "customer-io", label: "Customer.io" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
+  it("lists the Braze template under Popular and Marketing", () => {
+    expect(
+      listWorkspaceAutomationTemplates("popular", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-braze-email-templates");
+    expect(
+      listWorkspaceAutomationTemplates("marketing", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-braze-email-templates");
+  });
+
+  it("lists the Braze campaigns template under Popular and Marketing", () => {
+    expect(
+      listWorkspaceAutomationTemplates("popular", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-braze-campaigns");
+    expect(
+      listWorkspaceAutomationTemplates("marketing", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-braze-campaigns");
+  });
+
+  it("builds the Braze template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-braze-email-templates",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "braze", label: "Braze" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
+  it("builds the Braze campaigns template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-braze-campaigns",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+    expect(template?.category).toBe("popular");
+    expect(template?.extraCategories).toEqual(["marketing"]);
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "braze", label: "Braze" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
     });
   });
 

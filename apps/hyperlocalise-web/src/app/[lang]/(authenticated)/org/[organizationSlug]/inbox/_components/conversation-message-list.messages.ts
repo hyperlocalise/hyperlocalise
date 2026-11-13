@@ -35,4 +35,29 @@ export const conversationMessageListMessages = defineMessages({
     id: "/THUJejkLd",
     description: "Fallback title for a document source without a title or filename",
   },
+  stoppedMarker: {
+    defaultMessage: "Stopped",
+    id: "/0sICDrWh/",
+    description: "Marker under an assistant reply that the user stopped before it finished",
+  },
+  clarificationOptions: {
+    defaultMessage: "Suggested answers",
+    id: "3Sg0Zcpu/H",
+    description: "Accessible label for the buttons that answer the assistant's question",
+  },
+  showFullOutput: {
+    defaultMessage: "Show full result",
+    id: "YFMn72O3t0",
+    description: "Button that loads the full tool result when the chat shows a shortened copy",
+  },
+  loadingFullOutput: {
+    defaultMessage: "Loading full result…",
+    id: "uBd8YwvQLl",
+    description: "Button label while the full tool result loads",
+  },
+  fullOutputFailed: {
+    defaultMessage: "Couldn't load the full result. Try again.",
+    id: "kWOuILjyCI",
+    description: "Error shown when loading the full tool result fails",
+  },
 });

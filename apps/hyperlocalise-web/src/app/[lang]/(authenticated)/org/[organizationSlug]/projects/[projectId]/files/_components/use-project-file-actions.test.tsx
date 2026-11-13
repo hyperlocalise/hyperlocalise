@@ -18,7 +18,7 @@ import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vite-plus/test";
 
 import { createProjectFileRecord, providerProjectFilesFixture } from "./project-files.fixture";
-import { useProjectFileActions } from "./use-project-file-actions";
+import { canUseTranslationAsSource, useProjectFileActions } from "./use-project-file-actions";
 
 function IntlWrapper({ children }: { children: ReactNode }) {
   return (
@@ -90,8 +90,8 @@ describe("useProjectFileActions", () => {
 
   it("disables agent translation when the native file is not runnable", () => {
     const unsupportedFile = createProjectFileRecord({
-      sourcePath: "marketing/brief.pdf",
-      storedFileId: "file_brief_pdf",
+      sourcePath: "marketing/brief.rtf",
+      storedFileId: "file_brief_rtf",
     });
     const missingStoredFile = createProjectFileRecord({
       sourcePath: "marketing/home.json",
@@ -134,5 +134,33 @@ describe("useProjectFileActions", () => {
     expect(result.current.isNativeFile).toBe(true);
     expect(result.current.canTranslateWithAgent).toBe(true);
     expect(result.current.translateDisabledTitle).toBeUndefined();
+  });
+});
+
+describe("canUseTranslationAsSource", () => {
+  it("allows only Word and Excel files in projects that store their own files", () => {
+    const wordFile = createProjectFileRecord({ sourcePath: "docs/brief.docx" });
+    const file = (sourcePath: string) => createProjectFileRecord({ sourcePath });
+
+    expect(canUseTranslationAsSource("project_website", wordFile)).toBe(true);
+    expect(canUseTranslationAsSource("project_website", file("docs/sheet.xlsx"))).toBe(true);
+    expect(canUseTranslationAsSource("project_website", file("docs/sheet.xls"))).toBe(true);
+    expect(canUseTranslationAsSource("project_website", createProjectFileRecord())).toBe(false);
+    expect(canUseTranslationAsSource("project_website", file("docs/deck.pptx"))).toBe(false);
+    expect(canUseTranslationAsSource("ext:crowdin:42", wordFile)).toBe(false);
+    expect(
+      canUseTranslationAsSource("project_website", {
+        ...providerProjectFilesFixture[0]!,
+        sourcePath: "crowdin/brief.docx",
+      }),
+    ).toBe(false);
+  });
+
+  it("is offered only on the default branch, which sends read from", () => {
+    const wordFile = createProjectFileRecord({ sourcePath: "docs/brief.docx" });
+
+    expect(canUseTranslationAsSource("project_website", wordFile, "main")).toBe(true);
+    expect(canUseTranslationAsSource("project_website", wordFile, "")).toBe(true);
+    expect(canUseTranslationAsSource("project_website", wordFile, "release/2.0")).toBe(false);
   });
 });

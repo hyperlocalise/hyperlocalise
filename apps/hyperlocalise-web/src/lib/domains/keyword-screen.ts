@@ -29,6 +29,20 @@ export type KeywordSort = {
   direction: "asc" | "desc";
 };
 
+export const EMPTY_KEYWORD_FILTERS: KeywordFilters = {
+  include: "",
+  exclude: "",
+  minVolume: "",
+  maxVolume: "",
+  minKd: "",
+  maxKd: "",
+  minCpc: "",
+  maxCpc: "",
+  intent: "all",
+};
+
+export const DEFAULT_KEYWORD_SORT: KeywordSort = { field: "volume", direction: "desc" };
+
 export function filterKeywordIdeas(
   rows: KeywordIdea[],
   query: string,
@@ -78,14 +92,14 @@ export function filterKeywordIdeas(
     });
 }
 
-export function keywordIdeasCsv(rows: KeywordIdea[]) {
+export function keywordIdeasCsv(rows: KeywordIdea[], cpcCurrency = "USD") {
   const cell = (value: string | number | undefined) => {
     let text = String(value ?? "");
     if (/^[=+@\-\t\r]/.test(text)) text = "'" + text;
     return '"' + text.replaceAll('"', '""') + '"';
   };
   return [
-    ["Keyword", "Volume", "KD", "CPC (EUR)", "Competition", "Intent"],
+    ["Keyword", "Volume", "KD", `CPC (${cpcCurrency})`, "Competition", "Intent"],
     ...rows.map((row) => [row.keyword, row.volume, row.kd, row.cpc, row.competition, row.intent]),
   ]
     .map((row) => row.map(cell).join(","))

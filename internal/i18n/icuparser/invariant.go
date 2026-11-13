@@ -22,9 +22,34 @@ type BlockSignature struct {
 	Pounds  []int
 }
 
+// PLACEHOLDER_SLICE_CAP is the initial capacity for placeholder occurrences
+// collected before they are sorted and deduplicated. Four fits the usual
+// complex message: a tag argument, a plural argument, that plural's pound,
+// and one nested argument. BenchmarkParseInvariant uses that shape, so the
+// common path allocates once. Messages with more occurrences grow the slice.
+const PLACEHOLDER_SLICE_CAP = 4
+
+type InvariantOptions struct {
+	// StrictICU disables the mustache/i18next fallback, so {{name}} is a parse
+	// error instead of an argument.
+	StrictICU bool
+}
+
 func ParseInvariant(s string) (Invariant, error) {
+	return ParseInvariantWithOptions(s, InvariantOptions{})
+}
+
+func ParseInvariantWithOptions(s string, opts InvariantOptions) (Invariant, error) {
+	// BOLT OPTIMIZATION: Fast path for plain text containing no ICU AST signal characters.
+	if !strings.ContainsAny(s, "{#<}'}") {
+		return Invariant{}, nil
+	}
+
 	elems, err := Parse(s, nil)
 	if err != nil {
+		if opts.StrictICU {
+			return Invariant{}, err
+		}
 		normalized := normalizeMustachePlaceholders(s)
 		elems, err = Parse(normalized, nil)
 		if err != nil {
@@ -32,11 +57,7 @@ func ParseInvariant(s string) (Invariant, error) {
 		}
 	}
 
-	numBraces := strings.Count(s, "{")
-	numPounds := strings.Count(s, "#")
-	inv := Invariant{
-		Placeholders: make([]string, 0, numBraces+numPounds),
-	}
+	var inv Invariant
 	collectInvariantFromElements(elems, &inv, "")
 
 	if !isSortedAndUnique(inv.Placeholders) {
@@ -81,11 +102,41 @@ func SameICUBlocks(a, b []BlockSignature) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || a[i].Offset != b[i].Offset || !slicesEqual(a[i].Options, b[i].Options) {
+		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || a[i].Offset != b[i].Offset {
+			return false
+		}
+		if a[i].Type == "plural" || a[i].Type == "selectordinal" {
+			if !samePluralOptions(a[i].Options, b[i].Options) {
+				return false
+			}
+			continue
+		}
+		if !slicesEqual(a[i].Options, b[i].Options) {
 			return false
 		}
 	}
 	return true
+}
+
+// samePluralOptions keeps exact matches (=0, =1) and requires other on both
+// sides. CLDR categories (one, few, many, …) may differ by locale.
+func samePluralOptions(a, b []string) bool {
+	aExact, aHasOther := splitPluralOptions(a)
+	bExact, bHasOther := splitPluralOptions(b)
+	return aHasOther == bHasOther && slicesEqual(aExact, bExact)
+}
+
+func splitPluralOptions(options []string) (exact []string, hasOther bool) {
+	for _, option := range options {
+		if option == "other" {
+			hasOther = true
+			continue
+		}
+		if len(option) > 0 && option[0] == '=' {
+			exact = append(exact, option)
+		}
+	}
+	return exact, hasOther
 }
 
 func HasDuplicatePounds(blocks []BlockSignature) bool {
@@ -179,12 +230,12 @@ func normalizeMustachePlaceholders(s string) string {
 			}
 
 			if match {
-				name := strings.TrimSpace(s[i+braceCount : j])
-				if isPlaceholderName(name) {
-					// Convert moustache placeholders to ICU-style arguments for fallback parsing.
-					b.WriteByte('{')
-					b.WriteString(name)
-					b.WriteByte('}')
+				// Convert mustache/i18next interpolations to ICU arguments so
+				// {{name}}, {{- name}}, and {{name, uppercase}} participate in
+				// placeholder parity. Nested ICU ({{count, plural, ...}}) is left
+				// unchanged.
+				if rewrite, ok := interpolationRewrite(s[i+braceCount : j]); ok {
+					b.WriteString(rewrite)
 					i = j + braceCount
 					continue
 				}
@@ -234,8 +285,15 @@ func collectInvariantFromElement(el Element, inv *Invariant, pluralArg string) {
 
 func appendPlaceholder(inv *Invariant, value string) {
 	if isPlaceholderName(value) {
+		if inv.Placeholders == nil {
+			inv.Placeholders = make([]string, 0, PLACEHOLDER_SLICE_CAP)
+		}
 		inv.Placeholders = append(inv.Placeholders, value)
 	}
+}
+
+func appendICUBlock(inv *Invariant, sig BlockSignature) {
+	inv.ICUBlocks = append(inv.ICUBlocks, sig)
 }
 
 func appendTypedBlockInvariant(inv *Invariant, arg, kind, style string) {
@@ -247,12 +305,12 @@ func appendTypedBlockInvariant(inv *Invariant, arg, kind, style string) {
 	if style != "" {
 		sig.Options = []string{style}
 	}
-	inv.ICUBlocks = append(inv.ICUBlocks, sig)
+	appendICUBlock(inv, sig)
 }
 
 func appendSelectBlockInvariant(inv *Invariant, v SelectElement, pluralArg string) {
 	appendPlaceholder(inv, v.Value)
-	inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
+	appendICUBlock(inv, BlockSignature{
 		Arg:     v.Value,
 		Type:    "select",
 		Options: sortedSelectors(v.Options),
@@ -270,7 +328,7 @@ func appendPluralBlockInvariant(inv *Invariant, v PluralElement) {
 	appendPlaceholder(inv, v.Value)
 	sortedOptions, poundCounts := sortedPluralOptionSignatures(v.Options)
 
-	inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
+	appendICUBlock(inv, BlockSignature{
 		Arg:     v.Value,
 		Type:    blockType,
 		Offset:  v.Offset,
@@ -290,8 +348,20 @@ func sortedSelectors(opts []SelectOption) []string {
 	for i, o := range opts {
 		out[i] = o.Selector
 	}
-	slices.Sort(out)
+	// BOLT OPTIMIZATION: Fast-path check if selectors are already sorted.
+	if !slices.IsSorted(out) {
+		slices.Sort(out)
+	}
 	return out
+}
+
+type optionSig struct {
+	selector string
+	pounds   int
+}
+
+func compareOptionSig(a, b optionSig) int {
+	return cmp.Compare(a.selector, b.selector)
 }
 
 func sortedPluralOptionSignatures(opts []PluralOption) ([]string, []int) {
@@ -299,10 +369,6 @@ func sortedPluralOptionSignatures(opts []PluralOption) ([]string, []int) {
 		return nil, nil
 	}
 
-	type optionSig struct {
-		selector string
-		pounds   int
-	}
 	var sigsBuf [8]optionSig
 	var sigs []optionSig
 	if len(opts) <= 8 {
@@ -320,9 +386,11 @@ func sortedPluralOptionSignatures(opts []PluralOption) ([]string, []int) {
 		sigs = append(sigs, optionSig{selector: o.Selector, pounds: p})
 	}
 
-	slices.SortFunc(sigs, func(a, b optionSig) int {
-		return cmp.Compare(a.selector, b.selector)
-	})
+	// BOLT OPTIMIZATION: Use package-level compareOptionSig function to avoid closure heap allocation,
+	// and check slices.IsSortedFunc before sorting to bypass sort overhead when options are pre-sorted.
+	if !slices.IsSortedFunc(sigs, compareOptionSig) {
+		slices.SortFunc(sigs, compareOptionSig)
+	}
 
 	selectors := make([]string, len(sigs))
 	var pounds []int
@@ -408,6 +476,23 @@ func isPlaceholderName(s string) bool {
 	// already provide trimmed strings, so we skip TrimSpace here.
 	if s == "" {
 		return false
+	}
+
+	// BOLT OPTIMIZATION: Fast-path for simple ASCII identifier placeholder names (without '.' or '[').
+	// This covers >99% of i18n placeholders (e.g. {name}, {count}, {folder}, {user_id}) in a single,
+	// branch-predictor-friendly byte loop without complex indexing or unicode checks.
+	if isASCIIPlaceholderFirst(s[0]) {
+		isSimple := true
+		for i := 1; i < len(s); i++ {
+			b := s[i]
+			if b >= 0x80 || !isASCIIPlaceholderSubsequent(b) || b == '.' || b == '[' {
+				isSimple = false
+				break
+			}
+		}
+		if isSimple {
+			return true
+		}
 	}
 
 	for i := 0; i < len(s); {

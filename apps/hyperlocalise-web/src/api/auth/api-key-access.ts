@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, isNotNull, ne } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 import { ownedProjectWhere } from "@/api/auth/team-access";
@@ -20,7 +20,7 @@ import {
   reconcileWorkosMembershipsForUser,
 } from "@/api/auth/workos-membership-reconcile";
 import { db, schema } from "@/lib/database/client";
-import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+import { excludeReplacingWorkosMembershipSql } from "@/lib/workos/constants";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
 /**
@@ -111,7 +111,7 @@ export async function resolveApiKeyTeamAccessContext(input: {
         eq(schema.organizationMemberships.organizationId, input.organizationId),
         eq(schema.organizations.lifecycleStatus, "active"),
         isNotNull(schema.organizationMemberships.workosMembershipId),
-        ne(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+        excludeReplacingWorkosMembershipSql(schema.organizationMemberships.workosMembershipId),
       ),
     )
     .limit(1);

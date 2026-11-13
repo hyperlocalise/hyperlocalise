@@ -12,11 +12,15 @@
  */
 import { Sandbox } from "@vercel/sandbox";
 
-import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
+import {
+  createConfiguredVercelSandbox,
+  type VercelSandboxImageScope,
+} from "@/lib/vercel-sandbox-config";
 
 import type {
   GitWorkspaceSource,
   WorkspaceCommandResult,
+  WorkspaceRunCommandOptions,
   WorkspaceRuntime,
   WorkspaceSearchInput,
   WorkspaceSearchMatch,
@@ -24,6 +28,15 @@ import type {
 } from "./types";
 
 const defaultSandboxTimeoutMs = 10 * 60 * 1000;
+
+/**
+ * Upper bound for a single sandbox command. Without it a hung process blocks the
+ * caller until the Vercel function hits its 800s limit and the whole run is lost.
+ */
+export const DEFAULT_SANDBOX_COMMAND_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** Extra time for the client-side abort after the server-side SIGKILL deadline. */
+const SANDBOX_COMMAND_ABORT_GRACE_MS = 15 * 1000;
 
 export class VercelSandboxCommandError extends Error {
   readonly command: string;
@@ -143,16 +156,33 @@ function shellQuote(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
+/** Emulates GNU `realpath -m` when the host realpath is BSD. */
+function sandboxRealpathMissingJs(): string {
+  return [
+    'const fs=require("fs");',
+    'const path=require("path");',
+    'const dest=path.resolve(process.argv[1]||"");',
+    "const parts=dest.split(path.sep).filter(Boolean);",
+    'let current=dest.startsWith(path.sep)?path.sep:"";',
+    "for (let i=0;i<parts.length;i++) {",
+    "  const next=path.join(current,parts[i]);",
+    "  try { current=fs.realpathSync(next); }",
+    "  catch { current=path.join(next,...parts.slice(i+1)); break; }",
+    "}",
+    "process.stdout.write(current);",
+  ].join("");
+}
+
 /**
- * Write only after the destination canonicalizes inside `pwd -P`.
+ * Validate the destination and create its parent directory.
  * Rejects leaf or parent-path symlinks so planted or applyPatch-created
- * links cannot escape the workspace.
+ * links cannot escape the workspace. File bytes are written separately
+ * through the sandbox file API so they are not stuffed into command args.
  */
-export function buildSandboxWriteFileScript(path: string, base64Content: string): string {
+export function buildSandboxWritePathGuardScript(path: string): string {
   return [
     "set -euo pipefail",
     `target=${shellQuote(path)}`,
-    `encoded=${shellQuote(base64Content)}`,
     "root=$(pwd -P)",
     `if [ -z "$root" ]; then exit ${SANDBOX_WRITE_ROOT_UNAVAILABLE}; fi`,
     `if [ -z "$target" ]; then exit ${SANDBOX_WRITE_PATH_INVALID}; fi`,
@@ -161,8 +191,13 @@ export function buildSandboxWriteFileScript(path: string, base64Content: string)
     "  /*) dest=$target ;;",
     "  *) dest=$root/$target ;;",
     "esac",
-    `if ! command -v realpath >/dev/null 2>&1; then exit ${SANDBOX_WRITE_ROOT_UNAVAILABLE}; fi`,
-    'resolved=$(realpath -m -- "$dest")',
+    `if command -v realpath >/dev/null 2>&1 && resolved=$(realpath -m -- "$dest" 2>/dev/null) && [ -n "$resolved" ]; then`,
+    "  :",
+    "else",
+    `  if ! command -v node >/dev/null 2>&1; then exit ${SANDBOX_WRITE_ROOT_UNAVAILABLE}; fi`,
+    `  resolved=$(node -e ${shellQuote(sandboxRealpathMissingJs())} -- "$dest")`,
+    `  if [ -z "$resolved" ]; then exit ${SANDBOX_WRITE_ROOT_UNAVAILABLE}; fi`,
+    "fi",
     'case "$resolved" in',
     `  "$root"|"$root"/*) ;;`,
     `  *) exit ${SANDBOX_WRITE_OUTSIDE_WORKSPACE} ;;`,
@@ -198,7 +233,6 @@ export function buildSandboxWriteFileScript(path: string, base64Content: string)
     "  done",
     "fi",
     'mkdir -p -- "$(dirname -- "$resolved")"',
-    'printf %s "$encoded" | base64 -d > "$resolved"',
   ].join("\n");
 }
 
@@ -208,12 +242,17 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
   async runCommand(
     command: string,
     args: string[],
-    options: { output?: "both" | "stdout" } = {},
+    options: WorkspaceRunCommandOptions = {},
   ): Promise<WorkspaceCommandResult> {
+    const timeoutMs = options.timeoutMs ?? DEFAULT_SANDBOX_COMMAND_TIMEOUT_MS;
+    // Server-side timeout kills the process; the client-side abort is a backstop
+    // in case the log stream stalls after the kill.
+    const deadline = AbortSignal.timeout(timeoutMs + SANDBOX_COMMAND_ABORT_GRACE_MS);
+    const signal = options.signal ? AbortSignal.any([options.signal, deadline]) : deadline;
     const sandbox = await Sandbox.get({ name: this.id });
     let result;
     try {
-      result = await sandbox.runCommand(command, args);
+      result = await sandbox.runCommand(command, args, { timeoutMs, signal });
     } catch (error) {
       throw new VercelSandboxCommandError({
         sandboxId: this.id,
@@ -267,11 +306,7 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
   }
 
   async writeFile(path: string, content: string | Buffer): Promise<void> {
-    const encoded = Buffer.from(content).toString("base64");
-    const result = await this.runCommand("bash", [
-      "-lc",
-      buildSandboxWriteFileScript(path, encoded),
-    ]);
+    const result = await this.runCommand("bash", ["-lc", buildSandboxWritePathGuardScript(path)]);
     if (result.exitCode === SANDBOX_WRITE_SYMLINK_DENIED) {
       throw new Error("Symlink writes are not allowed.");
     }
@@ -283,6 +318,19 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
     }
     if (result.exitCode !== 0) {
       throw new Error(result.output || `Failed to write ${path}`);
+    }
+
+    const sandbox = await Sandbox.get({ name: this.id });
+    const bytes = Buffer.isBuffer(content) ? content : Buffer.from(content);
+    try {
+      await sandbox.writeFiles([{ path, content: bytes }]);
+    } catch (error) {
+      throw new VercelSandboxCommandError({
+        sandboxId: this.id,
+        command: "writeFiles",
+        args: [path],
+        cause: error,
+      });
     }
   }
 
@@ -330,17 +378,35 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
 
   async stop(): Promise<void> {
     const sandbox = await Sandbox.get({ name: this.id });
-    await sandbox.stop();
+    try {
+      await sandbox.stop();
+    } catch (error) {
+      throw new VercelSandboxCommandError({
+        sandboxId: this.id,
+        command: "stop",
+        args: [],
+        cause: error,
+      });
+    }
   }
 }
+
+type QaSandboxSnapshotOptions = {
+  keepLastSnapshots?: { count: number; deleteEvicted?: boolean };
+  snapshotExpiration?: number;
+};
 
 export async function createVercelSandboxWorkspace(input: {
   source?: GitWorkspaceSource;
   timeoutMs?: number;
+  sandboxOptions?: QaSandboxSnapshotOptions;
+  imageScope?: VercelSandboxImageScope;
 }): Promise<WorkspaceRuntime> {
   const sandbox = await createConfiguredVercelSandbox({
     ...(input.source ? { source: input.source } : {}),
     timeout: input.timeoutMs ?? defaultSandboxTimeoutMs,
+    imageScope: input.imageScope,
+    ...input.sandboxOptions,
   });
 
   return new VercelSandboxRuntime(sandbox.name);

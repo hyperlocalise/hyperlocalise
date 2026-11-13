@@ -19,9 +19,17 @@ import { describe, expect, it } from "vite-plus/test";
  * Workflow DevKit evaluates the workflow graph in a CJS sandbox without Node
  * builtins. Static imports of `@/lib/log` (historically typed from `chat`),
  * `@/lib/env`, `@vercel/sandbox`, or `chat` itself crash the sandbox before
- * steps run. Keep these modules behind dynamic `import()` inside `"use step"`.
+ * steps run. `@/lib/reporting/capture` imports `node:crypto`, which the
+ * workflow bundler refuses. Keep these modules behind dynamic `import()`
+ * inside `"use step"`.
  */
-const FORBIDDEN_SPECIFIERS = ["chat", "@/lib/log", "@/lib/env", "@vercel/sandbox"] as const;
+const FORBIDDEN_SPECIFIERS = [
+  "chat",
+  "@/lib/log",
+  "@/lib/env",
+  "@vercel/sandbox",
+  "@/lib/reporting/capture",
+] as const;
 
 const WORKFLOWS_ROOT = import.meta.dirname;
 
@@ -40,12 +48,7 @@ function listWorkflowSandboxModules(dir: string): string[] {
       continue;
     }
     const source = readFileSync(fullPath, "utf8");
-    // sandbox-utils is loaded inside step sandboxes even without a directive.
-    if (
-      source.includes('"use workflow"') ||
-      source.includes('"use step"') ||
-      entry.name === "sandbox-utils.ts"
-    ) {
+    if (source.includes('"use workflow"') || source.includes('"use step"')) {
       results.push(path.relative(WORKFLOWS_ROOT, fullPath));
     }
   }
@@ -92,7 +95,6 @@ const WORKFLOW_MODULES = listWorkflowSandboxModules(WORKFLOWS_ROOT);
 describe("workflow step sandbox import boundaries", () => {
   it("discovers workflow and step modules to guard", () => {
     expect(WORKFLOW_MODULES.length).toBeGreaterThan(10);
-    expect(WORKFLOW_MODULES).toEqual(expect.arrayContaining(["steps/sandbox-utils.ts"]));
   });
 
   it.each(WORKFLOW_MODULES)("%s avoids forbidden static imports", (relativePath) => {

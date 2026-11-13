@@ -35,9 +35,30 @@ func (s *Service) flushOutputForTargetWithMarkdownParityRetry(ctx context.Contex
 	return s.flushOutputForTarget(targetPath, output, keep)
 }
 
+type targetFlushError struct {
+	TargetPath       string
+	UnwrittenTargets []string
+	Err              error
+}
+
+func (e *targetFlushError) Error() string {
+	if e == nil || e.Err == nil {
+		return "flush outputs: unknown target"
+	}
+	return e.Err.Error()
+}
+
+func (e *targetFlushError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 func (s *Service) flushOutputs(ctx context.Context, retry *markdownParityRetryInput, staged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}, pruneMetadata map[string]stagedOutput) ([]string, error) {
-	targetPaths := make([]string, 0, len(staged)+len(pruneTargets))
-	for path := range staged {
+	grouped := groupedStagedOutputPaths(staged)
+	targetPaths := make([]string, 0, len(grouped)+len(pruneTargets))
+	for path := range grouped {
 		targetPaths = append(targetPaths, path)
 	}
 	for path := range pruneTargets {
@@ -50,16 +71,22 @@ func (s *Service) flushOutputs(ctx context.Context, retry *markdownParityRetryIn
 		ctx = context.Background()
 	}
 	var warnings []string
-	for _, targetPath := range targetPaths {
-		output, ok := staged[targetPath]
-		if !ok {
-			output = pruneMetadata[targetPath]
+	for i, targetPath := range targetPaths {
+		outputs := grouped[targetPath]
+		if len(outputs) == 0 {
+			outputs = []stagedOutput{pruneMetadata[targetPath]}
 		}
-		targetWarnings, err := s.flushOutputForTargetWithMarkdownParityRetry(ctx, retry, targetPath, output, pruneTargets[targetPath])
-		if err != nil {
-			return nil, err
+		for _, output := range outputs {
+			targetWarnings, err := s.flushOutputForTargetWithMarkdownParityRetry(ctx, retry, targetPath, output, pruneTargets[targetPath])
+			if err != nil {
+				return nil, &targetFlushError{
+					TargetPath:       targetPath,
+					UnwrittenTargets: slices.Clone(targetPaths[i:]),
+					Err:              err,
+				}
+			}
+			warnings = append(warnings, targetWarnings...)
 		}
-		warnings = append(warnings, targetWarnings...)
 	}
 	return warnings, nil
 }
@@ -82,6 +109,32 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 	if err != nil {
 		return nil, err
 	}
+	if ext := strings.ToLower(filepath.Ext(targetPath)); ext == ".xlf" || ext == ".xlif" || ext == ".xliff" {
+		source, sourceErr := s.readProjectFile(output.sourcePath)
+		if sourceErr != nil {
+			return nil, fmt.Errorf("flush outputs: read XLIFF source %q: %w", output.sourcePath, sourceErr)
+		}
+		target, targetErr := s.readProjectFile(targetPath)
+		if targetErr == nil {
+			values, err = translationfileparser.XLIFFTargetEntriesForSource(source, target)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: align XLIFF target %q: %w", targetPath, err)
+			}
+		} else if !os.IsNotExist(targetErr) {
+			return nil, fmt.Errorf("flush outputs: read XLIFF target %q: %w", targetPath, targetErr)
+		}
+	}
+	if strings.EqualFold(filepath.Ext(targetPath), ".xlsx") {
+		target, targetErr := s.readProjectFile(targetPath)
+		if targetErr == nil {
+			values, err = translationfileparser.ParseXLSXLocale(target, output.sourceLocale, output.targetLocale)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: parse Excel target %q: %w", targetPath, err)
+			}
+		} else if !os.IsNotExist(targetErr) {
+			return nil, fmt.Errorf("flush outputs: read Excel target %q: %w", targetPath, targetErr)
+		}
+	}
 	stagedEntries := output.entries
 	if strings.TrimSpace(output.srxSpec) != "" {
 		joined, joinErr := s.joinStagedSRXOutput(output, values)
@@ -89,6 +142,9 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 			return nil, joinErr
 		}
 		stagedEntries = joined
+	}
+	if output.replaceCatalog {
+		keep = catalogKeySet(stagedEntries)
 	}
 	if keep != nil {
 		for key := range values {
@@ -115,6 +171,14 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 		return nil, fmt.Errorf("flush outputs: write %q: %w", targetPath, err)
 	}
 	return append(loadWarnings, warnings...), nil
+}
+
+func catalogKeySet(entries map[string]string) map[string]struct{} {
+	keep := make(map[string]struct{}, len(entries))
+	for key := range entries {
+		keep[key] = struct{}{}
+	}
+	return keep
 }
 
 func (s *Service) loadExistingTarget(path string) (map[string]string, error) {
@@ -154,7 +218,7 @@ func (s *Service) joinStagedSRXOutput(output stagedOutput, existing map[string]s
 	if err != nil {
 		return nil, fmt.Errorf("flush outputs: compile srx %q: %w", output.srxSpec, err)
 	}
-	sourceEntries, parserMode, err := s.loadSourceEntriesForJoin(output.sourcePath)
+	sourceEntries, parserMode, err := s.loadSourceEntriesForJoin(output.sourcePath, output.sourceLocale)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +228,7 @@ func (s *Service) joinStagedSRXOutput(output stagedOutput, existing map[string]s
 	return joinSRXStagedEntries(doc, output.sourcePath, parserMode, output.sourceLocale, output.targetLocale, sourceEntries, output.entries, existing), nil
 }
 
-func (s *Service) loadSourceEntriesForJoin(sourcePath string) (map[string]string, string, error) {
+func (s *Service) loadSourceEntriesForJoin(sourcePath, sourceLocale string) (map[string]string, string, error) {
 	content, err := s.readProjectFile(sourcePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -173,7 +237,7 @@ func (s *Service) loadSourceEntriesForJoin(sourcePath string) (map[string]string
 		return nil, "", fmt.Errorf("flush outputs: read source file %q: %w", sourcePath, err)
 	}
 	parser := s.newParser()
-	entries, _, parseErr := parser.ParseWithContext(sourcePath, content)
+	entries, _, parseErr := parser.ParseSource(sourcePath, content, sourceLocale)
 	if parseErr != nil {
 		return nil, "", fmt.Errorf("flush outputs: parse source file %q: %w", sourcePath, parseErr)
 	}
@@ -183,6 +247,9 @@ func (s *Service) loadSourceEntriesForJoin(sourcePath string) (map[string]string
 func parseExistingTargetEntries(path string, content []byte, targetLocale string, parser *translationfileparser.Strategy) (map[string]string, error) {
 	if strings.EqualFold(filepath.Ext(path), ".csv") {
 		return parseCSVForTargetLocale(content, targetLocale)
+	}
+	if strings.EqualFold(filepath.Ext(path), ".tsv") {
+		return translationfileparser.ParseTSVLocale(content, targetLocale)
 	}
 	return parser.Parse(path, content)
 }

@@ -10,26 +10,37 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { redirect } from "next/navigation";
-import { OrgPageSuspense } from "../../_components/org-page-suspense";
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { switchableWorkspaces } from "@/lib/workos/switchable-workspaces";
+import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-export default function MembersSettingsRedirectPage({
+import { MembersPageContent } from "../_components/members-page-content";
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  return generateAuthenticatedPageMetadata(params, "settingsMembers");
+}
+
+export default function MembersSettingsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
-  return (
-    <OrgPageSuspense>
-      <MembersSettingsRedirectPageLoader params={params} />
-    </OrgPageSuspense>
-  );
+  return <MembersSettingsPageLoader params={params} />;
 }
 
-async function MembersSettingsRedirectPageLoader({
+async function MembersSettingsPageLoader({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  return redirect(`/org/${organizationSlug}/members`);
+  const auth = await requireAppAuthContext({ organizationSlug });
+
+  return (
+    <MembersPageContent
+      organizationSlug={organizationSlug}
+      organizationName={auth.activeOrganization.name}
+      isOnlyWorkspace={switchableWorkspaces(auth.organizations).length <= 1}
+    />
+  );
 }

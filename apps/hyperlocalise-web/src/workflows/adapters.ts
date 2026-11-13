@@ -26,12 +26,16 @@ import type {
   EmailAgentTaskQueue,
   JobQueue,
   IssueNotificationEmailQueue,
+  EngineSetupQueue,
   LocalisationAuditQueue,
+  LocalisationDeepAuditQueue,
   LocalisationAuditReportEmailQueue,
+  TranslationQaScanQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
+  ProjectContentSyncQueue,
   SourceFileIngestQueue,
   TranslationFileImportQueue,
   WorkspaceAutomationExecutionQueue,
@@ -42,6 +46,7 @@ import type {
 
 const providerAgentTranslationQueueLogger = createLogger("provider-agent-translation-queue");
 const issueNotificationEmailQueueLogger = createLogger("issue-notification-email-queue");
+const translationQaScanQueueLogger = createLogger("translation-qa-scan-queue");
 
 export { createTranslationJobEventQueue, createReviewJobEventQueue } from "@/lib/workflow/queues";
 
@@ -215,12 +220,78 @@ export function createLocalisationAuditQueue(): LocalisationAuditQueue {
   };
 }
 
+export function createLocalisationDeepAuditQueue(): LocalisationDeepAuditQueue {
+  return {
+    async enqueue(event) {
+      const { localisationDeepAuditWorkflow } = await import("@/workflows/localisation-deep-audit");
+      const run = await start(localisationDeepAuditWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createEngineSetupQueue(): EngineSetupQueue {
+  return {
+    async enqueue(event) {
+      const { engineSetupWorkflow } = await import("@/workflows/engine-setup");
+      const run = await start(engineSetupWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
 export function createLocalisationAuditReportEmailQueue(): LocalisationAuditReportEmailQueue {
   return {
     async enqueue(event) {
       const { localisationAuditReportEmailWorkflow } =
         await import("@/workflows/localisation-audit-report-email");
       const run = await start(localisationAuditReportEmailWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createProjectContentSyncQueue(): ProjectContentSyncQueue {
+  return {
+    async enqueue(event) {
+      if (shouldRunWorkflowInlineLocally()) {
+        // Not awaited: a sync clones the repository and can take minutes, and Sync now must answer at once.
+        const { executeProjectContentSyncRun } =
+          await import("@/lib/projects/content-sync/project-content-sync");
+        void executeProjectContentSyncRun(event);
+        return { ids: ["local_inline_project_content_sync"] };
+      }
+
+      const { projectContentSyncWorkflow } = await import("@/workflows/project-content-sync");
+      const run = await start(projectContentSyncWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createTranslationQaScanQueue(): TranslationQaScanQueue {
+  return {
+    async enqueue(event) {
+      if (shouldRunWorkflowInlineLocally()) {
+        translationQaScanQueueLogger.info(
+          { runId: event.runId, projectId: event.projectId },
+          "translation qa scan running inline",
+        );
+        const { executeTranslationQaScan } = await import("@/lib/qa/run-project-qa-scan");
+        await executeTranslationQaScan(event);
+        return { ids: ["local_inline_translation_qa_scan"] };
+      }
+
+      const { translationQaScanWorkflow } = await import("@/workflows/translation-qa-scan");
+      const run = await start(translationQaScanWorkflow, [event]);
+      translationQaScanQueueLogger.info(
+        {
+          runId: event.runId,
+          projectId: event.projectId,
+          workflowRunId: run.runId,
+        },
+        "translation qa scan workflow enqueued",
+      );
       return { ids: [run.runId] };
     },
   };

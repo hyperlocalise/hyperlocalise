@@ -21,6 +21,8 @@ import {
   localizedImageOutputFilename,
 } from "@/lib/agents/image-localization";
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
+import { mediaLocalizationOperationKey } from "@/lib/billing/media-localization-operation-key";
+import { ManagedAiCreditAccessError } from "@/lib/billing/managed-ai-credit";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
   MAX_PUBLIC_HTTP_RESPONSE_BYTES,
@@ -40,7 +42,14 @@ export type ImageVariantError =
   | { code: "approved_locked" }
   | { code: "fetch_failed"; message: string }
   | { code: "unsupported_image_response" }
-  | { code: "localization_failed"; message: string };
+  | {
+      code: "ai_credit_insufficient";
+      requiredAmountUsd: number;
+      remainingAmountUsd: number;
+    }
+  | { code: "ai_credit_unavailable"; message: string }
+  | { code: "localization_failed"; message: string }
+  | { code: "aborted" };
 
 export function projectImageAssetPath(input: {
   organizationSlug: string;
@@ -222,11 +231,12 @@ async function loadSourceImageBytes(input: {
 
 export async function fetchImageBytesFromUrl(
   url: string,
+  options: { signal?: AbortSignal } = {},
 ): Promise<Result<{ content: Buffer; contentType: string; filename: string }, ImageVariantError>> {
   try {
     return await withPublicHttpFetch(
       url,
-      { method: "GET", redirect: "error" },
+      { method: "GET", redirect: "error", signal: options.signal },
       async (response) => {
         if (!response.ok) {
           return err({
@@ -258,11 +268,28 @@ export async function fetchImageBytesFromUrl(
       },
     );
   } catch (error) {
+    if (options.signal?.aborted) {
+      return err({ code: "aborted" });
+    }
     return err({
       code: "fetch_failed",
       message: error instanceof Error ? error.message : "image fetch failed",
     });
   }
+}
+
+function mapImageGenerationError(error: unknown, signal?: AbortSignal): ImageVariantError {
+  if (signal?.aborted) {
+    return { code: "aborted" };
+  }
+  if (error instanceof ManagedAiCreditAccessError) {
+    return { code: "ai_credit_unavailable", message: error.message };
+  }
+
+  return {
+    code: "localization_failed",
+    message: error instanceof Error ? error.message : "image localization failed",
+  };
 }
 
 export async function localizeAndStoreImageVariant(input: {
@@ -280,6 +307,7 @@ export async function localizeAndStoreImageVariant(input: {
   sourceJobId?: string | null;
   createdByUserId?: string | null;
   force?: boolean;
+  signal?: AbortSignal;
 }): Promise<Result<typeof schema.projectImageVariants.$inferSelect, ImageVariantError>> {
   const existing = await getImageVariant({
     organizationId: input.organizationId,
@@ -309,7 +337,7 @@ export async function localizeAndStoreImageVariant(input: {
     }
     sourceBytes = loaded.value;
   } else if (input.sourceUrl) {
-    const fetched = await fetchImageBytesFromUrl(input.sourceUrl);
+    const fetched = await fetchImageBytesFromUrl(input.sourceUrl, { signal: input.signal });
     if (!fetched.ok) {
       return fetched;
     }
@@ -339,7 +367,9 @@ export async function localizeAndStoreImageVariant(input: {
       prompt,
       {
         organizationId: input.organizationId,
-        operationKey: `image-localization:variant:${input.projectId}:${input.sourcePath}:${input.targetLocale}`,
+        operationKey: mediaLocalizationOperationKey(
+          `image-localization:variant:${input.projectId}:${input.sourcePath}:${input.targetLocale}`,
+        ),
         source: "project_image_variant",
         dimensions: {
           channel: "project",
@@ -347,13 +377,16 @@ export async function localizeAndStoreImageVariant(input: {
           target_locale: input.targetLocale,
         },
       },
+      { signal: input.signal },
     );
     localized = { image: result.image, mimeType: result.mimeType || "image/png" };
   } catch (error) {
-    return err({
-      code: "localization_failed",
-      message: error instanceof Error ? error.message : "image localization failed",
-    });
+    return err(mapImageGenerationError(error, input.signal));
+  }
+
+  // The caller may have moved on (or started a newer generation) while the model ran.
+  if (input.signal?.aborted) {
+    return err({ code: "aborted" });
   }
 
   const outputFilename = localizedImageOutputFilename(
@@ -430,6 +463,7 @@ export async function replaceImageVariantBytes(input: {
   force?: boolean;
   provenance?: (typeof schema.projectImageVariants.$inferSelect)["provenance"];
   sourceJobId?: string | null;
+  status?: ProjectImageVariantStatus;
 }): Promise<Result<typeof schema.projectImageVariants.$inferSelect, ImageVariantError>> {
   const existing = await getImageVariant(input);
   if (existing?.status === "approved" && !input.force) {
@@ -461,15 +495,19 @@ export async function replaceImageVariantBytes(input: {
     targetLocales: [input.targetLocale],
   });
 
+  const status = input.status ?? "needs_review";
+  const reviewedAt = status === "approved" || status === "rejected" ? new Date() : null;
+
   const [updated] = await db
     .update(schema.projectImageVariants)
     .set({
       storedFileId: stored.id,
-      status: "needs_review",
+      status,
       provenance: input.provenance ?? "manual",
       sourceJobId: input.sourceJobId ?? null,
-      reviewedByUserId: null,
-      reviewedAt: null,
+      reviewedByUserId:
+        status === "approved" || status === "rejected" ? (input.createdByUserId ?? null) : null,
+      reviewedAt,
       updatedAt: new Date(),
     })
     .where(

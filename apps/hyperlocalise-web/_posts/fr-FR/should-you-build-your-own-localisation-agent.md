@@ -240,6 +240,8 @@ C’est la philosophie qui sous-tend Hyperlocalise. Nous créons une main-d’œ
 
 L’avenir de la localisation ne sera pas défini par ceux qui peuvent envoyer du texte à un modèle de langage. Il sera défini par ceux qui peuvent transformer les connaissances organisationnelles et l’expertise locale en une méthode de travail fiable et évolutive.
 
+Si vous comparez une solution développée en interne aux plateformes des fournisseurs, [Comment choisir un flux de travail de localisation continue](/blog/how-to-choose-a-continuous-localisation-workflow) présente les autres catégories du marché — les TMS historiques, les plateformes axées sur les développeurs et les couches agentiques — sans les classer.
+
 ## Découvrez les agents de localisation d’Hyperlocalise en action
 
 Si vous évaluez l’opportunité de développer ou d’acheter une solution, nous pouvons vous expliquer comment un workflow de localisation agentique s’intègre à votre stack, à votre processus de révision et aux marchés que vous devez prendre en charge.

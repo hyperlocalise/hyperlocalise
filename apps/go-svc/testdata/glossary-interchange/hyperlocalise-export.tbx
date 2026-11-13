@@ -1,0 +1,1687 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<martif>
+  <text>
+    <body>
+      <conceptEntry id="c-05398ad7-f4f6-4bba-98cc-c5f004978141">
+        <descrip type="primaryTerm">baggage allowance</descrip>
+        <descrip type="subject">baggage</descrip>
+        <descrip type="definition">The amount, size, or weight of baggage included in a fare.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-aa35be7a-8c8c-4e22-9779-3308dbccd0f4">
+            <term>baggage allowance</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-0a0e653e-3289-4b0f-a167-867693a42ac6">
+        <descrip type="primaryTerm">base fare</descrip>
+        <descrip type="subject">pricing</descrip>
+        <descrip type="definition">The price of travel before taxes, fees, and optional extras are added.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-0459cffc-3d0d-4519-af01-4efd380bcb6c">
+            <term>base fare</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-1210219c-2bfb-4fce-be37-13636628f12c">
+        <descrip type="primaryTerm">payment method</descrip>
+        <descrip type="subject">payment</descrip>
+        <descrip type="definition">The instrument or service used to pay for a booking.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-f8e137e4-a0c4-47c9-9e85-3e8c036b806a">
+            <term>payment method</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-14211a50-7ea3-4dd5-8aea-bc817a722b0f">
+        <descrip type="primaryTerm">news</descrip>
+        <descrip type="subject">content</descrip>
+        <descrip type="definition">Information about travel products, destinations, or booking updates.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-c9259f6f-7ee7-4f25-9c6b-9f60b3ee0718">
+            <term>news</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-1ba8e6cc-2a05-41d3-b0a7-0137bf5163bb">
+        <descrip type="primaryTerm">room type</descrip>
+        <descrip type="subject">accommodation</descrip>
+        <descrip type="definition">The category or configuration of a room offered by a property.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-7f9c15e7-bca7-418d-911c-a10b04fd467b">
+            <term>room type</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-1da57848-14f2-4e78-bd93-21bfa8a47362">
+        <descrip type="primaryTerm">premium economy</descrip>
+        <descrip type="subject">flight</descrip>
+        <descrip type="definition">An airline cabin positioned above economy and below business class.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-657f8cc7-58dd-45ee-8c65-b094c767b036">
+            <term>premium economy</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-1ddad903-ac82-48a1-9e79-94b68a95f219">
+        <descrip type="primaryTerm">accommodation</descrip>
+        <descrip type="subject">accommodation</descrip>
+        <descrip type="definition">A place where a traveler stays overnight during a trip.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-5f8bb250-108b-4a39-b68b-3b1194c91006">
+            <term>accommodation</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-515327e5-9da2-45c3-8730-7793dc1e83b0">
+            <term>lodging</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-1e0fd2de-449b-491e-9881-ee386232dcab">
+        <descrip type="primaryTerm">nightly rate</descrip>
+        <descrip type="subject">accommodation</descrip>
+        <descrip type="definition">The cost charged for one night at an accommodation property.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-afc8ff49-9cba-49ab-b0b4-b791adbcb666">
+            <term>nightly rate</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-2524114e-7be8-47a1-8a76-eee870b3fe83">
+        <descrip type="primaryTerm">new</descrip>
+        <descrip type="subject">booking</descrip>
+        <descrip type="definition">A booking that has been created recently and did not previously exist.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-0d49cba9-7e42-4649-8f5a-cfa14cab5380">
+            <term>new</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">adjective</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-25fff62c-b527-46fb-8d67-00a7d5720ea8">
+        <descrip type="primaryTerm">guest</descrip>
+        <descrip type="subject">booking</descrip>
+        <descrip type="definition">A person occupying a room or included in a hotel reservation.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-d8cb4d47-c5fa-4dee-af74-04c5fc46f060">
+            <term>guest</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-2635364e-4861-4ba3-a501-aec12bdcae2a">
+        <descrip type="primaryTerm">refund</descrip>
+        <descrip type="subject">changes</descrip>
+        <descrip type="definition">Money returned to a traveler after an eligible cancellation or adjustment.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-84a289bb-e856-4430-b592-9621bbfcf04b">
+            <term>refund</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-2e084fe1-952e-42f8-8f08-61579d1793cd">
+        <descrip type="primaryTerm">origin</descrip>
+        <descrip type="subject">search</descrip>
+        <descrip type="definition">The place from which a traveler begins a journey.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-312d3f83-08d0-403b-a82d-d06b65c2f756">
+            <term>origin</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-2e1bede7-8295-40e2-94f6-3440fcda5756">
+        <descrip type="primaryTerm">nearby airports</descrip>
+        <descrip type="subject">search</descrip>
+        <descrip type="definition">Airports located close enough to the selected airport to be included in search results.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-d431a7c1-b6f6-4bdf-9694-07bef8a285ed">
+            <term>nearby airports</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-378d6380-44f3-4ac6-98e4-3c619c6152b6">
+        <descrip type="primaryTerm">itinerary</descrip>
+        <descrip type="subject">booking</descrip>
+        <descrip type="definition">The complete sequence of travel arrangements in a reservation.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-71aee3e0-4bb4-4a1c-a2cf-8b7eff6c7ec3">
+            <term>itinerary</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-37c5b15a-9ab4-48ed-92c3-6d979f117ed5">
+        <descrip type="primaryTerm">departure date</descrip>
+        <descrip type="subject">search</descrip>
+        <descrip type="definition">The calendar date on which a journey begins.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-04ad31d7-77a5-4061-87d6-9a07e679f833">
+            <term>departure date</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-39def899-b1d1-4a50-a2ef-51cc2b0d2a9c">
+        <descrip type="primaryTerm">resort fee</descrip>
+        <descrip type="subject">accommodation</descrip>
+        <descrip type="definition">A mandatory property charge that is separate from the advertised room rate.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-5ae2a5a4-1b45-430c-bdf1-b99bb5424047">
+            <term>resort fee</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-3a77733f-d204-4e50-85b1-72070cdf7682">
+        <descrip type="primaryTerm">first class</descrip>
+        <descrip type="subject">flight</descrip>
+        <descrip type="definition">The highest standard airline cabin with the most extensive service offering.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-99e46ce7-59df-4669-8661-6da3079b21b0">
+            <term>first class</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-3bafc6cf-aa1b-4276-84d6-f8b1f352903a">
+        <descrip type="primaryTerm">currency conversion</descrip>
+        <descrip type="subject">pricing</descrip>
+        <descrip type="definition">The conversion of a displayed or charged amount from one currency to another.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-cb45bce2-8390-4169-a0a5-09da26fddeda">
+            <term>currency conversion</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-43b21634-e0ff-4ab7-8fe9-1b8c7c41eed4">
+        <descrip type="primaryTerm">check-out date</descrip>
+        <descrip type="subject">accommodation</descrip>
+        <descrip type="definition">The date on which a guest is scheduled to leave a property.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-618c2971-0446-4d8f-9a16-7228b4036750">
+            <term>check-out date</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-44b78b29-9889-4775-88c3-4b8fb2cb99ca">
+        <descrip type="primaryTerm">one-way</descrip>
+        <descrip type="subject">booking</descrip>
+        <descrip type="definition">A journey that includes travel in one direction only.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-9d01e4f2-381e-42be-acfe-07ac025a8283">
+            <term>one-way</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">adjective</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-51d6b881-b483-4fc4-a052-398cd367b171">
+        <descrip type="primaryTerm">booking</descrip>
+        <descrip type="subject">booking</descrip>
+        <descrip type="definition">A confirmed arrangement for travel or accommodation.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-3685d346-6a93-485e-ba57-374bdad62b08">
+            <term>booking</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-de5eef5d-668e-4686-8b00-734b5ff004cb">
+            <term>reservation</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-59fefe23-22fc-48fe-a96f-80c2f7c722dd">
+        <descrip type="primaryTerm">cabin class</descrip>
+        <descrip type="subject">flight</descrip>
+        <descrip type="definition">The direction or class of service selected for an airline journey.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-e385a779-2900-468f-8a72-b66ea0552402">
+            <term>cabin class</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-72545988-cf98-440d-8b12-5452d6959849">
+        <descrip type="primaryTerm">taxes and fees</descrip>
+        <descrip type="subject">pricing</descrip>
+        <descrip type="definition">Mandatory government charges and service costs added to the base fare.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-07ff34bc-fd69-4ca8-af4e-12070a99b920">
+            <term>taxes and fees</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-025b3f17-c464-472e-b2a9-9a025214609f">
+            <term>taxes &amp; fees</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-77033fb4-6fa8-43af-8530-397fedc830a5">
+        <descrip type="primaryTerm">cancellation policy</descrip>
+        <descrip type="subject">changes</descrip>
+        <descrip type="definition">The rules that explain when and how a booking may be canceled.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-6c7b0e27-0f01-474a-923a-0a8fee6b8f66">
+            <term>cancelation policy</term>
+            <descrip type="description">Use the double-l spelling cancellation in product copy.</descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-287ace5e-0b97-4ebf-a6b4-528cf6a3ef85">
+            <term>cancellation policy</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-7a410c2e-b9ee-4c6b-a88e-d017f9ad39d2">
+        <descrip type="primaryTerm">return date</descrip>
+        <descrip type="subject">search</descrip>
+        <descrip type="definition">The calendar date on which a return journey begins.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-2f09369c-d06a-4813-b56d-fdbd6a403696">
+            <term>return date</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-55ba22ed-911c-42be-afff-55d40d5d9818">
+            <term>return day</term>
+            <descrip type="description">Use return date in product copy.</descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-7c339bd6-f782-489e-a3ea-98448c84873d">
+        <descrip type="primaryTerm">passenger name</descrip>
+        <descrip type="subject">traveler-data</descrip>
+        <descrip type="definition">The full name of the person traveling, as it appears on an identity document.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-4e17aced-a101-45f5-b285-a47aaef45519">
+            <term>passenger name</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-7f1f9c1b-0896-4f8a-bed6-2cbbba663f00">
+        <descrip type="primaryTerm">destination</descrip>
+        <descrip type="subject">search</descrip>
+        <descrip type="definition">The place a traveler plans to visit.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-a6b22d83-37a2-486f-801d-3f91a902d051">
+            <term>destination</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-813c1647-f613-4788-b383-26088e90b20d">
+        <descrip type="primaryTerm">round trip</descrip>
+        <descrip type="subject">booking</descrip>
+        <descrip type="definition">A journey that includes travel to a destination and back to the origin.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-9f6d3084-752b-4824-9544-6cd8c5367ac7">
+            <term>return trip</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-8f5224cc-07a2-49bc-a0a6-2c8508af4259">
+            <term>round trip</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-8212bac8-0736-4295-98b4-e4f0b70cd987">
+        <descrip type="primaryTerm">boarding pass</descrip>
+        <descrip type="subject">flight</descrip>
+        <descrip type="definition">The document or digital credential that allows a passenger to board a flight.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-80846d8c-2d24-4c08-9fc7-3329120f93bc">
+            <term>boarding pass</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-8420f6fb-c0ac-4605-b504-361dfd57d5bf">
+        <descrip type="primaryTerm">e-ticket</descrip>
+        <descrip type="subject">flight</descrip>
+        <descrip type="definition">An electronic version of a travel ticket stored digitally rather than printed.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-9a14d95e-b87a-4a7b-8b1e-0322c8c7ee93">
+            <term>electronic ticket</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-76de4d69-9c39-403d-88bd-4294d3d4474b">
+            <term>e-ticket</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-84b053f0-75d3-4f21-88ac-2d293fb428df">
+        <descrip type="primaryTerm">carry-on baggage</descrip>
+        <descrip type="subject">baggage</descrip>
+        <descrip type="definition">A small bag that a passenger may bring into the aircraft cabin.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-fa46e79a-9491-4669-8064-ab717001cfc9">
+            <term>carry-on baggage</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-0d7ef1cb-7b3e-49a5-85b1-3b3a4e4e18d6">
+            <term>hand luggage</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-8c51714d-a235-4c45-b2d5-f1d67d966aed">
+        <descrip type="primaryTerm">special assistance</descrip>
+        <descrip type="subject">traveler-data</descrip>
+        <descrip type="definition">A requested service or accommodation for a traveler with accessibility or health needs.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-bd682da5-6c19-499b-816f-136fa0d85ed5">
+            <term>special assistance</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-98202797-567e-4a2b-b063-04c4840cffb9">
+        <descrip type="primaryTerm">check-in date</descrip>
+        <descrip type="subject">accommodation</descrip>
+        <descrip type="definition">The date on which a guest is scheduled to arrive at a property.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-194588f3-7cc3-4e92-bf45-21a0ef8dc6be">
+            <term>check-in date</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-9914a619-7f43-45b0-b49d-865651ca557f">
+        <descrip type="primaryTerm">price alert</descrip>
+        <descrip type="subject">pricing</descrip>
+        <descrip type="definition">A notification that informs a traveler when the price of a tracked trip changes.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-b197c2f0-23ef-4a48-b870-c175223b36c3">
+            <term>price alert</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-99498697-b6de-441d-bf6e-2485c83d72f9">
+        <descrip type="primaryTerm">seat selection</descrip>
+        <descrip type="subject">flight</descrip>
+        <descrip type="definition">The option to choose a particular seat on a flight.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-a0cc34f1-6bb5-4819-8386-043933111628">
+            <term>seat selection</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-9c2f1a52-3056-46a4-8596-3beeeba62f71">
+        <descrip type="primaryTerm">date of birth</descrip>
+        <descrip type="subject">traveler-data</descrip>
+        <descrip type="definition">The calendar date on which a traveler was born.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-98663679-9636-4466-8307-691f45b1f735">
+            <term>date of birth</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-a0a67c5d-c39f-4b72-a3a0-53c298ece2b3">
+        <descrip type="primaryTerm">booking reference</descrip>
+        <descrip type="subject">booking</descrip>
+        <descrip type="definition">The unique code used to identify a travel reservation.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-0e4257f6-b94b-4d73-8227-b521b2a77d47">
+            <term>booking reference</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-00d4c589-03e9-446b-b602-c833c87350b6">
+            <term>PNR</term>
+            <descrip type="description">Common industry abbreviation for passenger name record.</descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-3be00cec-e0eb-4e32-8420-aaf20eb21e41">
+            <term>reservation code</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-a648c11a-edfd-422e-b171-6c17df808c3c">
+        <descrip type="primaryTerm">change fee</descrip>
+        <descrip type="subject">changes</descrip>
+        <descrip type="definition">A charge applied when a traveler changes an eligible part of a booking.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-ff4a9b0b-4287-43ad-b0a6-9191cf3b073d">
+            <term>change fee</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-b6db8bba-055c-4a03-9796-8fe5ea177cd6">
+        <descrip type="primaryTerm">layover</descrip>
+        <descrip type="subject">flight</descrip>
+        <descrip type="definition">A scheduled stop between the origin and final destination of a journey.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-44970d25-9024-4e30-be4e-012620c56155">
+            <term>layover</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-c3d93862-4c27-4e96-8538-88c19c2eb41b">
+        <descrip type="primaryTerm">checked baggage</descrip>
+        <descrip type="subject">baggage</descrip>
+        <descrip type="definition">Baggage handed to the airline for transport in the aircraft hold.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-d04e6335-4bbe-46ed-81f6-e72d2961b24b">
+            <term>checked baggage</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-97cf4b38-790d-4b92-839a-200b42322814">
+            <term>checked luggage</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-caccfb5a-8776-4e2b-9a40-b4d88e2c969e">
+        <descrip type="primaryTerm">fare family</descrip>
+        <descrip type="subject">flight</descrip>
+        <descrip type="definition">A named group of fare conditions and included benefits sold by an airline.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-fe9da385-8f19-46ba-88b9-d694ae509889">
+            <term>fare family</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-cc3dc5ff-a689-4e8a-aa70-b2631c52f472">
+        <descrip type="primaryTerm">refundable</descrip>
+        <descrip type="subject">changes</descrip>
+        <descrip type="definition">Describing a fare or booking that permits money to be returned under its conditions.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-08f3a869-bed3-4b7e-ab1f-c0bdc0d210b8">
+            <term>refundable</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">adjective</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-cdf0d545-7d32-4eb0-a6e1-8facf32f5418">
+        <descrip type="primaryTerm">flexible dates</descrip>
+        <descrip type="subject">search</descrip>
+        <descrip type="definition">A search option that allows travel dates to vary around the selected period.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-82d22e68-eb6a-40ca-b93a-d15d3075e54e">
+            <term>flexible dates</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-d642c987-7826-45a2-8556-9018e5ea9d9d">
+        <descrip type="primaryTerm">passport number</descrip>
+        <descrip type="subject">traveler-data</descrip>
+        <descrip type="definition">The identifying number printed on a traveler&#39;s passport.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-38546737-620e-4461-a53a-f3a49a2a5838">
+            <term>passport number</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-d7e3b9c6-7420-4f9c-801d-be43ae3a5757">
+        <descrip type="primaryTerm">multi-city</descrip>
+        <descrip type="subject">booking</descrip>
+        <descrip type="definition">A journey that uses more than one origin-destination pair in one reservation.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-eb46f867-c094-4b6a-a08b-5c37c8aa7390">
+            <term>multi-city</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">adjective</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-da33696a-b95d-4739-9a89-28e307bc0d0b">
+        <descrip type="primaryTerm">frequent flyer number</descrip>
+        <descrip type="subject">traveler-data</descrip>
+        <descrip type="definition">The membership identifier for an airline loyalty program.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-652ff1ee-f2e9-4194-8e19-081bca2dc8a2">
+            <term>frequent flyer number</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-df228f3c-c7e2-4ccb-b04b-9b83d5092924">
+        <descrip type="primaryTerm">ticket</descrip>
+        <descrip type="subject">flight</descrip>
+        <descrip type="definition">A document or record that confirms a passenger&#39;s right to travel.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-3f303316-4057-4ae2-8d04-d6e2e2fdab62">
+            <term>ticket</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-e9f85b98-a22c-458e-9674-1b6a28124a0b">
+        <descrip type="primaryTerm">traveler</descrip>
+        <descrip type="subject">booking</descrip>
+        <descrip type="definition">A person who travels or is included in a travel reservation.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-8f7f6cf0-a31a-4e4a-881f-5638896b99c6">
+            <term>traveler</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-d22dd690-b276-4f1d-8586-30290dbaab88">
+            <term>traveller</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-ebd7c898-5f97-4d30-83d1-5775f485a71e">
+        <descrip type="primaryTerm">economy class</descrip>
+        <descrip type="subject">flight</descrip>
+        <descrip type="definition">The standard airline cabin with the lowest typical service level.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-c06e1529-d4ce-4e16-ac56-b8fb074cd214">
+            <term>coach</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-74e5eb67-0114-48dc-a399-7844b579a119">
+            <term>economy class</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-f40b527b-86fa-4bc0-acd5-4b5e462de821">
+        <descrip type="primaryTerm">total price</descrip>
+        <descrip type="subject">pricing</descrip>
+        <descrip type="definition">The complete amount payable for a booking, including mandatory charges.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-019b547c-a31c-4daa-b38b-adaa09176d51">
+            <term>total price</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-f668fb4b-2f1c-468a-8d05-7a641e9b1289">
+        <descrip type="primaryTerm">nonstop flight</descrip>
+        <descrip type="subject">flight</descrip>
+        <descrip type="definition">A flight that travels from origin to destination without landing at an intermediate airport.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-d75b42de-2796-419b-a568-892caaa478ac">
+            <term>direct flight</term>
+            <descrip type="description">Allowed in informal copy, but prefer nonstop flight when no landing occurs.</descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech"></descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">admitted</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+          <termSec id="t-0521d50c-e29b-4391-b0b4-30ffea589f33">
+            <term>nonstop flight</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+      <conceptEntry id="c-ffd052e5-80df-47b9-8487-09376a03b071">
+        <descrip type="primaryTerm">business class</descrip>
+        <descrip type="subject">flight</descrip>
+        <descrip type="definition">An airline cabin offering enhanced service and space above economy.</descrip>
+        <descrip type="note"></descrip>
+        <descrip type="translatable">true</descrip>
+        <descrip type="url"></descrip>
+        <descrip type="figure"></descrip>
+        <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+        <langSec lang="en-US">
+          <termSec id="t-0095cc17-13c6-4e5f-9637-310c33fc9347">
+            <term>business class</term>
+            <descrip type="description"></descrip>
+            <descrip type="note"></descrip>
+            <descrip type="partOfSpeech">noun</descrip>
+            <descrip type="gender"></descrip>
+            <descrip type="termType"></descrip>
+            <descrip type="url"></descrip>
+            <descrip type="lemma"></descrip>
+            <descrip type="status">preferred</descrip>
+            <descrip type="caseSensitive">false</descrip>
+            <descrip type="forbidden">false</descrip>
+            <descrip type="provenance">manual</descrip>
+            <descrip type="reviewStatus">approved</descrip>
+            <descrip type="createdByUserId">c962f855-6875-4057-97bc-c0ff66eac222</descrip>
+          </termSec>
+        </langSec>
+      </conceptEntry>
+    </body>
+  </text>
+</martif>

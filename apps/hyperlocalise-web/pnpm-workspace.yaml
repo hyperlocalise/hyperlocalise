@@ -4,67 +4,85 @@ allowBuilds:
   '@swc/core': false
   bun: true
   cbor-extract: false
+  core-js: false
   esbuild: false
   msw: false
   node-liblzma: false
   protobufjs: false
   sharp: false
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@latest
-  vite-plus: latest
+  vite: npm:@voidzero-dev/vite-plus-core@1.5.1
+  vite-plus: 1.5.1
+  vitest: 5.1.0
+  '@vitest/browser-playwright': 5.1.0
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
 minimumReleaseAgeExclude:
   - '@ai-sdk/anthropic@4.0.19'
-  - '@ai-sdk/gateway@4.0.28'
+  - "@ai-sdk/gateway@4.0.28 || 4.0.85 || 4.0.104"
   - '@ai-sdk/openai@4.0.20'
   - '@ai-sdk/react@4.0.40'
-  - ai@7.0.37
+  - ai@7.0.37 || 7.0.105 || 7.0.128
+  - "@ai-sdk/provider-utils@5.0.43 || 5.0.54"
+  - "@ai-sdk/provider@4.0.17 || 4.0.22"
+  - "@mermaid-js/parser@2.0.1"
+  - mermaid@12.1.0
+  - msw@3.0.2
+  - "@ai-sdk/workflow@2.0.59"
+packageExtensions:
+  # autumn-js@1.5.60+ imports fzstd without declaring it.
+  autumn-js:
+    dependencies:
+      fzstd: "0.1.1"
 overrides:
-  vite: "8.2.2"
   # Pin each undici major independently (transitive deps use 6/7/8).
-  "undici@^6.0.0": "6.28.0"
-  "undici@^7.0.0": "7.29.0"
-  "undici@^8.0.0": "8.10.1"
-  devalue: "5.9.2"
-  qs: "6.16.0"
-  "@anthropic-ai/sdk": "0.123.0"
-  postcss: "8.5.28"
-  postcss-selector-parser: "7.1.6"
+  "undici@^6.0.0": "6.29.1"
+  "undici@^7.0.0": "7.30.2"
+  "undici@^8.0.0": "8.12.4"
+  devalue: "6.0.3"
+  qs: "6.17.1"
+  "@anthropic-ai/sdk": "1.8.0"
+  postcss: "8.5.32"
+  postcss-selector-parser: "7.2.0"
   esbuild: "0.28.2"
-  "ip-address": "10.7.0"
-  hono: "4.13.5"
-  "@hono/node-server": "2.1.1"
+  "ip-address": "10.7.6"
+  hono: "4.13.17"
+  "@hono/node-server": "2.1.6"
   form-data: "4.0.6"
-  "axios@^1.0.0": "1.20.0"
-  fast-uri: "3.1.7"
+  "axios@^1.0.0": "1.21.1"
+  fast-uri: "3.1.9"
+  # mammoth is built for the 0.8 line; 0.9 rejects parseFromString without a mimeType.
   "@xmldom/xmldom": "0.9.12"
-  browserslist: "4.28.8"
+  browserslist: "4.29.5"
   linkify-it: "5.0.2"
   # exceljs uses CommonJS require('uuid'); keep v11 only on that path.
   "@zwight/exceljs>uuid": "11.1.1"
-  "mermaid>uuid": "14.0.2"
-  dompurify: "3.4.14"
+  "mermaid>uuid": "14.0.3"
+  dompurify: "3.4.17"
   "js-yaml@^3.0.0": "3.15.2"
   "js-yaml@^4.0.0": "4.3.2"
-  "nanoid@^3.0.0": "6.0.1"
-  "nanoid@^5.0.0": "6.0.1"
-  "brace-expansion@^2.0.0": "2.1.4"
-  "brace-expansion@^5.0.0": "5.0.9"
-  mermaid: "11.17.2"
-  valibot: "1.4.2"
+  "nanoid@^3.0.0": "6.0.2"
+  "nanoid@^5.0.0": "6.0.2"
+  "brace-expansion@^2.0.0": "2.1.7"
+  "brace-expansion@^5.0.0": "5.0.12"
+  mermaid: "12.3.0"
+  valibot: "1.5.0"
+  # eslint-plugin-formatjs imports Binary_Property/*/regex.js; @unicode 2.0.5+ ships .mjs only.
+  "@unicode/unicode-17.0.0": "2.0.4"
   # TipTap 3.28 pulls prosemirror-model ^1.25.9 while nested PM packages
   # still resolve 1.25.8; dual copies break editor Fragment identity.
-  prosemirror-model: "1.25.11"
+  prosemirror-model: "1.25.13"
   # @tiptap/pm 3.31.2 pulls prosemirror-view 1.42.3 while nested PM packages
   # still resolve 1.42.2; dual copies make DecorationSet unassignable to
   # Plugin props.decorations (DecorationSource).
-  prosemirror-view: "1.42.3"
+  prosemirror-view: "1.42.9"
+  vite@*: 'catalog:'
+  vitest@*: 'catalog:'
 peerDependencyRules:
   allowAny:
     - vite
     - vitest
   allowedVersions:
-    vite: "*"
-    vitest: "*"
+    vite: '*'
+    vitest: '*'

@@ -1,0 +1,146 @@
+<!-- Historical reference, not current product documentation. -->
+---
+title: "Integrations"
+description: "Connect GitHub, a TMS, and other systems into Hyperlocalise Cloud."
+---
+
+Connect the systems that already hold your source files or reviewed translations so content operations run on those sources.
+
+## Design tools
+
+### Canva
+
+Open **Integrations** → **Canva** to create a **Canva connection** for the workspace.
+
+1. Choose a [personal access token](/platform/settings#personal-access-tokens) with `files:read`, `files:write`, `jobs:read`, and `jobs:write`.
+2. Set the default project and locales.
+3. Copy the one-time **connection token** after creation.
+
+Paste that token in the Hyperlocalise Canva app along with optional project and locale overrides. The app uploads each design as `canva/designs/<design-id>.json`, runs a file job, and syncs translations back into selected pages.
+
+See the [Canva app README](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/canva-app/README.md) for local development and Developer Portal setup.
+
+### Figma
+
+The Hyperlocalise Figma plugin uses a personal access token (sent as `x-api-key`) to extract text from the current selection or page, create translation jobs, and pull completed locales back onto the file.
+
+1. Create a token under **Settings** → **Personal access tokens** with at least `files:read` and `jobs:read`. Add `files:write` and `jobs:write` to create and generate jobs from the plugin.
+2. In Figma, import the plugin from `apps/figma-plugin/manifest.json` under **Plugins → Development**.
+3. Paste the token, choose a native project, then extract, create, generate, and pull.
+
+Each page stores its latest job binding in plugin data; the server is the source of truth when a newer job exists for that Figma file and page.
+
+See the [Figma plugin README](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/figma-plugin/README.md) for build and test commands.
+
+## GitHub
+
+Open **Integrations**, find **GitHub**, then click **Connect**.
+
+GitHub is used for pull request reviews, localization fixes, and repository context. After the app is installed:
+
+1. Confirm the account in **Connected as**.
+2. **Enable** the repositories Cloud should see, or **Enable all**.
+3. Use **Refresh repo list** to reload names and default **Branch** from GitHub. Refresh does not push or pull translations.
+4. **Manage access on GitHub** if you need to change installation permissions.
+
+Use those enabled repos in automation **GitHub push** triggers. See [Automations](/platform/automations).
+
+Click **Disconnect** to unlink the installation from this organization.
+
+## GitLab
+
+Open **Integrations**, find **GitLab**, then connect it through the WorkOS Pipes widget. GitLab uses OAuth, not an API key. Only workspace admins can connect Pipes providers.
+
+After you connect GitLab:
+
+1. Chat lists GitLab.com projects you can clone (Reporter access or higher).
+2. Selecting a project, or pasting a project or merge request URL, clones that project into the conversation sandbox.
+3. Clone uses HTTPS username `oauth2` and the access token as the password. Reconnect GitLab if Pipes asks.
+4. Add **Use GitLab repo** on a scheduled or manual automation to run the same read-only repository agent GitHub has.
+
+Merge-request comment tools and GitLab sync workflows are not included.
+
+## TMS and CLI sync
+
+Cloud can work with an existing TMS. For repository-first native projects, the CLI [pushes](/cli/commands/sync-push) and [pulls](/cli/commands/sync-pull) against Hyperlocalise. See [Connect the CLI](/platform/cli).
+
+## WorkOS Pipes
+
+Open **Integrations** and connect these providers through the WorkOS Pipes widget. Enable each provider in the WorkOS Dashboard and allow the widget origin for this app.
+
+Most Pipes providers store an API key. GitLab is OAuth: WorkOS vends an access token with `getAccessToken`.
+
+| Provider | WorkOS slug | Integrations category | Credential |
+| --- | --- | --- | --- |
+| GitLab | `gitlab` | Source control | OAuth access token |
+| Ahrefs | `ahrefs` (custom) | SEO tools | API key |
+| Similarweb | `similarweb` | SEO tools | API key |
+| Intercom | `intercom` | Customer engagement | API key |
+| HubSpot | `hubspot` | Customer engagement | API key |
+| Mailchimp | `mailchimp` | Customer engagement | API key |
+| SendGrid | `sendgrid` | Customer engagement | API key |
+| Resend | `resend` | Customer engagement | API key |
+| Webflow | `webflow` | Content & publishing | API key |
+| Sanity | `sanity` | Content & publishing | API key |
+| Notion | `notion` | Guidelines | API key |
+| Atlassian | `atlassian` | Collaboration | API key |
+
+Ahrefs is not in the default WorkOS catalog. Enable a custom API-key provider with slug `ahrefs`. The other providers are catalog API-key integrations.
+
+Status for each row comes from `GET /api/orgs/:slug/pipes/:provider`. Automations that already use Ahrefs still vend that user's credential and call `https://api.ahrefs.com/mcp/mcp` with `Authorization: Bearer`.
+
+The org-level `ahrefs_connections` and `intercom_connections` tables are deprecated and unused. Do not add new callers.
+
+### Ahrefs
+
+1. Connect Ahrefs on **Integrations**.
+2. On an automation, add the **Ahrefs** tool. Saving stamps the current WorkOS user on the automation.
+3. At run time the automation vends that user's Pipes credential and calls Ahrefs MCP.
+
+## Zernio
+
+Open **Integrations** → **Zernio** and save an API key from [Zernio](https://docs.zernio.com). Hyperlocalise stores the key encrypted on the organization. Automations keep only a connection id.
+
+1. Create an API key in Zernio.
+2. Paste it on the Zernio row. Saving calls `GET /v1/accounts` to confirm the key.
+3. On an [automation](/platform/automations), add the **Zernio** tool and pick the connection.
+4. Hosted [MCP](/platform/mcp) agents can call `zernio_*` tools after the org connects a key.
+
+Zernio is not a WorkOS Pipes provider. Automations and inbound agents call `https://zernio.com/api/v1` with `Authorization: Bearer`. Use this path to create paid ads from localized copy on Meta, Google, TikTok, LinkedIn, Pinterest, X, or OpenAI Ads.
+
+## MCP server connections
+
+Add a remote MCP server when an [automation](/platform/automations) should call external tools at run time (for example Semrush). Ahrefs uses [WorkOS Pipes](/platform/integrations#workos-pipes-api-keys) instead of a generic MCP server connection.
+
+1. Open **Integrations** → **MCP Server**.
+2. Enter a display name, HTTPS endpoint, transport (`http` or `sse`), and auth (`none`, bearer token, or custom headers).
+3. Save and validate the connection.
+4. On an automation, add the **MCP Server** tool and pick the connection.
+
+Credentials are stored encrypted at the organization level. Automations store only a connection reference, not the secret.
+
+This is **outbound** MCP (Hyperlocalise calling a remote server). To connect **inbound** agents such as Cursor to Hyperlocalise itself, use the hosted [MCP server](/platform/mcp) at `/mcp` on workspace **Overview**.
+
+## Slack Connect
+
+The per-organization Slack app installs the localization bot in **your** workspace for automations and notifications.
+
+**Slack Connect** is separate: Hyperlocalise hosts a shared channel and emails you a Slack Connect invite so your company can link a channel on your side. The banner appears on workspace **Overview** when your deployment enables it.
+
+After you request an invite, check the email address on your Hyperlocalise account. Accept the Slack Connect link to finish setup on your workspace. You can dismiss the banner or request another invite after the cooldown.
+
+This path does not install the localization bot. Use the Slack integration under **Integrations** when you need bot mentions and agent tools inside your workspace.
+
+## API keys and tokens
+
+- **Settings** → **API Keys** — organization keys for CI and shared scripts. See [Settings](/platform/settings).
+- **Settings** → **Personal access tokens** — credentials tied to your user, used by the Figma plugin, Canva connections, and local tooling. See [Personal access tokens](/platform/settings#personal-access-tokens).
+
+Both authenticate to the [public API](/platform/api) with the `x-api-key` header. MCP agents use OAuth instead; see [MCP server](/platform/mcp).
+
+## Next
+
+- [MCP server](/platform/mcp)
+- [Connect the CLI](/platform/cli)
+- [Settings](/platform/settings)
+- [Automations](/platform/automations)

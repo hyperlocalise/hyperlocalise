@@ -1,0 +1,109 @@
+---
+title: "Glossary import and export"
+description: "Import and export workspace terms as TBX, CSV, or XLSX, and understand provider restrictions."
+---
+
+Native workspace **glossaries** support interchange through Platform. Provider-linked glossaries are read-only in Platform and follow different rules.
+
+## Supported formats
+
+| Format | Import | Export |
+| ------ | ------ | ------ |
+| **TBX** | Yes | Yes |
+| **CSV** | Yes | Yes |
+| **XLSX** | Yes | Yes |
+
+Exports use Hyperlocalise’s interchange profile: TBX 3 (`TBX-Basic`, DCA style), a concepts/terms CSV layout, and a two-sheet XLSX workbook.
+
+Imports also accept Phrase TBX 2 (`martif` / `termEntry` / `langSet` / `tig` or `ntig`). Forbidden terms come from Phrase `termNote` values (`forbidden`, `status`, or `administrativeStatus=forbiddenTerm`) as well as Hyperlocalise `descrip type="forbidden"`. A TBX file that contains term entries but yields no importable terms returns an error instead of an empty success.
+
+## Import in Platform
+
+1. Open **Glossaries** and select a **native** glossary (not a provider read-only glossary).
+2. Use **Import** and choose a TBX, CSV, or XLSX file.
+3. The file uploads directly to object storage, then the import is queued for asynchronous processing.
+4. Review the preview report, then confirm. Imports support preview, create, update, merge, and replace modes; destructive modes create a downloadable TBX backup before applying changes.
+
+The UI polls the import report until it reaches a terminal state. Refreshing the page is safe: the report ID identifies the durable run and does not re-upload or re-apply the import.
+
+Open **Import/export history** from the glossary detail page to review past and in-flight runs. The list shows imports and exports with format, status, timestamps, and error summaries. Active runs refresh automatically. Open a run to read the full report. Completed exports offer a download; completed **replace** imports offer a TBX backup when one was created. You can leave the page while a run is queued—the history entry remains after the dialog closes.
+
+Provider-backed glossaries cannot be imported through the file upload UI. Manage terms in the connected TMS, copy a provider glossary into a native one (below), or create a native glossary you control.
+
+## Import from a connected TMS
+
+When **Integrations** lists Crowdin, Phrase Strings, or Smartling, you can copy a provider glossary into a **native** glossary without downloading a file first. Hyperlocalise exports TBX from the TMS in the background and queues the same merge import as a TBX upload.
+
+1. Connect the TMS under **Integrations** and confirm the connection works for your account.
+2. Create or open a native glossary whose locales can accept the provider terms.
+3. Start the import with the public API (see below) or the in-product flow when it is available in your workspace. The run appears in **Import/export history** like a file import.
+4. Review the preview report, then confirm **Import entries** to apply merge mode.
+
+**Active connection.** The workspace uses the TMS credential that was updated most recently. The import request must include that credential's id and the provider glossary's external id.
+
+**Supported providers.** Crowdin, Phrase Strings, and Smartling. Lokalise and other connectors do not expose this copy path yet.
+
+**Permissions.** The acting user's TMS token must be able to list and export the chosen glossary. Crowdin can store per-user connections; use a user who can read the glossary.
+
+**Failures.** Reconnect the TMS when the API returns `tms_not_connected`. Add a Smartling account UID on the connection, or link a Smartling project in the workspace, when Smartling requires account scope. Empty exports fail with `tms_export_empty`.
+
+## Export in Platform
+
+1. Open a native glossary, or a **mirrored** provider glossary stored in Hyperlocalise (a synced copy stored in Platform).
+2. Open the actions menu (**⋯**) → **Export**.
+3. Pick **TBX**, **CSV**, or **XLSX** for the full glossary, or use **Export filtered glossary** when the concept list is filtered by search or locale.
+
+Exports are queued asynchronously. When the report is complete, use the signed download link from the report to retrieve the generated file.
+
+Live Crowdin glossaries are read-only in Platform and cannot be exported from the UI.
+
+## Provider glossaries
+
+| Glossary type | Export | Import |
+| ------------- | ------ | ------ |
+| Live provider glossary | Not available | Not available |
+| Synced copy in Hyperlocalise | TBX, CSV, XLSX (from synced rows) | Not available |
+
+Use your TMS or the Hyperlocalise **CLI** for provider-native glossary downloads where supported. CLI glossary CSV is often a Hyperlocalise-shaped export and may not round-trip into every TMS upload endpoint.
+
+## Tips
+
+- **TBX** is the best interchange with other terminology tools. Phrase TBX 2 exports import as native terms, including forbidden flags.
+- **XLSX** is easiest for manual review and bulk edits in a spreadsheet.
+- **CSV** works well for scripts and narrow column-based tooling.
+- **Crowdin TBX** often uses short language IDs such as `de` while your glossary configures region-qualified locales such as `de-DE`. Platform maps those IDs to a matching configured locale when the mapping is unambiguous; terms are stored under your configured locale code.
+
+## Check the result
+
+Inspect the reported counts, locales, and representative entries after import. Keep an export before a bulk replacement. If terms or suggestions are missing, confirm that the resource is linked to the intended project and uses the expected locales. See [Translation quality](/platform/help/quality).
+
+## Public API (TMS copy)
+
+List glossaries available on the active TMS connection:
+
+`GET https://public-api.hyperlocalise.com/v1/orgs/{organizationSlug}/tms/glossaries`
+
+Permission: session or token with glossary read access on the organization (same host as other public API glossary routes).
+
+Start a background import into an existing native glossary:
+
+`POST https://public-api.hyperlocalise.com/v1/orgs/{organizationSlug}/glossaries/{glossaryId}/concepts/import/from-tms`
+
+JSON body:
+
+```json
+{
+  "credentialId": "<active TMS credential uuid>",
+  "externalId": "<provider glossary id>"
+}
+```
+
+`202 Accepted` returns `reportId` and `status: upload_pending`. Poll `GET .../glossaries/{glossaryId}/import-reports/{reportId}` until the run reaches a terminal state, then apply merge mode from the report like a TBX import.
+
+## Related
+
+- [Knowledge](/platform/knowledge)
+- [TMS integrations](/platform/tms)
+- [Translation memory import and export](/platform/translation-memory-import-export)
+- [CLI](/platform/cli)
+- [API](/platform/api)

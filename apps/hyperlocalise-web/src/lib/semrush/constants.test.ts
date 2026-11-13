@@ -12,14 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildSemrushApiKeyAuthorizationHeader, SEMRUSH_MCP_URL } from "./constants";
+import { buildSemrushApiKeyAuthorizationHeader } from "./constants";
 
 describe("semrush constants", () => {
   it("builds the Semrush Apikey authorization header", () => {
     expect(buildSemrushApiKeyAuthorizationHeader("  abc123  ")).toBe("Apikey abc123");
-  });
-
-  it("points at the Semrush MCP HTTP endpoint", () => {
-    expect(SEMRUSH_MCP_URL).toBe("https://mcp.semrush.com/v2/mcp");
   });
 });

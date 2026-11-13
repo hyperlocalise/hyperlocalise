@@ -44,8 +44,10 @@ import {
 } from "./claim-intent";
 
 describe("claimDomainPathForOrg", () => {
-  it("builds the org link-domain path for a valid domain slug", () => {
-    expect(claimDomainPathForOrg("acme", "example-com")).toBe("/org/acme/link-domain/example-com");
+  it("builds the org domains path for a valid domain slug", () => {
+    expect(claimDomainPathForOrg("acme", "example-com")).toBe(
+      "/org/acme/domains?claimDomainSlug=example-com",
+    );
   });
 });
 

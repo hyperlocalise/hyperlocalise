@@ -1,0 +1,138 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { describe, expect, it } from "vite-plus/test";
+
+import {
+  canUseGoSvcCat,
+  isContentEditorGroupingAvailable,
+  isExternalTmsContentEditorProject,
+  isNativeContentEditorFile,
+  isNativeContentEditorProviderKind,
+} from "./content-editor-native-project";
+
+describe("isExternalTmsContentEditorProject", () => {
+  it("treats encoded provider ids and explicit source as external", () => {
+    expect(
+      isExternalTmsContentEditorProject({
+        projectId: "ext:crowdin:902807",
+      }),
+    ).toBe(true);
+    expect(
+      isExternalTmsContentEditorProject({
+        projectId: "project_123",
+        projectSource: "external_tms",
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps native uuids on the go-svc path until source says otherwise", () => {
+    expect(
+      isExternalTmsContentEditorProject({
+        projectId: "project_123",
+      }),
+    ).toBe(false);
+    expect(
+      isExternalTmsContentEditorProject({
+        projectId: "project_123",
+        projectSource: "native",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("canUseGoSvcCat", () => {
+  it("skips go-svc for connected TMS projects and provider file identities", () => {
+    expect(
+      canUseGoSvcCat({
+        projectId: "ext:crowdin:902807",
+      }),
+    ).toBe(false);
+    expect(
+      canUseGoSvcCat({
+        projectId: "project_123",
+        projectSource: "external_tms",
+      }),
+    ).toBe(false);
+    expect(
+      canUseGoSvcCat({
+        projectId: "project_123",
+        externalResourceId: "101",
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps native projects on go-svc", () => {
+    expect(
+      canUseGoSvcCat({
+        projectId: "project_123",
+        projectSource: "native",
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("isNativeContentEditorProviderKind", () => {
+  it("treats missing and native kinds as native", () => {
+    expect(isNativeContentEditorProviderKind(null)).toBe(true);
+    expect(isNativeContentEditorProviderKind(undefined)).toBe(true);
+    expect(isNativeContentEditorProviderKind("native")).toBe(true);
+  });
+
+  it("rejects external TMS providers", () => {
+    expect(isNativeContentEditorProviderKind("crowdin")).toBe(false);
+    expect(isNativeContentEditorProviderKind("github")).toBe(false);
+  });
+});
+
+describe("isNativeContentEditorFile", () => {
+  it("treats files without a provider kind as native", () => {
+    expect(isNativeContentEditorFile(null)).toBe(true);
+    expect(isNativeContentEditorFile({})).toBe(true);
+    expect(isNativeContentEditorFile({ provider: null })).toBe(true);
+    expect(isNativeContentEditorFile({ provider: {} })).toBe(true);
+    expect(isNativeContentEditorFile({ provider: { kind: "native" } })).toBe(true);
+  });
+
+  it("rejects files attached to an external provider", () => {
+    expect(isNativeContentEditorFile({ provider: { kind: "crowdin" } })).toBe(false);
+  });
+});
+
+describe("isContentEditorGroupingAvailable", () => {
+  const nativeFile = { provider: { kind: "native" } };
+
+  it("requires a loaded native text file", () => {
+    expect(isContentEditorGroupingAvailable(null, "menu.json")).toBe(false);
+    expect(isContentEditorGroupingAvailable(undefined, "menu.json")).toBe(false);
+    expect(isContentEditorGroupingAvailable(nativeFile, "menu.json")).toBe(true);
+    expect(isContentEditorGroupingAvailable(nativeFile, "*")).toBe(true);
+    expect(isContentEditorGroupingAvailable({ provider: { kind: "crowdin" } }, "menu.json")).toBe(
+      false,
+    );
+  });
+
+  it("keeps grouping off for native media files", () => {
+    expect(isContentEditorGroupingAvailable(nativeFile, "hero.png")).toBe(false);
+    expect(isContentEditorGroupingAvailable(nativeFile, "clip.mp4")).toBe(false);
+  });
+
+  it("enables grouping for segmented office files", () => {
+    expect(isContentEditorGroupingAvailable(nativeFile, "brief.docx")).toBe(true);
+    expect(isContentEditorGroupingAvailable(nativeFile, "deck.pptx")).toBe(true);
+    expect(isContentEditorGroupingAvailable(nativeFile, "legacy.xls")).toBe(true);
+  });
+
+  it("enables grouping for native markdown files that also have segment view", () => {
+    expect(isContentEditorGroupingAvailable(nativeFile, "readme.md")).toBe(true);
+  });
+});

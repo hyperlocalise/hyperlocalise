@@ -14,17 +14,19 @@ import "dotenv/config";
 
 import { randomInt } from "node:crypto";
 
+import type { UIMessage } from "ai";
 import { eq } from "drizzle-orm";
-import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getWebConversationRepositorySession } from "@/lib/agent-runtime/loops/conversation-repository-session";
 import { err, ok } from "@/lib/primitives/result/results";
 import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
+import { ensureTeamMembership } from "@/lib/teams/default-workspace-team";
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import { createProjectTestFixture } from "../project/project.fixture";
 
@@ -40,10 +42,13 @@ const { resolveApiAuthContextFromSessionMock, ensureAiFeaturesAllowedMock } = vi
 const { createInteractionMock } = vi.hoisted(() => ({
   createInteractionMock: vi.fn(),
 }));
-const { createWebChatAgentUIStreamResponseMock } = vi.hoisted(() => ({
+const {
+  resolveHyperlocaliseAgentLanguageModelMock,
+  createWebChatAgentUIStreamResponseMock,
+  resolveGitLabProjectContextMock,
+} = vi.hoisted(() => ({
+  resolveHyperlocaliseAgentLanguageModelMock: vi.fn(),
   createWebChatAgentUIStreamResponseMock: vi.fn(() => new Response("stream-ok", { status: 200 })),
-}));
-const { resolveGitLabProjectContextMock } = vi.hoisted(() => ({
   resolveGitLabProjectContextMock: vi.fn(),
 }));
 
@@ -72,6 +77,10 @@ vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/providers/organization-language-model", () => ({
+  resolveHyperlocaliseAgentLanguageModel: resolveHyperlocaliseAgentLanguageModelMock,
+}));
+
 vi.mock("@/agents/hyperlocalise/agent/channels/web", () => ({
   createWebChatAgentUIStreamResponse: createWebChatAgentUIStreamResponseMock,
 }));
@@ -81,9 +90,14 @@ vi.mock("@/lib/gitlab/repository-context", () => ({
 }));
 
 const app = createApp({ fileStorageAdapter: createMemoryFileStorageAdapter() });
-const client = testClient<AppType>(app);
-const { authHeadersFor, cleanup, createProjectViaApi, createWorkosIdentity } =
-  createProjectTestFixture(client);
+const {
+  authHeadersFor,
+  cleanup,
+  createProjectViaApi,
+  createWorkosIdentity,
+  createWorkosIdentityForOrganization,
+  getLocalUserId,
+} = createProjectTestFixture();
 
 async function createGithubRepositoryFixture(input: {
   organizationId: string;
@@ -135,6 +149,15 @@ afterEach(async () => {
   await cleanup();
 });
 
+beforeEach(() => {
+  resolveHyperlocaliseAgentLanguageModelMock.mockResolvedValue({
+    model: "openai/gpt-6-luna",
+    source: "gateway",
+    modelId: "openai/gpt-6-luna",
+  });
+  createWebChatAgentUIStreamResponseMock.mockReturnValue(new Response(null, { status: 200 }));
+});
+
 describe("conversation creation", () => {
   it("accepts a proxied multipart request without content length", async () => {
     const identity = createWorkosIdentity();
@@ -168,6 +191,7 @@ describe("conversation creation", () => {
   });
 
   it("creates a chat UI conversation with the initial user message", async () => {
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as { project: { id: string } };
@@ -195,6 +219,15 @@ describe("conversation creation", () => {
       text: "Translate this to fr-FR",
       senderType: "user",
     });
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.conversationCreated, {
+      status: "created",
+      source: "web",
+    });
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.conversationMessageSent, {
+      status: "sent",
+      source: "web",
+    });
+    trackSpy.mockRestore();
   });
 
   it("rejects chat streams when AI features are not allowed", async () => {
@@ -640,5 +673,389 @@ describe("conversation creation", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "project_not_found" });
+  });
+});
+
+describe("chat turn runs", () => {
+  async function createChatConversation(options?: {
+    identity?: ReturnType<typeof createWorkosIdentity>;
+    projectId?: string;
+  }) {
+    const identity = options?.identity ?? createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("text", "Translate this to fr-FR");
+    if (options?.projectId) {
+      formData.set("projectId", options.projectId);
+    }
+    const createdResponse = await app.request(
+      `/api/orgs/${identity.organization.slug}/conversations`,
+      { method: "POST", headers, body: formData },
+    );
+    expect(createdResponse.status).toBe(201);
+    const body = (await createdResponse.json()) as {
+      conversation: { id: string };
+      message: { id: string };
+    };
+    const chatUrl = `/api/orgs/${identity.organization.slug}/conversations/${body.conversation.id}/chat`;
+    const startTurn = () =>
+      app.request(chatUrl, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: body.message.id,
+              role: "user",
+              parts: [{ type: "text", text: "Translate this to fr-FR" }],
+            },
+          ],
+        }),
+      });
+    return {
+      identity,
+      headers,
+      chatUrl,
+      startTurn,
+      conversationId: body.conversation.id,
+      ...body,
+    };
+  }
+
+  it("starts one turn per user message and lets later requests join it", async () => {
+    const { headers, chatUrl, startTurn, message } = await createChatConversation();
+
+    const first = await startTurn();
+    expect(first.status).toBe(200);
+    expect(createWebChatAgentUIStreamResponseMock).toHaveBeenCalledTimes(1);
+    const runId = (
+      createWebChatAgentUIStreamResponseMock.mock.calls[0] as unknown as [{ runId: string }]
+    )[0].runId;
+    expect(runId).toEqual(expect.any(String));
+
+    const second = await startTurn();
+    expect(second.status).toBe(409);
+    await expect(second.json()).resolves.toMatchObject({
+      error: "run_in_progress",
+      details: { runId },
+    });
+    expect(createWebChatAgentUIStreamResponseMock).toHaveBeenCalledTimes(1);
+
+    const runResponse = await app.request(`${chatUrl}/run`, { headers });
+    expect(runResponse.status).toBe(200);
+    await expect(runResponse.json()).resolves.toMatchObject({
+      run: { id: runId, userMessageId: message.id, status: "running", cancelRequested: false },
+    });
+  });
+
+  it("records a cancel request on the running turn", async () => {
+    const { headers, chatUrl, startTurn } = await createChatConversation();
+
+    const noRun = await app.request(`${chatUrl}/run/cancel`, { method: "POST", headers });
+    expect(noRun.status).toBe(404);
+
+    expect((await startTurn()).status).toBe(200);
+    const cancel = await app.request(`${chatUrl}/run/cancel`, { method: "POST", headers });
+    expect(cancel.status).toBe(202);
+
+    const runResponse = await app.request(`${chatUrl}/run`, { headers });
+    await expect(runResponse.json()).resolves.toMatchObject({
+      run: { status: "running", cancelRequested: true },
+    });
+  });
+
+  it("refuses to start a turn again once it was answered", async () => {
+    const { startTurn, conversationId } = await createChatConversation();
+    expect((await startTurn()).status).toBe(200);
+    await db
+      .update(schema.conversationRuns)
+      .set({ status: "interrupted" })
+      .where(eq(schema.conversationRuns.interactionId, conversationId));
+
+    const again = await startTurn();
+    expect(again.status).toBe(409);
+    await expect(again.json()).resolves.toMatchObject({ error: "turn_already_processed" });
+  });
+
+  it("starts the turn again when the process running it stopped reporting", async () => {
+    const { startTurn, conversationId } = await createChatConversation();
+    expect((await startTurn()).status).toBe(200);
+    await db
+      .update(schema.conversationRuns)
+      .set({ heartbeatAt: new Date(Date.now() - 5 * 60_000) })
+      .where(eq(schema.conversationRuns.interactionId, conversationId));
+
+    const retry = await startTurn();
+    expect(retry.status).toBe(200);
+    expect(createWebChatAgentUIStreamResponseMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports a stale running turn as failed until a client claims it again", async () => {
+    const { headers, chatUrl, startTurn, conversationId } = await createChatConversation();
+    expect((await startTurn()).status).toBe(200);
+    await db
+      .update(schema.conversationRuns)
+      .set({ heartbeatAt: new Date(Date.now() - 5 * 60_000) })
+      .where(eq(schema.conversationRuns.interactionId, conversationId));
+
+    const stale = await app.request(`${chatUrl}/run`, { headers });
+    expect(stale.status).toBe(200);
+    await expect(stale.json()).resolves.toMatchObject({
+      run: { status: "failed", cancelRequested: false },
+    });
+  });
+
+  it("starts the turn again after the previous attempt failed", async () => {
+    const { startTurn, conversationId } = await createChatConversation();
+    expect((await startTurn()).status).toBe(200);
+    await db
+      .update(schema.conversationRuns)
+      .set({ status: "failed" })
+      .where(eq(schema.conversationRuns.interactionId, conversationId));
+
+    const retry = await startTurn();
+    expect(retry.status).toBe(200);
+    expect(createWebChatAgentUIStreamResponseMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns 202 when cancel is requested twice on the same running turn", async () => {
+    const { headers, chatUrl, startTurn } = await createChatConversation();
+    expect((await startTurn()).status).toBe(200);
+
+    const first = await app.request(`${chatUrl}/run/cancel`, { method: "POST", headers });
+    expect(first.status).toBe(202);
+    const second = await app.request(`${chatUrl}/run/cancel`, { method: "POST", headers });
+    expect(second.status).toBe(202);
+    await expect(second.json()).resolves.toMatchObject({
+      run: { status: "running", cancelRequested: true },
+    });
+  });
+
+  it("refuses a turn on a conversation that is not a chat thread", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const [interaction] = await db
+      .insert(schema.interactions)
+      .values({
+        organizationId,
+        source: "workflow_approval",
+        title: "Approve copy",
+      })
+      .returning({ id: schema.interactions.id });
+    await db.insert(schema.inboxItems).values({
+      interactionId: interaction!.id,
+      organizationId,
+      status: "active",
+    });
+    const [message] = await db
+      .insert(schema.interactionMessages)
+      .values({
+        interactionId: interaction!.id,
+        senderType: "user",
+        text: "Please review",
+      })
+      .returning({ id: schema.interactionMessages.id });
+
+    const response = await app.request(
+      `/api/orgs/${identity.organization.slug}/conversations/${interaction!.id}/chat`,
+      {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: message!.id,
+              role: "user",
+              parts: [{ type: "text", text: "Please review" }],
+            },
+          ],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "conversation_not_replyable" });
+    expect(createWebChatAgentUIStreamResponseMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a turn that is not the latest user message", async () => {
+    const { headers, chatUrl, startTurn, conversationId } = await createChatConversation();
+    await db.insert(schema.interactionMessages).values({
+      interactionId: conversationId,
+      senderType: "user",
+      text: "Newer question",
+      createdAt: new Date(Date.now() + 1_000),
+    });
+
+    const response = await startTurn();
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "stale_user_message" });
+    expect(createWebChatAgentUIStreamResponseMock).not.toHaveBeenCalled();
+
+    const unknown = await app.request(chatUrl, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          {
+            id: "00000000-0000-4000-8000-000000000001",
+            role: "user",
+            parts: [{ type: "text", text: "Translate this to fr-FR" }],
+          },
+        ],
+      }),
+    });
+    expect(unknown.status).toBe(404);
+    await expect(unknown.json()).resolves.toEqual({ error: "user_message_not_found" });
+  });
+
+  it("serves a stored full tool result for a message in the conversation", async () => {
+    const { headers, chatUrl, conversationId } = await createChatConversation();
+    const [agentMessage] = await db
+      .insert(schema.interactionMessages)
+      .values({ interactionId: conversationId, senderType: "agent", text: "Done" })
+      .returning({ id: schema.interactionMessages.id });
+    await db.insert(schema.interactionMessageToolOutputs).values({
+      messageId: agentMessage!.id,
+      toolCallId: "call_1",
+      output: { content: "full" },
+    });
+
+    const found = await app.request(`${chatUrl}/messages/${agentMessage!.id}/tool-outputs/call_1`, {
+      headers,
+    });
+    expect(found.status).toBe(200);
+    await expect(found.json()).resolves.toEqual({ toolOutput: { output: { content: "full" } } });
+
+    const missing = await app.request(
+      `${chatUrl}/messages/${agentMessage!.id}/tool-outputs/call_2`,
+      { headers },
+    );
+    expect(missing.status).toBe(404);
+  });
+
+  it("hides live run snapshots and tool outputs from members without ai_actions:run", async () => {
+    const admin = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(admin);
+    expect(projectResponse.status).toBe(201);
+    const projectBody = (await projectResponse.json()) as {
+      project: { id: string; teamId: string };
+    };
+
+    const {
+      headers: adminHeaders,
+      chatUrl,
+      startTurn,
+      conversationId,
+    } = await createChatConversation({
+      identity: admin,
+      projectId: projectBody.project.id,
+    });
+    expect((await startTurn()).status).toBe(200);
+
+    const leakyParts = [
+      { type: "reasoning", text: "secret plan" },
+      { type: "text", text: "visible" },
+    ] as UIMessage["parts"];
+    await db
+      .update(schema.conversationRuns)
+      .set({ snapshotParts: leakyParts })
+      .where(eq(schema.conversationRuns.interactionId, conversationId));
+
+    const [agentMessage] = await db
+      .insert(schema.interactionMessages)
+      .values({ interactionId: conversationId, senderType: "agent", text: "Done" })
+      .returning({ id: schema.interactionMessages.id });
+    await db.insert(schema.interactionMessageToolOutputs).values({
+      messageId: agentMessage!.id,
+      toolCallId: "call_1",
+      output: { content: "other-project listings", files: ["secret.txt"] },
+    });
+
+    const member = createWorkosIdentityForOrganization(admin.organization, "member");
+    const translator = createWorkosIdentityForOrganization(admin.organization, "translator");
+    const memberHeaders = await authHeadersFor(member);
+    const translatorHeaders = await authHeadersFor(translator);
+    await Promise.all([
+      ensureTeamMembership({
+        teamId: projectBody.project.teamId,
+        userId: await getLocalUserId(member.user.workosUserId),
+      }),
+      ensureTeamMembership({
+        teamId: projectBody.project.teamId,
+        userId: await getLocalUserId(translator.user.workosUserId),
+      }),
+    ]);
+
+    const toolOutputUrl = `${chatUrl}/messages/${agentMessage!.id}/tool-outputs/call_1`;
+
+    const memberRun = await app.request(`${chatUrl}/run`, { headers: memberHeaders });
+    expect(memberRun.status).toBe(403);
+    const memberRunBody = await memberRun.json();
+    expect(memberRunBody).toEqual({ error: "forbidden" });
+    expect(JSON.stringify(memberRunBody)).not.toContain("secret plan");
+
+    const memberTool = await app.request(toolOutputUrl, { headers: memberHeaders });
+    expect(memberTool.status).toBe(403);
+    const memberToolBody = await memberTool.json();
+    expect(memberToolBody).toEqual({ error: "forbidden" });
+    expect(JSON.stringify(memberToolBody)).not.toContain("other-project listings");
+
+    const translatorRun = await app.request(`${chatUrl}/run`, { headers: translatorHeaders });
+    expect(translatorRun.status).toBe(200);
+    await expect(translatorRun.json()).resolves.toMatchObject({
+      run: { parts: leakyParts },
+    });
+
+    const translatorTool = await app.request(toolOutputUrl, { headers: translatorHeaders });
+    expect(translatorTool.status).toBe(200);
+    await expect(translatorTool.json()).resolves.toEqual({
+      toolOutput: { output: { content: "other-project listings", files: ["secret.txt"] } },
+    });
+
+    const adminRun = await app.request(`${chatUrl}/run`, { headers: adminHeaders });
+    expect(adminRun.status).toBe(200);
+  });
+
+  it("refuses members without ai_actions:run from starting or cancelling a chat turn", async () => {
+    const admin = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(admin);
+    expect(projectResponse.status).toBe(201);
+    const projectBody = (await projectResponse.json()) as {
+      project: { id: string; teamId: string };
+    };
+
+    const { chatUrl, startTurn } = await createChatConversation({
+      identity: admin,
+      projectId: projectBody.project.id,
+    });
+    expect((await startTurn()).status).toBe(200);
+    createWebChatAgentUIStreamResponseMock.mockClear();
+
+    const member = createWorkosIdentityForOrganization(admin.organization, "member");
+    const memberHeaders = await authHeadersFor(member);
+    await ensureTeamMembership({
+      teamId: projectBody.project.teamId,
+      userId: await getLocalUserId(member.user.workosUserId),
+    });
+
+    const memberTurn = await app.request(chatUrl, {
+      method: "POST",
+      headers: { ...memberHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ id: "ignored", role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+    expect(memberTurn.status).toBe(403);
+    await expect(memberTurn.json()).resolves.toEqual({ error: "forbidden" });
+    expect(createWebChatAgentUIStreamResponseMock).not.toHaveBeenCalled();
+
+    const memberCancel = await app.request(`${chatUrl}/run/cancel`, {
+      method: "POST",
+      headers: memberHeaders,
+    });
+    expect(memberCancel.status).toBe(403);
+    await expect(memberCancel.json()).resolves.toEqual({ error: "forbidden" });
   });
 });

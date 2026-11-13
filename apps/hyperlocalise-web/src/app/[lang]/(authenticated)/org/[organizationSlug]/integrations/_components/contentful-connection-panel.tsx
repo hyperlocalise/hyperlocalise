@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useId, useMemo, useState } from "react";
-import { SaveIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { FloppyDiskIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -587,7 +586,7 @@ export function ContentfulConnectionPanel({
           disabled={disabled || isSaving || !canSaveContentfulConnection}
           onClick={onSave}
         >
-          <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+          <FloppyDiskIcon />
           {isSaving
             ? intl.formatMessage(contentfulConnectionPanelMessages.saving)
             : connection

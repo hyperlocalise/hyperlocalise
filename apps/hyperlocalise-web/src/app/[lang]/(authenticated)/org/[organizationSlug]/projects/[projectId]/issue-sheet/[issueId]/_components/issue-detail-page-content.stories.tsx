@@ -33,7 +33,7 @@ import { IssueDetailPageContent } from "./issue-detail-page-content";
 const issueId = issueSheetIssuesFixture[0]?.id ?? "issue_001";
 
 const meta = {
-  title: "App/Issues/Detail",
+  title: "App/Queries/Detail",
   component: IssueDetailPageContent,
   decorators: [
     (Story) => (
@@ -57,6 +57,7 @@ const meta = {
     organizationSlug: issueSheetOrganizationSlug,
     projectId: issueSheetProjectId,
     issueId,
+    canDelete: true,
   },
 } satisfies Meta<typeof IssueDetailPageContent>;
 

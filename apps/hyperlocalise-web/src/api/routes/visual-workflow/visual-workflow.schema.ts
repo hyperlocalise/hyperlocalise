@@ -12,7 +12,13 @@
  */
 import { z } from "zod";
 
-import { visualWorkflowDefinitionSchema } from "@/lib/visual-workflows/schema/definition-schema";
+import { successEnvelopeSchema } from "@/api/response.schema";
+import { visualWorkflowV3DefinitionSchema } from "@/lib/visual-workflows/schema/definition-schema";
+import {
+  visualWorkflowTestFailuresSchema,
+  visualWorkflowTestSetupSchema,
+} from "@/lib/visual-workflows/editor/visual-workflow-test-data";
+import { WORKFLOW_LIMITS } from "@/lib/visual-workflows/runtime/limits";
 import { visualWorkflowStatusSchema } from "@/lib/visual-workflows/visual-workflow-types";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
@@ -32,7 +38,7 @@ export const createVisualWorkflowBodySchema = z
     name: z.string().trim().min(1).max(120).optional(),
     projectId: optionalProjectIdSchema,
     status: visualWorkflowStatusSchema.optional(),
-    definition: visualWorkflowDefinitionSchema.optional(),
+    definition: visualWorkflowV3DefinitionSchema.optional(),
   })
   .strict();
 
@@ -42,7 +48,8 @@ export const updateVisualWorkflowBodySchema = z
     name: z.string().trim().min(1).max(120).optional(),
     projectId: optionalProjectIdSchema.nullable().optional(),
     status: visualWorkflowStatusSchema.optional(),
-    definition: visualWorkflowDefinitionSchema.optional(),
+    definition: visualWorkflowV3DefinitionSchema.optional(),
+    testSetup: visualWorkflowTestSetupSchema.optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
@@ -68,10 +75,12 @@ export const createVisualWorkflowRunBodySchema = z
 export const workflowTestSchema = z
   .object({
     idempotencyKey: z.string().min(1).max(200),
-    definition: visualWorkflowDefinitionSchema,
+    definition: visualWorkflowV3DefinitionSchema,
     mode: z.enum(["mock", "live"]).default("mock"),
     inputSnapshot: z.record(z.string(), z.unknown()).default({}),
     mockOutputs: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
+    realNodeIds: z.array(z.string().min(1).max(128)).max(WORKFLOW_LIMITS.nodes).default([]),
+    mockFailures: visualWorkflowTestFailuresSchema.default({}),
   })
   .strict();
 export const workflowPublishSchema = z
@@ -80,6 +89,16 @@ export const workflowPublishSchema = z
 export const workflowRetrySchema = z
   .object({ acknowledgePossibleDuplication: z.literal(true) })
   .strict();
+export const workflowWebhookUrlQuerySchema = z.object({
+  tokenVersion: z.coerce.number().int().min(1).max(1_000_000),
+});
+export const visualWorkflowWebhookUrlSchema = z.object({
+  url: z.string().url(),
+});
+export const visualWorkflowWebhookUrlResponseSchema = successEnvelopeSchema(
+  "webhookUrl",
+  visualWorkflowWebhookUrlSchema,
+);
 export const workflowCredentialSchema = z
   .object({ name: z.string().trim().min(1).max(120), value: z.string().min(1).max(10000) })
   .strict();

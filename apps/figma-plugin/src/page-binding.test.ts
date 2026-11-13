@@ -7,7 +7,7 @@ describe("page job binding", () => {
     const binding = {
       projectId: "proj_1",
       jobId: "job_1",
-      sourcePath: "figma/files/abc/pages/12:34.json",
+      sourcePath: "figma/files/abc/12-34.json",
     };
     expect(parsePageJobBinding(serializePageJobBinding(binding))).toEqual(binding);
   });
@@ -21,12 +21,12 @@ describe("page job binding", () => {
   it("builds a workspace job URL", () => {
     expect(
       buildFigmaJobUrl({
-        appUrl: "https://app.hyperlocalise.com/",
+        appUrl: "https://www.hyperlocalise.com/",
         organizationSlug: "acme",
         projectId: "proj_1",
         jobId: "job_1",
       }),
-    ).toBe("https://app.hyperlocalise.com/org/acme/projects/proj_1/jobs/job_1");
+    ).toBe("https://www.hyperlocalise.com/org/acme/projects/proj_1/jobs/job_1");
     expect(
       buildFigmaJobUrl({
         appUrl: "http://localhost:3000",

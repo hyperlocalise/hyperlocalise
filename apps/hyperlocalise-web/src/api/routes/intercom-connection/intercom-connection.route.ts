@@ -20,6 +20,8 @@ import { validator } from "hono/validator";
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import {
   createIntercomConnection,
   deleteIntercomConnection,
@@ -123,6 +125,11 @@ export function createIntercomConnectionRoutes() {
       if (isErr(result)) {
         return mapIntercomConnectionError(c, result.error);
       }
+
+      serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
+        status: "created",
+        source: "intercom",
+      });
 
       return c.json({ intercomConnection: result.value }, 201);
     })

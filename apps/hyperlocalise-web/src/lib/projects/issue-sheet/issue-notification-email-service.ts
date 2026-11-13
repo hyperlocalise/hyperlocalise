@@ -14,6 +14,7 @@ import { and, asc, eq, inArray, isNull, lte } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { render } from "@react-email/render";
 
+import { brandLogomarkSrc } from "@/lib/brand/brand-assets";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { IssueNotificationType } from "@/lib/database/schema/issue-sheet";
 import { env } from "@/lib/env";
@@ -53,12 +54,13 @@ type NotificationEmailRow = {
   organizationId: string;
   organizationSlug: string | null;
   projectId: string;
-  issueId: string;
+  issueId: string | null;
   type: IssueNotificationType;
   payload: {
     issueTitle: string;
     projectId: string;
     commentExcerpt?: string;
+    errorsChange?: number;
   };
   recipientUserId: string;
   recipientEmail: string;
@@ -76,7 +78,7 @@ function publicAppOrigin(): string {
 }
 
 function brandLogoUrl(): string {
-  return `${publicAppOrigin()}/images/logo.png`;
+  return `${publicAppOrigin()}${brandLogomarkSrc}`;
 }
 
 function inboxUrl(organizationSlug: string): string {
@@ -119,12 +121,13 @@ function toEmailItem(row: NotificationEmailRow, organizationSlug: string): Email
     type: row.type,
     issueId: row.issueId,
     issueTitle: row.payload.issueTitle,
-    issueLabel: issueLabel(row.issueId),
+    issueLabel: row.issueId ? issueLabel(row.issueId) : "QA",
     actorName,
     actorAvatarUrl: row.actorAvatarUrl,
     actorInitials: actorInitials(actorName),
     actionHref: notificationUrl(organizationSlug, row.id),
     excerpt: row.payload.commentExcerpt ?? null,
+    errorsChange: row.payload.errorsChange ?? null,
   };
 }
 

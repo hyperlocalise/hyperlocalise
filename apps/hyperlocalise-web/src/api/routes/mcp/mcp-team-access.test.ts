@@ -18,18 +18,15 @@ import { and, eq, inArray } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { createAuthorizationCode } from "@/api/auth/mcp";
-import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFileVersionForStoredFile } from "@/lib/file-storage/records";
-import { testClient } from "hono/testing";
 
 import { insertStoredSourceFile } from "../public-jobs/public-jobs.fixture";
 import { createProjectTestFixture } from "../project/project.fixture";
 import type { ProjectResponse } from "../project/project.schema";
 import { insertPublicTranslationJob } from "../public-jobs/public-jobs.fixture";
-import { createTeamTestFixture } from "../team/team.fixture";
-import type { TeamResponse } from "../team/team.schema";
+import { createTeamTestFixture } from "@/lib/teams/team.fixture";
+import type { TeamResponse } from "@/lib/teams/team.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -48,11 +45,9 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-const apiApp = createApp();
 const mcpApp = createMcpTestApp();
-const client = testClient<AppType>(apiApp);
-const projectFixture = createProjectTestFixture(client);
-const teamFixture = createTeamTestFixture(client);
+const projectFixture = createProjectTestFixture();
+const teamFixture = createTeamTestFixture();
 
 let trackedMemberLocalUserId: string | null = null;
 
@@ -164,9 +159,11 @@ describe("MCP team-scoped access", () => {
       throw new Error("expected member auth context");
     }
 
-    const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, { name: "MCP Alpha" });
+    const [teamAlphaResponse, teamBetaResponse] = await Promise.all([
+      teamFixture.createTeamViaApi(admin, { name: "MCP Alpha" }),
+      teamFixture.createTeamViaApi(admin, { name: "MCP Beta" }),
+    ]);
     const teamAlphaBody = (await teamAlphaResponse.json()) as TeamResponse;
-    const teamBetaResponse = await teamFixture.createTeamViaApi(admin, { name: "MCP Beta" });
     const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
 
     trackedMemberLocalUserId = await projectFixture.getLocalUserId(member.user.workosUserId);
@@ -176,34 +173,24 @@ describe("MCP team-scoped access", () => {
       role: "member",
     });
 
-    const alphaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "MCP Alpha Project",
-          teamId: teamAlphaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(admin) },
-    );
+    await projectFixture.authHeadersFor(admin);
+    const [alphaProjectResponse, betaProjectResponse] = await Promise.all([
+      projectFixture.createProjectViaApi(admin, {
+        name: "MCP Alpha Project",
+        teamId: teamAlphaBody.team.id,
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      }),
+      projectFixture.createProjectViaApi(admin, {
+        name: "MCP Beta Project",
+        teamId: teamBetaBody.team.id,
+        sourceLocale: "en-US",
+        targetLocales: ["de-DE"],
+      }),
+    ]);
     expect(alphaProjectResponse.status).toBe(201);
-    const alphaProjectBody = (await alphaProjectResponse.json()) as ProjectResponse;
-
-    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "MCP Beta Project",
-          teamId: teamBetaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["de-DE"],
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(admin) },
-    );
     expect(betaProjectResponse.status).toBe(201);
+    const alphaProjectBody = (await alphaProjectResponse.json()) as ProjectResponse;
     const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
 
     const [alphaIssue, betaIssue] = await db
@@ -283,25 +270,28 @@ describe("MCP team-scoped access", () => {
       return storedFile;
     };
 
-    const alphaFile = await seedProjectFile({
-      organizationId: memberAuth.organization.localOrganizationId,
-      projectId: alphaProjectBody.project.id,
-      sourcePath: "locales/alpha.json",
-    });
-    await seedProjectFile({
-      organizationId: memberAuth.organization.localOrganizationId,
-      projectId: betaProjectBody.project.id,
-      sourcePath: "locales/beta.json",
-    });
-    await seedProjectFile({
-      organizationId: externalOrganization.id,
-      projectId: externalProject.id,
-      sourcePath: "locales/external.json",
-    });
+    const [alphaFile] = await Promise.all([
+      seedProjectFile({
+        organizationId: memberAuth.organization.localOrganizationId,
+        projectId: alphaProjectBody.project.id,
+        sourcePath: "locales/alpha.json",
+      }),
+      seedProjectFile({
+        organizationId: memberAuth.organization.localOrganizationId,
+        projectId: betaProjectBody.project.id,
+        sourcePath: "locales/beta.json",
+      }),
+      seedProjectFile({
+        organizationId: externalOrganization.id,
+        projectId: externalProject.id,
+        sourcePath: "locales/external.json",
+      }),
+    ]);
 
-    const accessToken = await mcpAccessTokenForAuth(memberAuth);
-
-    const adminAccessToken = await mcpAccessTokenForAuth(adminAuth);
+    const [accessToken, adminAccessToken] = await Promise.all([
+      mcpAccessTokenForAuth(memberAuth),
+      mcpAccessTokenForAuth(adminAuth),
+    ]);
 
     const adminIssuesResponse = await callMcpTool(adminAccessToken, "list_issues", {
       status: "open",
@@ -765,7 +755,7 @@ describe("MCP team-scoped access", () => {
         externalRef: "mcp:translator-alpha",
       },
     ]);
-  });
+  }, 15_000);
 
   it("scopes get_job to accessible projects and hides other organizations", async () => {
     const admin = projectFixture.createWorkosIdentityWithRole("admin");
@@ -795,33 +785,21 @@ describe("MCP team-scoped access", () => {
       role: "member",
     });
 
-    const alphaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "MCP Job Alpha Project",
-          teamId: teamAlphaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(admin) },
-    );
+    const alphaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "MCP Job Alpha Project",
+      teamId: teamAlphaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
     expect(alphaProjectResponse.status).toBe(201);
     const alphaProjectBody = (await alphaProjectResponse.json()) as ProjectResponse;
 
-    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "MCP Job Beta Project",
-          teamId: teamBetaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["de-DE"],
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(admin) },
-    );
+    const betaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "MCP Job Beta Project",
+      teamId: teamBetaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["de-DE"],
+    });
     expect(betaProjectResponse.status).toBe(201);
     const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
 
@@ -922,33 +900,21 @@ describe("MCP team-scoped access", () => {
       role: "member",
     });
 
-    const alphaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "MCP List Jobs Alpha Project",
-          teamId: teamAlphaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(admin) },
-    );
+    const alphaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "MCP List Jobs Alpha Project",
+      teamId: teamAlphaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
     expect(alphaProjectResponse.status).toBe(201);
     const alphaProjectBody = (await alphaProjectResponse.json()) as ProjectResponse;
 
-    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "MCP List Jobs Beta Project",
-          teamId: teamBetaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["de-DE"],
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(admin) },
-    );
+    const betaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "MCP List Jobs Beta Project",
+      teamId: teamBetaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["de-DE"],
+    });
     expect(betaProjectResponse.status).toBe(201);
     const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
 

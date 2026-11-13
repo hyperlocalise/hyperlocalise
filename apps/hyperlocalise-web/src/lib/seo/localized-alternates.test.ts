@@ -18,6 +18,7 @@ import {
   getLocalizedAbsoluteUrl,
   getLocalizedAlternates,
   getSitemapLanguageAlternates,
+  localizedOpenGraph,
 } from "./localized-alternates";
 import { SITE_URL } from "./site-url";
 
@@ -43,11 +44,9 @@ describe("getLocalizedAlternates", () => {
 
     expect(alternates.canonical).toBe(`${SITE_URL}/vi-VN/product/agents`);
     expect(alternates.languages).toEqual({
-      en: `${SITE_URL}/en/product/agents`,
-      "zh-CN": `${SITE_URL}/zh-CN/product/agents`,
-      "vi-VN": `${SITE_URL}/vi-VN/product/agents`,
-      "de-DE": `${SITE_URL}/de-DE/product/agents`,
-      "fr-FR": `${SITE_URL}/fr-FR/product/agents`,
+      ...Object.fromEntries(
+        SUPPORTED_APP_LOCALES.map((locale) => [locale, `${SITE_URL}/${locale}/product/agents`]),
+      ),
       "x-default": `${SITE_URL}/en/product/agents`,
     });
     expect(Object.keys(alternates.languages ?? {}).filter((key) => key !== "x-default")).toEqual(
@@ -82,6 +81,21 @@ describe("getLocalizedAlternates", () => {
     });
     expect(alternates.languages).not.toHaveProperty("x-default");
     expect(DEFAULT_APP_LOCALE).toBe("en");
+  });
+});
+
+describe("localizedOpenGraph", () => {
+  it("sets url to the localized canonical page URL", () => {
+    expect(
+      localizedOpenGraph("fr-FR", "/pricing", {
+        title: "Pricing",
+        description: "Plans",
+        type: "website",
+      }),
+    ).toMatchObject({
+      url: `${SITE_URL}/fr-FR/pricing`,
+      title: "Pricing",
+    });
   });
 });
 

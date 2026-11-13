@@ -35,4 +35,25 @@ export const projectFileTreeContextMenuMessages = defineMessages({
     id: "VWlnmvdHxp",
     description: "Context menu action to download translations for a project file",
   },
+  segmentationSettings: {
+    defaultMessage: "Segmentation settings",
+    id: "e8kT8ygAwT",
+    description: "Context menu action to configure SRX segmentation for a native file",
+  },
+  messageFormatSettings: {
+    defaultMessage: "Placeholder format",
+    id: "wJXdRoVqtA",
+    description: "Context menu action to choose the placeholder syntax used to validate a file",
+  },
+  importSettings: {
+    defaultMessage: "Import filters",
+    id: "eKC03Z1B9Y",
+    description: "Context menu action to configure HTML, JSON, and Excel import filters",
+  },
+  useTranslationAsSource: {
+    defaultMessage: "Use translation as source…",
+    id: "vVKPwFNVzd",
+    description:
+      "Context menu action to send a Word file's translation to another project as its source file",
+  },
 });

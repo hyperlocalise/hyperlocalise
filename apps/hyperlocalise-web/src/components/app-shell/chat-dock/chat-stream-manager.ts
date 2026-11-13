@@ -12,10 +12,19 @@
  */
 import { DefaultChatTransport, readUIMessageStream, type UIMessage } from "ai";
 
+import { apiClient } from "@/lib/api-client-instance";
+import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
+
 import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
 import type { ChatDockStore, ChatDockStreamSnapshot } from "./chat-dock-store";
+import { createChatRunApi, type ChatRunApi } from "./chat-run-api";
 
 const streamErrorMessage = "Sorry, I encountered an error while generating a response.";
+
+/** How often a client following a turn it is not streaming reads the server's snapshot. */
+export const CHAT_RUN_POLL_INTERVAL_MS = 1_000;
+/** Consecutive failed snapshot reads before the client gives up on a turn. */
+const CHAT_RUN_MAX_POLL_FAILURES = 5;
 
 export type ChatStreamStartInput = {
   conversationId: string;
@@ -27,10 +36,17 @@ export type ChatStreamStartResult =
   | { started: true }
   | { started: false; reason: "already_streaming" | "max_streams" };
 
+export type ChatStreamFinishedInfo = {
+  /** The user stopped the turn. Queued follow-ups wait instead of sending. */
+  cancelled: boolean;
+};
+
 type ActiveStream = {
   conversationId: string;
   controller: AbortController;
 };
+
+type RunFollowResult = "finished" | "failed" | "aborted";
 
 function createAssistantMessage(id: string, text = ""): UIMessage {
   return {
@@ -40,29 +56,78 @@ function createAssistantMessage(id: string, text = ""): UIMessage {
   };
 }
 
+/** The `error` code of a failed chat request, from the JSON body the AI SDK transport keeps. */
+function chatRequestErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== "object" || !("responseBody" in error)) {
+    return null;
+  }
+  const responseBody = (error as { responseBody?: unknown }).responseBody;
+  if (typeof responseBody !== "string") {
+    return null;
+  }
+  try {
+    const body: unknown = JSON.parse(responseBody);
+    return body && typeof body === "object" && "error" in body && typeof body.error === "string"
+      ? body.error
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function sleep(ms: number, signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
+
+/**
+ * Streams agent replies into the chat dock store. The server owns each turn: closing the stream
+ * here does not stop it. When the stream breaks, or another tab already started the turn, the
+ * manager follows the turn by reading the server's snapshot until it ends.
+ */
 export class ChatStreamManager {
   private readonly organizationSlug: string;
   private readonly store: ChatDockStore;
   private readonly requestHeaders: Record<string, string> | undefined;
+  private readonly runApi: ChatRunApi;
+  private readonly pollIntervalMs: number;
   private readonly activeStreams = new Map<string, ActiveStream>();
   /**
    * User message ids that already triggered an assistant stream attempt.
    * Survives remounts so success and error both block unbounded auto-retry.
    */
   private readonly attemptedUserMessageIds = new Map<string, string>();
-  private onStreamFinished: ((conversationId: string) => void | Promise<void>) | null = null;
+  private readonly cancelledConversationIds = new Set<string>();
+  private onStreamFinished:
+    | ((conversationId: string, info: ChatStreamFinishedInfo) => void | Promise<void>)
+    | null = null;
 
   constructor(
     organizationSlug: string,
     store: ChatDockStore,
-    options?: { headers?: Record<string, string> },
+    options?: { headers?: Record<string, string>; runApi?: ChatRunApi; pollIntervalMs?: number },
   ) {
     this.organizationSlug = organizationSlug;
     this.store = store;
     this.requestHeaders = options?.headers;
+    this.runApi = options?.runApi ?? createChatRunApi(apiClient, organizationSlug);
+    this.pollIntervalMs = options?.pollIntervalMs ?? CHAT_RUN_POLL_INTERVAL_MS;
   }
 
-  setOnStreamFinished(handler: ((conversationId: string) => void | Promise<void>) | null) {
+  setOnStreamFinished(
+    handler:
+      | ((conversationId: string, info: ChatStreamFinishedInfo) => void | Promise<void>)
+      | null,
+  ) {
     this.onStreamFinished = handler;
   }
 
@@ -72,6 +137,10 @@ export class ChatStreamManager {
 
   isStreaming(conversationId: string) {
     return this.activeStreams.has(conversationId);
+  }
+
+  isCancelling(conversationId: string) {
+    return this.cancelledConversationIds.has(conversationId);
   }
 
   getSnapshot(conversationId: string): ChatDockStreamSnapshot | null {
@@ -99,12 +168,39 @@ export class ChatStreamManager {
     return snapshot?.responseToMessageId !== userMessageId;
   }
 
+  /**
+   * Stops following a turn in this client. The server keeps running it; use `cancel` to stop it.
+   */
   stop(conversationId: string) {
     const active = this.activeStreams.get(conversationId);
     active?.controller.abort();
     this.activeStreams.delete(conversationId);
     // Abort skips onStreamFinished; clear so inbox/dock do not keep a stale "complete" snapshot.
     this.store.clearStreamSnapshot(conversationId);
+  }
+
+  /**
+   * Asks the server to stop the conversation's turn. The stream keeps reading: the server ends it
+   * after saving what the agent produced, and the usual finish handling refetches the messages.
+   */
+  async cancel(conversationId: string) {
+    this.cancelledConversationIds.add(conversationId);
+    this.store.setStopping(conversationId, true);
+    try {
+      const cancelled = await this.runApi.cancelRun(conversationId);
+      if (!cancelled && !this.isStreaming(conversationId)) {
+        this.clearCancel(conversationId);
+      }
+      return cancelled;
+    } catch (error) {
+      this.clearCancel(conversationId);
+      throw error;
+    }
+  }
+
+  private clearCancel(conversationId: string) {
+    this.cancelledConversationIds.delete(conversationId);
+    this.store.setStopping(conversationId, false);
   }
 
   /** True when this manager was created with the given store instance. */
@@ -133,16 +229,16 @@ export class ChatStreamManager {
     const controller = new AbortController();
     const messageId = `stream-${responseToMessageId}`;
     this.activeStreams.set(conversationId, { conversationId, controller });
+    this.clearCancel(conversationId);
     // Mark before the network call so remounts cannot auto-retry after errors/aborts.
     this.markAttemptedUserMessage(conversationId, responseToMessageId);
 
-    const initialSnapshot: ChatDockStreamSnapshot = {
+    this.store.setStreamSnapshot(conversationId, {
       conversationId,
       responseToMessageId,
       message: createAssistantMessage(messageId),
       status: "streaming",
-    };
-    this.store.setStreamSnapshot(conversationId, initialSnapshot);
+    });
 
     let finishedSuccessfully = false;
 
@@ -191,17 +287,48 @@ export class ChatStreamManager {
         status: "complete",
       });
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
+      if (controller.signal.aborted || (error instanceof Error && error.name === "AbortError")) {
         return { started: true };
       }
 
-      console.error("Chat stream error:", error);
-      this.store.setStreamSnapshot(conversationId, {
-        conversationId,
-        responseToMessageId,
-        message: createAssistantMessage(messageId, streamErrorMessage),
-        status: "error",
-      });
+      const code = chatRequestErrorCode(error);
+      if (isAiCreditExhaustedError(error)) {
+        this.store.setStreamSnapshot(conversationId, {
+          conversationId,
+          responseToMessageId,
+          message: createAssistantMessage(messageId),
+          status: "error",
+          aiCreditExhausted: true,
+        });
+      } else if (code === "turn_already_processed") {
+        // Another tab or an earlier attempt answered it; the refetch shows the reply.
+        finishedSuccessfully = true;
+      } else {
+        // The turn may be running on the server already (another tab, or our stream broke
+        // mid-reply). Follow it there before reporting an error.
+        const followed = await this.followRun({
+          conversationId,
+          responseToMessageId,
+          messageId,
+          signal: controller.signal,
+        });
+        if (followed === "aborted") {
+          return { started: true };
+        }
+        if (followed === "finished") {
+          finishedSuccessfully = true;
+        } else {
+          if (code !== "run_in_progress") {
+            console.error("Chat stream error:", error);
+          }
+          this.store.setStreamSnapshot(conversationId, {
+            conversationId,
+            responseToMessageId,
+            message: createAssistantMessage(messageId, streamErrorMessage),
+            status: "error",
+          });
+        }
+      }
     } finally {
       const active = this.activeStreams.get(conversationId);
       if (active?.controller === controller) {
@@ -209,14 +336,66 @@ export class ChatStreamManager {
       }
 
       // Success and error both need query invalidation + snapshot clear. Abort is handled by
-      // stop()/clearStreamSnapshot and must not re-enter onStreamFinished here.
+      // stop()/clearStreamSnapshot and must not re-enter onStreamFinished here. A refusal keeps
+      // its snapshot so the conversation goes on showing it; nothing was saved to refetch.
       const snapshot = this.store.getStreamSnapshot(conversationId);
-      if (finishedSuccessfully || snapshot?.status === "error") {
-        await this.onStreamFinished?.(conversationId);
+      const cancelled = this.isCancelling(conversationId);
+      this.clearCancel(conversationId);
+      if (
+        !controller.signal.aborted &&
+        (finishedSuccessfully || (snapshot?.status === "error" && !snapshot.aiCreditExhausted))
+      ) {
+        await this.onStreamFinished?.(conversationId, { cancelled });
       }
     }
 
     return { started: true };
+  }
+
+  /** Reads the server's snapshot of the turn answering `responseToMessageId` until it ends. */
+  private async followRun(input: {
+    conversationId: string;
+    responseToMessageId: string;
+    messageId: string;
+    signal: AbortSignal;
+  }): Promise<RunFollowResult> {
+    let failures = 0;
+    while (!input.signal.aborted) {
+      let run;
+      try {
+        run = await this.runApi.getRun(input.conversationId);
+        failures = 0;
+      } catch {
+        failures += 1;
+        if (failures >= CHAT_RUN_MAX_POLL_FAILURES) {
+          return "failed";
+        }
+        await sleep(this.pollIntervalMs, input.signal);
+        continue;
+      }
+
+      if (input.signal.aborted) {
+        return "aborted";
+      }
+
+      if (!run || run.userMessageId !== input.responseToMessageId) {
+        return "failed";
+      }
+
+      if (run.status !== "running") {
+        return run.status === "failed" ? "failed" : "finished";
+      }
+
+      this.store.setStreamSnapshot(input.conversationId, {
+        conversationId: input.conversationId,
+        responseToMessageId: input.responseToMessageId,
+        message: { id: input.messageId, role: "assistant", parts: run.parts },
+        status: "streaming",
+      });
+      await sleep(this.pollIntervalMs, input.signal);
+    }
+
+    return "aborted";
   }
 }
 

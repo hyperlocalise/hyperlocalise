@@ -15,6 +15,8 @@ import { redirect } from "next/navigation";
 import { OnboardingWizard } from "@/app/auth/onboarding/_components/onboarding-wizard";
 import { loadOnboardingContext } from "@/lib/onboarding/context";
 import { clearStoredOnboardingState } from "@/lib/workos/onboarding-state";
+import { getAppLocale } from "@/lib/app-i18n/server-locale";
+import { getAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 function getDashboardPath(slug: string | null | undefined) {
   if (!slug) {
@@ -22,6 +24,12 @@ function getDashboardPath(slug: string | null | undefined) {
   }
 
   return `/org/${slug}/dashboard`;
+}
+
+export async function generateMetadata() {
+  return getAuthenticatedPageMetadata(await getAppLocale(), "onboarding", {
+    includeBrandSuffix: true,
+  });
 }
 
 export default async function OnboardingPage() {

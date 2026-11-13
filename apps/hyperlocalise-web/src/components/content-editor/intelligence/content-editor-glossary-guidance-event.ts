@@ -13,13 +13,13 @@
 export const CAT_GLOSSARY_GUIDANCE_OPEN_EVENT = "cat-glossary-guidance:open";
 
 export const EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS = {
-  preferredCount: 0,
+  isLoading: false,
   notRecommendedCount: 0,
   matchCount: 0,
 } as const;
 
 export type ContentEditorGlossaryGuidanceStatus = {
-  preferredCount: number;
+  isLoading: boolean;
   notRecommendedCount: number;
   matchCount: number;
 };
@@ -40,7 +40,7 @@ export function requestCatGlossaryGuidance() {
 
 export function setCatGlossaryGuidanceStatus(status: ContentEditorGlossaryGuidanceStatus) {
   if (
-    glossaryGuidanceStatus.preferredCount === status.preferredCount &&
+    glossaryGuidanceStatus.isLoading === status.isLoading &&
     glossaryGuidanceStatus.notRecommendedCount === status.notRecommendedCount &&
     glossaryGuidanceStatus.matchCount === status.matchCount
   ) {

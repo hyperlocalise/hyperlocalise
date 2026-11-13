@@ -121,6 +121,29 @@ describe("composeSegmentView", () => {
     });
   });
 
+  it("hides leaked Office token names in the composed target", () => {
+    const open = "\u001eHLOXPH_6F30_0\u001f";
+    const close = "\u001eHLOXPH_6330_1\u001f";
+    const view = composeSegmentView({
+      fileContext,
+      meta: {
+        id: "seg-01",
+        index: 1,
+        key: "word/document.xml#0",
+        sourceText: `${open}RECIPE${close} Strawberry Vanilla Pancakes`,
+      },
+      draft: new ContentEditorSegmentDraft(
+        "seg-01",
+        `${open}HLOXPH_6F30_0 レシピ${close} HLOXPH_6330_1 いちごとバニラのパンケーキ`,
+        "reviewed",
+      ),
+      comments: undefined,
+      intelligence: undefined,
+    });
+
+    expect(view.targetText).toBe(`${open}レシピ${close} いちごとバニラのパンケーキ`);
+  });
+
   it("defaults to empty target and pending status without a draft", () => {
     const view = composeSegmentView({
       fileContext,

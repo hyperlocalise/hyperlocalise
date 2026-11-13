@@ -22,6 +22,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/progressui"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/htmltagparity"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/qavalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
@@ -47,6 +48,7 @@ const (
 	checkPlaceholder       = "placeholder_mismatch"
 	checkHTMLTag           = "html_tag_mismatch"
 	checkICUShape          = "icu_shape_mismatch"
+	checkUnreachablePlural = "unreachable_plural_case"
 	checkMarkdownAST       = "markdown_ast_mismatch"
 	checkWhitespaceOnly    = "whitespace_only"
 	checkEscapedChar       = "escaped_char_mismatch"
@@ -64,6 +66,7 @@ var (
 		checkPlaceholder,
 		checkHTMLTag,
 		checkICUShape,
+		checkUnreachablePlural,
 		checkMarkdownAST,
 		checkWhitespaceOnly,
 		checkEscapedChar,
@@ -91,6 +94,8 @@ type checkOptions struct {
 	fixDryRun         bool
 	workers           int
 	quiet             bool
+	dictionaryDir     string
+	qaPolicyFile      string
 }
 
 type checkFinding struct {
@@ -143,6 +148,7 @@ type checkConfigIndex struct {
 	sources        []checkSourceDescriptor
 	sourceByPath   map[string]checkSourceDescriptor
 	targetToSource map[string]checkTargetLookup
+	sourceLocale   string
 }
 
 type checkTargetLookup struct {
@@ -316,6 +322,8 @@ func newCheckLikeCmd(use, short string, fixDefault bool) *cobra.Command {
 	cmd.Flags().BoolVar(&o.fixDryRun, "fix-dry-run", false, "with --fix, plan translation tasks without writing targets or calling the API")
 	cmd.Flags().IntVar(&o.workers, "workers", 0, "with --fix, number of parallel translation workers (default: number of CPU cores)")
 	cmd.Flags().BoolVar(&o.quiet, "quiet", false, "omit warning-severity findings from output and JSON report; exit 0 when only warnings exist (errors and --fix still use the full result)")
+	cmd.Flags().StringVar(&o.dictionaryDir, "dictionary-dir", "", "directory of per-locale spellcheck allow-lists ({locale}.txt); overrides spellcheck.dictionary_dir")
+	cmd.Flags().StringVar(&o.qaPolicyFile, "qa-policy", "", "versioned cloud QA policy snapshot (overrides qa.policy_file)")
 
 	return cmd
 }
@@ -366,6 +374,11 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 		resolveSpan.End()
 		return checkReport{}, fmt.Errorf("load config: %w", err)
 	}
+	if _, err := resolveCheckDictionaryDir(cfg, o.dictionaryDir, o.configPath); err != nil {
+		resolveSpan.SetStatus(codes.Error, "resolve_dictionary_dir")
+		resolveSpan.End()
+		return checkReport{}, err
+	}
 	locales, err := resolveStatusLocales(cfg, o.locales, o.group)
 	if err != nil {
 		resolveSpan.SetStatus(codes.Error, "resolve_locales")
@@ -400,6 +413,34 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	if err != nil {
 		return checkReport{}, fmt.Errorf("resolve config directory: %w", err)
 	}
+	var qaPolicy *qavalidate.Policy
+	qaPolicyPath := o.qaPolicyFile
+	if qaPolicyPath == "" && cfg.QA != nil {
+		qaPolicyPath = cfg.QA.PolicyFile
+	}
+	if qaPolicyPath != "" {
+		if len(o.checks) > 0 || len(o.excludeChecks) > 0 {
+			return checkReport{}, fmt.Errorf("--check and --exclude-check cannot be combined with a QA policy")
+		}
+		if !filepath.IsAbs(qaPolicyPath) {
+			qaPolicyPath = filepath.Join(configRoot, qaPolicyPath)
+		}
+		loaded, err := qavalidate.LoadPolicy(qaPolicyPath)
+		if err != nil {
+			return checkReport{}, fmt.Errorf("load QA policy: %w", err)
+		}
+		qaPolicy = &loaded
+		filtered := enabledChecks[:0]
+		for _, name := range enabledChecks {
+			switch name {
+			case checkNotLocalized, checkSameAsSource, checkWhitespaceOnly, checkEscapedChar, checkPlaceholder:
+				continue
+			default:
+				filtered = append(filtered, name)
+			}
+		}
+		enabledChecks = filtered
+	}
 
 	index, err := buildCheckConfigIndex(cfg, buckets, locales, configRoot)
 	if err != nil {
@@ -424,7 +465,7 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	}
 
 	_, collectSpan := tr.Start(ctx, "check.collect_findings")
-	collected, err := collectCheckFindings(index, enabledChecks, selection, o.prefixID, o.ignoreDuplicateID, prefixIndex)
+	collected, err := collectCheckFindings(ctx, index, enabledChecks, selection, o.prefixID, o.ignoreDuplicateID, prefixIndex, qaPolicy)
 	if err != nil {
 		collectSpan.SetStatus(codes.Error, "collect_findings")
 		collectSpan.End()
@@ -433,6 +474,14 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	collectSpan.End()
 
 	sortCheckFindings(collected.Findings)
+	if qaPolicy != nil {
+		for name, setting := range qaPolicy.Checks {
+			if setting.Enabled {
+				enabledChecks = append(enabledChecks, name)
+			}
+		}
+		slices.Sort(enabledChecks)
+	}
 	return checkReport{
 		Checks:                  enabledChecks,
 		Findings:                collected.Findings,
@@ -445,6 +494,7 @@ func buildCheckConfigIndex(cfg *config.I18NConfig, buckets, locales []string, co
 	index := &checkConfigIndex{
 		sourceByPath:   make(map[string]checkSourceDescriptor),
 		targetToSource: make(map[string]checkTargetLookup),
+		sourceLocale:   cfg.Locales.Source,
 	}
 
 	for _, bucketName := range buckets {
@@ -592,13 +642,14 @@ func intersectChangedKeys(existing, changed map[string]struct{}, filterKey strin
 
 func restrictChecksForDiffMode(enabledChecks []string) []string {
 	allowed := map[string]struct{}{
-		checkNotLocalized:   {},
-		checkSameAsSource:   {},
-		checkWhitespaceOnly: {},
-		checkEscapedChar:    {},
-		checkPlaceholder:    {},
-		checkHTMLTag:        {},
-		checkICUShape:       {},
+		checkNotLocalized:      {},
+		checkSameAsSource:      {},
+		checkWhitespaceOnly:    {},
+		checkEscapedChar:       {},
+		checkPlaceholder:       {},
+		checkHTMLTag:           {},
+		checkICUShape:          {},
+		checkUnreachablePlural: {},
 	}
 	out := make([]string, 0, len(enabledChecks))
 	for _, check := range enabledChecks {
@@ -824,7 +875,7 @@ func fixTargetDedupeKey(sourcePath, targetPath, locale, key string) string {
 
 func isFixableFindingType(t string) bool {
 	switch t {
-	case checkNotLocalized, checkWhitespaceOnly, checkEscapedChar, checkPlaceholder, checkHTMLTag, checkICUShape:
+	case checkNotLocalized, checkWhitespaceOnly, checkEscapedChar, checkPlaceholder, checkHTMLTag, checkICUShape, checkUnreachablePlural:
 		return true
 	default:
 		return false
@@ -954,7 +1005,7 @@ func normalizeCheckChangedKeys(changed map[string]struct{}, prefixIndex packPref
 	return out, nil
 }
 
-func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selection checkSelection, prefixID, ignoreDuplicateID bool, prefixIndex packPrefixIndex) (checkReport, error) {
+func collectCheckFindings(ctx context.Context, index *checkConfigIndex, enabledChecks []string, selection checkSelection, prefixID, ignoreDuplicateID bool, prefixIndex packPrefixIndex, qaPolicy *qavalidate.Policy) (checkReport, error) {
 	parser := translationfileparser.NewDefaultStrategy()
 	resolver := checkLocationResolver{content: make(map[string][]byte)}
 	checkSet := make(map[string]struct{}, len(enabledChecks))
@@ -963,12 +1014,14 @@ func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selec
 	}
 
 	var findings []checkFinding
+	var qaSegments []qavalidate.Segment
+	var qaLocations []cloudQALocation
 	sourceEntryKeysByPacked := make(map[string]map[string]string)
 	for _, sourceDesc := range index.sources {
 		if !selection.allowsSource(sourceDesc.sourcePath) {
 			continue
 		}
-		sourceEntries, err := readEntriesForStatus(parser, sourceDesc.sourcePath)
+		sourceEntries, err := readEntriesForStatus(parser, sourceDesc.sourcePath, index.sourceLocale)
 		if err != nil {
 			return checkReport{}, err
 		}
@@ -1008,12 +1061,37 @@ func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selec
 						})
 					}
 				}
+				if qaPolicy != nil {
+					appendCloudQASegments(&qaSegments, &qaLocations, selection, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceEntries, nil, true)
+				}
 				continue
 			}
 
 			findings = append(findings, collectEntryCheckFindings(&resolver, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceEntries, targetEntries, checkSet, selection)...)
+			if qaPolicy != nil {
+				appendCloudQASegments(&qaSegments, &qaLocations, selection, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceEntries, targetEntries, false)
+			}
 			if selection.shouldRunFileScopedChecks() && hasCheck(checkSet, checkMarkdownAST) && isMarkdownPath(target.targetPath) {
 				findings = append(findings, collectMarkdownASTParityFindings(&resolver, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceContent, targetContent)...)
+			}
+		}
+	}
+	if qaPolicy != nil && len(qaSegments) > 0 {
+		report, err := qavalidate.ValidateBatch(ctx, qaSegments, *qaPolicy)
+		if err != nil {
+			return checkReport{}, err
+		}
+		for i, result := range report.Results {
+			location := qaLocations[i]
+			for _, check := range result.Checks {
+				annotationFile, annotationLine := resolver.resolve(location.sourcePath, location.targetPath,
+					location.key, location.sourceValue, location.targetValue, location.missing)
+				findings = append(findings, checkFinding{
+					Type: check.CheckType, Severity: check.Severity, Bucket: location.bucket,
+					Locale: location.locale, SourceFile: location.sourcePath, TargetFile: location.targetPath,
+					Key: location.key, Message: check.Message, AnnotationFile: annotationFile,
+					AnnotationLine: annotationLine,
+				})
 			}
 		}
 	}
@@ -1022,6 +1100,47 @@ func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selec
 		Findings:                findings,
 		sourceEntryKeysByPacked: sourceEntryKeysByPacked,
 	}, nil
+}
+
+type cloudQALocation struct {
+	bucket, locale, sourcePath, targetPath, key, sourceValue, targetValue string
+	missing                                                               bool
+}
+
+func appendCloudQASegments(
+	qaSegments *[]qavalidate.Segment,
+	qaLocations *[]cloudQALocation,
+	selection checkSelection,
+	bucket, locale, sourcePath, targetPath string,
+	sourceEntries map[string]string,
+	targetEntries map[string]string,
+	targetFileMissing bool,
+) {
+	keys := make([]string, 0, len(sourceEntries))
+	for key := range sourceEntries {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	for _, key := range keys {
+		if !selection.allowsKey(sourcePath, key) {
+			continue
+		}
+		sourceValue := sourceEntries[key]
+		targetValue := ""
+		missing := targetFileMissing
+		if !targetFileMissing {
+			var ok bool
+			targetValue, ok = targetEntries[key]
+			missing = !ok
+		}
+		*qaSegments = append(*qaSegments, qavalidate.Segment{
+			ID: fmt.Sprint(len(*qaSegments)), SourceText: sourceValue, TargetText: targetValue,
+			SourcePath: sourcePath, TargetLocale: locale,
+		})
+		*qaLocations = append(*qaLocations, cloudQALocation{
+			bucket, locale, sourcePath, targetPath, key, sourceValue, targetValue, missing,
+		})
+	}
 }
 
 func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, targetPath, locale string) (map[string]string, []byte, []byte, bool, error) {
@@ -1039,6 +1158,36 @@ func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, 
 			return nil, nil, nil, false, err
 		}
 		targetEntries := translationfileparser.AlignMarkdownTargetToSource(sourceContent, targetContent, ext == ".mdx")
+		return targetEntries, sourceContent, targetContent, true, nil
+	}
+	if translationfileparser.IsAsciiDocDocumentExtension(targetPath) {
+		sourceContent, err := os.ReadFile(sourcePath)
+		if err != nil {
+			return nil, nil, nil, false, err
+		}
+		targetContent, err := os.ReadFile(targetPath)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, nil, nil, false, nil
+			}
+			return nil, nil, nil, false, err
+		}
+		targetEntries := translationfileparser.AlignAsciiDocTargetToSource(sourceContent, targetContent)
+		return targetEntries, sourceContent, targetContent, true, nil
+	}
+	if translationfileparser.IsPlainTextDocumentExtension(targetPath) {
+		sourceContent, err := os.ReadFile(sourcePath)
+		if err != nil {
+			return nil, nil, nil, false, err
+		}
+		targetContent, err := os.ReadFile(targetPath)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, nil, nil, false, nil
+			}
+			return nil, nil, nil, false, err
+		}
+		targetEntries := translationfileparser.AlignPlainTextTargetToSource(sourceContent, targetContent)
 		return targetEntries, sourceContent, targetContent, true, nil
 	}
 
@@ -1153,7 +1302,7 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 				AnnotationLine: annotationLine,
 			})
 		}
-		shouldCheckInvariant := hasCheck(checkSet, checkPlaceholder) || (hasCheck(checkSet, checkICUShape) && !isMarkdownPath(targetPath))
+		shouldCheckInvariant := hasCheck(checkSet, checkPlaceholder) || (hasCheck(checkSet, checkICUShape) && !isProseDocumentPath(targetPath))
 		if shouldCheckInvariant {
 			diags := validateCheckInvariant(storage.Entry{Key: key, Locale: locale, Value: targetValue}, storage.Entry{Key: key, Locale: locale, Value: sourceValue})
 			if _, ok := checkSet[checkPlaceholder]; ok {
@@ -1175,7 +1324,7 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 					}
 				}
 			}
-			if _, ok := checkSet[checkICUShape]; ok && !isMarkdownPath(targetPath) {
+			if _, ok := checkSet[checkICUShape]; ok && !isProseDocumentPath(targetPath) {
 				for _, diag := range diags {
 					if strings.Contains(diag, "ICU parity mismatch") || strings.Contains(diag, "invalid ICU/braces structure") || strings.Contains(diag, "duplicate # tokens") {
 						annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
@@ -1193,6 +1342,23 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 						})
 					}
 				}
+			}
+		}
+		if _, ok := checkSet[checkUnreachablePlural]; ok && !isProseDocumentPath(targetPath) {
+			if cases := segmentvalidate.UnreachablePluralCases(locale, targetValue); len(cases) > 0 {
+				annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
+				findings = append(findings, checkFinding{
+					Type:           checkUnreachablePlural,
+					Severity:       severityForCheck(checkUnreachablePlural),
+					Bucket:         bucketName,
+					Locale:         locale,
+					SourceFile:     sourcePath,
+					TargetFile:     targetPath,
+					Key:            key,
+					Message:        segmentvalidate.UnreachablePluralMessage(locale, cases),
+					AnnotationFile: annotationFile,
+					AnnotationLine: annotationLine,
+				})
 			}
 		}
 	}
@@ -1555,6 +1721,12 @@ func isMarkdownPath(path string) bool {
 	return ext == ".md" || ext == ".mdx"
 }
 
+func isProseDocumentPath(path string) bool {
+	return isMarkdownPath(path) ||
+		translationfileparser.IsAsciiDocDocumentExtension(path) ||
+		translationfileparser.IsPlainTextDocumentExtension(path)
+}
+
 func validateCheckInvariant(candidate, baseline storage.Entry) []string {
 	baseInv, baseErr := icuparser.ParseInvariant(baseline.Value)
 	candInv, candErr := icuparser.ParseInvariant(candidate.Value)
@@ -1568,6 +1740,9 @@ func validateCheckInvariant(candidate, baseline storage.Entry) []string {
 	}
 	if !icuparser.SamePlaceholderSet(baseInv.Placeholders, candInv.Placeholders) {
 		diags = append(diags, fmt.Sprintf("placeholder parity mismatch (expected %v, got %v)", baseInv.Placeholders, candInv.Placeholders))
+	}
+	if err := segmentvalidate.ValidateExtraPlaceholderParity(baseline.Value, candidate.Value); err != nil {
+		diags = append(diags, err.Error())
 	}
 	if !icuparser.SameICUBlocks(baseInv.ICUBlocks, candInv.ICUBlocks) {
 		diags = append(diags, fmt.Sprintf("ICU parity mismatch (expected %s, got %s)", icuparser.FormatICUBlocks(baseInv.ICUBlocks), icuparser.FormatICUBlocks(candInv.ICUBlocks)))
@@ -2003,6 +2178,11 @@ func (r *checkLocationResolver) resolveInFile(filePath, key, value string) (stri
 	ext := strings.ToLower(filepath.Ext(filePath))
 	if (ext == ".md" || ext == ".mdx") && strings.HasPrefix(key, "md.") {
 		if line := translationfileparser.LineForMarkdownKey(content, ext == ".mdx", key); line > 0 {
+			return filePath, line
+		}
+	}
+	if translationfileparser.IsAsciiDocDocumentExtension(filePath) && strings.HasPrefix(key, "adoc.") {
+		if line := translationfileparser.LineForAsciiDocKey(content, key); line > 0 {
 			return filePath, line
 		}
 	}

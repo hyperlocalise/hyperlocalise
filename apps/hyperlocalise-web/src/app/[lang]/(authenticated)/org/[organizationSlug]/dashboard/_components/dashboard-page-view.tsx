@@ -14,8 +14,7 @@
  */
 import Image from "next/image";
 import Link from "next/link";
-import { Chat01Icon, DashboardSquare01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ChatCircleIcon, SquaresFourIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
@@ -95,6 +94,30 @@ export type DashboardLinkRenderer = (props: {
   children: ReactNode;
   onClick?: () => void;
 }) => ReactNode;
+
+export type OverviewSectionStatus = {
+  isLoading?: boolean;
+  isError?: boolean;
+};
+
+export type OverviewSectionStatuses = {
+  metrics?: OverviewSectionStatus;
+  activity?: OverviewSectionStatus;
+  projects?: OverviewSectionStatus;
+  board?: OverviewSectionStatus;
+  automations?: OverviewSectionStatus;
+};
+
+function resolveSectionStatus(
+  section: OverviewSectionStatus | undefined,
+  fallbackLoading: boolean,
+  fallbackError: boolean,
+) {
+  return {
+    isLoading: section?.isLoading ?? fallbackLoading,
+    isError: section?.isError ?? fallbackError,
+  };
+}
 
 function defaultRenderLink({
   href,
@@ -357,12 +380,16 @@ function OverviewMetricsTray({
   overview,
   automationsVisible,
   isLoading,
+  isError,
   loadingLabel,
+  errorMessage,
 }: {
   overview: WorkspaceOverviewSnapshot;
   automationsVisible: boolean;
   isLoading: boolean;
+  isError: boolean;
   loadingLabel: string;
+  errorMessage: string;
 }) {
   const intl = useIntl();
   const metricCount = automationsVisible ? 4 : 3;
@@ -392,6 +419,12 @@ function OverviewMetricsTray({
           Array.from({ length: metricCount }, (_, index) => (
             <Skeleton key={index} className="min-h-[148px] rounded-xl" />
           ))
+        ) : isError ? (
+          <div className="rounded-xl border border-border bg-card px-4 py-5 sm:col-span-2 xl:col-span-full">
+            <TypographyP size="small" tone="subtle">
+              {errorMessage}
+            </TypographyP>
+          </div>
         ) : (
           <>
             <OverviewMetricCard
@@ -435,7 +468,9 @@ export function DashboardPageView({
   automationsEnabled = false,
   isLoading = false,
   isError = false,
+  sectionStatus,
   onNewRequest,
+  qaAttentionCard,
   slackConnectCard,
   renderLink = defaultRenderLink,
 }: {
@@ -444,7 +479,9 @@ export function DashboardPageView({
   automationsEnabled?: boolean;
   isLoading?: boolean;
   isError?: boolean;
+  sectionStatus?: OverviewSectionStatuses;
   onNewRequest: () => void;
+  qaAttentionCard?: ReactNode;
   slackConnectCard?: ReactNode;
   renderLink?: DashboardLinkRenderer;
 }) {
@@ -453,21 +490,26 @@ export function DashboardPageView({
   const projectsHref = `/org/${organizationSlug}/projects`;
   const issuesHref = `/org/${organizationSlug}/issues`;
   const automationsHref = `/org/${organizationSlug}/automations`;
-  const automationsVisible =
-    automationsEnabled && (isLoading || overview.metrics.automations !== null);
+  const metricsStatus = resolveSectionStatus(sectionStatus?.metrics, isLoading, isError);
+  const activityStatus = resolveSectionStatus(sectionStatus?.activity, isLoading, isError);
+  const projectsStatus = resolveSectionStatus(sectionStatus?.projects, isLoading, isError);
+  const boardStatus = resolveSectionStatus(sectionStatus?.board, isLoading, isError);
+  const automationsStatus = resolveSectionStatus(sectionStatus?.automations, isLoading, isError);
+  const automationsVisible = automationsEnabled;
+  const automationsMetricVisible =
+    automationsEnabled && (metricsStatus.isLoading || overview.metrics.automations !== null);
   const loadingLabel = intl.formatMessage(dashboardPageViewMessages.loadingWorkspaceOverview);
   const errorMessage = intl.formatMessage(dashboardPageViewMessages.overviewLoadError);
 
   return (
     <WorkspacePageShell>
       <PageHeader
-        icon={DashboardSquare01Icon}
+        icon={SquaresFourIcon}
         label={intl.formatMessage(dashboardPageViewMessages.pageLabel)}
         title={intl.formatMessage(dashboardPageViewMessages.pageTitle)}
-        description={intl.formatMessage(dashboardPageViewMessages.pageDescription)}
         actions={
           <Button type="button" className="w-full sm:w-fit" onClick={onNewRequest}>
-            <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} />
+            <ChatCircleIcon />
             <FormattedMessage {...dashboardPageViewMessages.newRequest} />
           </Button>
         }
@@ -475,10 +517,14 @@ export function DashboardPageView({
 
       <OverviewMetricsTray
         overview={overview}
-        automationsVisible={automationsVisible}
-        isLoading={isLoading}
+        automationsVisible={automationsMetricVisible}
+        isLoading={metricsStatus.isLoading}
+        isError={metricsStatus.isError}
         loadingLabel={loadingLabel}
+        errorMessage={errorMessage}
       />
+
+      {qaAttentionCard}
 
       <section className="flex flex-col gap-4 lg:flex-row lg:items-start">
         <div className="flex w-full min-w-0 flex-col gap-3 lg:w-[420px] lg:shrink-0">
@@ -489,8 +535,8 @@ export function DashboardPageView({
             renderLink={renderLink}
           />
           <OverviewFeed
-            isLoading={isLoading}
-            isError={isError}
+            isLoading={activityStatus.isLoading}
+            isError={activityStatus.isError}
             isEmpty={overview.activity.length === 0}
             emptyMessage={intl.formatMessage(dashboardPageViewMessages.activityEmpty)}
             errorMessage={errorMessage}
@@ -510,8 +556,8 @@ export function DashboardPageView({
             renderLink={renderLink}
           />
           <OverviewFeed
-            isLoading={isLoading}
-            isError={isError}
+            isLoading={projectsStatus.isLoading}
+            isError={projectsStatus.isError}
             isEmpty={overview.projects.length === 0}
             emptyMessage={intl.formatMessage(dashboardPageViewMessages.projectsEmpty)}
             errorMessage={errorMessage}
@@ -543,8 +589,8 @@ export function DashboardPageView({
             renderLink={renderLink}
           />
           <OverviewFeed
-            isLoading={isLoading}
-            isError={isError}
+            isLoading={boardStatus.isLoading}
+            isError={boardStatus.isError}
             isEmpty={overview.board.length === 0}
             emptyMessage={intl.formatMessage(dashboardPageViewMessages.boardEmpty)}
             errorMessage={errorMessage}
@@ -565,8 +611,8 @@ export function DashboardPageView({
               renderLink={renderLink}
             />
             <OverviewFeed
-              isLoading={isLoading}
-              isError={isError}
+              isLoading={automationsStatus.isLoading}
+              isError={automationsStatus.isError}
               isEmpty={overview.automations.length === 0}
               emptyMessage={intl.formatMessage(dashboardPageViewMessages.automationsEmpty)}
               errorMessage={errorMessage}

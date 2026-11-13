@@ -50,6 +50,12 @@ export const appShellNavigationMessages = defineMessages({
     id: "90L8I4Y/Gl",
     description: "Sidebar tooltip combining a navigation item label and its badge",
   },
+  qaErrorsBadge: {
+    defaultMessage: "{count, plural, one {# error} other {# errors}}",
+    id: "P8NGHREOfh",
+    description:
+      "Sidebar QA badge description with the number of errors in the latest completed QA scans",
+  },
   previewBadge: {
     defaultMessage: "Preview",
     id: "qiPX0q5vvf",
@@ -69,5 +75,20 @@ export const appShellNavigationMessages = defineMessages({
     defaultMessage: "Hyperlab",
     id: "pJnog+S4bX",
     description: "Sidebar section label above Hyperlab navigation items",
+  },
+  workspaceSection: {
+    defaultMessage: "Workspace",
+    id: "5RYXpxJmvr",
+    description: "Sidebar group label for workspace navigation items",
+  },
+  contentStudioSection: {
+    defaultMessage: "Content Studio",
+    id: "GCOyt/P/VO",
+    description: "Sidebar group label for content studio navigation items",
+  },
+  contentIntelligenceSection: {
+    defaultMessage: "Content Intelligence",
+    id: "x4rENGJxzk",
+    description: "Sidebar group label for content intelligence navigation items",
   },
 });

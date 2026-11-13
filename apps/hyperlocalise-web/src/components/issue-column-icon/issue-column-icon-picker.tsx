@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useMemo, useState } from "react";
-import { SearchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -96,7 +95,7 @@ export function IssueColumnIconPicker({
               aria-label={intl.formatMessage(messages.search)}
             />
             <InputGroupAddon>
-              <HugeiconsIcon icon={SearchIcon} strokeWidth={2} />
+              <MagnifyingGlassIcon />
             </InputGroupAddon>
           </InputGroup>
           {icons.length === 0 ? (
