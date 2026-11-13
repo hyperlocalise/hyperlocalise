@@ -29,157 +29,157 @@ export function getHomepageFaqItems(locale: string): HomepageFaqItem[] {
     {
       question: intl.formatMessage({
         defaultMessage: "What is Hyperlocalise?",
-        id: "zw8s3RUBzA",
-        description: "Homepage FAQ question about platform topic 1",
+        id: "pOEw/4Kn/d",
+        description: "Homepage FAQ question 1",
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Hyperlocalise is AI-native infrastructure for multilingual content operations. Content Studio, Automation Workflow, Domains, Hyperlab, and Guidelines connect content creation, orchestration, publishing, and optimisation.",
-        id: "5Ad03j9j5u",
-        description: "Homepage FAQ answer about platform topic 1",
+          "Hyperlocalise is an AI localisation platform for international growth. We translate your websites and apps with your translation memory and glossaries, adapt images and video to local cultures with Iris, and check content against each market's rules with Guidelines.",
+        id: "hRDR6f9Aqt",
+        description: "Homepage FAQ answer 1",
       }),
     },
     {
       question: intl.formatMessage({
-        defaultMessage: "What can my team do in Content Studio?",
-        id: "UxoXtyoyQB",
-        description: "Homepage FAQ question about platform topic 2",
+        defaultMessage: "How do I localise my website and app?",
+        id: "xj1b981fhU",
+        description: "Homepage FAQ question 2",
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Create and refine multilingual content in a shared workspace, with context and human review close at hand.",
-        id: "f05Tt/0FpU",
-        description: "Homepage FAQ answer about platform topic 2",
+          "Connect your GitHub repository, CMS or TMS. Agents pick up new strings and content as you ship, translate them with your translation memory and glossary, route them to reviewers in the CAT workspace, and sync the result back. That is continuous localisation without manual file handoffs.",
+        id: "4X/ML8XH2i",
+        description: "Homepage FAQ answer 2",
       }),
     },
     {
       question: intl.formatMessage({
-        defaultMessage: "How does Automation Workflow fit into the platform?",
-        id: "FS53HcU/f1",
-        description: "Homepage FAQ question about platform topic 3",
+        defaultMessage: "Do I need to replace Phrase, Lokalise, Crowdin or Smartling?",
+        id: "4+ShRbflLe",
+        description: "Homepage FAQ question 3",
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Automation Workflow connects tasks, AI agents, and human review into repeatable content operations.",
-        id: "+IYjyCmBJt",
-        description: "Homepage FAQ answer about platform topic 3",
+          "No. Hyperlocalise works alongside your existing TMS. Keep Phrase, Lokalise, Crowdin or Smartling, and add AI translation, review workflows, context and quality checks on top.",
+        id: "e/nWIr4yPz",
+        description: "Homepage FAQ answer 3",
       }),
     },
     {
       question: intl.formatMessage({
-        defaultMessage: "What is Domains?",
-        id: "Y+KPva7CsX",
-        description: "Homepage FAQ question about platform topic 4",
+        defaultMessage: "Which file formats and frameworks do you support?",
+        id: "5IldWcgBYw",
+        description: "Homepage FAQ question 4",
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Domains is for content publishing: a CMS with automated AEO and SEO operations to help teams manage content and discovery across markets.",
-        id: "wyGfdlT+34",
-        description: "Homepage FAQ answer about platform topic 4",
+          "JSON, JSONC, FormatJS and React Intl, ARB, XLIFF, gettext PO, Apple .strings and .stringsdict, CSV, HTML, Markdown and MDX. Sync them from your repository with the CLI or the GitHub Action.",
+        id: "qSXWDhW1/B",
+        description: "Homepage FAQ answer 4",
       }),
     },
     {
       question: intl.formatMessage({
-        defaultMessage: "What is Hyperlab?",
-        id: "DzGtKmIsFh",
-        description: "Homepage FAQ question about platform topic 5",
+        defaultMessage: "How do you keep translation quality high?",
+        id: "N+smbFbjnh",
+        description: "Homepage FAQ question 5",
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Hyperlab lets you run market experiments and show different features by country, so you learn what works before every market sees it.",
-        id: "URyMqNCJY6",
-        description: "Homepage FAQ answer about platform topic 5",
+          "Every translation uses your translation memory, glossary and style guides. Automated quality checks flag terminology and style issues, and reviewers approve in a CAT workspace with the source, target and product context side by side.",
+        id: "PHie3wwyNS",
+        description: "Homepage FAQ answer 5",
       }),
     },
     {
       question: intl.formatMessage({
-        defaultMessage: "How do Guidelines support the work?",
-        id: "hqrN/Zh7Ck",
-        description: "Homepage FAQ question about platform topic 6",
+        defaultMessage: "How do you adapt marketing images and video for other markets?",
+        id: "MhfN9vbsYS",
+        description: "Homepage FAQ question 6",
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Guidelines provide shared brand guidance, terminology, and market context for your team and AI agents throughout content operations.",
-        id: "Jk6f+RV4Ho",
-        description: "Homepage FAQ answer about platform topic 6",
+          "Iris, our AI localisation engine for multilingual assets, transcreates ad creative, images and video. It rewrites on-screen copy, adds subtitles and dubbing, and checks the layout in every language. Iris is in early access.",
+        id: "UIoMT+lEyM",
+        description: "Homepage FAQ answer 6",
+      }),
+    },
+    {
+      question: intl.formatMessage({
+        defaultMessage: "How do you check content against local regulations?",
+        id: "Ccq8BmEgk8",
+        description: "Homepage FAQ question 7",
+      }),
+      answer: intl.formatMessage({
+        defaultMessage:
+          "Connect the policy and legal documents you already keep in Drive, Notion or SharePoint. Guidelines checks content against them, for example GDPR marketing claims, AI disclosures or health claims, and blocks anything that is not ready to publish.",
+        id: "5cYfbA9FcQ",
+        description: "Homepage FAQ answer 7",
+      }),
+    },
+    {
+      question: intl.formatMessage({
+        defaultMessage: "Does Hyperlocalise help with international SEO?",
+        id: "QwyTjrA7ZP",
+        description: "Homepage FAQ question 8",
+      }),
+      answer: intl.formatMessage({
+        defaultMessage:
+          "Yes. Domains publishes your multilingual pages and runs SEO and AEO checks, such as hreflang and metadata, so local customers find you in search and AI answers.",
+        id: "5Cq13vDEuS",
+        description: "Homepage FAQ answer 8",
+      }),
+    },
+    {
+      question: intl.formatMessage({
+        defaultMessage: "Can we test what works in each market?",
+        id: "l6JIbiqYrX",
+        description: "Homepage FAQ question 9",
+      }),
+      answer: intl.formatMessage({
+        defaultMessage:
+          "Yes. Hyperlab lets you run a different version in each market, measure what converts, and roll the winner out everywhere.",
+        id: "UTNOMU+ANO",
+        description: "Homepage FAQ answer 9",
       }),
     },
     {
       question: intl.formatMessage({
         defaultMessage: "Can we ask an agent to do the work?",
-        id: "2ioZpgZgy2",
-        description: "Homepage FAQ question about platform topic 7",
+        id: "X7/gKCRQV5",
+        description: "Homepage FAQ question 10",
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Yes. Hyperlocalise agents live in integrations such as Slack, Teams, and GitHub, so teams can ask for work where they already collaborate. Available actions depend on the integration and workspace configuration.",
-        id: "3URR9qLWsH",
-        description: "Homepage FAQ answer about platform topic 7",
-      }),
-    },
-    {
-      question: intl.formatMessage({
-        defaultMessage: "Can we connect our own AI tools?",
-        id: "QWHemDFkex",
-        description: "Homepage FAQ question about platform topic 8",
-      }),
-      answer: intl.formatMessage({
-        defaultMessage:
-          "Yes. MCP gives compatible AI assistants access to Hyperlocalise capabilities, bringing content operations into your existing AI workspace.",
-        id: "G8YOSjr1Lc",
-        description: "Homepage FAQ answer about platform topic 8",
-      }),
-    },
-    {
-      question: intl.formatMessage({
-        defaultMessage: "Do I need to replace my TMS?",
-        id: "owW1Hvk/pe",
-        description: "Homepage FAQ question about platform topic 9",
-      }),
-      answer: intl.formatMessage({
-        defaultMessage:
-          "No. Hyperlocalise works alongside your existing TMS. Keep using Phrase, Lokalise, Crowdin or Smartling while Hyperlocalise orchestrates AI agents, review workflows, context discovery and quality checks.",
-        id: "dAN96XLBhS",
-        description: "Homepage FAQ answer about platform topic 9",
+          "Yes. Ask Hyperlocalise in Slack, Teams or GitHub, or connect it through MCP in Claude, Codex and Cursor. Agents handle the repeatable work while your team reviews and approves.",
+        id: "fNECwAHlp0",
+        description: "Homepage FAQ answer 10",
       }),
     },
     {
       question: intl.formatMessage({
         defaultMessage: "Can I use my preferred AI models?",
-        id: "z5PrXgdEMz",
-        description: "Homepage FAQ question about platform topic 10",
+        id: "FWMLraU4B2",
+        description: "Homepage FAQ question 11",
       }),
       answer: intl.formatMessage({
         defaultMessage:
           "Yes. Hyperlocalise is LLM-agnostic. Use OpenAI, Anthropic, Gemini or your preferred provider, and switch models without changing your workflow.",
-        id: "jXzA8Zex1U",
-        description: "Homepage FAQ answer about platform topic 10",
+        id: "mYOHssr5f8",
+        description: "Homepage FAQ answer 11",
       }),
     },
     {
       question: intl.formatMessage({
         defaultMessage: "Who is Hyperlocalise built for?",
-        id: "/mP31XTUTm",
-        description: "Homepage FAQ question about platform topic 11",
+        id: "FHgj/2FvSs",
+        description: "Homepage FAQ question 12",
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Content, localisation, marketing, and development teams working together to create, publish, and improve multilingual content.",
-        id: "8KBorulqxU",
-        description: "Homepage FAQ answer about platform topic 11",
-      }),
-    },
-    {
-      question: intl.formatMessage({
-        defaultMessage: "How can we get started?",
-        id: "gXu61zDcr/",
-        description: "Homepage FAQ question about platform topic 12",
-      }),
-      answer: intl.formatMessage({
-        defaultMessage:
-          "Request a demo to explore the products and discuss how Hyperlocalise can fit your team’s content operations and existing tools.",
-        id: "zPGts4kyVb",
-        description: "Homepage FAQ answer about platform topic 12",
+          "Localisation managers, international growth and marketing teams, and developers who need to launch in new markets quickly without losing quality, brand or compliance.",
+        id: "SVRTCpilEO",
+        description: "Homepage FAQ answer 12",
       }),
     },
   ];

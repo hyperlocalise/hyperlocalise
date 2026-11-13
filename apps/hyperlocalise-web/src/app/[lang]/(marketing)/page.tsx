@@ -32,22 +32,24 @@ import { PricingPlansSection } from "@/components/marketing/pricing/pricing-plan
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { getAllPosts } from "@/lib/blog/blog-post";
+import { getMarketingIntegrations } from "@/components/marketing/integrations/integrations-page-content";
 import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 const metadataKeywords = [
   "Hyperlocalise",
+  "AI localisation platform",
+  "localization platform",
+  "international growth",
+  "global expansion",
   "localisation",
   "localization",
   "translation",
-  "translate",
-  "product",
-  "context",
-  "launch",
-  "review",
+  "website translation",
+  "app localisation",
+  "cultural adaptation",
+  "video localisation",
+  "compliance",
   "AI",
-  "agentic",
-  "TMS",
-  "GitHub",
 ] as const;
 
 type HomePageProps = {
@@ -60,19 +62,19 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const intl = getIntlShape(locale);
 
   const title = intl.formatMessage({
-    defaultMessage: "Hyperlocalise | AI-native infrastructure for multilingual content operations",
-    id: "vnqJFX0Vm1",
+    defaultMessage: "AI Localisation Platform for International Growth | Hyperlocalise",
+    id: "iakGT6ABzj",
     description: "Page title for the marketing homepage",
   });
   const description = intl.formatMessage({
     defaultMessage:
-      "Create, orchestrate, publish, and optimise multilingual content with Content Studio, Automation Workflow, Domains, Hyperlab, Guidelines, and AI agents.",
-    id: "gWsVpsBaTk",
+      "The AI localisation platform for international growth. Translate websites and apps with your TMS, adapt images and video to local cultures, and check every market's rules before you go live.",
+    id: "jgfYN8ytVV",
     description: "Meta description for the marketing homepage",
   });
   const openGraphDescription = intl.formatMessage({
-    defaultMessage: "AI-native infrastructure for multilingual content operations.",
-    id: "VmLY6IFMWn",
+    defaultMessage: "The AI partner for international growth.",
+    id: "3LHetSCirA",
     description:
       "Open Graph meta description for the marketing homepage (shorter than the main description)",
   });
@@ -95,6 +97,29 @@ export default async function Home({ params }: HomePageProps) {
   const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
   const jsonLd = buildHomeJsonLd(locale);
   const faqItems = getHomepageFaqItems(locale);
+  const integrationCategoryOrder = [
+    "tms",
+    "source-control",
+    "cms",
+    "guidelines",
+    "collaboration",
+    "seo-tools",
+    "customer-engagement",
+  ];
+  const integrations = getMarketingIntegrations(locale)
+    .filter(
+      (item) => item.status === "available" && integrationCategoryOrder.includes(item.category),
+    )
+    .sort(
+      (a, b) =>
+        integrationCategoryOrder.indexOf(a.category) - integrationCategoryOrder.indexOf(b.category),
+    )
+    .map((item) => ({
+      slug: item.slug,
+      name: item.name,
+      logoSrc: "logoSrc" in item ? item.logoSrc : undefined,
+      iconKey: "iconKey" in item ? item.iconKey : undefined,
+    }));
   const recentPosts = getAllPosts(lang)
     .slice(0, 4)
     .map(({ content: _content, ...rest }) => rest);
@@ -102,6 +127,7 @@ export default async function Home({ params }: HomePageProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <PlatformHomepage
+        integrations={integrations}
         plans={
           <PricingPlansSection
             plans={getPricingPlans(lang)}
