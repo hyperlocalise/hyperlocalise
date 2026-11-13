@@ -28,6 +28,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { projectTemplatesQueryKey } from "@/lib/projects/project-templates/project-templates-query-key";
 import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
@@ -36,6 +37,7 @@ import { fetchTmsLiveProjects, tmsLiveProjectsQueryKey } from "../../_hooks/use-
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import { ProjectAvatar } from "./project-avatar";
 import { ProjectDialog } from "./project-dialog";
+import { SaveAsTemplateDialog } from "./save-as-template-dialog";
 import {
   createEmptyProjectForm,
   createProjectFormFromRow,
@@ -127,8 +129,11 @@ function RecentProjectsStrip({
 
 export const ProjectsPageContent = observer(function ProjectsPageContent({
   organizationSlug,
+  canManageTemplates = false,
 }: {
   organizationSlug: string;
+  /** Admins and localization managers can save a project as a template. */
+  canManageTemplates?: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -181,6 +186,39 @@ export const ProjectsPageContent = observer(function ProjectsPageContent({
       void queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
       pageStore.closeProjectDialog(false);
       toast.success(intl.formatMessage(projectsPageContentMessages.projectCreated));
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+  // Templates for the New project dialog; every member may list them.
+  const projectTemplatesQuery = useQuery({
+    queryKey: projectTemplatesQueryKey(organizationSlug),
+    enabled: pageStore.isProjectDialogOpen && pageStore.projectDialogMode !== "edit",
+    queryFn: async () =>
+      (await goSvcClient.projectTemplate.list(organizationSlug)).projectTemplates,
+  });
+  const saveAsTemplate = useMutation({
+    mutationFn: async ({ projectId, name }: { projectId: string; name: string }) => {
+      try {
+        return await goSvcClient.projectTemplate.create(organizationSlug, {
+          name,
+          fromProjectId: projectId,
+        });
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(projectsPageContentMessages.saveTemplateFailed),
+          ),
+          { cause: error },
+        );
+      }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: projectTemplatesQueryKey(organizationSlug) });
+      pageStore.setTemplateSourceProject(null);
+      toast.success(intl.formatMessage(projectsPageContentMessages.templateSaved));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -358,6 +396,9 @@ export const ProjectsPageContent = observer(function ProjectsPageContent({
       onLoadMore={() => pageStore.loadMoreNativeProjects()}
       onEditProject={(project) => pageStore.openEditProjectDialog(project)}
       onDeleteProject={(project) => pageStore.setDeleteProject(project)}
+      onSaveAsTemplate={
+        canManageTemplates ? (project) => pageStore.setTemplateSourceProject(project) : undefined
+      }
       onCreateProject={() => pageStore.openCreateProjectDialog()}
       onOpenProject={(projectId) => pageStore.openProject(projectId, allProjects)}
     />
@@ -529,9 +570,20 @@ export const ProjectsPageContent = observer(function ProjectsPageContent({
         mode={pageStore.projectDialogMode === "edit" ? "edit" : "create"}
         projectSource={pageStore.editingProject?.source ?? "native"}
         initialValues={initialProjectValues}
+        templates={projectTemplatesQuery.data ?? []}
         isSaving={isSavingProject}
         onOpenChange={(open) => pageStore.closeProjectDialog(open)}
         onSubmit={saveProject}
+      />
+      <SaveAsTemplateDialog
+        project={pageStore.templateSourceProject}
+        isSaving={saveAsTemplate.isPending}
+        onOpenChange={(open) => {
+          if (!open) {
+            pageStore.setTemplateSourceProject(null);
+          }
+        }}
+        onSave={saveAsTemplate.mutate}
       />
       <DeleteProjectDialog
         project={pageStore.deleteProject}

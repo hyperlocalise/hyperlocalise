@@ -16,7 +16,7 @@ https://hyperlocalise.com/api/v1
 
 The CLI `hyperlocalise.api_base_url` default is `https://hyperlocalise.com/api`. Paths below are relative to that host, including `/v1`, except job reads.
 
-Read jobs from `https://api.hyperlocalise.com/v1`. See [Read jobs](#read-jobs).
+Read jobs from `https://public-api.hyperlocalise.com/v1`. See [Read jobs](#read-jobs).
 
 ## Authentication
 
@@ -258,19 +258,21 @@ Finishes an open task for people, such as a key job or a proofread job, the same
 
 The CLI does not call these endpoints during `sync push`. Platform automations and the UI create jobs after upload.
 
+After you create a key job, list its strings, add or remove keys, read per-locale progress, and change target languages on `https://public-api.hyperlocalise.com/v1`. See [Strings and key jobs](/platform/developers/strings-and-key-jobs#key-jobs-after-creation).
+
 ### Read jobs
 
 Job reads use a different host from the rest of this API:
 
 ```
-https://api.hyperlocalise.com/v1
+https://public-api.hyperlocalise.com/v1
 ```
 
 Send the same `x-api-key`. `https://hyperlocalise.com/api/v1` no longer serves these routes.
 
 ### Latest job for a source path
 
-`GET https://api.hyperlocalise.com/v1/jobs/latest?projectId={projectId}&sourcePath={sourcePath}`
+`GET https://public-api.hyperlocalise.com/v1/jobs/latest?projectId={projectId}&sourcePath={sourcePath}`
 
 Permission: `jobs:read`
 
@@ -278,7 +280,7 @@ Returns the most recent succeeded file job for that source path, including `outp
 
 ### Get a job
 
-`GET https://api.hyperlocalise.com/v1/jobs/{jobId}`
+`GET https://public-api.hyperlocalise.com/v1/jobs/{jobId}`
 
 Permission: `jobs:read`
 
@@ -299,27 +301,34 @@ Permission: `jobs:read`
     "ownerEmail": "pm@example.com",
     "outputFiles": [
       { "fileId": "file_...", "locale": "fr-FR", "filename": "fr.json" }
-    ]
+    ],
+    "sourceFile": { "fileId": "file_...", "path": "locales/en.json", "branch": "main" },
+    "sourceLocale": "en",
+    "targetLocales": ["fr-FR"]
   }
 }
 ```
 
+`sourceFile` is the stored file the job translates or reviews: `fileId` is its id for [Download a stored file](#download-a-stored-file), `path` is its path in the project, and `branch` is the project version branch it is on (both `null` if it has no path). It is `null` for jobs not made from a stored file, such as key jobs. `sourceLocale` and `targetLocales` are the languages the job was created with; they are `null` for jobs synced from another TMS.
+
+To act when a review task finishes, listen for the job-change [webhook](/platform/developers/webhooks), then read the job here to find its file and languages.
+
 ### Job status
 
-`GET https://api.hyperlocalise.com/v1/jobs/{jobId}/status`
+`GET https://public-api.hyperlocalise.com/v1/jobs/{jobId}/status`
 
 Permission: `jobs:read`
 
 Smaller payload with `id`, `projectId`, `kind`, `type`, `status`, timestamps, and `lastError`.
 
 ```bash
-curl --fail-with-body "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/status" \
+curl --fail-with-body "https://public-api.hyperlocalise.com/v1/jobs/$JOB_ID/status" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY"
 ```
 
 ### Match-band analysis
 
-`GET https://api.hyperlocalise.com/v1/jobs/{jobId}/analysis`
+`GET https://public-api.hyperlocalise.com/v1/jobs/{jobId}/analysis`
 
 Permission: `jobs:read`
 
@@ -358,7 +367,7 @@ Optional query: `unit` is `words` (default), `strings`, `characters`, or `charac
 - Money, rate cards, and cost estimates are not included.
 
 ```bash
-curl --fail-with-body "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/analysis?unit=words" \
+curl --fail-with-body "https://public-api.hyperlocalise.com/v1/jobs/$JOB_ID/analysis?unit=words" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY"
 ```
 
@@ -367,28 +376,28 @@ curl --fail-with-body "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/analysis?un
 TMX import and export use the same host as job reads:
 
 ```
-https://api.hyperlocalise.com/v1
+https://public-api.hyperlocalise.com/v1
 ```
 
 Send the same `x-api-key`. These routes wrap the native workspace memory the owner can already see. They do not create memories or list them.
 
 ### Export entries
 
-`GET https://api.hyperlocalise.com/v1/translation-memories/{memoryId}/entries/export?format=tmx`
+`GET https://public-api.hyperlocalise.com/v1/translation-memories/{memoryId}/entries/export?format=tmx`
 
 Permission: `memories:read`
 
 Returns TMX 1.4 bytes (`application/x-tmx+xml`). Pass `format=csv` for the Hyperlocalise row layout. Optional `sourceLocale` and `targetLocale` filter to one language pair.
 
 ```bash
-curl --fail-with-body "https://api.hyperlocalise.com/v1/translation-memories/$MEMORY_ID/entries/export?format=tmx" \
+curl --fail-with-body "https://public-api.hyperlocalise.com/v1/translation-memories/$MEMORY_ID/entries/export?format=tmx" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY" \
   -o product.tmx
 ```
 
 ### Import entries
 
-`POST https://api.hyperlocalise.com/v1/translation-memories/{memoryId}/entries/import`
+`POST https://public-api.hyperlocalise.com/v1/translation-memories/{memoryId}/entries/import`
 
 Permission: `memories:write`
 
@@ -411,11 +420,11 @@ Requires an active Crowdin, Phrase Strings, or Smartling connection (the credent
 
 List provider translation memories:
 
-`GET https://api.hyperlocalise.com/v1/orgs/{organizationSlug}/tms/translation-memories`
+`GET https://public-api.hyperlocalise.com/v1/orgs/{organizationSlug}/tms/translation-memories`
 
 Import into a native memory (background TMX export + interchange queue):
 
-`POST https://api.hyperlocalise.com/v1/orgs/{organizationSlug}/translation-memories/{memoryId}/entries/import/from-tms`
+`POST https://public-api.hyperlocalise.com/v1/orgs/{organizationSlug}/translation-memories/{memoryId}/entries/import/from-tms`
 
 Body: `{ "credentialId": "<uuid>", "externalId": "<provider id>" }`. Response `202` includes `attemptId`.
 

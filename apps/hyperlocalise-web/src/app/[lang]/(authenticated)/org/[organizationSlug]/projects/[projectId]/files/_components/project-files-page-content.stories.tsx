@@ -22,6 +22,7 @@ import { ProjectFilesPageContentView } from "./project-files-page-content";
 import { ProjectFilesTree } from "./project-files-tree";
 import {
   createProjectFileRecord,
+  nativeProjectBranchesFixture,
   projectFilesFixture,
   providerProjectBranchesFixture,
   providerProjectFilesFixture,
@@ -39,6 +40,8 @@ function storyFilesTree({
   showBranchFilter = false,
   selectedBranch = null,
   onSelectBranch,
+  allowAllBranches = true,
+  branches = providerProjectBranchesFixture,
   fileActions,
 }: {
   files: typeof projectFilesFixture;
@@ -52,6 +55,8 @@ function storyFilesTree({
   showBranchFilter?: boolean;
   selectedBranch?: string | null;
   onSelectBranch?: (branch: string | null) => void;
+  allowAllBranches?: boolean;
+  branches?: typeof providerProjectBranchesFixture;
   fileActions?: Parameters<typeof ProjectFilesTree>[0]["fileActions"];
 }) {
   return () => (
@@ -66,7 +71,8 @@ function storyFilesTree({
         {showBranchFilter ? (
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <ProjectFilesBranchFilterView
-              branches={providerProjectBranchesFixture}
+              allowAllBranches={allowAllBranches}
+              branches={branches}
               selectedBranch={selectedBranch}
               onSelectedBranchChange={onSelectBranch ?? (() => undefined)}
             />
@@ -152,6 +158,59 @@ export const Uploading: Story = {
   args: {
     selectedFiles: selectedUploadFiles,
     isUploading: true,
+  },
+};
+
+export const NativeFilesWithBranchFilter: Story = {
+  args: {
+    filesTree: storyFilesTree({
+      files: projectFilesFixture,
+      selectedSourcePath: selectedFile.sourcePath,
+      onSelectSourcePath: () => undefined,
+      organizationSlug: "acme",
+      projectId: "project_website",
+      highlightLocale: "fr-FR",
+      showBranchFilter: true,
+      allowAllBranches: false,
+      selectedBranch: "main",
+      branches: nativeProjectBranchesFixture,
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Branch")).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox")).toHaveTextContent("main");
+    await expect(canvas.queryByText("All branches")).not.toBeInTheDocument();
+  },
+};
+
+export const NativeFilesBranchSelected: Story = {
+  render: (args) => {
+    const [selectedBranch, setSelectedBranch] = useState<string | null>("feature-checkout");
+
+    return (
+      <ProjectFilesPageContentView
+        {...args}
+        selectedBranch={selectedBranch}
+        filesTree={storyFilesTree({
+          files: projectFilesFixture,
+          selectedSourcePath: selectedFile.sourcePath,
+          onSelectSourcePath: () => undefined,
+          organizationSlug: "acme",
+          projectId: "project_website",
+          highlightLocale: "fr-FR",
+          showBranchFilter: true,
+          allowAllBranches: false,
+          selectedBranch,
+          onSelectBranch: setSelectedBranch,
+          branches: nativeProjectBranchesFixture,
+        })}
+      />
+    );
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Branch")).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox")).toHaveTextContent("feature-checkout");
+    await expect(canvas.queryByText("All branches")).not.toBeInTheDocument();
   },
 };
 

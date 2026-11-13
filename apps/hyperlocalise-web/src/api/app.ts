@@ -72,6 +72,7 @@ import type {
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
 import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
 import { createInternalDeepAuditRoutes } from "./routes/internal-deep-audits/internal-deep-audits.route";
+import { createInternalWebhookRoutes } from "./routes/internal-webhooks/internal-webhooks.route";
 
 export type CreateAppOptions = {
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
@@ -152,6 +153,7 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
   return new Hono()
     .route("/health", healthRoutes)
     .route("/internal/tms", createInternalTmsRoutes())
+    .route("/internal/webhooks", createInternalWebhookRoutes())
     .route(
       "/internal/deep-audits",
       createInternalDeepAuditRoutes({ queue: options.localisationDeepAuditQueue }),

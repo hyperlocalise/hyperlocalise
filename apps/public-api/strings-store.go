@@ -80,6 +80,7 @@ type projectLocales struct {
 
 type stringFilters struct {
 	Keys          []string
+	KeyPrefix     string
 	Tags          []string
 	Search        string
 	FilePath      string
@@ -274,6 +275,9 @@ func (s *postgresStore) listStrings(ctx context.Context, actor principal, projec
 	}
 	if len(filters.Keys) > 0 {
 		where.add("k.key = ANY(?::text[])", filters.Keys)
+	}
+	if filters.KeyPrefix != "" {
+		where.add(`k.key LIKE ? ESCAPE '\'`, likePrefix(filters.KeyPrefix))
 	}
 	if len(filters.Tags) > 0 {
 		where.add("k.tags @> ?::text[]", filters.Tags)

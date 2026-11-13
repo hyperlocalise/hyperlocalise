@@ -49,7 +49,8 @@ func run(ctx context.Context) error {
 	if err := pool.Ping(ctx); err != nil {
 		return fmt.Errorf("connect database: %w", err)
 	}
-	auth := newPostgresAuthenticator(pool, autumnClientFromEnv(os.Getenv("AUTUMN_API_KEY")))
+	autumn := autumnClientFromEnv(os.Getenv("AUTUMN_API_KEY"))
+	auth := newPostgresAuthenticator(pool, autumn)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort
@@ -58,7 +59,7 @@ func run(ctx context.Context) error {
 	if err != nil || number < 1 || number > 65535 {
 		return errors.New("PORT must be between 1 and 65535")
 	}
-	store := &postgresStore{pool: pool}
+	store := &postgresStore{pool: pool, autumn: autumn}
 	if store.objects, err = s3compat.RegistryFromEnv(ctx); err != nil {
 		return fmt.Errorf("configure object storage: %w", err)
 	}
@@ -68,6 +69,7 @@ func run(ctx context.Context) error {
 	if store.objects == nil || store.glossaryImports == nil {
 		slog.Warn("glossary imports disabled", "reason", "object storage or "+glossaryInterchangeQueueURLEnv+" not configured")
 	}
+	store.webhookSecrets = newWebhookSecretMinterFromEnv()
 	server := &http.Server{
 		Addr:              ":" + port,
 		Handler:           newHandler(auth, store),

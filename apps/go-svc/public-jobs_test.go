@@ -55,6 +55,7 @@ type publicJobSeed struct {
 	jobType         string
 	outcomeKind     string
 	outcomePayload  string
+	inputPayload    string
 	lastError       *string
 	createdAt       time.Time
 	updatedAt       time.Time
@@ -87,10 +88,14 @@ func mustPublicJob(t *testing.T, scope *testenv.Scope, seed publicJobSeed) strin
 	if seed.outcomePayload != "" {
 		payload = seed.outcomePayload
 	}
+	if seed.inputPayload == "" {
+		seed.inputPayload = "{}"
+	}
 	_, err := scope.Pool.Exec(t.Context(), `
         insert into jobs (id, organization_id, project_id, kind, status, input_payload, outcome_payload, last_error, created_at, updated_at, completed_at)
-        values ($1, $2, $3, $4::job_kind, $5::job_status, '{}'::jsonb, $6::jsonb, $7, $8, $9, $10)`,
-		id, scope.OrganizationID, projectID, seed.kind, seed.status, payload, seed.lastError, seed.createdAt, seed.updatedAt, seed.completedAt)
+        values ($1, $2, $3, $4::job_kind, $5::job_status, $11::jsonb, $6::jsonb, $7, $8, $9, $10)`,
+		id, scope.OrganizationID, projectID, seed.kind, seed.status, payload, seed.lastError, seed.createdAt, seed.updatedAt, seed.completedAt,
+		seed.inputPayload)
 	require.NoError(t, err)
 	if seed.jobType != "" {
 		var outcomeKind, versionID any
@@ -123,7 +128,7 @@ func mustPublicJobSourceVersion(t *testing.T, scope *testenv.Scope, projectID, s
 	require.NoError(t, scope.Pool.QueryRow(t.Context(), `
         insert into repository_source_files (organization_id, project_id, source_path)
         values ($1, $2, $3)
-        on conflict (project_id, source_path) do update set updated_at=now()
+        on conflict (project_id, branch_name, source_path) do update set updated_at=now()
         returning id`, scope.OrganizationID, projectID, sourcePath).Scan(&sourceFileID))
 	var versionID string
 	require.NoError(t, scope.Pool.QueryRow(t.Context(), `
@@ -312,6 +317,22 @@ func TestPublicJobOutputFiles(t *testing.T) {
 	require.Nil(t, publicJobOutputFiles(nil, nil, valid))
 }
 
+func TestPublicJobSourceFileOf(t *testing.T) {
+	fileID, blank, path, branch := "file_1", " \t", "a/b.json", "main"
+	require.Equal(t, &publicJobSourceFile{FileID: fileID, Path: &path, Branch: &branch}, publicJobSourceFileOf(&fileID, &path, &branch))
+	require.Equal(t, &publicJobSourceFile{FileID: fileID}, publicJobSourceFileOf(&fileID, nil, nil))
+	require.Nil(t, publicJobSourceFileOf(nil, &path, &branch))
+	require.Nil(t, publicJobSourceFileOf(&blank, &path, &branch))
+}
+
+func TestPublicJobTargetLocales(t *testing.T) {
+	require.Equal(t, &[]string{"fr", "de"}, publicJobTargetLocales([]byte(`["fr","de"]`)))
+	require.Equal(t, &[]string{}, publicJobTargetLocales([]byte(`[]`)))
+	for _, raw := range []string{"", "null", `"fr"`, `[1]`, `{"fr":true}`} {
+		require.Nil(t, publicJobTargetLocales([]byte(raw)), raw)
+	}
+}
+
 func TestFormatPublicJobTime(t *testing.T) {
 	sydney := time.FixedZone("AEST", 10*60*60)
 	require.Equal(t, "2026-01-02T03:04:05.678Z", formatPublicJobTime(time.Date(2026, 1, 2, 13, 4, 5, 678999000, sydney)))
@@ -339,7 +360,52 @@ func TestPublicJobsRead(t *testing.T) {
             "createdAt":"2026-01-02T03:04:05.678Z","updatedAt":"2026-01-02T04:04:05.678Z","completedAt":"2026-01-02T05:04:05.678Z",
             "lastError":"`+longError+`",
             "title":null,"description":null,"dueAt":null,"ownerEmail":null,
-            "outputFiles":[{"fileId":"file_output_fr","locale":"fr-FR","filename":"source.fr-FR.xliff"}]}}`, rec.Body.String())
+            "outputFiles":[{"fileId":"file_output_fr","locale":"fr-FR","filename":"source.fr-FR.xliff"}],
+            "sourceFile":null,"sourceLocale":null,"targetLocales":null}}`, rec.Body.String())
+	})
+
+	t.Run("returns a file task's source file and languages", func(t *testing.T) {
+		f := newPublicJobsFixture(t, "admin", nil)
+		versionID := mustPublicJobSourceVersion(t, f.scope, f.scope.ProjectID, "docs/zh/guide.docx", createdAt)
+		var fileID string
+		require.NoError(t, f.scope.Pool.QueryRow(t.Context(),
+			`select stored_file_id from repository_source_file_versions where id=$1`, versionID).Scan(&fileID))
+		id := mustPublicJob(t, f.scope, publicJobSeed{
+			kind: "proofread", status: "succeeded", jobType: "file", sourceVersionID: versionID,
+			inputPayload: `{"sourceFileId":"` + fileID + `","fileFormat":"docx","sourceLocale":"zh-CN","targetLocales":["en-US"]}`,
+		})
+		job := decodePublicJob(t, f.get(t, "/v1/jobs/"+id))
+		require.Equal(t, map[string]any{"fileId": fileID, "path": "docs/zh/guide.docx", "branch": "main"}, job["sourceFile"])
+		require.Equal(t, "zh-CN", job["sourceLocale"])
+		require.Equal(t, []any{"en-US"}, job["targetLocales"])
+
+		_, err := f.scope.Pool.Exec(t.Context(), `update repository_source_files set branch_name='release-2' where id=(
+            select repository_source_file_id from repository_source_file_versions where id=$1)`, versionID)
+		require.NoError(t, err)
+		job = decodePublicJob(t, f.get(t, "/v1/jobs/"+id))
+		require.Equal(t, "release-2", job["sourceFile"].(map[string]any)["branch"])
+	})
+
+	t.Run("returns a null path for a file not tracked at a path", func(t *testing.T) {
+		f := newPublicJobsFixture(t, "admin", nil)
+		id := mustPublicJob(t, f.scope, publicJobSeed{
+			jobType: "file", inputPayload: `{"sourceFileId":"file_untracked","sourceLocale":"en","targetLocales":["fr"]}`,
+		})
+		job := decodePublicJob(t, f.get(t, "/v1/jobs/"+id))
+		require.Equal(t, map[string]any{"fileId": "file_untracked", "path": nil, "branch": nil}, job["sourceFile"])
+	})
+
+	t.Run("returns no source file for a key job", func(t *testing.T) {
+		f := newPublicJobsFixture(t, "admin", nil)
+		id := mustPublicJob(t, f.scope, publicJobSeed{
+			status: "waiting_for_review", jobType: "keys",
+			inputPayload: `{"sourceLocale":"en","targetLocales":["de-DE","ja-JP"],"tags":["checkout"]}`,
+		})
+		job := decodePublicJob(t, f.get(t, "/v1/jobs/"+id))
+		require.Contains(t, job, "sourceFile")
+		require.Nil(t, job["sourceFile"])
+		require.Equal(t, "en", job["sourceLocale"])
+		require.Equal(t, []any{"de-DE", "ja-JP"}, job["targetLocales"])
 	})
 
 	t.Run("returns the title, description, due date and owner a client set", func(t *testing.T) {
@@ -570,6 +636,19 @@ func TestPublicJobsLatest(t *testing.T) {
 		require.Equal(t, "2026-01-03T00:00:00.000Z", job["completedAt"])
 		require.Equal(t, []any{map[string]any{"fileId": "newer", "locale": "fr-FR", "filename": "source.fr-FR.xliff"}}, job["outputFiles"])
 		require.NotContains(t, job, "kind")
+	})
+
+	t.Run("returns the job's source file path", func(t *testing.T) {
+		f := newPublicJobsFixture(t, "admin", nil)
+		p := f.scope.ProjectID
+		id := mustLatestFileJob(t, f.scope, p, sourcePath, base, publicJobSeed{
+			outcomePayload: publicJobOutputPayload("fr"),
+			inputPayload:   `{"sourceFileId":"file_source","sourceLocale":"en","targetLocales":["fr-FR"]}`,
+		})
+		job := decodePublicJob(t, f.latest(t, p, sourcePath))
+		require.Equal(t, id, job["id"])
+		require.Equal(t, map[string]any{"fileId": "file_source", "path": sourcePath, "branch": "main"}, job["sourceFile"])
+		require.Equal(t, []any{"fr-FR"}, job["targetLocales"])
 	})
 
 	t.Run("falls back past newer unsuccessful pushes", func(t *testing.T) {

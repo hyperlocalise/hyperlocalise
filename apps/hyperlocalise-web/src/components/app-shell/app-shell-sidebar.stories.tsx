@@ -13,12 +13,19 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent } from "storybook/test";
 
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+
 import {
   APP_SHELL_STORY_LINKED_DOMAIN_ID,
   APP_SHELL_STORY_ORGANIZATION_SLUG,
   APP_SHELL_STORY_PROJECT_ID,
   AppShellSidebarStoryFrame,
 } from "./app-shell.stories.fixture";
+
+const connectedTmsProjectId = encodeProviderProjectId({
+  providerKind: "crowdin",
+  externalProjectId: "project_website",
+});
 
 const meta = {
   title: "App Shell/Sidebar",
@@ -95,7 +102,33 @@ export const ProjectNavigation: Story = {
     await expect(canvas.getByRole("link", { name: "All projects" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Files" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Overview" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: /Video Editor/ })).toBeDisabled();
+    await expect(canvas.getByRole("link", { name: "Branches" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Video Editor/ })).toHaveAttribute(
+      "data-trigger-disabled",
+    );
+  },
+};
+
+export const ProjectNavigationConnectedTms: Story = {
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/${APP_SHELL_STORY_ORGANIZATION_SLUG}/projects/${encodeURIComponent(connectedTmsProjectId)}/files`,
+      },
+    },
+  },
+  render: () => (
+    <AppShellSidebarStoryFrame
+      variant="project"
+      projectId={connectedTmsProjectId}
+      projectName="Crowdin website"
+    />
+  ),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Crowdin website")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Files" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("link", { name: "Branches" })).not.toBeInTheDocument();
   },
 };
 

@@ -53,6 +53,8 @@ export const projectTranslationKeys = pgTable(
       { onDelete: "cascade" },
     ),
     key: text("key").notNull(),
+    /** Native version branch; file-less keys use this when no source file is attached. */
+    branchName: text("branch_name").notNull().default("main"),
     sourceText: text("source_text").notNull(),
     normalizedSourceText: text("normalized_source_text").notNull(),
     /**
@@ -101,6 +103,7 @@ export const projectTranslationKeys = pgTable(
       table.key,
     ),
     index("idx_project_translation_keys_org_project").on(table.organizationId, table.projectId),
+    index("idx_project_translation_keys_project_branch").on(table.projectId, table.branchName),
     index("idx_project_translation_keys_file").on(table.repositorySourceFileId),
     index("idx_project_translation_keys_tags").using("gin", table.tags),
   ],

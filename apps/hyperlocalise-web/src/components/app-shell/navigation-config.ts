@@ -43,6 +43,7 @@ import {
   DatabaseIcon,
   FileIcon,
   FlagIcon,
+  GitBranchIcon,
   LightningIcon,
   FlaskIcon,
   GlobeIcon,
@@ -370,15 +371,26 @@ export function buildProjectNavigationGroups(
   const workspaceItems: NavigationItem[] = [];
 
   if (!providerKind) {
-    workspaceItems.push({
-      label: intl.formatMessage({
-        defaultMessage: "QA",
-        id: "jDgpB2Pv9x",
-        description: "Project sidebar navigation item for translation QA reports",
-      }),
-      href: project("qa"),
-      icon: CheckCircleIcon,
-    });
+    workspaceItems.push(
+      {
+        label: intl.formatMessage({
+          defaultMessage: "Branches",
+          id: "u/XC3md7V9",
+          description: "Project sidebar navigation item for native version branches",
+        }),
+        href: project("branches"),
+        icon: GitBranchIcon,
+      },
+      {
+        label: intl.formatMessage({
+          defaultMessage: "QA",
+          id: "jDgpB2Pv9x",
+          description: "Project sidebar navigation item for translation QA reports",
+        }),
+        href: project("qa"),
+        icon: CheckCircleIcon,
+      },
+    );
   }
 
   workspaceItems.push(

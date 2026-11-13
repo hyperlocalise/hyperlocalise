@@ -12,6 +12,12 @@
  */
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import {
+  encryptProviderCredential,
+  type EncryptedProviderCredential,
+} from "@/lib/security/provider-credential-crypto";
+
 /**
  * Signatures follow the Standard Webhooks spec (https://www.standardwebhooks.com), so receivers
  * can verify with any of its libraries: `webhook-id`, `webhook-timestamp` (unix seconds) and
@@ -22,6 +28,24 @@ const WEBHOOK_SECRET_BYTES = 32;
 
 export function generateWebhookSecret(): string {
   return `${WEBHOOK_SECRET_PREFIX}${randomBytes(WEBHOOK_SECRET_BYTES).toString("base64")}`;
+}
+
+export type MintedWebhookSigningSecret = {
+  secret: string;
+  encrypted: EncryptedProviderCredential;
+};
+
+/** Generates a Standard Webhooks secret and encrypts it with the provider credentials master key. */
+export function mintWebhookSigningSecret(): Result<
+  MintedWebhookSigningSecret,
+  { code: "webhook_secret_encryption_failed" }
+> {
+  const secret = generateWebhookSecret();
+  const encrypted = encryptProviderCredential(secret);
+  if (isErr(encrypted)) {
+    return err({ code: "webhook_secret_encryption_failed" });
+  }
+  return ok({ secret, encrypted: encrypted.value });
 }
 
 function secretKey(secret: string): Buffer {

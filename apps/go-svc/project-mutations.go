@@ -10,15 +10,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
+	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
+	"github.com/hyperlocalise/hyperlocalise/internal/projecttemplate"
 )
 
 const (
 	projectBodyLimit = 256 << 10
 
 	projectLocalFallbackLimit = 1
-
-	defaultNativeProjectMemoryNameFallback = "Translation memory"
-	maxNativeProjectMemoryNameLength       = 200
 
 	maxProjectNameLength               = 200
 	maxProjectDescriptionLength        = 10_000
@@ -70,6 +69,8 @@ type createProjectRequest struct {
 	TeamID             *string  `json:"teamId"`
 	SourceLocale       string   `json:"sourceLocale"`
 	TargetLocales      []string `json:"targetLocales"`
+	// TemplateID starts the project from a project template. Fields left out come from it.
+	TemplateID *string `json:"templateId"`
 }
 
 type projectCreateInput struct {
@@ -136,94 +137,44 @@ func (req createProjectRequest) validate() (projectCreateInput, error) {
 	}, nil
 }
 
-func resolveProjectTeam(ctx context.Context, tx dictionaryDB, actor projectActor, teamID *string) (string, error) {
-	if teamID != nil {
-		var found string
-		var err error
-		if actor.canReadAllTeams() {
-			err = tx.QueryRow(ctx, `select id from teams where id=$1 and organization_id=$2`,
-				*teamID, actor.organizationID).Scan(&found)
-		} else {
-			err = tx.QueryRow(ctx, `
-				select t.id from teams t join team_memberships m on m.team_id=t.id
-				where t.id=$1 and t.organization_id=$2 and m.user_id=$3`,
-				*teamID, actor.organizationID, actor.userID).Scan(&found)
-		}
-		if isNoRows(err) {
-			return "", invalidProjectTeam()
-		}
+// projectInput turns the request into a native project. Without a template it keeps the original
+// validation; with one, the template supplies every field the request leaves out.
+func (api *projectAPI) projectInput(r *http.Request, actor projectActor, req createProjectRequest) (nativeproject.Input, string, error) {
+	if req.TemplateID == nil {
+		input, err := req.validate()
 		if err != nil {
-			return "", err
+			return nativeproject.Input{}, "", err
 		}
-		return found, nil
+		return nativeproject.Input{
+			Name:               input.name,
+			Description:        input.description,
+			TranslationContext: input.translationContext,
+			SourceLocale:       input.sourceLocale,
+			TargetLocales:      input.targetLocales,
+			TeamID:             input.teamID,
+		}, "", nil
 	}
-
-	var activeTeamID string
-	var err error
-	if actor.canReadAllTeams() {
-		err = tx.QueryRow(ctx, `select id from teams where organization_id=$1 order by slug limit 1`,
-			actor.organizationID).Scan(&activeTeamID)
-	} else {
-		err = tx.QueryRow(ctx, `
-			select t.id from teams t join team_memberships m on m.team_id=t.id
-			where t.organization_id=$1 and m.user_id=$2
-			order by t.slug limit 1`,
-			actor.organizationID, actor.userID).Scan(&activeTeamID)
-	}
-	if err == nil {
-		return activeTeamID, nil
-	}
-	if !isNoRows(err) {
-		return "", err
-	}
-
-	var defaultTeamID string
-	err = tx.QueryRow(ctx, `
-		insert into teams(organization_id,slug,name) values($1,'default','Default team')
-		on conflict(organization_id,slug) do update set slug=excluded.slug
-		returning id`,
-		actor.organizationID).Scan(&defaultTeamID)
+	template, err := projecttemplate.Get(r.Context(), api.pool, actor.organizationID, strings.TrimSpace(*req.TemplateID))
 	if err != nil {
-		return "", err
+		return nativeproject.Input{}, "", projectTemplateFailure(err)
 	}
-	return defaultTeamID, nil
-}
-
-func defaultNativeProjectMemoryName(projectName string) string {
-	name := trimDictionaryInput(projectName)
-	if name == "" {
-		return defaultNativeProjectMemoryNameFallback
+	override := projecttemplate.ProjectRequest{
+		Name:               req.Name,
+		Description:        req.Description,
+		TranslationContext: req.TranslationContext,
+		TeamID:             req.TeamID,
 	}
-	if utf16Length(name) > maxNativeProjectMemoryNameLength {
-		runes := []rune(name)
-		if len(runes) > maxNativeProjectMemoryNameLength {
-			return string(runes[:maxNativeProjectMemoryNameLength])
-		}
+	if strings.TrimSpace(req.SourceLocale) != "" {
+		override.SourceLocale = &req.SourceLocale
 	}
-	return name
-}
-
-func ensureDefaultNativeProjectMemory(ctx context.Context, tx dictionaryDB, organizationID, projectID, projectName, createdByUserID string) error {
-	var hasMemory bool
-	if err := tx.QueryRow(ctx, `select exists(select 1 from project_memories where project_id=$1)`, projectID).Scan(&hasMemory); err != nil {
-		return err
+	if req.TargetLocales != nil {
+		override.TargetLocales = &req.TargetLocales
 	}
-	if hasMemory {
-		return nil
+	input, err := projecttemplate.ProjectInput(&template, override)
+	if err != nil {
+		return nativeproject.Input{}, "", projectTemplateFailure(err)
 	}
-	var memoryID string
-	if err := tx.QueryRow(ctx, `
-		insert into memories(organization_id,created_by_user_id,name,description,source)
-		values($1,$2,$3,'','native') returning id`,
-		organizationID, createdByUserID, defaultNativeProjectMemoryName(projectName)).Scan(&memoryID); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, `
-		insert into project_memories(organization_id,project_id,memory_id,priority) values($1,$2,$3,0)`,
-		organizationID, projectID, memoryID); err != nil {
-		return err
-	}
-	return nil
+	return input, template.ID, nil
 }
 
 const projectResponseColumns = `
@@ -281,7 +232,7 @@ func (api *projectAPI) createHandler(r *http.Request, actor projectActor) (any, 
 	if err := decodeProjectBody(r, &req); err != nil {
 		return nil, 0, err
 	}
-	input, err := req.validate()
+	input, templateID, err := api.projectInput(r, actor, req)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -324,48 +275,13 @@ func (api *projectAPI) createHandler(r *http.Request, actor projectActor) (any, 
 		}
 	}
 
-	teamID, err := resolveProjectTeam(ctx, tx, actor, input.teamID)
+	createdID, err := nativeproject.Create(ctx, tx, nativeproject.Actor{
+		OrganizationID:  actor.organizationID,
+		UserID:          actor.userID,
+		CanReadAllTeams: actor.canReadAllTeams(),
+	}, input)
 	if err != nil {
-		return nil, 0, err
-	}
-
-	targetLocalesJSON, err := json.Marshal(input.targetLocales)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	projectID := "project_" + uuid.NewString()
-	createdID, err := insertProjectWithAllocatedIdentifier(ctx, tx, actor.organizationID, input.name,
-		func(ctx context.Context, identifier string) (string, error) {
-			var id string
-			err := tx.QueryRow(ctx, `
-				insert into projects (
-					id, organization_id, team_id, created_by_user_id, name, identifier,
-					description, translation_context, source, source_locale, target_locales
-				) values ($1,$2,$3,$4,$5,$6,$7,$8,'native',$9,$10::jsonb)
-				on conflict (organization_id, identifier) do nothing
-				returning id`,
-				projectID, actor.organizationID, teamID, actor.userID, input.name, identifier,
-				input.description, input.translationContext, input.sourceLocale, targetLocalesJSON,
-			).Scan(&id)
-			return id, err
-		},
-	)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	if err := ensureDefaultNativeProjectMemory(ctx, tx, actor.organizationID, createdID, input.name, actor.userID); err != nil {
-		return nil, 0, err
-	}
-
-	if !actor.canReadAllTeams() {
-		if _, err := tx.Exec(ctx, `
-			insert into team_memberships(team_id,user_id,role) values($1,$2,'member')
-			on conflict(team_id,user_id) do nothing`,
-			teamID, actor.userID); err != nil {
-			return nil, 0, err
-		}
+		return nil, 0, nativeProjectFailure(err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -376,13 +292,9 @@ func (api *projectAPI) createHandler(r *http.Request, actor projectActor) (any, 
 		ActorUserID:    actor.userID,
 		EventType:      "project_created",
 		OrganizationID: actor.organizationID,
-		Payload: map[string]any{
-			"name":       input.name,
-			"resourceId": createdID,
-			"source":     "native",
-		},
-		TargetID:   createdID,
-		TargetKind: "project",
+		Payload:        projectCreatedPayload(input.Name, createdID, templateID),
+		TargetID:       createdID,
+		TargetKind:     "project",
 	})
 
 	project, err := api.fetchProjectResponse(ctx, actor.organizationID, createdID)
@@ -390,6 +302,14 @@ func (api *projectAPI) createHandler(r *http.Request, actor projectActor) (any, 
 		return nil, 0, err
 	}
 	return map[string]json.RawMessage{"project": project}, http.StatusCreated, nil
+}
+
+func projectCreatedPayload(name, projectID, templateID string) map[string]any {
+	payload := map[string]any{"name": name, "resourceId": projectID, "source": "native"}
+	if templateID != "" {
+		payload["templateId"] = templateID
+	}
+	return payload
 }
 
 const nativeProjectOwnedWhere = `p.id=$1 and p.organization_id=$2 and p.source='native' and `

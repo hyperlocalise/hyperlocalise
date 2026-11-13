@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/tmsauth"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/tmscatalog"
 	"github.com/stretchr/testify/require"
 )
@@ -160,8 +162,157 @@ func TestLiveTmsHandlersWithoutAConnection(t *testing.T) {
 
 	branchesNative := projectRequest(api, scope, scope.OrgPath("/projects/"+scope.ProjectID+"/files/branches"))
 	require.Equal(t, http.StatusOK, branchesNative.Code, branchesNative.Body.String())
-	require.JSONEq(t, `{"branches":[]}`, branchesNative.Body.String())
+	require.JSONEq(t, `{"branches":[{"name":"main","title":null}]}`, branchesNative.Body.String())
 
 	unknownLive := projectRequest(api, scope, scope.OrgPath("/projects/ext:unknown:1/hidden-files"))
 	require.Equal(t, http.StatusNotFound, unknownLive.Code, unknownLive.Body.String())
+}
+
+func TestLiveTmsNotConnectedWhenMintClientExists(t *testing.T) {
+	api, scope := projectTestAPI(t)
+	api.tms = &tmsImports{
+		tokens: stubTMSMinter{token: &tmsauth.AccessToken{
+			BaseURL: "http://127.0.0.1", HeaderName: "Authorization", HeaderValue: "Bearer token",
+		}},
+		http: http.DefaultClient,
+	}
+
+	rec := projectRequest(api, scope, scope.OrgPath("/tms/projects"))
+	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "tms_not_connected")
+}
+
+func TestLiveCrowdinProjectsAndFiles(t *testing.T) {
+	fileID := 2
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/projects":
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{
+				{"data": map[string]any{
+					"id": 7, "name": "Marketing", "identifier": "app", "sourceLanguageId": "en",
+					"targetLanguageIds": []string{"fr", "de"}, "webUrl": "https://crowdin.com/project/app",
+					"isSuspended": false,
+				}},
+				{"data": map[string]any{
+					"id": 9, "name": "Archived", "sourceLanguageId": "en", "isSuspended": true,
+				}},
+			}})
+		case r.Method == http.MethodGet && r.URL.Path == "/projects/7":
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{
+				"id": 7, "name": "Marketing", "identifier": "app", "sourceLanguageId": "en",
+				"targetLanguageIds": []string{"fr", "de"}, "webUrl": "https://crowdin.com/project/app",
+			}})
+		case r.Method == http.MethodGet && r.URL.Path == "/projects/8":
+			http.NotFound(w, r)
+		case r.Method == http.MethodGet && r.URL.Path == "/projects/7/branches":
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{{"data": map[string]any{
+				"id": 3, "name": "main", "title": "Main",
+			}}}})
+		case strings.HasPrefix(r.URL.Path, "/projects/7/directories"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": []any{}})
+		case strings.HasPrefix(r.URL.Path, "/projects/7/files"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{{"data": map[string]any{
+				"id": 1, "name": "home.json", "type": "json", "revisionId": 1, "status": "active",
+			}}}})
+		case r.Method == http.MethodGet && r.URL.Path == "/projects/7/languages/fr/progress":
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{
+				{"data": map[string]any{"translationProgress": 10, "approvalProgress": 5}},
+				{"data": map[string]any{
+					"fileId": 1, "translationProgress": 80, "approvalProgress": 40,
+					"phrases": map[string]int{"total": 10, "translated": 8, "approved": 4},
+				}},
+			}})
+		case r.Method == http.MethodGet && r.URL.Path == "/projects/7/languages/de/progress":
+			http.Error(w, "crowdin down", http.StatusInternalServerError)
+		case r.Method == http.MethodGet && r.URL.Path == "/projects/7/strings":
+			items := []any{}
+			switch r.URL.Query().Get("croql") {
+			case "is hidden":
+				items = []any{map[string]any{"fileId": 1}, map[string]any{"fileId": fileID}, map[string]any{}}
+			case "id of file = 1 and not is hidden":
+				items = []any{map[string]any{"fileId": 1}}
+			case "id of file = 2 and not is hidden":
+				items = []any{}
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": wrapCrowdinData(items...)})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	api, scope := projectTestAPI(t)
+	mustOrgTMSCredential(t, scope)
+	api.tms = &tmsImports{
+		tokens: stubTMSMinter{token: &tmsauth.AccessToken{
+			BaseURL:     server.URL,
+			HeaderName:  "Authorization",
+			HeaderValue: "Bearer token",
+			AuthMode:    "api_key",
+		}},
+		http: server.Client(),
+	}
+
+	list := projectRequest(api, scope, scope.OrgPath("/tms/projects"))
+	require.Equal(t, http.StatusOK, list.Code, list.Body.String())
+	require.Contains(t, list.Body.String(), `"id":"ext:crowdin:7"`)
+	require.Contains(t, list.Body.String(), `"identifier":"app"`)
+	require.NotContains(t, list.Body.String(), `"id":"ext:crowdin:9"`)
+
+	detail := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:7"))
+	require.Equal(t, http.StatusOK, detail.Code, detail.Body.String())
+	require.Contains(t, detail.Body.String(), `"externalProjectId":"7"`)
+	require.Contains(t, detail.Body.String(), `"source":"external_tms"`)
+
+	missing := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:8"))
+	require.Equal(t, http.StatusNotFound, missing.Code, missing.Body.String())
+	require.Contains(t, missing.Body.String(), "project_not_found")
+
+	files := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:7/files"))
+	require.Equal(t, http.StatusOK, files.Code, files.Body.String())
+	require.Contains(t, files.Body.String(), `"filename":"home.json"`)
+	require.Contains(t, files.Body.String(), `"externalResourceId":"1"`)
+
+	missingFiles := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:8/files"))
+	require.Equal(t, http.StatusOK, missingFiles.Code, missingFiles.Body.String())
+	require.JSONEq(t, `{"files":[]}`, missingFiles.Body.String())
+
+	locales := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:7/locale-progress"))
+	require.Equal(t, http.StatusOK, locales.Code, locales.Body.String())
+	require.Contains(t, locales.Body.String(), `"locale":"fr"`)
+	require.Contains(t, locales.Body.String(), `"translationProgress":80`)
+	require.Contains(t, locales.Body.String(), `"approvalProgress":40`)
+	require.Contains(t, locales.Body.String(), `"locale":"de"`)
+	require.Contains(t, locales.Body.String(), `"translationProgress":0`)
+
+	fileProgress := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:7/file-progress?locale=fr"))
+	require.Equal(t, http.StatusOK, fileProgress.Code, fileProgress.Body.String())
+	require.Contains(t, fileProgress.Body.String(), `"externalResourceId":"1"`)
+	require.Contains(t, fileProgress.Body.String(), `"translationProgress":80`)
+
+	failedProgress := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:7/file-progress?locale=de"))
+	require.Equal(t, http.StatusOK, failedProgress.Code, failedProgress.Body.String())
+	require.JSONEq(t, `{"files":[]}`, failedProgress.Body.String())
+
+	branches := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:7/files/branches"))
+	require.Equal(t, http.StatusOK, branches.Code, branches.Body.String())
+	require.Contains(t, branches.Body.String(), `"name":"main"`)
+	require.Contains(t, branches.Body.String(), `"title":"Main"`)
+
+	hidden := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:7/hidden-files"))
+	require.Equal(t, http.StatusOK, hidden.Code, hidden.Body.String())
+	require.JSONEq(t, `{"files":[{"externalResourceId":"2"}]}`, hidden.Body.String())
+
+	mismatch := projectRequest(api, scope, scope.OrgPath("/projects/ext:phrase:1"))
+	require.Equal(t, http.StatusConflict, mismatch.Code, mismatch.Body.String())
+	require.Contains(t, mismatch.Body.String(), "provider_project_unavailable")
+}
+
+func wrapCrowdinData(items ...any) []map[string]any {
+	out := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		out = append(out, map[string]any{"data": item})
+	}
+	return out
 }

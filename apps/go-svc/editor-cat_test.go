@@ -309,6 +309,7 @@ func TestParseEditorCatQueueQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 25, query.limit)
 	require.Equal(t, "untranslated", query.queueFilter)
+	require.Equal(t, "main", query.branch)
 	require.Equal(t, []string{"a.json", "b.json"}, query.sourcePaths)
 	notHidden, err := parseEditorCatQueueQuery(map[string][]string{
 		"sourcePath": {"a.json"}, "targetLocale": {"fr"}, "queueFilter": {"not_hidden"},

@@ -17,7 +17,6 @@ import { and, count, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import type { JobChangeEventType } from "@/lib/job-change-events/job-change-events-contract";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import { encryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 import { validatePublicHttpUrl } from "@/lib/security/ssrf-guard";
 
 import {
@@ -26,7 +25,7 @@ import {
   type WebhookEndpointRow,
   type WebhookSender,
 } from "./webhook-deliveries";
-import { generateWebhookSecret } from "./webhook-signing";
+import { mintWebhookSigningSecret } from "./webhook-signing";
 
 export const MAX_WEBHOOK_ENDPOINTS_PER_ORGANIZATION = 20;
 export const WEBHOOK_TEST_EVENT_TYPE = "webhook.test";
@@ -103,11 +102,6 @@ export function validateWebhookEndpointUrl(value: string): Result<string, Webhoo
   return ok(result.value.toString());
 }
 
-function encryptSecret(secret: string) {
-  const encrypted = encryptProviderCredential(secret);
-  return isErr(encrypted) ? null : encrypted.value;
-}
-
 async function resolveWebhookProjectId(
   organizationId: string,
   projectId: string | null | undefined,
@@ -176,10 +170,9 @@ export async function createWebhookEndpoint(input: {
     return err({ code: "webhook_endpoint_limit_reached" });
   }
 
-  const secret = generateWebhookSecret();
-  const encrypted = encryptSecret(secret);
-  if (!encrypted) {
-    return err({ code: "webhook_secret_encryption_failed" });
+  const minted = mintWebhookSigningSecret();
+  if (isErr(minted)) {
+    return minted;
   }
 
   const [row] = await db
@@ -190,11 +183,11 @@ export async function createWebhookEndpoint(input: {
       description: input.description?.trim() || null,
       eventTypes: [...new Set(input.eventTypes)],
       projectId: projectId.value,
-      secret: encrypted,
+      secret: minted.value.encrypted,
       createdByUserId: input.userId,
     })
     .returning();
-  return ok({ endpoint: toSummary(row!), secret });
+  return ok({ endpoint: toSummary(row!), secret: minted.value.secret });
 }
 
 export async function updateWebhookEndpoint(input: {
@@ -278,16 +271,15 @@ export async function rotateWebhookEndpointSecret(input: {
   if (!existing) {
     return err({ code: "webhook_endpoint_not_found" });
   }
-  const secret = generateWebhookSecret();
-  const encrypted = encryptSecret(secret);
-  if (!encrypted) {
-    return err({ code: "webhook_secret_encryption_failed" });
+  const minted = mintWebhookSigningSecret();
+  if (isErr(minted)) {
+    return minted;
   }
   await db
     .update(schema.webhookEndpoints)
-    .set({ secret: encrypted })
+    .set({ secret: minted.value.encrypted })
     .where(eq(schema.webhookEndpoints.id, existing.id));
-  return ok({ secret });
+  return ok({ secret: minted.value.secret });
 }
 
 export async function listWebhookDeliveries(input: {

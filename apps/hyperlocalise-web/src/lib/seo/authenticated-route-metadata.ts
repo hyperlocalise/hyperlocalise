@@ -65,6 +65,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "projectAutomationDetail",
   "projectAutomationNew",
   "projectAutomations",
+  "projectBranches",
   "projectContentEditor",
   "projectFiles",
   "projectGuideline",
@@ -87,6 +88,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "settingsActivityLogs",
   "settingsApiKeys",
   "settingsWebhooks",
+  "settingsProjectTemplates",
   "settingsBilling",
   "settingsLinkedDomains",
   "settingsMembers",
@@ -732,6 +734,18 @@ const AUTHENTICATED_ROUTE_COPY = {
       description: "Document description for the project automations page",
     },
   },
+  projectBranches: {
+    title: {
+      defaultMessage: "Branches",
+      id: "qR8wBranch2",
+      description: "Document title for the native project version branches page",
+    },
+    description: {
+      defaultMessage: "Create, sync, and merge version branches in this project.",
+      id: "sT9wBranch3",
+      description: "Document description for the native project version branches page",
+    },
+  },
   projectContentEditor: {
     title: {
       defaultMessage: "Content Editor",
@@ -994,6 +1008,18 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Workspace webhook endpoints.",
       id: "xAG52WUnvX",
       description: "Document description for workspace webhook settings",
+    },
+  },
+  settingsProjectTemplates: {
+    title: {
+      defaultMessage: "Project templates",
+      id: "Uv5W10c9un",
+      description: "Document title for workspace project template settings",
+    },
+    description: {
+      defaultMessage: "Saved starting points for new projects.",
+      id: "nf3vGVeAOD",
+      description: "Document description for workspace project template settings",
     },
   },
   settingsBilling: {

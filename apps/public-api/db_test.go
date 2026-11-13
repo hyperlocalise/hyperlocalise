@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -11,6 +12,24 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 )
+
+type stubWebhookSecretMinter struct {
+	n   int
+	err error
+}
+
+func (s *stubWebhookSecretMinter) Mint(context.Context) (mintedWebhookSigningSecret, error) {
+	if s.err != nil {
+		return mintedWebhookSigningSecret{}, s.err
+	}
+	s.n++
+	secret := fmt.Sprintf("whsec_stub%d", s.n)
+	encrypted := fmt.Sprintf(
+		`{"algorithm":"aes-256-gcm","keyVersion":1,"ciphertext":"c%d","iv":"AAAA","authTag":"BBBB"}`,
+		s.n,
+	)
+	return mintedWebhookSigningSecret{Secret: secret, Encrypted: json.RawMessage(encrypted)}, nil
+}
 
 // dbFixture is a workspace, an admin user, and a native project in a migrated database.
 type dbFixture struct {
@@ -36,7 +55,7 @@ func newDBFixture(t *testing.T) dbFixture {
 
 	suffix := uuid.NewString()
 	f := dbFixture{
-		store: &postgresStore{pool: pool},
+		store: &postgresStore{pool: pool, webhookSecrets: &stubWebhookSecretMinter{}},
 		pool:  pool,
 		actor: principal{
 			TokenID:        "token-" + suffix,

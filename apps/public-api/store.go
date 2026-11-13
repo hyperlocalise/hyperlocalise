@@ -8,8 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/customfield"
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
+	"github.com/hyperlocalise/hyperlocalise/internal/projecttemplate"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -119,6 +121,34 @@ type resourceStore interface {
 	jobLocales(context.Context, principal, string) ([]jobLocaleProgress, error)
 	addJobLocale(context.Context, principal, string, string) ([]jobLocaleProgress, error)
 	removeJobLocale(context.Context, principal, string, string) ([]jobLocaleProgress, error)
+	listProjectTemplates(context.Context, principal) ([]projecttemplate.Template, error)
+	getProjectTemplate(context.Context, principal, string) (projecttemplate.Template, error)
+	createProjectTemplate(context.Context, principal, projecttemplate.Body, *string) (projecttemplate.Template, error)
+	updateProjectTemplate(context.Context, principal, string, projecttemplate.Body) (projecttemplate.Template, error)
+	deleteProjectTemplate(context.Context, principal, string) error
+	createProject(context.Context, principal, projectCreate) (project, error)
+	listCustomFields(context.Context, principal) ([]customfield.Field, error)
+	getCustomField(context.Context, principal, string) (customfield.Field, error)
+	createCustomField(context.Context, principal, customfield.CreateInput) (customfield.Field, error)
+	updateCustomField(context.Context, principal, string, customfield.UpdateInput) (customfield.Field, error)
+	deleteCustomField(context.Context, principal, string) error
+	getProjectCustomFields(context.Context, principal, string) ([]customfield.ProjectValue, error)
+	setProjectCustomFields(context.Context, principal, string, map[string]json.RawMessage) ([]customfield.ProjectValue, error)
+	missingStringKeys(context.Context, principal, string, []string) ([]string, error)
+	bulkUpdateJobs(context.Context, principal, []string, jobPatch) ([]job, error)
+	listWebhookEndpoints(context.Context, principal) ([]webhookEndpoint, error)
+	createWebhookEndpoint(context.Context, principal, webhookCreate) (createdWebhookEndpoint, error)
+	updateWebhookEndpoint(context.Context, principal, string, webhookPatch) (webhookEndpoint, error)
+	deleteWebhookEndpoint(context.Context, principal, string) error
+	rotateWebhookEndpointSecret(context.Context, principal, string) (string, error)
+	listWebhookDeliveries(context.Context, principal, string, int) ([]webhookDelivery, error)
+	listScreenshots(context.Context, principal, string, screenshotFilters) ([]screenshot, int, error)
+	getScreenshot(context.Context, principal, string, string) (screenshot, error)
+	createScreenshot(context.Context, principal, string, screenshotCreate) (screenshotCreateResult, error)
+	finalizeScreenshot(context.Context, principal, string, string, screenshotFinalize) (screenshot, error)
+	deleteScreenshot(context.Context, principal, string, string) error
+	upsertScreenshotMarkers(context.Context, principal, string, string, []screenshotMarkerInput) ([]screenshotMarker, error)
+	deleteScreenshotMarker(context.Context, principal, string, string, string) error
 }
 
 type postgresStore struct {
@@ -126,6 +156,11 @@ type postgresStore struct {
 	// objects and glossaryImports are optional; glossary imports need both.
 	objects         *objectstore.Registry
 	glossaryImports glossaryImportQueue
+	// autumn checks the workspace's project limit; nil allows one project, as go-svc does.
+	autumn *autumnClient
+	// webhookSecrets mints encrypted signing secrets from the web app. Create and rotate
+	// return webhook_secret_encryption_failed when it is nil.
+	webhookSecrets webhookSecretMinter
 }
 
 // workspaceOperatorPredicate matches go-svc's org-wide glossary, memory, and project access roles.

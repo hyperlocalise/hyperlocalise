@@ -11,12 +11,12 @@ import (
 func TestEffectivePermissions(t *testing.T) {
 	t.Run("member read scopes", func(t *testing.T) {
 		perms := effectivePermissions([]string{"jobs:read", "files:read", "jobs:write", "files:write"}, "member")
-		require.Equal(t, []string{"jobs:read", "files:read", "projects:read", "queries:read", "strings:read", "glossaries:read", "translation-memories:read"}, perms)
+		require.Equal(t, []string{"jobs:read", "files:read", "projects:read", "queries:read", "strings:read", "glossaries:read", "translation-memories:read", "project-templates:read", "custom-fields:read"}, perms)
 	})
 
 	t.Run("developer keeps write scopes", func(t *testing.T) {
 		perms := effectivePermissions([]string{"jobs:read", "files:read", "jobs:write", "files:write"}, "developer")
-		require.Equal(t, []string{"jobs:read", "files:read", "jobs:write", "files:write", "projects:read", "queries:read", "strings:read", "glossaries:read", "translation-memories:read", "strings:write", "projects:write"}, perms)
+		require.Equal(t, []string{"jobs:read", "files:read", "jobs:write", "files:write", "projects:read", "queries:read", "strings:read", "glossaries:read", "translation-memories:read", "strings:write", "projects:write", "project-templates:read", "custom-fields:read"}, perms)
 		require.NotContains(t, perms, "glossaries:write")
 	})
 
@@ -51,6 +51,17 @@ func TestEffectivePermissions(t *testing.T) {
 	t.Run("member files write does not expand strings write", func(t *testing.T) {
 		perms := effectivePermissions([]string{"files:write"}, "member")
 		require.Empty(t, perms)
+	})
+
+	t.Run("managers with job scopes can manage webhooks", func(t *testing.T) {
+		for _, role := range []string{"admin", "localization_manager"} {
+			perms := effectivePermissions([]string{"jobs:read", "jobs:write"}, role)
+			require.Contains(t, perms, "webhooks:read", role)
+			require.Contains(t, perms, "webhooks:write", role)
+		}
+		require.NotContains(t, effectivePermissions([]string{"jobs:read", "jobs:write"}, "developer"), "webhooks:write")
+		require.NotContains(t, effectivePermissions([]string{"jobs:read"}, "admin"), "webhooks:write")
+		require.Contains(t, effectivePermissions([]string{"jobs:read"}, "admin"), "webhooks:read")
 	})
 }
 

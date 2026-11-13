@@ -53,6 +53,7 @@ type StoredFileScopeInput = {
 type RepositorySourceFileVersionInput = {
   storedFile: typeof schema.storedFiles.$inferSelect;
   sourcePath: string;
+  branchName?: string;
   sourceHash?: string | null;
   commitSha?: string | null;
   workflowRunId?: string | null;
@@ -92,10 +93,12 @@ export async function ensureRepositorySourceFile(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  branchName?: string;
   db?: DbInsertClient;
 }) {
   const dbClient = input.db ?? db;
   const sourcePath = normalizeSourcePath(input.sourcePath);
+  const branchName = input.branchName?.trim() || "main";
 
   const [sourceFile] = await dbClient
     .insert(schema.repositorySourceFiles)
@@ -103,9 +106,14 @@ export async function ensureRepositorySourceFile(input: {
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath,
+      branchName,
     })
     .onConflictDoUpdate({
-      target: [schema.repositorySourceFiles.projectId, schema.repositorySourceFiles.sourcePath],
+      target: [
+        schema.repositorySourceFiles.projectId,
+        schema.repositorySourceFiles.branchName,
+        schema.repositorySourceFiles.sourcePath,
+      ],
       set: { updatedAt: new Date() },
     })
     .returning();
@@ -303,6 +311,7 @@ async function createRepositorySourceFileVersionWithDb(
   }
 
   const sourcePath = normalizeSourcePath(input.sourcePath);
+  const branchName = input.branchName?.trim() || "main";
 
   const [sourceFile] = await dbClient
     .insert(schema.repositorySourceFiles)
@@ -310,9 +319,14 @@ async function createRepositorySourceFileVersionWithDb(
       organizationId: input.storedFile.organizationId,
       projectId,
       sourcePath,
+      branchName,
     })
     .onConflictDoUpdate({
-      target: [schema.repositorySourceFiles.projectId, schema.repositorySourceFiles.sourcePath],
+      target: [
+        schema.repositorySourceFiles.projectId,
+        schema.repositorySourceFiles.branchName,
+        schema.repositorySourceFiles.sourcePath,
+      ],
       set: { updatedAt: new Date() },
     })
     .returning();
@@ -337,22 +351,6 @@ async function createRepositorySourceFileVersionWithDb(
       uploadSurface: input.uploadSurface ?? null,
       keepApprovedTranslations: input.keepApprovedTranslations ?? false,
     })
-    .onConflictDoUpdate({
-      target: schema.repositorySourceFileVersions.storedFileId,
-      set: {
-        repositorySourceFileId: sourceFile.id,
-        organizationId: input.storedFile.organizationId,
-        projectId,
-        sourcePath,
-        sourceHash: input.sourceHash ?? input.storedFile.sha256,
-        commitSha: input.commitSha ?? null,
-        workflowRunId: input.workflowRunId ?? null,
-        uploadedByUserId: input.uploadedByUserId ?? input.storedFile.createdByUserId,
-        uploadedByApiKeyId: input.uploadedByApiKeyId ?? null,
-        uploadSurface: input.uploadSurface ?? null,
-        keepApprovedTranslations: input.keepApprovedTranslations ?? false,
-      },
-    })
     .returning();
 
   if (!version) {
@@ -366,21 +364,33 @@ export async function getLatestRepositorySourceFileVersion(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  branchName?: string | null;
   db?: DbSelectClient;
 }) {
   const dbClient = input.db ?? db;
   const sourcePath = normalizeSourcePath(input.sourcePath);
+  const branchName = input.branchName?.trim() || "main";
+
+  const [sourceFile] = await dbClient
+    .select({ id: schema.repositorySourceFiles.id })
+    .from(schema.repositorySourceFiles)
+    .where(
+      and(
+        eq(schema.repositorySourceFiles.organizationId, input.organizationId),
+        eq(schema.repositorySourceFiles.projectId, input.projectId),
+        eq(schema.repositorySourceFiles.sourcePath, sourcePath),
+        eq(schema.repositorySourceFiles.branchName, branchName),
+      ),
+    )
+    .limit(1);
+  if (!sourceFile) {
+    return null;
+  }
 
   const [version] = await dbClient
     .select()
     .from(schema.repositorySourceFileVersions)
-    .where(
-      and(
-        eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
-        eq(schema.repositorySourceFileVersions.projectId, input.projectId),
-        eq(schema.repositorySourceFileVersions.sourcePath, sourcePath),
-      ),
-    )
+    .where(eq(schema.repositorySourceFileVersions.repositorySourceFileId, sourceFile.id))
     .orderBy(
       desc(schema.repositorySourceFileVersions.createdAt),
       desc(schema.repositorySourceFileVersions.id),
