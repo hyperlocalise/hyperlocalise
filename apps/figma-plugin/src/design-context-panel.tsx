@@ -400,7 +400,7 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
             </Muted>
             <Link
               href="#"
-              onClick={(event) => {
+              onClick={(event: Event) => {
                 preventLinkNavigation(event);
                 if (!disabled) {
                   void handleSelectIssues();
@@ -457,7 +457,7 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
               <>
                 <Link
                   href="#"
-                  onClick={(event) => {
+                  onClick={(event: Event) => {
                     preventLinkNavigation(event);
                     if (!disabled) {
                       void linkTo(null);
@@ -471,7 +471,7 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
             ) : null}
             <Link
               href="#"
-              onClick={(event) => {
+              onClick={(event: Event) => {
                 preventLinkNavigation(event);
                 setLinking(null);
                 setResults([]);
@@ -485,7 +485,7 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
         <Text>
           <Link
             href="#"
-            onClick={(event) => {
+            onClick={(event: Event) => {
               preventLinkNavigation(event);
               if (!disabled) {
                 void handleStartLinking();

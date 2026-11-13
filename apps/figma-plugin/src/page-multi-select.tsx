@@ -94,7 +94,7 @@ export function PageMultiSelect({
                   !selectedSet.has(page.pageId) &&
                   selectedPageIds.length >= (maxSelected ?? 0)
                 }
-                onValueChange={(checked) => {
+                onValueChange={(checked: boolean) => {
                   const next = new Set(selectedPageIds);
                   if (checked) {
                     if (maxSelected && next.size >= maxSelected) {

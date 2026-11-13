@@ -152,7 +152,6 @@ export function App() {
   const [localeStatuses, setLocaleStatuses] = useState<FigmaLocaleStatus[]>([]);
   const [uploadPreview, setUploadPreview] = useState<FigmaUploadPreview | null>(null);
   const [uploadPreviewLoading, setUploadPreviewLoading] = useState(false);
-  const [bindProgress, setBindProgress] = useState<StepProgress | null>(null);
   const [applyProgress, setApplyProgress] = useState<StepProgress | null>(null);
   const [translateProgress, setTranslateProgress] = useState<StepProgress | null>(null);
   const [toast, setToast] = useState<AppToast | null>(null);
@@ -1649,7 +1648,7 @@ export function App() {
                       options={projectDropdownOptions}
                       placeholder={busy === "bind" ? "Connecting..." : "Select a project"}
                       disabled={busy === "bind" || projects.length === 0}
-                      onValueChange={(value) => void handleProjectChange(value)}
+                      onValueChange={(value: string) => void handleProjectChange(value)}
                     />
                   )}
                 </div>
@@ -1682,21 +1681,13 @@ export function App() {
                 </TooltipWrap>
               </div>
             </FormField>
-            {busy === "bind" && bindProgress ? (
-              <div className="stepProgress">
-                <Text>
-                  <Muted>{bindProgress.label}</Muted>
-                </Text>
-                <progress className="progressBar" max={100} value={bindProgress.value} />
-              </div>
-            ) : null}
             <VerticalSpace space="small" />
             <Text>
               {settings.projectId && pickingProject ? (
                 <>
                   <Link
                     href="#"
-                    onClick={(event) => {
+                    onClick={(event: Event) => {
                       preventLinkNavigation(event);
                       if (busy == null) {
                         setPickingProject(false);
@@ -1710,7 +1701,7 @@ export function App() {
               ) : null}
               <Link
                 href="#"
-                onClick={(event) => {
+                onClick={(event: Event) => {
                   preventLinkNavigation(event);
                   if (busy == null) {
                     handleDisconnect();
@@ -1774,7 +1765,7 @@ export function App() {
                         {" · "}
                         <Link
                           href="#"
-                          onClick={(event) => {
+                          onClick={(event: Event) => {
                             preventLinkNavigation(event);
                             if (busy == null) {
                               setPickingProject(true);
@@ -1786,7 +1777,7 @@ export function App() {
                         {" · "}
                         <Link
                           href="#"
-                          onClick={(event) => {
+                          onClick={(event: Event) => {
                             preventLinkNavigation(event);
                             if (busy == null) {
                               handleDisconnect();
@@ -1815,7 +1806,7 @@ export function App() {
                             }))}
                             placeholder={translateDropdownPlaceholder}
                             disabled={busy != null || !selectedProject}
-                            onValueChange={(value) =>
+                            onValueChange={(value: string) =>
                               persistSettings({ ...settings, selectedLocale: value })
                             }
                           />
@@ -1873,7 +1864,7 @@ export function App() {
                     <div className="pageMenuActions">
                       <Link
                         href="#"
-                        onClick={(event) => {
+                        onClick={(event: Event) => {
                           preventLinkNavigation(event);
                           if (busy == null && !pagesLoading && !allPagesSelected) {
                             updatePageSelection(
@@ -1886,7 +1877,7 @@ export function App() {
                       </Link>
                       <Link
                         href="#"
-                        onClick={(event) => {
+                        onClick={(event: Event) => {
                           preventLinkNavigation(event);
                           if (busy == null && !pagesLoading && selectedPageIds.length > 0) {
                             updatePageSelection([]);
