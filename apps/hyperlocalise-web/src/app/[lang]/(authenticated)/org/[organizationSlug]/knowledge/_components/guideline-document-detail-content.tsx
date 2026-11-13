@@ -18,8 +18,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DownloadSimpleIcon, FileTextIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
-import { Streamdown } from "streamdown";
 
+import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { LocaleNameList } from "@/components/locale-name/locale-name";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -236,7 +236,7 @@ export function GuidelineDocumentDetailContent({
         </h2>
         {preview ? (
           <div className="rounded-xl border border-border px-4 py-3">
-            <Streamdown>{document.content ?? ""}</Streamdown>
+            <MarkdownPreview chrome="minimal" value={document.content ?? ""} />
           </div>
         ) : isText ? (
           <Empty className="border border-dashed border-border">

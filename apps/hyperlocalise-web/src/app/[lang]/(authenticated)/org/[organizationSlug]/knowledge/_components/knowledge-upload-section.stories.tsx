@@ -61,13 +61,13 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const FileAndMarkdown: Story = {
+export const FileAndWriteGuideline: Story = {
   parameters: {
     msw: { handlers: emptyGuidelineUploadMswHandlers() },
   },
 };
 
-export const MarkdownDialogOpen: Story = {
+export const WriteGuidelineDialogOpen: Story = {
   args: {
     initialLocales: ["fr-FR", "de-DE"],
     initialIsGlobal: true,

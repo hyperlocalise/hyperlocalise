@@ -21,9 +21,8 @@ export const guidelineUploadMessages = defineMessages({
     description: "Title for the dedicated guideline upload page",
   },
   description: {
-    defaultMessage:
-      "Upload a document or write guidance in Markdown, then choose where it applies.",
-    id: "TjYKhFORSD",
+    defaultMessage: "Upload a document or write the guidance, then choose where it applies.",
+    id: "eZBI4zBlZX",
     description: "Description for the guideline upload page",
   },
   backToGuideline: {
@@ -127,8 +126,8 @@ export const guidelineUploadMessages = defineMessages({
     description: "Uploads the staged guideline file with the selected locales and project scope",
   },
   chooseFileHint: {
-    defaultMessage: "Choose a file, or write it in Markdown.",
-    id: "U+3chZ6zsr",
+    defaultMessage: "Choose a file, or write the guideline.",
+    id: "tlhF4FQ2PT",
     description: "Footer hint on the guideline upload page before a file is selected",
   },
   projectRequired: {

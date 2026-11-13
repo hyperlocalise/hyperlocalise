@@ -90,7 +90,7 @@ export const CreateFromUpload: Story = {
   },
 };
 
-export const EditMarkdown: Story = {
+export const EditText: Story = {
   parameters: {
     msw: {
       handlers: createGuidelineDocumentsMswHandlers({
@@ -111,7 +111,7 @@ export const EditPdfTitleOnly: Story = {
   render: () => <OpenDialogStory document={pdfDocument} />,
 };
 
-export const EditMarkdownLocales: Story = {
+export const EditTextLocales: Story = {
   parameters: {
     msw: {
       handlers: createGuidelineDocumentsMswHandlers({

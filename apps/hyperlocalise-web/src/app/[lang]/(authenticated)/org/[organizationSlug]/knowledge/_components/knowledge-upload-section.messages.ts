@@ -61,9 +61,9 @@ export const knowledgeUploadSectionMessages = defineMessages({
     description: "Button to import knowledge from a website",
   },
   markdownText: {
-    defaultMessage: "Write in Markdown",
-    id: "c03uFBN80f",
-    description: "Button to start a blank markdown knowledge memory document",
+    defaultMessage: "Write a guideline",
+    id: "zuK3zVbLqY",
+    description: "Button to start a blank guideline document",
   },
   comingSoon: {
     defaultMessage: "Coming soon",

@@ -32,8 +32,8 @@ export const guidelineDocumentsSectionMessages = defineMessages({
   },
   emptyDescription: {
     defaultMessage:
-      "Upload a PDF, DOCX, or markdown file so Hyperlocalise can use it in guideline checks.",
-    id: "HSh39++wV6",
+      "Upload a PDF, Word, or text file so Hyperlocalise can use it in guideline checks.",
+    id: "zlNzIgAmkU",
     description: "Description in the empty guideline list state",
   },
   emptyProjectTitle: {

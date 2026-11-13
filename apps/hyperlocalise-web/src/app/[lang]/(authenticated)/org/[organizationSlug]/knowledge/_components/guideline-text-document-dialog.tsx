@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { MarkdownEditor } from "@/components/markdown-editor/markdown-editor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,7 +30,6 @@ import {
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
 import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
@@ -67,7 +67,7 @@ function documentLocales(document: GuidelineDocument): string[] {
 }
 
 /**
- * Creates a guideline from typed markdown or edits title and markdown content.
+ * Creates a guideline from typed content or edits title and body.
  * Locales and project scope are chosen on the org upload page (create) or on
  * the document detail page (assignments); this dialog only handles the .md body.
  */
@@ -98,6 +98,7 @@ export function GuidelineTextDocumentDialog({
   const editing = document != null;
   const [title, setTitle] = useState(document?.title ?? "");
   const [content, setContent] = useState("");
+  const [editorEpoch, setEditorEpoch] = useState(0);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [contentError, setContentError] = useState<string | null>(null);
 
@@ -116,6 +117,7 @@ export function GuidelineTextDocumentDialog({
     if (open) {
       setTitle(document?.title ?? "");
       setContent("");
+      setEditorEpoch(0);
       setTitleError(null);
       setContentError(null);
       contentSyncedForRef.current = null;
@@ -228,6 +230,7 @@ export function GuidelineTextDocumentDialog({
 
   const applyTemplate = () => {
     setContent(GUIDELINE_TEMPLATE_CONTENT);
+    setEditorEpoch((epoch) => epoch + 1);
     setContentError(null);
     if (!title.trim()) {
       setTitle(GUIDELINE_TEMPLATE_TITLE);
@@ -283,13 +286,18 @@ export function GuidelineTextDocumentDialog({
               {loadingContent ? (
                 <Skeleton className="h-48 w-full" />
               ) : (
-                <Textarea
+                <MarkdownEditor
+                  key={editorEpoch}
                   id="guideline-text-content"
                   value={content}
-                  rows={12}
-                  className="min-h-48 max-h-[min(32rem,45vh)] overflow-y-auto"
-                  onChange={(event) => setContent(event.target.value)}
+                  onChange={setContent}
+                  onInitialContent={setContent}
                   disabled={pending}
+                  placeholder={intl.formatMessage(messages.contentPlaceholder)}
+                  ariaLabel={intl.formatMessage(messages.contentLabel)}
+                  chrome="default"
+                  imageUpload={{ organizationSlug, projectId }}
+                  className="min-h-48"
                 />
               )}
               {contentQuery.isError ? (

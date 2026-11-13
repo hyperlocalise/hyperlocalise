@@ -55,6 +55,24 @@ vi.mock("sonner", () => ({
   toast: { error: mocks.toastError, success: mocks.toastSuccess },
 }));
 
+vi.mock("@/components/markdown-editor/markdown-editor", () => ({
+  MarkdownEditor: ({
+    value,
+    onChange,
+    ariaLabel,
+  }: {
+    value: string;
+    onChange: (next: string) => void;
+    ariaLabel?: string;
+  }) => (
+    <textarea
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(event) => onChange(event.currentTarget.value)}
+    />
+  ),
+}));
+
 const { GuidelineTextDocumentDialog } = await import("./guideline-text-document-dialog");
 
 function guidelineDocument(overrides: Partial<GuidelineDocument> = {}): GuidelineDocument {
@@ -115,7 +133,7 @@ describe("GuidelineTextDocumentDialog template", () => {
 
     await user.click(await screen.findByRole("button", { name: "Use template" }));
 
-    expect(screen.getByLabelText("Markdown content")).toHaveValue(GUIDELINE_TEMPLATE_CONTENT);
+    expect(screen.getByLabelText("Content")).toHaveValue(GUIDELINE_TEMPLATE_CONTENT);
     expect(screen.getByLabelText("Title")).toHaveValue(GUIDELINE_TEMPLATE_TITLE);
     expect(screen.queryByLabelText(/Locales/)).toBeNull();
     expect(screen.queryByLabelText(/Apply to all projects/)).toBeNull();
@@ -149,7 +167,7 @@ describe("GuidelineTextDocumentDialog template", () => {
     );
 
     await user.type(screen.getByLabelText("Title"), "Regional tone");
-    await user.type(screen.getByLabelText("Markdown content"), "# Tone");
+    await user.type(screen.getByLabelText("Content"), "# Tone");
     await user.click(screen.getByRole("button", { name: "Save guideline" }));
 
     await waitFor(() => expect(mocks.uploadDocument).toHaveBeenCalled());
@@ -177,7 +195,7 @@ describe("GuidelineTextDocumentDialog template", () => {
     await user.type(screen.getByLabelText("Title"), "Acme voice");
     await user.click(await screen.findByRole("button", { name: "Use template" }));
 
-    expect(screen.getByLabelText("Markdown content")).toHaveValue(GUIDELINE_TEMPLATE_CONTENT);
+    expect(screen.getByLabelText("Content")).toHaveValue(GUIDELINE_TEMPLATE_CONTENT);
     expect(screen.getByLabelText("Title")).toHaveValue("Acme voice");
     expect(mocks.uploadDocument).not.toHaveBeenCalled();
   });

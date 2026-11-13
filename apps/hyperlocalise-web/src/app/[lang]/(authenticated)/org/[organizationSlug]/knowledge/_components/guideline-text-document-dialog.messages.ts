@@ -21,8 +21,8 @@ export const guidelineTextDocumentDialogMessages = defineMessages({
     description: "Title for the new typed guideline dialog",
   },
   createDescription: {
-    defaultMessage: "Write markdown guidance. Choose locales and projects on the upload page.",
-    id: "GKDBXV4awc",
+    defaultMessage: "Write the guidance. Locales and projects are already set on the upload page.",
+    id: "lty6wrMmF0",
     description: "Description for the new typed guideline dialog",
   },
   editTitle: {
@@ -31,8 +31,8 @@ export const guidelineTextDocumentDialogMessages = defineMessages({
     description: "Title for the edit guideline dialog",
   },
   editDescription: {
-    defaultMessage: "Update the title or markdown content of this guideline document.",
-    id: "2XlmC+CUlh",
+    defaultMessage: "Update the title or content of this guideline.",
+    id: "GvDnvlt5d2",
     description: "Description for the edit guideline dialog",
   },
   titleLabel: {
@@ -41,9 +41,14 @@ export const guidelineTextDocumentDialogMessages = defineMessages({
     description: "Label for the guideline title field",
   },
   contentLabel: {
-    defaultMessage: "Markdown content",
-    id: "TU5Vr/IFlt",
-    description: "Label for the guideline markdown content field",
+    defaultMessage: "Content",
+    id: "UC1OAjERlk",
+    description: "Label for the guideline content field",
+  },
+  contentPlaceholder: {
+    defaultMessage: "Write the guidance…",
+    id: "HQKSy02lKS",
+    description: "Placeholder for the guideline content editor",
   },
   titleRequired: {
     defaultMessage: "Enter a title.",
@@ -56,8 +61,8 @@ export const guidelineTextDocumentDialogMessages = defineMessages({
     description: "Validation error when the guideline title is too long",
   },
   contentRequired: {
-    defaultMessage: "Enter some markdown content.",
-    id: "yEVnG/ui9T",
+    defaultMessage: "Enter some content.",
+    id: "EH5Z9+FhIV",
     description: "Validation error when the guideline content is empty",
   },
   contentTooLong: {
