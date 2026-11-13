@@ -217,6 +217,26 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       truncated: false,
     },
   },
+  "action.translation_as_source": {
+    inputs: [field("jobId")],
+    outputs: [
+      output("sent", "boolean"),
+      output("destinationProjectId"),
+      output("path"),
+      output("reason", "string", true),
+      output("message", "string", true),
+      output("sourceFileVersionId", "string", true),
+      output("stringCount", "number", true),
+      output("error", "object", true),
+    ],
+    mock: {
+      sent: true,
+      destinationProjectId: "proj_mock_en",
+      path: "requests/report.docx",
+      sourceFileVersionId: "00000000-0000-4000-8000-000000000000",
+      stringCount: 12,
+    },
+  },
   "action.file_read": {
     inputs: [field("fileId"), field("encoding")],
     outputs: [

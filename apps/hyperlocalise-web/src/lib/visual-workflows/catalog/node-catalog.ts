@@ -148,6 +148,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: FilesIcon,
   },
   {
+    type: "action.translation_as_source",
+    category: "localization",
+    enabled: true,
+    icon: UploadSimpleIcon,
+  },
+  {
     type: "action.file_read",
     category: "action",
     enabled: true,
@@ -456,6 +462,13 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return { kind: "action.run_qa", projectId: "", onError: "stop" };
     case "action.list_source_files":
       return { kind: "action.list_source_files", projectId: "", pathPrefix: "", onError: "stop" };
+    case "action.translation_as_source":
+      return {
+        kind: "action.translation_as_source",
+        jobId: "{{ trigger.jobId }}",
+        destinationProjectId: "",
+        onError: "stop",
+      };
     case "action.file_read":
       return { kind: "action.file_read", fileId: "", encoding: "utf-8" };
     case "action.file_write":
@@ -814,6 +827,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.projectId ? "Project QA" : "Select project";
     case "action.list_source_files":
       return config.pathPrefix.trim() || "All source files";
+    case "action.translation_as_source":
+      return config.destinationProjectId ? "Send to project" : "Select project";
     case "action.file_read":
       return config.encoding === "base64" ? "Read as base64" : "Read as UTF-8";
     case "action.file_write":

@@ -2804,6 +2804,7 @@ export function VisualWorkflowConfigPanel({
             config={config}
             projects={resources.projects}
             onChangeConfig={onChangeConfig}
+            projectInvalid={invalidFields.has("projectId")}
           />
         ) : null}
         {config.kind === "trigger.webhook" ? (
@@ -2832,6 +2833,53 @@ export function VisualWorkflowConfigPanel({
             {...connectedInputProps("projectId")}
             onChange={(value) => onChangeConfig({ ...config, projectId: value })}
           />
+        ) : null}
+        {config.kind === "action.translation_as_source" ? (
+          <>
+            <TypographyP className="text-xs text-muted-foreground">
+              <FormattedMessage {...messages.translationAsSourceHint} />
+            </TypographyP>
+            <TextField
+              id="vw-translation-as-source-job"
+              label={intl.formatMessage(messages.updateJobJobId)}
+              description={intl.formatMessage(messages.translationAsSourceJobIdHint)}
+              value={config.jobId}
+              {...connectedInputProps("jobId")}
+              onChange={(value) => onChangeConfig({ ...config, jobId: value })}
+              placeholder="{{ trigger.jobId }}"
+            />
+            <SelectField
+              id="vw-translation-as-source-destination"
+              label={intl.formatMessage(messages.translationAsSourceDestination)}
+              description={intl.formatMessage(messages.translationAsSourceDestinationHint)}
+              value={config.destinationProjectId}
+              placeholder={intl.formatMessage(messages.selectProject)}
+              invalid={invalidFields.has("destinationProjectId")}
+              items={resources.projects
+                .filter((project) => project.source !== "external_tms" && project.sourceLocale)
+                .map((project) => ({
+                  value: project.id,
+                  label: `${project.name} (${project.sourceLocale})`,
+                }))}
+              onValueChange={(value) => {
+                if (value) {
+                  onChangeConfig({ ...config, destinationProjectId: value });
+                }
+              }}
+            />
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="vw-translation-as-source-any-project"
+                checked={config.allowAnyProject ?? false}
+                onCheckedChange={(checked) =>
+                  onChangeConfig({ ...config, allowAnyProject: checked === true })
+                }
+              />
+              <Label htmlFor="vw-translation-as-source-any-project" className="text-sm font-normal">
+                {intl.formatMessage(messages.translationAsSourceAnyProject)}
+              </Label>
+            </div>
+          </>
         ) : null}
         {config.kind === "action.list_source_files" ? (
           <TextField
@@ -4205,6 +4253,7 @@ function SelectField({
   onValueChange,
   placeholder,
   description,
+  invalid = false,
 }: {
   id: string;
   label: string;
@@ -4213,14 +4262,18 @@ function SelectField({
   onValueChange: (value: string | null) => void;
   placeholder?: string;
   description?: string;
+  invalid?: boolean;
 }) {
   const selected = items.find((item) => item.value === value);
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
       <Select value={value || null} items={items} onValueChange={onValueChange}>
-        <SelectTrigger id={id} className="w-full">
-          <SelectValue placeholder={placeholder}>{selected?.label ?? value}</SelectValue>
+        <SelectTrigger id={id} className="w-full" aria-invalid={invalid || undefined}>
+          {/* An empty value passes no text, so the placeholder shows. */}
+          <SelectValue placeholder={placeholder}>
+            {selected?.label ?? (value || undefined)}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {items.map((item) => (
@@ -4434,10 +4487,12 @@ function JobChangedTriggerFields({
   config,
   projects,
   onChangeConfig,
+  projectInvalid,
 }: {
   config: VisualWorkflowJobChangedTriggerConfig;
   projects: { id: string; name: string }[];
   onChangeConfig: (config: VisualNodeConfig) => void;
+  projectInvalid: boolean;
 }) {
   const intl = useIntl();
   return (
@@ -4446,6 +4501,7 @@ function JobChangedTriggerFields({
         id="vw-job-changed-project"
         label={intl.formatMessage(messages.jobChangedProject)}
         value={config.projectId ?? ANY_PROJECT_VALUE}
+        invalid={projectInvalid}
         items={[
           { value: ANY_PROJECT_VALUE, label: intl.formatMessage(messages.anyProject) },
           ...projects.map((project) => ({ value: project.id, label: project.name })),

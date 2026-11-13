@@ -73,6 +73,11 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     purpose:
       "List a project's source files, optionally under a path, so a For each can translate or assign every file.",
   },
+  "action.translation_as_source": {
+    title: "Use translation as source",
+    purpose:
+      "Send a finished task's Word or Excel file to another project as its source file, with its approved translation in that project's source language. Takes jobId from a Job changed trigger on Proofread tasks with Changes set to status changed and New status Succeeded; the trigger's project must be the project the files are in, which the person chooses. When nothing should be sent, sent is false and reason is one of already_sent, sent_from_destination, task_has_no_file, task_in_other_language, source_file_not_found, unsupported_file_format, no_strings, not_on_default_branch. When a person must act first (translations_not_approved, destination_file_replaced, destination_branch_protected, source_file_not_ready, source_file_read_failed, file_reads_differently, file_cannot_be_written) the step fails with that code: with On error set to stop, the run fails and can be retried once fixed; with an error branch, later steps can read error.code and error.message; with an error branch or continue, the run cannot be retried and the file is sent from the Files page.",
+  },
   "action.file_read": {
     title: "Read file",
     purpose: "Read bounded content and metadata from an organization-scoped stored file.",

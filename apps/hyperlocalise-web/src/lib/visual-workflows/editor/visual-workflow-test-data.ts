@@ -93,6 +93,7 @@ const MOCKABLE: Record<VisualCatalogType, boolean> = {
   "action.check_progress": true,
   "action.run_qa": true,
   "action.list_source_files": true,
+  "action.translation_as_source": true,
   "action.file_read": true,
   "action.file_write": true,
   "action.file_convert": true,
