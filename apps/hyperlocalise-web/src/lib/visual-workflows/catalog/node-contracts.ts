@@ -144,7 +144,7 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       output("step"),
       output("assigned", "boolean"),
       output("targetLocales", "array"),
-      output("dueAt"),
+      output("dueAt", "string", true),
     ],
     mock: {
       jobId: "job_mock_task",
@@ -334,7 +334,7 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       output("jobId"),
       output("assigned", "boolean"),
       output("renamed", "boolean"),
-      output("dueAt"),
+      output("dueAt", "string", true),
     ],
     mock: { jobId: "job_mock", assigned: true, renamed: false, dueAt: null },
   },
