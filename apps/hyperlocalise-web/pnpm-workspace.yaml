@@ -10,8 +10,8 @@ allowBuilds:
   protobufjs: false
   sharp: false
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@1.5.0
-  vite-plus: 1.5.0
+  vite: npm:@voidzero-dev/vite-plus-core@1.5.1
+  vite-plus: 1.5.1
   vitest: 5.1.0
   '@vitest/browser-playwright': 5.1.0
 ignoredBuiltDependencies:
@@ -41,7 +41,7 @@ overrides:
   "undici@^8.0.0": "8.12.4"
   devalue: "6.0.3"
   qs: "6.17.1"
-  "@anthropic-ai/sdk": "1.6.0"
+  "@anthropic-ai/sdk": "1.7.0"
   postcss: "8.5.32"
   postcss-selector-parser: "7.2.0"
   esbuild: "0.28.2"
@@ -49,7 +49,7 @@ overrides:
   hono: "4.13.17"
   "@hono/node-server": "2.1.6"
   form-data: "4.0.6"
-  "axios@^1.0.0": "1.21.0"
+  "axios@^1.0.0": "1.21.1"
   fast-uri: "3.1.9"
   # mammoth is built for the 0.8 line; 0.9 rejects parseFromString without a mimeType.
   "@xmldom/xmldom": "0.9.12"
