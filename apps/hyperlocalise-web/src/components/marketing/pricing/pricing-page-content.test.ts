@@ -146,6 +146,10 @@ describe("pricing page content", () => {
     expect(catalog.find((model) => model.modelId === "elevenlabs-dubbing")?.job).toBe("speak");
     expect(catalog.find((model) => model.modelId === "elevenlabs-music")?.job).toBe("sound");
     expect(catalog.find((model) => model.modelId === "universal-3.5-pro")?.job).toBe("listen");
+    expect(catalog.find((model) => model.modelId === "fish-audio-s2.1-pro")?.job).toBe("speak");
+    expect(catalog.find((model) => model.modelId === "fish-audio-transcribe-1")?.job).toBe(
+      "listen",
+    );
     expect(section.jobs.map((job) => job.id)).toContain("sound");
     expect(
       new Set(

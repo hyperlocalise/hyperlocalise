@@ -26,6 +26,14 @@ func TestIrisModelsAssignNativeProviders(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, irisProviderElevenLabs, voice.Provider)
 	require.Equal(t, "eleven_v4", voice.NativeID)
+	fish, ok := irisModelByID("fish-audio-s2.1-pro")
+	require.True(t, ok)
+	require.Equal(t, irisProviderGateway, fish.Provider)
+	require.Equal(t, "fish-audio/s2.1-pro", fish.GatewayID)
+	transcribe, ok := irisModelByID("fish-audio-transcribe-1")
+	require.True(t, ok)
+	require.Equal(t, irisProviderGateway, transcribe.Provider)
+	require.Equal(t, "fish-audio/transcribe-1", transcribe.GatewayID)
 	omni, ok := irisModelByID("kling-o3-pro")
 	require.True(t, ok)
 	require.Equal(t, "fal-ai/kling-video/o3/pro/text-to-video", omni.NativeID)
@@ -176,6 +184,19 @@ func TestIrisCompositeProviderFallsBackToGateway(t *testing.T) {
 	outputs, err := provider.Generate(t.Context(), irisProviderRequest{Model: model, Prompt: "hello", Voice: "Roger"})
 	require.NoError(t, err)
 	require.Equal(t, []byte("gw"), outputs[0].Bytes)
+	require.Equal(t, 1, gateway.calls)
+}
+
+func TestIrisCompositeProviderRoutesFishAudioToGateway(t *testing.T) {
+	gateway := &stubIrisProvider{outputs: []irisProviderOutput{{Bytes: []byte("fish"), Filename: "speech.mp3", ContentType: "audio/mpeg"}}}
+	provider := &irisCompositeProvider{gateway: gateway, elevenlabs: &elevenlabs.Client{}}
+	model, ok := irisModelByID("fish-audio-s2.1-pro")
+	require.True(t, ok)
+	require.Equal(t, irisProviderGateway, model.Provider)
+	require.Equal(t, "fish-audio/s2.1-pro", model.GatewayID)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{Model: model, Prompt: "hello", Voice: "voice-id"})
+	require.NoError(t, err)
+	require.Equal(t, []byte("fish"), outputs[0].Bytes)
 	require.Equal(t, 1, gateway.calls)
 }
 

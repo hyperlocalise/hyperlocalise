@@ -164,12 +164,18 @@ func TestIrisGenerationModelsAndEstimate(t *testing.T) {
 		var models []irisModelInfo
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &models))
 		require.GreaterOrEqual(t, len(models), 20)
-		_, ok := irisModelByID("flux-2-klein")
-		require.True(t, ok)
-		_, ok = irisModelByID("elevenlabs-v4")
-		require.True(t, ok)
-		_, ok = irisModelByID("seedance-2.5")
-		require.True(t, ok)
+		ids := make([]string, 0, len(models))
+		for _, model := range models {
+			ids = append(ids, model.ID)
+		}
+		require.Contains(t, ids, "flux-2-klein")
+		require.Contains(t, ids, "elevenlabs-v4")
+		require.Contains(t, ids, "fish-audio-s2.1-pro")
+		require.Contains(t, ids, "fish-audio-drama-3")
+		require.NotContains(t, ids, "fish-audio-s2-pro")
+		require.NotContains(t, ids, "fish-audio-s1")
+		require.Contains(t, ids, "fish-audio-transcribe-1")
+		require.Contains(t, ids, "seedance-2.5")
 	})
 
 	t.Run("estimates image and voice", func(t *testing.T) {
@@ -583,6 +589,18 @@ func TestIrisSyntheticCredit(t *testing.T) {
 			output: 2,
 		},
 		{
+			name:   "fish audio transcribe input minutes",
+			job:    irisJobRecord{ID: "job_fish_transcribe", OrgID: "org_local", Model: "fish-audio-transcribe-1", Request: irisGenerateRequest{"duration": float64(90)}},
+			model:  "custom/audio",
+			output: 2,
+		},
+		{
+			name:   "fish audio voice minutes",
+			job:    irisJobRecord{ID: "job_fish_voice", OrgID: "org_local", Model: "fish-audio-s2.1-pro"},
+			model:  "custom/audio",
+			output: 1,
+		},
+		{
 			name:   "omni flash default input minute",
 			job:    irisJobRecord{ID: "job_omni", OrgID: "org_local", Model: "qwen3.8-omni-flash"},
 			model:  "custom/audio",
@@ -869,6 +887,34 @@ func TestIrisGatewayProviderSpeechURL(t *testing.T) {
 	require.Equal(t, []byte("mp3"), outputs[0].Bytes)
 }
 
+func TestIrisGatewayProviderFishAudioSpeechUsesGatewayID(t *testing.T) {
+	var payload map[string]any
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/audio/speech", r.URL.Path)
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		w.Header().Set("Content-Type", "audio/mpeg")
+		_, _ = w.Write([]byte("fish-mp3"))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("fish-audio-s2.1-pro")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:  model,
+		Prompt: "hello",
+		Voice:  "933563129e564b19a115bedd57b7406a",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []byte("fish-mp3"), outputs[0].Bytes)
+	require.Equal(t, "fish-audio/s2.1-pro", payload["model"])
+	require.Equal(t, "hello", payload["input"])
+	require.Equal(t, "933563129e564b19a115bedd57b7406a", payload["voice"])
+}
+
 func TestIrisGatewayProviderTranscribeUsesV4Endpoint(t *testing.T) {
 	audio := []byte("RIFF....WAVEfmt ")
 	var gotPath, gotModel, gotProtocol, gotSpec, gotAuthMethod string
@@ -909,6 +955,35 @@ func TestIrisGatewayProviderTranscribeUsesV4Endpoint(t *testing.T) {
 	require.Equal(t, "audio/wav", payload["mediaType"])
 	require.Equal(t, base64.StdEncoding.EncodeToString(audio), payload["audio"])
 	require.JSONEq(t, `[{"text":"hello from vo","words":[{"text":"hello from vo","start":0.1,"end":1.2}]}]`, string(outputs[0].Bytes))
+}
+
+func TestIrisGatewayProviderFishAudioTranscribeUsesGatewayID(t *testing.T) {
+	audio := []byte("RIFF....WAVEfmt ")
+	var gotModel string
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotModel = r.Header.Get("ai-model-id")
+		require.Equal(t, "/v4/ai/transcription-model", r.URL.Path)
+		_, _ = w.Write([]byte(`{"text":"fish transcript","segments":[{"text":"fish transcript","startSecond":0,"endSecond":1}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL + "/v1",
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("fish-audio-transcribe-1")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model: model,
+		Inputs: []irisProviderInput{{
+			Role:        "audio",
+			Bytes:       audio,
+			ContentType: "audio/wav",
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "fish-audio/transcribe-1", gotModel)
+	require.JSONEq(t, `[{"text":"fish transcript","words":[{"text":"fish transcript","start":0,"end":1}]}]`, string(outputs[0].Bytes))
 }
 
 func TestIrisGatewayProviderTranscribeOpenAIUsesMultipart(t *testing.T) {

@@ -87,12 +87,19 @@ func irisModels() []irisModelInfo {
 		{ID: "elevenlabs-v4", Name: "ElevenLabs v4", Kind: irisKindVoice, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/eleven-v3", NativeID: "eleven_v4", Pricing: irisPricing{Unit: "input-minute", Credits: 6, Minimum: &min1}, ETASeconds: 15, PromptMax: 10000},
 		{ID: "elevenlabs-v3", Name: "ElevenLabs v3", Kind: irisKindVoice, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/eleven-multilingual-v2", NativeID: "eleven_multilingual_v2", Pricing: irisPricing{Unit: "input-minute", Credits: 4, Minimum: &min1}, ETASeconds: 12, PromptMax: 5000},
 		{ID: "gemini-3.8-flash-tts", Name: "Gemini 3.8 Flash TTS", Kind: irisKindVoice, GatewayID: "google/gemini-2.5-flash-preview-tts", Pricing: irisPricing{Unit: "input-minute", Credits: 2, Minimum: &min1}, ETASeconds: 10, PromptMax: 10000},
+		// Fish Audio on AI Gateway is speech and transcription only. There is
+		// no Gateway music or SFX id; those stay on ElevenLabs. S2.1 Pro is
+		// the production TTS; Drama 3 is the current performance model. S2
+		// Pro and S1 are previous/deprecated and are not catalogued.
+		{ID: "fish-audio-s2.1-pro", Name: "Fish Audio S2.1 Pro", Kind: irisKindVoice, GatewayID: "fish-audio/s2.1-pro", Pricing: irisPricing{Unit: "input-minute", Credits: 3, Minimum: &min1}, ETASeconds: 10, PromptMax: 10000},
+		{ID: "fish-audio-drama-3", Name: "Fish Audio Drama 3", Kind: irisKindVoice, GatewayID: "fish-audio/drama-3", Pricing: irisPricing{Unit: "input-minute", Credits: 3, Minimum: &min1}, ETASeconds: 12, PromptMax: 10000},
 		{ID: "elevenlabs-music", Name: "ElevenLabs Music", Kind: irisKindAudio, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/music-v1", NativeID: "music_v1", Pricing: irisPricing{Unit: "second", Credits: 1, Minimum: &min1}, ETASeconds: 40, PromptMax: 4100},
 		{ID: "elevenlabs-sfx", Name: "ElevenLabs SFX", Kind: irisKindAudio, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/sound-effects-v2", NativeID: "eleven_text_to_sound_v2", Pricing: irisPricing{Unit: "second", Credits: 1, Minimum: &min1}, ETASeconds: 20, PromptMax: 4100},
 		{ID: "bria-rmbg-2.0", Name: "Bria RMBG 2.0", Kind: irisKindTool, Provider: irisProviderFal, GatewayID: "bria/rmbg-2.0", NativeID: "fal-ai/bria/background-removal", Pricing: irisPricing{Unit: "flat", Credits: 2, Minimum: &min1}, ETASeconds: 15, RequiresRef: true},
 		{ID: "seedvr-2", Name: "SeedVR 2", Kind: irisKindTool, Provider: irisProviderFal, GatewayID: "bytedance/seedvr2", NativeID: "fal-ai/seedvr/upscale/image", Pricing: irisPricing{Unit: "flat", Credits: 3, Minimum: &min1}, ETASeconds: 20, RequiresRef: true},
 		{ID: "bytedance-upscaler", Name: "ByteDance Upscaler", Kind: irisKindTool, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "fal-ai/bytedance-upscaler/upscale/video", Pricing: irisPricing{Unit: "flat", Credits: 8, Minimum: &min1}, ETASeconds: 60, RequiresRef: true},
 		{ID: "universal-3.5-pro", Name: "Universal 3.5 Pro", Kind: irisKindTool, GatewayID: "google/gemini-3.5-transcribe", Pricing: irisPricing{Unit: "input-minute", Credits: 3, Minimum: &min1}, ETASeconds: 25, RequiresRef: true},
+		{ID: "fish-audio-transcribe-1", Name: "Fish Audio Transcribe 1", Kind: irisKindTool, GatewayID: "fish-audio/transcribe-1", Pricing: irisPricing{Unit: "input-minute", Credits: 2, Minimum: &min1}, ETASeconds: 25, RequiresRef: true},
 		{ID: "qwen3.8-omni-flash", Name: "Qwen 3.8 Omni Flash", Kind: irisKindTool, GatewayID: "alibaba/qwen3-omni-flash", Pricing: irisPricing{Unit: "input-minute", Credits: 2, Minimum: &min1}, ETASeconds: 20, RequiresRef: true},
 		// Localisation: dubbing in the speakers' own voices, lip-sync to new
 		// audio, and reading and rewriting the copy baked into an image.
@@ -310,7 +317,7 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 		if _, ok := req.asset("video"); !ok {
 			return model, fmt.Errorf("video is required")
 		}
-	case "universal-3.5-pro":
+	case "universal-3.5-pro", "fish-audio-transcribe-1":
 		if _, ok := req.asset("audio"); !ok {
 			if scene, _ := req["audio"].(map[string]any); stringFrom(scene["scene"]) != "" {
 				return model, fmt.Errorf("scene audio references are not supported; upload the file first")
