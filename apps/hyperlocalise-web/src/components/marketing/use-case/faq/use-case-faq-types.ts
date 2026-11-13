@@ -13,12 +13,15 @@
 import type { MessageDescriptor } from "@formatjs/intl";
 
 export type UseCaseFaqSlug =
-  | "product-localisation"
-  | "marketing-localisation"
-  | "help-center-localisation"
-  | "github-release-localisation"
+  | "localisation-operations"
   | "localisation-quality-monitoring"
-  | "localisation-operations";
+  | "help-center-localisation"
+  | "market-entry"
+  | "marketing-localisation"
+  | "market-experimentation"
+  | "github-release-localisation"
+  | "localisation-cli-and-api"
+  | "localisation-for-ai-coding-agents";
 
 export type UseCaseFaqDescriptor = {
   question: MessageDescriptor;

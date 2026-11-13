@@ -21,11 +21,13 @@ import { Button } from "@/components/ui/button";
 type MarketingConversionCtaButtonsProps = {
   className?: string;
   primaryButtonClassName?: string;
+  secondaryButtonClassName?: string;
 };
 
 export function MarketingConversionCtaButtons({
   className,
   primaryButtonClassName,
+  secondaryButtonClassName,
 }: MarketingConversionCtaButtonsProps) {
   return (
     <div className={className ?? "flex flex-col items-center justify-center gap-3 sm:flex-row"}>
@@ -37,6 +39,7 @@ export function MarketingConversionCtaButtons({
         <FormattedMessage {...marketingConversionCtaMessages.startForFree} />
       </Button>
       <Button
+        className={secondaryButtonClassName}
         nativeButton={false}
         render={<a href={REQUEST_DEMO_URL} rel="noopener noreferrer" target="_blank" />}
         variant="outline"

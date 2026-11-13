@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import {
   getUseCaseFaqItems,
@@ -20,6 +20,7 @@ import {
 import type { UseCaseFaqSlug } from "@/components/marketing/use-case/faq/use-case-faq-types";
 import { UseCasePage } from "@/components/marketing/use-case/use-case-page";
 import {
+  RETIRED_USE_CASE_SLUGS,
   useCasePagesBySlug,
   useCaseSlugs,
 } from "@/components/marketing/use-case/use-case-page-content";
@@ -67,7 +68,7 @@ export async function generateMetadata({ params }: UseCaseRouteProps): Promise<M
   return {
     title,
     description,
-    keywords: content.metadata.keywords,
+    keywords: content.keywords,
     alternates: getLocalizedAlternates({ locale, path: `/use-cases/${slug}` }),
     openGraph: localizedOpenGraph(locale, `/use-cases/${slug}`, {
       title,
@@ -81,6 +82,11 @@ export default async function UseCaseRoutePage({ params }: UseCaseRouteProps) {
   const { lang, slug } = await params;
   const content = useCasePagesBySlug[slug];
 
+  const replacementSlug = RETIRED_USE_CASE_SLUGS[slug];
+  if (replacementSlug) {
+    permanentRedirect(`/${lang}/use-cases/${replacementSlug}`);
+  }
+
   if (!content) {
     notFound();
   }
@@ -91,7 +97,7 @@ export default async function UseCaseRoutePage({ params }: UseCaseRouteProps) {
 
   return (
     <UseCasePage
-      content={content}
+      page={content}
       faqItems={getUseCaseFaqItems(faqSlug, locale)}
       faqHeading={faqCopy.heading}
       faqSubheading={faqCopy.subheading}
