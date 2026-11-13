@@ -14,8 +14,10 @@ import { track } from "@vercel/analytics/server";
 
 import { Analytics } from "./analytics";
 import { trackGoogleAnalyticsServerEvent } from "./google-analytics-server";
+import { trackPostHogServerEvent } from "./posthog-server";
 
 export const serverAnalytics = new Analytics([
   (name, properties) => track(name, properties),
   (name, properties) => trackGoogleAnalyticsServerEvent(name, properties),
+  (name, properties) => trackPostHogServerEvent(name, properties),
 ]);

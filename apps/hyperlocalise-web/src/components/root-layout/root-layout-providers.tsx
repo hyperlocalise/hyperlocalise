@@ -19,8 +19,10 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
+import { env } from "@/lib/env";
 import { withAuth } from "@/lib/workos/server-auth";
 
+import { PostHogIdentity } from "./posthog-identity";
 import { RootDocumentLocale } from "./root-document-locale";
 
 type RootLayoutProvidersProps = {
@@ -34,6 +36,7 @@ export async function RootLayoutProviders({ children }: RootLayoutProvidersProps
     <>
       <RootDocumentLocale locale={locale} />
       <AuthKitProvider initialAuth={initialAuth}>
+        {env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN ? <PostHogIdentity /> : null}
         <I18nProvider locale={locale}>
           <QueryProvider>
             <ThemeProvider

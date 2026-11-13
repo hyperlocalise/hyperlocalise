@@ -16,29 +16,32 @@ import { withDatadogTurbopack } from "dd-trace/next";
 import { withWorkflow } from "workflow/next";
 
 import { AGENT_MARKDOWN_TRACE_GLOB } from "./src/agents/_runtime/paths";
+import { posthogNextRewrites } from "./src/lib/analytics/posthog-config";
 
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   // Keep the tracer and the dependencies whose load hooks provide the spans we
   // rely on as native Node.js modules instead of folding them into route bundles.
-  serverExternalPackages: ["dd-trace", "pg", "undici"],
+  serverExternalPackages: ["dd-trace", "pg", "posthog-node", "undici"],
   typescript: {
     // Exclude tests and typed-app.ts so next build does not instantiate AppType (TS2589).
     tsconfigPath: "tsconfig.build.json",
   },
+  // PostHog ingest paths end with a slash; skip the Next.js trailing-slash
+  // redirect so `/ingest` rewrites reach PostHog instead of bouncing first.
+  skipTrailingSlashRedirect: true,
   async rewrites() {
     const authkitDomain = process.env.WORKOS_AUTHKIT_DOMAIN;
-    if (!authkitDomain) {
-      return [];
-    }
-
-    return [
-      {
+    const rewrites = [...posthogNextRewrites()];
+    if (authkitDomain) {
+      rewrites.push({
         source: "/auth.md",
         destination: `https://${authkitDomain}/agent/auth.md`,
-      },
-    ];
+      });
+    }
+
+    return rewrites;
   },
   // View transitions work without config in Next.js 16.3+ (experimental.viewTransition removed).
   // Agent prompts load from src/agents/**/*.md at runtime via process.cwd() (see paths.ts).
