@@ -77,6 +77,7 @@ type billingPortalBody struct {
 }
 
 var paidAutumnPlans = map[string]string{
+	autumn.PlanStarter:    "Starter",
 	autumn.PlanGrowth:     "Growth",
 	autumn.PlanEnterprise: "Enterprise",
 }
@@ -158,7 +159,7 @@ func (api *billingAPI) serveCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 	planID := strings.ToLower(strings.TrimSpace(body.PlanID))
 	if _, ok := paidAutumnPlans[planID]; !ok {
-		writeBillingError(w, r, "plan", billingFailure(400, "invalid_plan", "Checkout only supports growth or enterprise"))
+		writeBillingError(w, r, "plan", billingFailure(400, "invalid_plan", "Checkout only supports starter, growth or enterprise"))
 		return
 	}
 	if api.autumn == nil || !api.autumn.HasSecretKey() {
@@ -279,7 +280,7 @@ func billingSnapshotFromCustomer(customer autumn.Customer) workspaceBillingSnaps
 		}
 	}
 	if subscription, ok := activeCustomerSubscription(customer.Subscriptions); ok {
-		snapshot.PlanID = subscription.PlanID
+		snapshot.PlanID = canonicalPlanID(subscription.PlanID, subscriptionPlanName(subscription))
 		snapshot.PlanName = planDisplayName(subscription)
 		snapshot.Status = optionalBillingString(subscription.Status)
 		snapshot.CanceledAt = subscription.CanceledAt
@@ -298,26 +299,92 @@ func billingSnapshotFromCustomer(customer autumn.Customer) workspaceBillingSnaps
 	return snapshot
 }
 
+// activeCustomerSubscription picks the workspace plan subscription. Among
+// active ones a paid tier wins over free (the default free plan can stay
+// active beside a paid one), and a known tier over anything else, such as an
+// add-on. With nothing active, the first listed.
 func activeCustomerSubscription(subscriptions []autumn.CustomerSubscription) (autumn.CustomerSubscription, bool) {
 	if len(subscriptions) == 0 {
 		return autumn.CustomerSubscription{}, false
 	}
+	best, bestRank := subscriptions[0], -1
 	for _, subscription := range subscriptions {
-		if subscription.Status == "active" {
-			return subscription, true
+		if subscription.Status != "active" {
+			continue
+		}
+		if rank := subscriptionRank(subscription); rank > bestRank {
+			best, bestRank = subscription, rank
 		}
 	}
-	return subscriptions[0], true
+	return best, true
+}
+
+// subscriptionRank orders active subscriptions: paid tier, then free, then
+// anything else.
+func subscriptionRank(subscription autumn.CustomerSubscription) int {
+	switch knownPlanTier(subscription.PlanID, subscriptionPlanName(subscription)) {
+	case "":
+		return 0
+	case autumn.PlanFree:
+		return 1
+	default:
+		return 2
+	}
+}
+
+func subscriptionPlanName(subscription autumn.CustomerSubscription) string {
+	if subscription.Plan != nil && subscription.Plan.Name != nil {
+		return *subscription.Plan.Name
+	}
+	return ""
+}
+
+// knownPlanTier maps an Autumn plan to free, starter, growth or enterprise.
+// Autumn ids and names can carry suffixes ("growth_monthly", "Growth Plan"),
+// so it matches the id, then the id's leading word, then the name's. It
+// returns "" when nothing matches.
+func knownPlanTier(planID, name string) string {
+	for _, candidate := range []string{planID, name} {
+		normalized := strings.ToLower(strings.TrimSpace(candidate))
+		if isKnownPlanTier(normalized) {
+			return normalized
+		}
+		words := strings.FieldsFunc(normalized, func(r rune) bool {
+			return r == '_' || r == '-' || r == ' '
+		})
+		if len(words) > 0 && isKnownPlanTier(words[0]) {
+			return words[0]
+		}
+	}
+	return ""
+}
+
+func isKnownPlanTier(planID string) bool {
+	if planID == autumn.PlanFree {
+		return true
+	}
+	_, ok := paidAutumnPlans[planID]
+	return ok
+}
+
+// canonicalPlanID returns the tier id clients compare against, or the raw
+// Autumn id for plans outside the known tiers.
+func canonicalPlanID(planID, name string) string {
+	if tier := knownPlanTier(planID, name); tier != "" {
+		return tier
+	}
+	return planID
 }
 
 func planDisplayName(subscription autumn.CustomerSubscription) string {
 	if subscription.Plan != nil && subscription.Plan.Name != nil && strings.TrimSpace(*subscription.Plan.Name) != "" {
 		return strings.TrimSpace(*subscription.Plan.Name)
 	}
-	if name, ok := paidAutumnPlans[subscription.PlanID]; ok {
+	tier := knownPlanTier(subscription.PlanID, "")
+	if name, ok := paidAutumnPlans[tier]; ok {
 		return name
 	}
-	if subscription.PlanID == autumn.PlanFree {
+	if tier == autumn.PlanFree {
 		return "Free"
 	}
 	return formatPlanIDLabel(subscription.PlanID)

@@ -7,6 +7,7 @@ import (
 
 const (
 	PlanFree       = "free"
+	PlanStarter    = "starter"
 	PlanGrowth     = "growth"
 	PlanEnterprise = "enterprise"
 
