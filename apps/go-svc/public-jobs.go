@@ -26,6 +26,11 @@ const (
 const publicJobEditableColumnsSQL = `j.input_payload->'metadata'->>'title', j.input_payload->'metadata'->>'description',
             j.due_at, ou.email`
 
+// What a job translates, from its saved input: its source file (key jobs have none) and languages.
+// Reads that select these join the job's source file as sf.
+const publicJobInputColumnsSQL = `j.input_payload->>'sourceFileId', sf.source_path, sf.branch_name,
+            j.input_payload->>'sourceLocale', j.input_payload->'targetLocales'`
+
 const publicJobAccessSQL = `j.organization_id=$2 and ($3 or exists(select 1 from projects p
         join teams t on t.organization_id=p.organization_id and (t.id=p.team_id or (p.team_id is null and t.slug='default'))
         join team_memberships m on m.team_id=t.id and m.user_id=$4
@@ -41,20 +46,29 @@ type publicJobOutputFile struct {
 	Filename string `json:"filename"`
 }
 
+type publicJobSourceFile struct {
+	FileID string  `json:"fileId"`
+	Path   *string `json:"path"`
+	Branch *string `json:"branch"`
+}
+
 type publicJobEnvelope struct {
-	ID          string                 `json:"id"`
-	ProjectID   *string                `json:"projectId"`
-	Type        *string                `json:"type"`
-	Status      string                 `json:"status"`
-	CreatedAt   string                 `json:"createdAt"`
-	UpdatedAt   string                 `json:"updatedAt"`
-	CompletedAt *string                `json:"completedAt"`
-	LastError   *string                `json:"lastError"`
-	Title       *string                `json:"title"`
-	Description *string                `json:"description"`
-	DueAt       *string                `json:"dueAt"`
-	OwnerEmail  *string                `json:"ownerEmail"`
-	OutputFiles *[]publicJobOutputFile `json:"outputFiles"`
+	ID            string                 `json:"id"`
+	ProjectID     *string                `json:"projectId"`
+	Type          *string                `json:"type"`
+	Status        string                 `json:"status"`
+	CreatedAt     string                 `json:"createdAt"`
+	UpdatedAt     string                 `json:"updatedAt"`
+	CompletedAt   *string                `json:"completedAt"`
+	LastError     *string                `json:"lastError"`
+	Title         *string                `json:"title"`
+	Description   *string                `json:"description"`
+	DueAt         *string                `json:"dueAt"`
+	OwnerEmail    *string                `json:"ownerEmail"`
+	OutputFiles   *[]publicJobOutputFile `json:"outputFiles"`
+	SourceFile    *publicJobSourceFile   `json:"sourceFile"`
+	SourceLocale  *string                `json:"sourceLocale"`
+	TargetLocales *[]string              `json:"targetLocales"`
 }
 
 type publicJobStatusEnvelope struct {
@@ -85,6 +99,11 @@ type publicJobRow struct {
 	description    *string
 	dueAt          *time.Time
 	ownerEmail     *string
+	sourceFileID   *string
+	sourcePath     *string
+	sourceBranch   *string
+	sourceLocale   *string
+	targetLocales  []byte
 }
 
 func (api *publicJobsAPI) register(mux *http.ServeMux) {
@@ -224,9 +243,11 @@ func (api *publicJobsAPI) loadJob(ctx context.Context, principal publicAPIPrinci
 	}
 	row := pool.QueryRow(ctx, `select j.id, j.project_id, j.kind::text, d.type::text, j.status::text, d.outcome_kind::text,
             j.outcome_payload, j.last_error, j.created_at, j.updated_at, j.completed_at,
-            `+publicJobEditableColumnsSQL+`
+            `+publicJobEditableColumnsSQL+`, `+publicJobInputColumnsSQL+`
         from jobs j
         left join translation_job_details d on d.job_id=j.id
+        left join repository_source_file_versions v on v.id=d.source_file_version_id
+        left join repository_source_files sf on sf.id=v.repository_source_file_id
         left join users ou on ou.id=j.owner_user_id
         where j.id=$1 and `+publicJobAccessSQL+`
         limit 1`,
@@ -263,8 +284,9 @@ func (api *publicJobsAPI) loadLatest(ctx context.Context, principal publicAPIPri
 
 	row := pool.QueryRow(ctx, `select j.id, j.project_id, j.kind::text, d.type::text, j.status::text, d.outcome_kind::text,
             j.outcome_payload, j.last_error, j.created_at, j.updated_at, j.completed_at,
-            `+publicJobEditableColumnsSQL+`
+            `+publicJobEditableColumnsSQL+`, `+publicJobInputColumnsSQL+`
         from repository_source_file_versions v
+        join repository_source_files sf on sf.id=v.repository_source_file_id
         join translation_job_details d on d.source_file_version_id=v.id
         join jobs j on j.id=d.job_id
         left join users ou on ou.id=j.owner_user_id
@@ -289,26 +311,49 @@ func scanPublicJob(row pgx.Row) (publicJobRow, error) {
 	var job publicJobRow
 	err := row.Scan(&job.id, &job.projectID, &job.kind, &job.jobType, &job.status, &job.outcomeKind,
 		&job.outcomePayload, &job.lastError, &job.createdAt, &job.updatedAt, &job.completedAt,
-		&job.title, &job.description, &job.dueAt, &job.ownerEmail)
+		&job.title, &job.description, &job.dueAt, &job.ownerEmail,
+		&job.sourceFileID, &job.sourcePath, &job.sourceBranch, &job.sourceLocale, &job.targetLocales)
 	return job, err
 }
 
 func (job publicJobRow) envelope() publicJobEnvelope {
 	return publicJobEnvelope{
-		ID:          job.id,
-		ProjectID:   job.projectID,
-		Type:        job.jobType,
-		Status:      job.status,
-		CreatedAt:   formatPublicJobTime(job.createdAt),
-		UpdatedAt:   formatPublicJobTime(job.updatedAt),
-		CompletedAt: formatOptionalPublicJobTime(job.completedAt),
-		LastError:   job.lastError,
-		Title:       job.title,
-		Description: job.description,
-		DueAt:       formatOptionalPublicJobTime(job.dueAt),
-		OwnerEmail:  job.ownerEmail,
-		OutputFiles: publicJobOutputFiles(job.jobType, job.outcomeKind, job.outcomePayload),
+		ID:            job.id,
+		ProjectID:     job.projectID,
+		Type:          job.jobType,
+		Status:        job.status,
+		CreatedAt:     formatPublicJobTime(job.createdAt),
+		UpdatedAt:     formatPublicJobTime(job.updatedAt),
+		CompletedAt:   formatOptionalPublicJobTime(job.completedAt),
+		LastError:     job.lastError,
+		Title:         job.title,
+		Description:   job.description,
+		DueAt:         formatOptionalPublicJobTime(job.dueAt),
+		OwnerEmail:    job.ownerEmail,
+		OutputFiles:   publicJobOutputFiles(job.jobType, job.outcomeKind, job.outcomePayload),
+		SourceFile:    publicJobSourceFileOf(job.sourceFileID, job.sourcePath, job.sourceBranch),
+		SourceLocale:  job.sourceLocale,
+		TargetLocales: publicJobTargetLocales(job.targetLocales),
 	}
+}
+
+// publicJobSourceFileOf returns the stored file a job translates; its path and version branch are
+// null when the file is not tracked at a path in the project.
+func publicJobSourceFileOf(fileID, path, branch *string) *publicJobSourceFile {
+	if fileID == nil || trimDictionaryInput(*fileID) == "" {
+		return nil
+	}
+	return &publicJobSourceFile{FileID: *fileID, Path: path, Branch: branch}
+}
+
+// publicJobTargetLocales returns the saved target locales, or null when they are missing or not a
+// list of strings.
+func publicJobTargetLocales(raw []byte) *[]string {
+	var locales []string
+	if err := json.Unmarshal(raw, &locales); err != nil || locales == nil {
+		return nil
+	}
+	return &locales
 }
 
 func publicJobOutputFiles(jobType, outcomeKind *string, payload []byte) *[]publicJobOutputFile {

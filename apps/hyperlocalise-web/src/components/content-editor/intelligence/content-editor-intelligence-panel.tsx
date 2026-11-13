@@ -31,6 +31,7 @@ import {
   ListMagnifyingGlassIcon,
   TextAaIcon,
   TextTIcon,
+  TagIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -85,7 +86,11 @@ import type {
 import { ContentEditorEditTmSegmentButton } from "./content-editor-edit-tm-segment";
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
 import { ContentEditorLottieContextPanel } from "./content-editor-lottie-context-panel";
-import { ContentEditorKeyDetails } from "./content-editor-key-details";
+import {
+  ContentEditorKeyDetails,
+  useContentEditorKeyDetailsVisible,
+} from "./content-editor-key-details";
+import { contentEditorKeyDetailsMessages } from "./content-editor-key-details.messages";
 import {
   ContentEditorExpandableContent,
   ContentEditorShowLessButton,
@@ -446,6 +451,11 @@ export function ContentEditorIntelligencePanel({
 
   const hasFileContext = Boolean(intelligence.productMeaning?.trim());
   const keyTags = intelligence.keyTags ?? [];
+  const showKeyDetails = useContentEditorKeyDetailsVisible({
+    segmentId,
+    tags: keyTags,
+    designUrl: intelligence.designUrl,
+  });
   const agentBadges = [
     intelligence.locationBreadcrumb,
     intelligence.componentName,
@@ -589,12 +599,20 @@ export function ContentEditorIntelligencePanel({
                   <FormattedMessage {...contentEditorIntelligencePanelMessages.noFileContext} />
                 </p>
               )}
-              <ContentEditorKeyDetails
-                segmentId={segmentId}
-                tags={keyTags}
-                designUrl={intelligence.designUrl}
-              />
             </PanelSection>
+
+            {showKeyDetails ? (
+              <PanelSection
+                title={intl.formatMessage(contentEditorKeyDetailsMessages.sectionTitle)}
+                icon={TagIcon}
+              >
+                <ContentEditorKeyDetails
+                  segmentId={segmentId}
+                  tags={keyTags}
+                  designUrl={intelligence.designUrl}
+                />
+              </PanelSection>
+            ) : null}
 
             {isConcordanceLoading ? (
               <div ref={tmSectionRef}>
