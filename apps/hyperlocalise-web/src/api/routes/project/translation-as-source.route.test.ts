@@ -1129,6 +1129,7 @@ describe("translation as source routes", () => {
           locale: PIVOT_LOCALE,
           receivedAt: sentVersion.createdAt.toISOString(),
           replaced: null,
+          sentAutomatically: false,
         },
       ],
     });

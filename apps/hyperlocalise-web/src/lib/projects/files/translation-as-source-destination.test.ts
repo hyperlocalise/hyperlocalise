@@ -40,7 +40,10 @@ describe("translationAsSourceDestinationRefusal", () => {
   it("lets a send replace an empty path or this file's last send without asking", () => {
     expect(translationAsSourceDestinationRefusal({ state: "empty" }, undefined)).toBeNull();
     expect(
-      translationAsSourceDestinationRefusal({ state: "sent_from_here", versionId }, undefined),
+      translationAsSourceDestinationRefusal(
+        { state: "sent_from_here", versionId, fingerprint: null, workflowStepKey: null },
+        undefined,
+      ),
     ).toBeNull();
   });
 

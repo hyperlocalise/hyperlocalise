@@ -27,7 +27,14 @@ const SYNC_UPLOAD_SURFACES = new Set(["content_sync", "gitlab_content_sync", "gi
 export type TranslationAsSourceDestinationFile =
   | { state: "empty" }
   /** The last send from this same file: a send replaces it without asking. */
-  | { state: "sent_from_here"; versionId: string }
+  | {
+      state: "sent_from_here";
+      versionId: string;
+      /** What that send read (`translationSourceFingerprintSql`). */
+      fingerprint: string | null;
+      /** The workflow step that made it, for an automatic send. */
+      workflowStepKey: string | null;
+    }
   /** Added by the destination's repository sync, which may put its copy back on its next run. */
   | { state: "from_sync"; versionId: string; addedAt: Date }
   /** Anything else, which a send replaces only when a person confirmed this version. */
@@ -69,6 +76,8 @@ export async function getTranslationAsSourceDestinationFile(input: {
     origin_file_id: string | null;
     origin_project_id: string | null;
     origin_path: string | null;
+    fingerprint: string | null;
+    workflow_step_key: string | null;
   }>(sql`
     select
       newest.id,
@@ -79,7 +88,9 @@ export async function getTranslationAsSourceDestinationFile(input: {
       uploader.email,
       origin.repository_source_file_id as origin_file_id,
       origin.project_id as origin_project_id,
-      origin.source_path as origin_path
+      origin.source_path as origin_path,
+      stored.metadata -> 'translationSource' ->> 'fingerprint' as fingerprint,
+      stored.metadata -> 'translationSource' ->> 'workflowStepKey' as workflow_step_key
     from repository_source_file_versions newest
     join repository_source_files newest_file
       on newest_file.id = newest.repository_source_file_id
@@ -100,7 +111,12 @@ export async function getTranslationAsSourceDestinationFile(input: {
     return { state: "empty" };
   }
   if (row.origin_file_id === input.repositorySourceFileId) {
-    return { state: "sent_from_here", versionId: row.id };
+    return {
+      state: "sent_from_here",
+      versionId: row.id,
+      fingerprint: row.fingerprint,
+      workflowStepKey: row.workflow_step_key,
+    };
   }
   const addedAt = new Date(row.created_at);
   if (row.upload_surface && SYNC_UPLOAD_SURFACES.has(row.upload_surface)) {

@@ -61,6 +61,8 @@ export type TranslationAsSourceReceipt = {
   receivedAt: string;
   /** The version this send replaced, when it did not come from the same file. */
   replaced: { addedAt: string; addedBy: string | null } | null;
+  /** The send was made by the app, not by a person. */
+  sentAutomatically: boolean;
 };
 
 export function translationAsSourceReceiptsQueryKey(organizationSlug: string, projectId: string) {
@@ -173,8 +175,16 @@ export function receivedLine(receipt: TranslationAsSourceReceipt, intl: IntlShap
   const date = intl.formatDate(receipt.receivedAt, { dateStyle: "medium", timeStyle: "short" });
   const line =
     receipt.fromProjectName === null
-      ? intl.formatMessage(messages.sentHereFromAnotherProject, { date })
-      : intl.formatMessage(messages.sentHereFrom, { project: receipt.fromProjectName, date });
+      ? intl.formatMessage(
+          receipt.sentAutomatically
+            ? messages.sentHereAutomaticallyFromAnotherProject
+            : messages.sentHereFromAnotherProject,
+          { date },
+        )
+      : intl.formatMessage(
+          receipt.sentAutomatically ? messages.sentHereAutomaticallyFrom : messages.sentHereFrom,
+          { project: receipt.fromProjectName, date },
+        );
   if (!receipt.replaced) {
     return line;
   }

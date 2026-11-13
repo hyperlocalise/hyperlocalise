@@ -64,6 +64,18 @@ export const translationAsSourceSentMarkMessages = defineMessages({
     description:
       "Tooltip line on a file in the files list: the file's newest version was sent to this project from a project the person cannot open",
   },
+  sentHereAutomaticallyFrom: {
+    defaultMessage: "Sent here automatically from {project} on {date}.",
+    id: "u/hjHG6ZCw",
+    description:
+      "Tooltip line on a file in the files list: a workflow sent the file's newest version here by itself from the named project at this date and time",
+  },
+  sentHereAutomaticallyFromAnotherProject: {
+    defaultMessage: "Sent here automatically from another project on {date}.",
+    id: "9q0+iXwf90",
+    description:
+      "Tooltip line on a file in the files list: a workflow sent the file's newest version here by itself from a project the person cannot open",
+  },
   replacedIn: {
     defaultMessage: "Replaced in {project}",
     id: "ftzfpk5X6A",

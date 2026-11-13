@@ -267,6 +267,7 @@ describe("ProjectFilesTree sent mark", () => {
                     locale: "en",
                     receivedAt: "2026-11-10T13:56:58.674Z",
                     replaced: null,
+                    sentAutomatically: false,
                   },
                 ],
               ])
