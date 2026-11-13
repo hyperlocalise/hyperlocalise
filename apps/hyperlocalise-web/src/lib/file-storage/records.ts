@@ -10,9 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, isNull, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql, type SQL } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import {
+  DEFAULT_PROJECT_BRANCH_NAME,
+  resolvedProjectBranchName,
+} from "@/lib/projects/branches/project-branch-name";
 
 import type { FileStorageAdapter } from "./types";
 import { getFileStorageAdapter } from "./get-file-storage-adapter";
@@ -46,6 +50,8 @@ type StoredFileScopeInput = {
   organizationId: string;
   projectId?: string | null;
   fileId: string;
+  /** Native version branch. When omitted, a shared blob prefers `main`. */
+  branchName?: string | null;
   db?: DbSelectClient;
   adapter?: FileStorageAdapter;
 };
@@ -402,18 +408,39 @@ export async function getLatestRepositorySourceFileVersion(input: {
 
 export async function getRepositorySourceFileVersionForStoredFile(input: StoredFileScopeInput) {
   const dbClient = input.db ?? db;
-  const [version] = await dbClient
-    .select()
+  const branchName =
+    input.branchName === undefined || input.branchName === null
+      ? null
+      : resolvedProjectBranchName(input.branchName);
+
+  const [row] = await dbClient
+    .select({ version: schema.repositorySourceFileVersions })
     .from(schema.repositorySourceFileVersions)
+    .innerJoin(
+      schema.repositorySourceFiles,
+      eq(
+        schema.repositorySourceFiles.id,
+        schema.repositorySourceFileVersions.repositorySourceFileId,
+      ),
+    )
     .where(
       and(
         eq(schema.repositorySourceFileVersions.storedFileId, input.fileId),
         eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
+        input.projectId
+          ? eq(schema.repositorySourceFileVersions.projectId, input.projectId)
+          : undefined,
+        branchName ? eq(schema.repositorySourceFiles.branchName, branchName) : undefined,
       ),
+    )
+    .orderBy(
+      sql`case when ${schema.repositorySourceFiles.branchName} = ${DEFAULT_PROJECT_BRANCH_NAME} then 0 else 1 end`,
+      desc(schema.repositorySourceFileVersions.createdAt),
+      desc(schema.repositorySourceFileVersions.id),
     )
     .limit(1);
 
-  return version ?? null;
+  return row?.version ?? null;
 }
 
 export async function ensureRepositorySourceFileVersionForStoredFile(
@@ -438,6 +465,7 @@ export async function ensureRepositorySourceFileVersionForStoredFile(
     db: input.db,
     storedFile: file,
     sourcePath,
+    branchName: input.branchName ?? undefined,
     sourceHash: stringMetadata(file.metadata, "sourceHash"),
     commitSha: stringMetadata(file.metadata, "commitSha"),
     workflowRunId: stringMetadata(file.metadata, "workflowRunId"),

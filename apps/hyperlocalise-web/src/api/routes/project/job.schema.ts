@@ -13,6 +13,10 @@
 import { z } from "zod";
 
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
+import {
+  isValidProjectBranchName,
+  normalizeProjectBranchName,
+} from "@/lib/projects/branches/project-branch-name";
 import * as schema from "@/lib/database/schema";
 import { supportedTranslationFileFormats } from "@/lib/translation/file-formats";
 
@@ -49,6 +53,14 @@ export const stringTranslationJobInputSchema = z.object({
   translationKeyId: z.string().uuid().optional(),
 });
 
+export const fileJobBranchSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .transform(normalizeProjectBranchName)
+  .refine(isValidProjectBranchName, { message: "Invalid branch name" });
+
 export const fileTranslationJobInputSchema = z.object({
   sourceFileId: z.string().trim().min(1).max(128),
   fileFormat: z.enum(supportedTranslationFileFormats),
@@ -57,6 +69,8 @@ export const fileTranslationJobInputSchema = z.object({
   metadata: metadataSchema,
   /** Skip TM reuse so the agent translates untranslated strings. */
   ignoreTranslationMemory: z.boolean().optional(),
+  /** Native version branch. Omitted jobs bind to `main`. */
+  branch: fileJobBranchSchema.optional(),
 });
 
 export const maxKeyJobStrings = 5_000;

@@ -21,6 +21,7 @@ import type {
 import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { nativeQueueFilterCondition } from "@/lib/projects/content-editor/native-content-editor-queue-filter";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
 import type { SourceFileSyncClash } from "@/lib/projects/files/source-file-sync-report";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
@@ -1284,6 +1285,58 @@ export class ProjectTranslationService extends ProjectServiceBase {
     );
   }
 
+  /**
+   * File jobs write to the repository file bound on the job (the version branch
+   * the user translated), not always `main`. Jobs created before branches, or
+   * without a source version, still fall back to the main file at `sourcePath`.
+   */
+  private async resolveFileJobSourceFileId(input: {
+    organizationId: string;
+    projectId: string;
+    jobId: string;
+    sourcePath: string;
+  }): Promise<string | null> {
+    const [details] = await this.database
+      .select({ sourceFileVersionId: schema.translationJobDetails.sourceFileVersionId })
+      .from(schema.translationJobDetails)
+      .where(eq(schema.translationJobDetails.jobId, input.jobId))
+      .limit(1);
+
+    if (details?.sourceFileVersionId) {
+      const [version] = await this.database
+        .select({
+          repositorySourceFileId: schema.repositorySourceFileVersions.repositorySourceFileId,
+          organizationId: schema.repositorySourceFileVersions.organizationId,
+          projectId: schema.repositorySourceFileVersions.projectId,
+        })
+        .from(schema.repositorySourceFileVersions)
+        .where(eq(schema.repositorySourceFileVersions.id, details.sourceFileVersionId))
+        .limit(1);
+      if (
+        version?.repositorySourceFileId &&
+        version.organizationId === input.organizationId &&
+        version.projectId === input.projectId
+      ) {
+        return version.repositorySourceFileId;
+      }
+    }
+
+    const [sourceFile] = await this.database
+      .select({ id: schema.repositorySourceFiles.id })
+      .from(schema.repositorySourceFiles)
+      .where(
+        and(
+          eq(schema.repositorySourceFiles.organizationId, input.organizationId),
+          eq(schema.repositorySourceFiles.projectId, input.projectId),
+          eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
+          eq(schema.repositorySourceFiles.branchName, DEFAULT_PROJECT_BRANCH_NAME),
+        ),
+      )
+      .limit(1);
+
+    return sourceFile?.id ?? null;
+  }
+
   async persistFileJobTranslations(input: {
     organizationId: string;
     projectId: string;
@@ -1294,20 +1347,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     sourceEntries: Record<string, string>;
     targetEntries: Record<string, string>;
   }) {
-    const [sourceFile] = await this.database
-      .select({ id: schema.repositorySourceFiles.id })
-      .from(schema.repositorySourceFiles)
-      .where(
-        and(
-          eq(schema.repositorySourceFiles.organizationId, input.organizationId),
-          eq(schema.repositorySourceFiles.projectId, input.projectId),
-          eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
-          eq(schema.repositorySourceFiles.branchName, "main"),
-        ),
-      )
-      .limit(1);
-
-    if (!sourceFile) {
+    const sourceFileId = await this.resolveFileJobSourceFileId(input);
+    if (!sourceFileId) {
       return;
     }
 
@@ -1332,7 +1373,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
         .where(
           and(
             eq(schema.projectTranslationKeys.projectId, input.projectId),
-            eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
+            eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFileId),
             inArray(schema.projectTranslationKeys.key, keyBatch),
           ),
         );

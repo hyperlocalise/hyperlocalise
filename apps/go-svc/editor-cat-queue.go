@@ -361,9 +361,9 @@ func (api *editorCatAPI) loadWholeFileQueue(r *http.Request, actor editorCatActo
 	err = api.pool.QueryRow(r.Context(), `
         select v.stored_file_id
         from repository_source_file_versions v
-        where v.organization_id=$1 and v.project_id=$2 and v.source_path=$3
-        order by v.created_at desc
-        limit 1`, actor.organizationID, project.ID, query.sourcePath).Scan(&sourceStored)
+        where v.organization_id=$1 and v.project_id=$2 and v.repository_source_file_id=$3
+        order by v.created_at desc, v.id desc
+        limit 1`, actor.organizationID, project.ID, sourceFileID).Scan(&sourceStored)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return editorCatQueueFile{}, err
 	}
@@ -429,9 +429,9 @@ func (api *editorCatAPI) loadDocumentView(r *http.Request, actor editorCatActor,
 	err = api.pool.QueryRow(r.Context(), `
         select v.stored_file_id
         from repository_source_file_versions v
-        where v.organization_id=$1 and v.project_id=$2 and v.source_path=$3
-        order by v.created_at desc
-        limit 1`, actor.organizationID, project.ID, query.sourcePath).Scan(&sourceStored)
+        where v.organization_id=$1 and v.project_id=$2 and v.repository_source_file_id=$3
+        order by v.created_at desc, v.id desc
+        limit 1`, actor.organizationID, project.ID, sourceFileID).Scan(&sourceStored)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
@@ -524,9 +524,9 @@ func (api *editorCatAPI) generatedFileDocumentView(r *http.Request, actor editor
 	err := api.pool.QueryRow(r.Context(), `
         select v.stored_file_id
         from repository_source_file_versions v
-        where v.organization_id=$1 and v.project_id=$2 and v.source_path=$3
-        order by v.created_at desc
-        limit 1`, actor.organizationID, project.ID, query.sourcePath).Scan(&sourceStored)
+        where v.organization_id=$1 and v.project_id=$2 and v.repository_source_file_id=$3
+        order by v.created_at desc, v.id desc
+        limit 1`, actor.organizationID, project.ID, sourceFileID).Scan(&sourceStored)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
@@ -887,14 +887,18 @@ func (api *editorCatAPI) attachSourceIngest(r *http.Request, actor editorCatActo
 	if isEditorCatAllFiles(queue.SourcePath) {
 		return nil
 	}
+	sourceFileID, sourceErr := api.sourceFileID(r, actor, project, queue.SourcePath)
+	if sourceErr != nil {
+		return sourceErr
+	}
 	var state string
 	var ingestError *string
 	err := api.pool.QueryRow(r.Context(), `
         select v.ingest_state, v.ingest_error
         from repository_source_file_versions v
-        where v.organization_id=$1 and v.project_id=$2 and v.source_path=$3
+        where v.organization_id=$1 and v.project_id=$2 and v.repository_source_file_id=$3
         order by v.created_at desc, v.id desc
-        limit 1`, actor.organizationID, project.ID, queue.SourcePath).Scan(&state, &ingestError)
+        limit 1`, actor.organizationID, project.ID, sourceFileID).Scan(&state, &ingestError)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
@@ -1050,13 +1054,17 @@ func (api *editorCatAPI) loadLatestHTMLSourceBytes(
 	sourcePath string,
 ) []byte {
 	var downloadURL, storageURL *string
+	sourceFileID, sourceErr := api.sourceFileID(r, actor, project, sourcePath)
+	if sourceErr != nil {
+		return nil
+	}
 	err := api.pool.QueryRow(r.Context(), `
         select f.download_url, f.storage_url
         from repository_source_file_versions v
         join stored_files f on f.id = v.stored_file_id
-        where v.organization_id=$1 and v.project_id=$2 and v.source_path=$3
+        where v.organization_id=$1 and v.project_id=$2 and v.repository_source_file_id=$3
         order by v.created_at desc, v.id desc
-        limit 1`, actor.organizationID, project.ID, sourcePath).Scan(&downloadURL, &storageURL)
+        limit 1`, actor.organizationID, project.ID, sourceFileID).Scan(&downloadURL, &storageURL)
 	if err != nil {
 		return nil
 	}

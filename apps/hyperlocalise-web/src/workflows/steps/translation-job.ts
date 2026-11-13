@@ -382,10 +382,39 @@ export async function applyProjectSourceTextStep(input: {
   projectId: string;
   sourcePath: string;
   content: Buffer;
+  jobId?: string;
 }) {
   "use step";
   const { applyProjectSourceText } = await import("@/lib/projects/files/source-text-editing");
-  return (await applyProjectSourceText(input)).content;
+  let repositorySourceFileId: string | undefined;
+  if (input.jobId) {
+    const { eq } = await import("drizzle-orm");
+    const { db, schema } = await import("@/lib/database/client");
+    const [details] = await db
+      .select({ sourceFileVersionId: schema.translationJobDetails.sourceFileVersionId })
+      .from(schema.translationJobDetails)
+      .where(eq(schema.translationJobDetails.jobId, input.jobId))
+      .limit(1);
+    if (details?.sourceFileVersionId) {
+      const [version] = await db
+        .select({
+          repositorySourceFileId: schema.repositorySourceFileVersions.repositorySourceFileId,
+          organizationId: schema.repositorySourceFileVersions.organizationId,
+          projectId: schema.repositorySourceFileVersions.projectId,
+        })
+        .from(schema.repositorySourceFileVersions)
+        .where(eq(schema.repositorySourceFileVersions.id, details.sourceFileVersionId))
+        .limit(1);
+      if (
+        version?.repositorySourceFileId &&
+        version.organizationId === input.organizationId &&
+        version.projectId === input.projectId
+      ) {
+        repositorySourceFileId = version.repositorySourceFileId;
+      }
+    }
+  }
+  return (await applyProjectSourceText({ ...input, repositorySourceFileId })).content;
 }
 
 export async function storeOutputFileStep(input: {

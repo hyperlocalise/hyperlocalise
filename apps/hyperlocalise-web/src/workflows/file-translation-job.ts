@@ -1015,6 +1015,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         projectId: claim.job.projectId,
         sourcePath: repositorySourcePath,
         content: sourceContent,
+        jobId: claim.job.id,
       });
     } catch (error) {
       await failTranslationJobStep({

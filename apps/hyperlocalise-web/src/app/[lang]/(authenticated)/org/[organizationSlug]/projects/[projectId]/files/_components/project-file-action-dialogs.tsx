@@ -43,6 +43,7 @@ export function ProjectFileActionDialogs({
         file={file}
         sourceLocale={actions.sourceLocale}
         targetLocales={actions.stableTargetLocales}
+        branch={actions.branch}
       />
       <ImportTranslationsDialog
         open={actions.importDialogOpen}
