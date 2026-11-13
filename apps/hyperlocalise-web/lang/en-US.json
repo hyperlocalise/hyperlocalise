@@ -3943,6 +3943,10 @@
     "defaultMessage": "Continue",
     "description": "Continue button label"
   },
+  "3V4y6vdMco": {
+    "defaultMessage": "Upload the whole guide. Each segment gets the passage it needs, and must-follow rules always apply.",
+    "description": "Body of the product update announcement for the Guidelines film"
+  },
   "3V79KDlgh2": {
     "defaultMessage": "Open pull request",
     "description": "Link to the pull request a project sync run opened"
@@ -8111,6 +8115,10 @@
     "defaultMessage": "Event type",
     "description": "Glossary history event type filter label"
   },
+  "9Jx3pySDFw": {
+    "defaultMessage": "Guidelines film playing in the announcement card",
+    "description": "Accessible label for the autoplaying Guidelines film in the update announcer"
+  },
   "9K6sjd+OUZ": {
     "defaultMessage": "Checkout headline",
     "description": "market-experimentation use case page: guide › steps › #1 › visual › items › #2 › meta"
@@ -9122,6 +9130,10 @@
   "AgwjQcVkkf": {
     "defaultMessage": "Is it safe to give an agent access?",
     "description": "localisation-for-ai-coding-agents use case FAQ question 4"
+  },
+  "AiRIh1nRAC": {
+    "defaultMessage": "Guidelines: your style guide, finally read",
+    "description": "Title of the product update announcement for the Guidelines film"
   },
   "Aicm++b5Ie": {
     "defaultMessage": "Inbox",

@@ -15,9 +15,15 @@ import type { MessageDescriptor } from "react-intl";
 
 import { IRIS_LAUNCH_YOUTUBE_WATCH_URL } from "@/lib/iris/iris-waitlist";
 
+import { GUIDELINE_LAUNCH_YOUTUBE_WATCH_URL, GuidelinesPreview } from "./guidelines-preview";
 import { IrisPreview } from "./iris-preview";
 import { MergeStringsPreview } from "./merge-strings-preview";
 import { updateAnnouncerMessages } from "./update-announcer.messages";
+
+export {
+  GUIDELINE_LAUNCH_YOUTUBE_ID,
+  GUIDELINE_LAUNCH_YOUTUBE_WATCH_URL,
+} from "./guidelines-preview";
 
 export type UpdateAnnouncement = {
   /** Stable key for dismissal. Use a new id for every announcement so past dismissals don't hide it. */
@@ -42,6 +48,17 @@ export function isExternalAnnouncementHref(href: string): boolean {
 
 /** Ordered by priority: the first active, undismissed entry is shown. */
 export const UPDATE_ANNOUNCEMENTS: readonly UpdateAnnouncement[] = [
+  {
+    id: "2026-11-guidelines-launch",
+    title: updateAnnouncerMessages.guidelinesTitle,
+    description: updateAnnouncerMessages.guidelinesDescription,
+    imageSrc: "/images/mesh/mesh-gradient-1788785848827.jpg",
+    Preview: GuidelinesPreview,
+    buildHref: () => GUIDELINE_LAUNCH_YOUTUBE_WATCH_URL,
+    cta: updateAnnouncerMessages.watchFilm,
+    startsAt: "2026-11-13T00:00:00Z",
+    endsAt: "2026-12-13T00:00:00Z",
+  },
   {
     id: "2026-10-iris-launch",
     title: updateAnnouncerMessages.irisTitle,

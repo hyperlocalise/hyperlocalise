@@ -51,6 +51,22 @@ export const updateAnnouncerMessages = defineMessages({
     id: "/+3b0vXhJh",
     description: "Body of the product update announcement for the Iris launch teaser",
   },
+  guidelinesTitle: {
+    defaultMessage: "Guidelines: your style guide, finally read",
+    id: "AiRIh1nRAC",
+    description: "Title of the product update announcement for the Guidelines film",
+  },
+  guidelinesDescription: {
+    defaultMessage:
+      "Upload the whole guide. Each segment gets the passage it needs, and must-follow rules always apply.",
+    id: "3V4y6vdMco",
+    description: "Body of the product update announcement for the Guidelines film",
+  },
+  guidelinesFilmLabel: {
+    defaultMessage: "Guidelines film playing in the announcement card",
+    id: "9Jx3pySDFw",
+    description: "Accessible label for the autoplaying Guidelines film in the update announcer",
+  },
   watchFilm: {
     defaultMessage: "Watch the film",
     id: "6gNShj6TN8",

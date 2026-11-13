@@ -21,6 +21,7 @@ import { IRIS_LAUNCH_YOUTUBE_WATCH_URL } from "@/lib/iris/iris-waitlist";
 
 import { UpdateAnnouncer } from "./update-announcer";
 import {
+  GUIDELINE_LAUNCH_YOUTUBE_WATCH_URL,
   UPDATE_ANNOUNCEMENTS,
   getNextUpdateAnnouncementScheduleAt,
   getUpdateAnnouncementStorageKey,
@@ -149,17 +150,18 @@ beforeEach(() => {
 });
 
 describe("UPDATE_ANNOUNCEMENTS", () => {
-  it("teases Iris with the launch film first", () => {
+  it("teases Guidelines with the film first", () => {
     expect(UPDATE_ANNOUNCEMENTS[0]).toMatchObject({
-      id: "2026-10-iris-launch",
+      id: "2026-11-guidelines-launch",
     });
-    expect(UPDATE_ANNOUNCEMENTS[0]?.buildHref("acme")).toBe(IRIS_LAUNCH_YOUTUBE_WATCH_URL);
+    expect(UPDATE_ANNOUNCEMENTS[0]?.buildHref("acme")).toBe(GUIDELINE_LAUNCH_YOUTUBE_WATCH_URL);
   });
 });
 
 describe("isExternalAnnouncementHref", () => {
   it("treats http(s) URLs as external", () => {
     expect(isExternalAnnouncementHref(IRIS_LAUNCH_YOUTUBE_WATCH_URL)).toBe(true);
+    expect(isExternalAnnouncementHref(GUIDELINE_LAUNCH_YOUTUBE_WATCH_URL)).toBe(true);
     expect(isExternalAnnouncementHref("/org/acme/projects")).toBe(false);
   });
 });
