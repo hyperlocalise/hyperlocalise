@@ -261,6 +261,16 @@ export function getPricingIrisModelSummaries(intl: IntlShape): Record<PricingIri
       id: "SH/3azga8A",
       description: "Card summary for the Gemini 3.8 Flash TTS voice model on the pricing page",
     }),
+    "fish-audio-s2.1-pro": intl.formatMessage({
+      defaultMessage: "Natural voice-over in many languages",
+      id: "zuqYJudcfe",
+      description: "Card summary for the Fish Audio S2.1 Pro voice model on the pricing page",
+    }),
+    "fish-audio-drama-3": intl.formatMessage({
+      defaultMessage: "Directed, dramatic performance",
+      id: "TsKiHIUu3j",
+      description: "Card summary for the Fish Audio Drama 3 voice model on the pricing page",
+    }),
     "elevenlabs-music": intl.formatMessage({
       defaultMessage: "Music from a short description",
       id: "7cH/khk2xj",
@@ -290,6 +300,11 @@ export function getPricingIrisModelSummaries(intl: IntlShape): Record<PricingIri
       defaultMessage: "Captions and transcripts",
       id: "5V7e1iLBtQ",
       description: "Card summary for the Universal 3.5 Pro transcription model on the pricing page",
+    }),
+    "fish-audio-transcribe-1": intl.formatMessage({
+      defaultMessage: "Captions from speech",
+      id: "MLfqzCqul0",
+      description: "Card summary for the Fish Audio Transcribe 1 model on the pricing page",
     }),
     "qwen3.8-omni-flash": intl.formatMessage({
       defaultMessage: "Describe and search footage",

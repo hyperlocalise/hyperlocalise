@@ -137,11 +137,16 @@ models. If that is unset, `OPENAI_API_KEY` covers `openai/*` models plus
 Google, xAI, and non-OpenAI gateway models still need `AI_GATEWAY_API_KEY`. If
 no generation backend is configured, jobs fail with `PROVIDER_ERROR`.
 
-Transcription (`universal-3.5-pro`, `qwen3.8-omni-flash`) posts to AI Gateway's
-native `/v4/ai/transcription-model` JSON endpoint, derived from
-`AI_GATEWAY_BASE_URL` by replacing `/v1` with `/v4/ai`. The gateway does not
-implement OpenAI-compatible `/v1/audio/transcriptions`. Direct OpenAI still
-uses that multipart route.
+Fish Audio speech (`fish-audio-s2.1-pro`, `fish-audio-drama-3`) posts to
+AI Gateway `/audio/speech`. S2.1 Pro is the production TTS; Drama 3 is the
+current performance model. Gateway has no Fish Audio music or SFX ids; those
+stay on ElevenLabs. Previous S2 Pro and deprecated S1 are not catalogued.
+
+Transcription (`universal-3.5-pro`, `fish-audio-transcribe-1`,
+`qwen3.8-omni-flash`) posts to AI Gateway's native `/v4/ai/transcription-model`
+JSON endpoint, derived from `AI_GATEWAY_BASE_URL` by replacing `/v1` with
+`/v4/ai`. The gateway does not implement OpenAI-compatible
+`/v1/audio/transcriptions`. Direct OpenAI still uses that multipart route.
 
 ### Iris localisation
 

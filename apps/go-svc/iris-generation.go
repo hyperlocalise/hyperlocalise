@@ -230,7 +230,7 @@ func irisSyntheticCredit(job irisJobRecord, credits irisCreditConfig) (autumn.Tr
 	case model.Kind == irisKindAudio:
 		req.ModelID = credits.AudioModelID
 		req.OutputTokens = irisDurationSeconds(job)
-	case model.Kind == irisKindVoice || model.ID == "universal-3.5-pro" || model.ID == "qwen3.8-omni-flash" || model.ID == "elevenlabs-dubbing":
+	case model.Kind == irisKindVoice || model.ID == "universal-3.5-pro" || model.ID == "fish-audio-transcribe-1" || model.ID == "qwen3.8-omni-flash" || model.ID == "elevenlabs-dubbing":
 		req.ModelID = credits.AudioModelID
 		req.OutputTokens = irisInputMinutes(job)
 	default:

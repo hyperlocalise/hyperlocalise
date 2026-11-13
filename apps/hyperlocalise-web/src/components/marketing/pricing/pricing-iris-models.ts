@@ -29,6 +29,7 @@ export type PricingIrisVendorId =
   | "alibaba"
   | "minimax"
   | "elevenlabs"
+  | "fish-audio"
   | "bria"
   | "sync"
   | "hyperlocalise";
@@ -45,6 +46,7 @@ export const pricingIrisVendorNames: Record<PricingIrisVendorId, string> = {
   alibaba: "Alibaba",
   minimax: "MiniMax",
   elevenlabs: "ElevenLabs",
+  "fish-audio": "Fish Audio",
   bria: "Bria",
   sync: "Sync Labs",
   hyperlocalise: "Hyperlocalise",
@@ -118,12 +120,15 @@ export const PRICING_IRIS_MODELS: readonly PricingIrisModel[] = [
   model("elevenlabs-v4", "ElevenLabs v4", "elevenlabs", "voice"),
   model("elevenlabs-v3", "ElevenLabs v3", "elevenlabs", "voice"),
   model("gemini-3.8-flash-tts", "Gemini 3.8 Flash TTS", "google", "voice"),
+  model("fish-audio-s2.1-pro", "Fish Audio S2.1 Pro", "fish-audio", "voice"),
+  model("fish-audio-drama-3", "Fish Audio Drama 3", "fish-audio", "voice"),
   model("elevenlabs-music", "ElevenLabs Music", "elevenlabs", "sound"),
   model("elevenlabs-sfx", "ElevenLabs SFX", "elevenlabs", "sound"),
   model("bria-rmbg-2.0", "Bria RMBG 2.0", "bria", "image-tool"),
   model("seedvr-2", "SeedVR 2", "bytedance", "image-tool"),
   model("bytedance-upscaler", "ByteDance Upscaler", "bytedance", "video-tool"),
   model("universal-3.5-pro", "Universal 3.5 Pro", "google", "listen"),
+  model("fish-audio-transcribe-1", "Fish Audio Transcribe 1", "fish-audio", "listen"),
   model("qwen3.8-omni-flash", "Qwen 3.8 Omni Flash", "alibaba", "listen"),
   model("elevenlabs-dubbing", "ElevenLabs Dubbing", "elevenlabs", "dubbing"),
   model("sync-lipsync-2", "Sync Lipsync 2", "sync", "video-tool"),

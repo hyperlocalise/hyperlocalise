@@ -267,6 +267,14 @@ describe("pricing model catalog", () => {
           "Gemini 3.8 Flash TTS",
         ],
         [
+          "fish-audio-s2.1-pro",
+          "Fish Audio S2.1 Pro",
+        ],
+        [
+          "fish-audio-drama-3",
+          "Fish Audio Drama 3",
+        ],
+        [
           "elevenlabs-sfx",
           "ElevenLabs SFX",
         ],
@@ -281,6 +289,10 @@ describe("pricing model catalog", () => {
         [
           "bytedance-upscaler",
           "ByteDance Upscaler",
+        ],
+        [
+          "fish-audio-transcribe-1",
+          "Fish Audio Transcribe 1",
         ],
         [
           "qwen3.8-omni-flash",

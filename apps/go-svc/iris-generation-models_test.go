@@ -128,6 +128,12 @@ func TestValidateIrisGenerateRequest(t *testing.T) {
 			wantID:  "elevenlabs-v4",
 		},
 		{
+			name:    "fish audio voice requires voice",
+			req:     irisGenerateRequest{"model": "fish-audio-s2.1-pro", "prompt": "hello"},
+			wantErr: "voice is required",
+			wantID:  "fish-audio-s2.1-pro",
+		},
+		{
 			name:    "remote image url rejected",
 			req:     irisGenerateRequest{"model": "flux-2-pro", "prompt": "hello", "image": urlAsset},
 			wantErr: "remote asset URLs are not supported; upload the file first",
@@ -187,6 +193,12 @@ func TestValidateIrisGenerateRequest(t *testing.T) {
 			wantID:  "universal-3.5-pro",
 		},
 		{
+			name:    "fish audio transcribe requires audio",
+			req:     irisGenerateRequest{"model": "fish-audio-transcribe-1"},
+			wantErr: "audio is required",
+			wantID:  "fish-audio-transcribe-1",
+		},
+		{
 			name:    "transcribe rejects scene audio",
 			req:     irisGenerateRequest{"model": "universal-3.5-pro", "audio": map[string]any{"scene": "intro"}},
 			wantErr: "scene audio references are not supported; upload the file first",
@@ -209,6 +221,11 @@ func TestValidateIrisGenerateRequest(t *testing.T) {
 			wantID: "elevenlabs-v4",
 		},
 		{
+			name:   "valid fish audio voice",
+			req:    irisGenerateRequest{"model": "fish-audio-drama-3", "prompt": "hello", "voice": "933563129e564b19a115bedd57b7406a"},
+			wantID: "fish-audio-drama-3",
+		},
+		{
 			name:   "valid tool with uploaded image",
 			req:    irisGenerateRequest{"model": "bria-rmbg-2.0", "image": asset},
 			wantID: "bria-rmbg-2.0",
@@ -222,6 +239,11 @@ func TestValidateIrisGenerateRequest(t *testing.T) {
 			name:   "valid tool with uploaded audio",
 			req:    irisGenerateRequest{"model": "universal-3.5-pro", "audio": asset},
 			wantID: "universal-3.5-pro",
+		},
+		{
+			name:   "valid fish audio transcribe",
+			req:    irisGenerateRequest{"model": "fish-audio-transcribe-1", "audio": asset},
+			wantID: "fish-audio-transcribe-1",
 		},
 		{
 			name:   "valid tool with uploaded media",

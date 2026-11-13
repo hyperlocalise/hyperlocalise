@@ -269,7 +269,7 @@ func (p *irisGatewayProvider) video(ctx context.Context, req irisProviderRequest
 
 func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	switch req.Model.ID {
-	case "universal-3.5-pro", "qwen3.8-omni-flash":
+	case "universal-3.5-pro", "fish-audio-transcribe-1", "qwen3.8-omni-flash":
 		return p.transcribe(ctx, req)
 	case "bytedance-upscaler":
 		req.Prompt = irisFirstNonEmpty(req.Prompt, "Upscale this video. Preserve subject, motion, and audio.")
