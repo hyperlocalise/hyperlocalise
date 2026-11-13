@@ -291,6 +291,7 @@ import {
 import { createJobRoutes } from "./job.route";
 import { createIssueSheetRoutes } from "./issue-sheet.route";
 import { createProjectAssetRoutes } from "./project-assets.route";
+import { createTranslationAsSourceRoutes } from "./translation-as-source.route";
 import { createProjectBranchRoutes } from "./project-branches.route";
 import {
   generateContentEditorAiRecommendation,
@@ -1173,6 +1174,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .route(
       "/:projectId/assets",
       createProjectAssetRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
+    .route(
+      "/:projectId/files/translation-source",
+      createTranslationAsSourceRoutes({
+        fileStorageAdapter: options.fileStorageAdapter,
+        deferAfterResponse: options.deferAfterResponse,
+      }),
     )
     .route("/:projectId/branches", createProjectBranchRoutes())
     .get(

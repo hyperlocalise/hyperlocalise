@@ -20,6 +20,7 @@ import {
   FunnelIcon,
   ListBulletsIcon,
   GearSixIcon,
+  PaperPlaneRightIcon,
   TranslateIcon,
   UploadSimpleIcon,
 } from "@phosphor-icons/react";
@@ -49,6 +50,7 @@ export type ProjectFileTreeActionsConfig = {
   onSegmentationSettings?: (file: ProjectFileRecord) => void;
   onMessageFormatSettings?: (file: ProjectFileRecord) => void;
   onImportSettings?: (file: ProjectFileRecord) => void;
+  onUseTranslationAsSource?: (file: ProjectFileRecord) => void;
 };
 
 const MENU_MIN_WIDTH_PX = 208;
@@ -258,6 +260,23 @@ export function ProjectFileTreeContextMenu({
             <FunnelIcon />
             <FormattedMessage {...messages.importSettings} />
           </Button>
+          {capabilities.canUseTranslationAsSource ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => {
+                closeMenu();
+                runAfterMenuClose(() => {
+                  fileActions.onUseTranslationAsSource?.(file);
+                });
+              }}
+            >
+              <PaperPlaneRightIcon />
+              <FormattedMessage {...messages.useTranslationAsSource} />
+            </Button>
+          ) : null}
         </>
       ) : null}
     </div>

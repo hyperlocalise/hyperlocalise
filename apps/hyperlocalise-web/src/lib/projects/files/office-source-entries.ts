@@ -30,7 +30,13 @@ import {
 import type { OoxmlError } from "@/lib/translation/ooxml/ooxml-tree";
 import { readPptxEntries } from "@/lib/translation/ooxml/pptx-deck";
 import { getRepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings";
-import type { ExcelImportSettings } from "@/lib/projects/files/source-file-import-settings-schema";
+import {
+  importSettingsAreActive,
+  normalizeImportSettings,
+  type ExcelImportSettings,
+  type RepositorySourceFileImportSettings,
+} from "@/lib/projects/files/source-file-import-settings-schema";
+import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
 import { spreadsheetXlsxContent } from "@/lib/translation/xlsx/xls-workbook";
 import {
   loadXlsxWorkbook,
@@ -170,6 +176,54 @@ export async function loadProjectOfficeSourceEntries(input: {
     }
   }
   return ok(entriesFromHlOutput(payload, true));
+}
+
+/**
+ * Source text by key of Office file content, read the way ingest reads an upload of it to a
+ * project whose source locale is `sourceLocale`.
+ */
+export async function readOfficeSourceTexts(input: {
+  sourcePath: string;
+  content: Uint8Array;
+  sourceLocale: string | null;
+  importSettings?: RepositorySourceFileImportSettings;
+}): Promise<Result<Record<string, string>, ProjectOfficeEntriesError>> {
+  const format = inferSupportedOfficeTranslationFileFormat(input.sourcePath);
+  if (!format) {
+    return err({ code: "unsupported_office_format" });
+  }
+  const file: StoredOfficeFile = { format, content: input.content };
+  const byKey = (entries: { key: string; text: string }[]) =>
+    Object.fromEntries(entries.map((entry) => [entry.key, entry.text]));
+  if (format === "docx" || format === "pptx") {
+    const entries = await readParagraphEntries(file);
+    return isErr(entries) ? entries : ok(byKey(entries.value));
+  }
+
+  const settings = normalizeImportSettings(input.importSettings);
+  const sandboxEntries = () =>
+    readWorkbookEntries(file, input.sourceLocale, input.sourceLocale ?? "");
+  // An .xlsx file is read in the sandbox, which knows no import settings. A file that has
+  // settings is then read again without a source locale (`parseHlEntriesStep`), and the
+  // sandbox's reading stands when that finds no string.
+  if (format === "xlsx" && sandboxCliParsesOffice() && importSettingsAreActive(settings)) {
+    const entries = await readWorkbookEntries(file, null, "", settings.excel);
+    if (isErr(entries)) {
+      return entries;
+    }
+    if (entries.value.length > 0) {
+      return ok(byKey(entries.value));
+    }
+    const fallback = await sandboxEntries();
+    return isErr(fallback) ? fallback : ok(byKey(fallback.value));
+  }
+  const entries = await readWorkbookEntries(
+    file,
+    input.sourceLocale,
+    input.sourceLocale ?? "",
+    settings.excel,
+  );
+  return isErr(entries) ? entries : ok(byKey(entries.value));
 }
 
 /**

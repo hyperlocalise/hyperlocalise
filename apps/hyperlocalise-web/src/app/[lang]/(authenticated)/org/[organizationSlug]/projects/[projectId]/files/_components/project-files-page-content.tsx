@@ -57,6 +57,7 @@ import { ProjectFilesTree } from "./project-files-tree";
 import { formatBytes } from "./project-files-shared";
 import { projectFilesPageContentMessages as messages } from "./project-files-page-content.messages";
 import { useProjectFileActions } from "./use-project-file-actions";
+import { UseTranslationAsSourceDialog } from "./use-translation-as-source-dialog";
 import {
   PROJECT_FILES_MAX_UPLOAD,
   fileKey,
@@ -483,6 +484,9 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
     : null;
 
   const dialogRequest = pageStore.dialogRequest;
+  const [translationAsSourceFile, setTranslationAsSourceFile] = useState<ProjectFileRecord | null>(
+    null,
+  );
 
   const closeFileDialog = useCallback(() => {
     pageStore.closeAll();
@@ -511,6 +515,7 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
       onSegmentationSettings: (file) => openFileDialog(file, "segmentation"),
       onMessageFormatSettings: (file) => openFileDialog(file, "messageFormat"),
       onImportSettings: (file) => openFileDialog(file, "importSettings"),
+      onUseTranslationAsSource: setTranslationAsSourceFile,
     }),
     [
       highlightLocale,
@@ -540,6 +545,19 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
           nativeSourcePaths={nativeSourcePaths}
           branch={selectedBranch}
           onClose={closeFileDialog}
+        />
+      ) : null}
+      {translationAsSourceFile ? (
+        <UseTranslationAsSourceDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setTranslationAsSourceFile(null);
+            }
+          }}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          sourcePath={translationAsSourceFile.sourcePath}
         />
       ) : null}
       <ProjectFilesPageContentView

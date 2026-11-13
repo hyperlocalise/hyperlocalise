@@ -50,4 +50,10 @@ export const projectFileTreeContextMenuMessages = defineMessages({
     id: "eKC03Z1B9Y",
     description: "Context menu action to configure HTML, JSON, and Excel import filters",
   },
+  useTranslationAsSource: {
+    defaultMessage: "Use translation as source…",
+    id: "vVKPwFNVzd",
+    description:
+      "Context menu action to send a Word file's translation to another project as its source file",
+  },
 });

@@ -28,6 +28,7 @@ import {
 } from "@/lib/activity-log/file-segment-events";
 import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
 import { resolvedProjectBranchName } from "@/lib/projects/branches/project-branch-name";
+import type { RepositorySourceFileImportSettings } from "./source-file-import-settings-schema";
 import { enqueueSourceFileIngestAfterUpload } from "./source-file-ingest";
 
 type ProjectRecord = typeof schema.projects.$inferSelect;
@@ -72,6 +73,16 @@ export type SourceFileUploadInput = {
   uploadSurface: string;
   /** Keep approved translations approved for this upload's source text changes. */
   keepApprovedTranslations?: boolean;
+  /** Set when the file was built from another project's translations. */
+  translationSource?: {
+    projectId: string;
+    locale: string;
+    sourceFileVersionId: string;
+    /** What the send read (`translationSourceFingerprintSql`), read before the translations. */
+    fingerprint: string;
+  };
+  /** Replaces the file's import settings, for a file built to be read through them. */
+  importSettings?: RepositorySourceFileImportSettings;
   uploadedByApiKeyId?: string | null;
   uploadedByUserId?: string | null;
   actorUserId?: string | null;
@@ -167,6 +178,7 @@ async function uploadNativeSourceFile(
           commitSha: input.commitSha ?? null,
           workflowRunId: input.workflowRunId ?? null,
           uploadSurface: input.uploadSurface,
+          ...(input.translationSource ? { translationSource: input.translationSource } : {}),
         },
         adapter,
         db: tx,
@@ -185,6 +197,13 @@ async function uploadNativeSourceFile(
         keepApprovedTranslations: input.keepApprovedTranslations,
         db: tx,
       });
+      if (input.importSettings) {
+        // Before ingest is enqueued, so this version is read with them.
+        await tx
+          .update(schema.repositorySourceFiles)
+          .set({ importSettings: input.importSettings })
+          .where(eq(schema.repositorySourceFiles.id, version.repositorySourceFileId));
+      }
 
       return { storedFile: uploadedFile, version };
     })
