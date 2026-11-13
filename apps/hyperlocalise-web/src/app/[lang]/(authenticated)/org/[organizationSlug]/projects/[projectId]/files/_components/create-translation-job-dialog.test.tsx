@@ -61,7 +61,8 @@ function dialogTree(
   {
     open = true,
     targetLocales = ["fr-FR", "de-DE"],
-  }: { open?: boolean; targetLocales?: string[] } = {},
+    branch,
+  }: { open?: boolean; targetLocales?: string[]; branch?: string } = {},
 ) {
   return (
     <QueryClientProvider client={queryClient}>
@@ -74,6 +75,7 @@ function dialogTree(
           file={createProjectFileRecord()}
           sourceLocale="en-US"
           targetLocales={targetLocales}
+          branch={branch}
         />
       </IntlProvider>
     </QueryClientProvider>
@@ -109,6 +111,27 @@ describe("CreateTranslationJobDialog", () => {
           fileInput: expect.objectContaining({
             ignoreTranslationMemory: true,
             targetLocales: ["fr-FR", "de-DE"],
+          }),
+        },
+      }),
+    );
+    expect(apiMocks.jobsPost.mock.calls[0]?.[0]?.json?.fileInput?.branch).toBeUndefined();
+  });
+
+  it("sends the selected version branch so the job binds that file", async () => {
+    apiMocks.jobsPost.mockResolvedValue(
+      new Response(JSON.stringify({ job: { id: "job_1" } }), { status: 200 }),
+    );
+
+    render(dialogTree(createQueryClient(), { branch: "feature-checkout" }));
+    await userEvent.click(screen.getByRole("button", { name: "Translate with agent" }));
+
+    expect(apiMocks.jobsPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: {
+          type: "file",
+          fileInput: expect.objectContaining({
+            branch: "feature-checkout",
           }),
         },
       }),

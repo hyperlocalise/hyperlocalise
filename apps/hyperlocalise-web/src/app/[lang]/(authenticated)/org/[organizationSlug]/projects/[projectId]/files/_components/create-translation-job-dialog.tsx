@@ -85,6 +85,7 @@ type CreateTranslationJobDialogProps = {
   file: ProjectFileRecord | null;
   sourceLocale: string;
   targetLocales: string[];
+  branch?: string | null;
   onCreated?: (jobId: string) => void;
 };
 
@@ -202,6 +203,7 @@ export function CreateTranslationJobDialog({
   file,
   sourceLocale,
   targetLocales,
+  branch,
   onCreated,
 }: CreateTranslationJobDialogProps) {
   const intl = useIntl();
@@ -244,6 +246,7 @@ export function CreateTranslationJobDialog({
             sourceLocale,
             targetLocales: selectedLocales,
             ignoreTranslationMemory,
+            ...(branch?.trim() ? { branch: branch.trim() } : {}),
           },
         },
       });

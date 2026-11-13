@@ -58,6 +58,7 @@ export type CreateFileTranslationJobInput = {
   fileFormat?: SupportedTranslationFileFormat;
   metadata?: Record<string, string>;
   ignoreTranslationMemory?: boolean;
+  branchName?: string | null;
 };
 
 function resolveFileTranslationJobAssignee(input: {
@@ -312,6 +313,7 @@ export async function createFileTranslationJob(
       ? sourceFile.metadata.sourcePath
       : null;
 
+  const branchName = input.branchName?.trim() || undefined;
   const inputPayload = {
     sourceFileId: input.sourceFileId,
     fileFormat,
@@ -322,6 +324,7 @@ export async function createFileTranslationJob(
       ...input.metadata,
     }),
     ...(input.ignoreTranslationMemory ? { ignoreTranslationMemory: true } : {}),
+    ...(branchName ? { branch: branchName } : {}),
   };
 
   const jobId = `job_${randomUUID()}`;
@@ -341,6 +344,7 @@ export async function createFileTranslationJob(
         organizationId: input.organizationId,
         projectId: input.projectId,
         fileId: input.sourceFileId,
+        branchName,
       });
 
       const assignee = resolveFileTranslationJobAssignee(input);

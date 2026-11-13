@@ -13,6 +13,7 @@
 import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { resolvedProjectBranchName } from "@/lib/projects/branches/project-branch-name";
 
 import { writeJsonSourceText } from "./json-source-text-writer";
 import { isSourceEditableSourcePath } from "./source-text-editable-paths";
@@ -37,6 +38,8 @@ export async function applyProjectSourceText(input: {
   projectId: string;
   sourcePath: string;
   content: Buffer;
+  repositorySourceFileId?: string | null;
+  branchName?: string | null;
 }): Promise<{ content: Buffer; written: string[] }> {
   const unchanged = { content: input.content, written: [] };
   // A Lottie animation's text keys (`layers[0].t.d.k[0].s.t`) are its JSON paths, so it is
@@ -78,6 +81,8 @@ async function loadEditedSourceTexts(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  repositorySourceFileId?: string | null;
+  branchName?: string | null;
 }): Promise<Map<string, { sourceText: string; importedSourceText: string }>> {
   const rows = await db
     .select({
@@ -95,6 +100,12 @@ async function loadEditedSourceTexts(input: {
         eq(schema.projectTranslationKeys.organizationId, input.organizationId),
         eq(schema.projectTranslationKeys.projectId, input.projectId),
         eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
+        input.repositorySourceFileId
+          ? eq(schema.repositorySourceFiles.id, input.repositorySourceFileId)
+          : eq(
+              schema.repositorySourceFiles.branchName,
+              resolvedProjectBranchName(input.branchName),
+            ),
         eq(schema.projectTranslationKeys.isHidden, false),
         isNotNull(schema.projectTranslationKeys.importedSourceText),
         ne(

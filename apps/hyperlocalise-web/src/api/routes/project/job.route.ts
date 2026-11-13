@@ -548,6 +548,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
                   organizationId: c.var.auth.organization.localOrganizationId,
                   projectId: params.projectId,
                   fileId: payload.fileInput.sourceFileId,
+                  branchName: payload.fileInput.branch,
                 })
               : null;
 

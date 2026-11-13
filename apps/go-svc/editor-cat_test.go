@@ -202,6 +202,71 @@ func TestEditorCatQueueReturnsSourceIngestForEmptyHTML(t *testing.T) {
 	require.Equal(t, "sandbox install failed", *body.ContentEditorQueue.IngestError)
 }
 
+func TestEditorCatQueueUsesTheSelectedBranchVersion(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	mainFileID := mustEditorCatSourceFile(t, scope, "pages/home.html")
+	mainStored := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into stored_files (
+            id, organization_id, project_id, role, source_kind,
+            storage_provider, storage_key, storage_url, filename, content_type, byte_size, sha256
+        ) values ($1, $2, $3, 'source', 'repository_file', 'test', $1, $1, 'home.html', 'text/html', 10, 'deadbeef')`,
+		mainStored, scope.OrganizationID, scope.ProjectID)
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into repository_source_file_versions (
+            id, repository_source_file_id, organization_id, project_id, source_path, stored_file_id,
+            ingest_state, ingest_error, created_at
+        ) values ($1, $2, $3, $4, 'pages/home.html', $5, 'failed', 'sandbox install failed', $6)`,
+		uuid.NewString(), mainFileID, scope.OrganizationID, scope.ProjectID, mainStored,
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+
+	featureFileID := uuid.NewString()
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into repository_source_files (id, organization_id, project_id, source_path, branch_name)
+        values ($1, $2, $3, 'pages/home.html', 'feature-checkout')`,
+		featureFileID, scope.OrganizationID, scope.ProjectID)
+	require.NoError(t, err)
+	featureStored := uuid.NewString()
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into stored_files (
+            id, organization_id, project_id, role, source_kind,
+            storage_provider, storage_key, storage_url, filename, content_type, byte_size, sha256
+        ) values ($1, $2, $3, 'source', 'repository_file', 'test', $1, $1, 'home.html', 'text/html', 10, 'cafebabe')`,
+		featureStored, scope.OrganizationID, scope.ProjectID)
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into repository_source_file_versions (
+            id, repository_source_file_id, organization_id, project_id, source_path, stored_file_id,
+            ingest_state, created_at
+        ) values ($1, $2, $3, $4, 'pages/home.html', $5, 'ingested', $6)`,
+		uuid.NewString(), featureFileID, scope.OrganizationID, scope.ProjectID, featureStored,
+		time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+
+	mainRec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=pages/home.html&targetLocale=fr&branch=main"), "")
+	require.Equal(t, http.StatusOK, mainRec.Code, mainRec.Body.String())
+	var mainBody struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(mainRec.Body.Bytes(), &mainBody))
+	require.NotNil(t, mainBody.ContentEditorQueue.IngestState)
+	require.Equal(t, "failed", *mainBody.ContentEditorQueue.IngestState)
+	require.NotNil(t, mainBody.ContentEditorQueue.IngestError)
+	require.Equal(t, "sandbox install failed", *mainBody.ContentEditorQueue.IngestError)
+
+	featureRec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=pages/home.html&targetLocale=fr&branch=feature-checkout"), "")
+	require.Equal(t, http.StatusOK, featureRec.Code, featureRec.Body.String())
+	var featureBody struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(featureRec.Body.Bytes(), &featureBody))
+	require.NotNil(t, featureBody.ContentEditorQueue.IngestState)
+	require.Equal(t, "ingested", *featureBody.ContentEditorQueue.IngestState)
+	require.Nil(t, featureBody.ContentEditorQueue.IngestError)
+}
+
 func TestEditorCatQueueOmitsIntercomCalloutFences(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	fileID := mustEditorCatSourceFile(t, scope, "intercom/help/article.md")

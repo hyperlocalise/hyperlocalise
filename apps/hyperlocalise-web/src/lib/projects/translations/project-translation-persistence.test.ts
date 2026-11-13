@@ -56,6 +56,17 @@ vi.mock("@/lib/database/client", () => ({
       organizationId: "organizationId",
       projectId: "projectId",
       sourcePath: "sourcePath",
+      branchName: "branchName",
+    },
+    repositorySourceFileVersions: {
+      id: "id",
+      repositorySourceFileId: "repositorySourceFileId",
+      organizationId: "organizationId",
+      projectId: "projectId",
+    },
+    translationJobDetails: {
+      jobId: "jobId",
+      sourceFileVersionId: "sourceFileVersionId",
     },
     projectTranslationKeys: {
       id: "id",
@@ -102,13 +113,20 @@ describe("persistFileJobTranslations", () => {
   it("preserves approved translations on conflict instead of overwriting review state", async () => {
     whereMock
       .mockImplementationOnce(() => ({ limit: limitMock }))
+      .mockImplementationOnce(() => ({ limit: limitMock }))
       .mockImplementationOnce(
         () =>
           Promise.resolve([{ id: "key_1", key: "greeting" }]) as unknown as {
             limit: typeof limitMock;
           },
       );
-    limitMock.mockResolvedValueOnce([{ id: "repo_file_1" }]);
+    limitMock.mockResolvedValueOnce([{ sourceFileVersionId: "ver_1" }]).mockResolvedValueOnce([
+      {
+        repositorySourceFileId: "repo_file_1",
+        organizationId: "org_1",
+        projectId: "project_1",
+      },
+    ]);
 
     await persistFileJobTranslations({
       organizationId: "org_1",
@@ -141,13 +159,20 @@ describe("persistFileJobTranslations", () => {
   it("skips hidden source keys when persisting file job translations", async () => {
     whereMock
       .mockImplementationOnce(() => ({ limit: limitMock }))
+      .mockImplementationOnce(() => ({ limit: limitMock }))
       .mockImplementationOnce(
         () =>
           Promise.resolve([{ id: "key_1", key: "greeting", isHidden: true }]) as unknown as {
             limit: typeof limitMock;
           },
       );
-    limitMock.mockResolvedValueOnce([{ id: "repo_file_1" }]);
+    limitMock.mockResolvedValueOnce([{ sourceFileVersionId: "ver_1" }]).mockResolvedValueOnce([
+      {
+        repositorySourceFileId: "repo_file_1",
+        organizationId: "org_1",
+        projectId: "project_1",
+      },
+    ]);
 
     await persistFileJobTranslations({
       organizationId: "org_1",
@@ -174,17 +199,23 @@ describe("persistFileJobTranslations", () => {
 
     let keyLookupIndex = 0;
     whereMock.mockImplementation(() => {
-      if (keyLookupIndex === 0) {
+      if (keyLookupIndex < 2) {
         keyLookupIndex += 1;
         return { limit: limitMock };
       }
-      const start = (keyLookupIndex - 1) * PROJECT_TRANSLATION_WRITE_BATCH_SIZE;
+      const start = (keyLookupIndex - 2) * PROJECT_TRANSLATION_WRITE_BATCH_SIZE;
       keyLookupIndex += 1;
       return Promise.resolve(
         keys.slice(start, start + PROJECT_TRANSLATION_WRITE_BATCH_SIZE),
       ) as unknown as { limit: typeof limitMock };
     });
-    limitMock.mockResolvedValueOnce([{ id: "repo_file_1" }]);
+    limitMock.mockResolvedValueOnce([{ sourceFileVersionId: "ver_1" }]).mockResolvedValueOnce([
+      {
+        repositorySourceFileId: "repo_file_1",
+        organizationId: "org_1",
+        projectId: "project_1",
+      },
+    ]);
 
     await persistFileJobTranslations({
       organizationId: "org_1",

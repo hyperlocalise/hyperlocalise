@@ -16,6 +16,7 @@ import { z } from "zod";
 
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import {
+  fileJobBranchSchema,
   keysTranslationJobInputSchema,
   maxTranslationMetadataEntries,
   maxTranslationTargetLocales,
@@ -70,6 +71,7 @@ export const createPublicJobBodySchema = z.discriminatedUnion("type", [
         .min(1)
         .max(maxTranslationTargetLocales),
       metadata: publicJobMetadataSchema,
+      branch: fileJobBranchSchema.optional(),
     }),
   }),
   z.object({
@@ -170,6 +172,7 @@ export function hashPublicJobRequest(payload: CreatePublicJobBody) {
               sourceLocale: payload.fileInput.sourceLocale,
               targetLocales: payload.fileInput.targetLocales,
               metadata: sortedMetadata(payload.fileInput.metadata),
+              branch: payload.fileInput.branch,
             },
           };
 

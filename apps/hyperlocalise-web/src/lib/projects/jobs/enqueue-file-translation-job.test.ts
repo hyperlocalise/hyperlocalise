@@ -359,6 +359,36 @@ describe("enqueueFileTranslationJob", () => {
     );
   });
 
+  it("binds the stored file version on the requested branch", async () => {
+    getStoredFileForJobScopeMock.mockResolvedValue({
+      id: "file_json",
+      filename: "messages.json",
+    });
+
+    const result = await createFileTranslationJob({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourceFileId: "file_json",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fileFormat: "json",
+      branchName: "feature-checkout",
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(ensureRepositorySourceFileVersionForStoredFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileId: "file_json",
+        branchName: "feature-checkout",
+      }),
+    );
+    expect(capturedJobValues?.inputPayload).toEqual(
+      expect.objectContaining({
+        branch: "feature-checkout",
+      }),
+    );
+  });
+
   it("keeps a caller-supplied metadata title", async () => {
     getStoredFileForJobScopeMock.mockResolvedValue({
       id: "file_json",

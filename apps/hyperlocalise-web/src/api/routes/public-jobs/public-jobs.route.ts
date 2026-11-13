@@ -494,6 +494,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
                     organizationId,
                     projectId: payload.projectId,
                     fileId: payload.fileInput.sourceFileId,
+                    branchName: payload.fileInput.branch,
                   })
                 : null;
 
