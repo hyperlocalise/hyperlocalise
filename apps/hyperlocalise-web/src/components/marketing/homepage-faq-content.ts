@@ -34,8 +34,8 @@ export function getHomepageFaqItems(locale: string): HomepageFaqItem[] {
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "Hyperlocalise is an AI localisation platform for international growth. We translate your websites and apps with your translation memory and glossaries, adapt images and video to local cultures with Iris, and check content against each market's rules with Guidelines.",
-        id: "hRDR6f9Aqt",
+          "Hyperlocalise is an agentic localisation platform and translation management system (TMS) for international growth. We translate your websites and apps with your translation memory and glossaries, transcreate ads, images and video for local cultures with Iris, and check content against each market's rules with Guidelines.",
+        id: "AekiFgAUvh",
         description: "Homepage FAQ answer 1",
       }),
     },
@@ -54,14 +54,14 @@ export function getHomepageFaqItems(locale: string): HomepageFaqItem[] {
     },
     {
       question: intl.formatMessage({
-        defaultMessage: "Do I need to replace Phrase, Lokalise, Crowdin or Smartling?",
-        id: "4+ShRbflLe",
+        defaultMessage: "Can Hyperlocalise replace Phrase, Lokalise, Crowdin or Smartling?",
+        id: "yaSqLIgzu3",
         description: "Homepage FAQ question 3",
       }),
       answer: intl.formatMessage({
         defaultMessage:
-          "No. Hyperlocalise works alongside your existing TMS. Keep Phrase, Lokalise, Crowdin or Smartling, and add AI translation, review workflows, context and quality checks on top.",
-        id: "e/nWIr4yPz",
+          "Yes. Hyperlocalise is a full TMS with translation memory, glossaries, a CAT editor and review workflows. Import your translation memory and glossaries to move over, or connect your current TMS to start right away and migrate at your own pace.",
+        id: "xwWdFnLM37",
         description: "Homepage FAQ answer 3",
       }),
     },
@@ -102,6 +102,19 @@ export function getHomepageFaqItems(locale: string): HomepageFaqItem[] {
           "Iris, our AI localisation engine for multilingual assets, transcreates ad creative, images and video. It rewrites on-screen copy, adds subtitles and dubbing, and checks the layout in every language. Iris is in early access.",
         id: "UIoMT+lEyM",
         description: "Homepage FAQ answer 6",
+      }),
+    },
+    {
+      question: intl.formatMessage({
+        defaultMessage: "How do you localise ad campaigns and marketing emails?",
+        id: "KAgoq9ezfd",
+        description: "Homepage FAQ question 13",
+      }),
+      answer: intl.formatMessage({
+        defaultMessage:
+          "Iris transcreates ad copy, banners and video for each market. For email, connect Braze, HubSpot, Mailchimp, Iterable or Customer.io and localise templates and campaigns where your team already builds them.",
+        id: "pm6XQRllKJ",
+        description: "Homepage FAQ answer 13",
       }),
     },
     {
