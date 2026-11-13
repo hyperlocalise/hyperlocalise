@@ -372,6 +372,56 @@ it.each(["attempt", "succeeded", "exhausted"])(
   },
 );
 
+describe("connections drawn on the canvas", () => {
+  const read = node("read", "action.file_read");
+  const target = node("target", "action.http");
+
+  it("refuses a data output dropped on a step's input", () => {
+    expect(
+      validateVisualWorkflowConnection({
+        nodes: [read, target],
+        edges: [],
+        connection: {
+          source: "read",
+          target: "target",
+          sourceHandle: "data:error",
+          targetHandle: "input",
+        },
+      }),
+    ).toMatchObject({ valid: false, code: "invalid_target_port" });
+  });
+
+  it("refuses an execution output dropped on a data input", () => {
+    expect(
+      validateVisualWorkflowConnection({
+        nodes: [read, target],
+        edges: [],
+        connection: {
+          source: "read",
+          target: "target",
+          sourceHandle: "error",
+          targetHandle: "data:body",
+        },
+      }),
+    ).toMatchObject({ valid: false, code: "invalid_source_port" });
+  });
+
+  it("makes a data wire between data ports, with plain port ids", () => {
+    expect(
+      validateVisualWorkflowConnection({
+        nodes: [read, target],
+        edges: [executionEdge("read-target", "read", "target")],
+        connection: {
+          source: "read",
+          target: "target",
+          sourceHandle: "data:content",
+          targetHandle: "data:body",
+        },
+      }),
+    ).toMatchObject({ edgeKind: "data", sourcePortId: "content", targetPortId: "body" });
+  });
+});
+
 it("allows execution fan-out from one source", () => {
   const first = node("first", "logic.set");
   const second = node("second", "logic.set");

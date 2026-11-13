@@ -31,7 +31,7 @@ A node with one execution output needs nothing else on the card. A node with sev
 - **List its outputs** in `getAllowedExecutionSourceHandles` and its main one in `getPrimaryExecutionSourceHandle` (`validation/execution-handles.ts`). The card, the connection check and the compiler all read this list, in this order.
 - **Name each output** in `EXECUTION_OUTPUT_LOOK` in `nodes/visual-workflow-compact-node.tsx`, unless it reuses an id already there: the label drawn inside the card beside the handle and a text color such as `text-destructive` for its tone. The card draws the handle, its label and its "+" button from this.
 
-The card spreads several outputs evenly down its top part, which stays above the data ports and grows to fit them; a lone output sits on the input's row. Execution handles and data ports never share a spot on the card's edge. A handle's glyph is hollow until a wire is attached (`isExecutionHandleConnected` in `editor/visual-workflow-execution-ports.ts` for execution handles, `connectionCount` for data ports).
+The card spreads several outputs evenly down its top part, which stays above the data ports and grows to fit them; a lone output sits on the input's row. Execution handles and data ports never share a spot on the card's edge. On the canvas a data port's handle id is `data:<port id>` (`editor/canvas-handle-ids.ts`), so it never equals an execution handle's id. The connection check reads the prefix to tell data wires from execution wires; saved edges keep plain port ids. A handle's glyph is hollow until a wire is attached (`isExecutionHandleConnected` in `editor/visual-workflow-execution-ports.ts` for execution handles, `connectionCount` for data ports).
 
 On the card:
 

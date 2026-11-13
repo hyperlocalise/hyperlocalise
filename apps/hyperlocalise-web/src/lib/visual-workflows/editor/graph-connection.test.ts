@@ -427,6 +427,35 @@ describe("removeVisualWorkflowNode", () => {
   });
 });
 
+describe("a connection drawn on the canvas", () => {
+  it("is saved with plain port ids", () => {
+    const read = node("read", "action.file_read");
+    const request = node("request", "action.http");
+    const run: VisualWorkflowRfEdge = {
+      id: "run",
+      source: "read",
+      target: "request",
+      sourceHandle: "success",
+      targetHandle: "input",
+      data: { kind: "execution" },
+    };
+
+    const result = applyVisualWorkflowGraphConnection([read, request], [run], {
+      source: "read",
+      target: "request",
+      sourceHandle: "data:content",
+      targetHandle: "data:body",
+    });
+
+    expect(result.edges.find((edge) => edge.id !== "run")).toMatchObject({
+      id: "xy-edge__readcontent-requestbody",
+      sourceHandle: "content",
+      targetHandle: "body",
+      data: { kind: "data" },
+    });
+  });
+});
+
 describe("applyNodeConfigUpdate", () => {
   it("prunes a stale Reduce initial-value edge when changing operation", () => {
     const transform = node("transform", "logic.array_transform", {

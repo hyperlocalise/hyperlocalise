@@ -14,7 +14,7 @@
  */
 import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
 import { BroadcastIcon, WarningCircleIcon } from "@phosphor-icons/react";
-import { Handle, Position, useEdges, type NodeProps } from "@xyflow/react";
+import { Handle, Position, useEdges, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
 import { defineMessages, FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { Card } from "@/components/ui/card";
@@ -25,6 +25,10 @@ import {
   resolveNodeSubtitle,
   TRIGGER_BADGE_ICON,
 } from "@/lib/visual-workflows/catalog/node-catalog";
+import {
+  canvasDataHandleId,
+  fromCanvasEdgeHandles,
+} from "@/lib/visual-workflows/editor/canvas-handle-ids";
 import {
   getVisualWorkflowDataPorts,
   type VisualWorkflowDataPort,
@@ -41,7 +45,15 @@ import { useVisualWorkflowCanvasActions } from "../visual-workflow-canvas-action
 import { visualWorkflowEditorMessages as messages } from "../visual-workflow-editor.messages";
 import { visualWorkflowNodeTitleMessage } from "../visual-workflow-node-picker";
 import { VisualWorkflowQuickAddButton } from "./visual-workflow-quick-add-button";
-import { createElement, Fragment, type ComponentProps, type CSSProperties } from "react";
+import {
+  createElement,
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  type ComponentProps,
+  type CSSProperties,
+} from "react";
 
 const nodeStatusMessages = defineMessages({
   running: { defaultMessage: "Running", id: "ZWQ+8S8rpv", description: "Workflow node status" },
@@ -345,7 +357,7 @@ function DataPortLabel({
     >
       {direction === "input" ? (
         <DataHandle
-          id={port.id}
+          id={canvasDataHandleId(port.id)}
           type="target"
           position={Position.Left}
           connected={connected}
@@ -359,7 +371,7 @@ function DataPortLabel({
 
       {direction === "output" ? (
         <DataHandle
-          id={port.id}
+          id={canvasDataHandleId(port.id)}
           type="source"
           position={Position.Right}
           connected={connected}
@@ -376,7 +388,8 @@ function DataPortLabel({
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
   // The canvas's own list, which holds the drawn reference lines as well as the stored edges.
-  const edges = useEdges<VisualWorkflowCanvasEdge>();
+  const canvasEdges = useEdges<VisualWorkflowCanvasEdge>();
+  const edges = useMemo(() => canvasEdges.map(fromCanvasEdgeHandles), [canvasEdges]);
   const { onAddFromNode, issueNodeIds, freshNodeIds, pointedNodeId, realNodeIds } =
     useVisualWorkflowCanvasActions();
   const hasIssue = issueNodeIds.has(id);
@@ -446,6 +459,22 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           ? { top: EXECUTION_MAIN_ROW_TOP }
           : undefined,
   }));
+  // React Flow measures a step's handles when it is first drawn. A handle added or moved later
+  // (the error branch, a declared output) takes no wire until the step is measured again.
+  const updateNodeInternals = useUpdateNodeInternals();
+  const handleLayout = [
+    ...mergeInputs.map((input) => `input:${input.id}`),
+    ...outputs.map((output) => `output:${output.id}`),
+    ...dataPorts.inputs.map((port) => `data-input:${port.id}`),
+    ...dataPorts.outputs.map((port) => `data-output:${port.id}`),
+  ].join("\n");
+  const measuredHandleLayout = useRef(handleLayout);
+  useEffect(() => {
+    if (measuredHandleLayout.current !== handleLayout) {
+      measuredHandleLayout.current = handleLayout;
+      updateNodeInternals(id);
+    }
+  }, [handleLayout, id, updateNodeInternals]);
   const showAddButtons = !data.hideAddAction && outputs.length > 0;
   const hasOutputLabels = outputs.some((output) => output.label !== null);
 

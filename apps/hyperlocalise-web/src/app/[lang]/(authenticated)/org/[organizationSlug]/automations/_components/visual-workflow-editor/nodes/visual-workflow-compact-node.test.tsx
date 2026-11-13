@@ -15,7 +15,7 @@
 import { render } from "@testing-library/react";
 import { ReactFlow, ReactFlowProvider } from "@xyflow/react";
 import { IntlProvider } from "react-intl";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -29,16 +29,23 @@ import { getAllowedExecutionSourceHandles } from "@/lib/visual-workflows/validat
 import { VisualWorkflowCanvasActionsProvider } from "../visual-workflow-canvas-actions";
 import { VisualWorkflowCompactNode } from "./visual-workflow-compact-node";
 
+const updateNodeInternals = vi.hoisted(() => vi.fn());
+
+vi.mock("@xyflow/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@xyflow/react")>()),
+  useUpdateNodeInternals: () => updateNodeInternals,
+}));
+
 const NODE_TYPES = { step: VisualWorkflowCompactNode };
 
-function renderStep(type: VisualWorkflowRfNode["data"]["catalogType"], config: VisualNodeConfig) {
+function step(type: VisualWorkflowRfNode["data"]["catalogType"], config: VisualNodeConfig) {
   const node = {
     id: "step",
     type: "step",
     position: { x: 0, y: 0 },
     data: { catalogType: type, config, runStatus: "idle" },
   } as unknown as VisualWorkflowRfNode;
-  return render(
+  return (
     <IntlProvider locale="en" messages={{}}>
       <TooltipProvider>
         <VisualWorkflowCanvasActionsProvider onAddFromNode={() => {}}>
@@ -49,8 +56,12 @@ function renderStep(type: VisualWorkflowRfNode["data"]["catalogType"], config: V
           </ReactFlowProvider>
         </VisualWorkflowCanvasActionsProvider>
       </TooltipProvider>
-    </IntlProvider>,
+    </IntlProvider>
   );
+}
+
+function renderStep(type: VisualWorkflowRfNode["data"]["catalogType"], config: VisualNodeConfig) {
+  return render(step(type, config));
 }
 
 const STEPS = VISUAL_NODE_CATALOG.filter(
@@ -89,6 +100,28 @@ describe("VisualWorkflowCompactNode", () => {
     },
   );
 
+  it("gives a data output its own handle id beside an execution output of the same name", () => {
+    const { container } = renderStep("action.file_read", createDefaultConfig("action.file_read"));
+
+    const errorHandles = [
+      ...container.querySelectorAll<HTMLElement>(".react-flow__handle.source"),
+    ].filter((handle) => handle.dataset.handleid?.endsWith("error"));
+
+    expect(errorHandles.map((handle) => handle.dataset.handleid)).toEqual(["error", "data:error"]);
+  });
+
+  it("has React Flow measure the step again when a handle is added", () => {
+    const config = createDefaultConfig("action.http");
+    const { rerender } = renderStep("action.http", config);
+    updateNodeInternals.mockClear();
+
+    rerender(step("action.http", { ...config, onError: "stop" } as VisualNodeConfig));
+    expect(updateNodeInternals).not.toHaveBeenCalled();
+
+    rerender(step("action.http", { ...config, onError: "branch" } as VisualNodeConfig));
+    expect(updateNodeInternals).toHaveBeenCalledWith("step");
+  });
+
   it("names a Switch case by its position, whatever its id", () => {
     const { container } = renderStep("logic.switch", {
       kind: "logic.switch",
@@ -100,9 +133,9 @@ describe("VisualWorkflowCompactNode", () => {
     });
 
     expect(
-      [...container.querySelectorAll(".react-flow__handle.source")]
-        .map((handle) => handle.getAttribute("aria-label"))
-        .filter((label) => !label?.startsWith("Data output")),
+      [
+        ...container.querySelectorAll(".react-flow__handle.source:not([data-handleid^='data:'])"),
+      ].map((handle) => handle.getAttribute("aria-label")),
     ).toEqual(["Case 1", "Case 2", "default"]);
   });
 });

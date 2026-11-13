@@ -16,6 +16,7 @@ import { computeForEachBodyNodeIds } from "../editor/for-each-body-membership";
 import { toVisualWorkflowV3Definition } from "../schema/serializers";
 import type { VisualWorkflowRfEdge, VisualWorkflowRfNode } from "../schema/types";
 import { compileVisualWorkflowV3Definition } from "./compile-workflow-v3";
+import { readConnectionHandle } from "../editor/canvas-handle-ids";
 import { getAllowedExecutionSourceHandles } from "./execution-handles";
 
 const CANDIDATE_EDGE_ID = "__connection_candidate__";
@@ -97,8 +98,10 @@ export function validateVisualWorkflowConnection(input: {
   replacingEdgeId?: string;
 }): ConnectionValidationResult {
   const { connection, nodes } = input;
-  const sourcePortId = connection.sourceHandle ?? null;
-  const targetPortId = connection.targetHandle ?? null;
+  const source = readConnectionHandle(connection.sourceHandle);
+  const target = readConnectionHandle(connection.targetHandle);
+  const sourcePortId = source.portId;
+  const targetPortId = target.portId;
 
   if (!connection.source || !connection.target) {
     return invalidResult(
@@ -137,10 +140,20 @@ export function validateVisualWorkflowConnection(input: {
     targetPortId,
   });
 
+  if (source.isData !== target.isData) {
+    return invalidResult(
+      source.isData ? "invalid_target_port" : "invalid_source_port",
+      sourcePortId,
+      targetPortId,
+      "Connect a data output to a data input, and a step's output to a step's input.",
+    );
+  }
+
+  // The canvas marks its data ports; elsewhere the kind follows from the target port.
   const edgeKind =
-    targetPortId === null || targetPortId === "input" || mergeExecutionTarget
-      ? "execution"
-      : "data";
+    source.isData || !(targetPortId === null || targetPortId === "input" || mergeExecutionTarget)
+      ? "data"
+      : "execution";
 
   const normalizedSourcePortId =
     edgeKind === "execution" ? (sourcePortId ?? "success") : sourcePortId;
