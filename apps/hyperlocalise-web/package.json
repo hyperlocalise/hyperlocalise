@@ -94,7 +94,7 @@
     "@vercel/analytics": "2.0.1",
     "@vercel/blob": "^2.8.2",
     "@vercel/oidc-aws-credentials-provider": "^3.3.13",
-    "@vercel/sandbox": "3.9.1",
+    "@vercel/sandbox": "4.0.0",
     "@workos-inc/authkit-nextjs": "4.6.3",
     "@workos-inc/node": "^12.0.0",
     "@workos-inc/widgets": "^1.20.1",
