@@ -1309,6 +1309,46 @@ describe("translation as source routes", () => {
     expect(enqueueSourceFileIngestAfterUploadMock).not.toHaveBeenCalled();
   });
 
+  it("refuses sending a file to the same project", async () => {
+    const fixture = await chainedProjectsFixture();
+
+    const response = await fixture.send({ destinationProjectId: fixture.original.id });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "same_project" });
+    expect(enqueueSourceFileIngestAfterUploadMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a live TMS project that stores files outside the workspace", async () => {
+    const fixture = await chainedProjectsFixture();
+    await db
+      .update(schema.projects)
+      .set({ source: "external_tms" })
+      .where(eq(schema.projects.id, fixture.destination.id));
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "project_not_native" });
+    expect(enqueueSourceFileIngestAfterUploadMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a project that has no source language", async () => {
+    const fixture = await chainedProjectsFixture();
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: null })
+      .where(eq(schema.projects.id, fixture.destination.id));
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: "destination_source_locale_mismatch",
+    });
+    expect(enqueueSourceFileIngestAfterUploadMock).not.toHaveBeenCalled();
+  });
+
   it("does not find a project in another workspace", async () => {
     const fixture = await chainedProjectsFixture();
     const other = await chainedProjectsFixture();
