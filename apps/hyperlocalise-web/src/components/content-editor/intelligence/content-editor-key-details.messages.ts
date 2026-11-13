@@ -15,6 +15,11 @@
 import { defineMessages } from "react-intl";
 
 export const contentEditorKeyDetailsMessages = defineMessages({
+  sectionTitle: {
+    defaultMessage: "Details",
+    id: "ZTpZqdYE6W",
+    description: "Title of the context panel section that holds a string's tags and design link",
+  },
   tagsLabel: {
     defaultMessage: "Tags",
     id: "8vCpYHi50M",
@@ -37,9 +42,10 @@ export const contentEditorKeyDetailsMessages = defineMessages({
     description: "Accessible label of the field for adding tags to the string",
   },
   addTagPlaceholder: {
-    defaultMessage: "Add tags, separated by commas",
-    id: "1EX8BF1B5A",
-    description: "Placeholder in the field for adding tags to a string",
+    defaultMessage: "tag-name",
+    id: "E7OAFUiyvH",
+    description:
+      "Placeholder in the small inline field for adding a tag; shows the tag format (lowercase words joined by hyphens)",
   },
   addTag: {
     defaultMessage: "Add tag",
@@ -56,10 +62,17 @@ export const contentEditorKeyDetailsMessages = defineMessages({
     id: "qS9mjfnHgT",
     description: "Error when saving a string's tags fails",
   },
+  designLabel: {
+    defaultMessage: "Design",
+    id: "Gz2HjKPjOu",
+    description:
+      "Label of the row that holds the link to the design (such as a Figma frame) where the string appears",
+  },
   openDesign: {
-    defaultMessage: "Open design",
-    id: "ZWQRslmNm4",
-    description: "Link to the design (such as a Figma frame) where the string appears",
+    defaultMessage: "Open design {name}",
+    id: "KvSUf5nrEM",
+    description:
+      "Accessible label of the link to the string's design; {name} is the Figma file name or the site's address",
   },
   addDesignUrl: {
     defaultMessage: "Add design link",
@@ -76,6 +89,11 @@ export const contentEditorKeyDetailsMessages = defineMessages({
     id: "LVqkVOBqQp",
     description: "Label of the field for the address of the design where the string appears",
   },
+  designUrlHint: {
+    defaultMessage: "Enter to save, Esc to cancel. Clear the field to remove the link.",
+    id: "wxrd+6kWsW",
+    description: "Keyboard hint under the inline field for the string's design link",
+  },
   invalidDesignUrl: {
     defaultMessage: "Use an address starting with https:// or http://.",
     id: "zEEmo95qSa",
@@ -90,15 +108,5 @@ export const contentEditorKeyDetailsMessages = defineMessages({
     defaultMessage: "Remove link",
     id: "T8HLBLj6ph",
     description: "Button that clears the string's design link",
-  },
-  save: {
-    defaultMessage: "Save",
-    id: "EqpbvDBXCF",
-    description: "Saves the string's design link",
-  },
-  cancel: {
-    defaultMessage: "Cancel",
-    id: "o7UvybjKCR",
-    description: "Closes the design link field without saving",
   },
 });
