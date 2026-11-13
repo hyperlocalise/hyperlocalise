@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 import type { HomepageFaqItem } from "@/components/marketing/homepage-faq-content";
+import type { IntlShape } from "@formatjs/intl";
+
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import {
@@ -33,26 +35,24 @@ import {
   marketingLocalisationFaqCopy,
   marketingLocalisationFaqItems,
 } from "./marketing-localisation-faq";
-import {
-  productLocalisationFaqCopy,
-  productLocalisationFaqItems,
-} from "./product-localisation-faq";
+import { formatLocalisationCliAndApiFaq } from "./localisation-cli-and-api-faq";
+import { formatLocalisationForAiCodingAgentsFaq } from "./localisation-for-ai-coding-agents-faq";
+import { formatMarketEntryFaq } from "./market-entry-faq";
+import { formatMarketExperimentationFaq } from "./market-experimentation-faq";
 import type {
   UseCaseFaqDescriptor,
   UseCaseFaqSectionCopy,
   UseCaseFaqSlug,
 } from "./use-case-faq-types";
 
-type UseCaseFaqBundle = {
-  copy: UseCaseFaqSectionCopy;
-  items: UseCaseFaqDescriptor[];
-};
+type FormattedFaq = { heading: string; subheading: string; items: HomepageFaqItem[] };
+
+/** Older pages hold descriptors; newer pages format inline so the extractor sees every string. */
+type UseCaseFaqBundle =
+  | { copy: UseCaseFaqSectionCopy; items: UseCaseFaqDescriptor[] }
+  | { format: (intl: IntlShape) => FormattedFaq };
 
 const useCaseFaqBySlug: Record<UseCaseFaqSlug, UseCaseFaqBundle> = {
-  "product-localisation": {
-    copy: productLocalisationFaqCopy,
-    items: productLocalisationFaqItems,
-  },
   "marketing-localisation": {
     copy: marketingLocalisationFaqCopy,
     items: marketingLocalisationFaqItems,
@@ -73,31 +73,38 @@ const useCaseFaqBySlug: Record<UseCaseFaqSlug, UseCaseFaqBundle> = {
     copy: localisationOperationsFaqCopy,
     items: localisationOperationsFaqItems,
   },
+  "market-entry": { format: formatMarketEntryFaq },
+  "market-experimentation": { format: formatMarketExperimentationFaq },
+  "localisation-cli-and-api": { format: formatLocalisationCliAndApiFaq },
+  "localisation-for-ai-coding-agents": { format: formatLocalisationForAiCodingAgentsFaq },
 };
 
-function formatFaqItems(locale: string, descriptors: UseCaseFaqDescriptor[]): HomepageFaqItem[] {
+function formatBundle(slug: UseCaseFaqSlug, locale: string): FormattedFaq {
   const intl = getIntlShape(locale);
+  const bundle = useCaseFaqBySlug[slug];
 
-  return descriptors.map((descriptor) => ({
-    question: intl.formatMessage(descriptor.question),
-    answer: intl.formatMessage(descriptor.answer),
-  }));
+  if ("format" in bundle) {
+    return bundle.format(intl);
+  }
+
+  return {
+    heading: intl.formatMessage(bundle.copy.heading),
+    subheading: intl.formatMessage(bundle.copy.subheading),
+    items: bundle.items.map((descriptor) => ({
+      question: intl.formatMessage(descriptor.question),
+      answer: intl.formatMessage(descriptor.answer),
+    })),
+  };
 }
 
 export function getUseCaseFaqItems(slug: UseCaseFaqSlug, locale: string): HomepageFaqItem[] {
-  const bundle = useCaseFaqBySlug[slug];
-  return formatFaqItems(locale, bundle.items);
+  return formatBundle(slug, locale).items;
 }
 
 export function getUseCaseFaqSectionCopy(
   slug: UseCaseFaqSlug,
   locale: string,
 ): { heading: string; subheading: string } {
-  const intl = getIntlShape(locale);
-  const { copy } = useCaseFaqBySlug[slug];
-
-  return {
-    heading: intl.formatMessage(copy.heading),
-    subheading: intl.formatMessage(copy.subheading),
-  };
+  const { heading, subheading } = formatBundle(slug, locale);
+  return { heading, subheading };
 }
