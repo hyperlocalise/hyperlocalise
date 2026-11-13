@@ -11,8 +11,8 @@
  * Version 2.0 or later.
  */
 import { getVisualNodeDimensions } from "../catalog/node-catalog";
-import { getSwitchCaseIndexByHandleId } from "../schema/switch-cases";
 import type { VisualWorkflowRfNode } from "../schema/types";
+import { getAllowedExecutionSourceHandles } from "../validation/execution-handles";
 
 const NODE_GAP_X = 340;
 const NODE_GAP_Y = 36;
@@ -20,41 +20,21 @@ const NODE_GAP_Y = 36;
 const STACK_OFFSET_X = 24;
 const STACK_OFFSET_Y = 16;
 
-/** How far below its source a node added from one of the source's output handles goes. */
+/**
+ * How far below its source a node added from one of the source's output handles goes: one row per
+ * output above it, in the order the card draws them.
+ */
 function quickAddOffsetY(
   handleId: string | null | undefined,
   source: VisualWorkflowRfNode,
 ): number {
   const sourceHeight =
     source.height ?? getVisualNodeDimensions(source.data.catalogType, source.data.config).height;
-  const branchStep = sourceHeight + NODE_GAP_Y;
-
-  if (!handleId || handleId === "true" || handleId === "each") {
-    return 0;
-  }
-  if (source.data.catalogType === "logic.try_catch") {
-    const outputIndex = ["try", "success", "catch", "finally"].indexOf(handleId);
-    if (outputIndex >= 0) return outputIndex * branchStep;
-  }
-  if (source.data.config.kind === "logic.sequence") {
-    const outputIndex = source.data.config.outputs.findIndex((output) => output.id === handleId);
-    if (outputIndex >= 0) {
-      return outputIndex * branchStep;
-    }
-  }
-  if (handleId === "false" || handleId === "done" || handleId === "error") {
-    return branchStep;
-  }
-  if (source.data.catalogType === "logic.switch" && source.data.config.kind === "logic.switch") {
-    if (handleId === "default") {
-      return source.data.config.cases.length * branchStep;
-    }
-    const caseIndex = getSwitchCaseIndexByHandleId(source.data.config.cases, handleId);
-    if (caseIndex !== null) {
-      return caseIndex * branchStep;
-    }
-  }
-  return 0;
+  const outputs = getAllowedExecutionSourceHandles({
+    type: source.data.catalogType,
+    config: source.data.config,
+  }).filter((handle) => handle !== null);
+  return Math.max(outputs.indexOf(handleId ?? ""), 0) * (sourceHeight + NODE_GAP_Y);
 }
 
 /**
