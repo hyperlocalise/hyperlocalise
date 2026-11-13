@@ -117,6 +117,21 @@ afterEach(() => {
 });
 
 describe("GuidelineTextDocumentDialog template", () => {
+  it("keeps the create dialog within the viewport", () => {
+    render(
+      <GuidelineTextDocumentDialog
+        open
+        onOpenChange={() => {}}
+        organizationSlug="acme"
+        document={null}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.getByRole("dialog").className).toMatch(/max-h-\[min\(90dvh,48rem\)\]/);
+    expect(screen.getByRole("dialog").className).toMatch(/overflow-hidden/);
+  });
+
   it("fills the template content and title when creating", async () => {
     const user = userEvent.setup();
     mocks.uploadDocument.mockResolvedValue(guidelineDocument());

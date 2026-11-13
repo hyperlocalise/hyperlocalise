@@ -240,8 +240,8 @@ export function GuidelineTextDocumentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[min(90dvh,48rem)] flex-col overflow-hidden sm:max-w-4xl">
+        <DialogHeader className="shrink-0">
           <DialogTitle>
             <FormattedMessage {...(editing ? messages.editTitle : messages.createTitle)} />
           </DialogTitle>
@@ -251,7 +251,7 @@ export function GuidelineTextDocumentDialog({
             />
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4">
+        <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-2">
           <Field className="gap-1.5">
             <FieldLabel htmlFor="guideline-text-title">
               <FormattedMessage {...messages.titleLabel} />
@@ -266,7 +266,7 @@ export function GuidelineTextDocumentDialog({
             {titleError ? <FieldError>{titleError}</FieldError> : null}
           </Field>
           {contentEditable ? (
-            <Field className="gap-1.5">
+            <Field className="min-h-0 gap-1.5">
               <div className="flex items-center justify-between gap-2">
                 <FieldLabel htmlFor="guideline-text-content">
                   <FormattedMessage {...messages.contentLabel} />
@@ -309,7 +309,7 @@ export function GuidelineTextDocumentDialog({
             </Field>
           ) : null}
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             <FormattedMessage {...messages.cancel} />
           </Button>
