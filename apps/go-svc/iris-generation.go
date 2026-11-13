@@ -27,13 +27,11 @@ const (
 	irisCreditVendorFal        = "fal"
 	irisCreditVendorElevenLabs = "elevenlabs"
 
-	defaultIrisImageCreditModel            = "custom/hyperlocalise-gpt-image-2"
-	defaultIrisVideoCreditModel            = "custom/hyperlocalise-seedance-2-5"
-	defaultIrisFalImageCreditModel         = "custom/hyperlocalise-fal-image"
-	defaultIrisFalVideoCreditModel         = "custom/hyperlocalise-fal-video"
-	defaultIrisElevenLabsSecondCreditModel = "custom/hyperlocalise-elevenlabs-second"
-	defaultIrisElevenLabsMinuteCreditModel = "custom/hyperlocalise-elevenlabs-minute"
-	defaultIrisAudioMinuteCreditModel      = "custom/hyperlocalise-audio-minute"
+	defaultIrisFalImageCreditModel          = "custom/hyperlocalise-fal-image"
+	defaultIrisFalVideoCreditModel          = "custom/hyperlocalise-fal-video"
+	defaultIrisElevenLabsSecondCreditModel  = "custom/hyperlocalise-elevenlabs-second"
+	defaultIrisElevenLabsMinuteCreditModel  = "custom/hyperlocalise-elevenlabs-minute"
+	defaultIrisElevenLabsDubbingCreditModel = "custom/hyperlocalise-elevenlabs-dubbing"
 )
 
 type irisUsageMeter interface {
@@ -43,13 +41,11 @@ type irisUsageMeter interface {
 }
 
 type irisCreditConfig struct {
-	ImageModelID            string
-	VideoModelID            string
-	FalImageModelID         string
-	FalVideoModelID         string
-	ElevenLabsSecondModelID string
-	ElevenLabsMinuteModelID string
-	AudioMinuteModelID      string
+	FalImageModelID          string
+	FalVideoModelID          string
+	ElevenLabsSecondModelID  string
+	ElevenLabsMinuteModelID  string
+	ElevenLabsDubbingModelID string
 }
 
 type irisOrgScope struct {
@@ -196,13 +192,11 @@ func (api *irisGenerationAPI) creditModels() irisCreditConfig {
 	if api != nil {
 		cfg = api.credits
 	}
-	cfg.ImageModelID = irisFirstNonEmpty(cfg.ImageModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_IMAGE_MODEL_ID")), defaultIrisImageCreditModel)
-	cfg.VideoModelID = irisFirstNonEmpty(cfg.VideoModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_VIDEO_MODEL_ID")), defaultIrisVideoCreditModel)
 	cfg.FalImageModelID = irisFirstNonEmpty(cfg.FalImageModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_FAL_IMAGE_MODEL_ID")), defaultIrisFalImageCreditModel)
 	cfg.FalVideoModelID = irisFirstNonEmpty(cfg.FalVideoModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_FAL_VIDEO_MODEL_ID")), defaultIrisFalVideoCreditModel)
 	cfg.ElevenLabsSecondModelID = irisFirstNonEmpty(cfg.ElevenLabsSecondModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_ELEVENLABS_SECOND_MODEL_ID")), defaultIrisElevenLabsSecondCreditModel)
 	cfg.ElevenLabsMinuteModelID = irisFirstNonEmpty(cfg.ElevenLabsMinuteModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID")), defaultIrisElevenLabsMinuteCreditModel)
-	cfg.AudioMinuteModelID = irisFirstNonEmpty(cfg.AudioMinuteModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_AUDIO_MINUTE_MODEL_ID")), defaultIrisAudioMinuteCreditModel)
+	cfg.ElevenLabsDubbingModelID = irisFirstNonEmpty(cfg.ElevenLabsDubbingModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_ELEVENLABS_DUBBING_MODEL_ID")), defaultIrisElevenLabsDubbingCreditModel)
 	return cfg
 }
 
@@ -289,18 +283,22 @@ func irisSyntheticCredit(job irisJobRecord, credits irisCreditConfig) (autumn.Tr
 	case model.Provider == irisProviderElevenLabs && model.Kind == irisKindAudio:
 		req.ModelID = credits.ElevenLabsSecondModelID
 		req.OutputTokens = irisDurationSeconds(job)
+	case model.ID == "elevenlabs-dubbing":
+		req.ModelID = credits.ElevenLabsDubbingModelID
+		req.OutputTokens = irisInputMinutes(job)
 	case model.Provider == irisProviderElevenLabs:
 		req.ModelID = credits.ElevenLabsMinuteModelID
 		req.OutputTokens = irisInputMinutes(job)
-	case model.Kind == irisKindVideo:
-		req.ModelID = credits.VideoModelID
-		req.OutputTokens = irisDurationSeconds(job)
-	case irisGatewayAudioMinuteModel(model):
-		req.ModelID = credits.AudioMinuteModelID
-		req.OutputTokens = irisInputMinutes(job)
 	default:
-		req.ModelID = credits.ImageModelID
-		req.OutputTokens = irisImageCount(job)
+		req.ModelID = strings.TrimSpace(model.GatewayID)
+		switch {
+		case model.Kind == irisKindVideo:
+			req.OutputTokens = irisDurationSeconds(job)
+		case irisGatewayAudioMinuteModel(model):
+			req.OutputTokens = irisInputMinutes(job)
+		default:
+			req.OutputTokens = irisImageCount(job)
+		}
 	}
 	if req.ModelID == "" || req.OutputTokens < 1 {
 		return autumn.TrackTokensRequest{}, false
