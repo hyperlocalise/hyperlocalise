@@ -1,9 +1,15 @@
 name: Web CI
 
 on:
-  # Manual runs on main write shared caches that PRs can restore.
+  # Manual runs write shared caches that PRs can restore.
   # Do not add push-to-main; that would run CI on every merge.
   workflow_dispatch:
+  push:
+    branches:
+      - prod
+    paths:
+      - apps/hyperlocalise-web/**
+      - .github/workflows/web.yml
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
@@ -67,8 +73,8 @@ jobs:
       - name: Check hyperlocalise-web
         run: vp check
 
-  # Draft PRs run tests related to the PR diff and skip Next.js build.
-  # Ready PRs and workflow_dispatch run the full suite and build.
+  # PRs run vp test --changed against the merge base; draft PRs skip Next.js build.
+  # push to prod and workflow_dispatch run the full vp test suite (and build).
   web-test-build:
     name: Hyperlocalise Web Test/Build
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -115,7 +121,7 @@ jobs:
           fetch-depth: 2
 
       - name: Fetch PR base for changed tests
-        if: github.event.pull_request.draft
+        if: github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
@@ -168,14 +174,14 @@ jobs:
 
       - name: Test hyperlocalise-web
         env:
-          # Only draft PRs get a SHA here. Ready PRs and workflow_dispatch stay full.
-          VITEST_CHANGED_SINCE: ${{ github.event.pull_request.draft && github.event.pull_request.base.sha || '' }}
+          VITEST_CHANGED_SINCE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
         run: |
           set -euo pipefail
           if [ -n "${VITEST_CHANGED_SINCE}" ]; then
-            echo "Draft PR: running tests related to changes since ${VITEST_CHANGED_SINCE}"
+            echo "PR: running tests related to changes since ${VITEST_CHANGED_SINCE}"
             vp test --changed "${VITEST_CHANGED_SINCE}" --passWithNoTests
           else
+            echo "Running full test suite"
             vp test
           fi
 
