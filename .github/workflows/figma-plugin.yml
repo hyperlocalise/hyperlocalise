@@ -33,7 +33,7 @@ jobs:
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
         with:
-          node-version: "24.22.2"
+          node-version: "24.22.3"
           working-directory: apps/figma-plugin
           cache: true
           run-install: false
@@ -69,7 +69,7 @@ jobs:
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
         with:
-          node-version: "24.22.2"
+          node-version: "24.22.3"
           working-directory: apps/figma-plugin
           cache: true
           run-install: false
