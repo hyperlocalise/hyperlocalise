@@ -340,6 +340,30 @@ func TestBillingPlanDisplayNameAndAddress(t *testing.T) {
 	first, ok := activeCustomerSubscription([]autumn.CustomerSubscription{{PlanID: "stale", Status: "canceled"}})
 	require.True(t, ok)
 	require.Equal(t, "stale", first.PlanID)
+	growthName := "Growth Plan"
+	picked, ok := activeCustomerSubscription([]autumn.CustomerSubscription{
+		{PlanID: "ai_credit_topup", Status: "active"},
+		{PlanID: "growth_monthly", Status: "active", Plan: &struct {
+			Name *string `json:"name"`
+		}{Name: &growthName}},
+	})
+	require.True(t, ok)
+	require.Equal(t, "growth_monthly", picked.PlanID)
+
+	require.Equal(t, "growth", canonicalPlanID("growth", ""))
+	require.Equal(t, "growth", canonicalPlanID("growth_monthly", ""))
+	require.Equal(t, "starter", canonicalPlanID("starter-annual", ""))
+	require.Equal(t, "growth", canonicalPlanID("prod_abc", "Growth Plan"))
+	require.Equal(t, "legacy_team", canonicalPlanID("legacy_team", "Legacy Team"))
+	require.Equal(t, "Starter", planDisplayName(autumn.CustomerSubscription{PlanID: autumn.PlanStarter}))
+	require.Equal(t, "Growth", planDisplayName(autumn.CustomerSubscription{PlanID: "growth_monthly"}))
+
+	paid, ok := activeCustomerSubscription([]autumn.CustomerSubscription{
+		{PlanID: autumn.PlanFree, Status: "active"},
+		{PlanID: autumn.PlanGrowth, Status: "active"},
+	})
+	require.True(t, ok)
+	require.Equal(t, autumn.PlanGrowth, paid.PlanID)
 
 	require.Nil(t, mapBillingAddress(nil))
 	require.Nil(t, mapBillingAddress(&autumn.CustomerBillingDetails{Address: &autumn.CustomerBillingAddress{}}))
