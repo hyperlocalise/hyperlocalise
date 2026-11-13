@@ -117,7 +117,14 @@ export function computeRetryBodyNodeIds(
   retryId: string,
   edges: readonly VisualWorkflowRfEdge[],
 ): string[] {
-  return [...collectReachableNodeIds(retryId, edges, "attempt")].toSorted();
+  const attemptReachable = collectReachableNodeIds(retryId, edges, "attempt");
+  const exitReachable = new Set(
+    ["succeeded", "exhausted"].flatMap((handle) => [
+      ...collectReachableNodeIds(retryId, edges, handle),
+    ]),
+  );
+
+  return [...attemptReachable].filter((nodeId) => !exitReachable.has(nodeId)).toSorted();
 }
 
 export function deriveTryCatchRegion(
@@ -210,4 +217,33 @@ export function computeTryCatchSuccessNodeIdsFromV3Edges(
   edges: readonly VisualWorkflowV3Edge[],
 ): string[] {
   return computeTryCatchSuccessNodeIds(boundaryId, v3ExecutionEdgesToEditorEdges(edges));
+}
+
+/**
+ * The steps inside a For each, Array transform, Retry or Try / Catch, worked out from its wires.
+ * Null for a step that has no body. Saving, loading and running all derive bodies this way.
+ */
+export function computeFlowBodyNodeIds(
+  type: string,
+  ownerId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] | null {
+  if (type === "logic.for_each" || type === "logic.array_transform") {
+    return computeForEachBodyNodeIds(ownerId, edges);
+  }
+  if (type === "logic.retry") {
+    return computeRetryBodyNodeIds(ownerId, edges);
+  }
+  if (type === "logic.try_catch") {
+    return computeTryCatchBodyNodeIds(ownerId, edges);
+  }
+  return null;
+}
+
+export function computeFlowBodyNodeIdsFromV3Edges(
+  type: string,
+  ownerId: string,
+  edges: readonly VisualWorkflowV3Edge[],
+): string[] | null {
+  return computeFlowBodyNodeIds(type, ownerId, v3ExecutionEdgesToEditorEdges(edges));
 }

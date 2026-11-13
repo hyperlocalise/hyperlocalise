@@ -14,7 +14,7 @@ import { z } from "zod";
 
 import { visualWorkflowV3DefinitionSchema } from "./definition-schema";
 import type { VisualWorkflowV3Definition } from "./types";
-import { computeForEachBodyNodeIdsFromV3Edges } from "../editor/for-each-body-membership";
+import { computeFlowBodyNodeIdsFromV3Edges } from "../editor/for-each-body-membership";
 
 const visualWorkflowV2EdgeSchema = z
   .object({
@@ -36,19 +36,15 @@ const visualWorkflowV2DefinitionSchema = z
   })
   .passthrough();
 
-function withGraphDerivedForEachMembership(
+function withGraphDerivedFlowBodies(
   definition: VisualWorkflowV3Definition,
 ): VisualWorkflowV3Definition {
   return {
     ...definition,
-    nodes: definition.nodes.map((node) =>
-      ["logic.for_each", "logic.array_transform"].includes(node.type)
-        ? {
-            ...node,
-            bodyNodeIds: computeForEachBodyNodeIdsFromV3Edges(node.id, definition.edges),
-          }
-        : node,
-    ),
+    nodes: definition.nodes.map((node) => {
+      const bodyNodeIds = computeFlowBodyNodeIdsFromV3Edges(node.type, node.id, definition.edges);
+      return bodyNodeIds ? { ...node, bodyNodeIds } : node;
+    }),
   };
 }
 
@@ -56,7 +52,7 @@ export function parseVisualWorkflowV3Definition(value: unknown): VisualWorkflowV
   const current = visualWorkflowV3DefinitionSchema.safeParse(value);
 
   if (current.success) {
-    return withGraphDerivedForEachMembership(current.data);
+    return withGraphDerivedFlowBodies(current.data);
   }
 
   const legacy = visualWorkflowV2DefinitionSchema.parse(value);
@@ -72,5 +68,5 @@ export function parseVisualWorkflowV3Definition(value: unknown): VisualWorkflowV
     })),
   });
 
-  return withGraphDerivedForEachMembership(migrated);
+  return withGraphDerivedFlowBodies(migrated);
 }

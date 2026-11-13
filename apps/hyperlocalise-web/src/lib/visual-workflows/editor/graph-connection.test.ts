@@ -1064,3 +1064,45 @@ describe("reconnectVisualWorkflowGraphConnection", () => {
     expect(result.nodes[0]?.height).toBe(376);
   });
 });
+
+describe("a Retry step's wires", () => {
+  function retryGraph(extraEdges: VisualWorkflowRfEdge[]) {
+    return {
+      nodes: [
+        node("trigger", "trigger.manual"),
+        node("retry", "logic.retry"),
+        node("attempt", "logic.set"),
+        node("next", "logic.set"),
+      ],
+      edges: [
+        { id: "start", source: "trigger", target: "retry", sourceHandle: "success" },
+        { id: "try", source: "retry", target: "attempt", sourceHandle: "attempt" },
+        ...extraEdges,
+      ],
+    };
+  }
+
+  it("saves the steps wired from Attempt as its body and passes validation", () => {
+    const saved = definition(
+      retryGraph([{ id: "carry-on", source: "retry", target: "next", sourceHandle: "succeeded" }]),
+    );
+
+    expect(saved.nodes.find((entry) => entry.id === "retry")?.bodyNodeIds).toEqual(["attempt"]);
+    expect(validateVisualWorkflowDefinition(saved)).toEqual([]);
+  });
+
+  it("points at the wire that leaves the body, not at Succeeded", () => {
+    const saved = definition(
+      retryGraph([
+        { id: "carry-on", source: "retry", target: "next", sourceHandle: "succeeded" },
+        { id: "leaves-body", source: "attempt", target: "next", sourceHandle: "success" },
+      ]),
+    );
+
+    expect(
+      validateVisualWorkflowDefinition(saved)
+        .filter((issue) => issue.code === "invalid_retry")
+        .map((issue) => issue.edgeId),
+    ).toEqual(["leaves-body"]);
+  });
+});

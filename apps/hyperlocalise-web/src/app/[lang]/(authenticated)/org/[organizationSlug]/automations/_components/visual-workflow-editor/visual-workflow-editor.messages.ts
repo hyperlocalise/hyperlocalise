@@ -1812,8 +1812,9 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Validation issue for nested retry",
   },
   invalidRetry: {
-    defaultMessage: "Fix the retry region wiring and body membership.",
-    id: "9OQEks5YGx",
+    defaultMessage:
+      "Wire the steps to retry from Attempt, and carry on from Succeeded or Exhausted.",
+    id: "FA90V8BUuU",
     description: "Validation issue for invalid retry graph",
   },
   retryForEachNesting: {

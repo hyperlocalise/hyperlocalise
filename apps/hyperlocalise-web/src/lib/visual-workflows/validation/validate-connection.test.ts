@@ -343,6 +343,35 @@ describe("validateVisualWorkflowConnection", () => {
   });
 });
 
+it.each(["attempt", "succeeded", "exhausted"])(
+  "accepts a wire from a Retry step's %s handle",
+  (sourceHandle) => {
+    const retry = node("retry", "logic.retry");
+    const attempt = node("attempt", "logic.set");
+    const target = node("target", "logic.set");
+    const edges =
+      sourceHandle === "attempt"
+        ? [executionEdge("trigger-retry", "trigger", "retry")]
+        : [
+            executionEdge("trigger-retry", "trigger", "retry"),
+            executionEdge("retry-attempt", "retry", "attempt", "attempt"),
+          ];
+
+    const result = validateVisualWorkflowConnection({
+      nodes: [trigger, retry, attempt, target],
+      edges,
+      connection: {
+        source: "retry",
+        target: sourceHandle === "attempt" ? "attempt" : "target",
+        sourceHandle,
+        targetHandle: "input",
+      },
+    });
+
+    expect(result).toMatchObject({ valid: true, edgeKind: "execution" });
+  },
+);
+
 it("allows execution fan-out from one source", () => {
   const first = node("first", "logic.set");
   const second = node("second", "logic.set");

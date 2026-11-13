@@ -16,7 +16,7 @@ For an HTTP response, declare the output fields you need, such as `json.items` a
 1. Start with a manual trigger while developing.
 2. Add an HTTP step that fetches a JSON list and declare its array output.
 3. Bind the array to **For each**.
-4. Connect **Each item** to the body and select the body nodes in the inspector.
+4. Connect **Each item** to the steps that run for each item.
 5. Use the loop’s `item` and `index` as inputs, and configure collected outputs.
 6. Connect **Done** to a summary step using `iterationOutputs`.
 
@@ -24,7 +24,7 @@ Items run sequentially. An empty array follows **Done** with an empty result. Ne
 
 ## Retry only recoverable failures
 
-Wrap transient failures in **Retry**. Connect **Attempt** to the selected body, **Succeeded** to the normal next step, and **Exhausted** to the failure path. Configure the errors that should retry; malformed input usually needs correction, not repetition.
+Wrap transient failures in **Retry**. Connect **Attempt** to the steps to retry, **Succeeded** to the normal next step, and **Exhausted** to the failure path. The steps wired from **Attempt** are the ones retried, so carry on from **Succeeded** rather than from the last of them. Configure the errors that should retry; malformed input usually needs correction, not repetition.
 
 The defaults are three attempts, a one-second initial delay, exponential backoff, and jitter. The maximum is ten attempts. Retry bodies cannot contain another Retry or For each region.
 
