@@ -15,12 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { visualWorkflowDefinitionSchema } from "./definition-schema";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION, type VisualWorkflowDefinition } from "./types";
-import {
-  collectRemovedSwitchCaseIds,
-  createSwitchCaseId,
-  getSwitchCaseIndexByHandleId,
-  pruneSwitchCaseEdges,
-} from "./switch-cases";
+import { createSwitchCaseId } from "./switch-cases";
 import { validateVisualWorkflowDefinition } from "../validation/validate-workflow";
 
 function switchDefinitionWithIds(): VisualWorkflowDefinition {
@@ -135,28 +130,6 @@ describe("switch case identifiers", () => {
     expect(validateVisualWorkflowDefinition(definition)).toEqual([]);
   });
 
-  it("prunes only edges for deleted case ids", () => {
-    const previous = [
-      { id: "keep-left", value: "a" },
-      { id: "drop-middle", value: "b" },
-      { id: "keep-right", value: "c" },
-    ];
-    const next = [previous[0]!, previous[2]!];
-    const removed = collectRemovedSwitchCaseIds(previous, next);
-    expect([...removed]).toEqual(["drop-middle"]);
-    const edges = pruneSwitchCaseEdges(
-      [
-        { id: "e1", source: "switch", sourceHandle: "keep-left" },
-        { id: "e2", source: "switch", sourceHandle: "drop-middle" },
-        { id: "e3", source: "switch", sourceHandle: "keep-right" },
-        { id: "e4", source: "other", sourceHandle: "drop-middle" },
-      ],
-      "switch",
-      removed,
-    );
-    expect(edges.map((edge) => edge.id)).toEqual(["e1", "e3", "e4"]);
-  });
-
   it("rejects duplicate case ids in the definition schema", () => {
     const parsed = visualWorkflowDefinitionSchema.safeParse({
       schemaVersion: VISUAL_WORKFLOW_SCHEMA_VERSION,
@@ -200,15 +173,6 @@ describe("switch case identifiers", () => {
       editor: { positions: {} },
     });
     expect(parsed.success).toBe(false);
-  });
-
-  it("looks up case index by handle id", () => {
-    const cases = [
-      { id: "alpha", value: "a" },
-      { id: "beta", value: "b" },
-    ];
-    expect(getSwitchCaseIndexByHandleId(cases, "beta")).toBe(1);
-    expect(getSwitchCaseIndexByHandleId(cases, "missing")).toBeNull();
   });
 
   it("creates unique ids for new cases", () => {

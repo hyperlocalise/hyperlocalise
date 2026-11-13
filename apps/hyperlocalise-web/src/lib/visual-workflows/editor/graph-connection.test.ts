@@ -566,6 +566,85 @@ describe("applyNodeConfigUpdate", () => {
     expect(result.nodes.find((entry) => entry.id === "transform")?.data.inputs).toEqual({});
   });
 
+  it("removes the error branch's wire when On error stops the workflow again", () => {
+    const request = node("request", "action.http");
+    request.data.config = {
+      ...request.data.config,
+      onError: "branch",
+    } as typeof request.data.config;
+    const edges: VisualWorkflowRfEdge[] = [
+      { id: "next", source: "request", target: "next", sourceHandle: "success" },
+      { id: "on-error", source: "request", target: "fallback", sourceHandle: "error" },
+      {
+        id: "status-value",
+        source: "request",
+        target: "fallback",
+        sourceHandle: "status",
+        targetHandle: "value",
+        data: { kind: "data" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [request, node("next", "logic.set"), node("fallback", "logic.set")],
+      edges,
+      "request",
+      { ...request.data.config, onError: "stop" } as typeof request.data.config,
+    );
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["next", "status-value"]);
+  });
+
+  it("keeps a Set field's wires while its name is edited, so retyping the name finds them", () => {
+    const set = node("set", "logic.set", {
+      config: { kind: "logic.set", assignments: [{ key: "total", value: "1" }] },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "total",
+        source: "set",
+        target: "request",
+        sourceHandle: "total",
+        targetHandle: "url",
+        data: { kind: "data" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate([set, node("request", "action.http")], edges, "set", {
+      kind: "logic.set",
+      assignments: [{ key: "tota", value: "1" }],
+    });
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["total"]);
+  });
+
+  it("removes the wires of a Set field that is deleted", () => {
+    const set = node("set", "logic.set", {
+      config: {
+        kind: "logic.set",
+        assignments: [
+          { key: "total", value: "1" },
+          { key: "count", value: "2" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = ["total", "count"].map((key) => ({
+      id: key,
+      source: "set",
+      target: "request",
+      sourceHandle: key,
+      targetHandle: key === "total" ? "url" : "body",
+      data: { kind: "data" },
+    }));
+
+    const result = applyNodeConfigUpdate([set, node("request", "action.http")], edges, "set", {
+      kind: "logic.set",
+      assignments: [{ key: "count", value: "2" }],
+    });
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["count"]);
+  });
+
   it("removes edges for deleted Switch cases and keeps other branches", () => {
     const switchNode = node("sw", "logic.switch", {
       config: {

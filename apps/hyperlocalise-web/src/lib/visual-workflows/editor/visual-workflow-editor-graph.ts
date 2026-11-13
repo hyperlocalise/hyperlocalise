@@ -17,20 +17,21 @@ import {
   getVisualNodeDimensions,
   VISUAL_NODE_CATALOG,
 } from "../catalog/node-catalog";
-import { getWorkflowInputFields, getWorkflowOutputFields } from "../catalog/node-contracts";
+import { getWorkflowInputFields } from "../catalog/node-contracts";
 import type {
   VisualCatalogType,
   VisualNodeConfig,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
 } from "../schema/types";
-import { collectRemovedSwitchCaseIds, pruneSwitchCaseEdges } from "../schema/switch-cases";
+import { getAllowedExecutionSourceHandles } from "../validation/execution-handles";
 import { validateVisualWorkflowConnection } from "../validation/validate-connection";
 import {
   computeForEachBodyNodeIds,
   computeRetryBodyNodeIds,
   computeTryCatchBodyNodeIds,
 } from "./for-each-body-membership";
+import { getVisualWorkflowDataPorts } from "./visual-workflow-data-ports";
 
 export {
   computeForEachBodyNodeIds,
@@ -84,37 +85,6 @@ export function isVisualTriggerCatalogType(type: string): type is VisualCatalogT
   return (VISUAL_TRIGGER_TYPES as readonly string[]).includes(type);
 }
 
-function collectRemovedMergeInputIds(
-  currentInputs: readonly { id: string }[],
-  nextInputs: readonly { id: string }[],
-): Set<string> {
-  const nextIds = new Set(nextInputs.map((input) => input.id));
-
-  return new Set(currentInputs.map((input) => input.id).filter((inputId) => !nextIds.has(inputId)));
-}
-
-function pruneMergeInputEdges(
-  edges: readonly VisualWorkflowRfEdge[],
-  nodeId: string,
-  removedInputIds: ReadonlySet<string>,
-): VisualWorkflowRfEdge[] {
-  if (removedInputIds.size === 0) {
-    return [...edges];
-  }
-
-  return edges.filter((edge) => {
-    if (edge.target !== nodeId || !edge.targetHandle) {
-      return true;
-    }
-
-    const inputId = edge.targetHandle.startsWith("value.")
-      ? edge.targetHandle.slice("value.".length)
-      : edge.targetHandle;
-
-    return !removedInputIds.has(inputId);
-  });
-}
-
 function asMutableGraph(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
@@ -160,59 +130,6 @@ function reconcileBodyMembershipForType(
     };
   });
   return changed ? next : (nodes as VisualWorkflowRfNode[]);
-}
-
-function collectRemovedSequenceOutputIds(
-  currentOutputs: readonly { id: string }[],
-  nextOutputs: readonly { id: string }[],
-): Set<string> {
-  const nextIds = new Set(nextOutputs.map((output) => output.id));
-
-  return new Set(
-    currentOutputs.map((output) => output.id).filter((outputId) => !nextIds.has(outputId)),
-  );
-}
-
-function pruneSequenceOutputEdges(
-  edges: readonly VisualWorkflowRfEdge[],
-  nodeId: string,
-  removedOutputIds: ReadonlySet<string>,
-): VisualWorkflowRfEdge[] {
-  if (removedOutputIds.size === 0) {
-    return [...edges];
-  }
-
-  return edges.filter(
-    (edge) =>
-      edge.source !== nodeId || !edge.sourceHandle || !removedOutputIds.has(edge.sourceHandle),
-  );
-}
-
-function collectRemovedObjectPortIds(
-  currentPorts: readonly { id: string }[],
-  nextPorts: readonly { id: string }[],
-): Set<string> {
-  const nextIds = new Set(nextPorts.map((port) => port.id));
-
-  return new Set(currentPorts.map((port) => port.id).filter((portId) => !nextIds.has(portId)));
-}
-
-function pruneObjectValuePortEdges(
-  edges: readonly VisualWorkflowRfEdge[],
-  nodeId: string,
-  removedPortIds: ReadonlySet<string>,
-): VisualWorkflowRfEdge[] {
-  if (removedPortIds.size === 0) {
-    return [...edges];
-  }
-
-  return edges.filter((edge) => {
-    if (edge.target !== nodeId || !edge.targetHandle?.startsWith("value.")) {
-      return true;
-    }
-
-    return !removedPortIds.has(edge.targetHandle.slice("value.".length));
-  });
 }
 
 export function reconcileForEachBodyMembership(
@@ -266,6 +183,37 @@ export function reconcileFlowBodyMembership(
   );
 }
 
+/** A key for each handle a step offers, by kind and side, as the card draws them. */
+function listNodeHandleKeys(node: VisualWorkflowRfNode, withDataPorts: boolean): Set<string> {
+  const { config } = node.data;
+  const ports = withDataPorts
+    ? getVisualWorkflowDataPorts({ node, edges: [] })
+    : { inputs: [], outputs: [] };
+  return new Set([
+    ...getAllowedExecutionSourceHandles({ type: node.data.catalogType, config }).map((handle) =>
+      handleKey("execution", "source", handle),
+    ),
+    ...(config.kind === "logic.merge"
+      ? config.inputs.map((input) => handleKey("execution", "target", input.id))
+      : [handleKey("execution", "target", "input"), handleKey("execution", "target", null)]),
+    ...ports.inputs.map((port) => handleKey("data", "target", port.id)),
+    ...ports.outputs.map((port) => handleKey("data", "source", port.id)),
+  ]);
+}
+
+function handleKey(
+  kind: "execution" | "data",
+  side: "source" | "target",
+  handle: string | null | undefined,
+): string {
+  return `${kind}:${side}:${handle ?? ""}`;
+}
+
+/**
+ * Changes a step's settings. A wire attached to a handle the step had before the change and no
+ * longer has (a removed case or field, the error branch once On error stops the workflow) goes
+ * with it.
+ */
 export function applyNodeConfigUpdate(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
@@ -273,147 +221,63 @@ export function applyNodeConfigUpdate(
   nextConfig: VisualNodeConfig,
 ): { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] } {
   const current = nodes.find((node) => node.id === nodeId);
-  const nextNodes = nodes.map((node) =>
-    node.id === nodeId
-      ? {
-          ...node,
-          ...getVisualNodeDimensions(node.data.catalogType, nextConfig),
-          data: { ...node.data, config: nextConfig },
-        }
-      : node,
-  );
-  if (current?.data.config.kind === "logic.switch" && nextConfig.kind === "logic.switch") {
-    return {
-      nodes: nextNodes,
-      edges: pruneSwitchCaseEdges(
-        edges,
-        nodeId,
-        collectRemovedSwitchCaseIds(current.data.config.cases, nextConfig.cases),
-      ),
+  const nextNodes = nodes.map((node) => {
+    if (node.id !== nodeId) {
+      return node;
+    }
+    const next = {
+      ...node,
+      ...getVisualNodeDimensions(node.data.catalogType, nextConfig),
+      data: { ...node.data, config: nextConfig },
     };
+    return nextConfig.kind === "logic.array_transform" ? withoutStaleInputs(next) : next;
+  });
+  const next = nextNodes.find((node) => node.id === nodeId);
+  if (!current || !next) {
+    return { nodes: nextNodes, edges: [...edges] };
   }
-  if (current?.data.config.kind === "logic.merge" && nextConfig.kind === "logic.merge") {
-    return {
-      nodes: nextNodes,
-      edges: pruneMergeInputEdges(
-        edges,
-        nodeId,
-        collectRemovedMergeInputIds(current.data.config.inputs, nextConfig.inputs),
-      ),
-    };
-  }
-  if (current?.data.config.kind === "logic.sequence" && nextConfig.kind === "logic.sequence") {
-    const removedOutputIds = collectRemovedSequenceOutputIds(
-      current.data.config.outputs,
-      nextConfig.outputs,
-    );
 
-    return {
-      nodes: nextNodes,
-      edges: pruneSequenceOutputEdges(edges, nodeId, removedOutputIds),
-    };
+  // A Set step's data ports are named by its field names, which change a keystroke at a time.
+  // Their wires stay through a rename, so a name typed back finds them again, and go only when a
+  // field is removed.
+  const currentConfig = current.data.config;
+  const withDataPorts =
+    currentConfig.kind !== "logic.set" ||
+    nextConfig.kind !== "logic.set" ||
+    nextConfig.assignments.length < currentConfig.assignments.length;
+  const before = listNodeHandleKeys(current, withDataPorts);
+  const after = listNodeHandleKeys(next, withDataPorts);
+  const isGone = (key: string) => before.has(key) && !after.has(key);
+  return {
+    nodes: nextNodes,
+    edges: edges.filter((edge) => {
+      const kind = edge.data?.kind === "data" ? "data" : "execution";
+      return !(
+        (edge.source === nodeId && isGone(handleKey(kind, "source", edge.sourceHandle))) ||
+        (edge.target === nodeId && isGone(handleKey(kind, "target", edge.targetHandle)))
+      );
+    }),
+  };
+}
+
+/** Drops the values set for inputs an Array Transform's operation no longer takes. */
+function withoutStaleInputs(node: VisualWorkflowRfNode): VisualWorkflowRfNode {
+  if (!node.data.inputs) {
+    return node;
   }
-  if (
-    current?.data.config.kind === "logic.create_object" &&
-    nextConfig.kind === "logic.create_object"
-  ) {
-    return {
-      nodes: nextNodes,
-      edges: pruneObjectValuePortEdges(
-        edges,
-        nodeId,
-        collectRemovedObjectPortIds(current.data.config.fields, nextConfig.fields),
-      ),
-    };
-  }
-  if (
-    current?.data.config.kind === "logic.merge_objects" &&
-    nextConfig.kind === "logic.merge_objects"
-  ) {
-    return {
-      nodes: nextNodes,
-      edges: pruneObjectValuePortEdges(
-        edges,
-        nodeId,
-        collectRemovedObjectPortIds(current.data.config.inputs, nextConfig.inputs),
-      ),
-    };
-  }
-  if (current?.data.config.kind === "logic.compare" && nextConfig.kind === "logic.compare") {
-    return {
-      nodes: nextNodes,
-      edges: pruneObjectValuePortEdges(
-        edges,
-        nodeId,
-        collectRemovedObjectPortIds(current.data.config.operands, nextConfig.operands),
-      ),
-    };
-  }
-  if (
-    current?.data.config.kind === "logic.text_template" &&
-    nextConfig.kind === "logic.text_template"
-  ) {
-    return {
-      nodes: nextNodes,
-      edges: pruneObjectValuePortEdges(
-        edges,
-        nodeId,
-        collectRemovedObjectPortIds(current.data.config.placeholders, nextConfig.placeholders),
-      ),
-    };
-  }
-  if (
-    current?.data.config.kind === "logic.concatenate" &&
-    nextConfig.kind === "logic.concatenate"
-  ) {
-    const currentInputs = current.data.config.segments.filter(
-      (segment) => segment.kind === "input",
-    );
-    const nextInputs = nextConfig.segments.filter((segment) => segment.kind === "input");
-    return {
-      nodes: nextNodes,
-      edges: pruneObjectValuePortEdges(
-        edges,
-        nodeId,
-        collectRemovedObjectPortIds(currentInputs, nextInputs),
-      ),
-    };
-  }
-  if (
-    current?.data.config.kind === "logic.array_transform" &&
-    nextConfig.kind === "logic.array_transform"
-  ) {
-    const canonical = {
-      id: nodeId,
-      type: "logic.array_transform" as const,
-      config: nextConfig,
-    };
-    const allowedInputs = new Set(getWorkflowInputFields(canonical).map((field) => field.name));
-    const allowedOutputs = new Set(getWorkflowOutputFields(canonical).map((field) => field.path));
-    return {
-      nodes: nextNodes.map((node) => {
-        if (node.id !== nodeId || !node.data.inputs) return node;
-        const nextInputs = Object.fromEntries(
-          Object.entries(node.data.inputs).filter(([name]) => allowedInputs.has(name)),
-        );
-        if (Object.keys(nextInputs).length === Object.keys(node.data.inputs).length) {
-          return node;
-        }
-        return { ...node, data: { ...node.data, inputs: nextInputs } };
-      }),
-      edges: edges.filter((edge) => {
-        if (edge.data?.kind !== "data") return true;
-        if (edge.target === nodeId && edge.targetHandle && !allowedInputs.has(edge.targetHandle)) {
-          return false;
-        }
-        if (edge.source === nodeId && edge.sourceHandle && !allowedOutputs.has(edge.sourceHandle)) {
-          return false;
-        }
-        return true;
-      }),
-    };
-  }
-  return { nodes: nextNodes, edges: [...edges] };
+  const allowedInputs = new Set(
+    getWorkflowInputFields({
+      id: node.id,
+      type: node.data.catalogType,
+      config: node.data.config,
+    }).map((field) => field.name),
+  );
+  const nextInputs = Object.fromEntries(
+    Object.entries(node.data.inputs).filter(([name]) => allowedInputs.has(name)),
+  );
+  return Object.keys(nextInputs).length === Object.keys(node.data.inputs).length
+    ? node
+    : { ...node, data: { ...node.data, inputs: nextInputs } };
 }
 
 /**
