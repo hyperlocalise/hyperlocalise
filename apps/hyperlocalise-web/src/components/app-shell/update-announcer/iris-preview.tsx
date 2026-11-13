@@ -12,7 +12,7 @@
  */
 import { PlayIcon } from "@phosphor-icons/react/ssr";
 
-/** Decorative play badge for the Iris launch-film teaser. */
+/** Decorative play badge for a product-film teaser. */
 export function IrisPreview() {
   return (
     <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center">
