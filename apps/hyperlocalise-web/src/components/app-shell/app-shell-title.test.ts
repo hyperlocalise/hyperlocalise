@@ -73,6 +73,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/settings/domains", "Domains"],
     ["/org/acme/settings/hyperlab", "Hyperlab"],
     ["/org/acme/settings/account", "Account"],
+    ["/org/acme/settings/preferences", "Preferences"],
     ["/org/acme/settings/billing", "Billing"],
     ["/org/acme/settings/api-keys", "API keys"],
     ["/org/acme/settings/activity-logs", "Activity logs"],

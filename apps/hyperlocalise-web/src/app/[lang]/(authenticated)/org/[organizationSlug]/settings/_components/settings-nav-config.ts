@@ -27,6 +27,7 @@ export const settingsNavItemIds = [
   "api-keys",
   "webhooks",
   "account",
+  "preferences",
 ] as const;
 
 export type SettingsNavItemId = (typeof settingsNavItemIds)[number];
@@ -102,7 +103,10 @@ export const settingsNavGroups: readonly SettingsNavGroupConfig[] = [
   },
   {
     id: "you",
-    items: [{ id: "account", href: "account" }],
+    items: [
+      { id: "account", href: "account" },
+      { id: "preferences", href: "preferences" },
+    ],
   },
 ];
 
@@ -197,6 +201,10 @@ export function resolveActiveSettingsNavItem(
 
   if (normalizedPath.startsWith(`${settingsRoot}/account`)) {
     return "account";
+  }
+
+  if (normalizedPath.startsWith(`${settingsRoot}/preferences`)) {
+    return "preferences";
   }
 
   if (normalizedPath.startsWith(`${settingsRoot}/api-keys`)) {

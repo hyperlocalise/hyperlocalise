@@ -58,8 +58,9 @@ export function isAvailableAppContentLocale(value: unknown): value is AppContent
 }
 
 export function normalizeAppLocale(value: string): AppLocale | null {
+  const baseTag = value.split(/-u-/i)[0] ?? value;
   const locale = SUPPORTED_APP_LOCALES.find(
-    (supportedLocale) => supportedLocale.toLowerCase() === value.toLowerCase(),
+    (supportedLocale) => supportedLocale.toLowerCase() === baseTag.toLowerCase(),
   );
 
   return locale ?? null;
