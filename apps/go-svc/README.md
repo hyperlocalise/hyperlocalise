@@ -798,13 +798,16 @@ default 50), `range` (`24h` \| `7d` \| `30d` \| `all`). Response:
 
 Signed-in WorkOS user profile at `/v1/me`. Notification preferences reuse
 `user_notification_preferences` (`emailEnabled`, `emailFormat` digest|immediate).
-`DELETE /v1/me` does not remove WorkOS users or workspaces; it returns
-`409 account_deletion_not_supported`.
+Appearance preferences reuse `user_preferences` (`theme`, `locale`, `timezone`,
+`hourCycle`). `GET /v1/me` returns `preferences: null` until the first
+`PATCH /v1/me/preferences`. `DELETE /v1/me` does not remove WorkOS users or
+workspaces; it returns `409 account_deletion_not_supported`.
 
 | Method | Path | Operation |
 |--------|------|-----------|
-| GET | `/v1/me` | Local user row plus notification preferences |
+| GET | `/v1/me` | Local user row plus notification and appearance preferences |
 | PATCH | `/v1/me/notification-preferences` | Replace the caller's email preferences |
+| PATCH | `/v1/me/preferences` | Replace the caller's appearance preferences |
 | DELETE | `/v1/me` | Refuse destructive delete (`409`) |
 
 ## Account setup

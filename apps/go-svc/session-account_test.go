@@ -59,6 +59,7 @@ func TestSessionAccountGet(t *testing.T) {
 		require.Equal(t, scope.UserID, body.ID)
 		require.Equal(t, false, body.NotificationPreferences["emailEnabled"])
 		require.Equal(t, "digest", body.NotificationPreferences["emailFormat"])
+		require.Nil(t, body.Preferences)
 	})
 }
 
@@ -82,6 +83,34 @@ func TestSessionAccountPatchPreferences(t *testing.T) {
 
 	bad := sessionAccountRequest(api, claims, http.MethodPatch, "/v1/me/notification-preferences", `{"emailEnabled":true,"emailFormat":"weekly"}`)
 	require.Equal(t, http.StatusBadRequest, bad.Code)
+}
+
+func TestSessionAccountPatchAppearancePreferences(t *testing.T) {
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	api := &sessionAccountAPI{pool: scope.Pool}
+	claims := AuthClaims{UserID: scope.WorkOSUserID}
+
+	rec := sessionAccountRequest(api, claims, http.MethodPatch, "/v1/me/preferences", `{"theme":"dark","locale":"fr-FR","timezone":"Europe/Paris","hourCycle":"h23"}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body sessionAccount
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.NotNil(t, body.Preferences)
+	require.Equal(t, "dark", body.Preferences.Theme)
+	require.Equal(t, "fr-FR", body.Preferences.Locale)
+	require.Equal(t, "Europe/Paris", body.Preferences.Timezone)
+	require.Equal(t, "h23", body.Preferences.HourCycle)
+
+	again := sessionAccountRequest(api, claims, http.MethodGet, "/v1/me", "")
+	require.Equal(t, http.StatusOK, again.Code)
+	require.NoError(t, json.Unmarshal(again.Body.Bytes(), &body))
+	require.NotNil(t, body.Preferences)
+	require.Equal(t, "dark", body.Preferences.Theme)
+
+	badLocale := sessionAccountRequest(api, claims, http.MethodPatch, "/v1/me/preferences", `{"theme":"dark","locale":"sv-SE","timezone":"UTC","hourCycle":"h23"}`)
+	require.Equal(t, http.StatusBadRequest, badLocale.Code)
+
+	badZone := sessionAccountRequest(api, claims, http.MethodPatch, "/v1/me/preferences", `{"theme":"light","locale":"en","timezone":"Not/AZone","hourCycle":"h12"}`)
+	require.Equal(t, http.StatusBadRequest, badZone.Code)
 }
 
 func TestSessionAccountDelete(t *testing.T) {

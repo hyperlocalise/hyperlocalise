@@ -42,6 +42,7 @@ import { GoSvcProjectTemplateApi } from "./go-svc-project-template-api";
 import { GoSvcTeamApi } from "./go-svc-team-api";
 import { GoSvcTmsApi } from "./go-svc-tms-api";
 import { GoSvcTranslationFileApi } from "./go-svc-translation-file-api";
+import { GoSvcAccountApi } from "./go-svc-account-api";
 import { GoSvcWorkspaceApi } from "./go-svc-workspace-api";
 
 export { DEFAULT_GO_SVC_BASE_URL, GoSvcClientError, type GoSvcClientOptions };
@@ -49,6 +50,7 @@ export type { HyperlabGoSvcClient };
 
 export class GoSvcClient {
   readonly baseUrl: string;
+  readonly account: GoSvcAccountApi;
   readonly activityLog: GoSvcActivityLogApi;
   readonly apiKey: GoSvcApiKeyApi;
   readonly billing: GoSvcBillingApi;
@@ -80,6 +82,7 @@ export class GoSvcClient {
   constructor(options: GoSvcClientOptions) {
     const request = new GoSvcRequest(options);
     this.baseUrl = request.baseUrl;
+    this.account = new GoSvcAccountApi(request);
     this.activityLog = new GoSvcActivityLogApi(request);
     this.apiKey = new GoSvcApiKeyApi(request);
     this.billing = new GoSvcBillingApi(request);

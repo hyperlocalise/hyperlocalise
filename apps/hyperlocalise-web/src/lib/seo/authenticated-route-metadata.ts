@@ -85,6 +85,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "selectOrganization",
   "settings",
   "settingsAccount",
+  "settingsPreferences",
   "settingsActivityLogs",
   "settingsApiKeys",
   "settingsWebhooks",
@@ -972,6 +973,18 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Your account settings.",
       id: "BR4NT7CK1V",
       description: "Document description for account settings",
+    },
+  },
+  settingsPreferences: {
+    title: {
+      defaultMessage: "Preferences",
+      id: "EU7QW0FN4Y",
+      description: "Document title for appearance preferences",
+    },
+    description: {
+      defaultMessage: "Theme, language, timezone, and time format.",
+      id: "FV8RX1GO5Z",
+      description: "Document description for appearance preferences",
     },
   },
   settingsActivityLogs: {

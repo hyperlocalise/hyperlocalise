@@ -100,6 +100,11 @@ export const settingsNavMessages = defineMessages({
     id: "nFBjAAjkF0",
     description: "Settings nav item for account settings",
   },
+  preferences: {
+    defaultMessage: "Preferences",
+    id: "iPfq81Jihe",
+    description: "Settings nav item for appearance preferences",
+  },
   apiKeys: {
     defaultMessage: "API keys",
     id: "lPfrAUX2bp",

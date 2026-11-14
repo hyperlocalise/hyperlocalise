@@ -29,6 +29,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
+import { useOptionalUserPreferences } from "@/components/user-preferences/user-preferences-provider";
+import type { UserAppearanceTheme } from "@/lib/database/schema/user-preferences";
+
 import { themeToggleMessages } from "./theme-toggle.messages";
 
 type ThemeOption = "light" | "dark" | "system";
@@ -47,6 +50,7 @@ function ThemeToggleIcon({ theme }: { theme: ThemeOption }) {
 
 function useThemeToggleState() {
   const { resolvedTheme, setTheme, theme } = useTheme();
+  const preferences = useOptionalUserPreferences();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
@@ -64,8 +68,13 @@ function useThemeToggleState() {
 
   const changeTheme = React.useCallback(
     (nextTheme: ThemeOption) => {
-      if (typeof document.startViewTransition !== "function") {
+      const applyTheme = () => {
         setTheme(nextTheme);
+        void preferences?.update({ theme: nextTheme as UserAppearanceTheme });
+      };
+
+      if (typeof document.startViewTransition !== "function") {
+        applyTheme();
         return;
       }
 
@@ -74,13 +83,13 @@ function useThemeToggleState() {
       const root = document.documentElement;
       root.dataset.themeTransition = "";
       const transition = document.startViewTransition(() => {
-        flushSync(() => setTheme(nextTheme));
+        flushSync(applyTheme);
       });
       void transition.finished.finally(() => {
         delete root.dataset.themeTransition;
       });
     },
-    [setTheme],
+    [preferences, setTheme],
   );
 
   return { activeTheme, mounted, changeTheme, triggerTheme };

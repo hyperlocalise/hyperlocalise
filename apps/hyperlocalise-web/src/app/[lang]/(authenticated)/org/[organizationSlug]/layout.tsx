@@ -13,6 +13,7 @@
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell/app-shell";
+import { UserPreferencesProvider } from "@/components/user-preferences/user-preferences-provider";
 import { AutumnBillingProvider } from "@/lib/billing/autumn-billing-provider";
 import { isAutumnConfigured } from "@/lib/billing/autumn-config";
 
@@ -48,9 +49,11 @@ async function OrganizationLayoutContent({
 }: OrganizationLayoutContentProps) {
   const { organizationSlug } = await params;
   const appShell = (
-    <AppShell autumnConfigured={autumnConfigured} organizationSlug={organizationSlug}>
-      {children}
-    </AppShell>
+    <UserPreferencesProvider>
+      <AppShell autumnConfigured={autumnConfigured} organizationSlug={organizationSlug}>
+        {children}
+      </AppShell>
+    </UserPreferencesProvider>
   );
 
   if (!autumnConfigured) {
