@@ -101,11 +101,16 @@ export async function textOrigins(
     )
     select s.position::integer, saved.origin::text as origin, saved.text as "savedText",
       -- A save whose version someone else wrote (an approval of the text as given) kept it.
-      case when s.actor_user_id is not null and saved.actor_user_id is distinct from s.actor_user_id
-        then saved.text else given.text end as "givenText"
+      -- Null actor_user_id is distinct from the saver, so a person's own revision with no
+      -- user id must not count as someone else's; jobs, agents, and imports still do.
+      case when s.actor_user_id is not null and (
+        saved.actor_kind is distinct from 'user'
+        or saved.actor_user_id is not null
+          and saved.actor_user_id is distinct from s.actor_user_id
+      ) then saved.text else given.text end as "givenText"
     from saves s
     left join lateral (
-      select r.id, r.origin, r.text, r.created_at, r.actor_user_id
+      select r.id, r.origin, r.text, r.created_at, r.actor_user_id, r.actor_kind
       from project_translation_revisions r
       where r.organization_id = ${organizationId} and r.translation_id = s.translation_id
         -- The save's time arrives cut to the millisecond, while a revision's has microseconds:
