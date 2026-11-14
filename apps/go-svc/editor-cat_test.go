@@ -453,6 +453,16 @@ func TestParseEditorCatQueueQuery(t *testing.T) {
 		"sourcePath": {"a.json"}, "targetLocale": {"fr"}, "search": {strings.Repeat("x", editorCatMaxSearchLen+1)},
 	})
 	require.Error(t, err)
+	tooLongBranch, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath": {"a.json"}, "targetLocale": {"fr"}, "branch": {strings.Repeat("x", 129)},
+	})
+	require.Error(t, err)
+	require.Empty(t, tooLongBranch.branch)
+	maxBranch, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath": {"a.json"}, "targetLocale": {"fr"}, "branch": {strings.Repeat("x", 128)},
+	})
+	require.NoError(t, err)
+	require.Equal(t, strings.Repeat("x", 128), maxBranch.branch)
 }
 
 func TestEditorCatRoles(t *testing.T) {

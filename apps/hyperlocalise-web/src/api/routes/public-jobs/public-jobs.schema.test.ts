@@ -121,6 +121,21 @@ describe("hashPublicJobRequest file jobs", () => {
     });
     expect(hashPublicJobRequest(left)).toBe(hashPublicJobRequest(right));
   });
+
+  it("treats a different native branch as a different request", () => {
+    expect(hashPublicJobRequest(parsedFile())).not.toBe(
+      hashPublicJobRequest(
+        parsedFile({ fileInput: { ...fileJob.fileInput, branch: "feature-checkout" } }),
+      ),
+    );
+    expect(
+      hashPublicJobRequest(parsedFile({ fileInput: { ...fileJob.fileInput, branch: "main" } })),
+    ).not.toBe(
+      hashPublicJobRequest(
+        parsedFile({ fileInput: { ...fileJob.fileInput, branch: "feature-checkout" } }),
+      ),
+    );
+  });
 });
 
 describe("hashPublicJobRequest key jobs", () => {

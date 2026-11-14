@@ -73,4 +73,15 @@ describe("useContentEditorQaSaveOverride", () => {
 
     await expect(result).resolves.toBe(false);
   });
+
+  it("lists duplicate label and message pairs once", async () => {
+    const { confirm } = renderHarness();
+
+    act(() => {
+      void confirm([PLURAL_CHECK, { ...PLURAL_CHECK, id: "qa-unreachable-plural-case-group" }]);
+    });
+
+    expect(await screen.findAllByText(PLURAL_CHECK.message)).toHaveLength(1);
+    expect(screen.getAllByText(PLURAL_CHECK.label)).toHaveLength(1);
+  });
 });
