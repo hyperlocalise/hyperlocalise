@@ -52,6 +52,23 @@ func TestDenyBrowserMutation(t *testing.T) {
 	get := httptest.NewRequest(http.MethodGet, "http://api.hyperlocalise.com/v1/orgs/acme/teams", nil)
 	get.Header.Set("Origin", "https://evil.example")
 	require.False(t, denyBrowserMutation(get))
+
+	irisOpaque := httptest.NewRequest(http.MethodPatch, "http://api.hyperlocalise.com/v1/me/preferences", nil)
+	irisOpaque.Header.Set("Origin", "null")
+	irisOpaque.Header.Set("Sec-Fetch-Site", "cross-site")
+	irisOpaque.Header.Set("Authorization", "Bearer session-access-token")
+	require.False(t, denyBrowserMutation(irisOpaque))
+
+	irisCrossSite := httptest.NewRequest(http.MethodPatch, "http://api.hyperlocalise.com/v1/me/preferences", nil)
+	irisCrossSite.Header.Set("Sec-Fetch-Site", "cross-site")
+	irisCrossSite.Header.Set("Authorization", "Bearer session-access-token")
+	require.False(t, denyBrowserMutation(irisCrossSite))
+
+	cookieStillGuarded := httptest.NewRequest(http.MethodPatch, "http://api.hyperlocalise.com/v1/me/preferences", nil)
+	cookieStillGuarded.Header.Set("Origin", "null")
+	cookieStillGuarded.Header.Set("Authorization", "Bearer session-access-token")
+	cookieStillGuarded.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
+	require.True(t, denyBrowserMutation(cookieStillGuarded))
 }
 
 func TestCORSMiddleware(t *testing.T) {
