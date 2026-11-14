@@ -29,6 +29,7 @@ import { applyProjectSourceText } from "@/lib/projects/files/source-text-editing
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import {
+  loadProjectTranslationsAsPrefilledEntries,
   persistFileJobTranslations,
   upsertProjectTranslationKeysFromEntries,
 } from "./project-translation-service";
@@ -274,5 +275,79 @@ describe("file translation jobs on version branches", () => {
     });
     expect(onBranch.written).toEqual(["greeting"]);
     expect(onBranch.content.toString("utf8")).toBe('{"greeting":"Hello branch"}');
+  });
+
+  it("prefills translate-with-agent from the job's bound branch file, not main", async () => {
+    const seeded = await seedBranchedFile();
+    const mainJobId = `job_${randomUUID()}`;
+    const branchJobId = `job_${randomUUID()}`;
+    await db.insert(schema.jobs).values([
+      {
+        id: mainJobId,
+        organizationId: seeded.organization.id,
+        projectId: seeded.project.id,
+        kind: "translation",
+        status: "queued",
+        inputPayload: { sourceFileId: seeded.storedFile.id },
+      },
+      {
+        id: branchJobId,
+        organizationId: seeded.organization.id,
+        projectId: seeded.project.id,
+        kind: "translation",
+        status: "queued",
+        inputPayload: { sourceFileId: seeded.storedFile.id, branch: "feature-checkout" },
+      },
+    ]);
+    await db.insert(schema.translationJobDetails).values([
+      {
+        jobId: mainJobId,
+        type: "file",
+        sourceFileVersionId: seeded.mainVersion.id,
+      },
+      {
+        jobId: branchJobId,
+        type: "file",
+        sourceFileVersionId: seeded.branchVersion.id,
+      },
+    ]);
+
+    await persistFileJobTranslations({
+      organizationId: seeded.organization.id,
+      projectId: seeded.project.id,
+      jobId: mainJobId,
+      sourcePath: "locales/en.json",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello" },
+      targetEntries: { greeting: "Bonjour" },
+    });
+    await persistFileJobTranslations({
+      organizationId: seeded.organization.id,
+      projectId: seeded.project.id,
+      jobId: branchJobId,
+      sourcePath: "locales/en.json",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello" },
+      targetEntries: { greeting: "Salut" },
+    });
+
+    const fromPath = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: seeded.organization.id,
+      projectId: seeded.project.id,
+      sourcePath: "locales/en.json",
+      targetLocale: "fr-FR",
+    });
+    expect(fromPath.prefilled).toEqual({ greeting: "Bonjour" });
+
+    const fromBranchJob = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: seeded.organization.id,
+      projectId: seeded.project.id,
+      sourcePath: "locales/en.json",
+      targetLocale: "fr-FR",
+      jobId: branchJobId,
+    });
+    expect(fromBranchJob.prefilled).toEqual({ greeting: "Salut" });
   });
 });

@@ -906,6 +906,11 @@ export class ProjectTranslationService extends ProjectServiceBase {
     approvedTranslationsOnly?: boolean;
     /** The file's branch; the default branch when left out. */
     branchName?: string | null;
+    /**
+     * File jobs prefill from the repository file bound on the job (the version
+     * branch the user translated), not always `main`.
+     */
+    jobId?: string | null;
   }): Promise<{
     prefilled: Record<string, string>;
     retryKeys: string[];
@@ -914,22 +919,36 @@ export class ProjectTranslationService extends ProjectServiceBase {
     maxKeyCount: number;
     translatedKeyCount: number;
   }> {
-    const sourceFile = await this.getRepositorySourceFileByPath({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      sourcePath: input.sourcePath,
-      branchName: input.branchName,
-    });
+    const emptyPrefill = {
+      prefilled: {},
+      retryKeys: [],
+      truncated: false,
+      loadedKeyCount: 0,
+      maxKeyCount: maxKeysPerImport,
+      translatedKeyCount: 0,
+    };
+    let sourceFileId: string | null;
+    if (input.jobId?.trim()) {
+      sourceFileId = await this.resolveFileJobSourceFileId({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        jobId: input.jobId.trim(),
+        sourcePath: input.sourcePath,
+      });
+    } else {
+      sourceFileId =
+        (
+          await this.getRepositorySourceFileByPath({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            sourcePath: input.sourcePath,
+            branchName: input.branchName,
+          })
+        )?.id ?? null;
+    }
 
-    if (!sourceFile) {
-      return {
-        prefilled: {},
-        retryKeys: [],
-        truncated: false,
-        loadedKeyCount: 0,
-        maxKeyCount: maxKeysPerImport,
-        translatedKeyCount: 0,
-      };
+    if (!sourceFileId) {
+      return emptyPrefill;
     }
 
     const prefilled: Record<string, string> = {};
@@ -942,7 +961,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       const keys = await this.listKeysForFile({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        repositorySourceFileId: sourceFile.id,
+        repositorySourceFileId: sourceFileId,
         limit: prefillKeysPageSize,
         offset,
       });

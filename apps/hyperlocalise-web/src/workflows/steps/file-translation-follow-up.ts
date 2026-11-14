@@ -13,6 +13,17 @@
 
 import type { SupportedTranslationFileFormat } from "@/lib/translation/file-formats";
 
+function fileJobBranchName(payload: unknown, fallback?: string | null): string | undefined {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const branch = (payload as { branch?: unknown }).branch;
+    if (typeof branch === "string" && branch.trim()) {
+      return branch.trim();
+    }
+  }
+  const fromFallback = fallback?.trim();
+  return fromFallback || undefined;
+}
+
 export async function enqueueFileTranslationFollowUpStep(input: {
   organizationId: string;
   parentJobId: string;
@@ -23,6 +34,8 @@ export async function enqueueFileTranslationFollowUpStep(input: {
   targetLocales: string[];
   metadata?: Record<string, string>;
   ignoreTranslationMemory?: boolean;
+  /** Version branch the parent job translated. Follow-ups must bind the same file. */
+  branchName?: string | null;
 }): Promise<{ jobId: string } | null> {
   "use step";
 
@@ -102,6 +115,7 @@ export async function enqueueFileTranslationFollowUpStep(input: {
           apiKeyId: string | null;
           ownerUserId: string | null;
           assigneeType: "user" | "agent" | null;
+          inputPayload: unknown;
         }
       | undefined;
     try {
@@ -111,6 +125,7 @@ export async function enqueueFileTranslationFollowUpStep(input: {
           apiKeyId: schema.jobs.apiKeyId,
           ownerUserId: schema.jobs.ownerUserId,
           assigneeType: schema.jobs.assigneeType,
+          inputPayload: schema.jobs.inputPayload,
         })
         .from(schema.jobs)
         .where(eq(schema.jobs.id, input.parentJobId))
@@ -121,6 +136,7 @@ export async function enqueueFileTranslationFollowUpStep(input: {
       });
     }
 
+    const branchName = fileJobBranchName(parentJob?.inputPayload, input.branchName);
     const enqueued = await enqueueFileTranslationJob({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -137,6 +153,7 @@ export async function enqueueFileTranslationFollowUpStep(input: {
         parentJobId: input.parentJobId,
         retryAttempt: retryAttempt + 1,
       }),
+      ...(branchName ? { branchName } : {}),
       jobQueue: createTranslationJobEventQueue(),
     });
 
