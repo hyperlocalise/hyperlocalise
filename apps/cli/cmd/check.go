@@ -2131,7 +2131,7 @@ func writeCheckText(w io.Writer, report checkReport) error {
 
 func severityForCheck(name string) string {
 	switch name {
-	case checkOrphanedKey, checkWhitespaceOnly, checkSameAsSource, checkEscapedChar:
+	case checkOrphanedKey, checkWhitespaceOnly, checkSameAsSource, checkEscapedChar, checkUnreachablePlural:
 		return checkSeverityWarning
 	default:
 		return checkSeverityError

@@ -53,7 +53,7 @@ export function guidelineFormatChecks(input: {
   targetText: string;
   targetLocale: string;
   label: string;
-  /** Project QA setting. Warning stays a warning; error blocks saving. */
+  /** Project QA setting. Warning stays a warning; error needs confirmation to save. */
   severity?: "error" | "warning";
 }): ContentEditorFormatCheck[] {
   const status = input.severity === "error" ? "fail" : "warn";

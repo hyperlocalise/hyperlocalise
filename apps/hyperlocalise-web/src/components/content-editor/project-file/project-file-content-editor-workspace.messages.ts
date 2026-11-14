@@ -32,8 +32,9 @@ export const projectFileCatWorkspaceMessages = defineMessages({
   },
   qaBlockedSave: {
     defaultMessage: "Fix the QA errors before saving: {checks}",
-    id: "uJX/OOWNsW",
-    description: "Error shown when an enabled QA Error check blocks a translation save",
+    id: "hRTf2pYYrM",
+    description:
+      "Error shown when a translator declines to save past failing QA Error checks, or a bulk save hits them",
   },
   qaValidationRequired: {
     defaultMessage: "QA validation is unavailable. Try saving again.",

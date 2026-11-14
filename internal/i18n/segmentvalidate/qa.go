@@ -114,7 +114,7 @@ func unreachablePluralCheck(locale, target string) (Check, bool) {
 	return Check{
 		ID:            "qa-unreachable-plural-case",
 		Label:         "Plural cases",
-		Status:        StatusFail,
+		Status:        StatusWarn,
 		Message:       UnreachablePluralMessage(locale, cases),
 		Category:      "qa",
 		RelatedTokens: cases,

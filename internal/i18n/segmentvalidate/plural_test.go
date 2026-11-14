@@ -32,11 +32,26 @@ func TestUnreachablePluralCheck(t *testing.T) {
 			found = check
 		}
 	}
-	if found.ID == "" || found.Status != StatusFail {
-		t.Fatalf("expected unreachable plural failure, got %+v", checks)
+	if found.ID == "" || found.Status != StatusWarn {
+		t.Fatalf("expected unreachable plural warning, got %+v", checks)
 	}
 	if !slices.Equal(found.RelatedTokens, []string{"one"}) {
 		t.Fatalf("tokens = %v", found.RelatedTokens)
+	}
+}
+
+func TestUnreachablePluralCheckKeepsSourceCategoriesValid(t *testing.T) {
+	checks := ValidateSegment(Request{
+		SourceText:   "{count, plural, one {# file} other {# files}}",
+		TargetText:   "{count, plural, one {# tệp} other {# tệp}}",
+		SourcePath:   "messages/vi.json",
+		TargetLocale: "vi",
+		Modes:        []string{QAModeUnreachablePlural},
+	})
+	for _, check := range checks {
+		if check.Status == StatusFail {
+			t.Fatalf("source plural categories must not fail ICU parity, got %+v", checks)
+		}
 	}
 }
 

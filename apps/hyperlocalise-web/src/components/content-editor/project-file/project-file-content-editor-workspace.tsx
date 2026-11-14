@@ -138,6 +138,7 @@ import {
   saveDocumentParseBackDrafts,
 } from "./content-editor-document-parse-back";
 import { projectFileCatWorkspaceMessages } from "./project-file-content-editor-workspace.messages";
+import { useContentEditorQaSaveOverride } from "./content-editor-qa-save-override-dialog";
 import { fetchCatSegmentValidation } from "./project-file-content-editor-validation";
 import {
   SpellcheckDictionaryProvider,
@@ -704,7 +705,8 @@ export function ProjectFileContentEditorWorkspace({
     },
     [intl, organizationSlug, projectId, sourceLocale],
   );
-  const assertQaSaveAllowed = useCallback(
+  const { confirmQaSaveOverride, qaSaveOverrideDialog } = useContentEditorQaSaveOverride();
+  const collectQaSaveFailures = useCallback(
     async (
       segment: {
         sourceText: string;
@@ -716,8 +718,8 @@ export function ProjectFileContentEditorWorkspace({
       locale: string,
       value: string,
       formatChecks?: readonly ContentEditorFormatCheck[],
-    ) => {
-      if (!isNativeProject) return;
+    ): Promise<ContentEditorFormatCheck[]> => {
+      if (!isNativeProject) return [];
       const policyResult = await qaPolicyQuery.refetch();
       if (!policyResult.isSuccess || !policyResult.data) {
         throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.qaValidationRequired));
@@ -749,7 +751,7 @@ export function ProjectFileContentEditorWorkspace({
         value.trim()
           ? await glossaryTermsForQaGate(segment.sourceText, locale)
           : [];
-      const failures = qaSaveBlockingChecks(
+      return qaSaveBlockingChecks(
         [
           ...validation.value,
           ...applyEditorQaPolicy(
@@ -760,13 +762,6 @@ export function ProjectFileContentEditorWorkspace({
         formatChecks,
         { text: value, locale, guideline: policy.guideline },
       );
-      if (failures.length > 0) {
-        throw new Error(
-          intl.formatMessage(projectFileCatWorkspaceMessages.qaBlockedSave, {
-            checks: failures.map((check) => check.label).join(", "),
-          }),
-        );
-      }
     },
     [
       fileMessageFormat,
@@ -779,6 +774,35 @@ export function ProjectFileContentEditorWorkspace({
       sourcePath,
       spellcheckDictionary.acceptedWords,
     ],
+  );
+  /** Bulk and batch writes pass `allowOverride: false` so they never open one dialog per row. */
+  const resolveQaSaveFailures = useCallback(
+    async (
+      failures: readonly ContentEditorFormatCheck[],
+      { allowOverride = true }: { allowOverride?: boolean } = {},
+    ) => {
+      if (failures.length === 0) return;
+      if (allowOverride && (await confirmQaSaveOverride(failures))) return;
+      throw new Error(
+        intl.formatMessage(projectFileCatWorkspaceMessages.qaBlockedSave, {
+          checks: [...new Set(failures.map((check) => check.label))].join(", "),
+        }),
+      );
+    },
+    [confirmQaSaveOverride, intl],
+  );
+  const assertQaSaveAllowed = useCallback(
+    async (
+      segment: Parameters<typeof collectQaSaveFailures>[0],
+      locale: string,
+      value: string,
+      formatChecks?: readonly ContentEditorFormatCheck[],
+      options?: { allowOverride?: boolean },
+    ) => {
+      const failures = await collectQaSaveFailures(segment, locale, value, formatChecks);
+      await resolveQaSaveFailures(failures, options);
+    },
+    [collectQaSaveFailures, resolveQaSaveFailures],
   );
   const assertSingleTargetSaveAllowed = useCallback(
     (segment: { occurrenceCount?: number; divergentLocales?: string[] }, locale: string) => {
@@ -869,7 +893,10 @@ export function ProjectFileContentEditorWorkspace({
 
       if (segment) {
         assertSingleTargetSaveAllowed(segment, targetLocale);
-        await assertQaSaveAllowed(segment, targetLocale, targetText, options?.formatChecks);
+        // Only bulk approve defers the queue refresh.
+        await assertQaSaveAllowed(segment, targetLocale, targetText, options?.formatChecks, {
+          allowOverride: !options?.deferQueueRefresh,
+        });
       }
       const translation = await saveTranslation({
         externalStringId: segmentId,
@@ -930,7 +957,8 @@ export function ProjectFileContentEditorWorkspace({
             targetLocale,
             content,
           }),
-        saveDraft: (externalStringId, targetText) => handleSaveDraft(externalStringId, targetText),
+        saveDraft: (externalStringId, targetText) =>
+          handleSaveDraft(externalStringId, targetText, { allowQaOverride: false }),
       });
       const notSaved = [
         ...result.unmapped.map((entry) => entry.key),
@@ -965,7 +993,10 @@ export function ProjectFileContentEditorWorkspace({
     async (
       segmentId: string,
       targetText: string,
-      options?: { formatChecks?: readonly ContentEditorFormatCheck[] },
+      options?: {
+        formatChecks?: readonly ContentEditorFormatCheck[];
+        allowQaOverride?: boolean;
+      },
     ) => {
       if (!contentEditorFile?.canEditTranslations) {
         throw new Error(
@@ -978,7 +1009,9 @@ export function ProjectFileContentEditorWorkspace({
       );
       if (segment) {
         assertSingleTargetSaveAllowed(segment, targetLocale);
-        await assertQaSaveAllowed(segment, targetLocale, targetText, options?.formatChecks);
+        await assertQaSaveAllowed(segment, targetLocale, targetText, options?.formatChecks, {
+          allowOverride: options?.allowQaOverride,
+        });
       }
       await saveTranslation({
         externalStringId: segmentId,
@@ -1480,20 +1513,24 @@ export function ProjectFileContentEditorWorkspace({
       }
       const [representative] = occurrences;
       if (!representative) return;
+      const failures: ContentEditorFormatCheck[] = [];
       for (const occurrence of occurrences) {
-        await assertQaSaveAllowed(
-          {
-            sourceText: segment.sourceText,
-            sourcePath: occurrence.sourcePath,
-            maxLength: occurrence.maxLength,
-            messageFormat: segment.messageFormat,
-            placeholderPatterns: segment.placeholderPatterns,
-          },
-          locale,
-          text,
-          formatChecks,
+        failures.push(
+          ...(await collectQaSaveFailures(
+            {
+              sourceText: segment.sourceText,
+              sourcePath: occurrence.sourcePath,
+              maxLength: occurrence.maxLength,
+              messageFormat: segment.messageFormat,
+              placeholderPatterns: segment.placeholderPatterns,
+            },
+            locale,
+            text,
+            formatChecks,
+          )),
         );
       }
+      await resolveQaSaveFailures(failures);
       await saveTranslation({
         externalStringId: representative.id,
         targetLocale: locale,
@@ -1505,7 +1542,13 @@ export function ProjectFileContentEditorWorkspace({
         },
       });
     },
-    [assertQaSaveAllowed, contentEditorFile?.canEditTranslations, intl, saveTranslation],
+    [
+      collectQaSaveFailures,
+      contentEditorFile?.canEditTranslations,
+      intl,
+      resolveQaSaveFailures,
+      saveTranslation,
+    ],
   );
   const canEditTranslations = Boolean(contentEditorFile?.canEditTranslations);
   const showGroupingControls =
@@ -1884,6 +1927,7 @@ export function ProjectFileContentEditorWorkspace({
                 }
               />
             ) : null}
+            {qaSaveOverrideDialog}
           </div>
         </SpellcheckDictionaryProvider>
       </ContentEditorPageWindowProvider>
