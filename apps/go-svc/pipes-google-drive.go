@@ -332,7 +332,7 @@ func (api *pipesAPI) googleGET(ctx context.Context, token, path string) ([]byte,
 	if err != nil {
 		return nil, pipesFailure(http.StatusServiceUnavailable, "google_drive_api_error", "Could not reach Google Drive.")
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, pipesFailure(http.StatusNotFound, "google_drive_folder_not_found", "That Google Drive folder was not found.")
