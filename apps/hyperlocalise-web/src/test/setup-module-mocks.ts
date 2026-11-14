@@ -15,8 +15,8 @@ import { afterAll, vi } from "vite-plus/test";
 // Tests run with `isolate: false`, so every file in a worker shares one module
 // graph. Vitest scopes `vi.mock` registrations to the registering file, but
 // modules evaluated against a mock stay cached, and modules cached before a
-// file registers a mock never see it. This resets only the importers of
-// mocked modules, before the mock is used and again when the file finishes.
+// file registers a mock never see it. This resets the mocked module and its
+// importers, before the mock is used and again when the file finishes.
 //
 // Relies on Vitest internals (`__vitest_mocker__` and the module runner's
 // evaluated module graph). Re-check after upgrading Vitest.
@@ -97,12 +97,14 @@ function trackMockedModules(target: Mocker): Set<string> {
   target.mockPath = (originalId, id, ...rest) => {
     mockPath(originalId, id, ...rest);
     mockedIds.add(id);
-    resetImporters(target.evaluatedModules, findModules(target.evaluatedModules, id));
+    // Importers that only `import()` at runtime are not in `importers` yet, so
+    // also drop the cached real module or the dynamic import would keep it.
+    resetMockedModule(target.evaluatedModules, id);
   };
   target.unmockPath = (id) => {
     unmockPath(id);
     mockedIds.add(id);
-    resetImporters(target.evaluatedModules, findModules(target.evaluatedModules, id));
+    resetMockedModule(target.evaluatedModules, id);
   };
 
   return mockedIds;
@@ -113,6 +115,12 @@ function findModules(modules: EvaluatedModules, id: string): ModuleNode[] {
   const node = modules.getModuleById(id);
   if (node) nodes.add(node);
   return [...nodes];
+}
+
+function resetMockedModule(modules: EvaluatedModules, id: string) {
+  const roots = findModules(modules, id);
+  resetImporters(modules, roots);
+  for (const node of roots) modules.invalidateModule(node);
 }
 
 // Keeps each node's fetched `meta` so this is safe to call while the module
