@@ -22,6 +22,8 @@ export type ContentEditorEditorPanelProps = {
   segmentPosition: number;
   totalSegments: number;
   formatChecks: ContentEditorFormatCheck[];
+  explainingGuidelineCheckId?: string | null;
+  onExplainGuideline?: (check: ContentEditorFormatCheck) => void;
   intelligence: ContentEditorSegmentIntelligence;
   isEditorBusy?: boolean;
   isApproving?: boolean;

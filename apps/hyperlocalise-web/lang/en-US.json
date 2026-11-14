@@ -3779,6 +3779,10 @@
     "defaultMessage": "{count} in progress",
     "description": "Badge showing in-progress issue count on the Issue Sheet page"
   },
+  "39chaNGnWU": {
+    "defaultMessage": "Explain",
+    "description": "Button to ask Luna why a classifier guideline finding was flagged"
+  },
   "3A+Aw/ZcHg": {
     "defaultMessage": "Brand check",
     "description": "marketing-localisation use case page: hero › visual › floating › title"
@@ -26302,6 +26306,10 @@
   "Z2Ck8nRIGO": {
     "defaultMessage": "Placeholder mismatch",
     "description": "QA review: placeholder_mismatch"
+  },
+  "Z2MVweBWtD": {
+    "defaultMessage": "Explaining…",
+    "description": "Busy label while Luna explains a classifier guideline finding"
   },
   "Z2cMYJ6nRy": {
     "defaultMessage": "Failed to regenerate the Canva connection token.",

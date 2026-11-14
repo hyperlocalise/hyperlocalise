@@ -26,4 +26,14 @@ export const contentEditorGuidelineCheckMessages = defineMessages({
     id: "THoL7yb4DX",
     description: "Editor QA warning when the guideline check allowance is used up",
   },
+  explain: {
+    defaultMessage: "Explain",
+    id: "39chaNGnWU",
+    description: "Button to ask Luna why a classifier guideline finding was flagged",
+  },
+  explaining: {
+    defaultMessage: "Explaining…",
+    id: "Z2MVweBWtD",
+    description: "Busy label while Luna explains a classifier guideline finding",
+  },
 });

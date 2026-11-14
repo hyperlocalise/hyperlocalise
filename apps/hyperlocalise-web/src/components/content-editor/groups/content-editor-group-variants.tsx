@@ -26,6 +26,7 @@ import { observer } from "mobx-react-lite";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { useAiCreditRefusalToast } from "@/components/billing/use-ai-credit-refusal-toast";
 import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -505,6 +506,7 @@ const VariantEditor = observer(function VariantEditor({
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
+  const notifyAiCreditRefusal = useAiCreditRefusalToast();
   const { segment } = group;
   const { occurrences } = variant.variant;
   const unlockedCount = variant.unlocked.length;
@@ -602,6 +604,12 @@ const VariantEditor = observer(function VariantEditor({
           isLoading={variant.isCheckingFormat}
           targetText={text}
           onFix={variant.canEdit && !variant.pending ? (value) => variant.change(value) : undefined}
+          explainingCheckId={variant.explainingGuidelineCheckId}
+          onExplain={(check) => {
+            void variant.explainGuideline(check).catch((error) => {
+              if (!notifyAiCreditRefusal(error)) throw error;
+            });
+          }}
         />
       ) : null}
       {variant.displayError ? (

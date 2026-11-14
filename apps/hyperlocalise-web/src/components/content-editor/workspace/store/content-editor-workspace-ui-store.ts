@@ -59,6 +59,8 @@ export class ContentEditorWorkspaceUiStore {
   loadSideBySideSegmentIds: string[] = [];
   /** Bumped when the reviewer asks to open the full QA list in the sidebar. */
   qaDetailsRevealNonce = 0;
+  /** Format check currently waiting on a Luna guideline explanation. */
+  explainingGuidelineCheckId: string | null = null;
   /** True when the workspace was given a multilingual table configuration. */
   multilingualViewAvailable = false;
   /** Left file tree pane is collapsed to zero width. */
@@ -331,6 +333,10 @@ export class ContentEditorWorkspaceUiStore {
   revealQaDetails() {
     this.setDetailsPanelCollapsed(false);
     this.qaDetailsRevealNonce += 1;
+  }
+
+  setExplainingGuidelineCheckId(checkId: string | null) {
+    this.explainingGuidelineCheckId = checkId;
   }
 
   setSideBySideViewport(input: { visibleSegmentIds: string[]; loadSegmentIds: string[] }) {

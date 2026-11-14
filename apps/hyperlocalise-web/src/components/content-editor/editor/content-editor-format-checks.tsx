@@ -23,6 +23,8 @@ import {
   formatCheckRowBackgroundClass,
   formatCheckStatusBadgeVariant,
 } from "@/components/content-editor/segment/content-editor-tone";
+import { contentEditorGuidelineCheckMessages } from "@/components/content-editor/project-file/content-editor-guideline-checks.messages";
+import { guidelineCheckNeedsExplain } from "@/components/content-editor/project-file/content-editor-guideline-checks";
 import { contentEditorFormatChecksMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
 
@@ -44,7 +46,15 @@ function formatCheckStatusLabel(
   }
 }
 
-export function ContentEditorFormatChecks({ checks }: { checks: ContentEditorFormatCheck[] }) {
+export function ContentEditorFormatChecks({
+  checks,
+  explainingCheckId = null,
+  onExplain,
+}: {
+  checks: ContentEditorFormatCheck[];
+  explainingCheckId?: string | null;
+  onExplain?: (check: ContentEditorFormatCheck) => void;
+}) {
   const intl = useIntl();
   const dictionary = useSpellcheckDictionaryContext();
 
@@ -94,6 +104,22 @@ export function ContentEditorFormatChecks({ checks }: { checks: ContentEditorFor
                     <FormattedMessage {...contentEditorFormatChecksMessages.addingToDictionary} />
                   ) : (
                     <FormattedMessage {...contentEditorFormatChecksMessages.addToDictionary} />
+                  )}
+                </Button>
+              ) : null}
+              {onExplain && guidelineCheckNeedsExplain(check) ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  disabled={explainingCheckId === check.id}
+                  onClick={() => onExplain(check)}
+                >
+                  {explainingCheckId === check.id ? (
+                    <FormattedMessage {...contentEditorGuidelineCheckMessages.explaining} />
+                  ) : (
+                    <FormattedMessage {...contentEditorGuidelineCheckMessages.explain} />
                   )}
                 </Button>
               ) : null}

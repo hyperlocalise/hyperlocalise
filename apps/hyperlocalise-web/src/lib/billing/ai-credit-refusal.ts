@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import { ApiResponseError, isApiResponseErrorCode } from "@/lib/api-error";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 
 /** API error code for an AI action refused because the workspace has used all of its AI credit. */
 export const AI_CREDIT_EXHAUSTED_CODE = "ai_credit_exhausted";
@@ -31,6 +32,10 @@ function readResponseBodyCode(responseBody: string) {
 export function isAiCreditExhaustedError(error: unknown): boolean {
   if (error instanceof ApiResponseError) {
     return isApiResponseErrorCode(error, AI_CREDIT_EXHAUSTED_CODE);
+  }
+
+  if (error instanceof GoSvcClientError) {
+    return error.code === AI_CREDIT_EXHAUSTED_CODE;
   }
 
   if (

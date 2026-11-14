@@ -67,6 +67,7 @@ import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
 import { applyEditorQaPolicy, DEFAULT_QA_POLICY } from "@/lib/qa/qa-policy";
 import {
   fetchEditorGuidelineChecks,
+  fetchEditorGuidelineExplain,
   qaSaveBlockingChecks,
 } from "@/components/content-editor/project-file/content-editor-guideline-checks";
 import { contentEditorGuidelineCheckMessages } from "@/components/content-editor/project-file/content-editor-guideline-checks.messages";
@@ -638,6 +639,32 @@ export function ProjectFileContentEditorWorkspace({
           segmentId: segment.id,
           label: intl.formatMessage(contentEditorGuidelineCheckMessages.label),
           limitMessage: intl.formatMessage(contentEditorGuidelineCheckMessages.limitReached),
+          severity: qaPolicy.guideline.severity,
+          signal: options?.signal,
+        },
+        goSvcClient,
+      ),
+    [goSvcClient, intl, organizationSlug, projectId, qaPolicy.guideline.severity, sourceLocale],
+  );
+  const runGuidelineExplain = useCallback(
+    async (
+      segment: ContentEditorSegment,
+      value: string,
+      check: ContentEditorFormatCheck,
+      options?: { signal?: AbortSignal },
+    ) =>
+      fetchEditorGuidelineExplain(
+        {
+          organizationSlug,
+          projectId,
+          sourceLocale,
+          sourceText: segment.sourceText,
+          targetText: value,
+          targetLocale: segment.targetLocale,
+          segmentId: segment.id,
+          label: intl.formatMessage(contentEditorGuidelineCheckMessages.label),
+          checkId: check.id,
+          passageId: check.passageId,
           severity: qaPolicy.guideline.severity,
           signal: options?.signal,
         },
@@ -1789,6 +1816,10 @@ export function ProjectFileContentEditorWorkspace({
                           runGuidelineCheck:
                             isNativeProject && qaPolicy.guideline.enabled
                               ? runGuidelineCheck
+                              : undefined,
+                          runGuidelineExplain:
+                            isNativeProject && qaPolicy.guideline.enabled
+                              ? runGuidelineExplain
                               : undefined,
                           lookupSegmentConcordance,
                           lookupSegmentContext,

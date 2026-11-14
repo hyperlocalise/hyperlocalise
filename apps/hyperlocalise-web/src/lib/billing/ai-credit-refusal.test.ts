@@ -14,6 +14,7 @@ import { DefaultChatTransport } from "ai";
 import { describe, expect, it } from "vite-plus/test";
 
 import { ApiResponseError } from "@/lib/api-error";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 
 import { isAiCreditExhaustedError } from "./ai-credit-refusal";
 
@@ -22,6 +23,18 @@ describe("isAiCreditExhaustedError", () => {
     expect(
       isAiCreditExhaustedError(
         new ApiResponseError("used up", { code: "ai_credit_exhausted", status: 402 }),
+      ),
+    ).toBe(true);
+  });
+
+  it("recognises a go-svc client error with the refusal code", () => {
+    expect(
+      isAiCreditExhaustedError(
+        new GoSvcClientError({
+          code: "ai_credit_exhausted",
+          message: "used up",
+          status: 402,
+        }),
       ),
     ).toBe(true);
   });

@@ -90,8 +90,33 @@ function guidelineFormatCheck(
       appliesToText: targetText,
       appliesToLocale: targetLocale,
       ...(relatedTokens ? { relatedTokens } : {}),
+      ...(finding.passageId ? { passageId: finding.passageId } : {}),
+      ...(finding.reasoningAvailable ? { reasoningAvailable: true } : {}),
     },
   ];
+}
+
+/** Classifier rows that have not been explained yet. */
+export function guidelineCheckNeedsExplain(check: ContentEditorFormatCheck) {
+  return (
+    isGuidelineFormatCheck(check) && Boolean(check.reasoningAvailable) && Boolean(check.passageId)
+  );
+}
+
+/** Replaces one guideline row with Luna findings. Empty replacements keep the original row. */
+export function replaceGuidelineFormatCheck(
+  checks: readonly ContentEditorFormatCheck[],
+  checkId: string,
+  replacements: readonly ContentEditorFormatCheck[],
+): ContentEditorFormatCheck[] {
+  if (replacements.length === 0) {
+    return [...checks];
+  }
+  const index = checks.findIndex((check) => check.id === checkId);
+  if (index < 0) {
+    return [...checks, ...replacements];
+  }
+  return [...checks.slice(0, index), ...replacements, ...checks.slice(index + 1)];
 }
 
 /**
@@ -161,19 +186,7 @@ export async function fetchEditorGuidelineChecks(
   try {
     const result = await client.guidelines.check(
       input.organizationSlug,
-      {
-        projectId: input.projectId,
-        sourceLocale: input.sourceLocale,
-        targetLocale: input.targetLocale,
-        checks: ["target"],
-        segments: [
-          {
-            id: input.segmentId,
-            source: input.sourceText,
-            target: targetText,
-          },
-        ],
-      },
+      guidelineCheckBody({ ...input, targetText }),
       { signal: input.signal },
     );
     return guidelineFormatChecks({
@@ -192,6 +205,84 @@ export async function fetchEditorGuidelineChecks(
       (error.status === 402 || error.code === "guideline_check_limit_reached")
     ) {
       return [guidelineLimitFormatCheck(label, input.limitMessage)];
+    }
+    return [];
+  }
+}
+
+function guidelineCheckBody(input: {
+  projectId: string;
+  sourceLocale: string;
+  sourceText: string;
+  targetText: string;
+  targetLocale: string;
+  segmentId: string;
+}) {
+  return {
+    projectId: input.projectId,
+    sourceLocale: input.sourceLocale,
+    targetLocale: input.targetLocale,
+    checks: ["target" as const],
+    segments: [
+      {
+        id: input.segmentId,
+        source: input.sourceText,
+        target: input.targetText,
+      },
+    ],
+  };
+}
+
+export async function fetchEditorGuidelineExplain(
+  input: {
+    organizationSlug: string;
+    projectId: string;
+    sourceLocale: string;
+    sourceText: string;
+    targetText: string;
+    targetLocale: string;
+    segmentId: string;
+    label: string;
+    checkId: string;
+    passageId?: string;
+    severity?: "error" | "warning";
+    signal?: AbortSignal;
+  },
+  client: GoSvcClient,
+): Promise<ContentEditorFormatCheck[]> {
+  const targetText = input.targetText;
+  if (!targetText.trim()) {
+    return [];
+  }
+
+  try {
+    const result = await client.guidelines.explain(
+      input.organizationSlug,
+      {
+        ...guidelineCheckBody(input),
+        ...(input.passageId ? { passageIds: [input.passageId] } : {}),
+      },
+      { signal: input.signal },
+    );
+    return guidelineFormatChecks({
+      result,
+      targetText,
+      targetLocale: input.targetLocale,
+      label: input.label,
+      severity: input.severity,
+    }).map((check, index) => ({
+      ...check,
+      id: index === 0 ? input.checkId : `${input.checkId}-${index}`,
+    }));
+  } catch (error) {
+    if (input.signal?.aborted || isAbortError(error)) {
+      throw error;
+    }
+    if (
+      error instanceof GoSvcClientError &&
+      (error.status === 402 || error.code === "ai_credit_exhausted")
+    ) {
+      throw error;
     }
     return [];
   }
