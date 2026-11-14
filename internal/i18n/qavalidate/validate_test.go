@@ -67,7 +67,7 @@ func TestPolicyDefaultsUnreachablePlural(t *testing.T) {
 		t.Fatal(err)
 	}
 	setting := policy.Checks["unreachable_plural_case"]
-	if !setting.Enabled || setting.Severity != "error" {
+	if !setting.Enabled || setting.Severity != "warning" {
 		t.Fatalf("default = %+v", setting)
 	}
 }

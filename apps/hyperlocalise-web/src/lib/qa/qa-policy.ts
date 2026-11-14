@@ -29,7 +29,7 @@ export const DEFAULT_QA_POLICY: QaCheckPolicy = {
   numbers_mismatch: { enabled: false, severity: "warning" },
   punctuation_mismatch: { enabled: false, severity: "warning" },
   character_case_mismatch: { enabled: false, severity: "warning" },
-  unreachable_plural_case: { enabled: true, severity: "error" },
+  unreachable_plural_case: { enabled: true, severity: "warning" },
   guideline: { enabled: false, severity: "warning" },
 };
 

@@ -3871,10 +3871,6 @@
     "defaultMessage": "Expand ideas",
     "description": "Submit seed keywords"
   },
-  "3OCNlGSX6Y": {
-    "defaultMessage": "Scans and the editor use the same format, placeholder, ICU, length, spelling and glossary checks. Warnings flag an issue; errors also block saving and approving in the editor.",
-    "description": "QA review: coverageHelp"
-  },
   "3OmQiHHUCs": {
     "defaultMessage": "Drag a screenshot here",
     "description": "Idle label for the visual context screenshot dropzone"
@@ -9634,6 +9630,10 @@
   "BPMUoJXbTa": {
     "defaultMessage": "01 Publish",
     "description": "Domains workflow step 1"
+  },
+  "BQ27wqYAxf": {
+    "defaultMessage": "Scans and the editor use the same format, placeholder, ICU, length, spelling and glossary checks. Warnings flag an issue. Errors also ask the translator to confirm before saving or approving in the editor.",
+    "description": "QA review: coverageHelp"
   },
   "BQ2Um1RaCK": {
     "defaultMessage": "Use approved medical terminology and regulatory glossary as guidance.",
@@ -15850,6 +15850,10 @@
   "KQRBauGZOL": {
     "defaultMessage": "Open untranslated",
     "description": "Link from a locale row into the content editor untranslated queue"
+  },
+  "KQSjQHTSn1": {
+    "defaultMessage": "Save with QA errors?",
+    "description": "Title of the dialog shown when QA error checks fail on a translation save"
   },
   "KQXF59dqej": {
     "defaultMessage": "Keep",
@@ -22739,6 +22743,10 @@
     "defaultMessage": "Content Studio",
     "description": "Link from Hyperlab to the Content Studio product page"
   },
+  "UCuOOluaJU": {
+    "defaultMessage": "Keep editing",
+    "description": "Button that closes the QA override dialog without saving"
+  },
   "UDTP3K5J0j": {
     "defaultMessage": "Create a key in Zernio under API keys. Automations authenticate with Authorization: Bearer.",
     "description": "Help text for where to find a Zernio API key"
@@ -29623,6 +29631,10 @@
     "defaultMessage": "Edit audience",
     "description": "Link to edit the selected audience"
   },
+  "dxHRYcypd0": {
+    "defaultMessage": "Checked in the editor while you translate. A warning does not affect saving. An error asks the translator to confirm before saving when the editor has already reported it. Project scans do not run this check.",
+    "description": "Help for the editor-only guideline QA check"
+  },
   "dy2mVzOtSq": {
     "defaultMessage": "Target is missing {tokens} from the source string.",
     "description": "CAT format check message listing placeholders missing from the target"
@@ -32210,6 +32222,10 @@
   "hRNM7K3gMN": {
     "defaultMessage": "Used {count} sources",
     "description": "Collapsible trigger label showing how many sources were cited"
+  },
+  "hRTf2pYYrM": {
+    "defaultMessage": "Fix the QA errors before saving: {checks}",
+    "description": "Error shown when a translator declines to save past failing QA Error checks, or a bulk save hits them"
   },
   "hRiPxjtqBZ": {
     "defaultMessage": "Connect a Gemini key and use Pro for harder drafts. Google bills this usage. It does not draw down your monthly AI credit.",
@@ -35251,10 +35267,6 @@
     "defaultMessage": "Missing translation",
     "description": "QA review: not_localized"
   },
-  "lmCtTpX8xG": {
-    "defaultMessage": "Checked in the editor while you translate. A warning does not block saving. An error blocks saving when the editor has already reported it. Project scans do not run this check.",
-    "description": "Help for the editor-only guideline QA check"
-  },
   "lmLPnsMyhs": {
     "defaultMessage": "Go to dashboard",
     "description": "Link from the 404 page to the workspace dashboard"
@@ -37406,6 +37418,10 @@
   "ohFSHTwja2": {
     "defaultMessage": "Updated",
     "description": "Metadata label for glossary update time"
+  },
+  "ohJ07hZxMs": {
+    "defaultMessage": "Save anyway",
+    "description": "Button that saves a translation despite failing QA error checks"
   },
   "ohWq8Fp+QJ": {
     "defaultMessage": "Stringify JSON",
@@ -40619,6 +40635,10 @@
     "defaultMessage": "Configure step",
     "description": "Right panel heading when a node is selected"
   },
+  "t54W8pdyKg": {
+    "defaultMessage": "These checks failed. If a check is wrong, you can save anyway. The issues stay in the QA panel.",
+    "description": "Body of the dialog that lets a translator save despite failing QA error checks"
+  },
   "t5xBIlTLwl": {
     "defaultMessage": "disconnecting steps",
     "description": "What an undo step did, after 'Undo' or 'Redo': an edge was removed"
@@ -41454,10 +41474,6 @@
   "uIkNdFV4AX": {
     "defaultMessage": "Automation Disabled",
     "description": "Activity log event type label for disabling automations"
-  },
-  "uJX/OOWNsW": {
-    "defaultMessage": "Fix the QA errors before saving: {checks}",
-    "description": "Error shown when an enabled QA Error check blocks a translation save"
   },
   "uJcPfJRQmM": {
     "defaultMessage": "{count, plural, one {# draft entry needs review} other {# draft entries need review}}",

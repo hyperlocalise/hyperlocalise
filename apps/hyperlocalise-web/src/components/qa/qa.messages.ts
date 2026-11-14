@@ -261,9 +261,9 @@ export const qaMessages = defineMessages({
   },
   coverageHelp: {
     defaultMessage:
-      "Scans and the editor use the same format, placeholder, ICU, length, spelling and glossary checks. Warnings flag an issue; errors also block saving and approving in the editor.",
+      "Scans and the editor use the same format, placeholder, ICU, length, spelling and glossary checks. Warnings flag an issue. Errors also ask the translator to confirm before saving or approving in the editor.",
     description: "QA review: coverageHelp",
-    id: "3OCNlGSX6Y",
+    id: "BQ27wqYAxf",
   },
   legacy: {
     defaultMessage:
@@ -421,9 +421,9 @@ export const qaMessages = defineMessages({
   },
   guidelineCheckHelp: {
     defaultMessage:
-      "Checked in the editor while you translate. A warning does not block saving. An error blocks saving when the editor has already reported it. Project scans do not run this check.",
+      "Checked in the editor while you translate. A warning does not affect saving. An error asks the translator to confirm before saving when the editor has already reported it. Project scans do not run this check.",
     description: "Help for the editor-only guideline QA check",
-    id: "lmCtTpX8xG",
+    id: "dxHRYcypd0",
   },
   enableCheck: {
     defaultMessage: "Enable {check}",

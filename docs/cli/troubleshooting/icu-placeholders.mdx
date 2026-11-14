@@ -177,8 +177,9 @@ Plural categories depend on the locale. A target may drop or add CLDR categories
 such as `one`, `few`, or `many`. `icu_shape_mismatch` still requires matching
 argument names, block types, offsets, and exact matches (`=0`, `=1`).
 
-`unreachable_plural_case` flags a category the target locale never selects. Japanese
-has no `one` category, so delete that branch and keep `other`. Do not remove a
+`unreachable_plural_case` warns about a category the target locale never selects.
+ICU ignores that branch, so the message still works. Japanese has no `one`
+category, so you can delete that branch and keep `other`. Do not remove a
 needed grammatical form to silence the check. Cover `0`, `1`, and several items
 in runtime tests.
 

@@ -106,7 +106,7 @@ func TestLoadPolicyAddsUnreachablePluralDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadPolicy: %v", err)
 	}
-	if setting := got.Checks[checkUnreachablePlural]; !setting.Enabled || setting.Severity != "error" {
+	if setting := got.Checks[checkUnreachablePlural]; !setting.Enabled || setting.Severity != "warning" {
 		t.Fatalf("unreachable plural = %+v", setting)
 	}
 }

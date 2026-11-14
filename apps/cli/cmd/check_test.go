@@ -1799,6 +1799,9 @@ func TestCheckCommandUnreachablePluralAndLocaleSpecificCategories(t *testing.T) 
 	report := executeCheckJSON(t, configPath, "", "--no-fail")
 	assertFindingType(t, report.Findings, checkUnreachablePlural)
 	for _, finding := range report.Findings {
+		if finding.Type == checkUnreachablePlural && finding.Severity != checkSeverityWarning {
+			t.Fatalf("unreachable plural should be a warning: %+v", finding)
+		}
 		if finding.Type == checkICUShape {
 			t.Fatalf("did not expect icu_shape_mismatch for ja one/other: %+v", finding)
 		}

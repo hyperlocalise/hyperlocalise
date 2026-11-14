@@ -95,7 +95,8 @@ func DefaultPolicy() Policy {
 		"numbers_mismatch":        {false, "warning"},
 		"punctuation_mismatch":    {false, "warning"},
 		"character_case_mismatch": {false, "warning"},
-		checkUnreachablePlural:    {true, "error"},
+		// ICU never selects an unreachable category, so the extra case is harmless.
+		checkUnreachablePlural: {true, "warning"},
 		// The editor runs this check. Validate accepts the key and emits no findings.
 		checkGuideline: {false, "warning"},
 	}
@@ -107,7 +108,7 @@ func (p *Policy) applyDefaults() {
 		p.Checks = map[string]Setting{}
 	}
 	if _, ok := p.Checks[checkUnreachablePlural]; !ok {
-		p.Checks[checkUnreachablePlural] = Setting{true, "error"}
+		p.Checks[checkUnreachablePlural] = Setting{true, "warning"}
 	}
 	if _, ok := p.Checks[checkGuideline]; !ok {
 		p.Checks[checkGuideline] = Setting{false, "warning"}

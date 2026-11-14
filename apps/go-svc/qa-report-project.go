@@ -86,7 +86,7 @@ func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *tim
 	checks := map[string]qaCheckSetting{}
 	_ = json.Unmarshal(policy, &checks)
 	if _, ok := checks["unreachable_plural_case"]; !ok {
-		checks["unreachable_plural_case"] = qaCheckSetting{Enabled: true, Severity: "error"}
+		checks["unreachable_plural_case"] = qaCheckSetting{Enabled: true, Severity: "warning"}
 	}
 	if _, ok := checks["guideline"]; !ok {
 		checks["guideline"] = qaCheckSetting{Enabled: false, Severity: "warning"}
@@ -218,7 +218,7 @@ var qaPolicyCheckTypes = map[string]struct{}{
 
 func validQaPolicy(checks map[string]qaCheckSetting) bool {
 	if _, ok := checks["unreachable_plural_case"]; !ok {
-		checks["unreachable_plural_case"] = qaCheckSetting{Enabled: true, Severity: "error"}
+		checks["unreachable_plural_case"] = qaCheckSetting{Enabled: true, Severity: "warning"}
 	}
 	if _, ok := checks["guideline"]; !ok {
 		checks["guideline"] = qaCheckSetting{Enabled: false, Severity: "warning"}
