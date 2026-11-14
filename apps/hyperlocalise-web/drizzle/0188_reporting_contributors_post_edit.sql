@@ -26,4 +26,5 @@ ALTER TABLE "reporting_rates" ADD COLUMN "pricing" text DEFAULT 'memory_match' N
 ALTER TABLE "reporting_daily_by_person" ADD CONSTRAINT "reporting_daily_by_person_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reporting_daily_by_person" ADD CONSTRAINT "reporting_daily_by_person_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "reporting_daily_by_person_project" ON "reporting_daily_by_person" USING btree ("organization_id","project_id","day");--> statement-breakpoint
-CREATE INDEX "reporting_daily_by_person_actor" ON "reporting_daily_by_person" USING btree ("organization_id","actor_user_id","day");
+CREATE INDEX "reporting_daily_by_person_actor" ON "reporting_daily_by_person" USING btree ("organization_id","actor_user_id","day");--> statement-breakpoint
+CREATE INDEX "reporting_daily_by_person_job" ON "reporting_daily_by_person" USING btree ("organization_id","job_id");

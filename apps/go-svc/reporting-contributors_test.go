@@ -122,6 +122,22 @@ func TestReportingContributorsCSV(t *testing.T) {
 	require.Equal(t, `"Removed member","de-DE","10","0","0","0","10","0","0","0","10","0","0.00000000","0"`, lines[3])
 }
 
+func TestReportingContributorsIncludeLanguagesFromLoggedTime(t *testing.T) {
+	f, grace, _ := seedReportingContributors(t)
+	f.exec(`insert into reporting_time_entries (organization_id, project_id, contributor_id, step, target_locale, work_date, minutes)
+        values ($1, $2, $3, 'translation', 'ja-JP', '2026-06-07', 10)`,
+		f.scope.OrganizationID, f.scope.ProjectID, grace)
+	report := reportingReadJSON(t, f.scope, "admin", "/reports/contributors?from=2026-06-01&to=2026-06-30")["contributors"].(map[string]any)
+	var languages []any
+	for _, row := range report["rows"].([]any) {
+		item := row.(map[string]any)
+		if item["userId"] == grace {
+			languages = item["languages"].([]any)
+		}
+	}
+	require.Equal(t, []any{"de-DE", "ja-JP"}, languages, "time logged on a language with no finished words still names it")
+}
+
 func TestReportingContributorsIsAnInternalReportKind(t *testing.T) {
 	f, _, _ := seedReportingContributors(t)
 	t.Setenv("WORKOS_COOKIE_PASSWORD", "test")

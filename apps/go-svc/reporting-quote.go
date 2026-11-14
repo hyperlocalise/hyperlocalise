@@ -76,6 +76,12 @@ func reportingQuoteXLSX(estimate reportingCostEstimate, details reportingQuoteDe
 	if err != nil {
 		return reportingFile{}, err
 	}
+	// Per-word rates are often three or more decimals (0.008); two-decimal money would show 0.01.
+	rateFmt := "#,##0.00########"
+	rateStyle, err := f.NewStyle(&excelize.Style{CustomNumFmt: &rateFmt})
+	if err != nil {
+		return reportingFile{}, err
+	}
 	sheet := reportingQuoteSheet
 	row := 1
 	set := func(column int, value any, style int) error {
@@ -84,10 +90,11 @@ func reportingQuoteXLSX(estimate reportingCostEstimate, details reportingQuoteDe
 			return err
 		}
 		if text, ok := value.(string); ok {
-			// Text a spreadsheet would run as a formula is kept as text, as the CSVs do.
-			value = reportingSpreadsheetText(text)
-		}
-		if err := f.SetCellValue(sheet, cell, value); err != nil {
+			// Shared-string cells keep "=Globex" as text; a CSV-style apostrophe would show.
+			if err := f.SetCellStr(sheet, cell, text); err != nil {
+				return err
+			}
+		} else if err := f.SetCellValue(sheet, cell, value); err != nil {
 			return err
 		}
 		if style != 0 {
@@ -158,8 +165,14 @@ func reportingQuoteXLSX(estimate reportingCostEstimate, details reportingQuoteDe
 		for i, value := range cells {
 			style := 0
 			switch {
-			case i == 4 || i == amountColumn-1:
+			case i == 4:
+				style = rateStyle
+			case i == amountColumn-1:
 				style = money
+			case i == amountColumn-2:
+				if _, ok := value.(float64); ok {
+					style = money
+				}
 			case i >= 5:
 				style = count
 			}
@@ -208,14 +221,6 @@ func reportingQuoteXLSX(estimate reportingCostEstimate, details reportingQuoteDe
 	return reportingFile{filename: "quote-" + details.issued + ".xlsx", contentType: reportingXLSXContentType, body: out.Bytes()}, nil
 }
 
-// reportingSpreadsheetText disarms text a spreadsheet would run as a formula.
-func reportingSpreadsheetText(text string) string {
-	if text != "" && slices.Contains([]byte("=+@-\t\r"), text[0]) && !reportingNegativeNumber.MatchString(text) {
-		return "'" + text
-	}
-	return text
-}
-
 // reportingQuoteNumber is an amount as a number, or empty when there is none.
 func reportingQuoteNumber(value *string) any {
 	if value == nil || *value == "" {
@@ -262,6 +267,11 @@ func reportingQuoteNotes(estimate reportingCostEstimate) []string {
 	}
 	if slices.ContainsFunc(estimate.Rows, func(row reportingCostEstimateRow) bool { return row.Unestimated }) {
 		notes = append(notes, "Some hourly work has no time estimate and is not in the total.")
+	}
+	if slices.ContainsFunc(estimate.Rows, func(row reportingCostEstimateRow) bool {
+		return reportingOptional(row.RatePricing) == "post_edit"
+	}) {
+		notes = append(notes, "Lines set to post-edit pricing are estimated from memory match; pay is by how much the text changes.")
 	}
 	if estimate.Totals.Incomplete && len(notes) == 0 {
 		notes = append(notes, "This quote is not exact: some work has no rate, time estimate or match band.")

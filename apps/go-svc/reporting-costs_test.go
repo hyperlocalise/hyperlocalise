@@ -149,6 +149,7 @@ func TestReportingEstimatePricesEachLineInItsOwnBasisAndDiscountsMatchBands(t *t
 	rows := estimateRows(e)
 	french := rows["fr-FR/translation"]
 	require.Equal(t, "rate", french["pricing"])
+	require.Equal(t, "memory_match", french["ratePricing"])
 	require.Equal(t, "word", french["basis"])
 	require.Equal(t, map[string]any{"new": float64(100), "100": float64(50), "unavailable": float64(10)}, french["bands"])
 	require.Equal(t, float64(160), french["units"])
@@ -162,6 +163,7 @@ func TestReportingEstimatePricesEachLineInItsOwnBasisAndDiscountsMatchBands(t *t
 	require.Equal(t, "6.00000000", japanese["costUsd"])
 	korean := rows["ko-KR/translation"]
 	require.Equal(t, "none", korean["pricing"])
+	require.Nil(t, korean["ratePricing"])
 	require.Nil(t, korean["rate"])
 	require.Nil(t, korean["weighted"])
 	require.Nil(t, korean["costUsd"])
@@ -180,6 +182,20 @@ func TestReportingEstimatePricesEachLineInItsOwnBasisAndDiscountsMatchBands(t *t
 	inCharacters := estimate(t, f.scope, "jobIds="+job+"&rateCard=Standard&unit=characters")
 	require.Equal(t, "18.00000000", inCharacters["totals"].(map[string]any)["costUsd"])
 	require.Equal(t, float64(300), estimateRows(inCharacters)["ja-JP/translation"]["units"])
+}
+
+func TestReportingCostEstimateNamesPostEditPricing(t *testing.T) {
+	f := seedReportingMoney(t)
+	f.card("Standard", "2026-03-01T00:00:00Z", line("fr-FR", "0.1", "word", `{"new": 100}`))
+	f.exec(`update reporting_rates set pricing = 'post_edit' where organization_id = $1 and name = 'Standard'`, f.scope.OrganizationID)
+	f.budget(f.scope.ProjectID, "1000", some("Standard"))
+	job := f.job("job_post_edit_est", f.scope.ProjectID, "running", true, "")
+	mustReportingSummary(t, f.scope, []reportingSummaryRow{
+		{jobID: job, targetLocale: "fr-FR", bucket: "new", day: "2026-06-01", arrived: 100},
+	})
+	french := estimateRows(estimate(t, f.scope, "jobIds="+job+"&rateCard=Standard"))["fr-FR/translation"]
+	require.Equal(t, "rate", french["pricing"])
+	require.Equal(t, "post_edit", french["ratePricing"])
 }
 
 func TestReportingEstimateUsesTheTasksCardThenTheBudgetsThenTheChosen(t *testing.T) {

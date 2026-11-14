@@ -126,13 +126,23 @@ export async function textOrigins(
     ) given on true
     order by s.position
   `);
-  return result.rows.map((row) => ({
-    ...sourceOfOrigin(row.origin),
-    postEditScore:
-      row.givenText !== null && row.savedText !== null
-        ? postEditScore(row.givenText, row.savedText)
-        : null,
-  }));
+  return result.rows.map((row) => textOriginOf(row));
+}
+
+/** What a save records: the given text's source if they kept it, else their own work. */
+export function textOriginOf(row: {
+  origin: TranslationOrigin | null;
+  savedText: string | null;
+  givenText: string | null;
+}): TextOrigin {
+  const origin = sourceOfOrigin(row.origin);
+  const comparable = row.givenText !== null && row.savedText !== null;
+  return {
+    source: origin.source,
+    // An approval of someone else's text as given has origin "human" and still kept it.
+    unchanged: comparable ? row.givenText === row.savedText : origin.unchanged,
+    postEditScore: comparable ? postEditScore(row.givenText, row.savedText) : null,
+  };
 }
 
 /** What a saved version's origin says the person was given, and whether they kept it. */

@@ -357,5 +357,10 @@ describe("postEditScore", () => {
   it("does not score texts too long to compare", () => {
     expect(postEditScore("a".repeat(20_001), "b")).toBeNull();
     expect(postEditScore("a".repeat(20_001), "a".repeat(20_001))).toBe(100);
+    expect(postEditScore("a".repeat(2_000), "b".repeat(2_000))).toBeNull();
+    // Shared start and end shrink the table: a long text with a small edit is still scored.
+    const prefix = "a".repeat(1_500);
+    const suffix = "b".repeat(1_500);
+    expect(postEditScore(prefix + "x" + suffix, prefix + "y" + suffix)).toBe(99);
   });
 });

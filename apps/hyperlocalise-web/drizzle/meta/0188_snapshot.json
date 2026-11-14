@@ -38998,6 +38998,27 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "reporting_daily_by_person_job": {
+          "name": "reporting_daily_by_person_job",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {

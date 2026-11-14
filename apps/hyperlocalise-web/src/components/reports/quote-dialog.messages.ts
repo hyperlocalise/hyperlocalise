@@ -137,4 +137,31 @@ export const quoteDialogMessages = defineMessages({
       "Some work has no rate, time estimate or match band, so this total is not exact.",
     description: "Printed quote note when the estimate is incomplete",
   },
+  noRate: {
+    id: "0xSyRfkQnM",
+    defaultMessage: "No rate",
+    description: "Printed quote: shown instead of a rate when the language has none",
+  },
+  unpricedNote: {
+    id: "1aQmXb3e8l",
+    defaultMessage: "{count} units have no rate and are not in the total.",
+    description: "Printed quote note when some units have no rate",
+  },
+  unavailableNote: {
+    id: "zK8wdNY9ug",
+    defaultMessage:
+      "{count} units could not be matched against translation memory and are priced as new work.",
+    description: "Printed quote note when some units had no memory match",
+  },
+  unestimatedNote: {
+    id: "MTdu3wkxG7",
+    defaultMessage: "Some hourly work has no time estimate and is not in the total.",
+    description: "Printed quote note when an hourly line has no time estimate",
+  },
+  postEditNote: {
+    id: "+mf+eK5IV5",
+    defaultMessage:
+      "Lines set to post-edit pricing are estimated from memory match; pay is by how much the text changes.",
+    description: "Printed quote note when a rate line pays by post-edit band",
+  },
 });

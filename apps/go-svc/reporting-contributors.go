@@ -225,19 +225,23 @@ func readReportingContributorMinutes(ctx context.Context, db dictionaryDB, in re
 		where += " and e.contributor_id = " + args.add(in.contributorID)
 	}
 	rows, err := db.Query(ctx, `
-        select e.contributor_id::text, sum(e.minutes)::float8
-        from reporting_time_entries e where `+where+` group by 1`, args...)
+        select e.contributor_id::text, e.target_locale, sum(e.minutes)::float8
+        from reporting_time_entries e where `+where+` group by 1, 2`, args...)
 	if err != nil {
 		return fmt.Errorf("read contributor time: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var userID string
+		var userID, targetLocale string
 		var minutes float64
-		if err := rows.Scan(&userID, &minutes); err != nil {
+		if err := rows.Scan(&userID, &targetLocale, &minutes); err != nil {
 			return fmt.Errorf("scan contributor time: %w", err)
 		}
-		row(userID).Minutes += minutes
+		r := row(userID)
+		r.Minutes += minutes
+		if targetLocale != "" && !slices.Contains(r.Languages, targetLocale) {
+			r.Languages = append(r.Languages, targetLocale)
+		}
 	}
 	return rows.Err()
 }

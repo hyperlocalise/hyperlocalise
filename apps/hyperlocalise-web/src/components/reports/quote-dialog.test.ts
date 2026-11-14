@@ -37,6 +37,22 @@ describe("quoteDocument", () => {
     expect(html).toContain(total);
     for (const fee of reportsCostEstimate.fixedFees)
       expect(html).toContain(`Fixed fee: ${fee.jobTitle}`);
+    expect(html).toContain("fr-FR");
+    expect(html).toContain("No rate");
+    expect(html).toContain("8,270 units have no rate and are not in the total.");
+  });
+
+  it("notes when a line is estimated from memory match for post-edit pay", () => {
+    const html = quoteDocument(
+      intl,
+      {
+        ...reportsCostEstimate,
+        rows: [{ ...reportsCostEstimate.rows[0], ratePricing: "post_edit" }],
+        totals: { ...reportsCostEstimate.totals, unpricedUnits: 0, incomplete: false },
+      },
+      { client: "Globex", reference: "PO-77", validDays: 14, issued: "2026-10-21" },
+    );
+    expect(html).toContain("Lines set to post-edit pricing are estimated from memory match");
   });
 
   it("leaves out empty details and never lets them become markup", () => {

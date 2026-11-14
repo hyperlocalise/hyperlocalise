@@ -202,17 +202,22 @@ export function quoteDocument(intl: IntlShape, estimate: CostEstimate, quote: Qu
     [t(messages.dateLabel), day(quote.issued)],
     [t(messages.validUntilLabel), day(addDays(quote.issued, quote.validDays))],
   ].filter((fact): fact is string[] => fact !== null);
-  const lines = estimate.rows
-    .filter((row) => row.pricing === "rate")
-    .map(
-      (row) => `<tr>
+  const lines = estimate.rows.map((row) => {
+    const rate =
+      row.pricing === "none"
+        ? t(messages.noRate)
+        : row.rate
+          ? escapeHtml(formatRateAmount(intl, row.rate))
+          : "";
+    const amount = row.pricing === "none" ? "" : escapeHtml(formatUsd(intl, row.costUsd));
+    return `<tr>
         <td>${escapeHtml(row.targetLocale)}</td>
         <td>${escapeHtml(stepLabel(intl, row.step))}</td>
         <td class="n">${escapeHtml(formatCount(intl, row.units))}</td>
-        <td class="n">${row.rate ? escapeHtml(formatRateAmount(intl, row.rate)) : ""}</td>
-        <td class="n">${escapeHtml(formatUsd(intl, row.costUsd))}</td>
-      </tr>`,
-    );
+        <td class="n">${rate}</td>
+        <td class="n">${amount}</td>
+      </tr>`;
+  });
   const fees = estimate.fixedFees.map(
     (fee) => `<tr>
       <td colspan="2">${t(messages.fixedFee, { task: fee.jobTitle })}</td>
@@ -256,7 +261,38 @@ export function quoteDocument(intl: IntlShape, estimate: CostEstimate, quote: Qu
     <td class="n">${escapeHtml(formatUsd(intl, estimate.totals.costUsd))}</td>
   </tr></tfoot>
 </table>
-${estimate.totals.incomplete ? `<p class="note">${t(messages.notExact)}</p>` : ""}
+${quoteNotes(intl, estimate)
+  .map((note) => `<p class="note">${note}</p>`)
+  .join("")}
 </body>
 </html>`;
+}
+
+/** What the printed quote leaves out or estimates, matching the Excel notes. */
+export function quoteNotes(intl: IntlShape, estimate: CostEstimate): string[] {
+  const notes: string[] = [];
+  if (estimate.totals.unpricedUnits > 0) {
+    notes.push(
+      intl.formatMessage(messages.unpricedNote, {
+        count: formatCount(intl, estimate.totals.unpricedUnits),
+      }),
+    );
+  }
+  if (estimate.totals.unavailableUnits > 0) {
+    notes.push(
+      intl.formatMessage(messages.unavailableNote, {
+        count: formatCount(intl, estimate.totals.unavailableUnits),
+      }),
+    );
+  }
+  if (estimate.rows.some((row) => row.unestimated)) {
+    notes.push(intl.formatMessage(messages.unestimatedNote));
+  }
+  if (estimate.rows.some((row) => row.ratePricing === "post_edit")) {
+    notes.push(intl.formatMessage(messages.postEditNote));
+  }
+  if (estimate.totals.incomplete && notes.length === 0) {
+    notes.push(intl.formatMessage(messages.notExact));
+  }
+  return notes.map(escapeHtml);
 }

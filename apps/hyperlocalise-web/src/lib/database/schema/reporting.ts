@@ -372,6 +372,7 @@ export const reportingDailyByPerson = pgTable(
   (t) => [
     index("reporting_daily_by_person_project").on(t.organizationId, t.projectId, t.day),
     index("reporting_daily_by_person_actor").on(t.organizationId, t.actorUserId, t.day),
+    index("reporting_daily_by_person_job").on(t.organizationId, t.jobId),
   ],
 );
 /**

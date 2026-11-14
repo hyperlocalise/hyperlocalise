@@ -141,7 +141,7 @@ export function CostEstimateTab({
           <Button
             variant="outline"
             size="sm"
-            disabled={!estimate.data}
+            disabled={!estimate.data || estimate.isPlaceholderData}
             onClick={() => setQuoting(true)}
           >
             {intl.formatMessage(quoteMessages.openQuote)}
@@ -155,7 +155,7 @@ export function CostEstimateTab({
         <QuoteDialog
           organizationSlug={input.organizationSlug}
           query={costEstimateQuery(estimateInput)}
-          estimate={estimate.data}
+          estimate={estimate.isPlaceholderData ? undefined : estimate.data}
           today={input.today}
           onClose={() => setQuoting(false)}
         />
@@ -379,6 +379,9 @@ function EstimateBody({
         ) : null}
         {totals.uncounted > 0 ? (
           <p>{intl.formatMessage(messages.uncountedNote, { count: totals.uncounted })}</p>
+        ) : null}
+        {data.rows.some((row) => row.ratePricing === "post_edit") ? (
+          <p>{intl.formatMessage(messages.postEditNote)}</p>
         ) : null}
         <p>{intl.formatMessage(messages.pricingOrder)}</p>
       </div>

@@ -1018,6 +1018,71 @@ describe("reporting capture", () => {
     expect(costOf("scratch")).toBe("2.00000000");
   });
 
+  it("reprices a person's later save of the same string", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    await db.insert(schema.reportingBudgets).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      budget: "1000.00000000",
+      rateCardName: "Post-edit",
+    });
+    await db.insert(schema.reportingRates).values({
+      organizationId: organization.id,
+      name: "Post-edit",
+      sourceLocale: "en",
+      targetLocale: "fr-FR",
+      step: "translation",
+      basis: "word",
+      pricing: "post_edit",
+      rate: "1.00000000",
+      percentages: { "95-99": 30, new: 100 },
+    });
+    const sourceEntries = { greeting: "Hello world" };
+    const scope = {
+      organizationId: organization.id,
+      targetLocale: "fr-FR",
+      sourceEntries,
+      provenance: "human" as const,
+      actorUserId: user.id,
+    };
+    await captureAnalysis({
+      ...scope,
+      projectId: project.id,
+      sourceLocale: "en",
+      billable: true,
+    });
+    await captureCompletions({
+      ...scope,
+      postEditScores: { greeting: 97 },
+      occurredAt: { greeting: new Date("2026-06-02T10:00:00Z") },
+    });
+    await captureCompletions({
+      ...scope,
+      postEditScores: { greeting: 50 },
+      occurredAt: { greeting: new Date("2026-06-03T10:00:00Z") },
+    });
+
+    const [completion] = await db
+      .select({
+        postEditScore: schema.reportingActivity.postEditScore,
+        postEditBucket: schema.reportingActivity.postEditBucket,
+      })
+      .from(schema.reportingActivity)
+      .where(eq(schema.reportingActivity.organizationId, organization.id));
+    expect(completion).toEqual({ postEditScore: 50, postEditBucket: "50-74" });
+    const [cost] = await db
+      .select({ amountUsd: schema.reportingCosts.amountUsd })
+      .from(schema.reportingCosts)
+      .where(
+        and(
+          eq(schema.reportingCosts.organizationId, organization.id),
+          eq(schema.reportingCosts.kind, "human"),
+        ),
+      );
+    // Two words, 50-74 has no share so it is paid in full, replacing the earlier 30% light-edit price.
+    expect(cost?.amountUsd).toBe("2.00000000");
+  });
+
   describe("pricing finished work", () => {
     const WORDS = "Hello world";
     const humanCosts = (organizationId: string) =>

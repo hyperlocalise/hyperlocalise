@@ -48,6 +48,8 @@ type reportingPricedGroup struct {
 	Basis        *string         `json:"basis"`
 	Rate         *string         `json:"rate"`
 	Percentages  json.RawMessage `json:"percentages"`
+	// memory_match or post_edit when priced by a rate line; null for fixed fees and no rate.
+	RatePricing *string `json:"ratePricing"`
 	// In the unit the page shows.
 	Units float64 `json:"units"`
 	// In the rate line's basis; 0 for hourly lines and unpriced or fixed-fee work.
@@ -162,7 +164,7 @@ func queryReportingPricedUnits(ctx context.Context, db dictionaryDB, in reportin
         with live as (%[1]s),
         task_lines as (
             select distinct on (t.job_id, t.step, r.source_locale, r.target_locale)
-                t.job_id, t.step, r.source_locale, r.target_locale, r.id, r.basis, r.rate, r.percentages, r.retired
+                t.job_id, t.step, r.source_locale, r.target_locale, r.id, r.basis, r.pricing, r.rate, r.percentages, r.retired
             from reporting_task_rates t
             join reporting_rates r on r.organization_id = t.organization_id
                 and r.name = t.rate_card_name and r.step = t.step and r.created_at <= t.priced_at
@@ -187,7 +189,8 @@ func queryReportingPricedUnits(ctx context.Context, db dictionaryDB, in reportin
                 coalesce(t.rate_card_name, b.rate_card_name, %[13]s) as card,
                 case when t.rate_card_name is not null then tr.basis else l.basis end as basis,
                 case when t.rate_card_name is not null then tr.rate else l.rate end as rate,
-                case when t.rate_card_name is not null then tr.percentages else l.percentages end as percentages
+                case when t.rate_card_name is not null then tr.percentages else l.percentages end as percentages,
+                case when t.rate_card_name is not null then tr.pricing else l.pricing end as rate_pricing
             from units u
             left join reporting_task_rates t on t.organization_id = %[2]s and t.job_id = u.job_id and t.step = u.step
             left join task_lines tr on t.rate_card_name is not null and not tr.retired
@@ -208,13 +211,14 @@ func queryReportingPricedUnits(ctx context.Context, db dictionaryDB, in reportin
                     case when fixed then null else basis end as basis,
                     case when fixed then null else rate::text end as rate,
                     case when fixed then null else percentages end as percentages,
+                    case when fixed then null else rate_pricing end as "ratePricing",
                     sum(shown)::float8 as units,
                     sum(case when fixed then 0 when basis = 'word' then words
                         when basis = 'character' then characters
                         when basis = 'character_with_spaces' then characters_with_spaces else 0 end)::float8 as "basisUnits",
                     sum(uncounted)::float8 as uncounted
                 from resolved where %[14]s
-                group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+                group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
                 having sum(strings) > 0 or sum(uncounted) > 0
             ) g) as groups,
             (select coalesce(json_agg(h), '[]') from (
@@ -340,13 +344,16 @@ type reportingCostEstimateRow struct {
 	// Which cards priced the row, in pricing order; empty when no card applies.
 	PricedBy []string `json:"pricedBy"`
 	// The card that priced the row, or that has no rate for its language.
-	RateCardName *string            `json:"rateCardName"`
-	RateID       *string            `json:"rateId"`
-	Basis        *string            `json:"basis"`
-	Rate         *string            `json:"rate"`
-	Percentages  json.RawMessage    `json:"percentages"`
-	Bands        map[string]float64 `json:"bands"`
-	Units        float64            `json:"units"`
+	RateCardName *string         `json:"rateCardName"`
+	RateID       *string         `json:"rateId"`
+	Basis        *string         `json:"basis"`
+	Rate         *string         `json:"rate"`
+	Percentages  json.RawMessage `json:"percentages"`
+	// memory_match or post_edit when priced by a rate line. Estimates still apply the
+	// shares to memory bands; actual pay for a post_edit line is by the edit.
+	RatePricing *string            `json:"ratePricing"`
+	Bands       map[string]float64 `json:"bands"`
+	Units       float64            `json:"units"`
 	// In the rate line's basis, after its band percentages. Null for hourly lines and no rate.
 	Weighted *float64 `json:"weighted"`
 	// Null when nothing in the row could be priced.
@@ -459,7 +466,7 @@ func queryReportingCostEstimate(ctx context.Context, db dictionaryDB, scope repo
 			row = &reportingCostEstimateRow{
 				TargetLocale: group.TargetLocale, Step: group.Step, Pricing: group.Pricing, PricedBy: []string{},
 				RateCardName: group.RateCardName, RateID: group.RateID, Basis: group.Basis, Rate: group.Rate,
-				Percentages: group.Percentages, Bands: map[string]float64{},
+				Percentages: group.Percentages, RatePricing: group.RatePricing, Bands: map[string]float64{},
 			}
 			if group.Pricing == "rate" && reportingOptional(group.Basis) != "hour" {
 				row.Weighted = new(float64)

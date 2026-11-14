@@ -298,6 +298,8 @@ export type CostEstimateRow = {
   basis: RateBasis | null;
   rate: string | null;
   percentages: BandCounts | null;
+  /** How the rate line's shares apply; estimates still use memory bands. */
+  ratePricing: RatePricing | null;
   bands: BandCounts;
   units: number;
   weighted: number | null;

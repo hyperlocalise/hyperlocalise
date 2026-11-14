@@ -31,6 +31,8 @@ export function sourceSimilarity(left: string, right: string): number {
 
 /** Texts longer than this are not scored for post-editing: the edit distance is quadratic. */
 const POST_EDIT_MAX_LENGTH = 20_000;
+/** After trimming a shared start and end, skip scoring when the remaining matrix is this large. */
+const POST_EDIT_MAX_CELLS = 1_000_000;
 
 /**
  * How close a person's saved text is to the text they were given, on the scale memory matches
@@ -42,7 +44,22 @@ export function postEditScore(given: string, saved: string): number | null {
   const a = codePoints(given);
   const b = codePoints(saved);
   if (a.length > POST_EDIT_MAX_LENGTH || b.length > POST_EDIT_MAX_LENGTH) return null;
+  // Shared start and end do not fill the table: skip only when the remaining matrix is too large.
+  if (trimmedEditCells(a, b) > POST_EDIT_MAX_CELLS) return null;
   return Math.min(99, similarityIfAbove(a, b, LOWEST_BAND_SCORE - 1));
+}
+
+/** How many cells the edit-distance table needs after a shared start and end are trimmed. */
+function trimmedEditCells(a: Int32Array, b: Int32Array): number {
+  let start = 0;
+  while (start < a.length && start < b.length && a[start] === b[start]) start++;
+  let aEnd = a.length;
+  let bEnd = b.length;
+  while (aEnd > start && bEnd > start && a[aEnd - 1] === b[bEnd - 1]) {
+    aEnd--;
+    bEnd--;
+  }
+  return (aEnd - start) * (bEnd - start);
 }
 
 /** The score `sourceSimilarity` gives an edit distance when the longer text has `longest` characters. */
