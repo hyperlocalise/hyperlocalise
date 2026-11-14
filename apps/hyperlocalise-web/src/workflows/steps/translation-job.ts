@@ -501,6 +501,7 @@ export async function loadProjectTranslationsAsPrefilledEntriesStep(input: {
   projectId: string;
   sourcePath: string;
   targetLocale: string;
+  jobId?: string;
 }) {
   "use step";
   const { loadProjectTranslationsAsPrefilledEntries } =

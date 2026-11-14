@@ -99,6 +99,66 @@ describe("enqueueFileTranslationFollowUpStep", () => {
         }),
       }),
     );
+    expect(enqueueFileTranslationJobMock.mock.calls[0]?.[0]).not.toHaveProperty("branchName");
+  });
+
+  it("binds leftover-locale follow-up jobs to the parent job's version branch", async () => {
+    selectLimitMock.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        createdByUserId: "user_1",
+        apiKeyId: null,
+        ownerUserId: null,
+        assigneeType: null,
+        inputPayload: { branch: "feature-checkout" },
+      },
+    ]);
+    enqueueFileTranslationJobMock.mockResolvedValue({ ok: true, jobId: "job_followup" });
+
+    await expect(
+      enqueueFileTranslationFollowUpStep({
+        organizationId: "org_1",
+        parentJobId: "job_parent",
+        projectId: "project_1",
+        sourceFileId: "file_1",
+        fileFormat: "json",
+        sourceLocale: "en-US",
+        targetLocales: ["ja-JP"],
+      }),
+    ).resolves.toEqual({ jobId: "job_followup" });
+
+    expect(enqueueFileTranslationJobMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        branchName: "feature-checkout",
+      }),
+    );
+  });
+
+  it("keeps the workflow-supplied branch when the parent payload has none", async () => {
+    selectLimitMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { createdByUserId: "user_1", apiKeyId: null, ownerUserId: null, assigneeType: null },
+      ]);
+    enqueueFileTranslationJobMock.mockResolvedValue({ ok: true, jobId: "job_followup" });
+
+    await expect(
+      enqueueFileTranslationFollowUpStep({
+        organizationId: "org_1",
+        parentJobId: "job_parent",
+        projectId: "project_1",
+        sourceFileId: "file_1",
+        fileFormat: "json",
+        sourceLocale: "en-US",
+        targetLocales: ["ja-JP"],
+        branchName: "release",
+      }),
+    ).resolves.toEqual({ jobId: "job_followup" });
+
+    expect(enqueueFileTranslationJobMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        branchName: "release",
+      }),
+    );
   });
 
   it("copies an agent assignee from a parent with no human owner", async () => {

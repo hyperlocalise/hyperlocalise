@@ -778,6 +778,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           targetLocales: string[];
           metadata?: Record<string, string>;
           ignoreTranslationMemory?: boolean;
+          branch?: string;
         })
       : null;
 
@@ -1047,6 +1048,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         targetLocales: locales,
         metadata: parsedInput.metadata,
         ignoreTranslationMemory: parsedInput.ignoreTranslationMemory,
+        branchName: parsedInput.branch,
       });
       followUpJobId = followUp?.jobId ?? null;
     } catch {
@@ -1224,6 +1226,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
                 projectId: claim.job.projectId,
                 sourcePath: repositorySourcePath,
                 targetLocale,
+                jobId: claim.job.id,
               });
               existingPrefilled = projectPrefill.prefilled;
               retryKeys = projectPrefill.retryKeys;
