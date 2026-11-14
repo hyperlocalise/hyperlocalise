@@ -57,6 +57,7 @@ func fetchLatestVersion(ctx context.Context) (*semver.Version, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create latest release request: %w", err)
 	}
+	req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

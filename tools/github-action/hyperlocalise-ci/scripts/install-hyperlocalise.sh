@@ -15,7 +15,7 @@ resolve_version() {
   fi
 
   local latest_release_json
-  local curl_opts=("-fsSL")
+  local curl_opts=("-fsSL" "-H" "X-GitHub-Api-Version: 2026-03-10")
   if [[ -n "${GITHUB_TOKEN:-}" ]]; then
     curl_opts+=("-H" "Authorization: Bearer ${GITHUB_TOKEN}")
   fi
