@@ -18,6 +18,7 @@ import {
   applyEditorQaPolicy,
   applyQaPolicy,
   DEFAULT_QA_POLICY,
+  resolveQaPolicy,
   type QaCheckPolicy,
 } from "./qa-policy";
 import type { TranslationQaCheck } from "./types";
@@ -40,6 +41,21 @@ const editorCheck = (
   status: "fail",
   message: "issue",
   ...overrides,
+});
+
+describe("resolveQaPolicy", () => {
+  it("fills missing checks from the default policy", () => {
+    expect(resolveQaPolicy(null).unreachable_plural_case).toEqual({
+      enabled: true,
+      severity: "warning",
+    });
+    expect(
+      resolveQaPolicy({
+        unreachable_plural_case: { enabled: true, severity: "error" },
+      }).unreachable_plural_case,
+    ).toEqual({ enabled: true, severity: "error" });
+    expect(resolveQaPolicy({}).length).toEqual(DEFAULT_QA_POLICY.length);
+  });
 });
 
 describe("applyQaPolicy", () => {
@@ -72,6 +88,28 @@ describe("applyQaPolicy", () => {
     expect(applyQaPolicy(checks, DEFAULT_QA_POLICY)).toEqual([
       expect.objectContaining({ checkType: "length", severity: "error" }),
     ]);
+  });
+
+  it("escalates unreachable plural findings when the project stores them as errors", () => {
+    const policy: QaCheckPolicy = {
+      ...DEFAULT_QA_POLICY,
+      unreachable_plural_case: { enabled: true, severity: "error" },
+    };
+
+    expect(
+      applyQaPolicy([scanCheck("unreachable_plural_case", { severity: "warning" })], policy),
+    ).toEqual([
+      expect.objectContaining({
+        checkType: "unreachable_plural_case",
+        severity: "error",
+      }),
+    ]);
+    expect(
+      applyQaPolicy([scanCheck("unreachable_plural_case")], {
+        ...policy,
+        unreachable_plural_case: { enabled: false, severity: "error" },
+      }),
+    ).toEqual([]);
   });
 });
 
@@ -188,5 +226,36 @@ describe("applyEditorQaPolicy", () => {
       expect.objectContaining({ id: "length", status: "pass" }),
       expect.objectContaining({ id: "custom-qa-row", status: "fail" }),
     ]);
+  });
+
+  it("maps qa-unreachable-plural-case so a stored error blocks save", () => {
+    const warnPolicy: QaCheckPolicy = {
+      ...DEFAULT_QA_POLICY,
+      unreachable_plural_case: { enabled: true, severity: "warning" },
+    };
+    const errorPolicy: QaCheckPolicy = {
+      ...DEFAULT_QA_POLICY,
+      unreachable_plural_case: { enabled: true, severity: "error" },
+    };
+    const liveCheck = editorCheck({
+      id: "qa-unreachable-plural-case",
+      label: "Plural cases",
+      category: "qa",
+      status: "warn",
+      message: 'Locale vi never selects plural case "one".',
+    });
+
+    expect(applyEditorQaPolicy([liveCheck], warnPolicy)).toEqual([
+      expect.objectContaining({ id: "qa-unreachable-plural-case", status: "warn" }),
+    ]);
+    expect(applyEditorQaPolicy([liveCheck], errorPolicy)).toEqual([
+      expect.objectContaining({ id: "qa-unreachable-plural-case", status: "fail" }),
+    ]);
+    expect(
+      applyEditorQaPolicy([liveCheck], {
+        ...errorPolicy,
+        unreachable_plural_case: { enabled: false, severity: "error" },
+      }),
+    ).toEqual([]);
   });
 });

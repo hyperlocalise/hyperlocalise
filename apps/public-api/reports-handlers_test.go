@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -104,6 +105,12 @@ func TestReportsPassTheCSVDownloadOn(t *testing.T) {
 	require.Equal(t, "csv", reports.calls[0].format)
 	require.Equal(t, "csv", reports.calls[1].format)
 	require.NotContains(t, reports.calls[0].query, "format")
+
+	jsonDefault := &stubReports{answer: reportAnswer{status: 200, body: []byte(`{"kind":"activity"}`)}}
+	rec := sendReport(t, reportsTestHandler(jsonDefault, "reports:read"), "/v1/reports/activity")
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	require.JSONEq(t, `{"kind":"activity"}`, rec.Body.String())
 }
 
 func TestReportsNeedTheScopeAndAValidQuery(t *testing.T) {
@@ -118,6 +125,21 @@ func TestReportsNeedTheScopeAndAValidQuery(t *testing.T) {
 		"/v1/reports/activity?format=xml",
 		"/v1/reports/activity?unit=" + strings.Repeat("x", reportsQueryMaxValueLen+1),
 		"/v1/jobs/job_1/report?jobId=job_2",
+	} {
+		rec := sendReport(t, h, path)
+		require.Equal(t, http.StatusBadRequest, rec.Code, path)
+		require.Equal(t, "invalid_query", errorCode(t, rec), path)
+	}
+	require.Empty(t, reports.calls)
+
+	tooMany := make([]string, reportsQueryMaxKeys+1)
+	for i := range tooMany {
+		tooMany[i] = fmt.Sprintf("k%d=1", i)
+	}
+	for _, path := range []string{
+		"/v1/reports/activity?" + strings.Join(tooMany, "&"),
+		"/v1/reports/activity?=value",
+		"/v1/reports/activity?" + strings.Repeat("k", reportsQueryMaxKeyLen+1) + "=1",
 	} {
 		rec := sendReport(t, h, path)
 		require.Equal(t, http.StatusBadRequest, rec.Code, path)

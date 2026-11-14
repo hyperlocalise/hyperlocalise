@@ -112,6 +112,26 @@ func TestReportingContributorsShowOtherRolesOnlyTheirOwnWorkWithoutMoney(t *test
 	rows := report["rows"].([]any)
 	require.Equal(t, [][]any{{f.scope.UserID, float64(170), nil}}, rowValues(rows, "userId", "finished", "spentUsd"))
 	require.Nil(t, report["totals"].(map[string]any)["spentUsd"])
+
+	lines := reportingReadCSV(t, f.scope, "translator", "/reports/contributors?from=2026-06-01&to=2026-06-30&format=csv")
+	require.Contains(t, lines[0], `"Minutes logged"`)
+	require.NotContains(t, lines[0], "Spent")
+	require.NotContains(t, lines[0], "Unpriced")
+}
+
+func TestReportingInternalContributorsStillRequireBillingAccess(t *testing.T) {
+	f, _, _ := seedReportingContributors(t)
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test")
+	payload := `{"organizationId": "` + f.scope.OrganizationID + `", "userId": "` + f.scope.UserID + `", "query": {"from": "2026-06-01", "to": "2026-06-30"}}`
+
+	translator := reportingTestAPI(f.scope, "translator")
+	rec := reportingRequest(t, translator, f.scope.WorkOSUserID, http.MethodPost, "/internal/reports/contributors", payload)
+	require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "report_forbidden")
+
+	status, body := reportingSend(t, f.scope, "translator", http.MethodGet, "/reports/contributors?from=2026-06-01&to=2026-06-30", "")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, false, body["contributors"].(map[string]any)["financial"])
 }
 
 func TestReportingContributorsCSV(t *testing.T) {

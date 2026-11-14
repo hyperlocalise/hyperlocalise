@@ -829,6 +829,61 @@ describe("MCP project manager tools", () => {
     }
   });
 
+  it("keeps get_report contributors behind billing access", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const translator = fixture.createWorkosIdentityForOrganization(
+      stored.identity.organization,
+      "translator",
+    );
+    reportsInternalMock.mockReset();
+    reportsInternalMock.mockResolvedValue({
+      kind: "contributors",
+      contributors: { financial: true, rows: [] },
+    });
+
+    const translatorHeaders = await authenticatedMcpHeaders(translator);
+    const refused = await readToolResult<{ error?: string }>(
+      await callMcpTool(translatorHeaders, "get_report", { report: "contributors" }),
+    );
+    expect(reportsInternalMock).not.toHaveBeenCalled();
+    expect(refused).toMatchObject({
+      isError: true,
+      output: { error: "report_forbidden" },
+    });
+
+    const adminHeaders = await authenticatedMcpHeaders(stored.identity);
+    const adminAuth = globalThis.__testApiAuthContext;
+    if (!adminAuth) {
+      throw new Error("expected admin auth context");
+    }
+    const contributors = await readToolResult<{
+      kind?: string;
+      contributors?: { rows?: unknown[] };
+    }>(await callMcpTool(adminHeaders, "get_report", { report: "contributors", unit: "words" }));
+    expect(contributors.isError).toBe(false);
+    expect(contributors.output).toMatchObject({
+      kind: "contributors",
+      contributors: { rows: [] },
+    });
+    expect(reportsInternalMock).toHaveBeenCalledTimes(1);
+    expect(reportsInternalMock.mock.calls[0][0]).toBe("contributors");
+    expect(reportsInternalMock.mock.calls[0][1]).toMatchObject({
+      organizationId: adminAuth.organization.localOrganizationId,
+      userId: adminAuth.user.localUserId,
+      query: { unit: "words" },
+    });
+
+    const invalid = await readToolResult<{ error?: string }>(
+      await callMcpTool(adminHeaders, "get_report", {
+        report: "contributors",
+        from: "2026-06-10",
+        to: "2026-06-01",
+      }),
+    );
+    expect(invalid).toMatchObject({ isError: true, output: { error: "invalid_report_query" } });
+    expect(reportsInternalMock).toHaveBeenCalledTimes(1);
+  });
+
   it("answers get_report when the go-svc call is aborted, instead of failing the tool", async () => {
     const stored = await fixture.createStoredProjectFixture();
     const headers = await authenticatedMcpHeaders(stored.identity);

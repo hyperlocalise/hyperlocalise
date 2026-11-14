@@ -56,6 +56,7 @@ import {
   setProjectTranslationKeysHidden,
   upsertProjectTranslationKeysFromEntries,
 } from "@/lib/projects/translations/project-translation-service";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { setCatSegmentLocks } from "@/lib/projects/content-editor/content-editor-segment-lock-service";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -8171,6 +8172,130 @@ describe("mcpRoutes", () => {
       )
       .limit(1);
 
+    expect(saved).toBeUndefined();
+  });
+
+  it("returns protected_branch when uploading onto a protected native branch", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: stored.project.organizationId,
+      projectId: stored.project.id,
+      createdByUserId: stored.project.createdByUserId,
+    });
+    const protectedResult = await projectBranchService.update({
+      projectId: stored.project.id,
+      name: "main",
+      isProtected: true,
+    });
+    expect(protectedResult.ok).toBe(true);
+
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "upload_sources",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath: "locales/protected.json",
+                content: '{"hello":"Hello"}',
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "protected_branch",
+      message: "This branch is protected",
+    });
+
+    const [saved] = await db
+      .select({ id: schema.storedFiles.id })
+      .from(schema.storedFiles)
+      .where(
+        and(
+          eq(schema.storedFiles.projectId, stored.project.id),
+          eq(schema.storedFiles.filename, "protected.json"),
+        ),
+      )
+      .limit(1);
+    expect(saved).toBeUndefined();
+  });
+
+  it("returns branch_not_found when uploading onto a missing native branch", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+
+    const response = await mcpClient.mcp.$post(
+      {},
+      {
+        headers: {
+          ...headers,
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        init: {
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "upload_sources",
+              arguments: {
+                projectId: stored.project.id,
+                sourcePath: "locales/missing-branch.json",
+                branch: "missing",
+                content: '{"hello":"Hello"}',
+              },
+            },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      result?: {
+        isError?: boolean;
+        content?: Array<{ text?: string }>;
+      };
+    };
+    expect(body.result?.isError).toBe(true);
+    expect(JSON.parse(body.result?.content?.[0]?.text ?? "{}")).toMatchObject({
+      error: "branch_not_found",
+      message: "Branch not found",
+    });
+
+    const [saved] = await db
+      .select({ id: schema.storedFiles.id })
+      .from(schema.storedFiles)
+      .where(
+        and(
+          eq(schema.storedFiles.projectId, stored.project.id),
+          eq(schema.storedFiles.filename, "missing-branch.json"),
+        ),
+      )
+      .limit(1);
     expect(saved).toBeUndefined();
   });
 

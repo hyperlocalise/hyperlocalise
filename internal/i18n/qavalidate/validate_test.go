@@ -87,10 +87,35 @@ func TestValidateBatchFlagsUnreachablePlural(t *testing.T) {
 	for _, finding := range report.Results[0].Checks {
 		if finding.CheckType == "unreachable_plural_case" {
 			found = true
+			if finding.Severity != "warning" {
+				t.Fatalf("default severity = %s", finding.Severity)
+			}
 		}
 	}
 	if !found {
 		t.Fatalf("checks = %+v", report.Results[0].Checks)
+	}
+
+	policy.Checks["unreachable_plural_case"] = Setting{Enabled: true, Severity: "error"}
+	escalated, err := ValidateBatch(context.Background(), []Segment{{
+		ID: "one", SourceText: "{count, plural, one {# file} other {# files}}",
+		TargetText: "{count, plural, one {# 件} other {# 件}}",
+		SourcePath: "messages.json", TargetLocale: "ja",
+	}}, policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found = false
+	for _, finding := range escalated.Results[0].Checks {
+		if finding.CheckType == "unreachable_plural_case" {
+			found = true
+			if finding.Severity != "error" {
+				t.Fatalf("escalated severity = %s", finding.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("escalated checks = %+v", escalated.Results[0].Checks)
 	}
 }
 

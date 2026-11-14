@@ -24,6 +24,38 @@ func TestValidQaPolicyAcceptsGuidelineError(t *testing.T) {
 	require.Equal(t, "error", checks["guideline"].Severity)
 }
 
+func TestValidQaPolicyDefaultsUnreachablePlural(t *testing.T) {
+	checks := make(map[string]qaCheckSetting, len(qaPolicyCheckTypes))
+	for key := range qaPolicyCheckTypes {
+		checks[key] = qaCheckSetting{Enabled: true, Severity: "warning"}
+	}
+	delete(checks, "unreachable_plural_case")
+	require.True(t, validQaPolicy(checks))
+	require.Equal(t, qaCheckSetting{Enabled: true, Severity: "warning"}, checks["unreachable_plural_case"])
+
+	checks["unreachable_plural_case"] = qaCheckSetting{Enabled: true, Severity: "error"}
+	require.True(t, validQaPolicy(checks))
+	require.Equal(t, "error", checks["unreachable_plural_case"].Severity)
+}
+
+func TestProjectQaReportSettingsFillMissingUnreachablePlural(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	_, err := scope.Pool.Exec(t.Context(), `update projects set qa_check_policy='{"not_localized":{"enabled":true,"severity":"error"}}'::jsonb where id=$1`, scope.ProjectID)
+	require.NoError(t, err)
+
+	rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var response struct {
+		Settings struct {
+			Checks map[string]qaCheckSetting `json:"checks"`
+		} `json:"settings"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	require.Equal(t, qaCheckSetting{Enabled: true, Severity: "warning"}, response.Settings.Checks["unreachable_plural_case"])
+	require.Equal(t, qaCheckSetting{Enabled: false, Severity: "warning"}, response.Settings.Checks["guideline"])
+	require.Equal(t, qaCheckSetting{Enabled: true, Severity: "error"}, response.Settings.Checks["not_localized"])
+}
+
 func TestProjectQaReportRejectsProviderProject(t *testing.T) {
 	api, scope := qaReportTestAPI(t, "admin")
 	_, err := scope.Pool.Exec(t.Context(), `update projects set source='external_tms' where id=$1`, scope.ProjectID)

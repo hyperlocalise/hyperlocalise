@@ -90,6 +90,33 @@ describe("createJobBodySchema kind and description", () => {
     }
   });
 
+  it("normalizes and rejects native version branches on file jobs", () => {
+    const accepted = createJobBodySchema.safeParse({
+      ...fileBase,
+      fileInput: {
+        ...fileBase.fileInput,
+        branch: " Feature-Checkout ",
+      },
+    });
+    expect(accepted.success).toBe(true);
+    if (accepted.success && accepted.data.type === "file") {
+      expect(accepted.data.fileInput.branch).toBe("Feature-Checkout");
+    }
+
+    expect(
+      createJobBodySchema.safeParse({
+        ...fileBase,
+        fileInput: { ...fileBase.fileInput, branch: "feature//checkout" },
+      }).success,
+    ).toBe(false);
+    expect(
+      createJobBodySchema.safeParse({
+        ...fileBase,
+        fileInput: { ...fileBase.fileInput, branch: "x".repeat(129) },
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts ignoreTranslationMemory on file jobs", () => {
     const parsed = createJobBodySchema.safeParse({
       ...fileBase,
