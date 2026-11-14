@@ -99,6 +99,16 @@ func TestIssueSheetAutumnNilChecker(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "feature_unavailable")
 }
 
+func TestIssueSheetLocalAutumnOverride(t *testing.T) {
+	t.Setenv("LOCAL_AUTUMN_FEATURES_ENABLED", "true")
+	api, scope := issueSheetTestAPI(t, false)
+	api.autumn = nil
+	req := issueSheetAuthedRequest(http.MethodGet, issueSheetPath(scope, ""), "")
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.NotContains(t, rec.Body.String(), "feature_unavailable")
+}
+
 func TestIssueSheetUnavailableWithoutPool(t *testing.T) {
 	api := &issueSheetAPI{autumn: stubAutumnChecker{allowed: true}}
 	req := issueSheetAuthedRequest(http.MethodGet, "/v1/orgs/acme/projects/proj_1/issue-sheet", "")
