@@ -40,6 +40,7 @@ import {
   ContentEditorSideBySidePanelSkeleton,
 } from "@/components/content-editor/side-by-side/content-editor-side-by-side-panel";
 import type { ContentEditorWorkspaceViewProps } from "@/components/content-editor/shared/dependencies";
+import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
 import { contentEditorWorkspaceMessages } from "@/components/content-editor/shared/content-editor.messages";
 import { isContentEditorAssetContentKind } from "@/components/content-editor/shared/content-editor-content-kind";
 import { isNativeContentEditorProviderKind } from "@/components/content-editor/shared/content-editor-native-project";
@@ -426,6 +427,13 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       ? segmentPosition < totalSegments
       : selectedSegmentIndex < navigationSegments.length - 1);
   const { navigation, editing, review } = dependencies;
+  const explainGuideline = review.onExplainGuideline
+    ? (segmentId: string, check: ContentEditorFormatCheck) => {
+        void Promise.resolve(review.onExplainGuideline?.(segmentId, check)).catch((error) => {
+          if (!notifyAiCreditRefusal(error)) throw error;
+        });
+      }
+    : undefined;
   const selectedSegmentIntelligence = resolveSegmentIntelligenceForDisplay(
     {
       intelligence: shell.intelligence,
@@ -619,6 +627,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               : undefined
           }
           onUseAiSuggestion={(segmentId) => editing.onUseAiSuggestion(segmentId)}
+          onExplainGuideline={explainGuideline}
+          explainingGuidelineCheckId={store.ui.explainingGuidelineCheckId}
           onGenerateAiRecommendation={
             canUseAiRecommendation
               ? (segmentId) => void review.onReviewWithAi(segmentId)
@@ -912,6 +922,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           onCopySource={() => editing.onTargetChange(editorSegment.id, editorSegment.sourceText)}
           onClearTarget={() => editing.onTargetChange(editorSegment.id, "")}
           onUseAiSuggestion={() => editing.onUseAiSuggestion(editorSegment.id)}
+          explainingGuidelineCheckId={store.ui.explainingGuidelineCheckId}
+          onExplainGuideline={
+            explainGuideline ? (check) => explainGuideline(editorSegment.id, check) : undefined
+          }
           onApprove={() => void review.onApprove(editorSegment.id, editorSegment.targetText)}
           onSaveDraft={
             review.onSaveDraft

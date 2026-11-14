@@ -182,9 +182,15 @@ export function useContentEditorWorkspaceRuntime({
     store.groupVariants.setServices({
       validateFormat,
       runGuidelineCheck: serviceOverrides?.runGuidelineCheck,
+      runGuidelineExplain: serviceOverrides?.runGuidelineExplain,
       glossaryTerms: (segmentId) => glossaryTermsForSegment(store.shellState, segmentId),
     });
-  }, [serviceOverrides?.runGuidelineCheck, store, validateFormat]);
+  }, [
+    serviceOverrides?.runGuidelineCheck,
+    serviceOverrides?.runGuidelineExplain,
+    store,
+    validateFormat,
+  ]);
 
   useEffect(() => {
     store.attachControllers(intelligenceController, reviewController, navigationController);
@@ -289,6 +295,7 @@ export function useContentEditorWorkspaceRuntime({
       onReviewWithAi: async (segmentId: string) => {
         await reviewController.runReview(segmentId, { includeAi: true });
       },
+      onExplainGuideline: (segmentId, check) => reviewController.explainGuideline(segmentId, check),
       onSkip: reviewController.skip.bind(reviewController),
       ...(reviewOverrides?.onAddToIssueSheet
         ? { onAddToIssueSheet: reviewOverrides.onAddToIssueSheet }

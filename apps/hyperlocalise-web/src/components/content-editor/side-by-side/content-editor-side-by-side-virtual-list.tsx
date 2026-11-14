@@ -64,6 +64,8 @@ export function ContentEditorSideBySideVirtualList({
   onSaveDraft,
   onAddToIssueSheet,
   onUseAiSuggestion,
+  onExplainGuideline,
+  explainingGuidelineCheckId = null,
   onGenerateAiRecommendation,
   onTreatAsImage,
   onTreatAsVideo,
@@ -108,6 +110,8 @@ export function ContentEditorSideBySideVirtualList({
   onSaveDraft?: (segmentId: string) => void;
   onAddToIssueSheet?: (segmentId: string) => void;
   onUseAiSuggestion?: (segmentId: string) => void;
+  onExplainGuideline?: (segmentId: string, check: ContentEditorFormatCheck) => void;
+  explainingGuidelineCheckId?: string | null;
   onGenerateAiRecommendation?: (segmentId: string) => void;
   onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void;
   onTreatAsVideo?: (segmentId: string, treatAsVideo: boolean) => void;
@@ -266,6 +270,12 @@ export function ContentEditorSideBySideVirtualList({
                   onUseAiSuggestion={
                     onUseAiSuggestion ? () => onUseAiSuggestion(segment.id) : undefined
                   }
+                  onExplainGuideline={
+                    onExplainGuideline
+                      ? (check) => onExplainGuideline(segment.id, check)
+                      : undefined
+                  }
+                  explainingGuidelineCheckId={explainingGuidelineCheckId}
                   onGenerateAiRecommendation={
                     onGenerateAiRecommendation
                       ? () => onGenerateAiRecommendation(segment.id)

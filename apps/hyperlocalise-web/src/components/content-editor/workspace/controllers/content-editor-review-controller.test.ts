@@ -1333,6 +1333,77 @@ describe("ContentEditorReviewController", () => {
     controller.dispose();
   });
 
+  it("replaces a classifier guideline row after Explain returns Luna copy", async () => {
+    const classifier: ContentEditorFormatCheck = {
+      id: "guideline-0",
+      label: "Guideline",
+      status: "warn",
+      category: "qa",
+      message: "This text may not match a project guideline.",
+      reasoningAvailable: true,
+      passageId: "p1",
+    };
+    const explained: ContentEditorFormatCheck = {
+      id: "guideline-0",
+      label: "Guideline",
+      status: "warn",
+      category: "qa",
+      message: "Use the formal vous. Suggestion: vous",
+      relatedTokens: ["tu", "vous"],
+      passageId: "p1",
+    };
+    const runGuidelineExplain = vi.fn().mockResolvedValue([explained]);
+    const workspace = createTestWorkspace({
+      selectedSegmentId: "seg-01",
+      segmentFormatChecks: { "seg-01": [classifier] },
+    });
+    const controller = new ContentEditorReviewController(workspace, {
+      intl,
+      services: { runGuidelineExplain },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+
+    await controller.explainGuideline("seg-01", classifier);
+
+    expect(runGuidelineExplain).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "seg-01", targetText: "Premier" }),
+      "Premier",
+      classifier,
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(workspace.segmentFormatChecks["seg-01"]).toEqual([explained]);
+    expect(workspace.ui.explainingGuidelineCheckId).toBeNull();
+    controller.dispose();
+  });
+
+  it("keeps the classifier row when Explain returns nothing", async () => {
+    const classifier: ContentEditorFormatCheck = {
+      id: "guideline-0",
+      label: "Guideline",
+      status: "warn",
+      message: "This text may not match a project guideline.",
+      reasoningAvailable: true,
+      passageId: "p1",
+    };
+    const runGuidelineExplain = vi.fn().mockResolvedValue([]);
+    const workspace = createTestWorkspace({
+      selectedSegmentId: "seg-01",
+      segmentFormatChecks: { "seg-01": [classifier] },
+    });
+    const controller = new ContentEditorReviewController(workspace, {
+      intl,
+      services: { runGuidelineExplain },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+
+    await controller.explainGuideline("seg-01", classifier);
+
+    expect(workspace.segmentFormatChecks["seg-01"]).toEqual([classifier]);
+    controller.dispose();
+  });
+
   describe("setLocked", () => {
     it("delegates to onSetLocked and updates the current segment", async () => {
       const onSetLocked = vi.fn().mockResolvedValue(undefined);

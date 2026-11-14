@@ -2846,7 +2846,7 @@ async function createMcpServerForRequest(
     "check_guidelines",
     {
       description:
-        "Check source or translated segments against workspace and project guidelines. Returns findings with UTF-16 offsets and the guideline passages they cite.",
+        "Check source or translated segments against workspace and project guidelines. Returns findings with UTF-16 offsets, messages, optional suggestions, and the guideline passages they cite. Flagged segments are explained automatically.",
       inputSchema: mcpCheckGuidelinesInputSchema,
     },
     async ({ projectId, sourceLocale, targetLocale, segments, checks }) => {

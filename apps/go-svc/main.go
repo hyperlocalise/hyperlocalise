@@ -266,6 +266,10 @@ func main() {
 			h.irisGeneration.meter = h.autumn
 		}
 	}
+	checkClassifier, err := newGuidelineCheckClassifier()
+	if err != nil {
+		log.Fatalf("configure guideline check classifier: %v", err)
+	}
 	checkModel, err := newGuidelineCheckModel()
 	if err != nil {
 		log.Fatalf("configure guideline check model: %v", err)
@@ -293,12 +297,12 @@ func main() {
 		h.glossaries.readCache = valkeyClient
 		defer valkeyClient.Close()
 	}
-	if checkModel != nil && checkRetriever != nil {
+	if checkClassifier != nil && checkRetriever != nil {
 		var checkOpts []check.Option
 		if valkeyClient != nil {
 			checkOpts = append(checkOpts, check.WithCache(valkeyClient))
 		}
-		h.guidelineCheck.checker = check.New(checkRetriever, checkModel, checkOpts...)
+		h.guidelineCheck.checker = check.New(checkRetriever, checkClassifier, checkModel, checkOpts...)
 	}
 	membershipLookup = newCachedOrganizationMembershipLookup(membershipLookup, valkeyClient)
 	h.dictionaries.membership = membershipLookup

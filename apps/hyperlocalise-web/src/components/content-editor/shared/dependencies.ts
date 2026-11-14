@@ -89,6 +89,7 @@ export interface ContentEditorWorkspaceReview {
   onResolveComment?: (segmentId: string, commentId: string) => void | Promise<void>;
   onAskQuestion: (segmentId: string, options?: { forceRefresh?: boolean }) => void | Promise<void>;
   onReviewWithAi: (segmentId: string) => void | Promise<void>;
+  onExplainGuideline?: (segmentId: string, check: ContentEditorFormatCheck) => void | Promise<void>;
   onSkip: (segmentId: string) => void;
   onBulkApproveComplete?: () => void | Promise<void>;
   onBulkApprove?: (segmentIds: string[]) => void | Promise<void>;
@@ -119,6 +120,13 @@ export interface ContentEditorWorkspaceServices {
   runGuidelineCheck?: (
     segment: ContentEditorSegment,
     value: string,
+    options?: { signal?: AbortSignal },
+  ) => Promise<ContentEditorFormatCheck[]>;
+  /** On-demand Luna explanation for a classifier guideline finding. */
+  runGuidelineExplain?: (
+    segment: ContentEditorSegment,
+    value: string,
+    check: ContentEditorFormatCheck,
     options?: { signal?: AbortSignal },
   ) => Promise<ContentEditorFormatCheck[]>;
   lookupSegmentContext?: (

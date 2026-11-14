@@ -47,10 +47,14 @@ export function ContentEditorEditorFormatChecksSection({
   formatChecks,
   isLoading,
   showHeading = true,
+  explainingCheckId = null,
+  onExplain,
 }: {
   formatChecks: ContentEditorFormatCheck[];
   isLoading: boolean;
   showHeading?: boolean;
+  explainingCheckId?: string | null;
+  onExplain?: (check: ContentEditorFormatCheck) => void;
 }) {
   const showInitialSkeleton = isLoading && formatChecks.length === 0;
   const showLoadingSpinner = isLoading && formatChecks.length > 0;
@@ -69,7 +73,11 @@ export function ContentEditorEditorFormatChecksSection({
         <FormatChecksSkeleton />
       ) : (
         <div className={showLoadingSpinner ? "opacity-80 transition-opacity" : undefined}>
-          <ContentEditorFormatChecks checks={formatChecks} />
+          <ContentEditorFormatChecks
+            checks={formatChecks}
+            explainingCheckId={explainingCheckId}
+            onExplain={onExplain}
+          />
         </div>
       )}
     </section>

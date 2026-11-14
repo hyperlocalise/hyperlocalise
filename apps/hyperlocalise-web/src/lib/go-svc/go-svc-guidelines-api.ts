@@ -79,6 +79,12 @@ export type GuidelineCheckFinding = {
   message: string;
   suggestion?: string;
   passageId: string;
+  /** Classifier findings can be explained on demand with Luna. */
+  reasoningAvailable?: boolean;
+};
+
+export type GuidelineExplainRequest = GuidelineCheckRequest & {
+  passageIds?: string[];
 };
 
 export type GuidelineCheckResult = {
@@ -308,6 +314,17 @@ export class GoSvcGuidelinesApi {
     );
   }
 
+  explain(
+    organizationSlug: string,
+    body: GuidelineExplainRequest,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<GuidelineCheckResult>(
+      orgPath(organizationSlug, "guidelines", "explain"),
+      { method: "POST", body, ...options },
+    );
+  }
+
   /**
    * Server-only: requires a client created with service authentication.
    * Callers must enforce feature flags and project access first.
@@ -318,6 +335,22 @@ export class GoSvcGuidelinesApi {
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<GuidelineCheckResult>("/internal/guidelines/check", {
+      method: "POST",
+      body: { organizationId, ...body },
+      ...options,
+    });
+  }
+
+  /**
+   * Server-only: requires a client created with service authentication.
+   * Callers must enforce feature flags and project access first.
+   */
+  internalExplain(
+    organizationId: string,
+    body: GuidelineExplainRequest,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<GuidelineCheckResult>("/internal/guidelines/explain", {
       method: "POST",
       body: { organizationId, ...body },
       ...options,

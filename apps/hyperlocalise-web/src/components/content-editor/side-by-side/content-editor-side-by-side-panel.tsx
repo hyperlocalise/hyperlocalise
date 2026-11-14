@@ -252,6 +252,8 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   onSaveDraft,
   onAddToIssueSheet,
   onUseAiSuggestion,
+  onExplainGuideline,
+  explainingGuidelineCheckId = null,
   onGenerateAiRecommendation,
   onTreatAsImage,
   onTreatAsVideo,
@@ -331,6 +333,8 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   onSaveDraft?: (segmentId: string) => void;
   onAddToIssueSheet?: (segmentId: string) => void;
   onUseAiSuggestion?: (segmentId: string) => void;
+  onExplainGuideline?: (segmentId: string, check: ContentEditorFormatCheck) => void;
+  explainingGuidelineCheckId?: string | null;
   onGenerateAiRecommendation?: (segmentId: string) => void;
   onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void;
   onTreatAsVideo?: (segmentId: string, treatAsVideo: boolean) => void;
@@ -452,6 +456,8 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
                   onSaveDraft={onSaveDraft}
                   onAddToIssueSheet={onAddToIssueSheet}
                   onUseAiSuggestion={onUseAiSuggestion}
+                  onExplainGuideline={onExplainGuideline}
+                  explainingGuidelineCheckId={explainingGuidelineCheckId}
                   onGenerateAiRecommendation={onGenerateAiRecommendation}
                   onTreatAsImage={onTreatAsImage}
                   onTreatAsVideo={onTreatAsVideo}
@@ -507,6 +513,12 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
             isAiSuggestionLoading={isAiSuggestionLoading}
             isFormatChecksLoading={isFormatChecksLoading}
             formatChecks={formatChecks}
+            explainingGuidelineCheckId={explainingGuidelineCheckId}
+            onExplainGuideline={
+              onExplainGuideline && intelligenceSegment
+                ? (check) => onExplainGuideline(intelligenceSegmentId, check)
+                : undefined
+            }
             isConcordanceLoading={isConcordanceLoading}
             isVisualContextLoading={isVisualContextLoading}
             showAgentContext={showAgentContext}

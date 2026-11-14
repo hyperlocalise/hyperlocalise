@@ -189,6 +189,10 @@ export interface ContentEditorFormatCheck {
   appliesToText?: string;
   /** Locale this guideline finding was checked against. */
   appliesToLocale?: string;
+  /** Classifier findings can be explained on demand. */
+  reasoningAvailable?: boolean;
+  /** Guideline passage this finding cites. */
+  passageId?: string;
 }
 
 export interface ContentEditorGlossaryTerm {

@@ -73,6 +73,8 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
     isAiSuggestionLoading = false,
     isFormatChecksLoading = false,
     formatChecks = [],
+    explainingGuidelineCheckId = null,
+    onExplainGuideline,
     isConcordanceLoading,
     isVisualContextLoading,
     showAgentContext,
@@ -113,6 +115,8 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
     isAiSuggestionLoading?: boolean;
     isFormatChecksLoading?: boolean;
     formatChecks?: ContentEditorFormatCheck[];
+    explainingGuidelineCheckId?: string | null;
+    onExplainGuideline?: (check: ContentEditorFormatCheck) => void;
     isConcordanceLoading: boolean;
     isVisualContextLoading: boolean;
     showAgentContext: boolean;
@@ -328,6 +332,8 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
                   <ContentEditorEditorFormatChecksSection
                     formatChecks={formatChecks}
                     isLoading={isFormatChecksLoading}
+                    explainingCheckId={explainingGuidelineCheckId}
+                    onExplain={onExplainGuideline}
                   />
                 ) : (
                   <Text size="small" tone="subtle">

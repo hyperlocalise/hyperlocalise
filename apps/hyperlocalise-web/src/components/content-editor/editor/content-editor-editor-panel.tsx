@@ -60,6 +60,8 @@ export function ContentEditorEditorPanel({
   segmentPosition,
   totalSegments,
   formatChecks,
+  explainingGuidelineCheckId = null,
+  onExplainGuideline,
   intelligence,
   isEditorBusy = false,
   isApproving = false,
@@ -321,6 +323,8 @@ export function ContentEditorEditorPanel({
               <ContentEditorEditorFormatChecksSection
                 formatChecks={formatChecks}
                 isLoading={isFormatChecksLoading}
+                explainingCheckId={explainingGuidelineCheckId}
+                onExplain={onExplainGuideline}
               />
             </ContentEditorSectionErrorBoundary>
           ) : null}

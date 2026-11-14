@@ -38,6 +38,7 @@ import {
   EDITOR_GUIDELINE_CHECK_DEBOUNCE_MS,
   isGuidelineFormatCheck,
   mergeGuidelineFormatChecks,
+  replaceGuidelineFormatCheck,
 } from "@/components/content-editor/project-file/content-editor-guideline-checks";
 import { mergeLiveAndScanFormatChecks } from "@/lib/qa/merge-format-checks";
 
@@ -109,7 +110,10 @@ export type ContentEditorReviewWorkspace = Pick<
 > & {
   readonly ui: Pick<
     ContentEditorWorkspaceOrchestrator["ui"],
-    "isSideBySideView" | "visibleSideBySideSegmentIds"
+    | "isSideBySideView"
+    | "visibleSideBySideSegmentIds"
+    | "explainingGuidelineCheckId"
+    | "setExplainingGuidelineCheckId"
   >;
 };
 
@@ -122,6 +126,7 @@ export class ContentEditorReviewController {
   private validationAbortController: AbortController | null = null;
   private guidelineTimeout: ReturnType<typeof setTimeout> | null = null;
   private guidelineAbortController: AbortController | null = null;
+  private guidelineExplainAbortController: AbortController | null = null;
   private segmentValidationControllers = new Map<string, AbortController>();
   private lastVisibleCheckFingerprint = new Map<string, string>();
 
@@ -400,6 +405,13 @@ export class ContentEditorReviewController {
     }
     this.guidelineAbortController?.abort();
     this.guidelineAbortController = null;
+    this.abortGuidelineExplain();
+  }
+
+  private abortGuidelineExplain() {
+    this.guidelineExplainAbortController?.abort();
+    this.guidelineExplainAbortController = null;
+    this.workspace.ui.setExplainingGuidelineCheckId(null);
   }
 
   private scheduleGuidelineCheck(segment: ContentEditorSegment, value: string) {
@@ -474,6 +486,48 @@ export class ContentEditorReviewController {
       mergeGuidelineFormatChecks(current, guidelineChecks),
       this.workspace.selectedSegmentId === segmentId,
     );
+  }
+
+  async explainGuideline(segmentId: string, check: ContentEditorFormatCheck) {
+    const runGuidelineExplain = this.ports.services?.runGuidelineExplain;
+    const segment = this.workspace.getSegmentView(segmentId);
+    if (!runGuidelineExplain || !segment) {
+      return;
+    }
+    this.abortGuidelineExplain();
+    const abortController = new AbortController();
+    this.guidelineExplainAbortController = abortController;
+    this.workspace.ui.setExplainingGuidelineCheckId(check.id);
+    const targetText = segment.targetText;
+    try {
+      const replacements = await runGuidelineExplain(segment, targetText, check, {
+        signal: abortController.signal,
+      });
+      if (
+        this.disposed ||
+        abortController.signal.aborted ||
+        this.workspace.getSegmentView(segmentId)?.targetText !== targetText
+      ) {
+        return;
+      }
+      this.workspace.setFormatChecks(
+        segmentId,
+        replaceGuidelineFormatCheck(this.formatChecksFor(segmentId), check.id, replacements),
+        this.workspace.selectedSegmentId === segmentId,
+      );
+    } catch (error) {
+      if (abortController.signal.aborted || (error as Error)?.name === "AbortError") {
+        return;
+      }
+      throw error;
+    } finally {
+      if (this.guidelineExplainAbortController === abortController) {
+        this.guidelineExplainAbortController = null;
+        if (this.workspace.ui.explainingGuidelineCheckId === check.id) {
+          this.workspace.ui.setExplainingGuidelineCheckId(null);
+        }
+      }
+    }
   }
 
   async runReview(segmentId: string, options?: { includeAi?: boolean }) {

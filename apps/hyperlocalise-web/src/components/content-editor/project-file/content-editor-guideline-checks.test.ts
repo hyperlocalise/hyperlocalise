@@ -19,9 +19,12 @@ import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 
 import {
   fetchEditorGuidelineChecks,
+  fetchEditorGuidelineExplain,
+  guidelineCheckNeedsExplain,
   guidelineFormatChecks,
   mergeGuidelineFormatChecks,
   qaSaveBlockingChecks,
+  replaceGuidelineFormatCheck,
 } from "./content-editor-guideline-checks";
 
 const lengthCheck: ContentEditorFormatCheck = {
@@ -63,8 +66,47 @@ describe("guidelineFormatChecks", () => {
         relatedTokens: ["tu", "vous"],
         appliesToText: "Peux-tu aider ?",
         appliesToLocale: "fr-FR",
+        passageId: "p1",
       },
     ]);
+  });
+
+  it("keeps classifier rows explainable until Luna writes a suggestion", () => {
+    const [check] = guidelineFormatChecks({
+      label: "Guideline",
+      targetText: "Peux-tu aider ?",
+      targetLocale: "fr-FR",
+      result: {
+        findings: [
+          {
+            segmentId: "s1",
+            field: "target",
+            severity: "warning",
+            start: 0,
+            end: 15,
+            message: "This text may not match a project guideline.",
+            passageId: "p1",
+            reasoningAvailable: true,
+          },
+        ],
+      },
+    });
+    expect(check).toMatchObject({
+      id: "guideline-0",
+      message: "This text may not match a project guideline.",
+      passageId: "p1",
+      reasoningAvailable: true,
+    });
+    expect(guidelineCheckNeedsExplain(check!)).toBe(true);
+    expect(
+      guidelineCheckNeedsExplain({
+        id: "guideline-0",
+        label: "Guideline",
+        status: "warn",
+        message: "Use vous.",
+        passageId: "p1",
+      }),
+    ).toBe(false);
   });
 
   it("maps an error severity to a save-blocking finding", () => {
@@ -121,8 +163,53 @@ describe("guidelineFormatChecks", () => {
         message: "Add the product name.",
         appliesToText: "Hello",
         appliesToLocale: "en",
+        passageId: "p1",
       },
     ]);
+  });
+});
+
+describe("replaceGuidelineFormatCheck", () => {
+  it("swaps the classifier row for the explained finding", () => {
+    const length: ContentEditorFormatCheck = {
+      id: "length",
+      label: "Length",
+      status: "pass",
+      message: "ok",
+    };
+    const classifier: ContentEditorFormatCheck = {
+      id: "guideline-0",
+      label: "Guideline",
+      status: "warn",
+      message: "This text may not match a project guideline.",
+      reasoningAvailable: true,
+      passageId: "p1",
+    };
+    const explained: ContentEditorFormatCheck = {
+      id: "guideline-0",
+      label: "Guideline",
+      status: "warn",
+      message: "Use the formal vous. Suggestion: vous",
+      relatedTokens: ["tu", "vous"],
+      passageId: "p1",
+    };
+
+    expect(replaceGuidelineFormatCheck([length, classifier], "guideline-0", [explained])).toEqual([
+      length,
+      explained,
+    ]);
+  });
+
+  it("keeps the classifier row when Luna returns nothing", () => {
+    const classifier: ContentEditorFormatCheck = {
+      id: "guideline-0",
+      label: "Guideline",
+      status: "warn",
+      message: "This text may not match a project guideline.",
+      reasoningAvailable: true,
+      passageId: "p1",
+    };
+    expect(replaceGuidelineFormatCheck([classifier], "guideline-0", [])).toEqual([classifier]);
   });
 });
 
@@ -199,6 +286,112 @@ describe("fetchEditorGuidelineChecks", () => {
     } as unknown as GoSvcClient;
 
     await expect(fetchEditorGuidelineChecks(input, client)).resolves.toEqual([]);
+  });
+});
+
+describe("fetchEditorGuidelineExplain", () => {
+  const input = {
+    organizationSlug: "acme",
+    projectId: "project-1",
+    sourceLocale: "en",
+    sourceText: "Can you help?",
+    targetText: "Peux-tu aider ?",
+    targetLocale: "fr-FR",
+    segmentId: "s1",
+    label: "Guideline",
+    checkId: "guideline-0",
+    passageId: "p1",
+  };
+
+  it("maps Luna findings onto the classifier row id", async () => {
+    const explain = vi.fn().mockResolvedValue({
+      findings: [
+        {
+          segmentId: "s1",
+          field: "target",
+          severity: "warning",
+          start: 5,
+          end: 7,
+          message: "Use the formal vous.",
+          suggestion: "vous",
+          passageId: "p1",
+        },
+      ],
+      passages: [],
+      searchAvailable: true,
+      model: "openai/gpt-6-luna",
+    });
+    const client = { guidelines: { explain } } as unknown as GoSvcClient;
+
+    await expect(fetchEditorGuidelineExplain(input, client)).resolves.toEqual([
+      {
+        id: "guideline-0",
+        label: "Guideline",
+        status: "warn",
+        category: "qa",
+        message: "Use the formal vous. Suggestion: vous",
+        relatedTokens: ["tu", "vous"],
+        appliesToText: "Peux-tu aider ?",
+        appliesToLocale: "fr-FR",
+        passageId: "p1",
+      },
+    ]);
+    expect(explain).toHaveBeenCalledWith(
+      "acme",
+      expect.objectContaining({
+        projectId: "project-1",
+        passageIds: ["p1"],
+        segments: [{ id: "s1", source: "Can you help?", target: "Peux-tu aider ?" }],
+      }),
+      { signal: undefined },
+    );
+  });
+
+  it("rethrows used-up AI credit so the editor can toast", async () => {
+    const client = {
+      guidelines: {
+        explain: vi.fn().mockRejectedValue(
+          new GoSvcClientError({
+            code: "ai_credit_exhausted",
+            message: "used up",
+            status: 402,
+          }),
+        ),
+      },
+    } as unknown as GoSvcClient;
+
+    await expect(fetchEditorGuidelineExplain(input, client)).rejects.toMatchObject({
+      code: "ai_credit_exhausted",
+      status: 402,
+    });
+  });
+
+  it("returns no replacement when explain is not configured", async () => {
+    const client = {
+      guidelines: {
+        explain: vi.fn().mockRejectedValue(
+          new GoSvcClientError({
+            code: "guideline_check_unavailable",
+            message: "Guideline checks are not configured",
+            status: 503,
+          }),
+        ),
+      },
+    } as unknown as GoSvcClient;
+
+    await expect(fetchEditorGuidelineExplain(input, client)).resolves.toEqual([]);
+  });
+
+  it("rethrows abort so the editor can ignore a cancelled explain", async () => {
+    const client = {
+      guidelines: {
+        explain: vi.fn().mockRejectedValue(new DOMException("Aborted", "AbortError")),
+      },
+    } as unknown as GoSvcClient;
+
+    await expect(fetchEditorGuidelineExplain(input, client)).rejects.toMatchObject({
+      name: "AbortError",
+    });
   });
 });
 

@@ -66,27 +66,41 @@ index's RRF order.
 
 ## Checks
 
-`check.Checker` grounds an LLM review in retrieved guidelines. It retrieves once
-per request, splits mandatory documents into chunks, labels every passage `P1..Pn`,
-and asks the model for findings under a strict JSON schema. The model returns a
-quote and a passage label; the server maps the label back to a chunk ID and
-computes UTF-16 offsets from the quote. Findings for unknown segments, unrequested
+`check.Checker` retrieves once per request, splits mandatory documents into
+chunks, and labels every passage `P1..Pn`. Classification uses Jev
+(`typesafe-ai/jev`) through `Classifier.Classify`. One boolean question per
+segment×passage (`s{i}_P{j}`) returns P(true). Findings are derived in Go:
+
+- `>= 0.75`: emit a warning that spans the whole field, with canned copy and
+  `reasoningAvailable: true`
+- `0.40 .. 0.75`: drop and log the band
+- `< 0.40`: clean
+
+Jev does not quote text or write a suggestion. `Explain` runs Luna
+(`openai/gpt-6-luna`) with the existing JSON schema: quote, message, suggestion,
+and a passage label. The server maps the label back to a chunk ID and computes
+UTF-16 offsets from the quote. Findings for unknown segments, unrequested
 fields, uncited passages, or quotes missing from the text are dropped. When no
-passages apply the model is not called.
+passages apply, neither model is called.
 
-Repeated checks with the same model, prompt, and passages reuse the previous model
-JSON from Valkey for 24 hours. The key is the organization plus a hash of the
-model name, the system prompt, and the user prompt. The prompt includes the
-current passage text, so an edit, a newly ready document, a deletion, or a scope
-change misses the cache on its own. A hit does not call the model and is not
-billed. A Valkey miss or error runs the model as usual.
+Classifier JSON is cached under `go-svc:guideline-check:v2:` for 24 hours.
+Explain JSON is cached under `go-svc:guideline-explain:v1:`. The key includes
+the organization plus a hash of the model, schema version, and prompt or state.
+A hit does not call the model and is not billed.
 
-go-svc serves `POST /v1/orgs/{org}/guidelines/check` for signed-in users and
-`POST /internal/guidelines/check` for trusted server callers such as MCP. Both
-meter usage per segment on the Autumn `guideline_checks` feature. The model is
-configured with `AI_GATEWAY_API_KEY`, optionally `AI_GATEWAY_BASE_URL`, and
-`GUIDELINE_CHECK_MODEL` (default `openai/gpt-6-luna`); without the key the routes
-return 503.
+go-svc serves `POST /v1/orgs/{org}/guidelines/check` and
+`POST /v1/orgs/{org}/guidelines/explain` for signed-in users, plus
+`POST /internal/guidelines/check` and `POST /internal/guidelines/explain` for
+trusted server callers such as MCP. Check meters each segment on Autumn
+`guideline_checks`. Explain meters Luna usage on `ai_tokens`. The internal check
+route explains flagged segments automatically; a Luna failure keeps the
+classifier findings. Public CAT check does not auto-explain.
+
+Models are configured with `AI_GATEWAY_API_KEY`, optionally
+`AI_GATEWAY_BASE_URL` / `AI_GATEWAY_EVALUATE_BASE_URL`,
+`GUIDELINE_CHECK_CLASSIFIER_MODEL` (default `typesafe-ai/jev`), and
+`GUIDELINE_CHECK_REASONING_MODEL` (falls back to `GUIDELINE_CHECK_MODEL`, then
+`openai/gpt-6-luna`). Without the gateway key the routes return 503.
 
 Translation prompts get guideline documents from `POST /internal/guidelines/retrieve`,
 which uses the same `Service.Retrieve` path.

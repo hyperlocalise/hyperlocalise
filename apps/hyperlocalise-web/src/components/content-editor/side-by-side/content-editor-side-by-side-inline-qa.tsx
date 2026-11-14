@@ -25,6 +25,8 @@ import {
   formatCheckRowBackgroundClass,
   formatCheckStatusClass,
 } from "@/components/content-editor/segment/content-editor-tone";
+import { contentEditorGuidelineCheckMessages } from "@/components/content-editor/project-file/content-editor-guideline-checks.messages";
+import { guidelineCheckNeedsExplain } from "@/components/content-editor/project-file/content-editor-guideline-checks";
 import { contentEditorSideBySidePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
 import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
@@ -42,11 +44,15 @@ export function ContentEditorSideBySideInlineQa({
   isLoading = false,
   targetText,
   onFix,
+  explainingCheckId = null,
+  onExplain,
 }: {
   formatChecks: ContentEditorFormatCheck[];
   isLoading?: boolean;
   targetText: string;
   onFix?: (nextText: string) => void;
+  explainingCheckId?: string | null;
+  onExplain?: (check: ContentEditorFormatCheck) => void;
 }) {
   const intl = useIntl();
   const workspace = useOptionalCatWorkspace();
@@ -82,10 +88,26 @@ export function ContentEditorSideBySideInlineQa({
     qaProblemTokenMatches(targetText, presented.problemToken, wholeTerm) &&
     onFix,
   );
+  const canExplain = Boolean(onExplain && guidelineCheckNeedsExplain(firstIssue));
 
   const actions =
-    canFix || (moreCount > 0 && workspace) ? (
+    canFix || canExplain || (moreCount > 0 && workspace) ? (
       <Row spacing="0.5u" alignY="center">
+        {canExplain ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            disabled={explainingCheckId === firstIssue.id}
+            onClick={() => onExplain?.(firstIssue)}
+          >
+            {explainingCheckId === firstIssue.id ? (
+              <FormattedMessage {...contentEditorGuidelineCheckMessages.explaining} />
+            ) : (
+              <FormattedMessage {...contentEditorGuidelineCheckMessages.explain} />
+            )}
+          </Button>
+        ) : null}
         {canFix ? (
           <Button
             type="button"

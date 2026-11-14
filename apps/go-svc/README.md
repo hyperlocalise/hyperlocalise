@@ -762,17 +762,25 @@ applies to no project. Org-wide uploads (project_id null) use
 `DELETE .../projects/{projectId}`, and bulk `GET .../guidelines/documents/assignments`.
 
 Guideline checks need `AI_GATEWAY_API_KEY` (`AI_GATEWAY_BASE_URL` defaults to
-`https://ai-gateway.vercel.sh/v1`). `GUIDELINE_CHECK_MODEL` defaults to
-`openai/gpt-6-luna` and must support strict `json_schema` output. The same key
+`https://ai-gateway.vercel.sh/v1`). Classification uses Jev
+(`GUIDELINE_CHECK_CLASSIFIER_MODEL`, default `typesafe-ai/jev`). Reasoning uses
+Luna (`GUIDELINE_CHECK_REASONING_MODEL`, then `GUIDELINE_CHECK_MODEL`, then
+`openai/gpt-6-luna`) and must support strict `json_schema` output. The same key
 enables reranking search hits with `voyage/rerank-3-lite`. Without turbopuffer,
 checks use mandatory guidelines only.
 
 - `POST /v1/orgs/{org}/guidelines/check`:
   `{projectId?, sourceLocale?, targetLocale?, segments: [{id, source?, target?}], checks?}`.
-  Up to 50 segments and 16,000 characters. Returns cited `findings` with UTF-16
-  offsets and the cited `passages`. Metered per segment on Autumn `guideline_checks`.
+  Up to 50 segments and 16,000 characters. Classifies with Jev and returns cited
+  `findings` with canned copy, `reasoningAvailable`, UTF-16 offsets, and the
+  cited `passages`. Metered per segment on Autumn `guideline_checks`.
+- `POST /v1/orgs/{org}/guidelines/explain`: the check body plus optional
+  `passageIds`. Runs Luna and returns grounded findings. Metered on Autumn
+  `ai_tokens`.
 - `POST /internal/guidelines/check`: the same body plus `organizationId`, for
-  service-token callers that already enforced access.
+  service-token callers that already enforced access. Flagged segments are
+  explained automatically; a Luna failure keeps the classifier findings.
+- `POST /internal/guidelines/explain`: the explain body plus `organizationId`.
 - `POST /internal/guidelines/retrieve`:
   `{organizationId, projectId?, locales?, query, limit?}` for translation prompts.
   Retrieves once per locale (at most 8; none means locale-independent documents

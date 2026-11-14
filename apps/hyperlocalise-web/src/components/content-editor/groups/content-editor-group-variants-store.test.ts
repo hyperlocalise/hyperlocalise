@@ -146,6 +146,60 @@ describe("ContentEditorGroupVariants", () => {
     expect(first.formatChecks).toEqual([]);
   });
 
+  it("replaces a classifier guideline row after Explain returns Luna copy", async () => {
+    const classifier: ContentEditorFormatCheck = {
+      id: "guideline-0",
+      label: "Guideline",
+      status: "warn",
+      message: "This text may not match a project guideline.",
+      reasoningAvailable: true,
+      passageId: "p1",
+    };
+    const explained: ContentEditorFormatCheck = {
+      id: "guideline-0",
+      label: "Guideline",
+      status: "warn",
+      message: "Use the formal vous. Suggestion: vous",
+      relatedTokens: ["tu", "vous"],
+      passageId: "p1",
+    };
+    const runGuidelineExplain = vi.fn().mockResolvedValue([explained]);
+    const { group } = createGroup({ services: { runGuidelineExplain } });
+    const first = group.variants[0]!;
+    first.formatChecks = [classifier];
+
+    await first.explainGuideline(classifier);
+
+    expect(runGuidelineExplain).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "k1", targetLocale: "fr" }),
+      "Membre",
+      classifier,
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(first.formatChecks).toEqual([explained]);
+    expect(first.explainingGuidelineCheckId).toBeNull();
+  });
+
+  it("keeps the classifier row when Explain returns nothing", async () => {
+    const classifier: ContentEditorFormatCheck = {
+      id: "guideline-0",
+      label: "Guideline",
+      status: "warn",
+      message: "This text may not match a project guideline.",
+      reasoningAvailable: true,
+      passageId: "p1",
+    };
+    const { group } = createGroup({
+      services: { runGuidelineExplain: vi.fn().mockResolvedValue([]) },
+    });
+    const first = group.variants[0]!;
+    first.formatChecks = [classifier];
+
+    await first.explainGuideline(classifier);
+
+    expect(first.formatChecks).toEqual([classifier]);
+  });
+
   it("approves only the unlocked strings of one translation", async () => {
     const saveVariant = vi.fn().mockResolvedValue(undefined);
     const { group } = createGroup({ saveVariant });

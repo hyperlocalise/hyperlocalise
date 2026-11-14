@@ -24,6 +24,7 @@ import {
   EDITOR_GUIDELINE_CHECK_DEBOUNCE_MS,
   isGuidelineFormatCheck,
   mergeGuidelineFormatChecks,
+  replaceGuidelineFormatCheck,
 } from "@/components/content-editor/project-file/content-editor-guideline-checks";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
@@ -38,6 +39,7 @@ export type ContentEditorGroupVariantAction = "save" | "approve" | "all";
 export type ContentEditorGroupVariantsServices = {
   validateFormat?: ContentEditorWorkspaceServices["validateFormat"];
   runGuidelineCheck?: ContentEditorWorkspaceServices["runGuidelineCheck"];
+  runGuidelineExplain?: ContentEditorWorkspaceServices["runGuidelineExplain"];
   glossaryTerms?: (segmentId: string) => ContentEditorGlossaryTerm[];
 };
 
@@ -123,10 +125,12 @@ export class ContentEditorGroupVariant {
   error: string | null = null;
   formatChecks: ContentEditorFormatCheck[] = [];
   isCheckingFormat = false;
+  explainingGuidelineCheckId: string | null = null;
   private checkTimer: ReturnType<typeof setTimeout> | null = null;
   private checkAbort: AbortController | null = null;
   private guidelineTimer: ReturnType<typeof setTimeout> | null = null;
   private guidelineAbort: AbortController | null = null;
+  private explainAbort: AbortController | null = null;
 
   constructor(
     readonly group: ContentEditorGroupVariants,
@@ -134,7 +138,10 @@ export class ContentEditorGroupVariant {
   ) {
     this.id = groupVariantIdentity(variant);
     this.variant = variant;
-    makeAutoObservable<this, "checkTimer" | "checkAbort" | "guidelineTimer" | "guidelineAbort">(
+    makeAutoObservable<
+      this,
+      "checkTimer" | "checkAbort" | "guidelineTimer" | "guidelineAbort" | "explainAbort"
+    >(
       this,
       {
         id: false,
@@ -143,6 +150,7 @@ export class ContentEditorGroupVariant {
         checkAbort: false,
         guidelineTimer: false,
         guidelineAbort: false,
+        explainAbort: false,
       },
       { autoBind: true },
     );
@@ -324,7 +332,48 @@ export class ContentEditorGroupVariant {
     }
   }
 
+  private abortGuidelineExplain() {
+    this.explainAbort?.abort();
+    this.explainAbort = null;
+    this.explainingGuidelineCheckId = null;
+  }
+
+  async explainGuideline(check: ContentEditorFormatCheck) {
+    const runGuidelineExplain = this.group.ports.services?.runGuidelineExplain;
+    if (!runGuidelineExplain) return;
+    this.abortGuidelineExplain();
+    const abort = new AbortController();
+    this.explainAbort = abort;
+    this.explainingGuidelineCheckId = check.id;
+    const text = this.text;
+    try {
+      const replacements = await runGuidelineExplain(
+        { ...this.group.segment, targetLocale: this.group.locale },
+        text,
+        check,
+        { signal: abort.signal },
+      );
+      if (abort.signal.aborted || this.text !== text) return;
+      runInAction(() => {
+        this.formatChecks = replaceGuidelineFormatCheck(this.formatChecks, check.id, replacements);
+      });
+    } catch (error) {
+      if (abort.signal.aborted || (error as Error)?.name === "AbortError") return;
+      throw error;
+    } finally {
+      if (this.explainAbort === abort) {
+        runInAction(() => {
+          this.explainAbort = null;
+          if (this.explainingGuidelineCheckId === check.id) {
+            this.explainingGuidelineCheckId = null;
+          }
+        });
+      }
+    }
+  }
+
   scheduleGuidelineCheck() {
+    this.abortGuidelineExplain();
     if (!this.group.ports.services?.runGuidelineCheck) {
       if (this.guidelineTimer) clearTimeout(this.guidelineTimer);
       this.guidelineTimer = null;
@@ -389,6 +438,7 @@ export class ContentEditorGroupVariant {
     this.guidelineTimer = null;
     this.guidelineAbort?.abort();
     this.guidelineAbort = null;
+    this.abortGuidelineExplain();
     this.isCheckingFormat = false;
     this.group.drafts.release(this.draftKey);
   }
@@ -661,13 +711,20 @@ export class ContentEditorGroupVariantsRegistry {
   setServices(services: ContentEditorGroupVariantsServices) {
     const previous = this.services.runGuidelineCheck;
     this.services = services;
-    if (previous === services.runGuidelineCheck) return;
     for (const group of this.groups.values()) {
       group.ports = {
         ...group.ports,
-        services: { ...group.ports.services, runGuidelineCheck: services.runGuidelineCheck },
+        services: {
+          ...group.ports.services,
+          runGuidelineCheck: services.runGuidelineCheck,
+          runGuidelineExplain: services.runGuidelineExplain,
+        },
       };
-      group.rescheduleGuidelineCheck();
+    }
+    if (previous !== services.runGuidelineCheck) {
+      for (const group of this.groups.values()) {
+        group.rescheduleGuidelineCheck();
+      }
     }
   }
 

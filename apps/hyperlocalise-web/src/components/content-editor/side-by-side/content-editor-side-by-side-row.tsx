@@ -149,6 +149,8 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   onSaveDraft,
   onAddToIssueSheet,
   onUseAiSuggestion,
+  onExplainGuideline,
+  explainingGuidelineCheckId = null,
   onGenerateAiRecommendation,
   onTreatAsImage,
   onTreatAsVideo,
@@ -185,6 +187,8 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   onSaveDraft?: () => void;
   onAddToIssueSheet?: () => void;
   onUseAiSuggestion?: () => void;
+  onExplainGuideline?: (check: ContentEditorFormatCheck) => void;
+  explainingGuidelineCheckId?: string | null;
   onGenerateAiRecommendation?: () => void;
   onTreatAsImage?: (treatAsImage: boolean) => void;
   onTreatAsVideo?: (treatAsVideo: boolean) => void;
@@ -650,6 +654,8 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                         isLoading={isFormatChecksLoading}
                         targetText={segment.targetText}
                         onFix={onTargetChange}
+                        explainingCheckId={explainingGuidelineCheckId}
+                        onExplain={onExplainGuideline}
                       />
                     ) : null}
                     {sourceMessageAnalysis ? (

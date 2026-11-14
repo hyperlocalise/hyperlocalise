@@ -83,6 +83,7 @@ function editorState(input: {
   checks: ContentEditorFormatCheck[];
   liveChecks?: ContentEditorFormatCheck[];
   guidelineChecks: (targetText: string) => ContentEditorFormatCheck[];
+  guidelineExplain?: (targetText: string) => Promise<ContentEditorFormatCheck[]>;
 }): Story["args"] {
   const neighbors: Record<
     string,
@@ -139,6 +140,14 @@ function editorState(input: {
       validateFormat: async () => input.liveChecks ?? [],
       runGuidelineCheck: async (_segment: ContentEditorSegment, value: string) =>
         input.guidelineChecks(value),
+      ...(input.guidelineExplain
+        ? {
+            runGuidelineExplain: async (
+              _segment: ContentEditorSegment,
+              value: string,
+            ): Promise<ContentEditorFormatCheck[]> => input.guidelineExplain!(value),
+          }
+        : {}),
     },
   };
 }
@@ -302,6 +311,66 @@ export const ProductNameOmitted: Story = {
     await expect(canvas.getByRole("textbox", { name: "Target translation" })).toHaveTextContent(
       PRODUCT_TARGET,
     );
+  },
+};
+
+const CLASSIFIER_MESSAGE = "This text may not match a project guideline.";
+const EXPLAINED_MESSAGE = "Address the reader as bạn, not khách hàng.";
+
+function classifierChecks(targetText: string): ContentEditorFormatCheck[] {
+  return [
+    {
+      id: "guideline-0",
+      label: GUIDELINE_LABEL,
+      status: "warn",
+      category: "qa",
+      message: CLASSIFIER_MESSAGE,
+      appliesToText: targetText,
+      appliesToLocale: "vi",
+      reasoningAvailable: true,
+      passageId: "passage-vi-voice",
+    },
+  ];
+}
+
+export const ClassifierNeedsExplain: Story = {
+  name: "Explain a classifier warning",
+  args: editorState({
+    key: "assistant.review.help",
+    sourceText: READER_SOURCE,
+    targetText: READER_TARGET,
+    checks: classifierChecks(READER_TARGET),
+    guidelineChecks: classifierChecks,
+    guidelineExplain: async () =>
+      finding(READER_TARGET, {
+        severity: "warning",
+        start: READER_TARGET.indexOf(READER_TOKEN),
+        end: READER_TARGET.indexOf(READER_TOKEN) + READER_TOKEN.length,
+        message: EXPLAINED_MESSAGE,
+        suggestion: READER_SUGGESTION,
+      }),
+  }),
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Jev flags the Vietnamese translation without a quote. Explain asks Luna for the grounded message and suggestion, then Fix becomes available.",
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByText(GUIDELINE_LABEL)).toBeInTheDocument(), {
+      timeout: 4_000,
+    });
+    await expect(canvas.getByText(CLASSIFIER_MESSAGE)).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Fix" })).not.toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, EDITOR_GUIDELINE_CHECK_DEBOUNCE_MS));
+    await userEvent.click(canvas.getByRole("button", { name: "Explain" }));
+    await waitFor(() => expect(canvas.getByText(EXPLAINED_MESSAGE)).toBeInTheDocument(), {
+      timeout: 4_000,
+    });
+    await expect(canvas.getByRole("button", { name: "Fix" })).toBeInTheDocument();
   },
 };
 
