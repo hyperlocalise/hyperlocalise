@@ -33,15 +33,13 @@ async function AccountSettingsPageLoader({
 }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  const userName =
-    [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
-    auth.sessionUser.email;
 
   return (
     <AccountSettingsPageContent
       organizationSlug={organizationSlug}
       userEmail={auth.sessionUser.email}
-      userName={userName}
+      firstName={auth.sessionUser.firstName ?? ""}
+      lastName={auth.sessionUser.lastName ?? ""}
     />
   );
 }

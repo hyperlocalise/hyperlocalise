@@ -70,6 +70,11 @@ describe("app i18n locales", () => {
     expect(normalizeAppLocale("fr")).toBeNull();
   });
 
+  it("strips Unicode hour-cycle extensions used for clock formatting", () => {
+    expect(normalizeAppLocale("en-u-hc-h23")).toBe("en");
+    expect(normalizeAppLocale("fr-FR-u-hc-h12")).toBe("fr-FR");
+  });
+
   it("keeps content locale helpers aligned with supported routing locales", () => {
     expect(AVAILABLE_APP_CONTENT_LOCALES).toEqual(SUPPORTED_APP_LOCALES);
     expect(isAvailableAppContentLocale("zh-CN")).toBe(true);

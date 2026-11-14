@@ -28,6 +28,7 @@ export type AppShellBreadcrumb = {
 type RouteTitleKey =
   | "account"
   | "activity"
+  | "preferences"
   | "activity-logs"
   | "agent-runs"
   | "ai-engine"
@@ -103,6 +104,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
   return (
     value === "account" ||
     value === "activity" ||
+    value === "preferences" ||
     value === "activity-logs" ||
     value === "agent-runs" ||
     value === "ai-engine" ||
@@ -202,6 +204,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Account",
         id: "tMPM8tkhJg",
         description: "App shell breadcrumb title for the account settings page",
+      });
+    case "preferences":
+      return intl.formatMessage({
+        defaultMessage: "Preferences",
+        id: "4tSPCm9GtC",
+        description: "App shell breadcrumb title for the preferences settings page",
       });
     case "activity":
       return intl.formatMessage({

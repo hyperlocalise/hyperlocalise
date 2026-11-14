@@ -37,6 +37,7 @@ describe("settings nav config", () => {
       "ai-engine",
       "domains",
       "account",
+      "preferences",
     ]);
   });
 
@@ -61,6 +62,7 @@ describe("settings nav config", () => {
       "api-keys",
       "webhooks",
       "account",
+      "preferences",
     ]);
   });
 
@@ -107,6 +109,9 @@ describe("settings nav config", () => {
     expect(resolveActiveSettingsNavItem("/org/acme/settings/hyperlab", "acme")).toBe("hyperlab");
     expect(resolveActiveSettingsNavItem("/org/acme/hyperlab", "acme")).toBe("hyperlab");
     expect(resolveActiveSettingsNavItem("/org/acme/settings/account", "acme")).toBe("account");
+    expect(resolveActiveSettingsNavItem("/org/acme/settings/preferences", "acme")).toBe(
+      "preferences",
+    );
     expect(resolveActiveSettingsNavItem("/org/acme/settings/api-keys", "acme")).toBe("api-keys");
   });
 });

@@ -16,17 +16,19 @@ type sessionAccountAPI struct {
 }
 
 type sessionAccount struct {
-	ID                      string         `json:"id"`
-	Email                   string         `json:"email"`
-	FirstName               *string        `json:"firstName"`
-	LastName                *string        `json:"lastName"`
-	NotificationPreferences map[string]any `json:"notificationPreferences"`
+	ID                      string                     `json:"id"`
+	Email                   string                     `json:"email"`
+	FirstName               *string                    `json:"firstName"`
+	LastName                *string                    `json:"lastName"`
+	NotificationPreferences map[string]any             `json:"notificationPreferences"`
+	Preferences             *userAppearancePreferences `json:"preferences"`
 }
 
 func (api *sessionAccountAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	registerAuthenticated(mux, verifier, "GET /v1/me", http.HandlerFunc(api.get))
 	registerAuthenticated(mux, verifier, "PATCH /v1/me/notification-preferences", http.HandlerFunc(api.patchPreferences))
 	registerAuthenticated(mux, verifier, "DELETE /v1/me", http.HandlerFunc(api.delete))
+	api.registerAppearance(mux, verifier)
 }
 
 func (api *sessionAccountAPI) get(w http.ResponseWriter, r *http.Request) {
@@ -178,14 +180,18 @@ func loadSessionAccount(ctx context.Context, db dictionaryDB, workosUserID strin
 	).Scan(&emailEnabled, &emailFormat)
 	if errors.Is(err, pgx.ErrNoRows) {
 		account.NotificationPreferences = defaultNotificationPreferences()
-		return account, nil
+	} else if err != nil {
+		return sessionAccount{}, err
+	} else {
+		account.NotificationPreferences = map[string]any{
+			"emailEnabled": emailEnabled,
+			"emailFormat":  emailFormat,
+		}
 	}
+	preferences, err := loadUserAppearancePreferences(ctx, db, account.ID)
 	if err != nil {
 		return sessionAccount{}, err
 	}
-	account.NotificationPreferences = map[string]any{
-		"emailEnabled": emailEnabled,
-		"emailFormat":  emailFormat,
-	}
+	account.Preferences = preferences
 	return account, nil
 }

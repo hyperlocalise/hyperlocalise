@@ -10,20 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Columns } from "@/components/ui/layout/columns";
-import { Column } from "@/components/ui/layout/column";
 import { Rows } from "@/components/ui/layout/rows";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
 
+import { AccountProfileForm } from "./account-profile-form";
 import { NotificationPreferencesSection } from "./notification-preferences-section";
-import {
-  SettingsPageBody,
-  SettingsPageHeader,
-  SettingsSectionHeader,
-} from "./settings-page-chrome";
+import { PreferencesForm } from "./preferences-form";
+import { SettingsPageBody, SettingsPageHeader } from "./settings-page-chrome";
 import { WorkspaceSettingsForm } from "./workspace-settings-form";
 
 type GeneralSettingsPageProps = {
@@ -35,17 +29,9 @@ type GeneralSettingsPageProps = {
 type AccountPageProps = {
   organizationSlug: string;
   userEmail: string;
-  userName: string;
+  firstName: string;
+  lastName: string;
 };
-
-function ReadonlyField({ label, value }: { label: string; value: string }) {
-  return (
-    <Field>
-      <FieldLabel className="text-xs font-medium text-muted-foreground">{label}</FieldLabel>
-      <Input readOnly value={value} className="h-10 bg-muted" />
-    </Field>
-  );
-}
 
 export async function GeneralSettingsPageContent({
   canUpdateWorkspace,
@@ -77,7 +63,8 @@ export async function GeneralSettingsPageContent({
 export async function AccountSettingsPageContent({
   organizationSlug,
   userEmail,
-  userName,
+  firstName,
+  lastName,
 }: AccountPageProps) {
   const intl = getIntlShape(await getAppLocale());
 
@@ -91,45 +78,27 @@ export async function AccountSettingsPageContent({
             description: "Account settings page heading",
           })}
         />
-
-        <Rows spacing="3u">
-          <SettingsSectionHeader
-            title={intl.formatMessage({
-              defaultMessage: "Profile",
-              id: "dwrrquikgT",
-              description: "Section heading for the signed-in user profile on account settings",
-            })}
-            description={intl.formatMessage({
-              defaultMessage: "These details come from your WorkOS session.",
-              id: "nYeBrRESbk",
-              description: "Helper text under the profile section on account settings",
-            })}
-          />
-          <Columns spacing="2u" collapseBelow="small">
-            <Column width="1/2">
-              <ReadonlyField
-                label={intl.formatMessage({
-                  defaultMessage: "Name",
-                  id: "AfaXCvPHA0",
-                  description: "Label for the readonly user name field on account settings",
-                })}
-                value={userName}
-              />
-            </Column>
-            <Column width="1/2">
-              <ReadonlyField
-                label={intl.formatMessage({
-                  defaultMessage: "Email",
-                  id: "2ynzQ185js",
-                  description: "Label for the readonly user email field on account settings",
-                })}
-                value={userEmail}
-              />
-            </Column>
-          </Columns>
-        </Rows>
-
+        <AccountProfileForm email={userEmail} firstName={firstName} lastName={lastName} />
         <NotificationPreferencesSection organizationSlug={organizationSlug} />
+      </Rows>
+    </SettingsPageBody>
+  );
+}
+
+export async function PreferencesSettingsPageContent() {
+  const intl = getIntlShape(await getAppLocale());
+
+  return (
+    <SettingsPageBody width="wide">
+      <Rows spacing="4u">
+        <SettingsPageHeader
+          title={intl.formatMessage({
+            defaultMessage: "Preferences",
+            id: "7Mts/cDWel",
+            description: "Preferences settings page heading",
+          })}
+        />
+        <PreferencesForm />
       </Rows>
     </SettingsPageBody>
   );

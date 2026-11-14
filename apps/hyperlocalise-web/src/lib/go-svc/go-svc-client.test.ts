@@ -1050,7 +1050,10 @@ describe("GoSvcClient", () => {
       .mockResolvedValueOnce(Response.json({ markedCount: 2 }))
       .mockResolvedValueOnce(Response.json({ preferences: { email: true } }))
       .mockResolvedValueOnce(Response.json({ preferences: { email: false } }))
-      .mockResolvedValueOnce(Response.json({ mentionSuggestions: { users: [], issues: [] } }));
+      .mockResolvedValueOnce(Response.json({ mentionSuggestions: { users: [], issues: [] } }))
+      .mockResolvedValueOnce(Response.json({ id: "user-1", preferences: null }))
+      .mockResolvedValueOnce(Response.json({ id: "user-1", preferences: { theme: "dark" } }))
+      .mockResolvedValueOnce(Response.json({ id: "user-1", firstName: "Ada" }));
     const client = clientWith(fetchMock);
 
     await client.inbox.listNotifications("acme / eu", { unreadOnly: true, limit: 10, offset: 5 });
@@ -1064,6 +1067,14 @@ describe("GoSvcClient", () => {
       emailFormat: "digest",
     });
     await client.inbox.mentions("acme / eu", { q: "ada", projectId: "project/1", limit: 8 });
+    await client.account.get();
+    await client.account.updatePreferences({
+      theme: "dark",
+      locale: "fr-FR",
+      timezone: "Europe/Paris",
+      hourCycle: "h23",
+    });
+    await client.account.updateProfile({ firstName: "Ada", lastName: "Lee" });
 
     expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
       [
@@ -1080,6 +1091,9 @@ describe("GoSvcClient", () => {
         `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/mentions?q=ada&projectId=project%2F1&limit=8`,
         "GET",
       ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/me`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/me/preferences`, "PATCH"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/me`, "PATCH"],
     ]);
   });
 });
