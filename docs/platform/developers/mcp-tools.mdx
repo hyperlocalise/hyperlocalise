@@ -126,7 +126,7 @@ Project reads use the authenticated member's normal project access. Missing or i
 
 ### Guideline checks
 
-`check_guidelines` reviews up to 50 segments against the workspace and project guideline documents. Use it before saving a translation or to audit source copy. Unassigned org-wide documents apply to every project; assigned ones apply only to listed projects.
+`check_guidelines` reviews up to 50 segments against the workspace and project guideline documents. Use it before saving a translation or to audit source copy. Unassigned org-wide documents apply to every project; assigned ones apply only to listed projects. Clean segments stay on the cheap classifier. Flagged segments are explained automatically before the tool returns.
 
 ```json
 {
@@ -140,9 +140,9 @@ Project reads use the authenticated member's normal project access. Missing or i
 
 Each segment needs an `id` and at least one of `source` or `target`. Segments may contain up to 16,000 characters in total. `checks` defaults to every field present. `targetLocale` also selects any locale-specific guideline documents.
 
-The response contains `findings`, `passages`, `searchAvailable`, and `model`. Each finding has `segmentId`, `field`, `severity` (`error`, `warning`, or `info`), `start` and `end` offsets into the checked text in UTF-16 code units, `message`, an optional `suggestion`, and the `passageId` it cites. `passages` contains only the cited guideline text. Findings that do not cite a guideline are dropped, so an empty `findings` array means no guideline violation was found, not that the text is correct.
+The response contains `findings`, `passages`, `searchAvailable`, and `model`. Each finding has `segmentId`, `field`, `severity` (`error`, `warning`, or `info`), `start` and `end` offsets into the checked text in UTF-16 code units, `message`, an optional `suggestion`, and the `passageId` it cites. `passages` contains only the cited guideline text. Findings that do not cite a guideline are dropped, so an empty `findings` array means no guideline violation was found, not that the text is correct. When every segment is clean, Luna is not called and `model` is the classifier.
 
-`searchAvailable: false` means only always-applied guidelines were considered because guideline search was unavailable. Each checked segment counts toward the organization's guideline check usage.
+`searchAvailable: false` means only always-applied guidelines were considered because guideline search was unavailable. Each classified segment counts toward the organization's guideline check usage. Explanations spend AI credit.
 
 ### Board (issues)
 

@@ -1,6 +1,6 @@
 # Guideline check: Jev classification, Luna reasoning on demand
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -70,20 +70,20 @@ After retrieve, build one Jev `state` object per request:
 }
 ```
 
-Ask one boolean per labeled passage, evaluated in parallel against that
+Ask one boolean per segment×passage, evaluated in parallel against that
 state (Jev's native shape):
 
-- id: `violates_P{n}`
+- id: `s{i}_P{j}`
 - instructions: true only for a clear, attributable breach of that passage
-  in a requested field. False for no match, style preference, or a rule
+  in a requested field of that segment. False for no match, style preference, or a rule
   that does not apply.
 - criteria: true / false descriptions that repeat the grounding rule
   (verbatim quote must exist in the segment; omission may span the field).
 
 Derive findings in Go, not in the model:
 
-| Probability that `violates_P{n}` is true | Action |
-|------------------------------------------|--------|
+| Probability that `s{i}_P{j}` is true | Action |
+|--------------------------------------|--------|
 | `>= 0.75` | Emit a finding. Severity `warning`. `passageId` is that passage. Offsets span the whole field until Luna explains. Message is a canned English string, not model text. |
 | `0.40 .. 0.75` | Drop. Log the band for calibration. Do not show noise in the editor. |
 | `< 0.40` | No finding for that passage. |
@@ -145,17 +145,17 @@ checked this segment." Generation spends AI credit.
 
 Zero Data Retention on both Gateway calls (`providerOptions.gateway`).
 
-### Configuration and rollback
+### Configuration
 
 | Env | Default |
 |-----|---------|
 | `GUIDELINE_CHECK_CLASSIFIER_MODEL` | `typesafe-ai/jev` |
-| `GUIDELINE_CHECK_REASONING_MODEL` | `openai/gpt-6-luna` (replaces `GUIDELINE_CHECK_MODEL` for generation) |
-| `GUIDELINE_CHECK_CLASSIFIER` | `jev`. Set `luna` to restore today's single-shot check (no explain API required). |
+| `GUIDELINE_CHECK_REASONING_MODEL` | `openai/gpt-6-luna` (preferred over `GUIDELINE_CHECK_MODEL` for generation) |
 
-A Jev failure is a 502 `guideline_check_failed`, same as a Luna failure
-today. Do not silently fall back to Luna on the live path; that would
-restore the cost we are removing.
+There is no `GUIDELINE_CHECK_CLASSIFIER=luna` rollback. A Jev failure is a
+502 `guideline_check_failed`, same as a Luna failure today. Do not silently
+fall back to Luna on the live path; that would restore the cost we are
+removing.
 
 Keep using `internal/aisdk` for Jev. Do not move classification into Next.js.
 A later swap from `/v4/ai/evaluation-model` to Gateway `/v1/decisions` is
@@ -170,8 +170,8 @@ caller cannot click **Explain**.
 
 **One Jev boolean for the whole request (`compliant`).** Cheaper questions,
 no passage id until Luna. The editor could not cite a document, and MCP
-would send the full corpus into Luna. Rejected; per-passage booleans match
-Jev's independent-question model and keep grounding.
+would send the full corpus into Luna. Rejected; per-segment×passage booleans
+match Jev's independent-question model and keep grounding.
 
 **Keep Luna for editor checks, add Jev only to project QA scans.** Scans
 explicitly exclude guidelines today. Cheaper scans are a follow-up once the
@@ -189,8 +189,7 @@ classifier is trusted in CAT. They are not the cost that fires every 1.5s.
 ## Implementation order
 
 1. **go-svc classifier.** New Jev adapter in `internal/guidelines/check`,
-   thresholds, v2 cache, tests with a fake evaluate client. Env rollback to
-   Luna.
+   thresholds, v2 cache, tests with a fake evaluate client.
 2. **Explain API.** Luna path extracted from `CheckBeforeModel`; HTTP +
    `ai_tokens` tracking; MCP auto-explain on flagged segments only.
 3. **Editor Explain.** Canned classifier copy, **Explain** action, replace
@@ -199,18 +198,13 @@ classifier is trusted in CAT. They are not the cost that fires every 1.5s.
 4. **Docs.** `internal/guidelines/README.md`,
    `docs/platform/knowledge/guidelines.mdx`, MCP tool copy.
 
-Calibrate thresholds against a small labeled fixture set before flipping
-the default off `luna` in production if live accuracy is below the current
-Luna check on that set.
-
 ## Verification
 
 - Unit: threshold bands, per-passage finding derivation, empty retrieval
   skips Jev, cache key changes with passage text, grounding still drops
   Luna quotes that are not in the segment.
 - HTTP: check meters `guideline_checks`; explain meters `ai_tokens` and not
-  `guideline_checks`; `GUIDELINE_CHECK_CLASSIFIER=luna` matches today's
-  response shape.
+  `guideline_checks`; public check does not auto-explain.
 - MCP: all-OK batch never calls Luna; a mixed batch explains only flagged
   segment ids.
 - Editor: debounce still hits check only; **Explain** fills message and
