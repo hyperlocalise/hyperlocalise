@@ -30,7 +30,6 @@ vi.mock("./steps/translation-job", () => ({
   ensureAiFeaturesAllowedStep: vi.fn(async () => ({ ok: true })),
   failTranslationJobStep: mocks.failTranslationJobStep,
   recordJobEventsStep: vi.fn(),
-  resolveWorkspaceReportsFlagStep: vi.fn(async () => false),
 }));
 
 vi.mock("@/lib/translation/key-translation-job", () => ({

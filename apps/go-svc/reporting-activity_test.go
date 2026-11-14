@@ -160,7 +160,7 @@ func TestReportingActivityDownloadsTheChartAsCSV(t *testing.T) {
 	mustReportingSummary(t, scope, []reportingSummaryRow{
 		{targetLocale: "fr-FR", day: "2026-06-09", finished: 30, source: "ai"},
 	})
-	api := reportingTestAPI(scope, "admin", stubWorkspaceFlags{enabled: true})
+	api := reportingTestAPI(scope, "admin")
 	rec := reportingRequest(t, api, scope.WorkOSUserID, http.MethodGet, scope.OrgPath("/reports/activity?from=2026-06-08&to=2026-06-09&format=csv"), "")
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "text/csv; charset=utf-8", rec.Header().Get("Content-Type"))

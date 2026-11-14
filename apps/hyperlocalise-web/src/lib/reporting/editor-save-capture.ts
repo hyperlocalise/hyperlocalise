@@ -13,8 +13,6 @@
 import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
-import { readWorkosFeatureFlag, waitForWorkosFeatureFlags } from "@/lib/flags/workos-adapter";
-import { WORKSPACE_REPORTS_FLAG } from "@/lib/flags/workos-flag-entities";
 import { createLogger } from "@/lib/log";
 
 import {
@@ -44,8 +42,6 @@ export const EDITOR_SAVE_CAPTURE_CUTOFF_MS = 2 * 60 * 1000;
 const EVENTS_PER_ORGANIZATION = 2_000;
 /** Saves recorded before a workspace's position moves, so a stopped run keeps its finished work. */
 const EVENTS_PER_BATCH = 200;
-/** How long a run waits for this instance's first download of feature flags before stopping. */
-const FLAGS_READY_TIMEOUT_MS = 10_000;
 /**
  * Approvals made in the web app or through MCP reach the activity log through a queue and carry
  * the time they were queued, so one delivered late can land behind a position already passed.
@@ -68,7 +64,6 @@ type SaveEvent = {
 
 export type EditorSaveCaptureResult = {
   organizationsProcessed: number;
-  organizationsSkipped: number;
   /** Workspaces given a first position at the cut-off, without recording earlier saves. */
   organizationsStarted: number;
   /** Approvals recorded late because they reached the activity log after the run that passed them. */
@@ -76,12 +71,11 @@ export type EditorSaveCaptureResult = {
   eventsProcessed: number;
   segmentsRecorded: number;
   /** Why the run stopped before checking every workspace, if it did. */
-  stopped: "flags_unavailable" | "time_budget" | null;
+  stopped: "time_budget" | null;
 };
 
 type WorkspaceToCheck = {
   organizationId: string;
-  workosOrganizationId: string;
   /** False the first time the task sees the workspace. */
   hasPosition: boolean;
 };
@@ -109,26 +103,14 @@ export async function captureEditorSaves(
   const cutoff = new Date(now.getTime() - EDITOR_SAVE_CAPTURE_CUTOFF_MS);
   const result: EditorSaveCaptureResult = {
     organizationsProcessed: 0,
-    organizationsSkipped: 0,
     organizationsStarted: 0,
     lateApprovalsRecorded: 0,
     eventsProcessed: 0,
     segmentsRecorded: 0,
     stopped: null,
   };
-  let flagsConfigured: boolean;
-  try {
-    flagsConfigured = await waitForWorkosFeatureFlags({ timeoutMs: FLAGS_READY_TIMEOUT_MS });
-  } catch (error) {
-    // Until the flags are downloaded every check reads as off, which would pass over the saves of
-    // workspaces that have Reports on. Stop without moving any position; the next run retries.
-    logger.warn({ error }, "feature flags not downloaded; stopping without moving any position");
-    result.stopped = "flags_unavailable";
-    return result;
-  }
   const memoryCache = new MemoryScoreCache();
   const eventsPerBatch = input.eventsPerBatch ?? EVENTS_PER_BATCH;
-  const reportsOff: string[] = [];
   workspaces: for (const workspace of await listWorkspaces(input.organizationIds)) {
     if (input.signal?.aborted) {
       result.stopped = "time_budget";
@@ -136,13 +118,9 @@ export async function captureEditorSaves(
     }
     const { organizationId } = workspace;
     try {
-      if (!(flagsConfigured && (await readReportsFlag(workspace)))) {
-        reportsOff.push(organizationId);
-        continue;
-      }
       if (!workspace.hasPosition) {
-        // Reports records work from when the task first sees a workspace with Reports on, so
-        // earlier saves are not recorded as today's work. Later saves are read next run.
+        // Reports records work from when the task first sees a workspace, so earlier saves are
+        // not recorded as today's work. Later saves are read next run.
         await moveCursorTo(organizationId, cutoff);
         await reportingStart(organizationId);
         result.organizationsStarted += 1;
@@ -178,26 +156,11 @@ export async function captureEditorSaves(
       logger.warn({ organizationId, error }, "editor save capture failed; will retry next run");
     }
   }
-  if (reportsOff.length > 0) {
-    // Reports records work from when it is turned on, so a workspace with it off keeps no
-    // position, and is started at the cut-off if Reports is turned on later.
-    await db
-      .delete(schema.reportingCaptureCursors)
-      .where(inArray(schema.reportingCaptureCursors.organizationId, reportsOff));
-    result.organizationsSkipped = reportsOff.length;
-  }
   return result;
 }
 
 /** Thrown between groups of saves once the run's time is up; the batch is retried next run. */
 class TimeBudgetReached extends Error {}
-
-/** Throws when the check fails rather than answering false, so a failure never reads as "off". */
-function readReportsFlag(workspace: WorkspaceToCheck): Promise<boolean> {
-  return readWorkosFeatureFlag(WORKSPACE_REPORTS_FLAG, {
-    organization: { id: workspace.workosOrganizationId },
-  });
-}
 
 /**
  * Every workspace, with whether it has a position, in a different order each run so a workspace
@@ -206,7 +169,7 @@ function readReportsFlag(workspace: WorkspaceToCheck): Promise<boolean> {
 async function listWorkspaces(organizationIds?: string[]): Promise<WorkspaceToCheck[]> {
   if (organizationIds?.length === 0) return [];
   const rows = await db.execute<WorkspaceToCheck>(sql`
-    select o.id as "organizationId", o.workos_organization_id as "workosOrganizationId",
+    select o.id as "organizationId",
       (c.organization_id is not null) as "hasPosition"
     from organizations o
     left join reporting_capture_cursors c on c.organization_id = o.id

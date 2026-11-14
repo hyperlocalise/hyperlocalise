@@ -58,9 +58,7 @@ const optional = (value: string | null) => value ?? undefined;
 /**
  * Codes the client gives a failure that is not go-svc's own answer, and go-svc's answers that it
  * could not read the report (an internal error, its database or WorkOS unavailable, or a sign-in
- * it could not check), whose own text is not for the person. The page shows only when the web
- * app has the flag on, so go-svc's `feature_unavailable` nearly always means its own lookup failed
- * or is a minute behind, rather than that Reports is off.
+ * it could not check), whose own text is not for the person.
  */
 const UNANSWERED_CODES = new Set([
   "network_error",

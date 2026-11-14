@@ -55,7 +55,6 @@ import {
   persistFileTranslationMemoryEntriesStep,
   persistDocumentVariantBytesStep,
   recordJobEventsStep,
-  resolveWorkspaceReportsFlagStep,
   reuseFileTranslationMemoryEntriesStep,
   storeOutputFileStep,
 } from "./steps/translation-job";
@@ -1166,10 +1165,6 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       Object.keys(sourceEntries).length * parsedInput.targetLocales.length,
     );
     const outputPattern = getSandboxOutputFilenamePattern(hlOutputBaseFilename);
-    const reportsEnabled = sourceEntries
-      ? await resolveWorkspaceReportsFlagStep(organizationId)
-      : false;
-
     const PREPARATION_CONCURRENCY = 4;
     for (
       let offset = 0;
@@ -1182,16 +1177,14 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           .map(async (targetLocale) => {
             let tmPrefilled: Record<string, string> = {};
             if (sourceEntries) {
-              if (reportsEnabled) {
-                await captureFileAnalysisStep({
-                  organizationId,
-                  projectId: claim.job.projectId,
-                  jobId: claim.job.id,
-                  sourceLocale: parsedInput.sourceLocale,
-                  targetLocale,
-                  sourceEntries,
-                });
-              }
+              await captureFileAnalysisStep({
+                organizationId,
+                projectId: claim.job.projectId,
+                jobId: claim.job.id,
+                sourceLocale: parsedInput.sourceLocale,
+                targetLocale,
+                sourceEntries,
+              });
               if (!parsedInput.ignoreTranslationMemory) {
                 const tmReuse = await reuseFileTranslationMemoryEntriesStep({
                   projectId: claim.job.projectId,
@@ -1570,15 +1563,14 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
               targetEntries: accepted,
             });
           }
-          if (reportsEnabled)
-            await captureFileCompletionsStep({
-              organizationId,
-              jobId: claim.job.id,
-              targetLocale,
-              sourceEntries: deltaSource,
-              targetEntries: accepted,
-              memoryKeys: memoryKeysByLocale[targetLocale],
-            });
+          await captureFileCompletionsStep({
+            organizationId,
+            jobId: claim.job.id,
+            targetLocale,
+            sourceEntries: deltaSource,
+            targetEntries: accepted,
+            memoryKeys: memoryKeysByLocale[targetLocale],
+          });
           confirmedByLocale[targetLocale] = { ...confirmedByLocale[targetLocale], ...accepted };
           prefilledByLocale[targetLocale] = { ...prefilledByLocale[targetLocale], ...accepted };
           acceptedCount += Object.keys(accepted).length;

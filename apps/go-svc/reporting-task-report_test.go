@@ -156,7 +156,7 @@ func TestReportingLockedPricingSteps(t *testing.T) {
 	locked := func(job, status string) []string {
 		var steps []string
 		require.NoError(t, f.scope.Pool.QueryRow(t.Context(), `select 1`).Scan(new(int)))
-		err := reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true}).read(t.Context(), func(db reporting.DB) error {
+		err := reportingTestAPI(f.scope, "admin").read(t.Context(), func(db reporting.DB) error {
 			var err error
 			steps, err = queryReportingLockedPricingSteps(t.Context(), db, f.scope.OrganizationID, job, status)
 			return err
@@ -194,7 +194,7 @@ func TestReportingInternalReportServesTheMcpToolForAMember(t *testing.T) {
 		return fmt.Sprintf(`{"organizationId": "%s", "userId": "%s", "query": %s}`, scope.OrganizationID, scope.UserID, query)
 	}
 	send := func(role, kind, body string, token bool) (int, map[string]any) {
-		api := reportingTestAPI(scope, role, stubWorkspaceFlags{enabled: true})
+		api := reportingTestAPI(scope, role)
 		rec := reportingRequest(t, api, scope.WorkOSUserID, http.MethodPost, "/internal/reports/"+kind, body)
 		if !token {
 			mux := http.NewServeMux()
@@ -241,11 +241,6 @@ func TestReportingInternalReportServesTheMcpToolForAMember(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, status)
 	status, _ = send("admin", "activity", `{"organizationId": "nope"}`, true)
 	require.Equal(t, http.StatusBadRequest, status)
-	// The flag applies to the member's workspace as on the page.
-	api := reportingTestAPI(scope, "admin", stubWorkspaceFlags{enabled: false})
-	rec := reportingRequest(t, api, scope.WorkOSUserID, http.MethodPost, "/internal/reports/activity", payload(`{}`))
-	require.Equal(t, http.StatusForbidden, rec.Code)
-	require.Contains(t, rec.Body.String(), "feature_unavailable")
 }
 
 func TestReportingTaskCSVListsAFixedFeeAsARowOfItsOwn(t *testing.T) {

@@ -19,7 +19,6 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines/check"
 	guidelinepg "github.com/hyperlocalise/hyperlocalise/internal/guidelines/postgres"
 	"github.com/hyperlocalise/hyperlocalise/internal/postgres"
-	"github.com/hyperlocalise/hyperlocalise/internal/reporting"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/workos/workos-go/v10"
 )
@@ -321,7 +320,6 @@ func main() {
 	h.overview.membership = membershipLookup
 	h.overview.flags = h.workspace.flags
 	h.reports.membership = membershipLookup
-	h.reports.Flags = reporting.NewCachedFlags(h.workspace.flags)
 	h.publicTranslations.auth.membership = membershipLookup
 	h.workspace.membership = membershipLookup
 

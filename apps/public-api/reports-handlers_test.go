@@ -145,7 +145,6 @@ func TestReportsMapRefusalsAndFailures(t *testing.T) {
 		code       string
 		retryAfter string
 	}{
-		{"flag off", reportAnswer{status: 403, body: []byte(`{"error":"feature_unavailable"}`)}, nil, 403, "reports_not_enabled", ""},
 		{"no billing", reportAnswer{status: 403, body: []byte(`{"error":"report_forbidden"}`)}, nil, 403, "forbidden", ""},
 		{"bad query", reportAnswer{status: 400, body: []byte(`{"error":"invalid_report_query","message":"Report query is invalid"}`)}, nil, 400, "invalid_report_query", ""},
 		{"task not found", reportAnswer{status: 404, body: []byte(`{"error":"task_not_found","message":"Resource not found"}`)}, nil, 404, "task_not_found", ""},

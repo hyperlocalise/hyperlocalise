@@ -14,7 +14,7 @@ The workspace sidebar previously exposed 17+ flat and semi-grouped items (Inbox,
      - **Inbox** (`/org/[slug]/inbox`)
      - **My Jobs** (`/org/[slug]/my-work`)
      - **Queries** (`/org/[slug]/issues`)
-     - **Reports** (`/org/[slug]/reports`, flag: `WORKSPACE_REPORTS_FLAG`)
+     - **Reports** (`/org/[slug]/reports`)
    - **Content Intelligence (Section)**: Dedicated to linguistic and quality assets:
      - **Glossaries** (`/org/[slug]/glossaries`)
      - **Translation Memories** (`/org/[slug]/translation-memories`)

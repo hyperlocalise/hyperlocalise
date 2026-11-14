@@ -84,7 +84,7 @@ func TestReportingRateCardSaveKeepsEarlierVersionsAndRetiresRemovedLines(t *test
 	// Work recorded from now on for the retired language has no rate.
 	f.budget(f.scope.ProjectID, "100", some("Standard"))
 	var rate *reportingRateRow
-	require.NoError(t, reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true}).read(t.Context(), func(db reporting.DB) error {
+	require.NoError(t, reportingTestAPI(f.scope, "admin").read(t.Context(), func(db reporting.DB) error {
 		var err error
 		rate, err = resolveReportingRate(t.Context(), db, f.scope.OrganizationID, f.scope.ProjectID, "", "en-US", "es-ES", "translation")
 		return err
@@ -263,7 +263,7 @@ func TestReportingTaskPricingRacingLoggedTimeNeverPricesStartedWork(t *testing.T
 	f := seedReportingMoney(t)
 	f.card("Hourly", "2026-03-01T00:00:00Z", line("fr-FR", "60", "hour"))
 	f.budget(f.scope.ProjectID, "1000", some("Hourly"))
-	api := reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true})
+	api := reportingTestAPI(f.scope, "admin")
 	// Both hold the task row, so either the pricing lands before the time (and the time keeps
 	// the card's rate), or the time lands first and the pricing is refused as locked.
 	for i := range 6 {
@@ -302,7 +302,7 @@ func TestReportingAnEditRacingADeleteLeavesTheEntryVoided(t *testing.T) {
 		status, body := f.send("admin", http.MethodPost, "/reports/time-entries", fmt.Sprintf(`{"jobId": "%s", "step": "translation", "targetLocale": "fr-FR", "workDate": "2026-06-01", "minutes": 30}`, job))
 		require.Equal(t, http.StatusCreated, status)
 		entryID := body["timeEntry"].(map[string]any)["id"].(string)
-		api := reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true})
+		api := reportingTestAPI(f.scope, "admin")
 		var wg sync.WaitGroup
 		codes := make([]int, 2)
 		wg.Go(func() {
@@ -338,7 +338,7 @@ func TestReportingAnEditWaitingOnADeleteDoesNotRewriteTheEntry(t *testing.T) {
 	_, err = deleting.Exec(t.Context(), `update reporting_time_entries set voided = true where id = $1`, entryID)
 	require.NoError(t, err)
 
-	api := reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true})
+	api := reportingTestAPI(f.scope, "admin")
 	edited := make(chan int, 1)
 	go func() {
 		edited <- reportingRequest(t, api, f.scope.WorkOSUserID, http.MethodPatch, f.scope.OrgPath("/reports/time-entries/"+entryID), `{"minutes": 45, "workDate": "2026-06-02"}`).Code
@@ -396,23 +396,6 @@ func TestReportingRateCardPercentagesAreStoredAsWholeNumbers(t *testing.T) {
 	status, _ = f.send("admin", http.MethodPut, "/reports/rate-cards", `{"name": "Bands", "lines": [{"sourceLocale": "en-US", "targetLocale": "fr-FR", "step": "translation", "basis": "word", "rate": "0.1", "percentages": {"100": 100}}]}`)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 2, f.count(`select count(*) from reporting_rates where organization_id = $1 and name = 'Bands'`, f.scope.OrganizationID))
-}
-
-func TestReportingWritesNeedTheFlag(t *testing.T) {
-	scope := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
-	api := reportingTestAPI(scope, "admin", stubWorkspaceFlags{enabled: false})
-	for _, route := range []struct{ method, path string }{
-		{http.MethodPut, "/reports/rate-cards"},
-		{http.MethodPut, "/reports/budgets"},
-		{http.MethodPut, "/reports/task-rates"},
-		{http.MethodPost, "/reports/time-entries"},
-		{http.MethodPatch, "/reports/time-entries/x"},
-		{http.MethodDelete, "/reports/time-entries/x"},
-	} {
-		rec := reportingRequest(t, api, scope.WorkOSUserID, route.method, scope.OrgPath(route.path), `{}`)
-		require.Equal(t, http.StatusForbidden, rec.Code, route)
-		require.Contains(t, rec.Body.String(), "feature_unavailable", route)
-	}
 }
 
 func TestReportingRateCardLinePricingIsVersionedLikeItsRate(t *testing.T) {

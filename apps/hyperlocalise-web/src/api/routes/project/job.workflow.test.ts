@@ -45,7 +45,6 @@ import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createProjectTestFixture } from "./project.fixture";
 
-const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => false));
 const loadUploadedGuidelinesContextMock = vi.hoisted(() =>
   vi.fn(async () => ({ text: "", documents: [] })),
 );
@@ -53,14 +52,6 @@ const loadUploadedGuidelinesContextMock = vi.hoisted(() =>
 vi.mock("@/lib/knowledge-memory/uploaded-guidelines-context", () => ({
   loadUploadedGuidelinesContext: loadUploadedGuidelinesContextMock,
 }));
-
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return {
-    ...actual,
-    resolveWorkspaceReportsFlag: resolveWorkspaceReportsFlagMock,
-  };
-});
 
 const projectFixture = createProjectTestFixture();
 
@@ -96,7 +87,6 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
-  resolveWorkspaceReportsFlagMock.mockResolvedValue(false);
   await projectFixture.cleanup();
 });
 
@@ -248,7 +238,6 @@ describe("translation job workflow helpers", () => {
   });
 
   it("records every requested language of a finished string job for Reports", async () => {
-    resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
     const { project, user } = await projectFixture.createStoredProjectFixture();
     const job = await insertJob({
       organizationId: project.organizationId,
@@ -431,7 +420,6 @@ describe("translation job workflow helpers", () => {
   });
 
   it("recounts a failed job's days, so its strings leave Progress", async () => {
-    resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
     const { project, user } = await projectFixture.createStoredProjectFixture();
     const job = await insertJob({
       organizationId: project.organizationId,

@@ -40,15 +40,13 @@ export async function reportingStart(
 }
 
 /**
- * Starts Reports at a workspace's first AI token row, written at `recordedAt`, when Reports is
- * switched on for it, so a workspace that only uses AI (chat, automations, images) still has a
- * start. Called from billing, so it never throws.
+ * Starts Reports at a workspace's first AI token row, written at `recordedAt`, so a workspace
+ * that only uses AI (chat, automations, images) still has a start. Called from billing, so it
+ * never throws.
  */
 export async function startReportingAtAiUse(organizationId: string, recordedAt: Date) {
   try {
     if (await getReportingStart(organizationId)) return;
-    const { resolveWorkspaceReportsFlag } = await import("@/lib/flags/workspace-flags");
-    if (!(await resolveWorkspaceReportsFlag({ organizationId }))) return;
     await reportingStart(organizationId, db, recordedAt);
   } catch (error) {
     console.error("reporting_start_failed", { organizationId, error });

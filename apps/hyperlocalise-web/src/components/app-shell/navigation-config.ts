@@ -25,7 +25,6 @@ import {
   WORKSPACE_HYPERLAB_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_QUERIES_BOARD_FLAG,
-  WORKSPACE_REPORTS_FLAG,
 } from "@/lib/flags/workos-flag-entities";
 import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-editor-all-files";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -75,7 +74,6 @@ export type NavigationItem = {
     | typeof WORKSPACE_KNOWLEDGE_FLAG
     | typeof WORKSPACE_DOMAINS_FLAG
     | typeof WORKSPACE_HYPERLAB_FLAG
-    | typeof WORKSPACE_REPORTS_FLAG
     | typeof WORKSPACE_QUERIES_BOARD_FLAG
     | typeof RELEASE_CAT_ALL_FILES_FLAG;
   /** When true, the feature flag is off and the nav item links to a teaser page. */
@@ -223,7 +221,6 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("reports"),
           icon: ChartBarIcon,
-          featureFlagKey: WORKSPACE_REPORTS_FLAG,
         },
         {
           label: intl.formatMessage({
@@ -450,7 +447,6 @@ export function buildProjectNavigationGroups(
       }),
       href: project("reports"),
       icon: ChartBarIcon,
-      featureFlagKey: WORKSPACE_REPORTS_FLAG,
     });
   }
 

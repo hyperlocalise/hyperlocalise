@@ -19,7 +19,7 @@ func TestReportingCostEstimateDownloadsAsAQuoteWorkbook(t *testing.T) {
 		{jobID: job, targetLocale: "fr-FR", day: "2026-06-01", arrived: 1000},
 		{jobID: job, targetLocale: "fr-FR", day: "2026-06-01", bucket: "100", arrived: 500},
 	})
-	api := reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true})
+	api := reportingTestAPI(f.scope, "admin")
 	rec := reportingRequest(t, api, f.scope.WorkOSUserID, http.MethodGet,
 		f.scope.OrgPath("/reports/cost-estimate?jobIds="+job+"&format=xlsx&client=%3DGlobex&reference=PO-77&validDays=14"), "")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())

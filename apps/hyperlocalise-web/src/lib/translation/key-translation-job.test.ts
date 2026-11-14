@@ -330,7 +330,6 @@ describe("translateKeyBatch", () => {
       overwriteUnapproved: false,
       knowledgeMemoryEnabled: false,
       recordProvenance: true,
-      reportsEnabled: true,
       items: [ids.a!, ids.b!, ids.c!].map((translationKeyId) => ({
         translationKeyId,
         targetLocales: ["fr-FR", "de-DE"],

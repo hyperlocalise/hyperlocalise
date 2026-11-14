@@ -38,7 +38,6 @@ export function JobDetailPageContent({
   canMarkAnyTaskDone = false,
   currentUserId,
   canEditSharedCredentialProviderJobFields = false,
-  reportsEnabled = false,
 }: {
   jobId: string;
   organizationSlug: string;
@@ -47,7 +46,6 @@ export function JobDetailPageContent({
   canMarkAnyTaskDone?: boolean;
   currentUserId?: string;
   canEditSharedCredentialProviderJobFields?: boolean;
-  reportsEnabled?: boolean;
 }) {
   const { client: goSvcClient } = useGoSvcClient();
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
@@ -127,7 +125,6 @@ export function JobDetailPageContent({
       canEditJobFields={canEditJobFields}
       canMarkAnyTaskDone={canMarkAnyTaskDone}
       currentUserId={currentUserId}
-      reportsEnabled={reportsEnabled}
     />
   );
 }

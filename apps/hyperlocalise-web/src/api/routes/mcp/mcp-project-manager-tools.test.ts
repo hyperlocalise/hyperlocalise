@@ -15,7 +15,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { generateMcpToken, hashMcpToken } from "@/api/auth/mcp";
 import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
@@ -25,14 +25,13 @@ import { db, schema } from "@/lib/database/client";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
 
-const { resolveApiAuthContextFromSessionMock, workspaceReportsFlagRunMock } = vi.hoisted(() => ({
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
-  workspaceReportsFlagRunMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -40,14 +39,6 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   return {
     ...actual,
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
-  };
-});
-
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return {
-    ...actual,
-    workspaceReportsFlag: { run: workspaceReportsFlagRunMock },
   };
 });
 
@@ -169,10 +160,6 @@ async function insertNativeJob(input: {
 describe("MCP project manager tools", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
-  });
-
-  beforeEach(() => {
-    workspaceReportsFlagRunMock.mockResolvedValue(true);
   });
 
   afterEach(async () => {
@@ -672,7 +659,7 @@ describe("MCP project manager tools", () => {
     });
   });
 
-  it("gates get_report on the workspace flag and billing, then reads through go-svc as the member", async () => {
+  it("gates get_report on billing, then reads through go-svc as the member", async () => {
     const stored = await fixture.createStoredProjectFixture();
     const translator = fixture.createWorkosIdentityForOrganization(
       stored.identity.organization,
@@ -688,15 +675,11 @@ describe("MCP project manager tools", () => {
         : { wordCounts: { rows: [], groupBy: "task", series: { split: "band", per: "month" } } }),
     }));
 
-    workspaceReportsFlagRunMock.mockResolvedValueOnce(false);
     const adminHeaders = await authenticatedMcpHeaders(stored.identity);
     const adminAuth = globalThis.__testApiAuthContext;
     if (!adminAuth) {
       throw new Error("expected admin auth context");
     }
-    const disabled = await readToolResult<{ error?: string }>(
-      await callMcpTool(adminHeaders, "get_report", { report: "activity" }),
-    );
 
     const translatorHeaders = await authenticatedMcpHeaders(translator);
     const refused = await readToolResult<{ error?: string }>(
@@ -786,10 +769,6 @@ describe("MCP project manager tools", () => {
       await callMcpTool(adminHeaders, "get_report", { report: "costs" }),
     );
 
-    expect(disabled).toMatchObject({
-      isError: true,
-      output: { error: "feature_unavailable" },
-    });
     // Reports are for admins and localization managers; a translator gets none of them.
     expect(refused).toMatchObject({
       isError: true,
@@ -843,7 +822,7 @@ describe("MCP project manager tools", () => {
       isError: true,
       output: { error: "organization_access_denied" },
     });
-    // The tool found the flag on; go-svc's "off" is its own lookup failing.
+    // go-svc's own "off" is its lookup failing, not a workspace flag.
     for (const failed of [unreachable, misconfigured, flagLookupFailed]) {
       expect(failed).toMatchObject({ isError: true, output: { error: "reports_unavailable" } });
       expect(failed.output.message).not.toMatch(/go-svc|token/);

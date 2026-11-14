@@ -22,7 +22,6 @@ export const WORKSPACE_QUERIES_BOARD_FLAG = "queries-board";
 export const WORKSPACE_DOMAINS_FLAG = "workspace-domains";
 export const WORKSPACE_GLOSSARY_SEARCH_FLAG = "workspace-glossary-search";
 export const WORKSPACE_HYPERLAB_FLAG = "workspace-hyperlab";
-export const WORKSPACE_REPORTS_FLAG = "workspace-reports";
 export const WORKSPACE_FEATURE_UNAVAILABLE_REASON = "feature-unavailable";
 
 export type WorkosFlagEntities = {
@@ -39,7 +38,6 @@ export type WorkspaceFeatureFlagState = {
   domains: boolean;
   glossarySearch: boolean;
   hyperlab: boolean;
-  reports: boolean;
 };
 
 export const DISABLED_WORKSPACE_FEATURE_FLAGS: WorkspaceFeatureFlagState = {
@@ -51,5 +49,4 @@ export const DISABLED_WORKSPACE_FEATURE_FLAGS: WorkspaceFeatureFlagState = {
   domains: false,
   glossarySearch: false,
   hyperlab: false,
-  reports: false,
 };

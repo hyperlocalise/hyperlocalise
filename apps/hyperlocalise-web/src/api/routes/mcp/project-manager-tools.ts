@@ -22,7 +22,6 @@ import {
   ownedProjectWhere,
 } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { isWorkspaceFeatureFlagEnabled } from "@/api/middleware/workspace-feature-flag";
 import {
   MCP_DESTRUCTIVE_TOOL,
   MCP_READ_ONLY_TOOL,
@@ -37,7 +36,6 @@ import { REPORT_KINDS, REPORT_QUERY_SCHEMAS } from "@/api/routes/mcp/report-quer
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import { db, schema } from "@/lib/database/client";
-import { workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { createLogger } from "@/lib/log";
 import { formatMemberDisplayName } from "@/lib/members/member-management";
 import { isErr } from "@/lib/primitives/result/results";
@@ -67,8 +65,6 @@ const GET_REPORT_TIME_LIMIT_MS = 35_000;
 /**
  * go-svc's answers to `get_report` that are about the member's request, passed on as they are.
  * Anything else (go-svc unreachable, an internal error, the server call refused) is ours to fix.
- * The tool checks the flag itself first, so go-svc's `feature_unavailable` means its own lookup
- * failed or is a minute behind: not passed on as "not enabled".
  */
 const REPORT_REFUSAL_CODES = new Set([
   "organization_access_denied",
@@ -521,9 +517,6 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
       inputSchema: mcpGetReportInputSchema,
     },
     async (input, extra) => {
-      if (!(await isWorkspaceFeatureFlagEnabled(workspaceReportsFlag, apiAuth))) {
-        return mcpToolError("feature_unavailable", "Reports is not enabled for this workspace");
-      }
       // Reports are for the roles that see what work costs: admins and localization managers.
       if (!hasCapability(apiAuth.membership.role, "billing:read")) {
         return mcpToolError("report_forbidden", "Reports require billing access");

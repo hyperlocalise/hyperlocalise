@@ -105,7 +105,6 @@ export function NativeJobDetailContent({
   canEditJobFields = false,
   canMarkAnyTaskDone = false,
   currentUserId,
-  reportsEnabled = false,
 }: {
   jobId: string;
   organizationSlug: string;
@@ -114,7 +113,6 @@ export function NativeJobDetailContent({
   /** Reviewers and managers may finish any proofread task; others only their own. */
   canMarkAnyTaskDone?: boolean;
   currentUserId?: string;
-  reportsEnabled?: boolean;
 }) {
   const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -502,7 +500,7 @@ export function NativeJobDetailContent({
             : undefined
         }
         renderReportSection={
-          reportsEnabled && job && !isProviderBackedJob(job)
+          job && !isProviderBackedJob(job)
             ? () => (
                 <TaskReport
                   organizationSlug={organizationSlug}

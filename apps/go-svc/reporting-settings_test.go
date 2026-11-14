@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -10,33 +8,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type erroringWorkspaceFlags struct{}
-
-func (erroringWorkspaceFlags) Enabled(context.Context, string, string, string) (bool, error) {
-	return false, errors.New("workos unavailable")
-}
-
 var reportingRoutes = []struct{ method, path string }{
 	{http.MethodGet, "/reports/settings"},
 	{http.MethodGet, "/reports/activity"},
 }
 
-func TestReportingFeatureFlagFailsClosedOnEveryRoute(t *testing.T) {
+func TestReportingRefusesAnotherWorkspace(t *testing.T) {
 	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
 	other := testenv.Seed(t, testenv.Options{Role: "admin"})
-	for name, flags := range map[string]workspaceFlagChecker{
-		"disabled": stubWorkspaceFlags{enabled: false},
-		"errored":  erroringWorkspaceFlags{},
-		"missing":  nil,
-	} {
-		api := reportingTestAPI(scope, "admin", flags)
-		for _, route := range reportingRoutes {
-			rec := reportingRequest(t, api, scope.WorkOSUserID, route.method, scope.OrgPath(route.path), "")
-			require.Equal(t, http.StatusForbidden, rec.Code, name, route)
-			require.JSONEq(t, `{"error":"feature_unavailable","message":"Reports is not enabled for this workspace"}`, rec.Body.String(), name, route)
-		}
-	}
-	api := reportingTestAPI(scope, "admin", stubWorkspaceFlags{enabled: true})
+	api := reportingTestAPI(scope, "admin")
 	for _, route := range reportingRoutes {
 		rec := reportingRequest(t, api, scope.WorkOSUserID, route.method, other.OrgPath(route.path), "")
 		require.Equal(t, http.StatusForbidden, rec.Code, route)

@@ -19,8 +19,6 @@ import (
 var errReportingBusy = reportingFailure(503, "reports_busy", "Reports is busy; try again shortly")
 
 const (
-	workspaceReportsFlag            = "workspace-reports"
-	reportingFlagMessage            = "Reports is not enabled for this workspace"
 	RequestTimeout                  = 30 * time.Second
 	reportingStatementTimeout       = 10 * time.Second
 	reportingQueriesAtOnce          = 3
@@ -39,27 +37,18 @@ var (
 // API serves Reports reads and writes from PostgreSQL.
 type API struct {
 	Pool       Pool
-	Flags      FlagChecker
 	Now        func() time.Time
 	Queries    *semaphore.Weighted
 	Workspaces *reportingWorkspaceSlots
-	// FailClosed refuses when Flags is missing, as go-svc does. public-api leaves it false so a
-	// copy without WorkOS still serves reports.
-	FailClosed bool
 }
 
-// New is a Reports API with admission limits and the clock. Callers set Pool and, in go-svc, Flags.
+// New is a Reports API with admission limits and the clock. Callers set Pool.
 func New() *API {
 	return &API{
 		Now:        time.Now,
 		Queries:    semaphore.NewWeighted(reportingQueriesAtOnce),
 		Workspaces: newReportingWorkspaceSlots(reportingWorkspaceQueriesAtOnce),
 	}
-}
-
-// NewCachedFlags remembers each workspace-reports answer for a minute.
-func NewCachedFlags(live FlagChecker) FlagChecker {
-	return newCachedWorkspaceFlags(live)
 }
 
 // Actor is the member a report is read as.
@@ -127,14 +116,6 @@ func reportingInvalidQuery() error {
 
 func reportingForbidden(code string) error {
 	return reportingFailure(403, code, "Insufficient permissions")
-}
-
-func (api *API) flagEnabled(ctx context.Context, actor Actor) bool {
-	if api.Flags == nil {
-		return !api.FailClosed
-	}
-	enabled, err := api.Flags.Enabled(ctx, actor.workosOrganizationID, actor.workosUserID, workspaceReportsFlag)
-	return err == nil && enabled
 }
 
 func formatReportingTime(t time.Time) string {

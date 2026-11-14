@@ -163,8 +163,6 @@ func writeReportAnswer(w http.ResponseWriter, kind string, answer reportAnswer) 
 	}
 	_ = json.Unmarshal(answer.body, &failure)
 	switch {
-	case answer.status == http.StatusForbidden && failure.Error == "feature_unavailable":
-		writeError(w, http.StatusForbidden, "reports_not_enabled", "Reports is not enabled for this workspace")
 	case answer.status == http.StatusForbidden && failure.Error == "report_forbidden":
 		writeError(w, http.StatusForbidden, "forbidden", "Reports require billing access: an admin or localization manager's key")
 	case answer.status == http.StatusServiceUnavailable && (failure.Error == "reports_busy" || failure.Error == "report_timed_out"):

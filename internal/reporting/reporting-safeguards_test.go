@@ -2,120 +2,12 @@ package reporting
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
-
-type countingWorkspaceFlags struct {
-	enabled bool
-	err     error
-	calls   int
-}
-
-func (f *countingWorkspaceFlags) Enabled(context.Context, string, string, string) (bool, error) {
-	f.calls++
-	return f.enabled, f.err
-}
-
-func TestCachedWorkspaceFlagsRemembersAnswersForAMinute(t *testing.T) {
-	live := &countingWorkspaceFlags{enabled: true}
-	cache := newCachedWorkspaceFlags(live)
-	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
-	cache.now = func() time.Time { return now }
-	ctx := t.Context()
-
-	for range 3 {
-		enabled, err := cache.Enabled(ctx, "org_1", "user_1", workspaceReportsFlag)
-		require.NoError(t, err)
-		require.True(t, enabled)
-	}
-	require.Equal(t, 1, live.calls, "one lookup serves a minute of requests")
-
-	// Another person, workspace or flag is its own entry.
-	_, err := cache.Enabled(ctx, "org_1", "user_2", workspaceReportsFlag)
-	require.NoError(t, err)
-	_, err = cache.Enabled(ctx, "org_2", "user_1", workspaceReportsFlag)
-	require.NoError(t, err)
-	require.Equal(t, 3, live.calls)
-
-	now = now.Add(reportingFlagCacheTTL + time.Second)
-	live.enabled = false
-	enabled, err := cache.Enabled(ctx, "org_1", "user_1", workspaceReportsFlag)
-	require.NoError(t, err)
-	require.False(t, enabled, "a change reaches the cache once the entry expires")
-	require.Equal(t, 4, live.calls)
-}
-
-func TestCachedWorkspaceFlagsLookupOutlivesTheFirstCaller(t *testing.T) {
-	live := &contextWorkspaceFlags{}
-	cache := newCachedWorkspaceFlags(live)
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	// The caller that started the lookup is gone; the lookup still answers for the others.
-	enabled, err := cache.Enabled(ctx, "org_1", "user_1", workspaceReportsFlag)
-	require.NoError(t, err)
-	require.True(t, enabled)
-	require.NoError(t, live.seen)
-}
-
-type contextWorkspaceFlags struct{ seen error }
-
-func (f *contextWorkspaceFlags) Enabled(ctx context.Context, _, _, _ string) (bool, error) {
-	f.seen = ctx.Err()
-	return true, nil
-}
-
-func TestCachedWorkspaceFlagsNeverKeepsAFailedLookup(t *testing.T) {
-	live := &countingWorkspaceFlags{err: errors.New("workos unavailable")}
-	cache := newCachedWorkspaceFlags(live)
-	ctx := t.Context()
-	for range 2 {
-		enabled, err := cache.Enabled(ctx, "org_1", "user_1", workspaceReportsFlag)
-		require.Error(t, err)
-		require.False(t, enabled)
-	}
-	require.Equal(t, 2, live.calls, "each request asks again after a failure")
-
-	none := newCachedWorkspaceFlags(nil)
-	enabled, err := none.Enabled(ctx, "org_1", "user_1", workspaceReportsFlag)
-	require.NoError(t, err)
-	require.False(t, enabled, "no WorkOS client means no flag")
-}
-
-func TestCachedWorkspaceFlagsAsksOnceForRequestsThatMissTogether(t *testing.T) {
-	live := &blockingWorkspaceFlags{release: make(chan struct{})}
-	cache := newCachedWorkspaceFlags(live)
-	ctx := t.Context()
-	var wg sync.WaitGroup
-	for range 12 {
-		wg.Go(func() {
-			enabled, err := cache.Enabled(ctx, "org_1", "user_1", workspaceReportsFlag)
-			require.NoError(t, err)
-			require.True(t, enabled)
-		})
-	}
-	require.Eventually(t, func() bool { return live.started.Load() == 1 }, time.Second, time.Millisecond)
-	close(live.release)
-	wg.Wait()
-	require.Equal(t, int32(1), live.started.Load(), "a page load's requests share one lookup")
-}
-
-type blockingWorkspaceFlags struct {
-	release chan struct{}
-	started atomic.Int32
-}
-
-func (f *blockingWorkspaceFlags) Enabled(context.Context, string, string, string) (bool, error) {
-	f.started.Add(1)
-	<-f.release
-	return true, nil
-}
 
 func TestReportingWorkspaceCannotHoldEverySlot(t *testing.T) {
 	api := New()

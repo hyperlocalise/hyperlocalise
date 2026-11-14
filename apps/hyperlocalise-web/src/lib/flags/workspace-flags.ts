@@ -30,7 +30,6 @@ import {
   WORKSPACE_FEATURE_UNAVAILABLE_REASON,
   WORKSPACE_GLOSSARY_SEARCH_FLAG,
   WORKSPACE_HYPERLAB_FLAG,
-  WORKSPACE_REPORTS_FLAG,
   WORKSPACE_VISUAL_MOCK_FLAG,
   type WorkosFlagEntities,
   type WorkspaceFeatureFlagState,
@@ -80,13 +79,6 @@ export const workspaceHyperlabFlag = flag<boolean, WorkosFlagEntities>({
   adapter: workosAdapter(),
 });
 
-export const workspaceReportsFlag = flag<boolean, WorkosFlagEntities>({
-  key: WORKSPACE_REPORTS_FLAG,
-  defaultValue: false,
-  description: "Workspace translation reports for word counts, time, and cost.",
-  adapter: workosAdapter(),
-});
-
 export async function evaluateWorkspaceFeatureFlags(
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
 ): Promise<WorkspaceFeatureFlagState> {
@@ -100,7 +92,6 @@ export async function evaluateWorkspaceFeatureFlags(
     domains,
     glossarySearch,
     hyperlab,
-    reports,
     visualWorkflows,
     queriesBoard,
   ] = await Promise.all([
@@ -113,7 +104,6 @@ export async function evaluateWorkspaceFeatureFlags(
     workspaceDomainsFlag.run({ identify }),
     workspaceGlossarySearchFlag.run({ identify }),
     workspaceHyperlabFlag.run({ identify }),
-    workspaceReportsFlag.run({ identify }),
     isAutumnBooleanFeatureEnabled({
       organizationId,
       featureId: autumnFeatureIds.automationWorkflow,
@@ -133,7 +123,6 @@ export async function evaluateWorkspaceFeatureFlags(
     domains,
     glossarySearch,
     hyperlab,
-    reports,
   };
 }
 
@@ -210,39 +199,6 @@ export async function resolveWorkspaceVisualMockFlag(input: {
   }
 }
 
-async function resolveWorkspaceOrganizationFlag(
-  workspaceFlag: Flag<boolean, WorkosFlagEntities>,
-  input: {
-    organizationId: string;
-    dbClient?: Pick<typeof db, "select">;
-  },
-): Promise<boolean> {
-  const dbClient = input.dbClient ?? db;
-  if (typeof dbClient.select !== "function") {
-    return false;
-  }
-
-  try {
-    const [organization] = await dbClient
-      .select({ workosOrganizationId: schema.organizations.workosOrganizationId })
-      .from(schema.organizations)
-      .where(eq(schema.organizations.id, input.organizationId))
-      .limit(1);
-
-    if (!organization) {
-      return false;
-    }
-
-    return (
-      (await workspaceFlag.run({
-        identify: () => ({ organization: { id: organization.workosOrganizationId } }),
-      })) === true
-    );
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Resolves the Autumn `guidelines` entitlement from an internal organizationId. Works for
  * callers with no live HTTP auth context — background jobs, queue workers, and
@@ -264,18 +220,6 @@ export async function resolveWorkspaceKnowledgeFlag(input: {
   } catch {
     return false;
   }
-}
-
-/**
- * Resolves workspaceReportsFlag from an internal organizationId for background jobs.
- * Reports API routes and nav already hide the UI, but capture still ran TM matching on
- * every translation job. Check at the point of capture so a disabled flag actually skips work.
- */
-export async function resolveWorkspaceReportsFlag(input: {
-  organizationId: string;
-  dbClient?: Pick<typeof db, "select">;
-}): Promise<boolean> {
-  return resolveWorkspaceOrganizationFlag(workspaceReportsFlag, input);
 }
 
 export async function getWorkspaceFeatureFlagEnabled(

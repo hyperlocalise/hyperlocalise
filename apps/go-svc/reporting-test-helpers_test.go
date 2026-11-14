@@ -16,11 +16,10 @@ import (
 // reportingTestToday is the fixed "today" the Reports tests read against.
 var reportingTestToday = time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
 
-func reportingTestAPI(scope *testenv.Scope, role string, flags workspaceFlagChecker) *reportingAPI {
+func reportingTestAPI(scope *testenv.Scope, role string) *reportingAPI {
 	api := newReportingAPI()
 	api.Pool = scope.Pool
 	api.membership = scope.Membership(role)
-	api.Flags = flags
 	api.Now = func() time.Time { return reportingTestToday }
 	return api
 }
@@ -47,7 +46,7 @@ func reportingRequest(t *testing.T, api *reportingAPI, workosUserID, method, pat
 // reportingSend asks a Reports route as the seeded user in a role, with the flag on.
 func reportingSend(t *testing.T, scope *testenv.Scope, role, method, path, body string) (int, map[string]any) {
 	t.Helper()
-	api := reportingTestAPI(scope, role, stubWorkspaceFlags{enabled: true})
+	api := reportingTestAPI(scope, role)
 	rec := reportingRequest(t, api, scope.WorkOSUserID, method, scope.OrgPath(path), body)
 	var decoded map[string]any
 	if strings.HasPrefix(rec.Header().Get("Content-Type"), "application/json") && rec.Body.Len() > 0 {
@@ -89,7 +88,7 @@ func reportingReadJSON(t *testing.T, scope *testenv.Scope, role, path string) ma
 // reportingReadCSV asks a Reports route for a download and returns its lines.
 func reportingReadCSV(t *testing.T, scope *testenv.Scope, role, path string) []string {
 	t.Helper()
-	api := reportingTestAPI(scope, role, stubWorkspaceFlags{enabled: true})
+	api := reportingTestAPI(scope, role)
 	rec := reportingRequest(t, api, scope.WorkOSUserID, http.MethodGet, scope.OrgPath(path), "")
 	require.Equal(t, http.StatusOK, rec.Code, path, rec.Body.String())
 	require.Equal(t, "text/csv; charset=utf-8", rec.Header().Get("Content-Type"))
