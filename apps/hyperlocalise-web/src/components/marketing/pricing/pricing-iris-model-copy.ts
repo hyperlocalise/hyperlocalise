@@ -281,6 +281,11 @@ export function getPricingIrisModelSummaries(intl: IntlShape): Record<PricingIri
       id: "toQvY0saVD",
       description: "Card summary for the ElevenLabs SFX model on the pricing page",
     }),
+    "lyria-3-pro": intl.formatMessage({
+      defaultMessage: "Full songs from a detailed brief",
+      id: "/rO/1cl+oc",
+      description: "Card summary for the Lyria 3 Pro music model on the pricing page",
+    }),
     "bria-rmbg-2.0": intl.formatMessage({
       defaultMessage: "Remove an image background",
       id: "Gke6lGkaom",

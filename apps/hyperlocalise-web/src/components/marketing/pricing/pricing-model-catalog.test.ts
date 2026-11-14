@@ -279,6 +279,10 @@ describe("pricing model catalog", () => {
           "ElevenLabs SFX",
         ],
         [
+          "lyria-3-pro",
+          "Lyria 3 Pro",
+        ],
+        [
           "bria-rmbg-2.0",
           "Bria RMBG 2.0",
         ],

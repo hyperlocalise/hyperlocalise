@@ -1371,6 +1371,10 @@
     "defaultMessage": "Create more",
     "description": "Checkbox label to keep the create query dialog open after submit"
   },
+  "/rO/1cl+oc": {
+    "defaultMessage": "Full songs from a detailed brief",
+    "description": "Card summary for the Lyria 3 Pro music model on the pricing page"
+  },
   "/rXj8VmbsB": {
     "defaultMessage": "Unable to load the Customer.io connection right now.",
     "description": "Customer.io integration row description when connection status fails to load"

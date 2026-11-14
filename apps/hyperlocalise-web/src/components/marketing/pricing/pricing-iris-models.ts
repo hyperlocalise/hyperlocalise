@@ -124,6 +124,7 @@ export const PRICING_IRIS_MODELS: readonly PricingIrisModel[] = [
   model("fish-audio-drama-3", "Fish Audio Drama 3", "fish-audio", "voice"),
   model("elevenlabs-music", "ElevenLabs Music", "elevenlabs", "sound"),
   model("elevenlabs-sfx", "ElevenLabs SFX", "elevenlabs", "sound"),
+  model("lyria-3-pro", "Lyria 3 Pro", "google", "sound"),
   model("bria-rmbg-2.0", "Bria RMBG 2.0", "bria", "image-tool"),
   model("seedvr-2", "SeedVR 2", "bytedance", "image-tool"),
   model("bytedance-upscaler", "ByteDance Upscaler", "bytedance", "video-tool"),

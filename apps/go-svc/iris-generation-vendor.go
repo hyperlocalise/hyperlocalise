@@ -171,11 +171,15 @@ func generateFal(ctx context.Context, client *fal.Client, fetch irisMediaFetcher
 }
 
 func falInput(req irisProviderRequest) map[string]any {
+	endpoint := falEndpoint(req)
+	if req.Model.FalReferencesID != "" && endpoint == req.Model.FalReferencesID {
+		return falReferencesInput(req, endpoint)
+	}
 	input := map[string]any{}
 	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
 		input["prompt"] = prompt
 	}
-	if duration, ok := falDuration(falEndpoint(req), req.Duration); ok {
+	if duration, ok := falDuration(endpoint, req.Duration); ok {
 		input["duration"] = duration
 	}
 	if aspect := strings.TrimSpace(req.AspectRatio); aspect != "" {
@@ -220,10 +224,46 @@ func falInput(req irisProviderRequest) map[string]any {
 	return input
 }
 
+// falReferencesInput is a reference-to-video request: every image a
+// reference in `image_urls`, in the order the prompt names them (@Image1…),
+// and the frames, where the endpoint takes them, under their own names.
+func falReferencesInput(req irisProviderRequest, endpoint string) map[string]any {
+	input := map[string]any{}
+	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
+		input["prompt"] = prompt
+	}
+	if duration, ok := falDuration(endpoint, req.Duration); ok {
+		input["duration"] = duration
+	}
+	if aspect := strings.TrimSpace(req.AspectRatio); aspect != "" {
+		input["aspect_ratio"] = aspect
+	}
+	images := inputsByRole(req.Inputs, "image")
+	urls := make([]string, 0, len(images))
+	for _, image := range images {
+		urls = append(urls, irisDataURI(image, "image/png"))
+	}
+	input["image_urls"] = urls
+	if !req.Model.ReferencesReplaceFrames {
+		if start, ok := firstInput(req.Inputs, "start"); ok {
+			input["start_image_url"] = irisDataURI(start, "image/png")
+		}
+		if end, ok := firstInput(req.Inputs, "end"); ok {
+			input["end_image_url"] = irisDataURI(end, "image/png")
+		}
+	}
+	return input
+}
+
 func falEndpoint(req irisProviderRequest) string {
 	if req.Model.FalVideoID != "" {
 		if _, ok := firstInput(req.Inputs, "video"); ok {
 			return req.Model.FalVideoID
+		}
+	}
+	if req.Model.FalReferencesID != "" {
+		if _, ok := firstInput(req.Inputs, "image"); ok {
+			return req.Model.FalReferencesID
 		}
 	}
 	if req.Model.FalRefID != "" {

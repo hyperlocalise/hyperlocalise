@@ -27,17 +27,25 @@ const (
 )
 
 type irisModelInfo struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Kind        irisModelKind     `json:"-"`
-	Provider    irisModelProvider `json:"-"`
-	GatewayID   string            `json:"-"`
-	NativeID    string            `json:"-"`
-	FalRefID    string            `json:"-"`
-	FalVideoID  string            `json:"-"`
-	ETASeconds  int               `json:"-"`
-	PromptMax   int               `json:"-"`
-	RequiresRef bool              `json:"-"`
+	ID         string            `json:"id"`
+	Name       string            `json:"name"`
+	Kind       irisModelKind     `json:"-"`
+	Provider   irisModelProvider `json:"-"`
+	GatewayID  string            `json:"-"`
+	NativeID   string            `json:"-"`
+	FalRefID   string            `json:"-"`
+	FalVideoID string            `json:"-"`
+	// FalReferencesID is the endpoint a video's `images` go to as
+	// references (`@Image1`…), keeping the people, set and look they show,
+	// rather than as the frame FalRefID starts on.
+	FalReferencesID string `json:"-"`
+	// MaxReferences bounds `images` on a FalReferencesID model.
+	MaxReferences int `json:"-"`
+	// ReferencesReplaceFrames: FalReferencesID takes no start or end frame.
+	ReferencesReplaceFrames bool `json:"-"`
+	ETASeconds              int  `json:"-"`
+	PromptMax               int  `json:"-"`
+	RequiresRef             bool `json:"-"`
 }
 
 type irisEstimate struct {
@@ -72,8 +80,8 @@ func irisModels() []irisModelInfo {
 		{ID: "veo-3.1", Name: "Veo 3.1", Kind: irisKindVideo, GatewayID: "google/veo-3.1", ETASeconds: 90, PromptMax: 4000},
 		{ID: "veo-3.1-fast", Name: "Veo 3.1 Fast", Kind: irisKindVideo, GatewayID: "google/veo-3.1-fast", ETASeconds: 60, PromptMax: 4000},
 		{ID: "kling-3-pro", Name: "Kling 3.0", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/v3/pro/text-to-video", FalRefID: "fal-ai/kling-video/v3/pro/image-to-video", ETASeconds: 80, PromptMax: 4000},
-		{ID: "kling-o3-pro", Name: "Kling 3.0 Omni", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/o3/pro/text-to-video", FalRefID: "fal-ai/kling-video/o3/pro/image-to-video", FalVideoID: "fal-ai/kling-video/o3/pro/video-to-video/edit", ETASeconds: 90, PromptMax: 4000},
-		{ID: "seedance-2.5", Name: "Seedance 2.5", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "bytedance/seedance-2.5/text-to-video", FalRefID: "bytedance/seedance-2.5/image-to-video", ETASeconds: 70, PromptMax: 4000},
+		{ID: "kling-o3-pro", Name: "Kling 3.0 Omni", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/o3/pro/text-to-video", FalRefID: "fal-ai/kling-video/o3/pro/image-to-video", FalVideoID: "fal-ai/kling-video/o3/pro/video-to-video/edit", FalReferencesID: "fal-ai/kling-video/o3/pro/reference-to-video", MaxReferences: 4, ETASeconds: 90, PromptMax: 4000},
+		{ID: "seedance-2.5", Name: "Seedance 2.5", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "bytedance/seedance-2.5/text-to-video", FalRefID: "bytedance/seedance-2.5/image-to-video", FalReferencesID: "bytedance/seedance-2.5/reference-to-video", MaxReferences: 30, ReferencesReplaceFrames: true, ETASeconds: 70, PromptMax: 4000},
 		{ID: "wan-3.0", Name: "Wan 3.0", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "alibaba/wan-2.6", NativeID: "alibaba/wan-3.0-prime/text-to-video", FalRefID: "alibaba/wan-3.0-prime/reference-to-video", ETASeconds: 75, PromptMax: 4000},
 		{ID: "minimax-h3", Name: "MiniMax H3", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "minimax/hailuo-2.3", NativeID: "minimax/h3/text-to-video", FalRefID: "minimax/h3/image-to-video", ETASeconds: 80, PromptMax: 4000},
 		{ID: "minimax-h3-max", Name: "MiniMax H3 Max", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "minimax/hailuo-2.3", NativeID: "minimax/h3-max/text-to-video", FalRefID: "minimax/h3-max/image-to-video", ETASeconds: 55, PromptMax: 4000},
@@ -90,6 +98,9 @@ func irisModels() []irisModelInfo {
 		{ID: "fish-audio-drama-3", Name: "Fish Audio Drama 3", Kind: irisKindVoice, GatewayID: "fish-audio/drama-3", ETASeconds: 12, PromptMax: 10000},
 		{ID: "elevenlabs-music", Name: "ElevenLabs Music", Kind: irisKindAudio, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/music-v1", NativeID: "music_v1", ETASeconds: 40, PromptMax: 4100},
 		{ID: "elevenlabs-sfx", Name: "ElevenLabs SFX", Kind: irisKindAudio, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/sound-effects-v2", NativeID: "eleven_text_to_sound_v2", ETASeconds: 20, PromptMax: 4100},
+		// Lyria takes no length: the prompt says how long, up to 3 minutes.
+		// One image may set the mood.
+		{ID: "lyria-3-pro", Name: "Lyria 3 Pro", Kind: irisKindAudio, Provider: irisProviderFal, NativeID: "fal-ai/lyria3/pro", ETASeconds: 60, PromptMax: 4000},
 		{ID: "bria-rmbg-2.0", Name: "Bria RMBG 2.0", Kind: irisKindTool, Provider: irisProviderFal, GatewayID: "bria/rmbg-2.0", NativeID: "fal-ai/bria/background-removal", ETASeconds: 15, RequiresRef: true},
 		{ID: "seedvr-2", Name: "SeedVR 2", Kind: irisKindTool, Provider: irisProviderFal, GatewayID: "bytedance/seedvr2", NativeID: "fal-ai/seedvr/upscale/image", ETASeconds: 20, RequiresRef: true},
 		{ID: "bytedance-upscaler", Name: "ByteDance Upscaler", Kind: irisKindTool, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "fal-ai/bytedance-upscaler/upscale/video", ETASeconds: 60, RequiresRef: true},
@@ -302,7 +313,21 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 	if model.Kind == irisKindVoice && req.voice() == "" {
 		return model, fmt.Errorf("voice is required")
 	}
+	if images := len(req.assets("images")); images > 0 && model.FalReferencesID != "" {
+		if images > model.MaxReferences {
+			return model, fmt.Errorf("%s takes at most %d reference images", model.ID, model.MaxReferences)
+		}
+		_, start := req.asset("startFrame")
+		_, end := req.asset("endFrame")
+		if model.ReferencesReplaceFrames && (start || end) {
+			return model, fmt.Errorf("%s takes reference images or frames, not both", model.ID)
+		}
+	}
 	switch model.ID {
+	case "lyria-3-pro":
+		if len(req.assets("images")) > 1 {
+			return model, fmt.Errorf("lyria-3-pro takes at most 1 image")
+		}
 	case "bria-rmbg-2.0", "seedvr-2":
 		if _, ok := req.asset("image"); !ok {
 			return model, fmt.Errorf("image is required")

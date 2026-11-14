@@ -248,6 +248,39 @@ func TestValidateIrisGenerateRequest(t *testing.T) {
 			req:    irisGenerateRequest{"model": "qwen3.8-omni-flash", "media": asset},
 			wantID: "qwen3.8-omni-flash",
 		},
+		{
+			name:   "seedance takes references",
+			req:    irisGenerateRequest{"model": "seedance-2.5", "prompt": "@Image1 in @Image2", "images": []any{asset, asset}},
+			wantID: "seedance-2.5",
+		},
+		{
+			name:    "seedance takes references or frames, not both",
+			req:     irisGenerateRequest{"model": "seedance-2.5", "prompt": "@Image1 wakes", "images": []any{asset}, "startFrame": asset},
+			wantErr: "seedance-2.5 takes reference images or frames, not both",
+			wantID:  "seedance-2.5",
+		},
+		{
+			name:   "kling omni takes references with a start frame",
+			req:    irisGenerateRequest{"model": "kling-o3-pro", "prompt": "@Image1 wakes", "images": []any{asset}, "startFrame": asset},
+			wantID: "kling-o3-pro",
+		},
+		{
+			name:    "kling omni takes at most 4 references",
+			req:     irisGenerateRequest{"model": "kling-o3-pro", "prompt": "a crowd", "images": []any{asset, asset, asset, asset, asset}},
+			wantErr: "kling-o3-pro takes at most 4 reference images",
+			wantID:  "kling-o3-pro",
+		},
+		{
+			name:   "valid lyria with a mood image",
+			req:    irisGenerateRequest{"model": "lyria-3-pro", "prompt": "breezy pop, 48 seconds", "images": []any{asset}},
+			wantID: "lyria-3-pro",
+		},
+		{
+			name:    "lyria takes one image",
+			req:     irisGenerateRequest{"model": "lyria-3-pro", "prompt": "breezy pop", "images": []any{asset, asset}},
+			wantErr: "lyria-3-pro takes at most 1 image",
+			wantID:  "lyria-3-pro",
+		},
 	}
 
 	for _, tc := range tests {
