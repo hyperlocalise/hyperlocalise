@@ -2,7 +2,7 @@
 
 Date: 2026-11-14
 
-**Status:** Implemented on `feat/reports-gap-closing` (migration `0188_reporting_contributors_post_edit`), with these differences from the plan below:
+**Status:** Implemented on `feat/reports-gap-closing` (migration `0189_equal_the_twelve`; `0188` on `main` is user preferences), with these differences from the plan below:
 
 - 0a: the service allows 3 Reports queries at once per copy (was 2) and one workspace at most 2, so another workspace always finds a slot.
 - 0b: the Reports e2e flow (`src/e2e/flows/reports.e2e.ts`) runs only with `E2E_REPORTS_ENABLED=1`: the WorkOS emulator serves no feature flags, so it needs an environment with `workspace-reports` on.
