@@ -14,7 +14,7 @@ import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
-import { syncWorkosOrganization } from "@/api/auth/workos-sync";
+import { syncWorkosIdentity, syncWorkosOrganization } from "@/api/auth/workos-sync";
 import { cleanupWorkosTestRecords } from "@/api/test-cleanup";
 import { db, schema } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -117,6 +117,37 @@ export async function provisionEmulatorIdentity(input: {
     workosUserId: user.id,
     workosMembershipId: membership.id,
   };
+}
+
+/**
+ * Adds an existing emulator user to another identity's organization and syncs the
+ * local membership, standing in for the `organization_membership.created` webhook
+ * the emulator does not deliver. The membership is removed with that organization.
+ */
+export async function addEmulatorMembership(input: {
+  user: EmulatorIdentity;
+  organization: EmulatorIdentity;
+  role?: OrganizationMembershipRole;
+}) {
+  const role = input.role ?? "admin";
+  const workos = createEmulatorWorkosClient();
+  const membership = await workos.userManagement.createOrganizationMembership({
+    organizationId: input.organization.workosOrganizationId,
+    userId: input.user.workosUserId,
+    roleSlug: roleSlugForE2e(role),
+  });
+
+  await syncWorkosIdentity(db, {
+    user: { workosUserId: input.user.workosUserId, email: input.user.email },
+    organization: {
+      workosOrganizationId: input.organization.workosOrganizationId,
+      name: input.organization.organizationName,
+      slug: input.organization.organizationSlug,
+    },
+    membership: { workosMembershipId: membership.id, role },
+  });
+
+  return membership.id;
 }
 
 /**
