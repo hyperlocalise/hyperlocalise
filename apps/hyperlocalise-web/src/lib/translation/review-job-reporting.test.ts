@@ -22,16 +22,6 @@ import { db, schema } from "@/lib/database/client";
 import { captureAnalysis, captureJobStatus } from "@/lib/reporting/capture";
 import { completeReviewJob, failReviewJob } from "@/lib/translation/review-job-queued-function";
 
-const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => true));
-
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return {
-    ...actual,
-    resolveWorkspaceReportsFlag: resolveWorkspaceReportsFlagMock,
-  };
-});
-
 vi.mock("@/lib/activity-log/job-automation-events", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/activity-log/job-automation-events")>();
   return { ...actual, enqueueJobFailedActivity: vi.fn(async () => undefined) };
@@ -44,8 +34,6 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-  resolveWorkspaceReportsFlagMock.mockReset();
-  resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
   await projectFixture.cleanup();
 });
 

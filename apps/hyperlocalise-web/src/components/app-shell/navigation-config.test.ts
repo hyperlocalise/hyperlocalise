@@ -19,7 +19,6 @@ import {
   WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_QUERIES_BOARD_FLAG,
-  WORKSPACE_REPORTS_FLAG,
 } from "@/lib/flags/workos-flag-entities";
 import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -213,7 +212,7 @@ describe("path builders", () => {
     expect(byLabel.get("My Jobs")?.href).toBe("/org/acme/my-work");
     expect(byLabel.get("Queries")?.href).toBe("/org/acme/issues");
     expect(byLabel.get("Reports")?.href).toBe("/org/acme/reports");
-    expect(byLabel.get("Reports")?.featureFlagKey).toBe(WORKSPACE_REPORTS_FLAG);
+    expect(byLabel.get("Reports")?.featureFlagKey).toBeUndefined();
     expect(byLabel.get("Glossaries")?.href).toBe("/org/acme/glossaries");
     expect(byLabel.get("Translation Memories")?.href).toBe("/org/acme/translation-memories");
     expect(byLabel.get("Dictionaries")?.href).toBe("/org/acme/dictionaries");
@@ -272,9 +271,7 @@ describe("path builders", () => {
     expect(items.find((item) => item.label === "Queries")?.featureFlagKey).toBe(
       WORKSPACE_QUERIES_BOARD_FLAG,
     );
-    expect(items.find((item) => item.label === "Reports")?.featureFlagKey).toBe(
-      WORKSPACE_REPORTS_FLAG,
-    );
+    expect(items.find((item) => item.label === "Reports")?.featureFlagKey).toBeUndefined();
     expect(items.find((item) => item.label === "Automations")?.featureFlagKey).toBe(
       WORKSPACE_AUTOMATIONS_FLAG,
     );

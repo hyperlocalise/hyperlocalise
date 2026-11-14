@@ -141,7 +141,7 @@ func TestReportingContributorsIncludeLanguagesFromLoggedTime(t *testing.T) {
 func TestReportingContributorsIsAnInternalReportKind(t *testing.T) {
 	f, _, _ := seedReportingContributors(t)
 	t.Setenv("WORKOS_COOKIE_PASSWORD", "test")
-	api := reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true})
+	api := reportingTestAPI(f.scope, "admin")
 	payload := `{"organizationId": "` + f.scope.OrganizationID + `", "userId": "` + f.scope.UserID + `", "query": {"from": "2026-06-01", "to": "2026-06-30"}`
 	rec := reportingRequest(t, api, f.scope.WorkOSUserID, http.MethodPost, "/internal/reports/contributors", payload+`}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())

@@ -38,7 +38,6 @@ import {
   sourceSimilarity,
 } from "./capture";
 
-const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => true));
 /** The project's memories, as the app reads them; one test makes the read fail. */
 const memoryMocks = vi.hoisted(() => ({
   listAttachedProjectMemoryIds: vi.fn<(projectId: string) => Promise<string[]>>(),
@@ -51,14 +50,6 @@ vi.mock("@/lib/memory/ensure-default-native-project-memory", async (importOrigin
   return { ...actual, listAttachedProjectMemoryIds: memoryMocks.listAttachedProjectMemoryIds };
 });
 
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return {
-    ...actual,
-    resolveWorkspaceReportsFlag: resolveWorkspaceReportsFlagMock,
-  };
-});
-
 const projectFixture = createProjectTestFixture();
 const SOURCE_PATH = "locales/en.json";
 
@@ -67,8 +58,6 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-  resolveWorkspaceReportsFlagMock.mockReset();
-  resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
   await projectFixture.cleanup();
 });
 
@@ -614,39 +603,6 @@ describe("reporting capture", () => {
     expect(marked.map((mark) => mark.day).sort()).toEqual(["2026-10-01", "2026-10-20"]);
   });
 
-  it("tries the Reports flag once more when its lookup fails, and records nothing, saying so, when it fails twice", async () => {
-    const { organization, project } = await projectFixture.createStoredProjectFixture();
-    const capture = (targetLocale: string) =>
-      captureAnalysis({
-        organizationId: organization.id,
-        projectId: project.id,
-        sourceLocale: "en-US",
-        targetLocale,
-        sourceEntries: { greeting: "Hello world" },
-      });
-    const recorded = () =>
-      db
-        .select({ targetLocale: schema.reportingAnalyses.targetLocale })
-        .from(schema.reportingAnalyses)
-        .where(eq(schema.reportingAnalyses.organizationId, organization.id));
-
-    resolveWorkspaceReportsFlagMock
-      .mockRejectedValueOnce(new Error("flags unavailable"))
-      .mockResolvedValueOnce(true);
-    await capture("fr-FR");
-    expect(await recorded()).toEqual([{ targetLocale: "fr-FR" }]);
-
-    resolveWorkspaceReportsFlagMock.mockRejectedValue(new Error("flags unavailable"));
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    await capture("de-DE");
-    expect(await recorded()).toEqual([{ targetLocale: "fr-FR" }]);
-    expect(error).toHaveBeenCalledWith(
-      "reporting_flag_lookup_failed",
-      expect.objectContaining({ organizationId: organization.id }),
-    );
-    error.mockRestore();
-  });
-
   it("keeps a deleted task's id on its finished work, costs and time, and drops its pricing", async () => {
     const { organization, project, user } = await projectFixture.createStoredProjectFixture();
     const [task] = await db
@@ -737,25 +693,6 @@ describe("reporting capture", () => {
       .from(schema.reportingAnalyses)
       .where(eq(schema.reportingAnalyses.organizationId, organization.id));
     expect(analyses).toEqual([{ bucket: "unavailable" }]);
-  });
-
-  it("skips analysis capture when workspace reports is disabled", async () => {
-    resolveWorkspaceReportsFlagMock.mockResolvedValue(false);
-    const { organization, project } = await projectFixture.createStoredProjectFixture();
-
-    await captureAnalysis({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourceLocale: "en-US",
-      targetLocale: "fr-FR",
-      sourceEntries: { greeting: "Hello world" },
-    });
-
-    const rows = await db
-      .select({ id: schema.reportingAnalyses.id })
-      .from(schema.reportingAnalyses)
-      .where(eq(schema.reportingAnalyses.organizationId, organization.id));
-    expect(rows).toHaveLength(0);
   });
 
   it("keeps analysis capture from failing the caller", async () => {

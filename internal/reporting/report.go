@@ -36,8 +36,8 @@ func queryValues(query map[string]string) url.Values {
 	return values
 }
 
-// Report is one of the page's reports for a trusted caller acting as actor: the workspace,
-// the Reports flag and billing access apply as they do on the page. format is "csv" or JSON.
+// Report is one of the page's reports for a trusted caller acting as actor: the workspace
+// and billing access apply as they do on the page. format is "csv" or JSON.
 func (api *API) Report(ctx context.Context, actor Actor, kind, format string, query map[string]string) (Result, error) {
 	if api.Pool == nil {
 		return Result{}, reportingFailure(503, "reports_unavailable", "Reports service unavailable")
@@ -49,9 +49,6 @@ func (api *API) Report(ctx context.Context, actor Actor, kind, format string, qu
 		return Result{}, reportingFailure(400, "invalid_payload", "Request payload is invalid")
 	}
 	ctx = withReportingWorkspace(ctx, actor.organizationID)
-	if !api.flagEnabled(ctx, actor) {
-		return Result{}, reportingFailure(403, "feature_unavailable", reportingFlagMessage)
-	}
 	if !actor.can("billing:read") {
 		return Result{}, reportingFailure(403, "report_forbidden", "Reports require billing access")
 	}

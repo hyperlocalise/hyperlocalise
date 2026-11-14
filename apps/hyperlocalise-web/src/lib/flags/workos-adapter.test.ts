@@ -210,7 +210,7 @@ describe("workosAdapter", () => {
 const intl = getIntlShape("en") as IntlShape;
 
 describe("annotateNavigationByWorkspaceFlags", () => {
-  it("marks Queries, Reports, Guideline, and Automations as preview when workspace flags are disabled", () => {
+  it("marks Queries, Guideline, and Automations as preview when workspace flags are disabled", () => {
     const groups = buildGlobalNavigationGroups("acme", intl);
     const annotated = annotateNavigationByWorkspaceFlags(groups, {
       automations: false,
@@ -221,7 +221,6 @@ describe("annotateNavigationByWorkspaceFlags", () => {
       domains: false,
       glossarySearch: false,
       hyperlab: false,
-      reports: false,
     });
 
     const queriesItem = annotated
@@ -239,7 +238,7 @@ describe("annotateNavigationByWorkspaceFlags", () => {
 
     expect(queriesItem?.preview).toBe(true);
     expect(guidelineItem?.preview).toBe(true);
-    expect(reportsItem?.preview).toBe(true);
+    expect(reportsItem?.preview).toBeUndefined();
     expect(automationsItem?.preview).toBe(true);
   });
 
@@ -254,7 +253,6 @@ describe("annotateNavigationByWorkspaceFlags", () => {
       domains: true,
       glossarySearch: true,
       hyperlab: true,
-      reports: true,
     });
 
     const flaggedItems = annotated
@@ -266,7 +264,7 @@ describe("annotateNavigationByWorkspaceFlags", () => {
 });
 
 describe("filterNavigationByWorkspaceFlags", () => {
-  it("removes Queries, Reports, and Guideline when workspace flags are disabled", () => {
+  it("removes Queries and Guideline when workspace flags are disabled", () => {
     const groups = buildGlobalNavigationGroups("acme", intl);
     const filtered = filterNavigationByWorkspaceFlags(groups, {
       automations: false,
@@ -277,14 +275,13 @@ describe("filterNavigationByWorkspaceFlags", () => {
       domains: false,
       glossarySearch: false,
       hyperlab: false,
-      reports: false,
     });
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));
 
     expect(itemLabels).not.toContain("Queries");
     expect(itemLabels).not.toContain("Guideline");
-    expect(itemLabels).not.toContain("Reports");
+    expect(itemLabels).toContain("Reports");
     expect(itemLabels).not.toContain("Automations");
     expect(itemLabels).not.toContain("AI Engine");
     expect(itemLabels).not.toContain("Domains");
@@ -304,7 +301,6 @@ describe("filterNavigationByWorkspaceFlags", () => {
       domains: true,
       glossarySearch: true,
       hyperlab: true,
-      reports: true,
     });
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));
@@ -330,7 +326,6 @@ describe("groupPreviewNavigationGroups", () => {
       domains: false,
       glossarySearch: false,
       hyperlab: false,
-      reports: false,
     });
     const grouped = groupPreviewNavigationGroups(groups, "Try");
 
@@ -340,7 +335,6 @@ describe("groupPreviewNavigationGroups", () => {
 
     expect(tryGroup?.items.map((item) => item.label)).toEqual([
       "Queries",
-      "Reports",
       "Automations",
       "Guideline",
     ]);
@@ -350,7 +344,7 @@ describe("groupPreviewNavigationGroups", () => {
     expect(promotedLabels).toContain("New Request");
     expect(promotedLabels).toContain("Overview");
     expect(promotedLabels).toContain("Projects");
-    expect(promotedLabels).not.toContain("Reports");
+    expect(workspaceGroup?.items.map((item) => item.label)).toContain("Reports");
   });
 
   it("omits the Try section when no items are in preview", () => {
@@ -363,7 +357,6 @@ describe("groupPreviewNavigationGroups", () => {
       domains: true,
       glossarySearch: true,
       hyperlab: true,
-      reports: true,
     });
     const grouped = groupPreviewNavigationGroups(groups, "Try");
 

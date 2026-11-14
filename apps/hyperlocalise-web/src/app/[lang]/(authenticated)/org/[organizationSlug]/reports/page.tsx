@@ -10,8 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
-import { getWorkspaceFeatureFlagEnabled, workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { ReportsPage as ReportsPageContent } from "@/components/reports/reports-page";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
@@ -26,12 +24,7 @@ export default function ReportsPage({ params }: { params: Promise<{ organization
 
 async function ReportsLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
-  const auth = await requireAppAuthContext({ organizationSlug });
-  const reportsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceReportsFlag, auth);
-
-  if (!reportsEnabled) {
-    return <FeatureTeaserPage feature="reports" scope="workspace" />;
-  }
+  await requireAppAuthContext({ organizationSlug });
 
   return <ReportsPageContent organizationSlug={organizationSlug} />;
 }

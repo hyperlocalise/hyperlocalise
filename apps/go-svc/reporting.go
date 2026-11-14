@@ -12,8 +12,6 @@ import (
 )
 
 const (
-	workspaceReportsFlag       = "workspace-reports"
-	reportingFlagMessage       = "Reports is not enabled for this workspace"
 	reportingRequestTimeout    = reporting.RequestTimeout
 	reportingXLSXContentType   = reporting.XLSXContentType
 	reportingQuoteSheet        = reporting.QuoteSheet
@@ -36,9 +34,7 @@ type reportingAPI struct {
 }
 
 func newReportingAPI() *reportingAPI {
-	api := reporting.New()
-	api.FailClosed = true
-	return &reportingAPI{API: api}
+	return &reportingAPI{API: reporting.New()}
 }
 
 type (
@@ -89,11 +85,7 @@ func (api *reportingAPI) actor(ctx context.Context, claims AuthClaims, slug stri
 	if err != nil {
 		return reportingActor{}, mapOrganizationAccessError(err, reportingFailure)
 	}
-	var workosOrg string
-	if err := api.Pool.QueryRow(ctx, `select workos_organization_id from organizations where id=$1`, resolved.organizationID).Scan(&workosOrg); err != nil {
-		return reportingActor{}, err
-	}
-	return reporting.NewActor(resolved.userID, resolved.organizationID, resolved.role, claims.UserID, workosOrg), nil
+	return reporting.NewActor(resolved.userID, resolved.organizationID, resolved.role, claims.UserID, ""), nil
 }
 
 func (api *reportingAPI) handle(capability, deniedCode string, fn func(*http.Request, reportingActor) (any, int, error)) http.Handler {
@@ -118,10 +110,6 @@ func (api *reportingAPI) handle(capability, deniedCode string, fn func(*http.Req
 		actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
 		if err != nil {
 			writeReportingError(w, r, "resolve_actor", err)
-			return
-		}
-		if !api.flagEnabled(ctx, actor) {
-			writeReportingError(w, r, "flag", reportingFailure(403, "feature_unavailable", reportingFlagMessage))
 			return
 		}
 		r = r.WithContext(reporting.WithWorkspace(ctx, actor.OrganizationID()))
@@ -194,14 +182,6 @@ func (api *reportingAPI) saveRateCard(r *http.Request, actor reportingActor) (an
 
 func (api *reportingAPI) rateCards(r *http.Request, actor reportingActor) (any, int, error) {
 	return api.RateCards(r, actor)
-}
-
-func (api *reportingAPI) flagEnabled(ctx context.Context, actor reportingActor) bool {
-	if api.Flags == nil {
-		return false
-	}
-	enabled, err := api.Flags.Enabled(ctx, actor.WorkOSOrganizationID(), actor.WorkOSUserID(), workspaceReportsFlag)
-	return err == nil && enabled
 }
 
 const reportingWordCountPageSize = reporting.WordCountPageSize

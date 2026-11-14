@@ -15,7 +15,6 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 const captureEditorSavesMock = vi.fn(async () => ({
   organizationsProcessed: 1,
-  organizationsSkipped: 0,
   organizationsStarted: 0,
   eventsProcessed: 3,
   segmentsRecorded: 2,
@@ -97,7 +96,6 @@ describe("reporting capture cron route", () => {
     await expect(response.json()).resolves.toEqual({
       results: {
         organizationsProcessed: 1,
-        organizationsSkipped: 0,
         organizationsStarted: 0,
         eventsProcessed: 3,
         segmentsRecorded: 2,

@@ -892,7 +892,7 @@ go test ./apps/go-svc/internal/autumn -run HTTPStatus
 
 The Reports page's reads and writes under `/v1/orgs/{organizationSlug}/reports`, the only copy of them; the web app keeps recording the work and refreshing the daily summary. Errors carry a `message`, as every go-svc API gives.
 
-Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` feature flag. A disabled or unavailable flag returns `403 feature_unavailable`.
+Requires workspace authentication and `DATABASE_URL`.
 
 | Method | Path | Capability | Description |
 |--------|------|------------|-------------|
@@ -918,11 +918,11 @@ Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` f
 | DELETE | `/reports/time-entries/{id}` | Own, or `billing:write` | Void an entry and its cost |
 | POST | `/internal/reports/{kind}` | Service token | The MCP `get_report` tool: `{organizationId, userId, query}` (query values as text, or numbers and booleans) answered as `activity`, `words` (with its chart), `time`, `ai` or `costs` for that member, with `summary` and `stillUpdating` |
 
-**Access control:** `billing:read` (admins and localization managers) sees reports and money; the internal route applies the named member's own access (workspace, flag, billing); writes hold locks (the task row, and `pg_advisory_xact_lock(hashtext('reporting-rate-card:<workspace>:<name>'))` for a card) and write the same `reporting_audit` rows; `billing:write` (admins) changes rate cards, budgets and pricing; `jobs:write` logs time. Project visibility follows team membership, with organization-wide access for admins and localization managers; a filter for a project the viewer cannot open reads nothing.
+**Access control:** `billing:read` (admins and localization managers) sees reports and money; the internal route applies the named member's own access (workspace, billing); writes hold locks (the task row, and `pg_advisory_xact_lock(hashtext('reporting-rate-card:<workspace>:<name>'))` for a card) and write the same `reporting_audit` rows; `billing:write` (admins) changes rate cards, budgets and pricing; `jobs:write` logs time. Project visibility follows team membership, with organization-wide access for admins and localization managers; a filter for a project the viewer cannot open reads nothing.
 
 **Dates:** UTC calendar days as `YYYY-MM-DD`, from 2000 on, never past today; the default period is the last 28 days and is compared with the period of the same length before it; periods over 45 days are charted by week (Monday start).
 
-**Safeguards** (`reporting-safeguards.go`), for a service whose size is not pinned down: at most 2 Reports requests query the database at once per copy (a third waits for a slot, and is refused with `503 reports_busy` when its own 30 s run out; the member lookup runs before admission), each read runs on one pooled connection in a read-only transaction with a 10 s statement limit (a statement, lock wait or request out of time answers `503 report_timed_out`), CSVs are written row by row, and the flag answer is cached per workspace and user for a minute (one lookup serves the requests that miss together).
+**Safeguards** (`reporting-safeguards.go`), for a service whose size is not pinned down: at most 3 Reports requests query the database at once per copy and one workspace holds at most 2 of them (a request over either cap waits for a slot, and is refused with `503 reports_busy` when its own 30 s run out; the member lookup runs before admission), each read runs on one pooled connection in a read-only transaction with a 10 s statement limit (a statement, lock wait or request out of time answers `503 report_timed_out`), and CSVs are written row by row.
 
 ### Testing
 

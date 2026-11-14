@@ -5,16 +5,17 @@ Date: 2026-11-14
 **Status:** Implemented on `feat/reports-gap-closing` (migration `0189_equal_the_twelve`; `0188` on `main` is user preferences), with these differences from the plan below:
 
 - 0a: the service allows 3 Reports queries at once per copy (was 2) and one workspace at most 2, so another workspace always finds a slot.
-- 0b: the Reports e2e flow (`src/e2e/flows/reports.e2e.ts`) runs only with `E2E_REPORTS_ENABLED=1`: the WorkOS emulator serves no feature flags, so it needs an environment with `workspace-reports` on.
+- 0b: the Reports e2e flow (`src/e2e/flows/reports.e2e.ts`) runs only with `E2E_REPORTS_ENABLED=1`: it needs go-svc reachable, not the WorkOS flag.
 - 0c: charts draw bars from the day Reports started; the period itself is unchanged, so earlier logged time still counts.
 - 1: spend and time per person are read live, as the Costs and Time tabs read them; only words are in `reporting_daily_by_person`. Members see their own row without pay. Post-edit bands are on the Contributors tab and the task Report tab, not the Word counts tab.
 - 2: the text a person was given is the latest version before theirs written by someone else (a reviewer is compared with the translator's draft); an approval of the text as given scores 100. A post-edit line pays by memory band when there is no score.
 - 3: the quote is an Excel workbook from go-svc; PDF is the browser's print of a quote page, which handles every script, rather than a PDF built in go-svc.
 - 4: Reports reads live in `internal/reporting`. go-svc and public-api both import that package. public-api reads PostgreSQL directly (no go-svc proxy, no `GO_SVC_INTERNAL_URL`). go-svc's `POST /internal/reports/{kind}` stays for the MCP `get_report` tool. `reports:read` must still be added to WorkOS Agent Registration's trusted permissions in the dashboard.
+- The `workspace-reports` WorkOS flag is lifted: Reports is on for every workspace. Capture, the page, go-svc, MCP, and the public API no longer check it.
 
 ## Context
 
-Reports is built and served from go-svc ([Reports reads and writes in go-svc](../adr/2026-10-29-reports-go-svc-design.md)). It is behind the `workspace-reports` flag with no customer users. Compared with what Crowdin and Phrase customers expect, it is already strong on match analysis, rate cards, time, budgets and AI usage. It is missing:
+Reports is built and served from go-svc ([Reports reads and writes in go-svc](../adr/2026-10-29-reports-go-svc-design.md)). Compared with what Crowdin and Phrase customers expect, it is already strong on match analysis, rate cards, time, budgets and AI usage. It is missing:
 
 - Words and cost **per person**, which agencies need to pay freelancers. Crowdin calls this Top members and Translation costs; Phrase has per-linguist reports.
 - **Post-edit analysis**: pay by how much a person changed the MT or AI text they were given, rather than by memory match. Phrase calls this post-editing analysis; Crowdin calls it pre-translation accuracy.
@@ -98,7 +99,7 @@ Five phases, each its own pull request (or a short series). Phase 0 gates turnin
 
 - New PAT scope `reports:read`, mapped to the `billing:read` capability (admins and localization managers), as every report is today. Add it in each place the scope list lives: `apps/go-svc/api-key-permissions.go`, `apps/public-api/permissions.go` (`apiKeyScopeCapability` and `roleAllowsCapability`), `apps/hyperlocalise-web/src/api/routes/api-key/api-key.schema.ts` and `api-key.permissions.ts`, `src/api/auth/policy.ts`, and `go-svc-client.types.ts`; plus the API key dialog's scope picker.
 - Add `reports:read` to the WorkOS Agent Registration trusted permissions (the list in the root `AGENTS.md`), so registered agents can claim it.
-- The `workspace-reports` flag still gates go-svc's page routes and the MCP internal route (fail closed when WorkOS flags are missing). public-api has no WorkOS client; `reporting.API` with `Flags` unset allows the read so a PAT can still load reports when the page flag is on. A workspace without the flag still gets `403 reports_not_enabled` from go-svc and MCP.
+- Reports is on for every workspace. public-api has no WorkOS client; `reporting.API` reads PostgreSQL as the token's member.
 
 **Endpoints** (all `GET`, the page's query fields: `from`, `to`, `projectId`, `jobId`, `targetLocale`, `step`, `unit`, plus each report's own):
 

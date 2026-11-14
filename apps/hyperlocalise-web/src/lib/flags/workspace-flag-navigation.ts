@@ -20,7 +20,6 @@ import {
   WORKSPACE_HYPERLAB_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_QUERIES_BOARD_FLAG,
-  WORKSPACE_REPORTS_FLAG,
   WORKSPACE_VISUAL_MOCK_FLAG,
   type WorkspaceFeatureFlagState,
 } from "./workos-flag-entities";
@@ -35,7 +34,6 @@ function workspaceFlagEnabledByKey(flags: WorkspaceFeatureFlagState): Record<str
     [WORKSPACE_DOMAINS_FLAG]: flags.domains,
     [WORKSPACE_GLOSSARY_SEARCH_FLAG]: flags.glossarySearch,
     [WORKSPACE_HYPERLAB_FLAG]: flags.hyperlab,
-    [WORKSPACE_REPORTS_FLAG]: flags.reports,
   };
 }
 

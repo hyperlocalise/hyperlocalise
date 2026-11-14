@@ -16,9 +16,8 @@ import { e2eUrl, organizationPath } from "../constants";
 import { getE2ePage, loginWithRole, useE2eBrowser, waitForSettledPage } from "../fixtures/browser";
 
 /**
- * Reports sits behind the `workspace-reports` flag, which the WorkOS emulator does not serve, and
- * reads from go-svc. Run these against an environment with the flag on for the e2e workspace and
- * go-svc reachable at NEXT_PUBLIC_API_BASE_URL: `E2E_REPORTS_ENABLED=1 vp run test:e2e`.
+ * Reports reads from go-svc. Run these against an environment with go-svc reachable at
+ * NEXT_PUBLIC_API_BASE_URL: `E2E_REPORTS_ENABLED=1 vp run test:e2e`.
  */
 const reportsEnabled = process.env.E2E_REPORTS_ENABLED === "1";
 

@@ -3242,8 +3242,8 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
     ReportForbidden:
       description: >-
-        The token lacks `reports:read` (`forbidden`), its owner cannot see what work costs
-        (`forbidden`), or the workspace does not have Reports (`reports_not_enabled`).
+        The token lacks `reports:read` (`forbidden`), or its owner cannot see what work costs
+        (`forbidden`).
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

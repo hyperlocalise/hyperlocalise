@@ -9,14 +9,12 @@ import {
 import {
   workspaceAutomationsFlag,
   workspaceDomainsFlag,
-  workspaceReportsFlag,
 } from "../../../../lib/flags/workspace-flags";
 
 export const GET = createFlagsDiscoveryEndpoint(async () =>
   getProviderData({
     workspaceAutomationsFlag,
     workspaceDomainsFlag,
-    workspaceReportsFlag,
     releaseContentEditorAllFilesFlag,
     releaseCatAdaptiveWorkspaceFlag,
     releaseSandboxVcrImageFlag,

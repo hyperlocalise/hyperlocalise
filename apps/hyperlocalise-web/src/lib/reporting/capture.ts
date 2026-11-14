@@ -47,24 +47,6 @@ const MEMORY_INDEX_MIN_QUERIES = 4;
 export const MATCH_ALGORITHM_VERSION = 3;
 
 /**
- * Whether Reports records work for the workspace. A failed lookup is tried once more, then read
- * as off and logged as an error: the write that asked is then dropped, which must be visible,
- * while recording anyway would record work for workspaces with Reports off.
- */
-export async function isWorkspaceReportsCaptureEnabled(organizationId: string): Promise<boolean> {
-  const { resolveWorkspaceReportsFlag } = await import("@/lib/flags/workspace-flags");
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      return await resolveWorkspaceReportsFlag({ organizationId });
-    } catch (error) {
-      if (attempt === 0) continue;
-      console.error("reporting_flag_lookup_failed", { organizationId, error });
-      return false;
-    }
-  }
-}
-
-/**
  * The rate line that prices work: from the task's own rate card, as the card was when the task
  * was priced; else from its project budget's card, as it is now. The first card found prices
  * every language, so a language it has no line for has no rate. Null when none applies.
@@ -264,10 +246,7 @@ type AnalysisInput = {
   occurredAt?: Record<string, Date>;
 };
 
-/**
- * Options for a caller that has already checked the Reports flag and must know when a write fails,
- * such as the scheduled capture task: `strict` skips the flag check and throws instead of logging.
- */
+/** Options for a caller that must know when a write fails: `strict` throws instead of logging. */
 type StrictWriteOptions = { strict?: boolean };
 
 export async function captureAnalysis(input: AnalysisInput) {
@@ -290,7 +269,7 @@ type MemoryOptions = {
 };
 
 /**
- * Writes an analysis like `captureAnalysis`, but throws on failure and skips the flag check.
+ * Writes an analysis like `captureAnalysis`, but throws on failure.
  * Returns the summary days it marked.
  */
 export async function recordAnalysis(
@@ -305,9 +284,6 @@ async function writeReportingAnalysis(
   input: AnalysisInput,
   options: StrictWriteOptions & MemoryOptions = {},
 ): Promise<SummaryMark[]> {
-  if (!options.strict && !(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
-    return [];
-  }
   await reportingStart(input.organizationId);
   if (input.jobId) {
     const [job] = await db
@@ -614,20 +590,16 @@ export async function captureCompletions(input: CompletionsInput, database: Data
   }
 }
 
-/** Writes completions like `captureCompletions`, but throws on failure and skips the flag check. */
+/** Writes completions like `captureCompletions`, but throws on failure. */
 export async function recordCompletions(input: CompletionsInput) {
-  await writeReportingCompletions(input, db, { strict: true });
+  await writeReportingCompletions(input, db);
 }
 
 /** Writes the completions (and people's costs) and returns the summary days they marked. */
 async function writeReportingCompletions(
   input: CompletionsInput,
   database: DatabaseClient,
-  options: StrictWriteOptions = {},
 ): Promise<SummaryMark[]> {
-  if (!options.strict && !(await isWorkspaceReportsCaptureEnabled(input.organizationId))) {
-    return [];
-  }
   const step = input.step ?? "translation";
   const segmentIds = Object.keys(input.sourceEntries);
   if (segmentIds.length === 0) return [];
@@ -913,7 +885,7 @@ async function applyJobStatus(input: { jobId: string; status: string }) {
     .from(schema.jobs)
     .where(eq(schema.jobs.id, input.jobId))
     .limit(1);
-  if (!ownedJob || !(await isWorkspaceReportsCaptureEnabled(ownedJob.organizationId))) {
+  if (!ownedJob) {
     return;
   }
 

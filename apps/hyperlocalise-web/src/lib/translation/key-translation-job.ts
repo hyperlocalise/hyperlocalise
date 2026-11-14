@@ -391,8 +391,6 @@ export async function translateKeyBatch(input: {
   overwriteUnapproved: boolean;
   knowledgeMemoryEnabled: boolean;
   recordProvenance: boolean;
-  /** Whether Reports is on for the workspace, read once for the run. */
-  reportsEnabled?: boolean;
   items: KeyTranslationJobPlan["items"];
 }): Promise<KeyTranslationBatchResult> {
   const result: KeyTranslationBatchResult = { translated: {}, failed: {}, tokenUsage: null };
@@ -601,7 +599,7 @@ export async function translateKeyBatch(input: {
         result.translated[locale] = (result.translated[locale] ?? 0) + 1;
       }
       // Recorded right after the save, so a step that dies later loses no finished strings.
-      if (input.reportsEnabled && written.length > 0) {
+      if (written.length > 0) {
         await recordKeyTranslationCompletions({
           organizationId: input.organizationId,
           jobId: input.jobId,

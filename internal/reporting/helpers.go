@@ -32,11 +32,6 @@ type Pool interface {
 	Begin(context.Context) (pgx.Tx, error)
 }
 
-// FlagChecker is the workspace-reports flag, usually WorkOS.
-type FlagChecker interface {
-	Enabled(ctx context.Context, workosOrganizationID, workosUserID, slug string) (bool, error)
-}
-
 func isNoRows(err error) bool {
 	return errors.Is(err, pgx.ErrNoRows)
 }

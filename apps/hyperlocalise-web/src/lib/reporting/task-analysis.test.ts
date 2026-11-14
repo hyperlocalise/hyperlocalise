@@ -15,7 +15,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { and, eq, sql } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { insertStoredSourceFile } from "@/api/routes/public-jobs/public-jobs.fixture";
@@ -34,11 +34,6 @@ import {
   refreshTaskDays,
 } from "./task-analysis";
 import { setTaskAnalysisStatus } from "./task-analysis-status";
-
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return { ...actual, resolveWorkspaceReportsFlag: vi.fn(async () => true) };
-});
 
 const projectFixture = createProjectTestFixture();
 const SOURCE_PATH = "locales/en.json";

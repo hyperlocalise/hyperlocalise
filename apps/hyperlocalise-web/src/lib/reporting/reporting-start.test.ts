@@ -15,7 +15,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import {
@@ -29,20 +29,7 @@ import { isErr } from "@/lib/primitives/result/results";
 import { getReportingStart } from "./reporting-start";
 import { startReportingForTest } from "./reporting.fixture";
 
-const mocks = vi.hoisted(() => ({
-  resolveWorkspaceReportsFlag: vi.fn(async () => true),
-}));
-
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return { ...actual, resolveWorkspaceReportsFlag: mocks.resolveWorkspaceReportsFlag };
-});
-
 const authFixture = createAuthTestFixture();
-
-beforeEach(() => {
-  mocks.resolveWorkspaceReportsFlag.mockReset().mockResolvedValue(true);
-});
 
 afterEach(async () => {
   await authFixture.cleanup();
@@ -76,22 +63,13 @@ async function reserve(
 }
 
 describe("Reports start at a workspace's first AI use", () => {
-  it("starts at the first token row when Reports is on", async () => {
+  it("starts at the first token row", async () => {
     const organization = await createOrganization();
 
     const recordedAt = await reserve(organization.id);
     await reserve(organization.id);
 
     expect(await getReportingStart(organization.id)).toEqual(recordedAt);
-  });
-
-  it("does not start a workspace with Reports off", async () => {
-    mocks.resolveWorkspaceReportsFlag.mockResolvedValue(false);
-    const organization = await createOrganization();
-
-    await reserve(organization.id);
-
-    expect(await getReportingStart(organization.id)).toBeNull();
   });
 
   it("does not start on a run reservation, only on its token row", async () => {
@@ -110,18 +88,5 @@ describe("Reports start at a workspace's first AI use", () => {
     await reserve(organization.id);
 
     expect(await getReportingStart(organization.id)).toEqual(started);
-    expect(mocks.resolveWorkspaceReportsFlag).not.toHaveBeenCalled();
-  });
-
-  it("still records the charge when the Reports check fails", async () => {
-    mocks.resolveWorkspaceReportsFlag.mockRejectedValue(new Error("flags unavailable"));
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const organization = await createOrganization();
-
-    await expect(reserve(organization.id)).resolves.toBeInstanceOf(Date);
-
-    expect(await getReportingStart(organization.id)).toBeNull();
-    expect(error).toHaveBeenCalledWith("reporting_start_failed", expect.anything());
-    error.mockRestore();
   });
 });

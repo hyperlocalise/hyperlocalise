@@ -11,7 +11,6 @@
  * Version 2.0 or later.
  */
 import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
-import { getWorkspaceFeatureFlagEnabled, workspaceReportsFlag } from "@/lib/flags/workspace-flags";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
@@ -41,7 +40,6 @@ async function ProjectJobDetailPageLoader({
   const canEditJobFields = hasCapability(auth.membership.role, "jobs:write");
   const canMarkAnyTaskDone = hasCapability(auth.membership.role, "reviews:approve");
   const canEditSharedCredentialProviderJobFields = isWorkspaceOperatorRole(auth.membership.role);
-  const reportsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceReportsFlag, auth);
 
   return (
     <JobDetailPageContent
@@ -52,7 +50,6 @@ async function ProjectJobDetailPageLoader({
       canMarkAnyTaskDone={canMarkAnyTaskDone}
       currentUserId={auth.user.localUserId}
       canEditSharedCredentialProviderJobFields={canEditSharedCredentialProviderJobFields}
-      reportsEnabled={reportsEnabled}
     />
   );
 }

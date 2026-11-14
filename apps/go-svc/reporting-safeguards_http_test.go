@@ -18,7 +18,7 @@ import (
 
 func TestReportingReadIsReadOnlyWithAStatementTimeLimit(t *testing.T) {
 	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
-	api := reportingTestAPI(scope, "admin", stubWorkspaceFlags{enabled: true})
+	api := reportingTestAPI(scope, "admin")
 	ctx := t.Context()
 
 	err := api.read(ctx, func(db reporting.DB) error {
@@ -58,7 +58,7 @@ func TestWriteReportingErrorMapsAStatementTimeoutToABusyAnswer(t *testing.T) {
 
 func TestReportingAdmitsAFewQueriesAtOnce(t *testing.T) {
 	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
-	api := reportingTestAPI(scope, "admin", stubWorkspaceFlags{enabled: true})
+	api := reportingTestAPI(scope, "admin")
 	require.True(t, api.Queries.TryAcquire(reportingQueriesAtOnce))
 	require.False(t, api.Queries.TryAcquire(1))
 	api.Queries.Release(reportingQueriesAtOnce)

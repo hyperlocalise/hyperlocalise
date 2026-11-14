@@ -15,7 +15,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { and, eq, sql } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
@@ -29,11 +29,6 @@ import {
   refreshSummaryDays,
   SUMMARY_VERSION,
 } from "./summary";
-
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return { ...actual, resolveWorkspaceReportsFlag: vi.fn(async () => true) };
-});
 
 const projectFixture = createProjectTestFixture();
 
