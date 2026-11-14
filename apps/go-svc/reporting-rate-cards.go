@@ -20,6 +20,7 @@ type reportingRateLine struct {
 	TargetLocale string          `json:"targetLocale"`
 	Step         string          `json:"step"`
 	Basis        string          `json:"basis"`
+	Pricing      string          `json:"pricing"`
 	Rate         string          `json:"rate"`
 	Percentages  json.RawMessage `json:"percentages"`
 }
@@ -34,7 +35,7 @@ type reportingRateCard struct {
 // ones included, as a subquery over the workspace in the given parameter.
 func reportingLiveRateRowsSQL(organizationParam string) string {
 	return `select distinct on (name, source_locale, target_locale, step)
-        id, name, source_locale, target_locale, step, basis, rate, percentages, retired, created_at
+        id, name, source_locale, target_locale, step, basis, pricing, rate, percentages, retired, created_at
         from reporting_rates where organization_id = ` + organizationParam + `
         order by name, source_locale, target_locale, step, created_at desc, id desc`
 }
@@ -61,7 +62,7 @@ func listReportingRateCards(ctx context.Context, db dictionaryDB, organizationID
 		return nil, fmt.Errorf("list rate cards: %w", err)
 	}
 	lines, err := db.Query(ctx, `
-        select id, name, source_locale, target_locale, step, basis, rate::text, percentages, retired
+        select id, name, source_locale, target_locale, step, basis, pricing, rate::text, percentages, retired
         from (`+reportingLiveRateRowsSQL("$1")+`) live
         order by name, source_locale, target_locale, step`, organizationID)
 	if err != nil {
@@ -72,7 +73,7 @@ func listReportingRateCards(ctx context.Context, db dictionaryDB, organizationID
 		var line reportingRateLine
 		var name string
 		var retired bool
-		if err := lines.Scan(&line.ID, &name, &line.SourceLocale, &line.TargetLocale, &line.Step, &line.Basis, &line.Rate, &line.Percentages, &retired); err != nil {
+		if err := lines.Scan(&line.ID, &name, &line.SourceLocale, &line.TargetLocale, &line.Step, &line.Basis, &line.Pricing, &line.Rate, &line.Percentages, &retired); err != nil {
 			return nil, fmt.Errorf("scan rate line: %w", err)
 		}
 		if retired {
@@ -120,6 +121,7 @@ type reportingRateLineInput struct {
 	TargetLocale string         `json:"targetLocale"`
 	Step         string         `json:"step"`
 	Basis        string         `json:"basis"`
+	Pricing      string         `json:"pricing"`
 	Rate         string         `json:"rate"`
 	Percentages  map[string]int `json:"percentages"`
 }
@@ -169,7 +171,7 @@ type reportingLiveRateRow struct {
 // reportingLiveRateLines are a card's newest rows per language pair and step, in order.
 func reportingLiveRateLines(ctx context.Context, db dictionaryDB, organizationID, name string) ([]reportingLiveRateRow, error) {
 	rows, err := db.Query(ctx, `
-        select id, source_locale, target_locale, step, basis, rate::text, percentages, retired
+        select id, source_locale, target_locale, step, basis, pricing, rate::text, percentages, retired
         from (`+reportingLiveRateRowsSQL("$1")+`) live where name = $2
         order by name, source_locale, target_locale, step`, organizationID, name)
 	if err != nil {
@@ -179,7 +181,7 @@ func reportingLiveRateLines(ctx context.Context, db dictionaryDB, organizationID
 	var lines []reportingLiveRateRow
 	for rows.Next() {
 		var line reportingLiveRateRow
-		if err := rows.Scan(&line.ID, &line.SourceLocale, &line.TargetLocale, &line.Step, &line.Basis, &line.Rate, &line.Percentages, &line.retired); err != nil {
+		if err := rows.Scan(&line.ID, &line.SourceLocale, &line.TargetLocale, &line.Step, &line.Basis, &line.Pricing, &line.Rate, &line.Percentages, &line.retired); err != nil {
 			return nil, fmt.Errorf("scan rate line: %w", err)
 		}
 		lines = append(lines, line)
@@ -210,8 +212,12 @@ func (api *reportingAPI) saveRateCard(r *http.Request, actor reportingActor) (an
 			TargetLocale: item.text("targetLocale", 2, 35),
 			Step:         item.step("step"),
 			Basis:        item.choice("basis", reportingRateBases...),
+			Pricing:      "memory_match",
 			Rate:         item.usd("rate"),
 			Percentages:  item.percentages("percentages"),
+		}
+		if _, given := item.field("pricing"); given {
+			line.Pricing = item.choice("pricing", reportingRatePricings...)
 		}
 		if !item.valid {
 			body.fail()
@@ -272,14 +278,14 @@ func (api *reportingAPI) saveRateCard(r *http.Request, actor reportingActor) (an
 			return fmt.Errorf("save rate card: %w", err)
 		}
 		type newRow struct {
-			sourceLocale, targetLocale, step, basis, rate string
-			percentages                                   json.RawMessage
-			retired                                       bool
+			sourceLocale, targetLocale, step, basis, pricing, rate string
+			percentages                                            json.RawMessage
+			retired                                                bool
 		}
 		var rows []newRow
 		for _, line := range lines {
 			row, ok := current[reportingLineKey(line.SourceLocale, line.TargetLocale, line.Step)]
-			changed := !ok || row.Basis != line.Basis || !reportingSamePercentages(row.Percentages, line.Percentages)
+			changed := !ok || row.Basis != line.Basis || row.Pricing != line.Pricing || !reportingSamePercentages(row.Percentages, line.Percentages)
 			if !changed {
 				stored, err := usdUnits(row.Rate)
 				if err != nil {
@@ -296,20 +302,20 @@ func (api *reportingAPI) saveRateCard(r *http.Request, actor reportingActor) (an
 				if err != nil {
 					return err
 				}
-				rows = append(rows, newRow{line.SourceLocale, line.TargetLocale, line.Step, line.Basis, line.Rate, percentages, false})
+				rows = append(rows, newRow{line.SourceLocale, line.TargetLocale, line.Step, line.Basis, line.Pricing, line.Rate, percentages, false})
 			}
 		}
 		for _, row := range before {
 			if !seen[reportingLineKey(row.SourceLocale, row.TargetLocale, row.Step)] {
-				rows = append(rows, newRow{row.SourceLocale, row.TargetLocale, row.Step, row.Basis, row.Rate, row.Percentages, true})
+				rows = append(rows, newRow{row.SourceLocale, row.TargetLocale, row.Step, row.Basis, row.Pricing, row.Rate, row.Percentages, true})
 			}
 		}
 		for _, row := range rows {
 			// After the lock, so a save that waited for another is always the newer version.
 			if _, err := tx.Exec(ctx, `
-                insert into reporting_rates (organization_id, name, source_locale, target_locale, step, basis, rate, percentages, retired, created_at)
-                values ($1, $2, $3, $4, $5, $6, $7::numeric, $8::jsonb, $9, clock_timestamp())`,
-				actor.organizationID, name, row.sourceLocale, row.targetLocale, row.step, row.basis, row.rate, string(row.percentages), row.retired); err != nil {
+                insert into reporting_rates (organization_id, name, source_locale, target_locale, step, basis, pricing, rate, percentages, retired, created_at)
+                values ($1, $2, $3, $4, $5, $6, $7, $8::numeric, $9::jsonb, $10, clock_timestamp())`,
+				actor.organizationID, name, row.sourceLocale, row.targetLocale, row.step, row.basis, row.pricing, row.rate, string(row.percentages), row.retired); err != nil {
 				return fmt.Errorf("save rate line: %w", err)
 			}
 		}
@@ -333,7 +339,7 @@ func (api *reportingAPI) saveRateCard(r *http.Request, actor reportingActor) (an
 		for _, line := range lines {
 			afterLines = append(afterLines, map[string]any{
 				"sourceLocale": line.SourceLocale, "targetLocale": line.TargetLocale, "step": line.Step,
-				"basis": line.Basis, "rate": line.Rate, "percentages": line.Percentages,
+				"basis": line.Basis, "pricing": line.Pricing, "rate": line.Rate, "percentages": line.Percentages,
 			})
 		}
 		if err := reportingAudit(ctx, tx, actor, cardID, action, auditBefore, map[string]any{"defaultBasis": defaultBasis, "lines": afterLines}); err != nil {

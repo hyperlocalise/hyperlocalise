@@ -30,7 +30,7 @@ func rateCardUnitAPI(pool *scriptPool) *reportingAPI {
 }
 
 func rateCardUnitLiveRow(id, targetLocale, step, basis, rate, percentages string, retired bool) []any {
-	return []any{id, "en-US", targetLocale, step, basis, rate, json.RawMessage(percentages), retired}
+	return []any{id, "en-US", targetLocale, step, basis, "memory_match", rate, json.RawMessage(percentages), retired}
 }
 
 func requireReportingFailure(t *testing.T, err error, status int, code string) {
@@ -94,9 +94,9 @@ func TestListReportingRateCardsScripted(t *testing.T) {
 	pool := &scriptPool{steps: []dbStep{
 		{op: opQuery, table: [][]any{{"Zeta", "hour"}, {"alpha", "word"}}},
 		{op: opQuery, table: [][]any{
-			{"rate_1", "alpha", "en-US", "fr-FR", "translation", "word", "0.10", json.RawMessage(`{}`), false},
-			{"rate_2", "Beta", "en-US", "de-DE", "review", "hour", "30.00", json.RawMessage(`{"new":50}`), false},
-			{"rate_3", "Zeta", "en-US", "es-ES", "translation", "hour", "25.00", json.RawMessage(`{}`), true},
+			{"rate_1", "alpha", "en-US", "fr-FR", "translation", "word", "memory_match", "0.10", json.RawMessage(`{}`), false},
+			{"rate_2", "Beta", "en-US", "de-DE", "review", "hour", "post_edit", "30.00", json.RawMessage(`{"new":50}`), false},
+			{"rate_3", "Zeta", "en-US", "es-ES", "translation", "hour", "memory_match", "25.00", json.RawMessage(`{}`), true},
 		}},
 	}}
 	cards, err := listReportingRateCards(ctx, pool, organizationID)
@@ -104,10 +104,10 @@ func TestListReportingRateCardsScripted(t *testing.T) {
 	requireScriptDone(t, pool)
 	require.Equal(t, []reportingRateCard{
 		{Name: "alpha", DefaultBasis: "word", Lines: []reportingRateLine{
-			{ID: "rate_1", SourceLocale: "en-US", TargetLocale: "fr-FR", Step: "translation", Basis: "word", Rate: "0.10", Percentages: json.RawMessage(`{}`)},
+			{ID: "rate_1", SourceLocale: "en-US", TargetLocale: "fr-FR", Step: "translation", Basis: "word", Pricing: "memory_match", Rate: "0.10", Percentages: json.RawMessage(`{}`)},
 		}},
 		{Name: "Beta", DefaultBasis: "word", Lines: []reportingRateLine{
-			{ID: "rate_2", SourceLocale: "en-US", TargetLocale: "de-DE", Step: "review", Basis: "hour", Rate: "30.00", Percentages: json.RawMessage(`{"new":50}`)},
+			{ID: "rate_2", SourceLocale: "en-US", TargetLocale: "de-DE", Step: "review", Basis: "hour", Pricing: "post_edit", Rate: "30.00", Percentages: json.RawMessage(`{"new":50}`)},
 		}},
 		{Name: "Zeta", DefaultBasis: "hour", Lines: []reportingRateLine{}},
 	}, cards)

@@ -41,8 +41,10 @@ describe("getGrantableApiKeyPermissions", () => {
     }
   });
 
-  it("grants memories:read but not memories:write to job contributors", () => {
-    const expected = defaultApiKeyPermissions.filter((scope) => scope !== "memories:write");
+  it("grants memories:read but not memories:write or reports:read to job contributors", () => {
+    const expected = defaultApiKeyPermissions.filter(
+      (scope) => scope !== "memories:write" && scope !== "reports:read",
+    );
     for (const role of jobContributors) {
       expect(getGrantableApiKeyPermissions(role)).toEqual(expected);
     }

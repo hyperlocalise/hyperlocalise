@@ -134,7 +134,7 @@ func TestWriteReportingErrorMapsAStatementTimeoutToABusyAnswer(t *testing.T) {
 	require.JSONEq(t, `{"error":"internal_error","message":"Internal server error"}`, rec.Body.String())
 }
 
-func TestReportingAdmitsTwoQueriesAtOnce(t *testing.T) {
+func TestReportingAdmitsAFewQueriesAtOnce(t *testing.T) {
 	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
 	api := reportingTestAPI(scope, "admin", stubWorkspaceFlags{enabled: true})
 	require.True(t, api.queries.TryAcquire(reportingQueriesAtOnce))
@@ -182,4 +182,57 @@ func (f *blockingWorkspaceFlags) Enabled(context.Context, string, string, string
 	f.started.Add(1)
 	<-f.release
 	return true, nil
+}
+
+func TestReportingWorkspaceCannotHoldEverySlot(t *testing.T) {
+	api := newReportingAPI()
+	busy := withReportingWorkspace(t.Context(), "org_busy")
+	var releases []func()
+	for range reportingWorkspaceQueriesAtOnce {
+		release, err := api.admit(busy)
+		require.NoError(t, err)
+		releases = append(releases, release)
+	}
+
+	// The busy workspace's next request waits for its own slot and runs out of time.
+	ctx, cancel := context.WithTimeout(busy, 50*time.Millisecond)
+	defer cancel()
+	_, err := api.admit(ctx)
+	require.ErrorIs(t, err, errReportingBusy)
+
+	// Another workspace still gets in at once.
+	other, err := api.admit(withReportingWorkspace(t.Context(), "org_other"))
+	require.NoError(t, err)
+	other()
+
+	for _, release := range releases {
+		release()
+	}
+	require.Equal(t, 0, api.workspaces.held(), "a workspace's slots are forgotten once nobody holds them")
+}
+
+func TestReportingServiceLimitStillHoldsAcrossWorkspaces(t *testing.T) {
+	api := newReportingAPI()
+	var releases []func()
+	for i := range reportingQueriesAtOnce {
+		release, err := api.admit(withReportingWorkspace(t.Context(), fmt.Sprintf("org_%d", i)))
+		require.NoError(t, err)
+		releases = append(releases, release)
+	}
+	ctx, cancel := context.WithTimeout(withReportingWorkspace(t.Context(), "org_late"), 50*time.Millisecond)
+	defer cancel()
+	_, err := api.admit(ctx)
+	require.ErrorIs(t, err, errReportingBusy)
+	for _, release := range releases {
+		release()
+	}
+	require.Equal(t, 0, api.workspaces.held(), "a request that gave up leaves no slot behind")
+}
+
+func TestReportingAdmitWithoutAWorkspaceUsesTheServiceLimitOnly(t *testing.T) {
+	api := newReportingAPI()
+	release, err := api.admit(t.Context())
+	require.NoError(t, err)
+	release()
+	require.Equal(t, 0, api.workspaces.held())
 }

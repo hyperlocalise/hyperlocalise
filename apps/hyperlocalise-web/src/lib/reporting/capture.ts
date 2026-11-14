@@ -602,6 +602,8 @@ type CompletionsInput = {
   source?: CompletionSource;
   /** Whether a person finished the string without changing its text, by segment id. */
   unchanged?: Record<string, boolean>;
+  /** How close a person's text is to the text they were given (`postEditScore`), by segment id. */
+  postEditScores?: Record<string, number>;
 };
 
 export async function captureCompletions(input: CompletionsInput, database: DatabaseClient = db) {
@@ -771,6 +773,11 @@ async function writeReportingCompletions(
         );
       for (const row of rows) earlier.set(row.operationKey, row);
     }
+    const postEditScoreOf = (segmentId: string) => input.postEditScores?.[segmentId] ?? null;
+    const postEditBucketOf = (segmentId: string) => {
+      const score = postEditScoreOf(segmentId);
+      return score === null ? null : matchBucket(score);
+    };
     for (const analysis of finishedAnalyses) {
       const operationKey = `completion:${analysis.id}:${step}`;
       const written = await tx
@@ -787,6 +794,8 @@ async function writeReportingCompletions(
           actorUserId: input.actorUserId ?? null,
           source: input.sources?.[analysis.segmentId] ?? input.source ?? null,
           unchanged: input.unchanged?.[analysis.segmentId] ?? null,
+          postEditScore: postEditScoreOf(analysis.segmentId),
+          postEditBucket: postEditBucketOf(analysis.segmentId),
           createdAt: input.occurredAt?.[analysis.segmentId],
         })
         // One completion per analysis and step: when a person finishes a string a job already
@@ -800,6 +809,8 @@ async function writeReportingCompletions(
             actorUserId: sql`excluded.actor_user_id`,
             source: sql`coalesce(excluded.source, ${schema.reportingActivity.source})`,
             unchanged: sql`excluded.unchanged`,
+            postEditScore: sql`excluded.post_edit_score`,
+            postEditBucket: sql`excluded.post_edit_bucket`,
             createdAt: sql`excluded.created_at`,
           },
           where: sql`${schema.reportingActivity.actorUserId} is null and excluded.actor_user_id is not null`,
@@ -845,7 +856,18 @@ async function writeReportingCompletions(
           targetLocale: input.targetLocale,
           rateId: rate?.id,
           amountUsd: priced
-            ? unitCost(rate.rate, units, paidPercent(rate.percentages, analysis.bucket))
+            ? unitCost(
+                rate.rate,
+                units,
+                paidPercent(
+                  rate.percentages,
+                  // A post-edit line pays by how much the person changed the text they were given;
+                  // without a score (nothing given, or too long to score), by the memory band.
+                  rate.pricing === "post_edit"
+                    ? (postEditBucketOf(analysis.segmentId) ?? analysis.bucket)
+                    : analysis.bucket,
+                ),
+              )
             : null,
           basis: priced ? "rate" : "unpriced",
           createdAt: input.occurredAt?.[analysis.segmentId],

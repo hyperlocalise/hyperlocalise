@@ -71,11 +71,18 @@ type reportingTaskWordTotals struct {
 type reportingTaskWords struct {
 	Rows   []reportingTaskWordRow             `json:"rows"`
 	Totals map[string]reportingTaskWordTotals `json:"totals"`
+	// People's finished units by step and post-edit band; the "" band is work with no given
+	// text to compare.
+	PostEditBands map[string]map[string]float64 `json:"postEditBands"`
 }
 
 // queryReportingTaskWords reads a task's units by language, step and match band, over its whole life.
 func queryReportingTaskWords(ctx context.Context, db dictionaryDB, organizationID, jobID, unit string) (reportingTaskWords, error) {
-	words := reportingTaskWords{Rows: []reportingTaskWordRow{}, Totals: map[string]reportingTaskWordTotals{"translation": {}, "review": {}}}
+	words := reportingTaskWords{
+		Rows:          []reportingTaskWordRow{},
+		Totals:        map[string]reportingTaskWordTotals{"translation": {}, "review": {}},
+		PostEditBands: map[string]map[string]float64{"translation": {}, "review": {}},
+	}
 	rows, err := db.Query(ctx, fmt.Sprintf(`
         select s.target_locale, s.step, s.bucket,
             sum(%s)::float8 as source, sum(%s)::float8 as arrived, sum(%s)::float8 as arrived_done,
@@ -126,6 +133,28 @@ func queryReportingTaskWords(ctx context.Context, db dictionaryDB, organizationI
 		}
 		return compareReportingNames(a.TargetLocale, b.TargetLocale)
 	})
+	postEdit, err := db.Query(ctx, fmt.Sprintf(`
+        select s.step, s.post_edit_bucket, sum(%s)::float8
+        from reporting_daily_by_person s
+        where s.organization_id = $1 and s.job_id = $2
+        group by 1, 2`, reportingMeasure("finished", unit)), organizationID, jobID)
+	if err != nil {
+		return words, fmt.Errorf("read task post-edit bands: %w", err)
+	}
+	defer postEdit.Close()
+	for postEdit.Next() {
+		var step, bucket string
+		var finished float64
+		if err := postEdit.Scan(&step, &bucket, &finished); err != nil {
+			return words, fmt.Errorf("scan task post-edit bands: %w", err)
+		}
+		if finished > 0 && words.PostEditBands[step] != nil {
+			words.PostEditBands[step][bucket] += finished
+		}
+	}
+	if err := postEdit.Err(); err != nil {
+		return words, fmt.Errorf("read task post-edit bands: %w", err)
+	}
 	return words, nil
 }
 

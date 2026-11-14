@@ -109,6 +109,24 @@ export const manageRatesSheetMessages = defineMessages({
     defaultMessage: "Rate (USD)",
     description: "Column heading: the rate",
   },
+  pricingColumn: {
+    id: "FgG1jUc7rX",
+    defaultMessage: "Band shares by",
+    description:
+      "Column heading on a rate card: whether band shares go by memory match or by how much the person edited",
+  },
+  pricing_memory_match: {
+    id: "yfZHxazSwv",
+    defaultMessage: "Memory match",
+    description:
+      "Rate line pricing: band shares go by the translation memory match when the string arrived",
+  },
+  pricing_post_edit: {
+    id: "ioTD2dZzme",
+    defaultMessage: "Post-edit",
+    description:
+      "Rate line pricing: band shares go by how much the person changed the AI, machine or imported text they were given",
+  },
   basis_word: {
     id: "87egh8eq2K",
     defaultMessage: "Per word",

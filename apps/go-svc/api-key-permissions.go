@@ -3,7 +3,7 @@ package main
 import "strings"
 
 var apiKeyScopes = []string{
-	"jobs:read", "jobs:write", "files:read", "files:write", "memories:read", "memories:write",
+	"jobs:read", "jobs:write", "files:read", "files:write", "memories:read", "memories:write", "reports:read",
 }
 
 var apiKeyScopeCapability = map[string]string{
@@ -13,6 +13,8 @@ var apiKeyScopeCapability = map[string]string{
 	"files:write":    "jobs:create",
 	"memories:read":  "memories:read",
 	"memories:write": "memories:write",
+	// Reports are for the roles that see what work costs: admins and localization managers.
+	"reports:read": "billing:read",
 }
 
 func apiKeyScopeOptionMessage() string {

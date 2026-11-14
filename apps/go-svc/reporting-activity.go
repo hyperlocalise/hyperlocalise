@@ -188,11 +188,11 @@ func queryReportingActivity(ctx context.Context, db dictionaryDB, scope reportin
 }
 
 // reportingSeriesBars are the bars of a series over a period: each summary row's bar from its
-// day, and every bar's start, the first on or before the period's first day. Weeks start on
-// Monday and months on the first. Dates are stepped without a time zone, so the session's cannot
-// move a day.
+// day, and every bar's start, the first on or before the first day bars are drawn for (the day
+// Reports started, when the period begins before it). Weeks start on Monday and months on the
+// first. Dates are stepped without a time zone, so the session's cannot move a day.
 func reportingSeriesBars(args *reportingArgs, per string, period reportingPeriod) (start, starts string) {
-	from, to := args.add(period.From), args.add(period.To)
+	from, to := args.add(period.barsFrom()), args.add(period.To)
 	switch per {
 	case "week":
 		return "date_trunc('week', s.day::timestamp)::date",

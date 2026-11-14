@@ -236,7 +236,7 @@ func TestReportingInternalReportServesTheMcpToolForAMember(t *testing.T) {
 	status, body = send("admin", "words", payload(`{"from": "2026-06-10", "to": "2026-06-01"}`), true)
 	require.Equal(t, http.StatusBadRequest, status)
 	require.Equal(t, "invalid_report_query", body["error"])
-	status, _ = send("admin", "budgets", payload(`{}`), true)
+	status, _ = send("admin", "nope", payload(`{}`), true)
 	require.Equal(t, http.StatusBadRequest, status)
 	status, _ = send("admin", "activity", `{"organizationId": "nope"}`, true)
 	require.Equal(t, http.StatusBadRequest, status)

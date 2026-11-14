@@ -24,6 +24,8 @@ import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 
 import { captureEditorSaves, EDITOR_SAVE_CAPTURE_CUTOFF_MS } from "./editor-save-capture";
+import { postEditScore } from "./memory-match-index";
+import { matchBucket } from "./word-analysis";
 
 const mocks = vi.hoisted(() => ({
   // The capture task's own check, per workspace.
@@ -617,6 +619,8 @@ describe("captureEditorSaves", () => {
         analysisId: schema.reportingActivity.analysisId,
         source: schema.reportingActivity.source,
         unchanged: schema.reportingActivity.unchanged,
+        postEditScore: schema.reportingActivity.postEditScore,
+        postEditBucket: schema.reportingActivity.postEditBucket,
       })
       .from(schema.reportingActivity)
       .innerJoin(
@@ -635,6 +639,13 @@ describe("captureEditorSaves", () => {
     );
     expect(bySegment.get(keyIds[0])).toMatchObject({ source: "ai", unchanged: true });
     expect(bySegment.get(keyIds[1])).toMatchObject({ source: "person", unchanged: false });
+    // How close each saved text is to the task's: approved as given, and rewritten.
+    expect(bySegment.get(keyIds[0])).toMatchObject({ postEditScore: 100, postEditBucket: "100" });
+    const rewritten = postEditScore("Salut tout le monde", "Bonjour le monde")!;
+    expect(bySegment.get(keyIds[1])).toMatchObject({
+      postEditScore: rewritten,
+      postEditBucket: matchBucket(rewritten),
+    });
   });
 
   it("judges whether a person kept the text by the version they saved, not the text now", async () => {

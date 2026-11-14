@@ -114,10 +114,14 @@ export async function captureNativeCatTranslationReporting(input: {
       provenance === "manual"
         ? personSave(
             existing
-              ? (await textOrigins(input.organizationId, [{ translationId: existing.id }]))[0]
+              ? (
+                  await textOrigins(input.organizationId, [
+                    { translationId: existing.id, actorUserId: input.actorUserId },
+                  ])
+                )[0]
               : undefined,
           )
-        : { source: sourceOfProvenance(provenance), unchanged: undefined };
+        : { source: sourceOfProvenance(provenance), unchanged: undefined, postEditScore: null };
     await captureCompletions({
       organizationId: input.organizationId,
       jobId: sourceJobId,
@@ -128,6 +132,9 @@ export async function captureNativeCatTranslationReporting(input: {
       actorUserId: provenance === "manual" ? input.actorUserId : null,
       source: origin.source,
       ...(origin.unchanged === undefined ? {} : { unchanged: { [key.id]: origin.unchanged } }),
+      ...(origin.postEditScore === null
+        ? {}
+        : { postEditScores: { [key.id]: origin.postEditScore } }),
     });
   }
 

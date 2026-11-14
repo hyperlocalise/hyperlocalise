@@ -67,11 +67,11 @@ export const reportsPageMessages = defineMessages({
     description: "Subtitle of the Reports page before anything has been recorded",
   },
   ownTimeOnly: {
-    id: "ZT+8zOrCd1",
+    id: "+FItbgGdn4",
     defaultMessage:
-      "You see the time you logged. The other reports are for admins and localization managers.",
+      "You see the time you logged and the work you finished. The other reports are for admins and localization managers.",
     description:
-      "Note on the Reports page for roles that cannot see what work costs: they only see their own time",
+      "Note on the Reports page for roles that cannot see what work costs: they only see their own time and work",
   },
   freshness: {
     id: "MtHbnOz2HY",
@@ -98,6 +98,11 @@ export const reportsPageMessages = defineMessages({
     id: "S9c343DyDX",
     defaultMessage: "Word counts",
     description: "Reports tab: words by match band",
+  },
+  tabContributors: {
+    id: "63DyMGYSwU",
+    defaultMessage: "Contributors",
+    description: "Reports tab: each person's finished work, time and pay",
   },
   tabTime: {
     id: "IHSbq/4pez",

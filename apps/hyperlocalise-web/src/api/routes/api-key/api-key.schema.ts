@@ -19,6 +19,7 @@ export const defaultApiKeyPermissions = [
   "files:write",
   "memories:read",
   "memories:write",
+  "reports:read",
 ] as const;
 
 export const apiKeyPermissionSchema = z.enum(defaultApiKeyPermissions);

@@ -26,10 +26,11 @@ import (
 const reportingPricingOrder = "task's rate card, then the project budget's rate card, then the chosen card"
 
 var (
-	reportingRateBases   = []string{"word", "character", "character_with_spaces", "hour"}
-	reportingPricedBy    = []string{"task", "budget", "chosen"}
-	reportingOpenTaskSQL = "j.status in ('queued', 'running', 'waiting_for_review')"
-	reportingLiveTaskSQL = "j.status not in ('failed', 'cancelled')"
+	reportingRateBases    = []string{"word", "character", "character_with_spaces", "hour"}
+	reportingRatePricings = []string{"memory_match", "post_edit"}
+	reportingPricedBy     = []string{"task", "budget", "chosen"}
+	reportingOpenTaskSQL  = "j.status in ('queued', 'running', 'waiting_for_review')"
+	reportingLiveTaskSQL  = "j.status not in ('failed', 'cancelled')"
 )
 
 type reportingPricedGroup struct {
@@ -1170,7 +1171,11 @@ func (api *reportingAPI) costEstimate(r *http.Request, actor reportingActor) (an
 	if _, given := q.raw("rateCard"); given && rateCard == "" {
 		q.fail()
 	}
-	format := q.format()
+	// A quote (xlsx) adds the client, a reference and how many days it is valid for.
+	format := q.choice("format", "json", "json", "csv", "xlsx")
+	client := q.trimmed("client", 200)
+	reference := q.trimmed("reference", 100)
+	validDays := q.number("validDays", 1, 365, reportingQuoteDefaultValidity)
 	if len(jobIDs) == 0 && projectID == "" {
 		q.fail()
 	}
@@ -1183,19 +1188,33 @@ func (api *reportingAPI) costEstimate(r *http.Request, actor reportingActor) (an
 	}
 	ctx := r.Context()
 	var estimate reportingCostEstimate
+	var quote reportingQuoteDetails
 	err := api.read(ctx, func(db dictionaryDB) error {
 		view, err := api.context(ctx, db, actor)
 		if err != nil {
 			return err
 		}
 		estimate, err = queryReportingCostEstimate(ctx, db, view.scope(projectID, "", targetLocale), jobIDs, step, unit, rateCardName)
+		if err != nil || format != "xlsx" {
+			return err
+		}
+		quote.workspace, err = reportingWorkspaceName(ctx, db, actor.organizationID)
+		quote.issued = view.today
 		return err
 	})
 	if err != nil {
 		return nil, 0, err
 	}
-	if format == "csv" {
+	switch format {
+	case "csv":
 		return reportingCostEstimateCSV(estimate), http.StatusOK, nil
+	case "xlsx":
+		quote.client, quote.reference, quote.validDays, quote.unit = client, reference, validDays, unit
+		file, err := reportingQuoteXLSX(estimate, quote)
+		if err != nil {
+			return nil, 0, err
+		}
+		return file, http.StatusOK, nil
 	}
 	estimate.Unit = unit
 	return map[string]any{"costEstimate": estimate}, http.StatusOK, nil

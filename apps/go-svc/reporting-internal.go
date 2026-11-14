@@ -13,18 +13,24 @@ import (
 	"github.com/google/uuid"
 )
 
-// The MCP get_report tool's route: one of the page's reports by kind, with that tab's own fields
-// and whether recent work is still being counted, for a trusted server caller (the web app's
-// MCP server) acting for a member it names. The caller holds the service token; this route
-// applies the member's own access: the workspace, the Reports flag and billing access.
+// The route behind the MCP get_report tool and the public API's /v1/reports: one of the page's
+// reports by kind, with that tab's own fields and whether recent work is still being counted, for
+// a trusted server caller (the web app's MCP server, public-api) acting for a member it names. The
+// caller holds the service token; this route applies the member's own access: the workspace, the
+// Reports flag and billing access. A kind with a download can answer as CSV instead.
 
-var reportingKinds = []string{"activity", "words", "time", "ai", "costs"}
+var reportingKinds = []string{"activity", "words", "word-series", "time", "ai", "costs", "budgets", "contributors", "task-report"}
+
+// reportingCSVKinds are the kinds that answer with the page's own CSV when asked.
+var reportingCSVKinds = []string{"activity", "words", "time", "ai", "costs", "budgets", "contributors", "task-report"}
 
 type reportingInternalPayload struct {
 	OrganizationID string `json:"organizationId"`
 	UserID         string `json:"userId"`
 	// The report's query as the tool takes it: text, or a number or boolean written as text.
 	Query map[string]json.RawMessage `json:"query"`
+	// "csv" for the kind's download; JSON otherwise.
+	Format string `json:"format"`
 }
 
 // reportingQueryText is a query value as the route reads it: a JSON string as is, a number or
@@ -95,9 +101,14 @@ func (api *reportingAPI) internalReport(w http.ResponseWriter, r *http.Request) 
 		writeReportingError(w, r, "flag", reportingFailure(403, "feature_unavailable", reportingFlagMessage))
 		return
 	}
+	ctx = withReportingWorkspace(ctx, actor.organizationID)
 	// Reports are for the roles that see what work costs: admins and localization managers.
 	if !actor.can("billing:read") {
 		writeReportingError(w, r, "capability", reportingFailure(403, "report_forbidden", "Reports require billing access"))
+		return
+	}
+	if payload.Format != "" && payload.Format != "json" && payload.Format != "csv" {
+		writeReportingError(w, r, "handle", reportingFailure(400, "invalid_payload", "Request payload is invalid"))
 		return
 	}
 	values := url.Values{}
@@ -109,13 +120,62 @@ func (api *reportingAPI) internalReport(w http.ResponseWriter, r *http.Request) 
 		}
 		values.Set(key, value)
 	}
-	values.Set("format", "json")
+	jobID := values.Get("jobId")
+	if kind == "task-report" {
+		// The task is the path's on the page; here it is the query's, and only names the task.
+		values.Del("jobId")
+		if jobID == "" {
+			writeReportingError(w, r, "handle", reportingInvalidQuery())
+			return
+		}
+	}
+	request := func(format string) (*http.Request, error) {
+		query := url.Values{}
+		for key, value := range values {
+			query[key] = value
+		}
+		query.Set("format", format)
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, "/?"+query.Encode(), nil)
+		if err == nil && kind == "task-report" {
+			request.SetPathValue("jobId", jobID)
+		}
+		return request, err
+	}
+	handlers := map[string]func(*http.Request, reportingActor) (any, int, error){
+		"activity": api.activity, "words": api.words, "word-series": api.wordSeries, "time": api.time,
+		"ai": api.aiUsage, "costs": api.costs, "budgets": api.budgets, "contributors": api.contributors,
+		"task-report": api.taskReport,
+	}
+	if payload.Format == "csv" {
+		if !slices.Contains(reportingCSVKinds, kind) {
+			writeReportingError(w, r, "handle", reportingFailure(400, "report_csv_unavailable", "This report has no CSV download"))
+			return
+		}
+		req, err := request("csv")
+		if err != nil {
+			writeReportingError(w, r, "handle", err)
+			return
+		}
+		value, status, err := handlers[kind](req, actor)
+		if err != nil {
+			writeReportingError(w, r, "handle", err)
+			return
+		}
+		download, ok := value.(reportingCSV)
+		if !ok {
+			// A task whose words are not shown has no download.
+			writeReportingError(w, r, "handle", reportingFailure(400, "report_csv_unavailable", "This report has no CSV download"))
+			return
+		}
+		writeReportingCSV(ctx, w, status, download)
+		return
+	}
 	read := func(fn func(*http.Request, reportingActor) (any, int, error)) (map[string]any, error) {
-		request, err := http.NewRequestWithContext(ctx, http.MethodGet, "/?"+values.Encode(), nil)
+		req, err := request("json")
 		if err != nil {
 			return nil, err
 		}
-		value, _, err := fn(request, actor)
+		value, _, err := fn(req, actor)
 		if err != nil {
 			return nil, err
 		}
@@ -148,12 +208,20 @@ func (api *reportingAPI) internalReport(w http.ResponseWriter, r *http.Request) 
 				}{counts, series["wordSeries"]}
 			}
 		}
+	case "word-series":
+		err = reportingMerge(answer, read, api.wordSeries, "wordSeries")
 	case "time":
 		err = reportingMerge(answer, read, api.time, "time")
 	case "ai":
 		// Billing's records are read directly, so still updating does not apply.
 		answer["stillUpdating"] = false
 		err = reportingMerge(answer, read, api.aiUsage, "aiUsage")
+	case "budgets":
+		err = reportingMerge(answer, read, api.budgets, "budgets")
+	case "contributors":
+		err = reportingMerge(answer, read, api.contributors, "contributors")
+	case "task-report":
+		err = reportingMerge(answer, read, api.taskReport, "taskReport")
 	default:
 		err = reportingMerge(answer, read, api.costs, "costs")
 	}

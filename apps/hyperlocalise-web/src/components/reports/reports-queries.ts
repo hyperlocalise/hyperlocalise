@@ -320,6 +320,25 @@ export function useLoggedTime(input: SectionInput) {
   });
 }
 
+export function contributorsQuery(input: SectionInput) {
+  return compact({ ...scope(input), unit: input.state.unit, step: input.state.step });
+}
+
+export function useContributors(input: SectionInput) {
+  const intl = useIntl();
+  const { client } = useGoSvcClient();
+  const query = contributorsQuery(input);
+  return useQuery({
+    queryKey: reportsQueryKey(input.organizationSlug, "contributors", query),
+    placeholderData: keepPreviousData,
+    ...reportRetry,
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.contributors(input.organizationSlug, query, { signal }),
+      ),
+  });
+}
+
 export function costsQuery(input: SectionInput) {
   const { from, to, projectId, targetLocale } = scope(input);
   return compact({ from, to, projectId, targetLocale });
@@ -501,6 +520,12 @@ export function useReportCsv(organizationSlug: string) {
       reportRequest(fallback(), () =>
         withTimeLimit(SAVE_TIME_LIMIT_MS, (signal) =>
           client.reports.csv(organizationSlug, section, query, { signal }),
+        ),
+      ),
+    quote: (query: ReportQuery) =>
+      reportRequest(fallback(), () =>
+        withTimeLimit(SAVE_TIME_LIMIT_MS, (signal) =>
+          client.reports.quote(organizationSlug, query, { signal }),
         ),
       ),
     taskReport: (jobId: string, view: TaskReportView) =>

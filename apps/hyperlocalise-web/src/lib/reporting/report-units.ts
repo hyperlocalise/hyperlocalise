@@ -67,6 +67,13 @@ export type TaskAnalysisStatus = (typeof TASK_ANALYSIS_STATUSES)[number];
 /** What a rate line is charged per: a word, a character without or with spaces, or an hour. */
 export const RATE_BASES = ["word", "character", "character_with_spaces", "hour"] as const;
 export type RateBasis = (typeof RATE_BASES)[number];
+/**
+ * How a rate line's paid shares apply to a person's finished string: by its translation-memory
+ * match band when it arrived (`memory_match`), or by how much the person changed the AI, machine
+ * or imported text they were given (`post_edit`), banded the same way.
+ */
+export const RATE_PRICINGS = ["memory_match", "post_edit"] as const;
+export type RatePricing = (typeof RATE_PRICINGS)[number];
 
 /**
  * Where a finished string's text came from: the translation memory, an AI model, a person, or an

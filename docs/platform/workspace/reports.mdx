@@ -1,11 +1,11 @@
 ---
 title: "Reports"
-description: "Track word counts, translation-memory match bands, time, AI usage, and costs for workspace and project work."
+description: "Track word counts, translation-memory match bands, each person's work, time, AI usage, and costs for workspace and project work."
 ---
 
 Open **Reports** in the workspace sidebar to review translation volume, match analysis, logged time, AI usage, and spend. Native projects also link to **Reports** from the project sidebar. The feature requires the workspace **Reports** flag and **billing:read** access (administrators and localization managers).
 
-Translators and other roles without billing access see only the **Time** tab for their own entries, and a task **Report** tab limited to time logged on that task.
+Translators and other roles without billing access see only the **Time** and **Contributors** tabs, for their own entries and work (without pay), and a task **Report** tab limited to time logged on that task.
 
 ## Date range and freshness
 
@@ -19,13 +19,22 @@ Headline numbers compare with the previous period of the same length. Most tabs 
 | --- | --- |
 | **Activity** | Words or strings that arrived and finished in the range, progress on open work, and review volume. Filter by project, task, target locale, and translation vs review step. |
 | **Word counts** | Volume by translation-memory match band (exact, high, fuzzy, low, new, and unavailable). Group by project, language, task step, or band. Includes a chart over time with weekly or daily intervals. |
+| **Contributors** | Each person's finished work, how much they kept unchanged or heavily edited, time logged, and what their work cost. Includes a post-edit analysis. |
 | **Time** | Time people logged plus automated run time, by project and task. |
 | **AI usage** | AI calls, tokens, images, and videos grouped by origin and model, with billing's charge when recorded. |
 | **Costs** | Spent amounts from people's finished work and billed AI, by project. Manual expense lines are not included. |
-| **Cost estimate** | Price up to 50 chosen tasks, or all current strings in one project, from rate cards and match bands. Nothing is stored when you run an estimate. |
+| **Cost estimate** | Price up to 50 chosen tasks, or all current strings in one project, from rate cards and match bands. **Create quote** turns it into an Excel workbook or a printable PDF for a client. Nothing is stored when you run an estimate. |
 | **Budgets** | Project budgets, rate cards, and what is still to come on open payable work. |
 
 Tab choice, dates, and filters stay in the URL so you can share a view.
+
+## Contributors and post-edit analysis
+
+The **Contributors** tab lists everyone who finished strings or logged time in the dates: their languages, finished units, units kept unchanged, units heavily edited (the given text now matches under 75%), time logged, and, with billing access, what their work cost. Download it as CSV to pay freelancers. Filter by project, task, language, and step as on other tabs.
+
+**Post-edit analysis** compares each string a person finished with the text they were given (AI, machine, imported, or another person's draft) and bands how close it stayed, as memory matches are banded: unchanged (100%), 95–99%, 85–94%, 75–84%, 50–74%, and rewritten (under 50%). Work written without a draft shows as **No text given**. A reviewer is compared with the translator's text, not the AI's.
+
+A person's work in a removed member's name shows as **Removed member** until those days are rebuilt.
 
 ## Task and job Report tab
 
@@ -37,15 +46,22 @@ Set task pricing (rate card, time estimate, fixed fee) on this tab while the tas
 
 **Rate cards** are named sets of lines: one per language pair and step, with a basis (per word, per character, per character with spaces, or per hour) and paid shares per match band. Saving a card versioned history so work already priced keeps its rate.
 
+Each line's **Band shares by** setting picks which band its shares apply to:
+
+- **Memory match** (default): the string's translation-memory match when it arrived.
+- **Post-edit**: how much the person changed the text they were given, from the post-edit analysis. A string with no text given is paid by its memory band. Estimates still use memory bands, since the edit is not known until the work is done.
+
 A task uses its own card for the step when set; otherwise the project budget's card; otherwise the card selected on the page. A language with no line on the chosen card is **not priced**, not zero.
 
 Administrators with **billing:write** create and edit rate cards and budgets.
 
-## MCP and exports
+## MCP, API, and exports
 
-Coding agents with billing access can call MCP `get_report` with `report` set to `activity`, `words`, `time`, `ai`, or `costs`, plus the same optional filters as the page (`from`, `to`, `projectId`, `jobId`, `targetLocale`, `step`, `unit`, and word-count `split` / `per` / `mode`). See [MCP tool reference](/platform/developers/mcp-tools#jobs).
+Coding agents with billing access can call MCP `get_report` with `report` set to `activity`, `words`, `time`, `ai`, `costs`, or `contributors`, plus the same optional filters as the page (`from`, `to`, `projectId`, `jobId`, `targetLocale`, `step`, `unit`, and word-count `split` / `per` / `mode`). See [MCP tool reference](/platform/developers/mcp-tools#jobs).
 
-Several tabs support CSV export from the UI when you need a spreadsheet.
+Scripts and BI tools can read the same reports from the public API with a `reports:read` key: `GET /v1/reports/{report}` and `GET /v1/jobs/{jobId}/report`, as JSON or CSV. See [Reports in the public API](/platform/api#reports).
+
+Every tab with a table supports CSV export from the UI when you need a spreadsheet.
 
 ## Related guides
 

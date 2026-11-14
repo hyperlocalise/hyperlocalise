@@ -38,6 +38,7 @@ const GET_ENDPOINTS: ReportsEndpoint[] = [
   "ai-usage",
   "words",
   "time",
+  "contributors",
   "costs",
   "cost-estimate",
   "budgets",

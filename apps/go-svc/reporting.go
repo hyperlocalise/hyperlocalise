@@ -31,7 +31,10 @@ const (
 	reportingStatementTimeout = 10 * time.Second
 	// How many Reports requests may query the database at once per copy of the service, so a
 	// Reports page's dozen requests cannot hold every pooled connection while the editor waits.
-	reportingQueriesAtOnce = 2
+	reportingQueriesAtOnce = 3
+	// How many of those one workspace may hold, so another workspace always finds a slot: one
+	// workspace's slow reports or nightly export make its own requests wait, not everyone's.
+	reportingWorkspaceQueriesAtOnce = reportingQueriesAtOnce - 1
 )
 
 var (
@@ -48,10 +51,15 @@ type reportingAPI struct {
 	flags      workspaceFlagChecker
 	now        func() time.Time
 	queries    *semaphore.Weighted
+	workspaces *reportingWorkspaceSlots
 }
 
 func newReportingAPI() *reportingAPI {
-	return &reportingAPI{now: time.Now, queries: semaphore.NewWeighted(reportingQueriesAtOnce)}
+	return &reportingAPI{
+		now:        time.Now,
+		queries:    semaphore.NewWeighted(reportingQueriesAtOnce),
+		workspaces: newReportingWorkspaceSlots(reportingWorkspaceQueriesAtOnce),
+	}
 }
 
 type reportingActor struct {
@@ -104,6 +112,7 @@ func (api *reportingAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route("GET "+base+"/words/series", "billing:read", "report_costs_forbidden", api.wordSeries)
 	route("GET "+base+"/words", "billing:read", "report_costs_forbidden", api.words)
 	route("GET "+base+"/time", "", "", api.time)
+	route("GET "+base+"/contributors", "", "", api.contributors)
 	route("GET "+base+"/ai-usage", "billing:read", "report_costs_forbidden", api.aiUsage)
 	route("GET "+base+"/costs", "billing:read", "report_costs_forbidden", api.costs)
 	route("GET "+base+"/cost-estimate", "billing:read", "report_costs_forbidden", api.costEstimate)
@@ -167,6 +176,8 @@ func (api *reportingAPI) handle(capability, deniedCode string, fn func(*http.Req
 			writeReportingError(w, r, "flag", reportingFailure(403, "feature_unavailable", reportingFlagMessage))
 			return
 		}
+		r = r.WithContext(withReportingWorkspace(ctx, actor.organizationID))
+		ctx = r.Context()
 		if capability != "" && !actor.can(capability) {
 			writeReportingError(w, r, "capability", reportingForbidden(deniedCode))
 			return
@@ -183,6 +194,10 @@ func (api *reportingAPI) handle(capability, deniedCode string, fn func(*http.Req
 		}
 		if download, ok := value.(reportingCSV); ok {
 			writeReportingCSV(ctx, w, status, download)
+			return
+		}
+		if file, ok := value.(reportingFile); ok {
+			writeReportingFile(ctx, w, status, file)
 			return
 		}
 		reportingJSON(ctx, w, status, value)

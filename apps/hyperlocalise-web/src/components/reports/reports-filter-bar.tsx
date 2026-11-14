@@ -67,6 +67,7 @@ const TAB_FILTERS: Record<
 > = {
   activity: { dates: true, task: "one", language: true },
   words: { dates: true, task: "one", language: true, step: true },
+  contributors: { dates: true, task: "one", language: true, step: true },
   time: { dates: true, task: "one", language: true },
   ai: { dates: true, task: "one", ai: true },
   costs: { dates: true, language: true },

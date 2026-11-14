@@ -453,6 +453,7 @@ async function recordSaves(
       translationId: translation.id,
       revisionId: segment.revisionId,
       at: segment.occurredAt,
+      actorUserId: segment.actorUserId,
     })),
   );
   const originOf = new Map(
@@ -564,7 +565,7 @@ async function recordSaves(
     );
     const saved = group.map(({ segment }) => {
       const origin = segment.automated
-        ? { source: "ai" as CompletionSource, unchanged: undefined }
+        ? { source: "ai" as CompletionSource, unchanged: undefined, postEditScore: null }
         : personSave(originOf.get(segmentKey(segment)));
       return [segment.translationKeyId, origin] as const;
     });
@@ -584,6 +585,11 @@ async function recordSaves(
         origin.unchanged === undefined ? [] : [[key, origin.unchanged] as const],
       ),
     );
+    const postEditScores = Object.fromEntries(
+      saved.flatMap(([key, origin]) =>
+        origin.postEditScore === null ? [] : [[key, origin.postEditScore] as const],
+      ),
+    );
     await recordAnalysis(
       {
         ...shared,
@@ -599,6 +605,7 @@ async function recordSaves(
       actorUserId: segment.automated ? null : segment.actorUserId,
       sources,
       unchanged,
+      postEditScores,
     });
     recorded += group.length;
   }

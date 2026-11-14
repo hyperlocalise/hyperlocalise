@@ -12,14 +12,18 @@
  */
 "use client";
 
+import { useState } from "react";
 import { useIntl } from "react-intl";
 
+import { Button } from "@/components/ui/button";
 import type { PricedBy } from "@/lib/go-svc/go-svc-reports-api";
 import { REPORT_STEPS, type RateBasis } from "@/lib/reporting/report-units";
 import { MATCH_BUCKETS, type MatchBucket } from "@/lib/reporting/word-analysis";
 
 import { costEstimateTabMessages as messages } from "./cost-estimate-tab.messages";
 import { MatchBandTable, visibleBands } from "./match-band-table";
+import { QuoteDialog } from "./quote-dialog";
+import { quoteDialogMessages as quoteMessages } from "./quote-dialog.messages";
 import {
   formatCount,
   formatRateAmount,
@@ -113,6 +117,7 @@ export function CostEstimateTab({
 }) {
   const intl = useIntl();
   const csv = useReportCsv(input.organizationSlug);
+  const [quoting, setQuoting] = useState(false);
   const estimateInput = { ...input, state: { ...input.state, rateCard: rateCardName } };
   const estimate = useCostEstimate(estimateInput);
   const wholeProject = input.state.jobIds.length === 0 && Boolean(input.state.projectId);
@@ -132,10 +137,29 @@ export function CostEstimateTab({
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <UnitSwitch value={input.state.unit} onChange={(unit) => onChange({ unit })} />
-        <DownloadCsvButton
-          download={() => csv.section("cost-estimate", costEstimateQuery(estimateInput))}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!estimate.data}
+            onClick={() => setQuoting(true)}
+          >
+            {intl.formatMessage(quoteMessages.openQuote)}
+          </Button>
+          <DownloadCsvButton
+            download={() => csv.section("cost-estimate", costEstimateQuery(estimateInput))}
+          />
+        </div>
       </div>
+      {quoting ? (
+        <QuoteDialog
+          organizationSlug={input.organizationSlug}
+          query={costEstimateQuery(estimateInput)}
+          estimate={estimate.data}
+          today={input.today}
+          onClose={() => setQuoting(false)}
+        />
+      ) : null}
       <ReportSectionState query={estimate} skeletonHeight={360}>
         {(data) => (
           <EstimateBody

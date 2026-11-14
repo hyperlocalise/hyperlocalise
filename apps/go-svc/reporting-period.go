@@ -20,6 +20,18 @@ type reportingPeriod struct {
 	Interval     string `json:"interval"`
 	// The previous period starts on or after the day Reports started, so it can be compared.
 	HasEarlierData bool `json:"hasEarlierData"`
+	// The UTC day Reports started for the workspace, "" when it has recorded nothing yet.
+	startedDay string
+}
+
+// barsFrom is the first day a chart draws bars for: the day Reports started when the period
+// begins before it, since nothing was counted earlier, else the period's own first day. The
+// period itself is left as asked, so time logged on earlier days still counts (D194).
+func (p reportingPeriod) barsFrom() string {
+	if p.startedDay != "" && p.startedDay > p.From && p.startedDay <= p.To {
+		return p.startedDay
+	}
+	return p.From
 }
 
 func reportingDayTime(day string) time.Time {
@@ -63,5 +75,6 @@ func resolveReportingPeriod(from, to, today, startedDay string) reportingPeriod 
 		PreviousTo:     reportingAddDays(from, -1),
 		Interval:       interval,
 		HasEarlierData: startedDay != "" && previousFrom >= startedDay,
+		startedDay:     startedDay,
 	}
 }

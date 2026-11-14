@@ -29,6 +29,22 @@ export function sourceSimilarity(left: string, right: string): number {
   return similarityIfAbove(codePoints(left), codePoints(right), -1);
 }
 
+/** Texts longer than this are not scored for post-editing: the edit distance is quadratic. */
+const POST_EDIT_MAX_LENGTH = 20_000;
+
+/**
+ * How close a person's saved text is to the text they were given, on the scale memory matches
+ * use: 100 only when untouched, otherwise at most 99, and anything under the lowest band as 0.
+ * Null when either text is too long to score.
+ */
+export function postEditScore(given: string, saved: string): number | null {
+  if (given === saved) return 100;
+  const a = codePoints(given);
+  const b = codePoints(saved);
+  if (a.length > POST_EDIT_MAX_LENGTH || b.length > POST_EDIT_MAX_LENGTH) return null;
+  return Math.min(99, similarityIfAbove(a, b, LOWEST_BAND_SCORE - 1));
+}
+
 /** The score `sourceSimilarity` gives an edit distance when the longer text has `longest` characters. */
 function similarityOf(distance: number, longest: number): number {
   return Math.floor(100 * (1 - distance / longest));

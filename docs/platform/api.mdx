@@ -38,8 +38,9 @@ Missing, invalid, or revoked keys return `401` with `error: "unauthorized"`. An 
 | `jobs:read` | Read job status, latest job for a source path, and match-band analysis |
 | `memories:read` | Export translation memory entries as TMX or CSV |
 | `memories:write` | Import translation memory entries from TMX or CSV |
+| `reports:read` | Read the Reports page's reports as JSON or CSV |
 
-Omitting `permissions` grants every scope the key owner can hold. Localization operators receive all six. Job contributors receive every scope except `memories:write`. Members receive `jobs:read`, `files:read`, and `memories:read`.
+Omitting `permissions` grants every scope the key owner can hold. Admins and localization managers receive all seven. Job contributors receive every scope except `memories:write` and `reports:read`. Members receive `jobs:read`, `files:read`, and `memories:read`.
 
 A key only sees projects the key's creator can access.
 
@@ -508,6 +509,76 @@ Import into a native memory (background TMX export + interchange queue):
 Body: `{ "credentialId": "<uuid>", "externalId": "<provider id>" }`. Response `202` includes `attemptId`.
 
 Glossary listing and `POST .../glossaries/{glossaryId}/concepts/import/from-tms` follow the same pattern; see [Glossary import and export](/platform/glossary-import-export#public-api-tms-copy).
+
+## Reports
+
+Read the same reports as the [Reports](/platform/workspace/reports) page, to load into a spreadsheet, BI tool or vendor payment system. Reports use the job-read host:
+
+```
+https://public-api.hyperlocalise.com/v1
+```
+
+Permission: `reports:read`. Only keys created by admins and localization managers hold it, and the workspace needs the Reports feature (`403 reports_not_enabled` otherwise).
+
+### Read a report
+
+`GET https://public-api.hyperlocalise.com/v1/reports/{report}`
+
+| `report` | What it returns |
+| --- | --- |
+| `activity` | Words that arrived and finished, by where the text came from, with the previous period |
+| `words` | Word counts by match band, grouped by project, task, week, language or task step, with a series over time |
+| `word-series` | The word count series alone |
+| `time` | Time people logged and automated run time |
+| `ai-usage` | AI calls, tokens, images and videos, with billing's charge |
+| `costs` | What was spent, by project |
+| `budgets` | Each project's budget, spend, what is still to come and forecast |
+| `contributors` | Each person's finished work by match band and post-edit band, time logged and pay |
+
+Query: the same as the page's tab. Every report takes `from` and `to` (`YYYY-MM-DD`, UTC, inclusive; the last 28 days by default), `projectId`, `jobId` and `targetLocale`; most take `step` (`translation` or `review`) and `unit` (`words`, `strings`, `characters` or `characters_with_spaces`). Give each parameter once.
+
+Add `format=csv`, or send `Accept: text/csv`, for the CSV the page downloads. `word-series` has no CSV.
+
+```json
+{
+  "kind": "contributors",
+  "stillUpdating": false,
+  "summary": { "pendingDays": 0, "oldestMarkedAt": null },
+  "contributors": {
+    "unit": "words",
+    "rows": [
+      {
+        "userId": "...",
+        "person": "Mina Park",
+        "finished": 6200,
+        "unchanged": 2100,
+        "bands": { "100": 1200, "new": 5000 },
+        "postEditBands": { "100": 2100, "85-94": 3000, "50-74": 1100 },
+        "languages": ["de-DE", "ja-JP"],
+        "minutes": 240,
+        "spentUsd": "512.40000000",
+        "unpriced": 0
+      }
+    ]
+  }
+}
+```
+
+- `stillUpdating: true` means recent work is still being counted. Figures can lag live work by one capture run (a few minutes); ask again for final numbers.
+- Money is in USD, as decimal strings.
+- `429 rate_limited`: a workspace may ask for 30 reports a minute, in bursts of 10. Wait for `Retry-After` seconds.
+- `503 reports_busy` or `503 report_timed_out`: try again after `Retry-After`, or ask for fewer days.
+
+```bash
+curl --fail-with-body "https://public-api.hyperlocalise.com/v1/reports/contributors?from=2026-10-01&to=2026-10-31&format=csv" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" -o contributors.csv
+```
+
+### A task's report
+
+`GET https://public-api.hyperlocalise.com/v1/jobs/{jobId}/report`
+
+The task's words and match bands per language and step, its post-edit bands, cost estimate, time logged and pricing, as its **Report** tab shows them. Optional query: `step`, `unit`, `rateCard`, and `format=csv` for the step's words by language.
 
 ## Translations and images
 

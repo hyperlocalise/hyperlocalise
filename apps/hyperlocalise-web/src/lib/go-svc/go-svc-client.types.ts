@@ -518,7 +518,8 @@ export type ApiKeyPermission =
   | "files:read"
   | "files:write"
   | "memories:read"
-  | "memories:write";
+  | "memories:write"
+  | "reports:read";
 
 export type ApiKeyOwner = {
   userId: string;

@@ -10,8 +10,8 @@ Glossaries, and Translation memories, creates native projects (optionally from a
 project template) and manages project templates, defines custom project fields and sets
 their values, manages and searches the strings, translations, screenshots, and settings of native
 projects, round-trips bilingual files, updates jobs one at a time or in bulk, exports
-glossaries, imports and exports glossaries and translation memories, and registers job-change
-webhook endpoints. Job creation and file uploads continue to use the existing platform API.
+glossaries, imports and exports glossaries and translation memories, registers job-change
+webhook endpoints, and reads the Reports page's reports. Job creation and file uploads continue to use the existing platform API.
 
 ## Run locally
 
@@ -25,6 +25,8 @@ export DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@localhost:5432/hype
 # Required to create or rotate webhook endpoints. Same values as go-svc.
 # export HYPERLOCALISE_WEB_INTERNAL_URL=http://localhost:3000
 # export WORKOS_COOKIE_PASSWORD=this-is-a-test-cookie-password-at-least-32-characters
+# Required for /v1/reports. go-svc's address; Reports are read through its internal route.
+# export GO_SVC_INTERNAL_URL=http://localhost:8080
 go run ./apps/public-api
 ```
 
@@ -130,6 +132,15 @@ filters. Missing and inaccessible records both return `404`.
 | Glossary import | `POST /v1/glossaries/{glossaryId}/import` (TBX, CSV, XLSX; returns `202`), `GET .../import-reports/{reportId}` | `glossaries:write` / `glossaries:read` |
 | Translation memory import | `POST /v1/translation-memories/{memoryId}/import` (TMX, CSV) | `translation-memories:write` |
 | Webhook endpoints | `GET, POST /v1/webhook-endpoints`, `PATCH, DELETE /v1/webhook-endpoints/{endpointId}`, `POST .../rotate-secret`, `GET .../deliveries` | `webhooks:read` / `webhooks:write` |
+| Reports | `GET /v1/reports/{report}` (`activity`, `words`, `word-series`, `time`, `ai-usage`, `costs`, `budgets`, `contributors`), `GET /v1/jobs/{jobId}/report`; JSON or `format=csv` | `reports:read` (admins and localization managers) |
+
+Reports are read through go-svc's `POST /internal/reports/{kind}` with the
+service token, as the token's member, so access, the workspace's Reports flag and
+go-svc's Reports limits apply exactly as on the Reports page. This service holds
+no Reports SQL. Each workspace may ask for 30 reports a minute per copy, in
+bursts of 10 (`429 rate_limited` with `Retry-After`). Without `GO_SVC_INTERNAL_URL`
+(or `GO_SVC_URL`) and `WORKOS_COOKIE_PASSWORD`, report routes answer
+`503 reports_unavailable`.
 
 Project lists and nested string routes treat unassigned projects as belonging to
 the workspace default team, matching go-svc. String, translation, and screenshot

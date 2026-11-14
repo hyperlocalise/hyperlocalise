@@ -19,6 +19,7 @@ import type {
   AutomatedTime,
   BudgetRow,
   CostEstimate,
+  ContributorsReport,
   CostsReport,
   RateCard,
   ReportSettings,
@@ -514,6 +515,49 @@ export const reportsBudgets: BudgetRow[] = [
   },
 ];
 
+export const reportsContributors: ContributorsReport = {
+  period: reportsPeriod,
+  unit: "words",
+  step: "translation",
+  financial: true,
+  rows: [
+    {
+      userId: "user_mina",
+      person: "Mina Park",
+      finished: 6_200,
+      unchanged: 2_100,
+      bands: { "100": 1_200, new: 5_000 },
+      postEditBands: { "100": 2_100, "85-94": 3_000, "50-74": 1_100 },
+      languages: ["de-DE", "ja-JP"],
+      minutes: 240,
+      spentUsd: "512.40000000",
+      unpriced: 0,
+    },
+    {
+      userId: "user_tom",
+      person: "Tom Weber",
+      finished: 1_400,
+      unchanged: 0,
+      bands: { new: 1_400 },
+      postEditBands: { "": 1_000, new: 400 },
+      languages: ["de-DE"],
+      minutes: 90,
+      spentUsd: "168.00000000",
+      unpriced: 3,
+    },
+  ],
+  totals: {
+    finished: 7_600,
+    unchanged: 2_100,
+    bands: { "100": 1_200, new: 6_400 },
+    postEditBands: { "100": 2_100, "85-94": 3_000, "50-74": 1_100, new: 400, "": 1_000 },
+    minutes: 330,
+    people: 2,
+    spentUsd: "680.40000000",
+    unpriced: 3,
+  },
+};
+
 export const reportsRateCards: RateCard[] = [
   {
     name: "Standard 2026",
@@ -525,6 +569,7 @@ export const reportsRateCards: RateCard[] = [
         targetLocale: "de-DE",
         step: "translation",
         basis: "word",
+        pricing: "memory_match",
         rate: "0.12000000",
         percentages: { "100": 30, repetition: 20 },
       },
@@ -534,6 +579,7 @@ export const reportsRateCards: RateCard[] = [
         targetLocale: "de-DE",
         step: "review",
         basis: "hour",
+        pricing: "memory_match",
         rate: "45.00000000",
         percentages: {},
       },
@@ -601,6 +647,10 @@ export const reportsTaskReport: TaskReport = {
     totals: {
       translation: { source: 4_445, arrived: 8_890, arrivedDone: 7_600, uncounted: 0 },
       review: { source: 4_100, arrived: 4_100, arrivedDone: 2_000, uncounted: 0 },
+    },
+    postEditBands: {
+      translation: { "100": 2_100, "85-94": 3_000, "50-74": 1_500, "": 1_000 },
+      review: {},
     },
   },
   estimate: {
@@ -720,6 +770,18 @@ export function reportsResponseBodies(settings = createReportsSettings()) {
     },
     time: {
       time: settings.financial ? reportsLoggedTime : { ...reportsLoggedTime, automated: null },
+    },
+    contributors: {
+      contributors: settings.financial
+        ? reportsContributors
+        : {
+            ...reportsContributors,
+            financial: false,
+            rows: reportsContributors.rows
+              .slice(0, 1)
+              .map((row) => ({ ...row, spentUsd: null, unpriced: 0 })),
+            totals: { ...reportsContributors.totals, people: 1, spentUsd: null },
+          },
     },
     costs: { costs: reportsCosts },
     "cost-estimate": { costEstimate: { ...reportsCostEstimate, unit: "words" as const } },

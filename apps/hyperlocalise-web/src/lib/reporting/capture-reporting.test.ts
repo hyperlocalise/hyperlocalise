@@ -939,6 +939,85 @@ describe("reporting capture", () => {
     expect(cost).toEqual({ amountUsd: "0.50000000", basis: "rate" });
   });
 
+  it("prices a post-edit line by how much the person changed the given text, else by memory band", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    await db.insert(schema.reportingBudgets).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      budget: "1000.00000000",
+      rateCardName: "Post-edit",
+    });
+    // $1 a word; a light edit (95-99) is paid at 30%, new work at 100%.
+    await db.insert(schema.reportingRates).values({
+      organizationId: organization.id,
+      name: "Post-edit",
+      sourceLocale: "en",
+      targetLocale: "fr-FR",
+      step: "translation",
+      basis: "word",
+      pricing: "post_edit",
+      rate: "1.00000000",
+      percentages: { "95-99": 30, new: 100 },
+    });
+    const sourceEntries = { edited: "Hello world", scratch: "Good morning" };
+    await captureAnalysis({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en",
+      targetLocale: "fr-FR",
+      sourceEntries,
+      billable: true,
+    });
+    await captureCompletions({
+      organizationId: organization.id,
+      targetLocale: "fr-FR",
+      sourceEntries,
+      provenance: "human",
+      actorUserId: user.id,
+      postEditScores: { edited: 97 },
+    });
+
+    const completions = await db
+      .select({
+        operationKey: schema.reportingActivity.operationKey,
+        postEditScore: schema.reportingActivity.postEditScore,
+        postEditBucket: schema.reportingActivity.postEditBucket,
+        segmentId: schema.reportingAnalyses.segmentId,
+      })
+      .from(schema.reportingActivity)
+      .innerJoin(
+        schema.reportingAnalyses,
+        eq(schema.reportingAnalyses.id, schema.reportingActivity.analysisId),
+      )
+      .where(eq(schema.reportingActivity.organizationId, organization.id));
+    expect(
+      Object.fromEntries(
+        completions.map((row) => [row.segmentId, [row.postEditScore, row.postEditBucket]]),
+      ),
+    ).toEqual({ edited: [97, "95-99"], scratch: [null, null] });
+
+    const costs = await db
+      .select({
+        operationKey: schema.reportingCosts.operationKey,
+        amountUsd: schema.reportingCosts.amountUsd,
+      })
+      .from(schema.reportingCosts)
+      .where(
+        and(
+          eq(schema.reportingCosts.organizationId, organization.id),
+          eq(schema.reportingCosts.kind, "human"),
+        ),
+      );
+    const costOf = (segmentId: string) => {
+      const completion = completions.find((row) => row.segmentId === segmentId)!;
+      const key = completion.operationKey.replace(/^completion:/, "human:");
+      return costs.find((cost) => cost.operationKey === key)?.amountUsd;
+    };
+    // Two words: a light edit at 30%, and work with no given text by its memory band (new).
+    expect(costOf("edited")).toBe("0.60000000");
+    expect(costOf("scratch")).toBe("2.00000000");
+  });
+
   describe("pricing finished work", () => {
     const WORDS = "Hello world";
     const humanCosts = (organizationId: string) =>

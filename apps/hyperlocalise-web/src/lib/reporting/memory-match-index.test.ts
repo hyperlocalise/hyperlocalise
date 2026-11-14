@@ -18,6 +18,7 @@ import {
   MemoryMatchIndex,
   MemorySourceScan,
   memoryMatchScore,
+  postEditScore,
   sourceSimilarity,
 } from "./memory-match-index";
 
@@ -341,4 +342,20 @@ describe("random memories", () => {
       expect(rankingDecided).toBe(true);
     },
   );
+});
+
+describe("postEditScore", () => {
+  it("scores how close a person's text is to the text they were given", () => {
+    expect(postEditScore("Bonjour le monde", "Bonjour le monde")).toBe(100);
+    // Any change at all is at most 99, as a memory match is.
+    expect(postEditScore("Bonjour le monde", "Bonjour le monde!")).toBe(94);
+    expect(postEditScore("Bonjour le monde", "Bonjour tout le monde")).toBe(76);
+    // Below the lowest band, the score is 0: the band is "new" either way.
+    expect(postEditScore("Bonjour le monde", "Salut")).toBe(0);
+  });
+
+  it("does not score texts too long to compare", () => {
+    expect(postEditScore("a".repeat(20_001), "b")).toBeNull();
+    expect(postEditScore("a".repeat(20_001), "a".repeat(20_001))).toBe(100);
+  });
 });

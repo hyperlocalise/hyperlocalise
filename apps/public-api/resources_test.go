@@ -130,6 +130,7 @@ func TestOpenAPIDocumentCoversImplementedResources(t *testing.T) {
 		"/v1/custom-fields", "/v1/custom-fields/{fieldId}", "/v1/custom-fields/{fieldId}/options",
 		"/v1/projects/{projectId}/custom-fields",
 		"/v1/webhook-endpoints", "/v1/webhook-endpoints/{endpointId}/deliveries",
+		"/v1/reports/{report}", "/v1/jobs/{jobId}/report",
 	} {
 		require.Contains(t, document.Paths, path)
 		require.Contains(t, document.Paths[path], "get")

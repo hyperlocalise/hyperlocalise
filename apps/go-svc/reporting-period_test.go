@@ -15,7 +15,17 @@ func TestReportingPeriodDefaultsToLast28DaysComparedWithThe28Before(t *testing.T
 		PreviousTo:     "2026-09-23",
 		Interval:       "day",
 		HasEarlierData: true,
+		startedDay:     "2026-01-01",
 	}, resolveReportingPeriod("", "", "2026-10-21", "2026-01-01"))
+}
+
+func TestReportingChartBarsStartNoEarlierThanReports(t *testing.T) {
+	// A period reaching back before Reports started draws bars from its start day only.
+	require.Equal(t, "2026-06-10", resolveReportingPeriod("2026-03-01", "2026-06-30", "2026-07-01", "2026-06-10").barsFrom())
+	// A period after the start, or wholly before it, keeps its own first day.
+	require.Equal(t, "2026-06-12", resolveReportingPeriod("2026-06-12", "2026-06-30", "2026-07-01", "2026-06-10").barsFrom())
+	require.Equal(t, "2026-03-01", resolveReportingPeriod("2026-03-01", "2026-04-30", "2026-07-01", "2026-06-10").barsFrom())
+	require.Equal(t, "2026-03-01", resolveReportingPeriod("2026-03-01", "2026-04-30", "2026-07-01", "").barsFrom())
 }
 
 func TestReportingPeriodNeverRunsPastTodayAndChartsLongPeriodsByWeek(t *testing.T) {

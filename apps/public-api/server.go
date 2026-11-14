@@ -15,9 +15,19 @@ import (
 const maxTokenLength = 512
 
 type apiServer struct {
-	auth     authenticator
-	store    resourceStore
-	outbound outboundIPLookup
+	auth         authenticator
+	store        resourceStore
+	outbound     outboundIPLookup
+	reports      reportsReader
+	reportLimits *reportLimiter
+}
+
+// handlerOption sets a dependency only some routes need.
+type handlerOption func(*apiServer)
+
+// withReports reads Reports through go-svc (reports-client.go); without it they answer unavailable.
+func withReports(reports reportsReader) handlerOption {
+	return func(s *apiServer) { s.reports = reports }
 }
 
 func newHandler(auth authenticator, stores ...resourceStore) http.Handler {
@@ -28,11 +38,14 @@ func newHandler(auth authenticator, stores ...resourceStore) http.Handler {
 	return newHandlerWithOutbound(auth, store, nil)
 }
 
-func newHandlerWithOutbound(auth authenticator, store resourceStore, outbound outboundIPLookup) http.Handler {
+func newHandlerWithOutbound(auth authenticator, store resourceStore, outbound outboundIPLookup, options ...handlerOption) http.Handler {
 	if outbound == nil {
 		outbound = &liveOutboundIP{}
 	}
-	s := apiServer{auth: auth, store: store, outbound: outbound}
+	s := apiServer{auth: auth, store: store, outbound: outbound, reportLimits: newReportLimiter()}
+	for _, option := range options {
+		option(&s)
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.health)
 	mux.HandleFunc("/outbound-ip", s.outboundIP)
@@ -77,6 +90,8 @@ func newHandlerWithOutbound(auth authenticator, store resourceStore, outbound ou
 	mux.HandleFunc("/v1/jobs/{jobId}/strings", s.jobStrings)
 	mux.HandleFunc("/v1/jobs/{jobId}/locales", s.jobLocales)
 	mux.HandleFunc("/v1/jobs/{jobId}/locales/{locale}", s.jobLocale)
+	mux.HandleFunc("/v1/jobs/{jobId}/report", s.jobReport)
+	mux.HandleFunc("/v1/reports/{report}", s.report)
 	mux.HandleFunc("/v1/webhook-endpoints", s.webhookEndpoints)
 	mux.HandleFunc("/v1/webhook-endpoints/{endpointId}", s.webhookEndpoint)
 	mux.HandleFunc("/v1/webhook-endpoints/{endpointId}/rotate-secret", s.rotateWebhookSecret)

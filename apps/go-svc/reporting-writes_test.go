@@ -413,3 +413,31 @@ func TestReportingWritesNeedTheFlag(t *testing.T) {
 		require.Contains(t, rec.Body.String(), "feature_unavailable", route)
 	}
 }
+
+func TestReportingRateCardLinePricingIsVersionedLikeItsRate(t *testing.T) {
+	f := seedReportingMoney(t)
+	line := func(pricing string) string {
+		if pricing == "" {
+			return `{"sourceLocale": "en-US", "targetLocale": "fr-FR", "step": "translation", "basis": "word", "rate": "0.10"}`
+		}
+		return fmt.Sprintf(`{"sourceLocale": "en-US", "targetLocale": "fr-FR", "step": "translation", "basis": "word", "rate": "0.10", "pricing": "%s"}`, pricing)
+	}
+	status, body := f.send("admin", http.MethodPut, "/reports/rate-cards", `{"name": "Post-edit", "lines": [`+line("")+`], "create": true}`)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, [][]any{{"memory_match"}}, rowValues(body["rateCard"].(map[string]any)["lines"], "pricing"), "a line without pricing goes by memory match")
+
+	// Only the pricing changes: the line gets a new version.
+	status, body = f.send("admin", http.MethodPut, "/reports/rate-cards", `{"name": "Post-edit", "lines": [`+line("post_edit")+`]}`)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, [][]any{{"post_edit"}}, rowValues(body["rateCard"].(map[string]any)["lines"], "pricing"))
+	require.Equal(t, 2, f.count(`select count(*) from reporting_rates where organization_id = $1`, f.scope.OrganizationID))
+
+	// Saving it again unchanged adds nothing.
+	status, _ = f.send("admin", http.MethodPut, "/reports/rate-cards", `{"name": "Post-edit", "lines": [`+line("post_edit")+`]}`)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 2, f.count(`select count(*) from reporting_rates where organization_id = $1`, f.scope.OrganizationID))
+
+	status, body = f.send("admin", http.MethodPut, "/reports/rate-cards", `{"name": "Post-edit", "lines": [`+line("by_magic")+`]}`)
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Equal(t, "invalid_rate_card", body["error"])
+}

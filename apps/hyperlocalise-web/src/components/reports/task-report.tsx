@@ -30,6 +30,8 @@ import {
 import { rateText } from "./cost-estimate-tab";
 import { EditTimeDialog } from "./edit-time-dialog";
 import { LogTimeDialog } from "./log-time-dialog";
+import { PostEditBandsTable } from "./contributors-tab";
+import { contributorsTabMessages as contributorsMessages } from "./contributors-tab.messages";
 import { MatchBandTable, visibleBands, type BandCounts } from "./match-band-table";
 import {
   formatCount,
@@ -214,6 +216,7 @@ export function TaskReport({
               >
                 <MatchAnalysis data={data} words={data.words} step={step} state={state} />
               </ReportSection>
+              <TaskPostEdit words={data.words} step={step} unit={unit} />
             </>
           ) : null}
           <TimeSection
@@ -236,6 +239,32 @@ export function TaskReport({
         </div>
       )}
     </ReportSectionState>
+  );
+}
+
+/** How much people changed the text they were given on this step, when they finished any. */
+function TaskPostEdit({
+  words,
+  step,
+  unit,
+}: {
+  words: TaskWords;
+  step: ReportStep;
+  unit: ReportUnit;
+}) {
+  const intl = useIntl();
+  const bands = words.postEditBands?.[step] ?? {};
+  const total = Object.values(bands).reduce((sum, units) => sum + (units ?? 0), 0);
+  if (total === 0) return null;
+  return (
+    <ReportSection
+      title={intl.formatMessage(contributorsMessages.postEditTitle)}
+      description={intl.formatMessage(contributorsMessages.postEditDetail, {
+        unit: unitLabel(intl, unit),
+      })}
+    >
+      <PostEditBandsTable bands={bands} total={total} />
+    </ReportSection>
   );
 }
 

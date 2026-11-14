@@ -31,6 +31,7 @@ describe("public API OAuth protected resource metadata", () => {
         "files:write",
         "memories:read",
         "memories:write",
+        "reports:read",
         "mcp",
       ],
     });

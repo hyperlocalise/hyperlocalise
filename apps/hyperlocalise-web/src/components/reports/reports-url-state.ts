@@ -40,6 +40,7 @@ import {
 export const REPORTS_TABS = [
   "activity",
   "words",
+  "contributors",
   "time",
   "ai",
   "costs",
@@ -48,8 +49,8 @@ export const REPORTS_TABS = [
 ] as const;
 export type ReportsTab = (typeof REPORTS_TABS)[number];
 
-/** The tabs for roles that cannot see what work costs: only their own time. */
-export const MEMBER_TABS: readonly ReportsTab[] = ["time"];
+/** The tabs for roles that cannot see what work costs: only their own time and work. */
+export const MEMBER_TABS: readonly ReportsTab[] = ["time", "contributors"];
 
 /**
  * The ready-made date ranges, which move with today, and "custom" for dates chosen by hand.
