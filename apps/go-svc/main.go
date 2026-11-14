@@ -169,9 +169,11 @@ func main() {
 		h.knowledgeMemories.autumn = autumnClientChecker{client: h.autumn}
 	}
 	h.reports = newReportingAPI()
+	h.pipes = &pipesAPI{}
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
 		h.workspace.pipes = workosPipeTokens{client: workosClient}
+		h.pipes.accounts = livePipesAccounts{client: workosClient}
 	}
 
 	if apiKey := strings.TrimSpace(os.Getenv("DATAFORSEO_API_KEY")); apiKey != "" {
@@ -219,6 +221,7 @@ func main() {
 		h.reports.Pool = traced
 		h.publicTranslations.auth.pool = traced
 		h.workspace.pool = traced
+		h.pipes.pool = traced
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
 		if err != nil {
 			log.Fatalf("configure experiment store: %v", err)
@@ -326,6 +329,7 @@ func main() {
 	h.reports.membership = membershipLookup
 	h.publicTranslations.auth.membership = membershipLookup
 	h.workspace.membership = membershipLookup
+	h.pipes.membership = membershipLookup
 
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, verifier)
