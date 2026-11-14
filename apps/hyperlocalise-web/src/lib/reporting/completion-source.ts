@@ -136,12 +136,18 @@ export function textOriginOf(row: {
   givenText: string | null;
 }): TextOrigin {
   const origin = sourceOfOrigin(row.origin);
-  const comparable = row.givenText !== null && row.savedText !== null;
+  if (row.givenText !== null && row.savedText !== null) {
+    return {
+      source: origin.source,
+      // An approval of someone else's text as given has origin "human" and still kept it.
+      unchanged: row.givenText === row.savedText,
+      postEditScore: postEditScore(row.givenText, row.savedText),
+    };
+  }
   return {
     source: origin.source,
-    // An approval of someone else's text as given has origin "human" and still kept it.
-    unchanged: comparable ? row.givenText === row.savedText : origin.unchanged,
-    postEditScore: comparable ? postEditScore(row.givenText, row.savedText) : null,
+    unchanged: origin.unchanged,
+    postEditScore: null,
   };
 }
 
