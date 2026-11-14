@@ -89,6 +89,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "settingsActivityLogs",
   "settingsApiKeys",
   "settingsWebhooks",
+  "settingsCdn",
   "settingsProjectTemplates",
   "settingsBilling",
   "settingsLinkedDomains",
@@ -1021,6 +1022,18 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Workspace webhook endpoints.",
       id: "xAG52WUnvX",
       description: "Document description for workspace webhook settings",
+    },
+  },
+  settingsCdn: {
+    title: {
+      defaultMessage: "CDN destinations",
+      id: "cdnMetaTitle",
+      description: "Document title for workspace CDN destination settings",
+    },
+    description: {
+      defaultMessage: "Customer-owned S3 destinations for OTA releases.",
+      id: "cdnMetaDesc1",
+      description: "Document description for workspace CDN destination settings",
     },
   },
   settingsProjectTemplates: {

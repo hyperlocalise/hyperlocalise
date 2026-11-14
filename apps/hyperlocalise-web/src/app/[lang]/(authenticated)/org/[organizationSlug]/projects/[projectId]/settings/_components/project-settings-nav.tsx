@@ -26,7 +26,8 @@ export type ProjectSettingsNavItemId =
   | "issue-columns"
   | "content-editor"
   | "sync"
-  | "cli";
+  | "cli"
+  | "cdn";
 
 type ProjectSettingsNavGroupId = "project" | "workflow" | "developer";
 
@@ -36,7 +37,7 @@ const PROJECT_SETTINGS_NAV_GROUPS: {
 }[] = [
   { id: "project", items: ["general", "style-guide", "locales"] },
   { id: "workflow", items: ["issue-templates", "issue-columns", "content-editor"] },
-  { id: "developer", items: ["sync", "cli"] },
+  { id: "developer", items: ["sync", "cli", "cdn"] },
 ];
 
 const groupMessages = {
@@ -54,6 +55,7 @@ const itemMessages = {
   "content-editor": messages.contentEditor,
   sync: messages.sync,
   cli: messages.cli,
+  cdn: messages.cdn,
 } as const satisfies Record<ProjectSettingsNavItemId, typeof messages.general>;
 
 export function ProjectSettingsNav({

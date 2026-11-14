@@ -29,6 +29,7 @@ import {
   serviceUnavailableResponse,
 } from "@/api/response.schema";
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
+import { createOtaDistributionRoutes } from "@/api/routes/ota-distribution/ota-distribution.route";
 import { createProjectQaReportScanRoutes } from "@/api/routes/project/qa-report-scan.route";
 import { createProjectContentSyncRoutes } from "@/api/routes/project/project-content-sync.route";
 import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
@@ -1183,6 +1184,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }),
     )
     .route("/:projectId/branches", createProjectBranchRoutes())
+    .route("/:projectId/ota-distributions", createOtaDistributionRoutes())
     .get(
       "/:projectId/files/detail/cat/queue",
       validateProjectParams,

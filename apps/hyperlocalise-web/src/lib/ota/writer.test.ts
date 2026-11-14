@@ -256,15 +256,16 @@ describe("otaDistributionWriter", () => {
     expect(firstRelease.value.artifactPointer).toBe("ota/demo/1");
     expect(secondRelease.value.artifactPointer).toBeNull();
     expect(firstRelease.value.manifest.files).toEqual([
-      "/src/Localizable.strings",
-      "/src/InfoPlist.strings",
+      "/Localizable.strings",
+      "/InfoPlist.strings",
     ]);
     expect(firstRelease.value.manifest.languages).toEqual(["fr-FR", "en-US"]);
     expect(firstRelease.value.manifest.content["fr-FR"]).toEqual([
-      "/content/fr-FR/src/Localizable.strings",
-      "/content/fr-FR/src/InfoPlist.strings",
+      "/content/fr-FR/Localizable.strings",
+      "/content/fr-FR/InfoPlist.strings",
     ]);
-    expect(firstRelease.value.manifest.format).toBe("ios_strings");
+    expect(firstRelease.value.manifest.format).toBe("ios-strings");
+    expect(firstRelease.value.manifest.schema_version).toBe(1);
     expect(firstRelease.value.manifest.timestamp).toBeGreaterThan(0);
 
     const formatChange = await otaDistributionWriter.update({
@@ -278,7 +279,7 @@ describe("otaDistributionWriter", () => {
       .select()
       .from(schema.otaReleases)
       .where(eq(schema.otaReleases.id, firstRelease.value.id));
-    expect(persistedFirstRelease?.manifest.format).toBe("ios_strings");
+    expect(persistedFirstRelease?.manifest.format).toBe("ios-strings");
 
     const ignoredFormatOverride = await otaDistributionWriter.release({
       distributionId: created.value.id,
@@ -639,5 +640,79 @@ describe("otaDistributionWriter", () => {
       expect(second.error).toEqual({ code: "hash_collision" });
     }
     expect(generateOtaPublicHashMock.mock.calls.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("rejects selected files that share an export basename", async () => {
+    const { user, project } = await fixture.createStoredProjectFixture();
+    const first = await seedSourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath: "locales/en/messages.json",
+    });
+    const second = await seedSourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath: "locales/fr/messages.json",
+    });
+
+    const created = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "Collision",
+      fileIds: [first.id, second.id],
+      locales: ["fr-FR"],
+      format: "json",
+      actorUserId: user.id,
+    });
+
+    expect(isErr(created)).toBe(true);
+    if (isErr(created)) {
+      expect(created.error).toEqual({
+        code: "export_path_collision",
+        exportPaths: ["/messages.json"],
+      });
+    }
+  });
+
+  it("rotates the public hash and refuses destinations outside the organization", async () => {
+    const { user, project } = await fixture.createStoredProjectFixture();
+    const file = await seedSourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath: "messages.json",
+    });
+
+    const created = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "Rotate",
+      fileIds: [file.id],
+      locales: ["fr-FR"],
+      format: "json",
+      actorUserId: user.id,
+    });
+    expect(isOk(created)).toBe(true);
+    if (!isOk(created)) {
+      return;
+    }
+
+    const rotated = await otaDistributionWriter.rotate({
+      distributionId: created.value.id,
+      actorUserId: user.id,
+    });
+    expect(isOk(rotated)).toBe(true);
+    if (isOk(rotated)) {
+      expect(rotated.value.previousHash).toBe(created.value.publicHash);
+      expect(rotated.value.distribution.publicHash).not.toBe(created.value.publicHash);
+      expect(rotated.value.distribution.publicHash).toHaveLength(32);
+    }
+
+    const missingDestination = await otaDistributionWriter.update({
+      distributionId: created.value.id,
+      actorUserId: user.id,
+      destinationId: crypto.randomUUID(),
+    });
+    expect(isErr(missingDestination)).toBe(true);
+    if (isErr(missingDestination)) {
+      expect(missingDestination.error).toEqual({ code: "destination_not_found" });
+    }
   });
 });

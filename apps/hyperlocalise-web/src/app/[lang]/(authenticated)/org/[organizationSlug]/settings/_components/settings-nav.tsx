@@ -55,6 +55,7 @@ const itemMessages = {
   preferences: messages.preferences,
   "api-keys": messages.apiKeys,
   webhooks: messages.webhooks,
+  cdn: messages.cdn,
 } as const satisfies Record<SettingsNavItemId, typeof messages.general>;
 
 export function SettingsNav({

@@ -58,6 +58,8 @@ import type {
   glossaryImportReportEntries,
   glossaryHistoryEvents,
   otaDistributionFormatEnum,
+  otaReleaseStatusEnum,
+  organizationCdnDestinations,
   otaDistributions,
   otaReleases,
 } from "@/lib/database/schema";
@@ -149,8 +151,11 @@ export type Connector = typeof connectors.$inferSelect;
 export type NewConnector = typeof connectors.$inferInsert;
 export type TmsLink = typeof tmsLinks.$inferSelect;
 export type NewTmsLink = typeof tmsLinks.$inferInsert;
+export type OrganizationCdnDestination = typeof organizationCdnDestinations.$inferSelect;
+export type NewOrganizationCdnDestination = typeof organizationCdnDestinations.$inferInsert;
 export type OtaDistribution = typeof otaDistributions.$inferSelect;
 export type NewOtaDistribution = typeof otaDistributions.$inferInsert;
 export type OtaRelease = typeof otaReleases.$inferSelect;
 export type NewOtaRelease = typeof otaReleases.$inferInsert;
 export type OtaDistributionFormat = (typeof otaDistributionFormatEnum.enumValues)[number];
+export type OtaReleaseStatus = (typeof otaReleaseStatusEnum.enumValues)[number];

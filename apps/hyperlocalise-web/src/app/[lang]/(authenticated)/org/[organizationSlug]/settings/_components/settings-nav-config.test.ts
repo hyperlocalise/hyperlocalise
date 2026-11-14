@@ -72,9 +72,11 @@ describe("settings nav config", () => {
     expect(visible.flatMap((group) => group.items.map((item) => item.id))).toContain(
       "project-templates",
     );
+    expect(visible.flatMap((group) => group.items.map((item) => item.id))).toContain("cdn");
     expect(resolveActiveSettingsNavItem("/org/acme/settings/project-templates", "acme")).toBe(
       "project-templates",
     );
+    expect(resolveActiveSettingsNavItem("/org/acme/settings/cdn", "acme")).toBe("cdn");
   });
 
   it("builds settings destinations under the settings layout", () => {

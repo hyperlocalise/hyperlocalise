@@ -18,7 +18,9 @@ import type { OtaManifestSnapshot } from "@/lib/database/schema/ota";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
+import { exportPathFromSourcePath, findExportPathCollisions } from "./export-path";
 import { generateOtaPublicHash } from "./public-hash";
+import { buildOtaManifestSnapshot } from "./snapshot";
 
 const OTA_DISTRIBUTION_NAME_MAX_LENGTH = 120;
 const OTA_PUBLIC_HASH_INSERT_ATTEMPTS = 5;
@@ -40,6 +42,8 @@ export type OtaDistributionWriterError =
   | { code: "unknown_file_ids"; fileIds: string[] }
   | { code: "invalid_locales"; locales: string[] }
   | { code: "locales_not_in_project"; locales: string[] }
+  | { code: "export_path_collision"; exportPaths: string[] }
+  | { code: "destination_not_found" }
   | { code: "hash_collision" };
 
 export type CreateOtaDistributionInput = {
@@ -48,6 +52,7 @@ export type CreateOtaDistributionInput = {
   fileIds: readonly string[];
   locales: readonly string[];
   format: OtaDistributionFormat;
+  destinationId?: string | null;
   actorUserId: string;
   db?: DatabaseClient;
 };
@@ -59,6 +64,7 @@ export type UpdateOtaDistributionInput = {
   fileIds?: readonly string[];
   locales?: readonly string[];
   format?: OtaDistributionFormat;
+  destinationId?: string | null;
   db?: DatabaseClient;
 };
 
@@ -73,6 +79,12 @@ export type ReleaseOtaDistributionInput = {
 };
 
 export type RevokeOtaDistributionInput = {
+  distributionId: string;
+  actorUserId: string;
+  db?: DatabaseClient;
+};
+
+export type RotateOtaDistributionInput = {
   distributionId: string;
   actorUserId: string;
   db?: DatabaseClient;
@@ -191,31 +203,43 @@ function normalizeFileIds(
   return ok(unique);
 }
 
-function manifestFilePath(sourcePath: string): string {
-  const normalized = sourcePath.replace(/\\/g, "/").replace(/^\/+/, "");
-  return `/${normalized}`;
+async function assertDestinationOnOrganization(
+  organizationId: string,
+  destinationId: string | null | undefined,
+  client: DatabaseClient,
+): Promise<Result<string | null, OtaDistributionWriterError>> {
+  if (destinationId == null || destinationId === "") {
+    return ok(null);
+  }
+
+  const [destination] = await client
+    .select({ id: schema.organizationCdnDestinations.id })
+    .from(schema.organizationCdnDestinations)
+    .where(
+      and(
+        eq(schema.organizationCdnDestinations.id, destinationId),
+        eq(schema.organizationCdnDestinations.organizationId, organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!destination) {
+    return err({ code: "destination_not_found" });
+  }
+  return ok(destination.id);
 }
 
-function unixTimestampSeconds(date = new Date()): number {
-  return Math.floor(date.getTime() / 1000);
-}
-
-function buildManifestSnapshot(input: {
-  filePaths: readonly string[];
-  locales: readonly string[];
-  format: OtaDistributionFormat;
-  override?: OtaManifestSnapshotOverride;
-}): OtaManifestSnapshot {
-  const files = input.override?.files ?? input.filePaths.map(manifestFilePath);
-  const languages = input.override?.languages ?? [...input.locales];
-  const content =
-    input.override?.content ??
-    Object.fromEntries(
-      languages.map((locale) => [locale, files.map((file) => `/content/${locale}${file}`)]),
-    );
-  const timestamp = input.override?.timestamp ?? unixTimestampSeconds();
-
-  return { files, languages, content, timestamp, format: input.format };
+async function assertExportPathsUnique(
+  projectId: string,
+  fileIds: readonly string[],
+  client: DatabaseClient,
+): Promise<Result<void, OtaDistributionWriterError>> {
+  const paths = await loadSourcePathsByFileId(projectId, fileIds, client);
+  const collisions = findExportPathCollisions(paths);
+  if (collisions.length > 0) {
+    return err({ code: "export_path_collision", exportPaths: collisions });
+  }
+  return ok(undefined);
 }
 
 async function loadNativeProject(
@@ -376,9 +400,24 @@ export async function createOtaDistribution(
     return filesOnProject;
   }
 
+  const uniqueExportPaths = await assertExportPathsUnique(project.value.id, fileIds.value, client);
+  if (!uniqueExportPaths.ok) {
+    return uniqueExportPaths;
+  }
+
+  const destination = await assertDestinationOnOrganization(
+    project.value.organizationId,
+    input.destinationId,
+    client,
+  );
+  if (!destination.ok) {
+    return destination;
+  }
+
   return insertDistributionWithUniqueHash(client, {
     organizationId: project.value.organizationId,
     projectId: project.value.id,
+    destinationId: destination.value,
     name: name.value,
     fileIds: fileIds.value,
     locales: locales.value,
@@ -451,7 +490,27 @@ export async function updateOtaDistribution(
     if (!filesOnProject.ok) {
       return filesOnProject;
     }
+    const uniqueExportPaths = await assertExportPathsUnique(
+      distribution.projectId,
+      fileIds.value,
+      client,
+    );
+    if (!uniqueExportPaths.ok) {
+      return uniqueExportPaths;
+    }
     patch.fileIds = fileIds.value;
+  }
+
+  if (input.destinationId !== undefined) {
+    const destination = await assertDestinationOnOrganization(
+      distribution.organizationId,
+      input.destinationId,
+      client,
+    );
+    if (!destination.ok) {
+      return destination;
+    }
+    patch.destinationId = destination.value;
   }
 
   if (input.locales !== undefined) {
@@ -555,17 +614,38 @@ export async function releaseOtaDistribution(
       return err({ code: "revoked" });
     }
 
-    const filePaths = await loadSourcePathsByFileId(
-      distribution.projectId,
-      distribution.fileIds,
-      tx,
-    );
-    const manifest = buildManifestSnapshot({
-      filePaths,
+    const fileRows = await tx
+      .select({
+        id: schema.repositorySourceFiles.id,
+        sourcePath: schema.repositorySourceFiles.sourcePath,
+      })
+      .from(schema.repositorySourceFiles)
+      .where(
+        and(
+          eq(schema.repositorySourceFiles.projectId, distribution.projectId),
+          inArray(schema.repositorySourceFiles.id, distribution.fileIds),
+        ),
+      );
+    const pathById = new Map(fileRows.map((row) => [row.id, row.sourcePath]));
+    const snapshotFiles = distribution.fileIds.flatMap((fileId) => {
+      const sourcePath = pathById.get(fileId);
+      return sourcePath
+        ? [{ id: fileId, sourcePath, exportPath: exportPathFromSourcePath(sourcePath) }]
+        : [];
+    });
+    const built = buildOtaManifestSnapshot({
+      files: snapshotFiles,
       locales: distribution.locales,
       format: distribution.format,
-      override: input.manifest,
     });
+    const manifest: OtaManifestSnapshot = {
+      ...built,
+      files: input.manifest?.files ?? built.files,
+      languages: input.manifest?.languages ?? built.languages,
+      content: input.manifest?.content ?? built.content,
+      timestamp: input.manifest?.timestamp ?? built.timestamp,
+      language_mapping: input.manifest?.language_mapping ?? built.language_mapping,
+    };
 
     const [latest] = await tx
       .select({ sequence: max(schema.otaReleases.sequence) })
@@ -595,9 +675,69 @@ export async function releaseOtaDistribution(
   });
 }
 
+export async function rotateOtaDistribution(
+  input: RotateOtaDistributionInput,
+): Promise<
+  Result<{ distribution: OtaDistribution; previousHash: string }, OtaDistributionWriterError>
+> {
+  const client = input.db ?? db;
+
+  return client.transaction(async (tx) => {
+    const [distribution] = await tx
+      .select()
+      .from(schema.otaDistributions)
+      .where(eq(schema.otaDistributions.id, input.distributionId))
+      .for("update")
+      .limit(1);
+
+    if (!distribution) {
+      return err({ code: "distribution_not_found" });
+    }
+
+    if (distribution.revokedAt) {
+      return err({ code: "revoked" });
+    }
+
+    const previousHash = distribution.publicHash;
+    for (let attempt = 0; attempt < OTA_PUBLIC_HASH_INSERT_ATTEMPTS; attempt += 1) {
+      try {
+        const [updated] = await tx
+          .update(schema.otaDistributions)
+          .set({
+            publicHash: generateOtaPublicHash(),
+            updatedByUserId: input.actorUserId,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(schema.otaDistributions.id, distribution.id),
+              isNull(schema.otaDistributions.revokedAt),
+            ),
+          )
+          .returning();
+
+        if (!updated) {
+          return err({ code: "revoked" });
+        }
+        return ok({ distribution: updated, previousHash });
+      } catch (error) {
+        if (!isUniqueViolation(error) || attempt === OTA_PUBLIC_HASH_INSERT_ATTEMPTS - 1) {
+          if (isUniqueViolation(error)) {
+            return err({ code: "hash_collision" });
+          }
+          throw error;
+        }
+      }
+    }
+
+    return err({ code: "hash_collision" });
+  });
+}
+
 export const otaDistributionWriter = {
   create: createOtaDistribution,
   update: updateOtaDistribution,
   release: releaseOtaDistribution,
   revoke: revokeOtaDistribution,
+  rotate: rotateOtaDistribution,
 };

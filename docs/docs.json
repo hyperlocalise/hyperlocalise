@@ -236,6 +236,7 @@
                       "platform/mcp",
                       "platform/developers/mcp-tools",
                       "platform/developers/webhooks",
+                      "platform/developers/cdn-distributions",
                       {
                         "group": "Framework and repository guides",
                         "pages": [

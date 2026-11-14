@@ -75,6 +75,11 @@ export const projectSettingsNavMessages = defineMessages({
     id: "P3FTUn97ec",
     description: "Project settings nav item for connecting the CLI and CI",
   },
+  cdn: {
+    defaultMessage: "CDN",
+    id: "H4+1o+HDkH",
+    description: "Project settings nav item for over-the-air CDN distributions",
+  },
   unsavedChanges: {
     defaultMessage: "Unsaved changes",
     id: "TQazCG74CN",

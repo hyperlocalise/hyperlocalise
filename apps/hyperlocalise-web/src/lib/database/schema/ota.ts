@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   index,
   integer,
@@ -23,25 +24,86 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { otaDistributionFormatEnum } from "./enums";
+import { otaDistributionFormatEnum, otaReleaseStatusEnum } from "./enums";
 import { organizations, users } from "./organizations";
 import { projects } from "./projects";
 
 export type OtaDistributionFormat = (typeof otaDistributionFormatEnum.enumValues)[number];
+export type OtaReleaseStatus = (typeof otaReleaseStatusEnum.enumValues)[number];
+
+/** Public manifest `format` values. The distribution row stores the DB enum. */
+export type OtaPublicFormat = "json" | "android-xml" | "ios-strings";
 
 /**
- * Crowdin-shaped manifest snapshot written at release time. Serving and CDN
- * upload fill `content` later; persistence stores whatever the writer records.
- * `format` is copied from the distribution so a later format change cannot
- * rewrite an already-released artifact contract.
+ * Crowdin-shaped manifest written at release time and served at
+ * `/{hash}/manifest.json`. `format` is copied from the distribution so a later
+ * format change cannot rewrite an already-released artifact contract.
  */
 export type OtaManifestSnapshot = {
+  schema_version: 1;
+  format: OtaPublicFormat;
   files: string[];
   languages: string[];
-  content: Record<string, string[]>;
+  language_mapping: Record<string, { locale: string }>;
   timestamp: number;
-  format: OtaDistributionFormat;
+  content: Record<string, string[]>;
 };
+
+/**
+ * Org-owned S3 (or S3-compatible) bucket for OTA objects. Null destination on a
+ * distribution means Hyperlocalise-hosted S3. Credentials are encrypted.
+ */
+export const organizationCdnDestinations = pgTable(
+  "organization_cdn_destinations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    bucket: text("bucket").notNull(),
+    region: text("region").notNull(),
+    endpoint: text("endpoint"),
+    publicBaseUrl: text("public_base_url").notNull(),
+    usePathStyle: boolean("use_path_style").notNull().default(false),
+    maskedSecretSuffix: text("masked_secret_suffix").notNull(),
+    encryptionAlgorithm: text("encryption_algorithm").notNull(),
+    ciphertext: text("ciphertext").notNull(),
+    iv: text("iv").notNull(),
+    authTag: text("auth_tag").notNull(),
+    keyVersion: integer("key_version").notNull().default(1),
+    validationStatus: text("validation_status").notNull().default("unvalidated"),
+    validationMessage: text("validation_message"),
+    lastValidatedAt: timestamp("last_validated_at", { withTimezone: true }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_organization_cdn_destinations_org").on(table.organizationId),
+    uniqueIndex("organization_cdn_destinations_org_name_key").on(table.organizationId, table.name),
+    check(
+      "organization_cdn_destinations_name_not_blank_check",
+      sql`char_length(btrim(${table.name})) > 0`,
+    ),
+    check(
+      "organization_cdn_destinations_bucket_not_blank_check",
+      sql`char_length(btrim(${table.bucket})) > 0`,
+    ),
+    check(
+      "organization_cdn_destinations_region_not_blank_check",
+      sql`char_length(btrim(${table.region})) > 0`,
+    ),
+  ],
+);
 
 /**
  * Native-project OTA distribution. The public hash is the unguessable CDN
@@ -57,6 +119,9 @@ export const otaDistributions = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    destinationId: uuid("destination_id").references(() => organizationCdnDestinations.id, {
+      onDelete: "restrict",
+    }),
     name: text("name").notNull(),
     // 16 random bytes as lowercase hex. Unique and not derived from project id or name.
     publicHash: text("public_hash").notNull(),
@@ -88,6 +153,7 @@ export const otaDistributions = pgTable(
     index("idx_ota_distributions_project_id").on(table.projectId),
     index("idx_ota_distributions_org").on(table.organizationId),
     index("idx_ota_distributions_project_revoked").on(table.projectId, table.revokedAt),
+    index("idx_ota_distributions_destination_id").on(table.destinationId),
     check(
       "ota_distributions_public_hash_format_check",
       sql`${table.publicHash} ~ '^[0-9a-f]{32}$'`,
@@ -98,7 +164,7 @@ export const otaDistributions = pgTable(
 
 /**
  * Immutable release of a distribution. Sequence is monotonic per distribution.
- * Artifact bytes are a later ticket; this row holds the pointer and manifest.
+ * Artifact bytes live in object storage; this row holds the pointer and manifest.
  */
 export const otaReleases = pgTable(
   "ota_releases",
@@ -111,6 +177,8 @@ export const otaReleases = pgTable(
       .notNull()
       .references(() => otaDistributions.id, { onDelete: "cascade" }),
     sequence: integer("sequence").notNull(),
+    status: otaReleaseStatusEnum("status").notNull().default("success"),
+    errorMessage: text("error_message"),
     // Storage key, stored-file id, or CDN object path. Null until upload lands.
     artifactPointer: text("artifact_pointer"),
     manifest: jsonb("manifest").$type<OtaManifestSnapshot>().notNull(),
