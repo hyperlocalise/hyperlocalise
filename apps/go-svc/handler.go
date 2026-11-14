@@ -220,6 +220,16 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 			}
 			h.guidelineCheck.internalCheck(w, r)
 		})
+		mux.HandleFunc("POST /internal/guidelines/explain", func(w http.ResponseWriter, r *http.Request) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+				return
+			}
+			if !requireServerCallToken(w, r) {
+				return
+			}
+			h.guidelineCheck.internalExplain(w, r)
+		})
 	}
 	if h.guidelineRetrieve != nil {
 		mux.HandleFunc("POST /internal/guidelines/retrieve", func(w http.ResponseWriter, r *http.Request) {

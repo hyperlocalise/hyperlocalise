@@ -14,53 +14,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type fakeRetriever struct {
-	result guidelines.Result
-	err    error
-	scope  guidelines.Scope
-	query  string
-	limit  int
-}
-
-func (f *fakeRetriever) Retrieve(_ context.Context, scope guidelines.Scope, query string, limit int) (guidelines.Result, error) {
-	f.scope, f.query, f.limit = scope, query, limit
-	return f.result, f.err
-}
-
-type fakeModel struct {
-	output string
-	err    error
-	user   string
-	calls  int
-}
-
-func (f *fakeModel) Complete(_ context.Context, _, user string) (string, error) {
-	f.calls++
-	f.user = user
-	return f.output, f.err
-}
-
-func (f *fakeModel) Name() string { return "test-model" }
-
-func mandatoryDoc(id, content string) guidelines.Document {
-	return guidelines.Document{ID: id, RevisionID: "r1", Version: 1, Scope: guidelines.Scope{OrganizationID: "org"}, Content: content, Mandatory: true}
-}
-
-func TestCheckGroundsFindings(t *testing.T) {
+func TestCheckClassifiesViolations(t *testing.T) {
 	note := mandatoryDoc("workspace:org", "Use vous, never tu.\n\nKeep Acme in English.")
 	noteChunks := guidelines.Chunks(note)
 	hit := guidelines.Chunk{ID: "hit-1", DocumentID: "doc:1", RevisionID: "r9", Text: "Dates use DD/MM/YYYY."}
 	retriever := &fakeRetriever{result: guidelines.Result{Mandatory: []guidelines.Document{note}, Passages: []guidelines.Chunk{noteChunks[0], hit}, SearchAvailable: true}}
-	model := &fakeModel{output: `{"findings":[
-		{"segmentId":"s1","field":"target","severity":"error","quote":"tu","message":"Use vous.","suggestion":"vous","passage":"P1"},
-		{"segmentId":"s1","field":"target","severity":"error","quote":"tu","message":"Use vous.","suggestion":"vous","passage":"P1"},
-		{"segmentId":"s2","field":"target","severity":"critical","quote":"03/12/2026","message":"Wrong date format.","suggestion":"","passage":"P3"},
-		{"segmentId":"missing","field":"target","severity":"error","quote":"x","message":"Unknown segment.","suggestion":"","passage":"P1"},
-		{"segmentId":"s1","field":"target","severity":"error","quote":"not in text","message":"Hallucinated quote.","suggestion":"","passage":"P1"},
-		{"segmentId":"s1","field":"target","severity":"error","quote":"tu","message":"Uncited.","suggestion":"","passage":"P9"},
-		{"segmentId":"s1","field":"source","severity":"error","quote":"you","message":"Source not requested.","suggestion":"","passage":"P1"}
-	]}`}
-	result, err := New(retriever, model).Check(context.Background(), guidelines.Scope{OrganizationID: "org", Locale: "fr-FR"}, Request{
+	classifier := &fakeClassifier{probabilities: map[string]float64{
+		"s1_P1": 0.92,
+		"s1_P2": 0.1,
+		"s1_P3": 0.2,
+		"s2_P1": 0.05,
+		"s2_P2": 0.08,
+		"s2_P3": 0.88,
+	}}
+	result, err := New(retriever, classifier, nil).Check(context.Background(), guidelines.Scope{OrganizationID: "org", Locale: "fr-FR"}, Request{
 		TargetLocale: "fr-FR",
 		Checks:       []Field{FieldTarget},
 		Segments: []Segment{
@@ -70,18 +37,25 @@ func TestCheckGroundsFindings(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.True(t, result.SearchAvailable)
-	require.Equal(t, "test-model", result.Model)
+	require.Equal(t, "typesafe-ai/jev", result.Model)
 	require.Equal(t, 12, retriever.limit)
 	require.Contains(t, retriever.query, "Peux-tu")
-	require.Contains(t, model.user, `<passage label="P1">`)
-	require.Contains(t, model.user, `<passage label="P3">`)
-	require.NotContains(t, model.user, `<passage label="P4">`, "duplicate mandatory chunk from search is not repeated")
+	require.Len(t, classifier.questions, 6)
+	require.Contains(t, classifier.questions["s1_P1"].Instructions, "s1")
+
+	state, ok := classifier.state.(classifyState)
+	require.True(t, ok)
+	require.Equal(t, []string{"P1", "P2", "P3"}, []string{state.Passages[0].Label, state.Passages[1].Label, state.Passages[2].Label})
 
 	require.Len(t, result.Findings, 2)
-	require.Equal(t, Finding{SegmentID: "s1", Field: FieldTarget, Severity: "error", Start: 5, End: 7, Message: "Use vous.", Suggestion: "vous", PassageID: noteChunks[0].ID}, result.Findings[0])
-	require.Equal(t, "warning", result.Findings[1].Severity)
+	require.Equal(t, Finding{
+		SegmentID: "s1", Field: FieldTarget, Severity: "warning", Start: 0, End: utf16Len("Peux-tu 🙂 aider tu?"),
+		Message: ClassifierFindingMessage, PassageID: noteChunks[0].ID, ReasoningAvailable: true,
+	}, result.Findings[0])
+	require.Equal(t, "s2", result.Findings[1].SegmentID)
 	require.Equal(t, "hit-1", result.Findings[1].PassageID)
-	require.Equal(t, 9, result.Findings[1].Start)
+	require.True(t, result.Findings[1].ReasoningAvailable)
+	require.Empty(t, result.Findings[1].Suggestion)
 	require.Equal(t, []Passage{
 		{ID: noteChunks[0].ID, DocumentID: "workspace:org", Text: "Use vous, never tu."},
 		{ID: "hit-1", DocumentID: "doc:1", Text: "Dates use DD/MM/YYYY."},
@@ -99,28 +73,23 @@ func TestCheckUTF16OffsetsAndEmptyQuote(t *testing.T) {
 	require.Equal(t, 5, end)
 }
 
-func TestCheckSkipsModelWithoutGuidelinesAndRejectsBadOutput(t *testing.T) {
-	model := &fakeModel{}
-	result, err := New(&fakeRetriever{}, model).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{Segments: []Segment{{ID: "s1", Target: "Bonjour"}}})
+func TestCheckSkipsClassifierWithoutGuidelinesAndSurfacesClassifierErrors(t *testing.T) {
+	classifier := violateAll()
+	result, err := New(&fakeRetriever{}, classifier, nil).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{Segments: []Segment{{ID: "s1", Target: "Bonjour"}}})
 	require.NoError(t, err)
-	require.Zero(t, model.calls)
+	require.Zero(t, classifier.calls)
 	require.Empty(t, result.Findings)
 	require.False(t, result.SearchAvailable)
 
 	retriever := &fakeRetriever{result: guidelines.Result{Mandatory: []guidelines.Document{mandatoryDoc("workspace:org", "Rule.")}}}
-	for _, output := range []string{"", "not json", `{"findings":`} {
-		model.output = output
-		_, err = New(retriever, model).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{Segments: []Segment{{ID: "s1", Target: "Bonjour"}}})
-		require.ErrorIs(t, err, ErrUnreadableOutput, output)
-	}
-
-	model.output = `{"findings":[]}`
-	result, err = New(retriever, model).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{Segments: []Segment{{ID: "s1", Target: "Bonjour"}}})
+	classifier = cleanAll()
+	result, err = New(retriever, classifier, nil).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{Segments: []Segment{{ID: "s1", Target: "Bonjour"}}})
 	require.NoError(t, err)
 	require.Empty(t, result.Findings)
+	require.Equal(t, 1, classifier.calls)
 
-	model.err = errors.New("gateway down")
-	_, err = New(retriever, model).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{Segments: []Segment{{ID: "s1", Target: "Bonjour"}}})
+	classifier.err = errors.New("gateway down")
+	_, err = New(retriever, classifier, nil).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{Segments: []Segment{{ID: "s1", Target: "Bonjour"}}})
 	require.Error(t, err)
 }
 
@@ -149,28 +118,32 @@ func TestNormalize(t *testing.T) {
 }
 
 func TestCheckRejectsOverBudgetMandatoryPassages(t *testing.T) {
-	doc1 := mandatoryDoc("workspace:org", strings.Repeat("a", 50000))
-	doc2 := mandatoryDoc("project:p1", strings.Repeat("b", 50000))
+	doc1 := mandatoryDoc("workspace:org", strings.Repeat("a", 15000))
+	doc2 := mandatoryDoc("project:p1", strings.Repeat("b", 15000))
 	retriever := &fakeRetriever{result: guidelines.Result{Mandatory: []guidelines.Document{doc1, doc2}}}
-	model := &fakeModel{output: `{"findings":[]}`}
-	_, err := New(retriever, model).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{
+	classifier := violateAll()
+	_, err := New(retriever, classifier, nil).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{
 		Segments: []Segment{{ID: "s1", Target: "Bonjour"}},
 	})
 	require.ErrorIs(t, err, ErrMandatoryPassagesOverBudget)
-	require.Zero(t, model.calls)
+	require.Zero(t, classifier.calls)
 }
 
 func TestCheckAllowsDroppingOptionalPassagesWhenOverBudget(t *testing.T) {
-	note := mandatoryDoc("workspace:org", strings.Repeat("a", 59000))
+	note := mandatoryDoc("workspace:org", strings.Repeat("a", 18000))
 	hit := guidelines.Chunk{ID: "hit-1", DocumentID: "doc:1", RevisionID: "r9", Text: strings.Repeat("x", 5000)}
 	retriever := &fakeRetriever{result: guidelines.Result{Mandatory: []guidelines.Document{note}, Passages: []guidelines.Chunk{hit}, SearchAvailable: true}}
-	model := &fakeModel{output: `{"findings":[]}`}
-	result, err := New(retriever, model).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{
+	classifier := cleanAll()
+	result, err := New(retriever, classifier, nil).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{
 		Segments: []Segment{{ID: "s1", Target: "Bonjour"}},
 	})
 	require.NoError(t, err)
-	require.Equal(t, 1, model.calls)
-	require.NotContains(t, model.user, "xxxxx")
+	require.Equal(t, 1, classifier.calls)
+	state := classifier.state.(classifyState)
+	require.NotEmpty(t, state.Passages)
+	for _, passage := range state.Passages {
+		require.NotContains(t, passage.Text, "xxxxx")
+	}
 	require.True(t, result.SearchAvailable)
 }
 
@@ -188,7 +161,7 @@ func TestOpenAIModelSendsStrictSchema(t *testing.T) {
 		raw, _ := io.ReadAll(r.Body)
 		require.NoError(t, json.Unmarshal(raw, &body))
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"1","object":"chat.completion","created":1,"model":"m","choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"findings\":[]}"}}]}`))
+		_, _ = w.Write([]byte(`{"id":"1","object":"chat.completion","created":1,"model":"m","usage":{"prompt_tokens":11,"completion_tokens":4},"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"findings\":[]}"}}]}`))
 	}))
 	defer server.Close()
 
@@ -196,7 +169,9 @@ func TestOpenAIModelSendsStrictSchema(t *testing.T) {
 	require.NoError(t, err)
 	output, err := model.Complete(context.Background(), "system", "user")
 	require.NoError(t, err)
-	require.JSONEq(t, `{"findings":[]}`, output)
+	require.JSONEq(t, `{"findings":[]}`, output.Text)
+	require.Equal(t, 11, output.InputTokens)
+	require.Equal(t, 4, output.OutputTokens)
 	format := body["response_format"].(map[string]any)
 	require.Equal(t, "json_schema", format["type"])
 	require.Equal(t, true, format["json_schema"].(map[string]any)["strict"])

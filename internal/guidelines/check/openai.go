@@ -47,7 +47,7 @@ func NewOpenAIModel(cfg OpenAIConfig) (*OpenAIModel, error) {
 
 func (m *OpenAIModel) Name() string { return m.model }
 
-func (m *OpenAIModel) Complete(ctx context.Context, system, user string) (string, error) {
+func (m *OpenAIModel) Complete(ctx context.Context, system, user string) (Completion, error) {
 	resp, err := m.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
 		Model:               openai.ChatModel(m.model),
 		Messages:            []openai.ChatCompletionMessageParamUnion{openai.SystemMessage(system), openai.UserMessage(user)},
@@ -58,12 +58,20 @@ func (m *OpenAIModel) Complete(ctx context.Context, system, user string) (string
 		}},
 	})
 	if err != nil {
-		return "", fmt.Errorf("chat completion: %w", err)
+		return Completion{}, fmt.Errorf("chat completion: %w", err)
 	}
 	if len(resp.Choices) == 0 {
-		return "", errors.New("chat completion returned no choices")
+		return Completion{}, errors.New("chat completion returned no choices")
 	}
-	return completionText(resp.Choices[0])
+	text, err := completionText(resp.Choices[0])
+	if err != nil {
+		return Completion{}, err
+	}
+	return Completion{
+		Text:         text,
+		InputTokens:  int(resp.Usage.PromptTokens),
+		OutputTokens: int(resp.Usage.CompletionTokens),
+	}, nil
 }
 
 func completionText(choice openai.ChatCompletionChoice) (string, error) {
