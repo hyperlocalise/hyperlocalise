@@ -309,6 +309,27 @@ export const env = createEnv({
      * Production: `https://api.hyperlocalise.com`. Local default is `http://127.0.0.1:8080`.
      */
     GO_SVC_URL: z.url().optional(),
+
+    /** Private S3 bucket that stores hosted OTA objects. */
+    OTA_S3_BUCKET: z.string().min(1).optional(),
+
+    /** Region for the hosted OTA bucket. Defaults to AWS_REGION. */
+    OTA_S3_REGION: z.string().min(1).optional(),
+
+    /** Optional HTTPS endpoint override for S3-compatible hosted OTA storage. */
+    OTA_S3_ENDPOINT: z.url().optional(),
+
+    /** Force path-style addressing for the hosted OTA bucket. */
+    OTA_S3_FORCE_PATH_STYLE: z.enum(["true", "false"]).optional(),
+
+    /**
+     * Public origin clients fetch (`https://ota.hyperlocalise.com`). Local
+     * development can point this at `/api/ota`.
+     */
+    OTA_PUBLIC_BASE_URL: z.url().optional(),
+
+    /** CloudFront distribution ID used to invalidate `/{hash}/*` after a release. */
+    OTA_CLOUDFRONT_DISTRIBUTION_ID: z.string().min(1).optional(),
   },
   client: {
     /** Public runtime environment exposed to the browser. Mirrors NODE_ENV. */
@@ -458,6 +479,13 @@ export const env = createEnv({
       (isTestEnv ? "http://localhost:3000/connect/sanity/oauth/callback" : undefined),
     E2E_BASE_URL: process.env.E2E_BASE_URL,
     GO_SVC_URL: process.env.GO_SVC_URL ?? (isTestEnv ? "http://127.0.0.1:8080" : undefined),
+    OTA_S3_BUCKET: process.env.OTA_S3_BUCKET,
+    OTA_S3_REGION: process.env.OTA_S3_REGION,
+    OTA_S3_ENDPOINT: process.env.OTA_S3_ENDPOINT,
+    OTA_S3_FORCE_PATH_STYLE: process.env.OTA_S3_FORCE_PATH_STYLE as "true" | "false" | undefined,
+    OTA_PUBLIC_BASE_URL:
+      process.env.OTA_PUBLIC_BASE_URL ?? (isTestEnv ? "https://ota.test" : undefined),
+    OTA_CLOUDFRONT_DISTRIBUTION_ID: process.env.OTA_CLOUDFRONT_DISTRIBUTION_ID,
     NEXT_PUBLIC_WORKOS_REDIRECT_URI:
       process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI ??
       process.env.WORKOS_REDIRECT_URI ??

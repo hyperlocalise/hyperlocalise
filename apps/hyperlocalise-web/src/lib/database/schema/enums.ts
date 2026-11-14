@@ -432,6 +432,15 @@ export const otaDistributionFormatEnum = pgEnum("ota_distribution_format", [
   "ios_strings",
 ]);
 /**
+ * Release pipeline for an OTA snapshot. A row stays `in_progress` until S3
+ * write finishes, then `success` or `failed`.
+ */
+export const otaReleaseStatusEnum = pgEnum("ota_release_status", [
+  "in_progress",
+  "success",
+  "failed",
+]);
+/**
  * Identifies whether a Human Approval request targets one user or a team.
  */
 export const visualWorkflowApprovalReviewerTypeEnum = pgEnum(

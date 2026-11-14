@@ -120,4 +120,9 @@ export const settingsNavMessages = defineMessages({
     id: "1tOsR5PIC6",
     description: "Settings nav item for organization webhook endpoints",
   },
+  cdn: {
+    defaultMessage: "CDN",
+    id: "FLwvZqOqne",
+    description: "Settings nav item for custom CDN destinations",
+  },
 });

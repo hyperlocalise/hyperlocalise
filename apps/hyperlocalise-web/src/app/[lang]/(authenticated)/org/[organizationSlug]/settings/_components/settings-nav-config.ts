@@ -26,6 +26,7 @@ export const settingsNavItemIds = [
   "billing",
   "api-keys",
   "webhooks",
+  "cdn",
   "account",
   "preferences",
 ] as const;
@@ -99,6 +100,7 @@ export const settingsNavGroups: readonly SettingsNavGroupConfig[] = [
     items: [
       { id: "api-keys", href: "api-keys", requiredCapability: "api_keys:read" },
       { id: "webhooks", href: "webhooks", requiredCapability: "api_keys:read" },
+      { id: "cdn", href: "cdn", requiredCapability: "projects:read" },
     ],
   },
   {
@@ -213,6 +215,10 @@ export function resolveActiveSettingsNavItem(
 
   if (normalizedPath.startsWith(`${settingsRoot}/webhooks`)) {
     return "webhooks";
+  }
+
+  if (normalizedPath.startsWith(`${settingsRoot}/cdn`)) {
+    return "cdn";
   }
 
   return "general";

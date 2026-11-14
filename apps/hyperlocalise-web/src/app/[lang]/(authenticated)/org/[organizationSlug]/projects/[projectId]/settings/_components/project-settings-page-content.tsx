@@ -65,6 +65,7 @@ import {
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
 import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
+import { ProjectCdnDistributionsPanel } from "./project-cdn-distributions-panel";
 import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel";
 import { ProjectIssueColumnsSettings } from "./project-issue-columns-settings";
 import { ProjectContentEditorBehaviorSettings } from "./project-content-editor-behavior-settings";
@@ -498,6 +499,7 @@ export function ProjectSettingsPageContent({
     visibleNavItems.add("style-guide");
     visibleNavItems.add("sync");
     visibleNavItems.add("cli");
+    visibleNavItems.add("cdn");
   }
   if (hasPersistedProjectRow) {
     visibleNavItems.add("issue-templates");
@@ -773,6 +775,13 @@ export function ProjectSettingsPageContent({
 
           {activeNavItem === "cli" ? (
             <ProjectNativeConnectCliPanel
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+            />
+          ) : null}
+
+          {activeNavItem === "cdn" ? (
+            <ProjectCdnDistributionsPanel
               organizationSlug={organizationSlug}
               projectId={projectId}
             />

@@ -1,0 +1,84 @@
+---
+title: "CDN distributions"
+sidebarTitle: "CDN distributions"
+description: "Publish approved native-project translations to a public CDN hash, on Hyperlocalise or a customer S3 bucket."
+---
+
+CDN distributions ship an **approved snapshot** of a native project's translations to mobile and web apps. The public address is an unguessable hash, not an API key. Nothing is live until you click **Release**.
+
+A distribution selects files, locales, and one format. A release writes `manifest.json` plus locale files. Clients poll the manifest and fetch content when `timestamp` changes.
+
+## Create a distribution
+
+1. Open a **native** project → **Settings** → **CDN**.
+2. Click **New distribution**.
+3. Name it, pick source files, locales, and a format (`JSON`, `Android XML`, or `iOS strings`).
+4. Choose **Hyperlocalise CDN** or a [workspace S3 destination](#custom-s3-buckets).
+5. Click **Create**, then **Release**.
+
+Selected files must have unique basenames. `locales/en/messages.json` and `locales/fr/messages.json` cannot share a distribution because both export as `/messages.json`.
+
+## Public URLs
+
+Hosted releases are addressed like this:
+
+```
+https://ota.hyperlocalise.com/{hash}/manifest.json
+https://ota.hyperlocalise.com/{hash}/content/{locale}/{exportPath}
+```
+
+`GET` and `HEAD` only. Unknown or revoked hashes return `404` without saying whether the hash ever existed. Objects cache for one hour (`Cache-Control: public, max-age=3600`). A successful release invalidates the hash prefix so the new snapshot is visible before that hour elapses. Clients should still poll no faster than every 15 minutes.
+
+A custom destination uses the **public base URL** you configured instead of `ota.hyperlocalise.com`. The path layout under that origin is the same.
+
+## Manifest
+
+```json
+{
+  "schema_version": 1,
+  "format": "json",
+  "files": ["/messages.json"],
+  "languages": ["fr-FR", "de-DE"],
+  "language_mapping": {},
+  "timestamp": 1756961280,
+  "content": {
+    "fr-FR": ["/content/fr-FR/messages.json"],
+    "de-DE": ["/content/de-DE/messages.json"]
+  }
+}
+```
+
+Clients concatenate the origin, the hash, and a path from `content[locale]`, then append `?t={timestamp}`. Fetch content only after `timestamp` changes.
+
+A release includes a key only when it is **approved**, non-empty, not hidden, and in a selected file and locale. Source-locale exports use `source_text`. Draft and needs-review copy stay off the CDN. Empty locale files are still written so paths stay stable.
+
+## Rotate and revoke
+
+**Rotate hash** mints a new 32-character hash, copies the frozen snapshot to the new prefix, and deletes the old prefix. It does not pick up later CAT edits. Apps that still embed the old URL fall back to bundled strings until they ship the new hash.
+
+**Revoke** deletes the current prefix. The distribution row remains. The old URL returns `404`. The hash is never reused.
+
+## Custom S3 buckets
+
+Some customers want releases written to their own infrastructure. Open **Settings** → **CDN** in the workspace and add a destination:
+
+- S3 bucket name and region
+- HTTPS public base URL (CloudFront, or another HTTPS origin in front of the bucket)
+- Optional HTTPS S3-compatible endpoint and path-style addressing
+- Access key ID and secret access key
+
+Hyperlocalise encrypts the keys, then probes `HeadBucket` plus a short Put/Delete before saving. The IAM user needs `s3:ListBucket`, `s3:GetObject`, `s3:PutObject`, and `s3:DeleteObject` on that bucket. You cannot delete a destination while a distribution still points at it.
+
+Custom destinations are **not** served from the Hyperlocalise origin. Point the public base URL at the customer's CDN. The object keys are `{hash}/manifest.json` and `{hash}/content/{locale}/{exportPath}`.
+
+## What this is not
+
+CDN distributions do not replace the authenticated download at `GET /api/v1/projects/:projectId/translations/download`. That route needs an API key, can include draft copy, and is built for CLI and automation. OTA is a published snapshot of approved strings.
+
+External TMS projects cannot create distributions.
+
+## Next
+
+- [Connect the CLI](/platform/cli)
+- [Public API](/platform/api)
+- [Project settings](/platform/projects/settings)

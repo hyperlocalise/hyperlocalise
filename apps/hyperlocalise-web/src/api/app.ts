@@ -70,6 +70,7 @@ import type {
   TranslationQaScanQueue,
 } from "@/lib/workflow/types";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
+import { createPublicOtaRoutes } from "./routes/ota-distribution/public-ota.route";
 import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
 import { createInternalDeepAuditRoutes } from "./routes/internal-deep-audits/internal-deep-audits.route";
 import { createInternalWebhookRoutes } from "./routes/internal-webhooks/internal-webhooks.route";
@@ -130,6 +131,7 @@ export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> 
       }),
     )
     .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
+    .route("/ota", createPublicOtaRoutes())
     .route(
       "/public/media",
       createPublicMediaRoutes({ fileStorageAdapter: options.fileStorageAdapter }),

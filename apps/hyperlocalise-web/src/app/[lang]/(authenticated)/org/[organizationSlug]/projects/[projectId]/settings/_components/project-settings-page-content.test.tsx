@@ -111,6 +111,10 @@ vi.mock("./project-native-connect-cli-panel", () => ({
   ProjectNativeConnectCliPanel: () => null,
 }));
 
+vi.mock("./project-cdn-distributions-panel", () => ({
+  ProjectCdnDistributionsPanel: () => null,
+}));
+
 vi.mock("./project-content-editor-behavior-settings", () => ({
   ProjectContentEditorBehaviorSettings: () => null,
 }));

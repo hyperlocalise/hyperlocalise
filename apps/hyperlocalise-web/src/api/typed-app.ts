@@ -36,6 +36,7 @@ import {
   createProviderAgentWritebackQueue,
 } from "@/workflows/adapters";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
+import { createPublicOtaRoutes } from "./routes/ota-distribution/public-ota.route";
 import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
 import { createInternalWebhookRoutes } from "./routes/internal-webhooks/internal-webhooks.route";
 import type { CreateAppOptions } from "./app";
@@ -98,6 +99,7 @@ export function createTypedApp(options: CreateAppOptions = {}) {
       }),
     )
     .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
+    .route("/ota", createPublicOtaRoutes())
     .route(
       "/public/media",
       createPublicMediaRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
