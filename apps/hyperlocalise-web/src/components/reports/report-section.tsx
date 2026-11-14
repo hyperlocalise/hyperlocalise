@@ -215,7 +215,7 @@ export function DownloadCsvButton({ download }: { download: () => Promise<GoSvcD
   );
 }
 
-function saveReportDownload(file: GoSvcDownload) {
+export function saveReportDownload(file: GoSvcDownload) {
   const url = URL.createObjectURL(file.blob);
   const anchor = document.createElement("a");
   anchor.href = url;

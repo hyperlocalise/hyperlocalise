@@ -10,8 +10,8 @@ Glossaries, and Translation memories, creates native projects (optionally from a
 project template) and manages project templates, defines custom project fields and sets
 their values, manages and searches the strings, translations, screenshots, and settings of native
 projects, round-trips bilingual files, updates jobs one at a time or in bulk, exports
-glossaries, imports and exports glossaries and translation memories, and registers job-change
-webhook endpoints. Job creation and file uploads continue to use the existing platform API.
+glossaries, imports and exports glossaries and translation memories, registers job-change
+webhook endpoints, and reads the Reports page's reports. Job creation and file uploads continue to use the existing platform API.
 
 ## Run locally
 
@@ -130,6 +130,15 @@ filters. Missing and inaccessible records both return `404`.
 | Glossary import | `POST /v1/glossaries/{glossaryId}/import` (TBX, CSV, XLSX; returns `202`), `GET .../import-reports/{reportId}` | `glossaries:write` / `glossaries:read` |
 | Translation memory import | `POST /v1/translation-memories/{memoryId}/import` (TMX, CSV) | `translation-memories:write` |
 | Webhook endpoints | `GET, POST /v1/webhook-endpoints`, `PATCH, DELETE /v1/webhook-endpoints/{endpointId}`, `POST .../rotate-secret`, `GET .../deliveries` | `webhooks:read` / `webhooks:write` |
+| Reports | `GET /v1/reports/{report}` (`activity`, `words`, `word-series`, `time`, `ai-usage`, `costs`, `budgets`, `contributors`), `GET /v1/jobs/{jobId}/report`; JSON or `format=csv` | `reports:read` (admins and localization managers) |
+
+Reports are read from PostgreSQL through the shared `internal/reporting` package,
+as the token's member, so access, project visibility and billing rules match the
+Reports page. Each workspace may ask for 30 reports a minute per copy, in
+bursts of 10 (`429 rate_limited` with `Retry-After`). The same statement and
+admission limits as go-svc apply. Without `DATABASE_URL` the service does not
+start; report routes answer `503 reports_unavailable` only when the reader is
+not wired.
 
 Project lists and nested string routes treat unassigned projects as belonging to
 the workspace default team, matching go-svc. String, translation, and screenshot

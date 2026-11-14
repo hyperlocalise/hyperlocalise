@@ -602,6 +602,8 @@ type CompletionsInput = {
   source?: CompletionSource;
   /** Whether a person finished the string without changing its text, by segment id. */
   unchanged?: Record<string, boolean>;
+  /** How close a person's text is to the text they were given (`postEditScore`), by segment id. */
+  postEditScores?: Record<string, number>;
 };
 
 export async function captureCompletions(input: CompletionsInput, database: DatabaseClient = db) {
@@ -771,6 +773,11 @@ async function writeReportingCompletions(
         );
       for (const row of rows) earlier.set(row.operationKey, row);
     }
+    const postEditScoreOf = (segmentId: string) => input.postEditScores?.[segmentId] ?? null;
+    const postEditBucketOf = (segmentId: string) => {
+      const score = postEditScoreOf(segmentId);
+      return score === null ? null : matchBucket(score);
+    };
     for (const analysis of finishedAnalyses) {
       const operationKey = `completion:${analysis.id}:${step}`;
       const written = await tx
@@ -787,6 +794,8 @@ async function writeReportingCompletions(
           actorUserId: input.actorUserId ?? null,
           source: input.sources?.[analysis.segmentId] ?? input.source ?? null,
           unchanged: input.unchanged?.[analysis.segmentId] ?? null,
+          postEditScore: postEditScoreOf(analysis.segmentId),
+          postEditBucket: postEditBucketOf(analysis.segmentId),
           createdAt: input.occurredAt?.[analysis.segmentId],
         })
         // One completion per analysis and step: when a person finishes a string a job already
@@ -800,15 +809,24 @@ async function writeReportingCompletions(
             actorUserId: sql`excluded.actor_user_id`,
             source: sql`coalesce(excluded.source, ${schema.reportingActivity.source})`,
             unchanged: sql`excluded.unchanged`,
+            postEditScore: sql`excluded.post_edit_score`,
+            postEditBucket: sql`excluded.post_edit_bucket`,
             createdAt: sql`excluded.created_at`,
           },
-          where: sql`${schema.reportingActivity.actorUserId} is null and excluded.actor_user_id is not null`,
+          // A job's completion gets the person who then saved. The same person's later save
+          // replaces the score, band and day; another person's save does not steal the row.
+          where: sql`(
+            ${schema.reportingActivity.actorUserId} is null and excluded.actor_user_id is not null
+            or ${schema.reportingActivity.actorUserId} is not distinct from excluded.actor_user_id
+              and excluded.created_at >= ${schema.reportingActivity.createdAt}
+          )`,
         })
         .returning(returnedCompletion);
       written.forEach(markCompletion);
       const before = earlier.get(operationKey);
       if (written.length > 0 && before)
         marks.push({ projectId: before.projectId, day: summaryDay(before.createdAt) });
+      if (written.length === 0) continue;
       if (input.provenance !== "human") continue;
       if (input.jobId) {
         const [taskRate] = await tx
@@ -833,6 +851,20 @@ async function writeReportingCompletions(
             ? analysis.charactersWithSpaces
             : analysis.words;
       const priced = rate && units !== null;
+      const amountUsd = priced
+        ? unitCost(
+            rate.rate,
+            units,
+            paidPercent(
+              rate.percentages,
+              // A post-edit line pays by how much the person changed the text they were given;
+              // without a score (nothing given, or too long to score), by the memory band.
+              rate.pricing === "post_edit"
+                ? (postEditBucketOf(analysis.segmentId) ?? analysis.bucket)
+                : analysis.bucket,
+            ),
+          )
+        : null;
       await tx
         .insert(schema.reportingCosts)
         .values({
@@ -844,13 +876,19 @@ async function writeReportingCompletions(
           step,
           targetLocale: input.targetLocale,
           rateId: rate?.id,
-          amountUsd: priced
-            ? unitCost(rate.rate, units, paidPercent(rate.percentages, analysis.bucket))
-            : null,
+          amountUsd,
           basis: priced ? "rate" : "unpriced",
           createdAt: input.occurredAt?.[analysis.segmentId],
         })
-        .onConflictDoNothing();
+        .onConflictDoUpdate({
+          target: [schema.reportingCosts.organizationId, schema.reportingCosts.operationKey],
+          set: {
+            rateId: rate?.id ?? null,
+            amountUsd,
+            basis: priced ? "rate" : "unpriced",
+            createdAt: input.occurredAt?.[analysis.segmentId],
+          },
+        });
     }
     if (marks.length > 0) await markSiblingDays();
     await markSummaryDays(tx, input.organizationId, marks);

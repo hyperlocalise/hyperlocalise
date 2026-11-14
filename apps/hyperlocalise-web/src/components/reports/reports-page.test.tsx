@@ -150,6 +150,7 @@ describe("Reports page", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Activity",
       "Word counts",
+      "Contributors",
       "Time",
       "AI usage",
       "Costs",
@@ -253,6 +254,51 @@ describe("Reports page", () => {
     );
   });
 
+  it("lists each person's finished work, edits, time and pay on the Contributors tab", async () => {
+    mocks.search = "tab=contributors&step=review&unit=characters";
+    renderPage();
+    const table = await screen.findByRole("table", { name: "Work by person" });
+    const rows = within(table).getAllByRole("row");
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "PersonLanguagesFinishedKept unchangedHeavily editedTime loggedPaid",
+      "Mina Parkde-DE, ja-JP6,2002,1001,1004 h 00 m$512.40",
+      "Tom Weberde-DE1,40004001 h 30 m$168.00",
+    ]);
+    expect(screen.getByText("Paid for people's work")).toBeInTheDocument();
+    expect(screen.getByText("3 strings have no rate")).toBeInTheDocument();
+    const bands = screen.getByRole("table", { name: "Finished work by post-edit band" });
+    expect(
+      within(bands)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => row.textContent),
+    ).toEqual([
+      "Unchanged (100%)2,10028%",
+      "Moderate edit (85–94%)3,00039%",
+      "Heavy edit (50–74%)1,10014%",
+      "Rewritten (under 50%)4005%",
+      "No text given1,00013%",
+    ]);
+    // The page's filters reach the read.
+    expect(callsTo("contributors").at(-1)?.args.query).toMatchObject({
+      step: "review",
+      unit: "characters",
+    });
+  });
+
+  it("shows other roles their own row on the Contributors tab, without pay", async () => {
+    mocks.bodies = reportsResponseBodies(
+      createReportsSettings({ financial: false, canManage: false }),
+    );
+    mocks.search = "tab=contributors";
+    renderPage();
+    const table = await screen.findByRole("table", { name: "Work by person" });
+    expect(within(table).queryByText("Paid")).not.toBeInTheDocument();
+    expect(within(table).getByText("Mina Park")).toBeInTheDocument();
+    expect(within(table).queryByText("Tom Weber")).not.toBeInTheDocument();
+    expect(screen.getByText("You see only your own work.")).toBeInTheDocument();
+  });
+
   it("shows other roles only their own time, even when the URL asks for another tab", async () => {
     mocks.bodies = reportsResponseBodies(
       createReportsSettings({ financial: false, canManage: false }),
@@ -260,11 +306,14 @@ describe("Reports page", () => {
     mocks.search = "tab=costs";
     renderPage();
     expect(await screen.findByRole("tab", { name: "Time" })).toBeInTheDocument();
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Time"]);
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Time",
+      "Contributors",
+    ]);
     expect(await screen.findByRole("button", { name: "Log time" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "You see the time you logged. The other reports are for admins and localization managers.",
+        "You see the time you logged and the work you finished. The other reports are for admins and localization managers.",
       ),
     ).toBeInTheDocument();
     // No automated time card: the member's time body has none.

@@ -279,6 +279,12 @@ export const costEstimateTabMessages = defineMessages({
     description:
       "Note under the estimate when some strings' words or characters could not be counted",
   },
+  postEditNote: {
+    id: "JqrENr+RpV",
+    defaultMessage:
+      "Lines set to post-edit pricing are estimated from memory match. Pay is by how much the text changes once the work is done.",
+    description: "Note under the estimate when a rate line pays by post-edit band",
+  },
   tableLabel: {
     id: "YbphJVYBTz",
     defaultMessage: "Cost estimate",

@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { personSave, sourceOfOrigin, sourceOfProvenance } from "./completion-source";
+import { personSave, sourceOfOrigin, sourceOfProvenance, textOriginOf } from "./completion-source";
 
 describe("completion source", () => {
   it("maps editor provenance onto the summary buckets", () => {
@@ -23,18 +23,25 @@ describe("completion source", () => {
   });
 
   it("credits a person only when they changed the text they were given", () => {
-    expect(personSave(undefined)).toEqual({ source: "person", unchanged: false });
-    expect(personSave({ source: "ai", unchanged: true })).toEqual({
-      source: "ai",
-      unchanged: true,
-    });
-    expect(personSave({ source: "ai", unchanged: false })).toEqual({
+    expect(personSave(undefined)).toEqual({
       source: "person",
       unchanged: false,
+      postEditScore: null,
+    });
+    expect(personSave({ source: "ai", unchanged: true, postEditScore: 100 })).toEqual({
+      source: "ai",
+      unchanged: true,
+      postEditScore: 100,
+    });
+    expect(personSave({ source: "ai", unchanged: false, postEditScore: 72 })).toEqual({
+      source: "person",
+      unchanged: false,
+      postEditScore: 72,
     });
     expect(personSave({ source: "import", unchanged: true })).toEqual({
       source: "import",
       unchanged: true,
+      postEditScore: null,
     });
   });
 });
@@ -46,5 +53,19 @@ describe("sourceOfOrigin", () => {
     expect(sourceOfOrigin("machine_post_edited")).toEqual({ source: "person", unchanged: false });
     expect(sourceOfOrigin("human")).toEqual({ source: "person", unchanged: false });
     expect(sourceOfOrigin(null)).toEqual({ source: "person", unchanged: false });
+  });
+});
+
+describe("textOriginOf", () => {
+  it("treats a reviewer who approved the translator's text as unchanged", () => {
+    expect(
+      textOriginOf({ origin: "human", savedText: "Bonjour", givenText: "Bonjour" }),
+    ).toMatchObject({ source: "person", unchanged: true, postEditScore: 100 });
+  });
+
+  it("treats a rewrite of given text as changed, even when the saved origin is machine", () => {
+    expect(
+      textOriginOf({ origin: "machine", savedText: "Bonjour", givenText: "Salut" }),
+    ).toMatchObject({ source: "ai", unchanged: false });
   });
 });

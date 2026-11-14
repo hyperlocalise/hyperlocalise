@@ -20,7 +20,7 @@ import { reportingStart } from "./reporting-start";
  * The version of the daily summary's rules. A workspace whose summary was built under another
  * version is rebuilt in full, so raising this is how a change to the rules reaches old days.
  */
-export const SUMMARY_VERSION = 3;
+export const SUMMARY_VERSION = 4;
 
 export type SummaryMark = { projectId: string | null; day: string };
 
@@ -114,6 +114,16 @@ const MEASURE_COLUMNS = MEASURES.map((measure) => measure.column).join(", ");
 const MEASURE_SUMS = MEASURES.map((measure) => `sum(${measure.column})::integer`).join(", ");
 const ARRIVAL_MEASURES = MEASURES.map((m) => `${m.arrival} as ${m.column}`).join(", ");
 const FINISHED_MEASURES = MEASURES.map((m) => `${m.finished} as ${m.column}`).join(", ");
+
+/** The measures `reporting_daily_by_person` keeps: a person's finished and kept-unchanged work. */
+const PERSON_COLUMNS = UNITS.flatMap(([unit]) => [
+  `finished_${unit}`,
+  `finished_unchanged_${unit}`,
+]).join(", ");
+const PERSON_SUMS = UNITS.flatMap(([, value]) => [
+  `sum(${value})::integer`,
+  `sum(case when unchanged then ${value} else 0 end)::integer`,
+]).join(", ");
 
 /** Days refreshed in one statement for one project: a first build is a year at most. */
 const MAX_DAYS_PER_REFRESH = 400;
@@ -263,7 +273,8 @@ export async function refreshSummaryDays(
         coalesce(c.source, 'unknown') as source, s.billable as payable,
         (c.created_at at time zone 'UTC')::date as day, s.words, s.characters,
         s.characters_with_spaces, c.actor_user_id is not null as by_person,
-        coalesce(c.unchanged, false) as unchanged
+        coalesce(c.unchanged, false) as unchanged, c.actor_user_id,
+        coalesce(c.post_edit_bucket, '') as post_edit_bucket
       from reporting_activity c join reporting_analyses s on s.id = c.analysis_id
       where c.organization_id = ${organizationId} and c.project_id = ${projectId}
         and c.kind = 'completion' and ${inDays("c.created_at")}`;
@@ -348,6 +359,27 @@ export async function refreshSummaryDays(
         from reporting_summary_finished f
       ) facts
       group by target_locale, step, bucket, source, day
+    `);
+    await tx
+      .delete(schema.reportingDailyByPerson)
+      .where(
+        and(
+          eq(schema.reportingDailyByPerson.organizationId, organizationId),
+          eq(schema.reportingDailyByPerson.projectId, projectId),
+          inArray(schema.reportingDailyByPerson.day, days),
+        ),
+      );
+    // People's finished work, by who and by post-edit band, for the Contributors report.
+    await tx.execute(sql`
+      insert into reporting_daily_by_person (organization_id, project_id, job_id, actor_user_id,
+        source_locale, target_locale, step, bucket, post_edit_bucket, source, day,
+        ${sql.raw(PERSON_COLUMNS)})
+      select ${organizationId}, ${projectId}, job_id, actor_user_id, source_locale, target_locale,
+        step, bucket, post_edit_bucket, source, day, ${sql.raw(PERSON_SUMS)}
+      from reporting_summary_finished
+      where actor_user_id is not null
+      group by job_id, actor_user_id, source_locale, target_locale, step, bucket, post_edit_bucket,
+        source, day
     `);
     if (input.skipCurrentRows) return "refreshed";
     await refreshCurrentByProject(tx, organizationId, projectId);

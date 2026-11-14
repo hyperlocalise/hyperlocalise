@@ -29,7 +29,7 @@ func TestAPIKeyCreateIssuesHashedTokenOnce(t *testing.T) {
 	require.Regexp(t, apiKeyFormat, key.Key)
 	require.Equal(t, "CI deploy", key.Name)
 	require.Equal(t, key.Key[:8], key.KeyPrefix)
-	require.Equal(t, []string{"jobs:read", "jobs:write", "files:read", "files:write", "memories:read", "memories:write"}, key.Permissions)
+	require.Equal(t, []string{"jobs:read", "jobs:write", "files:read", "files:write", "memories:read", "memories:write", "reports:read"}, key.Permissions)
 	require.Regexp(t, apiKeyTimestampFormat, key.CreatedAt)
 	require.NotNil(t, key.Owner)
 	require.Equal(t, env.owner.userID, key.Owner.UserID)
@@ -66,7 +66,7 @@ func TestAPIKeyCreateIssuesHashedTokenOnce(t *testing.T) {
 		"apiKeyId":    key.ID,
 		"keyPrefix":   key.KeyPrefix,
 		"name":        key.Name,
-		"permissions": []string{"jobs:read", "jobs:write", "files:read", "files:write", "memories:read", "memories:write"},
+		"permissions": []string{"jobs:read", "jobs:write", "files:read", "files:write", "memories:read", "memories:write", "reports:read"},
 	}, events[0].Payload)
 
 	listRec := env.request(env.owner, http.MethodGet, "", "")

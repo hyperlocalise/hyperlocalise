@@ -1,95 +1,59 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"log/slog"
-	"math"
+	"math/big"
 	"net/http"
-	"regexp"
-	"slices"
-	"strings"
-	"time"
-	"unicode/utf8"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/reporting"
 	"github.com/jackc/pgx/v5/pgconn"
-	"golang.org/x/sync/semaphore"
 )
 
-var errReportingBusy = reportingFailure(503, "reports_busy", "Reports is busy; try again shortly")
-
-// Reports: the reads behind the Reports page under /v1/orgs/{slug}/reports. The web app records
-// the work (analyses, finished strings, time, costs) and keeps the daily summary; this serves what
-// the page shows from those tables. The page's types in `go-svc-reports-api.ts` follow these answers field for field.
-
 const (
-	workspaceReportsFlag      = "workspace-reports"
-	reportingFlagMessage      = "Reports is not enabled for this workspace"
-	reportingRequestTimeout   = 30 * time.Second
-	reportingStatementTimeout = 10 * time.Second
-	// How many Reports requests may query the database at once per copy of the service, so a
-	// Reports page's dozen requests cannot hold every pooled connection while the editor waits.
-	reportingQueriesAtOnce = 2
+	workspaceReportsFlag       = "workspace-reports"
+	reportingFlagMessage       = "Reports is not enabled for this workspace"
+	reportingRequestTimeout    = reporting.RequestTimeout
+	reportingXLSXContentType   = reporting.XLSXContentType
+	reportingQuoteSheet        = reporting.QuoteSheet
+	reportingQueriesAtOnce     = reporting.QueriesAtOnce
+	reportingTaskAnalysisStale = reporting.TaskAnalysisStale
+	reportingAiPageSize        = reporting.AiPageSize
+	reportingAiChildRows       = reporting.AiChildRows
 )
 
 var (
-	reportingUSDPattern     = regexp.MustCompile(`^\d{1,12}(\.\d{1,8})?$`)
-	reportingStepOptions    = []string{"translation", "review"}
-	reportingUnitOptions    = []string{"words", "strings", "characters", "characters_with_spaces"}
-	reportingMatchBucket    = []string{"repetition", "100", "95-99", "85-94", "75-84", "50-74", "new", "unavailable"}
-	reportingSummarySources = []string{"memory", "ai", "person", "import", "unknown"}
+	reportingUnitOptions   = reporting.UnitOptions
+	reportingStepOptions   = reporting.StepOptions
+	reportingMatchBucket   = reporting.MatchBucket
+	reportingTaskRunStages = reporting.TaskRunStages
 )
 
 type reportingAPI struct {
-	pool       dictionaryPool
+	*reporting.API
 	membership organizationMembershipLookup
-	flags      workspaceFlagChecker
-	now        func() time.Time
-	queries    *semaphore.Weighted
 }
 
 func newReportingAPI() *reportingAPI {
-	return &reportingAPI{now: time.Now, queries: semaphore.NewWeighted(reportingQueriesAtOnce)}
+	api := reporting.New()
+	api.FailClosed = true
+	return &reportingAPI{API: api}
 }
 
-type reportingActor struct {
-	userID, organizationID, role       string
-	workosUserID, workosOrganizationID string
-}
-
-func (a reportingActor) can(capability string) bool {
-	return hasOrganizationCapability(a.role, capability)
-}
-
-// orgWideProjectAccess mirrors the web app's hasOrganizationWideProjectAccess: the roles that
-// manage teams can open every project.
-func (a reportingActor) orgWideProjectAccess() bool {
-	return a.can("teams:write")
-}
-
-type reportingError struct {
-	status        int
-	code, message string
-}
-
-func (e *reportingError) Error() string { return e.code }
+type (
+	reportingActor = reporting.Actor
+	reportingError = reporting.Error
+	reportingCSV   = reporting.CSV
+	reportingFile  = reporting.File
+)
 
 func reportingFailure(status int, code, message string) error {
-	return &reportingError{status: status, code: code, message: message}
-}
-
-func reportingInvalid(code string) error {
-	return reportingFailure(400, code, "Request payload is invalid")
+	return &reporting.Error{Status: status, Code: code, Message: message}
 }
 
 func reportingInvalidQuery() error {
 	return reportingFailure(400, "invalid_report_query", "Report query is invalid")
-}
-
-func reportingForbidden(code string) error {
-	return reportingFailure(403, code, "Insufficient permissions")
 }
 
 func (api *reportingAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
@@ -97,48 +61,41 @@ func (api *reportingAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route := func(pattern, capability, deniedCode string, fn func(*http.Request, reportingActor) (any, int, error)) {
 		registerAuthenticated(mux, verifier, pattern, api.handle(capability, deniedCode, fn))
 	}
-	route("GET "+base+"/jobs", "", "", api.tasks)
-	route("GET "+base+"/settings", "", "", api.settings)
-	route("GET "+base+"/activity", "billing:read", "report_costs_forbidden", api.activity)
-	route("GET "+base+"/step-times", "billing:read", "report_costs_forbidden", api.stepTimes)
-	route("GET "+base+"/words/series", "billing:read", "report_costs_forbidden", api.wordSeries)
-	route("GET "+base+"/words", "billing:read", "report_costs_forbidden", api.words)
-	route("GET "+base+"/time", "", "", api.time)
-	route("GET "+base+"/ai-usage", "billing:read", "report_costs_forbidden", api.aiUsage)
-	route("GET "+base+"/costs", "billing:read", "report_costs_forbidden", api.costs)
-	route("GET "+base+"/cost-estimate", "billing:read", "report_costs_forbidden", api.costEstimate)
-	route("GET "+base+"/budgets", "billing:read", "report_costs_forbidden", api.budgets)
-	route("GET "+base+"/rate-cards", "billing:read", "report_costs_forbidden", api.rateCards)
-	route("PUT "+base+"/rate-cards", "billing:write", "report_costs_forbidden", api.saveRateCard)
-	route("PUT "+base+"/budgets", "billing:write", "report_costs_forbidden", api.saveBudget)
-	route("PUT "+base+"/task-rates", "billing:write", "report_costs_forbidden", api.saveTaskRate)
-	route("POST "+base+"/time-entries", "jobs:write", "time_entry_forbidden", api.logTime)
-	route("PATCH "+base+"/time-entries/{id}", "", "", api.editTime)
-	route("DELETE "+base+"/time-entries/{id}", "", "", api.voidTime)
-	route("GET "+base+"/tasks/{jobId}/report", "", "", api.taskReport)
-	route("GET "+base+"/tasks/{jobId}/analysis", "", "", api.taskAnalysis)
+	route("GET "+base+"/jobs", "", "", api.Tasks)
+	route("GET "+base+"/settings", "", "", api.Settings)
+	route("GET "+base+"/activity", "billing:read", "report_costs_forbidden", api.Activity)
+	route("GET "+base+"/step-times", "billing:read", "report_costs_forbidden", api.StepTimes)
+	route("GET "+base+"/words/series", "billing:read", "report_costs_forbidden", api.WordSeries)
+	route("GET "+base+"/words", "billing:read", "report_costs_forbidden", api.Words)
+	route("GET "+base+"/time", "", "", api.Time)
+	route("GET "+base+"/contributors", "", "", api.Contributors)
+	route("GET "+base+"/ai-usage", "billing:read", "report_costs_forbidden", api.AIUsage)
+	route("GET "+base+"/costs", "billing:read", "report_costs_forbidden", api.Costs)
+	route("GET "+base+"/cost-estimate", "billing:read", "report_costs_forbidden", api.CostEstimate)
+	route("GET "+base+"/budgets", "billing:read", "report_costs_forbidden", api.Budgets)
+	route("GET "+base+"/rate-cards", "billing:read", "report_costs_forbidden", api.RateCards)
+	route("PUT "+base+"/rate-cards", "billing:write", "report_costs_forbidden", api.SaveRateCard)
+	route("PUT "+base+"/budgets", "billing:write", "report_costs_forbidden", api.SaveBudget)
+	route("PUT "+base+"/task-rates", "billing:write", "report_costs_forbidden", api.SaveTaskRate)
+	route("POST "+base+"/time-entries", "jobs:write", "time_entry_forbidden", api.LogTime)
+	route("PATCH "+base+"/time-entries/{id}", "", "", api.EditTime)
+	route("DELETE "+base+"/time-entries/{id}", "", "", api.VoidTime)
+	route("GET "+base+"/tasks/{jobId}/report", "", "", api.TaskReport)
+	route("GET "+base+"/tasks/{jobId}/analysis", "", "", api.TaskAnalysis)
 }
 
 func (api *reportingAPI) actor(ctx context.Context, claims AuthClaims, slug string) (reportingActor, error) {
-	resolved, err := resolveOrganizationActor(ctx, api.pool, api.membership, claims, slug)
+	resolved, err := resolveOrganizationActor(ctx, api.Pool, api.membership, claims, slug)
 	if err != nil {
 		return reportingActor{}, mapOrganizationAccessError(err, reportingFailure)
 	}
 	var workosOrg string
-	if err := api.pool.QueryRow(ctx, `select workos_organization_id from organizations where id=$1`, resolved.organizationID).Scan(&workosOrg); err != nil {
+	if err := api.Pool.QueryRow(ctx, `select workos_organization_id from organizations where id=$1`, resolved.organizationID).Scan(&workosOrg); err != nil {
 		return reportingActor{}, err
 	}
-	return reportingActor{
-		userID:               resolved.userID,
-		organizationID:       resolved.organizationID,
-		role:                 resolved.role,
-		workosUserID:         claims.UserID,
-		workosOrganizationID: workosOrg,
-	}, nil
+	return reporting.NewActor(resolved.userID, resolved.organizationID, resolved.role, claims.UserID, workosOrg), nil
 }
 
-// handle checks the session, the workspace, the Reports flag and the route's capability, in that
-// order. The database admission limit is in read.
 func (api *reportingAPI) handle(capability, deniedCode string, fn func(*http.Request, reportingActor) (any, int, error)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
@@ -146,7 +103,7 @@ func (api *reportingAPI) handle(capability, deniedCode string, fn func(*http.Req
 			writeReportingError(w, r, "origin_guard", reportingFailure(403, "forbidden", "Cross-origin request denied"))
 			return
 		}
-		if api.pool == nil {
+		if api.Pool == nil {
 			writeReportingError(w, r, "availability", reportingFailure(503, "reports_unavailable", "Reports service unavailable"))
 			return
 		}
@@ -167,7 +124,9 @@ func (api *reportingAPI) handle(capability, deniedCode string, fn func(*http.Req
 			writeReportingError(w, r, "flag", reportingFailure(403, "feature_unavailable", reportingFlagMessage))
 			return
 		}
-		if capability != "" && !actor.can(capability) {
+		r = r.WithContext(reporting.WithWorkspace(ctx, actor.OrganizationID()))
+		ctx = r.Context()
+		if capability != "" && !actor.Can(capability) {
 			writeReportingError(w, r, "capability", reportingForbidden(deniedCode))
 			return
 		}
@@ -182,27 +141,19 @@ func (api *reportingAPI) handle(capability, deniedCode string, fn func(*http.Req
 			return
 		}
 		if download, ok := value.(reportingCSV); ok {
-			writeReportingCSV(ctx, w, status, download)
+			reporting.WriteCSV(ctx, w, status, download)
 			return
 		}
-		reportingJSON(ctx, w, status, value)
+		if file, ok := value.(reportingFile); ok {
+			reporting.WriteFile(ctx, w, status, file)
+			return
+		}
+		reporting.WriteJSON(ctx, w, status, value)
 	})
 }
 
-func (api *reportingAPI) flagEnabled(ctx context.Context, actor reportingActor) bool {
-	if api.flags == nil {
-		return false
-	}
-	enabled, err := api.flags.Enabled(ctx, actor.workosOrganizationID, actor.workosUserID, workspaceReportsFlag)
-	return err == nil && enabled
-}
-
-func reportingJSON(ctx context.Context, w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(value); err != nil {
-		slog.WarnContext(ctx, "reporting_response_write_failed")
-	}
+func reportingForbidden(code string) error {
+	return reportingFailure(403, code, "Insufficient permissions")
 }
 
 func writeReportingError(w http.ResponseWriter, r *http.Request, phase string, err error) {
@@ -210,271 +161,139 @@ func writeReportingError(w http.ResponseWriter, r *http.Request, phase string, e
 	var pgErr *pgconn.PgError
 	switch {
 	case errors.As(err, &failure):
-		logRequestFailure(r, "reporting_request_failed", phase, err, "status", failure.status, "code", failure.code)
+		logRequestFailure(r, "reporting_request_failed", phase, err, "status", failure.Status, "code", failure.Code)
 	case (errors.As(err, &pgErr) && pgErr.Code == "57014") || errors.Is(err, context.DeadlineExceeded):
-		// The statement or request time limit: the report is too wide, or a lock was held too long.
 		logRequestFailure(r, "reporting_request_failed", phase, err, "status", 503, "code", "report_timed_out")
-		failure = &reportingError{status: 503, code: "report_timed_out", message: "The request took too long; try again, or choose fewer days for a report"}
+		failure = &reportingError{Status: 503, Code: "report_timed_out", Message: "The request took too long; try again, or choose fewer days for a report"}
 	default:
 		logRequestFailure(r, "reporting_request_failed", phase, err)
-		failure = &reportingError{status: 500, code: "internal_error", message: "Internal server error"}
+		failure = &reportingError{Status: 500, Code: "internal_error", Message: "Internal server error"}
 	}
-	reportingJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
+	reporting.WriteJSON(r.Context(), w, failure.Status, map[string]string{"error": failure.Code, "message": failure.Message})
 }
 
-func formatReportingTime(t time.Time) string {
-	return t.UTC().Format("2006-01-02T15:04:05.000Z")
+func writeReportingCSV(ctx context.Context, w http.ResponseWriter, status int, download reportingCSV) {
+	reporting.WriteCSV(ctx, w, status, download)
 }
 
-type reportingBody struct {
-	fields map[string]json.RawMessage
-	valid  bool
+func reportingCSVCell(text string) string { return reporting.CSVCell(text) }
+
+func reportingNumber(value float64) string { return reporting.Number(value) }
+
+func reportingAudit(ctx context.Context, tx reporting.DB, actor reportingActor, resourceID, action string, before, after any) error {
+	return reporting.Audit(ctx, tx, actor, resourceID, action, before, after)
 }
 
-func readReportingBody(r *http.Request, code string) (*reportingBody, error) {
-	fields, err := readWorkspaceObject(r)
-	if err != nil {
-		return nil, reportingInvalid(code)
-	}
-	return &reportingBody{fields: fields, valid: true}, nil
+func (api *reportingAPI) read(ctx context.Context, fn func(db reporting.DB) error) error {
+	return api.Read(ctx, fn)
 }
 
-func (b *reportingBody) fail() { b.valid = false }
-
-func (b *reportingBody) field(key string) (json.RawMessage, bool) {
-	raw, ok := b.fields[key]
-	return raw, ok
+func (api *reportingAPI) saveRateCard(r *http.Request, actor reportingActor) (any, int, error) {
+	return api.SaveRateCard(r, actor)
 }
 
-func (b *reportingBody) decodeString(raw json.RawMessage) (string, bool) {
-	var value string
-	if isJSONNull(raw) || json.Unmarshal(raw, &value) != nil || !reportingValidText(value) {
-		b.fail()
-		return "", false
-	}
-	return value, true
+func (api *reportingAPI) rateCards(r *http.Request, actor reportingActor) (any, int, error) {
+	return api.RateCards(r, actor)
 }
 
-// reportingValidText refuses what the database refuses in text: invalid UTF-8 and NUL bytes.
-func reportingValidText(value string) bool {
-	return utf8.ValidString(value) && !strings.ContainsRune(value, 0)
-}
-
-func (b *reportingBody) checkLength(value string, minLength, maxLength int) {
-	if n := utf16Length(value); n < minLength || n > maxLength {
-		b.fail()
-	}
-}
-
-func (b *reportingBody) text(key string, minLength, maxLength int) string {
-	raw, ok := b.field(key)
-	if !ok {
-		b.fail()
-		return ""
-	}
-	value, ok := b.decodeString(raw)
-	if ok {
-		b.checkLength(value, minLength, maxLength)
-	}
-	return value
-}
-
-func (b *reportingBody) trimmedText(key string, minLength, maxLength int) string {
-	raw, ok := b.field(key)
-	if !ok {
-		b.fail()
-		return ""
-	}
-	value, ok := b.decodeString(raw)
-	if !ok {
-		return ""
-	}
-	value = jsTrim(value)
-	b.checkLength(value, minLength, maxLength)
-	return value
-}
-
-func (b *reportingBody) optionalText(key string, maxLength int) *string {
-	raw, ok := b.field(key)
-	if !ok {
-		return nil
-	}
-	value, ok := b.decodeString(raw)
-	if !ok {
-		return nil
-	}
-	b.checkLength(value, 0, maxLength)
-	return &value
-}
-
-// nullableTrimmedText is z.string().trim().min(1).max(n).nullable().default(null): absent or
-// null is null, and an empty string after trimming is invalid.
-func (b *reportingBody) nullableTrimmedText(key string, maxLength int) *string {
-	raw, ok := b.field(key)
-	if !ok || isJSONNull(raw) {
-		return nil
-	}
-	value := b.trimmedText(key, 1, maxLength)
-	return &value
-}
-
-func (b *reportingBody) boolean(key string, fallback bool) bool {
-	raw, ok := b.field(key)
-	if !ok {
-		return fallback
-	}
-	var value bool
-	if isJSONNull(raw) || json.Unmarshal(raw, &value) != nil {
-		b.fail()
-		return fallback
-	}
-	return value
-}
-
-// objects is an array of at most maxItems objects, each read with its own body helpers.
-func (b *reportingBody) objects(key string, maxItems int) []*reportingBody {
-	raw, ok := b.field(key)
-	if !ok {
-		b.fail()
-		return nil
-	}
-	var items []map[string]json.RawMessage
-	if isJSONNull(raw) || json.Unmarshal(raw, &items) != nil || len(items) > maxItems {
-		b.fail()
-		return nil
-	}
-	bodies := make([]*reportingBody, 0, len(items))
-	for _, item := range items {
-		if item == nil {
-			b.fail()
-			continue
-		}
-		bodies = append(bodies, &reportingBody{fields: item, valid: true})
-	}
-	return bodies
-}
-
-func (b *reportingBody) nullableText(key string, maxLength int) *string {
-	raw, ok := b.field(key)
-	if !ok || isJSONNull(raw) {
-		return nil
-	}
-	return b.optionalText(key, maxLength)
-}
-
-func (b *reportingBody) choice(key string, options ...string) string {
-	value := b.text(key, 0, math.MaxInt)
-	if !slices.Contains(options, value) {
-		b.fail()
-	}
-	return value
-}
-
-func (b *reportingBody) step(key string) string {
-	return b.choice(key, reportingStepOptions...)
-}
-
-func (b *reportingBody) usd(key string) string {
-	value := b.text(key, 0, math.MaxInt)
-	if !reportingUSDPattern.MatchString(value) {
-		b.fail()
-	}
-	return value
-}
-
-func (b *reportingBody) nullableUSD(key string) *string {
-	raw, ok := b.field(key)
-	if !ok || isJSONNull(raw) {
-		return nil
-	}
-	value := b.usd(key)
-	return &value
-}
-
-// day is a calendar day from 2000 on.
-func (b *reportingBody) day(key string) string {
-	value := b.text(key, 0, math.MaxInt)
-	if !isReportingDay(value) || value < "2000-01-01" {
-		b.fail()
-	}
-	return value
-}
-
-func (b *reportingBody) uuid(key string) string {
-	value := b.text(key, 0, math.MaxInt)
-	if !apiKeyIDPattern.MatchString(value) {
-		b.fail()
-	}
-	return value
-}
-
-func (b *reportingBody) nullableUUID(key string) *string {
-	raw, ok := b.field(key)
-	if !ok || isJSONNull(raw) {
-		return nil
-	}
-	value := b.uuid(key)
-	return &value
-}
-
-func (b *reportingBody) decodeInteger(raw json.RawMessage, minValue, maxValue int) int {
-	var value float64
-	trimmed := bytes.TrimSpace(raw)
-	if len(trimmed) == 0 || (trimmed[0] != '-' && (trimmed[0] < '0' || trimmed[0] > '9')) || json.Unmarshal(trimmed, &value) != nil {
-		b.fail()
-		return 0
-	}
-	if value != math.Trunc(value) || value < float64(minValue) || value > float64(maxValue) {
-		b.fail()
-		return 0
-	}
-	return int(value)
-}
-
-func (b *reportingBody) integer(key string, minValue, maxValue int) int {
-	raw, ok := b.field(key)
-	if !ok {
-		b.fail()
-		return 0
-	}
-	return b.decodeInteger(raw, minValue, maxValue)
-}
-
-func (b *reportingBody) nullableInteger(key string, minValue, maxValue int) *int {
-	raw, ok := b.field(key)
-	if !ok || isJSONNull(raw) {
-		return nil
-	}
-	value := b.decodeInteger(raw, minValue, maxValue)
-	return &value
-}
-
-func (b *reportingBody) percentages(key string) map[string]int {
-	result := map[string]int{}
-	raw, ok := b.field(key)
-	if !ok {
-		return result
-	}
-	var entries map[string]json.RawMessage
-	if isJSONNull(raw) || json.Unmarshal(raw, &entries) != nil {
-		b.fail()
-		return result
-	}
-	for bucket, value := range entries {
-		if !slices.Contains(reportingMatchBucket, bucket) {
-			b.fail()
-			continue
-		}
-		result[bucket] = b.decodeInteger(value, 0, 100)
-	}
-	return result
-}
-
-// isReportingDay accepts a day as YYYY-MM-DD, a real calendar date.
-func isReportingDay(value string) bool {
-	if len(value) != len(time.DateOnly) {
+func (api *reportingAPI) flagEnabled(ctx context.Context, actor reportingActor) bool {
+	if api.Flags == nil {
 		return false
 	}
-	_, err := time.Parse(time.DateOnly, value)
-	return err == nil
+	enabled, err := api.Flags.Enabled(ctx, actor.WorkOSOrganizationID(), actor.WorkOSUserID(), workspaceReportsFlag)
+	return err == nil && enabled
+}
+
+const reportingWordCountPageSize = reporting.WordCountPageSize
+
+type (
+	reportingRateCard         = reporting.RateCard
+	reportingRateLine         = reporting.RateLine
+	reportingRateRow          = reporting.RateRow
+	reportingWordCounts       = reporting.WordCounts
+	reportingWordCountRow     = reporting.WordCountRow
+	reportingStepTimes        = reporting.StepTimes
+	reportingStepTime         = reporting.StepTime
+	reportingAutomatedTime    = reporting.AutomatedTime
+	reportingWorkflowStepTime = reporting.WorkflowStepTime
+	reportingTaskRuns         = reporting.TaskRuns
+	reportingStageTime        = reporting.StageTime
+	reportingLoggedTime       = reporting.LoggedTime
+	reportingLoggedTimeRow    = reporting.LoggedTimeRow
+)
+
+func reportingSamePercentages(left json.RawMessage, right map[string]int) bool {
+	return reporting.SamePercentages(left, right)
+}
+
+func reportingLineKey(sourceLocale, targetLocale, step string) string {
+	return reporting.LineKey(sourceLocale, targetLocale, step)
+}
+
+func reportingLiveRateRowsSQL(organizationParam string) string {
+	return reporting.LiveRateRowsSQL(organizationParam)
+}
+
+func reportingBudgetStatus(budget, spent, forecast *big.Int) string {
+	return reporting.BudgetStatus(budget, spent, forecast)
+}
+
+func resolveReportingRate(ctx context.Context, db reporting.DB, organizationID, projectID, jobID, sourceLocale, targetLocale, step string) (*reportingRateRow, error) {
+	return reporting.ResolveRate(ctx, db, organizationID, projectID, jobID, sourceLocale, targetLocale, step)
+}
+
+func reportingWordCountsCSV(counts reportingWordCounts) reportingCSV {
+	return reporting.WordCountsCSV(counts)
+}
+
+func reportingStepTimesCSV(times reportingStepTimes) reportingCSV {
+	return reporting.StepTimesCSV(times)
+}
+
+func reportingLoggedTimeCSV(logged reportingLoggedTime) reportingCSV {
+	return reporting.LoggedTimeCSV(logged)
+}
+
+func reportingProjectIDs(ctx context.Context, db reporting.DB, actor reportingActor) ([]string, error) {
+	return reporting.ProjectIDs(ctx, db, actor)
+}
+
+func queryReportingTaskWords(ctx context.Context, db reporting.DB, organizationID, jobID, unit string) (reporting.TaskWords, error) {
+	return reporting.QueryTaskWords(ctx, db, organizationID, jobID, unit)
+}
+
+func reportingAiAreaSQL(source, agentRunKind string) string {
+	return reporting.AiAreaSQL(source, agentRunKind)
+}
+
+func reportingAiChannelSQL(source, viaApiKey string) string {
+	return reporting.AiChannelSQL(source, viaApiKey)
+}
+
+func reportingAttributedUsageSQL(organizationParam, where string) string {
+	return reporting.AttributedUsageSQL(organizationParam, where)
+}
+
+func listReportingRateCards(ctx context.Context, db reporting.DB, organizationID string) ([]reportingRateCard, error) {
+	return reporting.ListRateCards(ctx, db, organizationID)
+}
+
+func compareReportingNames(a, b string) int {
+	return reporting.CompareNames(a, b)
+}
+
+func usdUnits(value string) (*big.Int, error) {
+	return reporting.USDUnits(value)
+}
+
+func usdString(value *big.Int) string {
+	return reporting.USDString(value)
+}
+
+func wordCost(rate string, words, payablePercent int) (*big.Int, error) {
+	return reporting.WordCost(rate, words, payablePercent)
+}
+
+func queryReportingLockedPricingSteps(ctx context.Context, db reporting.DB, organizationID, jobID, status string) ([]string, error) {
+	return reporting.LockedPricingSteps(ctx, db, organizationID, jobID, status)
 }

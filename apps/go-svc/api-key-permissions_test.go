@@ -9,7 +9,7 @@ import (
 func TestGrantableAPIKeyPermissionsByRole(t *testing.T) {
 	t.Parallel()
 
-	all := []string{"jobs:read", "jobs:write", "files:read", "files:write", "memories:read", "memories:write"}
+	all := []string{"jobs:read", "jobs:write", "files:read", "files:write", "memories:read", "memories:write", "reports:read"}
 	contributors := []string{"jobs:read", "jobs:write", "files:read", "files:write", "memories:read"}
 	cases := map[string][]string{
 		"admin":                all,

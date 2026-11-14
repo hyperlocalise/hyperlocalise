@@ -48,6 +48,16 @@ func TestEffectivePermissions(t *testing.T) {
 		}
 	})
 
+	t.Run("only roles that see what work costs keep reports:read", func(t *testing.T) {
+		for role, allowed := range map[string]bool{
+			"admin": true, "localization_manager": true,
+			"developer": false, "reviewer": false, "translator": false, "member": false,
+		} {
+			perms := effectivePermissions([]string{"reports:read"}, role)
+			require.Equal(t, allowed, contains(perms, "reports:read"), role)
+		}
+	})
+
 	t.Run("member files write does not expand strings write", func(t *testing.T) {
 		perms := effectivePermissions([]string{"files:write"}, "member")
 		require.Empty(t, perms)

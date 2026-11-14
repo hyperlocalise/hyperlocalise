@@ -33,8 +33,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { isApiResponseErrorCode } from "@/lib/api-error";
 import {
   RATE_BASES,
+  RATE_PRICINGS,
   REPORT_STEPS,
   type RateBasis,
+  type RatePricing,
   type ReportStep,
 } from "@/lib/reporting/report-units";
 import { MATCH_BUCKETS, type MatchBucket } from "@/lib/reporting/word-analysis";
@@ -57,6 +59,7 @@ type Line = {
   targetLocale: string;
   step: ReportStep;
   basis: RateBasis;
+  pricing: RatePricing;
   rate: string;
 };
 
@@ -73,6 +76,11 @@ const BASIS_MESSAGES = {
   character_with_spaces: messages.basis_character_with_spaces,
   hour: messages.basis_hour,
 } satisfies Record<RateBasis, unknown>;
+
+const PRICING_MESSAGES = {
+  memory_match: messages.pricing_memory_match,
+  post_edit: messages.pricing_post_edit,
+} satisfies Record<RatePricing, unknown>;
 
 const samePercentages = (left: Percentages, right: Percentages) =>
   PAID_BANDS.every((bucket) => (left[bucket] ?? 100) === (right[bucket] ?? 100));
@@ -140,6 +148,7 @@ export function ManageRatesSheet({
         targetLocale: line.targetLocale,
         step: line.step,
         basis: line.basis,
+        pricing: line.pricing,
         rate: String(Number(line.rate)),
       })),
     );
@@ -180,6 +189,7 @@ export function ManageRatesSheet({
           targetLocale: line.targetLocale,
           step: line.step,
           basis: line.basis,
+          pricing: line.pricing,
           rate: line.rate.trim(),
           percentages,
         })),
@@ -341,6 +351,7 @@ export function ManageRatesSheet({
                         <TableHead>{intl.formatMessage(messages.targetColumn)}</TableHead>
                         <TableHead>{intl.formatMessage(messages.stepColumn)}</TableHead>
                         <TableHead>{intl.formatMessage(messages.basisColumn)}</TableHead>
+                        <TableHead>{intl.formatMessage(messages.pricingColumn)}</TableHead>
                         <TableHead className="text-right">
                           {intl.formatMessage(messages.rateColumn)}
                         </TableHead>
@@ -367,6 +378,9 @@ export function ManageRatesSheet({
                             <TableCell>{line.targetLocale}</TableCell>
                             <TableCell>{stepLabel(intl, line.step)}</TableCell>
                             <TableCell>{intl.formatMessage(BASIS_MESSAGES[line.basis])}</TableCell>
+                            <TableCell>
+                              {intl.formatMessage(PRICING_MESSAGES[line.pricing])}
+                            </TableCell>
                             <TableCell className="text-right tabular-nums">
                               {formatRateAmount(intl, line.rate)}
                             </TableCell>
@@ -390,6 +404,7 @@ export function ManageRatesSheet({
                             targetLocale: locales.targets[0] ?? "",
                             step: "translation",
                             basis: defaultBasis,
+                            pricing: "memory_match",
                             rate: "",
                           },
                         ])
@@ -480,6 +495,19 @@ function EditableLine({
             label: intl.formatMessage(BASIS_MESSAGES[basis]),
           }))}
           onChange={(basis) => onChange({ basis: basis as RateBasis })}
+        />
+      </TableCell>
+      <TableCell>
+        <ReportSelect
+          className="w-full min-w-40"
+          hideLabel
+          label={intl.formatMessage(messages.pricingColumn)}
+          value={line.pricing}
+          options={RATE_PRICINGS.map((pricing) => ({
+            value: pricing,
+            label: intl.formatMessage(PRICING_MESSAGES[pricing]),
+          }))}
+          onChange={(pricing) => onChange({ pricing: pricing as RatePricing })}
         />
       </TableCell>
       <TableCell className="text-right">

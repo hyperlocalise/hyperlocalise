@@ -195,6 +195,10 @@
     "defaultMessage": "Write a comment",
     "description": "Keyboard shortcuts dialog row for focusing the comment box"
   },
+  "+FItbgGdn4": {
+    "defaultMessage": "You see the time you logged and the work you finished. The other reports are for admins and localization managers.",
+    "description": "Note on the Reports page for roles that cannot see what work costs: they only see their own time and work"
+  },
   "+FX267AAXq": {
     "defaultMessage": "SERP · {keyword}",
     "description": "SERP sheet title"
@@ -414,6 +418,10 @@
   "+WcpU6CzaH": {
     "defaultMessage": "Shows localization automation status in GitHub Checks.",
     "description": "Description for enabling GitHub status checks"
+  },
+  "+Wpv0T3a6q": {
+    "defaultMessage": "Valid for (days)",
+    "description": "Label of the field for how many days the quote is valid"
   },
   "+WsHQLSMmY": {
     "defaultMessage": "Remove {eventType}",
@@ -1879,6 +1887,10 @@
     "defaultMessage": "{count, plural, one {Imported # issue} other {Imported # issues}}",
     "description": "Toast when Issue Sheet CSV import completes successfully"
   },
+  "0WiFuXZGAa": {
+    "defaultMessage": "Some work has no rate, time estimate or match band, so this total is not exact.",
+    "description": "Printed quote note when the estimate is incomplete"
+  },
   "0WzgaMmIa3": {
     "defaultMessage": "An engineer reviews the diff and merges. Every locale stays current with no manual steps.",
     "description": "localisation-cli-and-api use case page: scenario › events › #4 › body"
@@ -2050,6 +2062,10 @@
   "0jMUHyL955": {
     "defaultMessage": "{count, plural, one {# project} other {# projects}}",
     "description": "Badge when a guideline applies to selected projects"
+  },
+  "0kUEL0SBUJ": {
+    "defaultMessage": "Band",
+    "description": "Column heading: the post-edit band"
   },
   "0kVq+Iz5xk": {
     "defaultMessage": "Enter whole minutes, such as 90.",
@@ -2310,6 +2326,10 @@
   "15zAdlHpmJ": {
     "defaultMessage": "HubSpot",
     "description": "Tool badge when an automation uses HubSpot"
+  },
+  "16Sso7esDq": {
+    "defaultMessage": "Heavily edited",
+    "description": "Column heading: units whose given text the person changed so much it matched under 75%"
   },
   "16jzdfV84U": {
     "defaultMessage": "Default",
@@ -3227,6 +3247,10 @@
     "defaultMessage": "Product",
     "description": "Label for the company product summary on a localisation audit result"
   },
+  "2MefOaLoI3": {
+    "defaultMessage": "People who finished work",
+    "description": "Contributors card: how many people finished strings or logged time"
+  },
   "2N/8jZzb94": {
     "defaultMessage": "Phrase",
     "description": "TMS provider brand name for Phrase"
@@ -3338,6 +3362,10 @@
   "2bIgjVHpIr": {
     "defaultMessage": "How does the editor help translators work faster?",
     "description": "Content Studio FAQ question about the editor"
+  },
+  "2bKPj5jMhl": {
+    "defaultMessage": "Reference",
+    "description": "Label of the field for the quote's reference, such as a purchase order number"
   },
   "2bcqIKg6pj": {
     "defaultMessage": "International growth teams that want each market to get the version that works there, not just a translation of the home market.",
@@ -3666,6 +3694,10 @@
   "33oBuvwkTx": {
     "defaultMessage": "Save",
     "description": "Save button on the edit TM segment dialog"
+  },
+  "34HUmRsk4k": {
+    "defaultMessage": "Finished by people",
+    "description": "Contributors card: units people finished in the dates"
   },
   "34gyyDcFUG": {
     "defaultMessage": "Provider",
@@ -4159,6 +4191,10 @@
     "defaultMessage": "Keep Braze copies that teammates edited after the last push.",
     "description": "Explains the selected automation keeps newer Braze copies"
   },
+  "3paNHiKLtX": {
+    "defaultMessage": "Languages",
+    "description": "Column heading: the target languages the person worked on"
+  },
   "3poXpaPEFu": {
     "defaultMessage": "Enter URL",
     "description": "Dialog action to switch to entering an image URL"
@@ -4354,6 +4390,10 @@
   "4/+3RXAa/C": {
     "defaultMessage": "Import/export history",
     "description": "Translation memory import and export history dialog title"
+  },
+  "4/2rftovSG": {
+    "defaultMessage": "How close each finished string is to the AI, machine or imported {unit} the person was given, banded as memory matches are. A rate line set to post-edit pricing pays by these bands.",
+    "description": "Explanation under the post-edit analysis heading"
   },
   "4/O19yxuqg": {
     "defaultMessage": "Edit",
@@ -5127,6 +5167,10 @@
     "defaultMessage": "Accept selected",
     "description": "Bulk action to accept selected proposals"
   },
+  "58CdeEANig": {
+    "defaultMessage": "Finished",
+    "description": "Column heading: units the person finished"
+  },
   "58CkPn5dyT": {
     "defaultMessage": "Copy this secret now; it will not be shown again. Use it to check the webhook-signature header on each request.",
     "description": "Description of the dialog that shows a webhook signing secret once"
@@ -5843,6 +5887,10 @@
     "defaultMessage": "Unable to load entries",
     "description": "Fallback error when translation memory entries fail to load"
   },
+  "63DyMGYSwU": {
+    "defaultMessage": "Contributors",
+    "description": "Reports tab: each person's finished work, time and pay"
+  },
   "63x7baaw0h": {
     "defaultMessage": "Approved",
     "description": "Badge on a translation variant whose occurrences are all approved"
@@ -5874,6 +5922,10 @@
   "68ZSvMDw6F": {
     "defaultMessage": "No change",
     "description": "Metric with the same first and last value"
+  },
+  "69KFzmG1Jw": {
+    "defaultMessage": "Download Excel",
+    "description": "Button that downloads the quote as an Excel workbook"
   },
   "6A1bUgl3t/": {
     "defaultMessage": "Cancel",
@@ -5982,6 +6034,10 @@
   "6L6wa37ZDx": {
     "defaultMessage": "You can select up to 16 markets.",
     "description": "Maximum market selection message"
+  },
+  "6LfInx/qYv": {
+    "defaultMessage": "Print or save as PDF",
+    "description": "Button that opens the quote for printing or saving as a PDF"
   },
   "6Lm9EGksM9": {
     "defaultMessage": "Open concept",
@@ -6299,6 +6355,10 @@
     "defaultMessage": "{unit} to translate",
     "description": "Task report card: the task's units in the chosen step, such as Words to translate"
   },
+  "6q041SWXrc": {
+    "defaultMessage": "Create quote",
+    "description": "Button on the Cost estimate tab that opens the quote dialog"
+  },
   "6qYMXPCPow": {
     "defaultMessage": "Workspace",
     "description": "Badge for a native workspace translation memory"
@@ -6430,6 +6490,10 @@
   "71wFkHX0+3": {
     "defaultMessage": "+4 vs last run",
     "description": "Domains mock UI score delta label"
+  },
+  "72umAa8/V7": {
+    "defaultMessage": "Kept unchanged",
+    "description": "Column heading: units the person finished without changing the given text"
   },
   "73DwGFhZM/": {
     "defaultMessage": "1 project",
@@ -8431,6 +8495,10 @@
     "defaultMessage": "No locale",
     "description": "Option to clear the issue locale value"
   },
+  "9kMg9gI45r": {
+    "defaultMessage": "Language",
+    "description": "Printed quote column: the target language"
+  },
   "9klX4rpx6h": {
     "defaultMessage": "{count, plural, one {# placeholder} other {# placeholders}}: {matches}",
     "description": "Lists the custom placeholders found in the sample text"
@@ -8679,6 +8747,10 @@
     "defaultMessage": "QA",
     "description": "App shell breadcrumb title for the QA page"
   },
+  "A5Dlc8pBMa": {
+    "defaultMessage": "Finished work by post-edit band",
+    "description": "Accessible label for the post-edit bands table"
+  },
   "A5nEPUdqlo": {
     "defaultMessage": "Pull request localisation",
     "description": "Name of the pull-request localisation use case for developers"
@@ -8774,6 +8846,10 @@
   "ACud1VtN9i": {
     "defaultMessage": "Display name",
     "description": "Label for the TMS provider credential display name field"
+  },
+  "ADCACm3JCm": {
+    "defaultMessage": "Quote",
+    "description": "Heading of the printed quote"
   },
   "AE0pzlfqiF": {
     "defaultMessage": "Market choices are made on instinct or a competitor's move.",
@@ -9127,6 +9203,10 @@
     "defaultMessage": "Is it safe to give an agent access?",
     "description": "localisation-for-ai-coding-agents use case FAQ question 4"
   },
+  "AiIn5ZbV8s": {
+    "defaultMessage": "Cancel",
+    "description": "Button that closes the quote dialog"
+  },
   "AiRIh1nRAC": {
     "defaultMessage": "Guidelines: your style guide, finally read",
     "description": "Title of the product update announcement for the Guidelines film"
@@ -9326,6 +9406,10 @@
   "B1NsXVl3wA": {
     "defaultMessage": "Import CSV or TMX file",
     "description": "Accessible label for the hidden translation memory import file input"
+  },
+  "B1TfQ5oM9Z": {
+    "defaultMessage": "No text given",
+    "description": "Post-edit band: the person wrote the text without a draft to edit, or it is unknown"
   },
   "B2f/NlfEAd": {
     "defaultMessage": "Join literal and typed input segments in a stable order.",
@@ -10550,6 +10634,10 @@
   "CiXaHf0N/j": {
     "defaultMessage": "Adding…",
     "description": "Submit button label while a webhook endpoint is being added"
+  },
+  "CiaqTCq5cb": {
+    "defaultMessage": "Units",
+    "description": "Column heading: how many units fall in the band"
   },
   "CikP+wjwXP": {
     "defaultMessage": "Time entry saved.",
@@ -12031,6 +12119,10 @@
     "defaultMessage": "Could not update this document.",
     "description": "Error when updating a guideline document fails"
   },
+  "EiQWl58S91": {
+    "defaultMessage": "Heavy edit (50–74%)",
+    "description": "Post-edit band: the person rewrote much of the given text"
+  },
   "EiXxrmIRgk": {
     "defaultMessage": "{name} (pull only)",
     "description": "Repository picker entry for a GitLab project the connection can read but not send merge requests to"
@@ -12338,6 +12430,10 @@
   "FAiaLlxyiD": {
     "defaultMessage": "Approved glossary term",
     "description": "Description skeleton heading for the glossary violation issue template"
+  },
+  "FB0sNVXcL0": {
+    "defaultMessage": "Person",
+    "description": "Column heading: the person who did the work"
   },
   "FBY0e+rFtV": {
     "defaultMessage": "Teams who publish multilingual sites and care that search and AI can still find them.",
@@ -12715,6 +12811,10 @@
     "defaultMessage": "Save markets",
     "description": "Submit button label when editing linked domain markets"
   },
+  "FgG1jUc7rX": {
+    "defaultMessage": "Band shares by",
+    "description": "Column heading on a rate card: whether band shares go by memory match or by how much the person edited"
+  },
   "FgWgulEUlJ": {
     "defaultMessage": "Team created",
     "description": "Toast after a team is created successfully"
@@ -12871,6 +12971,10 @@
     "defaultMessage": "Allow the user agent below through your firewall, CDN, bot protection, or login wall, then start a new audit.",
     "description": "Guidance for a site owner whose domain blocked the localisation audit crawler"
   },
+  "Fx/7PrGw0Y": {
+    "defaultMessage": "{share} kept unchanged",
+    "description": "Detail under the finished card: the share of finished work people kept as they were given it"
+  },
   "FxGatVHbDJ": {
     "defaultMessage": "Translation memories",
     "description": "Accessible label for the translation memories list section"
@@ -12994,6 +13098,10 @@
   "G7es7H7NT8": {
     "defaultMessage": "Connect first",
     "description": "Shortcut hint when an email provider must be connected first"
+  },
+  "G7jdVVU8KY": {
+    "defaultMessage": "Post-edit analysis",
+    "description": "Heading of the table of how much people changed the text they were given"
   },
   "G8MBSDjILS": {
     "defaultMessage": "This clears saved workflows, triggers, and status check settings for this repository. GitHub metadata sync is not affected.",
@@ -13134,6 +13242,10 @@
   "GMwM1mRHd4": {
     "defaultMessage": "Expected result",
     "description": "Description skeleton heading for the QA failure issue template"
+  },
+  "GNRst3mkEp": {
+    "defaultMessage": "For",
+    "description": "Printed quote: label before the client's name"
   },
   "GNU5p1qHqo": {
     "defaultMessage": "Output: data that improves the next go-to-market push",
@@ -13998,6 +14110,10 @@
   "Hbeo2X1h7u": {
     "defaultMessage": "Push to Sanity",
     "description": "Title of the Content editor dialog for choosing Sanity documents to push"
+  },
+  "HbgaiK6lwD": {
+    "defaultMessage": "Reference",
+    "description": "Printed quote: label before the reference"
   },
   "HbhX7yojwm": {
     "defaultMessage": "the schedule",
@@ -15154,6 +15270,10 @@
   "JJe6JcgNwt": {
     "defaultMessage": "Reset URL",
     "description": "Button that replaces a workflow's webhook URL with a new one"
+  },
+  "JJyz0weOSs": {
+    "defaultMessage": "Valid until",
+    "description": "Printed quote: label before the last day it is valid"
   },
   "JJzY5hqU50": {
     "defaultMessage": "Upload failed",
@@ -17851,6 +17971,10 @@
     "defaultMessage": "Query type",
     "description": "Placeholder for the query type select"
   },
+  "NEQy77Ea4m": {
+    "defaultMessage": "Date",
+    "description": "Printed quote: label before the day it was made"
+  },
   "NERy9XM6Cd": {
     "defaultMessage": "Zoom in",
     "description": "Accessible label for zooming in within the image lightbox"
@@ -18010,6 +18134,10 @@
   "NRfaLdr7/e": {
     "defaultMessage": "Add {name}?",
     "description": "Title of the confirmation shown before attaching a skill that does something irreversible"
+  },
+  "NRi3A4qimB": {
+    "defaultMessage": "Client",
+    "description": "Label of the field for who the quote is for"
   },
   "NSI7HOMKgo": {
     "defaultMessage": "Connections you add here are shared by everyone in the workspace: chat and automations use the default one, and each project's Sync settings pick one. Each reaches whatever its token can reach. Once one exists, members' own GitLab.com sign-ins are no longer used.",
@@ -20383,6 +20511,10 @@
     "defaultMessage": "API key ID",
     "description": "Audit detail label for the actor API key ID"
   },
+  "QxqsicM/iW": {
+    "defaultMessage": "You see only your own work.",
+    "description": "Note on the Contributors tab for members without billing access"
+  },
   "QxszFRGx/f": {
     "defaultMessage": "Take Every Campaign Global Without Losing Your Brand Voice | Hyperlocalise",
     "description": "Page title for the marketing-localisation use case"
@@ -21742,6 +21874,10 @@
   "StgM1dze9o": {
     "defaultMessage": "MCP server connection deleted.",
     "description": "Toast when MCP server connection is deleted"
+  },
+  "SuDwqk2F0V": {
+    "defaultMessage": "Enter a whole number of days from 1 to 365.",
+    "description": "Error when the quote's validity is not 1 to 365 days"
   },
   "SuICqSy+vo": {
     "defaultMessage": "Refresh ranks",
@@ -23130,6 +23266,10 @@
   "Un7mRcQrna": {
     "defaultMessage": "From hreflang to locale coverage",
     "description": "Supporting line for the Domains localisation solution panel"
+  },
+  "UnFA9Bhy2I": {
+    "defaultMessage": "Allow pop-ups for this site to print the quote.",
+    "description": "Error when the browser blocked the window the quote prints from"
   },
   "UoGzrmcHW5": {
     "defaultMessage": "Within limit",
@@ -24991,6 +25131,10 @@
     "defaultMessage": "Cancel",
     "description": "Button that closes the CAT advanced filter dialog without applying"
   },
+  "XX/HpfGaN5": {
+    "defaultMessage": "Rate",
+    "description": "Printed quote column: the rate per unit"
+  },
   "XX0l5kWHfE": {
     "defaultMessage": "Search history",
     "description": "Glossary history search input label"
@@ -25134,6 +25278,10 @@
   "XiZ3CdNBSX": {
     "defaultMessage": "Projects",
     "description": "Toolbar button that opens assigned projects for a translation memory"
+  },
+  "Xj/aHe1rki": {
+    "defaultMessage": "Create a quote",
+    "description": "Title of the dialog that turns a cost estimate into a quote"
   },
   "XjY9jRzAy/": {
     "defaultMessage": "Key",
@@ -25967,6 +26115,10 @@
     "defaultMessage": "Loading translation memory entries",
     "description": "Accessible label for the translation memory entry loading state"
   },
+  "YvGh+XqY1O": {
+    "defaultMessage": "Step",
+    "description": "Printed quote column: translation or review"
+  },
   "YvKNfbM9SW": {
     "defaultMessage": "{count, plural, one {# file wasn't sent back} other {# files weren't sent back}}: the format isn't supported yet, or the repository's copy couldn't be read",
     "description": "Count of source files a GitLab sync run couldn't write a language file for"
@@ -26322,10 +26474,6 @@
   "ZSs7hAN64v": {
     "defaultMessage": "Delete comment",
     "description": "Confirm button to permanently delete an issue comment"
-  },
-  "ZT+8zOrCd1": {
-    "defaultMessage": "You see the time you logged. The other reports are for admins and localization managers.",
-    "description": "Note on the Reports page for roles that cannot see what work costs: they only see their own time"
   },
   "ZT0ZLYbp16": {
     "defaultMessage": "Could not retry the audit.",
@@ -27562,6 +27710,10 @@
   "b88FiiRWt1": {
     "defaultMessage": "Show access token",
     "description": "Accessible label for the button that reveals the GitLab token"
+  },
+  "b8AXM1khOE": {
+    "defaultMessage": "The quote lists this estimate by language and step, with each rate and amount. Nothing is saved.",
+    "description": "Explanation in the quote dialog"
   },
   "b8a5Sr5a3d": {
     "defaultMessage": "Choose a task",
@@ -28875,6 +29027,10 @@
     "defaultMessage": "Swap models, vendors, or TMS without touching the workflow your team runs.",
     "description": "localisation-operations use case page: shift › after › #3"
   },
+  "d0iPSvX4/W": {
+    "defaultMessage": "No one finished strings or logged time in these dates.",
+    "description": "Empty state of the Contributors tab"
+  },
   "d1YNCoenDE": {
     "defaultMessage": "Should AcmePay stay untranslated in ES onboarding?",
     "description": "Inbox conversation preview in content ops mock"
@@ -30103,6 +30259,10 @@
     "defaultMessage": "Error code",
     "description": "Controlled failure error code field"
   },
+  "eY5sPJ6yIZ": {
+    "defaultMessage": "Amount",
+    "description": "Printed quote column: what the line costs"
+  },
   "eYGVX6Qlp+": {
     "defaultMessage": "{count, plural, one {# language} other {# languages}}",
     "description": "How many languages an estimate covers"
@@ -30266,6 +30426,10 @@
   "elo92/q1ia": {
     "defaultMessage": "Monday 09:00",
     "description": "localisation-operations use case page: scenario › events › #1 › time"
+  },
+  "emTBdZEwuC": {
+    "defaultMessage": "Paid for people's work",
+    "description": "Contributors card: what people's finished work and logged time cost"
   },
   "enQcoq4887": {
     "defaultMessage": "changing a step's type",
@@ -30475,6 +30639,10 @@
     "defaultMessage": "Everything a localisation programme needs",
     "description": "localisation-operations use case page: capabilities › title"
   },
+  "f2kRPbwlhl": {
+    "defaultMessage": "Units",
+    "description": "Printed quote column: how many units the line covers"
+  },
   "f3IEqEzc4J": {
     "defaultMessage": "Image must be 10 MB or smaller.",
     "description": "Toast when an uploaded image exceeds the size limit"
@@ -30518,6 +30686,14 @@
   "f5XgyzsBIQ": {
     "defaultMessage": "JSON text",
     "description": "Parse JSON node text input label"
+  },
+  "f5e+xCnr6D": {
+    "defaultMessage": "Time logged",
+    "description": "Column heading: time the person logged"
+  },
+  "f5pHV2eXjV": {
+    "defaultMessage": "Total",
+    "description": "Printed quote: the total amount"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Unsaved changes",
@@ -31035,6 +31211,10 @@
     "defaultMessage": "Pending",
     "description": "Workspace files sync state when a sync is pending"
   },
+  "frMroytoHO": {
+    "defaultMessage": "Substantial edit (75–84%)",
+    "description": "Post-edit band: the person changed the given text noticeably"
+  },
   "frNSjho/8d": {
     "defaultMessage": "Updated {updated} of {requested} issue(s). {failed} failed.",
     "description": "Toast after a partially successful issue bulk action"
@@ -31482,6 +31662,10 @@
   "gQaOHIIj8G": {
     "defaultMessage": "Review imports and exports, then open a report to download a finished export.",
     "description": "Translation memory import and export history dialog description"
+  },
+  "gREWvARrBa": {
+    "defaultMessage": "Share",
+    "description": "Column heading: the band's share of all finished work"
   },
   "gRXUWrsLcF": {
     "defaultMessage": "Default branch",
@@ -32615,6 +32799,10 @@
     "defaultMessage": "This domain blocked the crawler, so we did not score the site.",
     "description": "Body explaining that a blocked crawl did not produce a localisation score"
   },
+  "i/4l6v66eY": {
+    "defaultMessage": "Unchanged (100%)",
+    "description": "Post-edit band: the person kept the given text exactly"
+  },
   "i/EBft9uxG": {
     "defaultMessage": "Run QA check",
     "description": "Project QA run button"
@@ -33186,6 +33374,10 @@
   "ioDvkfLpcy": {
     "defaultMessage": "Read the copy in an image",
     "description": "Card summary for the Iris Image Text tool on the pricing page"
+  },
+  "ioTD2dZzme": {
+    "defaultMessage": "Post-edit",
+    "description": "Rate line pricing: band shares go by how much the person changed the AI, machine or imported text they were given"
   },
   "iohP8x/4Gk": {
     "defaultMessage": "Failed to load Zernio connections.",
@@ -34819,6 +35011,10 @@
     "defaultMessage": "Approved translations sync to the TMS and repository. The weekly report goes to leadership automatically.",
     "description": "localisation-operations use case page: scenario › events › #4 › body"
   },
+  "l6VIMP822w": {
+    "defaultMessage": "Light edit (95–99%)",
+    "description": "Post-edit band: the person changed the given text very little"
+  },
   "l6kzXhgr8a": {
     "defaultMessage": "Sample Search Console data for this preview domain.",
     "description": "Disclosure for prototype Search Console metrics"
@@ -35302,6 +35498,10 @@
   "loFFcMBn8p": {
     "defaultMessage": "Discard changes and run",
     "description": "Button that throws away the unsaved automation changes and then queues a run"
+  },
+  "louTermQ9O": {
+    "defaultMessage": "Fixed fee: {task}",
+    "description": "Printed quote line for a task's fixed fee"
   },
   "lp4UfPH566": {
     "defaultMessage": "Works with",
@@ -37463,6 +37663,10 @@
     "defaultMessage": "Create a workspace connection here. Designers then sign in from Figma with OAuth.",
     "description": "Description for the Figma integrations row"
   },
+  "okGZlyV3+n": {
+    "defaultMessage": "Moderate edit (85–94%)",
+    "description": "Post-edit band: the person changed the given text a little"
+  },
   "okYWXGLSBl": {
     "defaultMessage": "Translation memory",
     "description": "Section heading for translation memory matches in the intelligence panel"
@@ -39583,6 +39787,10 @@
     "defaultMessage": "You are the only admin of this workspace. Make another member an admin before you leave.",
     "description": "Why the only admin of a workspace cannot leave it"
   },
+  "rXiH4Vb72C": {
+    "defaultMessage": "Rewritten (under 50%)",
+    "description": "Post-edit band: the person rewrote the given text almost entirely"
+  },
   "rXuCG4x28U": {
     "defaultMessage": "Select a resource",
     "description": "Placeholder when no repository or CMS space is selected"
@@ -40002,6 +40210,10 @@
   "s6NLAIiQ6o": {
     "defaultMessage": "Dictionary Deleted",
     "description": "Activity log event type label for dictionary deletion"
+  },
+  "s6bGwMkqQh": {
+    "defaultMessage": "{count, plural, one {# string has no rate} other {# strings have no rate}}",
+    "description": "Detail under the spent card: finished strings no rate card priced"
   },
   "s7/k1C/6Q6": {
     "defaultMessage": "API token",
@@ -40455,6 +40667,10 @@
     "defaultMessage": "Close Queries",
     "description": "Accessible label for closing the CAT Queries panel"
   },
+  "sqlMQdTjGd": {
+    "defaultMessage": "Paid",
+    "description": "Column heading: what the person's work cost"
+  },
   "srA8Bg6NQQ": {
     "defaultMessage": "Check a project's translations for errors and warnings.",
     "description": "Catalog description for the translation QA node"
@@ -40790,6 +41006,10 @@
   "tItRctmig2": {
     "defaultMessage": "Keep the title under 200 characters.",
     "description": "Validation error when the guideline title is too long"
+  },
+  "tIwYtMcHZ5": {
+    "defaultMessage": "Removed member",
+    "description": "Name shown for work by someone no longer in the workspace"
   },
   "tJ4ESqRDu1": {
     "defaultMessage": "Sign in again to manage billing.",
@@ -43191,6 +43411,10 @@
     "defaultMessage": "Unable to list the GitLab repositories. Check the connection in Integrations.",
     "description": "Shown in the project Sync panel when the GitLab repositories can't be read"
   },
+  "wgHYL67Rfn": {
+    "defaultMessage": "Work by person",
+    "description": "Accessible label for the contributors table"
+  },
   "wgpJwxQgNi": {
     "defaultMessage": "Loading plan usage",
     "description": "Accessible label for the plan usage summary skeleton"
@@ -44718,6 +44942,10 @@
   "yfGa8F3kFv": {
     "defaultMessage": "AI refinement is unavailable for this workspace.",
     "description": "Video refinement requires an available generation action"
+  },
+  "yfZHxazSwv": {
+    "defaultMessage": "Memory match",
+    "description": "Rate line pricing: band shares go by the translation memory match when the string arrived"
   },
   "yfeT8igA35": {
     "defaultMessage": "Showing {pageCount} of {filteredCount} filtered · {totalCount} total",

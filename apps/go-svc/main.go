@@ -19,6 +19,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines/check"
 	guidelinepg "github.com/hyperlocalise/hyperlocalise/internal/guidelines/postgres"
 	"github.com/hyperlocalise/hyperlocalise/internal/postgres"
+	"github.com/hyperlocalise/hyperlocalise/internal/reporting"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/workos/workos-go/v10"
 )
@@ -216,7 +217,7 @@ func main() {
 		h.conversations.pool = traced
 		h.automations.pool = traced
 		h.overview.pool = traced
-		h.reports.pool = traced
+		h.reports.Pool = traced
 		h.publicTranslations.auth.pool = traced
 		h.workspace.pool = traced
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
@@ -320,7 +321,7 @@ func main() {
 	h.overview.membership = membershipLookup
 	h.overview.flags = h.workspace.flags
 	h.reports.membership = membershipLookup
-	h.reports.flags = newCachedWorkspaceFlags(h.workspace.flags)
+	h.reports.Flags = reporting.NewCachedFlags(h.workspace.flags)
 	h.publicTranslations.auth.membership = membershipLookup
 	h.workspace.membership = membershipLookup
 

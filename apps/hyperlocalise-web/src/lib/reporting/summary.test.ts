@@ -463,6 +463,66 @@ describe("reporting daily summary", () => {
     },
   );
 
+  it("keeps each person's finished work by post-edit band", async () => {
+    const { organization, project, user, save } = await createWorkspace();
+    await save({ segment: "p1", text: "Hello world", locale: "fr-FR", on: "2026-06-01" });
+    await save({
+      segment: "p2",
+      text: "Good morning, everyone",
+      locale: "fr-FR",
+      on: "2026-06-01",
+    });
+    await save({ segment: "p3", text: "Thanks", locale: "fr-FR", on: "2026-06-01" });
+    await recordCompletions({
+      organizationId: organization.id,
+      targetLocale: "fr-FR",
+      sourceEntries: { p1: "Hello world", p2: "Good morning, everyone" },
+      provenance: "human",
+      actorUserId: user.id,
+      unchanged: { p1: true },
+      postEditScores: { p1: 100, p2: 62 },
+      occurredAt: { p1: day("2026-06-02"), p2: day("2026-06-02") },
+    });
+    // Automated work has no person: it stays out of the people's rows.
+    await recordCompletions({
+      organizationId: organization.id,
+      targetLocale: "fr-FR",
+      sourceEntries: { p3: "Thanks" },
+      provenance: "automated",
+      occurredAt: { p3: day("2026-06-02") },
+    });
+    await expectSummaryMatchesRecount(organization.id);
+    const rows = await db.execute(sql`
+      select project_id, actor_user_id::text, target_locale, step, post_edit_bucket, day::text,
+        finished_words, finished_strings, finished_unchanged_words
+      from reporting_daily_by_person where organization_id = ${organization.id}
+      order by post_edit_bucket`);
+    expect(rows.rows).toEqual([
+      {
+        project_id: project.id,
+        actor_user_id: user.id,
+        target_locale: "fr-FR",
+        step: "translation",
+        post_edit_bucket: "100",
+        day: "2026-06-02",
+        finished_words: 2,
+        finished_strings: 1,
+        finished_unchanged_words: 2,
+      },
+      {
+        project_id: project.id,
+        actor_user_id: user.id,
+        target_locale: "fr-FR",
+        step: "translation",
+        post_edit_bucket: "50-74",
+        day: "2026-06-02",
+        finished_words: 3,
+        finished_strings: 1,
+        finished_unchanged_words: 0,
+      },
+    ]);
+  });
+
   it("removes a deleted project's rows with it", async () => {
     const { organization, project, save, finish } = await createWorkspace();
     await save({ segment: "s1", text: "Hello world", locale: "fr-FR", on: "2026-06-01" });

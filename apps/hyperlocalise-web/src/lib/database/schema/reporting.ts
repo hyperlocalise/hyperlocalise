@@ -34,6 +34,7 @@ import { jobs } from "./jobs";
 import {
   COMPLETION_SOURCES,
   RATE_BASES,
+  RATE_PRICINGS,
   TASK_ANALYSIS_STATUSES,
   type CompletionSource,
   type TaskAnalysisStatus,
@@ -88,6 +89,8 @@ export const reportingRates = pgTable(
     targetLocale: text("target_locale").notNull(),
     step: text("step", { enum: ["translation", "review"] }).notNull(),
     basis: text("basis", { enum: RATE_BASES }).notNull(),
+    /** Whether the paid shares go by memory match band or by post-edit band (`RATE_PRICINGS`). */
+    pricing: text("pricing", { enum: RATE_PRICINGS }).notNull().default("memory_match"),
     rate: amount("rate").notNull(),
     percentages: jsonb("percentages")
       .$type<Partial<Record<MatchBucket, number>>>()
@@ -210,6 +213,12 @@ export const reportingActivity = pgTable(
     source: text("source", { enum: COMPLETION_SOURCES }).$type<CompletionSource>(),
     /** A person finished the string without changing the text they were given; null when unknown. */
     unchanged: boolean("unchanged"),
+    /**
+     * How close a person's saved text is to the AI, machine or imported text they were given
+     * (100 untouched, as `memoryMatchScore` scores), and its band; null when they were given none.
+     */
+    postEditScore: integer("post_edit_score"),
+    postEditBucket: text("post_edit_bucket").$type<MatchBucket>(),
     createdAt: createdAt(),
   },
   (t) => [
@@ -325,6 +334,46 @@ export const reportingDailyByProject = pgTable(
     ...summaryMeasures(),
   },
   (t) => [index("reporting_daily_by_project_project").on(t.organizationId, t.projectId, t.day)],
+);
+/**
+ * People's finished work by day: `reporting_daily_by_task`'s finished rows for strings a person
+ * finished, split by who (`actor_user_id`) and by post-edit band, for the Contributors report. The
+ * person's id is kept without a link to `users`, so the rows never fail a delete; a deleted
+ * member's rows go at the next rebuild of their days, as their completions lose the person.
+ */
+export const reportingDailyByPerson = pgTable(
+  "reporting_daily_by_person",
+  {
+    organizationId: organizationId(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    jobId: text("job_id"),
+    actorUserId: uuid("actor_user_id").notNull(),
+    sourceLocale: text("source_locale").notNull(),
+    targetLocale: text("target_locale").notNull(),
+    step: text("step", { enum: ["translation", "review"] }).notNull(),
+    bucket: text("bucket").$type<MatchBucket>().notNull(),
+    /** The post-edit band, or "" when the person was given no text to edit. */
+    postEditBucket: text("post_edit_bucket").notNull().default(""),
+    source: summarySource(),
+    day: date("day", { mode: "string" }).notNull(),
+    finishedWords: summaryMeasure("finished_words"),
+    finishedStrings: summaryMeasure("finished_strings"),
+    finishedCharacters: summaryMeasure("finished_characters"),
+    finishedCharactersWithSpaces: summaryMeasure("finished_characters_with_spaces"),
+    finishedUnchangedWords: summaryMeasure("finished_unchanged_words"),
+    finishedUnchangedStrings: summaryMeasure("finished_unchanged_strings"),
+    finishedUnchangedCharacters: summaryMeasure("finished_unchanged_characters"),
+    finishedUnchangedCharactersWithSpaces: summaryMeasure(
+      "finished_unchanged_characters_with_spaces",
+    ),
+  },
+  (t) => [
+    index("reporting_daily_by_person_project").on(t.organizationId, t.projectId, t.day),
+    index("reporting_daily_by_person_actor").on(t.organizationId, t.actorUserId, t.day),
+    index("reporting_daily_by_person_job").on(t.organizationId, t.jobId),
+  ],
 );
 /**
  * The strings each project holds now, by language, step and match band: the daily rows'

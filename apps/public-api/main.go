@@ -72,7 +72,7 @@ func run(ctx context.Context) error {
 	store.webhookSecrets = newWebhookSecretMinterFromEnv()
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           newHandler(auth, store),
+		Handler:           newHandlerWithOutbound(auth, store, nil, withReports(newPostgresReports(pool))),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,

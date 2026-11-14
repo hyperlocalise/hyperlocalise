@@ -13,6 +13,7 @@
 import type { AiUsageDimension } from "@/lib/reporting/ai-usage-origins";
 import type {
   RateBasis,
+  RatePricing,
   ReportStep,
   ReportUnit,
   TaskAnalysisStatus,
@@ -222,6 +223,47 @@ export type TimeReport = {
   automated: AutomatedTime | null;
 };
 
+/**
+ * A post-edit band: how close a person's text is to the text they were given, banded as memory
+ * matches are; "" is work with no given text to compare (written from scratch, or unknown).
+ */
+export type PostEditBucket = Exclude<MatchBucket, "repetition" | "unavailable"> | "";
+
+export type ContributorRow = {
+  userId: string;
+  /** Null for a member since removed. */
+  person: string | null;
+  finished: number;
+  unchanged: number;
+  bands: Partial<Record<MatchBucket, number>>;
+  postEditBands: Partial<Record<PostEditBucket, number>>;
+  languages: string[];
+  minutes: number;
+  /** Null for roles that cannot see what work costs. */
+  spentUsd: string | null;
+  unpriced: number;
+};
+
+export type ContributorsReport = {
+  period: ReportPeriod;
+  unit: ReportUnit;
+  /** "" when both steps are counted. */
+  step: ReportStep | "";
+  /** Every member's work and money, or only the viewer's own work. */
+  financial: boolean;
+  rows: ContributorRow[];
+  totals: {
+    finished: number;
+    unchanged: number;
+    bands: Partial<Record<MatchBucket, number>>;
+    postEditBands: Partial<Record<PostEditBucket, number>>;
+    minutes: number;
+    people: number;
+    spentUsd: string | null;
+    unpriced: number;
+  };
+};
+
 export type CostRow = {
   projectId: string;
   projectName: string;
@@ -256,6 +298,8 @@ export type CostEstimateRow = {
   basis: RateBasis | null;
   rate: string | null;
   percentages: BandCounts | null;
+  /** How the rate line's shares apply; estimates still use memory bands. */
+  ratePricing: RatePricing | null;
   bands: BandCounts;
   units: number;
   weighted: number | null;
@@ -313,6 +357,8 @@ export type RateLine = {
   targetLocale: string;
   step: ReportStep;
   basis: RateBasis;
+  /** Whether the paid shares go by memory match band or by post-edit band. */
+  pricing: RatePricing;
   rate: string;
   percentages: BandCounts;
 };
@@ -324,7 +370,10 @@ export type RateCardsReport = { rateCards: RateCard[]; canManage: boolean };
 export type RateCardBody = {
   name: string;
   defaultBasis?: RateBasis;
-  lines: (Omit<RateLine, "id" | "percentages"> & { percentages?: BandCounts })[];
+  lines: (Omit<RateLine, "id" | "percentages" | "pricing"> & {
+    percentages?: BandCounts;
+    pricing?: RatePricing;
+  })[];
   /** Save as a new card; the name must not be taken. */
   create?: boolean;
 };
@@ -381,7 +430,12 @@ export type TaskReport = {
   task: TaskReportTask;
   unit: ReportUnit;
   step: ReportStep;
-  words: { rows: TaskWordRow[]; totals: Record<ReportStep, TaskWordTotals> } | null;
+  words: {
+    rows: TaskWordRow[];
+    totals: Record<ReportStep, TaskWordTotals>;
+    /** People's finished units by step and post-edit band. */
+    postEditBands: Record<ReportStep, Partial<Record<PostEditBucket, number>>>;
+  } | null;
   estimate: CostEstimate | null;
   stillToCome: { amountUsd: string; incomplete: boolean } | null;
   time: { minutes: number; people: number; entries: TaskTimeEntry[] };
@@ -449,9 +503,10 @@ export type ReportCsvSection =
   | "ai-usage"
   | "costs"
   | "cost-estimate"
-  | "budgets";
+  | "budgets"
+  | "contributors";
 
-export type ReportKind = "activity" | "words" | "time" | "ai" | "costs";
+export type ReportKind = "activity" | "words" | "time" | "ai" | "costs" | "contributors";
 
 /** What the MCP `get_report` tool sends to the internal route, as a trusted server caller. */
 export type InternalReportBody = {
@@ -539,6 +594,15 @@ export class GoSvcReportsApi {
       .then((answer) => answer.time);
   }
 
+  contributors(organizationSlug: string, query: ReportQuery, options: GoSvcRequestOptions = {}) {
+    return this.request
+      .json<{ contributors: ContributorsReport }>(
+        orgPath(organizationSlug, "reports", "contributors"),
+        { query, ...options },
+      )
+      .then((answer) => answer.contributors);
+  }
+
   costs(organizationSlug: string, query: ReportQuery, options: GoSvcRequestOptions = {}) {
     return this.request
       .json<{ costs: CostsReport }>(orgPath(organizationSlug, "reports", "costs"), {
@@ -605,6 +669,18 @@ export class GoSvcReportsApi {
   ): Promise<GoSvcDownload> {
     return this.request.download(orgPath(organizationSlug, "reports", section), {
       query: { ...query, format: "csv" },
+      ...options,
+    });
+  }
+
+  /** A cost estimate as a quote workbook, with the client, a reference and its validity. */
+  quote(
+    organizationSlug: string,
+    query: ReportQuery,
+    options: GoSvcRequestOptions = {},
+  ): Promise<GoSvcDownload> {
+    return this.request.download(orgPath(organizationSlug, "reports", "cost-estimate"), {
+      query: { ...query, format: "xlsx" },
       ...options,
     });
   }

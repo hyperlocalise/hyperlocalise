@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivityTab } from "./activity-tab";
 import { AiUsageTab } from "./ai-usage-tab";
 import { BudgetsTab } from "./budgets-tab";
+import { ContributorsTab } from "./contributors-tab";
 import { CostEstimateTab } from "./cost-estimate-tab";
 import { CostsTab } from "./costs-tab";
 import { ManageRatesSheet } from "./manage-rates-sheet";
@@ -39,6 +40,7 @@ import { WordCountsTab } from "./word-counts-tab";
 const TAB_LABELS = {
   activity: messages.tabActivity,
   words: messages.tabWords,
+  contributors: messages.tabContributors,
   time: messages.tabTime,
   ai: messages.tabAi,
   costs: messages.tabCosts,
@@ -157,6 +159,9 @@ export function ReportsPage({
         />
         <TabsContent value="time">
           <TimeTab input={input} settings={data} onChange={update} />
+        </TabsContent>
+        <TabsContent value="contributors">
+          <ContributorsTab input={input} onChange={update} />
         </TabsContent>
         {data.financial ? (
           <>

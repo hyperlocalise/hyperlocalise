@@ -9,6 +9,7 @@ var apiKeyScopeCapability = map[string]string{
 	"files:write":    "jobs:create",
 	"memories:read":  "memories:read",
 	"memories:write": "memories:write",
+	"reports:read":   "billing:read",
 }
 
 func roleAllowsCapability(role, capability string) bool {
@@ -21,6 +22,9 @@ func roleAllowsCapability(role, capability string) bool {
 		return role != ""
 	case "memories:write":
 		// go-svc's canWriteMemories.
+		return role == "admin" || role == "localization_manager"
+	case "billing:read":
+		// Reports, as go-svc gives them: the roles that see what work costs.
 		return role == "admin" || role == "localization_manager"
 	default:
 		return false

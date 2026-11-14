@@ -153,7 +153,7 @@ const mcpGetReportInputSchema = z.object({
     .enum(REPORT_KINDS)
     .default("activity")
     .describe(
-      "activity (default): words arrived and finished in the dates, by where the text came from, with the previous period; words: word counts by match band, by project, task, week, language or task step, with a series over time; time: time people logged and automated run time; ai: AI calls, tokens, images, videos and billing's charge, grouped by one detail and optionally a second; costs: what was spent, by project.",
+      "activity (default): words arrived and finished in the dates, by where the text came from, with the previous period; words: word counts by match band, by project, task, week, language or task step, with a series over time; time: time people logged and automated run time; ai: AI calls, tokens, images, videos and billing's charge, grouped by one detail and optionally a second; costs: what was spent, by project; contributors: each person's finished work by match and post-edit band, time logged and pay.",
     ),
   from: mcpDay.optional().describe("Start date (YYYY-MM-DD, UTC). Defaults to 28 days ago."),
   to: mcpDay.optional().describe("End date (YYYY-MM-DD, UTC). Defaults to today."),
@@ -168,7 +168,9 @@ const mcpGetReportInputSchema = z.object({
   step: z
     .enum(REPORT_STEPS)
     .optional()
-    .describe("Workflow step: translation (default) or review. Not for costs or ai."),
+    .describe(
+      "Workflow step: translation (default) or review; contributors count both unless set. Not for costs or ai.",
+    ),
   unit: z
     .enum(REPORT_UNITS)
     .optional()

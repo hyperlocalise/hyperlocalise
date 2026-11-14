@@ -7,8 +7,8 @@ info:
     workspace; create native projects from project templates and manage those templates; define
     custom project fields and set their values; manage the strings, translations, screenshots,
     and settings of native projects; search strings; round-trip bilingual files; update jobs one
-    at a time or in bulk; register job-change webhook endpoints; and import and export glossaries
-    and translation memories.
+    at a time or in bulk; register job-change webhook endpoints; import and export glossaries
+    and translation memories; and read the Reports page's reports as JSON or CSV.
 servers:
   - url: https://public-api.hyperlocalise.com
 security:
@@ -27,6 +27,13 @@ tags:
   - name: Glossaries
   - name: Translation memories
   - name: Webhooks
+  - name: Reports
+    description: >-
+      The Reports page's reports for scripts, BI tools and payment systems. Every report needs
+      `reports:read`, which only admins' and localization managers' keys hold, and the workspace's
+      Reports feature. Each answer says whether recent work is still being counted
+      (`stillUpdating`); figures can lag live work by one capture run. A workspace may ask for 30
+      reports a minute, in bursts of 10.
 paths:
   /health:
     get:
@@ -1880,6 +1887,86 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/reports/{report}:
+    parameters:
+      - name: report
+        in: path
+        required: true
+        description: >-
+          `activity`: words arrived and finished, by source. `words`: word counts by match band,
+          with a series over time. `word-series`: the series alone. `time`: time people logged and
+          automated run time. `ai-usage`: AI calls, tokens and billing's charge. `costs`: what was
+          spent, by project. `budgets`: project budgets, spend and what is still to come.
+          `contributors`: each person's finished work by match and post-edit band, time logged and
+          pay.
+        schema:
+          type: string
+          enum: [activity, words, word-series, time, ai-usage, costs, budgets, contributors]
+      - $ref: "#/components/parameters/ReportFrom"
+      - $ref: "#/components/parameters/ReportTo"
+      - $ref: "#/components/parameters/ReportProjectId"
+      - $ref: "#/components/parameters/ReportJobId"
+      - $ref: "#/components/parameters/ReportTargetLocale"
+      - $ref: "#/components/parameters/ReportStep"
+      - $ref: "#/components/parameters/ReportUnit"
+      - $ref: "#/components/parameters/ReportFormat"
+    get:
+      operationId: getReport
+      tags: [Reports]
+      summary: Read one of the Reports page's reports
+      description: >-
+        Requires `reports:read`. Takes the same query as the Reports page's tab: the common
+        parameters below, plus each report's own (for example `groupBy`, `mode`, `split` and `per`
+        for `words`; `groupBy`, `thenBy` and `rankBy` for `ai-usage`; `page` where the page pages).
+        Each parameter may be given once. Answers JSON, or the page's CSV with `format=csv` or
+        `Accept: text/csv` (every report but `word-series`).
+      responses:
+        "200":
+          description: The report, or its CSV download.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReportResponse" }
+            text/csv:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/ReportForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ReportTooLarge" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/ReportUnavailable" }
+  /v1/jobs/{jobId}/report:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+      - $ref: "#/components/parameters/ReportStep"
+      - $ref: "#/components/parameters/ReportUnit"
+      - $ref: "#/components/parameters/ReportFormat"
+      - name: rateCard
+        in: query
+        description: The rate card the estimate falls back to when neither the task nor its project's budget names one.
+        schema: { type: string, minLength: 1, maxLength: 100 }
+    get:
+      operationId: getJobReport
+      tags: [Reports]
+      summary: Read a task's report
+      description: >-
+        Requires `reports:read`. A native task's words and match bands per language and step, its
+        post-edit bands, cost estimate, time logged and pricing, as its Report tab shows them. With
+        `format=csv`, the step's words by language.
+      responses:
+        "200":
+          description: The task's report, or its CSV download.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReportResponse" }
+            text/csv:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/ReportForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/ReportUnavailable" }
   /v1/webhook-endpoints:
     get:
       operationId: listWebhookEndpoints
@@ -2467,7 +2554,60 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    ReportFrom:
+      name: from
+      in: query
+      description: First day, inclusive (YYYY-MM-DD, UTC). Defaults to 28 days before `to`.
+      schema: { type: string, format: date }
+    ReportTo:
+      name: to
+      in: query
+      description: Last day, inclusive (YYYY-MM-DD, UTC). Defaults to today.
+      schema: { type: string, format: date }
+    ReportProjectId:
+      name: projectId
+      in: query
+      schema: { type: string, maxLength: 200 }
+    ReportJobId:
+      name: jobId
+      in: query
+      schema: { type: string, maxLength: 200 }
+    ReportTargetLocale:
+      name: targetLocale
+      in: query
+      schema: { type: string, minLength: 2, maxLength: 35 }
+    ReportStep:
+      name: step
+      in: query
+      description: The workflow step. Most reports default to translation; contributors count both unless set.
+      schema: { type: string, enum: [translation, review] }
+    ReportUnit:
+      name: unit
+      in: query
+      schema: { type: string, enum: [words, strings, characters, characters_with_spaces], default: words }
+    ReportFormat:
+      name: format
+      in: query
+      schema: { type: string, enum: [json, csv], default: json }
   schemas:
+    ReportResponse:
+      type: object
+      description: >-
+        `kind` names the report; the report itself is under the Reports page's own key for it
+        (`activity`, `wordCounts`, `wordSeries`, `time`, `aiUsage`, `costs`, `budgets`,
+        `contributors` or `taskReport`), with that tab's fields.
+      required: [kind, summary, stillUpdating]
+      properties:
+        kind: { type: string }
+        stillUpdating:
+          type: boolean
+          description: Recent work is still being counted; ask again in a few minutes for final figures.
+        summary:
+          type: object
+          properties:
+            pendingDays: { type: integer }
+            oldestMarkedAt: { type: [string, "null"], format: date-time }
+      additionalProperties: true
     OutboundIP:
       type: object
       required: [outboundIp, allowlist]
@@ -3097,6 +3237,37 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
     UnsupportedMediaType:
       description: The request body has an unsupported media type.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ReportForbidden:
+      description: >-
+        The token lacks `reports:read` (`forbidden`), its owner cannot see what work costs
+        (`forbidden`), or the workspace does not have Reports (`reports_not_enabled`).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ReportTooLarge:
+      description: The report is too large to send; choose fewer days or a narrower filter.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: The workspace asked for too many reports; `Retry-After` says when to ask again.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ReportUnavailable:
+      description: >-
+        Reports is busy (`reports_busy`), the report took too long (`report_timed_out`; ask for
+        fewer days) or Reports is unavailable (`reports_unavailable`). Busy and timed-out answers
+        carry `Retry-After`.
+      headers:
+        Retry-After:
+          schema: { type: integer }
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

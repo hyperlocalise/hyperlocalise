@@ -27,7 +27,7 @@ import {
 } from "@/lib/reporting/report-units";
 
 /** The reports the MCP `get_report` tool offers, and the input it accepts for each. */
-export const REPORT_KINDS = ["activity", "words", "time", "ai", "costs"] as const;
+export const REPORT_KINDS = ["activity", "words", "time", "ai", "costs", "contributors"] as const;
 
 const step = z.enum(REPORT_STEPS);
 // Reports has nothing from before 2000, and the day maths needs a four-digit year.
@@ -91,5 +91,8 @@ export const REPORT_QUERY_SCHEMAS = {
     }),
   costs: z
     .object({ ...dates, projectId: id.optional(), targetLocale: scope.targetLocale, format })
+    .refine(datesInOrder, { message: "Invalid date range" }),
+  contributors: z
+    .object({ ...dates, ...scope, unit, step: step.optional(), format })
     .refine(datesInOrder, { message: "Invalid date range" }),
 } as const;

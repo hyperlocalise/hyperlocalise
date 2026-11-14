@@ -249,7 +249,11 @@ func TestReportingStepTimesCSVWritesLoggedRunsAndSteps(t *testing.T) {
 		Automated: reportingAutomatedTime{
 			WorkflowSteps: []reportingWorkflowStepTime{{NodeType: "action.http", Milliseconds: 90_000, Runs: 3}},
 			TaskRuns: reportingTaskRuns{Milliseconds: 600_000, Runs: 2, Stages: []reportingStageTime{
-				{"preparing", 60_000}, {"reusing_memory", 0}, {"translating", 480_000}, {"finishing", 60_000}, {"other", 0},
+				{Stage: "preparing", Milliseconds: 60_000},
+				{Stage: "reusing_memory", Milliseconds: 0},
+				{Stage: "translating", Milliseconds: 480_000},
+				{Stage: "finishing", Milliseconds: 60_000},
+				{Stage: "other", Milliseconds: 0},
 			}},
 		},
 	}
