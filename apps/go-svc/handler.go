@@ -96,6 +96,7 @@ type handler struct {
 	guidelineDocuments   *guidelineDocumentAPI
 	guidelineCheck       *guidelineCheckAPI
 	guidelineRetrieve    *guidelineRetrieveAPI
+	pipes                *pipesAPI
 	valkey               valkeyHealthClient
 	overviewCache        dictionaryWordsCache
 	researchCache        domainResearchCache
@@ -194,6 +195,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	if h.reports != nil {
 		h.reports.register(mux, verifier)
 		h.reports.registerInternal(mux)
+	}
+	if h.pipes != nil {
+		h.pipes.register(mux, verifier)
 	}
 	if h.guidelineDocuments != nil {
 		h.guidelineDocuments.register(mux, verifier)
