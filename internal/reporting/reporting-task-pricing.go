@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ type reportingTaskRate struct {
 	CreatedAt        string  `json:"createdAt"`
 }
 
-func (api *reportingAPI) saveTaskRate(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) SaveTaskRate(r *http.Request, actor Actor) (any, int, error) {
 	body, err := readReportingBody(r, "invalid_task_rate")
 	if err != nil {
 		return nil, 0, err

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/hyperlocalise/hyperlocalise/internal/reporting"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,15 +18,15 @@ var reportingTestToday = time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
 
 func reportingTestAPI(scope *testenv.Scope, role string, flags workspaceFlagChecker) *reportingAPI {
 	api := newReportingAPI()
-	api.pool = scope.Pool
+	api.Pool = scope.Pool
 	api.membership = scope.Membership(role)
-	api.flags = flags
-	api.now = func() time.Time { return reportingTestToday }
+	api.Flags = flags
+	api.Now = func() time.Time { return reportingTestToday }
 	return api
 }
 
 func reportingActorFor(scope *testenv.Scope, role string) reportingActor {
-	return reportingActor{userID: scope.UserID, organizationID: scope.OrganizationID, role: role}
+	return reporting.NewActor(scope.UserID, scope.OrganizationID, role, "", "")
 }
 
 func reportingRequest(t *testing.T, api *reportingAPI, workosUserID, method, path, body string) *httptest.ResponseRecorder {

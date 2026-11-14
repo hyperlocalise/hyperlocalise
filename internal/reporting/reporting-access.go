@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 // reportingProjectIDs are the projects the viewer can open, by the same team rule as the web
 // app's getAccessibleProjectIds.
-func reportingProjectIDs(ctx context.Context, db dictionaryDB, actor reportingActor) ([]string, error) {
+func reportingProjectIDs(ctx context.Context, db DB, actor Actor) ([]string, error) {
 	rows, err := db.Query(ctx, `
         select p.id from projects p
         where p.organization_id = $1 and `+formatQaProjectTeamAccessSQL(2, 3, 1),
@@ -33,7 +33,7 @@ func reportingProjectIDs(ctx context.Context, db dictionaryDB, actor reportingAc
 
 // reportingStart is when Reports started recording for a workspace, nil when it has recorded
 // nothing yet.
-func reportingStart(ctx context.Context, db dictionaryDB, organizationID string) (*time.Time, error) {
+func reportingStart(ctx context.Context, db DB, organizationID string) (*time.Time, error) {
 	var started time.Time
 	err := db.QueryRow(ctx, `select started_at from reporting_workspaces where organization_id = $1`, organizationID).Scan(&started)
 	if isNoRows(err) {
@@ -59,7 +59,7 @@ type reportingContext struct {
 	userID    string
 }
 
-func (api *reportingAPI) context(ctx context.Context, db dictionaryDB, actor reportingActor) (reportingContext, error) {
+func (api *API) context(ctx context.Context, db DB, actor Actor) (reportingContext, error) {
 	projectIDs, err := reportingProjectIDs(ctx, db, actor)
 	if err != nil {
 		return reportingContext{}, err
@@ -72,7 +72,7 @@ func (api *reportingAPI) context(ctx context.Context, db dictionaryDB, actor rep
 		organizationID: actor.organizationID,
 		projectIDs:     projectIDs,
 		startedAt:      startedAt,
-		today:          api.now().UTC().Format(time.DateOnly),
+		today:          api.Now().UTC().Format(time.DateOnly),
 		financial:      actor.can("billing:read"),
 		userID:         actor.userID,
 	}

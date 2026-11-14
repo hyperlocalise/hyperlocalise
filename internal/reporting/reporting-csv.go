@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"bufio"
@@ -13,11 +13,25 @@ import (
 // CSV downloads, written row by row: every cell quoted, CRLF between
 // rows, no trailing newline, formulas disarmed.
 
+// CSV is a download written row by row.
+type CSV = reportingCSV
+
 type reportingCSV struct {
 	filename string
 	// write emits the rows, header first, through the writer.
 	write func(w *reportingCSVWriter) error
 }
+
+// WriteCSV writes a CSV download with nosniff and an attachment filename.
+func WriteCSV(ctx context.Context, w http.ResponseWriter, status int, download CSV) {
+	writeReportingCSV(ctx, w, status, download)
+}
+
+// CSVCell quotes a cell the way the page's downloads do.
+func CSVCell(text string) string { return reportingCSVCell(text) }
+
+// Number writes a number as JavaScript's String does for the values Reports holds.
+func Number(value float64) string { return reportingNumber(value) }
 
 type reportingCSVWriter struct {
 	out  *bufio.Writer

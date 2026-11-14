@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"context"
@@ -70,7 +70,7 @@ type reportingContributorInput struct {
 
 // queryReportingContributors reads each person's finished units, logged minutes and (when
 // financial) spending in a period, most finished first.
-func queryReportingContributors(ctx context.Context, db dictionaryDB, in reportingContributorInput) (reportingContributors, error) {
+func queryReportingContributors(ctx context.Context, db DB, in reportingContributorInput) (reportingContributors, error) {
 	result := reportingContributors{
 		Period: in.period, Unit: in.unit, Step: in.step, Financial: in.financial,
 		Rows: []reportingContributorRow{},
@@ -179,7 +179,7 @@ func reportingContributorScopeSQL(args *reportingArgs, in reportingContributorIn
 	return where
 }
 
-func readReportingContributorWords(ctx context.Context, db dictionaryDB, in reportingContributorInput, projectIDs []string, row func(string) *reportingContributorRow) error {
+func readReportingContributorWords(ctx context.Context, db DB, in reportingContributorInput, projectIDs []string, row func(string) *reportingContributorRow) error {
 	var args reportingArgs
 	where := reportingContributorScopeSQL(&args, in, projectIDs, "s")
 	where += fmt.Sprintf(" and s.day between %s and %s", args.add(in.period.From), args.add(in.period.To))
@@ -217,7 +217,7 @@ func readReportingContributorWords(ctx context.Context, db dictionaryDB, in repo
 	return rows.Err()
 }
 
-func readReportingContributorMinutes(ctx context.Context, db dictionaryDB, in reportingContributorInput, projectIDs []string, row func(string) *reportingContributorRow) error {
+func readReportingContributorMinutes(ctx context.Context, db DB, in reportingContributorInput, projectIDs []string, row func(string) *reportingContributorRow) error {
 	var args reportingArgs
 	where := reportingContributorScopeSQL(&args, in, projectIDs, "e")
 	where += fmt.Sprintf(" and not e.voided and e.work_date >= %s and e.work_date < %s", reportingDayStart(args.add(in.period.From)), reportingDayEnd(args.add(in.period.To)))
@@ -250,7 +250,7 @@ func readReportingContributorMinutes(ctx context.Context, db dictionaryDB, in re
 // belongs to whoever finished it (its completion, `human:<analysis>:<step>` against
 // `completion:<analysis>:<step>`), an hourly cost to whoever logged the time. Fixed fees belong
 // to a task, not a person, and are left out.
-func readReportingContributorSpending(ctx context.Context, db dictionaryDB, in reportingContributorInput, projectIDs []string, row func(string) *reportingContributorRow, spent map[string]*big.Int) error {
+func readReportingContributorSpending(ctx context.Context, db DB, in reportingContributorInput, projectIDs []string, row func(string) *reportingContributorRow, spent map[string]*big.Int) error {
 	var args reportingArgs
 	where := reportingContributorScopeSQL(&args, in, projectIDs, "c")
 	where += fmt.Sprintf(" and not c.voided and c.kind = 'human' and c.created_at >= %s and c.created_at < %s", reportingDayStart(args.add(in.period.From)), reportingDayEnd(args.add(in.period.To)))
@@ -294,7 +294,7 @@ func readReportingContributorSpending(ctx context.Context, db dictionaryDB, in r
 }
 
 // readReportingPeople names members by their name, else their email, as the task report does.
-func readReportingPeople(ctx context.Context, db dictionaryDB, userIDs []string) (map[string]string, error) {
+func readReportingPeople(ctx context.Context, db DB, userIDs []string) (map[string]string, error) {
 	rows, err := db.Query(ctx, `
         select u.id::text, coalesce(nullif(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email)
         from users u where u.id = any($1::uuid[])`, userIDs)
@@ -318,7 +318,7 @@ func readReportingPeople(ctx context.Context, db dictionaryDB, userIDs []string)
 
 // contributors is the Contributors tab. Roles that cannot see what work costs see only their own
 // row, without money.
-func (api *reportingAPI) contributors(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) Contributors(r *http.Request, actor Actor) (any, int, error) {
 	q := readReportingQuery(r)
 	from, to := q.dates()
 	projectID, jobID, targetLocale := q.scope()
@@ -330,7 +330,7 @@ func (api *reportingAPI) contributors(r *http.Request, actor reportingActor) (an
 	}
 	ctx := r.Context()
 	var contributors reportingContributors
-	err := api.read(ctx, func(db dictionaryDB) error {
+	err := api.read(ctx, func(db DB) error {
 		view, err := api.context(ctx, db, actor)
 		if err != nil {
 			return err

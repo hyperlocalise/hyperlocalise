@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/hyperlocalise/hyperlocalise/internal/reporting"
 	"github.com/stretchr/testify/require"
 )
 
@@ -83,7 +84,7 @@ func TestReportingRateCardSaveKeepsEarlierVersionsAndRetiresRemovedLines(t *test
 	// Work recorded from now on for the retired language has no rate.
 	f.budget(f.scope.ProjectID, "100", some("Standard"))
 	var rate *reportingRateRow
-	require.NoError(t, reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true}).read(t.Context(), func(db dictionaryDB) error {
+	require.NoError(t, reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true}).read(t.Context(), func(db reporting.DB) error {
 		var err error
 		rate, err = resolveReportingRate(t.Context(), db, f.scope.OrganizationID, f.scope.ProjectID, "", "en-US", "es-ES", "translation")
 		return err

@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"context"
@@ -79,14 +79,14 @@ type reportingActivity struct {
 	ByLanguage []reportingLanguageUnits `json:"byLanguage"`
 }
 
-func (api *reportingAPI) activity(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) Activity(r *http.Request, actor Actor) (any, int, error) {
 	query, err := parseReportingActivityQuery(r)
 	if err != nil {
 		return nil, 0, err
 	}
 	ctx := r.Context()
 	var activity reportingActivity
-	err = api.read(ctx, func(db dictionaryDB) error {
+	err = api.read(ctx, func(db DB) error {
 		context, err := api.context(ctx, db, actor)
 		if err != nil {
 			return err
@@ -103,7 +103,7 @@ func (api *reportingAPI) activity(r *http.Request, actor reportingActor) (any, i
 	return map[string]any{"activity": activity}, http.StatusOK, nil
 }
 
-func readReportingActivity(ctx context.Context, db dictionaryDB, context reportingContext, query reportingActivityQuery) (reportingActivity, error) {
+func readReportingActivity(ctx context.Context, db DB, context reportingContext, query reportingActivityQuery) (reportingActivity, error) {
 	scope := context.scope(query.projectID, query.jobID, query.targetLocale)
 	period := context.period(query.from, query.to)
 	activity := reportingActivity{Period: period, Unit: query.unit, Step: query.step}
@@ -131,7 +131,7 @@ func reportingMeasure(name, unit string) string {
 // queryReportingActivity reads the totals for a period and the period before it in one scan.
 // The cards are about translation, apart from what was reviewed; what people finished, and kept
 // as given, follows the chart's step.
-func queryReportingActivity(ctx context.Context, db dictionaryDB, scope reportingScope, period reportingPeriod, unit, step string) (current, previous reportingActivityTotals, err error) {
+func queryReportingActivity(ctx context.Context, db DB, scope reportingScope, period reportingPeriod, unit, step string) (current, previous reportingActivityTotals, err error) {
 	var args reportingArgs
 	rows, ok := scope.summaryRows(&args, false)
 	if !ok {
@@ -208,7 +208,7 @@ func reportingSeriesBars(args *reportingArgs, per string, period reportingPeriod
 // queryReportingFinishedSeries reads the units finished in each day or week of a period, split by
 // where the text came from. Every day or week is present, with zeros where nothing was finished;
 // a week starts on Monday, so the first may begin before the period does.
-func queryReportingFinishedSeries(ctx context.Context, db dictionaryDB, scope reportingScope, period reportingPeriod, unit, step string) ([]reportingSeriesPoint, error) {
+func queryReportingFinishedSeries(ctx context.Context, db DB, scope reportingScope, period reportingPeriod, unit, step string) ([]reportingSeriesPoint, error) {
 	var args reportingArgs
 	start, starts := reportingSeriesBars(&args, period.Interval, period)
 	rows, ok := scope.summaryRows(&args, false)
@@ -248,7 +248,7 @@ func queryReportingFinishedSeries(ctx context.Context, db dictionaryDB, scope re
 
 // queryReportingFinishedByLanguage reads the units finished in a period by target language,
 // largest first.
-func queryReportingFinishedByLanguage(ctx context.Context, db dictionaryDB, scope reportingScope, period reportingPeriod, unit, step string) ([]reportingLanguageUnits, error) {
+func queryReportingFinishedByLanguage(ctx context.Context, db DB, scope reportingScope, period reportingPeriod, unit, step string) ([]reportingLanguageUnits, error) {
 	languages := []reportingLanguageUnits{}
 	var args reportingArgs
 	rows, ok := scope.summaryRows(&args, false)

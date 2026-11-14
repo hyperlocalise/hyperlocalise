@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"math/big"
@@ -166,6 +166,19 @@ func TestReportingPaidPercentPricesUnavailableWorkAsNew(t *testing.T) {
 	got, err = reportingPaidPercent(nil, "unavailable")
 	require.NoError(t, err)
 	require.Equal(t, 100, got)
+}
+
+func TestReportingCentsRoundAsJavaScriptsToFixedDoes(t *testing.T) {
+	cents := func(text string) string { value, _ := usdFloat(text); return jsToFixed2(value) }
+	require.Equal(t, "5.00", cents("5"))
+	require.Equal(t, "12.63", cents("12.625"))
+	require.Equal(t, "0.13", cents("0.125"))
+	require.Equal(t, "1.00", cents("1.005"))
+	require.Equal(t, "0.01", cents("0.015"))
+	require.Equal(t, "2.67", cents("2.675"))
+	require.Equal(t, "0.12", cents("0.1249"))
+	require.Equal(t, "0.62", cents("0.6199"))
+	require.Equal(t, "0.00", cents("0"))
 }
 
 func TestUsdFloatRejectsInvalidAmountsBeforeParsing(t *testing.T) {

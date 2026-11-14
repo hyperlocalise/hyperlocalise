@@ -1,4 +1,4 @@
-package main
+package reporting
 
 // reportingAttributedUsageSQL is billing's usage rows (usage_events) of one workspace, each with
 // the task and project it belongs to, so AI usage and AI spending place every call the same way.

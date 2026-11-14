@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"context"
@@ -121,7 +121,7 @@ func reportingWordFiltersSQL(args *reportingArgs, in reportingWordCountInput, pr
 // or by task step. Tasks come largest first, a page of 50 at a time; totals cover every page.
 // Rows by task or by task step count a string in each task that holds it, so they can add up to
 // more than the totals, which count it once per project.
-func queryReportingWordCounts(ctx context.Context, db dictionaryDB, in reportingWordCountInput) (reportingWordCounts, error) {
+func queryReportingWordCounts(ctx context.Context, db DB, in reportingWordCountInput) (reportingWordCounts, error) {
 	counts := reportingWordCounts{
 		Period: in.period, Unit: in.filters.unit, Step: in.filters.step, Mode: in.filters.mode, GroupBy: in.groupBy,
 		Rows: []reportingWordCountRow{}, BandTotals: map[string]float64{}, Page: in.page, PageSize: reportingWordCountPageSize,
@@ -303,7 +303,7 @@ type reportingGroupNameSet struct {
 }
 
 // reportingGroupNames looks up the titles of the tasks and the names of the projects rows name.
-func reportingGroupNames[T any](ctx context.Context, db dictionaryDB, rows []T, ids func(T) (projectID, jobID *string)) (reportingGroupNameSet, error) {
+func reportingGroupNames[T any](ctx context.Context, db DB, rows []T, ids func(T) (projectID, jobID *string)) (reportingGroupNameSet, error) {
 	names := reportingGroupNameSet{jobTitles: map[string]*string{}, projectNames: map[string]*string{}}
 	var jobIDs, projectIDs []string
 	seenJobs, seenProjects := map[string]bool{}, map[string]bool{}
@@ -375,7 +375,7 @@ type reportingWordSeries struct {
 // week or month even when nothing happened. Weeks start on Monday and months on the first, in
 // UTC; the first may begin before the period does. Split by task step, a string counts in each
 // task that holds it, as the table grouped by task step counts it.
-func queryReportingWordSeries(ctx context.Context, db dictionaryDB, scope reportingScope, period reportingPeriod, filters reportingWordFilters, split, per string) (reportingWordSeries, error) {
+func queryReportingWordSeries(ctx context.Context, db DB, scope reportingScope, period reportingPeriod, filters reportingWordFilters, split, per string) (reportingWordSeries, error) {
 	series := reportingWordSeries{Period: period, Unit: filters.unit, Step: filters.step, Mode: filters.mode, Split: split, Per: per, Groups: []reportingSeriesGroup{}, Points: []reportingSeriesUnits{}}
 	var args reportingArgs
 	byTaskStep := split == "task_step"
@@ -525,7 +525,7 @@ func queryReportingWordSeries(ctx context.Context, db dictionaryDB, scope report
 
 // words is the Word counts tab's table: units by match band, grouped as asked, a page of tasks
 // at a time, or every row for a download.
-func (api *reportingAPI) words(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) Words(r *http.Request, actor Actor) (any, int, error) {
 	q := readReportingQuery(r)
 	filters := q.wordFilters()
 	groupBy := q.choice("groupBy", "project", reportingWordCountGroupings...)
@@ -536,7 +536,7 @@ func (api *reportingAPI) words(r *http.Request, actor reportingActor) (any, int,
 	}
 	ctx := r.Context()
 	var counts reportingWordCounts
-	err := api.read(ctx, func(db dictionaryDB) error {
+	err := api.read(ctx, func(db DB) error {
 		view, err := api.context(ctx, db, actor)
 		if err != nil {
 			return err
@@ -559,7 +559,7 @@ func (api *reportingAPI) words(r *http.Request, actor reportingActor) (any, int,
 
 // wordSeries is the Word counts tab's volume chart: units each day, week or month, split one way;
 // by project and the period's own bar length unless asked.
-func (api *reportingAPI) wordSeries(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) WordSeries(r *http.Request, actor Actor) (any, int, error) {
 	q := readReportingQuery(r)
 	filters := q.wordFilters()
 	split := q.choice("split", "project", reportingWordCountSplits...)
@@ -569,7 +569,7 @@ func (api *reportingAPI) wordSeries(r *http.Request, actor reportingActor) (any,
 	}
 	ctx := r.Context()
 	var series reportingWordSeries
-	err := api.read(ctx, func(db dictionaryDB) error {
+	err := api.read(ctx, func(db DB) error {
 		view, err := api.context(ctx, db, actor)
 		if err != nil {
 			return err

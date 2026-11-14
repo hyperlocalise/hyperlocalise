@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"context"
@@ -41,14 +41,14 @@ func parseReportingTaskSearch(r *http.Request) (reportingTaskSearch, error) {
 	return search, q.err()
 }
 
-func (api *reportingAPI) tasks(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) Tasks(r *http.Request, actor Actor) (any, int, error) {
 	search, err := parseReportingTaskSearch(r)
 	if err != nil {
 		return nil, 0, err
 	}
 	ctx := r.Context()
 	tasks := []reportingTaskOption{}
-	err = api.read(ctx, func(db dictionaryDB) error {
+	err = api.read(ctx, func(db DB) error {
 		projectIDs, err := reportingProjectIDs(ctx, db, actor)
 		if err != nil {
 			return err
@@ -70,7 +70,7 @@ func reportingTaskTitleSQL(alias string) string {
 // listReportingTasks lists tasks with Reports data, newest first: optionally only open ones,
 // those whose title or id contains the search, or the given ids. A failed task is offered only
 // when asked for by id: it has no work to estimate or to log time on.
-func listReportingTasks(ctx context.Context, db dictionaryDB, organizationID string, projectIDs []string, search reportingTaskSearch) ([]reportingTaskOption, error) {
+func listReportingTasks(ctx context.Context, db DB, organizationID string, projectIDs []string, search reportingTaskSearch) ([]reportingTaskOption, error) {
 	tasks := []reportingTaskOption{}
 	if len(projectIDs) == 0 {
 		return tasks, nil

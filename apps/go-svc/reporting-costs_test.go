@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/hyperlocalise/hyperlocalise/internal/reporting"
 	"github.com/stretchr/testify/require"
 )
 
@@ -126,10 +127,7 @@ func estimateRows(e map[string]any) map[string]map[string]any {
 func TestReportingPricedUnitsRefuseAnUnvalidatedUnit(t *testing.T) {
 	f := seedReportingMoney(t)
 	require.PanicsWithValue(t, "reporting unit not validated: words; drop table jobs", func() {
-		_, _ = queryReportingPricedUnits(t.Context(), f.scope.Pool, reportingPricingInput{
-			organizationID: f.scope.OrganizationID, projectIDs: []string{f.scope.ProjectID},
-			step: "translation", unit: "words; drop table jobs", measure: "chosen",
-		})
+		_ = reporting.QueryPricedUnits(t.Context(), f.scope.Pool, f.scope.OrganizationID, []string{f.scope.ProjectID}, "translation", "words; drop table jobs", "chosen")
 	})
 }
 

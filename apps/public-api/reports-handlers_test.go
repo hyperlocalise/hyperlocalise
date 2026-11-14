@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -64,7 +62,7 @@ func errorCode(t *testing.T, rec *httptest.ResponseRecorder) string {
 	return body.Error
 }
 
-func TestReportsReadThroughGoSvcAsTheTokensMember(t *testing.T) {
+func TestReportsReadAsTheTokensMember(t *testing.T) {
 	reports := &stubReports{answer: reportAnswer{status: 200, contentType: "application/json", body: []byte(`{"kind":"contributors","contributors":{"rows":[]}}`)}}
 	h := reportsTestHandler(reports, "reports:read")
 
@@ -76,7 +74,7 @@ func TestReportsReadThroughGoSvcAsTheTokensMember(t *testing.T) {
 		query: map[string]string{"from": "2026-06-01", "to": "2026-06-30", "unit": "characters"},
 	}}, reports.calls)
 
-	// Public names map to go-svc's kinds; a job's report names its job in the path.
+	// Public names map to package kinds; a job's report names its job in the path.
 	sendReport(t, h, "/v1/reports/ai-usage")
 	sendReport(t, h, "/v1/jobs/job_42/report?step=review")
 	require.Equal(t, "ai", reports.calls[1].kind)
@@ -85,7 +83,7 @@ func TestReportsReadThroughGoSvcAsTheTokensMember(t *testing.T) {
 
 	rec = sendReport(t, h, "/v1/reports/nope")
 	require.Equal(t, http.StatusNotFound, rec.Code)
-	require.Len(t, reports.calls, 3, "an unknown report never reaches go-svc")
+	require.Len(t, reports.calls, 3, "an unknown report never reaches the reader")
 }
 
 func TestReportsPassTheCSVDownloadOn(t *testing.T) {
@@ -138,7 +136,7 @@ func TestReportsNeedTheScopeAndAValidQuery(t *testing.T) {
 	require.Equal(t, "reports_unavailable", errorCode(t, rec))
 }
 
-func TestReportsMapGoSvcRefusalsAndFailures(t *testing.T) {
+func TestReportsMapRefusalsAndFailures(t *testing.T) {
 	cases := []struct {
 		name       string
 		answer     reportAnswer
@@ -154,7 +152,7 @@ func TestReportsMapGoSvcRefusalsAndFailures(t *testing.T) {
 		{"busy", reportAnswer{status: 503, body: []byte(`{"error":"reports_busy","message":"Reports is busy"}`)}, nil, 503, "reports_busy", "5"},
 		{"timed out", reportAnswer{status: 503, body: []byte(`{"error":"report_timed_out","message":"too long"}`)}, nil, 503, "report_timed_out", "5"},
 		{"token refused", reportAnswer{status: 401, body: []byte(`{"error":"unauthorized"}`)}, nil, 503, "reports_unavailable", ""},
-		{"go-svc failed", reportAnswer{status: 500, body: []byte(`oops`)}, nil, 503, "reports_unavailable", ""},
+		{"reader failed", reportAnswer{status: 500, body: []byte(`oops`)}, nil, 503, "reports_unavailable", ""},
 		{"unreachable", reportAnswer{}, errReportsUnavailable, 503, "reports_unavailable", ""},
 		{"too large", reportAnswer{}, errReportTooLarge, 422, "report_too_large", ""},
 	}
@@ -193,42 +191,4 @@ func TestReportsAreLimitedPerWorkspace(t *testing.T) {
 	require.Equal(t, http.StatusTooManyRequests, rec.Code)
 	require.Equal(t, "rate_limited", errorCode(t, rec))
 	require.NotEmpty(t, rec.Header().Get("Retry-After"))
-}
-
-type doerFunc func(*http.Request) (*http.Response, error)
-
-func (f doerFunc) Do(req *http.Request) (*http.Response, error) { return f(req) }
-
-func TestGoSvcReportsClientAsksTheInternalRouteWithTheServiceToken(t *testing.T) {
-	var seen *http.Request
-	var payload map[string]any
-	client, err := newGoSvcReportsClient("http://go-svc.internal/", "secret", doerFunc(func(req *http.Request) (*http.Response, error) {
-		seen = req
-		raw, _ := io.ReadAll(req.Body)
-		require.NoError(t, json.Unmarshal(raw, &payload))
-		return &http.Response{
-			StatusCode: 200,
-			Header:     http.Header{"Content-Type": {"text/csv"}, "Content-Disposition": {`attachment; filename="x.csv"`}},
-			Body:       io.NopCloser(strings.NewReader("a,b")),
-		}, nil
-	}))
-	require.NoError(t, err)
-	answer, err := client.report(t.Context(), principal{OrganizationID: "org_1", UserID: "user_1"}, "contributors", map[string]string{"unit": "words"}, "csv")
-	require.NoError(t, err)
-	require.Equal(t, "http://go-svc.internal/internal/reports/contributors", seen.URL.String())
-	require.Equal(t, goSvcServiceToken("secret"), seen.Header.Get(goSvcServiceTokenHeader))
-	require.Equal(t, map[string]any{"organizationId": "org_1", "userId": "user_1", "query": map[string]any{"unit": "words"}, "format": "csv"}, payload)
-	require.Equal(t, reportAnswer{status: 200, contentType: "text/csv", contentDisposition: `attachment; filename="x.csv"`, body: []byte("a,b")}, answer)
-
-	failing, err := newGoSvcReportsClient("http://go-svc.internal", "secret", doerFunc(func(*http.Request) (*http.Response, error) {
-		return nil, errors.New("dial tcp: refused")
-	}))
-	require.NoError(t, err)
-	_, err = failing.report(t.Context(), principal{}, "costs", nil, "json")
-	require.ErrorIs(t, err, errReportsUnavailable)
-
-	for _, bad := range []struct{ url, password string }{{"", "secret"}, {"ftp://x", "secret"}, {"http://x", " "}} {
-		_, err := newGoSvcReportsClient(bad.url, bad.password, nil)
-		require.Error(t, err, bad)
-	}
 }

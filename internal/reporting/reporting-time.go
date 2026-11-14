@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"context"
@@ -90,7 +90,7 @@ func reportingLoggedTimeWhere(args *reportingArgs, scope reportingScope, project
 
 // queryReportingLoggedTime reads time logged in a period by task, step and language, most time
 // first, 50 rows a page, or every row on one page for a download.
-func queryReportingLoggedTime(ctx context.Context, db dictionaryDB, scope reportingScope, period reportingPeriod, page int, all bool, contributorID string) (reportingLoggedTime, error) {
+func queryReportingLoggedTime(ctx context.Context, db DB, scope reportingScope, period reportingPeriod, page int, all bool, contributorID string) (reportingLoggedTime, error) {
 	time := reportingLoggedTime{Rows: []reportingLoggedTimeRow{}, Page: page, PageSize: reportingLoggedTimePageSize}
 	projectIDs := scope.scopedProjectIDs()
 	if len(projectIDs) == 0 {
@@ -182,7 +182,7 @@ func reportingNoTaskRuns() reportingTaskRuns {
 // queryReportingAutomatedTime reads how long automated work that finished in a period ran.
 // Workflows outside any project are counted only when includeUnattributed is set; test runs
 // with mock data never are.
-func queryReportingAutomatedTime(ctx context.Context, db dictionaryDB, scope reportingScope, period reportingPeriod, includeUnattributed bool) (reportingAutomatedTime, error) {
+func queryReportingAutomatedTime(ctx context.Context, db DB, scope reportingScope, period reportingPeriod, includeUnattributed bool) (reportingAutomatedTime, error) {
 	projectIDs := scope.scopedProjectIDs()
 	var args reportingArgs
 	start, end := reportingDayStart(args.add(period.From)), reportingDayEnd(args.add(period.To))
@@ -236,7 +236,7 @@ func queryReportingAutomatedTime(ctx context.Context, db dictionaryDB, scope rep
 // the last memory reuse to the last language's last progress; the languages' finished events are
 // written together after every file is stored, so they mark nothing per language. Only runs with
 // a job_started event count: a string job's failed run records the failure alone.
-func queryReportingTaskRuns(ctx context.Context, db dictionaryDB, scope reportingScope, projectIDs []string, period reportingPeriod) (reportingTaskRuns, error) {
+func queryReportingTaskRuns(ctx context.Context, db DB, scope reportingScope, projectIDs []string, period reportingPeriod) (reportingTaskRuns, error) {
 	var args reportingArgs
 	start, end := reportingDayStart(args.add(period.From)), reportingDayEnd(args.add(period.To))
 	forLocale, hasLanguage, onlyWithLanguage := "", "", ""
@@ -303,7 +303,7 @@ type reportingStepTime struct {
 
 // queryReportingLoggedTimeBySteps reads time people logged in a period by what the task was
 // for, in the order of the steps.
-func queryReportingLoggedTimeBySteps(ctx context.Context, db dictionaryDB, scope reportingScope, period reportingPeriod) ([]reportingStepTime, error) {
+func queryReportingLoggedTimeBySteps(ctx context.Context, db DB, scope reportingScope, period reportingPeriod) ([]reportingStepTime, error) {
 	steps := []reportingStepTime{}
 	projectIDs := scope.scopedProjectIDs()
 	if len(projectIDs) == 0 {
@@ -364,14 +364,14 @@ type reportingTime struct {
 
 // time is the Time tab: time people logged, and automated run time for the roles that see it.
 // Roles that cannot see what work costs see only their own time, and no automated time.
-func (api *reportingAPI) time(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) Time(r *http.Request, actor Actor) (any, int, error) {
 	query, err := parseReportingTimeQuery(r, true)
 	if err != nil {
 		return nil, 0, err
 	}
 	ctx := r.Context()
 	var time reportingTime
-	err = api.read(ctx, func(db dictionaryDB) error {
+	err = api.read(ctx, func(db DB) error {
 		view, err := api.context(ctx, db, actor)
 		if err != nil {
 			return err
@@ -408,14 +408,14 @@ type reportingStepTimes struct {
 }
 
 // stepTimes is time by step: logged by what each task is for, and automated by stage and step.
-func (api *reportingAPI) stepTimes(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) StepTimes(r *http.Request, actor Actor) (any, int, error) {
 	query, err := parseReportingTimeQuery(r, false)
 	if err != nil {
 		return nil, 0, err
 	}
 	ctx := r.Context()
 	var times reportingStepTimes
-	err = api.read(ctx, func(db dictionaryDB) error {
+	err = api.read(ctx, func(db DB) error {
 		view, err := api.context(ctx, db, actor)
 		if err != nil {
 			return err

@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"context"
@@ -26,7 +26,7 @@ const (
 // requests that miss together, so a Reports page's dozen requests ask WorkOS once rather than
 // up to twice each. Failed lookups are not kept: those requests fail closed and the next asks again.
 type cachedWorkspaceFlags struct {
-	live workspaceFlagChecker
+	live FlagChecker
 	now  func() time.Time
 
 	mu      sync.Mutex
@@ -39,7 +39,7 @@ type cachedWorkspaceFlag struct {
 	expiresAt time.Time
 }
 
-func newCachedWorkspaceFlags(live workspaceFlagChecker) *cachedWorkspaceFlags {
+func newCachedWorkspaceFlags(live FlagChecker) *cachedWorkspaceFlags {
 	return &cachedWorkspaceFlags{live: live, now: time.Now, entries: map[string]cachedWorkspaceFlag{}}
 }
 
@@ -89,13 +89,13 @@ func (c *cachedWorkspaceFlags) cached(key string) (bool, bool) {
 
 // write runs fn in a transaction on one pooled connection, under the same admission limit and
 // statement time limit as a read, and commits when fn returns nil.
-func (api *reportingAPI) write(ctx context.Context, fn func(tx pgx.Tx) error) error {
+func (api *API) write(ctx context.Context, fn func(tx pgx.Tx) error) error {
 	release, err := api.admit(ctx)
 	if err != nil {
 		return err
 	}
 	defer release()
-	tx, err := api.pool.Begin(ctx)
+	tx, err := api.Pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -112,13 +112,13 @@ func (api *reportingAPI) write(ctx context.Context, fn func(tx pgx.Tx) error) er
 // read runs fn's queries on one pooled connection, in a read-only transaction whose statements
 // are each limited to reportingStatementTimeout, once one of the reportingQueriesAtOnce slots is
 // free. The slot and the transaction end together, before the answer is written.
-func (api *reportingAPI) read(ctx context.Context, fn func(db dictionaryDB) error) error {
+func (api *API) read(ctx context.Context, fn func(db DB) error) error {
 	release, err := api.admit(ctx)
 	if err != nil {
 		return err
 	}
 	defer release()
-	tx, err := api.pool.Begin(ctx)
+	tx, err := api.Pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -136,21 +136,21 @@ func (api *reportingAPI) read(ctx context.Context, fn func(db dictionaryDB) erro
 // admit takes the request's workspace slot, then one of the service's. The workspace slot comes
 // first, so a workspace's queued requests wait on each other without holding a service slot.
 // Waiting runs out with the request's own time limit: busy either way.
-func (api *reportingAPI) admit(ctx context.Context) (func(), error) {
+func (api *API) admit(ctx context.Context) (func(), error) {
 	releaseWorkspace := func() {}
-	if organizationID, ok := reportingWorkspaceOf(ctx); ok && api.workspaces != nil {
-		release, err := api.workspaces.acquire(ctx, organizationID)
+	if organizationID, ok := reportingWorkspaceOf(ctx); ok && api.Workspaces != nil {
+		release, err := api.Workspaces.acquire(ctx, organizationID)
 		if err != nil {
 			return nil, errReportingBusy
 		}
 		releaseWorkspace = release
 	}
-	if err := api.queries.Acquire(ctx, 1); err != nil {
+	if err := api.Queries.Acquire(ctx, 1); err != nil {
 		releaseWorkspace()
 		return nil, errReportingBusy
 	}
 	return func() {
-		api.queries.Release(1)
+		api.Queries.Release(1)
 		releaseWorkspace()
 	}, nil
 }

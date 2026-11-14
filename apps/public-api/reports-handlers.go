@@ -13,10 +13,11 @@ import (
 )
 
 // /v1/reports/{report} and /v1/jobs/{jobId}/report: the Reports page's reports for scripts, BI
-// tools and payment systems, as JSON or the page's own CSV. Each reads through go-svc as the
-// token's member (reports-client.go), behind the reports:read scope and a per-workspace limit.
+// tools and payment systems, as JSON or the page's own CSV. Each reads PostgreSQL through the
+// shared reporting package as the token's member, behind the reports:read scope and a
+// per-workspace limit.
 
-// reportKinds maps each public report to go-svc's internal kind.
+// reportKinds maps each public report name to the shared reporting package kind.
 var reportKinds = map[string]string{
 	"activity":     "activity",
 	"words":        "words",
@@ -32,13 +33,13 @@ const (
 	reportsQueryMaxKeys     = 30
 	reportsQueryMaxKeyLen   = 40
 	reportsQueryMaxValueLen = 2_000
-	// How long a report's answer may take to write: go-svc's 30 s and the way back.
+	// How long a report's answer may take to write: the shared package's 30 s and encoding.
 	reportsWriteTimeout = 45 * time.Second
-	// Reports are the heaviest reads this service passes on: a workspace may ask for this many
+	// Reports are the heaviest reads this service serves: a workspace may ask for this many
 	// a minute per copy, in bursts of up to reportsBurst.
 	reportsPerMinute = 30
 	reportsBurst     = 10
-	// How soon to ask again when go-svc is busy.
+	// How soon to ask again when Reports is busy.
 	reportsBusyRetryAfter = "5"
 )
 
@@ -98,8 +99,8 @@ func (s apiServer) serveReport(w http.ResponseWriter, r *http.Request, kind, job
 	writeReportAnswer(w, kind, answer)
 }
 
-// reportQuery reads the query go-svc is given: each key once, within length limits, and the
-// format from `format` or an Accept of text/csv.
+// reportQuery reads the query the shared package is given: each key once, within length limits,
+// and the format from `format` or an Accept of text/csv.
 func reportQuery(w http.ResponseWriter, r *http.Request) (map[string]string, string, bool) {
 	values := r.URL.Query()
 	if len(values) > reportsQueryMaxKeys {
@@ -137,8 +138,8 @@ func reportQuery(w http.ResponseWriter, r *http.Request) (map[string]string, str
 	return query, format, true
 }
 
-// writeReportAnswer passes go-svc's answer on: a report or its download as it came, its refusals
-// with their codes, and its own failures as this service being unavailable.
+// writeReportAnswer writes a report or its download as it came, maps Reports refusals to their
+// codes, and treats unexpected failures as this service being unavailable.
 func writeReportAnswer(w http.ResponseWriter, kind string, answer reportAnswer) {
 	if answer.status >= 200 && answer.status < 300 {
 		contentType := answer.contentType

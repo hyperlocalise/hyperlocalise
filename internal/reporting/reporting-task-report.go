@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"context"
@@ -27,7 +27,7 @@ type reportingTaskRow struct {
 }
 
 // loadReportingTaskRow reads a task the viewer can open, by the web app's buildAccessibleJobsWhere.
-func loadReportingTaskRow(ctx context.Context, db dictionaryDB, actor reportingActor, jobID string) (reportingTaskRow, error) {
+func loadReportingTaskRow(ctx context.Context, db DB, actor Actor, jobID string) (reportingTaskRow, error) {
 	var job reportingTaskRow
 	if !reportingValidText(jobID) {
 		return job, reportingFailure(404, "job_not_found", "Resource not found")
@@ -77,7 +77,7 @@ type reportingTaskWords struct {
 }
 
 // queryReportingTaskWords reads a task's units by language, step and match band, over its whole life.
-func queryReportingTaskWords(ctx context.Context, db dictionaryDB, organizationID, jobID, unit string) (reportingTaskWords, error) {
+func queryReportingTaskWords(ctx context.Context, db DB, organizationID, jobID, unit string) (reportingTaskWords, error) {
 	words := reportingTaskWords{
 		Rows:          []reportingTaskWordRow{},
 		Totals:        map[string]reportingTaskWordTotals{"translation": {}, "review": {}},
@@ -162,7 +162,7 @@ func queryReportingTaskWords(ctx context.Context, db dictionaryDB, organizationI
 // every step once the task has ended, else the steps with work on them. Work has started once
 // Reports holds a finished string, a person's cost of work (not an expense row the old API
 // wrote, and not an AI call) or logged time for the task and step, deleted ones aside.
-func queryReportingLockedPricingSteps(ctx context.Context, db dictionaryDB, organizationID, jobID, status string) ([]string, error) {
+func queryReportingLockedPricingSteps(ctx context.Context, db DB, organizationID, jobID, status string) ([]string, error) {
 	if !slices.Contains([]string{"queued", "running", "waiting_for_review"}, status) {
 		return slices.Clone(reportingStepOptions), nil
 	}
@@ -243,7 +243,7 @@ type reportingTaskReport struct {
 
 // taskReport is one task's words, money and time. Words, match bands and money are for the roles
 // that see Reports; others see their own time.
-func (api *reportingAPI) taskReport(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) TaskReport(r *http.Request, actor Actor) (any, int, error) {
 	q := readReportingQuery(r)
 	unit := q.unit()
 	step := q.step("translation")
@@ -265,7 +265,7 @@ func (api *reportingAPI) taskReport(r *http.Request, actor reportingActor) (any,
 	}
 	ctx := r.Context()
 	var report reportingTaskReport
-	err := api.read(ctx, func(db dictionaryDB) error {
+	err := api.read(ctx, func(db DB) error {
 		job, err := loadReportingTaskRow(ctx, db, actor, r.PathValue("jobId"))
 		if err != nil {
 			return err
@@ -524,10 +524,10 @@ type reportingTaskAnalysisState struct {
 // the Report tab every few seconds while a step is pending. A pending state left alone too long
 // reads as failed. The task's string counts and failure details are for the roles that see its
 // words.
-func (api *reportingAPI) taskAnalysis(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) TaskAnalysis(r *http.Request, actor Actor) (any, int, error) {
 	ctx := r.Context()
 	states := []reportingTaskAnalysisState{}
-	err := api.read(ctx, func(db dictionaryDB) error {
+	err := api.read(ctx, func(db DB) error {
 		job, err := loadReportingTaskRow(ctx, db, actor, r.PathValue("jobId"))
 		if err != nil {
 			return err
@@ -538,7 +538,7 @@ func (api *reportingAPI) taskAnalysis(r *http.Request, actor reportingActor) (an
 			return fmt.Errorf("read task analysis: %w", err)
 		}
 		defer rows.Close()
-		now := api.now()
+		now := api.Now()
 		financial := actor.can("billing:read")
 		for rows.Next() {
 			var state reportingTaskAnalysisState

@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"cmp"
@@ -94,7 +94,7 @@ type reportingPricingInput struct {
 }
 
 // queryReportingPricedUnits reads units of work, priced.
-func queryReportingPricedUnits(ctx context.Context, db dictionaryDB, in reportingPricingInput) (reportingPricedUnits, error) {
+func queryReportingPricedUnits(ctx context.Context, db DB, in reportingPricingInput) (reportingPricedUnits, error) {
 	var args reportingArgs
 	org := args.add(in.organizationID)
 	projects := "s.project_id = any(" + args.add(in.projectIDs) + "::text[])"
@@ -300,7 +300,7 @@ type reportingFixedFee struct {
 	AmountUSD string `json:"amountUsd"`
 }
 
-func queryReportingFixedFees(ctx context.Context, db dictionaryDB, organizationID string, projectIDs, jobIDs []string, step string, uncharged bool) ([]reportingFixedFee, error) {
+func queryReportingFixedFees(ctx context.Context, db DB, organizationID string, projectIDs, jobIDs []string, step string, uncharged bool) ([]reportingFixedFee, error) {
 	fees := []reportingFixedFee{}
 	if len(projectIDs) == 0 {
 		return fees, nil
@@ -412,7 +412,7 @@ func reportingBigFloat(value *big.Int) float64 {
 // finished or not, at the live rates. With no tasks chosen and one project, the whole project:
 // every current string it holds, in a task or not, from its current rows. A whole workspace is
 // never estimated: its tasks hold millions of summary rows.
-func queryReportingCostEstimate(ctx context.Context, db dictionaryDB, scope reportingScope, jobIDs []string, step, unit string, rateCardName *string) (reportingCostEstimate, error) {
+func queryReportingCostEstimate(ctx context.Context, db DB, scope reportingScope, jobIDs []string, step, unit string, rateCardName *string) (reportingCostEstimate, error) {
 	projectIDs := scope.scopedProjectIDs()
 	wholeProject := len(jobIDs) == 0 && scope.projectID != ""
 	estimate := reportingCostEstimate{
@@ -605,7 +605,7 @@ type reportingStillToCome struct {
 // unfinished strings of open tasks assigned to a person and unfinished work already marked
 // payable, at the live rates; the time still estimated on hourly lines; and fixed fees not yet
 // charged.
-func queryReportingStillToCome(ctx context.Context, db dictionaryDB, organizationID string, projectIDs, jobIDs []string, step string, rateCardName *string) (map[string]reportingStillToCome, error) {
+func queryReportingStillToCome(ctx context.Context, db DB, organizationID string, projectIDs, jobIDs []string, step string, rateCardName *string) (map[string]reportingStillToCome, error) {
 	result := map[string]reportingStillToCome{}
 	if len(projectIDs) == 0 {
 		return result, nil
@@ -702,7 +702,7 @@ type reportingOutsideSpending struct {
 // charge on a task counts by its task, one with no task by its recorded project, so none counts
 // twice. With no days given, everything spent so far. Billing's AI charges tied to no project
 // come back apart, when asked for and not filtered by language.
-func queryReportingSpending(ctx context.Context, db dictionaryDB, organizationID string, projectIDs []string, from, to, targetLocale string, outsideProjects bool) (map[string]*reportingSpending, *reportingOutsideSpending, error) {
+func queryReportingSpending(ctx context.Context, db DB, organizationID string, projectIDs []string, from, to, targetLocale string, outsideProjects bool) (map[string]*reportingSpending, *reportingOutsideSpending, error) {
 	byProject := map[string]*reportingSpending{}
 	withAi := targetLocale == ""
 	outside := withAi && outsideProjects
@@ -891,7 +891,7 @@ func usdPointer(value *big.Int) *string {
 // queryReportingCosts reads what was spent in a period, by project, with the previous period's
 // total. With includeUnattributed and no project chosen, AI charged outside any project is added
 // as its own line and in the totals, so the workspace's total covers all of billing's AI charges.
-func queryReportingCosts(ctx context.Context, db dictionaryDB, scope reportingScope, period reportingPeriod, includeUnattributed bool) (reportingCosts, error) {
+func queryReportingCosts(ctx context.Context, db DB, scope reportingScope, period reportingPeriod, includeUnattributed bool) (reportingCosts, error) {
 	costs := reportingCosts{Period: period, Rows: []reportingCostRow{}}
 	projectIDs := scope.scopedProjectIDs()
 	outsideProjects := includeUnattributed && scope.projectID == ""
@@ -1010,7 +1010,7 @@ func reportingBudgetStatus(budget, spent, forecast *big.Int) string {
 
 // queryReportingBudgets reads each project's all-time budget against what has been spent and
 // what is still to come.
-func queryReportingBudgets(ctx context.Context, db dictionaryDB, organizationID string, projectIDs []string) ([]reportingBudgetRow, error) {
+func queryReportingBudgets(ctx context.Context, db DB, organizationID string, projectIDs []string) ([]reportingBudgetRow, error) {
 	budgets := []reportingBudgetRow{}
 	if len(projectIDs) == 0 {
 		return budgets, nil
@@ -1090,7 +1090,7 @@ type reportingBudget struct {
 }
 
 // saveBudget sets a project's all-time budget and the card that prices its work.
-func (api *reportingAPI) saveBudget(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) SaveBudget(r *http.Request, actor Actor) (any, int, error) {
 	body, err := readReportingBody(r, "invalid_budget")
 	if err != nil {
 		return nil, 0, err
@@ -1138,7 +1138,7 @@ func (api *reportingAPI) saveBudget(r *http.Request, actor reportingActor) (any,
 	return map[string]any{"budget": saved}, http.StatusOK, nil
 }
 
-func (api *reportingAPI) costs(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) Costs(r *http.Request, actor Actor) (any, int, error) {
 	q := readReportingQuery(r)
 	from, to := q.dates()
 	projectID := q.id("projectId")
@@ -1149,7 +1149,7 @@ func (api *reportingAPI) costs(r *http.Request, actor reportingActor) (any, int,
 	}
 	ctx := r.Context()
 	var costs reportingCosts
-	err := api.read(ctx, func(db dictionaryDB) error {
+	err := api.read(ctx, func(db DB) error {
 		view, err := api.context(ctx, db, actor)
 		if err != nil {
 			return err
@@ -1167,7 +1167,7 @@ func (api *reportingAPI) costs(r *http.Request, actor reportingActor) (any, int,
 }
 
 // costEstimate is for chosen tasks, or for the whole of one project.
-func (api *reportingAPI) costEstimate(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) CostEstimate(r *http.Request, actor Actor) (any, int, error) {
 	q := readReportingQuery(r)
 	projectID := q.id("projectId")
 	targetLocale := q.text("targetLocale", 2, 35)
@@ -1196,7 +1196,7 @@ func (api *reportingAPI) costEstimate(r *http.Request, actor reportingActor) (an
 	ctx := r.Context()
 	var estimate reportingCostEstimate
 	var quote reportingQuoteDetails
-	err := api.read(ctx, func(db dictionaryDB) error {
+	err := api.read(ctx, func(db DB) error {
 		view, err := api.context(ctx, db, actor)
 		if err != nil {
 			return err
@@ -1227,7 +1227,7 @@ func (api *reportingAPI) costEstimate(r *http.Request, actor reportingActor) (an
 	return map[string]any{"costEstimate": estimate}, http.StatusOK, nil
 }
 
-func (api *reportingAPI) budgets(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) Budgets(r *http.Request, actor Actor) (any, int, error) {
 	q := readReportingQuery(r)
 	projectID := q.id("projectId")
 	format := q.format()
@@ -1236,7 +1236,7 @@ func (api *reportingAPI) budgets(r *http.Request, actor reportingActor) (any, in
 	}
 	ctx := r.Context()
 	var budgets []reportingBudgetRow
-	err := api.read(ctx, func(db dictionaryDB) error {
+	err := api.read(ctx, func(db DB) error {
 		view, err := api.context(ctx, db, actor)
 		if err != nil {
 			return err

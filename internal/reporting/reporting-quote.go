@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"bytes"
@@ -19,15 +19,24 @@ import (
 // estimate itself.
 
 const (
-	reportingQuoteSheet           = "Quote"
+	QuoteSheet                    = "Quote"
+	reportingQuoteSheet           = QuoteSheet
 	reportingQuoteDefaultValidity = 30
-	reportingXLSXContentType      = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	XLSXContentType               = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	reportingXLSXContentType      = XLSXContentType
 )
 
-// reportingFile is a download that is not CSV: its bytes are built in full before they are written.
+// File is a download that is not CSV: its bytes are built in full before they are written.
+type File = reportingFile
+
 type reportingFile struct {
 	filename, contentType string
 	body                  []byte
+}
+
+// WriteFile writes an XLSX or other binary download.
+func WriteFile(ctx context.Context, w http.ResponseWriter, status int, file File) {
+	writeReportingFile(ctx, w, status, file)
 }
 
 func writeReportingFile(ctx context.Context, w http.ResponseWriter, status int, file reportingFile) {
@@ -280,7 +289,7 @@ func reportingQuoteNotes(estimate reportingCostEstimate) []string {
 }
 
 // reportingWorkspaceName is the workspace's display name, for the quote's sender.
-func reportingWorkspaceName(ctx context.Context, db dictionaryDB, organizationID string) (string, error) {
+func reportingWorkspaceName(ctx context.Context, db DB, organizationID string) (string, error) {
 	var name string
 	err := db.QueryRow(ctx, `select name from organizations where id = $1`, organizationID).Scan(&name)
 	if err != nil {

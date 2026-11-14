@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"context"
@@ -50,7 +50,7 @@ type reportingRateRow struct {
 // reportingRateLineFor is a card's line for a language pair and step, as of the time asOf
 // reads (now when nil). Rates are versioned rows: a line taken off the card is a newer, retired
 // row, so the newest row decides.
-func reportingRateLineFor(ctx context.Context, db dictionaryDB, organizationID, name, sourceLocale, targetLocale, step string, asOf *string) (*reportingRateRow, error) {
+func reportingRateLineFor(ctx context.Context, db DB, organizationID, name, sourceLocale, targetLocale, step string, asOf *string) (*reportingRateRow, error) {
 	var args reportingArgs
 	where := fmt.Sprintf("organization_id = %s and name = %s and source_locale = %s and target_locale = %s and step = %s",
 		args.add(organizationID), args.add(name), args.add(sourceLocale), args.add(targetLocale), args.add(step))
@@ -73,7 +73,7 @@ func reportingRateLineFor(ctx context.Context, db dictionaryDB, organizationID, 
 // card was when the task was priced; else from its project budget's card, as it is now. The
 // first card found prices every language, so a language it has no line for has no rate. Nil
 // when none applies.
-func resolveReportingRate(ctx context.Context, db dictionaryDB, organizationID, projectID, jobID, sourceLocale, targetLocale, step string) (*reportingRateRow, error) {
+func resolveReportingRate(ctx context.Context, db DB, organizationID, projectID, jobID, sourceLocale, targetLocale, step string) (*reportingRateRow, error) {
 	var taskRateID string
 	var cardName *string
 	err := db.QueryRow(ctx, `select id, rate_card_name from reporting_task_rates where organization_id = $1 and job_id = $2 and step = $3`, organizationID, jobID, step).Scan(&taskRateID, &cardName)
@@ -98,7 +98,7 @@ func resolveReportingRate(ctx context.Context, db dictionaryDB, organizationID, 
 // reportingStartRecording records when Reports started for a workspace, the first time it
 // records anything for it: at its earliest record, or now. The earliest records are looked for
 // only while the workspace has no start, so the lookup runs once per workspace.
-func reportingStartRecording(ctx context.Context, db dictionaryDB, organizationID string) error {
+func reportingStartRecording(ctx context.Context, db DB, organizationID string) error {
 	_, err := db.Exec(ctx, `
         insert into reporting_workspaces (organization_id, started_at)
         select $1, coalesce(least(
@@ -116,7 +116,7 @@ func reportingStartRecording(ctx context.Context, db dictionaryDB, organizationI
 
 // logTime records time on a native task. The time is priced only by an hourly rate; per-unit
 // rates price finished work.
-func (api *reportingAPI) logTime(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) LogTime(r *http.Request, actor Actor) (any, int, error) {
 	body, err := readReportingBody(r, "invalid_time_entry")
 	if err != nil {
 		return nil, 0, err
@@ -217,7 +217,7 @@ func (api *reportingAPI) logTime(r *http.Request, actor reportingActor) (any, in
 
 // loadReportingTimeEntry reads and locks one of the workspace's time entries in a project the
 // viewer can open, so an edit waiting on a delete finds the entry gone instead of rewriting it.
-func loadReportingTimeEntry(ctx context.Context, db dictionaryDB, actor reportingActor, id string, includeVoided bool) (reportingTimeEntryRow, error) {
+func loadReportingTimeEntry(ctx context.Context, db DB, actor Actor, id string, includeVoided bool) (reportingTimeEntryRow, error) {
 	if !reportingValidText(id) {
 		return reportingTimeEntryRow{}, reportingFailure(404, "time_entry_not_found", "Resource not found")
 	}
@@ -244,7 +244,7 @@ func loadReportingTimeEntry(ctx context.Context, db dictionaryDB, actor reportin
 
 // editTime changes an entry's minutes, day and note; the entry's own cost follows. A
 // contributor edits their own time; billing write edits anyone's.
-func (api *reportingAPI) editTime(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) EditTime(r *http.Request, actor Actor) (any, int, error) {
 	body, err := readReportingBody(r, "invalid_time_entry")
 	if err != nil {
 		return nil, 0, err
@@ -309,7 +309,7 @@ func (api *reportingAPI) editTime(r *http.Request, actor reportingActor) (any, i
 }
 
 // voidTime deletes an entry by voiding it and its cost, so the record stays.
-func (api *reportingAPI) voidTime(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) VoidTime(r *http.Request, actor Actor) (any, int, error) {
 	ctx := r.Context()
 	err := api.write(ctx, func(tx pgx.Tx) error {
 		entry, err := loadReportingTimeEntry(ctx, tx, actor, r.PathValue("id"), true)

@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"net/http"
@@ -48,10 +48,10 @@ func TestReportingActivityQueryRefusesWhatTheWebSchemaRefuses(t *testing.T) {
 		"targetLocale=fr%00FR",
 	} {
 		_, err := activityQueryFrom(t, rawQuery)
-		var failure *reportingError
+		var failure *Error
 		require.ErrorAs(t, err, &failure, rawQuery)
-		require.Equal(t, 400, failure.status, rawQuery)
-		require.Equal(t, "invalid_report_query", failure.code, rawQuery)
+		require.Equal(t, 400, failure.Status, rawQuery)
+		require.Equal(t, "invalid_report_query", failure.Code, rawQuery)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/hyperlocalise/hyperlocalise/internal/reporting"
 	"github.com/stretchr/testify/require"
 )
 
@@ -155,7 +156,7 @@ func TestReportingLockedPricingSteps(t *testing.T) {
 	locked := func(job, status string) []string {
 		var steps []string
 		require.NoError(t, f.scope.Pool.QueryRow(t.Context(), `select 1`).Scan(new(int)))
-		err := reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true}).read(t.Context(), func(db dictionaryDB) error {
+		err := reportingTestAPI(f.scope, "admin", stubWorkspaceFlags{enabled: true}).read(t.Context(), func(db reporting.DB) error {
 			var err error
 			steps, err = queryReportingLockedPricingSteps(t.Context(), db, f.scope.OrganizationID, job, status)
 			return err

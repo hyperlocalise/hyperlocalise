@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"context"
@@ -40,10 +40,10 @@ type reportingSettings struct {
 
 // settings is what the Reports page needs before its first report: the viewer's projects, the
 // dates Reports covers, what they may do, and the rate cards they may price with.
-func (api *reportingAPI) settings(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) Settings(r *http.Request, actor Actor) (any, int, error) {
 	ctx := r.Context()
 	var settings reportingSettings
-	err := api.read(ctx, func(db dictionaryDB) error {
+	err := api.read(ctx, func(db DB) error {
 		context, err := api.context(ctx, db, actor)
 		if err != nil {
 			return err
@@ -80,7 +80,7 @@ func (api *reportingAPI) settings(r *http.Request, actor reportingActor) (any, i
 	return map[string]any{"settings": settings}, http.StatusOK, nil
 }
 
-func reportingSettingsProjects(ctx context.Context, db dictionaryDB, projectIDs []string) ([]reportingSettingsProject, error) {
+func reportingSettingsProjects(ctx context.Context, db DB, projectIDs []string) ([]reportingSettingsProject, error) {
 	rows, err := db.Query(ctx, `select id, name, source_locale, target_locales from projects where id = any($1::text[])`, projectIDs)
 	if err != nil {
 		return nil, fmt.Errorf("list reporting settings projects: %w", err)
@@ -97,7 +97,7 @@ func reportingSettingsProjects(ctx context.Context, db dictionaryDB, projectIDs 
 	return projects, rows.Err()
 }
 
-func reportingSummaryFreshnessOf(ctx context.Context, db dictionaryDB, organizationID string) (reportingSummaryFreshness, error) {
+func reportingSummaryFreshnessOf(ctx context.Context, db DB, organizationID string) (reportingSummaryFreshness, error) {
 	var pending reportingSummaryFreshness
 	err := db.QueryRow(ctx, `
         select count(*)::integer, min(marked_at)::text
@@ -111,7 +111,7 @@ func reportingSummaryFreshnessOf(ctx context.Context, db dictionaryDB, organizat
 
 // reportingRateCardNames lists every rate card: those with a record of their own, and those from
 // before cards had one whose newest line of any language pair and step is not retired.
-func reportingRateCardNames(ctx context.Context, db dictionaryDB, organizationID string) ([]string, error) {
+func reportingRateCardNames(ctx context.Context, db DB, organizationID string) ([]string, error) {
 	rows, err := db.Query(ctx, `
         select name from reporting_rate_cards where organization_id = $1
         union

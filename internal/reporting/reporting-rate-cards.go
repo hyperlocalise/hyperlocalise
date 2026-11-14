@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"context"
@@ -42,7 +42,7 @@ func reportingLiveRateRowsSQL(organizationParam string) string {
 
 // listReportingRateCards lists every rate card with its current lines, by name. Cards made
 // before cards had their own record start with per-word lines.
-func listReportingRateCards(ctx context.Context, db dictionaryDB, organizationID string) ([]reportingRateCard, error) {
+func listReportingRateCards(ctx context.Context, db DB, organizationID string) ([]reportingRateCard, error) {
 	cards := map[string]*reportingRateCard{}
 	rows, err := db.Query(ctx, `select name, default_basis from reporting_rate_cards where organization_id = $1`, organizationID)
 	if err != nil {
@@ -97,10 +97,10 @@ func listReportingRateCards(ctx context.Context, db dictionaryDB, organizationID
 	return result, nil
 }
 
-func (api *reportingAPI) rateCards(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) RateCards(r *http.Request, actor Actor) (any, int, error) {
 	ctx := r.Context()
 	var cards []reportingRateCard
-	err := api.read(ctx, func(db dictionaryDB) error {
+	err := api.read(ctx, func(db DB) error {
 		var err error
 		cards, err = listReportingRateCards(ctx, db, actor.organizationID)
 		return err
@@ -149,13 +149,13 @@ func reportingSamePercentages(left json.RawMessage, right map[string]int) bool {
 
 // reportingLockRateCard holds a card's save lock until the transaction ends, so its lines cannot
 // change meanwhile.
-func reportingLockRateCard(ctx context.Context, tx dictionaryDB, organizationID, name string) error {
+func reportingLockRateCard(ctx context.Context, tx DB, organizationID, name string) error {
 	_, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext($1))`, "reporting-rate-card:"+organizationID+":"+name)
 	return err
 }
 
 // reportingRateCardExists is true when a card of this name has a record or any rate line.
-func reportingRateCardExists(ctx context.Context, db dictionaryDB, organizationID, name string) (bool, error) {
+func reportingRateCardExists(ctx context.Context, db DB, organizationID, name string) (bool, error) {
 	var found bool
 	err := db.QueryRow(ctx, `
         select exists(select 1 from reporting_rate_cards where organization_id = $1 and name = $2)
@@ -169,7 +169,7 @@ type reportingLiveRateRow struct {
 }
 
 // reportingLiveRateLines are a card's newest rows per language pair and step, in order.
-func reportingLiveRateLines(ctx context.Context, db dictionaryDB, organizationID, name string) ([]reportingLiveRateRow, error) {
+func reportingLiveRateLines(ctx context.Context, db DB, organizationID, name string) ([]reportingLiveRateRow, error) {
 	rows, err := db.Query(ctx, `
         select id, source_locale, target_locale, step, basis, pricing, rate::text, percentages, retired
         from (`+reportingLiveRateRowsSQL("$1")+`) live where name = $2
@@ -192,7 +192,7 @@ func reportingLiveRateLines(ctx context.Context, db dictionaryDB, organizationID
 // saveRateCard saves a card's default basis and its whole set of lines. create makes a new card
 // and fails if the name is taken; otherwise the card must exist. Only changed lines get a new
 // row, and removed lines a retired row, so work already recorded keeps its rate.
-func (api *reportingAPI) saveRateCard(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) SaveRateCard(r *http.Request, actor Actor) (any, int, error) {
 	body, err := readReportingBody(r, "invalid_rate_card")
 	if err != nil {
 		return nil, 0, err
@@ -364,7 +364,7 @@ func (api *reportingAPI) saveRateCard(r *http.Request, actor reportingActor) (an
 }
 
 // reportingAudit records who changed what, with the row before and after.
-func reportingAudit(ctx context.Context, tx dictionaryDB, actor reportingActor, resourceID, action string, before, after any) error {
+func reportingAudit(ctx context.Context, tx DB, actor Actor, resourceID, action string, before, after any) error {
 	encode := func(value any) (*string, error) {
 		if value == nil {
 			return nil, nil

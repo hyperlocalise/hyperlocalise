@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"errors"
@@ -20,10 +20,10 @@ func reportingBodyFrom(t *testing.T, raw string) *reportingBody {
 func TestReadReportingBodyMapsUnparseableJSONToRouteCode(t *testing.T) {
 	for _, raw := range []string{"{", "[]", "123", `"text"`} {
 		_, err := readReportingBody(httptest.NewRequest(http.MethodPost, "/", strings.NewReader(raw)), "invalid_rate")
-		var failure *reportingError
+		var failure *Error
 		require.True(t, errors.As(err, &failure), raw)
-		require.Equal(t, 400, failure.status)
-		require.Equal(t, "invalid_rate", failure.code)
+		require.Equal(t, 400, failure.Status)
+		require.Equal(t, "invalid_rate", failure.Code)
 	}
 	for _, raw := range []string{"", "null"} {
 		body := reportingBodyFrom(t, raw)

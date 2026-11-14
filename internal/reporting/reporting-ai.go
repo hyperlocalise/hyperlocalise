@@ -1,4 +1,4 @@
-package main
+package reporting
 
 import (
 	"context"
@@ -328,7 +328,7 @@ type reportingAiUsage struct {
 }
 
 // queryReportingAiTotals reads the headline totals for the period and the one before it.
-func queryReportingAiTotals(ctx context.Context, db dictionaryDB, q reportingAiQuery) (totals, previous reportingAiTotals, err error) {
+func queryReportingAiTotals(ctx context.Context, db DB, q reportingAiQuery) (totals, previous reportingAiTotals, err error) {
 	totals, previous = reportingNoAiTotals(), reportingNoAiTotals()
 	var args reportingArgs
 	usage := reportingAiUsageRowsSQL(&args, q, q.period.PreviousFrom)
@@ -374,7 +374,7 @@ func reportingAiRemainder(group reportingAiTotals, shown []reportingAiGroup, cha
 // queryReportingAiTable reads a page of groups by the first detail, each with its largest groups
 // by the second and the rest as one "Other" row; a download has every group and every row under
 // it.
-func queryReportingAiTable(ctx context.Context, db dictionaryDB, q reportingAiQuery) (rows []reportingAiRow, totalGroups int, err error) {
+func queryReportingAiTable(ctx context.Context, db DB, q reportingAiQuery) (rows []reportingAiRow, totalGroups int, err error) {
 	rows = []reportingAiRow{}
 	var args reportingArgs
 	usage := reportingAiUsageRowsSQL(&args, q, q.period.From)
@@ -492,7 +492,7 @@ func reportingAiChartStarts(period reportingPeriod) []string {
 
 // queryReportingAiSeries reads calls, tokens and charge per day or week, for the largest groups
 // by the first detail.
-func queryReportingAiSeries(ctx context.Context, db dictionaryDB, q reportingAiQuery) (reportingAiSeries, error) {
+func queryReportingAiSeries(ctx context.Context, db DB, q reportingAiQuery) (reportingAiSeries, error) {
 	series := reportingAiSeries{Groups: []reportingAiSeriesGroup{}, Points: []reportingAiPoint{}}
 	var args reportingArgs
 	usage := reportingAiUsageRowsSQL(&args, q, q.period.From)
@@ -585,7 +585,7 @@ func queryReportingAiSeries(ctx context.Context, db dictionaryDB, q reportingAiQ
 // queryReportingAiUsage reads AI used in a period, placed in projects by the attribution rules:
 // headline totals, a page of the table grouped by groupBy (then thenBy), and the chart. Calls
 // tied to no project are counted only when includeUnattributed is set and no project is chosen.
-func queryReportingAiUsage(ctx context.Context, db dictionaryDB, q reportingAiQuery) (reportingAiUsage, error) {
+func queryReportingAiUsage(ctx context.Context, db DB, q reportingAiQuery) (reportingAiUsage, error) {
 	if q.thenBy == q.groupBy {
 		q.thenBy = ""
 	}
@@ -666,14 +666,14 @@ func parseReportingAiQuery(r *http.Request) (reportingAiRouteQuery, error) {
 // aiUsage is the AI usage tab: calls, tokens, images, videos and billing's charge, grouped by
 // one detail and optionally a second. AI used outside any project counts for the roles that see
 // billing.
-func (api *reportingAPI) aiUsage(r *http.Request, actor reportingActor) (any, int, error) {
+func (api *API) AIUsage(r *http.Request, actor Actor) (any, int, error) {
 	query, err := parseReportingAiQuery(r)
 	if err != nil {
 		return nil, 0, err
 	}
 	ctx := r.Context()
 	var usage reportingAiUsage
-	err = api.read(ctx, func(db dictionaryDB) error {
+	err = api.read(ctx, func(db DB) error {
 		view, err := api.context(ctx, db, actor)
 		if err != nil {
 			return err

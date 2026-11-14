@@ -25,7 +25,7 @@ type apiServer struct {
 // handlerOption sets a dependency only some routes need.
 type handlerOption func(*apiServer)
 
-// withReports reads Reports through go-svc (reports-client.go); without it they answer unavailable.
+// withReports reads Reports from PostgreSQL through the shared reporting package.
 func withReports(reports reportsReader) handlerOption {
 	return func(s *apiServer) { s.reports = reports }
 }

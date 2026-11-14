@@ -9,12 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/reporting"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
 
 func rateCardUnitActor() reportingActor {
-	return reportingActor{userID: "11111111-1111-4111-8111-111111111111", organizationID: "22222222-2222-4222-8222-222222222222", role: "admin"}
+	return reporting.NewActor("11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222", "admin", "", "")
 }
 
 func rateCardUnitRequest(body string) *http.Request {
@@ -25,7 +26,7 @@ func rateCardUnitRequest(body string) *http.Request {
 
 func rateCardUnitAPI(pool *scriptPool) *reportingAPI {
 	api := newReportingAPI()
-	api.pool = pool
+	api.Pool = pool
 	return api
 }
 
@@ -37,8 +38,8 @@ func requireReportingFailure(t *testing.T, err error, status int, code string) {
 	t.Helper()
 	var failure *reportingError
 	require.ErrorAs(t, err, &failure)
-	require.Equal(t, status, failure.status)
-	require.Equal(t, code, failure.code)
+	require.Equal(t, status, failure.Status)
+	require.Equal(t, code, failure.Code)
 }
 
 func TestReportingSamePercentages(t *testing.T) {
@@ -90,7 +91,7 @@ func TestReportingLiveRateRowsSQL(t *testing.T) {
 
 func TestListReportingRateCardsScripted(t *testing.T) {
 	ctx := context.Background()
-	organizationID := rateCardUnitActor().organizationID
+	organizationID := rateCardUnitActor().OrganizationID()
 	pool := &scriptPool{steps: []dbStep{
 		{op: opQuery, table: [][]any{{"Zeta", "hour"}, {"alpha", "word"}}},
 		{op: opQuery, table: [][]any{

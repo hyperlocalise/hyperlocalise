@@ -10,7 +10,7 @@ Date: 2026-11-14
 - 1: spend and time per person are read live, as the Costs and Time tabs read them; only words are in `reporting_daily_by_person`. Members see their own row without pay. Post-edit bands are on the Contributors tab and the task Report tab, not the Word counts tab.
 - 2: the text a person was given is the latest version before theirs written by someone else (a reviewer is compared with the translator's draft); an approval of the text as given scores 100. A post-edit line pays by memory band when there is no score.
 - 3: the quote is an Excel workbook from go-svc; PDF is the browser's print of a quote page, which handles every script, rather than a PDF built in go-svc.
-- 4: go-svc's internal route already checked the flag, so it was not moved; it now serves `word-series`, `budgets`, `contributors` and `task-report` too, and answers CSV. public-api needs `GO_SVC_INTERNAL_URL` (or `GO_SVC_URL`) and `WORKOS_COOKIE_PASSWORD` in its task definition, and `reports:read` must be added to WorkOS Agent Registration's trusted permissions in the dashboard.
+- 4: Reports reads live in `internal/reporting`. go-svc and public-api both import that package. public-api reads PostgreSQL directly (no go-svc proxy, no `GO_SVC_INTERNAL_URL`). go-svc's `POST /internal/reports/{kind}` stays for the MCP `get_report` tool. `reports:read` must still be added to WorkOS Agent Registration's trusted permissions in the dashboard.
 
 ## Context
 
@@ -88,17 +88,17 @@ Five phases, each its own pull request (or a short series). Phase 0 gates turnin
 
 **Goal.** A customer with a personal access token (or a registered agent) reads the same reports the page shows, as JSON or CSV, from `https://public-api.hyperlocalise.com/v1/reports/...`, to load into a BI tool or a vendor payment system.
 
-**Where it runs.** `apps/public-api` is a standalone service that reads PostgreSQL directly, while Reports' queries live in go-svc's `package main` (`apps/go-svc/reporting*.go`). Rather than copy about 4,000 lines of SQL into a second service:
+**Where it runs.** `apps/public-api` is a standalone service that reads PostgreSQL directly. Reports queries live in `internal/reporting`, which both go-svc and public-api import:
 
-- public-api **proxies to go-svc's existing `POST /internal/reports/{kind}`** (`reporting-internal.go`), the route the MCP tool already uses, with the server-call token, naming the token's member. go-svc answers with that member's own access, so team and project visibility match the page exactly.
-- go-svc's safeguards (statement limit, admission caps from phase 0a) then cover API traffic too. This makes 0a a prerequisite: one customer's nightly export must not hold up everyone's Reports page.
-- Rejected alternative: moving the reads into a shared `internal/reporting` package that both services import. Cleaner long term, but a large move of a just-ported area for no user-visible gain. Revisit if go-svc's load becomes the problem.
+- public-api calls `reporting.API.Report` as the token's member, so team and project visibility match the page.
+- The same safeguards (statement limit, admission caps from phase 0a) run in both services. One customer's nightly export must not hold up everyone's Reports page.
+- go-svc keeps `POST /internal/reports/{kind}` for the MCP `get_report` tool, implemented with the same package.
 
 **Scope and access.**
 
 - New PAT scope `reports:read`, mapped to the `billing:read` capability (admins and localization managers), as every report is today. Add it in each place the scope list lives: `apps/go-svc/api-key-permissions.go`, `apps/public-api/permissions.go` (`apiKeyScopeCapability` and `roleAllowsCapability`), `apps/hyperlocalise-web/src/api/routes/api-key/api-key.schema.ts` and `api-key.permissions.ts`, `src/api/auth/policy.ts`, and `go-svc-client.types.ts`; plus the API key dialog's scope picker.
 - Add `reports:read` to the WorkOS Agent Registration trusted permissions (the list in the root `AGENTS.md`), so registered agents can claim it.
-- The `workspace-reports` flag still gates the API. The flag check moves into the internal route (it already holds `cachedWorkspaceFlags`), so public-api and the MCP tool share one check instead of each doing their own. A workspace without the flag gets `403 reports_not_enabled`.
+- The `workspace-reports` flag still gates go-svc's page routes and the MCP internal route (fail closed when WorkOS flags are missing). public-api has no WorkOS client; `reporting.API` with `Flags` unset allows the read so a PAT can still load reports when the page flag is on. A workspace without the flag still gets `403 reports_not_enabled` from go-svc and MCP.
 
 **Endpoints** (all `GET`, the page's query fields: `from`, `to`, `projectId`, `jobId`, `targetLocale`, `step`, `unit`, plus each report's own):
 
@@ -118,13 +118,13 @@ Five phases, each its own pull request (or a short series). Phase 0 gates turnin
 - Cost estimates stay page-only in v1: they take a task list in the body and are a quoting tool, not a feed.
 - Writes (rate cards, budgets, task pricing, time entries) are out of scope for v1. Logging time from an external timesheet tool is the likely v2 ask (`reports:write`).
 
-**Rate limits.** Reports reads are the heaviest queries public-api would serve. Apply public-api's per-token limit, plus a lower per-workspace limit for `/v1/reports/*` (for example 30 requests a minute) in front of go-svc's caps, answering `429` with `Retry-After`.
+**Rate limits.** Reports reads are the heaviest queries public-api would serve. Apply public-api's per-token limit, plus a lower per-workspace limit for `/v1/reports/*` (for example 30 requests a minute) in front of the package's admission caps, answering `429` with `Retry-After`.
 
 **Docs and contract.**
 
 - Add the endpoints and schemas to `apps/public-api/openapi.yaml` and the `/docs` page; the answer shapes are go-svc's, written down once there.
 - Extend [Reports](../platform/workspace/reports.mdx) with an API section and update the README's capability list.
-- Contract tests in public-api with a stubbed go-svc (scope missing, role without billing, flag off, go-svc busy → 503/429 passthrough, CSV passthrough) and one integration test against the real internal route.
+- Contract tests in public-api with a stub `reportsReader` (scope missing, role without billing, flag off, busy → 503/429, CSV passthrough) and package tests against PostgreSQL.
 
 ## Later
 
@@ -147,6 +147,6 @@ Not needed for the first customers; revisit once Reports has users.
 | 1 Contributors | L (new summary table, rebuild, read, tab) | No, but the first ask |
 | 2 Post-edit analysis | L (capture, pricing, two UI places) | No |
 | 3 Quote export | M | No |
-| 4 Public API (read) | M (proxy, scope, flag move, OpenAPI, limits) | No |
+| 4 Public API (read) | M (shared package, scope, OpenAPI, limits) | No |
 
 Phase 2 depends on phase 1's table. Phase 4 depends on 0a (admission caps) and ships `/v1/reports/contributors` once phase 1 lands; its other endpoints can go first. Phases 0, 1 and 3 are independent.
