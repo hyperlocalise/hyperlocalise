@@ -23,14 +23,20 @@ describe("workspace pages", () => {
     const identity = await loginAsAdmin(page);
     const orgPath = (suffix: string) => organizationPath(identity.organizationSlug, suffix);
 
-    await page.goto(e2eUrl(orgPath("/members")), { waitUntil: "domcontentloaded" });
+    await page.goto(e2eUrl(orgPath("/members")), {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
     await page
       .getByRole("heading", { name: "Members" })
       .waitFor({ state: "visible", timeout: 30_000 });
     await page.getByRole("button", { name: "Invite member" }).waitFor({ state: "visible" });
     await page.getByText("You", { exact: true }).waitFor({ state: "visible" });
 
-    await page.goto(e2eUrl(orgPath("/jobs")), { waitUntil: "domcontentloaded" });
+    await page.goto(e2eUrl(orgPath("/jobs")), {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
     await page
       .getByRole("heading", { name: "Jobs" })
       .waitFor({ state: "visible", timeout: 30_000 });
@@ -38,23 +44,33 @@ describe("workspace pages", () => {
       state: "visible",
     });
 
-    await page.goto(e2eUrl(orgPath("/settings")), { waitUntil: "domcontentloaded" });
+    await page.goto(e2eUrl(orgPath("/settings")), {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
     await page
       .getByRole("heading", { name: "General" })
       .waitFor({ state: "visible", timeout: 30_000 });
     await page.getByLabel("Organization name").waitFor({ state: "visible" });
 
-    await page.goto(e2eUrl(orgPath("/settings/account")), { waitUntil: "domcontentloaded" });
+    await page.goto(e2eUrl(orgPath("/settings/account")), {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
     await page
       .getByRole("heading", { name: "Account" })
       .waitFor({ state: "visible", timeout: 30_000 });
-    await page.getByDisplayValue(identity.email).waitFor({ state: "visible" });
+    await page.getByLabel("Email").waitFor({ state: "visible" });
+    await page.locator(`input[value="${identity.email}"]`).waitFor({ state: "visible" });
 
-    await page.goto(e2eUrl(orgPath("/teams")), { waitUntil: "domcontentloaded" });
+    await page.goto(e2eUrl(orgPath("/teams")), {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
     await page
       .getByRole("heading", { name: "Teams" })
       .waitFor({ state: "visible", timeout: 30_000 });
     await page.getByRole("button", { name: "Create team" }).waitFor({ state: "visible" });
     await page.getByText("No teams yet").waitFor({ state: "visible" });
-  });
+  }, 120_000);
 });

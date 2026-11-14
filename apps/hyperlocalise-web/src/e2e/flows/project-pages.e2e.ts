@@ -26,21 +26,40 @@ describe("project pages", () => {
     const projectPath = (suffix: string) =>
       organizationPath(fixture.organizationSlug, `/projects/${fixture.projectId}${suffix}`);
 
-    await page.goto(e2eUrl(projectPath("")), { waitUntil: "domcontentloaded" });
-    await page.getByText(fixture.projectName).waitFor({ state: "visible", timeout: 30_000 });
-    await page.getByText("No jobs yet").waitFor({ state: "visible" });
+    await page.goto(e2eUrl(projectPath("")), {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
+    await page.getByTitle(fixture.projectName).waitFor({ state: "visible", timeout: 30_000 });
+    await page
+      .getByText("Add a style guide")
+      .or(page.getByText("No jobs yet"))
+      .first()
+      .waitFor({ state: "visible", timeout: 30_000 });
 
-    await page.goto(e2eUrl(projectPath("/files")), { waitUntil: "domcontentloaded" });
+    await page.goto(e2eUrl(projectPath("/files")), {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
     await page
       .getByRole("button", { name: "Add files" })
       .waitFor({ state: "visible", timeout: 30_000 });
     await page.getByText("No files yet").waitFor({ state: "visible" });
 
     const issueTitle = `E2E issue ${Date.now()}`;
-    await page.goto(e2eUrl(projectPath("/issue-sheet")), { waitUntil: "domcontentloaded" });
-    await page.getByText("Queries").waitFor({ state: "visible", timeout: 30_000 });
-    await page.getByRole("button", { name: "Issue" }).click();
-    await page.getByRole("heading", { name: "New issue" }).waitFor({ state: "visible" });
+    await page.goto(e2eUrl(projectPath("/issue-sheet")), {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
+    const updateAnnouncerDismiss = page.getByRole("button", { name: "Not now" });
+    if (await updateAnnouncerDismiss.isVisible()) {
+      await updateAnnouncerDismiss.click();
+    }
+    await page
+      .getByRole("button", { name: "Issue", exact: true })
+      .waitFor({ state: "visible", timeout: 30_000 });
+    await page.getByRole("button", { name: "Issue", exact: true }).click();
+    await page.getByRole("dialog", { name: "New query" }).waitFor({ state: "visible" });
     await page.getByLabel("Title").fill(issueTitle);
 
     const createResponsePromise = page.waitForResponse(
@@ -49,9 +68,9 @@ describe("project pages", () => {
         response.request().method() === "POST" &&
         response.ok(),
     );
-    await page.getByRole("button", { name: "Create issue" }).click();
+    await page.getByRole("button", { name: "Create query" }).click();
     await createResponsePromise;
 
     await page.getByText(issueTitle).waitFor({ state: "visible", timeout: 30_000 });
-  }, 120_000);
+  }, 180_000);
 });

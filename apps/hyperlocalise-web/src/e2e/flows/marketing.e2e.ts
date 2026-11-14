@@ -12,7 +12,7 @@
  */
 import { describe, it } from "vite-plus/test";
 
-import { E2E_DEFAULT_LOCALE, e2eUrl } from "../constants";
+import { E2E_DEFAULT_LOCALE, E2E_HOMEPAGE_HEADING, e2eUrl } from "../constants";
 import { getE2ePage, useE2eBrowser } from "../fixtures/browser";
 
 describe("marketing pages", () => {
@@ -23,9 +23,7 @@ describe("marketing pages", () => {
     await page.goto(e2eUrl(`/${E2E_DEFAULT_LOCALE}`), { waitUntil: "domcontentloaded" });
 
     await page
-      .getByRole("heading", {
-        name: "AI-native infrastructure for multilingual content operations",
-      })
+      .getByRole("heading", { name: E2E_HOMEPAGE_HEADING })
       .waitFor({ state: "visible", timeout: 30_000 });
     await page.getByRole("link", { name: /Explore the platform/i }).waitFor({ state: "visible" });
   });
@@ -53,6 +51,6 @@ describe("marketing pages", () => {
     await page
       .getByRole("heading", { name: "Talk with the Hyperlocalise team" })
       .waitFor({ state: "visible", timeout: 30_000 });
-    await page.getByRole("link", { name: "Email support" }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Email support" }).waitFor({ state: "visible" });
   });
 });

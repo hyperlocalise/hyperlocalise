@@ -14,6 +14,8 @@ export const E2E_BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 
 export const E2E_DEFAULT_LOCALE = "en";
 
+export const E2E_HOMEPAGE_HEADING = "The AI partner for international growth.";
+
 export function e2eUrl(path: string) {
   return new URL(path, E2E_BASE_URL).toString();
 }

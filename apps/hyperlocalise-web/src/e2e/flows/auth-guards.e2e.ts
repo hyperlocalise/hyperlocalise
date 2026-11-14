@@ -32,10 +32,11 @@ describe("auth guards", () => {
     await page.goto(e2eUrl("/auth/access-denied"), { waitUntil: "domcontentloaded" });
 
     await page
-      .getByRole("heading", { name: "Access denied" })
+      .locator('[data-slot="card-title"]')
+      .filter({ hasText: "Access denied" })
       .waitFor({ state: "visible", timeout: 30_000 });
-    await page.getByRole("link", { name: "Choose organization" }).waitFor({ state: "visible" });
-    await page.getByRole("link", { name: "Sign out" }).waitFor({ state: "visible" });
-    await page.getByRole("link", { name: "Back to site" }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Choose organization" }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Sign out" }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Back to site" }).waitFor({ state: "visible" });
   });
 });

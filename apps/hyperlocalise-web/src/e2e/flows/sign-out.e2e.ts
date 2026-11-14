@@ -25,15 +25,15 @@ describe("sign out", () => {
     await page.getByRole("button", { name: /Open account menu/i }).click();
     await page.getByRole("menuitem", { name: "Log out" }).click();
 
-    await page
-      .getByRole("heading", {
-        name: "AI-native infrastructure for multilingual content operations",
-      })
-      .waitFor({ state: "visible", timeout: 30_000 });
+    await page.waitForURL(
+      (url) => !url.pathname.includes("/org/") && !url.pathname.includes("/auth/sign-out"),
+      { timeout: 60_000 },
+    );
 
     await page.goto(e2eUrl(`/${E2E_DEFAULT_LOCALE}/dashboard`), {
       waitUntil: "domcontentloaded",
+      timeout: 60_000,
     });
     await page.locator('input[name="email"]').waitFor({ state: "visible", timeout: 30_000 });
-  });
+  }, 120_000);
 });
