@@ -20,6 +20,27 @@ export const dictionaryDetailMessages = defineMessages({
     id: "uKarjEkmmM",
     description: "Error when a dictionary detail page cannot load",
   },
+  backToDictionaries: {
+    defaultMessage: "Dictionaries",
+    id: "BfRP/nBJGO",
+    description: "Back link from dictionary detail to the list page",
+  },
+  descriptionFallback: {
+    defaultMessage:
+      "Words listed here are skipped by spellcheck in the projects that use this dictionary.",
+    id: "vQbuGXT3Ma",
+    description: "Fallback description when a dictionary has no description",
+  },
+  wordCount: {
+    defaultMessage: "{count, plural, one {# word} other {# words}} in all locales",
+    id: "KPr0MyCK2+",
+    description: "Badge showing total words across locales",
+  },
+  localeWordCount: {
+    defaultMessage: "{count, plural, one {# word} other {# words}} in {locale}",
+    id: "RKHJ/olpXP",
+    description: "Count of accepted words for the selected locale",
+  },
   wordsTitle: {
     defaultMessage: "Accepted words",
     id: "EWqf+wk5hx",
@@ -40,6 +61,11 @@ export const dictionaryDetailMessages = defineMessages({
     id: "jCG2fHTnxO",
     description: "Label for the dictionary word field",
   },
+  wordPlaceholder: {
+    defaultMessage: "Add an accepted word",
+    id: "mIfS2KCWEo",
+    description: "Placeholder for the dictionary word field",
+  },
   addWord: {
     defaultMessage: "Add word",
     id: "hT8TORYOoH",
@@ -56,13 +82,13 @@ export const dictionaryDetailMessages = defineMessages({
     description: "Button to export dictionary words for a locale",
   },
   deleteWord: {
-    defaultMessage: "Remove",
-    id: "2Eln7MuWtc",
-    description: "Button to remove a word from a dictionary",
+    defaultMessage: "Remove {word}",
+    id: "Xl8JhoJHYV",
+    description: "Accessible label to remove a word from a dictionary",
   },
   emptyWords: {
-    defaultMessage: "No words for this locale yet.",
-    id: "bsA+uhksQg",
+    defaultMessage: "No words for {locale} yet. Add one above or import a .txt file.",
+    id: "AuYw3s9yoM",
     description: "Empty state for a dictionary locale with no words",
   },
   loadMore: {
@@ -70,30 +96,30 @@ export const dictionaryDetailMessages = defineMessages({
     id: "aONT/Ovdyv",
     description: "Button to load the next page of dictionary words",
   },
-  projectsTitle: {
-    defaultMessage: "Projects",
-    id: "eRLGmAlreB",
-    description: "Heading for dictionary project attachments",
+  usedInLabel: {
+    defaultMessage: "Used in",
+    id: "x5yxBL3DUW",
+    description: "Label for projects that use this dictionary",
   },
-  attachProject: {
-    defaultMessage: "Attach",
-    id: "oVeMCbk8kZ",
-    description: "Button to attach a dictionary to a selected project",
+  assignProject: {
+    defaultMessage: "Assign project",
+    id: "Ief3/fvC7r",
+    description: "Button to assign a dictionary to a project",
   },
-  detachProject: {
-    defaultMessage: "Detach",
-    id: "x3iRklyWjn",
-    description: "Button to detach a dictionary from a project",
+  removeProject: {
+    defaultMessage: "Remove {name}",
+    id: "Y3oa11bv9U",
+    description: "Accessible label to remove a project from a dictionary",
   },
-  noProjects: {
-    defaultMessage: "This dictionary is not attached to any projects.",
-    id: "LYdhfNsW7N",
+  emptyProjects: {
+    defaultMessage: "No projects yet",
+    id: "NWpOs8l31w",
     description: "Empty state when a dictionary has no attached projects",
   },
-  selectProject: {
-    defaultMessage: "Select a project",
-    id: "GPiuIeFZ32",
-    description: "Placeholder for the attach-project selector",
+  noAssignableProjects: {
+    defaultMessage: "No other projects to assign.",
+    id: "m4SFetgyeJ",
+    description: "Empty assign-project menu when every project is already attached",
   },
   addFailed: {
     defaultMessage: "Could not add that word.",

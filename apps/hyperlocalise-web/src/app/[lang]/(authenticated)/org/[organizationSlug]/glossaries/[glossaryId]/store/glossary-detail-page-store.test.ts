@@ -62,24 +62,6 @@ describe("GlossaryDetailPageStore", () => {
     expect(store.conceptCursor).toBeUndefined();
   });
 
-  it("tracks concept selection including indeterminate state", () => {
-    const store = createStore();
-    expect(store.conceptSelectionState(["a", "b"])).toBe(false);
-
-    store.setConceptSelected("a", true);
-    expect(store.selectedConceptIds.has("a")).toBe(true);
-    expect(store.conceptSelectionState(["a", "b"])).toBe("indeterminate");
-
-    store.selectAllConcepts(["a", "b"]);
-    expect(store.areAllConceptsSelected(["a", "b"])).toBe(true);
-    expect(store.conceptSelectionState(["a", "b"])).toBe(true);
-
-    store.setConceptSelected("b", false);
-    expect(store.selectedConceptIds.has("b")).toBe(false);
-    store.clearConceptSelection();
-    expect(store.selectedConceptIds.size).toBe(0);
-  });
-
   it("applies filter-dialog drafts and counts active filters", () => {
     const now = Date.parse("2026-10-17T00:00:00.000Z");
     const store = createStore();

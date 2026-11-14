@@ -7,15 +7,21 @@
  * included in this application's LICENSE file.
  *
  * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
  */
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpenTextIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, BookOpenTextIcon } from "@phosphor-icons/react";
 
 import type { GlossaryConceptRecord } from "@/api/routes/glossary/glossary.schema";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
@@ -85,6 +91,18 @@ export function ProviderGlossaryDetail({
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <section className="flex flex-col gap-3">
+        <div>
+          <Button
+            nativeButton={false}
+            render={<OrgNavLink href={`/org/${organizationSlug}/glossaries`} />}
+            variant="ghost"
+            size="sm"
+            className="-ms-2 text-muted-foreground"
+          >
+            <ArrowLeftIcon data-icon="inline-start" />
+            <FormattedMessage {...messages.backToList} />
+          </Button>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <BookOpenTextIcon className="size-5 text-muted-foreground" />
           <Badge variant="outline">
@@ -96,11 +114,7 @@ export function ProviderGlossaryDetail({
             </Badge>
           ))}
         </div>
-        <TypographyH1
-          className="text-3xl md:text-5xl lg:text-6xl"
-          weight="bold"
-          wrapStyle="balance"
-        >
+        <TypographyH1 className="text-3xl md:text-4xl" weight="bold" wrapStyle="balance">
           {glossary.name}
         </TypographyH1>
         <TypographyP className="max-w-3xl leading-6" size="small" tone="subtle">

@@ -85,7 +85,6 @@ export class GlossaryDetailPageStore {
   readonly organizationSlug: string;
   readonly glossaryId: string;
 
-  selectedConceptIds = new Set<string>();
   conceptSort: ConceptSortDir = "asc";
   conceptSearch = "";
   conceptLocale = "";
@@ -98,7 +97,6 @@ export class GlossaryDetailPageStore {
   conceptModifiedFrom: string | undefined = undefined;
   conceptCursor: string | undefined = undefined;
   conceptCursorStack: string[] = [];
-  selectedProjectId = "";
   nameDraft = "";
   skipNameBlurSave = false;
   importDialogOpen = false;
@@ -153,16 +151,6 @@ export class GlossaryDetailPageStore {
     return Object.values(this.filterDraft).every((value) => !value);
   }
 
-  areAllConceptsSelected(conceptIds: readonly string[]) {
-    return conceptIds.length > 0 && conceptIds.every((id) => this.selectedConceptIds.has(id));
-  }
-
-  conceptSelectionState(conceptIds: readonly string[]) {
-    if (this.areAllConceptsSelected(conceptIds)) return true;
-    if (this.selectedConceptIds.size > 0) return "indeterminate" as const;
-    return false;
-  }
-
   syncNameDraft(name: string) {
     this.nameDraft = name;
   }
@@ -191,14 +179,6 @@ export class GlossaryDetailPageStore {
     return Boolean(name) && name !== currentName;
   }
 
-  setSelectedProjectId(projectId: string) {
-    this.selectedProjectId = projectId;
-  }
-
-  clearSelectedProjectId() {
-    this.selectedProjectId = "";
-  }
-
   setConceptSearch(search: string) {
     this.resetConceptCursor();
     this.conceptSearch = search;
@@ -222,21 +202,6 @@ export class GlossaryDetailPageStore {
 
   goToPreviousConceptPage() {
     this.conceptCursor = this.conceptCursorStack.pop() || undefined;
-  }
-
-  selectAllConcepts(conceptIds: readonly string[]) {
-    this.selectedConceptIds = new Set(conceptIds);
-  }
-
-  clearConceptSelection() {
-    this.selectedConceptIds = new Set();
-  }
-
-  setConceptSelected(conceptId: string, selected: boolean) {
-    const next = new Set(this.selectedConceptIds);
-    if (selected) next.add(conceptId);
-    else next.delete(conceptId);
-    this.selectedConceptIds = next;
   }
 
   openFilterDialog() {

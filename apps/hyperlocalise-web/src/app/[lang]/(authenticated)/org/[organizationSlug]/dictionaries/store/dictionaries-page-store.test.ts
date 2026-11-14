@@ -45,20 +45,16 @@ describe("DictionariesPageStore", () => {
     expect(store.createErrors).toEqual({});
   });
 
-  it("tracks dictionary detail locale, word, and project picker drafts", () => {
+  it("tracks dictionary detail locale and word drafts", () => {
     const store = new DictionariesPageStore("acme");
 
     store.setDetailLocale("vi-VN");
     store.setDetailWord("Hyperlocalise");
-    store.setDetailSelectedProjectId("project-1");
     expect(store.detailLocale).toBe("vi-VN");
     expect(store.detailWord).toBe("Hyperlocalise");
-    expect(store.detailSelectedProjectId).toBe("project-1");
 
     store.clearDetailWord();
-    store.clearDetailSelectedProjectId();
     expect(store.detailWord).toBe("");
-    expect(store.detailSelectedProjectId).toBe("");
     expect(store.detailLocale).toBe("vi-VN");
   });
 });

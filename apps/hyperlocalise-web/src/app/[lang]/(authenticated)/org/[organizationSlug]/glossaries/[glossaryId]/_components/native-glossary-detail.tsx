@@ -24,6 +24,8 @@ import {
   FunnelIcon,
   UploadSimpleIcon,
   ClockCounterClockwiseIcon,
+  ArrowLeftIcon,
+  DotsThreeIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -36,9 +38,9 @@ import {
   glossaryTermStatusValues,
   glossaryTermTypeValues,
 } from "@/lib/glossary/glossary";
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -56,6 +58,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -80,6 +89,7 @@ import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 
+import { ProjectChips } from "../../../_components/project-chips";
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 import { useGlossary } from "./use-glossary";
 import {
@@ -128,6 +138,7 @@ function ConceptListSkeleton() {
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6" aria-busy="true">
       <section className="flex flex-col gap-3">
+        <Skeleton className="h-8 w-24" />
         <div className="flex items-center gap-2">
           <Skeleton className="size-5 rounded-md" />
           <Skeleton className="h-5 w-20 rounded-full" />
@@ -136,8 +147,9 @@ function ConceptListSkeleton() {
         </div>
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-full max-w-2xl" />
+        <Skeleton className="h-7 w-72" />
       </section>
-      <section className="grid gap-4 rounded-lg border border-border p-4">
+      <section className="grid gap-4">
         <div className="flex items-start justify-between gap-4">
           <div className="grid gap-2">
             <Skeleton className="h-4 w-24" />
@@ -146,17 +158,16 @@ function ConceptListSkeleton() {
           <Skeleton className="h-9 w-32" />
         </div>
         <div className="overflow-hidden rounded-lg border border-border">
-          <div className="grid min-w-[760px] grid-cols-[2.5rem_1.4fr_2fr_1fr_1fr_1fr] gap-4 border-b border-border bg-muted/30 px-3 py-3">
-            {Array.from({ length: 10 }).map((_, index) => (
+          <div className="grid min-w-[760px] grid-cols-[1.4fr_2fr_1fr_1fr_1fr] gap-4 border-b border-border bg-muted/30 px-3 py-3">
+            {Array.from({ length: 5 }).map((_, index) => (
               <Skeleton key={index} className="h-3 w-20 max-w-full" />
             ))}
           </div>
           {Array.from({ length: 10 }).map((_, index) => (
             <div
               key={index}
-              className="grid min-w-[760px] grid-cols-[2.5rem_1.4fr_2fr_1fr_1fr_1fr] gap-4 border-b border-border px-3 py-4 last:border-b-0"
+              className="grid min-w-[760px] grid-cols-[1.4fr_2fr_1fr_1fr_1fr] gap-4 border-b border-border px-3 py-4 last:border-b-0"
             >
-              <Skeleton className="size-4 rounded-md" />
               <div className="flex items-center gap-2">
                 <Skeleton className="h-4 w-36 max-w-full" />
                 <TermStatusSkeleton compact />
@@ -396,7 +407,9 @@ const NativeGlossaryDetailView = observer(function NativeGlossaryDetailView({
     [attachedProjectsQuery.data],
   );
   const availableProjects = (projectsQuery.data ?? []).filter(
-    (project) => !attachedProjectIds.has(project.id),
+    (project) =>
+      !attachedProjectIds.has(project.id) &&
+      (!glossary?.sourceLocale || project.sourceLocale === glossary.sourceLocale),
   );
 
   const invalidateProjects = () =>
@@ -556,7 +569,6 @@ const NativeGlossaryDetailView = observer(function NativeGlossaryDetailView({
     },
     onSuccess: async () => {
       await invalidateProjects();
-      store.clearSelectedProjectId();
       toast.success(intl.formatMessage(messages.projectAssigned));
     },
     onError: (error) => toast.error(error.message),
@@ -601,6 +613,49 @@ const NativeGlossaryDetailView = observer(function NativeGlossaryDetailView({
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            nativeButton={false}
+            render={<OrgNavLink href={`/org/${organizationSlug}/glossaries`} />}
+            variant="ghost"
+            size="sm"
+            className="-ms-2 text-muted-foreground"
+          >
+            <ArrowLeftIcon data-icon="inline-start" />
+            <FormattedMessage {...messages.backToList} />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label={intl.formatMessage(messages.moreActions)}
+              className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <DotsThreeIcon className="size-5" weight="bold" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem render={<Link href={`${glossaryHref}/history`} />}>
+                <ClockCounterClockwiseIcon />
+                <FormattedMessage {...messages.glossaryHistory} />
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<Link href={`${glossaryHref}/imports`} />}>
+                <ClockCounterClockwiseIcon />
+                <FormattedMessage {...messages.glossaryInterchangeHistory} />
+              </DropdownMenuItem>
+              {canManage ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => store.setDeleteGlossaryDialogOpen(true)}
+                    disabled={deleteGlossary.isPending}
+                  >
+                    <TrashIcon />
+                    <FormattedMessage {...messages.deleteGlossary} />
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <BookOpenTextIcon className="size-5 text-muted-foreground" />
           <Badge variant="outline">
@@ -649,591 +704,468 @@ const NativeGlossaryDetailView = observer(function NativeGlossaryDetailView({
               aria-label={intl.formatMessage(messages.editName)}
               rows={1}
               className={cn(
-                "font-heading min-h-14 shrink-0 resize-none overflow-hidden rounded-none border-transparent bg-transparent px-0 py-1 text-3xl font-semibold text-balance text-foreground shadow-none md:text-5xl lg:text-6xl",
-                "focus-visible:border-transparent focus-visible:ring-0",
+                "font-heading min-h-14 shrink-0 resize-none overflow-hidden rounded-none border-transparent bg-transparent px-0 py-1 text-3xl font-semibold text-balance text-foreground shadow-none md:text-4xl",
+                "hover:bg-muted/30 focus-visible:border-transparent focus-visible:bg-muted/30 focus-visible:ring-0",
               )}
             />
           </>
         ) : (
-          <TypographyH1
-            className="text-3xl md:text-5xl lg:text-6xl"
-            weight="bold"
-            wrapStyle="balance"
-          >
+          <TypographyH1 className="text-3xl md:text-4xl" weight="bold" wrapStyle="balance">
             {glossary.name}
           </TypographyH1>
         )}
         <TypographyP className="max-w-3xl leading-6" size="small" tone="subtle">
           {glossary.description || intl.formatMessage(messages.descriptionFallback)}
         </TypographyP>
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            render={<Link href={`${glossaryHref}/history`} />}
-          >
-            <ClockCounterClockwiseIcon data-icon="inline-start" />
-            <FormattedMessage {...messages.glossaryHistory} />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            render={<Link href={`${glossaryHref}/imports`} />}
-          >
-            <ClockCounterClockwiseIcon data-icon="inline-start" />
-            <FormattedMessage {...messages.glossaryInterchangeHistory} />
-          </Button>
-          {canManage ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => store.setDeleteGlossaryDialogOpen(true)}
-              disabled={deleteGlossary.isPending}
-            >
-              <TrashIcon data-icon="inline-start" />
-              <FormattedMessage {...messages.deleteGlossary} />
-            </Button>
-          ) : null}
-        </div>
+        <ProjectChips
+          projects={(attachedProjectsQuery.data ?? []).map((project) => ({
+            id: project.projectId,
+            name: project.projectName,
+            href: project.externalUrl ?? `/org/${organizationSlug}/projects/${project.projectId}`,
+            external: Boolean(project.externalUrl),
+          }))}
+          assignable={availableProjects.map((project) => ({ id: project.id, name: project.name }))}
+          loaded={attachedProjectsQuery.isSuccess}
+          canManage={canManage}
+          assigning={attachProject.isPending}
+          removing={detachProject.isPending}
+          onAssign={(projectId) => attachProject.mutate(projectId)}
+          onRemove={(projectId) => detachProject.mutate(projectId)}
+          labels={{
+            usedIn: intl.formatMessage(messages.usedInLabel),
+            empty: intl.formatMessage(messages.noProjectsAssigned),
+            assign: intl.formatMessage(messages.assignToProject),
+            noAssignable: intl.formatMessage(messages.noAssignableProjects),
+            remove: (name) => intl.formatMessage(messages.removeProject, { name }),
+          }}
+        />
       </section>
 
-      <>
-        <section className="grid gap-4 rounded-lg border border-border p-4">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <TypographyP size="small" weight="medium" tone="content">
-                  <FormattedMessage {...messages.conceptsTitle} />
-                </TypographyP>
-                <TypographyP size="xsmall" tone="subtle">
-                  <FormattedMessage {...messages.conceptsDescription} />
-                </TypographyP>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant={activeDropdownFilterCount > 0 ? "default" : "outline"}
-                  onClick={() => store.openFilterDialog()}
-                >
-                  <FunnelIcon data-icon="inline-start" />
-                  <FormattedMessage {...messages.filtersButton} />
-                  {activeDropdownFilterCount > 0 ? ` (${activeDropdownFilterCount})` : ""}
-                </Button>
-                {canManage && glossary?.source === "native" ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={importConcepts.isPending || exportGlossary.isPending}
-                    onClick={() => store.setImportDialogOpen(true)}
-                  >
-                    {importConcepts.isPending ? (
-                      <Spinner data-icon="inline-start" />
-                    ) : (
-                      <UploadSimpleIcon data-icon="inline-start" />
-                    )}
-                    <FormattedMessage {...messages.importGlossary} />
-                  </Button>
-                ) : null}
-                {canManage ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={exportGlossary.isPending || importConcepts.isPending}
-                    onClick={() => store.openExportDialog()}
-                  >
-                    {exportGlossary.isPending ? (
-                      <Spinner data-icon="inline-start" />
-                    ) : (
-                      <DownloadSimpleIcon data-icon="inline-start" />
-                    )}
-                    <FormattedMessage {...messages.exportGlossary} />
-                  </Button>
-                ) : null}
-                {canContribute ? (
-                  <Button type="button" onClick={() => router.push(`${glossaryHref}/concepts/new`)}>
-                    <PlusIcon data-icon="inline-start" />
-                    <FormattedMessage {...messages.addConcept} />
-                  </Button>
-                ) : null}
-              </div>
+      <section className="grid gap-4">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <TypographyP size="small" weight="medium" tone="content">
+                <FormattedMessage {...messages.conceptsTitle} />
+              </TypographyP>
+              <TypographyP size="xsmall" tone="subtle">
+                <FormattedMessage {...messages.conceptsDescription} />
+              </TypographyP>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="min-w-52 flex-1 sm:max-w-sm">
-                <label htmlFor="glossary-concept-search" className="sr-only">
-                  {intl.formatMessage(messages.searchConceptsLabel)}
-                </label>
-                <input
-                  id="glossary-concept-search"
-                  type="search"
-                  value={store.conceptSearch}
-                  onChange={(event) => store.setConceptSearch(event.currentTarget.value)}
-                  placeholder={intl.formatMessage(messages.searchConceptsPlaceholder)}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-              {conceptsRefreshing ? (
-                <span
-                  role="status"
-                  aria-label={intl.formatMessage(messages.refreshingConcepts)}
-                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
-                >
-                  <Spinner className="size-3.5" />
-                  <FormattedMessage {...messages.refreshingConcepts} />
-                </span>
-              ) : null}
-              {conceptsQuery.data && !conceptsRefreshing ? (
-                <TypographyP size="xsmall" tone="subtle" aria-live="polite">
-                  {intl.formatMessage(messages.resultsCount, {
-                    count: conceptsQuery.data.total,
-                  })}
-                </TypographyP>
-              ) : null}
-              {activeFilterCount > 0 ? (
+              {canManage && glossary?.source === "native" ? (
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => store.clearAllConceptFilters()}
+                  variant="outline"
+                  disabled={importConcepts.isPending || exportGlossary.isPending}
+                  onClick={() => store.setImportDialogOpen(true)}
+                >
+                  {importConcepts.isPending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <UploadSimpleIcon data-icon="inline-start" />
+                  )}
+                  <FormattedMessage {...messages.importGlossary} />
+                </Button>
+              ) : null}
+              {canManage ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={exportGlossary.isPending || importConcepts.isPending}
+                  onClick={() => store.openExportDialog()}
+                >
+                  {exportGlossary.isPending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <DownloadSimpleIcon data-icon="inline-start" />
+                  )}
+                  <FormattedMessage {...messages.exportGlossary} />
+                </Button>
+              ) : null}
+              {canContribute ? (
+                <Button type="button" onClick={() => router.push(`${glossaryHref}/concepts/new`)}>
+                  <PlusIcon data-icon="inline-start" />
+                  <FormattedMessage {...messages.addConcept} />
+                </Button>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="min-w-52 flex-1 sm:max-w-sm">
+              <label htmlFor="glossary-concept-search" className="sr-only">
+                {intl.formatMessage(messages.searchConceptsLabel)}
+              </label>
+              <input
+                id="glossary-concept-search"
+                type="search"
+                value={store.conceptSearch}
+                onChange={(event) => store.setConceptSearch(event.currentTarget.value)}
+                placeholder={intl.formatMessage(messages.searchConceptsPlaceholder)}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <Button
+              type="button"
+              variant={activeDropdownFilterCount > 0 ? "default" : "outline"}
+              onClick={() => store.openFilterDialog()}
+            >
+              <FunnelIcon data-icon="inline-start" />
+              <FormattedMessage {...messages.filtersButton} />
+              {activeDropdownFilterCount > 0 ? ` (${activeDropdownFilterCount})` : ""}
+            </Button>
+            {conceptsRefreshing ? (
+              <span
+                role="status"
+                aria-label={intl.formatMessage(messages.refreshingConcepts)}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+              >
+                <Spinner className="size-3.5" />
+                <FormattedMessage {...messages.refreshingConcepts} />
+              </span>
+            ) : null}
+            {conceptsQuery.data && !conceptsRefreshing ? (
+              <TypographyP size="xsmall" tone="subtle" aria-live="polite">
+                {intl.formatMessage(messages.resultsCount, {
+                  count: conceptsQuery.data.total,
+                })}
+              </TypographyP>
+            ) : null}
+            {activeFilterCount > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => store.clearAllConceptFilters()}
+              >
+                <FormattedMessage {...messages.clearFilters} />
+              </Button>
+            ) : null}
+          </div>
+          <Dialog
+            open={store.filterDialogOpen}
+            onOpenChange={(open) => store.setFilterDialogOpen(open)}
+          >
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>
+                  <FormattedMessage {...messages.filtersTitle} />
+                </DialogTitle>
+                <DialogDescription>
+                  <FormattedMessage {...messages.filtersDescription} />
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+                <EnumFilterSelect
+                  id="glossary-filter-locale"
+                  label={intl.formatMessage(messages.filterLanguagesLabel)}
+                  value={store.filterDraft.locale || "all"}
+                  displayValue={
+                    store.filterDraft.locale || intl.formatMessage(messages.filterAllValue)
+                  }
+                  onValueChange={(value) => store.updateFilterDraft("locale", value ?? "all")}
+                >
+                  <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
+                    {intl.formatMessage(messages.filterAllValue)}
+                  </SelectItem>
+                  {glossary.languages.map((language) => (
+                    <SelectItem key={language.locale} value={language.locale} label={language.name}>
+                      {language.name}
+                    </SelectItem>
+                  ))}
+                </EnumFilterSelect>
+                <EnumFilterSelect
+                  id="glossary-filter-modified"
+                  label={intl.formatMessage(messages.filterLastModifiedLabel)}
+                  value={store.filterDraft.modified || "all"}
+                  displayValue={
+                    store.filterDraft.modified === "24h"
+                      ? intl.formatMessage(messages.lastModified24h)
+                      : store.filterDraft.modified === "7d"
+                        ? intl.formatMessage(messages.lastModified7d)
+                        : store.filterDraft.modified === "30d"
+                          ? intl.formatMessage(messages.lastModified30d)
+                          : intl.formatMessage(messages.filterAllValue)
+                  }
+                  onValueChange={(value) => store.updateFilterDraft("modified", value ?? "all")}
+                >
+                  <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
+                    {intl.formatMessage(messages.filterAllValue)}
+                  </SelectItem>
+                  <SelectItem value="24h" label={intl.formatMessage(messages.lastModified24h)}>
+                    {intl.formatMessage(messages.lastModified24h)}
+                  </SelectItem>
+                  <SelectItem value="7d" label={intl.formatMessage(messages.lastModified7d)}>
+                    {intl.formatMessage(messages.lastModified7d)}
+                  </SelectItem>
+                  <SelectItem value="30d" label={intl.formatMessage(messages.lastModified30d)}>
+                    {intl.formatMessage(messages.lastModified30d)}
+                  </SelectItem>
+                </EnumFilterSelect>
+                <EnumFilterSelect
+                  id="glossary-filter-pos"
+                  label={intl.formatMessage(messages.filterPartOfSpeechLabel)}
+                  value={store.filterDraft.partOfSpeech || "all"}
+                  displayValue={
+                    store.filterDraft.partOfSpeech
+                      ? readableEnumLabel(store.filterDraft.partOfSpeech)
+                      : intl.formatMessage(messages.filterAllValue)
+                  }
+                  onValueChange={(value) => store.updateFilterDraft("partOfSpeech", value ?? "all")}
+                >
+                  <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
+                    {intl.formatMessage(messages.filterAllValue)}
+                  </SelectItem>
+                  {glossaryPartOfSpeechValues.map((value) => (
+                    <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
+                      <PartOfSpeechDisplay value={value} />
+                    </SelectItem>
+                  ))}
+                </EnumFilterSelect>
+                <EnumFilterSelect
+                  id="glossary-filter-term-type"
+                  label={intl.formatMessage(messages.filterTypeLabel)}
+                  value={store.filterDraft.termType || "all"}
+                  displayValue={
+                    store.filterDraft.termType
+                      ? readableEnumLabel(store.filterDraft.termType)
+                      : intl.formatMessage(messages.filterAllValue)
+                  }
+                  onValueChange={(value) => store.updateFilterDraft("termType", value ?? "all")}
+                >
+                  <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
+                    {intl.formatMessage(messages.filterAllValue)}
+                  </SelectItem>
+                  {glossaryTermTypeValues.map((value) => (
+                    <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
+                      <TermTypeDisplay value={value} />
+                    </SelectItem>
+                  ))}
+                </EnumFilterSelect>
+                <EnumFilterSelect
+                  id="glossary-filter-term-status"
+                  label={intl.formatMessage(messages.filterStatusLabel)}
+                  value={store.filterDraft.linguisticStatus || "all"}
+                  displayValue={
+                    store.filterDraft.linguisticStatus
+                      ? readableEnumLabel(store.filterDraft.linguisticStatus)
+                      : intl.formatMessage(messages.filterAllValue)
+                  }
+                  onValueChange={(value) =>
+                    store.updateFilterDraft("linguisticStatus", value ?? "all")
+                  }
+                >
+                  <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
+                    {intl.formatMessage(messages.filterAllValue)}
+                  </SelectItem>
+                  {glossaryTermStatusValues.map((value) => (
+                    <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
+                      <StatusLabel status={value} />
+                    </SelectItem>
+                  ))}
+                </EnumFilterSelect>
+                <EnumFilterSelect
+                  id="glossary-filter-gender"
+                  label={intl.formatMessage(messages.filterGenderLabel)}
+                  value={store.filterDraft.gender || "all"}
+                  displayValue={
+                    store.filterDraft.gender
+                      ? readableEnumLabel(store.filterDraft.gender)
+                      : intl.formatMessage(messages.filterAllValue)
+                  }
+                  onValueChange={(value) => store.updateFilterDraft("gender", value ?? "all")}
+                >
+                  <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
+                    {intl.formatMessage(messages.filterAllValue)}
+                  </SelectItem>
+                  {glossaryGenderValues.map((value) => (
+                    <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
+                      <GenderDisplay value={value} />
+                    </SelectItem>
+                  ))}
+                </EnumFilterSelect>
+                <EnumFilterSelect
+                  id="glossary-filter-author"
+                  label={intl.formatMessage(messages.filterAuthorLabel)}
+                  value={store.filterDraft.author || "all"}
+                  displayValue={
+                    authorOptions.find((member) => member.userId === store.filterDraft.author)
+                      ?.displayName ||
+                    store.filterDraft.author ||
+                    intl.formatMessage(messages.filterAllValue)
+                  }
+                  onValueChange={(value) => store.updateFilterDraft("author", value ?? "all")}
+                >
+                  <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
+                    {intl.formatMessage(messages.filterAllValue)}
+                  </SelectItem>
+                  {[
+                    ...authorOptions,
+                    ...(store.filterDraft.author &&
+                    !authorOptions.some((member) => member.userId === store.filterDraft.author)
+                      ? [
+                          {
+                            userId: store.filterDraft.author,
+                            displayName: store.filterDraft.author,
+                          },
+                        ]
+                      : []),
+                  ].map((author) => (
+                    <SelectItem
+                      key={author.userId}
+                      value={author.userId}
+                      label={author.displayName}
+                    >
+                      {author.displayName}
+                    </SelectItem>
+                  ))}
+                </EnumFilterSelect>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={store.filterDraftIsEmpty}
+                  onClick={() => store.clearFilterDraft()}
                 >
                   <FormattedMessage {...messages.clearFilters} />
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => store.setFilterDialogOpen(false)}
+                >
+                  <FormattedMessage {...messages.filtersCancel} />
+                </Button>
+                <Button type="button" onClick={() => store.applyConceptFilters()}>
+                  <FormattedMessage {...messages.filtersApply} />
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+        {conceptsQuery.isError ? (
+          <TypographyP size="small" tone="critical">
+            {conceptsQuery.error.message}
+          </TypographyP>
+        ) : null}
+        <div
+          className={cn(
+            "overflow-x-auto rounded-lg border border-border transition-opacity",
+            conceptsRefreshing && "pointer-events-none opacity-60",
+          )}
+          aria-busy={conceptsRefreshing || undefined}
+        >
+          <table className="min-w-[760px] w-full text-left text-sm">
+            <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2">
+                  <button
+                    type="button"
+                    className="font-medium"
+                    onClick={() => store.toggleConceptSort()}
+                  >
+                    {sourceLanguage.name} {store.conceptSort === "asc" ? "↑" : "↓"}
+                  </button>
+                </th>
+                <th className="px-3 py-2">
+                  <FormattedMessage {...messages.definitionLabel} />
+                </th>
+                <th className="px-3 py-2">
+                  <FormattedMessage {...messages.subjectLabel} />
+                </th>
+                <th className="px-3 py-2">
+                  <FormattedMessage {...messages.created} />
+                </th>
+                <th className="px-3 py-2">
+                  <FormattedMessage {...messages.lastModified} />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {concepts.map((concept) => (
+                <tr
+                  key={concept.id}
+                  className="cursor-pointer border-b border-border last:border-b-0 hover:bg-muted/20"
+                  onClick={() => router.push(store.conceptHref(concept.id))}
+                >
+                  <td className="px-3 py-3">
+                    <div className="flex flex-wrap items-center gap-2 font-medium">
+                      {concept.primaryTerm}
+                    </div>
+                  </td>
+                  <td className="max-w-xs truncate px-3 py-3 text-muted-foreground">
+                    {concept.definition || "—"}
+                  </td>
+                  <td className="px-3 py-3 text-muted-foreground">{concept.subject || "—"}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
+                    {formatDate(concept.createdAt)}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
+                    {formatDate(concept.updatedAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {conceptsQuery.isSuccess && concepts.length === 0 ? (
+            <div className="flex flex-col items-center gap-4 px-4 py-10 text-center">
+              <TypographyP size="small" tone="subtle">
+                <FormattedMessage {...messages.noConcepts} />
+              </TypographyP>
+              {canContribute || canManage ? (
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {canContribute ? (
+                    <Button
+                      type="button"
+                      onClick={() => router.push(`${glossaryHref}/concepts/new`)}
+                    >
+                      <PlusIcon data-icon="inline-start" />
+                      <FormattedMessage {...messages.addConcept} />
+                    </Button>
+                  ) : null}
+                  {canManage ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => store.setImportDialogOpen(true)}
+                    >
+                      <UploadSimpleIcon data-icon="inline-start" />
+                      <FormattedMessage {...messages.importGlossary} />
+                    </Button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
-            <Dialog
-              open={store.filterDialogOpen}
-              onOpenChange={(open) => store.setFilterDialogOpen(open)}
+          ) : null}
+        </div>
+        {conceptsQuery.isSuccess &&
+        (conceptsQuery.data?.pagination.hasMore || store.conceptCursor) ? (
+          <div className="flex items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!store.conceptCursor || conceptsQuery.isFetching}
+              onClick={goToPreviousConceptPage}
             >
-              <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>
-                    <FormattedMessage {...messages.filtersTitle} />
-                  </DialogTitle>
-                  <DialogDescription>
-                    <FormattedMessage {...messages.filtersDescription} />
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
-                  <EnumFilterSelect
-                    id="glossary-filter-locale"
-                    label={intl.formatMessage(messages.filterLanguagesLabel)}
-                    value={store.filterDraft.locale || "all"}
-                    displayValue={
-                      store.filterDraft.locale || intl.formatMessage(messages.filterAllValue)
-                    }
-                    onValueChange={(value) => store.updateFilterDraft("locale", value ?? "all")}
-                  >
-                    <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
-                      {intl.formatMessage(messages.filterAllValue)}
-                    </SelectItem>
-                    {glossary.languages.map((language) => (
-                      <SelectItem
-                        key={language.locale}
-                        value={language.locale}
-                        label={language.name}
-                      >
-                        {language.name}
-                      </SelectItem>
-                    ))}
-                  </EnumFilterSelect>
-                  <EnumFilterSelect
-                    id="glossary-filter-modified"
-                    label={intl.formatMessage(messages.filterLastModifiedLabel)}
-                    value={store.filterDraft.modified || "all"}
-                    displayValue={
-                      store.filterDraft.modified === "24h"
-                        ? intl.formatMessage(messages.lastModified24h)
-                        : store.filterDraft.modified === "7d"
-                          ? intl.formatMessage(messages.lastModified7d)
-                          : store.filterDraft.modified === "30d"
-                            ? intl.formatMessage(messages.lastModified30d)
-                            : intl.formatMessage(messages.filterAllValue)
-                    }
-                    onValueChange={(value) => store.updateFilterDraft("modified", value ?? "all")}
-                  >
-                    <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
-                      {intl.formatMessage(messages.filterAllValue)}
-                    </SelectItem>
-                    <SelectItem value="24h" label={intl.formatMessage(messages.lastModified24h)}>
-                      {intl.formatMessage(messages.lastModified24h)}
-                    </SelectItem>
-                    <SelectItem value="7d" label={intl.formatMessage(messages.lastModified7d)}>
-                      {intl.formatMessage(messages.lastModified7d)}
-                    </SelectItem>
-                    <SelectItem value="30d" label={intl.formatMessage(messages.lastModified30d)}>
-                      {intl.formatMessage(messages.lastModified30d)}
-                    </SelectItem>
-                  </EnumFilterSelect>
-                  <EnumFilterSelect
-                    id="glossary-filter-pos"
-                    label={intl.formatMessage(messages.filterPartOfSpeechLabel)}
-                    value={store.filterDraft.partOfSpeech || "all"}
-                    displayValue={
-                      store.filterDraft.partOfSpeech
-                        ? readableEnumLabel(store.filterDraft.partOfSpeech)
-                        : intl.formatMessage(messages.filterAllValue)
-                    }
-                    onValueChange={(value) =>
-                      store.updateFilterDraft("partOfSpeech", value ?? "all")
-                    }
-                  >
-                    <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
-                      {intl.formatMessage(messages.filterAllValue)}
-                    </SelectItem>
-                    {glossaryPartOfSpeechValues.map((value) => (
-                      <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
-                        <PartOfSpeechDisplay value={value} />
-                      </SelectItem>
-                    ))}
-                  </EnumFilterSelect>
-                  <EnumFilterSelect
-                    id="glossary-filter-term-type"
-                    label={intl.formatMessage(messages.filterTypeLabel)}
-                    value={store.filterDraft.termType || "all"}
-                    displayValue={
-                      store.filterDraft.termType
-                        ? readableEnumLabel(store.filterDraft.termType)
-                        : intl.formatMessage(messages.filterAllValue)
-                    }
-                    onValueChange={(value) => store.updateFilterDraft("termType", value ?? "all")}
-                  >
-                    <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
-                      {intl.formatMessage(messages.filterAllValue)}
-                    </SelectItem>
-                    {glossaryTermTypeValues.map((value) => (
-                      <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
-                        <TermTypeDisplay value={value} />
-                      </SelectItem>
-                    ))}
-                  </EnumFilterSelect>
-                  <EnumFilterSelect
-                    id="glossary-filter-term-status"
-                    label={intl.formatMessage(messages.filterStatusLabel)}
-                    value={store.filterDraft.linguisticStatus || "all"}
-                    displayValue={
-                      store.filterDraft.linguisticStatus
-                        ? readableEnumLabel(store.filterDraft.linguisticStatus)
-                        : intl.formatMessage(messages.filterAllValue)
-                    }
-                    onValueChange={(value) =>
-                      store.updateFilterDraft("linguisticStatus", value ?? "all")
-                    }
-                  >
-                    <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
-                      {intl.formatMessage(messages.filterAllValue)}
-                    </SelectItem>
-                    {glossaryTermStatusValues.map((value) => (
-                      <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
-                        <StatusLabel status={value} />
-                      </SelectItem>
-                    ))}
-                  </EnumFilterSelect>
-                  <EnumFilterSelect
-                    id="glossary-filter-gender"
-                    label={intl.formatMessage(messages.filterGenderLabel)}
-                    value={store.filterDraft.gender || "all"}
-                    displayValue={
-                      store.filterDraft.gender
-                        ? readableEnumLabel(store.filterDraft.gender)
-                        : intl.formatMessage(messages.filterAllValue)
-                    }
-                    onValueChange={(value) => store.updateFilterDraft("gender", value ?? "all")}
-                  >
-                    <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
-                      {intl.formatMessage(messages.filterAllValue)}
-                    </SelectItem>
-                    {glossaryGenderValues.map((value) => (
-                      <SelectItem key={value} value={value} label={readableEnumLabel(value)}>
-                        <GenderDisplay value={value} />
-                      </SelectItem>
-                    ))}
-                  </EnumFilterSelect>
-                  <EnumFilterSelect
-                    id="glossary-filter-author"
-                    label={intl.formatMessage(messages.filterAuthorLabel)}
-                    value={store.filterDraft.author || "all"}
-                    displayValue={
-                      authorOptions.find((member) => member.userId === store.filterDraft.author)
-                        ?.displayName ||
-                      store.filterDraft.author ||
-                      intl.formatMessage(messages.filterAllValue)
-                    }
-                    onValueChange={(value) => store.updateFilterDraft("author", value ?? "all")}
-                  >
-                    <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
-                      {intl.formatMessage(messages.filterAllValue)}
-                    </SelectItem>
-                    {[
-                      ...authorOptions,
-                      ...(store.filterDraft.author &&
-                      !authorOptions.some((member) => member.userId === store.filterDraft.author)
-                        ? [
-                            {
-                              userId: store.filterDraft.author,
-                              displayName: store.filterDraft.author,
-                            },
-                          ]
-                        : []),
-                    ].map((author) => (
-                      <SelectItem
-                        key={author.userId}
-                        value={author.userId}
-                        label={author.displayName}
-                      >
-                        {author.displayName}
-                      </SelectItem>
-                    ))}
-                  </EnumFilterSelect>
-                </div>
-                <DialogFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={store.filterDraftIsEmpty}
-                    onClick={() => store.clearFilterDraft()}
-                  >
-                    <FormattedMessage {...messages.clearFilters} />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => store.setFilterDialogOpen(false)}
-                  >
-                    <FormattedMessage {...messages.filtersCancel} />
-                  </Button>
-                  <Button type="button" onClick={() => store.applyConceptFilters()}>
-                    <FormattedMessage {...messages.filtersApply} />
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-          {conceptsQuery.isError ? (
-            <TypographyP size="small" tone="critical">
-              {conceptsQuery.error.message}
-            </TypographyP>
-          ) : null}
-          <div
-            className={cn(
-              "overflow-x-auto rounded-lg border border-border transition-opacity",
-              conceptsRefreshing && "pointer-events-none opacity-60",
-            )}
-            aria-busy={conceptsRefreshing || undefined}
-          >
-            <table className="min-w-[760px] w-full text-left text-sm">
-              <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
-                <tr>
-                  <th className="w-10 px-3 py-2">
-                    <Checkbox
-                      aria-label="Select all concepts"
-                      checked={store.conceptSelectionState(concepts.map((concept) => concept.id))}
-                      onCheckedChange={(checked) =>
-                        checked
-                          ? store.selectAllConcepts(concepts.map((concept) => concept.id))
-                          : store.clearConceptSelection()
-                      }
-                    />
-                  </th>
-                  <th className="px-3 py-2">
-                    <button
-                      type="button"
-                      className="font-medium"
-                      onClick={() => store.toggleConceptSort()}
-                    >
-                      {sourceLanguage.name} {store.conceptSort === "asc" ? "↑" : "↓"}
-                    </button>
-                  </th>
-                  <th className="px-3 py-2">
-                    <FormattedMessage {...messages.definitionLabel} />
-                  </th>
-                  <th className="px-3 py-2">
-                    <FormattedMessage {...messages.subjectLabel} />
-                  </th>
-                  <th className="px-3 py-2">
-                    <FormattedMessage {...messages.created} />
-                  </th>
-                  <th className="px-3 py-2">
-                    <FormattedMessage {...messages.lastModified} />
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {concepts.map((concept) => (
-                  <tr
-                    key={concept.id}
-                    className="cursor-pointer border-b border-border last:border-b-0 hover:bg-muted/20"
-                    onClick={() => router.push(store.conceptHref(concept.id))}
-                  >
-                    <td className="px-3 py-3" onClick={(event) => event.stopPropagation()}>
-                      <Checkbox
-                        aria-label={`Select ${concept.primaryTerm}`}
-                        checked={store.selectedConceptIds.has(concept.id)}
-                        onCheckedChange={(checked) =>
-                          store.setConceptSelected(concept.id, Boolean(checked))
-                        }
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-wrap items-center gap-2 font-medium">
-                        {concept.primaryTerm}
-                      </div>
-                    </td>
-                    <td className="max-w-xs truncate px-3 py-3 text-muted-foreground">
-                      {concept.definition || "—"}
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground">{concept.subject || "—"}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
-                      {formatDate(concept.createdAt)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
-                      {formatDate(concept.updatedAt)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {conceptsQuery.isSuccess && concepts.length === 0 ? (
-              <div className="flex flex-col items-center gap-4 px-4 py-10 text-center">
-                <TypographyP size="small" tone="subtle">
-                  <FormattedMessage {...messages.noConcepts} />
-                </TypographyP>
-                {canContribute || canManage ? (
-                  <div className="flex flex-wrap items-center justify-center gap-2">
-                    {canContribute ? (
-                      <Button
-                        type="button"
-                        onClick={() => router.push(`${glossaryHref}/concepts/new`)}
-                      >
-                        <PlusIcon data-icon="inline-start" />
-                        <FormattedMessage {...messages.addConcept} />
-                      </Button>
-                    ) : null}
-                    {canManage ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => store.setImportDialogOpen(true)}
-                      >
-                        <UploadSimpleIcon data-icon="inline-start" />
-                        <FormattedMessage {...messages.importGlossary} />
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-          {conceptsQuery.isSuccess &&
-          (conceptsQuery.data?.pagination.hasMore || store.conceptCursor) ? (
-            <div className="flex items-center justify-between gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!store.conceptCursor || conceptsQuery.isFetching}
-                onClick={goToPreviousConceptPage}
-              >
-                <FormattedMessage {...messages.previousPage} />
-              </Button>
-              <TypographyP size="xsmall" tone="subtle">
-                {conceptsQuery.data.pagination.returned} of {conceptsQuery.data.total}
-              </TypographyP>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!conceptsQuery.data.nextCursor || conceptsQuery.isFetching}
-                onClick={goToNextConceptPage}
-              >
-                <FormattedMessage {...messages.nextPage} />
-              </Button>
-            </div>
-          ) : null}
-        </section>
-        <section className="grid gap-4 rounded-lg border border-border p-4">
-          <div>
-            <TypographyP size="small" weight="medium" tone="content">
-              <FormattedMessage {...messages.assignedProjectsTitle} />
-            </TypographyP>
+              <FormattedMessage {...messages.previousPage} />
+            </Button>
             <TypographyP size="xsmall" tone="subtle">
-              <FormattedMessage {...messages.assignedProjectsDescription} />
+              {conceptsQuery.data.pagination.returned} of {conceptsQuery.data.total}
             </TypographyP>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!conceptsQuery.data.nextCursor || conceptsQuery.isFetching}
+              onClick={goToNextConceptPage}
+            >
+              <FormattedMessage {...messages.nextPage} />
+            </Button>
           </div>
-          {canManage ? (
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Select
-                value={store.selectedProjectId || null}
-                onValueChange={(value) => store.setSelectedProjectId(value ?? "")}
-              >
-                <SelectTrigger className="sm:max-w-sm">
-                  <SelectValue>
-                    {store.selectedProjectId
-                      ? (availableProjects.find((project) => project.id === store.selectedProjectId)
-                          ?.name ?? store.selectedProjectId)
-                      : intl.formatMessage(messages.selectProjectPlaceholder)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {availableProjects
-                    .filter((project) => project.sourceLocale === glossary.sourceLocale)
-                    .map((project) => (
-                      <SelectItem key={project.id} value={project.id} label={project.name}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                disabled={!store.selectedProjectId || attachProject.isPending}
-                onClick={() => attachProject.mutate(store.selectedProjectId)}
-              >
-                <FormattedMessage {...messages.assignToProject} />
-              </Button>
-            </div>
-          ) : null}
-          <div className="grid gap-2">
-            {(attachedProjectsQuery.data ?? []).map((project) => (
-              <div
-                key={project.projectId}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
-              >
-                {project.externalUrl ? (
-                  <a
-                    href={project.externalUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm font-medium text-foreground hover:underline"
-                  >
-                    {project.projectName}
-                  </a>
-                ) : (
-                  <Link
-                    href={`/org/${organizationSlug}/projects/${project.projectId}`}
-                    className="text-sm font-medium text-foreground hover:underline"
-                  >
-                    {project.projectName}
-                  </Link>
-                )}
-                {canManage ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => detachProject.mutate(project.projectId)}
-                  >
-                    <FormattedMessage {...messages.removeProject} />
-                  </Button>
-                ) : null}
-              </div>
-            ))}
-            {attachedProjectsQuery.isSuccess && (attachedProjectsQuery.data ?? []).length === 0 ? (
-              <TypographyP size="small" tone="subtle">
-                <FormattedMessage {...messages.noProjectsAssigned} />
-              </TypographyP>
-            ) : null}
-          </div>
-        </section>
-      </>
+        ) : null}
+      </section>
 
       <Dialog
         open={canManage && store.exportDialogOpen}

@@ -13,28 +13,32 @@
  * Version 2.0 or later.
  */
 import { useMemo, useRef } from "react";
-import { TextTIcon } from "@phosphor-icons/react";
+import {
+  ArrowLeftIcon,
+  DownloadSimpleIcon,
+  PlusIcon,
+  TextTIcon,
+  UploadSimpleIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { OrgNavLink } from "@/components/app-shell/org-nav-link";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { TypographyP } from "@/components/ui/typography";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { normalizeSpellcheckWord } from "@/lib/spellcheck-dictionary/normalize-word";
 import { createDictionaryClient } from "@/lib/spellcheck-dictionary/client";
 
-import { PageHeader, WorkspacePageShell } from "../../../_components/workspace-resource-shared";
+import { ProjectChips } from "../../../_components/project-chips";
 import type { ApiDictionary } from "../../_components/dictionary-list";
 import {
   DictionariesPageStoreProvider,
@@ -96,8 +100,8 @@ const DictionaryDetailPageView = observer(function DictionaryDetailPageView({
   const organizationSlug = store.organizationSlug;
   const locale = store.detailLocale;
   const word = store.detailWord;
-  const selectedProjectId = store.detailSelectedProjectId;
   const importInputRef = useRef<HTMLInputElement>(null);
+  const dictionariesHref = `/org/${organizationSlug}/dictionaries`;
 
   const dictionaryQuery = useQuery({
     queryKey: ["spellcheck-dictionary", organizationSlug, dictionaryId],
@@ -150,6 +154,7 @@ const DictionaryDetailPageView = observer(function DictionaryDetailPageView({
     () => wordsQuery.data?.pages.flatMap((page) => page.words) ?? [],
     [wordsQuery.data?.pages],
   );
+  const totalWords = wordsQuery.data?.pages[0]?.total ?? 0;
 
   const projectsQuery = useQuery({
     queryKey: ["dictionary-projects", organizationSlug, dictionaryId],
@@ -299,10 +304,7 @@ const DictionaryDetailPageView = observer(function DictionaryDetailPageView({
         );
       }
     },
-    onSuccess: async () => {
-      store.clearDetailSelectedProjectId();
-      await invalidateDictionary();
-    },
+    onSuccess: invalidateDictionary,
     onError: (error) => {
       toast.error(
         error instanceof Error
@@ -357,178 +359,207 @@ const DictionaryDetailPageView = observer(function DictionaryDetailPageView({
   }
 
   const dictionary = dictionaryQuery.data;
+  const localeLabel = locale.trim() || "—";
 
   return (
-    <WorkspacePageShell>
-      <PageHeader icon={TextTIcon} title={dictionary?.name ?? dictionaryId} />
-
-      {dictionaryQuery.isError ? (
-        <TypographyP className="text-flame-100" size="small">
-          {dictionaryQuery.error instanceof Error
-            ? dictionaryQuery.error.message
-            : intl.formatMessage(dictionaryDetailMessages.loadFailed)}
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+      <section className="flex flex-col gap-3">
+        <div>
+          <Button
+            nativeButton={false}
+            render={<OrgNavLink href={dictionariesHref} />}
+            variant="ghost"
+            size="sm"
+            className="-ms-2 text-muted-foreground"
+          >
+            <ArrowLeftIcon data-icon="inline-start" />
+            <FormattedMessage {...dictionaryDetailMessages.backToDictionaries} />
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <TextTIcon className="size-5 text-muted-foreground" />
+          {dictionary ? (
+            <Badge variant="outline">
+              {intl.formatMessage(dictionaryDetailMessages.wordCount, {
+                count: dictionary.wordCount,
+              })}
+            </Badge>
+          ) : null}
+        </div>
+        {dictionary ? (
+          <TypographyH1 className="text-3xl md:text-4xl" weight="bold">
+            {dictionary.name}
+          </TypographyH1>
+        ) : dictionaryQuery.isLoading ? (
+          <Skeleton className="h-10 w-64" />
+        ) : null}
+        {dictionaryQuery.isError ? (
+          <TypographyP className="text-destructive" size="small">
+            {dictionaryQuery.error instanceof Error
+              ? dictionaryQuery.error.message
+              : intl.formatMessage(dictionaryDetailMessages.loadFailed)}
+          </TypographyP>
+        ) : null}
+        <TypographyP className="max-w-3xl leading-6" size="small" tone="subtle">
+          {dictionary?.description ||
+            intl.formatMessage(dictionaryDetailMessages.descriptionFallback)}
         </TypographyP>
-      ) : null}
+        <ProjectChips
+          projects={(projectsQuery.data ?? []).map((project) => ({
+            id: project.projectId,
+            name: project.projectName,
+          }))}
+          assignable={availableProjects.map((project) => ({ id: project.id, name: project.name }))}
+          loaded={projectsQuery.isSuccess}
+          canManage={canWriteDictionaries}
+          assigning={attachProject.isPending}
+          removing={detachProject.isPending}
+          onAssign={(projectId) => attachProject.mutate(projectId)}
+          onRemove={(projectId) => detachProject.mutate(projectId)}
+          labels={{
+            usedIn: intl.formatMessage(dictionaryDetailMessages.usedInLabel),
+            empty: intl.formatMessage(dictionaryDetailMessages.emptyProjects),
+            assign: intl.formatMessage(dictionaryDetailMessages.assignProject),
+            noAssignable: intl.formatMessage(dictionaryDetailMessages.noAssignableProjects),
+            remove: (name) => intl.formatMessage(dictionaryDetailMessages.removeProject, { name }),
+          }}
+        />
+      </section>
 
-      <section className="grid gap-3">
-        <TypographyP size="small" weight="medium">
-          <FormattedMessage {...dictionaryDetailMessages.wordsTitle} />
-        </TypographyP>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-          <label className="grid min-w-0 gap-1.5 sm:w-36">
-            <span className="text-xs font-medium text-muted-foreground">
-              <FormattedMessage {...dictionaryDetailMessages.localeLabel} />
-            </span>
+      <section className="grid gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-baseline gap-2">
+            <TypographyP size="small" weight="medium" tone="content">
+              <FormattedMessage {...dictionaryDetailMessages.wordsTitle} />
+            </TypographyP>
+            {wordsQuery.isSuccess ? (
+              <TypographyP size="xsmall" tone="subtle">
+                {intl.formatMessage(dictionaryDetailMessages.localeWordCount, {
+                  count: totalWords,
+                  locale: localeLabel,
+                })}
+              </TypographyP>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            {canWriteDictionaries ? (
+              <>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept=".txt,text/plain"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (!file) return;
+                    void file.text().then((content) => importWords.mutate(content));
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={importWords.isPending}
+                  onClick={() => importInputRef.current?.click()}
+                >
+                  {importWords.isPending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <UploadSimpleIcon data-icon="inline-start" />
+                  )}
+                  <FormattedMessage {...dictionaryDetailMessages.importWords} />
+                </Button>
+              </>
+            ) : null}
+            <Button type="button" variant="outline" onClick={() => void exportWords()}>
+              <DownloadSimpleIcon data-icon="inline-start" />
+              <FormattedMessage {...dictionaryDetailMessages.exportWords} />
+            </Button>
+          </div>
+        </div>
+
+        {canWriteDictionaries ? (
+          <form
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              addWord.mutate();
+            }}
+          >
             <Input
+              aria-label={intl.formatMessage(dictionaryDetailMessages.localeLabel)}
               value={locale}
               onChange={(event) => store.setDetailLocale(event.target.value)}
               placeholder={intl.formatMessage(dictionaryDetailMessages.localePlaceholder)}
+              className="w-28 font-mono text-xs"
             />
-          </label>
-          {canWriteDictionaries ? (
-            <>
-              <label className="grid min-w-0 flex-1 gap-1.5 sm:max-w-xs">
-                <span className="text-xs font-medium text-muted-foreground">
-                  <FormattedMessage {...dictionaryDetailMessages.wordLabel} />
-                </span>
-                <Input
-                  value={word}
-                  onChange={(event) => store.setDetailWord(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      addWord.mutate();
-                    }
-                  }}
-                />
-              </label>
-              <Button size="sm" onClick={() => addWord.mutate()} disabled={addWord.isPending}>
-                <FormattedMessage {...dictionaryDetailMessages.addWord} />
-              </Button>
-              <input
-                ref={importInputRef}
-                type="file"
-                accept=".txt,text/plain"
-                className="sr-only"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (!file) {
-                    return;
-                  }
-                  void file.text().then((content) => importWords.mutate(content));
-                  event.target.value = "";
-                }}
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                type="button"
-                onClick={() => importInputRef.current?.click()}
-              >
-                <FormattedMessage {...dictionaryDetailMessages.importWords} />
-              </Button>
-            </>
-          ) : null}
-          <Button size="sm" variant="outline" onClick={() => void exportWords()}>
-            <FormattedMessage {...dictionaryDetailMessages.exportWords} />
-          </Button>
-        </div>
+            <Input
+              aria-label={intl.formatMessage(dictionaryDetailMessages.wordLabel)}
+              value={word}
+              onChange={(event) => store.setDetailWord(event.target.value)}
+              placeholder={intl.formatMessage(dictionaryDetailMessages.wordPlaceholder)}
+              className="min-w-48 flex-1 sm:max-w-sm"
+            />
+            <Button type="submit" disabled={addWord.isPending || !word.trim()}>
+              <PlusIcon data-icon="inline-start" />
+              <FormattedMessage {...dictionaryDetailMessages.addWord} />
+            </Button>
+          </form>
+        ) : (
+          <Input
+            aria-label={intl.formatMessage(dictionaryDetailMessages.localeLabel)}
+            value={locale}
+            onChange={(event) => store.setDetailLocale(event.target.value)}
+            placeholder={intl.formatMessage(dictionaryDetailMessages.localePlaceholder)}
+            className="w-28 font-mono text-xs"
+          />
+        )}
 
-        {wordsQuery.isSuccess && dictionaryWords.length === 0 ? (
-          <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...dictionaryDetailMessages.emptyWords} />
-          </TypographyP>
-        ) : null}
-
-        {dictionaryWords.map((entry) => (
-          <div
-            key={entry.id}
-            className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-2"
-          >
-            <span className="text-sm text-foreground">{entry.word}</span>
-            {canWriteDictionaries ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => deleteWord.mutate(entry.id)}
-                disabled={deleteWord.isPending}
-              >
-                <FormattedMessage {...dictionaryDetailMessages.deleteWord} />
-              </Button>
-            ) : null}
+        {dictionaryWords.length === 0 && wordsQuery.isSuccess ? (
+          <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center">
+            <TypographyP size="small" tone="subtle">
+              {intl.formatMessage(dictionaryDetailMessages.emptyWords, { locale: localeLabel })}
+            </TypographyP>
           </div>
-        ))}
+        ) : (
+          <ul className="flex flex-wrap gap-1.5">
+            {dictionaryWords.map((entry) => (
+              <li
+                key={entry.id}
+                className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-muted/30 ps-2.5 pe-1 text-sm text-foreground"
+              >
+                <span className="max-w-64 truncate">{entry.word}</span>
+                {canWriteDictionaries ? (
+                  <button
+                    type="button"
+                    aria-label={intl.formatMessage(dictionaryDetailMessages.deleteWord, {
+                      word: entry.word,
+                    })}
+                    disabled={deleteWord.isPending}
+                    onClick={() => deleteWord.mutate(entry.id)}
+                    className="inline-flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <XIcon className="size-3" weight="bold" />
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
         {wordsQuery.hasNextPage ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={wordsQuery.isFetchingNextPage}
-            onClick={() => void wordsQuery.fetchNextPage()}
-          >
-            <FormattedMessage {...dictionaryDetailMessages.loadMore} />
-          </Button>
-        ) : null}
-      </section>
-
-      <section className="grid gap-3">
-        <TypographyP size="small" weight="medium">
-          <FormattedMessage {...dictionaryDetailMessages.projectsTitle} />
-        </TypographyP>
-        {canWriteDictionaries ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <Select
-              value={selectedProjectId}
-              onValueChange={(value) => store.setDetailSelectedProjectId(value ?? "")}
-            >
-              <SelectTrigger className="sm:w-72">
-                <SelectValue
-                  placeholder={intl.formatMessage(dictionaryDetailMessages.selectProject)}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {availableProjects.map((project) => (
-                  <SelectItem key={project.id} value={project.id} label={project.name}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div>
             <Button
+              type="button"
               size="sm"
-              disabled={!selectedProjectId || attachProject.isPending}
-              onClick={() => attachProject.mutate(selectedProjectId)}
+              variant="outline"
+              disabled={wordsQuery.isFetchingNextPage}
+              onClick={() => void wordsQuery.fetchNextPage()}
             >
-              <FormattedMessage {...dictionaryDetailMessages.attachProject} />
+              <FormattedMessage {...dictionaryDetailMessages.loadMore} />
             </Button>
           </div>
         ) : null}
-
-        {(projectsQuery.data?.length ?? 0) === 0 ? (
-          <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...dictionaryDetailMessages.noProjects} />
-          </TypographyP>
-        ) : (
-          (projectsQuery.data ?? []).map((project) => (
-            <div
-              key={project.projectId}
-              className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-2"
-            >
-              <span className="text-sm text-foreground">{project.projectName}</span>
-              {canWriteDictionaries ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => detachProject.mutate(project.projectId)}
-                  disabled={detachProject.isPending}
-                >
-                  <FormattedMessage {...dictionaryDetailMessages.detachProject} />
-                </Button>
-              ) : null}
-            </div>
-          ))
-        )}
       </section>
-    </WorkspacePageShell>
+    </main>
   );
 });

@@ -29,7 +29,6 @@ export class DictionariesPageStore {
   createErrors: { name?: string; submit?: string } = {};
   detailLocale = "en-US";
   detailWord = "";
-  detailSelectedProjectId = "";
 
   constructor(organizationSlug: string) {
     this.organizationSlug = organizationSlug;
@@ -71,13 +70,5 @@ export class DictionariesPageStore {
 
   clearDetailWord() {
     this.detailWord = "";
-  }
-
-  setDetailSelectedProjectId(projectId: string) {
-    this.detailSelectedProjectId = projectId;
-  }
-
-  clearDetailSelectedProjectId() {
-    this.detailSelectedProjectId = "";
   }
 }
