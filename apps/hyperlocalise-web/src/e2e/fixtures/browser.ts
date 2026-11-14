@@ -10,8 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { chromium, type Browser, type Page } from "playwright";
+import { chromium, type Browser, type Locator, type Page } from "playwright";
 import { afterAll, beforeAll } from "vite-plus/test";
+
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 import { E2E_BASE_URL, organizationDashboardPath } from "../constants";
 import {
@@ -25,6 +27,10 @@ export { captureOnboardingWorkspace };
 
 const ONBOARDING_PATH = "/auth/onboarding";
 const SIGN_IN_PATH = "/auth/sign-in";
+const DIALOG_OPEN_ATTEMPTS = 3;
+const DIALOG_OPEN_TIMEOUT_MS = 5_000;
+const DIALOG_ANNOUNCER_TIMEOUT_MS = 1_000;
+const SETTLED_PAGE_TIMEOUT_MS = 15_000;
 
 type E2eBrowserContext = {
   browser: Browser;
@@ -34,7 +40,7 @@ type E2eBrowserContext = {
 
 let sharedContext: E2eBrowserContext | null = null;
 
-async function completeEmulatorLogin(page: Page, email: string) {
+export async function completeEmulatorLogin(page: Page, email: string) {
   await page.goto(new URL(SIGN_IN_PATH, E2E_BASE_URL).toString(), {
     waitUntil: "domcontentloaded",
   });
@@ -102,9 +108,23 @@ export async function loginForOnboarding(page: Page) {
 }
 
 export async function loginAsAdmin(page: Page) {
-  const identity = await provisionEmulatorIdentity({ mode: "admin", role: "admin" });
-  trackIdentity(identity);
+  return loginWithRole(page, "admin");
+}
 
+export async function loginWithRole(page: Page, role: OrganizationMembershipRole) {
+  const identity = await provisionWorkspaceIdentity(role);
+  return loginAsIdentity(page, identity);
+}
+
+/** Provisions a user with its own workspace without signing in; cleaned up with the suite. */
+export async function provisionWorkspaceIdentity(role: OrganizationMembershipRole = "admin") {
+  const identity = await provisionEmulatorIdentity({ mode: "admin", role });
+  trackIdentity(identity);
+  return identity;
+}
+
+/** Signs in as an already provisioned identity and opens its workspace dashboard. */
+export async function loginAsIdentity(page: Page, identity: EmulatorIdentity) {
   await completeEmulatorLogin(page, identity.email);
 
   const dashboardPath = organizationDashboardPath(identity.organizationSlug);
@@ -127,10 +147,55 @@ export async function loginAsAdmin(page: Page) {
   return identity;
 }
 
-async function dismissUpdateAnnouncer(page: Page) {
+/** Opens an app path and waits for its page heading. */
+export async function openPageWithHeading(page: Page, path: string, heading: string) {
+  await page.goto(new URL(path, E2E_BASE_URL).toString(), {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+  await page
+    .getByRole("heading", { name: heading, exact: true })
+    .first()
+    .waitFor({ state: "visible", timeout: 30_000 });
+}
+
+/**
+ * Waits for client queries to finish so an absence check does not pass before the
+ * data that would render the element has loaded.
+ */
+export async function waitForSettledPage(page: Page) {
+  try {
+    await page.waitForLoadState("networkidle", { timeout: SETTLED_PAGE_TIMEOUT_MS });
+  } catch {
+    // Long-polling pages never go idle; the heading wait already proved the page rendered.
+  }
+}
+
+/**
+ * Clicks a dialog trigger until the dialog opens. The trigger renders before the page
+ * hydrates, and a click that lands before hydration does nothing.
+ */
+export async function openDialog(page: Page, trigger: Locator, dialogName: string) {
+  const dialog = page.getByRole("dialog", { name: dialogName });
+  for (let attempt = 0; attempt < DIALOG_OPEN_ATTEMPTS; attempt += 1) {
+    await dismissUpdateAnnouncer(page, DIALOG_ANNOUNCER_TIMEOUT_MS);
+    await trigger.click();
+    try {
+      await dialog.waitFor({ state: "visible", timeout: DIALOG_OPEN_TIMEOUT_MS });
+      return dialog;
+    } catch {
+      // Retry below.
+    }
+  }
+
+  await dialog.waitFor({ state: "visible", timeout: DIALOG_OPEN_TIMEOUT_MS });
+  return dialog;
+}
+
+export async function dismissUpdateAnnouncer(page: Page, timeout = 5_000) {
   const dismiss = page.getByRole("button", { name: "Not now" });
   try {
-    await dismiss.waitFor({ state: "visible", timeout: 5_000 });
+    await dismiss.waitFor({ state: "visible", timeout });
     await dismiss.click();
     await dismiss.waitFor({ state: "hidden", timeout: 5_000 });
   } catch {
