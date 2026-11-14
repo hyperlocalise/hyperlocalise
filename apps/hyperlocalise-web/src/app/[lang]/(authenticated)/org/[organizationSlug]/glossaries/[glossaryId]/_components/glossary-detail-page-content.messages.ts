@@ -90,10 +90,20 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "zaVQwg8luK",
     description: "Prompt inside the glossary file upload area",
   },
-  glossaryActions: {
-    defaultMessage: "Glossary actions",
-    id: "OU8ZFDP47O",
-    description: "Accessible label for the glossary actions menu",
+  moreActions: {
+    defaultMessage: "More actions",
+    id: "eBdsauAtw2",
+    description: "Accessible label for the glossary detail overflow menu",
+  },
+  usedInLabel: {
+    defaultMessage: "Used in",
+    id: "1vv2uOrXKR",
+    description: "Label for projects that use this glossary",
+  },
+  noAssignableProjects: {
+    defaultMessage: "No other projects use this source locale.",
+    id: "Bpz3HnGf5S",
+    description: "Empty assign-project menu when no matching projects remain",
   },
   glossaryHistory: {
     defaultMessage: "View history",
@@ -397,44 +407,19 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "Nke6y6zMfg",
     description: "Empty state when a glossary has no terms",
   },
-  assignedProjectsTitle: {
-    defaultMessage: "Assigned projects",
-    id: "SzY95cmXPi",
-    description: "Section title for projects assigned to a glossary",
-  },
-  assignedProjectsDescription: {
-    defaultMessage: "This glossary is used only by the projects listed here.",
-    id: "LMGo1sN8VQ",
-    description: "Section description for projects assigned to a glossary",
-  },
-  linkedProjectTitle: {
-    defaultMessage: "Linked project",
-    id: "kngndgvdvd",
-    description: "Section title for the project linked to a provider glossary",
-  },
-  linkedProjectDescription: {
-    defaultMessage: "This project is linked to the glossary in Crowdin.",
-    id: "wdTIdTeD/X",
-    description: "Section description for a provider-linked project",
-  },
-  selectProjectPlaceholder: {
-    defaultMessage: "Select project",
-    id: "PtdBUhTKib",
-    description: "Placeholder for the project selector on the glossary detail page",
-  },
   assignToProject: {
-    defaultMessage: "Assign to project",
-    id: "mmfrG6qsJL",
+    defaultMessage: "Assign project",
+    id: "QrqHO5DdVd",
     description: "Button to assign a project to a glossary",
   },
   removeProject: {
-    defaultMessage: "Remove",
-    id: "n1O3p9QRl7",
-    description: "Button to remove a project from a glossary",
+    defaultMessage: "Remove {name}",
+    id: "1mQrmu9J/5",
+    description: "Accessible label to remove a project from a glossary",
   },
   noProjectsAssigned: {
-    defaultMessage: "No projects assigned yet.",
-    id: "qhM5Koe951",
+    defaultMessage: "No projects yet",
+    id: "ASj+5iGoin",
     description: "Empty state when no projects are assigned to a glossary",
   },
   loadConceptsFailed: {

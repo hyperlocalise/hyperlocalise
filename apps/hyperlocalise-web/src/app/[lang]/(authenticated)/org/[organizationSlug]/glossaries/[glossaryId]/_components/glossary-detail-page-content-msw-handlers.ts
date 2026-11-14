@@ -39,12 +39,32 @@ export function createGlossaryDetailMswHandlers({
 }) {
   let currentGlossary = glossary;
   let currentConcepts = concepts;
+  let currentAttachedProjects = [...attachedProjects];
+
+  const glossaryResponse = () => HttpResponse.json({ glossary: currentGlossary, canContribute });
+  const attachedProjectsResponse = () => HttpResponse.json({ projects: currentAttachedProjects });
+  const authorsResponse = () =>
+    HttpResponse.json({
+      authors: [
+        { userId: "user-1", displayName: "Ada Lovelace" },
+        { userId: "former-user-1", displayName: "Grace Hopper" },
+      ],
+    });
 
   return [
-    http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId", () =>
-      HttpResponse.json({ glossary: currentGlossary, canContribute }),
-    ),
+    http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId", glossaryResponse),
+    http.get("*/v1/orgs/:organizationSlug/glossaries/:glossaryId", glossaryResponse),
     http.patch("/api/orgs/:organizationSlug/glossaries/:glossaryId", async ({ request }) => {
+      const body = (await request.json()) as { name?: string };
+      currentGlossary = {
+        ...currentGlossary,
+        ...(body.name !== undefined ? { name: body.name } : {}),
+      };
+      return HttpResponse.json({
+        glossary: currentGlossary,
+      });
+    }),
+    http.patch("*/v1/orgs/:organizationSlug/glossaries/:glossaryId", async ({ request }) => {
       const body = (await request.json()) as { name?: string };
       currentGlossary = {
         ...currentGlossary,
@@ -56,6 +76,10 @@ export function createGlossaryDetailMswHandlers({
     }),
     http.delete(
       "/api/orgs/:organizationSlug/glossaries/:glossaryId",
+      () => new HttpResponse(null, { status: 204 }),
+    ),
+    http.delete(
+      "*/v1/orgs/:organizationSlug/glossaries/:glossaryId",
       () => new HttpResponse(null, { status: 204 }),
     ),
     http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts/page", () =>
@@ -131,9 +155,48 @@ export function createGlossaryDetailMswHandlers({
         return new HttpResponse(null, { status: 204 });
       },
     ),
-    http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/projects", () =>
-      HttpResponse.json({ projects: attachedProjects }),
+    http.get(
+      "/api/orgs/:organizationSlug/glossaries/:glossaryId/projects",
+      attachedProjectsResponse,
     ),
+    http.get(
+      "*/v1/orgs/:organizationSlug/glossaries/:glossaryId/projects",
+      attachedProjectsResponse,
+    ),
+    http.post(
+      "*/v1/orgs/:organizationSlug/glossaries/:glossaryId/projects",
+      async ({ request }) => {
+        const body = (await request.json()) as { projectId?: string };
+        const project = projects.find((candidate) => candidate.id === body.projectId);
+        if (
+          project &&
+          !currentAttachedProjects.some((attached) => attached.projectId === project.id)
+        ) {
+          currentAttachedProjects = [
+            ...currentAttachedProjects,
+            {
+              projectId: project.id,
+              projectName: project.name,
+              priority: 0,
+              sourceLocale: project.sourceLocale,
+              targetLocales: [],
+              externalUrl: null,
+            },
+          ];
+        }
+        return HttpResponse.json({ projects: currentAttachedProjects });
+      },
+    ),
+    http.delete(
+      "*/v1/orgs/:organizationSlug/glossaries/:glossaryId/projects/:projectId",
+      ({ params }) => {
+        currentAttachedProjects = currentAttachedProjects.filter(
+          (project) => project.projectId !== String(params.projectId),
+        );
+        return new HttpResponse(null, { status: 204 });
+      },
+    ),
+    http.get("/api/orgs/:organizationSlug/projects", () => HttpResponse.json({ projects })),
     http.get("*/v1/orgs/:organizationSlug/projects", () => HttpResponse.json({ projects })),
     http.get("*/v1/orgs/:organizationSlug/members", () =>
       HttpResponse.json({
@@ -150,13 +213,13 @@ export function createGlossaryDetailMswHandlers({
         ],
       }),
     ),
-    http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts/authors", () =>
-      HttpResponse.json({
-        authors: [
-          { userId: "user-1", displayName: "Ada Lovelace" },
-          { userId: "former-user-1", displayName: "Grace Hopper" },
-        ],
-      }),
+    http.get(
+      "/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts/authors",
+      authorsResponse,
+    ),
+    http.get(
+      "*/v1/orgs/:organizationSlug/glossaries/:glossaryId/concepts/authors",
+      authorsResponse,
     ),
   ];
 }

@@ -138,9 +138,27 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const attachedProjectsFixture = [
+  {
+    projectId: "project-1",
+    projectName: "Marketing site",
+    priority: 0,
+    sourceLocale: "en-US",
+    targetLocales: ["vi-VN"],
+    externalUrl: null,
+  },
+];
+const assignableProjectsFixture = [
+  { id: "project-1", name: "Marketing site", sourceLocale: "en-US" },
+  { id: "project-2", name: "Help center", sourceLocale: "en-US" },
+  { id: "project-3", name: "French catalog", sourceLocale: "fr-FR" },
+];
+
 const detailHandlers = createGlossaryDetailMswHandlers({
   glossary: glossaryFixture,
   concepts: conceptsFixture,
+  attachedProjects: attachedProjectsFixture,
+  projects: assignableProjectsFixture,
   onConceptUpdate,
   onTermDelete,
 });
@@ -160,7 +178,21 @@ export const ConceptList: Story = {
       await canvas.findByRole("heading", { name: "Product terminology" }),
     ).toBeInTheDocument();
     await expect(canvas.getByText("Org")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Delete glossary" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Glossaries" })).toBeInTheDocument();
+    await expect(canvas.getByText("Used in")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Marketing site" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project-1",
+    );
+    await userEvent.click(canvas.getByRole("button", { name: "Assign project" }));
+    await expect(await canvas.findByRole("menuitem", { name: "Help center" })).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("menuitem", { name: "French catalog" }),
+    ).not.toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(canvas.getByRole("button", { name: "More actions" }));
+    await expect(canvas.getByRole("menuitem", { name: "Delete glossary" })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
     const nameInput = canvas.getByRole("textbox", { name: "Edit glossary name" });
     await userEvent.clear(nameInput);
     await userEvent.type(nameInput, "Canceled terminology");
@@ -220,6 +252,8 @@ function createListStoryParameters(
       handlers: createGlossaryDetailMswHandlers({
         glossary,
         concepts: conceptsFixture,
+        attachedProjects: attachedProjectsFixture,
+        projects: assignableProjectsFixture,
         canContribute,
       }),
     },
@@ -240,7 +274,10 @@ export const TeamManagerConceptList: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByText("Product")).toBeInTheDocument();
     await expect(canvas.queryByRole("combobox", { name: "Control" })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Delete glossary" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Assign project" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "More actions" }));
+    await expect(canvas.getByRole("menuitem", { name: "Delete glossary" })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
     await expect(canvas.getByRole("button", { name: "Add concept" })).toBeInTheDocument();
   },
 };
@@ -259,6 +296,7 @@ export const TeamTranslatorConceptList: Story = {
     await expect(
       canvas.queryByRole("textbox", { name: "Edit glossary name" }),
     ).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Assign project" })).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add concept" })).toBeInTheDocument();
   },
 };

@@ -5,6 +5,10 @@
  * included in this application's LICENSE file.
  *
  * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
@@ -122,6 +126,7 @@ export const CrowdinReadOnly: Story = {
     await expect(
       await canvas.findByRole("heading", { name: "Crowdin product terminology" }),
     ).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Glossaries" })).toBeInTheDocument();
     await expect(canvas.getByText("Provider")).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Checkout" })).toHaveAttribute(
       "href",
