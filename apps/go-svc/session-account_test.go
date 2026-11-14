@@ -113,6 +113,35 @@ func TestSessionAccountPatchAppearancePreferences(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, badZone.Code)
 }
 
+func TestSessionAccountPatchAppearancePreferencesFromIris(t *testing.T) {
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	api := &sessionAccountAPI{pool: scope.Pool}
+	claims := AuthClaims{UserID: scope.WorkOSUserID}
+	body := `{"theme":"dark","locale":"fr-FR","timezone":"Europe/Paris","hourCycle":"h23"}`
+
+	mux := http.NewServeMux()
+	api.register(mux, stubSessionVerifier{claims: claims})
+
+	iris := httptest.NewRequest(http.MethodPatch, "/v1/me/preferences", strings.NewReader(body))
+	iris.Header.Set("Content-Type", "application/json")
+	iris.Header.Set("Authorization", "Bearer session-access-token")
+	iris.Header.Set("Origin", "null")
+	iris.Header.Set("Sec-Fetch-Site", "cross-site")
+	irisRec := httptest.NewRecorder()
+	mux.ServeHTTP(irisRec, iris)
+	require.Equal(t, http.StatusOK, irisRec.Code, irisRec.Body.String())
+
+	blocked := httptest.NewRequest(http.MethodPatch, "/v1/me/preferences", strings.NewReader(body))
+	blocked.Header.Set("Content-Type", "application/json")
+	blocked.Header.Set("Authorization", "Bearer session-access-token")
+	blocked.Header.Set("Origin", "null")
+	blocked.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
+	blockedRec := httptest.NewRecorder()
+	mux.ServeHTTP(blockedRec, blocked)
+	require.Equal(t, http.StatusForbidden, blockedRec.Code)
+	require.Contains(t, blockedRec.Body.String(), "Cross-origin request denied")
+}
+
 func TestSessionAccountDelete(t *testing.T) {
 	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
 	rec := sessionAccountRequest(&sessionAccountAPI{pool: scope.Pool}, AuthClaims{UserID: scope.WorkOSUserID}, http.MethodDelete, "/v1/me", "")

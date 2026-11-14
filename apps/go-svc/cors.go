@@ -45,6 +45,14 @@ func denyBrowserMutation(r *http.Request) bool {
 	case http.MethodGet, http.MethodHead, http.MethodOptions:
 		return false
 	}
+	// CSRF is a cookie attack. Iris desktop (and the web GoSvcClient) send
+	// Authorization: Bearer and omit cookies. Those requests cannot be forged
+	// by a third-party page unless the attacker already has the access token.
+	// Packaged Iris loads file://, so Chromium sends Origin: null (or omits
+	// Origin and sets Sec-Fetch-Site: cross-site) and would otherwise 403.
+	if _, err := sessionCookieValue(r); err != nil && bearerAccessToken(r) != "" {
+		return false
+	}
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin != "" {
 		return !allowedBrowserOrigin(origin, r.Host)
