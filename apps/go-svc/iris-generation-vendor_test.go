@@ -213,9 +213,9 @@ func TestFalEndpointSelectsKlingO3ByInputKind(t *testing.T) {
 	model, ok := irisModelByID("kling-o3-pro")
 	require.True(t, ok)
 	require.Equal(t, "fal-ai/kling-video/o3/pro/text-to-video", falEndpoint(irisProviderRequest{Model: model}))
-	require.Equal(t, "fal-ai/kling-video/o3/pro/image-to-video", falEndpoint(irisProviderRequest{
+	require.Equal(t, "fal-ai/kling-video/o3/pro/reference-to-video", falEndpoint(irisProviderRequest{
 		Model:  model,
-		Inputs: []irisProviderInput{{Role: "image", Bytes: []byte("frame")}},
+		Inputs: []irisProviderInput{{Role: "image", Bytes: []byte("founder")}},
 	}))
 	require.Equal(t, "fal-ai/kling-video/o3/pro/image-to-video", falEndpoint(irisProviderRequest{
 		Model:  model,
@@ -232,6 +232,92 @@ func TestFalEndpointSelectsKlingO3ByInputKind(t *testing.T) {
 			{Role: "video", Bytes: []byte("clip")},
 		},
 	}))
+}
+
+func TestFalInputSendsVideoReferences(t *testing.T) {
+	uri := func(s string) string { return "data:image/png;base64," + base64.StdEncoding.EncodeToString([]byte(s)) }
+	inputs := []irisProviderInput{
+		{Role: "start", Bytes: []byte("keyframe"), ContentType: "image/png"},
+		{Role: "image", Bytes: []byte("founder"), ContentType: "image/png"},
+		{Role: "image", Bytes: []byte("bedroom"), ContentType: "image/png"},
+	}
+
+	seedance, ok := irisModelByID("seedance-2.5")
+	require.True(t, ok)
+	req := irisProviderRequest{Model: seedance, Prompt: "@Image1 in @Image2", Duration: 10, AspectRatio: "16:9", Inputs: inputs}
+	require.Equal(t, "bytedance/seedance-2.5/reference-to-video", falEndpoint(req))
+	input := falInput(req)
+	require.Equal(t, []string{uri("founder"), uri("bedroom")}, input["image_urls"])
+	require.Equal(t, "10", input["duration"])
+	require.Equal(t, "16:9", input["aspect_ratio"])
+	for _, key := range []string{"image_url", "start_image_url", "end_image_url"} {
+		_, has := input[key]
+		require.False(t, has, key)
+	}
+
+	omni, ok := irisModelByID("kling-o3-pro")
+	require.True(t, ok)
+	input = falInput(irisProviderRequest{Model: omni, Prompt: "@Image1 wakes", Inputs: inputs})
+	require.Equal(t, []string{uri("founder"), uri("bedroom")}, input["image_urls"])
+	require.Equal(t, uri("keyframe"), input["start_image_url"])
+	_, hasImageURL := input["image_url"]
+	require.False(t, hasImageURL)
+}
+
+func TestIrisCompositeProviderFalMakesLyriaMusic(t *testing.T) {
+	var endpoint string
+	var submitted map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			endpoint = r.URL.Path
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&submitted))
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"request_id":   "req_1",
+				"status_url":   "http://" + r.Host + "/status",
+				"response_url": "http://" + r.Host + "/result",
+			})
+			return
+		}
+		if r.URL.Path == "/status" {
+			_ = json.NewEncoder(w).Encode(map[string]any{"status": "COMPLETED"})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"audio":  map[string]any{"url": "https://cdn.fal.ai/files/track", "content_type": "audio/mpeg"},
+			"lyrics": "",
+		})
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := fal.NewClientWithHTTPClient(fal.Config{
+		APIKey:       "fal-test",
+		QueueBaseURL: server.URL,
+		PollInterval: time.Millisecond,
+	}, server.Client())
+	require.NoError(t, err)
+	provider := &irisCompositeProvider{
+		fal: client,
+		fetch: func(_ context.Context, rawURL string) ([]byte, string, error) {
+			require.Equal(t, "https://cdn.fal.ai/files/track", rawURL)
+			return []byte("mp3"), "", nil
+		},
+	}
+	model, ok := irisModelByID("lyria-3-pro")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:  model,
+		Prompt: "Breezy corporate pop at 112 BPM. A 48-second track.",
+		Inputs: []irisProviderInput{{Role: "image", Bytes: []byte("mood"), ContentType: "image/png"}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "/fal-ai/lyria3/pro", endpoint)
+	require.Equal(t, "Breezy corporate pop at 112 BPM. A 48-second track.", submitted["prompt"])
+	require.Equal(t, "data:image/png;base64,"+base64.StdEncoding.EncodeToString([]byte("mood")), submitted["image_url"])
+	_, hasDuration := submitted["duration"]
+	require.False(t, hasDuration)
+	require.Equal(t, []byte("mp3"), outputs[0].Bytes)
+	require.Equal(t, "track", outputs[0].Filename)
+	require.Equal(t, "audio/mpeg", outputs[0].ContentType)
 }
 
 func TestFalDurationSerializesPerEndpoint(t *testing.T) {
