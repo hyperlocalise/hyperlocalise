@@ -20,6 +20,10 @@ function missing() {
   return new Response(null, { status: 404 });
 }
 
+function isUnsafeOtaPathSegment(value: string): boolean {
+  return value.length === 0 || value === "." || /[\\/\0]/.test(value) || value.includes("..");
+}
+
 async function serveOtaObject(hash: string, relativePath: string, method: string) {
   if (!isOtaPublicHash(hash)) {
     return missing();
@@ -57,10 +61,16 @@ export function createPublicOtaRoutes() {
     })
     .on("GET", "/:hash/content/:locale/:file", async (c) => {
       const { hash, locale, file } = c.req.param();
+      if (isUnsafeOtaPathSegment(locale) || isUnsafeOtaPathSegment(file)) {
+        return missing();
+      }
       return serveOtaObject(hash, `content/${locale}/${file}`, c.req.method);
     })
     .on("HEAD", "/:hash/content/:locale/:file", async (c) => {
       const { hash, locale, file } = c.req.param();
+      if (isUnsafeOtaPathSegment(locale) || isUnsafeOtaPathSegment(file)) {
+        return missing();
+      }
       return serveOtaObject(hash, `content/${locale}/${file}`, c.req.method);
     });
 }

@@ -137,7 +137,7 @@ function destinationErrorResponse(c: JsonContext, error: CdnDestinationWriterErr
       return serviceUnavailableResponse(
         c,
         error.code,
-        error.message || "Could not access the S3 bucket with these credentials.",
+        "Could not access the S3 bucket with these credentials.",
       );
     case "crypto_failed":
       return internalErrorResponse(c, error.code);

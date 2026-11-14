@@ -50,9 +50,10 @@ proxy customer buckets on the app origin.
 3. Insert `ota_releases` with status `success` and the frozen manifest.
 4. Invalidate CloudFront when hosted.
 
-Rotate mints a new hash, republishes the latest successful snapshot, deletes
-the old prefix, and invalidates both. Revoke deletes the current prefix and
-keeps the hash reserved.
+Rotate mints a new hash, copies the frozen prefix (do not rebuild from live
+CAT copy), deletes the old prefix, and invalidates both. If the copy fails,
+the previous hash is restored. Revoke deletes the current prefix and keeps
+the hash reserved. Manifest URLs are omitted until a successful release.
 
 ### Capabilities
 

@@ -18,6 +18,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -95,6 +104,7 @@ export function ProjectCdnDistributionsPanel({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [revokeId, setRevokeId] = useState<string | null>(null);
   const api = distributionsApi();
   const param = { organizationSlug, projectId };
 
@@ -287,7 +297,7 @@ export function ProjectCdnDistributionsPanel({
                       size="sm"
                       variant="destructive"
                       disabled={revoke.isPending}
-                      onClick={() => revoke.mutate(distribution.id)}
+                      onClick={() => setRevokeId(distribution.id)}
                     >
                       <FormattedMessage {...messages.revoke} />
                     </Button>
@@ -298,6 +308,46 @@ export function ProjectCdnDistributionsPanel({
           ))}
         </ul>
       )}
+
+      <AlertDialog
+        open={revokeId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRevokeId(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage {...messages.revokeConfirmTitle} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <FormattedMessage {...messages.revokeConfirmDescription} />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <FormattedMessage {...messages.cancel} />
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={revoke.isPending || revokeId === null}
+              onClick={() => {
+                if (!revokeId) {
+                  return;
+                }
+                revoke.mutate(revokeId, {
+                  onSettled: () => setRevokeId(null),
+                });
+              }}
+            >
+              <FormattedMessage {...messages.revokeConfirm} />
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <CreateDistributionDialog
         open={isCreateOpen}

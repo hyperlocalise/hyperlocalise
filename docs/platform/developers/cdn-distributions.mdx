@@ -54,7 +54,7 @@ A release includes a key only when it is **approved**, non-empty, not hidden, an
 
 ## Rotate and revoke
 
-**Rotate hash** mints a new 32-character hash, republishes the latest successful snapshot, and deletes the old prefix. Apps that still embed the old URL fall back to bundled strings until they ship the new hash.
+**Rotate hash** mints a new 32-character hash, copies the frozen snapshot to the new prefix, and deletes the old prefix. It does not pick up later CAT edits. Apps that still embed the old URL fall back to bundled strings until they ship the new hash.
 
 **Revoke** deletes the current prefix. The distribution row remains. The old URL returns `404`. The hash is never reused.
 

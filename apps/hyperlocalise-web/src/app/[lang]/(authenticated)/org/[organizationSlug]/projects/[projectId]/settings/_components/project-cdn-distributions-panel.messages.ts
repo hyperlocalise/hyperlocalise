@@ -87,6 +87,22 @@ export const projectCdnDistributionsPanelMessages = defineMessages({
     id: "Zy9fSoO9xF",
     description: "Button to revoke a CDN distribution",
   },
+  revokeConfirmTitle: {
+    defaultMessage: "Revoke this distribution?",
+    id: "AtEk3Q1jdM",
+    description: "Title of the confirm dialog before revoking a CDN distribution",
+  },
+  revokeConfirmDescription: {
+    defaultMessage:
+      "The public URL will start returning 404. Apps still pointing at this hash will stop receiving translations.",
+    id: "xeZm85IfG9",
+    description: "Explanation shown before revoking a CDN distribution",
+  },
+  revokeConfirm: {
+    defaultMessage: "Revoke",
+    id: "aKKkBLHXs8",
+    description: "Confirm button in the revoke CDN distribution dialog",
+  },
   copyUrl: {
     defaultMessage: "Copy manifest URL",
     id: "VwyLcxtAEG",

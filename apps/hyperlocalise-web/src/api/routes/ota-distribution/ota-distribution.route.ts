@@ -41,6 +41,7 @@ import {
 import { hostedOtaPublicBaseUrl, otaManifestUrl } from "@/lib/ota/urls";
 import { otaDistributionWriter, type OtaDistributionWriterError } from "@/lib/ota/writer";
 import { isErr } from "@/lib/primitives/result/results";
+import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
 
 import {
   createOtaDistributionBodySchema,
@@ -145,17 +146,21 @@ async function requireNativeProject(c: {
 
 async function extrasFor(
   distribution: OtaDistribution,
-  latestRelease: OtaRelease | null = null,
+  latestRelease?: OtaRelease | null,
 ): Promise<{
   destinationName: string | null;
   publicBaseUrl: string;
   latestRelease: OtaRelease | null;
 }> {
+  const latest =
+    latestRelease === undefined
+      ? ((await loadLatestReleases([distribution.id])).get(distribution.id) ?? null)
+      : latestRelease;
   if (!distribution.destinationId) {
     return {
       destinationName: "Hyperlocalise CDN",
       publicBaseUrl: hostedOtaPublicBaseUrl(),
-      latestRelease,
+      latestRelease: latest,
     };
   }
 
@@ -166,7 +171,7 @@ async function extrasFor(
   return {
     destinationName: destination?.name ?? null,
     publicBaseUrl: destination?.publicBaseUrl ?? hostedOtaPublicBaseUrl(),
-    latestRelease,
+    latestRelease: latest,
   };
 }
 
@@ -187,9 +192,10 @@ function toView(
     locales: distribution.locales,
     destinationId: distribution.destinationId,
     destinationName: extras.destinationName,
-    manifestUrl: distribution.revokedAt
-      ? null
-      : otaManifestUrl(extras.publicBaseUrl, distribution.publicHash),
+    manifestUrl:
+      distribution.revokedAt || extras.latestRelease?.status !== "success"
+        ? null
+        : otaManifestUrl(extras.publicBaseUrl, distribution.publicHash),
     revokedAt: distribution.revokedAt?.toISOString() ?? null,
     createdAt: distribution.createdAt.toISOString(),
     updatedAt: distribution.updatedAt.toISOString(),
@@ -288,7 +294,11 @@ function publishErrorResponse(c: JsonContext, error: OtaPublishError) {
         "The custom S3 destination credentials could not be decrypted.",
       );
     case "publish_failed":
-      return serviceUnavailableResponse(c, error.code, error.message);
+      return serviceUnavailableResponse(
+        c,
+        error.code,
+        "Could not write the CDN snapshot. Check the destination bucket and try again.",
+      );
     default:
       return writerErrorResponse(c, error);
   }
@@ -315,7 +325,12 @@ export function createOtaDistributionRoutes() {
           sourcePath: schema.repositorySourceFiles.sourcePath,
         })
         .from(schema.repositorySourceFiles)
-        .where(eq(schema.repositorySourceFiles.projectId, resolved.project.id))
+        .where(
+          and(
+            eq(schema.repositorySourceFiles.projectId, resolved.project.id),
+            eq(schema.repositorySourceFiles.branchName, DEFAULT_PROJECT_BRANCH_NAME),
+          ),
+        )
         .orderBy(asc(schema.repositorySourceFiles.sourcePath));
 
       const latestReleases = await loadLatestReleases(distributions.map((row) => row.id));

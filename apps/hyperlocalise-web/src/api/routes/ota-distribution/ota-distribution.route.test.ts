@@ -128,11 +128,11 @@ describe("otaDistributionRoutes", () => {
         id: string;
         publicHash: string;
         destinationName: string | null;
-        manifestUrl: string;
+        manifestUrl: string | null;
       };
     };
     expect(createdBody.distribution.destinationName).toBe("Hyperlocalise CDN");
-    expect(createdBody.distribution.manifestUrl).toContain(createdBody.distribution.publicHash);
+    expect(createdBody.distribution.manifestUrl).toBeNull();
 
     const listed = await distributionsApi.$get({ param: routeParam }, auth);
     expect(listed.status).toBe(200);
@@ -148,6 +148,14 @@ describe("otaDistributionRoutes", () => {
     );
     expect(released.status).toBe(201);
     expect(await store.get(`${createdBody.distribution.publicHash}/manifest.json`)).not.toBeNull();
+
+    const listedAfterRelease = await distributionsApi.$get({ param: routeParam }, auth);
+    const listedAfterReleaseBody = (await listedAfterRelease.json()) as {
+      distributions: Array<{ manifestUrl: string | null }>;
+    };
+    expect(listedAfterReleaseBody.distributions[0]?.manifestUrl).toBe(
+      `https://ota.test/${createdBody.distribution.publicHash}/manifest.json`,
+    );
 
     const publicManifest = await app.request(
       `http://localhost/api/ota/${createdBody.distribution.publicHash}/manifest.json`,

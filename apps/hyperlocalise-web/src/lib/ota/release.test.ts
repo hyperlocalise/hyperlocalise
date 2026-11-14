@@ -12,6 +12,7 @@
  */
 import "dotenv/config";
 
+import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
@@ -129,14 +130,39 @@ describe("publishOtaDistributionRelease", () => {
       ).not.toBeNull();
     }
 
+    await db
+      .update(schema.projectTranslations)
+      .set({ text: "Salut" })
+      .where(eq(schema.projectTranslations.translationKeyId, key.id));
+
+    const rotatedAgain = await rotateOtaDistributionHash({
+      distributionId: created.value.id,
+      actorUserId: user.id,
+    });
+    expect(isOk(rotatedAgain)).toBe(true);
+    if (!isOk(rotatedAgain)) {
+      return;
+    }
+    const frozenManifest = await store.get(
+      `${rotatedAgain.value.distribution.publicHash}/manifest.json`,
+    );
+    expect(JSON.parse(frozenManifest!.body.toString("utf8")).timestamp).toBe(parsed.timestamp);
+    const frozenContent = await store.get(
+      `${rotatedAgain.value.distribution.publicHash}/content/fr-FR/messages.json`,
+    );
+    expect(JSON.parse(frozenContent!.body.toString("utf8"))).toEqual({ greeting: "Bonjour" });
+    if (isOk(rotated)) {
+      expect(await store.get(`${rotated.value.distribution.publicHash}/manifest.json`)).toBeNull();
+    }
+
     const revoked = await revokeOtaDistributionAndPurge({
       distributionId: created.value.id,
       actorUserId: user.id,
     });
     expect(isOk(revoked)).toBe(true);
-    if (isOk(rotated)) {
-      expect(await store.get(`${rotated.value.distribution.publicHash}/manifest.json`)).toBeNull();
-    }
+    expect(
+      await store.get(`${rotatedAgain.value.distribution.publicHash}/manifest.json`),
+    ).toBeNull();
   });
 
   it("writes custom-destination releases to that bucket URL, not the hosted origin", async () => {

@@ -58,5 +58,10 @@ describe("public OTA routes", () => {
     const missing = await app.request(`http://localhost/api/ota/${"b".repeat(32)}/manifest.json`);
     expect(missing.status).toBe(404);
     expect(await missing.text()).toBe("");
+
+    const traversal = await app.request(
+      `http://localhost/api/ota/${HASH}/content/%2e%2e/messages.json`,
+    );
+    expect(traversal.status).toBe(404);
   });
 });

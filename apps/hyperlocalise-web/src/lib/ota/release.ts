@@ -14,6 +14,7 @@ import { desc, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import type { OtaDistribution, OtaRelease } from "@/lib/database/types";
+import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import {
@@ -21,7 +22,12 @@ import {
   decryptCdnDestinationSecret,
   getCdnDestination,
 } from "./destinations";
-import { deleteOtaPrefix, manifestArtifactPointer, publishOtaSnapshot } from "./publisher";
+import {
+  copyOtaPrefix,
+  deleteOtaPrefix,
+  manifestArtifactPointer,
+  publishOtaSnapshot,
+} from "./publisher";
 import {
   createS3OtaObjectStore,
   hostedOtaS3Location,
@@ -32,6 +38,8 @@ import { buildOtaReleaseSnapshot } from "./snapshot";
 import type { OtaObjectStore } from "./store";
 import { hostedOtaPublicBaseUrl, otaManifestUrl } from "./urls";
 import { otaDistributionWriter, type OtaDistributionWriterError } from "./writer";
+
+const logger = createLogger("ota-release");
 
 export type OtaPublishError =
   | OtaDistributionWriterError
@@ -171,8 +179,8 @@ export async function publishOtaDistributionRelease(input: {
       snapshot,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not write the CDN snapshot.";
-    return err({ code: "publish_failed", message });
+    logger.error("ota_publish_failed", { error: serializeErrorForLog(error) });
+    return err({ code: "publish_failed", message: "Could not write the CDN snapshot." });
   }
 
   const released = await otaDistributionWriter.release({
@@ -218,29 +226,24 @@ export async function rotateOtaDistributionHash(input: {
     return rotated;
   }
 
-  if (latest?.status === "success" && latest.manifest) {
-    const [project] = await db
-      .select({ sourceLocale: schema.projects.sourceLocale })
-      .from(schema.projects)
-      .where(eq(schema.projects.id, existing.projectId))
-      .limit(1);
-    const snapshot = await buildOtaReleaseSnapshot({
-      organizationId: existing.organizationId,
-      projectId: existing.projectId,
-      fileIds: rotated.value.distribution.fileIds,
-      locales: rotated.value.distribution.locales,
-      format: rotated.value.distribution.format,
-      sourceLocale: project?.sourceLocale ?? null,
-    });
-    snapshot.manifest.timestamp = latest.manifest.timestamp;
+  if (latest?.status === "success") {
     try {
-      await publishOtaSnapshot({
-        store: target.value.store,
-        hash: rotated.value.distribution.publicHash,
-        format: rotated.value.distribution.format,
-        snapshot,
-      });
+      const copied = await copyOtaPrefix(
+        target.value.store,
+        rotated.value.previousHash,
+        rotated.value.distribution.publicHash,
+      );
+      if (copied === 0) {
+        throw new Error("empty_ota_prefix");
+      }
     } catch (error) {
+      try {
+        await deleteOtaPrefix(target.value.store, rotated.value.distribution.publicHash);
+      } catch (cleanupError) {
+        logger.error("ota_rotate_rollback_delete_failed", {
+          error: serializeErrorForLog(cleanupError),
+        });
+      }
       await db
         .update(schema.otaDistributions)
         .set({
@@ -249,12 +252,19 @@ export async function rotateOtaDistributionHash(input: {
           updatedAt: new Date(),
         })
         .where(eq(schema.otaDistributions.id, existing.id));
-      const message = error instanceof Error ? error.message : "Could not write the CDN snapshot.";
-      return err({ code: "publish_failed", message });
+      logger.error("ota_rotate_copy_failed", { error: serializeErrorForLog(error) });
+      return err({
+        code: "publish_failed",
+        message: "Could not copy the published snapshot to the new hash.",
+      });
     }
   }
 
-  await deleteOtaPrefix(target.value.store, rotated.value.previousHash);
+  try {
+    await deleteOtaPrefix(target.value.store, rotated.value.previousHash);
+  } catch (error) {
+    logger.error("ota_rotate_delete_failed", { error: serializeErrorForLog(error) });
+  }
   await invalidateHostedPrefix(existing, [
     rotated.value.previousHash,
     rotated.value.distribution.publicHash,
@@ -285,7 +295,11 @@ export async function revokeOtaDistributionAndPurge(input: {
   }
 
   if (target?.ok) {
-    await deleteOtaPrefix(target.value.store, existing.publicHash);
+    try {
+      await deleteOtaPrefix(target.value.store, existing.publicHash);
+    } catch (error) {
+      logger.error("ota_revoke_delete_failed", { error: serializeErrorForLog(error) });
+    }
     await invalidateHostedPrefix(existing, [existing.publicHash]);
   }
 

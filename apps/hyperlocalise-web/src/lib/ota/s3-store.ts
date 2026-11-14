@@ -46,6 +46,7 @@ function createS3Client(location: OtaS3Location): S3Client {
   const config: S3ClientConfig = {
     region: location.region,
     forcePathStyle: location.usePathStyle === true,
+    maxAttempts: 2,
   };
   if (location.endpoint) {
     config.endpoint = location.endpoint;
@@ -129,6 +130,9 @@ export function createS3OtaObjectStore(location: OtaS3Location): OtaObjectStore 
         }
         throw error;
       }
+    },
+    async listPrefix(prefix) {
+      return collectPrefixKeys(client, location.bucket, prefix);
     },
     async deletePrefix(prefix) {
       const keys = await collectPrefixKeys(client, location.bucket, prefix);

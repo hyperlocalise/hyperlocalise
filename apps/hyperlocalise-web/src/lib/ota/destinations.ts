@@ -14,6 +14,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import type { OrganizationCdnDestination } from "@/lib/database/types";
+import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import {
   decryptProviderCredential,
@@ -23,6 +24,8 @@ import {
 import { validatePublicHttpUrl } from "@/lib/security/ssrf-guard";
 
 import { probeS3Location, type OtaS3Credentials, type OtaS3Location } from "./s3-store";
+
+const logger = createLogger("ota-destinations");
 
 type CdnDestinationProbe = (location: OtaS3Location) => Promise<void>;
 
@@ -298,8 +301,11 @@ async function runProbe(
     await (probe ?? probeOverrideForTests ?? probeS3Location)(location);
     return ok(undefined);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not access the S3 bucket.";
-    return err({ code: "destination_probe_failed", message });
+    logger.error("cdn_destination_probe_failed", { error: serializeErrorForLog(error) });
+    return err({
+      code: "destination_probe_failed",
+      message: "Could not access the S3 bucket with these credentials.",
+    });
   }
 }
 

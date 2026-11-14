@@ -25,6 +25,7 @@ export type OtaObjectStore = {
     cacheControl: string;
   }): Promise<void>;
   get(key: string): Promise<OtaStoredObject | null>;
+  listPrefix(prefix: string): Promise<string[]>;
   deletePrefix(prefix: string): Promise<void>;
 };
 

@@ -42,6 +42,30 @@ export async function publishOtaSnapshot(input: {
   return manifestKey;
 }
 
+export async function copyOtaPrefix(
+  store: OtaObjectStore,
+  fromHash: string,
+  toHash: string,
+): Promise<number> {
+  const prefix = `${fromHash}/`;
+  const keys = await store.listPrefix(prefix);
+  let copied = 0;
+  for (const key of keys) {
+    const stored = await store.get(key);
+    if (!stored) {
+      continue;
+    }
+    await store.put({
+      key: `${toHash}/${key.slice(prefix.length)}`,
+      body: stored.body,
+      contentType: stored.contentType,
+      cacheControl: stored.cacheControl,
+    });
+    copied += 1;
+  }
+  return copied;
+}
+
 export async function deleteOtaPrefix(store: OtaObjectStore, hash: string): Promise<void> {
   await store.deletePrefix(`${hash}/`);
 }

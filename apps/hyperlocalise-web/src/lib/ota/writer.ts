@@ -17,6 +17,7 @@ import type { OtaDistribution, OtaDistributionFormat, OtaRelease } from "@/lib/d
 import type { OtaManifestSnapshot } from "@/lib/database/schema/ota";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
 
 import { exportPathFromSourcePath, findExportPathCollisions } from "./export-path";
 import { generateOtaPublicHash } from "./public-hash";
@@ -282,6 +283,7 @@ async function assertProjectFileIds(
       and(
         eq(schema.repositorySourceFiles.projectId, projectId),
         eq(schema.repositorySourceFiles.organizationId, organizationId),
+        eq(schema.repositorySourceFiles.branchName, DEFAULT_PROJECT_BRANCH_NAME),
         inArray(schema.repositorySourceFiles.id, [...fileIds]),
       ),
     );
@@ -313,6 +315,7 @@ async function loadSourcePathsByFileId(
     .where(
       and(
         eq(schema.repositorySourceFiles.projectId, projectId),
+        eq(schema.repositorySourceFiles.branchName, DEFAULT_PROJECT_BRANCH_NAME),
         inArray(schema.repositorySourceFiles.id, [...fileIds]),
       ),
     );

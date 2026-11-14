@@ -36,6 +36,9 @@ export function createMemoryOtaObjectStore(
         cacheControl: stored.cacheControl,
       };
     },
+    async listPrefix(prefix) {
+      return Array.from(objects.keys()).filter((key) => key === prefix || key.startsWith(prefix));
+    },
     async deletePrefix(prefix) {
       const keys = Array.from(objects.keys());
       for (const key of keys) {

@@ -15,6 +15,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { OtaDistributionFormat, OtaManifestSnapshot } from "@/lib/database/schema/ota";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
+import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
 
 import { exportPathFromSourcePath } from "./export-path";
 import { serializeOtaFile, toOtaPublicFormat } from "./formats";
@@ -71,6 +72,7 @@ async function loadSnapshotFiles(
     .where(
       and(
         eq(schema.repositorySourceFiles.projectId, projectId),
+        eq(schema.repositorySourceFiles.branchName, DEFAULT_PROJECT_BRANCH_NAME),
         inArray(schema.repositorySourceFiles.id, [...fileIds]),
       ),
     );
@@ -169,7 +171,8 @@ export async function buildOtaReleaseSnapshot(input: {
 
   const translationByKeyLocale = new Map<string, { text: string; status: string }>();
   for (const translation of translations) {
-    translationByKeyLocale.set(`${translation.translationKeyId}\0${translation.targetLocale}`, {
+    const locale = canonicalizeLocale(translation.targetLocale) ?? translation.targetLocale;
+    translationByKeyLocale.set(`${translation.translationKeyId}\0${locale}`, {
       text: translation.text,
       status: translation.status,
     });
