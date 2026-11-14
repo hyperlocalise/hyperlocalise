@@ -31,6 +31,7 @@ export default defineConfig({
     clearMocks: false,
     environment: "node",
     include: ["src/e2e/**/*.e2e.ts"],
+    fileParallelism: false,
     testTimeout: 60_000,
     hookTimeout: 60_000,
     server: {

@@ -122,5 +122,18 @@ export async function loginAsAdmin(page: Page) {
     });
   }
 
+  await dismissUpdateAnnouncer(page);
+
   return identity;
+}
+
+async function dismissUpdateAnnouncer(page: Page) {
+  const dismiss = page.getByRole("button", { name: "Not now" });
+  try {
+    await dismiss.waitFor({ state: "visible", timeout: 5_000 });
+    await dismiss.click();
+    await dismiss.waitFor({ state: "hidden", timeout: 5_000 });
+  } catch {
+    // The product update card is optional and may already be dismissed.
+  }
 }

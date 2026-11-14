@@ -148,7 +148,7 @@ func main() {
 	var membershipLookup organizationMembershipLookup
 	var workosClient *workos.Client
 	if key := strings.TrimSpace(os.Getenv("WORKOS_API_KEY")); key != "" {
-		workosClient = workos.NewClient(key)
+		workosClient = workos.NewClient(key, workos.WithBaseURL(workosAPIBaseURL()))
 		membershipLookup = func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
 			return workosClient.OrganizationMembership().Get(ctx, id)
 		}

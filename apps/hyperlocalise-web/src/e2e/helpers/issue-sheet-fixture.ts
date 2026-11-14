@@ -25,15 +25,21 @@ import { toAuthOrganization, withMembershipAccessSource } from "@/test/auth-seed
 import { createEmulatorWorkosClient, roleSlugForE2e } from "./emulator-client";
 import type { EmulatorIdentity } from "./emulator-identity";
 
+export type NativeProjectFixture = {
+  organizationId: string;
+  organizationSlug: string;
+  projectId: string;
+  projectName: string;
+  userId: string;
+};
+
 export type IssueSheetBulkFixture = {
   organizationSlug: string;
   projectId: string;
   issueTitles: [string, string];
 };
 
-export async function provisionIssueSheetBulkFixture(
-  identity: EmulatorIdentity,
-): Promise<IssueSheetBulkFixture> {
+async function resolveIdentityOrganizationAndUser(identity: EmulatorIdentity) {
   const [organization] = await db
     .select({ id: schema.organizations.id, slug: schema.organizations.slug })
     .from(schema.organizations)
@@ -54,36 +60,58 @@ export async function provisionIssueSheetBulkFixture(
     throw new Error(`E2E user not found for WorkOS user ${identity.workosUserId}`);
   }
 
+  return { organization, user };
+}
+
+export async function provisionNativeProjectFixture(
+  identity: EmulatorIdentity,
+  namePrefix = "E2E Project",
+): Promise<NativeProjectFixture> {
+  const { organization, user } = await resolveIdentityOrganizationAndUser(identity);
   const team = await ensureDefaultWorkspaceTeam(organization.id);
   const projectId = `project_${randomUUID()}`;
+  const projectName = `${namePrefix} ${Date.now()}`;
 
   await db.insert(schema.projects).values({
     id: projectId,
     organizationId: organization.id,
     teamId: team.id,
     createdByUserId: user.id,
-    name: `Bulk E2E ${Date.now()}`,
+    name: projectName,
     description: "",
     translationContext: "",
     sourceLocale: "en-US",
     targetLocales: ["fr-FR"],
   });
 
+  return {
+    organizationId: organization.id,
+    organizationSlug: organization.slug,
+    projectId,
+    projectName,
+    userId: user.id,
+  };
+}
+
+export async function provisionIssueSheetBulkFixture(
+  identity: EmulatorIdentity,
+): Promise<IssueSheetBulkFixture> {
+  const project = await provisionNativeProjectFixture(identity, "Bulk E2E");
   const issueSheetService = new IssueSheetService(db);
   const issueTitles = ["Bulk issue one", "Bulk issue two"] as const;
 
   for (const title of issueTitles) {
     await issueSheetService.createIssue({
-      organizationId: organization.id,
-      projectId,
-      actorUserId: user.id,
+      organizationId: project.organizationId,
+      projectId: project.projectId,
+      actorUserId: project.userId,
       body: { title },
     });
   }
 
   return {
-    organizationSlug: organization.slug,
-    projectId,
+    organizationSlug: project.organizationSlug,
+    projectId: project.projectId,
     issueTitles,
   };
 }

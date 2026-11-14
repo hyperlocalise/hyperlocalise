@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -205,7 +206,14 @@ func (api *issueSheetAPI) actor(ctx context.Context, claims AuthClaims, slug str
 	return actor, nil
 }
 
+func localAutumnFeaturesEnabled() bool {
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("LOCAL_AUTUMN_FEATURES_ENABLED")), "true")
+}
+
 func (api *issueSheetAPI) queriesBoardEnabled(ctx context.Context, organizationID string) bool {
+	if localAutumnFeaturesEnabled() {
+		return true
+	}
 	if api.autumn == nil {
 		return false
 	}
