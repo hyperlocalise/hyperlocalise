@@ -16,8 +16,8 @@ HL-705/706 froze the public contract and the `ota_distributions` /
 approved snapshots to object storage, expose management APIs and UI, and
 let customers who refuse a Hyperlocalise-hosted origin use their own S3.
 
-Crowdin CDN Distributions are the product reference: hash-addressed public
-files, explicit Release, one-hour cache, JSON manifest.
+The public contract is hash-addressed files, an explicit Release, a
+one-hour cache, and a JSON manifest.
 
 ## Decision
 
