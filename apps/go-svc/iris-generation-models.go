@@ -117,7 +117,18 @@ func irisModels() []irisModelInfo {
 	}
 }
 
+// irisModelAliases maps ids the Iris client sends onto catalogue ids. Iris
+// names the Fish Audio models with a slash, as the Gateway does.
+var irisModelAliases = map[string]string{
+	"fish-audio/s2.1-pro":     "fish-audio-s2.1-pro",
+	"fish-audio/drama-3":      "fish-audio-drama-3",
+	"fish-audio/transcribe-1": "fish-audio-transcribe-1",
+}
+
 func irisModelByID(id string) (irisModelInfo, bool) {
+	if canonical, ok := irisModelAliases[id]; ok {
+		id = canonical
+	}
 	for _, model := range irisModels() {
 		if model.ID == id {
 			return model, true

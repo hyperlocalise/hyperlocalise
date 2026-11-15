@@ -155,3 +155,18 @@ func TestIrisGatewayOnlyModelIDs(t *testing.T) {
 		require.Equal(t, gatewayID, model.GatewayID, id)
 	}
 }
+
+func TestIrisFishAudioSlashIDsResolve(t *testing.T) {
+	for alias, id := range irisModelAliases {
+		model, ok := irisModelByID(alias)
+		require.True(t, ok, alias)
+		require.Equal(t, id, model.ID, alias)
+	}
+	model, err := validateIrisGenerateRequest(irisGenerateRequest{"model": "fish-audio/s2.1-pro", "prompt": "hi", "voice": "v1"})
+	require.NoError(t, err)
+	require.Equal(t, "fish-audio-s2.1-pro", model.ID)
+
+	req, ok := irisSyntheticCredit(irisJobRecord{ID: "j", OrgID: "o", Model: "fish-audio/s2.1-pro", Request: irisGenerateRequest{"prompt": "hi"}}, irisCreditConfig{})
+	require.True(t, ok)
+	require.Equal(t, "fish-audio/s2.1-pro", req.ModelID)
+}
