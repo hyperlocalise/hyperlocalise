@@ -279,7 +279,7 @@ func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest)
 		if !ok {
 			return nil, fmt.Errorf("image input is required")
 		}
-		req.Prompt = irisImageLocalisePrompt(req.Fields.stringField("targetLocale"), req.Fields.translations(), req.Prompt)
+		req.Prompt = irisImageLocalisePrompt(req.Fields.stringField("targetLocale"), req.Fields.translations(), req.Fields.regions(), req.Prompt)
 		// GPT Image edits on AI Gateway and direct OpenAI alike, as hyperlocalise-web localises images.
 		req.Model.GatewayID = irisEnvOr("IRIS_OPENAI_IMAGE_MODEL", req.Model.GatewayID)
 		return p.imageEdit(ctx, req, []irisProviderInput{image}, 1)

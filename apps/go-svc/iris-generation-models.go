@@ -184,6 +184,25 @@ func (req irisGenerateRequest) duration() float64 {
 
 const irisMaxImageTranslations = 100
 
+// irisImageBounds is a text region's box, as fractions of the image
+// (origin top-left). Width and height are positive.
+type irisImageBounds struct {
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
+}
+
+// irisImageLocaliseRegion is one reviewed text layer for image-localise:
+// where the copy sits, what it says, and the replacement to draw.
+type irisImageLocaliseRegion struct {
+	ID              string          `json:"id,omitempty"`
+	SourceText      string          `json:"sourceText"`
+	Bounds          irisImageBounds `json:"bounds"`
+	ReplacementText string          `json:"replacementText,omitempty"`
+	Instructions    string          `json:"instructions,omitempty"`
+}
+
 // irisMaxImageEditPrompt bounds an image-edit instruction, in runes.
 const irisMaxImageEditPrompt = 4000
 
@@ -214,6 +233,36 @@ func (req irisGenerateRequest) translations() []irisTranslationPair {
 		}
 	}
 	return pairs
+}
+
+func (req irisGenerateRequest) regions() []irisImageLocaliseRegion {
+	raw, ok := req["regions"].([]any)
+	if !ok {
+		return nil
+	}
+	regions := make([]irisImageLocaliseRegion, 0, len(raw))
+	for _, item := range raw {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		bounds, ok := parseIrisImageBounds(entry["bounds"])
+		if !ok {
+			continue
+		}
+		source := strings.TrimSpace(firstString(entry, "sourceText", "source", "text"))
+		if source == "" {
+			continue
+		}
+		regions = append(regions, irisImageLocaliseRegion{
+			ID:              strings.TrimSpace(stringFrom(entry["id"])),
+			SourceText:      source,
+			Bounds:          bounds,
+			ReplacementText: strings.TrimSpace(firstString(entry, "replacementText", "target")),
+			Instructions:    strings.TrimSpace(stringFrom(entry["instructions"])),
+		})
+	}
+	return regions
 }
 
 func (req irisGenerateRequest) intField(name string) int {
@@ -377,6 +426,9 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 		if len(req.translations()) > irisMaxImageTranslations {
 			return model, fmt.Errorf("translations takes at most %d pairs", irisMaxImageTranslations)
 		}
+		if len(req.regions()) > irisMaxImageTranslations {
+			return model, fmt.Errorf("regions takes at most %d text layers", irisMaxImageTranslations)
+		}
 	case "image-text":
 		if _, ok := req.asset("image"); !ok {
 			return model, fmt.Errorf("image is required")
@@ -438,6 +490,54 @@ func assetKind(value any) string {
 func stringFrom(value any) string {
 	text, _ := value.(string)
 	return text
+}
+
+func firstString(entry map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if text := strings.TrimSpace(stringFrom(entry[key])); text != "" {
+			return text
+		}
+	}
+	return ""
+}
+
+func floatFrom(value any) float64 {
+	switch n := value.(type) {
+	case float64:
+		return n
+	case json.Number:
+		f, _ := n.Float64()
+		return f
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	default:
+		return 0
+	}
+}
+
+func parseIrisImageBounds(value any) (irisImageBounds, bool) {
+	raw, ok := value.(map[string]any)
+	if !ok {
+		return irisImageBounds{}, false
+	}
+	bounds := irisImageBounds{
+		X:      floatFrom(raw["x"]),
+		Y:      floatFrom(raw["y"]),
+		Width:  floatFrom(raw["width"]),
+		Height: floatFrom(raw["height"]),
+	}
+	if bounds.X < 0 || bounds.Y < 0 || bounds.Width <= 0 || bounds.Height <= 0 {
+		return irisImageBounds{}, false
+	}
+	if bounds.X > 1 || bounds.Y > 1 || bounds.Width > 1 || bounds.Height > 1 {
+		return irisImageBounds{}, false
+	}
+	if bounds.X+bounds.Width > 1.001 || bounds.Y+bounds.Height > 1.001 {
+		return irisImageBounds{}, false
+	}
+	return bounds, true
 }
 
 func isSHA256(value string) bool {

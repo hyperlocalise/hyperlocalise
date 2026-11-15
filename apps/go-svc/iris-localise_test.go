@@ -42,6 +42,8 @@ func TestValidateIrisLocaliseModels(t *testing.T) {
 		{"lipsync mode", irisGenerateRequest{"model": "sync-lipsync-2", "video": assetField(), "audio": assetField(), "syncMode": "stretch"}, "syncMode"},
 		{"image localise ok", irisGenerateRequest{"model": "image-localise", "image": assetField(), "targetLocale": "ja-JP"}, ""},
 		{"image localise locale", irisGenerateRequest{"model": "image-localise", "image": assetField()}, "targetLocale"},
+		{"image localise regions", irisGenerateRequest{"model": "image-localise", "image": assetField(), "targetLocale": "ja-JP", "regions": []any{map[string]any{"sourceText": "Sale", "bounds": map[string]any{"x": 0.1, "y": 0.2, "width": 0.3, "height": 0.1}}}}, ""},
+		{"image localise too many regions", irisGenerateRequest{"model": "image-localise", "image": assetField(), "targetLocale": "ja-JP", "regions": tooManyIrisRegions()}, "regions takes at most"},
 		{"image text ok", irisGenerateRequest{"model": "image-text", "image": assetField()}, ""},
 		{"image text needs image", irisGenerateRequest{"model": "image-text"}, "image is required"},
 	}
@@ -66,6 +68,17 @@ func TestIsIrisLocale(t *testing.T) {
 	}
 }
 
+func tooManyIrisRegions() []any {
+	regions := make([]any, irisMaxImageTranslations+1)
+	for i := range regions {
+		regions[i] = map[string]any{
+			"sourceText": "Sale",
+			"bounds":     map[string]any{"x": 0.1, "y": 0.2, "width": 0.3, "height": 0.1},
+		}
+	}
+	return regions
+}
+
 func TestIrisTranslationsField(t *testing.T) {
 	req := irisGenerateRequest{"translations": []any{
 		map[string]any{"source": "Sale", "target": "Soldes"},
@@ -75,12 +88,60 @@ func TestIrisTranslationsField(t *testing.T) {
 	require.Equal(t, []irisTranslationPair{{Source: "Sale", Target: "Soldes"}}, req.translations())
 }
 
+func TestIrisRegionsField(t *testing.T) {
+	req := irisGenerateRequest{"regions": []any{
+		map[string]any{
+			"id":              "layer-1",
+			"sourceText":      "50% OFF",
+			"replacementText": "−50 %",
+			"instructions":    "Keep the numerals",
+			"bounds":          map[string]any{"x": 0.1, "y": 0.2, "width": 0.3, "height": 0.1},
+		},
+		map[string]any{"source": "Shop now", "target": "Acheter", "bounds": map[string]any{"x": 0.4, "y": 0.8, "width": 0.2, "height": 0.05}},
+		map[string]any{"sourceText": "no box"},
+		"junk",
+	}}
+	require.Equal(t, []irisImageLocaliseRegion{
+		{ID: "layer-1", SourceText: "50% OFF", Bounds: irisImageBounds{X: 0.1, Y: 0.2, Width: 0.3, Height: 0.1}, ReplacementText: "−50 %", Instructions: "Keep the numerals"},
+		{SourceText: "Shop now", Bounds: irisImageBounds{X: 0.4, Y: 0.8, Width: 0.2, Height: 0.05}, ReplacementText: "Acheter"},
+	}, req.regions())
+}
+
 func TestIrisImageLocalisePrompt(t *testing.T) {
-	prompt := irisImageLocalisePrompt("fr-FR", []irisTranslationPair{{Source: "Shop now", Target: "Acheter"}}, "Keep the price in euros.")
+	prompt := irisImageLocalisePrompt("fr-FR", []irisTranslationPair{{Source: "Shop now", Target: "Acheter"}}, nil, "Keep the price in euros.")
 	require.Contains(t, prompt, "fr-FR")
 	require.Contains(t, prompt, `"Shop now" → "Acheter"`)
 	require.Contains(t, prompt, "Keep the price in euros.")
 	require.Contains(t, prompt, "leave logos and brand names untranslated")
+}
+
+func TestIrisImageLocalisePromptUsesRegions(t *testing.T) {
+	prompt := irisImageLocalisePrompt("ja-JP", []irisTranslationPair{{Source: "Sale", Target: "セール"}}, []irisImageLocaliseRegion{{
+		ID:              "r1",
+		SourceText:      "50% OFF",
+		Bounds:          irisImageBounds{X: 0.1, Y: 0.2, Width: 0.3, Height: 0.1},
+		ReplacementText: "50%オフ",
+		Instructions:    "Keep the brand mark in English",
+	}}, "Keep the logo.")
+	require.Contains(t, prompt, "reviewed text regions")
+	require.Contains(t, prompt, "50% OFF")
+	require.Contains(t, prompt, "50%オフ")
+	require.Contains(t, prompt, "Keep the brand mark in English")
+	require.NotContains(t, prompt, `"Sale" → "セール"`)
+	require.Contains(t, prompt, "Keep the logo.")
+}
+
+func TestParseIrisImageTextAssignsIdsAndBounds(t *testing.T) {
+	parsed, err := parseIrisImageText(`{"language":"en","texts":[{"text":"50% OFF","role":"headline","bounds":{"x":0.1,"y":0.2,"width":0.3,"height":0.1}},{"text":"Shop now","role":"cta"}]}`)
+	require.NoError(t, err)
+	require.Equal(t, "en", parsed.Language)
+	require.Len(t, parsed.Texts, 2)
+	require.NotEmpty(t, parsed.Texts[0].ID)
+	require.Equal(t, "50% OFF", parsed.Texts[0].Text)
+	require.Equal(t, &irisImageBounds{X: 0.1, Y: 0.2, Width: 0.3, Height: 0.1}, parsed.Texts[0].Bounds)
+	require.Len(t, parsed.Regions, 1)
+	require.Equal(t, parsed.Texts[0].ID, parsed.Regions[0].ID)
+	require.Nil(t, parsed.Texts[1].Bounds)
 }
 
 func TestSamePlaceholders(t *testing.T) {
@@ -251,7 +312,7 @@ func TestGatewayCompleteAndImageText(t *testing.T) {
 		require.Equal(t, "/chat/completions", r.URL.Path)
 		require.Equal(t, "Bearer key", r.Header.Get("Authorization"))
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
-		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"language\":\"en\",\"texts\":[{\"text\":\"50% OFF\",\"role\":\"headline\"}]}"}}],"usage":{"prompt_tokens":120,"completion_tokens":30}}`))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"language\":\"en\",\"texts\":[{\"text\":\"50% OFF\",\"role\":\"headline\",\"bounds\":{\"x\":0.1,\"y\":0.2,\"width\":0.3,\"height\":0.1}}]}"}}],"usage":{"prompt_tokens":120,"completion_tokens":30}}`))
 	}))
 	t.Cleanup(server.Close)
 	provider := &irisGatewayProvider{baseURL: server.URL, apiKey: "key", httpClient: server.Client()}
@@ -264,6 +325,8 @@ func TestGatewayCompleteAndImageText(t *testing.T) {
 	require.Len(t, outputs, 1)
 	require.Equal(t, "text.json", outputs[0].Filename)
 	require.Contains(t, string(outputs[0].Bytes), "50% OFF")
+	require.Contains(t, string(outputs[0].Bytes), `"regions"`)
+	require.Contains(t, string(outputs[0].Bytes), `"width":0.3`)
 	require.Equal(t, map[string]any{"type": "json_object"}, payload["response_format"])
 	require.Equal(t, 0.3, payload["temperature"])
 	messages := payload["messages"].([]any)
