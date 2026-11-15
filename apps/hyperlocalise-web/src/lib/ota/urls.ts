@@ -12,7 +12,7 @@
  */
 import { env } from "@/lib/env";
 
-export const DEFAULT_OTA_PUBLIC_BASE_URL = "https://ota.hyperlocalise.com";
+export const DEFAULT_OTA_PUBLIC_BASE_URL = "https://public-api.hyperlocalise.com/ota";
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");

@@ -10,6 +10,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/experiment"
+	"github.com/hyperlocalise/hyperlocalise/internal/ota"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const maxTokenLength = 512
@@ -20,6 +23,9 @@ type apiServer struct {
 	outbound     outboundIPLookup
 	reports      reportsReader
 	reportLimits *reportLimiter
+	ota          *ota.Handler
+	ofrep        *experiment.OFREPHandler
+	pool         *pgxpool.Pool
 }
 
 // handlerOption sets a dependency only some routes need.
@@ -28,6 +34,23 @@ type handlerOption func(*apiServer)
 // withReports reads Reports from PostgreSQL through the shared reporting package.
 func withReports(reports reportsReader) handlerOption {
 	return func(s *apiServer) { s.reports = reports }
+}
+
+// withPostgresConsumers serves hash-addressed OTA files and Hyperlab OFREP from Postgres.
+func withPostgresConsumers(pool *pgxpool.Pool) handlerOption {
+	return func(s *apiServer) {
+		s.pool = pool
+		s.ota = ota.NewHandler(ota.NewPGLookup(pool))
+		s.ofrep = experiment.NewOFREPHandler(experiment.NewPGStoreFromPool(pool))
+	}
+}
+
+func withOTA(handler *ota.Handler) handlerOption {
+	return func(s *apiServer) { s.ota = handler }
+}
+
+func withOFREP(handler *experiment.OFREPHandler) handlerOption {
+	return func(s *apiServer) { s.ofrep = handler }
 }
 
 func newHandler(auth authenticator, stores ...resourceStore) http.Handler {
@@ -103,6 +126,13 @@ func newHandlerWithOutbound(auth authenticator, store resourceStore, outbound ou
 	mux.HandleFunc("/v1/custom-fields/{fieldId}/options", s.customFieldOptions)
 	mux.HandleFunc("/v1/queries", s.queries)
 	mux.HandleFunc("/v1/queries/", s.query)
+	mux.HandleFunc("/v1/projects/{projectId}/ota-distributions", s.projectOtaDistributions)
+	if s.ota != nil {
+		s.ota.Register(mux)
+	}
+	if s.ofrep != nil {
+		s.ofrep.Register(mux)
+	}
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "Route not found")
 	})

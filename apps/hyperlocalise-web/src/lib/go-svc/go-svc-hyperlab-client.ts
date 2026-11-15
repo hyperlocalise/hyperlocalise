@@ -52,7 +52,12 @@ export type HyperlabGoSvcClient = {
     [":keyId"]: RpcResource;
   };
   variants: {
-    [":variantId"]: RpcResource;
+    [":variantId"]: RpcResource & {
+      ota: { $put: (args: RpcArgs) => Promise<Response> };
+    };
+  };
+  "ota-distributions": {
+    $get: (args: RpcArgs) => Promise<Response>;
   };
 };
 
@@ -160,7 +165,24 @@ export function createHyperlabGoSvcClient(request: GoSvcRequest): HyperlabGoSvcC
       [":keyId"]: resource(request, "keys", "keyId"),
     },
     variants: {
-      [":variantId"]: resource(request, "variants", "variantId"),
+      [":variantId"]: {
+        ...resource(request, "variants", "variantId"),
+        ota: {
+          $put: ({ param, json }: RpcArgs) =>
+            invoke(
+              request,
+              hyperPath(param.organizationSlug, "variants", param.variantId!, "ota"),
+              {
+                method: "PUT",
+                body: json,
+              },
+            ),
+        },
+      },
+    },
+    "ota-distributions": {
+      $get: ({ param }: RpcArgs) =>
+        invoke(request, hyperPath(param.organizationSlug, "ota-distributions")),
     },
   };
 }

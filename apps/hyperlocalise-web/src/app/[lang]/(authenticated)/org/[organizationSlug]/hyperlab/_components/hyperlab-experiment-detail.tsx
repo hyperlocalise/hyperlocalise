@@ -83,6 +83,7 @@ import {
   type HyperlabAssignment,
   type HyperlabExperiment,
   type HyperlabFlag,
+  type HyperlabOtaDistribution,
   type HyperlabVariant,
 } from "./hyperlab-api";
 import { HyperlabAudienceSelector } from "./hyperlab-audience-selector";
@@ -813,6 +814,32 @@ const HyperlabVariantCard = observer(function HyperlabVariantCard({
   const audienceId = uiStore.getVariantAudienceDraft(variant.id, variant.audienceId ?? "");
   const sheetOpen = uiStore.isVariantSheetOpen(variant.id);
   const flagsById = new Map(flags.map((flag) => [flag.id, flag]));
+  const otaQuery = useQuery({
+    queryKey: hyperlabQueryKeys.otaDistributions(organizationSlug),
+    queryFn: async () => {
+      const response = await client["ota-distributions"].$get({ param: { organizationSlug } });
+      const body = await readHyperlabJson<{ distributions: HyperlabOtaDistribution[] }>(
+        response,
+        intl.formatMessage(messages.loadError),
+      );
+      return body.distributions;
+    },
+  });
+  const otaDistributions = otaQuery.data ?? [];
+  const selectedOtaId = variant.ota?.distributionId ?? "none";
+  const otaSelectItems = [
+    { value: "none", label: intl.formatMessage(messages.variantOtaNone) },
+    ...otaDistributions.map((distribution) => ({
+      value: distribution.id,
+      label: `${distribution.name} · ${distribution.branch}`,
+    })),
+  ];
+  if (variant.ota && !otaSelectItems.some((item) => item.value === variant.ota?.distributionId)) {
+    otaSelectItems.push({
+      value: variant.ota.distributionId,
+      label: `${variant.ota.name} · ${variant.ota.branch}`,
+    });
+  }
 
   const saveAudience = useMutation({
     mutationFn: async () => {
@@ -855,6 +882,23 @@ const HyperlabVariantCard = observer(function HyperlabVariantCard({
       if (!response.ok) {
         await readHyperlabJson(response, intl.formatMessage(messages.loadError));
       }
+    },
+    onSuccess: async () => {
+      toast.success(intl.formatMessage(messages.saveSuccess));
+      await onRefresh();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : intl.formatMessage(messages.loadError));
+    },
+  });
+
+  const saveOta = useMutation({
+    mutationFn: async (distributionId: string | null) => {
+      const response = await client.variants[":variantId"].ota.$put({
+        param: { organizationSlug, variantId: variant.id },
+        json: { distributionId },
+      });
+      return readHyperlabJson(response, intl.formatMessage(messages.loadError));
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.saveSuccess));
@@ -960,6 +1004,48 @@ const HyperlabVariantCard = observer(function HyperlabVariantCard({
               ) : null}
             </Rows>
           )}
+          <Rows spacing="1.5u">
+            <TypographyP size="small" weight="medium">
+              <FormattedMessage {...messages.variantOtaTitle} />
+            </TypographyP>
+            {otaDistributions.length === 0 && !variant.ota ? (
+              <TypographyP size="small" tone="subtle">
+                <FormattedMessage {...messages.variantOtaEmpty} />
+              </TypographyP>
+            ) : (
+              <Select
+                value={selectedOtaId}
+                items={otaSelectItems}
+                onValueChange={(next) => {
+                  if (!canWrite || saveOta.isPending) {
+                    return;
+                  }
+                  const distributionId = next === "none" || !next ? null : next;
+                  if (distributionId === (variant.ota?.distributionId ?? null)) {
+                    return;
+                  }
+                  saveOta.mutate(distributionId);
+                }}
+                disabled={!canWrite || saveOta.isPending}
+              >
+                <SelectTrigger className="w-full max-w-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {otaSelectItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value} label={item.label}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            )}
+            <TypographyP size="xsmall" tone="subtle">
+              <FormattedMessage {...messages.variantOtaHint} />
+            </TypographyP>
+          </Rows>
           <Rows spacing="1.5u">
             <Row spacing="1.5u" align="spaceBetween" alignY="center">
               <TypographyP size="small" weight="medium">

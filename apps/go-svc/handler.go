@@ -11,11 +11,12 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
-	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
+	"github.com/hyperlocalise/hyperlocalise/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/spellcheck"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
+	"github.com/hyperlocalise/hyperlocalise/internal/ota"
 	"golang.org/x/text/language"
 )
 
@@ -59,6 +60,7 @@ type handler struct {
 	validate             func(segmentvalidate.Request) []segmentvalidate.Check
 	spellChecker         SpellChecker
 	ofrep                *experiment.OFREPHandler
+	ota                  *ota.Handler
 	research             researchService
 	gsc                  gscService
 	objects              *objectstore.Registry
@@ -317,6 +319,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 			w.Header().Set("Cache-Control", "no-store")
 			route.ServeHTTP(w, r)
 		})))
+	}
+	if h.ota != nil {
+		h.ota.Register(mux)
 	}
 	if h.ofrep != nil {
 		h.ofrep.Register(mux)

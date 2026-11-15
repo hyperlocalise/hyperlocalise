@@ -173,7 +173,7 @@ describe("otaDistributionRoutes", () => {
     expect(missing.status).toBe(404);
   });
 
-  it("returns 503 when hosted storage is not configured", async () => {
+  it("releases and serves from Postgres when hosted object storage is not configured", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const projectResponse = await fixture.createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as {
@@ -208,7 +208,9 @@ describe("otaDistributionRoutes", () => {
       auth,
     );
     expect(created.status).toBe(201);
-    const createdBody = (await created.json()) as { distribution: { id: string } };
+    const createdBody = (await created.json()) as {
+      distribution: { id: string; publicHash: string };
+    };
 
     const released = await distributionsApi[":distributionId"].release.$post(
       {
@@ -219,7 +221,13 @@ describe("otaDistributionRoutes", () => {
       },
       auth,
     );
-    expect(released.status).toBe(503);
-    await expect(released.json()).resolves.toMatchObject({ error: "hosted_cdn_not_configured" });
+    expect(released.status).toBe(201);
+
+    const publicManifest = await app.request(
+      `http://localhost/api/ota/${createdBody.distribution.publicHash}/manifest.json`,
+    );
+    expect(publicManifest.status).toBe(200);
+    const manifest = (await publicManifest.json()) as { schema_version: number };
+    expect(manifest.schema_version).toBe(1);
   });
 });

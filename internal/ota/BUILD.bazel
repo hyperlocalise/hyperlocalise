@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "ota",
+    srcs = [
+        "handler.go",
+        "lookup.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/ota",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_jackc_pgx_v5//:pgx",
+    ],
+)
+
+go_test(
+    name = "ota_test",
+    srcs = ["handler_test.go"],
+    embed = [":ota"],
+    deps = ["@com_github_stretchr_testify//require"],
+)

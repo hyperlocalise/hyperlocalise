@@ -549,6 +549,27 @@ export const hyperlabMessages = defineMessages({
     id: "r0tLUePFNr",
     description: "Empty state inside an experiment with no variants",
   },
+  variantOtaTitle: {
+    defaultMessage: "String distribution",
+    id: "dnMi8xOjl4",
+    description: "Heading for the OTA distribution bound to a Hyperlab variant",
+  },
+  variantOtaHint: {
+    defaultMessage:
+      "When this version wins, OFREP includes the bound CDN hash so the app can fetch the matching string pack.",
+    id: "SaFqFJmakB",
+    description: "Hint for binding a CDN distribution to a Hyperlab variant",
+  },
+  variantOtaNone: {
+    defaultMessage: "None",
+    id: "fpxDVs2F1Y",
+    description: "Option to leave a Hyperlab variant unbound from a CDN distribution",
+  },
+  variantOtaEmpty: {
+    defaultMessage: "No CDN distributions in this workspace yet. Create one on a native project.",
+    id: "MlwSNmFoXs",
+    description: "Empty state when Hyperlab has no OTA distributions to bind",
+  },
   variantFlagsTitle: {
     defaultMessage: "Flags on this version",
     id: "y4P+Jle8Ha",

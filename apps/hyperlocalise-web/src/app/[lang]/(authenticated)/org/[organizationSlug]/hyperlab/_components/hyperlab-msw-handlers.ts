@@ -158,6 +158,13 @@ export function createHyperlabMswHandlers({
       }
       return HttpResponse.json({ keys });
     }),
+    http.get("*/v1/orgs/:organizationSlug/hyperlab/ota-distributions", async () => {
+      await maybeWait();
+      if (errorMessage) {
+        return fail();
+      }
+      return HttpResponse.json({ distributions: [] });
+    }),
     http.post("*/v1/orgs/:organizationSlug/hyperlab/experiments", async ({ request }) => {
       const body = (await request.json()) as { name?: string; kind?: "toggle" | "ab" };
       return HttpResponse.json(

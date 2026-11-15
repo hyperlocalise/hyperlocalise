@@ -114,11 +114,13 @@ The hash is a capability URL. Knowing it is read access to the published
 snapshot. It is stored in plaintext so the UI can show it. It is not an API
 key and it is never sent to `/api/v1`.
 
-Public URLs, frozen:
+Public URLs, frozen (path layout). The host is an existing API host, not a
+dedicated `ota` subdomain — see
+[OTA CDN upload](./2026-11-15-ota-cdn-upload-and-custom-s3.md):
 
 ```
-https://ota.hyperlocalise.com/{hash}/manifest.json
-https://ota.hyperlocalise.com/{hash}/content/{locale}/{exportPath}
+https://public-api.hyperlocalise.com/ota/{hash}/manifest.json
+https://public-api.hyperlocalise.com/ota/{hash}/content/{locale}/{exportPath}
 ```
 
 Clients fetch content by concatenating the origin, the hash, and the path
@@ -287,8 +289,8 @@ Follow-on work, in this order:
 
 1. **Persistence and management API.** Distribution row, hash, file and
    locale selection, format, rotate, revoke. Native-project-only create.
-2. **S3 and CloudFront.** Private bucket, OAC, `ota.hyperlocalise.com`,
-   cache headers, prefix invalidation on release and revoke.
+2. **Serve from existing API hosts.** `public-api` and go-svc expose
+   `/ota/{hash}/...`. Optional private S3 remains a copy, not a new hostname.
 3. **Release snapshot.** Approved-only query, format writers, S3 write,
    manifest, CloudFront invalidation.
 4. **Clients.** `@hyperlocalise/ota`, iOS SDK, Android SDK. Each embeds

@@ -323,8 +323,9 @@ export const env = createEnv({
     OTA_S3_FORCE_PATH_STYLE: z.enum(["true", "false"]).optional(),
 
     /**
-     * Public origin clients fetch (`https://ota.hyperlocalise.com`). Local
-     * development can point this at `/api/ota`.
+     * Public origin clients fetch. Defaults to
+     * `https://public-api.hyperlocalise.com/ota`. Local development can point
+     * this at the app origin plus `/api/ota`.
      */
     OTA_PUBLIC_BASE_URL: z.url().optional(),
 

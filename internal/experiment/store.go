@@ -10,8 +10,14 @@ import (
 
 	"github.com/hyperlocalise/hyperlocalise/internal/postgres"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgconn"
 )
+
+type DB interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
 
 var errUnauthorized = errors.New("unauthorized")
 
@@ -37,16 +43,25 @@ type EvalRow struct {
 	Criterion           json.RawMessage
 }
 
+type OtaBinding struct {
+	FlagKey    string
+	VariantKey string
+	Hash       string
+	Branch     string
+	Format     string
+}
+
 type Store interface {
 	LookupOrganizationID(ctx context.Context, keyHash string) (string, error)
 	LoadFlag(ctx context.Context, organizationID, key string) (*FlagRecord, error)
 	LoadFlags(ctx context.Context, organizationID string) ([]FlagRecord, error)
 	LoadEvalRows(ctx context.Context, organizationID string, flagIDs []string) ([]EvalRow, error)
+	LoadOtaBindings(ctx context.Context, organizationID string) ([]OtaBinding, error)
 	TouchClientKey(ctx context.Context, keyHash string)
 }
 
 type PGStore struct {
-	pool *pgxpool.Pool
+	pool DB
 }
 
 func NewPGStore(ctx context.Context, databaseURL string) (*PGStore, error) {
@@ -61,8 +76,14 @@ func NewPGStore(ctx context.Context, databaseURL string) (*PGStore, error) {
 	return &PGStore{pool: pool}, nil
 }
 
+func NewPGStoreFromPool(pool DB) *PGStore {
+	return &PGStore{pool: pool}
+}
+
 func (s *PGStore) Close() {
-	s.pool.Close()
+	if closer, ok := s.pool.(interface{ Close() }); ok {
+		closer.Close()
+	}
 }
 
 func HashClientKey(key string) string {
@@ -190,6 +211,32 @@ func (s *PGStore) LoadEvalRows(ctx context.Context, organizationID string, flagI
 			return nil, err
 		}
 		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
+func (s *PGStore) LoadOtaBindings(ctx context.Context, organizationID string) ([]OtaBinding, error) {
+	rows, err := s.pool.Query(ctx, `
+		select f.key, v.key, d.public_hash, d.branch_name, d.format
+		from ota_experiment_bindings b
+		inner join experiment_variants v on v.id = b.variant_id
+		inner join experiment_flag_assignments a on a.variant_id = v.id and a.enabled
+		inner join experiment_flags f on f.id = a.flag_id and f.organization_id = b.organization_id
+		inner join ota_distributions d on d.id = b.distribution_id and d.revoked_at is null and d.organization_id = b.organization_id
+		where b.organization_id = $1
+	`, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []OtaBinding
+	for rows.Next() {
+		var binding OtaBinding
+		if err := rows.Scan(&binding.FlagKey, &binding.VariantKey, &binding.Hash, &binding.Branch, &binding.Format); err != nil {
+			return nil, err
+		}
+		out = append(out, binding)
 	}
 	return out, rows.Err()
 }

@@ -158,10 +158,20 @@ export const projectCdnDistributionsPanelMessages = defineMessages({
     id: "QNe7QoZgvf",
     description: "Label for the CDN distribution format field",
   },
+  branchLabel: {
+    defaultMessage: "Branch",
+    id: "X/GnAqc3SF",
+    description: "Label for selecting a native version branch for a CDN distribution",
+  },
   filesLabel: {
     defaultMessage: "Source files",
     id: "zgQJSxBdyd",
     description: "Label for selecting files in a CDN distribution",
+  },
+  noFilesOnBranch: {
+    defaultMessage: "This branch has no source files yet.",
+    id: "l3DwRVMTDv",
+    description: "Empty state when the selected branch has no files for a CDN distribution",
   },
   localesLabel: {
     defaultMessage: "Locales",

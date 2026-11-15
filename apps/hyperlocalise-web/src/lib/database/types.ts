@@ -61,6 +61,7 @@ import type {
   otaReleaseStatusEnum,
   organizationCdnDestinations,
   otaDistributions,
+  otaExperimentBindings,
   otaReleases,
 } from "@/lib/database/schema";
 
@@ -158,4 +159,6 @@ export type NewOtaDistribution = typeof otaDistributions.$inferInsert;
 export type OtaRelease = typeof otaReleases.$inferSelect;
 export type NewOtaRelease = typeof otaReleases.$inferInsert;
 export type OtaDistributionFormat = (typeof otaDistributionFormatEnum.enumValues)[number];
+export type OtaExperimentBinding = typeof otaExperimentBindings.$inferSelect;
+export type NewOtaExperimentBinding = typeof otaExperimentBindings.$inferInsert;
 export type OtaReleaseStatus = (typeof otaReleaseStatusEnum.enumValues)[number];

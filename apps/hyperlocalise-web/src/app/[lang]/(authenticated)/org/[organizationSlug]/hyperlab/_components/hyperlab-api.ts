@@ -36,6 +36,8 @@ export const hyperlabQueryKeys = {
     ["hyperlab-audience", organizationSlug, audienceId] as const,
   assignments: (organizationSlug: string) => ["hyperlab-assignments", organizationSlug] as const,
   keys: (organizationSlug: string) => ["hyperlab-keys", organizationSlug] as const,
+  otaDistributions: (organizationSlug: string) =>
+    ["hyperlab-ota-distributions", organizationSlug] as const,
 };
 
 export async function readHyperlabJson<T>(response: Response, fallbackMessage: string): Promise<T> {
@@ -86,6 +88,24 @@ export type HyperlabExperiment = {
   updatedAt: string;
 };
 
+export type HyperlabVariantOta = {
+  distributionId: string;
+  hash: string;
+  branch: string;
+  format: string;
+  name: string;
+};
+
+export type HyperlabOtaDistribution = {
+  id: string;
+  name: string;
+  hash: string;
+  branch: string;
+  format: string;
+  projectId: string;
+  projectName: string;
+};
+
 export type HyperlabVariant = {
   id: string;
   experimentId: string;
@@ -93,6 +113,7 @@ export type HyperlabVariant = {
   audienceId: string | null;
   rolloutPercentage: number;
   isControl: boolean;
+  ota?: HyperlabVariantOta | null;
 };
 
 export type HyperlabAllocation = {

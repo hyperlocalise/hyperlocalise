@@ -13,7 +13,11 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
-import type { OtaDistributionFormat, OtaManifestSnapshot } from "@/lib/database/schema/ota";
+import type {
+  OtaDistributionFormat,
+  OtaManifestSnapshot,
+  OtaReleaseContents,
+} from "@/lib/database/schema/ota";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
 
@@ -57,6 +61,7 @@ function projectLocaleSet(project: {
 async function loadSnapshotFiles(
   projectId: string,
   fileIds: readonly string[],
+  branchName: string,
   client: DatabaseClient,
 ): Promise<SnapshotFile[]> {
   if (fileIds.length === 0) {
@@ -72,7 +77,7 @@ async function loadSnapshotFiles(
     .where(
       and(
         eq(schema.repositorySourceFiles.projectId, projectId),
-        eq(schema.repositorySourceFiles.branchName, DEFAULT_PROJECT_BRANCH_NAME),
+        eq(schema.repositorySourceFiles.branchName, branchName),
         inArray(schema.repositorySourceFiles.id, [...fileIds]),
       ),
     );
@@ -110,6 +115,24 @@ export function buildOtaManifestSnapshot(input: {
   };
 }
 
+export function otaSnapshotContents(snapshot: OtaReleaseSnapshot): OtaReleaseContents {
+  const contents: OtaReleaseContents = {};
+  for (const file of snapshot.files) {
+    const match = /^\/content\/([^/]+)\/(.+)$/.exec(file.relativePath);
+    if (!match) {
+      continue;
+    }
+    const locale = match[1];
+    const exportPath = match[2];
+    if (!locale || !exportPath) {
+      continue;
+    }
+    contents[locale] ??= {};
+    contents[locale][exportPath] = file.body.toString("utf8");
+  }
+  return contents;
+}
+
 export async function buildOtaReleaseSnapshot(input: {
   organizationId: string;
   projectId: string;
@@ -117,10 +140,16 @@ export async function buildOtaReleaseSnapshot(input: {
   locales: readonly string[];
   format: OtaDistributionFormat;
   sourceLocale: string | null;
+  branchName?: string | null;
   db?: DatabaseClient;
 }): Promise<OtaReleaseSnapshot> {
   const client = input.db ?? db;
-  const files = await loadSnapshotFiles(input.projectId, input.fileIds, client);
+  const files = await loadSnapshotFiles(
+    input.projectId,
+    input.fileIds,
+    input.branchName?.trim() || DEFAULT_PROJECT_BRANCH_NAME,
+    client,
+  );
   const manifest = buildOtaManifestSnapshot({
     files,
     locales: input.locales,

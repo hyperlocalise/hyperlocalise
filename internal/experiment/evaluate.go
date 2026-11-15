@@ -3,7 +3,14 @@ package experiment
 import (
 	"context"
 	"encoding/json"
+	"strings"
 )
+
+type OtaMetadata struct {
+	Hash   string `json:"hash"`
+	Branch string `json:"branch"`
+	Format string `json:"format"`
+}
 
 type Resolution struct {
 	Key          string
@@ -12,6 +19,7 @@ type Resolution struct {
 	Variant      string
 	Error        string
 	ErrorDetails string
+	Ota          *OtaMetadata
 }
 
 func evaluateFlags(ctx context.Context, store Store, organizationID string, flags []FlagRecord, targetingKey string, attributes map[string]any) ([]Resolution, error) {
@@ -39,7 +47,57 @@ func evaluateFlags(ctx context.Context, store Store, organizationID string, flag
 		}
 		resolutions = append(resolutions, resolveExperiment(flag, rowsByFlag[flag.ID], targetingKey, attributes))
 	}
+	if err := attachOta(ctx, store, organizationID, resolutions); err != nil {
+		return nil, err
+	}
 	return resolutions, nil
+}
+
+func attachOta(ctx context.Context, store Store, organizationID string, resolutions []Resolution) error {
+	need := false
+	for _, resolution := range resolutions {
+		if resolution.Variant != "" && resolution.Error == "" {
+			need = true
+			break
+		}
+	}
+	if !need {
+		return nil
+	}
+	bindings, err := store.LoadOtaBindings(ctx, organizationID)
+	if err != nil {
+		return err
+	}
+	byFlagVariant := make(map[string]OtaBinding, len(bindings))
+	for _, binding := range bindings {
+		byFlagVariant[binding.FlagKey+"\x00"+binding.VariantKey] = binding
+	}
+	for i, resolution := range resolutions {
+		if resolution.Variant == "" {
+			continue
+		}
+		binding, ok := byFlagVariant[resolution.Key+"\x00"+resolution.Variant]
+		if !ok {
+			continue
+		}
+		resolutions[i].Ota = &OtaMetadata{
+			Hash:   binding.Hash,
+			Branch: binding.Branch,
+			Format: publicOtaFormat(binding.Format),
+		}
+	}
+	return nil
+}
+
+func publicOtaFormat(format string) string {
+	switch strings.ReplaceAll(format, "_", "-") {
+	case "android-xml":
+		return "android-xml"
+	case "ios-strings":
+		return "ios-strings"
+	default:
+		return "json"
+	}
 }
 
 func resolveConfig(flag FlagRecord) Resolution {
