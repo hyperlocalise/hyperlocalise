@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -118,10 +119,7 @@ func (p *irisGatewayProvider) modelID(gatewayID string) string {
 }
 
 func (p *irisGatewayProvider) image(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
-	count := req.Count
-	if count < 1 {
-		count = 1
-	}
+	count := clampIrisImageCount(req.Count)
 	refs := inputsByRole(req.Inputs, "image", "start", "end")
 	// Gemini Nano Banana is a language model on AI Gateway. /images/generations
 	// rejects it with ModelTypeMismatchError; images come from chat completions.
@@ -771,21 +769,37 @@ func firstInput(inputs []irisProviderInput, roles ...string) (irisProviderInput,
 	return found[0], true
 }
 
+// imageSize picks an OpenAI-style size. The ratio wins over the resolution:
+// only square images have larger sizes, so a landscape or portrait ratio
+// keeps its shape at 1536x1024 or 1024x1536 whatever resolution was asked.
 func imageSize(resolution, aspect string) string {
+	if w, h, ok := parseIrisAspect(aspect); ok && w != h {
+		if w > h {
+			return "1536x1024"
+		}
+		return "1024x1536"
+	}
 	switch resolution {
 	case "4K":
 		return "2048x2048"
 	case "2K":
 		return "1536x1536"
 	default:
-		if aspect == "16:9" {
-			return "1536x1024"
-		}
-		if aspect == "9:16" {
-			return "1024x1536"
-		}
 		return "1024x1024"
 	}
+}
+
+func parseIrisAspect(aspect string) (int, int, bool) {
+	left, right, found := strings.Cut(strings.TrimSpace(aspect), ":")
+	if !found {
+		return 0, 0, false
+	}
+	w, errW := strconv.Atoi(left)
+	h, errH := strconv.Atoi(right)
+	if errW != nil || errH != nil || w <= 0 || h <= 0 {
+		return 0, 0, false
+	}
+	return w, h, true
 }
 
 // irisGatewayImageUsesChat reports whether a Gateway id is a Gemini image

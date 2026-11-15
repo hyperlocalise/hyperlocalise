@@ -130,6 +130,7 @@ Fal and ElevenLabs are not on Gateway, so they use custom Autumn ids. `inputCost
 | `AI_CREDIT_FAL_IMAGE_MODEL_ID` | `custom/hyperlocalise-fal-image` | 1 Fal image | $0.03 (FLUX.2 Pro, first MP) | 30000 |
 | `AI_CREDIT_FAL_VIDEO_MODEL_ID` | `custom/hyperlocalise-fal-video` | 1 Fal video second | $0.168 (Kling 3.0 Pro, audio on) | 168000 |
 | `AI_CREDIT_ELEVENLABS_SECOND_MODEL_ID` | `custom/hyperlocalise-elevenlabs-second` | 1 ElevenLabs music/SFX second | $0.0025 (Music $0.15/min) | 2500 |
+| `AI_CREDIT_FAL_AUDIO_MODEL_ID` | `custom/hyperlocalise-elevenlabs-second` | 1 second of Fal music (Lyria), measured from the returned file | ElevenLabs music rate until Fal audio has its own model | 2500 |
 | `AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID` | `custom/hyperlocalise-elevenlabs-minute` | 1 ElevenLabs TTS input-minute | $0.08 (v4 / v3 / Multilingual v2) | 80000 |
 | `AI_CREDIT_ELEVENLABS_DUBBING_MODEL_ID` | `custom/hyperlocalise-elevenlabs-dubbing` | 1 ElevenLabs source-minute | $0.50 (Dubbing v1, no watermark) | 500000 |
 

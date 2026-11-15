@@ -64,7 +64,9 @@ type irisJobAsset struct {
 	Filename    string `json:"filename"`
 	ContentType string `json:"contentType"`
 	Size        int    `json:"size"`
-	Key         string `json:"-"`
+	// DurationSeconds is the measured length of an audio output, for billing.
+	DurationSeconds float64 `json:"durationSeconds,omitempty"`
+	Key             string  `json:"-"`
 }
 
 type irisJobError struct {

@@ -519,7 +519,7 @@ func TestIrisGenerationAutumnGate(t *testing.T) {
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.Len(t, meter.tokenTracks, 1)
-		require.Equal(t, "google/gemini-3-pro-image", meter.tokenTracks[0].ModelID)
+		require.Equal(t, "google/gemini-nano-banana-2.1", meter.tokenTracks[0].ModelID)
 		require.Equal(t, "gateway", meter.tokenTracks[0].Properties["vendor"])
 		require.Equal(t, 1, meter.tokenTracks[0].OutputTokens)
 	})
@@ -580,7 +580,7 @@ func TestIrisSyntheticCredit(t *testing.T) {
 		{
 			name:   "gateway images",
 			job:    irisJobRecord{ID: "job_gateway_img", OrgID: "org_local", Model: "nano-banana-2.1", Assets: []irisJobAsset{{Filename: "a"}}},
-			model:  "google/gemini-3-pro-image",
+			model:  "google/gemini-nano-banana-2.1",
 			vendor: "gateway",
 			output: 1,
 		},
@@ -601,7 +601,7 @@ func TestIrisSyntheticCredit(t *testing.T) {
 		{
 			name:   "gateway video seconds",
 			job:    irisJobRecord{ID: "job_veo", OrgID: "org_local", Model: "veo-3.1", Request: irisGenerateRequest{"duration": float64(8)}},
-			model:  "google/veo-3.1",
+			model:  "google/veo-3.1-generate-001",
 			vendor: "gateway",
 			output: 8,
 		},
@@ -650,7 +650,7 @@ func TestIrisSyntheticCredit(t *testing.T) {
 		{
 			name:   "omni flash default input minute",
 			job:    irisJobRecord{ID: "job_omni", OrgID: "org_local", Model: "qwen3.8-omni-flash"},
-			model:  "alibaba/qwen3-omni-flash",
+			model:  "alibaba/qwen3.8-omni-flash",
 			vendor: "gateway",
 			output: 1,
 		},
@@ -685,7 +685,7 @@ func TestIrisSyntheticCredit(t *testing.T) {
 		{
 			name:   "gemini tts gateway audio minute",
 			job:    irisJobRecord{ID: "job_gemini_tts", OrgID: "org_local", Model: "gemini-3.8-flash-tts"},
-			model:  "google/gemini-2.5-flash-preview-tts",
+			model:  "google/gemini-3.8-flash-tts",
 			vendor: "gateway",
 			output: 1,
 		},
@@ -1007,7 +1007,7 @@ func TestIrisGatewayProviderNanoBananaUsesChatCompletions(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "/chat/completions", gotPath)
-	require.Equal(t, "google/gemini-3-pro-image", payload["model"])
+	require.Equal(t, "google/gemini-nano-banana-2.1", payload["model"])
 	require.Equal(t, []any{"text", "image"}, payload["modalities"])
 	require.Equal(t, false, payload["stream"])
 	messages, _ := payload["messages"].([]any)
