@@ -30,6 +30,27 @@ func TestIrisPublicModelsExposeCatalog(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestIrisImageModelsFollowAAImageT2I(t *testing.T) {
+	var ids []string
+	for _, model := range irisModels() {
+		if model.Kind == irisKindImage {
+			ids = append(ids, model.ID)
+		}
+	}
+	require.Equal(t, []string{
+		"gpt-image-2.6-sunburst",
+		"nano-banana-2.1",
+		"grok-imagine-image-2.0",
+		"nano-banana-2",
+		"nano-banana-pro",
+		"seedream-5.0-pro",
+		"flux-3-image",
+		"flux-2-pro",
+		"krea-2-large",
+		"flux-2-klein",
+	}, ids)
+}
+
 func TestIrisGenerateRequestFieldAccessors(t *testing.T) {
 	req := irisGenerateRequest{
 		"model":        "  veo-3.1  ",

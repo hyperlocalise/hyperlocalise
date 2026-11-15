@@ -97,16 +97,16 @@ function model(
 
 /** In the same order as the go-svc registry. */
 export const PRICING_IRIS_MODELS: readonly PricingIrisModel[] = [
-  model("nano-banana-2.1", "Nano Banana 2.1", "google", "image"),
-  model("nano-banana-pro", "Nano Banana Pro", "google", "image"),
   model("gpt-image-2.6-sunburst", "GPT Image 2.6 Sunburst", "openai", "image"),
+  model("nano-banana-2.1", "Nano Banana 2.1", "google", "image"),
+  model("grok-imagine-image-2.0", "Grok Imagine 2.0", "xai", "image"),
   model("nano-banana-2", "Nano Banana 2", "google", "image"),
+  model("nano-banana-pro", "Nano Banana Pro", "google", "image"),
   model("seedream-5.0-pro", "Seedream 5.0 Pro", "bytedance", "image"),
   model("flux-3-image", "FLUX.3 Image", "black-forest-labs", "image"),
   model("flux-2-pro", "FLUX.2 Pro", "black-forest-labs", "image"),
-  model("grok-imagine-image-2.0", "Grok Imagine 2.0", "xai", "image"),
-  model("flux-2-klein", "FLUX.2 Klein", "black-forest-labs", "image"),
   model("krea-2-large", "Krea 2 Large", "krea", "image"),
+  model("flux-2-klein", "FLUX.2 Klein", "black-forest-labs", "image"),
   model("veo-3.1", "Veo 3.1", "google", "video"),
   model("veo-3.1-fast", "Veo 3.1 Fast", "google", "video"),
   model("kling-3-pro", "Kling 3.0", "kuaishou", "video"),

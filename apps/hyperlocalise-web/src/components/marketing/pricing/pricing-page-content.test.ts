@@ -169,8 +169,8 @@ describe("pricing page content", () => {
     expect(catalog.filter((model) => model.recommended).map((model) => model.name)).toEqual([
       "GPT-6 Luna",
       "Claude Sonnet 5",
-      "Nano Banana 2.1",
       "GPT Image 2.6 Sunburst",
+      "Nano Banana 2.1",
       "Image Localise",
       "Veo 3.1",
       "Kling 3.0",

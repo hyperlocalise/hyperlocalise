@@ -67,12 +67,12 @@ describe("pricing model catalog", () => {
           "Claude Sonnet 5",
         ],
         [
-          "nano-banana-2.1",
-          "Nano Banana 2.1",
-        ],
-        [
           "gpt-image-2.6-sunburst",
           "GPT Image 2.6 Sunburst",
+        ],
+        [
+          "nano-banana-2.1",
+          "Nano Banana 2.1",
         ],
         [
           "image-localise",
@@ -199,12 +199,16 @@ describe("pricing model catalog", () => {
           "GPT-5.4 Pro",
         ],
         [
-          "nano-banana-pro",
-          "Nano Banana Pro",
+          "grok-imagine-image-2.0",
+          "Grok Imagine 2.0",
         ],
         [
           "nano-banana-2",
           "Nano Banana 2",
+        ],
+        [
+          "nano-banana-pro",
+          "Nano Banana Pro",
         ],
         [
           "seedream-5.0-pro",
@@ -219,16 +223,12 @@ describe("pricing model catalog", () => {
           "FLUX.2 Pro",
         ],
         [
-          "grok-imagine-image-2.0",
-          "Grok Imagine 2.0",
+          "krea-2-large",
+          "Krea 2 Large",
         ],
         [
           "flux-2-klein",
           "FLUX.2 Klein",
-        ],
-        [
-          "krea-2-large",
-          "Krea 2 Large",
         ],
         [
           "veo-3.1-fast",
