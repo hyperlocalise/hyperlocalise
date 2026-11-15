@@ -955,6 +955,159 @@ func TestIrisGatewayProviderImageEditForwardsAllReferences(t *testing.T) {
 	require.Equal(t, [][]byte{[]byte("start"), []byte("end"), []byte("one"), []byte("two")}, payloads)
 }
 
+func TestIrisGatewayImageUsesChat(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		id   string
+		want bool
+	}{
+		{"google/gemini-3-pro-image", true},
+		{"google/gemini-3.1-flash-image", true},
+		{"google/gemini-nano-banana-2.1", true},
+		{"google/gemini-2.5-flash-image", true},
+		{"openai/gpt-image-2.6-flare", false},
+		{"xai/grok-imagine-image", false},
+		{"google/gemini-3.5-transcribe", false},
+		{"google/veo-3.1", false},
+		{"", false},
+	}
+	for _, tc := range tests {
+		name := tc.id
+		if name == "" {
+			name = "empty"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, irisGatewayImageUsesChat(tc.id))
+		})
+	}
+}
+
+func TestIrisGatewayProviderNanoBananaUsesChatCompletions(t *testing.T) {
+	var payload map[string]any
+	var gotPath string
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"ok","images":[{"type":"image_url","image_url":{"url":"data:image/png;base64,aW1n"}}]}}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("nano-banana-2.1")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:       model,
+		Prompt:      "a cat",
+		AspectRatio: "16:9",
+		Resolution:  "2K",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "/chat/completions", gotPath)
+	require.Equal(t, "google/gemini-3-pro-image", payload["model"])
+	require.Equal(t, []any{"text", "image"}, payload["modalities"])
+	require.Equal(t, false, payload["stream"])
+	messages, _ := payload["messages"].([]any)
+	require.Len(t, messages, 1)
+	msg, _ := messages[0].(map[string]any)
+	content, _ := msg["content"].(string)
+	require.Contains(t, content, "a cat")
+	require.Contains(t, content, "aspect ratio 16:9")
+	require.Contains(t, content, "resolution 2K")
+	require.Equal(t, []byte("img"), outputs[0].Bytes)
+	require.Equal(t, "image.png", outputs[0].Filename)
+}
+
+func TestIrisGatewayProviderNanoBananaEditUsesChatCompletions(t *testing.T) {
+	var payload map[string]any
+	var gotPath string
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"images":[{"image_url":{"url":"data:image/png;base64,aW1n"}}]}}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("nano-banana-pro")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:  model,
+		Prompt: "replace the headline",
+		Inputs: []irisProviderInput{
+			{Role: "image", Bytes: []byte("src"), ContentType: "image/png"},
+			{Role: "mask", Bytes: []byte("msk"), ContentType: "image/png"},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "/chat/completions", gotPath)
+	require.NotContains(t, gotPath, "/images/")
+	messages, _ := payload["messages"].([]any)
+	msg, _ := messages[0].(map[string]any)
+	parts, _ := msg["content"].([]any)
+	require.Len(t, parts, 3)
+	text, _ := parts[0].(map[string]any)
+	require.Equal(t, "replace the headline", text["text"])
+	first, _ := parts[1].(map[string]any)
+	imageURL, _ := first["image_url"].(map[string]any)
+	require.Contains(t, imageURL["url"], "c3Jj")
+	second, _ := parts[2].(map[string]any)
+	maskURL, _ := second["image_url"].(map[string]any)
+	require.Contains(t, maskURL["url"], "bXNr")
+	require.Equal(t, []byte("img"), outputs[0].Bytes)
+}
+
+func TestIrisGatewayProviderImageModelStillUsesImagesAPI(t *testing.T) {
+	var gotPath string
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		_, _ = w.Write([]byte(`{"data":[{"b64_json":"aW1n"}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("gpt-image-2.6-sunburst")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:  model,
+		Prompt: "a cat",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "/images/generations", gotPath)
+	require.Equal(t, []byte("img"), outputs[0].Bytes)
+}
+
+func TestDecodeChatImageOutputs(t *testing.T) {
+	t.Parallel()
+	t.Run("reads images array", func(t *testing.T) {
+		t.Parallel()
+		out, err := decodeChatImageOutputs(t.Context(), []byte(`{"choices":[{"message":{"images":[{"image_url":{"url":"data:image/png;base64,aW1n"}}]}}]}`))
+		require.NoError(t, err)
+		require.Equal(t, []byte("img"), out[0].Bytes)
+	})
+	t.Run("reads content parts", func(t *testing.T) {
+		t.Parallel()
+		out, err := decodeChatImageOutputs(t.Context(), []byte(`{"choices":[{"message":{"content":[{"type":"text","text":"here"},{"type":"image_url","image_url":{"url":"data:image/png;base64,aW1n"}}]}}]}`))
+		require.NoError(t, err)
+		require.Equal(t, []byte("img"), out[0].Bytes)
+	})
+	t.Run("errors when the model replies with text only", func(t *testing.T) {
+		t.Parallel()
+		_, err := decodeChatImageOutputs(t.Context(), []byte(`{"choices":[{"message":{"content":"I cannot draw that."}}]}`))
+		require.ErrorContains(t, err, "no image")
+		require.ErrorContains(t, err, "I cannot draw that.")
+	})
+}
+
 func TestDecodeImageOutputsHonorsContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
