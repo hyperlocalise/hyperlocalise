@@ -18,7 +18,7 @@ vi.mock("@/lib/workos/server-auth", () => ({
   }),
 }));
 
-import { trackPostHogServerEvent } from "./posthog-server";
+import { capturePostHogServerException, trackPostHogServerEvent } from "./posthog-server";
 
 describe("trackPostHogServerEvent", () => {
   it("no-ops when the project token is missing", async () => {
@@ -83,6 +83,78 @@ describe("trackPostHogServerEvent", () => {
           projectToken: "phc_test",
           distinctId: "user_1",
           captureFn: () => {
+            throw new Error("posthog down");
+          },
+        },
+      ),
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe("capturePostHogServerException", () => {
+  it("no-ops when the project token is missing", async () => {
+    const captureExceptionFn = vi.fn();
+
+    await capturePostHogServerException(new Error("boom"), { source: "server_request" }, {
+      captureExceptionFn,
+    });
+
+    expect(captureExceptionFn).not.toHaveBeenCalled();
+  });
+
+  it("captures exceptions with the WorkOS user id when a session exists", async () => {
+    const captureExceptionFn = vi.fn();
+    const error = new Error("server boom");
+
+    await capturePostHogServerException(
+      error,
+      { source: "server_request", feature: "render" },
+      {
+        projectToken: "phc_test",
+        captureExceptionFn,
+        resolveSession: async () => ({ user: { id: "user_workos_1" } }),
+      },
+    );
+
+    expect(captureExceptionFn).toHaveBeenCalledOnce();
+    expect(captureExceptionFn).toHaveBeenCalledWith({
+      distinctId: "user_workos_1",
+      error,
+      properties: { source: "server_request", feature: "render" },
+    });
+  });
+
+  it("does not create a person profile for anonymous exceptions", async () => {
+    const captureExceptionFn = vi.fn();
+
+    await capturePostHogServerException(
+      new Error("anonymous boom"),
+      { source: "server_request" },
+      {
+        projectToken: "phc_test",
+        captureExceptionFn,
+        resolveSession: async () => null,
+      },
+    );
+
+    expect(captureExceptionFn).toHaveBeenCalledOnce();
+    const event = captureExceptionFn.mock.calls[0]?.[0];
+    expect(event?.properties).toMatchObject({
+      source: "server_request",
+      $process_person_profile: false,
+    });
+    expect(typeof event?.distinctId).toBe("string");
+  });
+
+  it("swallows exception capture failures", async () => {
+    await expect(
+      capturePostHogServerException(
+        new Error("boom"),
+        { source: "server_request" },
+        {
+          projectToken: "phc_test",
+          distinctId: "user_1",
+          captureExceptionFn: () => {
             throw new Error("posthog down");
           },
         },

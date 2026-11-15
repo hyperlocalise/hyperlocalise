@@ -17,11 +17,11 @@ import { type ErrorInfo, type ReactNode } from "react";
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
 import { FormattedMessage } from "react-intl";
 
+import { contentEditorPanelErrorBoundaryMessages } from "@/components/content-editor/shared/content-editor.messages";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { capturePostHogClientException } from "@/lib/analytics/posthog-client";
 import { cn } from "@/lib/primitives/cn";
-
-import { contentEditorPanelErrorBoundaryMessages } from "@/components/content-editor/shared/content-editor.messages";
 
 export type ContentEditorPanelErrorBoundaryScope =
   | "queue"
@@ -110,6 +110,10 @@ export function ContentEditorPanelErrorBoundary({
         if (error instanceof Error) {
           logCatPanelError(scope, error, info);
         }
+        capturePostHogClientException(error, {
+          source: "component_error_boundary",
+          feature: "content_editor_panel",
+        });
       }}
       resetKeys={resetKeys}
     >

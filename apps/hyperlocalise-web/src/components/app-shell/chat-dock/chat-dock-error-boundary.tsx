@@ -22,6 +22,7 @@ import { FormattedMessage } from "react-intl";
 import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { capturePostHogClientException } from "@/lib/analytics/posthog-client";
 
 import { chatDockMessages } from "./chat-dock.messages";
 import { ChatDockStore } from "./chat-dock-store";
@@ -106,6 +107,10 @@ export const ChatDockErrorBoundary = observer(function ChatDockErrorBoundary({
         if (error instanceof Error) {
           logChatDockError(error, info);
         }
+        capturePostHogClientException(error, {
+          source: "component_error_boundary",
+          feature: "chat_dock",
+        });
       }}
       onReset={() => {
         const failedTabId = failedTabIdRef.current;

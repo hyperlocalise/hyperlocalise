@@ -20,8 +20,9 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
-import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
+import { capturePostHogClientException } from "@/lib/analytics/posthog-client";
 import { cn } from "@/lib/primitives/cn";
+import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 
 import { projectFilesErrorBoundaryMessages as messages } from "./project-files-error-boundary.messages";
 
@@ -121,6 +122,13 @@ export function ProjectFilesErrorBoundary({
         if (error instanceof Error) {
           logProjectFilesPanelError(scope, error, info);
         }
+        if (isTmsUserConnectionRequiredError(error)) {
+          return;
+        }
+        capturePostHogClientException(error, {
+          source: "component_error_boundary",
+          feature: "project_files",
+        });
       }}
       onReset={onReset}
       resetKeys={resetKeys ? [...resetKeys] : undefined}

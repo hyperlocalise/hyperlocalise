@@ -76,7 +76,17 @@ describe("root layout server render", () => {
     expect(source).toMatch(/posthog\.init/);
     expect(source).toMatch(/POSTHOG_INGEST_PATH/);
     expect(source).toMatch(/autocapture:\s*false/);
+    expect(source).toMatch(/capture_unhandled_errors:\s*true/);
+    expect(source).toMatch(/capture_unhandled_rejections:\s*true/);
+    expect(source).toMatch(/capture_console_errors:\s*false/);
     expect(source).toMatch(/disable_session_recording:\s*true/);
+  });
+
+  it("reports Next.js server request errors through PostHog", () => {
+    const source = readFileSync(path.join(import.meta.dirname, "../../instrumentation.ts"), "utf8");
+
+    expect(source).toMatch(/export \{ onRequestError \}/);
+    expect(source).toMatch(/posthog-request-error/);
   });
 
   it("defaults the color theme to light", () => {

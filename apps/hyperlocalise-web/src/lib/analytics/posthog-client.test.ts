@@ -12,22 +12,30 @@
  */
 // @vitest-environment happy-dom
 
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { captureMock } = vi.hoisted(() => ({
+const { captureMock, captureExceptionMock } = vi.hoisted(() => ({
   captureMock: vi.fn(),
+  captureExceptionMock: vi.fn(),
 }));
 
 vi.mock("posthog-js", () => ({
   default: {
     __loaded: false,
     capture: captureMock,
+    captureException: captureExceptionMock,
   },
 }));
 
 import posthog from "posthog-js";
 
-import { capturePostHogClientEvent } from "./posthog-client";
+import { capturePostHogClientEvent, capturePostHogClientException } from "./posthog-client";
+
+beforeEach(() => {
+  posthog.__loaded = false;
+  captureMock.mockReset();
+  captureExceptionMock.mockReset();
+});
 
 describe("capturePostHogClientEvent", () => {
   it("does not capture before PostHog has initialized", () => {
@@ -45,5 +53,34 @@ describe("capturePostHogClientEvent", () => {
       status: "started",
       source: "billing",
     });
+  });
+});
+
+describe("capturePostHogClientException", () => {
+  it("does not capture before PostHog has initialized", () => {
+    capturePostHogClientException(new Error("boom"), { source: "error_boundary" });
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("captures after PostHog has initialized", () => {
+    posthog.__loaded = true;
+    const error = new Error("boom");
+
+    capturePostHogClientException(error, { source: "error_boundary", feature: "locale" });
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(error, {
+      source: "error_boundary",
+      feature: "locale",
+    });
+  });
+
+  it("swallows SDK failures", () => {
+    posthog.__loaded = true;
+    captureExceptionMock.mockImplementation(() => {
+      throw new Error("posthog down");
+    });
+
+    expect(() => capturePostHogClientException(new Error("boom"))).not.toThrow();
   });
 });

@@ -14,14 +14,39 @@
 
 import posthog from "posthog-js";
 
+export type PostHogClientExceptionProperties = Record<string, string | number | boolean>;
+
+function isPostHogClientReady() {
+  return typeof window !== "undefined" && Boolean(posthog.__loaded);
+}
+
 /** Capture a product event in the browser. No-ops until PostHog has initialized. */
 export function capturePostHogClientEvent(
   name: string,
   properties?: Record<string, string | number | boolean>,
 ) {
-  if (typeof window === "undefined" || !posthog.__loaded) {
+  if (!isPostHogClientReady()) {
     return;
   }
 
   posthog.capture(name, properties);
+}
+
+/**
+ * Report an exception to PostHog Error Tracking. No-ops until PostHog has
+ * initialized. Swallows SDK failures so recovery UI can still render.
+ */
+export function capturePostHogClientException(
+  error: unknown,
+  properties?: PostHogClientExceptionProperties,
+) {
+  if (!isPostHogClientReady()) {
+    return;
+  }
+
+  try {
+    posthog.captureException(error, properties);
+  } catch {
+    // Error tracking must not break the product path.
+  }
 }

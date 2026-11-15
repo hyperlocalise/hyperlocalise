@@ -19,6 +19,7 @@ import { FormattedMessage } from "react-intl";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { capturePostHogClientException } from "@/lib/analytics/posthog-client";
 import { cn } from "@/lib/primitives/cn";
 
 import { aiElementErrorBoundaryMessages } from "./ai-element-error-boundary.messages";
@@ -104,6 +105,10 @@ export function AiElementErrorBoundary({
         if (error instanceof Error) {
           logAiElementError(scope, error, info);
         }
+        capturePostHogClientException(error, {
+          source: "component_error_boundary",
+          feature: "ai_element",
+        });
       }}
       resetKeys={resetKeys}
     >

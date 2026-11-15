@@ -46,7 +46,7 @@ WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
 NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
 WORKOS_COOKIE_PASSWORD=this-is-a-test-cookie-password-at-least-32-characters
 AUTUMN_API_KEY=am_sk_test_placeholder
-# Optional. PostHog product analytics. No-ops when unset.
+# Optional. PostHog product analytics and error tracking. No-ops when unset.
 # NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=phc_...
 # NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ```

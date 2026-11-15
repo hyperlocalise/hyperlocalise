@@ -21,7 +21,7 @@ export type AnalyticsTrackFn = (
 /**
  * Provider-neutral analytics facade. Client/server adapters wrap Vercel Analytics,
  * Google Analytics (gtag on the client, Measurement Protocol on the server), and
- * PostHog when `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` is set.
+ * PostHog (analytics and error tracking) when `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` is set.
  */
 export class Analytics {
   private readonly trackFns: AnalyticsTrackFn[];

@@ -19,6 +19,7 @@ import { FormattedMessage } from "react-intl";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { capturePostHogClientException } from "@/lib/analytics/posthog-client";
 import { cn } from "@/lib/primitives/cn";
 
 import { localisationAuditResultErrorBoundaryMessages as messages } from "./localisation-audit-result-error-boundary.messages";
@@ -118,6 +119,10 @@ export function LocalisationAuditResultErrorBoundary({
         if (error instanceof Error) {
           logLocalisationAuditResultError(scope, section, error, info);
         }
+        capturePostHogClientException(error, {
+          source: "component_error_boundary",
+          feature: "localisation_audit_result",
+        });
       }}
       resetKeys={resetKeys}
     >

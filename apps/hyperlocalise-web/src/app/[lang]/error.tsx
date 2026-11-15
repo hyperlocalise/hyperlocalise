@@ -12,10 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect } from "react";
 import { useParams } from "next/navigation";
 
 import { LocalizedErrorRecovery } from "@/components/error-recovery/localized-error-recovery";
+import { useCaptureRouteError } from "@/lib/analytics/use-capture-route-error";
 
 type LocaleErrorProps = {
   error: Error & { digest?: string };
@@ -24,10 +24,7 @@ type LocaleErrorProps = {
 
 export default function LocaleError({ error, unstable_retry }: LocaleErrorProps) {
   const { lang } = useParams<{ lang: string }>();
-
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
+  useCaptureRouteError(error, "locale");
 
   return (
     <LocalizedErrorRecovery dashboardHref={`/${lang}/dashboard`} retry={unstable_retry} fullPage />

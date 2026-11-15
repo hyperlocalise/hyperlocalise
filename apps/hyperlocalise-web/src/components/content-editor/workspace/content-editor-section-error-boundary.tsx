@@ -18,6 +18,7 @@ import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import { capturePostHogClientException } from "@/lib/analytics/posthog-client";
 import { cn } from "@/lib/primitives/cn";
 
 import { contentEditorPanelErrorBoundaryMessages } from "@/components/content-editor/shared/content-editor.messages";
@@ -81,6 +82,10 @@ export function ContentEditorSectionErrorBoundary({
             componentStack: info.componentStack,
           });
         }
+        capturePostHogClientException(error, {
+          source: "component_error_boundary",
+          feature: "content_editor_section",
+        });
       }}
       resetKeys={resetKeys}
     >
