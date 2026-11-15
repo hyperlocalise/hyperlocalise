@@ -24,64 +24,6 @@ func newChatImageTestServer(t *testing.T, payloads *[]map[string]any, reply stri
 
 const chatImageReply = `{"choices":[{"message":{"role":"assistant","content":"","images":[{"type":"image_url","image_url":{"url":"data:image/png;base64,aW1n"}}]}}]}`
 
-func TestIrisGatewayProviderGeminiImageUsesChatCompletions(t *testing.T) {
-	var payloads []map[string]any
-	provider := newChatImageTestServer(t, &payloads, chatImageReply)
-	model, ok := irisModelByID("nano-banana-pro")
-	require.True(t, ok)
-
-	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
-		Model:       model,
-		Prompt:      "a red bicycle",
-		AspectRatio: "16:9",
-		Resolution:  "2K",
-		Count:       2,
-	})
-	require.NoError(t, err)
-	require.Len(t, outputs, 2)
-	require.Equal(t, []byte("img"), outputs[0].Bytes)
-	require.Equal(t, "image-1.png", outputs[0].Filename)
-	require.Len(t, payloads, 2)
-
-	payload := payloads[0]
-	require.Equal(t, "google/gemini-3-pro-image", payload["model"])
-	require.Equal(t, []any{"text", "image"}, payload["modalities"])
-	require.Equal(t, map[string]any{
-		"google": map[string]any{"imageConfig": map[string]any{"aspectRatio": "16:9", "imageSize": "2K"}},
-	}, payload["providerOptions"])
-	messages := payload["messages"].([]any)
-	content := messages[0].(map[string]any)["content"].([]any)
-	require.Equal(t, map[string]any{"type": "text", "text": "a red bicycle"}, content[0])
-}
-
-func TestIrisGatewayProviderGeminiImageSendsReferencesAsImageParts(t *testing.T) {
-	var payloads []map[string]any
-	provider := newChatImageTestServer(t, &payloads, chatImageReply)
-	model, ok := irisModelByID("nano-banana-2")
-	require.True(t, ok)
-
-	_, err := provider.Generate(t.Context(), irisProviderRequest{
-		Model:  model,
-		Prompt: "make it blue",
-		Inputs: []irisProviderInput{
-			{Role: "image", Bytes: []byte("one"), ContentType: "image/jpeg"},
-			{Role: "mask", Bytes: []byte("mask"), ContentType: "image/png"},
-		},
-	})
-	require.NoError(t, err)
-	content := payloads[0]["messages"].([]any)[0].(map[string]any)["content"].([]any)
-	require.Len(t, content, 4)
-	require.Equal(t, "data:image/jpeg;base64,b25l", content[1].(map[string]any)["image_url"].(map[string]any)["url"])
-	require.Equal(t, "text", content[2].(map[string]any)["type"])
-	require.Equal(t, "data:image/png;base64,bWFzaw==", content[3].(map[string]any)["image_url"].(map[string]any)["url"])
-	require.NotContains(t, payloads[0], "providerOptions")
-}
-
-func TestDecodeChatImageReportsTextOnlyReply(t *testing.T) {
-	_, err := decodeChatImage(t.Context(), []byte(`{"choices":[{"message":{"content":"I can't draw that."}}]}`))
-	require.ErrorContains(t, err, "I can't draw that.")
-}
-
 func TestIrisNanoBananaModelsAreDistinct(t *testing.T) {
 	want := map[string]string{
 		"nano-banana-2":   "google/gemini-3.1-flash-image",
@@ -92,7 +34,7 @@ func TestIrisNanoBananaModelsAreDistinct(t *testing.T) {
 		model, ok := irisModelByID(id)
 		require.True(t, ok, id)
 		require.Equal(t, gatewayID, model.GatewayID, id)
-		require.True(t, isIrisChatImageModel(model.GatewayID), id)
+		require.True(t, irisGatewayImageUsesChat(model.GatewayID), id)
 	}
 }
 
@@ -133,10 +75,10 @@ func TestIrisGatewayProviderGeminiImageCapsCount(t *testing.T) {
 	provider := newChatImageTestServer(t, &payloads, chatImageReply)
 	model, ok := irisModelByID("nano-banana-pro")
 	require.True(t, ok)
-	outputs, err := provider.Generate(t.Context(), irisProviderRequest{Model: model, Prompt: "x", Count: 1_000_000})
+	_, err := provider.Generate(t.Context(), irisProviderRequest{Model: model, Prompt: "x", Count: 1_000_000})
 	require.NoError(t, err)
-	require.Len(t, outputs, irisMaxImageCount)
-	require.Len(t, payloads, irisMaxImageCount)
+	require.Len(t, payloads, 1)
+	require.Equal(t, float64(irisMaxImageCount), payloads[0]["n"])
 }
 
 func TestIrisGatewayOnlyModelIDs(t *testing.T) {

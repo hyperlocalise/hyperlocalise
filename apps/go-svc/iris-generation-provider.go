@@ -121,8 +121,10 @@ func (p *irisGatewayProvider) modelID(gatewayID string) string {
 func (p *irisGatewayProvider) image(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	count := clampIrisImageCount(req.Count)
 	refs := inputsByRole(req.Inputs, "image", "start", "end")
-	if isIrisChatImageModel(req.Model.GatewayID) {
-		return p.chatImage(ctx, req, refs, count)
+	// Gemini Nano Banana is a language model on AI Gateway. /images/generations
+	// rejects it with ModelTypeMismatchError; images come from chat completions.
+	if irisGatewayImageUsesChat(req.Model.GatewayID) {
+		return p.imageChat(ctx, req, refs, count)
 	}
 	if len(refs) > 0 {
 		return p.imageEdit(ctx, req, refs, count)
@@ -141,6 +143,9 @@ func (p *irisGatewayProvider) image(ctx context.Context, req irisProviderRequest
 }
 
 func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderRequest, images []irisProviderInput, count int) ([]irisProviderOutput, error) {
+	if irisGatewayImageUsesChat(req.Model.GatewayID) {
+		return p.imageChat(ctx, req, images, count)
+	}
 	if len(images) == 0 {
 		return nil, fmt.Errorf("image input is required")
 	}
@@ -174,6 +179,39 @@ func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderReq
 		return nil, err
 	}
 	return decodeImageOutputs(ctx, body, "image", "png")
+}
+
+// imageChat generates or edits images through /chat/completions. AI Gateway
+// types Gemini Nano Banana as language, so /images/generations returns 400.
+func (p *irisGatewayProvider) imageChat(ctx context.Context, req irisProviderRequest, images []irisProviderInput, count int) ([]irisProviderOutput, error) {
+	prompt := irisImageChatPrompt(req)
+	var content any = prompt
+	if refs := irisImageChatInputs(req.Inputs, images); len(refs) > 0 {
+		parts := []map[string]any{{"type": "text", "text": prompt}}
+		for _, image := range refs {
+			parts = append(parts, map[string]any{
+				"type": "image_url",
+				"image_url": map[string]string{
+					"url": "data:" + defaultType(image.ContentType, "image/png") + ";base64," + base64.StdEncoding.EncodeToString(image.Bytes),
+				},
+			})
+		}
+		content = parts
+	}
+	payload := map[string]any{
+		"model":      p.modelID(req.Model.GatewayID),
+		"messages":   []map[string]any{{"role": "user", "content": content}},
+		"modalities": []string{"text", "image"},
+		"stream":     false,
+	}
+	if count > 1 {
+		payload["n"] = count
+	}
+	body, err := p.json(ctx, http.MethodPost, "/chat/completions", payload)
+	if err != nil {
+		return nil, err
+	}
+	return decodeChatImageOutputs(ctx, body)
 }
 
 func (p *irisGatewayProvider) speech(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
@@ -474,6 +512,136 @@ func decodeImageOutputs(ctx context.Context, body []byte, stem, ext string) ([]i
 	return out, nil
 }
 
+func decodeChatImageOutputs(ctx context.Context, body []byte) ([]irisProviderOutput, error) {
+	urls, reply, err := chatImageURLs(body)
+	if err != nil {
+		return nil, err
+	}
+	if len(urls) == 0 {
+		if reply != "" {
+			return nil, fmt.Errorf("gateway chat returned no image: %s", truncate(reply, 200))
+		}
+		return nil, fmt.Errorf("gateway chat returned no image")
+	}
+	out := make([]irisProviderOutput, 0, len(urls))
+	for i, rawURL := range urls {
+		raw, contentType, err := decodeChatImageURL(ctx, rawURL)
+		if err != nil {
+			return nil, err
+		}
+		name := fmt.Sprintf("image-%d.png", i+1)
+		if len(urls) == 1 {
+			name = "image.png"
+		}
+		out = append(out, irisProviderOutput{
+			Bytes:       raw,
+			Filename:    name,
+			ContentType: defaultType(contentType, "image/png"),
+		})
+	}
+	return out, nil
+}
+
+type irisChatImagePart struct {
+	Type     string `json:"type"`
+	Text     string `json:"text"`
+	ImageURL struct {
+		URL string `json:"url"`
+	} `json:"image_url"`
+}
+
+func chatImageURLs(body []byte) ([]string, string, error) {
+	var parsed struct {
+		Choices []struct {
+			Message struct {
+				Content json.RawMessage     `json:"content"`
+				Images  []irisChatImagePart `json:"images"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return nil, "", err
+	}
+	urls := make([]string, 0)
+	var reply string
+	for _, choice := range parsed.Choices {
+		for _, image := range choice.Message.Images {
+			if url := strings.TrimSpace(image.ImageURL.URL); url != "" {
+				urls = append(urls, url)
+			}
+		}
+		text, extra := parseChatContent(choice.Message.Content)
+		if reply == "" {
+			reply = text
+		}
+		urls = append(urls, extra...)
+	}
+	return urls, reply, nil
+}
+
+func parseChatContent(raw json.RawMessage) (string, []string) {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || string(raw) == "null" {
+		return "", nil
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err == nil {
+		return strings.TrimSpace(text), nil
+	}
+	var parts []irisChatImagePart
+	if err := json.Unmarshal(raw, &parts); err != nil {
+		return "", nil
+	}
+	urls := make([]string, 0)
+	var builder strings.Builder
+	for _, part := range parts {
+		if url := strings.TrimSpace(part.ImageURL.URL); url != "" {
+			urls = append(urls, url)
+		}
+		if strings.TrimSpace(part.Text) == "" {
+			continue
+		}
+		if builder.Len() > 0 {
+			builder.WriteByte('\n')
+		}
+		builder.WriteString(strings.TrimSpace(part.Text))
+	}
+	return builder.String(), urls
+}
+
+func decodeChatImageURL(ctx context.Context, rawURL string) ([]byte, string, error) {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return nil, "", fmt.Errorf("empty image url")
+	}
+	if strings.HasPrefix(rawURL, "data:") {
+		media, payload, ok := strings.Cut(rawURL, ",")
+		if !ok {
+			return nil, "", fmt.Errorf("invalid data uri")
+		}
+		contentType := "image/png"
+		if _, rest, found := strings.Cut(media, ":"); found {
+			rest = strings.TrimSuffix(rest, ";base64")
+			if i := strings.IndexByte(rest, ';'); i >= 0 {
+				rest = rest[:i]
+			}
+			if strings.HasPrefix(rest, "image/") {
+				contentType = rest
+			}
+		}
+		raw, err := base64.StdEncoding.DecodeString(payload)
+		if err != nil {
+			return nil, "", err
+		}
+		return raw, contentType, nil
+	}
+	raw, contentType, err := fetchHTTPS(ctx, rawURL)
+	if err != nil {
+		return nil, "", err
+	}
+	return raw, defaultType(contentType, "image/png"), nil
+}
+
 func normalizeTranscript(body []byte) []byte {
 	var parsed struct {
 		Text     string               `json:"text"`
@@ -632,6 +800,43 @@ func parseIrisAspect(aspect string) (int, int, bool) {
 		return 0, 0, false
 	}
 	return w, h, true
+}
+
+// irisGatewayImageUsesChat reports whether a Gateway id is a Gemini image
+// model typed as language (Nano Banana). Those reject /images/generations.
+func irisGatewayImageUsesChat(gatewayID string) bool {
+	id := strings.ToLower(strings.TrimSpace(gatewayID))
+	if strings.Contains(id, "nano-banana") {
+		return true
+	}
+	return strings.Contains(id, "gemini") && strings.Contains(id, "image")
+}
+
+func irisImageChatPrompt(req irisProviderRequest) string {
+	prompt := strings.TrimSpace(req.Prompt)
+	var notes []string
+	if aspect := strings.TrimSpace(req.AspectRatio); aspect != "" {
+		notes = append(notes, "aspect ratio "+aspect)
+	}
+	if resolution := strings.TrimSpace(req.Resolution); resolution != "" {
+		notes = append(notes, "resolution "+resolution)
+	}
+	if len(notes) == 0 {
+		return prompt
+	}
+	note := "Generate the image at " + strings.Join(notes, ", ") + "."
+	if prompt == "" {
+		return note
+	}
+	return prompt + "\n\n" + note
+}
+
+func irisImageChatInputs(all, images []irisProviderInput) []irisProviderInput {
+	refs := append([]irisProviderInput{}, images...)
+	if mask, ok := firstInput(all, "mask"); ok {
+		refs = append(refs, mask)
+	}
+	return refs
 }
 
 func defaultType(value, fallback string) string {
