@@ -139,4 +139,102 @@ describe("buildOtaReleaseSnapshot", () => {
       "draft.key": "Draft",
     });
   });
+
+  it("exports only files on the requested branch", async () => {
+    const { organization, project } = await fixture.createStoredProjectFixture();
+    const [mainFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        sourcePath: "locales/en/messages.json",
+        branchName: "main",
+      })
+      .returning();
+    const [releaseFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        sourcePath: "locales/en/messages.json",
+        branchName: "release",
+      })
+      .returning();
+    if (!mainFile || !releaseFile) {
+      throw new Error("expected source files");
+    }
+
+    const [mainKey] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: mainFile.id,
+        key: "cta",
+        sourceText: "Buy now",
+        normalizedSourceText: "buy now",
+      })
+      .returning();
+    const [releaseKey] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: releaseFile.id,
+        key: "cta",
+        sourceText: "Get it",
+        normalizedSourceText: "get it",
+      })
+      .returning();
+    if (!mainKey || !releaseKey) {
+      throw new Error("expected keys");
+    }
+
+    await db.insert(schema.projectTranslations).values([
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: mainKey.id,
+        targetLocale: "fr-FR",
+        text: "Acheter",
+        status: "approved",
+        provenance: "manual",
+      },
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: releaseKey.id,
+        targetLocale: "fr-FR",
+        text: "Obtenir",
+        status: "approved",
+        provenance: "manual",
+      },
+    ]);
+
+    const releaseSnapshot = await buildOtaReleaseSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      fileIds: [mainFile.id, releaseFile.id],
+      locales: ["fr-FR"],
+      format: "json",
+      sourceLocale: "en-US",
+      branchName: "release",
+    });
+    const fr = releaseSnapshot.files.find(
+      (fileRow) => fileRow.relativePath === "/content/fr-FR/messages.json",
+    );
+    expect(JSON.parse(fr!.body.toString("utf8"))).toEqual({ cta: "Obtenir" });
+
+    const mismatched = await buildOtaReleaseSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      fileIds: [mainFile.id],
+      locales: ["fr-FR"],
+      format: "json",
+      sourceLocale: "en-US",
+      branchName: "release",
+    });
+    expect(mismatched.files).toEqual([]);
+    expect(mismatched.manifest.files).toEqual([]);
+  });
 });

@@ -725,6 +725,80 @@ describe("project job create", () => {
     );
   });
 
+  it("binds a file job to the requested branch version", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+      sourceKind: "repository_file",
+      metadata: { sourcePath: "locales/en.json" },
+    });
+
+    const response = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            branch: "feature-checkout",
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string } };
+    const [job] = await db
+      .select({ inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, body.job.id))
+      .limit(1);
+    expect(job?.inputPayload).toMatchObject({
+      sourceFileId: sourceFile.id,
+      branch: "feature-checkout",
+    });
+
+    const [details] = await db
+      .select({
+        sourceFileVersionId: schema.translationJobDetails.sourceFileVersionId,
+      })
+      .from(schema.translationJobDetails)
+      .where(eq(schema.translationJobDetails.jobId, body.job.id));
+    expect(details?.sourceFileVersionId).toEqual(expect.any(String));
+
+    const [version] = await db
+      .select({
+        storedFileId: schema.repositorySourceFileVersions.storedFileId,
+        branchName: schema.repositorySourceFiles.branchName,
+      })
+      .from(schema.repositorySourceFileVersions)
+      .innerJoin(
+        schema.repositorySourceFiles,
+        eq(
+          schema.repositorySourceFiles.id,
+          schema.repositorySourceFileVersions.repositorySourceFileId,
+        ),
+      )
+      .where(eq(schema.repositorySourceFileVersions.id, details?.sourceFileVersionId ?? ""));
+    expect(version).toMatchObject({
+      storedFileId: sourceFile.id,
+      branchName: "feature-checkout",
+    });
+  });
+
   it("keeps an explicit job title over the generated default", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);
