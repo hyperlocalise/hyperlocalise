@@ -21531,10 +21531,6 @@
     "defaultMessage": "Quick, low-cost voice-over",
     "description": "Card summary for the Gemini 3.8 Flash TTS voice model on the pricing page"
   },
-  "SHEAO5sth2": {
-    "defaultMessage": "Video Editor",
-    "description": "Project sidebar navigation item for the Video Editor"
-  },
   "SHi/1IAYoy": {
     "defaultMessage": "New and not matched",
     "description": "Chart series: text with no memory match of 50 percent or more, or whose memory could not be read"
@@ -32631,10 +32627,6 @@
     "defaultMessage": "Add Skill",
     "description": "Button to open the add-skill menu"
   },
-  "hbEoUHCttQ": {
-    "defaultMessage": "Localize on-screen video text and speech",
-    "description": "Sidebar description for the Video Editor navigation item"
-  },
   "hbLlLGpUB5": {
     "defaultMessage": "Forbidden only",
     "description": "Forbidden-only option"
@@ -41266,10 +41258,6 @@
   "tYBVGxIBlg": {
     "defaultMessage": "Syntax",
     "description": "Label for the placeholder syntax select"
-  },
-  "tYvhpR2krg": {
-    "defaultMessage": "Coming soon",
-    "description": "Badge shown next to the Video Editor navigation item"
   },
   "tZ+plgRfNJ": {
     "defaultMessage": "You do not have permission to update provider credentials.",

@@ -30,41 +30,58 @@ import { supportsContentEditorAllFilesProvider } from "@/lib/projects/content-ed
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   BookOpenTextIcon,
-  BookmarkIcon,
-  CrosshairIcon,
   ChartBarIcon,
-  ChatCircleIcon,
-  CheckCircleIcon,
-  ClipboardTextIcon,
-  CopyIcon,
-  CubeIcon,
-  SquaresFourIcon,
-  DatabaseIcon,
-  FileIcon,
-  FlagIcon,
-  GitBranchIcon,
-  LightningIcon,
-  FlaskIcon,
-  GlobeIcon,
-  TrayIcon,
-  KeyIcon,
-  TranslateIcon,
   ChatTextIcon,
-  MagnifyingGlassIcon,
-  ListMagnifyingGlassIcon,
+  ClipboardTextIcon,
+  DatabaseIcon,
+  FileTextIcon,
+  FlagIcon,
+  FlaskIcon,
+  FolderSimpleIcon,
   GearIcon,
+  GitBranchIcon,
+  GlobeIcon,
+  KeyIcon,
+  LightningIcon,
+  ListChecksIcon,
+  ListMagnifyingGlassIcon,
+  MagnifyingGlassIcon,
+  PlusCircleIcon,
+  QuestionIcon,
+  ScrollIcon,
+  SealCheckIcon,
   SparkleIcon,
-  TextTIcon,
+  SquaresFourIcon,
+  TextAaIcon,
+  TranslateIcon,
+  TrayIcon,
+  TrendUpIcon,
   UsersIcon,
-  VideoIcon,
 } from "@phosphor-icons/react/ssr";
 
 export type NavigationIcon = Icon;
+
+/** Hue used to tint a navigation item's icon so sections are easy to scan. */
+export type NavigationTone =
+  | "amber"
+  | "blue"
+  | "emerald"
+  | "fuchsia"
+  | "indigo"
+  | "orange"
+  | "pink"
+  | "purple"
+  | "rose"
+  | "sky"
+  | "teal"
+  | "violet";
 
 export type NavigationItem = {
   label: string;
   href: string;
   icon: NavigationIcon;
+  /** Icon tint. Items without a tone (Settings) keep the muted foreground color. */
+  tone?: NavigationTone;
   description?: string;
   badge?: string;
   /** When true, only the exact href is active (not nested paths). */
@@ -151,7 +168,8 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("inbox/new"),
           exact: true,
-          icon: ChatCircleIcon,
+          icon: PlusCircleIcon,
+          tone: "violet",
           description: intl.formatMessage({
             defaultMessage: "Ask the localisation agent to prepare work",
             id: "z45OPLD254",
@@ -166,6 +184,7 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("dashboard"),
           icon: SquaresFourIcon,
+          tone: "sky",
         },
         {
           label: intl.formatMessage({
@@ -174,7 +193,8 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for the projects list",
           }),
           href: org("projects"),
-          icon: CubeIcon,
+          icon: FolderSimpleIcon,
+          tone: "blue",
         },
       ],
     },
@@ -193,6 +213,7 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("inbox"),
           icon: TrayIcon,
+          tone: "sky",
         },
         {
           label: intl.formatMessage({
@@ -201,7 +222,8 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for the current user’s jobs",
           }),
           href: org("my-work"),
-          icon: CrosshairIcon,
+          icon: ListChecksIcon,
+          tone: "indigo",
         },
         {
           label: intl.formatMessage({
@@ -210,7 +232,8 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for workspace Queries",
           }),
           href: org("issues"),
-          icon: CopyIcon,
+          icon: QuestionIcon,
+          tone: "amber",
           featureFlagKey: WORKSPACE_QUERIES_BOARD_FLAG,
         },
         {
@@ -221,6 +244,7 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("reports"),
           icon: ChartBarIcon,
+          tone: "teal",
         },
         {
           label: intl.formatMessage({
@@ -229,7 +253,8 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for workspace translation QA reports",
           }),
           href: org("qa"),
-          icon: CheckCircleIcon,
+          icon: SealCheckIcon,
+          tone: "emerald",
         },
         {
           label: intl.formatMessage({
@@ -239,6 +264,7 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("automations"),
           icon: LightningIcon,
+          tone: "orange",
           featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
         },
       ],
@@ -258,6 +284,7 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("glossaries"),
           icon: BookOpenTextIcon,
+          tone: "violet",
         },
         {
           label: intl.formatMessage({
@@ -267,6 +294,7 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("translation-memories"),
           icon: DatabaseIcon,
+          tone: "fuchsia",
         },
         {
           label: intl.formatMessage({
@@ -275,7 +303,8 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for spellcheck dictionaries",
           }),
           href: org("dictionaries"),
-          icon: TextTIcon,
+          icon: TextAaIcon,
+          tone: "pink",
         },
         {
           label: intl.formatMessage({
@@ -284,7 +313,8 @@ export function buildGlobalNavigationGroups(
             description: "Sidebar navigation item for workspace guideline",
           }),
           href: org("knowledge"),
-          icon: BookmarkIcon,
+          icon: ScrollIcon,
+          tone: "purple",
           description: intl.formatMessage({
             defaultMessage: "Shared guidance for agents and teams",
             id: "dEzuHMWHq4",
@@ -327,7 +357,8 @@ export function buildProjectNavigationGroups(
         description: "Project sidebar navigation item for project files",
       }),
       href: project("files"),
-      icon: FileIcon,
+      icon: FileTextIcon,
+      tone: "sky",
     },
   ];
 
@@ -340,30 +371,10 @@ export function buildProjectNavigationGroups(
       }),
       href: project("strings"),
       icon: TranslateIcon,
+      tone: "violet",
       featureFlagKey: RELEASE_CAT_ALL_FILES_FLAG,
     });
   }
-
-  contentStudioItems.push({
-    label: intl.formatMessage({
-      defaultMessage: "Video Editor",
-      id: "SHEAO5sth2",
-      description: "Project sidebar navigation item for the Video Editor",
-    }),
-    href: project("videos"),
-    icon: VideoIcon,
-    description: intl.formatMessage({
-      defaultMessage: "Localize on-screen video text and speech",
-      id: "hbEoUHCttQ",
-      description: "Sidebar description for the Video Editor navigation item",
-    }),
-    badge: intl.formatMessage({
-      defaultMessage: "Coming soon",
-      id: "tYvhpR2krg",
-      description: "Badge shown next to the Video Editor navigation item",
-    }),
-    disabled: true,
-  });
 
   const workspaceItems: NavigationItem[] = [];
 
@@ -377,6 +388,7 @@ export function buildProjectNavigationGroups(
         }),
         href: project("branches"),
         icon: GitBranchIcon,
+        tone: "rose",
       },
       {
         label: intl.formatMessage({
@@ -385,7 +397,8 @@ export function buildProjectNavigationGroups(
           description: "Project sidebar navigation item for translation QA reports",
         }),
         href: project("qa"),
-        icon: CheckCircleIcon,
+        icon: SealCheckIcon,
+        tone: "emerald",
       },
     );
   }
@@ -398,7 +411,8 @@ export function buildProjectNavigationGroups(
         description: "Project sidebar navigation item for project guideline",
       }),
       href: project("knowledge"),
-      icon: BookmarkIcon,
+      icon: ScrollIcon,
+      tone: "purple",
       description: intl.formatMessage({
         defaultMessage: "Project guidance for agents and teams",
         id: "+RGsVNsQWz",
@@ -413,7 +427,8 @@ export function buildProjectNavigationGroups(
         description: "Project sidebar navigation item for project jobs",
       }),
       href: project("jobs"),
-      icon: CrosshairIcon,
+      icon: ListChecksIcon,
+      tone: "indigo",
     },
     {
       label: intl.formatMessage({
@@ -422,7 +437,8 @@ export function buildProjectNavigationGroups(
         description: "Project sidebar navigation item for project Queries",
       }),
       href: project("issue-sheet"),
-      icon: CopyIcon,
+      icon: QuestionIcon,
+      tone: "amber",
       featureFlagKey: WORKSPACE_QUERIES_BOARD_FLAG,
     },
     {
@@ -433,6 +449,7 @@ export function buildProjectNavigationGroups(
       }),
       href: project("automations"),
       icon: LightningIcon,
+      tone: "orange",
       featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
     },
   );
@@ -447,6 +464,7 @@ export function buildProjectNavigationGroups(
       }),
       href: project("reports"),
       icon: ChartBarIcon,
+      tone: "teal",
     });
   }
 
@@ -460,7 +478,8 @@ export function buildProjectNavigationGroups(
             description: "Project sidebar navigation item for the project overview",
           }),
           href: buildProjectPath(organizationSlug, projectId),
-          icon: CubeIcon,
+          icon: SquaresFourIcon,
+          tone: "blue",
         },
       ],
     },
@@ -520,6 +539,7 @@ export function buildDomainNavigationItems(
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId),
       icon: GlobeIcon,
+      tone: "blue",
     },
     {
       label: intl.formatMessage({
@@ -529,6 +549,7 @@ export function buildDomainNavigationItems(
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "keywords"),
       icon: MagnifyingGlassIcon,
+      tone: "sky",
     },
     {
       label: intl.formatMessage({
@@ -537,7 +558,8 @@ export function buildDomainNavigationItems(
         description: "Domain sidebar navigation item for rank tracking",
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "ranks"),
-      icon: ChartBarIcon,
+      icon: TrendUpIcon,
+      tone: "teal",
     },
     {
       label: intl.formatMessage({
@@ -547,6 +569,7 @@ export function buildDomainNavigationItems(
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "brand"),
       icon: SparkleIcon,
+      tone: "violet",
     },
     {
       label: intl.formatMessage({
@@ -556,6 +579,7 @@ export function buildDomainNavigationItems(
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "prompts"),
       icon: ChatTextIcon,
+      tone: "fuchsia",
     },
     {
       label: intl.formatMessage({
@@ -565,6 +589,7 @@ export function buildDomainNavigationItems(
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "search-console"),
       icon: ListMagnifyingGlassIcon,
+      tone: "amber",
     },
     {
       label: intl.formatMessage({
@@ -574,6 +599,7 @@ export function buildDomainNavigationItems(
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "audit"),
       icon: ClipboardTextIcon,
+      tone: "emerald",
     },
   ];
 }
@@ -593,6 +619,7 @@ export function buildHyperlabNavigationItems(
       }),
       href: hyperlab(),
       icon: SquaresFourIcon,
+      tone: "blue",
       exact: true,
     },
     {
@@ -603,6 +630,7 @@ export function buildHyperlabNavigationItems(
       }),
       href: hyperlab("experiments"),
       icon: FlaskIcon,
+      tone: "violet",
     },
     {
       label: intl.formatMessage({
@@ -612,6 +640,7 @@ export function buildHyperlabNavigationItems(
       }),
       href: hyperlab("audiences"),
       icon: UsersIcon,
+      tone: "sky",
     },
     {
       label: intl.formatMessage({
@@ -621,6 +650,7 @@ export function buildHyperlabNavigationItems(
       }),
       href: hyperlab("flags"),
       icon: FlagIcon,
+      tone: "rose",
     },
     {
       label: intl.formatMessage({
@@ -630,6 +660,7 @@ export function buildHyperlabNavigationItems(
       }),
       href: hyperlab("keys"),
       icon: KeyIcon,
+      tone: "amber",
     },
   ];
 }
