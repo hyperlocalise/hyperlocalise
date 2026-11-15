@@ -87,8 +87,8 @@ const managedDefaultModelId = `openai/${hyperlocaliseAgentModelId}`;
 export const pricingRecommendedModelIds = [
   managedDefaultModelId,
   "claude-sonnet-5",
-  "nano-banana-2.1",
   "gpt-image-2.6-sunburst",
+  "nano-banana-2.1",
   "image-localise",
   "veo-3.1",
   "kling-3-pro",

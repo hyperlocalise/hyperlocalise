@@ -65,18 +65,21 @@ type irisAssetRef struct {
 
 type irisGenerateRequest map[string]any
 
+// Image ids follow Artificial Analysis AA-Image-T2I among models we already
+// ship. GPT Image 2.6 Sunburst is first; we do not add 2.5, Flare, Kling
+// Image, MAI, or Canva Craft until they are in the generate catalog.
 func irisModels() []irisModelInfo {
 	return []irisModelInfo{
-		{ID: "nano-banana-2.1", Name: "Nano Banana 2.1", Kind: irisKindImage, GatewayID: "google/gemini-nano-banana-2.1", ETASeconds: 20, PromptMax: 32000},
-		{ID: "nano-banana-pro", Name: "Nano Banana Pro", Kind: irisKindImage, GatewayID: "google/gemini-3-pro-image", ETASeconds: 25, PromptMax: 32000},
 		{ID: "gpt-image-2.6-sunburst", Name: "GPT Image 2.6 Sunburst", Kind: irisKindImage, GatewayID: "openai/gpt-image-2.6-sunburst", ETASeconds: 30, PromptMax: 32000},
+		{ID: "nano-banana-2.1", Name: "Nano Banana 2.1", Kind: irisKindImage, GatewayID: "google/gemini-nano-banana-2.1", ETASeconds: 20, PromptMax: 32000},
+		{ID: "grok-imagine-image-2.0", Name: "Grok Imagine 2.0", Kind: irisKindImage, GatewayID: "spacexai/grok-imagine-image-2.0", ETASeconds: 16, PromptMax: 32000},
 		{ID: "nano-banana-2", Name: "Nano Banana 2", Kind: irisKindImage, GatewayID: "google/gemini-3.1-flash-image", ETASeconds: 18, PromptMax: 32000},
+		{ID: "nano-banana-pro", Name: "Nano Banana Pro", Kind: irisKindImage, GatewayID: "google/gemini-3-pro-image", ETASeconds: 25, PromptMax: 32000},
 		{ID: "seedream-5.0-pro", Name: "Seedream 5.0 Pro", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "bytedance/seedream-4.5", NativeID: "fal-ai/bytedance/seedream/v4.5/text-to-image", FalRefID: "fal-ai/bytedance/seedream/v4.5/edit", ETASeconds: 22, PromptMax: 32000},
 		{ID: "flux-3-image", Name: "FLUX.3 Image", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "black-forest-labs/flux-2-pro", NativeID: "fal-ai/flux-2-pro", ETASeconds: 24, PromptMax: 32000},
 		{ID: "flux-2-pro", Name: "FLUX.2 Pro", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "black-forest-labs/flux-2-pro", NativeID: "fal-ai/flux-2-pro", ETASeconds: 20, PromptMax: 32000},
-		{ID: "grok-imagine-image-2.0", Name: "Grok Imagine 2.0", Kind: irisKindImage, GatewayID: "spacexai/grok-imagine-image-2.0", ETASeconds: 16, PromptMax: 32000},
-		{ID: "flux-2-klein", Name: "FLUX.2 Klein", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "black-forest-labs/flux-2-klein", NativeID: "fal-ai/flux/schnell", ETASeconds: 12, PromptMax: 32000},
 		{ID: "krea-2-large", Name: "Krea 2 Large", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "krea/krea-2", NativeID: "fal-ai/krea-2", ETASeconds: 18, PromptMax: 32000},
+		{ID: "flux-2-klein", Name: "FLUX.2 Klein", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "black-forest-labs/flux-2-klein", NativeID: "fal-ai/flux/schnell", ETASeconds: 12, PromptMax: 32000},
 		{ID: "veo-3.1", Name: "Veo 3.1", Kind: irisKindVideo, GatewayID: "google/veo-3.1-generate-001", ETASeconds: 90, PromptMax: 4000},
 		{ID: "veo-3.1-fast", Name: "Veo 3.1 Fast", Kind: irisKindVideo, GatewayID: "google/veo-3.1-fast-generate-001", ETASeconds: 60, PromptMax: 4000},
 		{ID: "kling-3-pro", Name: "Kling 3.0", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/v3/pro/text-to-video", FalRefID: "fal-ai/kling-video/v3/pro/image-to-video", ETASeconds: 80, PromptMax: 4000},
