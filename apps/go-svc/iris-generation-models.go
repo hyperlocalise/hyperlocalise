@@ -69,16 +69,16 @@ func irisModels() []irisModelInfo {
 	return []irisModelInfo{
 		{ID: "nano-banana-2.1", Name: "Nano Banana 2.1", Kind: irisKindImage, GatewayID: "google/gemini-nano-banana-2.1", ETASeconds: 20, PromptMax: 32000},
 		{ID: "nano-banana-pro", Name: "Nano Banana Pro", Kind: irisKindImage, GatewayID: "google/gemini-3-pro-image", ETASeconds: 25, PromptMax: 32000},
-		{ID: "gpt-image-2.6-sunburst", Name: "GPT Image 2.6 Sunburst", Kind: irisKindImage, GatewayID: "openai/gpt-image-2.6-flare", ETASeconds: 30, PromptMax: 32000},
+		{ID: "gpt-image-2.6-sunburst", Name: "GPT Image 2.6 Sunburst", Kind: irisKindImage, GatewayID: "openai/gpt-image-2.6-sunburst", ETASeconds: 30, PromptMax: 32000},
 		{ID: "nano-banana-2", Name: "Nano Banana 2", Kind: irisKindImage, GatewayID: "google/gemini-3.1-flash-image", ETASeconds: 18, PromptMax: 32000},
 		{ID: "seedream-5.0-pro", Name: "Seedream 5.0 Pro", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "bytedance/seedream-4.5", NativeID: "fal-ai/bytedance/seedream/v4.5/text-to-image", FalRefID: "fal-ai/bytedance/seedream/v4.5/edit", ETASeconds: 22, PromptMax: 32000},
 		{ID: "flux-3-image", Name: "FLUX.3 Image", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "black-forest-labs/flux-2-pro", NativeID: "fal-ai/flux-2-pro", ETASeconds: 24, PromptMax: 32000},
 		{ID: "flux-2-pro", Name: "FLUX.2 Pro", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "black-forest-labs/flux-2-pro", NativeID: "fal-ai/flux-2-pro", ETASeconds: 20, PromptMax: 32000},
-		{ID: "grok-imagine-image-2.0", Name: "Grok Imagine 2.0", Kind: irisKindImage, GatewayID: "xai/grok-imagine-image", ETASeconds: 16, PromptMax: 32000},
+		{ID: "grok-imagine-image-2.0", Name: "Grok Imagine 2.0", Kind: irisKindImage, GatewayID: "spacexai/grok-imagine-image-2.0", ETASeconds: 16, PromptMax: 32000},
 		{ID: "flux-2-klein", Name: "FLUX.2 Klein", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "black-forest-labs/flux-2-klein", NativeID: "fal-ai/flux/schnell", ETASeconds: 12, PromptMax: 32000},
 		{ID: "krea-2-large", Name: "Krea 2 Large", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "krea/krea-2", NativeID: "fal-ai/krea-2", ETASeconds: 18, PromptMax: 32000},
-		{ID: "veo-3.1", Name: "Veo 3.1", Kind: irisKindVideo, GatewayID: "google/veo-3.1", ETASeconds: 90, PromptMax: 4000},
-		{ID: "veo-3.1-fast", Name: "Veo 3.1 Fast", Kind: irisKindVideo, GatewayID: "google/veo-3.1-fast", ETASeconds: 60, PromptMax: 4000},
+		{ID: "veo-3.1", Name: "Veo 3.1", Kind: irisKindVideo, GatewayID: "google/veo-3.1-generate-001", ETASeconds: 90, PromptMax: 4000},
+		{ID: "veo-3.1-fast", Name: "Veo 3.1 Fast", Kind: irisKindVideo, GatewayID: "google/veo-3.1-fast-generate-001", ETASeconds: 60, PromptMax: 4000},
 		{ID: "kling-3-pro", Name: "Kling 3.0", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/v3/pro/text-to-video", FalRefID: "fal-ai/kling-video/v3/pro/image-to-video", ETASeconds: 80, PromptMax: 4000},
 		{ID: "kling-o3-pro", Name: "Kling 3.0 Omni", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/o3/pro/text-to-video", FalRefID: "fal-ai/kling-video/o3/pro/image-to-video", FalVideoID: "fal-ai/kling-video/o3/pro/video-to-video/edit", FalReferencesID: "fal-ai/kling-video/o3/pro/reference-to-video", MaxReferences: 4, ETASeconds: 90, PromptMax: 4000},
 		{ID: "seedance-2.5", Name: "Seedance 2.5", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "bytedance/seedance-2.5/text-to-video", FalRefID: "bytedance/seedance-2.5/image-to-video", FalReferencesID: "bytedance/seedance-2.5/reference-to-video", MaxReferences: 30, ReferencesReplaceFrames: true, ETASeconds: 70, PromptMax: 4000},
@@ -86,10 +86,10 @@ func irisModels() []irisModelInfo {
 		{ID: "minimax-h3", Name: "MiniMax H3", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "minimax/hailuo-2.3", NativeID: "minimax/h3/text-to-video", FalRefID: "minimax/h3/image-to-video", ETASeconds: 80, PromptMax: 4000},
 		{ID: "minimax-h3-max", Name: "MiniMax H3 Max", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "minimax/hailuo-2.3", NativeID: "minimax/h3-max/text-to-video", FalRefID: "minimax/h3-max/image-to-video", ETASeconds: 55, PromptMax: 4000},
 		{ID: "flux-3-video", Name: "FLUX.3 Video", Kind: irisKindVideo, GatewayID: "bfl/flux-3-video", ETASeconds: 70, PromptMax: 4000},
-		{ID: "grok-imagine-video-1.5", Name: "Grok Imagine Video 1.5", Kind: irisKindVideo, GatewayID: "xai/grok-imagine-video", ETASeconds: 50, PromptMax: 4000},
+		{ID: "grok-imagine-video-1.5", Name: "Grok Imagine Video 1.5", Kind: irisKindVideo, GatewayID: "spacexai/grok-imagine-video-1.5", ETASeconds: 50, PromptMax: 4000},
 		{ID: "elevenlabs-v4", Name: "ElevenLabs v4", Kind: irisKindVoice, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/eleven-v3", NativeID: "eleven_v4", ETASeconds: 15, PromptMax: 10000},
 		{ID: "elevenlabs-v3", Name: "ElevenLabs v3", Kind: irisKindVoice, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/eleven-multilingual-v2", NativeID: "eleven_multilingual_v2", ETASeconds: 12, PromptMax: 5000},
-		{ID: "gemini-3.8-flash-tts", Name: "Gemini 3.8 Flash TTS", Kind: irisKindVoice, GatewayID: "google/gemini-2.5-flash-preview-tts", ETASeconds: 10, PromptMax: 10000},
+		{ID: "gemini-3.8-flash-tts", Name: "Gemini 3.8 Flash TTS", Kind: irisKindVoice, GatewayID: "google/gemini-3.8-flash-tts", ETASeconds: 10, PromptMax: 10000},
 		// Fish Audio on AI Gateway is speech and transcription only. There is
 		// no Gateway music or SFX id; those stay on ElevenLabs. S2.1 Pro is
 		// the production TTS; Drama 3 is the current performance model. S2
@@ -106,7 +106,7 @@ func irisModels() []irisModelInfo {
 		{ID: "bytedance-upscaler", Name: "ByteDance Upscaler", Kind: irisKindTool, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "fal-ai/bytedance-upscaler/upscale/video", ETASeconds: 60, RequiresRef: true},
 		{ID: "universal-3.5-pro", Name: "Universal 3.5 Pro", Kind: irisKindTool, GatewayID: "google/gemini-3.5-transcribe", ETASeconds: 25, RequiresRef: true},
 		{ID: "fish-audio-transcribe-1", Name: "Fish Audio Transcribe 1", Kind: irisKindTool, GatewayID: "fish-audio/transcribe-1", ETASeconds: 25, RequiresRef: true},
-		{ID: "qwen3.8-omni-flash", Name: "Qwen 3.8 Omni Flash", Kind: irisKindTool, GatewayID: "alibaba/qwen3-omni-flash", ETASeconds: 20, RequiresRef: true},
+		{ID: "qwen3.8-omni-flash", Name: "Qwen 3.8 Omni Flash", Kind: irisKindTool, GatewayID: "alibaba/qwen3.8-omni-flash", ETASeconds: 20, RequiresRef: true},
 		// Localisation: dubbing in the speakers' own voices, lip-sync to new
 		// audio, and reading and rewriting the copy baked into an image.
 		{ID: "elevenlabs-dubbing", Name: "ElevenLabs Dubbing", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "dubbing", ETASeconds: 240, RequiresRef: true},

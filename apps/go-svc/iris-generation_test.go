@@ -601,7 +601,7 @@ func TestIrisSyntheticCredit(t *testing.T) {
 		{
 			name:   "gateway video seconds",
 			job:    irisJobRecord{ID: "job_veo", OrgID: "org_local", Model: "veo-3.1", Request: irisGenerateRequest{"duration": float64(8)}},
-			model:  "google/veo-3.1",
+			model:  "google/veo-3.1-generate-001",
 			vendor: "gateway",
 			output: 8,
 		},
@@ -650,7 +650,7 @@ func TestIrisSyntheticCredit(t *testing.T) {
 		{
 			name:   "omni flash default input minute",
 			job:    irisJobRecord{ID: "job_omni", OrgID: "org_local", Model: "qwen3.8-omni-flash"},
-			model:  "alibaba/qwen3-omni-flash",
+			model:  "alibaba/qwen3.8-omni-flash",
 			vendor: "gateway",
 			output: 1,
 		},
@@ -685,7 +685,7 @@ func TestIrisSyntheticCredit(t *testing.T) {
 		{
 			name:   "gemini tts gateway audio minute",
 			job:    irisJobRecord{ID: "job_gemini_tts", OrgID: "org_local", Model: "gemini-3.8-flash-tts"},
-			model:  "google/gemini-2.5-flash-preview-tts",
+			model:  "google/gemini-3.8-flash-tts",
 			vendor: "gateway",
 			output: 1,
 		},

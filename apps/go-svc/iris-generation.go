@@ -43,6 +43,7 @@ type irisUsageMeter interface {
 type irisCreditConfig struct {
 	FalImageModelID          string
 	FalVideoModelID          string
+	FalAudioModelID          string
 	ElevenLabsSecondModelID  string
 	ElevenLabsMinuteModelID  string
 	ElevenLabsDubbingModelID string
@@ -194,6 +195,9 @@ func (api *irisGenerationAPI) creditModels() irisCreditConfig {
 	}
 	cfg.FalImageModelID = irisFirstNonEmpty(cfg.FalImageModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_FAL_IMAGE_MODEL_ID")), defaultIrisFalImageCreditModel)
 	cfg.FalVideoModelID = irisFirstNonEmpty(cfg.FalVideoModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_FAL_VIDEO_MODEL_ID")), defaultIrisFalVideoCreditModel)
+	// Fal music (Lyria) is billed per second of returned audio at the
+	// ElevenLabs music rate until it has its own custom model.
+	cfg.FalAudioModelID = irisFirstNonEmpty(cfg.FalAudioModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_FAL_AUDIO_MODEL_ID")), defaultIrisElevenLabsSecondCreditModel)
 	cfg.ElevenLabsSecondModelID = irisFirstNonEmpty(cfg.ElevenLabsSecondModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_ELEVENLABS_SECOND_MODEL_ID")), defaultIrisElevenLabsSecondCreditModel)
 	cfg.ElevenLabsMinuteModelID = irisFirstNonEmpty(cfg.ElevenLabsMinuteModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID")), defaultIrisElevenLabsMinuteCreditModel)
 	cfg.ElevenLabsDubbingModelID = irisFirstNonEmpty(cfg.ElevenLabsDubbingModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_ELEVENLABS_DUBBING_MODEL_ID")), defaultIrisElevenLabsDubbingCreditModel)
@@ -277,6 +281,9 @@ func irisSyntheticCredit(job irisJobRecord, credits irisCreditConfig) (autumn.Tr
 	case irisFalVideoModel(model):
 		req.ModelID = credits.FalVideoModelID
 		req.OutputTokens = irisDurationSeconds(job)
+	case model.Provider == irisProviderFal && model.Kind == irisKindAudio:
+		req.ModelID = credits.FalAudioModelID
+		req.OutputTokens = irisOutputAudioSeconds(job)
 	case model.Provider == irisProviderFal:
 		req.ModelID = credits.FalImageModelID
 		req.OutputTokens = irisImageCount(job)
@@ -315,6 +322,21 @@ func irisImageCount(job irisJobRecord) int {
 		return 1
 	}
 	return n
+}
+
+// irisOutputAudioSeconds is the length of the audio a job returned, rounded
+// up to whole seconds. A file that couldn't be measured falls back to the
+// requested duration.
+func irisOutputAudioSeconds(job irisJobRecord) int {
+	var total float64
+	for _, asset := range job.Assets {
+		total += asset.DurationSeconds
+	}
+	if total <= 0 {
+		slog.Warn("iris_generation_audio_duration_unknown", "job_id", job.ID, "model", job.Model)
+		return irisDurationSeconds(job)
+	}
+	return int(math.Ceil(total))
 }
 
 func irisDurationSeconds(job irisJobRecord) int {
@@ -723,12 +745,18 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 			return
 		}
 		keys = append(keys, key)
-		assets = append(assets, irisJobAsset{
+		asset := irisJobAsset{
 			Filename:    output.Filename,
 			ContentType: output.ContentType,
 			Size:        len(output.Bytes),
 			Key:         key,
-		})
+		}
+		if strings.HasPrefix(output.ContentType, "audio/") {
+			if seconds, ok := irisAudioDurationSeconds(output.Bytes); ok {
+				asset.DurationSeconds = seconds
+			}
+		}
+		assets = append(assets, asset)
 	}
 	completed := api.clock().Format(time.RFC3339)
 	job.Status = "succeeded"

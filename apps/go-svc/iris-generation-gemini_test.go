@@ -138,3 +138,20 @@ func TestIrisGatewayProviderGeminiImageCapsCount(t *testing.T) {
 	require.Len(t, outputs, irisMaxImageCount)
 	require.Len(t, payloads, irisMaxImageCount)
 }
+
+func TestIrisGatewayOnlyModelIDs(t *testing.T) {
+	want := map[string]string{
+		"veo-3.1":                "google/veo-3.1-generate-001",
+		"veo-3.1-fast":           "google/veo-3.1-fast-generate-001",
+		"grok-imagine-image-2.0": "spacexai/grok-imagine-image-2.0",
+		"grok-imagine-video-1.5": "spacexai/grok-imagine-video-1.5",
+		"gemini-3.8-flash-tts":   "google/gemini-3.8-flash-tts",
+		"qwen3.8-omni-flash":     "alibaba/qwen3.8-omni-flash",
+		"gpt-image-2.6-sunburst": "openai/gpt-image-2.6-sunburst",
+	}
+	for id, gatewayID := range want {
+		model, ok := irisModelByID(id)
+		require.True(t, ok, id)
+		require.Equal(t, gatewayID, model.GatewayID, id)
+	}
+}
