@@ -230,4 +230,80 @@ describe("otaDistributionRoutes", () => {
     const manifest = (await publicManifest.json()) as { schema_version: number };
     expect(manifest.schema_version).toBe(1);
   });
+
+  it("does not rotate or revoke a distribution that belongs to another project", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("developer");
+    const auth = await headers(identity);
+    const ownedProjectResponse = await fixture.createProjectViaApi(identity);
+    const otherProjectResponse = await fixture.createProjectViaApi(identity, {
+      name: "Other native project",
+    });
+    const ownedProject = (await ownedProjectResponse.json()) as {
+      project: { id: string; organizationId: string };
+    };
+    const otherProject = (await otherProjectResponse.json()) as {
+      project: { id: string; organizationId: string };
+    };
+
+    const [file] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({
+        organizationId: otherProject.project.organizationId,
+        projectId: otherProject.project.id,
+        sourcePath: "messages.json",
+      })
+      .returning();
+    if (!file) {
+      throw new Error("expected source file");
+    }
+
+    const created = await distributionsApi.$post(
+      {
+        param: param(identity, otherProject.project.id),
+        json: {
+          name: "Mobile",
+          fileIds: [file.id],
+          locales: ["fr-FR"],
+          format: "json",
+        },
+      },
+      auth,
+    );
+    expect(created.status).toBe(201);
+    const createdBody = (await created.json()) as {
+      distribution: { id: string; publicHash: string; revokedAt: string | null };
+    };
+
+    const foreignParam = {
+      ...param(identity, ownedProject.project.id),
+      distributionId: createdBody.distribution.id,
+    };
+    const rotated = await distributionsApi[":distributionId"].rotate.$post(
+      { param: foreignParam },
+      auth,
+    );
+    expect(rotated.status).toBe(404);
+
+    const revoked = await distributionsApi[":distributionId"].revoke.$post(
+      { param: foreignParam },
+      auth,
+    );
+    expect(revoked.status).toBe(404);
+
+    const listed = await distributionsApi.$get(
+      { param: param(identity, otherProject.project.id) },
+      auth,
+    );
+    expect(listed.status).toBe(200);
+    const listBody = (await listed.json()) as {
+      distributions: Array<{ id: string; publicHash: string; revokedAt: string | null }>;
+    };
+    expect(listBody.distributions).toEqual([
+      expect.objectContaining({
+        id: createdBody.distribution.id,
+        publicHash: createdBody.distribution.publicHash,
+        revokedAt: null,
+      }),
+    ]);
+  });
 });
