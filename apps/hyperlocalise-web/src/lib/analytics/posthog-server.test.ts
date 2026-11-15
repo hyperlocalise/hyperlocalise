@@ -95,9 +95,13 @@ describe("capturePostHogServerException", () => {
   it("no-ops when the project token is missing", async () => {
     const captureExceptionFn = vi.fn();
 
-    await capturePostHogServerException(new Error("boom"), { source: "server_request" }, {
-      captureExceptionFn,
-    });
+    await capturePostHogServerException(
+      new Error("boom"),
+      { source: "server_request" },
+      {
+        captureExceptionFn,
+      },
+    );
 
     expect(captureExceptionFn).not.toHaveBeenCalled();
   });
