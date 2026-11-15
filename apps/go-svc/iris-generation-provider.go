@@ -122,7 +122,11 @@ func (p *irisGatewayProvider) image(ctx context.Context, req irisProviderRequest
 	if count < 1 {
 		count = 1
 	}
-	if refs := inputsByRole(req.Inputs, "image", "start", "end"); len(refs) > 0 {
+	refs := inputsByRole(req.Inputs, "image", "start", "end")
+	if isIrisChatImageModel(req.Model.GatewayID) {
+		return p.chatImage(ctx, req, refs, count)
+	}
+	if len(refs) > 0 {
 		return p.imageEdit(ctx, req, refs, count)
 	}
 	payload := map[string]any{
