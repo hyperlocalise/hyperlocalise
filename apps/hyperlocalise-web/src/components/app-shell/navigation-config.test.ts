@@ -258,7 +258,6 @@ describe("path builders", () => {
       ["Overview", "/org/acme/projects/proj_1"],
       ["Files", "/org/acme/projects/proj_1/files"],
       ["Content Editor", "/org/acme/projects/proj_1/strings"],
-      ["Video Editor", "/org/acme/projects/proj_1/videos"],
       ["Branches", "/org/acme/projects/proj_1/branches"],
       ["QA", "/org/acme/projects/proj_1/qa"],
       ["Guideline", "/org/acme/projects/proj_1/knowledge"],
@@ -275,8 +274,6 @@ describe("path builders", () => {
     expect(items.find((item) => item.label === "Automations")?.featureFlagKey).toBe(
       WORKSPACE_AUTOMATIONS_FLAG,
     );
-    expect(items.find((item) => item.label === "Video Editor")?.badge).toBe("Coming soon");
-    expect(items.find((item) => item.label === "Video Editor")?.disabled).toBe(true);
   });
 
   it("builds project navigation groups scoped to the project", () => {
@@ -289,11 +286,7 @@ describe("path builders", () => {
       undefined,
     ]);
     expect(groups[0]?.items.map((item) => item.label)).toEqual(["Overview"]);
-    expect(groups[1]?.items.map((item) => item.label)).toEqual([
-      "Files",
-      "Content Editor",
-      "Video Editor",
-    ]);
+    expect(groups[1]?.items.map((item) => item.label)).toEqual(["Files", "Content Editor"]);
     expect(groups[2]?.items.map((item) => item.label)).toEqual([
       "Branches",
       "QA",
@@ -566,12 +559,9 @@ describe("buildProjectNavigationItems", () => {
     expect(automationsItem?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
   });
 
-  it("includes a disabled Video Editor item with Coming soon badge", () => {
+  it("does not include a Video Editor item", () => {
     const items = buildProjectNavigationItems("acme", "proj_1", intl);
-    const videoEditorItem = items.find((item) => item.label === "Video Editor");
-    expect(videoEditorItem?.href).toBe("/org/acme/projects/proj_1/videos");
-    expect(videoEditorItem?.badge).toBe("Coming soon");
-    expect(videoEditorItem?.disabled).toBe(true);
+    expect(items.some((item) => item.label === "Video Editor")).toBe(false);
   });
 });
 

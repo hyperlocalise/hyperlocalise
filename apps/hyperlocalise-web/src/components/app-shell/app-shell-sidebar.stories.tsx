@@ -103,9 +103,7 @@ export const ProjectNavigation: Story = {
     await expect(canvas.getByRole("link", { name: "Files" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Overview" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Branches" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: /Video Editor/ })).toHaveAttribute(
-      "data-trigger-disabled",
-    );
+    await expect(canvas.queryByRole("button", { name: /Video Editor/ })).not.toBeInTheDocument();
   },
 };
 
