@@ -343,8 +343,8 @@ export const env = createEnv({
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: z.url().optional(),
 
     /**
-     * PostHog project token. Optional — without it, PostHog client and server
-     * capture no-op. The token is public by design (`phc_…`).
+     * PostHog project token. Optional — without it, PostHog analytics and error
+     * tracking no-op. The token is public by design (`phc_…`).
      */
     NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: z.string().min(1).optional(),
 

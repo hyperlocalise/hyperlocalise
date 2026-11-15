@@ -12,9 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect } from "react";
-
 import { ErrorRecovery } from "@/components/error-recovery/error-recovery";
+import { useCaptureRouteError } from "@/lib/analytics/use-capture-route-error";
 
 import "./globals.css";
 
@@ -26,9 +25,7 @@ type GlobalErrorProps = {
 };
 
 export default function GlobalError({ error, unstable_retry }: GlobalErrorProps) {
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
+  useCaptureRouteError(error, "global");
 
   return (
     <html lang="en">

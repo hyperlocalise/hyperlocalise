@@ -12,10 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect } from "react";
 import { useParams } from "next/navigation";
 
 import { LocalizedErrorRecovery } from "@/components/error-recovery/localized-error-recovery";
+import { useCaptureRouteError } from "@/lib/analytics/use-capture-route-error";
 
 type OrganizationErrorProps = {
   error: Error & { digest?: string };
@@ -27,10 +27,7 @@ export default function OrganizationError({ error, unstable_retry }: Organizatio
     lang: string;
     organizationSlug: string;
   }>();
-
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
+  useCaptureRouteError(error, "organization");
 
   return (
     <LocalizedErrorRecovery

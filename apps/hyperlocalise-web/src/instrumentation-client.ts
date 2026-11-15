@@ -26,7 +26,11 @@ if (posthogToken) {
     ui_host: posthogUiHost(),
     defaults: "2026-08-30",
     autocapture: false,
-    capture_exceptions: false,
+    capture_exceptions: {
+      capture_unhandled_errors: true,
+      capture_unhandled_rejections: true,
+      capture_console_errors: false,
+    },
     disable_session_recording: true,
     person_profiles: "identified_only",
   });

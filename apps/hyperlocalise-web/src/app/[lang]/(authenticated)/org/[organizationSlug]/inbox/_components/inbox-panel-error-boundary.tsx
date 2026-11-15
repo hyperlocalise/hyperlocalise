@@ -19,6 +19,7 @@ import { FormattedMessage } from "react-intl";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { capturePostHogClientException } from "@/lib/analytics/posthog-client";
 import { cn } from "@/lib/primitives/cn";
 
 import { inboxPanelErrorBoundaryMessages } from "./inbox-panel-error-boundary.messages";
@@ -100,6 +101,10 @@ export function InboxPanelErrorBoundary({
         if (error instanceof Error) {
           logInboxPanelError(scope, error, info);
         }
+        capturePostHogClientException(error, {
+          source: "component_error_boundary",
+          feature: "inbox_panel",
+        });
       }}
       resetKeys={resetKeys}
     >

@@ -12,11 +12,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useIntl } from "react-intl";
 
 import { ErrorRecovery } from "@/components/error-recovery/error-recovery";
+import { useCaptureRouteError } from "@/lib/analytics/use-capture-route-error";
 import { errorRecoveryMessages } from "@/components/error-recovery/error-recovery.messages";
 
 import { localisationAuditResultRouteErrorMessages as messages } from "./error.messages";
@@ -32,10 +32,7 @@ export default function LocalisationAuditResultError({
 }: LocalisationAuditResultErrorProps) {
   const { lang } = useParams<{ lang: string }>();
   const intl = useIntl();
-
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
+  useCaptureRouteError(error, "localisation_audit");
 
   return (
     <ErrorRecovery

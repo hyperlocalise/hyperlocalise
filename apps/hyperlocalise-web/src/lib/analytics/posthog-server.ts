@@ -25,12 +25,24 @@ export type PostHogServerCaptureInput = {
   properties?: Record<string, string | number | boolean>;
 };
 
+export type PostHogServerExceptionInput = {
+  distinctId: string;
+  error: unknown;
+  properties?: Record<string, string | number | boolean>;
+};
+
 export type PostHogServerTrackOptions = {
   projectToken?: string;
   host?: string;
   distinctId?: string;
   captureFn?: (event: PostHogServerCaptureInput) => void | Promise<void>;
+  captureExceptionFn?: (event: PostHogServerExceptionInput) => void | Promise<void>;
   resolveSession?: () => Promise<PostHogServerSession | null | undefined>;
+};
+
+type ResolvedPostHogIdentity = {
+  distinctId: string;
+  identified: boolean;
 };
 
 let posthogClient: PostHog | null = null;
@@ -59,6 +71,32 @@ async function resolveWorkosSession(): Promise<PostHogServerSession | null> {
   }
 }
 
+async function resolvePostHogIdentity(
+  options?: PostHogServerTrackOptions,
+): Promise<ResolvedPostHogIdentity> {
+  if (options?.distinctId) {
+    return { distinctId: options.distinctId, identified: true };
+  }
+
+  const session = await (options?.resolveSession ?? resolveWorkosSession)();
+  const sessionUserId = session?.user?.id?.trim();
+  if (sessionUserId) {
+    return { distinctId: sessionUserId, identified: true };
+  }
+
+  return { distinctId: randomUUID(), identified: false };
+}
+
+function withPersonProfileProperty(
+  identified: boolean,
+  properties?: Record<string, string | number | boolean>,
+): Record<string, string | number | boolean> {
+  return {
+    ...properties,
+    ...(identified ? {} : { $process_person_profile: false }),
+  };
+}
+
 /**
  * Fire-and-forget PostHog capture. No-ops without a project token.
  * Uses the WorkOS user id when a request session exists so server events join
@@ -75,20 +113,11 @@ export async function trackPostHogServerEvent(
   }
 
   try {
-    const session = options?.distinctId
-      ? null
-      : await (options?.resolveSession ?? resolveWorkosSession)();
-    const sessionUserId = session?.user?.id?.trim();
-    const identified = Boolean(options?.distinctId || sessionUserId);
-    const distinctId = options?.distinctId ?? sessionUserId ?? randomUUID();
-
+    const { distinctId, identified } = await resolvePostHogIdentity(options);
     const event: PostHogServerCaptureInput = {
       distinctId,
       event: name,
-      properties: {
-        ...properties,
-        ...(identified ? {} : { $process_person_profile: false }),
-      },
+      properties: withPersonProfileProperty(identified, properties),
     };
 
     if (options?.captureFn) {
@@ -99,5 +128,41 @@ export async function trackPostHogServerEvent(
     posthogServerClient(projectToken, options?.host ?? posthogIngestHost()).capture(event);
   } catch {
     // Analytics must not break the product path.
+  }
+}
+
+/**
+ * Report an exception to PostHog Error Tracking. No-ops without a project token.
+ * Uses `captureExceptionImmediate` so serverless requests flush before exit.
+ */
+export async function capturePostHogServerException(
+  error: unknown,
+  properties?: Record<string, string | number | boolean>,
+  options?: PostHogServerTrackOptions,
+): Promise<void> {
+  const projectToken = options?.projectToken ?? posthogProjectToken();
+  if (!projectToken) {
+    return;
+  }
+
+  try {
+    const { distinctId, identified } = await resolvePostHogIdentity(options);
+    const event: PostHogServerExceptionInput = {
+      distinctId,
+      error,
+      properties: withPersonProfileProperty(identified, properties),
+    };
+
+    if (options?.captureExceptionFn) {
+      await options.captureExceptionFn(event);
+      return;
+    }
+
+    await posthogServerClient(
+      projectToken,
+      options?.host ?? posthogIngestHost(),
+    ).captureExceptionImmediate(error, distinctId, event.properties);
+  } catch {
+    // Error tracking must not break the product path.
   }
 }
