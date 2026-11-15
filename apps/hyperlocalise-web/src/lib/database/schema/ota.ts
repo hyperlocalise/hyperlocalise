@@ -25,6 +25,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { otaDistributionFormatEnum, otaReleaseStatusEnum } from "./enums";
+import { experimentVariants } from "./experiments";
 import { organizations, users } from "./organizations";
 import { projects } from "./projects";
 
@@ -48,6 +49,9 @@ export type OtaManifestSnapshot = {
   timestamp: number;
   content: Record<string, string[]>;
 };
+
+/** Locale → export path (no leading slash) → serialized file body. */
+export type OtaReleaseContents = Record<string, Record<string, string>>;
 
 /**
  * Org-owned S3 (or S3-compatible) bucket for OTA objects. Null destination on a
@@ -134,6 +138,8 @@ export const otaDistributions = pgTable(
       .notNull()
       .default(sql`'[]'::jsonb`),
     format: otaDistributionFormatEnum("format").notNull(),
+    /** Native version branch whose files this distribution publishes. */
+    branchName: text("branch_name").notNull().default("main"),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -153,6 +159,7 @@ export const otaDistributions = pgTable(
     index("idx_ota_distributions_project_id").on(table.projectId),
     index("idx_ota_distributions_org").on(table.organizationId),
     index("idx_ota_distributions_project_revoked").on(table.projectId, table.revokedAt),
+    index("idx_ota_distributions_project_branch").on(table.projectId, table.branchName),
     index("idx_ota_distributions_destination_id").on(table.destinationId),
     check(
       "ota_distributions_public_hash_format_check",
@@ -182,6 +189,11 @@ export const otaReleases = pgTable(
     // Storage key, stored-file id, or CDN object path. Null until upload lands.
     artifactPointer: text("artifact_pointer"),
     manifest: jsonb("manifest").$type<OtaManifestSnapshot>().notNull(),
+    // Approved snapshot bodies keyed by locale then export path. Empty object until release.
+    contents: jsonb("contents")
+      .$type<OtaReleaseContents>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     releasedByUserId: uuid("released_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -192,5 +204,38 @@ export const otaReleases = pgTable(
     index("idx_ota_releases_distribution_released_at").on(table.distributionId, table.releasedAt),
     index("idx_ota_releases_org").on(table.organizationId),
     check("ota_releases_sequence_check", sql`${table.sequence} >= 1`),
+  ],
+);
+
+/**
+ * Binds a Hyperlab variant to an OTA distribution so OFREP can point apps at
+ * the matching string pack. One variant maps to at most one distribution.
+ */
+export const otaExperimentBindings = pgTable(
+  "ota_experiment_bindings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    variantId: uuid("variant_id")
+      .notNull()
+      .references(() => experimentVariants.id, { onDelete: "cascade" }),
+    distributionId: uuid("distribution_id")
+      .notNull()
+      .references(() => otaDistributions.id, { onDelete: "cascade" }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("ota_experiment_bindings_variant_id_key").on(table.variantId),
+    index("idx_ota_experiment_bindings_org").on(table.organizationId),
+    index("idx_ota_experiment_bindings_distribution_id").on(table.distributionId),
   ],
 );

@@ -27,6 +27,8 @@ tags:
   - name: Glossaries
   - name: Translation memories
   - name: Webhooks
+  - name: CDN
+  - name: Hyperlab
   - name: Reports
     description: >-
       The Reports page's reports for scripts, BI tools and payment systems. Every report needs
@@ -70,6 +72,116 @@ paths:
           description: The outbound IP lookup failed. The allowlist is included when that read succeeded.
         "503":
           description: The allowlist could not be read. The observed address is included when that lookup succeeded.
+  /ota/{hash}/manifest.json:
+    get:
+      operationId: getOtaManifest
+      tags: [CDN]
+      security: []
+      summary: Fetch a published OTA manifest
+      description: >-
+        Hash-addressed snapshot. No personal access token. Unknown or revoked hashes
+        return 404 with an empty body.
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[0-9a-f]{32}$" }
+      responses:
+        "200":
+          description: Latest successful release manifest.
+        "404":
+          description: Hash is unknown or revoked.
+    head:
+      operationId: headOtaManifest
+      tags: [CDN]
+      security: []
+      summary: Check that a published OTA manifest exists
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[0-9a-f]{32}$" }
+      responses:
+        "200": { description: Manifest exists. }
+        "404": { description: Hash is unknown or revoked. }
+  /ota/{hash}/content/{locale}/{exportPath}:
+    get:
+      operationId: getOtaContent
+      tags: [CDN]
+      security: []
+      summary: Fetch a published OTA locale file
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[0-9a-f]{32}$" }
+        - name: locale
+          in: path
+          required: true
+          schema: { type: string }
+        - name: exportPath
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Locale file body.
+        "404":
+          description: Hash, locale, or path is unknown.
+    head:
+      operationId: headOtaContent
+      tags: [CDN]
+      security: []
+      summary: Check that a published OTA locale file exists
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[0-9a-f]{32}$" }
+        - name: locale
+          in: path
+          required: true
+          schema: { type: string }
+        - name: exportPath
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: File exists. }
+        "404": { description: Hash, locale, or path is unknown. }
+  /ofrep/v1/evaluate/flags:
+    post:
+      operationId: evaluateOfrepFlags
+      tags: [Hyperlab]
+      security: []
+      summary: Evaluate all Hyperlab flags (OFREP)
+      description: >-
+        OpenFeature Remote Evaluation Protocol. Authenticate with a Hyperlab client
+        key (`hlk_...`) in `Authorization: Bearer` or `X-API-Key`. Winning variants
+        that have a CDN binding include `metadata.ota` without changing the boolean value.
+      responses:
+        "200":
+          description: Flag evaluations.
+        "401":
+          description: Missing or invalid Hyperlab client key.
+  /ofrep/v1/evaluate/flags/{key}:
+    post:
+      operationId: evaluateOfrepFlag
+      tags: [Hyperlab]
+      security: []
+      summary: Evaluate one Hyperlab flag (OFREP)
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Flag evaluation.
+        "401":
+          description: Missing or invalid Hyperlab client key.
+        "404":
+          description: Flag was not found.
   /v1/me:
     get:
       operationId: getCurrentPrincipal
@@ -1395,6 +1507,21 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/ota-distributions:
+    get:
+      operationId: listProjectOtaDistributions
+      tags: [CDN]
+      summary: List a project's CDN distributions
+      description: Requires `files:read`. Consumer fetch still uses the unauthenticated `/ota/{hash}/...` URLs.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Distributions for the project.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /v1/projects/{projectId}/screenshots/{screenshotId}/finalize:
     parameters:

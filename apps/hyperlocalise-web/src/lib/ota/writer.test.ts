@@ -126,10 +126,54 @@ describe("otaDistributionWriter", () => {
     expect(created.value.fileIds).toEqual([file.id]);
     expect(created.value.locales).toEqual(["fr-FR"]);
     expect(created.value.format).toBe("json");
+    expect(created.value.branchName).toBe("main");
     expect(created.value.revokedAt).toBeNull();
     expect(isOtaPublicHash(created.value.publicHash)).toBe(true);
     expect(created.value.publicHash.includes(project.id)).toBe(false);
     expect(created.value.publicHash.toLowerCase().includes("docs")).toBe(false);
+  });
+
+  it("pins a native version branch at create time", async () => {
+    const { organization, user, project } = await fixture.createStoredProjectFixture();
+    const file = await seedSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    await db
+      .update(schema.repositorySourceFiles)
+      .set({ branchName: "release" })
+      .where(eq(schema.repositorySourceFiles.id, file.id));
+
+    const created = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "Release JSON",
+      fileIds: [file.id],
+      locales: ["fr-FR"],
+      format: "json",
+      branchName: "release",
+      actorUserId: user.id,
+    });
+
+    expect(isOk(created)).toBe(true);
+    if (!isOk(created)) {
+      return;
+    }
+    expect(created.value.branchName).toBe("release");
+
+    const rejected = await otaDistributionWriter.create({
+      projectId: project.id,
+      name: "Bad branch",
+      fileIds: [file.id],
+      locales: ["fr-FR"],
+      format: "json",
+      branchName: "not a branch",
+      actorUserId: user.id,
+    });
+    expect(isErr(rejected)).toBe(true);
+    if (isErr(rejected)) {
+      expect(rejected.error).toEqual({ code: "invalid_branch_name" });
+    }
   });
 
   it("refuses external TMS projects", async () => {

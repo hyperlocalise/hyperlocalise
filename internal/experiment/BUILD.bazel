@@ -11,20 +11,22 @@ go_library(
         "ofrep.go",
         "store.go",
     ],
-    importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment",
-    visibility = ["//apps/go-svc:__pkg__"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/experiment",
+    visibility = ["//visibility:public"],
     deps = [
         "//internal/postgres",
         "@com_github_jackc_pgx_v5//:pgx",
-        "@com_github_jackc_pgx_v5//pgxpool",
+        "@com_github_jackc_pgx_v5//pgconn",
     ],
 )
 
 go_test(
     name = "experiment_test",
     srcs = [
+        "cache_test.go",
         "criterion_test.go",
         "evaluate_benchmark_test.go",
+        "evaluate_test.go",
         "hash_test.go",
         "ofrep_test.go",
     ],

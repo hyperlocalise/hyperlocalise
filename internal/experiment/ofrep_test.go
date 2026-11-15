@@ -96,6 +96,53 @@ func TestOFREPConfigAndExperiment(t *testing.T) {
 	require.Len(t, flags, 2)
 }
 
+func TestOFREPAttachesOtaMetadata(t *testing.T) {
+	store := NewMemoryStore("org-1")
+	store.AddKey("hlk_test")
+	store.SetFlags([]FlagRecord{
+		{ID: "f-exp", Key: "checkout-cta", Kind: "experiment"},
+	})
+	store.SetRows([]EvalRow{
+		{
+			FlagID:       "f-exp",
+			ExperimentID: "exp-1",
+			Seed:         1,
+			VariantKey:   "treatment",
+			AllocStart:   0,
+			AllocEnd:     9999,
+			Enabled:      true,
+			Payload:      []byte(`true`),
+		},
+	})
+	store.SetOtaBindings([]OtaBinding{{
+		FlagKey:    "checkout-cta",
+		VariantKey: "treatment",
+		Hash:       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Branch:     "release",
+		Format:     "android_xml",
+	}})
+	handler := NewOFREPHandler(store)
+	mux := http.NewServeMux()
+	handler.Register(mux)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/ofrep/v1/evaluate/flags/checkout-cta", bytes.NewBufferString(`{"context":{"targetingKey":"u1"}}`))
+	req.Header.Set("X-API-Key", "hlk_test")
+	mux.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, true, body["value"])
+	require.Equal(t, "treatment", body["variant"])
+	metadata, ok := body["metadata"].(map[string]any)
+	require.True(t, ok)
+	otaMeta, ok := metadata["ota"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", otaMeta["hash"])
+	require.Equal(t, "release", otaMeta["branch"])
+	require.Equal(t, "android-xml", otaMeta["format"])
+}
+
 func TestOFREPUnconfiguredConfigFlag(t *testing.T) {
 	store := NewMemoryStore("org-1")
 	store.AddKey("hlk_test")

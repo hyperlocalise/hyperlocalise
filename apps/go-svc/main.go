@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
-	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
+	"github.com/hyperlocalise/hyperlocalise/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines/check"
 	guidelinepg "github.com/hyperlocalise/hyperlocalise/internal/guidelines/postgres"
+	"github.com/hyperlocalise/hyperlocalise/internal/ota"
 	"github.com/hyperlocalise/hyperlocalise/internal/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/workos/workos-go/v10"
@@ -222,12 +223,9 @@ func main() {
 		h.publicTranslations.auth.pool = traced
 		h.workspace.pool = traced
 		h.pipes.pool = traced
-		store, err := experiment.NewPGStore(context.Background(), databaseURL)
-		if err != nil {
-			log.Fatalf("configure experiment store: %v", err)
-		}
-		defer store.Close()
+		store := experiment.NewPGStoreFromPool(traced)
 		h.ofrep = experiment.NewOFREPHandler(store)
+		h.ota = ota.NewHandler(ota.NewPGLookup(traced))
 	}
 
 	storageCtx, cancelStorage := context.WithTimeout(context.Background(), 15*time.Second)

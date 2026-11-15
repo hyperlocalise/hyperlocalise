@@ -28,6 +28,7 @@ export const createOtaDistributionBodySchema = z.object({
   fileIds: z.array(z.string().uuid()).min(1),
   locales: z.array(z.string().min(1)).min(1),
   format: otaDistributionFormatSchema,
+  branchName: z.string().trim().min(1).max(128).optional(),
   destinationId: z.string().uuid().nullable().optional(),
 });
 

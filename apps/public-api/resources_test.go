@@ -131,6 +131,8 @@ func TestOpenAPIDocumentCoversImplementedResources(t *testing.T) {
 		"/v1/projects/{projectId}/custom-fields",
 		"/v1/webhook-endpoints", "/v1/webhook-endpoints/{endpointId}/deliveries",
 		"/v1/reports/{report}", "/v1/jobs/{jobId}/report",
+		"/ota/{hash}/manifest.json", "/ota/{hash}/content/{locale}/{exportPath}",
+		"/v1/projects/{projectId}/ota-distributions",
 	} {
 		require.Contains(t, document.Paths, path)
 		require.Contains(t, document.Paths[path], "get")
@@ -160,6 +162,8 @@ func TestOpenAPIDocumentCoversImplementedResources(t *testing.T) {
 		"/v1/webhook-endpoints":                                        "post",
 		"/v1/webhook-endpoints/{endpointId}":                           "patch",
 		"/v1/webhook-endpoints/{endpointId}/rotate-secret":             "post",
+		"/ofrep/v1/evaluate/flags":                                     "post",
+		"/ofrep/v1/evaluate/flags/{key}":                               "post",
 	} {
 		require.Contains(t, document.Paths[path], method)
 	}

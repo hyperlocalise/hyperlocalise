@@ -241,6 +241,9 @@ func resolutionBody(resolution Resolution) map[string]any {
 	if resolution.Value != nil {
 		body["value"] = resolution.Value
 	}
+	if resolution.Ota != nil {
+		body["metadata"] = map[string]any{"ota": resolution.Ota}
+	}
 	return body
 }
 

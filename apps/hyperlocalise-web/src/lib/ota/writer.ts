@@ -14,10 +14,14 @@ import { and, eq, inArray, isNull, max } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { OtaDistribution, OtaDistributionFormat, OtaRelease } from "@/lib/database/types";
-import type { OtaManifestSnapshot } from "@/lib/database/schema/ota";
+import type { OtaManifestSnapshot, OtaReleaseContents } from "@/lib/database/schema/ota";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
-import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
+import {
+  DEFAULT_PROJECT_BRANCH_NAME,
+  isValidProjectBranchName,
+  resolvedProjectBranchName,
+} from "@/lib/projects/branches/project-branch-name";
 
 import { exportPathFromSourcePath, findExportPathCollisions } from "./export-path";
 import { generateOtaPublicHash } from "./public-hash";
@@ -44,6 +48,7 @@ export type OtaDistributionWriterError =
   | { code: "invalid_locales"; locales: string[] }
   | { code: "locales_not_in_project"; locales: string[] }
   | { code: "export_path_collision"; exportPaths: string[] }
+  | { code: "invalid_branch_name" }
   | { code: "destination_not_found" }
   | { code: "hash_collision" };
 
@@ -53,6 +58,7 @@ export type CreateOtaDistributionInput = {
   fileIds: readonly string[];
   locales: readonly string[];
   format: OtaDistributionFormat;
+  branchName?: string | null;
   destinationId?: string | null;
   actorUserId: string;
   db?: DatabaseClient;
@@ -76,6 +82,7 @@ export type ReleaseOtaDistributionInput = {
   actorUserId: string;
   artifactPointer?: string | null;
   manifest?: OtaManifestSnapshotOverride;
+  contents?: OtaReleaseContents;
   db?: DatabaseClient;
 };
 
@@ -192,6 +199,14 @@ function assertLocalesOnProject(
   return ok(undefined);
 }
 
+function normalizeBranchName(value?: string | null): Result<string, OtaDistributionWriterError> {
+  const branchName = resolvedProjectBranchName(value);
+  if (!isValidProjectBranchName(branchName)) {
+    return err({ code: "invalid_branch_name" });
+  }
+  return ok(branchName);
+}
+
 function normalizeFileIds(
   fileIds: readonly string[],
 ): Result<string[], OtaDistributionWriterError> {
@@ -233,9 +248,10 @@ async function assertDestinationOnOrganization(
 async function assertExportPathsUnique(
   projectId: string,
   fileIds: readonly string[],
+  branchName: string,
   client: DatabaseClient,
 ): Promise<Result<void, OtaDistributionWriterError>> {
-  const paths = await loadSourcePathsByFileId(projectId, fileIds, client);
+  const paths = await loadSourcePathsByFileId(projectId, fileIds, branchName, client);
   const collisions = findExportPathCollisions(paths);
   if (collisions.length > 0) {
     return err({ code: "export_path_collision", exportPaths: collisions });
@@ -274,6 +290,7 @@ async function assertProjectFileIds(
   projectId: string,
   organizationId: string,
   fileIds: readonly string[],
+  branchName: string,
   client: DatabaseClient,
 ): Promise<Result<void, OtaDistributionWriterError>> {
   const rows = await client
@@ -283,7 +300,7 @@ async function assertProjectFileIds(
       and(
         eq(schema.repositorySourceFiles.projectId, projectId),
         eq(schema.repositorySourceFiles.organizationId, organizationId),
-        eq(schema.repositorySourceFiles.branchName, DEFAULT_PROJECT_BRANCH_NAME),
+        eq(schema.repositorySourceFiles.branchName, branchName),
         inArray(schema.repositorySourceFiles.id, [...fileIds]),
       ),
     );
@@ -300,6 +317,7 @@ async function assertProjectFileIds(
 async function loadSourcePathsByFileId(
   projectId: string,
   fileIds: readonly string[],
+  branchName: string,
   client: DatabaseClient,
 ): Promise<string[]> {
   if (fileIds.length === 0) {
@@ -315,7 +333,7 @@ async function loadSourcePathsByFileId(
     .where(
       and(
         eq(schema.repositorySourceFiles.projectId, projectId),
-        eq(schema.repositorySourceFiles.branchName, DEFAULT_PROJECT_BRANCH_NAME),
+        eq(schema.repositorySourceFiles.branchName, branchName),
         inArray(schema.repositorySourceFiles.id, [...fileIds]),
       ),
     );
@@ -393,17 +411,28 @@ export async function createOtaDistribution(
     return localesOnProject;
   }
 
+  const branchName = normalizeBranchName(input.branchName);
+  if (!branchName.ok) {
+    return branchName;
+  }
+
   const filesOnProject = await assertProjectFileIds(
     project.value.id,
     project.value.organizationId,
     fileIds.value,
+    branchName.value,
     client,
   );
   if (!filesOnProject.ok) {
     return filesOnProject;
   }
 
-  const uniqueExportPaths = await assertExportPathsUnique(project.value.id, fileIds.value, client);
+  const uniqueExportPaths = await assertExportPathsUnique(
+    project.value.id,
+    fileIds.value,
+    branchName.value,
+    client,
+  );
   if (!uniqueExportPaths.ok) {
     return uniqueExportPaths;
   }
@@ -425,6 +454,7 @@ export async function createOtaDistribution(
     fileIds: fileIds.value,
     locales: locales.value,
     format: format.value,
+    branchName: branchName.value,
     createdByUserId: input.actorUserId,
     updatedByUserId: input.actorUserId,
   });
@@ -488,6 +518,7 @@ export async function updateOtaDistribution(
       distribution.projectId,
       distribution.organizationId,
       fileIds.value,
+      distribution.branchName || DEFAULT_PROJECT_BRANCH_NAME,
       client,
     );
     if (!filesOnProject.ok) {
@@ -496,6 +527,7 @@ export async function updateOtaDistribution(
     const uniqueExportPaths = await assertExportPathsUnique(
       distribution.projectId,
       fileIds.value,
+      distribution.branchName || DEFAULT_PROJECT_BRANCH_NAME,
       client,
     );
     if (!uniqueExportPaths.ok) {
@@ -666,6 +698,7 @@ export async function releaseOtaDistribution(
         sequence,
         artifactPointer,
         manifest,
+        contents: input.contents ?? {},
         releasedByUserId: input.actorUserId,
       })
       .returning();

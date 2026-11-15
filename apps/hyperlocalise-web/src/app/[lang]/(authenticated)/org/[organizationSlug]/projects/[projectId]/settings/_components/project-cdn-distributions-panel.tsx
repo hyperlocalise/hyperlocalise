@@ -60,6 +60,7 @@ type OtaDistributionView = {
   name: string;
   publicHash: string;
   format: "json" | "android_xml" | "ios_strings";
+  branchName: string;
   fileIds: string[];
   locales: string[];
   destinationId: string | null;
@@ -69,7 +70,8 @@ type OtaDistributionView = {
   latestRelease: { releasedAt: string; status: string } | null;
 };
 
-type OtaFileOption = { id: string; sourcePath: string };
+type OtaFileOption = { id: string; sourcePath: string; branchName: string };
+type OtaBranchOption = { name: string; title: string | null };
 type OtaDestinationOption = { id: string; name: string };
 
 const FORMAT_MESSAGES = {
@@ -118,12 +120,14 @@ export function ProjectCdnDistributionsPanel({
       const body = (await response.json()) as {
         distributions?: OtaDistributionView[];
         files?: OtaFileOption[];
+        branches?: OtaBranchOption[];
         locales?: string[];
         destinations?: OtaDestinationOption[];
       };
       return {
         distributions: body.distributions ?? [],
         files: body.files ?? [],
+        branches: body.branches ?? [],
         locales: body.locales ?? [],
         destinations: body.destinations ?? [],
       };
@@ -237,6 +241,7 @@ export function ProjectCdnDistributionsPanel({
                     <Badge variant="outline">
                       <FormattedMessage {...FORMAT_MESSAGES[distribution.format]} />
                     </Badge>
+                    <Badge variant="outline">{distribution.branchName}</Badge>
                     {distribution.revokedAt ? (
                       <Badge variant="destructive">
                         <FormattedMessage {...messages.revoked} />
@@ -352,6 +357,7 @@ export function ProjectCdnDistributionsPanel({
       <CreateDistributionDialog
         open={isCreateOpen}
         files={listQuery.data?.files ?? []}
+        branches={listQuery.data?.branches ?? []}
         locales={listQuery.data?.locales ?? []}
         destinations={listQuery.data?.destinations ?? []}
         onOpenChange={setIsCreateOpen}
@@ -372,6 +378,7 @@ export function ProjectCdnDistributionsPanel({
 function CreateDistributionDialog({
   open,
   files,
+  branches,
   locales,
   destinations,
   onOpenChange,
@@ -379,12 +386,14 @@ function CreateDistributionDialog({
 }: {
   open: boolean;
   files: OtaFileOption[];
+  branches: OtaBranchOption[];
   locales: string[];
   destinations: OtaDestinationOption[];
   onOpenChange: (open: boolean) => void;
   onSubmit: (payload: {
     name: string;
     format: "json" | "android_xml" | "ios_strings";
+    branchName: string;
     fileIds: string[];
     locales: string[];
     destinationId: string | null;
@@ -393,10 +402,12 @@ function CreateDistributionDialog({
   const intl = useIntl();
   const [name, setName] = useState("");
   const [format, setFormat] = useState<"json" | "android_xml" | "ios_strings">("json");
+  const [branchName, setBranchName] = useState(branches[0]?.name ?? "main");
   const [fileIds, setFileIds] = useState<string[]>([]);
   const [selectedLocales, setSelectedLocales] = useState<string[]>([]);
   const [destinationId, setDestinationId] = useState(HOSTED_DESTINATION);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const branchFiles = files.filter((file) => file.branchName === branchName);
 
   function toggleValue(current: string[], value: string) {
     return current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
@@ -408,12 +419,14 @@ function CreateDistributionDialog({
       await onSubmit({
         name,
         format,
+        branchName,
         fileIds,
         locales: selectedLocales,
         destinationId: destinationId === HOSTED_DESTINATION ? null : destinationId,
       });
       setName("");
       setFormat("json");
+      setBranchName(branches[0]?.name ?? "main");
       setFileIds([]);
       setSelectedLocales([]);
       setDestinationId(HOSTED_DESTINATION);
@@ -474,18 +487,52 @@ function CreateDistributionDialog({
           </Field>
           <Field className="gap-1.5">
             <FieldLabel>
+              <FormattedMessage {...messages.branchLabel} />
+            </FieldLabel>
+            <Select
+              value={branchName}
+              onValueChange={(value) => {
+                if (!value) {
+                  return;
+                }
+                setBranchName(value);
+                setFileIds([]);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(branches.length > 0 ? branches : [{ name: "main", title: null }]).map(
+                  (branch) => (
+                    <SelectItem key={branch.name} value={branch.name}>
+                      {branch.title ? `${branch.title} (${branch.name})` : branch.name}
+                    </SelectItem>
+                  ),
+                )}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field className="gap-1.5">
+            <FieldLabel>
               <FormattedMessage {...messages.filesLabel} />
             </FieldLabel>
             <div className="grid gap-2">
-              {files.map((file) => (
-                <label key={file.id} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={fileIds.includes(file.id)}
-                    onCheckedChange={() => setFileIds((current) => toggleValue(current, file.id))}
-                  />
-                  <span className="font-mono text-xs">{file.sourcePath}</span>
-                </label>
-              ))}
+              {branchFiles.length === 0 ? (
+                <TypographyP size="small" tone="subtle">
+                  <FormattedMessage {...messages.noFilesOnBranch} />
+                </TypographyP>
+              ) : (
+                branchFiles.map((file) => (
+                  <label key={file.id} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={fileIds.includes(file.id)}
+                      onCheckedChange={() => setFileIds((current) => toggleValue(current, file.id))}
+                    />
+                    <span className="font-mono text-xs">{file.sourcePath}</span>
+                  </label>
+                ))
+              )}
             </div>
           </Field>
           <Field className="gap-1.5">

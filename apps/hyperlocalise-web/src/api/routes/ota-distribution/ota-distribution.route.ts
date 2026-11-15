@@ -41,7 +41,7 @@ import {
 import { hostedOtaPublicBaseUrl, otaManifestUrl } from "@/lib/ota/urls";
 import { otaDistributionWriter, type OtaDistributionWriterError } from "@/lib/ota/writer";
 import { isErr } from "@/lib/primitives/result/results";
-import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
 
 import {
   createOtaDistributionBodySchema,
@@ -55,6 +55,7 @@ type OtaDistributionView = {
   name: string;
   publicHash: string;
   format: OtaDistribution["format"];
+  branchName: string;
   fileIds: string[];
   locales: string[];
   destinationId: string | null;
@@ -188,6 +189,7 @@ function toView(
     name: distribution.name,
     publicHash: distribution.publicHash,
     format: distribution.format,
+    branchName: distribution.branchName,
     fileIds: distribution.fileIds,
     locales: distribution.locales,
     destinationId: distribution.destinationId,
@@ -263,6 +265,8 @@ function writerErrorResponse(c: JsonContext, error: OtaDistributionWriterError) 
       return badRequestResponse(c, error.code, "Choose locales that belong to this project.", {
         locales: error.locales,
       });
+    case "invalid_branch_name":
+      return badRequestResponse(c, error.code, "Enter a valid branch name.");
     case "export_path_collision":
       return conflictResponse(
         c,
@@ -323,15 +327,18 @@ export function createOtaDistributionRoutes() {
         .select({
           id: schema.repositorySourceFiles.id,
           sourcePath: schema.repositorySourceFiles.sourcePath,
+          branchName: schema.repositorySourceFiles.branchName,
         })
         .from(schema.repositorySourceFiles)
-        .where(
-          and(
-            eq(schema.repositorySourceFiles.projectId, resolved.project.id),
-            eq(schema.repositorySourceFiles.branchName, DEFAULT_PROJECT_BRANCH_NAME),
-          ),
-        )
+        .where(eq(schema.repositorySourceFiles.projectId, resolved.project.id))
         .orderBy(asc(schema.repositorySourceFiles.sourcePath));
+
+      await projectBranchService.ensureDefaultBranch({
+        organizationId: resolved.project.organizationId,
+        projectId: resolved.project.id,
+        createdByUserId: resolved.project.createdByUserId,
+      });
+      const branches = await projectBranchService.list(resolved.project.id);
 
       const latestReleases = await loadLatestReleases(distributions.map((row) => row.id));
       const destinations = await listCdnDestinations(resolved.project.organizationId);
@@ -361,6 +368,10 @@ export function createOtaDistributionRoutes() {
             validationStatus: destination.validationStatus,
           })),
           files,
+          branches: branches.map((branch) => ({
+            name: branch.name,
+            title: branch.title,
+          })),
           locales: [resolved.project.sourceLocale, ...resolved.project.targetLocales].filter(
             (locale): locale is string => Boolean(locale),
           ),
@@ -383,6 +394,7 @@ export function createOtaDistributionRoutes() {
         fileIds: body.fileIds,
         locales: body.locales,
         format: body.format,
+        branchName: body.branchName,
         destinationId: body.destinationId,
         actorUserId: c.var.auth.user.localUserId,
       });

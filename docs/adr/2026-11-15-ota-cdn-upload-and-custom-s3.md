@@ -23,14 +23,16 @@ one-hour cache, and a JSON manifest.
 
 ### Hosted path
 
-Hyperlocalise-hosted objects live in a private S3 bucket (`OTA_S3_BUCKET`).
-CloudFront in front of that bucket is the public origin
-`https://ota.hyperlocalise.com/{hash}/...`. Optional
-`OTA_CLOUDFRONT_DISTRIBUTION_ID` invalidates `/{hash}/*` after release,
-rotate, and revoke.
+There is **no** `ota.hyperlocalise.com` subdomain. Consumer URLs are:
 
-`GET /api/ota/{hash}/...` is a fallback for local and tests. Production
-clients hit CloudFront, not the app origin.
+- `https://public-api.hyperlocalise.com/ota/{hash}/...`
+- `https://api.hyperlocalise.com/ota/{hash}/...` (go-svc)
+
+Both read the latest successful `ota_releases.contents` for an unrevoked
+hash. Optional `OTA_S3_BUCKET` / CloudFront can still store a copy, but
+Postgres is the serve path. `GET /api/ota/{hash}/...` on the web app is
+the local fallback. Optional `OTA_CLOUDFRONT_DISTRIBUTION_ID` invalidates
+`/{hash}/*` after release, rotate, and revoke when S3 is configured.
 
 ### Custom path
 
@@ -61,6 +63,9 @@ Management APIs use `projects:read` / `projects:write`. Native projects only.
 
 ## Consequences
 
-- Hosted CDN needs `OTA_S3_BUCKET` (and usually CloudFront) in production.
+- Hosted serving works without S3 or a dedicated OTA hostname.
 - Custom destinations need the customer to put HTTPS in front of their bucket.
 - Export paths are source-file basenames; colliding basenames are rejected.
+- Distributions pin a native version `branch_name`. Hyperlab binds a variant
+  to a distribution (`ota_experiment_bindings`); OFREP attaches `metadata.ota`
+  and leaves the boolean flag value unchanged.

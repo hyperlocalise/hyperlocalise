@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
+	"github.com/hyperlocalise/hyperlocalise/internal/experiment"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -61,7 +61,9 @@ func (h *handler) registerHyperlab(mux *http.ServeMux, verifier SessionVerifier)
 	post("/experiments/{experimentId}/variants", h.createHyperlabVariant)
 	put("/experiments/{experimentId}/rollouts", h.updateHyperlabRollouts)
 	put("/variants/{variantId}", h.updateHyperlabVariant)
+	put("/variants/{variantId}/ota", h.upsertHyperlabVariantOta)
 	del("/variants/{variantId}", h.deleteHyperlabVariant)
+	get("/ota-distributions", h.listHyperlabOtaDistributions)
 	get("/assignments", h.listHyperlabAssignments)
 	post("/assignments", h.createHyperlabAssignment)
 	put("/assignments/{assignmentId}", h.updateHyperlabAssignment)
@@ -447,8 +449,12 @@ func (h *handler) getHyperlabExperiment(r *http.Request, actor workspaceActor) (
 	if err != nil {
 		return nil, 0, err
 	}
+	otaByVariant, err := h.otaBindingsByVariant(r.Context(), actor.organizationID, variants)
+	if err != nil {
+		return nil, 0, err
+	}
 	return map[string]any{
-		"experiment": item.public(), "variants": publicVariants(variants), "allocations": allocations,
+		"experiment": item.public(), "variants": publicVariants(variants, otaByVariant), "allocations": allocations,
 	}, http.StatusOK, nil
 }
 
@@ -1230,10 +1236,14 @@ func (h *handler) listAllocations(ctx context.Context, variants []hyperlabVarian
 	return allocations, rows.Err()
 }
 
-func publicVariants(variants []hyperlabVariant) []any {
+func publicVariants(variants []hyperlabVariant, otaByVariant map[string]any) []any {
 	rows := make([]any, len(variants))
 	for i, variant := range variants {
-		rows[i] = variant.public()
+		body := variant.public()
+		if otaByVariant != nil {
+			body["ota"] = otaByVariant[variant.ID]
+		}
+		rows[i] = body
 	}
 	return rows
 }

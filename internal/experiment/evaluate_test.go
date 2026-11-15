@@ -29,6 +29,10 @@ func (s errorEvalStore) LoadEvalRows(context.Context, string, []string) ([]EvalR
 	return nil, s.err
 }
 
+func (s errorEvalStore) LoadOtaBindings(context.Context, string) ([]OtaBinding, error) {
+	return nil, s.err
+}
+
 func (s errorEvalStore) TouchClientKey(context.Context, string) {}
 
 func TestResolveConfig(t *testing.T) {

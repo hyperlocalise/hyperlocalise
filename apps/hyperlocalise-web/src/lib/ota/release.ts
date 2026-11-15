@@ -34,7 +34,7 @@ import {
   invalidateOtaCloudFront,
   type OtaS3Location,
 } from "./s3-store";
-import { buildOtaReleaseSnapshot } from "./snapshot";
+import { buildOtaReleaseSnapshot, otaSnapshotContents } from "./snapshot";
 import type { OtaObjectStore } from "./store";
 import { hostedOtaPublicBaseUrl, otaManifestUrl } from "./urls";
 import { otaDistributionWriter, type OtaDistributionWriterError } from "./writer";
@@ -48,7 +48,7 @@ export type OtaPublishError =
   | { code: "publish_failed"; message: string };
 
 export type OtaResolvedTarget = {
-  store: OtaObjectStore;
+  store: OtaObjectStore | null;
   publicBaseUrl: string;
 };
 
@@ -91,12 +91,8 @@ export async function resolveOtaPublishTarget(
   distribution: OtaDistribution,
 ): Promise<Result<OtaResolvedTarget, OtaPublishError>> {
   if (!distribution.destinationId) {
-    const store = hostedOtaObjectStore();
-    if (!store) {
-      return err({ code: "hosted_cdn_not_configured" });
-    }
     return ok({
-      store,
+      store: hostedOtaObjectStore(),
       publicBaseUrl: hostedOtaPublicBaseUrl(),
     });
   }
@@ -157,9 +153,17 @@ export async function publishOtaDistributionRelease(input: {
     .where(eq(schema.projects.id, distribution.projectId))
     .limit(1);
 
-  const target = await resolveOtaPublishTarget(distribution);
-  if (!target.ok) {
-    return target;
+  let publicBaseUrl = hostedOtaPublicBaseUrl();
+  let store: OtaObjectStore | null = null;
+  if (distribution.destinationId) {
+    const target = await resolveOtaPublishTarget(distribution);
+    if (!target.ok) {
+      return target;
+    }
+    publicBaseUrl = target.value.publicBaseUrl;
+    store = target.value.store;
+  } else {
+    store = hostedOtaObjectStore();
   }
 
   const snapshot = await buildOtaReleaseSnapshot({
@@ -169,25 +173,29 @@ export async function publishOtaDistributionRelease(input: {
     locales: distribution.locales,
     format: distribution.format,
     sourceLocale: project?.sourceLocale ?? null,
+    branchName: distribution.branchName,
   });
 
-  try {
-    await publishOtaSnapshot({
-      store: target.value.store,
-      hash: distribution.publicHash,
-      format: distribution.format,
-      snapshot,
-    });
-  } catch (error) {
-    logger.error("ota_publish_failed", { error: serializeErrorForLog(error) });
-    return err({ code: "publish_failed", message: "Could not write the CDN snapshot." });
+  if (store) {
+    try {
+      await publishOtaSnapshot({
+        store,
+        hash: distribution.publicHash,
+        format: distribution.format,
+        snapshot,
+      });
+    } catch (error) {
+      logger.error("ota_publish_failed", { error: serializeErrorForLog(error) });
+      return err({ code: "publish_failed", message: "Could not write the CDN snapshot." });
+    }
   }
 
   const released = await otaDistributionWriter.release({
     distributionId: distribution.id,
     actorUserId: input.actorUserId,
-    artifactPointer: manifestArtifactPointer(distribution.publicHash),
+    artifactPointer: store ? manifestArtifactPointer(distribution.publicHash) : null,
     manifest: snapshot.manifest,
+    contents: otaSnapshotContents(snapshot),
   });
   if (!released.ok) {
     return released;
@@ -196,7 +204,7 @@ export async function publishOtaDistributionRelease(input: {
   await invalidateHostedPrefix(distribution, [distribution.publicHash]);
   return ok({
     release: released.value,
-    manifestUrl: otaManifestUrl(target.value.publicBaseUrl, distribution.publicHash),
+    manifestUrl: otaManifestUrl(publicBaseUrl, distribution.publicHash),
   });
 }
 
@@ -212,9 +220,9 @@ export async function rotateOtaDistributionHash(input: {
     return err({ code: "revoked" });
   }
 
-  const target = await resolveOtaPublishTarget(existing);
-  if (!target.ok) {
-    return target;
+  const store = await resolveOtaPublishTarget(existing);
+  if (!store.ok) {
+    return store;
   }
 
   const latest = await loadLatestRelease(existing.id);
@@ -226,10 +234,10 @@ export async function rotateOtaDistributionHash(input: {
     return rotated;
   }
 
-  if (latest?.status === "success") {
+  if (latest?.status === "success" && store.value.store) {
     try {
       const copied = await copyOtaPrefix(
-        target.value.store,
+        store.value.store,
         rotated.value.previousHash,
         rotated.value.distribution.publicHash,
       );
@@ -238,7 +246,7 @@ export async function rotateOtaDistributionHash(input: {
       }
     } catch (error) {
       try {
-        await deleteOtaPrefix(target.value.store, rotated.value.distribution.publicHash);
+        await deleteOtaPrefix(store.value.store, rotated.value.distribution.publicHash);
       } catch (cleanupError) {
         logger.error("ota_rotate_rollback_delete_failed", {
           error: serializeErrorForLog(cleanupError),
@@ -260,10 +268,12 @@ export async function rotateOtaDistributionHash(input: {
     }
   }
 
-  try {
-    await deleteOtaPrefix(target.value.store, rotated.value.previousHash);
-  } catch (error) {
-    logger.error("ota_rotate_delete_failed", { error: serializeErrorForLog(error) });
+  if (store.value.store) {
+    try {
+      await deleteOtaPrefix(store.value.store, rotated.value.previousHash);
+    } catch (error) {
+      logger.error("ota_rotate_delete_failed", { error: serializeErrorForLog(error) });
+    }
   }
   await invalidateHostedPrefix(existing, [
     rotated.value.previousHash,
@@ -294,7 +304,7 @@ export async function revokeOtaDistributionAndPurge(input: {
     return revoked;
   }
 
-  if (target?.ok) {
+  if (target?.ok && target.value.store) {
     try {
       await deleteOtaPrefix(target.value.store, existing.publicHash);
     } catch (error) {

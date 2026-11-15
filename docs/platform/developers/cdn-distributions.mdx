@@ -12,7 +12,7 @@ A distribution selects files, locales, and one format. A release writes `manifes
 
 1. Open a **native** project → **Settings** → **CDN**.
 2. Click **New distribution**.
-3. Name it, pick source files, locales, and a format (`JSON`, `Android XML`, or `iOS strings`).
+3. Name it, pick a version branch, source files, locales, and a format (`JSON`, `Android XML`, or `iOS strings`).
 4. Choose **Hyperlocalise CDN** or a [workspace S3 destination](#custom-s3-buckets).
 5. Click **Create**, then **Release**.
 
@@ -20,16 +20,45 @@ Selected files must have unique basenames. `locales/en/messages.json` and `local
 
 ## Public URLs
 
-Hosted releases are addressed like this:
+Hosted releases are served from the existing public API and API hosts. There is no `ota` subdomain.
 
 ```
-https://ota.hyperlocalise.com/{hash}/manifest.json
-https://ota.hyperlocalise.com/{hash}/content/{locale}/{exportPath}
+https://public-api.hyperlocalise.com/ota/{hash}/manifest.json
+https://public-api.hyperlocalise.com/ota/{hash}/content/{locale}/{exportPath}
+https://api.hyperlocalise.com/ota/{hash}/manifest.json
+https://api.hyperlocalise.com/ota/{hash}/content/{locale}/{exportPath}
 ```
 
-`GET` and `HEAD` only. Unknown or revoked hashes return `404` without saying whether the hash ever existed. Objects cache for one hour (`Cache-Control: public, max-age=3600`). A successful release invalidates the hash prefix so the new snapshot is visible before that hour elapses. Clients should still poll no faster than every 15 minutes.
+`GET` and `HEAD` only. No personal access token. Unknown or revoked hashes return `404` without saying whether the hash ever existed. Responses cache for one hour (`Cache-Control: public, max-age=3600`). Clients should still poll no faster than every 15 minutes.
 
-A custom destination uses the **public base URL** you configured instead of `ota.hyperlocalise.com`. The path layout under that origin is the same.
+Create a distribution on a **version branch**. The snapshot is that branch's approved, non-hidden strings. A custom S3 destination uses the **public base URL** you configured instead; the path layout under that origin is the same.
+
+## Hyperlab
+
+Bind a distribution to a Hyperlab variant. OFREP then returns that pack on `metadata.ota` without changing the boolean `value`:
+
+```
+POST https://public-api.hyperlocalise.com/ofrep/v1/evaluate/flags/{key}
+POST https://api.hyperlocalise.com/ofrep/v1/evaluate/flags/{key}
+```
+
+```json
+{
+  "key": "checkout-cta",
+  "value": true,
+  "reason": "SPLIT",
+  "variant": "treatment",
+  "metadata": {
+    "ota": {
+      "hash": "50fb350641274ba88296f97dc7e3e0c3",
+      "branch": "release",
+      "format": "json"
+    }
+  }
+}
+```
+
+Use a Hyperlab client key (`hlk_...`), not a PAT. Concatenate the public origin, `/ota/`, the hash, and a path from the manifest.
 
 ## Manifest
 

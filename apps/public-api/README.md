@@ -5,6 +5,9 @@ Production is `https://public-api.hyperlocalise.com`. Interactive docs are at
 `https://public-api.hyperlocalise.com/docs` and the OpenAPI document at
 `https://public-api.hyperlocalise.com/openapi.yaml`.
 The web frontend continues to use its existing APIs. It does not call this service.
+Hash-addressed OTA files are at `/ota/{hash}/manifest.json` and
+`/ota/{hash}/content/{locale}/{exportPath}` with no PAT. Hyperlab OFREP is at
+`/ofrep/v1/evaluate/flags` with a Hyperlab client key (`hlk_...`).
 The API reports the token's effective identity, reads Projects, Queries, Jobs,
 Glossaries, and Translation memories, creates native projects (optionally from a
 project template) and manages project templates, defines custom project fields and sets

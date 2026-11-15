@@ -10,6 +10,7 @@ type MemoryStore struct {
 	keys           map[string]string
 	flags          []FlagRecord
 	rows           []EvalRow
+	otaBindings    []OtaBinding
 	organizationID string
 }
 
@@ -36,6 +37,12 @@ func (s *MemoryStore) SetRows(rows []EvalRow) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.rows = rows
+}
+
+func (s *MemoryStore) SetOtaBindings(bindings []OtaBinding) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.otaBindings = bindings
 }
 
 func (s *MemoryStore) LookupOrganizationID(_ context.Context, keyHash string) (string, error) {
@@ -81,6 +88,14 @@ func (s *MemoryStore) LoadEvalRows(_ context.Context, _ string, flagIDs []string
 			out = append(out, row)
 		}
 	}
+	return out, nil
+}
+
+func (s *MemoryStore) LoadOtaBindings(context.Context, string) ([]OtaBinding, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]OtaBinding, len(s.otaBindings))
+	copy(out, s.otaBindings)
 	return out, nil
 }
 
