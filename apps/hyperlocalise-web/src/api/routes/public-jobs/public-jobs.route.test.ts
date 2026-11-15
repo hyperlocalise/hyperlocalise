@@ -340,6 +340,78 @@ describe("publicJobRoutes", () => {
     });
   });
 
+  it("binds a public file job to the requested branch version", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      filename: "source.xliff",
+      contentType: "application/xliff+xml",
+      sourceKind: "repository_file",
+      metadata: {
+        sourcePath: "locales/en/source.xliff",
+        sourceHash: "sha256:legacy",
+        uploadSurface: "public_api",
+      },
+    });
+
+    const response = await client.api.v1.jobs.$post(
+      {
+        json: {
+          type: "file",
+          projectId: project.id,
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "xliff",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            branch: "feature-checkout",
+          },
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string } };
+    const [job] = await db
+      .select({ inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, body.job.id))
+      .limit(1);
+    expect(job?.inputPayload).toMatchObject({
+      sourceFileId: sourceFile.id,
+      branch: "feature-checkout",
+    });
+
+    const [details] = await db
+      .select({
+        sourceFileVersionId: schema.translationJobDetails.sourceFileVersionId,
+      })
+      .from(schema.translationJobDetails)
+      .where(eq(schema.translationJobDetails.jobId, body.job.id));
+    expect(details?.sourceFileVersionId).toEqual(expect.any(String));
+
+    const [version] = await db
+      .select({
+        storedFileId: schema.repositorySourceFileVersions.storedFileId,
+        branchName: schema.repositorySourceFiles.branchName,
+      })
+      .from(schema.repositorySourceFileVersions)
+      .innerJoin(
+        schema.repositorySourceFiles,
+        eq(
+          schema.repositorySourceFiles.id,
+          schema.repositorySourceFileVersions.repositorySourceFileId,
+        ),
+      )
+      .where(eq(schema.repositorySourceFileVersions.id, details?.sourceFileVersionId ?? ""));
+    expect(version).toMatchObject({
+      storedFileId: sourceFile.id,
+      branchName: "feature-checkout",
+    });
+  });
+
   it("rejects public file jobs when the source file is not in scope", async () => {
     const { apiKey, project } = await createPublicApiFixture();
 

@@ -25,6 +25,14 @@ func (m memoryOtaLookup) LatestUnrevoked(_ context.Context, hash string) (*ota.R
 	return release, nil
 }
 
+func TestPublicOtaFormat(t *testing.T) {
+	require.Equal(t, "android-xml", publicOtaFormat("android_xml"))
+	require.Equal(t, "android-xml", publicOtaFormat("android-xml"))
+	require.Equal(t, "ios-strings", publicOtaFormat("ios_strings"))
+	require.Equal(t, "json", publicOtaFormat("json"))
+	require.Equal(t, "json", publicOtaFormat("unknown"))
+}
+
 func TestPublicOTAConsumerRoutes(t *testing.T) {
 	hash := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	manifest, err := json.Marshal(map[string]any{"schema_version": 1, "format": "json"})

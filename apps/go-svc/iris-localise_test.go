@@ -107,6 +107,49 @@ func TestIrisRegionsField(t *testing.T) {
 	}, req.regions())
 }
 
+func TestParseIrisImageBounds(t *testing.T) {
+	ok := func(t *testing.T, value any, want irisImageBounds) {
+		t.Helper()
+		got, parsed := parseIrisImageBounds(value)
+		require.True(t, parsed)
+		require.Equal(t, want, got)
+	}
+	reject := func(t *testing.T, value any) {
+		t.Helper()
+		_, parsed := parseIrisImageBounds(value)
+		require.False(t, parsed)
+	}
+
+	ok(t, map[string]any{"x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0}, irisImageBounds{Width: 1, Height: 1})
+	ok(t, map[string]any{"x": json.Number("0.25"), "y": 0, "width": 0.5, "height": json.Number("0.751")}, irisImageBounds{X: 0.25, Width: 0.5, Height: 0.751})
+	ok(t, map[string]any{"x": 0, "y": 0, "width": 1, "height": 1}, irisImageBounds{Width: 1, Height: 1})
+
+	reject(t, "not a box")
+	reject(t, map[string]any{"x": -0.1, "y": 0, "width": 0.2, "height": 0.2})
+	reject(t, map[string]any{"x": 0, "y": 0, "width": 0, "height": 0.2})
+	reject(t, map[string]any{"x": 0, "y": 0, "width": 1.1, "height": 0.2})
+	reject(t, map[string]any{"x": 0.6, "y": 0, "width": 0.5, "height": 0.2})
+	reject(t, map[string]any{"x": 0, "y": 0.9, "width": 0.2, "height": 0.2})
+}
+
+func TestIrisRegionsDropInvalidBounds(t *testing.T) {
+	req := irisGenerateRequest{
+		"model":        "image-localise",
+		"image":        assetField(),
+		"targetLocale": "ja-JP",
+		"regions": []any{
+			map[string]any{"sourceText": "Sale", "bounds": map[string]any{"x": -1, "y": 0, "width": 0.2, "height": 0.2}},
+			map[string]any{"sourceText": "Shop", "bounds": map[string]any{"x": 0.1, "y": 0.1, "width": 0.2, "height": 0.2}},
+			map[string]any{"sourceText": "Overflow", "bounds": map[string]any{"x": 0.8, "y": 0.8, "width": 0.4, "height": 0.4}},
+		},
+	}
+	require.Equal(t, []irisImageLocaliseRegion{
+		{SourceText: "Shop", Bounds: irisImageBounds{X: 0.1, Y: 0.1, Width: 0.2, Height: 0.2}},
+	}, req.regions())
+	_, err := validateIrisGenerateRequest(req)
+	require.NoError(t, err)
+}
+
 func TestIrisImageLocalisePrompt(t *testing.T) {
 	prompt := irisImageLocalisePrompt("fr-FR", []irisTranslationPair{{Source: "Shop now", Target: "Acheter"}}, nil, "Keep the price in euros.")
 	require.Contains(t, prompt, "fr-FR")
