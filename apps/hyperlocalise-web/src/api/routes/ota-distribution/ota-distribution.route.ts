@@ -232,6 +232,23 @@ async function loadLatestReleases(distributionIds: string[]): Promise<Map<string
   return latest;
 }
 
+async function loadOwnedDistribution(
+  projectId: string,
+  distributionId: string,
+): Promise<OtaDistribution | null> {
+  const [existing] = await db
+    .select()
+    .from(schema.otaDistributions)
+    .where(
+      and(
+        eq(schema.otaDistributions.id, distributionId),
+        eq(schema.otaDistributions.projectId, projectId),
+      ),
+    )
+    .limit(1);
+  return existing ?? null;
+}
+
 function writerErrorResponse(c: JsonContext, error: OtaDistributionWriterError) {
   switch (error.code) {
     case "project_not_found":
@@ -417,23 +434,14 @@ export function createOtaDistributionRoutes() {
         return resolved.error;
       }
       const { distributionId } = c.req.valid("param");
-      const [existing] = await db
-        .select()
-        .from(schema.otaDistributions)
-        .where(
-          and(
-            eq(schema.otaDistributions.id, distributionId),
-            eq(schema.otaDistributions.projectId, resolved.project.id),
-          ),
-        )
-        .limit(1);
+      const existing = await loadOwnedDistribution(resolved.project.id, distributionId);
       if (!existing) {
         return notFoundResponse(c, "distribution_not_found");
       }
 
       const body = c.req.valid("json");
       const updated = await otaDistributionWriter.update({
-        distributionId,
+        distributionId: existing.id,
         actorUserId: c.var.auth.user.localUserId,
         ...body,
       });
@@ -456,22 +464,13 @@ export function createOtaDistributionRoutes() {
         return resolved.error;
       }
       const { distributionId } = c.req.valid("param");
-      const [existing] = await db
-        .select({ id: schema.otaDistributions.id })
-        .from(schema.otaDistributions)
-        .where(
-          and(
-            eq(schema.otaDistributions.id, distributionId),
-            eq(schema.otaDistributions.projectId, resolved.project.id),
-          ),
-        )
-        .limit(1);
+      const existing = await loadOwnedDistribution(resolved.project.id, distributionId);
       if (!existing) {
         return notFoundResponse(c, "distribution_not_found");
       }
 
       const published = await publishOtaDistributionRelease({
-        distributionId,
+        distributionId: existing.id,
         actorUserId: c.var.auth.user.localUserId,
       });
       if (isErr(published)) {
@@ -491,8 +490,13 @@ export function createOtaDistributionRoutes() {
         return resolved.error;
       }
       const { distributionId } = c.req.valid("param");
+      const existing = await loadOwnedDistribution(resolved.project.id, distributionId);
+      if (!existing) {
+        return notFoundResponse(c, "distribution_not_found");
+      }
+
       const rotated = await rotateOtaDistributionHash({
-        distributionId,
+        distributionId: existing.id,
         actorUserId: c.var.auth.user.localUserId,
       });
       if (isErr(rotated)) {
@@ -518,8 +522,13 @@ export function createOtaDistributionRoutes() {
         return resolved.error;
       }
       const { distributionId } = c.req.valid("param");
+      const existing = await loadOwnedDistribution(resolved.project.id, distributionId);
+      if (!existing) {
+        return notFoundResponse(c, "distribution_not_found");
+      }
+
       const revoked = await revokeOtaDistributionAndPurge({
-        distributionId,
+        distributionId: existing.id,
         actorUserId: c.var.auth.user.localUserId,
       });
       if (isErr(revoked)) {
