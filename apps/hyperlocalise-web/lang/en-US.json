@@ -171,6 +171,10 @@
     "defaultMessage": "No Overview snapshot yet. Refresh to capture this market.",
     "description": "Overview has no cached provider snapshot"
   },
+  "+CRu8NfvtB": {
+    "defaultMessage": "JSON",
+    "description": "JSON format option for a CDN distribution"
+  },
   "+Dso3VFqcL": {
     "defaultMessage": "A few things\nyou might ask.",
     "description": "FAQ heading on the Domains product page"
@@ -938,6 +942,10 @@
   "/AAFYQZiFS": {
     "defaultMessage": "Quote",
     "description": "Slash menu item for a blockquote"
+  },
+  "/AapRn595W": {
+    "defaultMessage": "Destination",
+    "description": "Label for selecting a CDN destination"
   },
   "/AcaMGSbw2": {
     "defaultMessage": "Source",
@@ -3259,6 +3267,10 @@
     "defaultMessage": "A clear winner",
     "description": "market-experimentation use case page: scenario › events › #3 › title"
   },
+  "2Lzygvm5rp": {
+    "defaultMessage": "Could not load CDN destinations.",
+    "description": "Error when CDN destinations fail to load"
+  },
   "2MAdJ856yN": {
     "defaultMessage": "Trusted by teams at",
     "description": "Integration strip label on the agents-automation hero"
@@ -3867,6 +3879,10 @@
     "defaultMessage": "Search documents",
     "description": "Accessible label for the Sanity document search field"
   },
+  "3G08bynPIU": {
+    "defaultMessage": "Endpoint (optional)",
+    "description": "Label for an S3-compatible endpoint URL"
+  },
   "3G3Ey6WZkU": {
     "defaultMessage": "Anthropic",
     "description": "Anthropic BYOK provider name on the AI Engine page"
@@ -3898,6 +3914,10 @@
   "3LHetSCirA": {
     "defaultMessage": "The AI partner for international growth.",
     "description": "Open Graph meta description for the marketing homepage (shorter than the main description)"
+  },
+  "3LmU5oq/9O": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button for CDN destination dialogs"
   },
   "3M+guxg4Ll": {
     "defaultMessage": "Unable to load GitHub installation status right now.",
@@ -4054,6 +4074,10 @@
   "3aTLgL6EAQ": {
     "defaultMessage": "Hero title · Max 2 lines on tablet",
     "description": "Constraints line in the hero CAT mock intelligence panel"
+  },
+  "3bMyg1I54K": {
+    "defaultMessage": "No custom buckets yet",
+    "description": "Empty-state title for CDN destinations"
   },
   "3bYYLdUKAu": {
     "defaultMessage": "Applies to every research view.",
@@ -4454,6 +4478,10 @@
   "41dxtjvcHt": {
     "defaultMessage": "Add tags",
     "description": "Accessible label of the field for adding tags to the string"
+  },
+  "42BdLGhs9r": {
+    "defaultMessage": "Not released yet",
+    "description": "Status when a CDN distribution has no successful release"
   },
   "42qlKZdHsf": {
     "defaultMessage": "Needs attention",
@@ -4915,6 +4943,10 @@
     "defaultMessage": "Selected",
     "description": "Hint shown beside the active item in a breadcrumb selector menu"
   },
+  "4mrQ4Iw3UG": {
+    "defaultMessage": "Hyperlocalise CDN",
+    "description": "Label for the hosted Hyperlocalise CDN destination"
+  },
   "4mrug10+v6": {
     "defaultMessage": "Load more",
     "description": "Button label to load more CAT queue segments"
@@ -4958,6 +4990,10 @@
   "4qQ8w1wkBs": {
     "defaultMessage": "Add value",
     "description": "Add a Coalesce input"
+  },
+  "4qWZZ73pha": {
+    "defaultMessage": "New distribution",
+    "description": "Button to create a CDN distribution"
   },
   "4r4mzKbKI8": {
     "defaultMessage": "Min size",
@@ -6691,6 +6727,10 @@
     "defaultMessage": "Leave a group unticked to match all of it.",
     "description": "Hint under the job changed trigger filters explaining that an empty group matches everything"
   },
+  "7CfX7zd8oz": {
+    "defaultMessage": "Locales",
+    "description": "Label for selecting locales in a CDN distribution"
+  },
   "7D/INu8qEd": {
     "defaultMessage": "Onboarding CTA idioms vary by market",
     "description": "Knowledge mock UI memory feed item — glossary decision"
@@ -7118,6 +7158,10 @@
   "7qX3gQkmz8": {
     "defaultMessage": "View workspace",
     "description": "Permission row for reading the workspace"
+  },
+  "7qkPxRy9iz": {
+    "defaultMessage": "Use an IAM user that can HeadBucket, PutObject, GetObject, ListBucket, and DeleteObject on this bucket. Credentials are encrypted at rest.",
+    "description": "Description of the create CDN destination dialog"
   },
   "7qpCwZIaq2": {
     "defaultMessage": "Target translation",
@@ -9347,6 +9391,10 @@
     "defaultMessage": "Open entry {sourceText}",
     "description": "Accessible label for opening a translation memory entry"
   },
+  "AtEk3Q1jdM": {
+    "defaultMessage": "Revoke this distribution?",
+    "description": "Title of the confirm dialog before revoking a CDN distribution"
+  },
   "AtXAhlt1Vc": {
     "defaultMessage": "Previous string",
     "description": "Keyboard shortcuts dialog row for moving to the previous string"
@@ -9935,6 +9983,10 @@
     "defaultMessage": "All, untranslated first",
     "description": "CAT queue filter that shows every segment with untranslated strings first"
   },
+  "Bhmc0ft5LM": {
+    "defaultMessage": "Distributions still using this bucket cannot be deleted. Revoke or move them first.",
+    "description": "Description of the delete CDN destination confirmation"
+  },
   "Bi1sMbiLMN": {
     "defaultMessage": "Contentful images",
     "description": "AI feature: Contentful image assets"
@@ -10411,6 +10463,10 @@
     "defaultMessage": "Edits, approvals, and comments on this string will appear here.",
     "description": "Empty state description for the segment activity tab in the CAT details panel"
   },
+  "CJmTWcLA2W": {
+    "defaultMessage": "Copied",
+    "description": "Toast after copying a CDN URL"
+  },
   "CKG9S/rkQM": {
     "defaultMessage": "Schedule weekday",
     "description": "Accessible label for the schedule weekday selector"
@@ -10686,6 +10742,10 @@
   "Cil9vaybzd": {
     "defaultMessage": "Canva is requesting access to localize designs through a Hyperlocalise workspace connection.",
     "description": "Description for the Canva OAuth consent page"
+  },
+  "CivmESJtKy": {
+    "defaultMessage": "CDN destinations",
+    "description": "Accessible label for the CDN destinations list"
   },
   "CjBhJGtOu7": {
     "defaultMessage": "FR and DE routed for review",
@@ -11907,6 +11967,10 @@
     "defaultMessage": "Unable to save Contentful connection",
     "description": "Fallback error when saving a Contentful connection fails"
   },
+  "EQxLGsmJrt": {
+    "defaultMessage": "Save destination",
+    "description": "Submit button for creating a CDN destination"
+  },
   "ER73k4zqPy": {
     "defaultMessage": "Google canonical",
     "description": "URL inspection Google canonical label"
@@ -12019,6 +12083,10 @@
     "defaultMessage": "Saving…",
     "description": "Button label while a job description save is in progress"
   },
+  "EYGyoDkzHT": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button for the CDN distribution dialog"
+  },
   "EYRqZtZx0G": {
     "defaultMessage": "Translation",
     "description": "Job task type option for translation"
@@ -12083,6 +12151,10 @@
     "defaultMessage": "Friendly and direct. Avoid formal Sie-form and jargon in checkout flows. Write like you are helping a customer finish quickly.",
     "description": "Brand guideline tone body in content ops mock"
   },
+  "EbQJKSIxSL": {
+    "defaultMessage": "Loading destinations…",
+    "description": "Loading state for CDN destinations"
+  },
   "EcDz2IQknb": {
     "defaultMessage": "Manual",
     "description": "Manual origin for a translation memory entry"
@@ -12122,6 +12194,10 @@
   "EfNE1Pwz+v": {
     "defaultMessage": "Unfinished locales: {locales}",
     "description": "Lists locales that did not finish in a file translation job"
+  },
+  "EfYAxoL2i5": {
+    "defaultMessage": "Add S3 destination",
+    "description": "Title of the create CDN destination dialog"
   },
   "EfYrVZH3dW": {
     "defaultMessage": "Send email",
@@ -12622,6 +12698,10 @@
   "FLtvo0/uV8": {
     "defaultMessage": "AI on tasks",
     "description": "Costs column: AI charged on tasks"
+  },
+  "FLwvZqOqne": {
+    "defaultMessage": "CDN",
+    "description": "Settings nav item for custom CDN destinations"
   },
   "FLx49NPlCh": {
     "defaultMessage": "Unhid occurrence",
@@ -13822,6 +13902,10 @@
   "H3ZP4+H6tz": {
     "defaultMessage": "Log time",
     "description": "Button that opens the dialog for logging time"
+  },
+  "H4+1o+HDkH": {
+    "defaultMessage": "CDN",
+    "description": "Project settings nav item for over-the-air CDN distributions"
   },
   "H4lbxX+TrQ": {
     "defaultMessage": "Final review",
@@ -15055,6 +15139,10 @@
     "defaultMessage": "REST cluster",
     "description": "Label for the Braze REST cluster picker"
   },
+  "IyhAAjoHew": {
+    "defaultMessage": "That action did not complete.",
+    "description": "Generic error for CDN distribution actions"
+  },
   "IypYQDIY3f": {
     "defaultMessage": "Contentful webhook registered",
     "description": "Toast title when a Contentful webhook is created"
@@ -15454,6 +15542,10 @@
   "JUfajjODRg": {
     "defaultMessage": "Selected",
     "description": "Shortcut hint for the currently selected project"
+  },
+  "JUzRcBV1rA": {
+    "defaultMessage": "CDN distributions",
+    "description": "Project settings heading for over-the-air CDN distributions"
   },
   "JV74CwQ5fc": {
     "defaultMessage": "Refreshing…",
@@ -15975,6 +16067,10 @@
     "defaultMessage": "Ending punctuation",
     "description": "QA review: punctuation mismatch"
   },
+  "KMFSdYMdm6": {
+    "defaultMessage": "Android XML",
+    "description": "Android XML format option for a CDN distribution"
+  },
   "KMqfuFnJC7": {
     "defaultMessage": "New projects created from this template start with these languages, settings, translation memories and glossaries. Changing the template later doesn't change existing projects.",
     "description": "Description of the project template dialog"
@@ -16415,6 +16511,10 @@
     "defaultMessage": "{count, plural, one {Skipped # duplicate} other {Skipped # duplicates}}",
     "description": "Duplicate-skip sentence in the Issue Sheet CSV import success summary"
   },
+  "L3NRzfZ3d6": {
+    "defaultMessage": "Create",
+    "description": "Submit button for creating a CDN distribution"
+  },
   "L3WOPNvG0H": {
     "defaultMessage": "Domains",
     "description": "Link from Hyperlab to the Domains product page"
@@ -16630,6 +16730,14 @@
   "LMZ8bk3MgG": {
     "defaultMessage": "Workflow: {step}",
     "description": "Automated time: a step of a visual workflow"
+  },
+  "LMl88MMoE7": {
+    "defaultMessage": "CDN destinations",
+    "description": "Workspace settings page title for custom CDN destinations"
+  },
+  "LN67F8WFRm": {
+    "defaultMessage": "Add destination",
+    "description": "Button to add a custom S3 CDN destination"
   },
   "LN9F71LX3/": {
     "defaultMessage": "Fixed fee",
@@ -17663,6 +17771,10 @@
     "defaultMessage": "Set locale",
     "description": "More menu action to set target locale"
   },
+  "MlwSNmFoXs": {
+    "defaultMessage": "No CDN distributions in this workspace yet. Create one on a native project.",
+    "description": "Empty state when Hyperlab has no OTA distributions to bind"
+  },
   "MmRAbYJJub": {
     "defaultMessage": "disabled an automation",
     "description": "Action for disabling an automation"
@@ -18399,6 +18511,10 @@
     "defaultMessage": "Project",
     "description": "Fallback project name when the project title is missing"
   },
+  "NhzwsS1rjr": {
+    "defaultMessage": "Hash rotated. Update apps that still embed the old URL.",
+    "description": "Success toast after rotating a CDN distribution hash"
+  },
   "NiBNvdtgqF": {
     "defaultMessage": "Mode",
     "description": "Section label for workspace persona options in the Content Editor view menu"
@@ -18634,6 +18750,10 @@
   "O/p1Cca1WB": {
     "defaultMessage": "Publish the pages you already have, then fix what search and AI still miss.",
     "description": "Bottom CTA description for the Domains product page"
+  },
+  "O17zsV4ZC8": {
+    "defaultMessage": "Release",
+    "description": "Button to publish a CDN distribution snapshot"
   },
   "O1hmkcilYp": {
     "defaultMessage": "Insights on hyperlocalisation, translation intelligence, and building localisation workflows for global teams.",
@@ -18994,6 +19114,10 @@
   "OawVGF0jzY": {
     "defaultMessage": "Save",
     "description": "Button that saves the project sync settings"
+  },
+  "ObS0tdzBTB": {
+    "defaultMessage": "Rotate hash",
+    "description": "Button to mint a new public hash for a CDN distribution"
   },
   "ObksDhMzPR": {
     "defaultMessage": "{written, plural, =0 {No new translations to send} one {# translated file sent} other {# translated files sent}}",
@@ -20178,6 +20302,10 @@
   "QNHryjPIoo": {
     "defaultMessage": "Select all",
     "description": "Select every project target locale in the create translation job dialog"
+  },
+  "QNe7QoZgvf": {
+    "defaultMessage": "Format",
+    "description": "Label for the CDN distribution format field"
   },
   "QNkL8EdZgQ": {
     "defaultMessage": "Active",
@@ -21723,6 +21851,10 @@
     "defaultMessage": "Translation job",
     "description": "Badge on a version a translation job wrote"
   },
+  "SaFqFJmakB": {
+    "defaultMessage": "When this version wins, OFREP includes the bound CDN hash so the app can fetch the matching string pack.",
+    "description": "Hint for binding a CDN distribution to a Hyperlab variant"
+  },
   "SaUIWMakVt": {
     "defaultMessage": "Task runs: {stage}",
     "description": "Automated time: one stage of translation task runs, such as Translating"
@@ -21987,6 +22119,10 @@
     "defaultMessage": "Provider folder",
     "description": "Folder on the connected source for content sync"
   },
+  "SxxDsIOhUO": {
+    "defaultMessage": "Distribution created. Release it to publish files.",
+    "description": "Success toast after creating a CDN distribution"
+  },
   "SxxEV+oz+y": {
     "defaultMessage": "Import glossary",
     "description": "Title of the glossary import dialog"
@@ -22222,6 +22358,10 @@
   "TGxX41HjAL": {
     "defaultMessage": "Column hidden",
     "description": "Toast after hiding an issue column"
+  },
+  "THNUna+BNU": {
+    "defaultMessage": "Release published.",
+    "description": "Success toast after publishing a CDN distribution"
   },
   "THoL7yb4DX": {
     "defaultMessage": "Guideline check limit reached. This translation was not checked.",
@@ -24179,6 +24319,10 @@
     "defaultMessage": "Deleting…",
     "description": "Button text while a time entry is deleted"
   },
+  "VwyLcxtAEG": {
+    "defaultMessage": "Copy manifest URL",
+    "description": "Button to copy the public manifest URL"
+  },
   "VxRWiDyH8o": {
     "defaultMessage": "Unable to import entries",
     "description": "Fallback error when translation memory import fails"
@@ -24378,6 +24522,10 @@
   "WDaXRRP8RP": {
     "defaultMessage": "Next",
     "description": "Button to go to the next proposals page"
+  },
+  "WDkSeBnfPB": {
+    "defaultMessage": "Projects can keep using the hosted Hyperlocalise CDN. Add a destination here when a customer wants releases written to their own infrastructure.",
+    "description": "Empty-state description for CDN destinations"
   },
   "WDmTfqzG7L": {
     "defaultMessage": "No agent runs yet.",
@@ -24871,6 +25019,10 @@
     "defaultMessage": "/100",
     "description": "Suffix after the overall localisation audit score"
   },
+  "X/GnAqc3SF": {
+    "defaultMessage": "Branch",
+    "description": "Label for selecting a native version branch for a CDN distribution"
+  },
   "X02KnwxTqG": {
     "defaultMessage": "Shared tone and terminology so agents stay consistent.",
     "description": "Description when the native project style guide is missing"
@@ -24987,6 +25139,10 @@
     "defaultMessage": "Select at least one valid target locale.",
     "description": "Validation error when no valid target locales are selected"
   },
+  "X9oKYTr/q8": {
+    "defaultMessage": "Publish approved translations to a public CDN hash. Apps poll the manifest, then fetch locale files. Nothing goes live until you release.",
+    "description": "Project settings description for CDN distributions"
+  },
   "XA1/TEs2Rt": {
     "defaultMessage": "No active plan",
     "description": "Title when the workspace has no active subscription"
@@ -25006,6 +25162,10 @@
   "XBjtqyv7fx": {
     "defaultMessage": "maxLength\ncharacterLimit",
     "description": "Placeholder for JSON sibling character-limit fields"
+  },
+  "XCC6S4HjMT": {
+    "defaultMessage": "Add a customer S3 bucket in workspace settings.",
+    "description": "Hint linking to workspace CDN destination settings"
   },
   "XCeIO0kKvi": {
     "defaultMessage": "Show {title}",
@@ -25659,6 +25819,10 @@
     "defaultMessage": "No projects yet.",
     "description": "Empty state when there are no projects to select"
   },
+  "Y59kDSR+P+": {
+    "defaultMessage": "Use path-style URLs",
+    "description": "Checkbox label for S3 path-style addressing"
+  },
   "Y5QGYzW/72": {
     "defaultMessage": "Owner updated",
     "description": "Toast after the automation owner is changed"
@@ -26190,6 +26354,10 @@
   "YsUGw6nQKk": {
     "defaultMessage": "Resolved",
     "description": "Issue status filter option when an issue is resolved"
+  },
+  "YsnLEzyuRR": {
+    "defaultMessage": "No distributions yet",
+    "description": "Empty-state title for CDN distributions"
   },
   "YspwpitZs7": {
     "defaultMessage": "Select assignee",
@@ -26931,6 +27099,10 @@
     "defaultMessage": "Key name",
     "description": "Label for the API key name field"
   },
+  "ZudMnt/VFG": {
+    "defaultMessage": "New CDN distribution",
+    "description": "Title of the create-distribution dialog"
+  },
   "Zuqyt5ss4U": {
     "defaultMessage": "Enter an amount in US dollars, such as 5000.",
     "description": "Error when the amount is not valid"
@@ -26966,6 +27138,10 @@
   "Zy8ZOSNNhB": {
     "defaultMessage": "UTC",
     "description": "Placeholder for scheduled automation timezone input"
+  },
+  "Zy9fSoO9xF": {
+    "defaultMessage": "Revoke",
+    "description": "Button to revoke a CDN distribution"
   },
   "ZyLqw2lEMQ": {
     "defaultMessage": "People who logged time",
@@ -27062,6 +27238,10 @@
   "a4IAS0WZRR": {
     "defaultMessage": "Glossaries",
     "description": "Back link from glossary detail to the list page"
+  },
+  "a4JlUjqbC5": {
+    "defaultMessage": "Delete",
+    "description": "Button to delete a CDN destination"
   },
   "a4ctx1qVpW": {
     "defaultMessage": "Changed",
@@ -27263,6 +27443,10 @@
     "defaultMessage": "TMS",
     "description": "Fallback label when no TMS provider name is available"
   },
+  "aKKkBLHXs8": {
+    "defaultMessage": "Revoke",
+    "description": "Confirm button in the revoke CDN distribution dialog"
+  },
   "aKcI4nX5x6": {
     "defaultMessage": "SERP analysis",
     "description": "Keyword research screen: serp"
@@ -27406,6 +27590,10 @@
   "abu4wDVfOW": {
     "defaultMessage": "Template saved. Find it in Settings, Project templates.",
     "description": "Toast after a project is saved as a template"
+  },
+  "ac2NXVMSAs": {
+    "defaultMessage": "Delete this destination?",
+    "description": "Title of the delete CDN destination confirmation"
   },
   "acDR5UQdFA": {
     "defaultMessage": "Remove member...",
@@ -27626,6 +27814,10 @@
   "awblgkR0ah": {
     "defaultMessage": "Title or description changed",
     "description": "Event type checkbox for job.details_changed webhooks"
+  },
+  "aweugdnJ+2": {
+    "defaultMessage": "Create a distribution, pick files and locales, then release a snapshot to the hosted CDN or a workspace S3 bucket.",
+    "description": "Empty-state description for CDN distributions"
   },
   "awnc3dv3Xw": {
     "defaultMessage": "Key",
@@ -29739,6 +29931,10 @@
     "defaultMessage": "Match band",
     "description": "Switch option: split the volume chart by how closely the memory matched"
   },
+  "dnMi8xOjl4": {
+    "defaultMessage": "String distribution",
+    "description": "Heading for the OTA distribution bound to a Hyperlab variant"
+  },
   "dnUl0UTxhs": {
     "defaultMessage": "This whole task, whatever its dates. Days use UTC. Counts update about every 15 minutes.",
     "description": "Line at the top of a task's Report tab"
@@ -30731,6 +30927,10 @@
     "defaultMessage": "Select source files",
     "description": "Title for the existing source-file selection dialog"
   },
+  "f1fSWAH3FD": {
+    "defaultMessage": "Destination saved. Projects can select it on a distribution.",
+    "description": "Success toast after creating a CDN destination"
+  },
   "f1mPsN6Zdv": {
     "defaultMessage": "14:20",
     "description": "localisation-for-ai-coding-agents use case page: scenario › events › #2 › time"
@@ -30942,6 +31142,10 @@
   "fKmUmenDYW": {
     "defaultMessage": "File Translations Imported",
     "description": "Activity log event type label for file translation imports"
+  },
+  "fLEkjXtPgQ": {
+    "defaultMessage": "Could not load CDN distributions.",
+    "description": "Error when CDN distributions fail to load"
   },
   "fLQRsd7VZi": {
     "defaultMessage": "Loading dictionaries…",
@@ -31294,6 +31498,10 @@
   "fpXSPN+8qa": {
     "defaultMessage": "Loading teams...",
     "description": "Loading state for the teams list"
+  },
+  "fpxDVs2F1Y": {
+    "defaultMessage": "None",
+    "description": "Option to leave a Hyperlab variant unbound from a CDN distribution"
   },
   "fq5dqebQ+i": {
     "defaultMessage": "GTM brief approved · Q2 launch",
@@ -32791,6 +32999,10 @@
     "defaultMessage": "Day 14",
     "description": "market-experimentation use case page: guide › steps › #3 › visual › subtitle"
   },
+  "hrc7c/O3UO": {
+    "defaultMessage": "iOS strings",
+    "description": "iOS strings format option for a CDN distribution"
+  },
   "hrkn2K1Geg": {
     "defaultMessage": "Saving…",
     "description": "Button label while issue template settings are saving"
@@ -33599,6 +33811,10 @@
     "defaultMessage": "Open task",
     "description": "Tab and label for adding the ticked strings to a task that is still open"
   },
+  "ixzg3e0iqs": {
+    "defaultMessage": "Bucket",
+    "description": "Label for the S3 bucket name"
+  },
   "iy6eNjNsls": {
     "defaultMessage": "API keys",
     "description": "API keys settings link in the user menu"
@@ -34291,6 +34507,10 @@
     "defaultMessage": "How does Guidelines fit with the rest of Hyperlocalise?",
     "description": "Guidelines FAQ question about product fit"
   },
+  "k/Dt8aRTtb": {
+    "defaultMessage": "Publish OTA snapshots to a customer-owned S3 bucket instead of the Hyperlocalise CDN. We probe the bucket before saving credentials.",
+    "description": "Workspace settings page description for custom CDN destinations"
+  },
   "k/ObF2e19m": {
     "defaultMessage": "Save",
     "description": "Save action in the concept editor"
@@ -34298,6 +34518,10 @@
   "k/fYpNgsXA": {
     "defaultMessage": "Hyperlocalise for Startups | Up to 80% off Growth",
     "description": "Meta title for the marketing startups page"
+  },
+  "k/sxw/4XSD": {
+    "defaultMessage": "Region",
+    "description": "Label for the S3 region"
   },
   "k00+FztnOC": {
     "defaultMessage": "Total {value}%",
@@ -34638,6 +34862,10 @@
   "kQmBWOXc/o": {
     "defaultMessage": "Works in the agents your team already uses",
     "description": "localisation-for-ai-coding-agents use case page: integrations › title"
+  },
+  "kQwkQeqjNV": {
+    "defaultMessage": "Name",
+    "description": "Label for the CDN destination name"
   },
   "kRTpEdy6V8": {
     "defaultMessage": "Person",
@@ -35071,6 +35299,10 @@
     "defaultMessage": "HyperSEO",
     "description": "Built-in SEO product name on the integrations page"
   },
+  "l3DwRVMTDv": {
+    "defaultMessage": "This branch has no source files yet.",
+    "description": "Empty state when the selected branch has no files for a CDN distribution"
+  },
   "l3r214k18t": {
     "defaultMessage": "Voice & pacing",
     "description": "Video refinement workspace: voice"
@@ -35210,6 +35442,10 @@
   "lGHZQiNbmr": {
     "defaultMessage": "Keep the meaning.\nKeep the structure.",
     "description": "Title for the text and documents format panel"
+  },
+  "lGmFnuqBDU": {
+    "defaultMessage": "Choose files, locales, and a destination. Release publishes the snapshot.",
+    "description": "Description of the create-distribution dialog"
   },
   "lH4tr3c/1j": {
     "defaultMessage": "{count, plural, one {Translation file downloaded.} other {# translation files downloaded.}}",
@@ -35807,6 +36043,10 @@
     "defaultMessage": "Contribute to assigned jobs, run AI actions, and push draft translations. No approvals or org administration.",
     "description": "Description of the translator role"
   },
+  "m58wQ0Ircc": {
+    "defaultMessage": "Distribution revoked. The public URL now returns 404.",
+    "description": "Success toast after revoking a CDN distribution"
+  },
   "m5g1uFAlkr": {
     "defaultMessage": "Guidelines from your documents",
     "description": "localisation-quality-monitoring use case page: capabilities › items › #1 › title"
@@ -36002,6 +36242,10 @@
   "mHug8Cyl7z": {
     "defaultMessage": "AI Agent",
     "description": "Catalog title for the AI agent stub node"
+  },
+  "mIBUfamIaw": {
+    "defaultMessage": "Revoked",
+    "description": "Badge for a revoked CDN distribution"
   },
   "mIfS2KCWEo": {
     "defaultMessage": "Add an accepted word",
@@ -37523,6 +37767,10 @@
     "defaultMessage": "Disconnect",
     "description": "Disconnect HubSpot"
   },
+  "oS6EyXp2Fk": {
+    "defaultMessage": "Destination removed.",
+    "description": "Success toast after deleting a CDN destination"
+  },
   "oS7mysSU95": {
     "defaultMessage": "{kind} · {format}",
     "description": "Shows the provider kind and file format in the CAT page header"
@@ -38118,6 +38366,10 @@
   "pF/btP7bSZ": {
     "defaultMessage": "Failed to update job",
     "description": "Error when a native job title, description, or owner update fails"
+  },
+  "pF8ZsPzjLl": {
+    "defaultMessage": "Released {when}",
+    "description": "Relative last-release timestamp for a CDN distribution"
   },
   "pFQ34kvcvg": {
     "defaultMessage": "EU disclosures library",
@@ -38774,6 +39026,10 @@
   "q2LrsHfEDQ": {
     "defaultMessage": "Reading localisation diff...",
     "description": "Automations mock UI localisation review step 2"
+  },
+  "q2SU2pJRak": {
+    "defaultMessage": "Loading distributions…",
+    "description": "Loading state for CDN distributions"
   },
   "q2bbkJ9zWw": {
     "defaultMessage": "Used by teams at",
@@ -39950,6 +40206,10 @@
   "ree/WWv9H5": {
     "defaultMessage": "Get your workspace ready",
     "description": "Dashboard setup hero title before workspace is fully configured"
+  },
+  "rfMHcX6Nm+": {
+    "defaultMessage": "Secret access key",
+    "description": "Label for the AWS secret access key"
   },
   "rfsreH4z0t": {
     "defaultMessage": "Members",
@@ -41899,6 +42159,10 @@
     "defaultMessage": "Next string",
     "description": "Keyboard shortcut hint for navigating strings in the visual editor"
   },
+  "uVC3GqC453": {
+    "defaultMessage": "Access key ID",
+    "description": "Label for the AWS access key ID"
+  },
   "uVpYHu+SN7": {
     "defaultMessage": "Workspace managed",
     "description": "Capability badge for native workspace translation memories"
@@ -43535,6 +43799,10 @@
     "defaultMessage": "Source text",
     "description": "Content editor side panel section that shows and edits a string's source text"
   },
+  "wiIJ9SjGaR": {
+    "defaultMessage": "That action did not complete.",
+    "description": "Generic error for CDN destination actions"
+  },
   "wjkf38j8BS": {
     "defaultMessage": "Try again",
     "description": "Retry AI recommendation"
@@ -44271,6 +44539,10 @@
     "defaultMessage": "Add other target locale",
     "description": "Accessible label for the button that reveals the custom locale input"
   },
+  "xeZm85IfG9": {
+    "defaultMessage": "The public URL will start returning 404. Apps still pointing at this hash will stop receiving translations.",
+    "description": "Explanation shown before revoking a CDN distribution"
+  },
   "xeqCGSaHwJ": {
     "defaultMessage": "Hyperlab",
     "description": "App shell breadcrumb title for Hyperlab"
@@ -44394,6 +44666,10 @@
   "xo9RGrjKoZ": {
     "defaultMessage": "Entry updated",
     "description": "Toast after a translation memory entry is updated successfully"
+  },
+  "xopG8+/q56": {
+    "defaultMessage": "Public base URL",
+    "description": "Label for the public CDN base URL"
   },
   "xotII997CO": {
     "defaultMessage": "Queries",
@@ -45155,6 +45431,10 @@
     "defaultMessage": "{label} {count}",
     "description": "Accessible label and count for one QA overview chart bar"
   },
+  "yrv+7jidmf": {
+    "defaultMessage": "Name",
+    "description": "Label for the CDN distribution name field"
+  },
   "ysf+RB1d04": {
     "defaultMessage": "{kind} task",
     "description": "Metric label identifying a native Hyperlocalise job kind"
@@ -45746,6 +46026,10 @@
   "zgKuktFmKm": {
     "defaultMessage": "Pricing and product pages are localised with the terms Mexican buyers search for, then reviewed by a local marketer.",
     "description": "market-entry use case page: scenario › events › #3 › body"
+  },
+  "zgQJSxBdyd": {
+    "defaultMessage": "Source files",
+    "description": "Label for selecting files in a CDN distribution"
   },
   "zh0FmhKnEx": {
     "defaultMessage": "{unit} finished.",
