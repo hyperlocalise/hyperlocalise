@@ -67,10 +67,10 @@ type irisGenerateRequest map[string]any
 
 func irisModels() []irisModelInfo {
 	return []irisModelInfo{
-		{ID: "nano-banana-2.1", Name: "Nano Banana 2.1", Kind: irisKindImage, GatewayID: "google/gemini-3-pro-image", ETASeconds: 20, PromptMax: 32000},
+		{ID: "nano-banana-2.1", Name: "Nano Banana 2.1", Kind: irisKindImage, GatewayID: "google/gemini-nano-banana-2.1", ETASeconds: 20, PromptMax: 32000},
 		{ID: "nano-banana-pro", Name: "Nano Banana Pro", Kind: irisKindImage, GatewayID: "google/gemini-3-pro-image", ETASeconds: 25, PromptMax: 32000},
 		{ID: "gpt-image-2.6-sunburst", Name: "GPT Image 2.6 Sunburst", Kind: irisKindImage, GatewayID: "openai/gpt-image-2.6-flare", ETASeconds: 30, PromptMax: 32000},
-		{ID: "nano-banana-2", Name: "Nano Banana 2", Kind: irisKindImage, GatewayID: "google/gemini-3-pro-image", ETASeconds: 18, PromptMax: 32000},
+		{ID: "nano-banana-2", Name: "Nano Banana 2", Kind: irisKindImage, GatewayID: "google/gemini-3.1-flash-image", ETASeconds: 18, PromptMax: 32000},
 		{ID: "seedream-5.0-pro", Name: "Seedream 5.0 Pro", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "bytedance/seedream-4.5", NativeID: "fal-ai/bytedance/seedream/v4.5/text-to-image", FalRefID: "fal-ai/bytedance/seedream/v4.5/edit", ETASeconds: 22, PromptMax: 32000},
 		{ID: "flux-3-image", Name: "FLUX.3 Image", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "black-forest-labs/flux-2-pro", NativeID: "fal-ai/flux-2-pro", ETASeconds: 24, PromptMax: 32000},
 		{ID: "flux-2-pro", Name: "FLUX.2 Pro", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "black-forest-labs/flux-2-pro", NativeID: "fal-ai/flux-2-pro", ETASeconds: 20, PromptMax: 32000},
@@ -85,7 +85,7 @@ func irisModels() []irisModelInfo {
 		{ID: "wan-3.0", Name: "Wan 3.0", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "alibaba/wan-2.6", NativeID: "alibaba/wan-3.0-prime/text-to-video", FalRefID: "alibaba/wan-3.0-prime/reference-to-video", ETASeconds: 75, PromptMax: 4000},
 		{ID: "minimax-h3", Name: "MiniMax H3", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "minimax/hailuo-2.3", NativeID: "minimax/h3/text-to-video", FalRefID: "minimax/h3/image-to-video", ETASeconds: 80, PromptMax: 4000},
 		{ID: "minimax-h3-max", Name: "MiniMax H3 Max", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "minimax/hailuo-2.3", NativeID: "minimax/h3-max/text-to-video", FalRefID: "minimax/h3-max/image-to-video", ETASeconds: 55, PromptMax: 4000},
-		{ID: "flux-3-video", Name: "FLUX.3 Video", Kind: irisKindVideo, GatewayID: "black-forest-labs/flux-2-pro", ETASeconds: 70, PromptMax: 4000},
+		{ID: "flux-3-video", Name: "FLUX.3 Video", Kind: irisKindVideo, GatewayID: "bfl/flux-3-video", ETASeconds: 70, PromptMax: 4000},
 		{ID: "grok-imagine-video-1.5", Name: "Grok Imagine Video 1.5", Kind: irisKindVideo, GatewayID: "xai/grok-imagine-video", ETASeconds: 50, PromptMax: 4000},
 		{ID: "elevenlabs-v4", Name: "ElevenLabs v4", Kind: irisKindVoice, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/eleven-v3", NativeID: "eleven_v4", ETASeconds: 15, PromptMax: 10000},
 		{ID: "elevenlabs-v3", Name: "ElevenLabs v3", Kind: irisKindVoice, Provider: irisProviderElevenLabs, GatewayID: "elevenlabs/eleven-multilingual-v2", NativeID: "eleven_multilingual_v2", ETASeconds: 12, PromptMax: 5000},
@@ -154,15 +154,35 @@ func (req irisGenerateRequest) languageCode() string {
 	return strings.TrimSpace(code)
 }
 
+// irisMaxImageCount matches the client contract's limit on images per job.
+const irisMaxImageCount = 10
+
+// clampIrisImageCount keeps a requested image count within 1..irisMaxImageCount.
+func clampIrisImageCount(n int) int {
+	if n < 1 {
+		return 1
+	}
+	if n > irisMaxImageCount {
+		return irisMaxImageCount
+	}
+	return n
+}
+
 func (req irisGenerateRequest) count() int {
 	switch value := req["count"].(type) {
 	case float64:
-		return int(value)
+		if value > irisMaxImageCount {
+			return irisMaxImageCount
+		}
+		return clampIrisImageCount(int(value))
 	case int:
-		return value
+		return clampIrisImageCount(value)
 	case json.Number:
 		n, _ := value.Int64()
-		return int(n)
+		if n > irisMaxImageCount {
+			return irisMaxImageCount
+		}
+		return clampIrisImageCount(int(n))
 	default:
 		return 1
 	}

@@ -519,7 +519,7 @@ func TestIrisGenerationAutumnGate(t *testing.T) {
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.Len(t, meter.tokenTracks, 1)
-		require.Equal(t, "google/gemini-3-pro-image", meter.tokenTracks[0].ModelID)
+		require.Equal(t, "google/gemini-nano-banana-2.1", meter.tokenTracks[0].ModelID)
 		require.Equal(t, "gateway", meter.tokenTracks[0].Properties["vendor"])
 		require.Equal(t, 1, meter.tokenTracks[0].OutputTokens)
 	})
@@ -580,7 +580,7 @@ func TestIrisSyntheticCredit(t *testing.T) {
 		{
 			name:   "gateway images",
 			job:    irisJobRecord{ID: "job_gateway_img", OrgID: "org_local", Model: "nano-banana-2.1", Assets: []irisJobAsset{{Filename: "a"}}},
-			model:  "google/gemini-3-pro-image",
+			model:  "google/gemini-nano-banana-2.1",
 			vendor: "gateway",
 			output: 1,
 		},

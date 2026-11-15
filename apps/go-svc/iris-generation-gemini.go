@@ -41,6 +41,7 @@ func (p *irisGatewayProvider) chatImage(ctx context.Context, req irisProviderReq
 		payload["providerOptions"] = map[string]any{"google": map[string]any{"imageConfig": config}}
 	}
 
+	count = clampIrisImageCount(count)
 	images := make([][]byte, 0, count)
 	for range count {
 		body, err := p.json(ctx, http.MethodPost, "/chat/completions", payload)

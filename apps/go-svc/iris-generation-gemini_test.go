@@ -81,3 +81,60 @@ func TestDecodeChatImageReportsTextOnlyReply(t *testing.T) {
 	_, err := decodeChatImage(t.Context(), []byte(`{"choices":[{"message":{"content":"I can't draw that."}}]}`))
 	require.ErrorContains(t, err, "I can't draw that.")
 }
+
+func TestIrisNanoBananaModelsAreDistinct(t *testing.T) {
+	want := map[string]string{
+		"nano-banana-2":   "google/gemini-3.1-flash-image",
+		"nano-banana-2.1": "google/gemini-nano-banana-2.1",
+		"nano-banana-pro": "google/gemini-3-pro-image",
+	}
+	for id, gatewayID := range want {
+		model, ok := irisModelByID(id)
+		require.True(t, ok, id)
+		require.Equal(t, gatewayID, model.GatewayID, id)
+		require.True(t, isIrisChatImageModel(model.GatewayID), id)
+	}
+}
+
+func TestIrisFlux3VideoUsesVideoModel(t *testing.T) {
+	model, ok := irisModelByID("flux-3-video")
+	require.True(t, ok)
+	require.Equal(t, irisKindVideo, model.Kind)
+	require.Equal(t, "bfl/flux-3-video", model.GatewayID)
+}
+
+func TestImageSizeKeepsRatio(t *testing.T) {
+	tests := []struct{ resolution, aspect, want string }{
+		{"", "1:1", "1024x1024"},
+		{"2K", "1:1", "1536x1536"},
+		{"4K", "", "2048x2048"},
+		{"", "16:9", "1536x1024"},
+		{"", "4:3", "1536x1024"},
+		{"4K", "16:9", "1536x1024"},
+		{"", "9:16", "1024x1536"},
+		{"2K", "3:4", "1024x1536"},
+		{"", "nonsense", "1024x1024"},
+	}
+	for _, tt := range tests {
+		require.Equal(t, tt.want, imageSize(tt.resolution, tt.aspect), "%s %s", tt.resolution, tt.aspect)
+	}
+}
+
+func TestIrisImageCountIsBounded(t *testing.T) {
+	require.Equal(t, 1, irisGenerateRequest{}.count())
+	require.Equal(t, 1, irisGenerateRequest{"count": float64(-3)}.count())
+	require.Equal(t, 4, irisGenerateRequest{"count": float64(4)}.count())
+	require.Equal(t, irisMaxImageCount, irisGenerateRequest{"count": float64(1e12)}.count())
+	require.Equal(t, irisMaxImageCount, irisGenerateRequest{"count": json.Number("99999999999")}.count())
+}
+
+func TestIrisGatewayProviderGeminiImageCapsCount(t *testing.T) {
+	var payloads []map[string]any
+	provider := newChatImageTestServer(t, &payloads, chatImageReply)
+	model, ok := irisModelByID("nano-banana-pro")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{Model: model, Prompt: "x", Count: 1_000_000})
+	require.NoError(t, err)
+	require.Len(t, outputs, irisMaxImageCount)
+	require.Len(t, payloads, irisMaxImageCount)
+}
