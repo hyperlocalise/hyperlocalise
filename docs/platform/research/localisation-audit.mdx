@@ -130,10 +130,10 @@ To audit more of your site in your workspace, [claim the domain](/platform/resea
 
 ## When the audit cannot finish
 
-If your homepage returns an error, a bot challenge, or a login wall, the audit stops and the report says the site was blocked. Allow this user agent through your firewall, CDN, or bot protection for public pages, then run it again:
+If your homepage returns an error, a bot challenge, or a login wall, the audit stops and the report says the site was blocked. Allow ordinary browser traffic through your firewall, CDN, or bot protection for public pages, then run it again. HTTP fetches and the sandbox Chromium fallback send this Chrome user agent; Tilion sessions use a stealth browser persona instead:
 
 ```text
-HyperlocaliseAuditBot/1.0 (+https://hyperlocalise.com)
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
 ```
 
 If some secondary pages are blocked but the homepage loads, the audit skips those pages and scores the rest.

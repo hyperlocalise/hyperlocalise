@@ -27,6 +27,7 @@ import {
 import type { HtmlPageRenderer, RenderedHtmlPage } from "./crawl-renderer";
 import { parseAuditPageLayout } from "./layout";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
+import { LOCALISATION_AUDIT_USER_AGENT } from "./user-agent";
 
 export { AuditBrowserSetupError } from "./sandbox-browser-error";
 const logger = createLogger("localisation-audit-sandbox");
@@ -97,11 +98,29 @@ export async function createAuditBrowserSession(): Promise<HtmlPageRenderer> {
   ]);
 
   const browsersPath = shellQuote(SANDBOX_PLAYWRIGHT_BROWSERS_DIR);
+  const identity = {
+    kind: "sandbox" as const,
+    userAgentSource: "chromium" as const,
+    userAgent: LOCALISATION_AUDIT_USER_AGENT,
+  };
+  logger.info("sandbox audit browser ready", {
+    rendererKind: identity.kind,
+    userAgentSource: identity.userAgentSource,
+    userAgent: identity.userAgent,
+  });
 
   return {
     kind: "sandbox",
+    browser: identity,
     async render(urls: string[]): Promise<RenderedHtmlPage[]> {
       const allowed = await filterAllowedBrowserUrls(urls);
+      logger.info("sandbox audit browser rendering", {
+        rendererKind: identity.kind,
+        userAgentSource: identity.userAgentSource,
+        userAgent: identity.userAgent,
+        requestedCount: urls.length,
+        allowedCount: allowed.length,
+      });
       if (allowed.length === 0) {
         return [];
       }

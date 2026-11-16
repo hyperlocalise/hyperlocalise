@@ -47,7 +47,9 @@ export const Default: Story = {
     await expect(crawlNote).toBeInTheDocument();
     await expect(crawlNote.closest("section")?.textContent).toContain("What we notice");
     await expect(
-      canvas.getByText("HyperlocaliseAuditBot/1.0 (+https://hyperlocalise.com)"),
+      canvas.getByText(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      ),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "What we notice" })).toBeInTheDocument();
     await expect(

@@ -302,7 +302,7 @@ describe("localisation audit routes", () => {
         status: "blocked",
         progressStage: "blocked",
         errorCode: "crawl_blocked",
-        errorMessage: "This domain blocked HyperlocaliseAuditBot/1.0.",
+        errorMessage: "This domain blocked the audit browser.",
       }),
     );
     const { createLocalisationAuditRoutes } = await import("./localisation-audit.route");
@@ -366,7 +366,7 @@ describe("localisation audit routes", () => {
         score: 82,
         teaser: { score: 82, headlineFindings: [], findingsCount: 0 },
         errorCode: "crawl_blocked",
-        errorMessage: "This domain blocked HyperlocaliseAuditBot/1.0.",
+        errorMessage: "This domain blocked the audit browser.",
       }),
     );
     const { createLocalisationAuditRoutes } = await import("./localisation-audit.route");

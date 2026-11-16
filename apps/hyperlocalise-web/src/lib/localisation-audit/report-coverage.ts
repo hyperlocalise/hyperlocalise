@@ -15,7 +15,7 @@ import type {
   LocalisationAuditStatus,
   LocalisationAuditTeaser,
 } from "./types";
-import { LOCALISATION_AUDIT_USER_AGENT_NAME } from "./user-agent";
+import { LOCALISATION_AUDIT_RECLAIM_BLOCKED_MESSAGE } from "./user-agent";
 
 const HTTP_SUCCESS_MIN = 200;
 const HTTP_SUCCESS_MAX = 299;
@@ -63,6 +63,6 @@ export function asPublishedLocalisationAudit<T extends PublishableLocalisationAu
     teaser: null,
     report: null,
     errorCode: "crawl_blocked",
-    errorMessage: `This domain blocked ${LOCALISATION_AUDIT_USER_AGENT_NAME}, so the last run could not score it. Allow it through your firewall, CDN, bot protection, or login wall, then start a new audit.`,
+    errorMessage: LOCALISATION_AUDIT_RECLAIM_BLOCKED_MESSAGE,
   };
 }

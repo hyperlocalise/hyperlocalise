@@ -15,6 +15,7 @@ import {
   auditStatusCounts,
   redactAuditErrorText,
 } from "@/lib/localisation-audit/audit-log";
+import { auditBrowserLogFields } from "@/lib/localisation-audit/crawl-renderer";
 import { runLocalisationAuditCredits } from "@/lib/localisation-audit/credits/runner";
 import { pageLocale } from "@/lib/localisation-audit/credits/shared";
 import {
@@ -45,7 +46,7 @@ import type {
   LocalisationAuditCrawledPage,
   LocalisationAuditSitemapSignal,
 } from "@/lib/localisation-audit/types";
-import { LOCALISATION_AUDIT_USER_AGENT_NAME } from "@/lib/localisation-audit/user-agent";
+import { LOCALISATION_AUDIT_DEEP_AUDIT_BLOCKED_MESSAGE } from "@/lib/localisation-audit/user-agent";
 
 // `@/lib/log` must load inside the step: a static import crashes the workflow sandbox.
 async function stepLogger(bindings: Record<string, string | number>) {
@@ -143,33 +144,30 @@ export async function discoverDeepAuditStep(input: {
   const log = await stepLogger({ runId: input.runId, organizationId: input.organizationId });
   const startedAt = performance.now();
   const renderer = await createAuditPageRenderer();
-  const rendererKind = renderer.kind ?? "custom";
   let home: LocalisationAuditCrawledPage | null = null;
   let sitemap: Awaited<ReturnType<typeof collectSitemap>>;
   try {
     const rendered = (await renderer.render([input.sourceUrl]))[0];
     if (!rendered) {
       log.warn("deep audit discover: homepage did not render", {
-        rendererKind,
+        ...auditBrowserLogFields(renderer),
         durationMs: auditElapsedMs(startedAt),
       });
       return { ok: false as const, code: "crawl_failed" as const };
     }
     const blockedReason = detectLocalisationAuditCrawlBlock(rendered.status, rendered.html);
     log.info("deep audit discover: homepage rendered", {
-      rendererKind,
+      ...auditBrowserLogFields(renderer),
       status: rendered.status,
       blockedReason,
       redirected: rendered.url !== rendered.requestedUrl,
       durationMs: auditElapsedMs(startedAt),
     });
     if (blockedReason) {
-      // The sandbox sends HyperlocaliseAuditBot; a block there may only mean Tilion was unavailable.
       log.warn("deep audit discover: homepage blocked", {
-        rendererKind,
+        ...auditBrowserLogFields(renderer),
         status: rendered.status,
         blockedReason,
-        sentAuditBotUserAgent: rendererKind === "sandbox",
       });
       return { ok: false as const, code: "crawl_blocked" as const };
     }
@@ -209,7 +207,7 @@ export async function discoverDeepAuditStep(input: {
   }
   await setDeepAuditPagesDiscovered(input.runId, urls.length + 1);
   log.info("deep audit discover: page set chosen", {
-    rendererKind,
+    ...auditBrowserLogFields(renderer),
     homeLinkCount: homeLinks.length,
     sitemapSiteUrlCount: siteUrls.length,
     selectedCount: urls.length,
@@ -248,7 +246,6 @@ export async function renderDeepAuditBatchStep(input: {
     ]);
 
   const renderer = await createAuditPageRenderer();
-  const rendererKind = renderer.kind ?? "custom";
   const inserts: DeepAuditPageInsert[] = [];
   const renderedPages: LocalisationAuditCrawledPage[] = [];
   let blocked = 0;
@@ -275,7 +272,7 @@ export async function renderDeepAuditBatchStep(input: {
     pages: inserts,
   });
   log.info("deep audit batch rendered", {
-    rendererKind,
+    ...auditBrowserLogFields(renderer),
     urlCount: input.urls.length,
     renderedCount,
     notRenderedCount: input.urls.length - renderedCount,
@@ -411,7 +408,7 @@ export async function scoreDeepAuditStep(input: {
 }
 
 const FAILURE_MESSAGES: Record<string, string> = {
-  crawl_blocked: `This domain blocked ${LOCALISATION_AUDIT_USER_AGENT_NAME}. Allow it through your firewall, CDN, bot protection, or login wall, then run the audit again.`,
+  crawl_blocked: LOCALISATION_AUDIT_DEEP_AUDIT_BLOCKED_MESSAGE,
   crawl_failed: "The homepage could not be loaded, so no pages were audited.",
 };
 

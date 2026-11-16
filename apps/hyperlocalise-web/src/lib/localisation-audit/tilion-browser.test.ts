@@ -50,7 +50,9 @@ function fakePage(input: { finalUrl: string; html: string; status: number }) {
     waitForTimeout: vi.fn(async () => undefined),
     url: () => input.finalUrl,
     content: vi.fn(async () => input.html),
-    evaluate: vi.fn(async () => layout),
+    evaluate: vi.fn(async (expr: unknown) =>
+      typeof expr === "function" ? "Mozilla/5.0 (Tilion stealth)" : layout,
+    ),
     setViewportSize: vi.fn(async () => undefined),
     close: vi.fn(async () => undefined),
   };
@@ -86,6 +88,8 @@ describe("createTilionAuditBrowserSession", () => {
         ? Response.json({
             session_id: "sess_1",
             connect_url: "wss://back.tilion.dev/v1/session/sess_1/cdp?token=t",
+            persona: "chrome-windows",
+            region: "us",
           })
         : new Response(null, { status: 204 }),
     );
@@ -98,7 +102,16 @@ describe("createTilionAuditBrowserSession", () => {
 
     const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
     if (isErr(session)) throw new Error(session.error.code);
+    expect(session.value.kind).toBe("tilion");
+    expect(session.value.browser).toMatchObject({
+      kind: "tilion",
+      userAgentSource: "tilion_persona",
+      tilionSessionId: "sess_1",
+      tilionPersona: "chrome-windows",
+      tilionRegion: "us",
+    });
     const pages = await session.value.render(["https://example.com/", "http://127.0.0.1/secret"]);
+    expect(session.value.browser?.userAgent).toBe("Mozilla/5.0 (Tilion stealth)");
     await session.value.close();
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -139,7 +152,7 @@ describe("createTilionAuditBrowserSession", () => {
     );
   });
 
-  it("falls back to an isolated context without the audit bot user agent", async () => {
+  it("falls back to an isolated context without overriding the user agent", async () => {
     fetchMock.mockImplementation(async (_url, init) =>
       init?.method === "POST"
         ? Response.json({ session_id: "sess_1", connect_url: "wss://tilion/cdp" })
@@ -149,6 +162,12 @@ describe("createTilionAuditBrowserSession", () => {
 
     const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
     if (isErr(session)) throw new Error(session.error.code);
+    expect(session.value.browser).toMatchObject({
+      kind: "tilion",
+      userAgentSource: "tilion_isolated",
+      tilionSessionId: "sess_1",
+      tilionRegion: "us",
+    });
     await session.value.close();
 
     expect(playwrightMocks.newContext).toHaveBeenCalledWith(

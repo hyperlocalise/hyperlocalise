@@ -70,8 +70,8 @@ export function getLocalisationAuditPageCopy(locale: string) {
     }),
     crawlAccessNoteBody: intl.formatMessage({
       defaultMessage:
-        "If your site uses a firewall, CDN, bot check, or login wall, allow this user agent to access public pages so we can complete the audit.",
-      id: "ndyP1whnV+",
+        "If your site uses a firewall, CDN, bot check, or login wall, allow ordinary browser traffic to public pages so we can complete the audit.",
+      id: "Xd2aSOHzDN",
       description: "Guidance for site owners to allow the localisation audit crawler",
     }),
     crawlAccessNoteUserAgent: intl.formatMessage({
@@ -374,8 +374,8 @@ export function getLocalisationAuditResultCopy(locale: string) {
     }),
     blockedGuidance: intl.formatMessage({
       defaultMessage:
-        "Allow the user agent below through your firewall, CDN, bot protection, or login wall, then start a new audit.",
-      id: "FvGsFbmiod",
+        "Allow ordinary browser traffic through your firewall, CDN, bot protection, or login wall, then start a new audit.",
+      id: "fC01ZiLItd",
       description: "Guidance for a site owner whose domain blocked the localisation audit crawler",
     }),
     blockedUserAgent: intl.formatMessage({

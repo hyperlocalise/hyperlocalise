@@ -20,6 +20,7 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { MAX_PUBLIC_HTTP_RESPONSE_BYTES } from "@/lib/security/public-http-fetch";
 
 import {
+  auditElapsedMs,
   auditErrorLogFields,
   describeAuditError,
   redactAuditErrorText,
@@ -34,7 +35,7 @@ import {
   AUDIT_BROWSER_VIEWPORT,
   AUDIT_LAYOUT_MEASURE_SOURCE,
 } from "./audit-playwright-script";
-import type { HtmlPageRenderer, RenderedHtmlPage } from "./crawl-renderer";
+import type { AuditBrowserIdentity, HtmlPageRenderer, RenderedHtmlPage } from "./crawl-renderer";
 import { parseAuditPageLayout } from "./layout";
 
 const logger = createLogger("localisation-audit-tilion");
@@ -69,6 +70,16 @@ export type TilionAuditBrowserError =
 type TilionSessionResponse = {
   session_id?: string;
   connect_url?: string | null;
+  persona?: string | null;
+  region?: string | null;
+};
+
+type CreatedTilionSession = {
+  sessionId: string;
+  connectUrl: string;
+  persona?: string;
+  region?: string;
+  tilionRequestId?: string;
 };
 
 const measureLayoutExpression = `(${AUDIT_LAYOUT_MEASURE_SOURCE})(${JSON.stringify(AUDIT_BROWSER_LAYOUT_LIMITS)})`;
@@ -77,9 +88,20 @@ function authorization(apiKey: string) {
   return { Authorization: `Bearer ${apiKey}` };
 }
 
+function tilionRequestIdFrom(response: Response) {
+  return response.headers.get("x-request-id") ?? response.headers.get("X-Request-ID") ?? undefined;
+}
+
 async function createTilionSession(
   apiKey: string,
-): Promise<Result<{ sessionId: string; connectUrl: string }, TilionAuditBrowserError>> {
+): Promise<Result<CreatedTilionSession, TilionAuditBrowserError>> {
+  const startedAt = performance.now();
+  logger.info("tilion session create request", {
+    rendererKind: "tilion",
+    tilionRegion: TILION_SESSION_REGION,
+    ttlSeconds: TILION_SESSION_TTL_SECONDS,
+    idleTimeoutSeconds: TILION_SESSION_IDLE_TIMEOUT_SECONDS,
+  });
   let response: Response;
   try {
     response = await fetch(`${TILION_API_BASE_URL}/v1/session`, {
@@ -97,14 +119,28 @@ async function createTilionSession(
       signal: AbortSignal.timeout(TILION_CREATE_TIMEOUT_MS),
     });
   } catch (error) {
+    logger.warn("tilion session create request failed", {
+      rendererKind: "tilion",
+      tilionRegion: TILION_SESSION_REGION,
+      durationMs: auditElapsedMs(startedAt),
+      ...auditErrorLogFields(error),
+    });
     return err({
       code: "tilion_session_create_failed",
       status: null,
       detail: describeAuditError(error),
     });
   }
+  const tilionRequestId = tilionRequestIdFrom(response);
   if (!response.ok) {
     const body = await response.text().catch(() => "");
+    logger.warn("tilion session create rejected", {
+      rendererKind: "tilion",
+      status: response.status,
+      tilionRequestId,
+      durationMs: auditElapsedMs(startedAt),
+      errorMessage: redactAuditErrorText(body),
+    });
     return err({
       code: "tilion_session_create_failed",
       status: response.status,
@@ -114,13 +150,39 @@ async function createTilionSession(
 
   const session = (await response.json().catch(() => null)) as TilionSessionResponse | null;
   if (!session?.session_id) {
+    logger.warn("tilion session create returned no session id", {
+      rendererKind: "tilion",
+      status: response.status,
+      tilionRequestId,
+      durationMs: auditElapsedMs(startedAt),
+    });
     return err({ code: "tilion_session_create_failed", status: response.status });
   }
   if (!session.connect_url) {
+    logger.warn("tilion session create returned no cdp url", {
+      rendererKind: "tilion",
+      tilionSessionId: session.session_id,
+      tilionRequestId,
+      durationMs: auditElapsedMs(startedAt),
+    });
     await deleteTilionSession(apiKey, session.session_id);
     return err({ code: "tilion_cdp_unavailable", sessionId: session.session_id });
   }
-  return ok({ sessionId: session.session_id, connectUrl: session.connect_url });
+  logger.info("tilion session created", {
+    rendererKind: "tilion",
+    tilionSessionId: session.session_id,
+    tilionPersona: session.persona ?? undefined,
+    tilionRegion: session.region ?? TILION_SESSION_REGION,
+    tilionRequestId,
+    durationMs: auditElapsedMs(startedAt),
+  });
+  return ok({
+    sessionId: session.session_id,
+    connectUrl: session.connect_url,
+    persona: session.persona ?? undefined,
+    region: session.region ?? TILION_SESSION_REGION,
+    tilionRequestId,
+  });
 }
 
 async function deleteTilionSession(apiKey: string, sessionId: string) {
@@ -138,13 +200,33 @@ function truncateHtml(html: string) {
     : bytes.subarray(0, MAX_PUBLIC_HTTP_RESPONSE_BYTES).toString("utf8");
 }
 
+async function captureTilionUserAgent(
+  page: { evaluate: (expression: () => string) => Promise<unknown> },
+  identity: AuditBrowserIdentity,
+) {
+  if (identity.userAgent) return;
+  const userAgent = await page.evaluate(() => navigator.userAgent).catch(() => undefined);
+  if (typeof userAgent !== "string" || userAgent.length === 0) return;
+  identity.userAgent = userAgent;
+  logger.info("tilion audit browser identity", {
+    rendererKind: "tilion",
+    userAgentSource: identity.userAgentSource,
+    userAgent,
+    tilionSessionId: identity.tilionSessionId,
+    tilionPersona: identity.tilionPersona,
+    tilionRegion: identity.tilionRegion,
+  });
+}
+
 async function renderTilionPage(
   context: BrowserContext,
   url: string,
+  identity: AuditBrowserIdentity,
 ): Promise<RenderedHtmlPage | null> {
   const page = await context.newPage();
   try {
     await page.setViewportSize(AUDIT_BROWSER_VIEWPORT);
+    await captureTilionUserAgent(page, identity);
     const response = await page.goto(url, {
       waitUntil: "load",
       timeout: TILION_NAV_TIMEOUT_MS,
@@ -189,7 +271,7 @@ async function renderTilionPage(
 /**
  * Fetches a text resource (robots.txt, sitemap XML) by navigating to it in the
  * Tilion browser and reading the raw response body, so the request carries the
- * stealth persona instead of a bot user agent.
+ * stealth persona instead of a custom crawler user agent.
  */
 async function fetchTilionText(context: BrowserContext, url: string): Promise<string | null> {
   if (!(await isAllowedBrowserUrl(url))) {
@@ -226,7 +308,7 @@ async function fetchTilionText(context: BrowserContext, url: string): Promise<st
  * Pages open in the session's default context, which carries Tilion's stealth
  * persona and automatic block recovery, so the user agent and locale are left
  * to the persona. Only when the session exposes no context does it open an
- * isolated one, still without the audit bot user agent. robots.txt and sitemaps
+ * isolated one, still without overriding the user agent. robots.txt and sitemaps
  * are fetched through the same browser via `fetchText`.
  * Tilion's browser runs on Tilion's network and refuses private navigations,
  * so subresource requests are not intercepted the way the sandbox script does.
@@ -238,7 +320,7 @@ export async function createTilionAuditBrowserSession(input: {
   if (isErr(session)) {
     return err(session.error);
   }
-  const { sessionId, connectUrl } = session.value;
+  const { sessionId, connectUrl, persona, region } = session.value;
 
   let browser: Browser | undefined;
   let context: BrowserContext;
@@ -247,6 +329,12 @@ export async function createTilionAuditBrowserSession(input: {
   try {
     const { chromium } = await import("playwright-core");
     stage = "connect";
+    logger.info("tilion cdp connect starting", {
+      rendererKind: "tilion",
+      tilionSessionId: sessionId,
+      tilionPersona: persona,
+      tilionRegion: region,
+    });
     browser = await chromium.connectOverCDP(connectUrl, { timeout: TILION_CONNECT_TIMEOUT_MS });
     stage = "context";
     const stealthContext = browser.contexts()[0];
@@ -259,7 +347,20 @@ export async function createTilionAuditBrowserSession(input: {
       });
       ownsContext = true;
     }
+    logger.info("tilion cdp connected", {
+      rendererKind: "tilion",
+      tilionSessionId: sessionId,
+      userAgentSource: ownsContext ? "tilion_isolated" : "tilion_persona",
+      stealthContextPresent: !ownsContext,
+      existingContextCount: browser.contexts().length,
+    });
   } catch (error) {
+    logger.warn("tilion cdp connect failed", {
+      rendererKind: "tilion",
+      tilionSessionId: sessionId,
+      stage,
+      ...auditErrorLogFields(error),
+    });
     await browser?.close().catch(() => undefined);
     await deleteTilionSession(input.apiKey, sessionId);
     return err({
@@ -270,13 +371,31 @@ export async function createTilionAuditBrowserSession(input: {
     });
   }
   const connectedBrowser = browser;
+  const identity: AuditBrowserIdentity = {
+    kind: "tilion",
+    userAgentSource: ownsContext ? "tilion_isolated" : "tilion_persona",
+    tilionSessionId: sessionId,
+    tilionPersona: persona,
+    tilionRegion: region,
+  };
 
   return ok({
     kind: "tilion",
+    browser: identity,
     async render(urls: string[]): Promise<RenderedHtmlPage[]> {
       const allowed = await filterAllowedBrowserUrls(urls);
+      logger.info("tilion audit browser rendering", {
+        rendererKind: "tilion",
+        userAgentSource: identity.userAgentSource,
+        userAgent: identity.userAgent,
+        tilionSessionId: identity.tilionSessionId,
+        tilionPersona: identity.tilionPersona,
+        tilionRegion: identity.tilionRegion,
+        requestedCount: urls.length,
+        allowedCount: allowed.length,
+      });
       const rendered = await mapWithConcurrency(allowed, TILION_RENDER_CONCURRENCY, (url) =>
-        renderTilionPage(context, url),
+        renderTilionPage(context, url, identity),
       );
       return rendered.filter((page): page is RenderedHtmlPage => page != null);
     },

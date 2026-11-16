@@ -210,7 +210,7 @@ export const BlockedByDomain: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Audit blocked" })).toBeInTheDocument();
-    await expect(canvas.getByText(/HyperlocaliseAuditBot\/1\.0/)).toBeInTheDocument();
+    await expect(canvas.getByText(/Chrome\/131\.0\.0\.0/)).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Start a new audit" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Retry audit" })).not.toBeInTheDocument();
   },
