@@ -670,8 +670,8 @@ importers:
         specifier: 8.12.4
         version: 8.12.4
       unpdf:
-        specifier: ^1.9.1
-        version: 1.9.1
+        specifier: ^2.0.0
+        version: 2.2.0
       use-stick-to-bottom:
         specifier: ^1.1.6
         version: 1.1.6(react@19.3.1)
@@ -11024,13 +11024,16 @@ packages:
     resolution: {integrity: sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==}
     engines: {node: '>= 10.0.0'}
 
-  unpdf@1.9.1:
-    resolution: {integrity: sha512-nO1npM2kNyd4hj1fKzUVU6bvnWjDSxI97eycM/DgzI83dYyW+pNRI9NeMQVEfef8fI3Q06i9lkMeE1HxrQqKoA==}
-    engines: {node: '>=22'}
+  unpdf@2.2.0:
+    resolution: {integrity: sha512-E33ir6FPxrLuRlhLJ3KbPwcOnHozd6ITe/uhr22+Oiis6e7YQ9N/9K7hfMe1aZ9yoO6eypgI1Cc7UuYP6BkyWw==}
+    engines: {node: '>=24'}
     peerDependencies:
       '@napi-rs/canvas': ^0.1.69 || ^1.0.0
+      pdfjs-dist: '*'
     peerDependenciesMeta:
       '@napi-rs/canvas':
+        optional: true
+      pdfjs-dist:
         optional: true
 
   unpipe@1.0.0:
@@ -22545,7 +22548,7 @@ snapshots:
 
   universalify@2.0.1: {}
 
-  unpdf@1.9.1: {}
+  unpdf@2.2.0: {}
 
   unpipe@1.0.0: {}
 
