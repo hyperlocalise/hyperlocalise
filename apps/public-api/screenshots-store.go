@@ -944,3 +944,23 @@ func parseScreenshotStatus(value string) (string, bool) {
 		return "", false
 	}
 }
+
+// listScreenshotMarkers returns the key markers on one screenshot, oldest first.
+func (s *postgresStore) listScreenshotMarkers(ctx context.Context, actor principal, projectID, screenshotID string) ([]screenshotMarker, error) {
+	scope, err := loadProjectScope(ctx, s.pool, actor, projectID)
+	if err != nil {
+		return nil, err
+	}
+	if err := scope.requireNative(); err != nil {
+		return nil, err
+	}
+	item, err := s.loadScreenshot(ctx, s.pool, actor, scope, screenshotID)
+	if err != nil {
+		return nil, err
+	}
+	items := []screenshot{item}
+	if err := s.attachScreenshotMarkers(ctx, actor, scope, items); err != nil {
+		return nil, err
+	}
+	return items[0].Markers, nil
+}

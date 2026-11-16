@@ -11,6 +11,9 @@ var projectAdminErrorResponses = []storeErrorResponse{
 	{errInvalidTargetLocales, http.StatusBadRequest, "invalid_target_locales", "targetLocales must hold 1 to 50 valid locale tags"},
 	{errSourceInTargets, http.StatusBadRequest, "source_in_targets", "targetLocales cannot include the project source locale"},
 	{errStringSourceTextRequired, http.StatusBadRequest, "invalid_body", "sourceText is required to create a string"},
+	{errProjectLimitReached, http.StatusForbidden, "workspace_resource_limit_reached", "The workspace has reached its project limit"},
+	{errProjectLimitCheck, http.StatusServiceUnavailable, "workspace_resource_limit_check_failed", "Could not check the workspace's project limit"},
+	{errTeamGlossaryNeedsProject, http.StatusConflict, "glossary_team_project_required", "A team glossary attached to this project has no other native project; attach it to another project first"},
 }
 
 func writeProjectAdminStoreError(w http.ResponseWriter, err error, operation string) {
@@ -27,9 +30,13 @@ func writeProjectAdminStoreError(w http.ResponseWriter, err error, operation str
 	writeStoreError(w, err, operation)
 }
 
-// projectDetail serves GET through project and PATCH through updateProject.
+// projectDetail serves GET through project, PATCH through updateProject, and DELETE through
+// deleteProject.
 func (s apiServer) projectDetail(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPatch {
+	if !allowMethods(w, r, http.MethodGet, http.MethodPatch, http.MethodDelete) {
+		return
+	}
+	if r.Method != http.MethodPatch && r.Method != http.MethodDelete {
 		s.project(w, r)
 		return
 	}
@@ -41,11 +48,20 @@ func (s apiServer) projectDetail(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if r.Method == http.MethodDelete {
+		if err := s.store.deleteProject(r.Context(), p, projectID); err != nil {
+			writeProjectAdminStoreError(w, err, "delete project")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	var body struct {
 		Name               *string  `json:"name"`
 		Description        *string  `json:"description"`
 		TranslationContext *string  `json:"translationContext"`
 		TargetLocales      []string `json:"targetLocales"`
+		Active             *bool    `json:"active"`
 	}
 	if !decodeJSONBody(w, r, &body) {
 		return
@@ -54,11 +70,12 @@ func (s apiServer) projectDetail(w http.ResponseWriter, r *http.Request) {
 		trimmed := strings.TrimSpace(*body.Name)
 		body.Name = &trimmed
 	}
-	empty := body.Name == nil && body.Description == nil && body.TranslationContext == nil && body.TargetLocales == nil
+	empty := body.Name == nil && body.Description == nil && body.TranslationContext == nil && body.TargetLocales == nil &&
+		body.Active == nil
 	if empty || (body.Name != nil && (*body.Name == "" || len(*body.Name) > 200)) ||
 		!validOptionalText(body.Description, 10_000) || !validOptionalText(body.TranslationContext, 20_000) ||
 		len(body.TargetLocales) > 200 {
-		writeError(w, http.StatusBadRequest, "invalid_body", "Provide name, description, translationContext, or targetLocales with valid values")
+		writeError(w, http.StatusBadRequest, "invalid_body", "Provide name, description, translationContext, targetLocales, or active with valid values")
 		return
 	}
 	item, err := s.store.updateProject(r.Context(), p, projectID, projectPatch(body))

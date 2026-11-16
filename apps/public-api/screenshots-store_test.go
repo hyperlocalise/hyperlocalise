@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/memory"
 	"github.com/stretchr/testify/require"
@@ -102,6 +103,14 @@ func TestScreenshotStoreUploadBindAndList(t *testing.T) {
 	require.Equal(t, 1, total)
 	require.Len(t, listed, 1)
 	require.Len(t, listed[0].Markers, 2)
+
+	markers, err := f.store.listScreenshotMarkers(t.Context(), f.actor, f.project, ready.ID)
+	require.NoError(t, err)
+	require.Len(t, markers, 2)
+	require.Equal(t, home.ID, markers[0].StringID)
+	require.Equal(t, pay.ID, markers[1].StringID)
+	_, err = f.store.listScreenshotMarkers(t.Context(), f.actor, f.project, uuid.NewString())
+	require.ErrorIs(t, err, errScreenshotNotFound)
 
 	require.NoError(t, f.store.deleteScreenshotMarker(t.Context(), f.actor, f.project, ready.ID, added[0].ID))
 	got, err := f.store.getScreenshot(t.Context(), f.actor, f.project, ready.ID)

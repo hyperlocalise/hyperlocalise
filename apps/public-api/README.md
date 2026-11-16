@@ -12,7 +12,9 @@ The API reports the token's effective identity, reads Projects, Queries, Jobs,
 Glossaries, and Translation memories, creates native projects (optionally from a
 project template) and manages project templates, defines custom project fields and sets
 their values, manages and searches the strings, translations, screenshots, and settings of native
-projects, round-trips bilingual files, updates jobs one at a time or in bulk, exports
+projects, archives and deletes native projects, keeps custom metadata on strings, reads
+source-file import settings and a project's content sync, round-trips
+bilingual files, updates jobs one at a time or in bulk, completes and cancels jobs, exports
 glossaries, imports and exports glossaries and translation memories, registers job-change
 webhook endpoints, and reads the Reports page's reports. Job creation and file uploads continue to use the existing platform API.
 

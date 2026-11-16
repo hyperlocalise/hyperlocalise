@@ -24,6 +24,7 @@ var (
 	errTranslationNotFound   = fmt.Errorf("%w: translation", errResourceNotFound)
 	errSourceFileNotFound    = errors.New("source file not found")
 	errProjectNotNative      = errors.New("project strings are managed by an external TMS")
+	errTooManyCustomMetadata = errors.New("string holds too many custom metadata keys")
 	errStringKeyConflict     = errors.New("string key already exists")
 	errLocaleNotInProject    = errors.New("locale is not a project target locale")
 	errSegmentLocked         = errors.New("segment is locked")
@@ -34,18 +35,20 @@ var (
 )
 
 type translationString struct {
-	ID         string    `json:"id"`
-	Key        string    `json:"key"`
-	SourceText string    `json:"sourceText"`
-	Context    *string   `json:"context"`
-	Type       *string   `json:"type"`
-	MaxLength  *int      `json:"maxLength"`
-	Hidden     bool      `json:"hidden"`
-	FilePath   *string   `json:"filePath"`
-	Tags       []string  `json:"tags"`
-	DesignURL  *string   `json:"designUrl"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	ID         string   `json:"id"`
+	Key        string   `json:"key"`
+	SourceText string   `json:"sourceText"`
+	Context    *string  `json:"context"`
+	Type       *string  `json:"type"`
+	MaxLength  *int     `json:"maxLength"`
+	Hidden     bool     `json:"hidden"`
+	FilePath   *string  `json:"filePath"`
+	Tags       []string `json:"tags"`
+	DesignURL  *string  `json:"designUrl"`
+	// CustomMetadata is the caller's own text on the string, by key.
+	CustomMetadata map[string]string `json:"customMetadata"`
+	CreatedAt      time.Time         `json:"createdAt"`
+	UpdatedAt      time.Time         `json:"updatedAt"`
 }
 
 type translationRecord struct {
@@ -108,6 +111,8 @@ type stringCreate struct {
 	MaxLength  *int
 	Hidden     bool
 	FilePath   *string
+	// CustomMetadata is stored under `custom` in the key's metadata.
+	CustomMetadata map[string]string
 }
 
 type stringPatch struct {
@@ -116,6 +121,8 @@ type stringPatch struct {
 	MaxLength    optionalInt
 	Hidden       *bool
 	KeepApproved bool
+	// CustomMetadata is a merge patch: a string sets the key, nil removes it.
+	CustomMetadata map[string]*string
 }
 
 type translationWrite struct {
@@ -243,7 +250,7 @@ func percentage(count, total int) int {
 
 const stringColumns = `
 	k.id, k.key, k.source_text, k.context, k.type, k.max_length, k.is_hidden,
-	f.source_path, k.tags, k.design_url, k.created_at, k.updated_at`
+	f.source_path, k.tags, k.design_url, k.created_at, k.updated_at, ` + customMetadataColumn
 
 const stringFrom = `
 	FROM project_translation_keys k
@@ -251,10 +258,12 @@ const stringFrom = `
 
 func scanString(row rowScanner) (translationString, error) {
 	var item translationString
+	var customMetadata []byte
 	err := row.Scan(
 		&item.ID, &item.Key, &item.SourceText, &item.Context, &item.Type, &item.MaxLength, &item.Hidden,
-		&item.FilePath, &item.Tags, &item.DesignURL, &item.CreatedAt, &item.UpdatedAt,
+		&item.FilePath, &item.Tags, &item.DesignURL, &item.CreatedAt, &item.UpdatedAt, &customMetadata,
 	)
+	item.CustomMetadata = decodeCustomMetadata(customMetadata)
 	return item, err
 }
 
@@ -387,21 +396,29 @@ func (s *postgresStore) createString(ctx context.Context, actor principal, proje
 		if exists {
 			return errStringKeyConflict
 		}
+		metadata := map[string]any{}
+		if len(input.CustomMetadata) > 0 {
+			metadata["custom"] = input.CustomMetadata
+		}
+		encodedMetadata, err := json.Marshal(metadata)
+		if err != nil {
+			return fmt.Errorf("encode string metadata: %w", err)
+		}
 		var id string
 		if err := tx.QueryRow(ctx, `INSERT INTO project_translation_keys (
 				organization_id, project_id, repository_source_file_id, key, source_text,
-				normalized_source_text, context, type, max_length, is_hidden, imported_source_text
-			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $5)
+				normalized_source_text, context, type, max_length, is_hidden, imported_source_text, metadata
+			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $5, $11::jsonb)
 			RETURNING id`,
 			actor.OrganizationID, scope.ID, fileID, input.Key, input.SourceText,
 			normalizeSourceText(input.SourceText), input.Context, input.Type, input.MaxLength, input.Hidden,
+			string(encodedMetadata),
 		).Scan(&id); err != nil {
 			if isUniqueViolation(err) {
 				return errStringKeyConflict
 			}
 			return fmt.Errorf("insert string: %w", err)
 		}
-		var err error
 		created, err = loadString(ctx, tx, actor, scope, id)
 		return err
 	})
@@ -452,6 +469,26 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 		if patch.Hidden != nil {
 			set.add("is_hidden = ?", *patch.Hidden)
 			set.add("hidden_by_sync_at = ?", nil)
+		}
+		if patch.CustomMetadata != nil {
+			var stored []byte
+			if err := tx.QueryRow(ctx, `SELECT `+customMetadataColumn+` FROM project_translation_keys k
+				WHERE k.organization_id = $1 AND k.project_id = $2 AND k.id = $3`,
+				actor.OrganizationID, scope.ID, stringID).Scan(&stored); err != nil {
+				return fmt.Errorf("load custom metadata: %w", err)
+			}
+			merged, err := mergeCustomMetadata(decodeCustomMetadata(stored), patch.CustomMetadata)
+			if err != nil {
+				return err
+			}
+			clause, value, err := customMetadataSet(merged, fmt.Sprintf("$%d", len(set.args)+1))
+			if err != nil {
+				return err
+			}
+			if value != "" {
+				set.args = append(set.args, value)
+			}
+			set.conditions = append(set.conditions, clause)
 		}
 		args := append(set.args, actor.OrganizationID, scope.ID, stringID)
 		n := len(set.args)

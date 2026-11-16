@@ -204,8 +204,9 @@ func (s apiServer) projectScreenshotFinalize(w http.ResponseWriter, r *http.Requ
 	}{item})
 }
 
+// projectScreenshotMarkers lists a screenshot's key markers (GET) or adds and moves them (POST).
 func (s apiServer) projectScreenshotMarkers(w http.ResponseWriter, r *http.Request) {
-	if !allowMethods(w, r, http.MethodPost) {
+	if !allowMethods(w, r, http.MethodGet, http.MethodPost) {
 		return
 	}
 	projectID, ok := pathID(w, r, "projectId")
@@ -214,6 +215,21 @@ func (s apiServer) projectScreenshotMarkers(w http.ResponseWriter, r *http.Reque
 	}
 	screenshotID, ok := pathID(w, r, "screenshotId")
 	if !ok {
+		return
+	}
+	if r.Method != http.MethodPost {
+		p, ok := s.authenticateWithStore(w, r, "strings:read")
+		if !ok {
+			return
+		}
+		markers, err := s.store.listScreenshotMarkers(r.Context(), p, projectID, screenshotID)
+		if err != nil {
+			writeScreenshotError(w, err, "list screenshot markers")
+			return
+		}
+		writeJSON(w, http.StatusOK, struct {
+			Markers []screenshotMarker `json:"markers"`
+		}{markers})
 		return
 	}
 	p, ok := s.authenticateWithStore(w, r, "strings:write")

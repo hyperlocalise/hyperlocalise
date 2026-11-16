@@ -320,7 +320,10 @@ paths:
         Requires `projects:write`, which `files:write` grants to admins, localization managers,
         and developers. Native projects only. `targetLocales` replaces the target list: tags are
         canonicalized (`pt-br` becomes `pt-BR`), duplicates are dropped, at most 50 are kept, and
-        the source locale is rejected.
+        the source locale is rejected. `active: false` archives the project. Archived projects
+        don't count toward the workspace's project limit and are hidden from the app's project
+        list. Only the API can restore them, with `active: true`, which needs a free project slot
+        (`403 workspace_resource_limit_reached` otherwise).
       parameters:
         - $ref: "#/components/parameters/ProjectId"
       requestBody:
@@ -339,6 +342,9 @@ paths:
                   type: array
                   minItems: 1
                   items: { type: string, maxLength: 64 }
+                active:
+                  type: boolean
+                  description: "`false` archives the project; `true` restores it."
       responses:
         "200":
           description: Updated project.
@@ -356,6 +362,25 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "413": { $ref: "#/components/responses/PayloadTooLarge" }
         "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteProject
+      tags: [Projects]
+      summary: Delete a native project
+      description: >-
+        Requires `projects:write`. Native projects only. Same rules as deleting a project in the
+        app: the project, its strings, translations and source files are removed and can't be
+        recovered. A project that is the last native project of a team
+        glossary returns `409 glossary_team_project_required`. Attach the glossary to another project
+        first.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "204": { description: Project deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /v1/project-templates:
     get:
@@ -889,6 +914,7 @@ paths:
                   type: [string, "null"]
                   maxLength: 2048
                   description: Path of an existing project source file.
+                customMetadata: { $ref: "#/components/schemas/CustomMetadata" }
       responses:
         "201":
           description: Created string.
@@ -1118,6 +1144,15 @@ paths:
                   type: boolean
                   default: false
                   description: Keep approved translations approved for this source text change, for a typo or punctuation fix. Not a change on its own.
+                customMetadata:
+                  type: object
+                  maxProperties: 100
+                  propertyNames: { pattern: "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$" }
+                  additionalProperties: { type: [string, "null"], maxLength: 2000 }
+                  description: >-
+                    Merged into the string's custom metadata: a string sets the key, `null` removes
+                    it, and keys you leave out are kept. A string holds at most 50 keys
+                    (`400 invalid_custom_metadata`).
       responses:
         "200":
           description: Updated string.
@@ -1523,6 +1558,129 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/source-files:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: listProjectSourceFiles
+      tags: [Projects]
+      summary: List a project's source files and their import settings
+      description: >-
+        Requires `strings:read`. Lists the files tracked at a path in the project, with the settings
+        their uploads are parsed with. `path` and `branch` filter by exact match, so you can look up
+        the settings for a file before uploading it.
+      parameters:
+        - name: path
+          in: query
+          schema: { type: string, maxLength: 1024 }
+        - name: branch
+          in: query
+          schema: { type: string, maxLength: 256 }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Source files, ordered by path then branch.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sourceFiles, pagination]
+                properties:
+                  sourceFiles:
+                    type: array
+                    items: { $ref: "#/components/schemas/SourceFile" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/source-files/{fileId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - name: fileId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getProjectSourceFile
+      tags: [Projects]
+      summary: Get a source file's import settings
+      description: Requires `strings:read`. Returns `404 source_file_not_found` when the project has no such file.
+      responses:
+        "200":
+          description: The source file.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sourceFile]
+                properties:
+                  sourceFile: { $ref: "#/components/schemas/SourceFile" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/string-metadata-keys:
+    get:
+      operationId: listStringMetadataKeys
+      tags: [Strings]
+      summary: List the custom metadata keys in use
+      description: >-
+        Requires `strings:read`. Lists every `customMetadata` key on strings of the native projects
+        you can access, or of one project, with how many strings carry it. Keys are sorted.
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: string, maxLength: 128 }
+      responses:
+        "200":
+          description: Custom metadata keys.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [keys]
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: object
+                      required: [key, stringCount]
+                      properties:
+                        key: { type: string }
+                        stringCount: { type: integer, minimum: 1 }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/content-sync:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: getProjectContentSync
+      tags: [Projects]
+      summary: Get a project's content sync and its latest runs
+      description: >-
+        Requires `projects:read`. Returns the project's built-in sync with a repository or CMS (the
+        Sync panel in the app) and its 10 most recent runs, newest first. `sync` is `null` when the
+        project has none.
+      responses:
+        "200":
+          description: The content sync.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [contentSync]
+                properties:
+                  contentSync: { $ref: "#/components/schemas/ContentSync" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/projects/{projectId}/screenshots/{screenshotId}/finalize:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
@@ -1566,6 +1724,28 @@ paths:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
       - $ref: "#/components/parameters/ScreenshotId"
+    get:
+      operationId: listScreenshotMarkers
+      tags: [Screenshots]
+      summary: List a screenshot's key markers
+      description: Requires `strings:read`. Native projects only. Markers come oldest first.
+      responses:
+        "200":
+          description: The screenshot's markers.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [markers]
+                properties:
+                  markers:
+                    type: array
+                    items: { $ref: "#/components/schemas/ScreenshotMarker" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
     post:
       operationId: upsertScreenshotMarkers
       tags: [Screenshots]
@@ -2094,6 +2274,54 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/RateLimited" }
         "503": { $ref: "#/components/responses/ReportUnavailable" }
+  /v1/jobs/{jobId}/complete:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      operationId: completeJob
+      tags: [Jobs]
+      summary: Complete an open task for people
+      description: >-
+        Requires `jobs:write`. Same rules as Mark done in the app. Only an open proofread task
+        (`waiting_for_review`) assigned to people can be completed, not one for an agent or a
+        post-editing step of a workflow. Reviewers, localization managers and admins can complete
+        any task. Anyone else can complete only a task they own, and gets `403 not_task_assignee`
+        otherwise. Other jobs, and provider-backed jobs, return `409 job_action_unavailable`. The
+        job moves to `succeeded` and its unfinished strings stay as they are.
+      responses:
+        "200":
+          description: The completed job.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/jobs/{jobId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      operationId: cancelJob
+      tags: [Jobs]
+      summary: Cancel an open job
+      description: >-
+        Requires `jobs:write`. Same rules as Cancel in the app. A `queued`, `running` or
+        `waiting_for_review` job moves to `cancelled` and stops running. Finished jobs, and
+        provider-backed jobs, return `409 job_action_unavailable`. A cancelled job can't be
+        reopened, so create a new one if you need the work again.
+      responses:
+        "200":
+          description: The cancelled job.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/webhook-endpoints:
     get:
       operationId: listWebhookEndpoints
@@ -2957,7 +3185,7 @@ components:
         approvalProgress: { type: integer, minimum: 0, maximum: 100 }
     String:
       type: object
-      required: [id, key, sourceText, context, type, maxLength, hidden, filePath, tags, designUrl, createdAt, updatedAt]
+      required: [id, key, sourceText, context, type, maxLength, hidden, filePath, tags, designUrl, customMetadata, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         key: { type: string }
@@ -2969,8 +3197,18 @@ components:
         filePath: { type: [string, "null"] }
         tags: { type: array, items: { $ref: "#/components/schemas/Tag" } }
         designUrl: { type: [string, "null"], description: Link to the design where the string appears. }
+        customMetadata: { $ref: "#/components/schemas/CustomMetadata" }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    CustomMetadata:
+      type: object
+      maxProperties: 50
+      propertyNames: { pattern: "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$" }
+      additionalProperties: { type: string, maxLength: 2000 }
+      description: >-
+        Your own text on the string, by key, such as a ticket or a source system's ID. Only the API
+        reads and writes it. Linguists and machine translation don't see it, so put guidance for
+        translators in `context`.
     Tag:
       type: string
       pattern: "^[A-Za-z0-9_-]{1,64}$"
@@ -3222,6 +3460,67 @@ components:
       required: [job]
       properties:
         job: { $ref: "#/components/schemas/Job" }
+    SourceFile:
+      type: object
+      required: [id, path, branch, messageFormat, placeholderPatterns, segmentation, importSettings, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        path: { type: string }
+        branch: { type: string, description: "The project version branch the file belongs to." }
+        messageFormat:
+          type: string
+          enum: [auto, icu, i18next]
+          description: The placeholder syntax validation uses.
+        placeholderPatterns:
+          type: array
+          description: Custom placeholder regular expressions.
+          items: { type: string }
+        segmentation:
+          type: object
+          additionalProperties: true
+          description: Sentence segmentation settings, as the app stores them.
+        importSettings:
+          type: object
+          additionalProperties: true
+          description: Format-specific import filters applied on upload (HTML, JSON, Excel), as the app stores them.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ContentSync:
+      type: object
+      required: [sync, runs]
+      properties:
+        sync:
+          type: [object, "null"]
+          required: [id, provider, config, schedule, nextRunAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            provider: { type: [string, "null"], enum: [github, gitlab, contentful, intercom, null] }
+            config:
+              type: object
+              additionalProperties: true
+              description: >-
+                The saved sync: `provider`, `connectionId`, `resourceKey`, `providerFolder`,
+                `projectFolder`, and for Git providers `branch` and `pathTemplate`. It holds no secrets.
+            schedule: { type: string, enum: [manual, hourly, daily] }
+            nextRunAt: { type: [string, "null"], format: date-time }
+            updatedAt: { type: string, format: date-time }
+        runs:
+          type: array
+          items:
+            type: object
+            required: [id, provider, trigger, status, pullRequestUrl, errorCode, errorMessage, startedAt, completedAt]
+            properties:
+              id: { type: string, format: uuid }
+              provider: { type: [string, "null"] }
+              trigger: { type: string, enum: [manual, scheduled] }
+              status: { type: string, enum: [running, succeeded, failed] }
+              pullRequestUrl:
+                type: [string, "null"]
+                description: The pull or merge request the run opened, if it opened one.
+              errorCode: { type: [string, "null"] }
+              errorMessage: { type: [string, "null"] }
+              startedAt: { type: string, format: date-time }
+              completedAt: { type: [string, "null"], format: date-time }
     GlossaryImportReport:
       type: object
       required: [id, glossaryId, format, mode, status, counts, errorCode, errorMessage, createdAt, completedAt, diagnostics]
