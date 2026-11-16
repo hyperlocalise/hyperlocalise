@@ -33,11 +33,11 @@ import {
   SealCheckIcon,
   ShieldCheckIcon,
   SlidersHorizontalIcon,
-  SparkleIcon,
   TranslateIcon,
   TrendUpIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
@@ -65,7 +65,7 @@ const featureIcons: Record<PricingFeatureIcon, Icon> = {
   projects: FolderSimpleIcon,
   seats: UsersIcon,
   integrations: PlugsConnectedIcon,
-  ai: SparkleIcon,
+  ai: UnicornIcon,
   queries: KanbanIcon,
   credit: CoinsIcon,
   automations: LightningIcon,
@@ -183,7 +183,7 @@ export function PricingPlansSection({ plans, popularBadge }: PricingPlansSection
             <ul className={cn("mb-8 border-b border-border", plan.includesFrom ? "mt-3" : "mt-6")}>
               {plan.features.map((feature, featureIndex) => {
                 const iconKey = plan.featureIcons[featureIndex];
-                const FeatureIcon = iconKey ? featureIcons[iconKey] : SparkleIcon;
+                const FeatureIcon = iconKey ? featureIcons[iconKey] : UnicornIcon;
 
                 return (
                   <li

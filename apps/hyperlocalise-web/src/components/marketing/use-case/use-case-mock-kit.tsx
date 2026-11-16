@@ -19,12 +19,12 @@ import {
   CircleNotchIcon,
   ClockIcon,
   GitPullRequestIcon,
-  SparkleIcon,
   UserIcon,
   WarningCircleIcon,
   WrenchIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -295,7 +295,7 @@ function ChatMock({ visual }: { visual: Extract<UseCaseMockVisual, { kind: "chat
                   )}
                 >
                   {isAgent ? (
-                    <SparkleIcon weight="fill" className="size-3.5" />
+                    <UnicornIcon weight="fill" className="size-3.5" />
                   ) : (
                     <UserIcon weight="bold" className="size-3.5" />
                   )}
@@ -552,7 +552,7 @@ function PullRequestMock({
               aria-hidden
               className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
             >
-              <SparkleIcon weight="fill" className="size-3" />
+              <UnicornIcon weight="fill" className="size-3" />
             </span>
             <span className="font-semibold">
               <FormattedMessage {...sharedMessages.mockAgentName} />

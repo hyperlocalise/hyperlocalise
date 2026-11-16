@@ -12,12 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { SparkleIcon } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
-import { Spinner } from "@/components/ui/spinner";
+import { AgentPulse } from "@/components/ai-elements/agent-pulse";
 import type { WorkspaceAutomationSetupStep } from "@/lib/agents/workspace-automation-setup-steps";
 import type { WorkspaceAutomationSkillIntegration } from "@/lib/agents/workspace-automation-skills";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
@@ -123,18 +123,20 @@ export function AutomationAssistantSummary({ organizationSlug }: { organizationS
       className="flex flex-col gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-sm"
     >
       {assistant.working && assistant.appliedCallCount === 0 ? (
-        <p className="flex items-center gap-2 text-muted-foreground">
-          <Spinner className="size-4" />
-          <FormattedMessage
-            {...(assistant.mode === "detail" ? messages.workingSettings : messages.workingSetup)}
-          />
+        <p role="status" className="flex items-center gap-2 text-muted-foreground">
+          <AgentPulse />
+          <span className="agent-shimmer">
+            <FormattedMessage
+              {...(assistant.mode === "detail" ? messages.workingSettings : messages.workingSetup)}
+            />
+          </span>
         </p>
       ) : null}
       {assistant.appliedCallCount > 0 ? (
         <>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <p className="flex items-center gap-2 font-medium">
-              <SparkleIcon className="size-4 shrink-0" />
+              <UnicornIcon className="size-4 shrink-0" />
               <FormattedMessage {...header} />
             </p>
             <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">

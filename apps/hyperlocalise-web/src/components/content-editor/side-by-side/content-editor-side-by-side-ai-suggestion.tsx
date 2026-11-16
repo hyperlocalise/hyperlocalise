@@ -13,7 +13,8 @@
  * Version 2.0 or later.
  */
 import { useState, type ReactNode } from "react";
-import { SparkleIcon, CheckIcon } from "@phosphor-icons/react";
+import { CheckIcon } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
@@ -57,7 +58,7 @@ export function GenerateAiSuggestionButton({
           {isLoading ? (
             <Spinner className="size-4" />
           ) : (
-            <SparkleIcon className="size-4 text-grove-900" aria-hidden />
+            <UnicornIcon className="size-4 text-grove-900" aria-hidden />
           )}
         </TooltipTrigger>
         <TooltipContent>{label}</TooltipContent>
@@ -205,7 +206,7 @@ export function ContentEditorSideBySideAiSuggestion({
     <div className="rounded-lg bg-muted/50 px-2.5 py-2" aria-busy={isLoading}>
       <Columns spacing="0.5u" alignY="start">
         <Column width="content">
-          <SparkleIcon className="mt-0.5 size-3.5 text-grove-900" aria-hidden />
+          <UnicornIcon className="mt-0.5 size-3.5 text-grove-900" aria-hidden />
         </Column>
         <Column width="fluid">
           <Text size="xsmall" wrapStyle="pretty" lineClamp={2}>

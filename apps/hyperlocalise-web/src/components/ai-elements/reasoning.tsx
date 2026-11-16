@@ -30,6 +30,7 @@ import {
 import { Streamdown } from "streamdown";
 import { useIntl } from "react-intl";
 
+import { AgentPulse } from "./agent-pulse";
 import { reasoningMessages } from "./reasoning.messages";
 import { Shimmer } from "./shimmer";
 import { streamdownPlugins } from "./streamdown-plugins";
@@ -188,7 +189,7 @@ export const ReasoningTrigger = memo(
       >
         {children ?? (
           <>
-            <BrainIcon className="size-4" />
+            {isStreaming ? <AgentPulse /> : <BrainIcon className="size-4" />}
             {resolveThinkingMessage(isStreaming, duration)}
             <CaretDownIcon
               className={cn("size-4 transition-transform", isOpen ? "rotate-180" : "rotate-0")}

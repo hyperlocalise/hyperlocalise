@@ -14,7 +14,8 @@
  */
 import { useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/core";
-import { SparkleIcon, TranslateIcon } from "@phosphor-icons/react";
+import { TranslateIcon } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { useIntl } from "react-intl";
 
 import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
@@ -180,7 +181,7 @@ export function MarkdownSelectionAi({
           <Button variant="ghost" size="sm" onMouseDown={(event) => event.preventDefault()} />
         }
       >
-        <SparkleIcon data-icon="inline-start" aria-hidden />
+        <UnicornIcon data-icon="inline-start" aria-hidden />
         {intl.formatMessage(messages.ask)}
       </PopoverTrigger>
       <PopoverContent
@@ -205,7 +206,7 @@ export function MarkdownSelectionAi({
                 {item.key === "retranslate" ? (
                   <TranslateIcon data-icon="inline-start" aria-hidden />
                 ) : (
-                  <SparkleIcon data-icon="inline-start" aria-hidden />
+                  <UnicornIcon data-icon="inline-start" aria-hidden />
                 )}
                 {intl.formatMessage(messages[item.key])}
               </Button>

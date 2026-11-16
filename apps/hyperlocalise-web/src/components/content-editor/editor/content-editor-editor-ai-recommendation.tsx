@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowClockwiseIcon, SparkleIcon, CheckIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, CheckIcon } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import type { ReactNode } from "react";
 import { FormattedMessage } from "react-intl";
 
@@ -61,7 +62,7 @@ export function ContentEditorEditorAiRecommendation({
       aria-busy={isLoading}
     >
       <div className="flex items-center gap-1.5">
-        <SparkleIcon className="size-3.5 shrink-0 text-grove-400" aria-hidden />
+        <UnicornIcon className="size-3.5 shrink-0 text-grove-400" aria-hidden />
         <p className="text-xs font-medium text-muted-foreground">
           <FormattedMessage {...contentEditorEditorPanelMessages.aiRecommendation} />
         </p>

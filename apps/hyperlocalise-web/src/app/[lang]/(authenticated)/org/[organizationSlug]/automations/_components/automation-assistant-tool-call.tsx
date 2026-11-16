@@ -18,7 +18,7 @@ import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model.messages";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Spinner } from "@/components/ui/spinner";
+import { AgentPulse } from "@/components/ai-elements/agent-pulse";
 import type {
   AutomationAssistantCallSummary,
   AutomationAssistantChangeLine,
@@ -257,9 +257,9 @@ export function AutomationAssistantPageEdits({ edits }: { edits: AutomationAssis
   );
 }
 
-function Row({ icon, children }: { icon?: ReactNode; children: ReactNode }) {
+function Row({ icon, children, role }: { icon?: ReactNode; children: ReactNode; role?: "status" }) {
   return (
-    <p className={ROW_CLASS}>
+    <p className={ROW_CLASS} role={role}>
       {icon}
       {children}
     </p>
@@ -281,10 +281,12 @@ export function AutomationAssistantToolCall({
 
   if (summary.state === "running") {
     return (
-      <Row icon={<Spinner className="size-3" />}>
-        <FormattedMessage
-          {...(onWorkflow ? messages.toolUpdatingWorkflow : messages.toolUpdating)}
-        />
+      <Row icon={<AgentPulse />} role="status">
+        <span className="agent-shimmer">
+          <FormattedMessage
+            {...(onWorkflow ? messages.toolUpdatingWorkflow : messages.toolUpdating)}
+          />
+        </span>
       </Row>
     );
   }

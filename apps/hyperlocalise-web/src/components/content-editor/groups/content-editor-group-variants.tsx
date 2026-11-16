@@ -20,8 +20,8 @@ import {
   EraserIcon,
   InfoIcon,
   LockSimpleIcon,
-  SparkleIcon,
 } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { observer } from "mobx-react-lite";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -402,7 +402,7 @@ const GroupVariantsAiSuggestion = observer(function GroupVariantsAiSuggestion({
         {ai.isLoading && !suggestion ? (
           <Spinner className="mt-0.5 size-3.5 shrink-0" />
         ) : (
-          <SparkleIcon className="mt-0.5 size-3.5 shrink-0 text-grove-900" aria-hidden />
+          <UnicornIcon className="mt-0.5 size-3.5 shrink-0 text-grove-900" aria-hidden />
         )}
         {ai.error ? (
           <p className="line-clamp-1 text-destructive text-xs">{ai.error}</p>
