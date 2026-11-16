@@ -16,10 +16,6 @@ var (
 	errNotTaskAssignee      = errors.New("job is assigned to someone else")
 )
 
-// postEditWorkflowTaskStep is the web app's POST_EDIT_WORKFLOW_TASK_STEP: a post-editing task
-// finishes with its workflow, not by Mark done.
-const postEditWorkflowTaskStep = "edit"
-
 // cancellableJobStatuses is the web app's CANCELLABLE_JOB_STATUSES.
 var cancellableJobStatuses = []string{"queued", "running", "waiting_for_review"}
 
@@ -44,17 +40,16 @@ type jobTransition struct {
 
 // lockedJob is the state of a job a lifecycle action checks under its row lock.
 type lockedJob struct {
-	ProjectID        *string
-	Kind             string
-	Status           string
-	OwnerUserID      *string
-	AssigneeType     *string
-	WorkflowTaskStep *string
-	External         bool
+	ProjectID    *string
+	Kind         string
+	Status       string
+	OwnerUserID  *string
+	AssigneeType *string
+	External     bool
 }
 
-// completeJobTransition follows the web app's markTaskDone: only an open proofread task for
-// people can be completed, and a post-editing task finishes with its workflow instead.
+// completeJobTransition follows the web app's markTaskDone: only an open proofread or post-edit
+// task for people can be completed. Both are stored as proofread jobs.
 var completeJobTransition = jobTransition{
 	ToStatus: "succeeded",
 	// No message: lists show an outcome message as a failure reason.
@@ -62,7 +57,6 @@ var completeJobTransition = jobTransition{
 	JobEvent: "job_marked_done",
 	allowed: func(j lockedJob) bool {
 		return j.Status == "waiting_for_review" && j.Kind == "proofread" &&
-			(j.WorkflowTaskStep == nil || *j.WorkflowTaskStep != postEditWorkflowTaskStep) &&
 			(j.AssigneeType == nil || *j.AssigneeType != "agent")
 	},
 }
@@ -97,12 +91,12 @@ func (s *postgresStore) transitionJob(ctx context.Context, actor principal, jobI
 	err := s.inTx(ctx, func(tx pgx.Tx) error {
 		var locked lockedJob
 		err := tx.QueryRow(ctx, `SELECT j.project_id, j.kind::text, j.status::text, j.owner_user_id::text,
-				j.assignee_type::text, j.input_payload->'metadata'->>'workflowTaskStep', x.job_id IS NOT NULL
+				j.assignee_type::text, x.job_id IS NOT NULL
 			FROM jobs j
 			LEFT JOIN external_job_details x ON x.job_id = j.id
 			WHERE `+jobAccessPredicate+` AND j.id = $3
 			FOR UPDATE OF j`, actor.OrganizationID, actor.UserID, jobID).Scan(&locked.ProjectID, &locked.Kind,
-			&locked.Status, &locked.OwnerUserID, &locked.AssigneeType, &locked.WorkflowTaskStep, &locked.External)
+			&locked.Status, &locked.OwnerUserID, &locked.AssigneeType, &locked.External)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errJobNotFound
 		}

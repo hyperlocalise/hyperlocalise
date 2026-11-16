@@ -190,7 +190,7 @@ export function canMarkJobFailed(job: JobDetailRecord) {
   return isNativeActiveJob(job) && job.assigneeType === "agent";
 }
 
-/** An open proofread task waiting on a person, not a post-edit, translation, or agent job. */
+/** An open proofread or post-edit task waiting on a person, not a translation or agent job. */
 export function canMarkTaskDone(job: JobDetailRecord) {
   return !isProviderBackedJob(job) && isMarkableProofreadTask(job);
 }

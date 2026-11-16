@@ -12,44 +12,32 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isMarkableProofreadTask, readWorkflowTaskStep } from "./person-task";
+import { isMarkableProofreadTask, personTaskStep } from "./person-task";
 
 describe("person-task", () => {
-  it("reads the visual-workflow step from job metadata", () => {
-    expect(readWorkflowTaskStep({ metadata: { workflowTaskStep: "edit" } })).toBe("edit");
-    expect(readWorkflowTaskStep({ metadata: { workflowTaskStep: "proofread" } })).toBe("proofread");
-    expect(readWorkflowTaskStep({ metadata: {} })).toBeNull();
-    expect(readWorkflowTaskStep({})).toBeNull();
+  it("marks open proofread and post-edit tasks, not translation, agent or finished ones", () => {
+    const open = { kind: "proofread", status: "waiting_for_review" };
+    expect(isMarkableProofreadTask({ ...open, assigneeType: "user" })).toBe(true);
+    expect(isMarkableProofreadTask(open)).toBe(true);
+    expect(isMarkableProofreadTask({ ...open, assigneeType: "agent" })).toBe(false);
+    expect(isMarkableProofreadTask({ ...open, status: "queued" })).toBe(false);
+    expect(isMarkableProofreadTask({ ...open, kind: "translation", assigneeType: "user" })).toBe(
+      false,
+    );
   });
 
-  it("marks only open proofread tasks, not post-edit or translation", () => {
+  it("names the step of a task for people", () => {
+    const proofread = { kind: "proofread", assigneeType: "user" };
+    expect(personTaskStep({ ...proofread, workflowTaskStep: "edit" })).toBe("edit");
+    expect(personTaskStep({ ...proofread, workflowTaskStep: "proofread" })).toBe("proofread");
+    // A proofread task made in the app, or one made of chosen strings, stores no step.
+    expect(personTaskStep({ kind: "proofread", workflowTaskStep: null })).toBe("proofread");
     expect(
-      isMarkableProofreadTask({
-        kind: "proofread",
-        status: "waiting_for_review",
-        assigneeType: "user",
-      }),
-    ).toBe(true);
+      personTaskStep({ kind: "translation", assigneeType: "user", workflowTaskStep: "translate" }),
+    ).toBe("translate");
+    expect(personTaskStep({ kind: "translation", workflowTaskStep: null })).toBeNull();
     expect(
-      isMarkableProofreadTask({
-        kind: "proofread",
-        status: "waiting_for_review",
-        inputPayload: { metadata: { workflowTaskStep: "proofread" } },
-      }),
-    ).toBe(true);
-    expect(
-      isMarkableProofreadTask({
-        kind: "proofread",
-        status: "waiting_for_review",
-        inputPayload: { metadata: { workflowTaskStep: "edit" } },
-      }),
-    ).toBe(false);
-    expect(
-      isMarkableProofreadTask({
-        kind: "translation",
-        status: "waiting_for_review",
-        assigneeType: "user",
-      }),
-    ).toBe(false);
+      personTaskStep({ kind: "proofread", assigneeType: "agent", workflowTaskStep: "edit" }),
+    ).toBeNull();
   });
 });
