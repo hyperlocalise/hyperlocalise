@@ -6,6 +6,8 @@ Ships as one pull request (`feat/web-reports-task-report`), built in three parts
 
 The API routes and read modules named here have left the web app, moved to go-svc apart from the combined `GET /reports?report=` route, which was removed: see [Reports reads and writes in go-svc](./2026-10-29-reports-go-svc-design.md).
 
+Finishing post-edit tasks, and tasks that wait for one another (which changes which task a save belongs to), are designed in [A file's human steps in order](./2026-11-16-task-steps-in-order-design.md).
+
 ## Context
 
 Reports (behind the `workspace-reports` flag, no customer users yet) records words, match bands, completions, logged time and costs. Users asked for word counts per project, language and task by match band, time per task, budgets, and analytics: weekly volume, time per step and AI usage.
