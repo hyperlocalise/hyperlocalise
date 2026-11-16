@@ -47,6 +47,12 @@ const nextConfig: NextConfig = {
   // Agent prompts load from src/agents/**/*.md at runtime via process.cwd() (see paths.ts).
   outputFileTracingIncludes: {
     "/*": [AGENT_MARKDOWN_TRACE_GLOB, "_posts/**/*.md", "datadog-init.mjs"],
+    // playwright-core stays external and loads browsers.json through a computed
+    // path, so file tracing misses it. The localisation audit step connects to
+    // Tilion over CDP and only needs the JS client, not browser binaries.
+    "/.well-known/workflow/v1/step": [
+      "./node_modules/.pnpm/playwright-core@*/node_modules/playwright-core/**/*",
+    ],
   },
 };
 
