@@ -16,9 +16,15 @@ const (
 	maxJobsCreatedPerHour      = 120
 )
 
+// openingJobStatuses is the web app's OPENING_JOB_STATUSES: the statuses of an earlier job that
+// let a task that comes after it start.
+var openingJobStatuses = []string{"succeeded", "cancelled"}
+
 // createJob ports the platform's POST /api/v1/jobs. It records the job, its details, a key job's
 // strings, the job change event, and the activity event, in one transaction. It does not start
-// string or file jobs, reserve their usage, or start a key job's Reports analysis.
+// string or file jobs, reserve their usage, or start a task's Reports analysis. A file job with a
+// step is a task for a person, as a key job is; one that comes after an unfinished job waits as
+// queued, by the web app's rules in waiting-task.ts.
 func (s *postgresStore) createJob(ctx context.Context, actor principal, input jobCreate, idempotency *jobIdempotency) (createdJobResult, bool, error) {
 	scope, err := loadProjectScope(ctx, s.pool, actor, input.ProjectID)
 	if err != nil {
@@ -67,6 +73,10 @@ func (s *postgresStore) createJob(ctx context.Context, actor principal, input jo
 			return createdJobResult{}, false, jobFormatMismatchError{Expected: format}
 		}
 		sourceFile = &file
+		if input.File.Step != nil && input.Title == "" {
+			// As an Assign task step names its tasks, so two steps on one file can be told apart.
+			payload["metadata"].(map[string]string)["title"] = taskStepStored[*input.File.Step].TitlePrefix + ": " + file.Filename
+		}
 	}
 	encodedPayload, err := json.Marshal(payload)
 	if err != nil {
@@ -76,8 +86,12 @@ func (s *postgresStore) createJob(ctx context.Context, actor principal, input jo
 	isKeyJob := input.Type == "keys"
 	result := createdJobResult{ID: "job_" + uuid.NewString(), Type: input.Type, Status: "queued"}
 	kind := "translation"
-	if isKeyJob {
+	if isKeyJob || (input.File != nil && input.File.Step != nil) {
 		result.Status, kind = "waiting_for_review", "proofread"
+	}
+	var afterJobID *string
+	if input.File != nil {
+		afterJobID = input.File.After
 	}
 	errIdempotencyTaken := errors.New("idempotency key taken")
 	err = s.inTx(ctx, func(tx pgx.Tx) error {
@@ -90,18 +104,35 @@ func (s *postgresStore) createJob(ctx context.Context, actor principal, input jo
 				return err
 			}
 		}
+		if afterJobID != nil {
+			// If the earlier job finishes just after this read, the task starts waiting and the web
+			// app's next openWaitingTasks run opens it.
+			var afterStatus string
+			err := tx.QueryRow(ctx, `SELECT status::text FROM jobs
+				WHERE id = $1 AND organization_id = $2 AND project_id = $3`,
+				*afterJobID, actor.OrganizationID, scope.ID).Scan(&afterStatus)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return errAfterJobNotFound
+			}
+			if err != nil {
+				return fmt.Errorf("read job to come after: %w", err)
+			}
+			if !member(afterStatus, openingJobStatuses...) {
+				result.Status = "queued"
+			}
+		}
 		var assigneeType *string
 		if ownerID != nil {
 			user := "user"
 			assigneeType = &user
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO jobs
-				(id, organization_id, project_id, kind, status, input_payload, api_key_id, owner_user_id, assignee_type, due_at)
+				(id, organization_id, project_id, kind, status, input_payload, api_key_id, owner_user_id, assignee_type, due_at, after_job_id)
 			VALUES ($1, $2, $3, $4::job_kind, $5::job_status, $6::jsonb,
 				(SELECT k.id FROM organization_api_keys k WHERE k.id::text = $7 AND k.organization_id = $2),
-				$8, $9::job_assignee_type, $10)`,
+				$8, $9::job_assignee_type, $10, $11)`,
 			result.ID, actor.OrganizationID, scope.ID, kind, result.Status, string(encodedPayload),
-			actor.TokenID, ownerID, assigneeType, input.DueAt); err != nil {
+			actor.TokenID, ownerID, assigneeType, input.DueAt, afterJobID); err != nil {
 			return fmt.Errorf("insert job: %w", err)
 		}
 		// The job change outbox, as the web app's insertJobs records it.
@@ -216,6 +247,13 @@ func jobInputPayload(input jobCreate, scope projectScope) (map[string]any, strin
 			payload["branch"] = *in.Branch
 		}
 		sourceLocale, targetLocales, metadata = in.SourceLocale, in.TargetLocales, in.Metadata
+		if in.Step != nil {
+			metadata = make(map[string]string, len(in.Metadata)+2)
+			for key, value := range in.Metadata {
+				metadata[key] = value
+			}
+			metadata["workflowTaskStep"] = taskStepStored[*in.Step].Step
+		}
 	default:
 		in := input.Keys
 		var projectSource []string

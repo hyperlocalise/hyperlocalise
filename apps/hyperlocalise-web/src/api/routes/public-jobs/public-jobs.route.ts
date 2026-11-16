@@ -61,6 +61,7 @@ import {
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { isErr } from "@/lib/primitives/result/results";
 import { markTaskDone } from "@/lib/projects/jobs/mark-task-done";
+import { statusForTaskAfter } from "@/lib/projects/jobs/waiting-task";
 import { startTaskAnalysis } from "@/lib/reporting/task-analysis-start";
 import {
   enqueueJobCreatedActivity,
@@ -83,6 +84,7 @@ import {
   jobIdParamsSchema,
   publicJobIdempotencyKeySchema,
   type CreatePublicJobBody,
+  type PublicTaskStep,
 } from "./public-jobs.schema";
 import {
   invalidJobPayloadResponse,
@@ -142,6 +144,25 @@ async function getProjectForAccessScope(scope: ApiKeyProjectAccessScope, project
 
 /** Thrown inside the create transaction when another request already holds the idempotency key. */
 class PublicJobIdempotencyConflictError extends Error {}
+
+/** Thrown inside the create transaction when `after` names no job of the project. */
+class AfterJobNotFoundError extends Error {}
+
+const TASK_STEP_STORED: Record<PublicTaskStep, { step: string; titlePrefix: string }> = {
+  post_edit: { step: "edit", titlePrefix: "Post-edit" },
+  proofread: { step: "proofread", titlePrefix: "Proofread" },
+};
+
+/** A file job's stored input. A task for a person carries its step as an Assign task step does. */
+function fileJobInputPayload({
+  step,
+  after: _after,
+  ...input
+}: Extract<CreatePublicJobBody, { type: "file" }>["fileInput"]) {
+  return step
+    ? { ...input, metadata: { ...input.metadata, workflowTaskStep: TASK_STEP_STORED[step].step } }
+    : input;
+}
 
 type PublicJobIdempotency = { key: string; requestHash: string };
 
@@ -394,7 +415,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           payload.type === "string"
             ? payload.stringInput
             : payload.type === "file"
-              ? payload.fileInput
+              ? fileJobInputPayload(payload.fileInput)
               : keyJobInputPayload({
                   ...payload.keysInput,
                   sourceLocale: projectLocaleSpelling(
@@ -405,12 +426,15 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
                     projectLocaleSpelling(project.targetLocales, locale),
                   ),
                 });
-        // A key job is a task for people: no AI call, no usage, never queued.
+        // A key job, or a file job with a step, is a task for people: no AI call, no usage, and
+        // never started.
         const isKeyJob = payload.type === "keys";
+        const taskStep = payload.type === "file" ? payload.fileInput.step : undefined;
+        const isPersonTask = isKeyJob || taskStep !== undefined;
         const title = payload.title?.trim();
         const description = payload.description?.trim();
         // Title and description live in metadata, where the in-app job editor keeps them.
-        const inputPayload =
+        let inputPayload =
           title || description
             ? {
                 ...baseInputPayload,
@@ -430,7 +454,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
         }
 
-        const aiFeaturesDenied = isKeyJob
+        const aiFeaturesDenied = isPersonTask
           ? null
           : await rejectIfAiFeaturesUnavailable(c, organizationId);
         if (aiFeaturesDenied) {
@@ -472,6 +496,17 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           if (inferredFileFormat !== payload.fileInput.fileFormat) {
             return sourceFileFormatMismatchResponse(c, inferredFileFormat);
           }
+
+          if (taskStep && !title) {
+            // As an Assign task step names its tasks, so two steps on one file can be told apart.
+            inputPayload = {
+              ...inputPayload,
+              metadata: {
+                ...inputPayload.metadata,
+                title: `${TASK_STEP_STORED[taskStep].titlePrefix}: ${sourceFile.filename}`,
+              },
+            };
+          }
         }
 
         const jobId = `job_${randomUUID()}`;
@@ -498,18 +533,32 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
                   })
                 : null;
 
+            // A task that comes after an unfinished job starts as waiting (`queued`).
+            const afterJobId = payload.type === "file" ? payload.fileInput.after : undefined;
+            const taskStatus = afterJobId
+              ? await statusForTaskAfter(tx, {
+                  organizationId,
+                  projectId: payload.projectId,
+                  afterJobId,
+                })
+              : "waiting_for_review";
+            if (!taskStatus) {
+              throw new AfterJobNotFoundError();
+            }
+
             const [createdJob] = await insertJobs(tx, {
               values: {
                 id: jobId,
                 organizationId,
                 projectId: payload.projectId,
-                kind: isKeyJob ? "proofread" : "translation",
-                status: isKeyJob ? "waiting_for_review" : "queued",
+                kind: isPersonTask ? "proofread" : "translation",
+                status: isPersonTask ? taskStatus : "queued",
                 inputPayload,
                 apiKeyId: storedOrganizationApiKeyId(c.var.auth),
                 ownerUserId,
                 assigneeType: ownerUserId ? "user" : null,
                 dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
+                afterJobId: afterJobId ?? null,
               },
               returning: "all",
             });
@@ -551,7 +600,11 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
               if (isErr(linked)) {
                 throw new KeyJobSelectionFailure(linked.error);
               }
-              return [{ ...createdJob, type: details.type }];
+              return [{ ...createdJob, type: details.type, repositorySourceFileId: null }];
+            }
+            const repositorySourceFileId = sourceFileVersion?.repositorySourceFileId ?? null;
+            if (taskStep) {
+              return [{ ...createdJob, type: details.type, repositorySourceFileId }];
             }
 
             const usageEventResult = await reserveUsageEvent({
@@ -567,7 +620,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
               throw new Error(formatUsageControlError(usageEventResult.error));
             }
 
-            return [{ ...createdJob, type: details.type }];
+            return [{ ...createdJob, type: details.type, repositorySourceFileId }];
           });
         } catch (error) {
           if (error instanceof OrganizationJobBudgetExceededError) {
@@ -579,6 +632,13 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           if (error instanceof KeyJobSelectionFailure) {
             const { code } = error.selectionError;
             return badRequestResponse(c, code, keyJobSelectionMessages[code]);
+          }
+          if (error instanceof AfterJobNotFoundError) {
+            return badRequestResponse(
+              c,
+              "after_job_not_found",
+              "after must be a job in the same project",
+            );
           }
           if (error instanceof PublicJobIdempotencyConflictError && idempotency) {
             const earlier = await findIdempotentPublicJob(organizationId, idempotency);
@@ -620,6 +680,22 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
             { job: { id: job.id, type: payload.type, status: "waiting_for_review" } },
             201,
           );
+        }
+
+        if (taskStep) {
+          // A task for people runs no agent, so Reports records its strings now, as in the app.
+          if (job.repositorySourceFileId) {
+            await startTaskAnalysis({
+              organizationId,
+              projectId: payload.projectId,
+              jobId: job.id,
+              step: "review",
+              sourceLocale: inputPayload.sourceLocale,
+              targetLocales: inputPayload.targetLocales,
+              repositorySourceFileId: job.repositorySourceFileId,
+            });
+          }
+          return c.json({ job: { id: job.id, type: payload.type, status: job.status } }, 201);
         }
 
         const enqueued = await enqueueCreatedPublicJob({

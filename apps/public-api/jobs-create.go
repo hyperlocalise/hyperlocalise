@@ -32,7 +32,15 @@ var (
 	errJobBudgetExceeded        = errors.New("organization job budget exceeded")
 	errIdempotencyKeyReused     = errors.New("idempotency key reused with a different request")
 	errKeyJobNoStrings          = errors.New("no strings match the key job selection")
+	errAfterJobNotFound         = errors.New("the job to come after is not in the project")
 )
+
+// taskStepStored is how a file task's step is saved and titled, as the web app's
+// TASK_STEP_STORED: the visual workflow Assign task step saves post-edit as edit.
+var taskStepStored = map[string]struct{ Step, TitlePrefix string }{
+	"post_edit": {"edit", "Post-edit"},
+	"proofread": {"proofread", "Proofread"},
+}
 
 // jobLocaleError is a locale the project does not accept, with the platform's code and message.
 type jobLocaleError struct {
@@ -156,6 +164,10 @@ type fileJobInput struct {
 	TargetLocales []string          `json:"targetLocales"`
 	Metadata      map[string]string `json:"metadata,omitempty"`
 	Branch        *string           `json:"branch,omitempty"`
+	// Step makes the job a task for a person (post_edit or proofread) instead of AI work.
+	Step *string `json:"step,omitempty"`
+	// After is the job a task comes after: it waits until that job is marked done or cancelled.
+	After *string `json:"after,omitempty"`
 }
 
 type keysJobInput struct {
@@ -313,6 +325,18 @@ func (b jobCreateBody) check() (jobCreate, bool) {
 			}
 			normalized := normalizeBranchName(trimmed)
 			input.Branch = &normalized
+		}
+		if input.Step != nil {
+			if _, known := taskStepStored[*input.Step]; !known {
+				return jobCreate{}, false
+			}
+		}
+		if input.After != nil {
+			after := strings.TrimSpace(*input.After)
+			if input.Step == nil || after == "" || len(after) > 128 {
+				return jobCreate{}, false
+			}
+			input.After = &after
 		}
 		out.File = &input
 	case "keys":
@@ -565,6 +589,8 @@ func writeJobCreateError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "owner_not_found", "Owner must be a member of this workspace")
 	case errors.Is(err, errIdempotencyKeyReused):
 		writeError(w, http.StatusUnprocessableEntity, "idempotency_key_reused", "Idempotency-Key was already used with a different request")
+	case errors.Is(err, errAfterJobNotFound):
+		writeError(w, http.StatusBadRequest, "after_job_not_found", "after must be a job in the same project")
 	case errors.Is(err, errKeyJobNoStrings):
 		writeError(w, http.StatusBadRequest, "no_strings_matched", "No visible strings in the project's files match the selection")
 	case errors.Is(err, errKeyJobTooManyStrings):
