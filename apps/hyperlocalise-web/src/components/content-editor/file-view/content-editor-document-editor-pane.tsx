@@ -15,11 +15,11 @@
 import {
   CaretDownIcon,
   CodeSimpleIcon,
-  SparkleIcon,
   TextTIcon,
   TranslateIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import type { Editor } from "@tiptap/core";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -528,7 +528,7 @@ export function ContentEditorDocumentEditorPane({
                 title={intl.formatMessage(messages.shortcutHint, { shortcut: `${modShortcut}J` })}
                 onClick={() => setAssistantOpen((open) => !open)}
               >
-                <SparkleIcon data-icon="inline-start" className="text-violet-500" />
+                <UnicornIcon data-icon="inline-start" className="text-violet-500" />
                 {intl.formatMessage(messages.assistant)}
               </Button>
             ) : null}

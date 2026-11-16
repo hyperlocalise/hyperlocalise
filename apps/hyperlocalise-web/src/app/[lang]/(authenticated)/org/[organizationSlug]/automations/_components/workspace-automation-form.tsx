@@ -25,7 +25,6 @@ import {
   GlobeIcon,
   EnvelopeIcon,
   MagnifyingGlassIcon,
-  SparkleIcon,
   CheckSquareIcon,
   UploadSimpleIcon,
   XIcon,
@@ -36,6 +35,7 @@ import {
   ArrowClockwiseIcon,
   type Icon,
 } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
@@ -2008,7 +2008,7 @@ function SkillIcon({ className, skill }: { className?: string; skill: WorkspaceA
     return <SimpleBrandIcon icon={brand} colored className={cn(BRAND_ICON_CLASS, className)} />;
   }
 
-  const ToolIcon = (tool ? SKILL_TOOL_ICONS[tool] : undefined) ?? SparkleIcon;
+  const ToolIcon = (tool ? SKILL_TOOL_ICONS[tool] : undefined) ?? UnicornIcon;
   return <ToolIcon className={cn(BUILT_IN_MENU_ICON_CLASS, className)} />;
 }
 

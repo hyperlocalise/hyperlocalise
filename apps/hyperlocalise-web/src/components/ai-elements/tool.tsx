@@ -28,6 +28,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { isValidElement } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { AgentPulse } from "./agent-pulse";
 import { CodeBlock } from "./code-block";
 import { AiElementErrorBoundary } from "./ai-element-error-boundary";
 import { toolMessages } from "./tool.messages";
@@ -72,7 +73,7 @@ const statusMessageKeys: Record<ToolPart["state"], keyof typeof toolMessages> = 
 const statusIcons: Record<ToolPart["state"], ReactNode> = {
   "approval-requested": <ClockIcon className="size-4 text-yellow-600" />,
   "approval-responded": <CheckCircleIcon className="size-4 text-blue-600" />,
-  "input-available": <ClockIcon className="size-4 animate-pulse" />,
+  "input-available": <AgentPulse />,
   "input-streaming": <CircleIcon className="size-4" />,
   "output-available": <CheckCircleIcon className="size-4 text-green-600" />,
   "output-denied": <XCircleIcon className="size-4 text-orange-600" />,
@@ -185,7 +186,7 @@ export const ToolHeader = ({
       <span className="shrink-0 text-foreground">{name}</span>
       {muted ? (
         <span
-          className={cn("min-w-0 truncate text-muted-foreground", isPending && "animate-pulse")}
+          className={cn("min-w-0 truncate text-muted-foreground", isPending && "agent-shimmer")}
         >
           {muted}
         </span>

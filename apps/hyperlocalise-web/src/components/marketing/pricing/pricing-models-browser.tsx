@@ -21,10 +21,10 @@ import {
   MagnifyingGlassIcon,
   MusicNotesIcon,
   PenNibIcon,
-  SparkleIcon,
   SpeakerHighIcon,
   SquaresFourIcon,
 } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup } from "@base-ui/react/toggle-group";
 import Image from "next/image";
@@ -151,7 +151,7 @@ export function PricingModelsBrowser({
             value={[job]}
           >
             {jobs.map((option) => {
-              const JobIcon = jobIcons[option.id] ?? SparkleIcon;
+              const JobIcon = jobIcons[option.id] ?? UnicornIcon;
               return (
                 <Toggle
                   className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-transparent px-3 text-sm text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none data-pressed:border-primary/25 data-pressed:bg-primary/[0.07] data-pressed:text-primary"
@@ -196,7 +196,7 @@ export function PricingModelsBrowser({
                 value={option.id}
               >
                 {option.id === "included" ? (
-                  <SparkleIcon aria-hidden className="size-3.5 text-primary" weight="fill" />
+                  <UnicornIcon aria-hidden className="size-3.5 text-primary" weight="fill" />
                 ) : option.id === "byok" ? (
                   <KeyIcon aria-hidden className="size-3.5" weight="duotone" />
                 ) : null}
@@ -238,7 +238,7 @@ export function PricingModelsBrowser({
           <ul aria-label={listLabel} className="grid gap-3 lg:grid-cols-2">
             {visible.map((model) => {
               const isSelected = model.modelId === selected?.modelId;
-              const JobIcon = jobIcons[model.job] ?? SparkleIcon;
+              const JobIcon = jobIcons[model.job] ?? UnicornIcon;
               return (
                 <li key={model.modelId} className="flex flex-col gap-3">
                   <button
@@ -320,7 +320,7 @@ function BillingBadge({ model }: { model: PricingBrowserModel }) {
       )}
     >
       {included ? (
-        <SparkleIcon aria-hidden className="size-3" weight="fill" />
+        <UnicornIcon aria-hidden className="size-3" weight="fill" />
       ) : (
         <KeyIcon aria-hidden className="size-3" weight="duotone" />
       )}
@@ -370,7 +370,7 @@ function ModelDetail({
   modelIdLabel: string;
   useWhenLabel: string;
 }) {
-  const JobIcon = jobIcons[model.job] ?? SparkleIcon;
+  const JobIcon = jobIcons[model.job] ?? UnicornIcon;
   return (
     <aside
       aria-live="polite"

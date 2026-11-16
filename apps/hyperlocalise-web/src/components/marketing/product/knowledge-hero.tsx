@@ -13,13 +13,8 @@
  * Version 2.0 or later.
  */
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import {
-  ArrowRightIcon,
-  BrainIcon,
-  DatabaseIcon,
-  TranslateIcon,
-  SparkleIcon,
-} from "@phosphor-icons/react";
+import { ArrowRightIcon, BrainIcon, DatabaseIcon, TranslateIcon } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -152,7 +147,7 @@ export function KnowledgeHero({
                 description={<FormattedMessage {...knowledgeMockMessages.understandDesc} />}
               />
               <HeroSignal
-                icon={SparkleIcon}
+                icon={UnicornIcon}
                 title={<FormattedMessage {...knowledgeMockMessages.recallTitle} />}
                 description={<FormattedMessage {...knowledgeMockMessages.recallDesc} />}
               />

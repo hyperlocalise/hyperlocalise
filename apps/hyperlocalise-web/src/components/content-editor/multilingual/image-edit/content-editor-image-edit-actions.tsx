@@ -21,12 +21,12 @@ import {
   EraserIcon,
   ScribbleIcon,
   SelectionBackgroundIcon,
-  SparkleIcon,
   TextTIcon,
 } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
 
@@ -142,7 +142,7 @@ export const ContentEditorImageEditActions = observer(function ContentEditorImag
             hasImage ? (
               <ArrowClockwiseIcon data-icon="inline-start" aria-hidden />
             ) : (
-              <SparkleIcon data-icon="inline-start" aria-hidden />
+              <UnicornIcon data-icon="inline-start" aria-hidden />
             )
           }
           label={intl.formatMessage(

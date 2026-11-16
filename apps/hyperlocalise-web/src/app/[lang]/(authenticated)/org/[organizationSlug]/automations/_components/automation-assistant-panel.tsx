@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowCounterClockwiseIcon, SparkleIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, XIcon } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import type { UIMessage } from "ai";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -22,6 +23,7 @@ import { MessageResponse } from "@/components/ai-elements/message";
 import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { AgentPulse } from "@/components/ai-elements/agent-pulse";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyMuted } from "@/components/ui/typography";
 import {
@@ -154,9 +156,11 @@ function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean
         ),
       )}
       {showWorking ? (
-        <TypographyMuted size="xsmall" className="flex items-center gap-1.5">
-          <Spinner className="size-3" />
-          <FormattedMessage {...messages.working} />
+        <TypographyMuted size="xsmall" role="status" className="flex items-center gap-1.5">
+          <AgentPulse />
+          <span className="agent-shimmer">
+            <FormattedMessage {...messages.working} />
+          </span>
         </TypographyMuted>
       ) : null}
       {madeNoCall ? (
@@ -250,7 +254,7 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
       )}
     >
       <header className="flex items-center gap-2 border-b border-border py-2 ps-5 pe-3">
-        <SparkleIcon className="size-4 shrink-0" />
+        <UnicornIcon className="size-4 shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">
             <FormattedMessage {...messages.title} />
@@ -382,7 +386,7 @@ export function AutomationAssistantOpenButton() {
         className="border-primary/60 bg-background text-primary ring-3 ring-primary/15 hover:bg-primary/10 hover:text-primary aria-pressed:bg-primary/10"
         onClick={() => assistant.setOpen(!assistant.open)}
       >
-        <SparkleIcon />
+        <UnicornIcon />
         <FormattedMessage {...messages.openButton} />
       </Button>
     </ShortcutHintAnchor>

@@ -26,11 +26,11 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   DotsThreeIcon,
-  SparkleIcon,
   UploadSimpleIcon,
   EyeIcon,
   EyeSlashIcon,
 } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { ContentEditorWorkspaceViewSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-view-switcher-connected";
@@ -475,7 +475,7 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
                     description: "Accessible label for AI context button in file view",
                   })}
                 >
-                  <SparkleIcon data-icon="inline-start" className="size-3.5 text-blue-500" />
+                  <UnicornIcon data-icon="inline-start" className="size-3.5 text-blue-500" />
                   <FormattedMessage
                     defaultMessage="AI Context"
                     id="HCZzZ6mMQr"
@@ -831,7 +831,7 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
           <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
             <SheetHeader className="border-b border-border px-6 py-4">
               <div className="flex items-center gap-2">
-                <SparkleIcon className="size-4 text-blue-500" />
+                <UnicornIcon className="size-4 text-blue-500" />
                 <SheetTitle className="text-base font-medium">
                   <FormattedMessage
                     defaultMessage="Asset Intelligence"

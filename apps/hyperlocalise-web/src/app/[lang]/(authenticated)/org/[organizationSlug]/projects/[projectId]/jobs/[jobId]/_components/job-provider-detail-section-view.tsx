@@ -14,7 +14,8 @@
  */
 import Link from "next/link";
 import { createElement, useState, type ReactNode } from "react";
-import { SparkleIcon, ArrowClockwiseIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
@@ -90,7 +91,7 @@ function actionIcon(actionId: JobProviderActionId) {
     case "push_approved_changes":
       return ArrowClockwiseIcon;
     default:
-      return SparkleIcon;
+      return UnicornIcon;
   }
 }
 

@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CaretDownIcon, CaretUpIcon, SparkleIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import type { Editor, JSONContent } from "@tiptap/core";
 import { useEditorState } from "@tiptap/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -230,7 +231,7 @@ export function DocumentTranslateDialog({
               onOpenChange(false);
             }}
           >
-            <SparkleIcon data-icon="inline-start" />
+            <UnicornIcon data-icon="inline-start" />
             {intl.formatMessage(messages.translateStart)}
           </Button>
         </DialogFooter>
@@ -301,7 +302,7 @@ export function DocumentSuggestionBar({
         ) : null}
         {suggestions.length > 0 ? (
           <>
-            <SparkleIcon className="size-3.5 text-violet-500" weight="fill" />
+            <UnicornIcon className="size-3.5 text-violet-500" weight="fill" />
             <span className="ms-1 me-1 tabular-nums">
               {intl.formatMessage(messages.suggestionCount, { count: suggestions.length })}
             </span>
