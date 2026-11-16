@@ -4,7 +4,7 @@ sidebarTitle: "Strings and key jobs"
 description: "Tag strings, upload screenshots, run batch review, and manage key jobs on native projects with a personal access token."
 ---
 
-Use this API on **native projects** to read and update strings, set tags and design links, upload screenshots and mark keys on them, approve or unverify translations in bulk, and manage [key jobs](/platform/translation/jobs). Create key jobs with the [Files and jobs API](/platform/api#create-a-job) on `hyperlocalise.com`. Everything on this page, including completing and cancelling jobs, uses the public API host.
+Use this API on **native projects** to read and update strings, set tags and design links, upload screenshots and mark keys on them, approve or unverify translations in bulk, and manage [key jobs](/platform/translation/jobs). Everything on this page, including creating, completing and cancelling jobs, uses the public API host.
 
 ## Base URL and authentication
 
@@ -182,6 +182,26 @@ curl --fail-with-body \
 Requires `strings:write`. Locked segments are skipped.
 
 Both routes return `{ "updated": <count> }`. Omit `locales` to affect every project target language.
+
+## Create a key job
+
+`POST /v1/jobs` with `type: "keys"` creates a task for people on the strings you pick, with exactly one of `stringIds`, `keys`, or `tags`. Only visible strings in the project's files are included, at most 5,000. The job starts as `waiting_for_review`, ready to work in the editor.
+
+```bash
+curl --fail-with-body -X POST "https://public-api.hyperlocalise.com/v1/jobs" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "content-type: application/json" \
+  -H "idempotency-key: request-1042-fr" \
+  -d '{
+    "type": "keys",
+    "projectId": "'$PROJECT_ID'",
+    "title": "REQ-1042 Futures page",
+    "dueAt": "2026-12-01T09:00:00Z",
+    "keysInput": { "sourceLocale": "en", "targetLocales": ["fr"], "tags": ["req-1042"] }
+  }'
+```
+
+The body and errors match `POST /api/v1/jobs` on the [Files and jobs API](/platform/api#create-a-job), and Idempotency-Key values are shared between the two. `string` and `file` jobs are recorded as `queued`, but the public API does not start AI translation for them. Use the Files and jobs API when you want them translated.
 
 ## Key jobs after creation
 

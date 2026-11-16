@@ -25,6 +25,7 @@ type fakeTMSStore struct {
 	fakeJobLifecycleStore
 	fakeProjectLookupStore
 	fakeParityStore
+	fakeJobCreateStore
 	tmsErr           error
 	strings          []translationString
 	translations     []translationRecord

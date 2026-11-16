@@ -14,9 +14,10 @@ project template) and manages project templates, defines custom project fields a
 their values, manages and searches the strings, translations, screenshots, and settings of native
 projects, archives and deletes native projects, keeps custom metadata on strings, reads
 source-file import settings and a project's content sync, round-trips
-bilingual files, updates jobs one at a time or in bulk, completes and cancels jobs, exports
+bilingual files, creates jobs, updates jobs one at a time or in bulk, completes and cancels jobs, exports
 glossaries, imports and exports glossaries and translation memories, registers job-change
-webhook endpoints, and reads the Reports page's reports. Job creation and file uploads continue to use the existing platform API.
+webhook endpoints, and reads the Reports page's reports. Job creation records the job only: it does not
+start AI translation for string or file jobs. File uploads continue to use the existing platform API.
 
 ## Run locally
 

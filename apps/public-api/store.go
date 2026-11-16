@@ -136,6 +136,7 @@ type resourceStore interface {
 	setProjectCustomFields(context.Context, principal, string, map[string]json.RawMessage) ([]customfield.ProjectValue, error)
 	missingStringKeys(context.Context, principal, string, []string) ([]string, error)
 	bulkUpdateJobs(context.Context, principal, []string, jobPatch) ([]job, error)
+	createJob(context.Context, principal, jobCreate, *jobIdempotency) (createdJobResult, bool, error)
 	completeJob(context.Context, principal, string) (job, error)
 	cancelJob(context.Context, principal, string) (job, error)
 	listSourceFiles(context.Context, principal, string, sourceFileFilters) ([]projectSourceFile, int, error)

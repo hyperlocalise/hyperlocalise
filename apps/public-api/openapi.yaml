@@ -1920,6 +1920,102 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createJob
+      tags: [Jobs]
+      summary: Create a job
+      description: >-
+        Requires `jobs:write`. Takes the same body and checks as `POST /api/v1/jobs` on the files and
+        jobs host. A `keys` job is a task for people on a native project's strings. It starts as
+        `waiting_for_review` and is ready to work in the editor. A `string` or `file` job is recorded
+        as `queued`. This API does not start AI translation for it.
+        Languages must be enabled on the project. A file job's `fileFormat` must match its source
+        file's name (`400 source_file_format_mismatch` gives `details.expectedFileFormat`). A
+        workspace holds at most 50 open jobs, not counting tasks for people, and creates at most 120
+        jobs an hour (`429 organization_job_budget_exceeded`). Send an `Idempotency-Key` header to
+        retry safely. A repeat of the same request returns the first job with `200` and
+        `Idempotent-Replayed: true`. The same key with a different body returns
+        `422 idempotency_key_reused`. Keys are shared with `POST /api/v1/jobs`.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          schema: { type: string, minLength: 1, maxLength: 255, pattern: "^[\\x21-\\x7e]+$" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [type, projectId]
+              properties:
+                type: { type: string, enum: [keys, string, file] }
+                projectId: { type: string, minLength: 1, maxLength: 128 }
+                title: { type: string, minLength: 1, maxLength: 256 }
+                description: { type: string, maxLength: 2048 }
+                dueAt: { type: string, format: date-time }
+                ownerEmail:
+                  type: string
+                  format: email
+                  maxLength: 320
+                  description: A workspace member's email.
+                keysInput:
+                  type: object
+                  additionalProperties: false
+                  required: [sourceLocale, targetLocales]
+                  description: For `type` keys. Pick strings with exactly one of `stringIds`, `keys`, or `tags`. Only visible strings in the project's files are included, at most 5,000.
+                  properties:
+                    sourceLocale: { type: string, minLength: 1, maxLength: 32 }
+                    targetLocales: { type: array, minItems: 1, maxItems: 20, items: { type: string, minLength: 1, maxLength: 32 } }
+                    metadata: { $ref: "#/components/schemas/JobMetadata" }
+                    stringIds: { type: array, minItems: 1, maxItems: 5000, items: { type: string, format: uuid } }
+                    keys: { type: array, minItems: 1, maxItems: 5000, items: { type: string, minLength: 1, maxLength: 1000 } }
+                    tags: { type: array, minItems: 1, maxItems: 10, items: { $ref: "#/components/schemas/Tag" } }
+                stringInput:
+                  type: object
+                  additionalProperties: false
+                  required: [sourceText, sourceLocale, targetLocales]
+                  description: For `type` string.
+                  properties:
+                    sourceText: { type: string, minLength: 1, maxLength: 100000 }
+                    sourceLocale: { type: string, minLength: 1, maxLength: 32 }
+                    targetLocales: { type: array, minItems: 1, maxItems: 20, items: { type: string, minLength: 1, maxLength: 32 } }
+                    metadata: { $ref: "#/components/schemas/JobMetadata" }
+                    context: { type: string, maxLength: 20000 }
+                    maxLength: { type: integer, minimum: 1, maximum: 100000 }
+                fileInput:
+                  type: object
+                  additionalProperties: false
+                  required: [sourceFileId, fileFormat, sourceLocale, targetLocales]
+                  description: For `type` file. `sourceFileId` is a file uploaded to the project.
+                  properties:
+                    sourceFileId: { type: string, minLength: 1, maxLength: 128 }
+                    fileFormat: { type: string, description: "The format the file's extension implies, such as json, xliff, po, docx." }
+                    sourceLocale: { type: string, minLength: 1, maxLength: 32 }
+                    targetLocales: { type: array, minItems: 1, maxItems: 20, items: { type: string, minLength: 1, maxLength: 32 } }
+                    metadata: { $ref: "#/components/schemas/JobMetadata" }
+                    branch: { type: string, minLength: 1, maxLength: 128, description: "The project version branch; `main` when left out." }
+      responses:
+        "200":
+          description: The job an earlier request with this Idempotency-Key created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatedJobResponse" }
+        "201":
+          description: The created job.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatedJobResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "422": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/jobs/bulk-update:
     post:
       operationId: bulkUpdateJobs
@@ -3460,6 +3556,22 @@ components:
       required: [job]
       properties:
         job: { $ref: "#/components/schemas/Job" }
+    CreatedJobResponse:
+      type: object
+      required: [job]
+      properties:
+        job:
+          type: object
+          required: [id, type, status]
+          properties:
+            id: { type: string }
+            type: { type: string, enum: [keys, string, file] }
+            status: { type: string, enum: [queued, waiting_for_review] }
+    JobMetadata:
+      type: object
+      maxProperties: 50
+      additionalProperties: { type: string, maxLength: 1000 }
+      description: Your own fields on the job. Keys are up to 100 characters.
     SourceFile:
       type: object
       required: [id, path, branch, messageFormat, placeholderPatterns, segmentation, importSettings, createdAt, updatedAt]
