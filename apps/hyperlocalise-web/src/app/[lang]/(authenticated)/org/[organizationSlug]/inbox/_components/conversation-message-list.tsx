@@ -28,6 +28,7 @@ import { ConversationEmptyState } from "@/components/ai-elements/conversation";
 import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
 import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { AgentTodoProgress, getAgentTodoItems } from "@/components/ai-elements/agent-todo-progress";
+import { AgentPulse } from "@/components/ai-elements/agent-pulse";
 import { AiElementErrorBoundary } from "@/components/ai-elements/ai-element-error-boundary";
 import { MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
@@ -57,7 +58,6 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import { TypographyMuted, TypographyP, TypographySmall } from "@/components/ui/typography";
 import type {
   InboxChatClarificationData,
@@ -649,9 +649,9 @@ function AssistantMessageParts({
       ) : isStreaming && reasoningParts.length === 0 && visibleToolParts.length === 0 ? (
         <Marker role="status">
           <MarkerIcon>
-            <Spinner />
+            <AgentPulse />
           </MarkerIcon>
-          <MarkerContent>
+          <MarkerContent className="agent-shimmer">
             {statusPart?.data.message ?? (
               <FormattedMessage {...conversationMessageListMessages.workingMarker} />
             )}

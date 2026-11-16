@@ -12,13 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  CopyIcon,
-  DotsSixVerticalIcon,
-  PlusIcon,
-  SparkleIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+import { CopyIcon, DotsSixVerticalIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import type { Editor } from "@tiptap/core";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { createElement, useEffect, useRef, useState, type RefObject } from "react";
@@ -246,7 +241,7 @@ export function DocumentEditorBlockHandle({
             </DropdownMenuSub>
             {onTranslateBlock ? (
               <DropdownMenuItem onClick={() => onTranslateBlock(blockPos)}>
-                <SparkleIcon className="size-4" />
+                <UnicornIcon className="size-4" />
                 {intl.formatMessage(messages.translateBlock)}
               </DropdownMenuItem>
             ) : null}

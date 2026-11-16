@@ -15,7 +15,7 @@
 import { CheckCircleIcon, CircleIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
-import { Spinner } from "@/components/ui/spinner";
+import { AgentPulse } from "./agent-pulse";
 import type { AgentTodoItem } from "@/lib/agent-contracts/tool-context";
 import { cn } from "@/lib/primitives/cn";
 
@@ -57,7 +57,7 @@ function TodoStatusIcon({ status }: { status: AgentTodoItem["status"] }) {
   if (status === "in-progress") {
     return (
       <span className="size-4">
-        <Spinner className="size-4" />
+        <AgentPulse />
       </span>
     );
   }

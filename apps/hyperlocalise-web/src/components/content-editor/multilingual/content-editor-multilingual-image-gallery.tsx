@@ -19,8 +19,8 @@ import {
   ArrowSquareOutIcon,
   CheckIcon,
   ImageIcon,
-  SparkleIcon,
 } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { useIntl } from "react-intl";
 
 import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
@@ -250,7 +250,7 @@ const LocaleImageCard = observer(function LocaleImageCard({
                   {targetSrc ? (
                     <ArrowClockwiseIcon data-icon="inline-start" aria-hidden />
                   ) : (
-                    <SparkleIcon data-icon="inline-start" aria-hidden />
+                    <UnicornIcon data-icon="inline-start" aria-hidden />
                   )}
                   {intl.formatMessage(targetSrc ? messages.regenerate : messages.generate)}
                 </Button>

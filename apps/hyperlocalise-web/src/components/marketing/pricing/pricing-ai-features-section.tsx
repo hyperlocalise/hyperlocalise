@@ -19,11 +19,11 @@ import {
   ImageSquareIcon,
   LightningIcon,
   ListChecksIcon,
-  SparkleIcon,
   TranslateIcon,
 } from "@phosphor-icons/react/ssr";
 
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 
 import type { PricingAiFeature } from "./pricing-page-content";
 
@@ -65,7 +65,7 @@ export function PricingAiFeaturesSection({
 
       <ul className="grid gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
         {features.map((feature) => {
-          const FeatureIcon = featureIcons[feature.id] ?? SparkleIcon;
+          const FeatureIcon = featureIcons[feature.id] ?? UnicornIcon;
 
           return (
             <li

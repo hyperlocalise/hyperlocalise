@@ -13,7 +13,8 @@
  * Version 2.0 or later.
  */
 import { createElement, memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChatCircleIcon, CheckCircleIcon, FunnelIcon, SparkleIcon } from "@phosphor-icons/react";
+import { ChatCircleIcon, CheckCircleIcon, FunnelIcon } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import Link from "next/link";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 
@@ -628,7 +629,7 @@ function InboxListItemContent({
 const NewRequestListItem = memo(function NewRequestListItem() {
   const intl = useIntl();
   const visual: InboxListItemVisual = {
-    typeIcon: SparkleIcon,
+    typeIcon: UnicornIcon,
     typeIconLabel: intl.formatMessage(inboxListMessages.newRequestTitle),
     badgeClassName: "text-primary",
   };

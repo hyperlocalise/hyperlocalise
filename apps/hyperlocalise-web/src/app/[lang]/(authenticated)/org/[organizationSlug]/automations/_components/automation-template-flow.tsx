@@ -20,10 +20,10 @@ import {
   EnvelopeIcon,
   MagnifyingGlassIcon,
   CheckCircleIcon,
-  SparkleIcon,
   CheckSquareIcon,
   UploadSimpleIcon,
 } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { siGithub, siGoogledrive, siIntercom, siSanity, siWebflow } from "simple-icons";
 import Image from "next/image";
 
@@ -236,7 +236,7 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
     case "job":
       return <CheckSquareIcon className={iconClassName} />;
     case "translate":
-      return <SparkleIcon className={iconClassName} />;
+      return <UnicornIcon className={iconClassName} />;
     case "validation":
       return <CheckCircleIcon className={iconClassName} />;
     case "schedule":

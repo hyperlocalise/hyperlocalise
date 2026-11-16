@@ -19,7 +19,6 @@ import {
   ListNumbersIcon,
   MinusIcon,
   QuotesIcon,
-  SparkleIcon,
   TableIcon,
   TextHOneIcon,
   TextHThreeIcon,
@@ -27,6 +26,7 @@ import {
   TextTIcon,
   type Icon,
 } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import type { IntlShape, MessageDescriptor } from "react-intl";
 
 import {
@@ -212,7 +212,7 @@ export function buildDocumentSlashCommandItems(
     items.push({
       id: "translateBlock",
       title: intl.formatMessage(messages.translateBlock),
-      icon: SparkleIcon,
+      icon: UnicornIcon,
       keywords: ["translate", "ai", "draft", "suggest"],
       group: ai,
       run: ({ editor, range }) =>

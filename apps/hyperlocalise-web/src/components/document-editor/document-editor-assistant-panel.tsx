@@ -16,10 +16,10 @@ import {
   ArrowClockwiseIcon,
   MagnifyingGlassIcon,
   ProhibitIcon,
-  SparkleIcon,
   WarningIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useIntl } from "react-intl";
 
@@ -282,7 +282,7 @@ export function DocumentEditorAssistantPanel({
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
         <h2 className="flex items-center gap-1.5 text-sm font-medium">
-          <SparkleIcon className="size-4 text-violet-500" weight="fill" />
+          <UnicornIcon className="size-4 text-violet-500" weight="fill" />
           {intl.formatMessage(messages.assistant)}
         </h2>
         <Button
@@ -341,7 +341,7 @@ export function DocumentEditorAssistantPanel({
             >
               {ai.status === "idle" ? (
                 <Button size="sm" variant="outline" onClick={suggest} disabled={!canEdit}>
-                  <SparkleIcon data-icon="inline-start" className="text-violet-500" />
+                  <UnicornIcon data-icon="inline-start" className="text-violet-500" />
                   {intl.formatMessage(messages.translateBlock)}
                 </Button>
               ) : ai.status === "ok" ? (

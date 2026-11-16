@@ -15,7 +15,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useIntl } from "react-intl";
 import { z } from "zod";
-import { SparkleIcon } from "@phosphor-icons/react";
+import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -508,7 +508,7 @@ export function ContentEditorVideoWorkspace(props: {
                   {generating || props.isBusy ? (
                     <Spinner />
                   ) : (
-                    <SparkleIcon data-icon="inline-start" aria-hidden />
+                    <UnicornIcon data-icon="inline-start" aria-hidden />
                   )}
                   {intl.formatMessage(
                     generating || props.isBusy
