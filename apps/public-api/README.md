@@ -133,6 +133,7 @@ filters. Missing and inaccessible records both return `404`.
 | Project custom field values | `GET, PUT /v1/projects/{projectId}/custom-fields`; `customFields` on `POST /v1/projects` | `projects:read` / `projects:write` |
 | Tags and design links | `POST /v1/projects/{projectId}/strings/bulk-update` | `strings:write`, for admins, localization managers and developers |
 | Screenshots | `GET, POST /v1/projects/{projectId}/screenshots`, `GET, DELETE .../screenshots/{screenshotId}`, `POST .../finalize`, `POST .../markers`, `DELETE .../markers/{markerId}` | `strings:read` / `strings:write` |
+| Figma attachments | `GET, POST /v1/projects/{projectId}/figma-attachments`, `GET, DELETE .../figma-attachments/{attachmentId}`, `GET, POST, DELETE .../strings` (views over strings' `designUrl`) | `strings:read` / `strings:write`, for admins, localization managers and developers |
 | Batch review | `POST /v1/projects/{projectId}/translations/approve`, `POST .../translations/send-to-review` | `translations:approve` / `strings:write` |
 | Bilingual files | `GET, POST /v1/projects/{projectId}/bilingual-file` (CSV, TMX, XLF, XLIFF, XLSX) | `strings:read` / `translations:approve` |
 | Translations | `GET /v1/projects/{projectId}/translations`, `GET /v1/projects/{projectId}/strings/{stringId}/translations`, `GET, PUT .../translations/{locale}` | `strings:read` / `strings:write`; `translations:approve` to approve or reject |
@@ -169,6 +170,12 @@ string (`stringId`, or `key` and `filePath` when the key exists in more than one
 file). Object storage must be configured or screenshot writes return
 `503 screenshot_storage_unavailable`. Figma-synced frames appear on the list
 with `figmaUrl`; this API does not create them.
+
+Figma attachments have no table of their own. An
+attachment groups the strings whose `design_url` names the same Figma file and node, and its
+id is derived from the link (`{fileKey}` or `{fileKey}.{node-id}`). Linking sets the strings'
+design link through the strings bulk update. Unlinking and deleting clear it, and record
+`project_strings_updated` like the bulk update does.
 
 Bilingual imports, string batches, and memory imports apply in one transaction.
 Bilingual imports save approved translations with provenance `import` and skip
