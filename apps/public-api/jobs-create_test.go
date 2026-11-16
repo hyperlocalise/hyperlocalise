@@ -93,6 +93,14 @@ func TestJobCreateRoutes(t *testing.T) {
 		require.Nil(t, store.createIdempotency)
 	})
 
+	t.Run("trims a file job branch", func(t *testing.T) {
+		store := &fakeResourceStore{}
+		w := sendResource(t, resourcePrincipal(jobWriteScopes...), store, http.MethodPost, "/v1/jobs",
+			`{"type":"file","projectId":"p","fileInput":{"sourceFileId":"file_1","fileFormat":"json","sourceLocale":"en","targetLocales":["fr"],"branch":" /feature-checkout/ "}}`)
+		require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+		require.Equal(t, "feature-checkout", *store.createInput.File.Branch)
+	})
+
 	t.Run("passes the idempotency key and replays", func(t *testing.T) {
 		store := &fakeResourceStore{}
 		store.createReplayed = true
@@ -297,6 +305,62 @@ func TestJobCreateDatabase(t *testing.T) {
 			File: &fileJobInput{SourceFileID: "file_missing", FileFormat: "json", SourceLocale: "en", TargetLocales: []string{"fr"}},
 		}, nil)
 		require.ErrorIs(t, err, errJobSourceFileNotFound)
+	})
+
+	t.Run("file job binds the named branch version", func(t *testing.T) {
+		fileID := "file_" + uuid.NewString()
+		f.exec(t, `INSERT INTO stored_files (id, organization_id, project_id, created_by_user_id, role, source_kind,
+				storage_provider, storage_key, storage_url, filename, content_type, byte_size, sha256, metadata)
+			VALUES ($1, $2, $3, $4, 'source', 'repository_file', 'vercel_blob', $1, 'https://blob.test/' || $1,
+				'en.json', 'application/json', 2, 'abc', '{"sourcePath":"locales/en.json","uploadSurface":"public_api"}'::jsonb)`,
+			fileID, f.actor.OrganizationID, f.project, f.actor.UserID)
+
+		created, _, err := f.store.createJob(ctx, f.actor, jobCreate{
+			Type: "file", ProjectID: f.project,
+			File: &fileJobInput{
+				SourceFileID: fileID, FileFormat: "json", SourceLocale: "en",
+				TargetLocales: []string{"fr"}, Branch: strPtr("feature-checkout"),
+			},
+		}, nil)
+		require.NoError(t, err)
+		kind, status, payload, _ := jobRow(t, created.ID)
+		require.Equal(t, "translation", kind)
+		require.Equal(t, "queued", status)
+		require.Equal(t, "feature-checkout", payload["branch"])
+
+		var branch string
+		require.NoError(t, f.pool.QueryRow(ctx, `SELECT sf.branch_name FROM translation_job_details d
+			JOIN repository_source_file_versions v ON v.id = d.source_file_version_id
+			JOIN repository_source_files sf ON sf.id = v.repository_source_file_id
+			WHERE d.job_id = $1`, created.ID).Scan(&branch))
+		require.Equal(t, "feature-checkout", branch)
+
+		again, _, err := f.store.createJob(ctx, f.actor, jobCreate{
+			Type: "file", ProjectID: f.project,
+			File: &fileJobInput{
+				SourceFileID: fileID, FileFormat: "json", SourceLocale: "en",
+				TargetLocales: []string{"de"}, Branch: strPtr("feature-checkout"),
+			},
+		}, nil)
+		require.NoError(t, err)
+		var versions int
+		require.NoError(t, f.pool.QueryRow(ctx, `SELECT count(DISTINCT source_file_version_id) FROM translation_job_details
+			WHERE job_id = ANY($1)`, []string{created.ID, again.ID}).Scan(&versions))
+		require.Equal(t, 1, versions)
+
+		mainJob, _, err := f.store.createJob(ctx, f.actor, jobCreate{
+			Type: "file", ProjectID: f.project,
+			File: &fileJobInput{
+				SourceFileID: fileID, FileFormat: "json", SourceLocale: "en",
+				TargetLocales: []string{"fr"}, Branch: strPtr("main"),
+			},
+		}, nil)
+		require.NoError(t, err)
+		require.NoError(t, f.pool.QueryRow(ctx, `SELECT sf.branch_name FROM translation_job_details d
+			JOIN repository_source_file_versions v ON v.id = d.source_file_version_id
+			JOIN repository_source_files sf ON sf.id = v.repository_source_file_id
+			WHERE d.job_id = $1`, mainJob.ID).Scan(&branch))
+		require.Equal(t, "main", branch)
 	})
 
 	t.Run("locales must belong to the project", func(t *testing.T) {
