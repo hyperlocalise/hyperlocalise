@@ -190,6 +190,7 @@ export async function runCreateTaskAction(
     assigneeWorkosUserId: string;
     title: string;
     dueAt?: string;
+    afterJobId?: string;
   },
 ): Promise<VisualWorkflowNodeExecutionResult> {
   if (!input.projectId || !input.sourceFileId) {
@@ -241,6 +242,7 @@ export async function runCreateTaskAction(
     assigneeWorkosUserId: input.assigneeWorkosUserId || undefined,
     title: input.title,
     dueAt: dueAt ?? undefined,
+    afterJobId: input.afterJobId || undefined,
     metadata: input.idempotencyKey ? { workflowStepKey: input.idempotencyKey } : undefined,
   });
   if (isErr(result)) return failure(result.error.code, result.error.message);

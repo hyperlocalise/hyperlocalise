@@ -309,6 +309,8 @@ export type VisualNodeConfig =
       title: string;
       /** ISO date or a template; empty means no due date. */
       dueAt?: string;
+      /** A job id or a template; the task waits until that job is marked done or cancelled. */
+      afterJobId?: string;
       onError?: VisualNodeErrorBehavior;
     }
   | {

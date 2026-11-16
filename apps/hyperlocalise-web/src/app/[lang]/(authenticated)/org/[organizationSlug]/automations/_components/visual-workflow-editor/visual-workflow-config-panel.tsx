@@ -3008,7 +3008,12 @@ export function VisualWorkflowConfigPanel({
                 if (value !== "translate" && value !== "edit" && value !== "proofread") {
                   return;
                 }
-                onChangeConfig({ ...config, step: value });
+                // Comes after is hidden for a Translate task, which cannot wait.
+                onChangeConfig({
+                  ...config,
+                  step: value,
+                  ...(value === "translate" ? { afterJobId: "" } : {}),
+                });
               }}
             />
             <SelectField
@@ -3182,6 +3187,17 @@ export function VisualWorkflowConfigPanel({
             {...connectedInputProps("dueAt")}
             onChange={(value) => onChangeConfig({ ...config, dueAt: value })}
             placeholder="{{ trigger.body.dueAt }}"
+          />
+        ) : null}
+        {config.kind === "action.create_task" && config.step !== "translate" ? (
+          <TextField
+            id="vw-task-after-job"
+            label={intl.formatMessage(messages.createTaskAfterJob)}
+            description={intl.formatMessage(messages.createTaskAfterJobHint)}
+            value={config.afterJobId ?? ""}
+            {...connectedInputProps("afterJobId")}
+            onChange={(value) => onChangeConfig({ ...config, afterJobId: value })}
+            placeholder="{{ nodes.create_task.jobId }}"
           />
         ) : null}
         {config.kind === "action.crowdin_check_progress" ? (

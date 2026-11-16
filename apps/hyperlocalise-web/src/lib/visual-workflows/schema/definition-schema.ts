@@ -421,6 +421,7 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     assigneeWorkosUserId: z.string().trim().max(256),
     title: z.string().max(256),
     dueAt: visualDueAtSchema,
+    afterJobId: z.string().trim().max(256).optional(),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({

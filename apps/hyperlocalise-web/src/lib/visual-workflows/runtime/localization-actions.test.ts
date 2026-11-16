@@ -267,6 +267,40 @@ describe("runCreateTaskAction", () => {
     expect(mocks.createWorkflowTaskJob).toHaveBeenCalledOnce();
   });
 
+  it("passes the task to come after, and reports why such a task was refused", async () => {
+    mocks.selectLimit.mockResolvedValue([]).mockResolvedValueOnce([projectRow()]);
+    mocks.createWorkflowTaskJob.mockResolvedValue(ok({ jobId: "job_later", ownerUserId: "u1" }));
+    const task = {
+      organizationId,
+      projectId,
+      sourceFileId,
+      targetLocales: "fr-FR",
+      step: "proofread" as const,
+      assigneeWorkosUserId: "user_1",
+      title: "",
+    };
+
+    await runCreateTaskAction({ ...task, afterJobId: "job_post_edit" });
+    expect(mocks.createWorkflowTaskJob).toHaveBeenLastCalledWith(
+      expect.objectContaining({ step: "proofread", afterJobId: "job_post_edit" }),
+    );
+
+    mocks.selectLimit.mockResolvedValueOnce([projectRow()]);
+    await runCreateTaskAction({ ...task, afterJobId: "" });
+    expect(mocks.createWorkflowTaskJob).toHaveBeenLastCalledWith(
+      expect.objectContaining({ afterJobId: undefined }),
+    );
+
+    mocks.selectLimit.mockResolvedValueOnce([projectRow()]);
+    mocks.createWorkflowTaskJob.mockResolvedValue(
+      err({ code: "after_job_not_found", message: "The task to come after was not found." }),
+    );
+    await expect(runCreateTaskAction({ ...task, afterJobId: "job_gone" })).resolves.toMatchObject({
+      ok: false,
+      error: { code: "after_job_not_found" },
+    });
+  });
+
   it("rejects an invalid due date before creating a task", async () => {
     const result = await runCreateTaskAction({
       organizationId,
