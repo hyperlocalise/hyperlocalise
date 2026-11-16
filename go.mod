@@ -26,6 +26,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.9
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.50.11
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.11
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.67.0
 	github.com/aws/aws-sdk-go-v2/service/textract v1.49.12
 	github.com/aws/smithy-go v1.28.8
 	github.com/crowdin/crowdin-api-client-go v0.19.0
@@ -124,7 +125,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sfn v1.35.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.12.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sns v1.34.7 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.67.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.39.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.44.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.51.9 // indirect
@@ -421,4 +421,4 @@ exclude (
 	google.golang.org/genproto v0.0.0-20260427160629-7cedc36a6bc4
 )
 
-replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20261104224025-d1e00e9f33ab
+replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20261110000943-09e21b237f2c
