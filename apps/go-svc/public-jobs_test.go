@@ -361,7 +361,7 @@ func TestPublicJobsRead(t *testing.T) {
             "lastError":"`+longError+`",
             "title":null,"description":null,"dueAt":null,"ownerEmail":null,
             "outputFiles":[{"fileId":"file_output_fr","locale":"fr-FR","filename":"source.fr-FR.xliff"}],
-            "sourceFile":null,"sourceLocale":null,"targetLocales":null}}`, rec.Body.String())
+            "sourceFile":null,"sourceLocale":null,"targetLocales":null,"step":null,"after":null}}`, rec.Body.String())
 	})
 
 	t.Run("returns a file task's source file and languages", func(t *testing.T) {
@@ -406,6 +406,25 @@ func TestPublicJobsRead(t *testing.T) {
 		require.Nil(t, job["sourceFile"])
 		require.Equal(t, "en", job["sourceLocale"])
 		require.Equal(t, []any{"de-DE", "ja-JP"}, job["targetLocales"])
+	})
+
+	t.Run("returns a task's step and the job it comes after", func(t *testing.T) {
+		f := newPublicJobsFixture(t, "admin", nil)
+		postEdit := mustPublicJob(t, f.scope, publicJobSeed{
+			kind: "proofread", status: "waiting_for_review", jobType: "file",
+			inputPayload: `{"sourceLocale":"en","targetLocales":["fr"],"metadata":{"workflowTaskStep":"edit"}}`,
+		})
+		proofread := mustPublicJob(t, f.scope, publicJobSeed{kind: "proofread", status: "queued", jobType: "file"})
+		_, err := f.scope.Pool.Exec(t.Context(), `update jobs set after_job_id = $2 where id = $1`, proofread, postEdit)
+		require.NoError(t, err)
+
+		job := decodePublicJob(t, f.get(t, "/v1/jobs/"+postEdit))
+		require.Equal(t, "post_edit", job["step"])
+		require.Nil(t, job["after"])
+		job = decodePublicJob(t, f.get(t, "/v1/jobs/"+proofread))
+		require.Equal(t, "proofread", job["step"])
+		require.Equal(t, postEdit, job["after"])
+		require.Equal(t, "queued", job["status"])
 	})
 
 	t.Run("returns the title, description, due date and owner a client set", func(t *testing.T) {

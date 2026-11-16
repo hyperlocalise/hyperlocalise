@@ -29,7 +29,15 @@ const publicJobEditableColumnsSQL = `j.input_payload->'metadata'->>'title', j.in
 // What a job translates, from its saved input: its source file (key jobs have none) and languages.
 // Reads that select these join the job's source file as sf.
 const publicJobInputColumnsSQL = `j.input_payload->>'sourceFileId', sf.source_path, sf.branch_name,
-            j.input_payload->>'sourceLocale', j.input_payload->'targetLocales'`
+            j.input_payload->>'sourceLocale', j.input_payload->'targetLocales',
+            ` + publicJobTaskStepSQL + `, j.after_job_id`
+
+// publicJobTaskStepSQL is a job's step as a task for people (translate, post_edit or proofread):
+// null for an agent's job and for one mirrored from a provider. The public API service's
+// jobTaskStepSQL is the same text.
+const publicJobTaskStepSQL = `CASE WHEN j.assignee_type = 'agent' OR EXISTS (SELECT 1 FROM external_job_details x WHERE x.job_id = j.id) THEN NULL
+		WHEN j.kind = 'proofread' THEN CASE WHEN j.input_payload->'metadata'->>'workflowTaskStep' = 'edit' THEN 'post_edit' ELSE 'proofread' END
+		WHEN j.kind = 'translation' AND j.input_payload->'metadata'->>'workflowTaskStep' = 'translate' THEN 'translate' END`
 
 const publicJobAccessSQL = `j.organization_id=$2 and ($3 or exists(select 1 from projects p
         join teams t on t.organization_id=p.organization_id and (t.id=p.team_id or (p.team_id is null and t.slug='default'))
@@ -69,6 +77,8 @@ type publicJobEnvelope struct {
 	SourceFile    *publicJobSourceFile   `json:"sourceFile"`
 	SourceLocale  *string                `json:"sourceLocale"`
 	TargetLocales *[]string              `json:"targetLocales"`
+	Step          *string                `json:"step"`
+	After         *string                `json:"after"`
 }
 
 type publicJobStatusEnvelope struct {
@@ -104,6 +114,8 @@ type publicJobRow struct {
 	sourceBranch   *string
 	sourceLocale   *string
 	targetLocales  []byte
+	step           *string
+	after          *string
 }
 
 func (api *publicJobsAPI) register(mux *http.ServeMux) {
@@ -312,7 +324,8 @@ func scanPublicJob(row pgx.Row) (publicJobRow, error) {
 	err := row.Scan(&job.id, &job.projectID, &job.kind, &job.jobType, &job.status, &job.outcomeKind,
 		&job.outcomePayload, &job.lastError, &job.createdAt, &job.updatedAt, &job.completedAt,
 		&job.title, &job.description, &job.dueAt, &job.ownerEmail,
-		&job.sourceFileID, &job.sourcePath, &job.sourceBranch, &job.sourceLocale, &job.targetLocales)
+		&job.sourceFileID, &job.sourcePath, &job.sourceBranch, &job.sourceLocale, &job.targetLocales,
+		&job.step, &job.after)
 	return job, err
 }
 
@@ -334,6 +347,8 @@ func (job publicJobRow) envelope() publicJobEnvelope {
 		SourceFile:    publicJobSourceFileOf(job.sourceFileID, job.sourcePath, job.sourceBranch),
 		SourceLocale:  job.sourceLocale,
 		TargetLocales: publicJobTargetLocales(job.targetLocales),
+		Step:          job.step,
+		After:         job.after,
 	}
 }
 
