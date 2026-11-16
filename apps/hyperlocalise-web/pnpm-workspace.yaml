@@ -11,8 +11,8 @@ allowBuilds:
   protobufjs: false
   sharp: false
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@1.5.1
-  vite-plus: 1.5.1
+  vite: npm:@voidzero-dev/vite-plus-core@1.6.0
+  vite-plus: 1.6.0
   vitest: 5.1.0
   '@vitest/browser-playwright': 5.1.0
 ignoredBuiltDependencies:
@@ -44,11 +44,11 @@ overrides:
   qs: "6.17.1"
   "@anthropic-ai/sdk": "1.8.0"
   postcss: "8.5.32"
-  postcss-selector-parser: "7.2.0"
+  postcss-selector-parser: "7.2.1"
   esbuild: "0.28.2"
   "ip-address": "10.7.6"
-  hono: "4.13.17"
-  "@hono/node-server": "2.1.6"
+  hono: "4.13.18"
+  "@hono/node-server": "2.1.8"
   form-data: "4.0.6"
   "axios@^1.0.0": "1.21.1"
   fast-uri: "3.1.9"
@@ -64,8 +64,8 @@ overrides:
   "js-yaml@^4.0.0": "4.3.2"
   "nanoid@^3.0.0": "6.0.2"
   "nanoid@^5.0.0": "6.0.2"
-  "brace-expansion@^2.0.0": "2.1.7"
-  "brace-expansion@^5.0.0": "5.0.12"
+  "brace-expansion@^2.0.0": "2.1.8"
+  "brace-expansion@^5.0.0": "5.0.13"
   mermaid: "12.3.0"
   valibot: "1.5.0"
   # eslint-plugin-formatjs imports Binary_Property/*/regex.js; @unicode 2.0.5+ ships .mjs only.
