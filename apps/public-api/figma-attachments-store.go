@@ -202,34 +202,27 @@ func (s *postgresStore) listFigmaAttachments(ctx context.Context, actor principa
 	return items[start:end], total, nil
 }
 
-// getFigmaAttachment returns the attachment while at least one string links to it.
+// getFigmaAttachment returns the attachment an id names, with the strings that link to it. Any
+// well-formed id names a Figma file or node, so it resolves even when no string links to it yet.
 func (s *postgresStore) getFigmaAttachment(ctx context.Context, actor principal, projectID, attachmentID string) (figmaAttachment, error) {
 	link, err := parseFigmaAttachmentID(attachmentID)
 	if err != nil {
 		return figmaAttachment{}, err
 	}
-	scope, err := s.readNativeProject(ctx, actor, projectID)
-	if err != nil {
-		return figmaAttachment{}, err
-	}
-	groups, err := countFigmaLinks(ctx, s.pool, actor, scope, link.FileKey, "")
-	if err != nil {
-		return figmaAttachment{}, err
-	}
-	group, ok := groups[link.id()]
-	if !ok {
-		return figmaAttachment{}, errFigmaAttachmentNotFound
-	}
-	return group, nil
+	return s.resolveFigmaAttachment(ctx, actor, projectID, link)
 }
 
-// createFigmaAttachment checks a Figma link and returns its attachment, with the strings that
-// already link to it. Nothing is stored until strings are linked.
+// createFigmaAttachment checks a Figma link and returns its attachment. Nothing is stored:
+// linking strings writes their design links.
 func (s *postgresStore) createFigmaAttachment(ctx context.Context, actor principal, projectID, rawURL string) (figmaAttachment, error) {
 	link, err := parseFigmaURL(rawURL)
 	if err != nil {
 		return figmaAttachment{}, err
 	}
+	return s.resolveFigmaAttachment(ctx, actor, projectID, link)
+}
+
+func (s *postgresStore) resolveFigmaAttachment(ctx context.Context, actor principal, projectID string, link figmaLink) (figmaAttachment, error) {
 	scope, err := s.readNativeProject(ctx, actor, projectID)
 	if err != nil {
 		return figmaAttachment{}, err
@@ -289,9 +282,6 @@ func (s *postgresStore) listFigmaAttachmentStrings(ctx context.Context, actor pr
 	if err != nil {
 		return nil, 0, err
 	}
-	if len(items) == 0 {
-		return nil, 0, errFigmaAttachmentNotFound
-	}
 	total := len(items)
 	start := min(offset, total)
 	end := min(start+limit, total)
@@ -335,6 +325,7 @@ func (s *postgresStore) unlinkFigmaAttachmentStrings(ctx context.Context, actor 
 }
 
 // deleteFigmaAttachment clears the design link of every string that points at the attachment.
+// With none, there is nothing to clear and it succeeds.
 func (s *postgresStore) deleteFigmaAttachment(ctx context.Context, actor principal, projectID, attachmentID string) error {
 	link, err := parseFigmaAttachmentID(attachmentID)
 	if err != nil {
@@ -346,7 +337,7 @@ func (s *postgresStore) deleteFigmaAttachment(ctx context.Context, actor princip
 			return err
 		}
 		if len(linked) == 0 {
-			return errFigmaAttachmentNotFound
+			return nil
 		}
 		keyIDs := make([]string, len(linked))
 		for i, item := range linked {

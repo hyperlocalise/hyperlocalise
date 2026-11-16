@@ -1927,9 +1927,8 @@ paths:
         Requires `strings:write`, for admins, localization managers and developers. Native
         projects only. `url` is an https figma.com link to a file, design, prototype, board, or
         slides; the file key (a branch's key for `/branch/` links) and `node-id` are read from
-        it. Returns the attachment's id with the strings already linked to it. Nothing is stored
-        until strings are linked: an attachment exists while at least one string's design link
-        points at it.
+        it. Returns the attachment's id with the strings already linked to it. Nothing is stored:
+        the id is derived from the link, and linking strings writes their design links.
       requestBody:
         required: true
         content:
@@ -1961,8 +1960,9 @@ paths:
       tags: [Figma attachments]
       summary: Get a Figma attachment
       description: >-
-        Requires `strings:read`. Native projects only. `404 figma_attachment_not_found` when no
-        string links to it.
+        Requires `strings:read`. Native projects only. Any well-formed id resolves, with
+        `stringCount` 0 when no string links to it yet. `404 figma_attachment_not_found` means
+        the id is malformed.
       responses:
         "200":
           description: Figma attachment.
@@ -1981,7 +1981,7 @@ paths:
       description: >-
         Requires `strings:write`, for admins, localization managers and developers. Native
         projects only. Clears the design link of every string that points at the attachment;
-        the strings stay.
+        the strings stay. Succeeds when no string links to it.
       responses:
         "204": { description: Deleted. }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -1998,8 +1998,8 @@ paths:
       tags: [Figma attachments]
       summary: List strings linked to a Figma attachment
       description: >-
-        Requires `strings:read`. Native projects only. Sorted by key. `404
-        figma_attachment_not_found` when no string links to it.
+        Requires `strings:read`. Native projects only. Sorted by key. Empty when no string links
+        to the attachment.
       parameters:
         - $ref: "#/components/parameters/Limit50"
         - $ref: "#/components/parameters/Offset"

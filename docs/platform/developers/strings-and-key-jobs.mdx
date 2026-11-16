@@ -156,7 +156,7 @@ Without object storage the write routes return `503 screenshot_storage_unavailab
 
 A Figma attachment is the Figma file or frame that strings' design links point at. It reads and writes the same `designUrl` that the Content Editor shows in key details, so linguists see the link with no other step. Links to the same file and `node-id` group together, however they are spelled. Each string has one design link.
 
-1. Get the attachment for a link. The response has its `id`, such as `AbC123.12-345` (the file key, plus the node when the link names one), and `stringCount`. Nothing is stored yet.
+1. Get the attachment for a link. The response has its `id`, such as `AbC123.12-345` (the file key, plus the node when the link names one), and `stringCount`. Nothing is stored; the id is derived from the link.
 2. Link the request's strings. Pick them with one of `stringIds`, `keys`, or `tags` (at most 1,000). Linking sets each string's `designUrl` to the attachment's `url` and replaces any other link the string had.
 
 ```bash
@@ -173,7 +173,7 @@ curl --fail-with-body \
   -d '{ "keys": ["futures.title", "futures.cta"] }'
 ```
 
-`linked` counts the strings whose link changed. List the project's attachments with `GET .../figma-attachments` (add `stringId` to get the one a string links to), and an attachment's strings with `GET .../figma-attachments/{attachmentId}/strings`. `DELETE .../strings` with the same selection clears the link from those strings. `DELETE .../figma-attachments/{attachmentId}` clears it from every string. An attachment no string links to returns `404 figma_attachment_not_found`.
+`linked` counts the strings whose link changed. List the project's attachments with `GET .../figma-attachments` (add `stringId` to get the one a string links to), and an attachment's strings with `GET .../figma-attachments/{attachmentId}/strings`. `DELETE .../strings` with the same selection clears the link from those strings. `DELETE .../figma-attachments/{attachmentId}` clears it from every string. Because the id comes from the link, any well-formed id resolves: an attachment no string links to yet has `stringCount` 0 and no strings. The list shows only attachments that strings link to.
 
 Creating, linking, and deleting take `strings:write` and the admin, localization manager, or developer role, the same as setting `designUrl` with a bulk update. A Figma attachment has no image. To show the frame itself, upload a screenshot or sync it with the [Figma plugin](/platform/connections/figma).
 
