@@ -536,7 +536,7 @@ export function createBlockedAudit(): LocalisationAuditStoryAudit {
     retryable: false,
     rerunnable: false,
     errorCode: "crawl_blocked",
-    errorMessage: "This domain blocked HyperlocaliseAuditBot/1.0.",
+    errorMessage: "This domain blocked the audit browser.",
     completedAt: null,
   };
 }

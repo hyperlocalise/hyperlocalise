@@ -15,8 +15,8 @@ import { createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
 
 import { auditElapsedMs } from "./audit-log";
-
-import type { HtmlPageRenderer } from "./crawl-renderer";
+import { auditBrowserLogFields, type HtmlPageRenderer } from "./crawl-renderer";
+import { resolveTilionApiKey, tilionApiKeyLogFields } from "./tilion-api-key";
 
 const logger = createLogger("localisation-audit-page-renderer");
 
@@ -26,18 +26,35 @@ const logger = createLogger("localisation-audit-page-renderer");
  * start a session.
  */
 export async function createAuditPageRenderer(): Promise<HtmlPageRenderer> {
-  if (!env.TILION_API_KEY) {
-    logger.info("tilion api key not set, rendering audit pages in sandbox");
+  const key = resolveTilionApiKey({ t3EnvValue: env.TILION_API_KEY });
+  const keyFields = tilionApiKeyLogFields(key);
+  logger.info("choosing audit page renderer", keyFields);
+
+  if (!key.apiKey) {
+    logger.info("tilion api key not set, rendering audit pages in sandbox", {
+      ...keyFields,
+      rendererKind: "sandbox",
+    });
   } else {
     const { createTilionAuditBrowserSession } = await import("./tilion-browser");
     const startedAt = performance.now();
-    const tilion = await createTilionAuditBrowserSession({ apiKey: env.TILION_API_KEY });
+    logger.info("tilion session create starting", {
+      ...keyFields,
+      rendererKind: "tilion",
+    });
+    const tilion = await createTilionAuditBrowserSession({ apiKey: key.apiKey });
     if (!isErr(tilion)) {
-      logger.info("tilion audit browser ready", { durationMs: auditElapsedMs(startedAt) });
+      logger.info("tilion audit browser ready", {
+        ...keyFields,
+        ...auditBrowserLogFields(tilion.value),
+        durationMs: auditElapsedMs(startedAt),
+      });
       return tilion.value;
     }
     const error = tilion.error;
     logger.warn("tilion audit browser unavailable, falling back to sandbox", {
+      ...keyFields,
+      rendererKind: "sandbox",
       code: error.code,
       status: "status" in error ? error.status : undefined,
       stage: "stage" in error ? error.stage : undefined,
@@ -50,5 +67,10 @@ export async function createAuditPageRenderer(): Promise<HtmlPageRenderer> {
   }
 
   const { createAuditBrowserSession } = await import("./sandbox-browser");
-  return createAuditBrowserSession();
+  const sandbox = await createAuditBrowserSession();
+  logger.info("sandbox audit browser selected", {
+    ...keyFields,
+    ...auditBrowserLogFields(sandbox),
+  });
+  return sandbox;
 }

@@ -30,7 +30,7 @@ import {
   aggregateLocalisationAuditCredits,
   pickHeadlineFindings,
 } from "@/lib/localisation-audit/score";
-import { LOCALISATION_AUDIT_USER_AGENT_NAME } from "@/lib/localisation-audit/user-agent";
+import { LOCALISATION_AUDIT_CRAWL_BLOCKED_MESSAGE } from "@/lib/localisation-audit/user-agent";
 import {
   blockLocalisationAudit,
   completeLocalisationAudit,
@@ -181,7 +181,7 @@ export async function analyzeLocalisationAuditStep(input: {
       auditId: input.auditId,
       attemptNumber: input.attemptNumber,
       errorCode: "crawl_blocked",
-      errorMessage: `This domain blocked ${LOCALISATION_AUDIT_USER_AGENT_NAME}. Allow it through your firewall, CDN, bot protection, or login wall, then start a new audit.`,
+      errorMessage: LOCALISATION_AUDIT_CRAWL_BLOCKED_MESSAGE,
     });
     if (!blocked) {
       log.info("localisation audit analyze: stale attempt while blocking");

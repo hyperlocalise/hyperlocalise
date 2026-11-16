@@ -25,7 +25,7 @@ import { rejectLocalisationAuditBot } from "@/lib/localisation-audit/bot-protect
 import { LocalisationAuditDailyQuotaExceededError } from "@/lib/localisation-audit/daily-quota";
 import { resolveDomainIdentity, isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
 import { asPublishedLocalisationAudit } from "@/lib/localisation-audit/report-coverage";
-import { LOCALISATION_AUDIT_USER_AGENT_NAME } from "@/lib/localisation-audit/user-agent";
+import { LOCALISATION_AUDIT_EMAIL_BLOCKED_MESSAGE } from "@/lib/localisation-audit/user-agent";
 import {
   attachLocalisationAuditWorkflowRun,
   claimOrReuseLocalisationAudit,
@@ -260,7 +260,7 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         return conflictResponse(
           c,
           "localisation_audit_blocked",
-          `This audit was blocked by the domain. Allow ${LOCALISATION_AUDIT_USER_AGENT_NAME}, then start a new audit before requesting a report email.`,
+          LOCALISATION_AUDIT_EMAIL_BLOCKED_MESSAGE,
         );
       }
 

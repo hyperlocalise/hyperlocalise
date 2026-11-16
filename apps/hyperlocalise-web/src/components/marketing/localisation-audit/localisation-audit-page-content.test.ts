@@ -29,7 +29,7 @@ describe("localisation audit page content", () => {
     expect(copy.headline).toBe("See how your brand travels.");
     expect(copy.submit).toBe("See my score");
     expect(copy.crawlAccessNoteHeading).toBe("Site owner note");
-    expect(copy.crawlAccessNoteBody).toContain("firewall");
+    expect(copy.crawlAccessNoteBody).toContain("ordinary browser traffic");
     expect(copy.crawlAccessNoteUserAgent).toBe("User agent");
     expect(copy.methodologyHeading).toBe("What we notice");
     expect(copy.notices.map((notice) => notice.title)).toEqual([

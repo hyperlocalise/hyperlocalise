@@ -27,7 +27,7 @@ import {
 } from "@/lib/engine-setup/types";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { readSetupGuidelineDocumentContentByOrganization } from "@/lib/engine-setup/setup-guideline-document";
-import { LOCALISATION_AUDIT_USER_AGENT_NAME } from "@/lib/localisation-audit/user-agent";
+import { LOCALISATION_AUDIT_ENGINE_SETUP_BLOCKED_MESSAGE } from "@/lib/localisation-audit/user-agent";
 import type { LocalisationAuditCrawlResult } from "@/lib/localisation-audit/types";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -99,7 +99,7 @@ export async function analyzeEngineSetupStep(input: {
       runId: input.runId,
       status: "blocked",
       errorCode: "crawl_blocked",
-      errorMessage: `This site blocked ${LOCALISATION_AUDIT_USER_AGENT_NAME}. Allow it through your firewall, CDN or bot protection, then try again.`,
+      errorMessage: LOCALISATION_AUDIT_ENGINE_SETUP_BLOCKED_MESSAGE,
     });
     return { ok: false as const, code: "crawl_blocked" as const };
   }

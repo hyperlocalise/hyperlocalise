@@ -251,7 +251,7 @@ describe("analyzeLocalisationAuditStep company profile", () => {
       auditId: "audit-1",
       attemptNumber: 2,
       errorCode: "crawl_blocked",
-      errorMessage: expect.stringContaining("HyperlocaliseAuditBot/1.0"),
+      errorMessage: expect.stringContaining("audit browser"),
     });
     expect(buildProfileMock).not.toHaveBeenCalled();
     expect(creditsMock).not.toHaveBeenCalled();

@@ -13084,7 +13084,7 @@
     "description": "Activity bulk operation size"
   },
   "FvGsFbmiod": {
-    "defaultMessage": "Allow the user agent below through your firewall, CDN, bot protection, or login wall, then start a new audit.",
+    "defaultMessage": "Allow ordinary browser traffic through your firewall, CDN, bot protection, or login wall, then start a new audit.",
     "description": "Guidance for a site owner whose domain blocked the localisation audit crawler"
   },
   "Fx/7PrGw0Y": {
@@ -37208,7 +37208,7 @@
     "description": "Selected text AI action: rewrite"
   },
   "ndyP1whnV+": {
-    "defaultMessage": "If your site uses a firewall, CDN, bot check, or login wall, allow this user agent to access public pages so we can complete the audit.",
+    "defaultMessage": "If your site uses a firewall, CDN, bot check, or login wall, allow ordinary browser traffic to public pages so we can complete the audit.",
     "description": "Guidance for site owners to allow the localisation audit crawler"
   },
   "ne00IJ9KEp": {

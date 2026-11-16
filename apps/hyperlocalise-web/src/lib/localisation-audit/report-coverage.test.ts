@@ -17,6 +17,7 @@ import {
   hasLocalisationAuditSuccessfulPage,
 } from "./report-coverage";
 import type { LocalisationAuditReport } from "./types";
+import { LOCALISATION_AUDIT_RECLAIM_BLOCKED_MESSAGE } from "./user-agent";
 
 function reportWithStatuses(statuses: number[]): LocalisationAuditReport {
   return {
@@ -57,6 +58,7 @@ describe("asPublishedLocalisationAudit", () => {
     expect(published.score).toBeNull();
     expect(published.report).toBeNull();
     expect(published.errorCode).toBe("crawl_blocked");
+    expect(published.errorMessage).toBe(LOCALISATION_AUDIT_RECLAIM_BLOCKED_MESSAGE);
   });
 
   it("keeps audits with at least one successful page", () => {

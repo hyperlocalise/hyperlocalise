@@ -15,10 +15,11 @@ import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/pub
 
 import { auditElapsedMs, auditErrorLogFields, auditStatusCounts } from "./audit-log";
 
-import type {
-  CrawlLocalisationAuditSampleOptions,
-  HtmlPageRenderer,
-  RenderedHtmlPage,
+import {
+  auditBrowserLogFields,
+  type CrawlLocalisationAuditSampleOptions,
+  type HtmlPageRenderer,
+  type RenderedHtmlPage,
 } from "./crawl-renderer";
 import { LOCALE_PREFIX, resolveFocusLocaleCode, urlRoutingLocale } from "./credits/shared";
 import { detectLocalisationAuditCrawlBlock } from "./crawl-block";
@@ -392,9 +393,8 @@ async function crawlLocalisationAuditSampleInner(
   const createRenderer = options?.createRenderer ?? defaultCreateRenderer;
   const startedAt = performance.now();
   const renderer = await createRenderer();
-  const rendererKind = renderer.kind ?? "custom";
   logger.info("localisation audit crawl renderer ready", {
-    rendererKind,
+    ...auditBrowserLogFields(renderer),
     durationMs: auditElapsedMs(startedAt),
   });
   try {
@@ -402,7 +402,7 @@ async function crawlLocalisationAuditSampleInner(
     const homeRendered = (await renderer.render([input.sourceUrl]))[0];
     if (!homeRendered) {
       logger.warn("localisation audit homepage did not render", {
-        rendererKind,
+        ...auditBrowserLogFields(renderer),
         durationMs: auditElapsedMs(homeStartedAt),
       });
       return { pages: [], sitemap: EMPTY_SITEMAP_SIGNAL };
@@ -413,7 +413,7 @@ async function crawlLocalisationAuditSampleInner(
       homeRendered.html,
     );
     logger.info("localisation audit homepage rendered", {
-      rendererKind,
+      ...auditBrowserLogFields(renderer),
       status: homeRendered.status,
       blockedReason: homeBlockedReason,
       redirected: homeRendered.url !== homeRendered.requestedUrl,
@@ -421,12 +421,10 @@ async function crawlLocalisationAuditSampleInner(
       durationMs: auditElapsedMs(homeStartedAt),
     });
     if (homeBlockedReason) {
-      // The sandbox sends HyperlocaliseAuditBot; a block there may only mean Tilion was unavailable.
       logger.warn("localisation audit homepage blocked", {
-        rendererKind,
+        ...auditBrowserLogFields(renderer),
         status: homeRendered.status,
         blockedReason: homeBlockedReason,
-        sentAuditBotUserAgent: rendererKind === "sandbox",
       });
       return {
         pages: [],
@@ -494,7 +492,7 @@ async function crawlLocalisationAuditSampleInner(
       .map((entry) => pagesByUrl.get(entry.url))
       .filter((page): page is LocalisationAuditCrawledPage => page != null);
     logger.info("localisation audit crawl finished", {
-      rendererKind,
+      ...auditBrowserLogFields(renderer),
       seededCount: seeded.size,
       requestedCount: otherUrls.length,
       renderedCount: otherRendered.length,

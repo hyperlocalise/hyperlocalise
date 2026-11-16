@@ -22,9 +22,33 @@ export type RenderedHtmlPage = {
 
 export type HtmlPageRendererKind = "tilion" | "sandbox";
 
+export type AuditBrowserUserAgentSource = "tilion_persona" | "tilion_isolated" | "chromium";
+
+export type AuditBrowserIdentity = {
+  kind: HtmlPageRendererKind;
+  userAgentSource: AuditBrowserUserAgentSource;
+  userAgent?: string;
+  tilionSessionId?: string;
+  tilionPersona?: string;
+  tilionRegion?: string;
+};
+
+export function auditBrowserLogFields(renderer: HtmlPageRenderer) {
+  return {
+    rendererKind: renderer.kind ?? "custom",
+    userAgentSource: renderer.browser?.userAgentSource,
+    userAgent: renderer.browser?.userAgent,
+    tilionSessionId: renderer.browser?.tilionSessionId,
+    tilionPersona: renderer.browser?.tilionPersona,
+    tilionRegion: renderer.browser?.tilionRegion,
+  };
+}
+
 export type HtmlPageRenderer = {
-  /** Which browser renders pages, for logs. The sandbox sends the audit bot user agent. */
+  /** Which browser renders pages, for logs. */
   kind?: HtmlPageRendererKind;
+  /** Stable identity fields for crawl and step logs. Never includes secrets. */
+  browser?: AuditBrowserIdentity;
   render(urls: string[]): Promise<RenderedHtmlPage[]>;
   /**
    * Fetches a text resource such as robots.txt or a sitemap through the same

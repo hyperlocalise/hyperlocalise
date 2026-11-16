@@ -65,6 +65,7 @@ import { isBlockedBrowserNavigationUrl } from "./audit-browser-url-guard";
 import { buildAuditPlaywrightScript } from "./audit-playwright-script";
 import { createAuditBrowserSession, prepareAuditBrowserRuntimeCommand } from "./sandbox-browser";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
+import { LOCALISATION_AUDIT_USER_AGENT } from "./user-agent";
 
 describe("audit browser navigation guard", () => {
   it("blocks private and non-http targets before Playwright sees them", () => {
@@ -86,7 +87,8 @@ describe("audit Playwright script", () => {
     expect(script).toContain('waitForLoadState("networkidle"');
     expect(script).toContain("page.route");
     expect(script).toContain("isBlockedNavigationUrl");
-    expect(script).toContain("HyperlocaliseAuditBot/1.0 (+https://hyperlocalise.com)");
+    expect(script).toContain(LOCALISATION_AUDIT_USER_AGENT);
+    expect(script).not.toContain("HyperlocaliseAuditBot");
     expect(script).toContain("isBlockedIpv4Address");
     expect(script).toContain("isBlockedIpv6Address");
     expect(script).toContain('hostname.startsWith("::ffff:")');
@@ -162,6 +164,12 @@ describe("createAuditBrowserSession", () => {
     });
 
     const session = await createAuditBrowserSession();
+    expect(session.kind).toBe("sandbox");
+    expect(session.browser).toEqual({
+      kind: "sandbox",
+      userAgentSource: "chromium",
+      userAgent: LOCALISATION_AUDIT_USER_AGENT,
+    });
     const pages = await session.render(["https://example.com/", "http://127.0.0.1/secret"]);
     await session.close();
 

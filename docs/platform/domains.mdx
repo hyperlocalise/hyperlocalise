@@ -107,7 +107,7 @@ flowchart TD
     B -- "No" --> B1["Verify the domain first"]
     B -- "Yes" --> C["Render the homepage"]
     C --> D{"Crawler blocked?"}
-    D -- "Yes" --> F["Run fails: allow HyperlocaliseAuditBot and retry"]
+    D -- "Yes" --> F["Run fails: allow ordinary browser traffic and retry"]
     D -- "No" --> E["Pick up to 100 pages from sitemaps and links:<br/>every template, with its locale versions"]
     E --> G["Render pages in batches of 20"]
     G --> H{"Half a batch blocked?"}
@@ -124,7 +124,7 @@ flowchart TD
 3. Review the score, the dimension scores, and each check. A check shows how many pages and templates it failed on. Select **View findings** to filter the findings to that check.
 4. Filter findings by severity, template, or locale. From the second run on, switch between **New**, **Unchanged**, and **Fixed** to see what changed since the previous audit.
 
-Only one deep audit runs per domain at a time. If the site blocks the crawler, allow `HyperlocaliseAuditBot` through your firewall, CDN, or bot protection and run the audit again. Running an audit requires permission to edit projects. Anyone who can see the domain can view results.
+Only one deep audit runs per domain at a time. If the site blocks the crawler, allow ordinary browser traffic through your firewall, CDN, or bot protection and run the audit again. Running an audit requires permission to edit projects. Anyone who can see the domain can view results.
 
 ## Use research in localisation
 
