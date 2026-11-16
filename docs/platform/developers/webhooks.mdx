@@ -113,4 +113,6 @@ After 40 failed attempts in a row, the endpoint is disabled. A disabled endpoint
 
 ## Start automations on job changes
 
-To act on job changes inside Hyperlocalise Platform, use the **Job changed** trigger in a [visual automation](/platform/automations). It takes the same filters for project, job kind, change type, and new status.
+To act on job changes inside Hyperlocalise Platform, use the **Job changed** trigger in a [visual automation](/platform/automations). It takes the same filters for project, job kind, change type, and new status, with one more job kind: **Post-edit**. A post-edit task's kind reads `proofread` in webhooks and the API, but on this trigger it matches **Post-edit** and not **Proofread**, so a workflow that acts on finished proofread tasks does not start when a post-edit task is marked done.
+
+Later steps get the job's ID, kind, project, and new and previous status. When the job has them, they also get its task step (`taskStep`: `edit` for post-edit, `proofread`, or `translate`), source file (`sourceFileId`), languages (`targetLocales`), owner (`assigneeId`) and due date (`dueAt`), as they are when the run starts.

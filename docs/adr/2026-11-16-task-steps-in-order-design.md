@@ -36,8 +36,8 @@ Not built here:
 ### Part 1: a post-edit task can be finished
 
 - **Mark done** finishes a post-edit task as it does a proofread task, in the app and through the API's complete call, with the same rule for who may do it. A fixed fee set on the task is charged once, as for a proofread task. Translate tasks for people are left as they are.
-- The **Job changed** trigger gets a **Task step** choice: Post-edit, Proofread, or both. Left empty it behaves as before. With a step chosen, only tasks for people at that step start a run; a proofread task made in the app, or one made of chosen strings, counts as Proofread.
-- The trigger passes on more about a task for people, so later steps need not look it up: its step, its file, its languages, its owner and its due date. They are read from the job when the run starts. The owner is passed as an id, as everything else the trigger passes is an id or a status, and a value the job does not have is left out.
+- The **Job changed** trigger's **Job kinds** get a **Post-edit** choice. A post-edit task matches it and no longer matches **Proofread**, which keeps every other proofread job: tasks made in the app or of chosen strings, AI proofread jobs and tasks mirrored from a provider. A workflow already set to Proofread therefore does not start on a finished post-edit task, with no change to it. Only the trigger knows this kind: the job's stored kind, webhooks and the API still say proofread.
+- The trigger passes on more about the job, so later steps need not look it up: its step as a task for people, its file, its languages, its owner and its due date. They are read from the job when the run starts, so they are the job's values then, not when it changed. The owner is passed as an id, as everything else the trigger passes is an id or a status, and a value the job does not have is left out.
 - The two ship together. Once a post-edit task can be finished, a workflow that acts on finished proofread tasks would otherwise also start on a finished post-edit task.
 
 ### Part 2: a task can wait for another
@@ -54,13 +54,14 @@ Not built here:
 
 - **A finished task starts a workflow that makes the next task.** This needs no link between tasks. Not chosen: the later step cannot be seen, assigned or given a deadline ahead of time; its cost is missing from Reports until it exists; a paused or failed workflow leaves a file between steps with nothing to show for it; and a script using only the API cannot do it.
 - **Steps as rows of one job**, as in Phrase TMS and memoQ. Closest to what the customer uses today, but a job here has one status, one owner and one due date, and everything from the job list to Reports reads it that way.
+- **A separate Task step setting on the trigger** (built first, then replaced, 2026-11-17). It could also leave out AI jobs and mirrored tasks, but it was a second group for what people see as one choice, and every workflow already set to Proofread would have started on finished post-edit tasks until someone set it.
 - **Keep the later task open and only refuse Mark done until the earlier one is finished.** No status change, but the two tasks look the same in every list, nothing announces that the later one can start, and Reports would give the post-editor's work to the reviser.
 - **A new "waiting" status.** Clearer to read, but every list, filter, count and API client that knows the six statuses would have to learn a seventh.
 - **Let translate tasks be finished and wait too.** Not asked for, and the waiting state is not safe for them without changing **Retry**.
 
 ## Risks
 
-- **Jobs, the public API and Reports are in use by customers.** Part 1 changes which tasks can be finished and what a workflow hears. A workflow that acts on finished proofread tasks should set **Task step** to Proofread; without it, it also starts on finished post-edit tasks.
+- **Jobs, the public API and Reports are in use by customers.** Part 1 changes which tasks can be finished and what a workflow hears. A workflow with no job kind chosen starts on finished post-edit tasks as on any other job; one set to Proofread does not. A workflow set to Proofread that reacts to other changes, such as a task being created, no longer starts for post-edit tasks unless Post-edit is ticked too.
 - **Open jobs limit.** A workspace may hold 50 open jobs, and tasks on files count. Making every step's task at the start doubles how fast a workspace reaches it.
 - **Opening is not instant.** Job changes are processed about once a minute, so a waiting task opens up to a minute after the earlier one is finished.
 - **No notice of its own.** The owner of a task that opens is not sent a message by the platform; assigning a task sends none today either. They see it in their jobs, and a webhook or a workflow can tell them.

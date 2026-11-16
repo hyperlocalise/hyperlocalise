@@ -22,7 +22,7 @@ The feed includes:
 - **Run cards** — one card per workflow attempt, labeled with the Hyperlocalise agent. The badge moves through **Preparing** (context, glossary, translation memory, reading the file), **Translating**, then **Finished**, **Failed**, or **Stopped** if you cancel or mark the job failed.
 - **Per locale** — waiting, translating, retrying, done, or failed, with translated string counts (for example `120 / 340`) and how many strings were reused from translation memory or existing translations.
 - **Detailed steps** — expand a run card to see stages such as strings extracted, translation memory reuse, per-locale progress updates, locale retries, and completion.
-- **Your actions** — cancel, retry, mark as failed, or mark done appear as separate rows when you use those controls. Proofread tasks show who marked the task done.
+- **Your actions** — cancel, retry, mark as failed, or mark done appear as separate rows when you use those controls. Proofread and post-edit tasks show who marked the task done.
 
 Jobs started before activity logging was enabled may show only **Created** and the current status. If activity fails to load, an inline message appears; the rest of the job page still works. The jobs list and kanban do not show this feed yet; open the job detail page to follow progress.
 
@@ -65,11 +65,11 @@ For a native job that is queued, running, or waiting for review, select **Cancel
 
 **Mark as failed** is a separate recovery action for active native jobs. It prevents the current workflow from later updating the job and removes it from the active queue. Use it when you have decided to abandon that attempt, rather than treating it as a refresh button.
 
-## Finish a proofread task
+## Finish a proofread or post-edit task
 
-When the work on a proofread task is finished, select **Mark done** and confirm. The task moves to **Succeeded** and can't be reopened. Strings that are not finished stay as they are, and later edits no longer count towards the task. The file language shows as **Ready** after this, even if some strings are still unfinished.
+When the work on a proofread or post-edit task is finished, select **Mark done** and confirm. The task moves to **Succeeded** and can't be reopened. Strings that are not finished stay as they are, and later edits no longer count towards the task. The file language shows as **Ready** after this, even if some strings are still unfinished.
 
-Reviewers, localization managers, and admins can mark any such task done. Anyone else with job access can mark done only a task assigned to them. Post-edit and translate tasks from visual workflows do not have **Mark done**. Key jobs are finished the same way. Automation can do the same with [Complete a task for people](/platform/api#complete-a-task-for-people).
+Reviewers, localization managers, and admins can mark any such task done. Anyone else with job access can mark done only a task assigned to them. Translate tasks from visual workflows do not have **Mark done**. Key jobs are finished the same way. Automation can do the same with [Complete a task for people](/platform/api#complete-a-task-for-people).
 
 ## Hand off the result
 

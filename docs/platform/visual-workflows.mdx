@@ -7,7 +7,7 @@ Visual workflows compose fixed automation steps on a canvas. Open **Automations 
 
 ## Build and connect data
 
-1. Choose a manual, scheduled, GitHub, source-upload, or **Webhook** trigger.
+1. Choose a manual, scheduled, GitHub, source-upload, **Webhook**, or [**Job changed**](/platform/developers/webhooks#start-automations-on-job-changes) trigger.
 2. Add HTTP, AI, Slack, email, condition, switch, Set, object and JSON steps, For each, Array transform, Sequence, Retry, or **Call workflow** nodes.
 3. Connect execution order on the canvas.
 4. Select a node. Its settings open on the **Configuration** tab. A setting that can take its value from an earlier step shows a port mark beside its name: type a value, insert fields from earlier steps by typing `{{` or with the braces button beside the box, or wire the port on the canvas. An inserted field shows as a pill naming its step and field; a red pill names a step that does not run before this one. Backspace removes a pill whole. On the canvas, each pill draws a thin dashed line from the field it reads to the setting's port; it cannot be selected or moved. Data wires are thin solid lines, and the connections that decide the order steps run in are thicker. A wired setting shows which step feeds it.
@@ -94,7 +94,7 @@ To [translate through another language first](/platform/projects/files#translate
 2. **Use translation as source**: leave **Job ID** as `{{ trigger.jobId }}` and choose the second project in **Send to project**. Its source language must be the in-between language, such as `en-US`.
 3. **Publish** and keep the workflow **Active**.
 
-When a reviewer selects **Mark done** on the task, the run starts within a minute and sends the task's file to the project to send to, as **Use translation as source…** on **Files** does. Create the tasks with an **Assign task** step as **Proofread** tasks, for example in a **Source upload** workflow that machine translates each new file and assigns a **Proofread** task in the in-between language. **Post-edit** tasks cannot be marked done, so they never start this workflow.
+When a reviewer selects **Mark done** on the task, the run starts within a minute and sends the task's file to the project to send to, as **Use translation as source…** on **Files** does. Create the tasks with an **Assign task** step as **Proofread** tasks, for example in a **Source upload** workflow that machine translates each new file and assigns a **Proofread** task in the in-between language. **Post-edit** is a job kind of its own on this trigger, so marking a post-edit task done does not send the file before it is proofread.
 
 The step sends Word and Excel files on the project's default branch only, and never replaces a file in the project to send to that it did not send.
 
@@ -134,7 +134,7 @@ Human steps in MTPE and TEP flows can set owners and deadlines on native jobs an
 | Step | Use it to |
 | --- | --- |
 | **Pick assignee** | Choose one person from a ordered rule table on locale, job type, size, and due date. Spread work **first listed**, **round-robin**, or to the **least busy** person (fewest open native jobs, or open Crowdin tasks when people come from Crowdin). Wire `assigneeId` into **Assign task** or **Update job**. |
-| **Assign task** | Create a translate, post-edit, or proofread task on a source file with an optional assignee and **due date** (ISO 8601, for example `2026-05-01T17:00:00Z`). |
+| **Assign task** | Create a translate, post-edit, or proofread task on a source file with an optional assignee and **due date** (ISO 8601, for example `2026-05-01T17:00:00Z`). The assignee finishes a post-edit or proofread task with [**Mark done**](/platform/translation/jobs#finish-a-proofread-or-post-edit-task). To act when one is finished, start another workflow from **Job changed** with **Job kinds** set to **Post-edit** or **Proofread**. In later steps the trigger's `jobKind` is `proofread` for both; its `taskStep` tells them apart (`edit` for post-edit). |
 | **Update job** | Reassign a native job, rename it, or set or clear its due date. Leave assignee or due date empty to keep the current value. |
 | **Crowdin task** | Create Crowdin translate or proofread tasks with optional assignees and a deadline. |
 
