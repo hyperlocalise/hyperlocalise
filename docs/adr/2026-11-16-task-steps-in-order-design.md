@@ -43,12 +43,14 @@ Not built here:
 ### Part 2: a task can wait for another
 
 - **A task can name the task it comes after.** It is made straight away, with its owner and due date, but it is **waiting**: it is in the job list and in its owner's jobs, it cannot be marked done, and its page says which task it waits for. A manager can change its owner or due date, or cancel it, at any time.
-- **It opens when the earlier task is marked done or cancelled.** A cancelled step is treated as a skipped one, so a chain does not stop silently. Opening is a job change like any other: webhooks send it, and a **Job changed** workflow can act on it. A failed job (only AI jobs fail) leaves the later task waiting until it is retried or cancelled.
+- **It opens when the earlier task is marked done or cancelled.** Once a minute, every waiting task whose earlier job has ended that way is opened, so a missed run is made up by the next and it does not matter which service finished the earlier job. A cancelled step is treated as a skipped one, so a chain does not stop silently. Opening is a job change like any other: webhooks send it, and a **Job changed** workflow can act on it. A failed job (only AI jobs fail) leaves the later task waiting until it is retried or cancelled.
 - **Only post-edit and proofread tasks can wait.** A waiting task is stored with the status the platform already has for work that has not started (`queued`), plus one new link to the earlier job. For these two kinds of task nothing in the platform starts AI work from that status; for a translate task **Retry** would, so a translate task cannot wait.
-- **What it comes after is fixed when the task is made**, and must be a job in the same project. To change it, cancel the task and make another.
+- **What it comes after is fixed when the task is made**, and must be a job in the same project: usually the task before it on the same file, or the machine translation job, so post-editing opens when the translation finishes. To change it, cancel the task and make another.
 - **Reports.** A waiting task counts as open work from the start, so its cost shows in what is still to come. Work saved in the editor goes to the task that was open at the time: a task that comes after another takes saves only from the moment the earlier one ended.
-- **Public API.** Creating a file job takes `step` (`post_edit` or `proofread`) to make a task for a person instead of AI work, and `after` (a job id) to make it wait. With the existing owner, due date, bulk update, complete call and webhooks, a script can set up and follow a whole file without a visual workflow. Reading a job returns what it comes after.
-- **Visual workflows.** **Assign task** takes an optional task to come after, so one run can machine translate, pick people, and make the post-edit and proofread tasks together.
+- **Public API.** Creating a file job takes `fileInput.step` (`post_edit` or `proofread`) to make a task for a person instead of AI work, and `fileInput.after` (a job id) to make it wait. Both job-creation routes take them, since the two hosts share one request shape and one set of idempotency keys. With the existing owner, due date, bulk update, complete call and webhooks, a script can set up and follow a whole file without a visual workflow. Reading a job returns its step and what it comes after, so a script that hears a task changed can tell a post-edit task from a proofread one.
+- **Visual workflows.** **Assign task** takes an optional **Comes after** job id, usually an earlier Assign task step's output, so one run can machine translate, pick people, and make the post-edit and proofread tasks together.
+- **The task's page** has a **Comes after** row linking to the earlier task, with a note while the task waits, and offers no **Open Editor** until the task opens. The editor itself is not locked.
+- **Where the rules live.** Waiting and opening are in the web app (`waiting-task.ts`), run with the job changes that are already processed once a minute. The public API host creates waiting tasks by a copy of the same rules. On the files and jobs host a `step` or `after` outside `fileInput` is refused rather than ignored, since ignoring it would send the file to the AI.
 
 ## Alternatives considered
 
@@ -63,9 +65,11 @@ Not built here:
 
 - **Jobs, the public API and Reports are in use by customers.** Part 1 changes which tasks can be finished and what a workflow hears. A workflow with no job kind chosen starts on finished post-edit tasks as on any other job; one set to Proofread does not. A workflow set to Proofread that reacts to other changes, such as a task being created, no longer starts for post-edit tasks unless Post-edit is ticked too.
 - **Open jobs limit.** A workspace may hold 50 open jobs, and tasks on files count. Making every step's task at the start doubles how fast a workspace reaches it.
-- **Opening is not instant.** Job changes are processed about once a minute, so a waiting task opens up to a minute after the earlier one is finished.
+- **Opening is not instant.** Waiting tasks are opened about once a minute, so one opens up to a minute after the earlier job is finished.
+- **A task after an AI job.** A file translation that finishes only some languages counts as finished, so a task after it opens while the rest are still being translated; a job that never finishes, such as an AI review left waiting, keeps the task waiting until it is cancelled.
 - **No notice of its own.** The owner of a task that opens is not sent a message by the platform; assigning a task sends none today either. They see it in their jobs, and a webhook or a workflow can tell them.
 - **A status label.** A waiting task shows as Queued in lists, the word used for AI work that has not started. Its page says what it waits for.
+- **Reports for tasks made on the public API host.** That host records a task without starting its Reports analysis, as it does for tasks made of chosen strings today, so such a task has no word counts or estimate until work is saved. A task made on the files and jobs host, or by a visual workflow, is analysed when it is made.
 
 ## What was checked
 
