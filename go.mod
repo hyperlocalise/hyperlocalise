@@ -26,7 +26,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.10
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.51.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.53.0
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.82.1
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.83.0
 	github.com/aws/aws-sdk-go-v2/service/textract v1.50.0
 	github.com/aws/smithy-go v1.28.9
 	github.com/crowdin/crowdin-api-client-go v0.19.0
@@ -47,7 +47,7 @@ require (
 	github.com/tidwall/jsonc v0.3.4
 	github.com/turbopuffer/turbopuffer-go/v2 v2.10.0
 	github.com/valkey-io/valkey-go v1.0.79
-	github.com/workos/workos-go/v10 v10.6.0
+	github.com/workos/workos-go/v10 v10.8.0
 	github.com/xuri/excelize/v2 v2.11.1
 	github.com/yuin/goldmark/v2 v2.1.16
 	go.opentelemetry.io/otel v1.47.0
