@@ -162,7 +162,9 @@ export type PersonTaskSpan = { id: string; createdAt: Date; endedAt: Date | null
 /**
  * The tasks for people that cover a string's file (or, given the string, hold it), language and
  * step, newest first: proofread or post-edit tasks for an approval, translate tasks for a
- * translation. Jobs an agent ran are not tasks for people.
+ * translation. Jobs an agent ran are not tasks for people. A task that comes after another job
+ * covers saves only from when that job ended, and none while it still waits, so a post-editor's
+ * work is not counted on the proofread task made at the same time.
  */
 export async function personTasksForString(input: PersonTaskLookup): Promise<PersonTaskSpan[]> {
   const kind = input.step === "review" ? "proofread" : "translation";
@@ -175,14 +177,19 @@ export async function personTasksForString(input: PersonTaskLookup): Promise<Per
     createdAt: Date | string;
     endedAt: Date | string | null;
   }>(sql`
-    select j.id, j.created_at as "createdAt",
+    select j.id,
+      case when earlier.id is null or earlier.status in (${openStatuses}) then j.created_at
+        else greatest(j.created_at, coalesce(earlier.completed_at, earlier.updated_at))
+        end as "createdAt",
       case when j.status in (${openStatuses}) then null
         else coalesce(j.completed_at, j.updated_at) end as "endedAt"
     from jobs j
     join translation_job_details d on d.job_id = j.id
     left join repository_source_file_versions v on v.id = d.source_file_version_id
+    left join jobs earlier on earlier.id = j.after_job_id
     where j.organization_id = ${input.organizationId} and j.project_id = ${input.projectId}
       and j.kind = ${kind} and j.workflow_run_id is null
+      and not (j.after_job_id is not null and j.status = 'queued')
       and (j.assignee_type is null or j.assignee_type = 'user')
       and (
         v.repository_source_file_id = ${input.repositorySourceFileId}
@@ -197,7 +204,7 @@ export async function personTasksForString(input: PersonTaskLookup): Promise<Per
         }
       )
       and j.input_payload -> 'targetLocales' ? ${input.targetLocale}
-    order by j.created_at desc, j.id desc
+    order by "createdAt" desc, j.id desc
   `);
   return result.rows.map((row) => ({
     id: row.id,
