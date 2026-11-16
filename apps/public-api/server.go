@@ -120,6 +120,7 @@ func newHandlerWithOutbound(auth authenticator, store resourceStore, outbound ou
 	mux.HandleFunc("/v1/projects/{projectId}/source-files/{fileId}", s.projectSourceFile)
 	mux.HandleFunc("/v1/projects/{projectId}/content-sync", s.projectContentSyncRoute)
 	mux.HandleFunc("/v1/string-metadata-keys", s.stringMetadataKeys)
+	mux.HandleFunc("/v1/files/{fileId}/download", s.fileDownload)
 	mux.HandleFunc("/v1/reports/{report}", s.report)
 	mux.HandleFunc("/v1/webhook-endpoints", s.webhookEndpoints)
 	mux.HandleFunc("/v1/webhook-endpoints/{endpointId}", s.webhookEndpoint)

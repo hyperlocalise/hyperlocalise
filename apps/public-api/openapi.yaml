@@ -1622,6 +1622,37 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/files/{fileId}/download:
+    parameters:
+      - name: fileId
+        in: path
+        required: true
+        schema: { type: string, maxLength: 128 }
+    get:
+      operationId: downloadFile
+      tags: [Jobs]
+      summary: Download a stored file
+      description: >-
+        Requires `files:read`. Streams a file the workspace stores in Vercel Blob, such as a job's
+        `sourceFile.fileId` (the original upload) or an `outputFiles[].fileId` (a translated file
+        a finished file job wrote). A file in a project needs access to that project. A file in no
+        project needs an admin or localization manager, or the person who uploaded it. Always an
+        attachment, never cached. Returns `503 file_storage_unavailable` when this service has no
+        Vercel Blob token.
+      responses:
+        "200":
+          description: The file's bytes.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              description: "attachment; filename*=UTF-8''<name>"
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/string-metadata-keys:
     get:
       operationId: listStringMetadataKeys

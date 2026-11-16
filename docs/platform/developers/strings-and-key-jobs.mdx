@@ -271,6 +271,17 @@ curl --fail-with-body -X POST "https://public-api.hyperlocalise.com/v1/jobs/$JOB
 
 A job that can't take the action, including a provider-backed job, returns `409 job_action_unavailable`.
 
+## Download source and translated files
+
+A job's `sourceFile.fileId` is its original upload, and a finished file job lists each translated file under `outputFiles` with its `fileId` and `locale`. Download any of them with `GET /v1/files/{fileId}/download` (needs `files:read`):
+
+```bash
+curl --fail-with-body -OJ "https://public-api.hyperlocalise.com/v1/files/$FILE_ID/download" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY"
+```
+
+The file comes back as an attachment with its stored name. To wait for a file job, poll `GET /v1/jobs/{jobId}` until `status` is `succeeded`, then download its `outputFiles`.
+
 ## Related editor behavior
 
 Tags, design links, screenshots, and key jobs mirror the [Content Editor](/platform/cat) and [Jobs](/platform/translation/jobs) UI. For source-text edits through the API, see [Update source content safely](/platform/guides/update-source-content).

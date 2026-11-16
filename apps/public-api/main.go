@@ -12,7 +12,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/s3compat"
+	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/vercelblob"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -68,6 +70,15 @@ func run(ctx context.Context) error {
 	}
 	if store.objects == nil || store.glossaryImports == nil {
 		slog.Warn("glossary imports disabled", "reason", "object storage or "+glossaryInterchangeQueueURLEnv+" not configured")
+	}
+	blobs, err := vercelblob.FromEnv()
+	if err != nil {
+		return fmt.Errorf("configure Vercel Blob: %w", err)
+	}
+	if blobs != nil {
+		store.fileStores = map[string]objectstore.Store{storageProviderVercelBlob: blobs}
+	} else {
+		slog.Warn("file downloads disabled", "reason", "BLOB_READ_WRITE_TOKEN not configured")
 	}
 	store.webhookSecrets = newWebhookSecretMinterFromEnv()
 	server := &http.Server{
