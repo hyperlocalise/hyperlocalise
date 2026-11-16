@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -40,6 +41,11 @@ func (s apiServer) projectOtaDistributions(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if _, err := s.store.getProject(r.Context(), p, projectID); err != nil {
+		// getProject returns the bare not-found sentinel; PAT callers should see 404, not 503.
+		if errors.Is(err, errResourceNotFound) {
+			writeError(w, http.StatusNotFound, "project_not_found", "Project not found")
+			return
+		}
 		writeStoreError(w, err, "get project")
 		return
 	}
