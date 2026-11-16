@@ -44,6 +44,7 @@ function receipt(overrides: Partial<TranslationAsSourceReceipt> = {}): Translati
     locale: "en",
     receivedAt: "2026-11-11T02:15:00.000Z",
     replaced: null,
+    sentAutomatically: false,
     ...overrides,
   };
 }
@@ -155,6 +156,22 @@ describe("translation as source sent mark", () => {
       title: `Sent here from another project on ${sentDate("2026-11-11T02:15:00.000Z")}.`,
       parts: [{ text: "From another project" }],
     });
+  });
+
+  it("says when a workflow sent the file here", () => {
+    const date = sentDate("2026-11-11T02:15:00.000Z");
+    const title = (overrides: Partial<TranslationAsSourceReceipt>) =>
+      buildTranslationAsSourceSentDecoration(
+        [],
+        { jobStatus: null, metadata: "" },
+        intl,
+        receipt({ sentAutomatically: true, ...overrides }),
+      ).title;
+
+    expect(title({})).toBe(`Sent here automatically from Requests (Chinese) on ${date}.`);
+    expect(title({ fromProjectName: null })).toBe(
+      `Sent here automatically from another project on ${date}.`,
+    );
   });
 
   it("marks a file whose copy in the other project was replaced since", () => {

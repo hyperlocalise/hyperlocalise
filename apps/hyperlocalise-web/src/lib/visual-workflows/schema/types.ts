@@ -38,6 +38,7 @@ export type VisualCatalogType =
   | "action.check_progress"
   | "action.run_qa"
   | "action.list_source_files"
+  | "action.translation_as_source"
   | "action.file_read"
   | "action.file_write"
   | "action.file_convert"
@@ -320,6 +321,16 @@ export type VisualNodeConfig =
       projectId: string;
       /** Keeps only files whose path starts with this; empty lists every source file. */
       pathPrefix: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.translation_as_source";
+      /** The task whose file is sent; wired from the Job changed trigger. */
+      jobId: string;
+      /** Whether a Job changed trigger with no project is meant, so tasks of any project are sent. */
+      allowAnyProject?: boolean;
+      /** The project that takes the file as its source, in its source language. */
+      destinationProjectId: string;
       onError?: VisualNodeErrorBehavior;
     }
   | {
@@ -631,6 +642,8 @@ export type VisualWorkflowValidationIssue = {
     | "invalid_retry"
     | "retry_foreach_nesting"
     | "non_idempotent_retry"
+    | "trigger_project_required"
+    | "translation_as_source_same_project"
     | "invalid_retry_policy"
     | "duplicate_id"
     | "cycle"

@@ -163,6 +163,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeCheckProgress;
     case "action.run_qa":
       return messages.nodeRunQa;
+    case "action.translation_as_source":
+      return messages.nodeTranslationAsSource;
     case "action.list_source_files":
       return messages.nodeListSourceFiles;
     case "action.file_read":
@@ -266,6 +268,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeCheckProgressHint;
     case "action.run_qa":
       return messages.nodeRunQaHint;
+    case "action.translation_as_source":
+      return messages.nodeTranslationAsSourceHint;
     case "action.list_source_files":
       return messages.nodeListSourceFilesHint;
     case "action.file_read":

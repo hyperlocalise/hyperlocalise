@@ -226,6 +226,10 @@ function issueMessage(code: VisualWorkflowIssue["code"]) {
       return messages.retryForEachNesting;
     case "non_idempotent_retry":
       return messages.nonIdempotentRetry;
+    case "trigger_project_required":
+      return messages.triggerProjectRequired;
+    case "translation_as_source_same_project":
+      return messages.translationAsSourceSameProject;
     case "invalid_retry_policy":
       return messages.invalidRetryPolicy;
     case "invalid_try_catch_region":

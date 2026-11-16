@@ -270,6 +270,16 @@ export async function executeVisualWorkflowNode(input: {
         projectId: text(node.config.projectId).trim(),
         pathPrefix: text(node.config.pathPrefix),
       });
+    case "action.translation_as_source": {
+      // Loaded when used: the send pulls in the file builders and the upload service.
+      const { runTranslationAsSourceAction } = await import("./translation-as-source-node");
+      return runTranslationAsSourceAction({
+        organizationId: input.organizationId,
+        jobId: text(node.config.jobId).trim(),
+        destinationProjectId: node.config.destinationProjectId.trim(),
+        idempotencyKey: input.idempotencyKey,
+      });
+    }
     case "action.update_job":
       return runUpdateJobAction({
         organizationId: input.organizationId,

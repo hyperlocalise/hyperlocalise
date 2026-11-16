@@ -80,6 +80,10 @@ export type SourceFileUploadInput = {
     sourceFileVersionId: string;
     /** What the send read (`translationSourceFingerprintSql`), read before the translations. */
     fingerprint: string;
+    /** Sent by the app rather than by a person. */
+    sentAutomatically?: true;
+    /** The workflow step that sent it, so a retry of that step finds its own send. */
+    workflowStepKey?: string;
   };
   /** Replaces the file's import settings, for a file built to be read through them. */
   importSettings?: RepositorySourceFileImportSettings;

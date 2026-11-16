@@ -38,7 +38,10 @@ const resourceOptionsMock = vi.hoisted(() => ({
 
 vi.mock("./visual-workflow-resource-options", () => ({
   useVisualWorkflowResourceOptions: () => ({
-    projects: [{ id: "project-1", name: "Acme" }],
+    projects: [
+      { id: "project-1", name: "Acme", source: "native", sourceLocale: "en-US" },
+      { id: "project-en", name: "Website", source: "native", sourceLocale: "en-US" },
+    ],
     members: [
       { userId: "11111111-1111-4111-8111-111111111111", workosUserId: "user_1", label: "Ana" },
     ],
@@ -1889,6 +1892,50 @@ describe("VisualWorkflowConfigPanel", () => {
       />,
     );
     expect(fallback()).toHaveValue("7");
+  });
+
+  it("does not offer the Job changed trigger's project as the project to send to", async () => {
+    const user = userEvent.setup();
+    const trigger: VisualWorkflowRfNode = {
+      ...triggerNode("trigger.job_changed"),
+      id: "trigger",
+      data: {
+        catalogType: "trigger.job_changed",
+        config: {
+          kind: "trigger.job_changed",
+          eventTypes: ["job.status_changed"],
+          projectId: "project-1",
+        },
+        runStatus: "idle",
+      },
+    };
+    const send: VisualWorkflowRfNode = {
+      id: "send",
+      type: "action.translation_as_source",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("action.translation_as_source"),
+      data: {
+        catalogType: "action.translation_as_source",
+        config: createDefaultConfig("action.translation_as_source"),
+        runStatus: "idle",
+      },
+    };
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={send}
+        nodes={[trigger, send]}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Send to project" }));
+    expect(screen.queryByRole("option", { name: "Acme (en-US)" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Website (en-US)" })).toBeInTheDocument();
   });
 
   it("shows editable settings for file read, write, and convert nodes", () => {

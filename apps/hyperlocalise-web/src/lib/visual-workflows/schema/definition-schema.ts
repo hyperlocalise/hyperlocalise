@@ -83,6 +83,7 @@ export const visualCatalogTypeSchema = z.enum([
   "action.check_progress",
   "action.run_qa",
   "action.list_source_files",
+  "action.translation_as_source",
   "action.file_read",
   "action.file_write",
   "action.file_convert",
@@ -436,6 +437,13 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     kind: z.literal("action.list_source_files"),
     projectId: z.string().trim().max(128),
     pathPrefix: z.string().trim().max(1024),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.translation_as_source"),
+    jobId: z.string().trim().max(256),
+    allowAnyProject: z.boolean().optional(),
+    destinationProjectId: z.string().trim().max(128),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({

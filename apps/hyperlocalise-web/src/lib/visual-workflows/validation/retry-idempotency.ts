@@ -23,6 +23,7 @@ const EXTERNAL_TYPES: ReadonlySet<VisualCatalogType> = new Set([
   "action.file_write",
   "action.file_convert",
   "action.run_qa",
+  "action.translation_as_source",
   "action.update_job",
   "action.crowdin_pre_translate",
   "action.crowdin_create_task",
@@ -39,6 +40,9 @@ const REPEATABLE_ACTION_TYPES: ReadonlySet<VisualCatalogType> = new Set([
   "action.create_task",
   "action.check_progress",
   "action.list_source_files",
+  // A try with the same key finds its own send; any other try answers already_sent unless the
+  // file's translations changed in between.
+  "action.translation_as_source",
   "action.file_read",
   "action.file_write",
   "action.file_convert",

@@ -267,6 +267,7 @@ export function createTranslationAsSourceRoutes(
                   addedBy: receipt.replaced.addedBy,
                 }
               : null,
+            sentAutomatically: receipt.sentAutomatically,
           })),
         },
         200,

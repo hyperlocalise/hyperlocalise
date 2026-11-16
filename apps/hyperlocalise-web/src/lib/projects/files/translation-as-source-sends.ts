@@ -128,6 +128,8 @@ export type TranslationAsSourceReceipt = {
   receivedAt: Date;
   /** The version this send replaced there, when it did not come from the same file. */
   replaced: { addedAt: Date; addedBy: string | null } | null;
+  /** The send was made by the app, not by a person. */
+  sentAutomatically: boolean;
 };
 
 /**
@@ -148,6 +150,7 @@ export async function listTranslationAsSourceReceipts(input: {
     replaced_by_first_name: string | null;
     replaced_by_last_name: string | null;
     replaced_by_email: string | null;
+    sent_automatically: boolean | null;
   }>(sql`
     select
       file.source_path,
@@ -160,7 +163,9 @@ export async function listTranslationAsSourceReceipts(input: {
       end as replaced_at,
       previous.first_name as replaced_by_first_name,
       previous.last_name as replaced_by_last_name,
-      previous.email as replaced_by_email
+      previous.email as replaced_by_email,
+      stored.metadata -> 'translationSource' -> 'sentAutomatically' = 'true'::jsonb
+        as sent_automatically
     from (
       -- Each file's newest version, before anything is joined to it.
       select distinct on (version.repository_source_file_id)
@@ -219,5 +224,6 @@ export async function listTranslationAsSourceReceipts(input: {
             : null,
         }
       : null,
+    sentAutomatically: row.sent_automatically ?? false,
   }));
 }

@@ -146,6 +146,25 @@ describe("describeVisualWorkflowIssues", () => {
     );
   });
 
+  it("says the project to send to cannot be the Job changed trigger's project", () => {
+    expect(
+      issuesOf(
+        [
+          node("trigger", "trigger.job_changed", {
+            eventTypes: ["job.status_changed"],
+            projectId: "project_en",
+          }),
+          node("send", "action.translation_as_source", {
+            destinationProjectId: "project_en",
+          }),
+        ],
+        [next("trigger", "send")],
+      ),
+    ).toContain(
+      "destinationProjectId on Use translation as source [send] is the Job changed trigger's project, so every finished task would be sent to the project it is already in. The person picks another project to send to.",
+    );
+  });
+
   it("names an issue it has no wording for and asks not to guess its cause", () => {
     vi.mocked(validateVisualWorkflowV3Definition).mockReturnValueOnce([
       { code: "brand_new_check", nodeId: "notify_slack" } as never,

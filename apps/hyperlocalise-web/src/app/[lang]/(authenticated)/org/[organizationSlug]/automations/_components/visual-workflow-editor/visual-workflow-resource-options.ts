@@ -25,6 +25,8 @@ const visualWorkflowsApi = createVisualWorkflowsApi();
 export type VisualWorkflowProjectOption = {
   id: string;
   name: string;
+  source?: "native" | "external_tms";
+  sourceLocale?: string | null;
 };
 
 export type VisualWorkflowMemberOption = {

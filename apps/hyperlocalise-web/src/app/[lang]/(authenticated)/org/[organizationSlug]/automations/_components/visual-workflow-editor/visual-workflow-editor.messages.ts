@@ -881,6 +881,42 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "YUtxC0iqlQ",
     description: "Catalog description for the job changed trigger node",
   },
+  nodeTranslationAsSource: {
+    defaultMessage: "Use translation as source",
+    id: "yKQkhh2Nxy",
+    description:
+      "Catalog title for the step that sends a file's approved translation to another project as its source file",
+  },
+  nodeTranslationAsSourceHint: {
+    defaultMessage:
+      "Send a finished task's approved translation to another project as its source file.",
+    id: "1bycYfb4oW",
+    description: "Catalog description for the use translation as source step",
+  },
+  translationAsSourceDestination: {
+    defaultMessage: "Send to project",
+    id: "gCwJ0sQiJR",
+    description:
+      "Project picker label for the use translation as source step: the project that takes the file as its source",
+  },
+  translationAsSourceHint: {
+    defaultMessage:
+      "The file is sent once every string is approved. Until then the step fails, and the run can be retried.",
+    id: "9eLvYD6Mmc",
+    description: "Help text above the settings of the use translation as source step",
+  },
+  translationAsSourceJobIdHint: {
+    defaultMessage:
+      "The finished task, from a Job changed trigger with Job kinds set to Proofread and New status set to Succeeded.",
+    id: "X9/tMTQPl+",
+    description: "Help text under the Job ID setting of the use translation as source step",
+  },
+  translationAsSourceDestinationHint: {
+    defaultMessage: "Its source language must be one the task's project translates into.",
+    id: "Qne7ssswyd",
+    description:
+      "Help text under the Send to project setting of the use translation as source step",
+  },
   jobChangedProject: {
     defaultMessage: "Project",
     id: "AYk2MYcXaX",
@@ -1821,6 +1857,25 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Retry and For each cannot wrap each other.",
     id: "7pn2UnpCsA",
     description: "Validation issue for retry/for each nesting",
+  },
+  triggerProjectRequired: {
+    defaultMessage:
+      "Choose the project: Use translation as source would otherwise send finished tasks from every project. To mean that, tick Send tasks from any project on each Use translation as source step.",
+    id: "OuhJgSgMVm",
+    description:
+      "Validation issue on a Job changed trigger with no project in a workflow that has a Use translation as source step",
+  },
+  translationAsSourceSameProject: {
+    defaultMessage: "Choose another project: this is the Job changed trigger's project.",
+    id: "LWzKak1wim",
+    description:
+      "Validation issue when Use translation as source would send files back to the trigger's project",
+  },
+  translationAsSourceAnyProject: {
+    defaultMessage: "Send tasks from any project",
+    id: "6dIZQRvuRQ",
+    description:
+      "Checkbox on the Use translation as source step: accept a Job changed trigger with no project, so tasks of every project are sent",
   },
   nonIdempotentRetry: {
     defaultMessage: "Acknowledge duplicate risk or add idempotency for actions in the retry body.",

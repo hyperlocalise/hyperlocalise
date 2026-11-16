@@ -718,7 +718,8 @@ export async function runVisualWorkflowInterpreter(input: {
         ) {
           for (const field of getWorkflowOutputFields(node)) {
             const value = readWorkflowPath(execution.output, field.path.split("."));
-            if (value === undefined && field.optional) continue;
+            // An optional output may be missing, or empty (null) as a job with no assignee is.
+            if ((value === undefined || value === null) && field.optional) continue;
             if (value === undefined || !matchesWorkflowType(value, field.type)) {
               execution = {
                 ok: false,

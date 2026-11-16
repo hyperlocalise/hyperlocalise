@@ -192,6 +192,17 @@ export function compileWorkflowIssues(
       add("non_idempotent_retry", node.id);
     }
   }
+  // A send step would send finished tasks of every project unless the trigger names one.
+  const jobTrigger = definition.nodes.find((node) => node.config.kind === "trigger.job_changed");
+  if (
+    jobTrigger?.config.kind === "trigger.job_changed" &&
+    !jobTrigger.config.projectId &&
+    definition.nodes.some(
+      (node) => node.config.kind === "action.translation_as_source" && !node.config.allowAnyProject,
+    )
+  ) {
+    add("trigger_project_required", jobTrigger.id, undefined, { field: "projectId" });
+  }
   const tryCatchRegions = definition.nodes
     .filter((node) => node.type === "logic.try_catch")
     .map((node) => ({ node, body: new Set(node.bodyNodeIds ?? []) }));
@@ -331,6 +342,23 @@ export function compileWorkflowIssues(
       !node.inputs?.path
     )
       add("invalid_node_config", node.id, undefined, { field: "path", reason: "required" });
+    // The project to send to is a setting a person picks, not an input a step can supply.
+    if (node.config.kind === "action.translation_as_source" && !node.config.destinationProjectId)
+      add("invalid_node_config", node.id, undefined, {
+        field: "destinationProjectId",
+        reason: "required",
+      });
+    // Every finished task of the trigger's project would be sent back into that project.
+    if (
+      node.config.kind === "action.translation_as_source" &&
+      node.config.destinationProjectId &&
+      jobTrigger?.config.kind === "trigger.job_changed" &&
+      jobTrigger.config.projectId === node.config.destinationProjectId
+    ) {
+      add("translation_as_source_same_project", node.id, undefined, {
+        field: "destinationProjectId",
+      });
+    }
     for (const field of node.outputFields ?? [])
       if (
         field.path.split(".").some((key) => ["__proto__", "constructor", "prototype"].includes(key))

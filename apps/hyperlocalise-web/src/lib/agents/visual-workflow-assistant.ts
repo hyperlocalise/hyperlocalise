@@ -269,6 +269,11 @@ const PERSON_ONLY_SETTINGS: Partial<Record<VisualCatalogType, Readonly<Record<st
   },
   "trigger.source_upload": { projectId: PROJECT_REASON },
   "trigger.job_changed": { projectId: PROJECT_REASON },
+  "action.translation_as_source": {
+    destinationProjectId: PROJECT_REASON,
+    allowAnyProject:
+      "it sends finished tasks from every project instead of one, which is the person's decision",
+  },
   "action.http": {
     auth: "it signs the request in with one of the workspace's saved credentials, which the assistant cannot see",
   },

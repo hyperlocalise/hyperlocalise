@@ -27,6 +27,12 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     events: messages.githubEvents,
   },
   "trigger.source_upload": { projectId: messages.sourceUploadProject },
+  "action.translation_as_source": {
+    ...ON_ERROR,
+    jobId: messages.updateJobJobId,
+    allowAnyProject: messages.translationAsSourceAnyProject,
+    destinationProjectId: messages.translationAsSourceDestination,
+  },
   "trigger.job_changed": {
     projectId: messages.jobChangedProject,
     eventTypes: messages.jobChangedEventTypes,

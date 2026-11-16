@@ -248,7 +248,7 @@ function readBackProblem(
 async function destinationBranchIsProtected(input: {
   organizationId: string;
   destinationProjectId: string;
-  actorUserId: string;
+  actorUserId: string | null;
 }): Promise<boolean> {
   await projectBranchService.ensureDefaultBranch({
     organizationId: input.organizationId,
@@ -275,6 +275,9 @@ async function destinationBranchIsProtected(input: {
  * Refused too when the destination would not read the built file as the original's strings, and
  * when the destination's file at that path did not come from this file's last send, unless
  * `replaceVersionId` names that very version (a person saw it and chose to replace it).
+ *
+ * `actorUserId` is null for a send the app makes by itself, which is marked `sentAutomatically`
+ * and never replaces a file it was not shown.
  */
 export async function sendTranslationAsSource(input: {
   organizationId: string;
@@ -282,7 +285,9 @@ export async function sendTranslationAsSource(input: {
   destinationProject: ProjectRecord;
   sourcePath: string;
   locale: string;
-  actorUserId: string;
+  actorUserId: string | null;
+  /** The workflow step making an automatic send, recorded on the version it makes. */
+  workflowStepKey?: string;
   /** The destination's version at that path a person chose to replace. */
   replaceVersionId?: string;
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
@@ -443,6 +448,8 @@ export async function sendTranslationAsSource(input: {
       locale: input.locale,
       sourceFileVersionId: version.id,
       fingerprint,
+      ...(input.actorUserId === null ? { sentAutomatically: true as const } : {}),
+      ...(input.workflowStepKey ? { workflowStepKey: input.workflowStepKey } : {}),
     },
     deferAfterResponse: input.deferAfterResponse,
     fileStorageAdapter: input.fileStorageAdapter,
