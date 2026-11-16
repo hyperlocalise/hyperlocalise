@@ -14952,7 +14952,7 @@
     "defaultMessage": "结尾标点符号"
   },
   "KMFSdYMdm6": {
-    "defaultMessage": "Android XML"
+    "defaultMessage": "安卓 XML"
   },
   "KMqfuFnJC7": {
     "defaultMessage": "使用此模板创建的新项目将以这些语言、设置、翻译记忆库和术语表开始。之后更改模板不会影响现有项目。"
@@ -23621,6 +23621,9 @@
   "XcvWJmyVfR": {
     "defaultMessage": "从风格指南到理赔政策"
   },
+  "Xd2aSOHzDN": {
+    "defaultMessage": "如果您的网站使用防火墙、CDN、机器人检测或登录墙，请允许普通浏览器流量访问公开页面，以便我们完成审核。"
+  },
   "XdFM8Ff6nf": {
     "defaultMessage": "设置 {label}"
   },
@@ -28834,6 +28837,9 @@
   },
   "fBUXcsxgXO": {
     "defaultMessage": "使用上方的“添加文件”上传 JSON、YAML、XLIFF、PO、Qt TS、图片、Office 文件及其他受支持的格式。"
+  },
+  "fC01ZiLItd": {
+    "defaultMessage": "请允许普通浏览器流量通过您的防火墙、CDN、机器人防护或登录限制，然后开始新的审核。"
   },
   "fC5ypafpDV": {
     "defaultMessage": "或"

@@ -23621,6 +23621,9 @@
   "XcvWJmyVfR": {
     "defaultMessage": "Von Styleguides bis zu Richtlinien für Ansprüche"
   },
+  "Xd2aSOHzDN": {
+    "defaultMessage": "Wenn Ihre Website eine Firewall, ein CDN, eine Bot-Prüfung oder eine Anmeldesperre verwendet, erlauben Sie normalen Browserverkehr zu öffentlichen Seiten, damit wir das Audit abschließen können."
+  },
   "XdFM8Ff6nf": {
     "defaultMessage": "{label} festlegen"
   },
@@ -28834,6 +28837,9 @@
   },
   "fBUXcsxgXO": {
     "defaultMessage": "Verwenden Sie oben „Dateien hinzufügen“, um JSON-, YAML-, XLIFF-, PO-, Qt-TS-Dateien, Bilder, Office-Dateien und andere unterstützte Formate hochzuladen."
+  },
+  "fC01ZiLItd": {
+    "defaultMessage": "Lassen Sie regulären Browser-Traffic durch Ihre Firewall, Ihr CDN, Ihren Bot-Schutz oder Ihre Anmeldesperre und starten Sie anschließend ein neues Audit."
   },
   "fC5ypafpDV": {
     "defaultMessage": "oder"
@@ -40809,7 +40815,7 @@
     "defaultMessage": "Erneut versuchen"
   },
   "wjwkosgezu": {
-    "defaultMessage": "Release v2.4"
+    "defaultMessage": "Version v2.4 freigeben"
   },
   "wk3PSCT0hz": {
     "defaultMessage": "Status"
