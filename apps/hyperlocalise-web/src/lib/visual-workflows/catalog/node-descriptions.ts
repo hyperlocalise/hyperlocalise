@@ -36,7 +36,7 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   "trigger.job_changed": {
     title: "Job changed",
     purpose:
-      "Start when a job in the workspace is created, changes status, is reassigned, or gets a new due date, title or description. Filters narrow it to a project, job kinds, or the status the job moved to. Later steps get the job's id, kind, project, new status and previous status.",
+      "Start when a job in the workspace is created, changes status, is reassigned, or gets a new due date, title or description. Filters narrow it to a project, job kinds, or the status the job moved to. Post-edit is a job kind of its own here: a post-edit task matches Post-edit and not Proofread, though its kind reads proofread everywhere else. Later steps get the job's id, kind, project, new status and previous status, and when the job has them its task step, file, languages, owner and due date.",
   },
   "action.http": { title: "HTTP Request", purpose: "Call an HTTP endpoint." },
   "action.content_sync": {

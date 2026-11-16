@@ -984,6 +984,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "O+emHrgUxr",
     description: "Job kind option on the job changed trigger",
   },
+  jobKindPostEdit: {
+    defaultMessage: "Post-edit",
+    id: "OOGPf6At4J",
+    description: "Job kind checkbox on the job changed trigger: a post-edit task for a person",
+  },
   jobKindProofread: {
     defaultMessage: "Proofread",
     id: "T2vE02BwKa",

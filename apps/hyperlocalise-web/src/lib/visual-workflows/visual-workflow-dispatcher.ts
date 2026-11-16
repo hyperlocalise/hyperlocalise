@@ -17,6 +17,7 @@ import { and, eq, gte, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import type { JobChangeEventRecord } from "@/lib/job-change-events/job-change-events-contract";
 import { createLogger } from "@/lib/log";
+import { personTaskStep, POST_EDIT_WORKFLOW_TASK_STEP } from "@/lib/projects/jobs/person-task";
 import type { VisualWorkflowExecutionQueue } from "@/lib/workflow/types";
 import { createVisualWorkflowExecutionQueue } from "@/workflows/adapters";
 
@@ -424,6 +425,56 @@ async function countRecentJobChangedRuns(input: {
   return row?.count ?? 0;
 }
 
+/**
+ * What the change record does not hold about its job, read from the job as it is when the run
+ * starts: whether it is a post-edit task (by its stored step alone, whoever holds it), which the
+ * trigger's Job kinds tell apart from other proofread jobs, and what a run is told beyond the
+ * change (its step as a task for people, file, languages, owner and due date; one the job lacks
+ * is left out).
+ */
+async function readJobChangedJobFields(event: JobChangeEventRecord) {
+  const [job] = await db
+    .select({
+      workflowTaskStep: sql<
+        string | null
+      >`${schema.jobs.inputPayload} -> 'metadata' ->> 'workflowTaskStep'`,
+      sourceFileId: sql<string | null>`${schema.jobs.inputPayload} ->> 'sourceFileId'`,
+      targetLocales: sql<unknown>`${schema.jobs.inputPayload} -> 'targetLocales'`,
+      assigneeId: schema.users.workosUserId,
+      dueAt: schema.jobs.dueAt,
+      externalJobId: schema.externalJobDetails.jobId,
+    })
+    .from(schema.jobs)
+    .leftJoin(schema.users, eq(schema.users.id, schema.jobs.ownerUserId))
+    .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+    .where(
+      and(eq(schema.jobs.id, event.jobId), eq(schema.jobs.organizationId, event.organizationId)),
+    )
+    .limit(1);
+  // A task mirrored from a provider is worked on and finished there, so it has no step here.
+  const taskStep =
+    !job || job.externalJobId
+      ? null
+      : personTaskStep({
+          kind: event.kind,
+          assigneeType: event.assigneeType,
+          workflowTaskStep: job.workflowTaskStep,
+        });
+  const targetLocales = Array.isArray(job?.targetLocales)
+    ? job.targetLocales.filter((locale): locale is string => typeof locale === "string")
+    : [];
+  return {
+    postEdit: event.kind === "proofread" && job?.workflowTaskStep === POST_EDIT_WORKFLOW_TASK_STEP,
+    outputs: {
+      ...(taskStep ? { taskStep } : {}),
+      ...(job?.sourceFileId ? { sourceFileId: job.sourceFileId } : {}),
+      ...(targetLocales.length > 0 ? { targetLocales } : {}),
+      ...(job?.assigneeId ? { assigneeId: job.assigneeId } : {}),
+      ...(job?.dueAt ? { dueAt: job.dueAt.toISOString() } : {}),
+    },
+  };
+}
+
 /** Workflows a tick has already loaded, by organization, so a burst of changes loads them once. */
 export type ActiveVisualWorkflowCache = Map<string, Promise<VisualWorkflowRecord[]>>;
 
@@ -439,8 +490,15 @@ export async function dispatchVisualWorkflowsForJobChange(input: {
     activeWorkflows = listAllActiveVisualWorkflows(event.organizationId);
     input.cache?.set(event.organizationId, activeWorkflows);
   }
-  const workflows = (await activeWorkflows).filter((workflow) =>
+  const candidates = (await activeWorkflows).filter((workflow) =>
     visualWorkflowShouldDispatchOnJobChange(workflow, event),
+  );
+  if (candidates.length === 0) {
+    return [];
+  }
+  const job = await readJobChangedJobFields(event);
+  const workflows = candidates.filter((workflow) =>
+    visualWorkflowShouldDispatchOnJobChange(workflow, { ...event, postEdit: job.postEdit }),
   );
 
   const results: VisualWorkflowDispatchResult[] = [];
@@ -487,6 +545,7 @@ export async function dispatchVisualWorkflowsForJobChange(input: {
           status: event.toStatus,
           previousStatus: event.fromStatus,
           assigneeType: event.assigneeType,
+          ...job.outputs,
         },
         queue: input.queue,
       }),

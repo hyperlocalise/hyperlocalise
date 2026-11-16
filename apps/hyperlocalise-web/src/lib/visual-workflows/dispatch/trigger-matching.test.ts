@@ -294,6 +294,7 @@ describe("visual workflow trigger matching", () => {
       projectId: "proj-1",
       kind: "translation" as const,
       toStatus: "succeeded" as const,
+      taskStep: null,
     };
 
     it("matches every change when no filter is set", () => {
@@ -322,6 +323,40 @@ describe("visual workflow trigger matching", () => {
         expect(visualWorkflowShouldDispatchOnJobChange(jobChangedWorkflow(config), event)).toBe(
           expected,
         );
+      }
+    });
+
+    it("tells post-edit tasks from other proofread jobs in Job kinds", () => {
+      const cases: [
+        VisualWorkflowJobChangedTriggerConfig["jobKinds"],
+        "proofread" | "translation",
+        boolean | undefined,
+        boolean,
+      ][] = [
+        [["proofread"], "proofread", false, true],
+        [["proofread"], "proofread", true, false],
+        [["post_edit"], "proofread", true, true],
+        [["post_edit"], "proofread", false, false],
+        [["post_edit", "proofread"], "proofread", true, true],
+        [["post_edit", "proofread"], "proofread", false, true],
+        [[], "proofread", true, true],
+        [undefined, "proofread", true, true],
+        // Not read yet: a proofread job may be either, so both choices let it through.
+        [["proofread"], "proofread", undefined, true],
+        [["post_edit"], "proofread", undefined, true],
+        [["translation"], "proofread", undefined, false],
+        // Only a proofread job can be a post-edit task.
+        [["post_edit"], "translation", undefined, false],
+        [["post_edit", "translation"], "translation", false, true],
+      ];
+      for (const [jobKinds, kind, postEdit, expected] of cases) {
+        expect(
+          visualWorkflowShouldDispatchOnJobChange(jobChangedWorkflow({ jobKinds }), {
+            ...event,
+            kind,
+            postEdit,
+          }),
+        ).toBe(expected);
       }
     });
 

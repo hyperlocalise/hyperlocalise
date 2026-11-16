@@ -12,7 +12,7 @@
  */
 import "dotenv/config";
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 vi.mock("@/lib/activity-log/visual-workflow-events", () => ({
@@ -901,6 +901,150 @@ describe("job changed visual workflow dispatch", () => {
         limit: 10,
       }),
     ).toHaveLength(0);
+  });
+
+  it("starts a Post-edit or Proofread workflow only for that kind, and passes on the task", async () => {
+    const scope = await seedOrgScope();
+    const definition = (name: string, jobKind: "post_edit" | "proofread") => ({
+      ...jobChangedDefinition(name, ["succeeded"]),
+      nodes: [
+        {
+          id: "t",
+          type: "trigger.job_changed" as const,
+          config: {
+            kind: "trigger.job_changed" as const,
+            toStatuses: ["succeeded" as const],
+            jobKinds: [jobKind],
+          },
+        },
+      ],
+    });
+    const onPostEdit = await createActiveWorkflow({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "On post-edit",
+      definition: definition("On post-edit", "post_edit"),
+    });
+    const onProofread = await createActiveWorkflow({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "On proofread",
+      definition: definition("On proofread", "proofread"),
+    });
+    const dueAt = new Date("2026-12-01T09:00:00.000Z");
+    const taskId = `job_${crypto.randomUUID()}`;
+    const agentJobId = await insertJob(scope);
+    await insertJobs(db, {
+      values: {
+        id: taskId,
+        organizationId: scope.organizationId,
+        projectId: scope.projectId,
+        ownerUserId: scope.userId,
+        assigneeType: "user",
+        dueAt,
+        kind: "proofread",
+        status: "waiting_for_review",
+        inputPayload: {
+          sourceFileId: "file_1",
+          targetLocales: ["fr-FR", "de-DE"],
+          metadata: { workflowTaskStep: "edit" },
+        },
+      },
+    });
+    // Every other proofread job counts as Proofread: a task made in the app stores no step,
+    // and a task mirrored from a provider or a job given to the agent is no task for people.
+    const proofreadTask = { kind: "proofread", status: "waiting_for_review" } as const;
+    const [plainTaskId, mirroredTaskId, agentTaskId] = [0, 1, 2].map(
+      () => `job_${crypto.randomUUID()}`,
+    );
+    await insertJobs(db, {
+      values: [plainTaskId, mirroredTaskId, agentTaskId].map((id) => ({
+        id,
+        organizationId: scope.organizationId,
+        projectId: scope.projectId,
+        ...proofreadTask,
+        assigneeType: id === agentTaskId ? ("agent" as const) : null,
+        inputPayload: {},
+      })),
+    });
+    await db.insert(schema.externalJobDetails).values({
+      jobId: mirroredTaskId!,
+      organizationId: scope.organizationId,
+      providerKind: "crowdin",
+      externalJobId: `task_${crypto.randomUUID()}`,
+      externalTaskId: `task_${crypto.randomUUID()}`,
+      externalStatus: "open",
+    });
+    const changed = [taskId, agentJobId, plainTaskId!, mirroredTaskId!, agentTaskId!];
+    await updateJobs(db, { set: { status: "succeeded" }, where: inArray(schema.jobs.id, changed) });
+
+    const { queue, enqueued } = trackingQueue();
+    const result = await dispatchJobChangeEvents({ organizationId: scope.organizationId, queue });
+    expect(result).toMatchObject({ claimed: 10, dispatched: 10, workflowRuns: 4 });
+    expect(enqueued.map((event) => event.visualWorkflowId).sort()).toEqual(
+      [onPostEdit.id, onProofread.id, onProofread.id, onProofread.id].sort(),
+    );
+
+    const [run] = await listVisualWorkflowRuns({
+      organizationId: scope.organizationId,
+      visualWorkflowId: onPostEdit.id,
+      limit: 10,
+    });
+    const [owner] = await db
+      .select({ workosUserId: schema.users.workosUserId })
+      .from(schema.users)
+      .where(eq(schema.users.id, scope.userId));
+    expect(run?.inputSnapshot).toMatchObject({
+      jobId: taskId,
+      jobKind: "proofread",
+      taskStep: "edit",
+      sourceFileId: "file_1",
+      targetLocales: ["fr-FR", "de-DE"],
+      assigneeId: owner?.workosUserId,
+      dueAt: dueAt.toISOString(),
+    });
+    const proofreadRuns = await listVisualWorkflowRuns({
+      organizationId: scope.organizationId,
+      visualWorkflowId: onProofread.id,
+      limit: 10,
+    });
+    const proofreadSnapshots = new Map(
+      proofreadRuns.map((proofreadRun) => [
+        (proofreadRun.inputSnapshot as { jobId: string }).jobId,
+        proofreadRun.inputSnapshot as { taskStep?: string },
+      ]),
+    );
+    expect([...proofreadSnapshots.keys()].sort()).toEqual(
+      [plainTaskId, mirroredTaskId, agentTaskId].sort(),
+    );
+    // Only the task for people has a step to pass on.
+    expect(proofreadSnapshots.get(plainTaskId!)?.taskStep).toBe("proofread");
+    expect(proofreadSnapshots.get(mirroredTaskId!)).not.toHaveProperty("taskStep");
+    expect(proofreadSnapshots.get(agentTaskId!)).not.toHaveProperty("taskStep");
+  });
+
+  it("leaves out what a job does not have", async () => {
+    const scope = await seedOrgScope();
+    const workflow = await createActiveWorkflow({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Any success",
+      definition: jobChangedDefinition("Any success", ["succeeded"]),
+    });
+    const jobId = await insertJob(scope);
+    await updateJobs(db, { set: { status: "succeeded" }, where: eq(schema.jobs.id, jobId) });
+
+    const { queue } = trackingQueue();
+    await dispatchJobChangeEvents({ organizationId: scope.organizationId, queue });
+    const [run] = await listVisualWorkflowRuns({
+      organizationId: scope.organizationId,
+      visualWorkflowId: workflow.id,
+      limit: 10,
+    });
+    expect(run?.inputSnapshot).toMatchObject({ jobId, status: "succeeded" });
+    for (const name of ["taskStep", "sourceFileId", "targetLocales", "assigneeId", "dueAt"]) {
+      expect(run?.inputSnapshot).not.toHaveProperty(name);
+    }
   });
 
   it("stops a workflow that keeps re-triggering itself on one job", async () => {

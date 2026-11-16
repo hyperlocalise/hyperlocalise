@@ -18,10 +18,13 @@ import { contentSyncProviderSchema } from "@/lib/agents/content-sync/content-syn
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
 import {
   JOB_CHANGE_EVENT_TYPES,
-  JOB_KINDS,
   JOB_STATUSES,
 } from "@/lib/job-change-events/job-change-events-contract";
-import { VISUAL_WORKFLOW_SCHEMA_VERSION, VISUAL_WORKFLOW_SCHEMA_V3_VERSION } from "./types";
+import {
+  JOB_CHANGED_JOB_KINDS,
+  VISUAL_WORKFLOW_SCHEMA_VERSION,
+  VISUAL_WORKFLOW_SCHEMA_V3_VERSION,
+} from "./types";
 
 const httpMethodSchema = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
@@ -344,7 +347,7 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
       .array(z.enum(JOB_CHANGE_EVENT_TYPES))
       .max(JOB_CHANGE_EVENT_TYPES.length)
       .optional(),
-    jobKinds: z.array(z.enum(JOB_KINDS)).max(JOB_KINDS.length).optional(),
+    jobKinds: z.array(z.enum(JOB_CHANGED_JOB_KINDS)).max(JOB_CHANGED_JOB_KINDS.length).optional(),
     toStatuses: z.array(z.enum(JOB_STATUSES)).max(JOB_STATUSES.length).optional(),
   }),
   z.object({
