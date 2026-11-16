@@ -23621,6 +23621,9 @@
   "XcvWJmyVfR": {
     "defaultMessage": "Des guides de style aux politiques relatives aux déclarations"
   },
+  "Xd2aSOHzDN": {
+    "defaultMessage": "Si votre site utilise un pare-feu, un CDN, une vérification anti-bot ou une page de connexion, autorisez le trafic ordinaire des navigateurs vers les pages publiques afin que nous puissions effectuer l’audit."
+  },
   "XdFM8Ff6nf": {
     "defaultMessage": "Définir {label}"
   },
@@ -28834,6 +28837,9 @@
   },
   "fBUXcsxgXO": {
     "defaultMessage": "Utilisez « Ajouter des fichiers » ci-dessus pour importer des fichiers JSON, YAML, XLIFF, PO, Qt TS, des images, des fichiers Office et d’autres formats pris en charge."
+  },
+  "fC01ZiLItd": {
+    "defaultMessage": "Autorisez le trafic normal des navigateurs à traverser votre pare-feu, votre CDN, votre protection contre les bots ou votre écran de connexion, puis lancez un nouvel audit."
   },
   "fC5ypafpDV": {
     "defaultMessage": "ou"

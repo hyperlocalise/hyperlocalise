@@ -13083,10 +13083,6 @@
     "defaultMessage": "Bulk apply · {count} occurrences",
     "description": "Activity bulk operation size"
   },
-  "FvGsFbmiod": {
-    "defaultMessage": "Allow ordinary browser traffic through your firewall, CDN, bot protection, or login wall, then start a new audit.",
-    "description": "Guidance for a site owner whose domain blocked the localisation audit crawler"
-  },
   "Fx/7PrGw0Y": {
     "defaultMessage": "{share} kept unchanged",
     "description": "Detail under the finished card: the share of finished work people kept as they were given it"
@@ -25463,6 +25459,10 @@
     "defaultMessage": "From style guides to claims policies",
     "description": "Supporting link line for the Google Drive source panel"
   },
+  "Xd2aSOHzDN": {
+    "defaultMessage": "If your site uses a firewall, CDN, bot check, or login wall, allow ordinary browser traffic to public pages so we can complete the audit.",
+    "description": "Guidance for site owners to allow the localisation audit crawler"
+  },
   "XdFM8Ff6nf": {
     "defaultMessage": "Set {label}",
     "description": "More menu action to set a custom column value"
@@ -31042,6 +31042,10 @@
   "fBUXcsxgXO": {
     "defaultMessage": "Use Add files above to upload JSON, YAML, XLIFF, PO, Qt TS, images, Office files, and other supported formats.",
     "description": "Empty-state description for native projects with no uploaded files"
+  },
+  "fC01ZiLItd": {
+    "defaultMessage": "Allow ordinary browser traffic through your firewall, CDN, bot protection, or login wall, then start a new audit.",
+    "description": "Guidance for a site owner whose domain blocked the localisation audit crawler"
   },
   "fC5ypafpDV": {
     "defaultMessage": "or",
@@ -37206,10 +37210,6 @@
   "nbgZnaWVzl": {
     "defaultMessage": "Rewrite",
     "description": "Selected text AI action: rewrite"
-  },
-  "ndyP1whnV+": {
-    "defaultMessage": "If your site uses a firewall, CDN, bot check, or login wall, allow ordinary browser traffic to public pages so we can complete the audit.",
-    "description": "Guidance for site owners to allow the localisation audit crawler"
   },
   "ne00IJ9KEp": {
     "defaultMessage": "Could not add that word to the dictionary.",

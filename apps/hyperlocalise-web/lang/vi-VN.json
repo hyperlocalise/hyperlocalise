@@ -23621,6 +23621,9 @@
   "XcvWJmyVfR": {
     "defaultMessage": "Từ hướng dẫn phong cách đến chính sách yêu cầu bồi thường"
   },
+  "Xd2aSOHzDN": {
+    "defaultMessage": "Nếu trang web của bạn sử dụng tường lửa, CDN, bước kiểm tra bot hoặc yêu cầu đăng nhập, hãy cho phép lưu lượng truy cập thông thường từ trình duyệt đến các trang công khai để chúng tôi có thể hoàn tất quá trình kiểm tra."
+  },
   "XdFM8Ff6nf": {
     "defaultMessage": "Đặt {label}"
   },
@@ -28834,6 +28837,9 @@
   },
   "fBUXcsxgXO": {
     "defaultMessage": "Sử dụng Thêm tệp ở trên để tải lên các tệp JSON, YAML, XLIFF, PO, Qt TS, hình ảnh, tệp Office và các định dạng được hỗ trợ khác."
+  },
+  "fC01ZiLItd": {
+    "defaultMessage": "Cho phép lưu lượng truy cập thông thường từ trình duyệt đi qua tường lửa, CDN, lớp bảo vệ bot hoặc trang đăng nhập, sau đó bắt đầu một cuộc kiểm tra mới."
   },
   "fC5ypafpDV": {
     "defaultMessage": "hoặc"
