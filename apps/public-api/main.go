@@ -82,8 +82,9 @@ func run(ctx context.Context) error {
 	}
 	store.webhookSecrets = newWebhookSecretMinterFromEnv()
 	server := &http.Server{
-		Addr:              ":" + port,
-		Handler:           newHandlerWithOutbound(auth, store, nil, withReports(newPostgresReports(pool)), withPostgresConsumers(pool)),
+		Addr: ":" + port,
+		Handler: newHandlerWithOutbound(auth, store, nil, withReports(newPostgresReports(pool)), withPostgresConsumers(pool),
+			withTranslationsRenderer(newTranslationsRendererFromEnv())),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,

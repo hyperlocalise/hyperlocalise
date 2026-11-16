@@ -1622,6 +1622,50 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/translations/download:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - name: sourcePath
+        in: query
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 2048 }
+        description: The project source file's path.
+      - name: locale
+        in: query
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 32 }
+    get:
+      operationId: downloadTranslations
+      tags: [Translations]
+      summary: Download a source file in one language
+      description: >-
+        Requires `files:read`. Renders the source file with the language's current translations, in
+        the file's own format (structured files, Word, Excel, PowerPoint, PDF, HTML, Lottie). In structured
+        files, strings without a translation keep their source text. Served by `GET /api/v1/projects/{projectId}/translations/download`
+        on the files and jobs host, so the file, its name, its headers and its errors are the same,
+        for example `404 source_file_not_found`, `404 translations_not_found`,
+        `422 source_file_too_large` and `422 pdf_script_unsupported`. A PDF lists keys whose
+        translation did not fit in `X-Hyperlocalise-Overflow-Keys`. Returns
+        `503 translations_download_unavailable` when the files and jobs host can't be reached.
+      responses:
+        "200":
+          description: The rendered file, as an attachment.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+            X-Hyperlocalise-Overflow-Keys:
+              schema: { type: string }
+              description: Comma-separated keys whose translation overflowed a PDF's layout.
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/Unavailable" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/files/{fileId}/download:
     parameters:
       - name: fileId

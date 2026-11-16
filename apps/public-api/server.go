@@ -26,6 +26,8 @@ type apiServer struct {
 	ota          *ota.Handler
 	ofrep        *experiment.OFREPHandler
 	pool         *pgxpool.Pool
+	// translations forwards locale downloads to the web app; nil disables them.
+	translations *translationsRenderer
 }
 
 // handlerOption sets a dependency only some routes need.
@@ -121,6 +123,7 @@ func newHandlerWithOutbound(auth authenticator, store resourceStore, outbound ou
 	mux.HandleFunc("/v1/projects/{projectId}/content-sync", s.projectContentSyncRoute)
 	mux.HandleFunc("/v1/string-metadata-keys", s.stringMetadataKeys)
 	mux.HandleFunc("/v1/files/{fileId}/download", s.fileDownload)
+	mux.HandleFunc("/v1/projects/{projectId}/translations/download", s.translationsDownload)
 	mux.HandleFunc("/v1/reports/{report}", s.report)
 	mux.HandleFunc("/v1/webhook-endpoints", s.webhookEndpoints)
 	mux.HandleFunc("/v1/webhook-endpoints/{endpointId}", s.webhookEndpoint)

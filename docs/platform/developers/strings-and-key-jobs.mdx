@@ -282,6 +282,14 @@ curl --fail-with-body -OJ "https://public-api.hyperlocalise.com/v1/files/$FILE_I
 
 The file comes back as an attachment with its stored name. To wait for a file job, poll `GET /v1/jobs/{jobId}` until `status` is `succeeded`, then download its `outputFiles`.
 
+To get a source file in one language with its current translations, whether or not a job ran, use `GET /v1/projects/{projectId}/translations/download?sourcePath=...&locale=...` (needs `files:read`). The file keeps its own format. In structured files, strings without a translation keep their source text:
+
+```bash
+curl --fail-with-body -OJ -G "https://public-api.hyperlocalise.com/v1/projects/$PROJECT_ID/translations/download" \
+  --data-urlencode "sourcePath=locales/en.json" --data-urlencode "locale=fr" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY"
+```
+
 ## Related editor behavior
 
 Tags, design links, screenshots, and key jobs mirror the [Content Editor](/platform/cat) and [Jobs](/platform/translation/jobs) UI. For source-text edits through the API, see [Update source content safely](/platform/guides/update-source-content).
