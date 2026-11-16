@@ -35,6 +35,11 @@ export const useContentEditorMutationsMessages = defineMessages({
     id: "AGTfsc7LIQ",
     description: "Fallback error when resolving a CAT issue fails",
   },
+  failedToEditImage: {
+    defaultMessage: "Failed to edit image",
+    id: "hxliLqIFq3",
+    description: "Fallback error when an AI edit of a CAT image translation fails",
+  },
   failedToRegenerateImage: {
     defaultMessage: "Failed to regenerate image",
     id: "g4IjA7F0HP",

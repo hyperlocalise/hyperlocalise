@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ImageEditRequest } from "@/lib/projects/files/image-edit";
 import { useNearEndPagination } from "../project-file/content-editor-near-end-pagination";
 import { useEditorPageWindow } from "../project-file/content-editor-page-window";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -84,6 +85,18 @@ export interface ContentEditorMultilingualConfig {
     segment: ContentEditorSegment,
     locale: string,
     options?: { force?: boolean; signal?: AbortSignal },
+  ) => Promise<void>;
+  /** Runs a targeted AI edit on one locale's image; used by the multilingual image gallery. */
+  onEditImage?: (
+    segment: ContentEditorSegment,
+    locale: string,
+    input: {
+      request: ImageEditRequest;
+      image: Blob;
+      mask: Blob | null;
+      force?: boolean;
+      signal?: AbortSignal;
+    },
   ) => Promise<void>;
 }
 

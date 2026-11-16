@@ -23,7 +23,14 @@ import { ContentEditorImageGenerationStore } from "./content-editor-image-genera
 import { ContentEditorMultilingualImageGallery } from "./content-editor-multilingual-image-gallery";
 import type { ContentEditorMultilingualConfig } from "./content-editor-multilingual-table";
 
-const { targetQuery } = vi.hoisted(() => ({ targetQuery: vi.fn() }));
+const { targetQuery, prepareImageEdit } = vi.hoisted(() => ({
+  targetQuery: vi.fn(),
+  prepareImageEdit: vi.fn(),
+}));
+vi.mock("./image-edit/content-editor-image-edit-canvas", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./image-edit/content-editor-image-edit-canvas")>()),
+  prepareImageEdit,
+}));
 vi.mock("@/components/content-editor/project-file/use-content-editor-segment-target", () => ({
   useContentEditorSegmentTarget: targetQuery,
 }));
@@ -66,7 +73,15 @@ function show(
   return { onOpenTranslation, ...view };
 }
 
+const preparedImage = new Blob(["prepared"], { type: "image/png" });
+const preparedMask = new Blob(["mask"], { type: "image/png" });
+
 beforeEach(() => {
+  prepareImageEdit.mockResolvedValue({ image: preparedImage, mask: null });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(new Response(new Blob(["current"], { type: "image/png" }))),
+  );
   targetQuery.mockImplementation(({ targetLocale }: { targetLocale: string }) => ({
     data:
       targetLocale === "fr"
@@ -80,6 +95,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("multilingual image gallery", () => {
@@ -210,12 +226,95 @@ describe("multilingual image gallery", () => {
     expect(screen.queryByText("headline")).not.toBeInTheDocument();
   });
 
-  it("hides generation without edit access and still opens a locale", async () => {
+  it("hides generation and edits without edit access and still opens a locale's copy", async () => {
     const user = userEvent.setup();
-    const { onOpenTranslation } = show(baseConfig({ canEdit: false, onRegenerateImage: vi.fn() }));
+    const { onOpenTranslation } = show(
+      baseConfig({ canEdit: false, onRegenerateImage: vi.fn(), onEditImage: vi.fn() }),
+    );
 
     expect(screen.queryByRole("button", { name: /Localise image for/ })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Open German image in the editor" }));
+    expect(screen.queryByRole("button", { name: "Markup" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Edit the copy in the German image" }));
     expect(onOpenTranslation).toHaveBeenCalledWith(segment, "de");
+  });
+
+  it("offers AI edits only on locales that already have an image", () => {
+    show(baseConfig({ onRegenerateImage: vi.fn(), onEditImage: vi.fn() }));
+
+    const french = screen.getByRole("group", { name: "Image actions for French" });
+    const german = screen.getByRole("group", { name: "Image actions for German" });
+    for (const name of ["Markup", "Comment", "Remove BG", "Erase"]) {
+      expect(within(french).getByRole("button", { name })).toBeEnabled();
+      expect(within(german).queryByRole("button", { name })).not.toBeInTheDocument();
+    }
+  });
+
+  it("asks before removing the background of an approved image, then edits the current image", async () => {
+    const user = userEvent.setup();
+    const onEditImage = vi.fn().mockResolvedValue(undefined);
+    show(baseConfig({ onEditImage }));
+
+    const french = screen.getByRole("group", { name: "Image actions for French" });
+    await user.click(within(french).getByRole("button", { name: "Remove BG" }));
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveTextContent("Edit the approved French image?");
+    expect(onEditImage).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole("button", { name: "Edit image" }));
+
+    await waitFor(() => expect(onEditImage).toHaveBeenCalledTimes(1));
+    expect(fetch).toHaveBeenCalledWith("/assets/hero-fr.png", expect.anything());
+    expect(prepareImageEdit).toHaveBeenCalledWith(expect.any(Blob), { kind: "removeBackground" });
+    expect(onEditImage).toHaveBeenCalledWith(segment, "fr", {
+      request: { kind: "removeBackground" },
+      image: preparedImage,
+      mask: null,
+      force: true,
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it("draws an erase on the image and sends its mask", async () => {
+    const user = userEvent.setup();
+    const onEditImage = vi.fn().mockResolvedValue(undefined);
+    prepareImageEdit.mockResolvedValue({ image: preparedImage, mask: preparedMask });
+    targetQuery.mockImplementation(({ targetLocale }: { targetLocale: string }) => ({
+      data:
+        targetLocale === "fr"
+          ? { text: "", isApproved: false, targetAssetUrl: "/assets/hero-fr.png" }
+          : undefined,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    }));
+    show(baseConfig({ onEditImage }));
+
+    const french = screen.getByRole("group", { name: "Image actions for French" });
+    await user.click(within(french).getByRole("button", { name: "Erase" }));
+    const apply = screen.getByRole("button", { name: "Erase" });
+    expect(apply).toBeDisabled();
+
+    const overlay = screen.getByTestId("image-edit-overlay");
+    overlay.setPointerCapture = vi.fn();
+    await user.pointer([
+      { keys: "[MouseLeft>]", target: overlay, coords: { clientX: 10, clientY: 10 } },
+      { target: overlay, coords: { clientX: 20, clientY: 20 } },
+      { keys: "[/MouseLeft]", target: overlay },
+    ]);
+    await user.click(apply);
+
+    await waitFor(() => expect(onEditImage).toHaveBeenCalledTimes(1));
+    expect(prepareImageEdit).toHaveBeenCalledWith(
+      expect.any(Blob),
+      expect.objectContaining({ kind: "erase", strokes: [expect.any(Object)] }),
+    );
+    expect(onEditImage).toHaveBeenCalledWith(segment, "fr", {
+      request: { kind: "erase" },
+      image: preparedImage,
+      mask: preparedMask,
+      force: undefined,
+      signal: expect.any(AbortSignal),
+    });
+    expect(screen.queryByTestId("image-edit-overlay")).not.toBeInTheDocument();
   });
 });

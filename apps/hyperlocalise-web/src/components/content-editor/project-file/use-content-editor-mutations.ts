@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ImageEditRequest } from "@/lib/projects/files/image-edit";
 import { useEffect, useRef, type MutableRefObject } from "react";
 import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
@@ -691,6 +692,61 @@ export function useContentEditorMutations(input: {
     },
   });
 
+  const editImageMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringId: string;
+      targetLocale: string;
+      request: ImageEditRequest;
+      image: Blob;
+      mask: Blob | null;
+      force?: boolean;
+      signal?: AbortSignal;
+    }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+      const { request } = mutationInput;
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.images.edit.$post(
+        {
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          form: {
+            sourcePath,
+            targetLocale: mutationInput.targetLocale,
+            externalStringId: mutationInput.externalStringId,
+            kind: request.kind,
+            image: new File([mutationInput.image], "image.png", { type: "image/png" }),
+            ...(mutationInput.mask
+              ? { mask: new File([mutationInput.mask], "mask.png", { type: "image/png" }) }
+              : {}),
+            ...(request.instruction ? { instruction: request.instruction } : {}),
+            ...(request.notes ? { notes: request.notes } : {}),
+            ...(mutationInput.force ? { force: "true" } : {}),
+          },
+        } as never,
+        { init: { signal: mutationInput.signal } },
+      );
+
+      if (response.status !== 200) {
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(useContentEditorMutationsMessages.failedToEditImage),
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId, variables.targetLocale);
+    },
+  });
+
   const uploadImageMutation = useMutation({
     mutationFn: async (mutationInput: {
       externalStringId: string;
@@ -1142,6 +1198,8 @@ export function useContentEditorMutations(input: {
     resolveComment: resolveCommentMutation.mutateAsync,
     regenerateImageMutation,
     regenerateImage: regenerateImageMutation.mutateAsync,
+    editImageMutation,
+    editImage: editImageMutation.mutateAsync,
     uploadImageMutation,
     uploadImage: uploadImageMutation.mutateAsync,
     treatAsImageMutation,
@@ -1170,6 +1228,7 @@ export function useContentEditorMutations(input: {
         input.targetLocale,
     isImageBusy:
       regenerateImageMutation.isPending ||
+      editImageMutation.isPending ||
       uploadImageMutation.isPending ||
       treatAsImageMutation.isPending ||
       treatAsVideoMutation.isPending,

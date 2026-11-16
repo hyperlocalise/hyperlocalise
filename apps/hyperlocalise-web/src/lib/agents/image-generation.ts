@@ -22,6 +22,17 @@ export type ImageGenerationResult = {
   prompt: string;
 };
 
+export type ImageGenerationOptions = {
+  signal?: AbortSignal;
+  /**
+   * PNG the size of the image: its transparent pixels are where the model may
+   * redraw, everything opaque is kept.
+   */
+  mask?: Buffer;
+  /** Ask the model for a transparent background (background removal). */
+  transparentBackground?: boolean;
+};
+
 export type ImageGenerationBilling = {
   organizationId: string;
   operationKey: string;
@@ -48,7 +59,7 @@ function imageGenerationId(providerMetadata: unknown) {
 async function generateImageFromPrompt(
   imageBuffer: Buffer,
   prompt: string,
-  signal?: AbortSignal,
+  options: ImageGenerationOptions = {},
 ): Promise<{
   image: Buffer;
   mimeType: string;
@@ -67,9 +78,13 @@ async function generateImageFromPrompt(
     prompt: {
       images: [imageBuffer],
       text: prompt,
+      ...(options.mask ? { mask: options.mask } : {}),
     },
     n: 1,
-    abortSignal: signal,
+    ...(options.transparentBackground
+      ? { providerOptions: { openai: { background: "transparent" } } }
+      : {}),
+    abortSignal: options.signal,
   });
 
   const generatedImage = result.images[0];
@@ -103,7 +118,7 @@ export async function regenerateImageFromAttachment(
   _mimeType: string,
   userText: string,
   billing?: ImageGenerationBilling,
-  options: { signal?: AbortSignal } = {},
+  options: ImageGenerationOptions = {},
 ): Promise<ImageGenerationResult> {
   // The AI SDK image prompt accepts the source image as a Buffer and infers media type from bytes.
   const prompt = userText.trim();
@@ -112,7 +127,7 @@ export async function regenerateImageFromAttachment(
   }
 
   const run = async () => {
-    const generated = await generateImageFromPrompt(imageBuffer, prompt, options.signal);
+    const generated = await generateImageFromPrompt(imageBuffer, prompt, options);
     return {
       image: generated.image,
       mimeType: generated.mimeType,

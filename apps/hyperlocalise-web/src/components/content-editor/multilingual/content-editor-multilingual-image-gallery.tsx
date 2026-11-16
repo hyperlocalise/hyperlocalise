@@ -14,13 +14,7 @@
  */
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { observer } from "mobx-react-lite";
-import {
-  ArrowClockwiseIcon,
-  ArrowSquareOutIcon,
-  CheckIcon,
-  ImageIcon,
-} from "@phosphor-icons/react";
-import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
+import { CheckIcon, ImageIcon } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 
 import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
@@ -56,6 +50,15 @@ import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.message
 
 import type { ContentEditorImageGenerationStore } from "./content-editor-image-generation-store";
 import type { ContentEditorMultilingualConfig } from "./content-editor-multilingual-table";
+import { ContentEditorImageEditActions } from "./image-edit/content-editor-image-edit-actions";
+import {
+  imageEditRequest,
+  prepareImageEdit,
+  type ImageEditDrawing,
+} from "./image-edit/content-editor-image-edit-canvas";
+import { ContentEditorImageEditOverlay } from "./image-edit/content-editor-image-edit-overlay";
+import { ContentEditorImageEditStore } from "./image-edit/content-editor-image-edit-store";
+import { imageEditMessages } from "./image-edit/content-editor-image-edit.messages";
 import { multilingualImageGalleryMessages as messages } from "./content-editor-multilingual-image-gallery.messages";
 import { multilingualMessages } from "./content-editor-multilingual.messages";
 
@@ -140,7 +143,9 @@ const LocaleImageCard = observer(function LocaleImageCard({
   aspectRatio,
   sourceSize,
   generations,
+  editStore,
   onGenerate,
+  onEdit,
   onOpenTranslation,
 }: {
   config: ContentEditorMultilingualConfig;
@@ -149,12 +154,19 @@ const LocaleImageCard = observer(function LocaleImageCard({
   aspectRatio: number;
   sourceSize: { width: number; height: number } | null;
   generations: ContentEditorImageGenerationStore;
+  editStore: ContentEditorImageEditStore;
   onGenerate?: (options?: { force?: boolean }) => void;
+  /** Runs an AI edit on the locale's current image (`imageSrc`). */
+  onEdit?: (imageSrc: string, drawing: ImageEditDrawing, options?: { force?: boolean }) => void;
   onOpenTranslation?: () => void;
 }) {
   const intl = useIntl();
   const generation = generations.get(segment.id, locale);
-  const [confirmApproved, setConfirmApproved] = useState(false);
+  // What waits on confirming that an approved image may be replaced.
+  const [pendingApproved, setPendingApproved] = useState<
+    { kind: "regenerate" } | { kind: "edit"; imageSrc: string; drawing: ImageEditDrawing } | null
+  >(null);
+  const [lastAction, setLastAction] = useState<"generate" | "edit">("generate");
   const identity = config.identities?.get(segment.id);
   const query = useContentEditorSegmentTarget({
     organizationSlug: config.organizationSlug,
@@ -172,6 +184,24 @@ const LocaleImageCard = observer(function LocaleImageCard({
   const language = formatLocaleDisplayName(intl, locale);
   const isGenerating = generation?.isRunning === true;
   const isApproved = Boolean(target?.isApproved);
+  const drawingTool = editStore.toolFor(segment.id, locale);
+
+  const runGenerate = (options?: { force?: boolean }) => {
+    setLastAction("generate");
+    onGenerate?.(options);
+  };
+  const runEdit = (imageSrc: string, drawing: ImageEditDrawing, options?: { force?: boolean }) => {
+    setLastAction("edit");
+    onEdit?.(imageSrc, drawing, options);
+  };
+  const requestEdit = (drawing: ImageEditDrawing) => {
+    if (!targetSrc) return;
+    if (isApproved) {
+      setPendingApproved({ kind: "edit", imageSrc: targetSrc, drawing });
+      return;
+    }
+    runEdit(targetSrc, drawing);
+  };
 
   let body: ReactNode;
   if (isGenerating) {
@@ -197,12 +227,15 @@ const LocaleImageCard = observer(function LocaleImageCard({
       </ImageFrame>
     );
   } else if (targetSrc) {
-    body = (
-      <PreviewFrame
-        src={targetSrc}
-        alt={intl.formatMessage(messages.imageAlt, { language })}
-        aspectRatio={aspectRatio}
-      />
+    const alt = intl.formatMessage(messages.imageAlt, { language });
+    body = drawingTool ? (
+      <ImageFrame aspectRatio={aspectRatio}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- CAT asset URLs are session-authenticated API paths */}
+        <img src={targetSrc} alt={alt} className="size-full object-contain" draggable={false} />
+        <ContentEditorImageEditOverlay store={editStore} tool={drawingTool} />
+      </ImageFrame>
+    ) : (
+      <PreviewFrame src={targetSrc} alt={alt} aspectRatio={aspectRatio} />
     );
   } else {
     body = (
@@ -228,46 +261,34 @@ const LocaleImageCard = observer(function LocaleImageCard({
           ) : null
         }
         footer={
-          onGenerate || onOpenTranslation ? (
-            <>
-              {onGenerate ? (
-                <Button
-                  size="xs"
-                  variant={targetSrc ? "outline" : "default"}
-                  disabled={isGenerating || query.isPending}
-                  aria-label={intl.formatMessage(
-                    targetSrc ? messages.regenerateAria : messages.generateAria,
-                    { language },
-                  )}
-                  onClick={() => {
-                    if (isApproved) {
-                      setConfirmApproved(true);
-                      return;
+          <div className="w-full">
+            <ContentEditorImageEditActions
+              store={editStore}
+              segmentId={segment.id}
+              locale={locale}
+              language={language}
+              hasImage={Boolean(targetSrc)}
+              busy={isGenerating || query.isPending}
+              canEdit={Boolean(onEdit)}
+              onGenerate={
+                onGenerate
+                  ? () => {
+                      if (isApproved) {
+                        setPendingApproved({ kind: "regenerate" });
+                        return;
+                      }
+                      runGenerate();
                     }
-                    onGenerate();
-                  }}
-                >
-                  {targetSrc ? (
-                    <ArrowClockwiseIcon data-icon="inline-start" aria-hidden />
-                  ) : (
-                    <UnicornIcon data-icon="inline-start" aria-hidden />
-                  )}
-                  {intl.formatMessage(targetSrc ? messages.regenerate : messages.generate)}
-                </Button>
-              ) : null}
-              {onOpenTranslation ? (
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  aria-label={intl.formatMessage(messages.openAria, { language })}
-                  onClick={onOpenTranslation}
-                >
-                  <ArrowSquareOutIcon data-icon="inline-start" aria-hidden />
-                  {intl.formatMessage(messages.open)}
-                </Button>
-              ) : null}
-            </>
-          ) : null
+                  : undefined
+              }
+              onEditCopy={onOpenTranslation}
+              onRemoveBackground={() => requestEdit({ kind: "removeBackground" })}
+              onApply={() => {
+                const taken = editStore.takeDrawing();
+                if (taken) requestEdit(taken.drawing);
+              }}
+            />
+          </div>
         }
       >
         {body}
@@ -276,30 +297,55 @@ const LocaleImageCard = observer(function LocaleImageCard({
             {intl.formatMessage(
               generation.aiCreditExhausted
                 ? aiCreditExhaustedMessages.exhausted
-                : messages.generationError,
+                : lastAction === "edit"
+                  ? imageEditMessages.editError
+                  : messages.generationError,
             )}
           </p>
         ) : null}
       </GalleryCard>
-      <AlertDialog open={confirmApproved} onOpenChange={setConfirmApproved}>
+      <AlertDialog
+        open={pendingApproved !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingApproved(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {intl.formatMessage(messages.regenerateApprovedTitle, { language })}
+              {intl.formatMessage(
+                pendingApproved?.kind === "edit"
+                  ? imageEditMessages.editApprovedTitle
+                  : messages.regenerateApprovedTitle,
+                { language },
+              )}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {intl.formatMessage(messages.regenerateApprovedDescription)}
+              {intl.formatMessage(
+                pendingApproved?.kind === "edit"
+                  ? imageEditMessages.editApprovedDescription
+                  : messages.regenerateApprovedDescription,
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{intl.formatMessage(messages.cancel)}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                setConfirmApproved(false);
-                onGenerate?.({ force: true });
+                const pending = pendingApproved;
+                setPendingApproved(null);
+                if (pending?.kind === "edit") {
+                  runEdit(pending.imageSrc, pending.drawing, { force: true });
+                } else {
+                  runGenerate({ force: true });
+                }
               }}
             >
-              {intl.formatMessage(messages.regenerateApprovedConfirm)}
+              {intl.formatMessage(
+                pendingApproved?.kind === "edit"
+                  ? imageEditMessages.editApprovedConfirm
+                  : messages.regenerateApprovedConfirm,
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -314,7 +360,9 @@ const SegmentImageGallery = observer(function SegmentImageGallery({
   locales,
   showKey,
   generations,
+  editStore,
   onGenerate,
+  onEdit,
   onOpenTranslation,
 }: {
   config: ContentEditorMultilingualConfig;
@@ -322,9 +370,17 @@ const SegmentImageGallery = observer(function SegmentImageGallery({
   locales: readonly string[];
   showKey: boolean;
   generations: ContentEditorImageGenerationStore;
+  editStore: ContentEditorImageEditStore;
   onGenerate?: (
     segment: ContentEditorSegment,
     locale: string,
+    options?: { force?: boolean },
+  ) => void;
+  onEdit?: (
+    segment: ContentEditorSegment,
+    locale: string,
+    imageSrc: string,
+    drawing: ImageEditDrawing,
     options?: { force?: boolean },
   ) => void;
   onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
@@ -334,6 +390,7 @@ const SegmentImageGallery = observer(function SegmentImageGallery({
   const sourceSize = useImageNaturalSize(sourceSrc);
   const aspectRatio = sourceSize ? sourceSize.width / sourceSize.height : DEFAULT_ASPECT_RATIO;
   const canGenerate = Boolean(onGenerate) && config.canEdit !== false && !segment.isLocked;
+  const canEditImage = Boolean(onEdit) && config.canEdit !== false && !segment.isLocked;
 
   return (
     <section className="space-y-3">
@@ -374,9 +431,16 @@ const SegmentImageGallery = observer(function SegmentImageGallery({
               aspectRatio={aspectRatio}
               sourceSize={sourceSize}
               generations={generations}
+              editStore={editStore}
               onGenerate={
                 canGenerate && sourceSrc
                   ? (options) => onGenerate?.(segment, locale, options)
+                  : undefined
+              }
+              onEdit={
+                canEditImage
+                  ? (imageSrc, drawing, options) =>
+                      onEdit?.(segment, locale, imageSrc, drawing, options)
                   : undefined
               }
               onOpenTranslation={
@@ -417,7 +481,8 @@ export const ContentEditorMultilingualImageGallery = observer(
       () => locales.filter((locale) => !hiddenLocales.has(locale)),
       [locales, hiddenLocales],
     );
-    const { onRegenerateImage } = config;
+    const { onRegenerateImage, onEditImage } = config;
+    const [editStore] = useState(() => new ContentEditorImageEditStore());
     const imageSegments = useMemo(
       () =>
         segments.filter((segment) =>
@@ -436,6 +501,30 @@ export const ContentEditorMultilingualImageGallery = observer(
         );
       },
       [generations, onRegenerateImage],
+    );
+    const edit = useCallback(
+      async (
+        segment: ContentEditorSegment,
+        locale: string,
+        imageSrc: string,
+        drawing: ImageEditDrawing,
+        options?: { force?: boolean },
+      ) => {
+        if (!onEditImage) return;
+        await generations.run(segment.id, locale, async (signal) => {
+          const response = await fetch(imageSrc, { signal });
+          if (!response.ok) throw new Error("Could not load the image to edit");
+          const { image, mask } = await prepareImageEdit(await response.blob(), drawing);
+          await onEditImage(segment, locale, {
+            request: imageEditRequest(drawing),
+            image,
+            mask,
+            force: options?.force,
+            signal,
+          });
+        });
+      },
+      [generations, onEditImage],
     );
     const runningCount = generations.runningCount;
 
@@ -498,6 +587,13 @@ export const ContentEditorMultilingualImageGallery = observer(
                   locales={visibleLocales}
                   showKey={imageSegments.length > 1}
                   generations={generations}
+                  editStore={editStore}
+                  onEdit={
+                    onEditImage
+                      ? (nextSegment, locale, imageSrc, drawing, options) =>
+                          void edit(nextSegment, locale, imageSrc, drawing, options)
+                      : undefined
+                  }
                   onGenerate={
                     onRegenerateImage
                       ? (nextSegment, locale, options) =>

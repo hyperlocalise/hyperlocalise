@@ -10,6 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import path from "node:path";
+
+import { imageEditPrompt, imageEditUsesMask, type ImageEditRequest } from "./image-edit";
 import { imageTextLayerPrompt, readImageTextLayers } from "./image-text-layers";
 
 import { and, eq } from "drizzle-orm";
@@ -517,6 +520,111 @@ export async function replaceImageVariantBytes(input: {
         eq(schema.projectImageVariants.targetLocale, input.targetLocale),
       ),
     )
+    .returning();
+
+  if (!updated) {
+    return err({ code: "variant_not_found" });
+  }
+
+  return ok(updated);
+}
+
+/**
+ * Runs a targeted AI edit (markup, comment, erase, remove background) on the
+ * locale's current image and stores the result as the locale's new variant,
+ * back in review. `image` is the current variant as prepared by the editor
+ * (marks and pins drawn on it); `mask`, when sent, marks the only area the
+ * model may redraw.
+ */
+export async function editAndStoreImageVariant(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  request: ImageEditRequest;
+  image: Buffer;
+  mask?: Buffer | null;
+  repositorySourceFileId?: string | null;
+  createdByUserId?: string | null;
+  force?: boolean;
+  signal?: AbortSignal;
+}): Promise<Result<typeof schema.projectImageVariants.$inferSelect, ImageVariantError>> {
+  const existing = await getImageVariant(input);
+  if (!existing?.storedFileId) {
+    return err({ code: "variant_not_found" });
+  }
+  if (existing.status === "approved" && !input.force) {
+    return err({ code: "approved_locked" });
+  }
+
+  let edited: { image: Buffer; mimeType: string };
+  try {
+    const result = await regenerateImageFromAttachment(
+      input.image,
+      "image/png",
+      imageEditPrompt(input.request),
+      {
+        organizationId: input.organizationId,
+        operationKey: mediaLocalizationOperationKey(
+          `image-edit:${input.request.kind}:${input.projectId}:${input.sourcePath}:${input.targetLocale}`,
+        ),
+        source: "project_image_variant",
+        dimensions: {
+          channel: "project",
+          project_id: input.projectId,
+          target_locale: input.targetLocale,
+          image_edit_kind: input.request.kind,
+        },
+      },
+      {
+        signal: input.signal,
+        ...(input.mask && imageEditUsesMask(input.request.kind) ? { mask: input.mask } : {}),
+        transparentBackground: input.request.kind === "removeBackground",
+      },
+    );
+    edited = { image: result.image, mimeType: result.mimeType || "image/png" };
+  } catch (error) {
+    return err(mapImageGenerationError(error, input.signal));
+  }
+
+  if (input.signal?.aborted) {
+    return err({ code: "aborted" });
+  }
+
+  const stored = await createStoredFile({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    createdByUserId: input.createdByUserId ?? null,
+    role: "output",
+    sourceKind: "job_output",
+    sourceJobId: null,
+    filename: localizedImageOutputFilename(
+      path.basename(input.sourcePath),
+      input.targetLocale,
+      edited.mimeType,
+    ),
+    contentType: edited.mimeType,
+    content: edited.image,
+    metadata: {
+      imageLocalizationOutput: true,
+      imageEdit: input.request.kind,
+      previousStoredFileId: existing.storedFileId,
+      sourcePath: input.sourcePath,
+      targetLocale: input.targetLocale,
+    },
+  });
+
+  const [updated] = await db
+    .update(schema.projectImageVariants)
+    .set({
+      storedFileId: stored.id,
+      status: "needs_review",
+      provenance: "agent",
+      reviewedByUserId: null,
+      reviewedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.projectImageVariants.id, existing.id))
     .returning();
 
   if (!updated) {
