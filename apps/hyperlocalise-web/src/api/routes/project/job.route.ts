@@ -183,6 +183,7 @@ const jobSelect = {
   externalSyncState: schema.externalJobDetails.syncState,
   externalProviderPayload: schema.externalJobDetails.providerPayload,
   linkedJobId: schema.externalJobDetails.linkedJobId,
+  afterJobId: schema.jobs.afterJobId,
   createdAt: schema.jobs.createdAt,
   updatedAt: schema.jobs.updatedAt,
   completedAt: schema.jobs.completedAt,

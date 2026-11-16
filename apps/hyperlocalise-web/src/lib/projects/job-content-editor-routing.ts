@@ -20,6 +20,7 @@ import {
   contentEditorWorkspaceQueueAdvancedParam,
   serializeAdvancedQueueFilter,
 } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import { isWaitingTask } from "@/lib/projects/jobs/person-task";
 import { resolveJobProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 export const jobContentEditorQueueFilterParam = "queueFilter";
@@ -30,6 +31,7 @@ export type JobContentEditorTarget = {
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | "keys" | null;
   status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
+  afterJobId?: string | null;
   externalProviderKind: string | null;
   externalTargetLocales: string[] | null;
   reviewTargetLocale: string | null;
@@ -89,6 +91,10 @@ function getInputPayloadStringArray(job: JobContentEditorTarget, key: string) {
 }
 
 export function canOpenJobContentEditor(job: JobContentEditorTarget) {
+  // A waiting task's work has not started: its owner opens the editor once the task opens.
+  if (isWaitingTask(job)) {
+    return false;
+  }
   return canOpenProviderJobContentEditor(job) || canOpenNativeJobContentEditor(job);
 }
 

@@ -70,12 +70,15 @@ import type { JobDetailRecord } from "./job-detail-types";
 import { JobFailureNotice } from "./job-failure-notice";
 import { JobProviderDetailSection } from "./job-provider-detail-section";
 import { NativeJobDescriptionField } from "./native-job-description-field";
+import { JobComesAfterField } from "./job-comes-after-field";
+import { jobComesAfterFieldMessages } from "./job-comes-after-field.messages";
 import { NativeJobDueDateField } from "./native-job-due-date-field";
 import {
   isNativeFileTranslationJob,
   NativeJobSourceFilesSection,
 } from "./native-job-detail-helpers";
 import { reportsQueryKey } from "@/components/reports/reports-queries";
+import { isWaitingTask } from "@/lib/projects/jobs/person-task";
 import { nativeJobDetailContentMessages as messages } from "./native-job-detail-content.messages";
 import {
   canCancelJob,
@@ -329,7 +332,7 @@ export function NativeJobDetailContent({
   });
 
   const propertyEditDisabled = jobActionPending || saveTitle.isPending;
-  const properties = (layout?.properties ?? []).map((property) => {
+  const editableProperties = (layout?.properties ?? []).map((property) => {
     if (!isNativeEditable || !job) {
       return property;
     }
@@ -365,6 +368,23 @@ export function NativeJobDetailContent({
       ),
     };
   });
+  const properties = job?.afterJobId
+    ? [
+        ...editableProperties,
+        {
+          id: "comes-after",
+          label: intl.formatMessage(jobComesAfterFieldMessages.label),
+          value: (
+            <JobComesAfterField
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              afterJobId={job.afterJobId}
+              waiting={isWaitingTask(job)}
+            />
+          ),
+        },
+      ]
+    : editableProperties;
 
   useAppShellBreadcrumbAppend({
     id: "job-detail",

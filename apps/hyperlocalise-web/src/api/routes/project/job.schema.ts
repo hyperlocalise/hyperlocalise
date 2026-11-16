@@ -238,6 +238,7 @@ export const jobRecordSchema = z
     externalSyncState: z.string().nullable(),
     externalProviderPayload: z.record(z.string(), z.unknown()).nullable(),
     linkedJobId: z.string().nullable(),
+    afterJobId: z.string().nullable().optional(),
     createdAt: z.string(),
     updatedAt: z.string(),
     completedAt: z.string().nullable(),
