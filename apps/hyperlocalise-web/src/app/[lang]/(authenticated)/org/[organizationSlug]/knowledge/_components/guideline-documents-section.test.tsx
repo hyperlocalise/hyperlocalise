@@ -294,7 +294,7 @@ describe("GuidelineDocumentsSection", () => {
     );
   });
 
-  it("shows an empty state with a create action when there are no documents", async () => {
+  it("explains guidelines with an upload action when there are no documents", async () => {
     mocks.listDocuments.mockResolvedValue([]);
     render(
       <GuidelineDocumentsSection
@@ -306,9 +306,11 @@ describe("GuidelineDocumentsSection", () => {
     );
 
     await waitFor(() => expect(mocks.listDocuments).toHaveBeenCalled());
-    expect(await screen.findByText("No guidelines yet")).toBeTruthy();
-    const create = screen.getByRole("button", { name: "Create Guideline" });
-    expect(create).toHaveAttribute("href", "/org/acme/knowledge/upload");
+    expect(
+      await screen.findByRole("heading", { name: "Check copy against your brand guidelines" }),
+    ).toBeTruthy();
+    const upload = screen.getByRole("button", { name: "Upload guideline" });
+    expect(upload).toHaveAttribute("href", "/org/acme/knowledge/upload");
   });
 
   it("shows each document's linked projects on the org page", async () => {

@@ -58,6 +58,7 @@ import {
 } from "../../_components/workspace-resource-shared";
 import type { GlossaryCreateForm } from "../store/glossaries-page-store";
 import type { GlossaryListRow } from "./glossary-list";
+import { GlossariesEmptyState } from "./glossaries-empty-state";
 import {
   GlossariesEmptyAction,
   renderGlossaryTableCells,
@@ -178,6 +179,13 @@ export function GlossariesPageView({
   ) : undefined;
   const hasAnyResults = nativeTotal > 0 || externalTotal > 0;
   const queriesHaveNoResults = nativeQuery.isSuccess && externalQuery.isSuccess && !hasAnyResults;
+  // Live non-Crowdin glossaries are listed per TMS project, so an empty list
+  // there needs the project picker rather than the first-run explainer.
+  const showFirstRunExplainer =
+    allowCreateGlossaries &&
+    queriesHaveNoResults &&
+    !hasActiveFilters &&
+    !(useLiveProviderGlossaries && !useLiveCrowdinGlossaries);
   const liveProviderControls = useLiveProviderGlossaries ? (
     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
       <TmsLiveProjectPicker
@@ -286,69 +294,78 @@ export function GlossariesPageView({
         </div>
       ) : null}
 
-      <WorkspaceGroupedTable
-        ariaLabel={intl.formatMessage(glossariesPageViewMessages.pageTitle)}
-        columns={columns}
-        getRowId={(glossary) => glossary.id}
-        renderCells={(glossary) => renderGlossaryTableCells(glossary, organizationSlug, intl)}
-        groups={[
-          {
-            id: "hyperlocalise",
-            title: nativeSectionTitle,
-            accent: "workspace",
-            count: nativeTotal,
-            items: nativeGlossaries,
-            query: nativeQuery,
-            emptyTitle: nativeEmptyTitle,
-            emptyDescription: nativeEmptyDescription,
-            emptyAction: allowCreateGlossaries ? (
-              <Button type="button" size="sm" onClick={() => onCreateDialogOpenChange(true)}>
-                <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
-              </Button>
-            ) : !hasConnectedProvider ? (
-              <GlossariesEmptyAction organizationSlug={organizationSlug} />
-            ) : undefined,
-            hasMore: nativeHasMore,
-            isLoadingMore: nativeIsLoadingMore,
-            onLoadMore: onNativeLoadMore,
-          },
-          ...providerGroups.map((group, index) => ({
-            id: group.id,
-            title: group.title,
-            accent: "provider" as const,
-            count: liveProjectSelectionRequired ? 0 : group.items.length,
-            items: group.items,
-            query: liveProjectSelectionRequired
-              ? { isLoading: false, isError: false, isSuccess: true, error: null }
-              : externalQuery,
-            emptyTitle: liveProjectSelectionRequired
-              ? intl.formatMessage(glossariesPageViewMessages.chooseTmsProjectTitle)
-              : !hasConnectedProvider
-                ? intl.formatMessage(glossariesPageViewMessages.emptyTitleConnectProvider)
-                : intl.formatMessage(glossariesPageViewMessages.externalEmptyTitle, {
-                    provider: group.title,
-                  }),
-            emptyDescription: liveProjectSelectionRequired
-              ? intl.formatMessage(glossariesPageViewMessages.chooseTmsProjectDescription)
-              : !hasConnectedProvider
-                ? intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithoutProvider)
-                : useLiveCrowdinGlossaries
-                  ? intl.formatMessage(glossariesPageViewMessages.crowdinEmptyDescription)
-                  : intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithProvider, {
+      {showFirstRunExplainer ? (
+        <GlossariesEmptyState
+          onCreate={() => onCreateDialogOpenChange(true)}
+          secondaryAction={providerConnectAction}
+        />
+      ) : (
+        <WorkspaceGroupedTable
+          ariaLabel={intl.formatMessage(glossariesPageViewMessages.pageTitle)}
+          columns={columns}
+          getRowId={(glossary) => glossary.id}
+          renderCells={(glossary) => renderGlossaryTableCells(glossary, organizationSlug, intl)}
+          groups={[
+            {
+              id: "hyperlocalise",
+              title: nativeSectionTitle,
+              accent: "workspace",
+              count: nativeTotal,
+              items: nativeGlossaries,
+              query: nativeQuery,
+              emptyTitle: nativeEmptyTitle,
+              emptyDescription: nativeEmptyDescription,
+              emptyAction: allowCreateGlossaries ? (
+                <Button type="button" size="sm" onClick={() => onCreateDialogOpenChange(true)}>
+                  <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
+                </Button>
+              ) : !hasConnectedProvider ? (
+                <GlossariesEmptyAction organizationSlug={organizationSlug} />
+              ) : undefined,
+              hasMore: nativeHasMore,
+              isLoadingMore: nativeIsLoadingMore,
+              onLoadMore: onNativeLoadMore,
+            },
+            ...providerGroups.map((group, index) => ({
+              id: group.id,
+              title: group.title,
+              accent: "provider" as const,
+              count: liveProjectSelectionRequired ? 0 : group.items.length,
+              items: group.items,
+              query: liveProjectSelectionRequired
+                ? { isLoading: false, isError: false, isSuccess: true, error: null }
+                : externalQuery,
+              emptyTitle: liveProjectSelectionRequired
+                ? intl.formatMessage(glossariesPageViewMessages.chooseTmsProjectTitle)
+                : !hasConnectedProvider
+                  ? intl.formatMessage(glossariesPageViewMessages.emptyTitleConnectProvider)
+                  : intl.formatMessage(glossariesPageViewMessages.externalEmptyTitle, {
                       provider: group.title,
                     }),
-            emptyAction: liveProjectSelectionRequired ? undefined : providerConnectAction,
-            headerActions:
-              liveProviderKind && group.id === liveProviderKind ? liveProviderControls : undefined,
-            hasMore:
-              !liveProjectSelectionRequired &&
-              externalHasMore &&
-              index === providerGroups.length - 1,
-            isLoadingMore: externalIsLoadingMore,
-            onLoadMore: onExternalLoadMore,
-          })),
-        ]}
-      />
+              emptyDescription: liveProjectSelectionRequired
+                ? intl.formatMessage(glossariesPageViewMessages.chooseTmsProjectDescription)
+                : !hasConnectedProvider
+                  ? intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithoutProvider)
+                  : useLiveCrowdinGlossaries
+                    ? intl.formatMessage(glossariesPageViewMessages.crowdinEmptyDescription)
+                    : intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithProvider, {
+                        provider: group.title,
+                      }),
+              emptyAction: liveProjectSelectionRequired ? undefined : providerConnectAction,
+              headerActions:
+                liveProviderKind && group.id === liveProviderKind
+                  ? liveProviderControls
+                  : undefined,
+              hasMore:
+                !liveProjectSelectionRequired &&
+                externalHasMore &&
+                index === providerGroups.length - 1,
+              isLoadingMore: externalIsLoadingMore,
+              onLoadMore: onExternalLoadMore,
+            })),
+          ]}
+        />
+      )}
 
       <Dialog open={createDialogOpen} onOpenChange={onCreateDialogOpenChange}>
         <DialogContent className="max-h-[min(85dvh,42rem)] overflow-y-auto sm:max-w-lg">

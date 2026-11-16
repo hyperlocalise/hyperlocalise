@@ -166,15 +166,11 @@ export const Empty: Story = {
     externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("No glossaries yet")).toBeInTheDocument();
     await expect(
-      canvas.getByText(
-        "Create a workspace glossary, import terms, then assign it to the projects that should use it.",
-      ),
+      canvas.getByRole("heading", { name: "Keep your brand terms the same in every language" }),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Create glossary" })).toBeInTheDocument();
-    await expect(canvas.getByText("No Phrase glossaries")).toBeInTheDocument();
-    await expect(canvas.getByText("No Crowdin glossaries")).toBeInTheDocument();
+    await expect(canvas.getAllByRole("button", { name: "Create glossary" })).toHaveLength(2);
+    await expect(canvas.queryByText("No Phrase glossaries")).not.toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Glossaries" })).toBeInTheDocument();
   },
 };
@@ -215,8 +211,9 @@ export const CanCreateWithoutProvider: Story = {
     connectedProviderKinds: [],
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("TMS")).toBeInTheDocument();
-    await expect(canvas.getByText("Connect a TMS provider")).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("heading", { name: "Keep your brand terms the same in every language" }),
+    ).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Connect a provider" })).toHaveAttribute(
       "href",
       "/org/acme/integrations",

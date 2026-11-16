@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import type { DictionaryCreateForm } from "../store/dictionaries-page-store";
 import type { DictionaryListRow } from "./dictionary-list";
+import { DictionariesEmptyState } from "./dictionaries-empty-state";
 import { DictionariesTable } from "./dictionaries-table";
 import { dictionariesPageViewMessages } from "./dictionaries-page-view.messages";
 
@@ -80,6 +81,8 @@ export function DictionariesPageView({
   totalCount?: number;
 }) {
   const intl = useIntl();
+  const showFirstRunExplainer =
+    canWriteDictionaries && isSuccess && dictionaries.length === 0 && !searchQuery.trim();
 
   return (
     <WorkspacePageShell>
@@ -108,24 +111,28 @@ export function DictionariesPageView({
         />
       </PageHeader>
 
-      <DictionariesTable
-        organizationSlug={organizationSlug}
-        dictionaries={dictionaries}
-        isLoading={isLoading}
-        isError={isError}
-        isSuccess={isSuccess}
-        error={error}
-        emptyTitle={intl.formatMessage(
-          searchQuery.trim()
-            ? dictionariesPageViewMessages.noFilterMatches
-            : dictionariesPageViewMessages.emptyTitle,
-        )}
-        emptyDescription={
-          searchQuery.trim()
-            ? ""
-            : intl.formatMessage(dictionariesPageViewMessages.emptyDescription)
-        }
-      />
+      {showFirstRunExplainer ? (
+        <DictionariesEmptyState onCreate={() => onCreateDialogOpenChange(true)} />
+      ) : (
+        <DictionariesTable
+          organizationSlug={organizationSlug}
+          dictionaries={dictionaries}
+          isLoading={isLoading}
+          isError={isError}
+          isSuccess={isSuccess}
+          error={error}
+          emptyTitle={intl.formatMessage(
+            searchQuery.trim()
+              ? dictionariesPageViewMessages.noFilterMatches
+              : dictionariesPageViewMessages.emptyTitle,
+          )}
+          emptyDescription={
+            searchQuery.trim()
+              ? ""
+              : intl.formatMessage(dictionariesPageViewMessages.emptyDescription)
+          }
+        />
+      )}
       {hasNextPage ? (
         <Button
           type="button"

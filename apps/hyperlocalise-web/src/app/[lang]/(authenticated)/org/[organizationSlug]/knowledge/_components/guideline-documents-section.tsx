@@ -69,6 +69,7 @@ import {
 } from "./guideline-project-document-picker";
 import { filterProjectVisibleGuidelineDocuments } from "./guideline-project-visible-documents";
 import { GuidelineTextDocumentDialog } from "./guideline-text-document-dialog";
+import { GuidelinesEmptyState } from "./guidelines-empty-state";
 
 const PROCESSING_POLL_MS = 3000;
 const ENQUEUE_RECOVERY_POLL_MS = 15_000;
@@ -612,6 +613,10 @@ export function GuidelineDocumentsSection({
     visibleDocuments.length === 0 &&
     assignableToProjectCount > 0,
   );
+
+  if (projectId == null && visibleDocuments.length === 0 && createGuidelineHref) {
+    return <GuidelinesEmptyState uploadHref={createGuidelineHref} />;
+  }
 
   return (
     <section className="space-y-3">
