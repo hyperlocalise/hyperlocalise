@@ -60,7 +60,7 @@ func (s *stubPipesAccounts) ListUserDataProviders(_ context.Context, _ string, _
 	return &workos.DataIntegrationsListResponse{Data: data}, nil
 }
 
-func (s *stubPipesAccounts) UpdateDataIntegrationAPIKey(_ context.Context, slug string, params *workos.PipesUpdateDataIntegrationAPIKeyParams) (*workos.ConnectedAccountWriteResponse, error) {
+func (s *stubPipesAccounts) UpdateDataIntegrationAPIKey(_ context.Context, slug string, params *workos.PipesUpdateDataIntegrationAPIKeyParams) (*workos.ConnectedAccount, error) {
 	s.updated = append(s.updated, slug)
 	state := s.updateState
 	if state == "" {
@@ -72,9 +72,8 @@ func (s *stubPipesAccounts) UpdateDataIntegrationAPIKey(_ context.Context, slug 
 		s.accounts = map[string]*workos.ConnectedAccount{}
 	}
 	s.accounts[slug] = account
-	body, _ := json.Marshal(params.Body)
-	_ = body
-	return &workos.ConnectedAccountWriteResponse{State: state, APIKeyLast4: &last4}, nil
+	_ = params.Secret
+	return account, nil
 }
 
 func (s *stubPipesAccounts) GetAccessToken(_ context.Context, _ string, _ *workos.PipesGetAccessTokenParams) (*workos.DataIntegrationAccessTokenResponse, error) {

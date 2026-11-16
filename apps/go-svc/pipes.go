@@ -86,7 +86,7 @@ type pipesAccounts interface {
 	AuthorizeDataIntegration(ctx context.Context, slug string, params *workos.PipesAuthorizeDataIntegrationParams) (*workos.DataIntegrationAuthorizeURLResponse, error)
 	GetDataIntegration(ctx context.Context, slug string) (*workos.DataIntegration, error)
 	ListUserDataProviders(ctx context.Context, userID string, params *workos.PipesListUserDataProvidersParams) (*workos.DataIntegrationsListResponse, error)
-	UpdateDataIntegrationAPIKey(ctx context.Context, slug string, params *workos.PipesUpdateDataIntegrationAPIKeyParams) (*workos.ConnectedAccountWriteResponse, error)
+	UpdateDataIntegrationAPIKey(ctx context.Context, slug string, params *workos.PipesUpdateDataIntegrationAPIKeyParams) (*workos.ConnectedAccount, error)
 	GetAccessToken(ctx context.Context, provider string, params *workos.PipesGetAccessTokenParams) (*workos.DataIntegrationAccessTokenResponse, error)
 }
 
@@ -114,7 +114,7 @@ func (a livePipesAccounts) ListUserDataProviders(ctx context.Context, userID str
 	return a.client.Pipes().ListUserDataProviders(ctx, userID, params)
 }
 
-func (a livePipesAccounts) UpdateDataIntegrationAPIKey(ctx context.Context, slug string, params *workos.PipesUpdateDataIntegrationAPIKeyParams) (*workos.ConnectedAccountWriteResponse, error) {
+func (a livePipesAccounts) UpdateDataIntegrationAPIKey(ctx context.Context, slug string, params *workos.PipesUpdateDataIntegrationAPIKeyParams) (*workos.ConnectedAccount, error) {
 	return a.client.Pipes().UpdateDataIntegrationAPIKey(ctx, slug, params)
 }
 
@@ -134,18 +134,6 @@ type pipesAvailability struct {
 	ProviderConfigured   bool     `json:"providerConfigured"`
 	ProviderEnabled      bool     `json:"providerEnabled"`
 	SupportedAuthMethods []string `json:"supportedAuthMethods"`
-}
-
-type pipesAuthorizeBody struct {
-	UserID         string `json:"user_id"`
-	OrganizationID string `json:"organization_id"`
-	ReturnTo       string `json:"return_to,omitempty"`
-}
-
-type pipesAPIKeyBody struct {
-	UserID         string `json:"user_id"`
-	OrganizationID string `json:"organization_id"`
-	Secret         string `json:"secret"`
 }
 
 func pipesJSON(ctx context.Context, w http.ResponseWriter, status int, value any) {
@@ -328,12 +316,15 @@ func (api *pipesAPI) getAuthorizeURL(r *http.Request, actor pipesActor) (any, in
 		return nil, 0, pipesFailure(http.StatusServiceUnavailable, "pipes_unavailable", "WorkOS is not configured, so this provider cannot connect through Pipes.")
 	}
 	orgID := actor.workosOrganizationID
-	body := pipesAuthorizeBody{
+	returnTo := pipesReturnTo(r, actor, provider)
+	params := &workos.PipesAuthorizeDataIntegrationParams{
 		UserID:         actor.workosUserID,
-		OrganizationID: orgID,
-		ReturnTo:       pipesReturnTo(r, actor, provider),
+		OrganizationID: &orgID,
 	}
-	result, err := api.accounts.AuthorizeDataIntegration(r.Context(), provider, &workos.PipesAuthorizeDataIntegrationParams{Body: body})
+	if returnTo != "" {
+		params.ReturnTo = &returnTo
+	}
+	result, err := api.accounts.AuthorizeDataIntegration(r.Context(), provider, params)
 	if err != nil {
 		return nil, 0, mapPipesWorkosError(err, "pipes_unavailable", "WorkOS is not configured, so this provider cannot connect through Pipes.")
 	}
@@ -466,11 +457,9 @@ func (api *pipesAPI) upsertAPIKey(ctx context.Context, actor pipesActor, provide
 	}
 	orgID := actor.workosOrganizationID
 	account, err := api.accounts.UpdateDataIntegrationAPIKey(ctx, provider, &workos.PipesUpdateDataIntegrationAPIKeyParams{
-		Body: pipesAPIKeyBody{
-			UserID:         actor.workosUserID,
-			OrganizationID: orgID,
-			Secret:         secret,
-		},
+		UserID:         actor.workosUserID,
+		OrganizationID: &orgID,
+		Secret:         secret,
 	})
 	if err != nil {
 		return pipesStatus{}, mapPipesWorkosError(err, "pipes_unavailable", "WorkOS is not configured, so this provider cannot connect through Pipes.")
