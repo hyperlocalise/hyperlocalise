@@ -86,6 +86,7 @@ import {
 import type { MessageFormat } from "@/lib/i18n/message-format";
 import { glossaryFormatChecksForSegment } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
 import { buildCatSegmentShareUrl } from "@/components/content-editor/segment/content-editor-segment-share-link";
+import type { ContentEditorMultilingualConfig } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import type {
   ContentEditorFormatCheck,
   ContentEditorGlossaryTerm,
@@ -517,6 +518,7 @@ export function ProjectFileContentEditorWorkspace({
     postComment,
     resolveComment,
     regenerateImage,
+    editImage,
     uploadImage,
     treatAsImage,
     treatAsVideo,
@@ -1475,6 +1477,13 @@ export function ProjectFileContentEditorWorkspace({
                 signal: options?.signal,
               });
             },
+            onEditImage: async (
+              segment: ContentEditorSegment,
+              locale: string,
+              edit: Parameters<NonNullable<ContentEditorMultilingualConfig["onEditImage"]>>[2],
+            ) => {
+              await editImage({ externalStringId: segment.id, targetLocale: locale, ...edit });
+            },
           }
         : {}),
       onOpenTranslation: (segment: ContentEditorSegment, locale: string) => {
@@ -1502,6 +1511,7 @@ export function ProjectFileContentEditorWorkspace({
       intl,
       saveTranslation,
       regenerateImage,
+      editImage,
       aiFeaturesAllowed,
       assertQaSaveAllowed,
       assertSingleTargetSaveAllowed,

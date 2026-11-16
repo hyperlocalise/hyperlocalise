@@ -49,7 +49,10 @@ import { db, schema } from "@/lib/database/client";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 import { MAX_PUBLIC_HTTP_RESPONSE_BYTES } from "@/lib/security/public-http-fetch";
 
+import { createStoredFile } from "@/lib/file-storage/records";
+
 import {
+  editAndStoreImageVariant,
   fetchImageBytesFromUrl,
   localizeAndStoreImageVariant,
   replaceImageVariantBytes,
@@ -405,5 +408,134 @@ describe("image variant generation cancellation", () => {
       .where(eq(schema.projectImageVariants.id, variant.id))
       .limit(1);
     expect(storedVariant).toMatchObject({ status: "draft", storedFileId: null });
+  });
+});
+
+describe("image variant edits", () => {
+  async function createVariant(status: "needs_review" | "approved") {
+    const { organization, project } = await createStoredProjectFixture();
+    const previous = await createStoredFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      role: "output",
+      sourceKind: "job_output",
+      filename: "hero.fr-FR.png",
+      contentType: "image/png",
+      content: Buffer.from("previous-image"),
+      metadata: {},
+    });
+    const [variant] = await db
+      .insert(schema.projectImageVariants)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        sourcePath: "assets/hero.png",
+        targetLocale: "fr-FR",
+        status,
+        provenance: "agent",
+        storedFileId: previous.id,
+      })
+      .returning();
+    return { organization, project, previous, variant };
+  }
+
+  it("sends the erase mask, stores the result and puts the variant back in review", async () => {
+    const { organization, project, previous, variant } = await createVariant("needs_review");
+
+    const result = await editAndStoreImageVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      request: { kind: "erase" },
+      image: Buffer.from("current-image"),
+      mask: Buffer.from("mask"),
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) throw new Error("expected the edit to succeed");
+    expect(result.value.id).toBe(variant.id);
+    expect(result.value.storedFileId).not.toBe(previous.id);
+    expect(result.value.status).toBe("needs_review");
+
+    const call = vi.mocked(regenerateImageFromAttachment).mock.calls[0];
+    expect(call?.[0]).toEqual(Buffer.from("current-image"));
+    expect(call?.[2]).toContain("transparent area of the mask");
+    expect(call?.[4]).toMatchObject({ mask: Buffer.from("mask"), transparentBackground: false });
+  });
+
+  it("does not send a mask for markup and asks for transparency on remove background", async () => {
+    const { organization, project } = await createVariant("needs_review");
+
+    await editAndStoreImageVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      request: { kind: "markup", instruction: "Make the price bigger" },
+      image: Buffer.from("marked-image"),
+      mask: Buffer.from("ignored"),
+    });
+    await editAndStoreImageVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      request: { kind: "removeBackground" },
+      image: Buffer.from("current-image"),
+    });
+
+    const [markup, removeBackground] = vi.mocked(regenerateImageFromAttachment).mock.calls;
+    expect(markup?.[2]).toContain("Make the price bigger");
+    expect(markup?.[4]).not.toHaveProperty("mask");
+    expect(removeBackground?.[4]).toMatchObject({ transparentBackground: true });
+  });
+
+  it("does not edit an approved variant unless forced", async () => {
+    const { organization, project, previous } = await createVariant("approved");
+
+    const result = await editAndStoreImageVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      request: { kind: "removeBackground" },
+      image: Buffer.from("current-image"),
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) throw new Error("expected approved variant to remain locked");
+    expect(result.error).toEqual({ code: "approved_locked" });
+    expect(regenerateImageFromAttachment).not.toHaveBeenCalled();
+
+    const forced = await editAndStoreImageVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      request: { kind: "removeBackground" },
+      image: Buffer.from("current-image"),
+      force: true,
+    });
+    expect(isOk(forced)).toBe(true);
+    if (!isOk(forced)) throw new Error("expected forced edit to succeed");
+    expect(forced.value.storedFileId).not.toBe(previous.id);
+  });
+
+  it("refuses to edit a locale that has no image yet", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+
+    const result = await editAndStoreImageVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      request: { kind: "removeBackground" },
+      image: Buffer.from("current-image"),
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isOk(result)) throw new Error("expected missing variant to fail");
+    expect(result.error).toEqual({ code: "variant_not_found" });
   });
 });

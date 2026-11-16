@@ -141,7 +141,9 @@ import {
   updateRepositorySourceFileImportSettings,
 } from "@/lib/projects/files/source-file-import-settings";
 import { localizeAndStoreDocumentVariant } from "@/lib/projects/files/document-variant-service";
+import { imageEditRequestSchema, imageEditUsesMask } from "@/lib/projects/files/image-edit";
 import {
+  editAndStoreImageVariant,
   localizeAndStoreImageVariant,
   projectImageAssetPath,
   replaceImageVariantBytes,
@@ -2672,6 +2674,163 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               contentKind: "image_url" as const,
               targetAssetUrl: result.value.assetUrl,
               status: result.value.translation.status,
+            },
+          },
+          200,
+        );
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/images/edit",
+      validateProjectParams,
+      bodyLimit({
+        maxSize: maxProjectFileUploadBytes,
+        onError: (c) => badRequestResponse(c, "file_upload_too_large", "File upload is too large"),
+      }),
+      async (c) => {
+        if (!isAiActionAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
+          c,
+          c.var.auth.organization.localOrganizationId,
+        );
+        if (aiFeaturesDenied) {
+          return aiFeaturesDenied;
+        }
+
+        const params = c.req.valid("param");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_unsupported",
+            "Image editing is only available for workspace files.",
+          );
+        }
+
+        const form = await c.req.parseBody({ all: true });
+        const sourcePath = asString(form.sourcePath);
+        const targetLocale = asString(form.targetLocale);
+        const externalStringId = asString(form.externalStringId);
+        const forceRaw = asString(form.force);
+        const force = forceRaw === "true" || forceRaw === "1";
+        const image = asFile(form.image);
+        const mask = asFile(form.mask);
+        const rawNotes = form.notes;
+        const notes = (
+          Array.isArray(rawNotes) ? rawNotes : rawNotes === undefined ? [] : [rawNotes]
+        )
+          .map((note) => asString(note))
+          .filter((note): note is string => typeof note === "string");
+        const request = imageEditRequestSchema.safeParse({
+          kind: asString(form.kind),
+          instruction: asString(form.instruction) || undefined,
+          notes: notes.length ? notes : undefined,
+        });
+
+        if (!sourcePath || !targetLocale || !image || !request.success) {
+          return invalidProjectPayloadResponse(c);
+        }
+        if (!image.type.startsWith("image/") || (mask && !mask.type.startsWith("image/"))) {
+          return badRequestResponse(c, "unsupported_image_response", "Edits must be images");
+        }
+        if (imageEditUsesMask(request.data.kind) && !mask) {
+          return badRequestResponse(c, "image_edit_mask_required", "This edit needs a mask");
+        }
+        if (!inferSupportedImageTranslationFileFormat(sourcePath)) {
+          return badRequestResponse(
+            c,
+            "image_edit_unsupported",
+            "Image editing is only available for image files.",
+          );
+        }
+
+        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const organizationSlug =
+          c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const sourceFile = await getRepositorySourceFileByPath({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath,
+        });
+        if (!sourceFile) {
+          return badRequestResponse(
+            c,
+            "source_file_not_found",
+            "Source file not found for the given path",
+          );
+        }
+
+        const lockedResponse = await contentEditorSegmentLockedResponse(c, {
+          organizationId,
+          projectId: params.projectId,
+          targetLocale,
+          externalStringId,
+          externalStringIds: fileBackedCatSegmentIds(sourceFile.id, sourcePath),
+        });
+        if (lockedResponse) {
+          return lockedResponse;
+        }
+
+        const result = await editAndStoreImageVariant({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath,
+          targetLocale,
+          request: request.data,
+          image: Buffer.from(await image.arrayBuffer()),
+          mask: mask ? Buffer.from(await mask.arrayBuffer()) : null,
+          repositorySourceFileId: sourceFile.id,
+          createdByUserId: c.var.auth.user.localUserId,
+          force,
+          signal: c.req.raw.signal,
+        });
+
+        if (!result.ok) {
+          if (result.error.code === "ai_credit_insufficient") {
+            return apiErrorResponse(
+              c,
+              402,
+              result.error.code,
+              "Insufficient AI credit for image editing",
+              {
+                requiredAmountUsd: result.error.requiredAmountUsd,
+                remainingAmountUsd: result.error.remainingAmountUsd,
+                billingSection: "available-plans",
+              },
+            );
+          }
+          if (result.error.code === "ai_credit_unavailable") {
+            return apiErrorResponse(c, 503, result.error.code, result.error.message);
+          }
+          return badRequestResponse(c, result.error.code, "Image edit failed");
+        }
+
+        const targetAssetUrl = result.value.storedFileId
+          ? projectImageAssetPath({
+              organizationSlug,
+              projectId: params.projectId,
+              fileId: result.value.storedFileId,
+            })
+          : null;
+
+        return c.json(
+          {
+            imageVariant: {
+              id: result.value.id,
+              status: result.value.status,
+              targetAssetUrl,
+              storedFileId: result.value.storedFileId,
             },
           },
           200,

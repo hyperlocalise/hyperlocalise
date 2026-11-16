@@ -55,16 +55,6 @@ export const multilingualImageGalleryMessages = defineMessages({
     id: "OaljrNEvvO",
     description: "Accessible label for the per-language regenerate button in the gallery",
   },
-  open: {
-    defaultMessage: "Open",
-    id: "1NT4ECW8F7",
-    description: "Button that opens one language's image in the image editor",
-  },
-  openAria: {
-    defaultMessage: "Open {language} image in the editor",
-    id: "lNwBXN2jgg",
-    description: "Accessible label for the per-language open button in the gallery",
-  },
   generationError: {
     defaultMessage: "Could not localise this image. Try again.",
     id: "cBFV4P0+Px",
