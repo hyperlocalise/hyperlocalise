@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isMarkableProofreadTask, personTaskStep } from "./person-task";
+import { isMarkableProofreadTask, isWaitingTask, personTaskStep } from "./person-task";
 
 describe("person-task", () => {
   it("marks open proofread and post-edit tasks, not translation, agent or finished ones", () => {
@@ -39,5 +39,12 @@ describe("person-task", () => {
     expect(
       personTaskStep({ kind: "proofread", assigneeType: "agent", workflowTaskStep: "edit" }),
     ).toBeNull();
+  });
+
+  it("calls a queued task that comes after another job waiting", () => {
+    expect(isWaitingTask({ status: "queued", afterJobId: "job_1" })).toBe(true);
+    expect(isWaitingTask({ status: "waiting_for_review", afterJobId: "job_1" })).toBe(false);
+    expect(isWaitingTask({ status: "queued", afterJobId: null })).toBe(false);
+    expect(isWaitingTask({ status: "queued" })).toBe(false);
   });
 });

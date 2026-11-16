@@ -32,6 +32,7 @@ import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-form
 import type { VisualTaskStep } from "@/lib/visual-workflows/schema/types";
 
 import { mergeNativeFileTranslationJobMetadata } from "./enqueue-file-translation-job";
+import { statusForTaskAfter } from "./waiting-task";
 
 export type CreateWorkflowTaskJobInput = {
   organizationId: string;
@@ -43,6 +44,8 @@ export type CreateWorkflowTaskJobInput = {
   assigneeWorkosUserId?: string;
   title?: string;
   dueAt?: Date;
+  /** The job this task comes after: the task waits until that job is marked done or cancelled. */
+  afterJobId?: string;
   metadata?: Record<string, string>;
 };
 
@@ -54,6 +57,8 @@ export type CreateWorkflowTaskJobError = {
     | "assignee_not_found"
     | "job_source_locale_not_in_project"
     | "job_target_locale_not_in_project"
+    | "translate_task_cannot_wait"
+    | "after_job_not_found"
     | "task_job_create_failed"
     | (string & {});
   message: string;
@@ -65,15 +70,30 @@ const STEP_TITLE_PREFIX: Record<VisualTaskStep, string> = {
   proofread: "Proofread",
 };
 
+class AfterJobNotFoundError extends Error {}
+
 /**
  * Creates a job a person works on in the editor: translating from scratch, post-editing machine
  * output, or proofreading. Like a proofread job made in the app, it waits for review from the
  * start, is never queued for the translation agent and reserves no AI usage, but still takes one
- * of the organization's open job slots.
+ * of the organization's open job slots. A post-edit or proofread task that comes after an
+ * unfinished job starts as waiting instead (`waiting-task.ts`).
  */
 export async function createWorkflowTaskJob(
   input: CreateWorkflowTaskJobInput,
-): Promise<Result<{ jobId: string; ownerUserId: string | null }, CreateWorkflowTaskJobError>> {
+): Promise<
+  Result<
+    { jobId: string; ownerUserId: string | null; status: "queued" | "waiting_for_review" },
+    CreateWorkflowTaskJobError
+  >
+> {
+  if (input.afterJobId && input.step === "translate") {
+    return err({
+      code: "translate_task_cannot_wait",
+      message: "Only a post-edit or proofread task can come after another task.",
+    });
+  }
+
   const [project] = await db
     .select({
       source: schema.projects.source,
@@ -156,6 +176,7 @@ export async function createWorkflowTaskJob(
   const title = input.title?.trim() || `${STEP_TITLE_PREFIX[input.step]}: ${metadata.title}`;
   const jobId = `job_${randomUUID()}`;
   let repositorySourceFileId: string | null = null;
+  let status: "queued" | "waiting_for_review" = "waiting_for_review";
 
   try {
     await db.transaction(async (tx) => {
@@ -175,6 +196,18 @@ export async function createWorkflowTaskJob(
       });
       repositorySourceFileId = sourceFileVersion?.repositorySourceFileId ?? null;
 
+      if (input.afterJobId) {
+        const afterStatus = await statusForTaskAfter(tx, {
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          afterJobId: input.afterJobId,
+        });
+        if (!afterStatus) {
+          throw new AfterJobNotFoundError();
+        }
+        status = afterStatus;
+      }
+
       await insertJobs(tx, {
         values: {
           id: jobId,
@@ -183,8 +216,9 @@ export async function createWorkflowTaskJob(
           ownerUserId,
           assigneeType: ownerUserId ? "user" : null,
           dueAt: input.dueAt ?? null,
+          afterJobId: input.afterJobId ?? null,
           kind: input.step === "translate" ? "translation" : "proofread",
-          status: "waiting_for_review",
+          status,
           inputPayload: {
             sourceFileId: input.sourceFileId,
             fileFormat,
@@ -204,6 +238,12 @@ export async function createWorkflowTaskJob(
     if (error instanceof OrganizationJobBudgetExceededError) {
       return err({ code: error.budgetError.code, message: error.budgetError.message });
     }
+    if (error instanceof AfterJobNotFoundError) {
+      return err({
+        code: "after_job_not_found",
+        message: "The task to come after was not found in this project.",
+      });
+    }
     return err({ code: "task_job_create_failed", message: "Unable to create the task." });
   }
 
@@ -215,7 +255,7 @@ export async function createWorkflowTaskJob(
     kind: input.step === "translate" ? "translation" : "proofread",
     organizationId: input.organizationId,
     projectId: input.projectId,
-    status: "waiting_for_review",
+    status,
   });
 
   // The task runs no agent, so Reports records its strings now, in the background.
@@ -233,5 +273,5 @@ export async function createWorkflowTaskJob(
     });
   }
 
-  return ok({ jobId, ownerUserId });
+  return ok({ jobId, ownerUserId, status });
 }

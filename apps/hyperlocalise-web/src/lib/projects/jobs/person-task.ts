@@ -46,3 +46,8 @@ export function isMarkableProofreadTask(job: {
     job.kind === "proofread" && job.status === "waiting_for_review" && job.assigneeType !== "agent"
   );
 }
+
+/** A task that comes after another job and has not opened yet (`waiting-task.ts`). */
+export function isWaitingTask(job: { status?: string; afterJobId?: string | null }): boolean {
+  return Boolean(job.afterJobId) && job.status === "queued";
+}
