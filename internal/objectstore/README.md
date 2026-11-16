@@ -2,7 +2,9 @@
 
 `Store` is the shared byte-storage contract for uploaded files and generated
 translation bundles. `s3compat.New` supports AWS S3 and Cloudflare R2 through the
-AWS SDK for Go v2. `memory.New` provides the same contract for tests.
+AWS SDK for Go v2. `vercelblob.New` reads and writes the Vercel Blob store the web app
+keeps stored files in, over the same HTTP API as `@vercel/blob` (`vercelblob.FromEnv` uses
+`BLOB_READ_WRITE_TOKEN` and `FILE_STORAGE_ACCESS`). `memory.New` provides the same contract for tests.
 
 Persist both `Ref.LocationID` and `Ref.Key`. Resolve reads through the recorded
 location, never through the default write location. A location ID must always

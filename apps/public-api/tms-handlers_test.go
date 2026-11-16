@@ -22,6 +22,11 @@ type fakeTMSStore struct {
 	fakeExtrasStore
 	fakeWebhookStore
 	fakeScreenshotStore
+	fakeJobLifecycleStore
+	fakeProjectLookupStore
+	fakeParityStore
+	fakeJobCreateStore
+	fakeFileStore
 	tmsErr           error
 	strings          []translationString
 	translations     []translationRecord

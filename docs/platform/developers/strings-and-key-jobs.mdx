@@ -4,7 +4,7 @@ sidebarTitle: "Strings and key jobs"
 description: "Tag strings, upload screenshots, run batch review, and manage key jobs on native projects with a personal access token."
 ---
 
-Use this API on **native projects** to read and update strings, set tags and design links, upload screenshots and mark keys on them, approve or unverify translations in bulk, and manage [key jobs](/platform/translation/jobs). Create and complete key jobs with the [Files and jobs API](/platform/api#create-a-job) on `hyperlocalise.com`; everything on this page uses the public API host.
+Use this API on **native projects** to read and update strings, set tags and design links, upload screenshots and mark keys on them, approve or unverify translations in bulk, and manage [key jobs](/platform/translation/jobs). Everything on this page, including creating, completing and cancelling jobs, uses the public API host.
 
 ## Base URL and authentication
 
@@ -28,7 +28,7 @@ External TMS projects return `409` with `project_not_native` for string and tran
 | Create or edit strings, upload screenshots, mark keys, send translations to review | `strings:write` (included with `files:write` for roles other than member) |
 | Add or remove tags and design links | `strings:write`, and the token owner must be an admin, localization manager, or developer |
 | Approve translations in bulk | `translations:approve` (included with `files:write` for admins, localization managers, and reviewers) |
-| Manage key job strings and locales, read job lists, update jobs one at a time or in bulk | `jobs:read` / `jobs:write` |
+| Manage key job strings and locales, read job lists, update jobs one at a time or in bulk, complete or cancel jobs | `jobs:read` / `jobs:write` |
 
 A token never grants more than its owner's role allows. See [Roles and permissions](/platform/workspace/roles).
 
@@ -69,6 +69,21 @@ curl --fail-with-body \
 The response is `{ "updated": <count> }`. Send `"designUrl": null` to clear the link. Use `removeTags` to drop tags without adding others.
 
 Only the bulk-update route writes tags and links; single-string `PATCH`, create, and batch upsert do not.
+
+## Custom metadata
+
+Keep your own text on a string, such as a ticket or a source system's ID, in `customMetadata`. Send it as an object of string values when you create a string. On `PATCH /v1/projects/{projectId}/strings/{stringId}`, `customMetadata` is merged: a string sets a key, `null` removes it, and keys you leave out stay.
+
+```bash
+curl --fail-with-body -X PATCH "https://public-api.hyperlocalise.com/v1/projects/$PROJECT_ID/strings/$STRING_ID" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{"customMetadata": {"ticket": "WX-1042", "legacyId": null}}'
+```
+
+Keys are 1–64 letters, digits, `_`, `.`, or `-`, starting with a letter or digit. Values are up to 2,000 characters, and a string holds at most 50 keys. `GET /v1/string-metadata-keys` lists the keys in use across the projects you can access (add `projectId` for one project), with how many strings carry each key.
+
+Custom metadata is only for API integrations. Linguists and machine translation don't see it, so put guidance for translators in `context`.
 
 ## Search strings
 
@@ -131,7 +146,7 @@ curl --fail-with-body \
   -d '{}'
 ```
 
-Each marker picks a string with `stringId`, or `key` (and `filePath` when the key exists in more than one file). A missing `filePath` on an ambiguous key returns `400 ambiguous_key`. Add or replace markers later with `POST .../screenshots/{screenshotId}/markers`. Delete one marker or the whole screenshot with `DELETE`.
+Each marker picks a string with `stringId`, or `key` (and `filePath` when the key exists in more than one file). A missing `filePath` on an ambiguous key returns `400 ambiguous_key`. List a screenshot's markers with `GET .../screenshots/{screenshotId}/markers`, and add or replace them later with `POST` on the same path. Delete one marker or the whole screenshot with `DELETE`.
 
 List screenshots with `GET .../screenshots`. Filter with `stringId` or `key`. Figma-synced frames appear here with `figmaUrl`; this API does not write Figma fields. The [Figma plugin](/platform/connections/figma) still syncs frames on its own.
 
@@ -167,6 +182,26 @@ curl --fail-with-body \
 Requires `strings:write`. Locked segments are skipped.
 
 Both routes return `{ "updated": <count> }`. Omit `locales` to affect every project target language.
+
+## Create a key job
+
+`POST /v1/jobs` with `type: "keys"` creates a task for people on the strings you pick, with exactly one of `stringIds`, `keys`, or `tags`. Only visible strings in the project's files are included, at most 5,000. The job starts as `waiting_for_review`, ready to work in the editor.
+
+```bash
+curl --fail-with-body -X POST "https://public-api.hyperlocalise.com/v1/jobs" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "content-type: application/json" \
+  -H "idempotency-key: request-1042-fr" \
+  -d '{
+    "type": "keys",
+    "projectId": "'$PROJECT_ID'",
+    "title": "REQ-1042 Futures page",
+    "dueAt": "2026-12-01T09:00:00Z",
+    "keysInput": { "sourceLocale": "en", "targetLocales": ["fr"], "tags": ["req-1042"] }
+  }'
+```
+
+The body and errors match `POST /api/v1/jobs` on the [Files and jobs API](/platform/api#create-a-job), and Idempotency-Key values are shared between the two. `string` and `file` jobs are recorded as `queued`, but the public API does not start AI translation for them. Use the Files and jobs API when you want them translated.
 
 ## Key jobs after creation
 
@@ -222,7 +257,38 @@ curl --fail-with-body \
 
 It takes the same fields as `PATCH /v1/jobs/{jobId}` (`title`, `description`, `dueAt`, `ownerEmail`; `null` clears all but `title`) and returns `{ "jobs": [...] }` in request order. The update is all or nothing: if one job is missing, provider-backed, or cannot take the owner, no job changes and the error's `details.jobId` names that job. Each job still sends its own job-changed webhook.
 
-Finish the job with `POST https://hyperlocalise.com/api/v1/jobs/{jobId}/complete` on the files-and-jobs host. See [Complete a task for people](/platform/api#complete-a-task-for-people).
+### Complete or cancel a job
+
+These work like **Mark done** and **Cancel** in the app. Both return `{ "job": ... }` with the new status, and each sends a job-changed webhook.
+
+```bash
+curl --fail-with-body -X POST "https://public-api.hyperlocalise.com/v1/jobs/$JOB_ID/complete" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY"
+```
+
+- `POST /v1/jobs/{jobId}/complete` moves an open proofread task for people (`waiting_for_review`) to `succeeded`. Unfinished strings stay as they are. Reviewers, localization managers, and admins can complete any task. Anyone else can complete only tasks they own, and gets `403 not_task_assignee` for the rest. Tasks for an agent, and the post-editing step of a workflow, finish on their own.
+- `POST /v1/jobs/{jobId}/cancel` moves a `queued`, `running`, or `waiting_for_review` job to `cancelled` and stops it. A cancelled job can't be reopened.
+
+A job that can't take the action, including a provider-backed job, returns `409 job_action_unavailable`.
+
+## Download source and translated files
+
+A job's `sourceFile.fileId` is its original upload, and a finished file job lists each translated file under `outputFiles` with its `fileId` and `locale`. Download any of them with `GET /v1/files/{fileId}/download` (needs `files:read`):
+
+```bash
+curl --fail-with-body -OJ "https://public-api.hyperlocalise.com/v1/files/$FILE_ID/download" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY"
+```
+
+The file comes back as an attachment with its stored name. To wait for a file job, poll `GET /v1/jobs/{jobId}` until `status` is `succeeded`, then download its `outputFiles`.
+
+To get a source file in one language with its current translations, whether or not a job ran, use `GET /v1/projects/{projectId}/translations/download?sourcePath=...&locale=...` (needs `files:read`). The file keeps its own format. In structured files, strings without a translation keep their source text:
+
+```bash
+curl --fail-with-body -OJ -G "https://public-api.hyperlocalise.com/v1/projects/$PROJECT_ID/translations/download" \
+  --data-urlencode "sourcePath=locales/en.json" --data-urlencode "locale=fr" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY"
+```
 
 ## Related editor behavior
 

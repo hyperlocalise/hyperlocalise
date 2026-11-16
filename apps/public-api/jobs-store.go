@@ -340,7 +340,7 @@ func applyJobPatch(ctx context.Context, tx pgx.Tx, actor principal, jobID string
 		changes = append(changes, "job.details_changed")
 	}
 	for _, changeType := range changes {
-		if err := insertJobChangeEvent(ctx, tx, changeType, actor.OrganizationID, jobID, *projectID, kind, status, after.AssigneeType); err != nil {
+		if err := insertJobChangeEvent(ctx, tx, changeType, actor.OrganizationID, jobID, projectID, kind, status, status, after.AssigneeType); err != nil {
 			return job{}, err
 		}
 	}
@@ -398,11 +398,11 @@ func sameString(a, b *string) bool {
 
 // insertJobChangeEvent records the change in the job change outbox in the update's transaction,
 // as the web app's updateJobs does, so outbound webhooks and Job changed workflows hear about it.
-func insertJobChangeEvent(ctx context.Context, tx pgx.Tx, changeType, organizationID, jobID, projectID, kind, status string, assigneeType *string) error {
+func insertJobChangeEvent(ctx context.Context, tx pgx.Tx, changeType, organizationID, jobID string, projectID *string, kind, fromStatus, toStatus string, assigneeType *string) error {
 	if _, err := tx.Exec(ctx, `INSERT INTO job_change_events
 			(organization_id, job_id, project_id, kind, type, from_status, to_status, assignee_type)
-		VALUES ($1, $2, $3, $4::job_kind, $7, $5::job_status, $5::job_status, $6::job_assignee_type)`,
-		organizationID, jobID, projectID, kind, status, assigneeType, changeType); err != nil {
+		VALUES ($1, $2, $3, $4::job_kind, $7, $5::job_status, $8::job_status, $6::job_assignee_type)`,
+		organizationID, jobID, projectID, kind, fromStatus, assigneeType, changeType, toStatus); err != nil {
 		return fmt.Errorf("record job change event: %w", err)
 	}
 	return nil

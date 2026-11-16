@@ -12,9 +12,13 @@ The API reports the token's effective identity, reads Projects, Queries, Jobs,
 Glossaries, and Translation memories, creates native projects (optionally from a
 project template) and manages project templates, defines custom project fields and sets
 their values, manages and searches the strings, translations, screenshots, and settings of native
-projects, round-trips bilingual files, updates jobs one at a time or in bulk, exports
+projects, archives and deletes native projects, keeps custom metadata on strings, reads
+source-file import settings and a project's content sync, round-trips
+bilingual files, downloads stored source and translated files from Vercel Blob, downloads a
+source file rendered in a language (through the web app), creates jobs, updates jobs one at a time or in bulk, completes and cancels jobs, exports
 glossaries, imports and exports glossaries and translation memories, registers job-change
-webhook endpoints, and reads the Reports page's reports. Job creation and file uploads continue to use the existing platform API.
+webhook endpoints, and reads the Reports page's reports. Job creation records the job only: it does not
+start AI translation for string or file jobs. File uploads continue to use the existing platform API.
 
 ## Run locally
 
@@ -25,7 +29,11 @@ export PORT=8081
 export DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise
 # Optional. Required to expose Queries resources for entitled workspaces.
 # export AUTUMN_API_KEY=am_sk_test_...
-# Required to create or rotate webhook endpoints. Same values as go-svc.
+# Required for file downloads. Same Vercel Blob store and access as the web app.
+# export BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
+# export FILE_STORAGE_ACCESS=private
+# Required to create or rotate webhook endpoints, and for translation downloads (rendered by
+# the web app). Same values as go-svc.
 # export HYPERLOCALISE_WEB_INTERNAL_URL=http://localhost:3000
 # export WORKOS_COOKIE_PASSWORD=this-is-a-test-cookie-password-at-least-32-characters
 go run ./apps/public-api

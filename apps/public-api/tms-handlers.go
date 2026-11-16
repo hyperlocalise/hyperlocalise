@@ -47,6 +47,7 @@ var storeErrorResponses = []storeErrorResponse{
 	{errSourceTextInvalid, http.StatusBadRequest, "invalid_source_text", "sourceText may not hold control characters U+001E or U+0000"},
 	{errSourceTextForbidden, http.StatusForbidden, "source_text_forbidden", "Only admins, localization managers and developers can change the source text of strings in files"},
 	{errTranslationTooLong, http.StatusUnprocessableEntity, "translation_too_long", "Translation exceeds the string max length"},
+	{errTooManyCustomMetadata, http.StatusBadRequest, "invalid_custom_metadata", "A string can hold at most 50 customMetadata keys"},
 }
 
 func writeStoreError(w http.ResponseWriter, err error, operation string) {
@@ -141,6 +142,8 @@ type stringCreateBody struct {
 	MaxLength  *int    `json:"maxLength"`
 	Hidden     bool    `json:"hidden"`
 	FilePath   *string `json:"filePath"`
+	// CustomMetadata is the caller's own text on the string, by key.
+	CustomMetadata map[string]string `json:"customMetadata"`
 }
 
 func (s apiServer) createString(w http.ResponseWriter, r *http.Request, projectID string) {
@@ -160,11 +163,13 @@ func (s apiServer) createString(w http.ResponseWriter, r *http.Request, projectI
 		MaxLength:  body.MaxLength,
 		Hidden:     body.Hidden,
 		FilePath:   trimmedOrNil(body.FilePath),
+		// Custom metadata is kept exactly as sent.
+		CustomMetadata: body.CustomMetadata,
 	}
 	if input.Key == "" || len(input.Key) > 1000 || input.SourceText == "" || len(input.SourceText) > maxSourceTextBytes ||
 		!validOptionalText(input.Context, 10_000) || !validOptionalText(input.Type, 64) ||
-		!validOptionalText(input.FilePath, 2048) || !validMaxLength(input.MaxLength) {
-		writeError(w, http.StatusBadRequest, "invalid_body", "key and sourceText are required; context, type, maxLength, or filePath is invalid")
+		!validOptionalText(input.FilePath, 2048) || !validMaxLength(input.MaxLength) || !validCustomMetadata(input.CustomMetadata) {
+		writeError(w, http.StatusBadRequest, "invalid_body", "key and sourceText are required; context, type, maxLength, filePath, or customMetadata is invalid")
 		return
 	}
 	if !sourcetext.ValidText(input.SourceText) {
@@ -216,6 +221,8 @@ func (s apiServer) projectString(w http.ResponseWriter, r *http.Request) {
 			MaxLength    optionalInt    `json:"maxLength"`
 			Hidden       *bool          `json:"hidden"`
 			KeepApproved bool           `json:"keepApproved"`
+			// CustomMetadata is a merge patch: a string sets the key, null removes it.
+			CustomMetadata map[string]*string `json:"customMetadata"`
 		}
 		if !decodeJSONBody(w, r, &body) {
 			return
@@ -225,10 +232,11 @@ func (s apiServer) projectString(w http.ResponseWriter, r *http.Request) {
 			trimmed := strings.TrimSpace(*body.SourceText)
 			body.SourceText = &trimmed
 		}
-		empty := body.SourceText == nil && !body.Context.Set && !body.MaxLength.Set && body.Hidden == nil
+		empty := body.SourceText == nil && !body.Context.Set && !body.MaxLength.Set && body.Hidden == nil && len(body.CustomMetadata) == 0
 		if empty || (body.SourceText != nil && (*body.SourceText == "" || len(*body.SourceText) > maxSourceTextBytes)) ||
-			!validOptionalText(body.Context.Value, 10_000) || !validMaxLength(body.MaxLength.Value) {
-			writeError(w, http.StatusBadRequest, "invalid_body", "Provide sourceText, context, maxLength, or hidden with valid values")
+			!validOptionalText(body.Context.Value, 10_000) || !validMaxLength(body.MaxLength.Value) ||
+			!validCustomMetadataPatch(body.CustomMetadata) {
+			writeError(w, http.StatusBadRequest, "invalid_body", "Provide sourceText, context, maxLength, hidden, or customMetadata with valid values")
 			return
 		}
 		item, err := s.store.updateString(r.Context(), p, projectID, stringID, stringPatch(body))

@@ -25,6 +25,9 @@ type projectPatch struct {
 	Description        *string
 	TranslationContext *string
 	TargetLocales      []string
+	// Active archives (false) or restores (true) the project. A restored project must fit
+	// the workspace's project limit.
+	Active *bool
 }
 
 // canonicalLocale follows canonicalizeLocale in the web app, which uses
@@ -75,10 +78,19 @@ func normalizeTargetLocales(raw []string, sourceLocale *string) ([]string, error
 func (s *postgresStore) updateProject(ctx context.Context, actor principal, projectID string, patch projectPatch) (project, error) {
 	var updated project
 	err := s.withNativeProject(ctx, actor, projectID, func(tx pgx.Tx, scope projectScope) error {
-		if _, err := tx.Exec(ctx, `SELECT 1 FROM projects WHERE id = $1 FOR UPDATE`, scope.ID); err != nil {
+		var active bool
+		if err := tx.QueryRow(ctx, `SELECT is_active FROM projects WHERE id = $1 FOR UPDATE`, scope.ID).Scan(&active); err != nil {
 			return fmt.Errorf("lock project: %w", err)
 		}
 		set := newSQLFilter("updated_at = now()")
+		if patch.Active != nil {
+			if *patch.Active && !active {
+				if err := s.checkProjectLimit(ctx, tx, actor); err != nil {
+					return err
+				}
+			}
+			set.add("is_active = ?", *patch.Active)
+		}
 		if patch.Name != nil {
 			set.add("name = ?", *patch.Name)
 		}
@@ -135,6 +147,9 @@ func (patch projectPatch) changedFields() []string {
 	}
 	if patch.TargetLocales != nil {
 		fields = append(fields, "targetLocales")
+	}
+	if patch.Active != nil {
+		fields = append(fields, "active")
 	}
 	return fields
 }
@@ -311,4 +326,62 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 	}
 	saved, err := loadString(ctx, tx, actor, scope, existingID)
 	return saved, false, err
+}
+
+// errTeamGlossaryNeedsProject is go-svc's glossary_team_project_required: a team glossary must
+// stay attached to at least one native project.
+var errTeamGlossaryNeedsProject = errors.New("team glossary needs another native project")
+
+// deleteProject ports go-svc's project delete: only native projects can be deleted, and not the
+// last native project a team glossary is attached to. Everything the project holds is removed
+// with it.
+func (s *postgresStore) deleteProject(ctx context.Context, actor principal, projectID string) error {
+	return s.withNativeProject(ctx, actor, projectID, func(tx pgx.Tx, scope projectScope) error {
+		if _, err := tx.Exec(ctx, `SELECT 1 FROM projects WHERE id = $1 FOR UPDATE`, scope.ID); err != nil {
+			return fmt.Errorf("lock project: %w", err)
+		}
+		// Locked in ID order, so concurrent deletes of projects sharing a glossary cannot deadlock
+		// and the second sees the first's delete.
+		rows, err := tx.Query(ctx, `SELECT g.id
+			FROM glossaries g
+			WHERE g.organization_id = $2 AND g.control_level = 'team'
+				AND EXISTS (
+					SELECT 1 FROM project_glossaries pg
+					WHERE pg.glossary_id = g.id AND pg.project_id = $1 AND pg.organization_id = $2
+				)
+			ORDER BY g.id
+			FOR UPDATE`, scope.ID, actor.OrganizationID)
+		if err != nil {
+			return fmt.Errorf("lock team glossaries: %w", err)
+		}
+		glossaryIDs, err := pgx.CollectRows(rows, pgx.RowTo[string])
+		if err != nil {
+			return fmt.Errorf("lock team glossaries: %w", err)
+		}
+		for _, glossaryID := range glossaryIDs {
+			var nativeCount int
+			if err := tx.QueryRow(ctx, `SELECT count(*) FROM project_glossaries pg
+				JOIN projects p ON p.id = pg.project_id
+				WHERE pg.glossary_id = $1 AND p.source = 'native'`, glossaryID).Scan(&nativeCount); err != nil {
+				return fmt.Errorf("count glossary projects: %w", err)
+			}
+			if nativeCount <= 1 {
+				return errTeamGlossaryNeedsProject
+			}
+		}
+		tag, err := tx.Exec(ctx, `DELETE FROM projects WHERE organization_id = $1 AND id = $2`, actor.OrganizationID, scope.ID)
+		if err != nil {
+			return fmt.Errorf("delete project: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return errProjectNotFound
+		}
+		// Same event and payload as go-svc's project delete.
+		return insertActivity(ctx, tx, actor, activityEvent{
+			EventType:  "project_deleted",
+			TargetID:   scope.ID,
+			TargetKind: "project",
+			Payload:    map[string]any{"resourceId": scope.ID},
+		})
+	})
 }

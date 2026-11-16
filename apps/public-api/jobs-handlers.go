@@ -28,7 +28,11 @@ func writeJobStoreError(w http.ResponseWriter, err error, operation string) {
 }
 
 func (s apiServer) jobs(w http.ResponseWriter, r *http.Request) {
-	if !allowMethods(w, r, http.MethodGet) {
+	if !allowMethods(w, r, http.MethodGet, http.MethodPost) {
+		return
+	}
+	if r.Method == http.MethodPost {
+		s.createJob(w, r)
 		return
 	}
 	p, ok := s.authenticateWithStore(w, r, "jobs:read")

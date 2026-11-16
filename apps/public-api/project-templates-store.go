@@ -9,6 +9,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/customfield"
 	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
 	"github.com/hyperlocalise/hyperlocalise/internal/projecttemplate"
+	"github.com/jackc/pgx/v5"
 )
 
 // projectLocalFallbackLimit matches go-svc: without Autumn, a workspace may hold one project.
@@ -111,27 +112,8 @@ func (s *postgresStore) createProject(ctx context.Context, actor principal, req 
 		return project{}, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
-		"workspace_resource_limit:"+actor.OrganizationID+":projects"); err != nil {
-		return project{}, fmt.Errorf("lock project limit: %w", err)
-	}
-	var count int
-	if err := tx.QueryRow(ctx, `SELECT count(*)::int FROM projects WHERE organization_id = $1 AND is_active = true`,
-		actor.OrganizationID).Scan(&count); err != nil {
-		return project{}, errProjectLimitCheck
-	}
-	if s.autumn == nil {
-		if count+1 > projectLocalFallbackLimit {
-			return project{}, errProjectLimitReached
-		}
-	} else {
-		allowed, err := s.autumn.allowsUsage(ctx, actor.OrganizationID, "projects", float64(count+1))
-		if err != nil {
-			return project{}, errProjectLimitCheck
-		}
-		if !allowed {
-			return project{}, errProjectLimitReached
-		}
+	if err := s.checkProjectLimit(ctx, tx, actor); err != nil {
+		return project{}, err
 	}
 
 	projectID, err := nativeproject.Create(ctx, tx, nativeproject.Actor{
@@ -164,4 +146,32 @@ func (s *postgresStore) createProject(ctx context.Context, actor principal, req 
 		return project{}, err
 	}
 	return created, tx.Commit(ctx)
+}
+
+// checkProjectLimit locks the workspace's project limit for the transaction and checks that one
+// more active project fits, as go-svc does when it creates a project.
+func (s *postgresStore) checkProjectLimit(ctx context.Context, tx pgx.Tx, actor principal) error {
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+		"workspace_resource_limit:"+actor.OrganizationID+":projects"); err != nil {
+		return fmt.Errorf("lock project limit: %w", err)
+	}
+	var count int
+	if err := tx.QueryRow(ctx, `SELECT count(*)::int FROM projects WHERE organization_id = $1 AND is_active = true`,
+		actor.OrganizationID).Scan(&count); err != nil {
+		return errProjectLimitCheck
+	}
+	if s.autumn == nil {
+		if count+1 > projectLocalFallbackLimit {
+			return errProjectLimitReached
+		}
+		return nil
+	}
+	allowed, err := s.autumn.allowsUsage(ctx, actor.OrganizationID, "projects", float64(count+1))
+	if err != nil {
+		return errProjectLimitCheck
+	}
+	if !allowed {
+		return errProjectLimitReached
+	}
+	return nil
 }

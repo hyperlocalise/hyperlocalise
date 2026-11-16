@@ -136,6 +136,16 @@ type resourceStore interface {
 	setProjectCustomFields(context.Context, principal, string, map[string]json.RawMessage) ([]customfield.ProjectValue, error)
 	missingStringKeys(context.Context, principal, string, []string) ([]string, error)
 	bulkUpdateJobs(context.Context, principal, []string, jobPatch) ([]job, error)
+	createJob(context.Context, principal, jobCreate, *jobIdempotency) (createdJobResult, bool, error)
+	openStoredFile(context.Context, principal, string) (storedFileDownload, error)
+	completeJob(context.Context, principal, string) (job, error)
+	cancelJob(context.Context, principal, string) (job, error)
+	listSourceFiles(context.Context, principal, string, sourceFileFilters) ([]projectSourceFile, int, error)
+	getSourceFile(context.Context, principal, string, string) (projectSourceFile, error)
+	getProjectContentSync(context.Context, principal, string) (projectContentSync, error)
+	deleteProject(context.Context, principal, string) error
+	listScreenshotMarkers(context.Context, principal, string, string) ([]screenshotMarker, error)
+	listStringMetadataKeys(context.Context, principal, string) ([]stringMetadataKey, error)
 	listWebhookEndpoints(context.Context, principal) ([]webhookEndpoint, error)
 	createWebhookEndpoint(context.Context, principal, webhookCreate) (createdWebhookEndpoint, error)
 	updateWebhookEndpoint(context.Context, principal, string, webhookPatch) (webhookEndpoint, error)
@@ -158,6 +168,9 @@ type postgresStore struct {
 	glossaryImports glossaryImportQueue
 	// autumn checks the workspace's project limit; nil allows one project, as go-svc does.
 	autumn *autumnClient
+	// fileStores reads stored files by stored_files.storage_provider; downloads of a provider
+	// with no store return file_storage_unavailable.
+	fileStores map[string]objectstore.Store
 	// webhookSecrets mints encrypted signing secrets from the web app. Create and rotate
 	// return webhook_secret_encryption_failed when it is nil.
 	webhookSecrets webhookSecretMinter
