@@ -243,6 +243,10 @@ export function VisualWorkflowConfigPanel({
   const upstreamFields = listUpstreamFields({ node, nodes, edges, testData: allTestData });
   const upstreamIds = upstreamNodeIds(node.id, edges);
   const triggerId = nodes.find((step) => isTriggerType(step.data.catalogType))?.id;
+  const jobChangedTrigger = nodes.find((step) => step.data.config.kind === "trigger.job_changed")
+    ?.data.config;
+  const jobChangedProjectId =
+    jobChangedTrigger?.kind === "trigger.job_changed" ? jobChangedTrigger.projectId : undefined;
   const stepTitle = (nodeId: string) => {
     const step = nodes.find((entry) => entry.id === nodeId);
     return step
@@ -2856,7 +2860,12 @@ export function VisualWorkflowConfigPanel({
               placeholder={intl.formatMessage(messages.selectProject)}
               invalid={invalidFields.has("destinationProjectId")}
               items={resources.projects
-                .filter((project) => project.source !== "external_tms" && project.sourceLocale)
+                .filter(
+                  (project) =>
+                    project.source !== "external_tms" &&
+                    project.sourceLocale &&
+                    project.id !== jobChangedProjectId,
+                )
                 .map((project) => ({
                   value: project.id,
                   label: `${project.name} (${project.sourceLocale})`,

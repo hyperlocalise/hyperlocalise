@@ -1865,6 +1865,12 @@ export const visualWorkflowEditorMessages = defineMessages({
     description:
       "Validation issue on a Job changed trigger with no project in a workflow that has a Use translation as source step",
   },
+  translationAsSourceSameProject: {
+    defaultMessage: "Choose another project: this is the Job changed trigger's project.",
+    id: "LWzKak1wim",
+    description:
+      "Validation issue when Use translation as source would send files back to the trigger's project",
+  },
   translationAsSourceAnyProject: {
     defaultMessage: "Send tasks from any project",
     id: "6dIZQRvuRQ",

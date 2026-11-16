@@ -643,6 +643,7 @@ export type VisualWorkflowValidationIssue = {
     | "retry_foreach_nesting"
     | "non_idempotent_retry"
     | "trigger_project_required"
+    | "translation_as_source_same_project"
     | "invalid_retry_policy"
     | "duplicate_id"
     | "cycle"

@@ -348,6 +348,17 @@ export function compileWorkflowIssues(
         field: "destinationProjectId",
         reason: "required",
       });
+    // Every finished task of the trigger's project would be sent back into that project.
+    if (
+      node.config.kind === "action.translation_as_source" &&
+      node.config.destinationProjectId &&
+      jobTrigger?.config.kind === "trigger.job_changed" &&
+      jobTrigger.config.projectId === node.config.destinationProjectId
+    ) {
+      add("translation_as_source_same_project", node.id, undefined, {
+        field: "destinationProjectId",
+      });
+    }
     for (const field of node.outputFields ?? [])
       if (
         field.path.split(".").some((key) => ["__proto__", "constructor", "prototype"].includes(key))

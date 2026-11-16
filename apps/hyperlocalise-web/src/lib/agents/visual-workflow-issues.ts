@@ -146,6 +146,8 @@ function explainIssue(definition: VisualWorkflowV3Definition, issue: Issue): str
       return `${step} puts a Loop and a Retry one inside the other, which is not allowed.`;
     case "trigger_project_required":
       return `${step} has no project, so Use translation as source would send finished tasks from every project. The person chooses the project on ${step}, or ticks Send tasks from any project on each Use translation as source step.`;
+    case "translation_as_source_same_project":
+      return `${setting ?? step} is the Job changed trigger's project, so every finished task would be sent to the project it is already in. The person picks another project to send to.`;
     case "non_idempotent_retry":
       return `${step} repeats steps that send or change something, so a retry could do it twice. The person accepts that risk on the Retry step.`;
     case "overlapping_try_catch_region":

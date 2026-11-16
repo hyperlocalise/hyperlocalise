@@ -218,28 +218,27 @@ async function chainedProjects() {
 
 describe("Use translation as source step", () => {
   it("sorts send problems a person must act on from those where nothing should be sent", () => {
-    const actOn: TranslationAsSourceError["code"][] = [
-      "translations_not_approved",
-      "destination_file_replaced",
-      "destination_branch_protected",
-      "source_file_not_ready",
-      "source_file_read_failed",
-      "file_reads_differently",
-      "file_cannot_be_written",
-      "file_build_failed",
-      "upload_failed",
-      "same_project",
-      "project_not_native",
-      "locale_not_a_target",
-      "destination_source_locale_mismatch",
-    ];
-    const nothingToSend: TranslationAsSourceError["code"][] = [
-      "source_file_not_found",
-      "unsupported_file_format",
-      "no_strings",
-    ];
-    expect(actOn.filter(isRefusal)).toEqual([]);
-    expect(nothingToSend.every(isRefusal)).toBe(true);
+    const classification = {
+      translations_not_approved: "act",
+      destination_file_replaced: "act",
+      destination_branch_protected: "act",
+      source_file_not_ready: "act",
+      source_file_read_failed: "act",
+      file_reads_differently: "act",
+      file_cannot_be_written: "act",
+      file_build_failed: "act",
+      upload_failed: "act",
+      same_project: "act",
+      project_not_native: "act",
+      locale_not_a_target: "act",
+      destination_source_locale_mismatch: "act",
+      source_file_not_found: "skip",
+      unsupported_file_format: "skip",
+      no_strings: "skip",
+    } as const satisfies Record<TranslationAsSourceError["code"], "act" | "skip">;
+    for (const [code, kind] of Object.entries(classification)) {
+      expect(isRefusal(code as TranslationAsSourceError["code"])).toBe(kind === "skip");
+    }
   });
 
   const sendWorkflow = (trigger: Record<string, unknown>, send: Record<string, unknown> = {}) =>
@@ -319,6 +318,16 @@ describe("Use translation as source step", () => {
         nodeId: "send",
         field: "destinationProjectId",
         reason: "required",
+      },
+    ]);
+  });
+
+  it("asks for another project when the trigger and the send pick the same one", () => {
+    expect(validateVisualWorkflowV3Definition(sendWorkflow({ projectId: "project_en" }))).toEqual([
+      {
+        code: "translation_as_source_same_project",
+        nodeId: "send",
+        field: "destinationProjectId",
       },
     ]);
   });
@@ -561,6 +570,9 @@ describe("Use translation as source step", () => {
     });
     expect(
       await byTask({ targetLocales: ["fr-FR"], sourceFileId: chained.file.storedFile.id }),
+    ).toMatchObject({ ok: true, output: { sent: false, reason: "task_in_other_language" } });
+    expect(
+      await byTask({ targetLocales: "fr-FR", sourceFileId: chained.file.storedFile.id }),
     ).toMatchObject({ ok: true, output: { sent: false, reason: "task_in_other_language" } });
     expect(await byTask({ sourceFileId: randomUUID() })).toMatchObject({
       ok: true,

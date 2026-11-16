@@ -94,6 +94,14 @@ export function isRefusal(
   return Object.hasOwn(REFUSAL_MESSAGES, code);
 }
 
+/** Locales the task is for, as Assign task stores them or as a single locale string. */
+function taskLocales(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+  }
+  return typeof value === "string" && value.length > 0 ? [value] : [];
+}
+
 function sendFailure(error: TranslationAsSourceError, locale: string) {
   if (error.code === "translations_not_approved") {
     const one = error.missingCount === 1;
@@ -209,10 +217,11 @@ export async function runTranslationAsSourceAction(
   }
   // Checked before the projects, so a trigger on any project skips the tasks of projects that
   // do not translate into this language, the destination's own tasks among them.
+  const locales = taskLocales(targetLocales);
   if (
-    Array.isArray(targetLocales) &&
+    locales.length > 0 &&
     destination?.sourceLocale &&
-    !targetLocales.includes(destination.sourceLocale)
+    !locales.includes(destination.sourceLocale)
   ) {
     return refused("task_in_other_language");
   }
