@@ -159,6 +159,13 @@ type resourceStore interface {
 	deleteScreenshot(context.Context, principal, string, string) error
 	upsertScreenshotMarkers(context.Context, principal, string, string, []screenshotMarkerInput) ([]screenshotMarker, error)
 	deleteScreenshotMarker(context.Context, principal, string, string, string) error
+	listFigmaAttachments(context.Context, principal, string, figmaAttachmentFilters) ([]figmaAttachment, int, error)
+	getFigmaAttachment(context.Context, principal, string, string) (figmaAttachment, error)
+	createFigmaAttachment(context.Context, principal, string, string) (figmaAttachment, error)
+	deleteFigmaAttachment(context.Context, principal, string, string) error
+	listFigmaAttachmentStrings(context.Context, principal, string, string, int, int) ([]figmaAttachmentString, int, error)
+	linkFigmaAttachmentStrings(context.Context, principal, string, string, stringSelector) (int, error)
+	unlinkFigmaAttachmentStrings(context.Context, principal, string, string, stringSelector) (int, error)
 }
 
 type postgresStore struct {

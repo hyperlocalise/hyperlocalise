@@ -27,6 +27,7 @@ type fakeTMSStore struct {
 	fakeParityStore
 	fakeJobCreateStore
 	fakeFileStore
+	fakeFigmaStore
 	tmsErr           error
 	strings          []translationString
 	translations     []translationRecord
