@@ -147,22 +147,17 @@ describe("Reports page", () => {
   it("shows every tab to roles that see costs, and the period's headline numbers", async () => {
     renderPage();
     expect(await screen.findByText("48,210")).toBeInTheDocument();
+    // Reports sit in four groups; Overview holds one report, so it has no tabs of its own.
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-      "Activity",
-      "Word counts",
-      "Contributors",
-      "Time",
-      "AI usage",
-      "Costs",
-      "Cost estimate",
-      "Budgets",
+      "Overview",
+      "Output",
+      "People",
+      "Money",
     ]);
     // AI usage has its own tab now: the Activity tab reads none.
     expect(callsTo("ai-usage")).toEqual([]);
-    expect(
-      screen.getByText("Reporting started Mar 3, 2026 · Days and weeks use UTC"),
-    ).toBeInTheDocument();
-    // Activity changes are neutral sentences against the previous 28 days.
+    expect(screen.getByText("Recording since Mar 3, 2026")).toBeInTheDocument();
+    // Activity changes are sentences against the previous 28 days.
     expect(screen.getByText("+12% vs previous 28 days")).toBeInTheDocument();
     expect(screen.getAllByText(/points vs previous 28 days/).length).toBeGreaterThan(0);
     // Time on each step: logged time by what each task is for, then task runs and their
@@ -205,11 +200,11 @@ describe("Reports page", () => {
   it("ends on the last tab chosen when tabs are switched faster than the address updates", async () => {
     renderPage();
     await screen.findByText("48,210");
-    // Time, then straight back to Activity before the first change has reached the address.
-    await userEvent.click(screen.getByRole("tab", { name: "Time" }));
-    await userEvent.click(screen.getByRole("tab", { name: "Activity" }));
+    // People, then straight back to Overview before the first change has reached the address.
+    await userEvent.click(screen.getByRole("tab", { name: "People" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Overview" }));
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(screen.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
     expect(currentHref()).toBe(PATHNAME);
   });
 
@@ -335,8 +330,11 @@ describe("Reports page", () => {
     mocks.search = "tab=estimate";
     const { unmount } = renderPage();
     expect(await screen.findByText("Choose tasks to estimate")).toBeInTheDocument();
-    expect(filterLabels()).toEqual(["Project", "Tasks", "Language", "Rate card"]);
+    expect(filterLabels()).toEqual(["Project", "Tasks", "Rate card"]);
     expect(screen.getByRole("button", { name: "Manage rates" })).toBeInTheDocument();
+    // The language filter is behind the Filters button.
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    expect(await screen.findByRole("combobox", { name: "Language" })).toBeInTheDocument();
     // No tasks chosen, so nothing is estimated.
     expect(callsTo("cost-estimate")).toEqual([]);
     unmount();
@@ -363,7 +361,14 @@ describe("Reports page", () => {
     await waitFor(() =>
       expect(currentHref()).toBe("/en/org/acme/reports?tab=words&range=7&unit=strings&group=task"),
     );
-    await userEvent.click(screen.getByRole("tab", { name: "Time" }));
+    // A group opens on its first report.
+    await userEvent.click(screen.getByRole("tab", { name: "People" }));
+    await waitFor(() =>
+      expect(currentHref()).toBe(
+        "/en/org/acme/reports?tab=contributors&range=7&unit=strings&group=task",
+      ),
+    );
+    await userEvent.click(await screen.findByRole("tab", { name: "Time" }));
     await waitFor(() =>
       expect(currentHref()).toBe("/en/org/acme/reports?tab=time&range=7&unit=strings&group=task"),
     );
@@ -610,17 +615,9 @@ describe("Reports page", () => {
     renderPage();
     // The card and the table's total.
     expect(await screen.findAllByText("$41.25")).toHaveLength(2);
-    // The filter bar's fields, then the table's two groupings.
-    expect(filterLabels()).toEqual([
-      "Dates",
-      "Project",
-      "Task",
-      "Area",
-      "Channel",
-      "Key",
-      "Group by",
-      "Then by",
-    ]);
+    // The filter bar's fields (Area, Channel and Key are behind Filters), then the table's two
+    // groupings.
+    expect(filterLabels()).toEqual(["Project", "Task", "Dates", "Group by", "Then by"]);
     expect(callsTo("ai-usage")[0]?.args.query).toMatchObject({
       groupBy: "area",
       thenBy: "model",
@@ -747,7 +744,9 @@ describe("Reports page", () => {
       },
     };
     const { unmount } = renderPage();
-    const card = (await screen.findByText("AI credit used")).parentElement!;
+    const card = (await screen.findByText("AI credit used")).closest<HTMLElement>(
+      "[data-slot=report-stat-card]",
+    )!;
     expect(within(card).getByText("No change to show")).toBeInTheDocument();
     expect(within(card).queryByText(/vs previous/)).toBeNull();
     unmount();
@@ -767,15 +766,21 @@ describe("Reports page", () => {
         "ai-usage": { aiUsage: { ...reportsAiUsage, previous: before(unrecorded) } },
       };
       const view = renderPage();
-      const shown = (await screen.findByText("AI credit used")).parentElement!;
+      const shown = (await screen.findByText("AI credit used")).closest<HTMLElement>(
+        "[data-slot=report-stat-card]",
+      )!;
       expect(Boolean(within(shown).queryByText(/vs previous/)), String(unrecorded)).toBe(compared);
       view.unmount();
     }
     renderPage();
 
+    await userEvent.click(await screen.findByRole("button", { name: "Filters" }));
     await userEvent.click(await screen.findByRole("combobox", { name: "Key" }));
     await userEvent.click(await screen.findByRole("option", { name: "Your own key" }));
     await waitFor(() => expect(currentHref()).toBe("/en/org/acme/reports?tab=ai&key=own_key"));
+    // The chosen filter shows as a chip that clears it.
+    await userEvent.click(await screen.findByRole("button", { name: "Remove Key filter" }));
+    await waitFor(() => expect(currentHref()).toBe("/en/org/acme/reports?tab=ai"));
   });
 
   it("keeps a row whose filter is already set as text, and narrows the rows under it", async () => {

@@ -103,7 +103,9 @@ export function ReportsDateRange({
 
   return (
     <Field className="w-auto">
-      <FieldLabel id={labelId}>{intl.formatMessage(messages.dates)}</FieldLabel>
+      <FieldLabel id={labelId} className="sr-only">
+        {intl.formatMessage(messages.dates)}
+      </FieldLabel>
       <Popover
         open={open}
         onOpenChange={(next) => {

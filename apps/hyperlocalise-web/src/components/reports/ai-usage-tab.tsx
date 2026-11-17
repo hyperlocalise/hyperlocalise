@@ -24,7 +24,7 @@ import { describeChange } from "@/lib/reporting/report-period";
 import { aiGroupLabel, dimensionLabel } from "./ai-usage-labels";
 import { aiUsageTabMessages as messages } from "./ai-usage-tab.messages";
 import {
-  formatChange,
+  statCardChange,
   formatCompact,
   formatCount,
   formatRateAmount,
@@ -147,7 +147,7 @@ export function AiUsageTab({
 }) {
   const usage = useAiUsage(input);
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       <AiFilterChips
         state={input.state}
         automationName={usage.data?.automationName ?? null}
@@ -231,7 +231,7 @@ function AiUsageCards({ data, organizationSlug }: { data: AiUsageData; organizat
     before: number | null,
     formatValue?: (value: number) => string,
   ) =>
-    formatChange(
+    statCardChange(
       intl,
       describeChange({ current: now, previous: before, hasEarlierData: period.hasEarlierData }),
       period.days,
@@ -241,15 +241,24 @@ function AiUsageCards({ data, organizationSlug }: { data: AiUsageData; organizat
     <div className="flex flex-col gap-2">
       <ReportStatCards>
         <ReportStatCard
+          featured
+          label={intl.formatMessage(messages.charge)}
+          value={chargeLabel(intl, totals).text}
+          {...change(comparableCredit(totals), comparableCredit(previous), (amount) =>
+            formatRateAmount(intl, amount.toFixed(8)),
+          )}
+          hint={intl.formatMessage(messages.chargeDetail)}
+        />
+        <ReportStatCard
           label={intl.formatMessage(messages.calls)}
           value={formatCount(intl, totals.calls)}
-          change={change(totals.calls, previous.calls)}
-          detail={intl.formatMessage(messages.callsDetail)}
+          {...change(totals.calls, previous.calls)}
+          hint={intl.formatMessage(messages.callsDetail)}
         />
         <ReportStatCard
           label={intl.formatMessage(messages.tokens)}
           value={formatCompact(intl, tokenTotal(totals))}
-          change={change(tokenTotal(totals), tokenTotal(previous), (value) =>
+          {...change(tokenTotal(totals), tokenTotal(previous), (value) =>
             formatCompact(intl, value),
           )}
           detail={intl.formatMessage(messages.tokensDetail, {
@@ -261,20 +270,12 @@ function AiUsageCards({ data, organizationSlug }: { data: AiUsageData; organizat
         <ReportStatCard
           label={intl.formatMessage(messages.images)}
           value={formatCount(intl, totals.images)}
-          change={change(totals.images, previous.images)}
+          {...change(totals.images, previous.images)}
         />
         <ReportStatCard
           label={intl.formatMessage(messages.videos)}
           value={formatCount(intl, totals.videos)}
-          change={change(totals.videos, previous.videos)}
-        />
-        <ReportStatCard
-          label={intl.formatMessage(messages.charge)}
-          value={chargeLabel(intl, totals).text}
-          change={change(comparableCredit(totals), comparableCredit(previous), (amount) =>
-            formatRateAmount(intl, amount.toFixed(8)),
-          )}
-          detail={intl.formatMessage(messages.chargeDetail)}
+          {...change(totals.videos, previous.videos)}
         />
       </ReportStatCards>
       <div className="flex flex-col gap-1 text-[13px] text-muted-foreground">

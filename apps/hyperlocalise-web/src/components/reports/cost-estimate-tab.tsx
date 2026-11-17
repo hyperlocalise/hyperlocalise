@@ -129,7 +129,7 @@ export function CostEstimateTab({
       />
     );
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {wholeProject ? (
         <p className="text-sm text-muted-foreground">
           {intl.formatMessage(messages.wholeProjectNote)}
@@ -237,10 +237,11 @@ function EstimateBody({
               basis: intl.formatMessage(BASIS_NOUN[totals.weightedBasis]),
             })}
             value={formatCount(intl, totals.weighted)}
-            detail={intl.formatMessage(messages.weightedDetail)}
+            hint={intl.formatMessage(messages.weightedDetail)}
           />
         ) : null}
         <ReportStatCard
+          featured
           label={intl.formatMessage(messages.estimatedCost)}
           value={
             nothingPriced ? intl.formatMessage(messages.notPriced) : formatUsd(intl, totals.costUsd)
@@ -258,7 +259,7 @@ function EstimateBody({
         <ReportStatCard
           label={intl.formatMessage(messages.memorySavings)}
           value={formatShare(intl, totals.memorySavings)}
-          detail={intl.formatMessage(messages.memorySavingsDetail)}
+          hint={intl.formatMessage(messages.memorySavingsDetail)}
         />
       </ReportStatCards>
       <MatchBandTable

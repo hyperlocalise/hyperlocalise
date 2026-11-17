@@ -104,6 +104,24 @@ export function formatChange(
   }
 }
 
+export type ReportTrend = "up" | "down" | "flat";
+
+/** Which way a change went, or nothing when there is no change to show. */
+export function changeTrend(change: ReportChange): ReportTrend | undefined {
+  if (change.kind === "no_earlier_data" || change.kind === "unavailable") return undefined;
+  return change.value > 0 ? "up" : change.value < 0 ? "down" : "flat";
+}
+
+/** A stat card's change against the previous period: its text and which way it went. */
+export function statCardChange(
+  intl: IntlShape,
+  change: ReportChange,
+  days: number,
+  formatValue?: (value: number) => string,
+) {
+  return { change: formatChange(intl, change, days, formatValue), trend: changeTrend(change) };
+}
+
 const UNIT_MESSAGES = {
   words: messages.unitWords,
   strings: messages.unitStrings,

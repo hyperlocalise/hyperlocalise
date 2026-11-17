@@ -60,7 +60,8 @@ function renderReport() {
 }
 
 const callsTo = (endpoint: string) => mocks.calls.filter((call) => call.endpoint === endpoint);
-const card = (label: string) => screen.getByText(label, { selector: "p" }).parentElement;
+const card = (label: string) =>
+  screen.getByText(label, { selector: "p" }).closest("[data-slot=report-stat-card]");
 const rowOf = (table: HTMLElement, start: string) =>
   within(table)
     .getAllByRole("row")

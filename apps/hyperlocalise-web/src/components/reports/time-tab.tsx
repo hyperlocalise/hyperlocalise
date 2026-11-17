@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { describeChange } from "@/lib/reporting/report-period";
 
 import { LogTimeDialog } from "./log-time-dialog";
-import { formatChange, formatDuration, stepLabel, taskStepLabel } from "./report-format";
+import { formatDuration, statCardChange, stepLabel, taskStepLabel } from "./report-format";
 import { DownloadCsvButton, ReportEmpty, ReportPager, ReportSectionState } from "./report-section";
 import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./report-stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
@@ -47,15 +47,16 @@ export function TimeTab({
   const time = useLoggedTime(input);
   const [logging, setLogging] = useState(false);
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {time.isPending && !time.data ? (
         <ReportStatCardsSkeleton count={3} />
       ) : time.data ? (
         <ReportStatCards>
           <ReportStatCard
+            featured
             label={intl.formatMessage(messages.timeLogged)}
             value={formatDuration(intl, time.data.logged.totals.minutes)}
-            change={formatChange(
+            {...statCardChange(
               intl,
               describeChange({
                 current: time.data.logged.totals.minutes,

@@ -60,7 +60,7 @@ export function BudgetsTab({
   const [editing, setEditing] = useState(false);
   const numeric = "text-right tabular-nums";
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {settings.canManage ? (
           <Button variant="outline" onClick={() => setEditing(true)}>

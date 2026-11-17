@@ -27,10 +27,10 @@ import { VISUAL_NODE_DESCRIPTIONS } from "@/lib/visual-workflows/catalog/node-de
 
 import { activityTabMessages as messages } from "./activity-tab.messages";
 import {
-  formatChange,
   formatCount,
   formatDuration,
   formatShare,
+  statCardChange,
   stepLabel,
   taskStepLabel,
 } from "./report-format";
@@ -60,7 +60,7 @@ export function ActivityTab({
 }) {
   const activity = useActivityReport(input);
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       {activity.isPending && !activity.data ? (
         <ReportStatCardsSkeleton count={5} />
       ) : (
@@ -68,7 +68,7 @@ export function ActivityTab({
           {(data) => <ActivityCards data={data} />}
         </ReportSectionState>
       )}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <ReportSectionState query={activity} showFailure={false} skeletonHeight={280}>
           {(data) => <FinishedWordsChart data={data} onChange={onChange} />}
         </ReportSectionState>
@@ -85,7 +85,7 @@ function ActivityCards({ data }: { data: ActivityData }) {
   const intl = useIntl();
   const { current, previous, period } = data;
   const change = (now: number | null, before: number | null, share = false) =>
-    formatChange(
+    statCardChange(
       intl,
       describeChange({
         current: now,
@@ -104,38 +104,50 @@ function ActivityCards({ data }: { data: ActivityData }) {
     <div className="flex flex-col gap-2">
       <ReportStatCards>
         <ReportStatCard
-          label={intl.formatMessage(messages.sourceWords)}
-          value={formatCount(intl, current.source)}
-          change={change(current.source, previous.source)}
-          detail={intl.formatMessage(messages.sourceWordsDetail)}
-        />
-        <ReportStatCard
-          label={intl.formatMessage(messages.wordsToTranslate)}
-          value={formatCount(intl, current.arrived)}
-          change={change(current.arrived, previous.arrived)}
-          detail={intl.formatMessage(messages.wordsToTranslateDetail)}
-        />
-        <ReportStatCard
+          featured
           label={intl.formatMessage(messages.wordsFinished)}
           value={formatCount(intl, current.finished)}
-          change={change(current.finished, previous.finished)}
-          detail={intl.formatMessage(messages.wordsFinishedDetail)}
+          {...change(current.finished, previous.finished)}
+          goodWhen="up"
+          hint={intl.formatMessage(messages.wordsFinishedDetail)}
+          // The series follows the chart's step; the cards are about translation.
+          sparkline={
+            data.step === "translation"
+              ? data.series.map((point) =>
+                  SUMMARY_SOURCES.reduce((sum, key) => sum + point[key], 0),
+                )
+              : undefined
+          }
         />
         <ReportStatCard
           label={intl.formatMessage(messages.progress)}
           value={formatShare(intl, progress)}
-          change={change(progress, progressOf(previous), true)}
-          detail={intl.formatMessage(messages.progressDetail)}
+          {...change(progress, progressOf(previous), true)}
+          goodWhen="up"
+          hint={intl.formatMessage(messages.progressDetail)}
+        />
+        <ReportStatCard
+          label={intl.formatMessage(messages.wordsToTranslate)}
+          value={formatCount(intl, current.arrived)}
+          {...change(current.arrived, previous.arrived)}
+          hint={intl.formatMessage(messages.wordsToTranslateDetail)}
         />
         <ReportStatCard
           label={intl.formatMessage(messages.wordsReviewed)}
           value={formatCount(intl, current.reviewed)}
-          change={change(current.reviewed, previous.reviewed)}
-          detail={intl.formatMessage(messages.wordsReviewedDetail)}
+          {...change(current.reviewed, previous.reviewed)}
+          goodWhen="up"
+          hint={intl.formatMessage(messages.wordsReviewedDetail)}
+        />
+        <ReportStatCard
+          label={intl.formatMessage(messages.sourceWords)}
+          value={formatCount(intl, current.source)}
+          {...change(current.source, previous.source)}
+          hint={intl.formatMessage(messages.sourceWordsDetail)}
         />
       </ReportStatCards>
       {current.uncounted > 0 ? (
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {intl.formatMessage(pageMessages.notCounted, { count: current.uncounted })}
         </p>
       ) : null}
@@ -247,7 +259,7 @@ function FinishedWordsChart({
       </ChartContainer>
       {/* How much of what people finished at this step was the text they were given, kept as it was. */}
       {data.current.finishedByPerson > 0 ? (
-        <p className="mt-3 text-[13px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {intl.formatMessage(messages.unchangedNote, {
             people: formatCount(intl, data.current.finishedByPerson),
             step: stepLabel(intl, data.step),

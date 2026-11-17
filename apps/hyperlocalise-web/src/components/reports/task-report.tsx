@@ -330,17 +330,18 @@ function TaskCards({
       <ReportStatCard
         label={intl.formatMessage(messages.finished)}
         value={formatCount(intl, totals.arrivedDone)}
-        detail={intl.formatMessage(messages.finishedDetail, { step: stepLabel(intl, step) })}
+        hint={intl.formatMessage(messages.finishedDetail, { step: stepLabel(intl, step) })}
       />
       <ReportStatCard
+        featured
         label={intl.formatMessage(messages.progress)}
         value={formatShare(intl, totals.arrived > 0 ? totals.arrivedDone / totals.arrived : null)}
-        detail={intl.formatMessage(messages.progressDetail)}
+        hint={intl.formatMessage(messages.progressDetail)}
       />
       <ReportStatCard
         label={intl.formatMessage(messages.approved)}
         value={formatShare(intl, review.arrived > 0 ? review.arrivedDone / review.arrived : null)}
-        detail={intl.formatMessage(messages.approvedDetail)}
+        hint={intl.formatMessage(messages.approvedDetail)}
       />
       {estimate ? (
         <ReportStatCard
