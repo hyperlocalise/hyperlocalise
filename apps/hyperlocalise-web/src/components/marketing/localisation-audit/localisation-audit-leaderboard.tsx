@@ -56,7 +56,10 @@ export function LocalisationAuditLeaderboard({
 
   if (entries.length === 0) {
     return (
-      <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+      <section
+        id="leaderboard"
+        className="scroll-mt-24 border-t border-border px-5 py-16 sm:px-8 lg:px-10"
+      >
         <TypographyH2 className="pb-0">{copy.leaderboardHeading}</TypographyH2>
         <TypographyP className="mt-4 max-w-2xl" tone="subtle">
           {copy.leaderboardEmpty}
@@ -66,7 +69,10 @@ export function LocalisationAuditLeaderboard({
   }
 
   return (
-    <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+    <section
+      id="leaderboard"
+      className="scroll-mt-24 border-t border-border px-5 py-16 sm:px-8 lg:px-10"
+    >
       <TypographyH2 className="pb-0">{copy.leaderboardHeading}</TypographyH2>
       <TypographyP className="mt-4 max-w-2xl" tone="subtle">
         {copy.leaderboardSubcopy}

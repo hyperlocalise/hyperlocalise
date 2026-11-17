@@ -1,0 +1,1 @@
+ALTER TABLE "localisation_audits" ADD COLUMN "progress_snapshot" jsonb;

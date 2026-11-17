@@ -12,6 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ArrowRightIcon, PlusIcon } from "@phosphor-icons/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
@@ -19,23 +21,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LOCALISATION_AUDIT_DAILY_RUN_LIMIT } from "@/lib/localisation-audit/types";
-import { cn } from "@/lib/primitives/cn";
 
 import { getLocalisationAuditPageCopy } from "./localisation-audit-page-content";
 
-const MESH_INPUT_CLASS =
-  "h-11 border-white/25 bg-white/15 text-white placeholder:text-white/70 focus-visible:border-white/60 focus-visible:ring-white/30";
+const MAX_FOCUS_LOCALES = 2;
 
 type LocalisationAuditFormProps = {
   locale: string;
-  tone?: "default" | "mesh";
 };
 
-export function LocalisationAuditForm({ locale, tone = "default" }: LocalisationAuditFormProps) {
+export function LocalisationAuditForm({ locale }: LocalisationAuditFormProps) {
   const copy = getLocalisationAuditPageCopy(locale);
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const [url, setUrl] = useState("");
   const [focusLocales, setFocusLocales] = useState("");
+  const [showFocus, setShowFocus] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -49,7 +50,7 @@ export function LocalisationAuditForm({ locale, tone = "default" }: Localisation
         .split(/[,;\n]+/)
         .map((value) => value.trim())
         .filter(Boolean)
-        .slice(0, 2);
+        .slice(0, MAX_FOCUS_LOCALES);
 
       const response = await fetch("/api/localisation-audit", {
         method: "POST",
@@ -80,14 +81,12 @@ export function LocalisationAuditForm({ locale, tone = "default" }: Localisation
     }
   }
 
-  const onMesh = tone === "mesh";
-
   return (
-    <form onSubmit={onSubmit} className="max-w-xl space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="localisation-audit-url" className={onMesh ? "text-white" : undefined}>
-          {copy.urlLabel}
-        </Label>
+    <form onSubmit={onSubmit} className="w-full max-w-xl">
+      <Label htmlFor="localisation-audit-url" className="sr-only">
+        {copy.urlLabel}
+      </Label>
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-background p-2 shadow-sm transition-shadow focus-within:shadow-md focus-within:ring-2 focus-within:ring-ring/30 sm:flex-row">
         <Input
           id="localisation-audit-url"
           name="url"
@@ -98,47 +97,64 @@ export function LocalisationAuditForm({ locale, tone = "default" }: Localisation
           placeholder={copy.urlPlaceholder}
           value={url}
           onChange={(event) => setUrl(event.target.value)}
-          className={onMesh ? MESH_INPUT_CLASS : undefined}
+          className="h-12 border-0 bg-transparent text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="localisation-audit-focus" className={onMesh ? "text-white" : undefined}>
-          {copy.focusLabel}
-        </Label>
-        <Input
-          id="localisation-audit-focus"
-          name="focusLocales"
-          placeholder={copy.focusPlaceholder}
-          value={focusLocales}
-          aria-describedby="localisation-audit-focus-hint"
-          onChange={(event) => setFocusLocales(event.target.value)}
-          className={onMesh ? MESH_INPUT_CLASS : undefined}
-        />
-        <p
-          id="localisation-audit-focus-hint"
-          className={cn("text-sm", onMesh ? "text-white/85" : "text-muted-foreground")}
-        >
-          {copy.focusHint}
-        </p>
-      </div>
-      {error ? (
-        <p className={cn("text-sm", onMesh ? "text-red-200" : "text-destructive")}>{error}</p>
-      ) : null}
-      <div className="flex flex-col gap-3">
-        <Button
-          type="submit"
-          size="lg"
-          disabled={pending}
-          className={
-            onMesh ? "bg-white text-neutral-950 hover:bg-white/90 disabled:bg-white/70" : undefined
-          }
-        >
+        <Button type="submit" size="lg" disabled={pending} className="h-12 shrink-0 px-6">
           {pending ? copy.submitting : copy.submit}
+          {pending ? null : <ArrowRightIcon className="size-4 rtl:rotate-180" aria-hidden />}
         </Button>
-        <p className={cn("text-sm", onMesh ? "text-white/85" : "text-muted-foreground")}>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        {showFocus ? null : (
+          <button
+            type="button"
+            onClick={() => setShowFocus(true)}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            <PlusIcon className="size-3.5" aria-hidden />
+            {copy.focusToggle}
+          </button>
+        )}
+        <p className="text-xs text-muted-foreground">
           {copy.onePerDomain({ limit: LOCALISATION_AUDIT_DAILY_RUN_LIMIT })}
         </p>
       </div>
+
+      <AnimatePresence initial={false}>
+        {showFocus ? (
+          <motion.div
+            initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.25 }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-2 pt-4">
+              <Label htmlFor="localisation-audit-focus">{copy.focusLabel}</Label>
+              <Input
+                id="localisation-audit-focus"
+                name="focusLocales"
+                placeholder={copy.focusPlaceholder}
+                value={focusLocales}
+                aria-describedby="localisation-audit-focus-hint"
+                onChange={(event) => setFocusLocales(event.target.value)}
+                className="h-11"
+                autoFocus
+              />
+              <p id="localisation-audit-focus-hint" className="text-sm text-muted-foreground">
+                {copy.focusHint}
+              </p>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {error ? (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }

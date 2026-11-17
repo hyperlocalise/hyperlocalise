@@ -46,6 +46,7 @@ import {
 } from "@/lib/localisation-audit/store";
 import type {
   LocalisationAuditCrawlResult,
+  LocalisationAuditProgressSnapshot,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
   LocalisationAuditTeaser,
@@ -133,6 +134,7 @@ export async function setLocalisationAuditProgressStep(input: {
   auditId: string;
   attemptNumber: number;
   progressStage: LocalisationAuditProgressStage;
+  progressSnapshot?: LocalisationAuditProgressSnapshot;
 }) {
   "use step";
   await markLocalisationAuditProgress(input);

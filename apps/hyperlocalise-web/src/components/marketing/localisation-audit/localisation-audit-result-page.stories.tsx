@@ -34,6 +34,7 @@ const publicAudit = createSucceededAudit();
 const excellentAudit = createSucceededAudit({ scoreBand: "excellent" });
 const criticalAudit = createSucceededAudit({ scoreBand: "critical" });
 const crawlingAudit = createRunningAudit({ progressStage: "crawling" });
+const analyzingAudit = createRunningAudit({ progressStage: "analyzing" });
 const failedAudit = createFailedAudit();
 const blockedAudit = createBlockedAudit();
 
@@ -43,6 +44,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/en/localisation-audit/${localisationAuditDomainSlug}`,
       },
@@ -81,28 +83,29 @@ export const PublicFullReport: Story = {
     await expect(section).toHaveTextContent("Watch");
     await expect(section).toHaveTextContent("Fail");
     await expect(canvas.getByRole("navigation", { name: "Report sections" })).toBeInTheDocument();
-    await expect(canvas.getAllByRole("link", { name: "See details" }).length).toBeGreaterThan(0);
-    const showPassed = canvas.queryByRole("button", { name: "Show passed audits" });
-    if (showPassed) {
-      await userEvent.click(showPassed);
+    await expect(
+      canvas.getByRole("heading", { name: "How your score is built" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getAllByText("potential gain").length).toBeGreaterThan(0);
+    await expect(canvas.getByText("Your score")).toBeInTheDocument();
+    for (const name of ["Show passed audits", "Show AI-assessed checks", "Show not applicable"]) {
+      const toggle = canvas.queryByRole("button", { name });
+      if (toggle) {
+        await userEvent.click(toggle);
+      }
     }
     for (const credit of LOCALISATION_AUDIT_CREDITS.filter((item) => item.mode !== "na")) {
       await expect(section).toHaveTextContent(credit.title);
     }
-    await expect(canvas.getAllByText("Found here").length).toBeGreaterThan(0);
-    await expect(canvas.getAllByText("What we saw").length).toBeGreaterThan(0);
-    await expect(canvas.getAllByText("How to fix it").length).toBeGreaterThan(0);
-    await expect(canvas.getByText("Document head · <html lang>")).toBeInTheDocument();
-    await expect(
-      canvas.getByText(/src="\/_next\/image\?url=%2Fimages%2Fgame%2Fmath-sudoku\.png/),
-    ).toBeInTheDocument();
-    await expect(canvas.getAllByText("Missing reciprocal hreflang")).toHaveLength(2);
+    const firstCheck = section!.querySelector<HTMLButtonElement>("li[id^='check-'] > button");
+    await expect(firstCheck).not.toBeNull();
+    await userEvent.click(firstCheck!);
+    await expect(firstCheck).toHaveAttribute("aria-expanded", "true");
+    await expect(canvas.getAllByText("What we check").length).toBeGreaterThan(0);
     await userEvent.click(canvas.getByRole("button", { name: "Show all 6 pages" }));
     await expect(canvas.getByText("HTTP 403")).toBeInTheDocument();
     await expect(canvas.getByText("French")).toBeInTheDocument();
-    await expect(
-      canvas.getByRole("heading", { name: "Send this to your team" }),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText("Get a copy by email")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Re-run audit" })).toBeInTheDocument();
   },
 };
@@ -134,9 +137,7 @@ export const EmailSummary: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByRole("heading", { name: "Send this to your team" }),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText("Get a copy by email")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Email me a summary" })).toBeInTheDocument();
   },
 };
@@ -181,9 +182,30 @@ export const ProgressCrawling: Story = {
   },
   play: async ({ canvas }) => {
     await expect(
-      canvas.getByRole("heading", { name: "Running localisation audit" }),
+      canvas.getByRole("heading", { name: "Auditing acme.example" }),
     ).toBeInTheDocument();
     await expect(canvas.getAllByText("Crawling").length).toBeGreaterThan(0);
+    await expect(canvas.getByRole("progressbar", { name: "Audit progress" })).toBeInTheDocument();
+    await expect(canvas.getByText("Waiting for the first pages…")).toBeInTheDocument();
+  },
+};
+
+export const ProgressAnalyzing: Story = {
+  args: {
+    audit: analyzingAudit,
+    standing: null,
+  },
+  parameters: {
+    msw: {
+      handlers: localisationAuditProgressMswHandlers,
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getAllByText("Analyzing").length).toBeGreaterThan(0);
+    await expect(canvas.getByText("6 pages sampled")).toBeInTheDocument();
+    await expect(canvas.getByText("3 languages found")).toBeInTheDocument();
+    await expect(canvas.getByText("fr-FR")).toBeInTheDocument();
+    await expect(canvas.getByText("/pricing")).toBeInTheDocument();
   },
 };
 

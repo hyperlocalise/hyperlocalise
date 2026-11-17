@@ -14,6 +14,7 @@ import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import type { LocalisationAuditStanding } from "@/lib/localisation-audit/store";
 import type {
+  LocalisationAuditProgressSnapshot,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
   LocalisationAuditTeaser,
@@ -34,6 +35,7 @@ type LocalisationAuditResultPageProps = {
     status: string;
     attemptNumber?: number;
     progressStage?: LocalisationAuditProgressStage | null;
+    progressSnapshot?: LocalisationAuditProgressSnapshot | null;
     score: number | null;
     teaser: LocalisationAuditTeaser | null;
     report: LocalisationAuditReport | null;
