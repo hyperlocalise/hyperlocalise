@@ -517,6 +517,44 @@ func TestImageEditSendsPromptAndMask(t *testing.T) {
 	require.Equal(t, "image/png", gotMaskType)
 }
 
+func TestImageEditSendsReferencesAfterTheImage(t *testing.T) {
+	model, ok := irisModelByID("image-edit")
+	require.True(t, ok)
+
+	var gotImages []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, r.ParseMultipartForm(1<<20))
+		for _, header := range r.MultipartForm.File["image"] {
+			file, err := header.Open()
+			require.NoError(t, err)
+			body, err := io.ReadAll(file)
+			require.NoError(t, err)
+			gotImages = append(gotImages, string(body))
+		}
+		_, _ = w.Write([]byte(`{"data":[{"b64_json":"aGVsbG8="}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL: defaultIrisOpenAIBaseURL,
+		apiKey:  "sk",
+		httpClient: &http.Client{Transport: rewriteHostRoundTripper{
+			host: server.URL,
+			next: http.DefaultTransport,
+		}},
+	}
+	_, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:  model,
+		Prompt: "Swap the bottle for image 2",
+		Inputs: []irisProviderInput{
+			{Role: "image", Bytes: []byte("edited"), ContentType: "image/png"},
+			{Role: "image", Bytes: []byte("ref-1"), ContentType: "image/jpeg"},
+			{Role: "image", Bytes: []byte("ref-2"), ContentType: "image/png"},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"edited", "ref-1", "ref-2"}, gotImages)
+}
+
 func TestValidateImageEdit(t *testing.T) {
 	image := map[string]any{"kind": "asset", "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	_, err := validateIrisGenerateRequest(irisGenerateRequest{"model": "image-edit", "image": image})
@@ -525,6 +563,14 @@ func TestValidateImageEdit(t *testing.T) {
 	require.ErrorContains(t, err, "mask must be an uploaded asset")
 	_, err = validateIrisGenerateRequest(irisGenerateRequest{"model": "image-edit", "image": image, "mask": image, "prompt": "x"})
 	require.NoError(t, err)
+	references := make([]any, irisMaxImageEditReferences)
+	for i := range references {
+		references[i] = image
+	}
+	_, err = validateIrisGenerateRequest(irisGenerateRequest{"model": "image-edit", "image": image, "prompt": "x", "images": references})
+	require.NoError(t, err)
+	_, err = validateIrisGenerateRequest(irisGenerateRequest{"model": "image-edit", "image": image, "prompt": "x", "images": append(references, image)})
+	require.ErrorContains(t, err, "at most 8 reference images")
 }
 
 func TestIrisImageFormMIME(t *testing.T) {
