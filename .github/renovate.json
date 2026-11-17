@@ -53,9 +53,9 @@
       "allowedVersions": "<1.4.0"
     },
     {
-      "description": "autumn-js@1.6 removes autumn-js/react, /hono, and /backend subpath exports used by billing.",
+      "description": "Hold autumn-js at 1.5.73: 1.6 removes react/hono/backend exports; keep later 1.5 patches out of the immortal web deps PR until billing migrates.",
       "matchPackageNames": ["autumn-js"],
-      "allowedVersions": "<1.6.0"
+      "allowedVersions": "1.5.73"
     }
   ]
 }
