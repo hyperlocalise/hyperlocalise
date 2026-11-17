@@ -11,7 +11,7 @@ overrides:
   "ip-address@^10.0.0": "10.7.6"
   "@hono/node-server": "2.1.8"
   shell-quote: "1.12.0"
-  "postcss@^8.0.0": "8.5.32"
+  "postcss@^8.0.0": "8.5.33"
   esbuild: "0.28.2"
   "svgo@^3.0.0": "3.3.5"
   fast-uri: "3.1.9"
