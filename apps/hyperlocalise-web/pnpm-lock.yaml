@@ -460,8 +460,8 @@ importers:
         specifier: ^6.2.6
         version: 6.2.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       autumn-js:
-        specifier: 1.5.86
-        version: 1.5.86(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(express@5.3.0(supports-color@8.1.1))(hono@4.13.18)(next@16.4.6(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
+        specifier: 1.5.73
+        version: 1.5.73(express@5.3.0(supports-color@8.1.1))(hono@4.13.18)(next@16.4.6(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
       botid:
         specifier: ^1.5.11
         version: 1.5.13(next@16.4.6(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
@@ -6038,10 +6038,9 @@ packages:
   atomically@2.1.1:
     resolution: {integrity: sha512-P4w9o2dqARji6P7MHprklbfiArZAWvo07yW7qs3pdljb3BWr12FIB7W+p0zJiuiVsUpRO0iZn1kFFcpPegg0tQ==}
 
-  autumn-js@1.5.86:
-    resolution: {integrity: sha512-tAng+8FzWl7mq7OF/dcBN3mwwswu+cqTmeQ6BVDPMOC4tznrAyjuQGguaa4PdfS4Rfn96C9fq5eDePXihhtM1w==}
+  autumn-js@1.5.73:
+    resolution: {integrity: sha512-/JYMm8iFNh516Dy53dDa8PmiR9JfbLt9PnF//xaPMhUlyqJhibGuCTqZ7Cm1OyRQ2ZFRwU80FctkLEpNIAYp3A==}
     peerDependencies:
-      '@tanstack/react-query': ^5.0.0
       better-auth: ^1.6.0
       better-call: ^1.0.12
       express: ^5.2.1
@@ -6049,8 +6048,6 @@ packages:
       next: ^14.0.0 || ^15.0.0 || ^16.0.0
       react: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
-      '@tanstack/react-query':
-        optional: true
       better-auth:
         optional: true
       better-call:
@@ -16936,7 +16933,7 @@ snapshots:
       stubborn-fs: 2.0.0
       when-exit: 2.1.5
 
-  autumn-js@1.5.86(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(express@5.3.0(supports-color@8.1.1))(hono@4.13.18)(next@16.4.6(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
+  autumn-js@1.5.73(express@5.3.0(supports-color@8.1.1))(hono@4.13.18)(next@16.4.6(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
     dependencies:
       decode-uri-component: 0.5.1
       fzstd: 0.1.1
@@ -16944,7 +16941,6 @@ snapshots:
       rou3: 0.6.3
       zod: 4.6.7
     optionalDependencies:
-      '@tanstack/react-query': 5.107.1(@types/react@19.3.0)(react@19.3.1)
       express: 5.3.0(supports-color@8.1.1)
       hono: 4.13.18
       next: 16.4.6(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
