@@ -1,0 +1,119 @@
+# The Vendor role: outside people who see only the tasks they are given
+
+**Status:** Accepted
+
+Ships as one pull request, on top of the two in [A file's human steps in order](2026-11-16-task-steps-in-order-design.md), whose **Mark done** on post-edit tasks it needs.
+
+## Context
+
+A customer wants a file machine translated and then post-edited or proofread by an outside vendor: a freelancer, or a person at an agency. The vendor must see that work and nothing else in the workspace.
+
+Today that is not possible. Every role, down to **Member**, can read the member list with email addresses, every dictionary and project template, workspace-level glossaries, and every project of the teams the person is in. A person in no team still sees most of that. And a task given to someone who is not on the project's team shows in their **My jobs** but cannot be opened, while the public API refuses to give such a person a task at all.
+
+Other platforms handle vendors in three ways: a linked organization of the vendor's own, a restricted user inside the customer's account, or a group with its own manager. On all of them a vendor's person sees assigned work only, and reads the translation memory and glossary inside the editor for that work. A restricted user is the one that fits what this platform has.
+
+## Words used here
+
+- **Task:** a job for a person on one file, for some languages, at one step (post-edit or proofread), with an owner and a due date.
+- **Open task:** a task its owner can work on now (status **Waiting for review**). A **waiting** task comes after another job that has not finished. A **finished** task was marked done or cancelled.
+- **Team rule:** today's rule for where a person may work: the projects of the teams they are in, or every project for admins and localization managers.
+- **Gate:** one place in the code that every request passes through, which refuses a vendor unless the route was opened on purpose.
+
+## Decision
+
+**Vendor is a seventh workspace role with no rights in the workspace.** Everything a vendor can see or do comes from the open tasks they own, and ends when a task is finished or given to someone else. What they may do in the editor comes from the task's step, because the role itself allows nothing.
+
+### What a vendor can see and do
+
+| Where | What | Limits |
+|---|---|---|
+| **My jobs** | Their open and waiting tasks: title, project name, file, languages, step, status, due date. | Only the **Assigned** list. A finished or reassigned task leaves it. |
+| The task's page | The same details, **Open Editor** and **Mark done**. | A waiting task has neither button, and its **Comes after** row names the earlier task without a link unless it is also theirs. No owner, title or due date editing, no activity list, no **Report** tab. |
+| The editor | The task's file, in the task's languages: source and target text, saving translations, undo and restoring an earlier version, comments (read and add), history, and screenshots already attached to a string. | Opened only from an open task. Any other file, any other language and "all files" are refused. |
+| Translation memory and glossary | The suggestions and term matches the editor shows for a string of the task. | Lookup only, for the task's languages, from the memories and glossaries linked to the task's project. No list, no browsing, no editing. |
+| Download | The editor's own download of the task's file. | No new download button on the task's page. |
+| **Mark done** | On their own open task. | As for everyone else. |
+| Their account | Sign out, language and other personal preferences, leaving the workspace. | |
+
+By step:
+
+- **Post-edit task:** read, save translations, comment. Approving or rejecting is refused.
+- **Proofread task:** the same, plus approve and reject.
+- **Never, at either step:** changing source text, tags, design links, string limits, hiding or locking strings, editing a memory entry, uploading or managing screenshots, AI actions (they are charged to the workspace).
+
+A vendor sees the names of the people who wrote comments or earlier versions in their file. They see no other names.
+
+### What stays closed
+
+Everything else. Checked by name in the tests: the dashboard, projects and their files, the job list beyond their own tasks, other people's tasks, the member list and the directory used for mentions, teams, glossaries, translation memories, dictionaries, guidelines, project templates, Reports and time logging, issues, QA, automations and visual workflows, conversations with the assistant, the inbox and notifications, integrations and connections, workspace settings, billing, API keys, activity logs, and the public API, MCP and plugin sign-ins (Figma, Canva, Sanity, Slack).
+
+A vendor's navigation shows **My jobs** only. Any other page sends them back to it.
+
+### How it is kept closed
+
+The platform checks roles in four code bases, and they do not behave alike for a role with no rights:
+
+- **Go service** (job list, task page, editor): refuses any role it does not know before a handler runs. Once it knows the role, dozens of routes that ask only for a signed-in member would open, among them the member directory with email addresses.
+- **Web app:** most pages and many routes ask only for a signed-in member, and the navigation is not filtered by role.
+- **Public API:** lets every role read, and every role but Member write.
+- **Reports:** refuses a role it does not name.
+
+So the role is refused at one gate in each, and opened route by route:
+
+- **Go service:** the function that resolves the signed-in person keeps refusing Vendor. A second function, which accepts Vendor, is called only by the handlers in the table above. A route added later refuses a vendor without anyone thinking about it.
+- **Web app:** the one function that every signed-in request and page goes through refuses a vendor unless the caller says the route is one of the vendor's. The vendor's routes are one short list in one file. The same holds for pages: a page refuses a vendor unless it opts in.
+- **Public API, MCP, agent sign-in and plugins:** refuse the Vendor role outright. A vendor cannot create an API token, and a token made before a person became a vendor stops working while they are one.
+- **Reports:** unchanged; it already refuses.
+
+Inside an opened route a vendor never goes through the team rule. Their access is always "an open task I own", so adding a vendor to a team gives them nothing.
+
+### A task's owner need not be on the project's team
+
+This holds for every role, not only vendors, and fixes the task that shows in **My jobs** but cannot be opened:
+
+- The owner of an open task can open its page, the editor for its file and languages, and **Mark done**, whatever team the project is in. Outside their teams they are limited to that file and those languages; what they may do there still comes from their role. Nothing changes for people working through their teams.
+- A task can be given to any active member of the workspace, in the app, in the **Assign task** step and in the public API alike. Today the app and the API ask for a member of the project's team and the step does not.
+- A vendor can be given post-edit and proofread tasks on a file. Giving a vendor any other job (a translate task, a task on chosen strings, an AI job) is refused with a message, in all three places, because nothing would let them open or finish it.
+- API tokens keep the team rule: a token does not open a task through ownership.
+
+### Inviting and managing
+
+- **Vendor** is in the role list when inviting and when changing a role, for admins and localization managers.
+- An invite as Vendor joins no team, and the team choice is not shown for it. Today every invite below localization manager joins the default team.
+- A vendor is a member like any other on the **Members** page and can be removed or given another role there. A vendor counts as a paid seat, as every member does; that is left as it is. Changing a member to Vendor leaves their team memberships in place, unused.
+- **Role permissions** shows Vendor with no rights and one line saying what a vendor can reach.
+
+## Not built
+
+Each is a follow-up, and nothing here prepares for it: agencies as teams (picking an assignee from a team, a team's name on a task); an agency's manager handing work on; accepting or declining a task; Reports by vendor and time logging by vendors; a linked workspace of the vendor's own; vendors on translate tasks and on tasks of chosen strings; a history of a vendor's finished tasks; notices by email or in the inbox when a task is given or opens.
+
+## Alternatives considered
+
+- **An existing role (Translator or Reviewer) in no team.** No new role, but the person still sees members' names and email addresses, dictionaries, project templates and workspace glossaries, and one ordinary action (adding them to a team) opens whole projects.
+- **A mark on the membership over an existing role.** Safe only where each check remembers the mark; a route that forgets it, or is added later, is open. It would also live only in our database while roles live in WorkOS.
+- **A new role with no gate, relying on each route's own check.** This was the first plan. Reading the code showed the web app and the public API do not refuse a role they do not know, so each of several dozen routes and most pages would need its own check, and a missed one is a leak.
+- **A linked workspace for the vendor.** The strongest separation, but nothing is shared between workspaces today.
+- **No account, exchanging a file.** Already possible through the public API, and fits an agency working in its own tool. It is not assigning a vendor in the product.
+
+## Before release
+
+The Vendor role has to exist in WorkOS before anyone is invited with it: the setup command that creates the other six creates it too, and must be run for each environment. Until then an invite as Vendor fails and nothing is changed. The database gains the role value in one migration.
+
+## Test plan
+
+This changes the access rules of live features, so an existing test that fails is treated as a possible regression: it is reported and decided on, not edited to pass.
+
+**Automated**
+
+- Each gate: the default refuses a vendor; the opted-in path accepts one. For the web app, a test walks every route the app registers and expects a refusal for a vendor on all but the listed ones, so a new route is covered the day it is added.
+- Every opened path, as a vendor: allowed on their own open task; refused on a waiting task (editor, Mark done), a finished task, a task given to someone else, another person's task, another file of the same project, another language of the same file, "all files", and another workspace.
+- Rights by step: saving on both; approving and rejecting refused on post-edit and allowed on proofread; each "never" action refused.
+- Memory and glossary lookup allowed for the task's languages and refused for others; lists and edits refused.
+- Representative closed paths in each service, named in "What stays closed", including the member directory, project templates, dictionaries, Reports, token creation, the public API with an older token, and MCP.
+- Owners off the project's team: page, editor, Mark done as each role; assignment accepted in the app, the step and the API; the refusals for vendors.
+- Invites: Vendor joins no team; other roles still join as before; who may assign the role.
+- The existing suites in full: the web suite, and the Go checks and tests.
+
+**End to end** (the existing local browser tests, which sign in through a WorkOS stand-in; they are not run in CI): a new vendor flow covering sign-in landing on **My jobs**, the navigation, and being sent back from pages that stay closed, beside the existing role flows.
+
+**In the browser, as a person would:** invite a vendor, sign in as them, **My jobs**, open the task, edit, **Mark done**, and see access end; try each closed page and address by hand. Then, as admin, localization manager, developer, reviewer, translator and member: **My jobs**, a task's page, the editor, **Mark done**, the invite dialog and the owner picker behave as before. The pull request lists what was tried and what was not.
