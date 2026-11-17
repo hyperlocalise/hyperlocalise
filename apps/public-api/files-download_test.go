@@ -146,7 +146,19 @@ func TestStoredFileDownloadDatabase(t *testing.T) {
 		translator.Role = "translator"
 		_, err = f.store.openStoredFile(ctx, translator, loose)
 		require.ErrorIs(t, err, errStoredFileNotFound)
-		file, err := f.store.openStoredFile(ctx, f.actor, loose)
+
+		manager := f.actor
+		manager.Role = "localization_manager"
+		file, err := f.store.openStoredFile(ctx, manager, loose)
+		require.NoError(t, err)
+		require.NoError(t, file.Body.Close())
+
+		owner := principal{UserID: someoneElse, OrganizationID: f.actor.OrganizationID, Role: "translator"}
+		file, err = f.store.openStoredFile(ctx, owner, loose)
+		require.NoError(t, err)
+		require.NoError(t, file.Body.Close())
+
+		file, err = f.store.openStoredFile(ctx, f.actor, loose)
 		require.NoError(t, err)
 		require.NoError(t, file.Body.Close())
 	})
