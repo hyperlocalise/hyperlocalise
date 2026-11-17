@@ -223,6 +223,15 @@ export type LocalisationAuditReport = {
   localeCoverageFactor?: number;
 };
 
+/** What the crawl found so far, shown live while an audit is still running. */
+export type LocalisationAuditProgressSnapshot = {
+  pagesCrawled: number;
+  /** Locales seen in html lang and hreflang across the sampled pages. */
+  locales: string[];
+  /** Paths of the first sampled pages, for the live crawl feed. */
+  pagePaths: string[];
+};
+
 export type LocalisationAuditEventData = {
   auditId: string;
   attemptNumber: number;

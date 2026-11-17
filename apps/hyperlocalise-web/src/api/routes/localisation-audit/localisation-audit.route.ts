@@ -74,6 +74,10 @@ function publicAuditView(row: LocalisationAuditRow) {
     status: audit.status,
     attemptNumber: audit.attemptNumber,
     progressStage: audit.progressStage,
+    progressSnapshot:
+      audit.status === "queued" || audit.status === "running"
+        ? (audit.progressSnapshot ?? null)
+        : null,
     score: blocked ? null : audit.score,
     focusLocales: audit.focusLocales,
     teaser: blocked ? null : audit.teaser,

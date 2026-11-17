@@ -24,6 +24,7 @@ import type {
   LocalisationAuditCreditResult,
   LocalisationAuditFinding,
   LocalisationAuditFindingSeverity,
+  LocalisationAuditProgressSnapshot,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
   LocalisationAuditTeaser,
@@ -43,6 +44,7 @@ export type LocalisationAuditStoryAudit = {
   status: string;
   attemptNumber?: number;
   progressStage?: LocalisationAuditProgressStage | null;
+  progressSnapshot?: LocalisationAuditProgressSnapshot | null;
   score: number | null;
   teaser: LocalisationAuditTeaser | null;
   report: LocalisationAuditReport | null;
@@ -485,6 +487,14 @@ export function createRunningAudit({
     status: "running",
     attemptNumber: 1,
     progressStage,
+    progressSnapshot:
+      progressStage === "analyzing" || progressStage === "scoring"
+        ? {
+            pagesCrawled: 6,
+            locales: ["en", "fr-FR", "de-DE"],
+            pagePaths: ["/", "/pricing", "/fr", "/fr/pricing", "/de", "/blog/launch"],
+          }
+        : null,
     score: null,
     teaser: null,
     report: null,

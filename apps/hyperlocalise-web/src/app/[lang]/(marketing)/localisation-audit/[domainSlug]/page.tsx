@@ -107,6 +107,10 @@ export default async function LocalisationAuditResultRoutePage({
         status: audit.status,
         attemptNumber: audit.attemptNumber,
         progressStage: audit.progressStage,
+        progressSnapshot:
+          audit.status === "queued" || audit.status === "running"
+            ? (audit.progressSnapshot ?? null)
+            : null,
         score: audit.score,
         teaser: audit.teaser,
         report: publicReport ? audit.report : null,

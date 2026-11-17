@@ -23,6 +23,7 @@ import {
 
 import type {
   LocalisationAuditLeadDeliveryStatus,
+  LocalisationAuditProgressSnapshot,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
   LocalisationAuditRunSource,
@@ -44,6 +45,8 @@ export const localisationAudits = pgTable(
     status: text("status").notNull().default("queued"),
     attemptNumber: integer("attempt_number").notNull().default(1),
     progressStage: text("progress_stage").$type<LocalisationAuditProgressStage>(),
+    /** Crawl summary written after crawling so the running page can show live findings. */
+    progressSnapshot: jsonb("progress_snapshot").$type<LocalisationAuditProgressSnapshot>(),
     statusUpdatedAt: timestamp("status_updated_at", { withTimezone: true }).notNull().defaultNow(),
     lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
     /**

@@ -28,10 +28,9 @@ describe("localisation audit page content", () => {
 
     expect(copy.headline).toBe("See how your brand travels.");
     expect(copy.submit).toBe("See my score");
-    expect(copy.crawlAccessNoteHeading).toBe("Site owner note");
     expect(copy.crawlAccessNoteBody).toContain("ordinary browser traffic");
     expect(copy.crawlAccessNoteUserAgent).toBe("User agent");
-    expect(copy.methodologyHeading).toBe("What we notice");
+    expect(copy.scoringHeading).toBe("How the score works");
     expect(copy.notices.map((notice) => notice.title)).toEqual([
       "Technical",
       "Linguistic",
@@ -57,8 +56,11 @@ describe("localisation audit page content", () => {
     expect(copy.criteriaSummary({ passed: 8, watch: 2, failed: 3, na: 1 })).toBe(
       "8 passed · 2 to watch · 3 to fix · 1 not applicable",
     );
-    expect(copy.standingAhead({ ahead: 1 })).toBe("Ahead of 1 other public audit");
-    expect(copy.standingAhead({ ahead: 72 })).toBe("Ahead of 72 other public audits");
+    expect(copy.runningHeading({ domain: "acme.com" })).toBe("Auditing acme.com");
+    expect(copy.fixFirstGain({ points: "4.2" })).toBe("+4.2 pts");
+    expect(copy.livePages({ count: 1 })).toBe("1 page sampled");
+    expect(copy.livePages({ count: 6 })).toBe("6 pages sampled");
+    expect(copy.breakdownCoverage({ factor: "0.86" })).toBe("Language coverage × 0.86");
     expect(copy.pagesExpand({ count: 6 })).toBe("Show all 6 pages");
     expect(copy.sampledPages({ count: 6 })).toContain("6 pages");
   });

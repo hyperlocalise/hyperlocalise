@@ -12,6 +12,7 @@
  */
 import { getWorkflowMetadata } from "workflow";
 
+import { buildLocalisationAuditProgressSnapshot } from "@/lib/localisation-audit/progress-snapshot";
 import type { LocalisationAuditEventData } from "@/lib/localisation-audit/types";
 
 import {
@@ -70,6 +71,7 @@ export async function localisationAuditWorkflow(event: LocalisationAuditEventDat
         auditId: prepared.auditId,
         attemptNumber: prepared.attemptNumber,
         progressStage: "analyzing",
+        progressSnapshot: buildLocalisationAuditProgressSnapshot(crawl.pages),
       });
 
       analyzedResult = await analyzeLocalisationAuditStep({

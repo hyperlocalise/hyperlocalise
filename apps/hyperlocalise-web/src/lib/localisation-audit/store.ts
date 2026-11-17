@@ -26,6 +26,7 @@ import { hashLocalisationAuditReportToken, mintLocalisationAuditReportToken } fr
 import type {
   LocalisationAuditCompanyProfile,
   LocalisationAuditLeadDeliveryStatus,
+  LocalisationAuditProgressSnapshot,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
   LocalisationAuditRunSource,
@@ -396,6 +397,7 @@ export async function claimOrReuseLocalisationAudit(input: {
           status: "queued" satisfies LocalisationAuditStatus,
           attemptNumber: sql`${schema.localisationAudits.attemptNumber} + 1`,
           progressStage: "queued" satisfies LocalisationAuditProgressStage,
+          progressSnapshot: null,
           statusUpdatedAt: timestamp,
           lastAttemptAt: timestamp,
           // Same-day retries do not take a new slot; keep the prior bucket attribution.
@@ -475,6 +477,7 @@ export async function markLocalisationAuditProgress(input: {
   auditId: string;
   attemptNumber: number;
   progressStage: LocalisationAuditProgressStage;
+  progressSnapshot?: LocalisationAuditProgressSnapshot;
   status?: LocalisationAuditStatus;
 }) {
   const timestamp = now();
@@ -482,6 +485,7 @@ export async function markLocalisationAuditProgress(input: {
     .update(schema.localisationAudits)
     .set({
       progressStage: input.progressStage,
+      ...(input.progressSnapshot ? { progressSnapshot: input.progressSnapshot } : {}),
       ...(input.status
         ? {
             status: input.status,

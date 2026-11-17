@@ -31,6 +31,7 @@ function audit(overrides: Partial<LocalisationAuditRow> = {}): LocalisationAudit
     status: "succeeded",
     attemptNumber: 1,
     progressStage: "completed",
+    progressSnapshot: null,
     statusUpdatedAt: timestamp,
     lastAttemptAt: timestamp,
     runSource: "user",

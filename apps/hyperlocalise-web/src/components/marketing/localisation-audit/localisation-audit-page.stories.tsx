@@ -38,20 +38,24 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-  play: async ({ canvas }) => {
+  play: async ({ canvas, userEvent }) => {
     await expect(
       canvas.getByRole("heading", { name: "See how your brand travels." }),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "See my score" })).toBeInTheDocument();
-    const crawlNote = canvas.getByRole("complementary", { name: "Site owner note" });
-    await expect(crawlNote).toBeInTheDocument();
-    await expect(crawlNote.closest("section")?.textContent).toContain("What we notice");
+    await expect(canvas.getByRole("heading", { name: "How the score works" })).toBeInTheDocument();
+    await expect(canvas.getByText("What each check result means")).toBeInTheDocument();
+    await expect(canvas.queryByLabelText("Languages to look at (optional)")).toBeNull();
+    await userEvent.click(canvas.getByRole("button", { name: "Focus on specific languages" }));
+    await expect(canvas.getByLabelText("Languages to look at (optional)")).toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "What if my site blocks the audit?" }),
+    );
     await expect(
-      canvas.getByText(
+      await canvas.findByText(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
       ),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("heading", { name: "What we notice" })).toBeInTheDocument();
     await expect(
       canvas.getByRole("heading", { name: "How other sites score" }),
     ).toBeInTheDocument();

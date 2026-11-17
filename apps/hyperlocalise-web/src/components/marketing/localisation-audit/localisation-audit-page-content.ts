@@ -63,11 +63,6 @@ export function getLocalisationAuditPageCopy(locale: string) {
       id: "VN0xcE3Kek",
       description: "Hint under the optional focus languages field on the localisation audit form",
     }),
-    crawlAccessNoteHeading: intl.formatMessage({
-      defaultMessage: "Site owner note",
-      id: "9/2rO3b/i4",
-      description: "Heading for the crawl access note on the localisation audit form",
-    }),
     crawlAccessNoteBody: intl.formatMessage({
       defaultMessage:
         "If your site uses a firewall, CDN, bot check, or login wall, allow ordinary browser traffic to public pages so we can complete the audit.",
@@ -102,11 +97,6 @@ export function getLocalisationAuditPageCopy(locale: string) {
       defaultMessage: "Could not start the audit. Check the URL and try again.",
       id: "tBmWE9rsb2",
       description: "Error shown when the localisation audit form fails to start an audit",
-    }),
-    methodologyHeading: intl.formatMessage({
-      defaultMessage: "What we notice",
-      id: "fyhM45TkNF",
-      description: "Heading for the methodology section on the localisation audit landing page",
     }),
     notices: [
       {
@@ -178,11 +168,6 @@ export function getLocalisationAuditPageCopy(locale: string) {
       id: "vLOvG+Aj8h",
       description: "Public-report disclosure on the localisation audit landing page",
     }),
-    sampleFindingTitle: intl.formatMessage({
-      defaultMessage: "A typical note",
-      id: "MlXu9cA5kU",
-      description: "Eyebrow above the sample finding on the localisation audit landing page",
-    }),
     sampleFindingBody: intl.formatMessage({
       defaultMessage:
         "French and English pages don't point to each other, so visitors can miss the other language entirely.",
@@ -223,6 +208,227 @@ export function getLocalisationAuditPageCopy(locale: string) {
         },
         values,
       ),
+    heroEyebrow: intl.formatMessage({
+      defaultMessage: "Free localisation audit",
+      id: "q6qq+eJm6l",
+      description: "Eyebrow above the headline on the localisation audit landing page",
+    }),
+    heroFactSpeed: intl.formatMessage({
+      defaultMessage: "Results in 1–3 minutes",
+      id: "MfVWtzqnIQ",
+      description: "Trust fact under the audit form on the localisation audit landing page",
+    }),
+    heroFactScope: intl.formatMessage({
+      defaultMessage: "Public pages only, never logged in",
+      id: "TfI9AnwYOK",
+      description: "Trust fact under the audit form on the localisation audit landing page",
+    }),
+    heroFactChecks: (values: { checks: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "{checks} checks across 4 dimensions",
+          id: "JKGBq8hN2k",
+          description: "Trust fact under the audit form on the localisation audit landing page",
+        },
+        values,
+      ),
+    focusToggle: intl.formatMessage({
+      defaultMessage: "Focus on specific languages",
+      id: "vMsrvarQKp",
+      description:
+        "Button that reveals the optional focus languages field on the localisation audit landing page",
+    }),
+    exampleReportLabel: intl.formatMessage({
+      defaultMessage: "Example report",
+      id: "NPRPX7MaAo",
+      description:
+        "Label on the illustrative sample report card on the localisation audit landing page",
+    }),
+    exampleReportSite: intl.formatMessage({
+      defaultMessage: "Your site",
+      id: "P4BmkDDMFU",
+      description:
+        "Placeholder site name on the illustrative sample report card on the localisation audit landing page",
+    }),
+    scoringHeading: intl.formatMessage({
+      defaultMessage: "How the score works",
+      id: "lFh1uklTox",
+      description: "Heading for the scoring explainer on the localisation audit landing page",
+    }),
+    scoringSubcopy: intl.formatMessage({
+      defaultMessage:
+        "Every site gets the same checks with the same weights, so you can compare scores across sites and over time.",
+      id: "5jmxLZ2HOa",
+      description:
+        "Supporting copy for the scoring explainer on the localisation audit landing page",
+    }),
+    scoringDimensionShare: (values: { percent: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "{percent}% of the score",
+          id: "QOTLUcG5qS",
+          description:
+            "Share of the overall score carried by one audit dimension on the localisation audit landing page",
+        },
+        values,
+      ),
+    scoringDimensionChecks: (values: { checks: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "{checks, plural, one {# check} other {# checks}}",
+          id: "r97emx0LZj",
+          description:
+            "Number of checks in one audit dimension on the localisation audit landing page",
+        },
+        values,
+      ),
+    scoringStepMeasureTitle: intl.formatMessage({
+      defaultMessage: "Measure each check",
+      id: "Xje9ahL4QG",
+      description: "Title of scoring step one on the localisation audit landing page",
+    }),
+    scoringStepMeasureBody: intl.formatMessage({
+      defaultMessage:
+        "Each check scores 0–100 based on what we find on the sampled pages: markup, URLs, copy and rendered layouts.",
+      id: "FpN3rnPsKf",
+      description: "Body of scoring step one on the localisation audit landing page",
+    }),
+    scoringStepWeightTitle: intl.formatMessage({
+      defaultMessage: "Weight what matters",
+      id: "h7YN2sTjNN",
+      description: "Title of scoring step two on the localisation audit landing page",
+    }),
+    scoringStepWeightBody: (values: { max: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage:
+            "Checks that stop people or search engines from finding the right page count more, up to {max}× a minor check.",
+          id: "9svghWzz9z",
+          description: "Body of scoring step two on the localisation audit landing page",
+        },
+        values,
+      ),
+    scoringStepCoverageTitle: intl.formatMessage({
+      defaultMessage: "Adjust for language coverage",
+      id: "PUFdzvzYEk",
+      description: "Title of scoring step three on the localisation audit landing page",
+    }),
+    scoringStepCoverageBody: intl.formatMessage({
+      defaultMessage:
+        "Sites with fewer languages are scaled down, so a site in one language can't top the leaderboard.",
+      id: "o7+5KQDmgX",
+      description: "Body of scoring step three on the localisation audit landing page",
+    }),
+    scoringCoverageLocales: (values: { count: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "{count, plural, =0 {No languages} one {# language} other {# languages}}",
+          id: "qkSeIqaeSL",
+          description:
+            "Number of languages in the coverage factor table on the localisation audit landing page",
+        },
+        values,
+      ),
+    scoringCoverageLocalesPlus: (values: { count: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "{count} or more languages",
+          id: "V/3PJDmV4F",
+          description:
+            "Top row of the coverage factor table on the localisation audit landing page",
+        },
+        values,
+      ),
+    thresholdsHeading: intl.formatMessage({
+      defaultMessage: "What each check result means",
+      id: "B3O6RmNRrM",
+      description: "Heading for the check result legend on the localisation audit landing page",
+    }),
+    thresholdPassLabel: intl.formatMessage({
+      defaultMessage: "Pass",
+      id: "6eYIcycRJa",
+      description: "Legend label for a passed check on the localisation audit landing page",
+    }),
+    thresholdPassBody: intl.formatMessage({
+      defaultMessage: "Meets the bar. Nothing to do.",
+      id: "f+03CnOQns",
+      description: "Legend explanation for a passed check on the localisation audit landing page",
+    }),
+    thresholdWatchLabel: intl.formatMessage({
+      defaultMessage: "Watch",
+      id: "LTzJmEDEky",
+      description:
+        "Legend label for a check close to passing on the localisation audit landing page",
+    }),
+    thresholdWatchBody: intl.formatMessage({
+      defaultMessage: "Close to passing. Worth a look.",
+      id: "NGePCzoCQg",
+      description:
+        "Legend explanation for a check close to passing on the localisation audit landing page",
+    }),
+    thresholdFixLabel: intl.formatMessage({
+      defaultMessage: "Fix",
+      id: "nAO4tt9UbS",
+      description: "Legend label for a failing check on the localisation audit landing page",
+    }),
+    thresholdFixBody: intl.formatMessage({
+      defaultMessage: "Costs you points. Fix these first.",
+      id: "J7LEq6sUbI",
+      description: "Legend explanation for a failing check on the localisation audit landing page",
+    }),
+    thresholdAiLabel: intl.formatMessage({
+      defaultMessage: "AI-reviewed",
+      id: "Qk1QL2BxcT",
+      description: "Legend label for an AI-assessed check on the localisation audit landing page",
+    }),
+    thresholdAiBody: intl.formatMessage({
+      defaultMessage:
+        "Judged by AI from samples. Flagged for review but never counted in the score.",
+      id: "Rdk2oirDw9",
+      description:
+        "Legend explanation for an AI-assessed check on the localisation audit landing page",
+    }),
+    thresholdBelow: (values: { value: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "Below {value}",
+          id: "NGLZAKg5JL",
+          description:
+            "Score range label for scores under a threshold on the localisation audit landing page",
+        },
+        values,
+      ),
+    thresholdNotScored: intl.formatMessage({
+      defaultMessage: "Not scored",
+      id: "YxHZB+SRUr",
+      description:
+        "Score range label for checks that do not affect the score on the localisation audit landing page",
+    }),
+    faqHeading: intl.formatMessage({
+      defaultMessage: "Questions",
+      id: "GgENm3BRpj",
+      description: "Heading for the FAQ section on the localisation audit landing page",
+    }),
+    faqScopeQuestion: intl.formatMessage({
+      defaultMessage: "What do you look at?",
+      id: "pAtOBvLaY6",
+      description: "FAQ question about audit scope on the localisation audit landing page",
+    }),
+    faqPublicQuestion: intl.formatMessage({
+      defaultMessage: "Is my report public?",
+      id: "x9DcqOH0Xj",
+      description: "FAQ question about report visibility on the localisation audit landing page",
+    }),
+    faqBlockedQuestion: intl.formatMessage({
+      defaultMessage: "What if my site blocks the audit?",
+      id: "cuXvOghZMR",
+      description: "FAQ question about crawler access on the localisation audit landing page",
+    }),
+    faqFindingQuestion: intl.formatMessage({
+      defaultMessage: "What does a finding look like?",
+      id: "aEy8L3zxvF",
+      description: "FAQ question about report findings on the localisation audit landing page",
+    }),
   };
 }
 
@@ -482,50 +688,10 @@ export function getLocalisationAuditResultCopy(locale: string) {
       id: "vUbkXURPep",
       description: "Label for the visual dimension on a localisation audit result",
     }),
-    dimensionTechnicalShort: intl.formatMessage({
-      defaultMessage: "technical",
-      id: "9yTBmhhxTz",
-      description: "Short dimension label for a technical localisation audit criterion",
-    }),
-    dimensionLinguisticShort: intl.formatMessage({
-      defaultMessage: "linguistic",
-      id: "uqqnJ1ACdX",
-      description: "Short dimension label for a linguistic localisation audit criterion",
-    }),
-    dimensionContextualShort: intl.formatMessage({
-      defaultMessage: "contextual",
-      id: "k9uqhd9OgG",
-      description: "Short dimension label for a contextual localisation audit criterion",
-    }),
-    dimensionVisualShort: intl.formatMessage({
-      defaultMessage: "visual",
-      id: "FJYljr7sSS",
-      description: "Short dimension label for a visual localisation audit criterion",
-    }),
     freshnessLabel: intl.formatMessage({
       defaultMessage: "Audited",
       id: "ZNAwtFUkzx",
       description: "Label for the completed-at date on a localisation audit result",
-    }),
-    scopeLabel: intl.formatMessage({
-      defaultMessage: "Scope",
-      id: "X9+GfdK3RZ",
-      description: "Label for the scope note on a localisation audit result",
-    }),
-    scopeBody: intl.formatMessage({
-      defaultMessage: "Public smart sample · technical, linguistic, contextual, and visual credits",
-      id: "eKfFOCj/Jd",
-      description: "Scope description on a localisation audit result",
-    }),
-    confidenceLabel: intl.formatMessage({
-      defaultMessage: "Confidence",
-      id: "A7ZIFME2xj",
-      description: "Label for the confidence note on a localisation audit result",
-    }),
-    confidenceBody: intl.formatMessage({
-      defaultMessage: "Indicative health check from sampled pages — not a full site crawl.",
-      id: "e7tTJ8gdLB",
-      description: "Confidence description on a localisation audit result",
     }),
     fixFirstHeading: intl.formatMessage({
       defaultMessage: "Fix first",
@@ -537,71 +703,11 @@ export function getLocalisationAuditResultCopy(locale: string) {
       id: "OJQchlMSC5",
       description: "Heading for detected locales on a localisation audit result",
     }),
-    findingsHeading: intl.formatMessage({
-      defaultMessage: "Headline findings",
-      id: "heyfa1q/+8",
-      description: "Heading for headline findings on a localisation audit result",
-    }),
-    unlockHeading: intl.formatMessage({
-      defaultMessage: "Send this to your team",
-      id: "qupERHBhUI",
-      description: "Heading for the email-summary form on a localisation audit result",
-    }),
     unlockBody: intl.formatMessage({
       defaultMessage:
         "We'll email a short summary — score, top fixes, and a link back to this report — so it's easy to forward.",
       id: "NDXmA1pbVL",
       description: "Body for the email-summary form on a localisation audit result",
-    }),
-    standingHeading: intl.formatMessage({
-      defaultMessage: "How you compare",
-      id: "cQ32lI4seX",
-      description: "Heading for leaderboard standing on a localisation audit result",
-    }),
-    standingRank: (values: { rank: number; total: number }) =>
-      intl.formatMessage(
-        {
-          defaultMessage: "Rank #{rank} of {total} public audits",
-          id: "KjvUYZIXbF",
-          description: "Rank line on a localisation audit result standing section",
-        },
-        values,
-      ),
-    standingAhead: (values: { ahead: number }) =>
-      intl.formatMessage(
-        {
-          defaultMessage:
-            "Ahead of {ahead, plural, one {# other public audit} other {# other public audits}}",
-          id: "QWitM4s7rG",
-          description:
-            "Line on a localisation audit result standing section counting lower-scoring public audits",
-        },
-        values,
-      ),
-    standingAverage: (values: { average: number }) =>
-      intl.formatMessage(
-        {
-          defaultMessage: "Public average: {average}/100",
-          id: "KQZH+TKXlh",
-          description: "Average-score line on a localisation audit result standing section",
-        },
-        values,
-      ),
-    standingCta: intl.formatMessage({
-      defaultMessage: "See the full leaderboard",
-      id: "TU09/PYmBW",
-      description: "CTA linking from a localisation audit result to the public leaderboard",
-    }),
-    shareHeading: intl.formatMessage({
-      defaultMessage: "Share this report",
-      id: "haSTp/OWTR",
-      description: "Heading for sharing a public localisation audit report",
-    }),
-    shareBody: intl.formatMessage({
-      defaultMessage:
-        "This report is public. Share it with your team or post it to start a comparison.",
-      id: "5JYazrmkXn",
-      description: "Body for sharing a public localisation audit report",
     }),
     shareCopyLink: intl.formatMessage({
       defaultMessage: "Copy report link",
@@ -643,20 +749,10 @@ export function getLocalisationAuditResultCopy(locale: string) {
       id: "BBEyVbRR3L",
       description: "Error shown when requesting a localisation audit summary email fails",
     }),
-    companyIndustryLabel: intl.formatMessage({
-      defaultMessage: "Industry",
-      id: "ktH+IvcapS",
-      description: "Label for the company industry on a localisation audit result",
-    }),
     companyProductLabel: intl.formatMessage({
       defaultMessage: "Product",
       id: "2Ma/LzB+bC",
       description: "Label for the company product summary on a localisation audit result",
-    }),
-    companyBrandVoiceLabel: intl.formatMessage({
-      defaultMessage: "Brand voice",
-      id: "p/RwNTcexb",
-      description: "Label for the company brand voice on a localisation audit result",
     }),
     companyReportEyebrow: intl.formatMessage({
       defaultMessage: "Localisation report",
@@ -848,16 +944,6 @@ export function getLocalisationAuditResultCopy(locale: string) {
       id: "FKhi2+Kwrj",
       description: "Control to collapse AI-assessed localisation audit criteria",
     }),
-    criteriaWeightLabel: (values: { weight: number }) =>
-      intl.formatMessage(
-        {
-          defaultMessage: "Weight {weight}",
-          id: "AGfyX1m5DY",
-          description:
-            "Relative weight of a scored localisation audit criterion in the overall score",
-        },
-        values,
-      ),
     scoreCoverageAdjustment: (values: { percent: number }) =>
       intl.formatMessage(
         {
@@ -1018,8 +1104,281 @@ export function getLocalisationAuditResultCopy(locale: string) {
       id: "vGQC+xjlop",
       description: "Link to the blog guide explaining localisation audit scoring",
     }),
+    runningHeading: (values: { domain: string }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "Auditing {domain}",
+          id: "re5SgeGMLQ",
+          description:
+            "Heading while a localisation audit runs on a localisation audit result page",
+        },
+        values,
+      ),
+    liveHeading: intl.formatMessage({
+      defaultMessage: "Found so far",
+      id: "dCrcIcRfS2",
+      description:
+        "Heading for the live crawl summary while an audit runs on a localisation audit result page",
+    }),
+    liveWaiting: intl.formatMessage({
+      defaultMessage: "Waiting for the first pages…",
+      id: "J3KlN+W33c",
+      description:
+        "Live crawl summary before any page is sampled on a localisation audit result page",
+    }),
+    livePages: (values: { count: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "{count, plural, one {# page sampled} other {# pages sampled}}",
+          id: "9gSVnFD8Pb",
+          description:
+            "Live count of sampled pages while an audit runs on a localisation audit result page",
+        },
+        values,
+      ),
+    liveLanguages: (values: { count: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage:
+            "{count, plural, =0 {No languages found yet} one {# language found} other {# languages found}}",
+          id: "9tchrBuFpi",
+          description:
+            "Live count of detected languages while an audit runs on a localisation audit result page",
+        },
+        values,
+      ),
+    liveAnalyzing: intl.formatMessage({
+      defaultMessage: "Now checking these pages against every audit check.",
+      id: "FCjafnfiZy",
+      description:
+        "Live crawl summary note once crawling finishes on a localisation audit result page",
+    }),
+    overviewChecksPassed: intl.formatMessage({
+      defaultMessage: "Checks passed",
+      id: "spO0rZndA4",
+      description: "Label for the checks passed stat on a localisation audit result page",
+    }),
+    overviewChecksValue: (values: { passed: number; total: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "{passed} of {total}",
+          id: "psXbxeB5Gm",
+          description: "Value for the checks passed stat on a localisation audit result page",
+        },
+        values,
+      ),
+    overviewToFix: intl.formatMessage({
+      defaultMessage: "Checks to fix",
+      id: "WFGGfbNq0L",
+      description: "Label for the failing checks stat on a localisation audit result page",
+    }),
+    overviewLanguages: intl.formatMessage({
+      defaultMessage: "Languages found",
+      id: "hj/m1ef3J6",
+      description: "Label for the detected languages stat on a localisation audit result page",
+    }),
+    overviewPages: intl.formatMessage({
+      defaultMessage: "Pages sampled",
+      id: "a5rqDl0nQy",
+      description: "Label for the sampled pages stat on a localisation audit result page",
+    }),
+    overviewRank: intl.formatMessage({
+      defaultMessage: "Public rank",
+      id: "Kacs8vBvJh",
+      description: "Label for the leaderboard rank stat on a localisation audit result page",
+    }),
+    overviewRankValue: (values: { rank: number; total: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "#{rank} of {total}",
+          id: "w6oCFrAuXh",
+          description: "Value for the leaderboard rank stat on a localisation audit result page",
+        },
+        values,
+      ),
+    dimensionsHeading: intl.formatMessage({
+      defaultMessage: "Score by dimension",
+      id: "QBPMBBZvas",
+      description: "Heading for the dimension score card on a localisation audit result page",
+    }),
+    dimensionShare: (values: { percent: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "{percent}% of score",
+          id: "//QJ3Z/+ZO",
+          description:
+            "Share of the overall score carried by a dimension on a localisation audit result page",
+        },
+        values,
+      ),
+    dimensionToFix: (values: { count: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "{count} to fix",
+          id: "l2/rWXKcSi",
+          description: "Failing check count for a dimension on a localisation audit result page",
+        },
+        values,
+      ),
+    dimensionToWatch: (values: { count: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "{count} to watch",
+          id: "EON1Lu3hAe",
+          description: "Watch check count for a dimension on a localisation audit result page",
+        },
+        values,
+      ),
+    dimensionAllPassed: intl.formatMessage({
+      defaultMessage: "All checks passed",
+      id: "rH6bMXLw4f",
+      description:
+        "Dimension summary when every scored check passed on a localisation audit result page",
+    }),
+    dimensionNotMeasured: intl.formatMessage({
+      defaultMessage: "Not measured on this site",
+      id: "UQfmUbFpLw",
+      description:
+        "Dimension summary when no check could be scored on a localisation audit result page",
+    }),
+    fixFirstSubcopy: intl.formatMessage({
+      defaultMessage: "Ranked by how many points each fix would add to your score.",
+      id: "NUgUDRmaBN",
+      description: "Supporting copy for the fix first section on a localisation audit result page",
+    }),
+    fixFirstGain: (values: { points: string }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "+{points} pts",
+          id: "MsVi4t8UD6",
+          description:
+            "Points a fix would add to the overall score on a localisation audit result page",
+        },
+        values,
+      ),
+    fixFirstGainLabel: intl.formatMessage({
+      defaultMessage: "potential gain",
+      id: "J6dpkmdNHF",
+      description: "Caption under the points a fix would add on a localisation audit result page",
+    }),
+    fixFirstViewCheck: intl.formatMessage({
+      defaultMessage: "View check",
+      id: "SeXAIH1H+r",
+      description: "Link from a fix first card to its check on a localisation audit result page",
+    }),
+    breakdownHeading: intl.formatMessage({
+      defaultMessage: "How your score is built",
+      id: "64ML6tGnxx",
+      description: "Heading for the score breakdown section on a localisation audit result page",
+    }),
+    breakdownSubcopy: intl.formatMessage({
+      defaultMessage: "Every lost point comes from a specific check. Close the biggest gaps first.",
+      id: "chtmx2IDC3",
+      description:
+        "Supporting copy for the score breakdown section on a localisation audit result page",
+    }),
+    breakdownStart: intl.formatMessage({
+      defaultMessage: "Perfect score",
+      id: "MwSO0+vGDF",
+      description: "First row of the score breakdown on a localisation audit result page",
+    }),
+    breakdownLost: (values: { dimension: string }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "Lost on {dimension}",
+          id: "UEGzjQDo3v",
+          description:
+            "Score breakdown row for points lost in one dimension on a localisation audit result page",
+        },
+        values,
+      ),
+    breakdownWeighted: (values: { count: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage:
+            "Weighted average of {count, plural, one {# measured check} other {# measured checks}}",
+          id: "uOsoHzdrB/",
+          description:
+            "Score breakdown row for the weighted average before coverage on a localisation audit result page",
+        },
+        values,
+      ),
+    breakdownCoverage: (values: { factor: string }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "Language coverage × {factor}",
+          id: "7DthU3HVWr",
+          description:
+            "Score breakdown row for the locale coverage adjustment on a localisation audit result page",
+        },
+        values,
+      ),
+    breakdownFinal: intl.formatMessage({
+      defaultMessage: "Your score",
+      id: "oq5tlWuBk9",
+      description: "Final row of the score breakdown on a localisation audit result page",
+    }),
+    breakdownMismatch: intl.formatMessage({
+      defaultMessage:
+        "This report was scored under earlier rules, so we can't break the score down by check. Re-run the audit to get the full breakdown.",
+      id: "jJeB2ae5xE",
+      description:
+        "Note when the score breakdown cannot reproduce a legacy score on a localisation audit result page",
+    }),
+    checksFilterLabel: intl.formatMessage({
+      defaultMessage: "Filter checks by dimension",
+      id: "01FJo1wB1v",
+      description:
+        "Accessible label for the check dimension filter on a localisation audit result page",
+    }),
+    checksFilterAll: intl.formatMessage({
+      defaultMessage: "All",
+      id: "ltUMSD0wJw",
+      description:
+        "Filter option showing checks from every dimension on a localisation audit result page",
+    }),
+    checkCost: (values: { points: string }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "−{points} pts",
+          id: "ToCen1+d0x",
+          description: "Points a check costs the overall score on a localisation audit result page",
+        },
+        values,
+      ),
+    checkRubricLabel: intl.formatMessage({
+      defaultMessage: "What we check",
+      id: "EbVzh1bCcZ",
+      description: "Label above a check's rubric on a localisation audit result page",
+    }),
+    checkNoFindings: intl.formatMessage({
+      defaultMessage: "No issues recorded for this check.",
+      id: "La2J6ANaGA",
+      description: "Expanded check with no findings on a localisation audit result page",
+    }),
+    checkAiBadge: intl.formatMessage({
+      defaultMessage: "AI-reviewed",
+      id: "/wq2Fueqfr",
+      description:
+        "Badge for an AI-assessed check that does not affect the score on a localisation audit result page",
+    }),
+    scoreBandsLabel: intl.formatMessage({
+      defaultMessage: "Score bands",
+      id: "WUNo2jL+pM",
+      description: "Accessible label for the score band scale on a localisation audit result page",
+    }),
+    emailSummaryHeading: intl.formatMessage({
+      defaultMessage: "Get a copy by email",
+      id: "b4sdHwdRw/",
+      description:
+        "Heading for the email summary form in the next step section on a localisation audit result page",
+    }),
   };
 }
+
+export type LocalisationAuditResultCopy = ReturnType<typeof getLocalisationAuditResultCopy>;
+
+export type LocalisationAuditPageCopy = ReturnType<typeof getLocalisationAuditPageCopy>;
 
 export type LocalisationAuditRating =
   | "excellent"
