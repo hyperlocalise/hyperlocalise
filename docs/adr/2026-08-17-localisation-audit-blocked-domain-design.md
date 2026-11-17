@@ -17,10 +17,13 @@ completion, leaderboard, or report-email paths.
 Use conservative detection at the homepage boundary:
 
 - Treat HTTP `401`, `403`, and `429` responses as blocked.
-- Treat challenge pages as blocked when their HTML contains recognizable
-  access-control or bot-challenge language, including CAPTCHA, Cloudflare
-  challenge markers, “verify you are human”, “access denied”, and “request
-  blocked”.
+- Treat challenge pages as blocked when the visible page is nearly empty and
+  the response contains a real interstitial (Cloudflare challenge widget,
+  DataDome, PerimeterX, or Imperva) or recognizable bot-challenge language,
+  including CAPTCHA, “verify you are human”, “access denied”, and “request
+  blocked”. Cloudflare’s background
+  `/cdn-cgi/challenge-platform/scripts/jsd/main.js` on a loaded page is not a
+  block.
 - Leave ordinary timeouts, connection failures, and unrelated `5xx` responses
   as failed so they retain the existing retry behavior.
 
