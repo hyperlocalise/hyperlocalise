@@ -78,12 +78,27 @@ function renderPage(overrides: Partial<Parameters<typeof GlossariesPageView>[0]>
 }
 
 describe("GlossariesPageView", () => {
-  it("keeps a Provider section and Integrations link when nothing is connected", () => {
-    renderPage();
+  it("explains glossaries with create and Integrations actions when the workspace has none", () => {
+    const onCreateDialogOpenChange = vi.fn();
+    renderPage({ onCreateDialogOpenChange });
+
+    expect(
+      screen.getByRole("heading", { name: "Keep your brand terms the same in every language" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Connect a provider" })).toHaveAttribute(
+      "href",
+      "/org/acme/integrations",
+    );
+    screen.getAllByRole("button", { name: "Create glossary" }).at(-1)?.click();
+    expect(onCreateDialogOpenChange).toHaveBeenCalledWith(true);
+  });
+
+  it("keeps a Provider section and Integrations link when the viewer cannot create glossaries", () => {
+    renderPage({ allowCreateGlossaries: false });
 
     expect(screen.getByText("TMS")).toBeInTheDocument();
     expect(screen.getByText("Connect a TMS provider")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Connect a provider" })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: "Connect a provider" })[0]).toHaveAttribute(
       "href",
       "/org/acme/integrations",
     );

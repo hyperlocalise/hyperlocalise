@@ -1570,3 +1570,138 @@ html,
     color: var(--muted-foreground);
   }
 }
+
+/* First-run explainers on empty workspace lists (WorkspaceEmptyState). Each
+   sketch loops every six seconds: the unicorn hops down one row every 0.6s and
+   the row finishes as it lands, staggered with an inline animation-delay.
+   With reduced motion they rest on their finished frame. */
+@keyframes empty-state-unicorn {
+  0%,
+  10% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  16%,
+  24% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  26%,
+  34% {
+    opacity: 1;
+    transform: translateY(var(--empty-state-row-pitch));
+  }
+  36%,
+  44% {
+    opacity: 1;
+    transform: translateY(calc(var(--empty-state-row-pitch) * 2));
+  }
+  46%,
+  72% {
+    opacity: 1;
+    transform: translateY(calc(var(--empty-state-row-pitch) * 3));
+  }
+  80%,
+  100% {
+    opacity: 0;
+    transform: translateY(calc(var(--empty-state-row-pitch) * 3));
+  }
+}
+
+@keyframes empty-state-fill {
+  0%,
+  18% {
+    transform: scaleX(0);
+  }
+  25%,
+  78% {
+    transform: scaleX(1);
+  }
+  88%,
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes empty-state-pop {
+  0%,
+  23% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  28%,
+  78% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  88%,
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+@keyframes empty-state-unflag {
+  0%,
+  20% {
+    opacity: 1;
+  }
+  26%,
+  80% {
+    opacity: 0;
+  }
+  90%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes empty-state-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -4px;
+  }
+}
+
+.empty-state-unicorn {
+  --empty-state-row-pitch: 1.875rem;
+  animation: empty-state-unicorn 6s ease-in-out infinite both;
+}
+
+.empty-state-fill {
+  transform-origin: left;
+  animation: empty-state-fill 6s ease-in-out infinite both;
+}
+
+.empty-state-fill:dir(rtl) {
+  transform-origin: right;
+}
+
+.empty-state-pop {
+  animation: empty-state-pop 6s ease-out infinite both;
+}
+
+.empty-state-unflag {
+  animation: empty-state-unflag 6s ease-in-out infinite both;
+}
+
+.empty-state-float {
+  animation: empty-state-float 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-state-unicorn,
+  .empty-state-fill,
+  .empty-state-pop,
+  .empty-state-float {
+    animation: none;
+  }
+
+  .empty-state-unflag {
+    animation: none;
+    opacity: 0;
+  }
+}
