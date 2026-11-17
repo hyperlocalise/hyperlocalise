@@ -17,7 +17,7 @@ import { useIntl } from "react-intl";
 import { describeChange } from "@/lib/reporting/report-period";
 
 import { costsTabMessages as messages } from "./costs-tab.messages";
-import { formatChange, formatUsd } from "./report-format";
+import { formatUsd, statCardChange } from "./report-format";
 import { DownloadCsvButton, ReportEmpty, ReportSectionState } from "./report-section";
 import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./report-stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
@@ -35,15 +35,16 @@ export function CostsTab({ input }: { input: SectionInput }) {
   const costs = useCosts(input);
   const numeric = "text-right tabular-nums";
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {costs.isPending && !costs.data ? (
         <ReportStatCardsSkeleton count={3} />
       ) : costs.data ? (
         <ReportStatCards>
           <ReportStatCard
+            featured
             label={intl.formatMessage(messages.totalSpent)}
             value={formatUsd(intl, costs.data.totals.totalUsd)}
-            change={formatChange(
+            {...statCardChange(
               intl,
               describeChange({
                 current: Number(costs.data.totals.totalUsd),
@@ -57,12 +58,12 @@ export function CostsTab({ input }: { input: SectionInput }) {
           <ReportStatCard
             label={intl.formatMessage(messages.people)}
             value={formatUsd(intl, costs.data.totals.peopleUsd)}
-            detail={intl.formatMessage(messages.peopleDetail)}
+            hint={intl.formatMessage(messages.peopleDetail)}
           />
           <ReportStatCard
             label={intl.formatMessage(messages.ai)}
             value={formatUsd(intl, costs.data.totals.aiUsd)}
-            detail={intl.formatMessage(messages.aiDetail)}
+            hint={intl.formatMessage(messages.aiDetail)}
           />
         </ReportStatCards>
       ) : null}

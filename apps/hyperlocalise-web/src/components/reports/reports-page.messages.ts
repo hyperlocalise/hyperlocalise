@@ -55,16 +55,76 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "Reports",
     description: "Heading of the Reports page",
   },
-  startedOn: {
-    id: "lRRxrjNRIO",
-    defaultMessage: "Reporting started {date} · Days and weeks use UTC",
-    description:
-      "Subtitle of the Reports page: when Reports began recording for the workspace, and that days are UTC days",
+  recordingSince: {
+    id: "XvgtToCdk/",
+    defaultMessage: "Recording since {date}",
+    description: "Status line of the Reports page: when Reports began recording for the workspace",
   },
-  notStarted: {
-    id: "UEepWsWbHg",
-    defaultMessage: "Reports has not recorded any work yet · Days and weeks use UTC",
-    description: "Subtitle of the Reports page before anything has been recorded",
+  notRecording: {
+    id: "C+pVy0SsnP",
+    defaultMessage: "Nothing recorded yet",
+    description: "Status line of the Reports page before anything has been recorded",
+  },
+  aboutFigures: {
+    id: "w8cUj9GlZc",
+    defaultMessage: "About these figures",
+    description: "Accessible name of the button that explains how the Reports figures are counted",
+  },
+  utcDays: {
+    id: "qsnlm9OO0o",
+    defaultMessage: "Days and weeks use UTC.",
+    description: "Note on the Reports page: days and weeks are UTC days",
+  },
+  aboutMetric: {
+    id: "b6UF6S7WO5",
+    defaultMessage: "About {metric}",
+    description:
+      "Accessible name of the info button beside a Reports figure, such as Words finished",
+  },
+  groupOverview: {
+    id: "kzB29vPyzq",
+    defaultMessage: "Overview",
+    description: "Reports tab: what was done in the chosen dates",
+  },
+  groupOutput: {
+    id: "iZP5T1j4Xm",
+    defaultMessage: "Output",
+    description: "Reports tab grouping word counts and AI usage",
+  },
+  groupPeople: {
+    id: "IhDH7jqoiK",
+    defaultMessage: "People",
+    description: "Reports tab grouping contributors and logged time",
+  },
+  groupMoney: {
+    id: "zMAqAdu/oX",
+    defaultMessage: "Money",
+    description: "Reports tab grouping costs, cost estimates and budgets",
+  },
+  viewsLabel: {
+    id: "vh6ruZTydJ",
+    defaultMessage: "View",
+    description: "Accessible name of the list of reports within one Reports tab",
+  },
+  filters: {
+    id: "K1MRv38zLH",
+    defaultMessage: "Filters",
+    description: "Button that opens the Reports page's less used filters",
+  },
+  activeFilter: {
+    id: "XmHitYF7Or",
+    defaultMessage: "{filter}: {value}",
+    description: "A chosen Reports filter shown as a chip: the filter's name, then its value",
+  },
+  removeFilter: {
+    id: "Sm7h8rtC1v",
+    defaultMessage: "Remove {filter} filter",
+    description: "Accessible name of the button that clears one Reports filter",
+  },
+  clearFilters: {
+    id: "sorU6QUdjy",
+    defaultMessage: "Clear all",
+    description: "Button that clears every Reports filter shown as a chip",
   },
   ownTimeOnly: {
     id: "+FItbgGdn4",

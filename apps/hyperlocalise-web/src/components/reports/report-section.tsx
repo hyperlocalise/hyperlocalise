@@ -44,15 +44,14 @@ export function ReportSection({
   className?: string;
 }) {
   return (
-    <section
-      aria-label={title}
-      className={cn("flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-5", className)}
-    >
+    <section aria-label={title} className={cn("flex min-w-0 flex-col gap-4", className)}>
       {title || actions ? (
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           {title ? (
             <div className="flex flex-col gap-1">
-              <h2 className="text-[15px] font-semibold text-foreground">{title}</h2>
+              <h2 className="text-base font-semibold tracking-[-0.01em] text-foreground">
+                {title}
+              </h2>
               {description ? (
                 <p className="text-[13px] text-muted-foreground">{description}</p>
               ) : null}

@@ -53,6 +53,34 @@ export type ReportsTab = (typeof REPORTS_TABS)[number];
 export const MEMBER_TABS: readonly ReportsTab[] = ["time", "contributors"];
 
 /**
+ * The page's top-level tabs, each holding related reports. The URL keeps the report's own tab,
+ * so the group follows from it.
+ */
+export const REPORTS_GROUPS = {
+  overview: ["activity"],
+  output: ["words", "ai"],
+  people: ["contributors", "time"],
+  money: ["costs", "estimate", "budgets"],
+} as const satisfies Record<string, readonly ReportsTab[]>;
+export type ReportsGroup = keyof typeof REPORTS_GROUPS;
+
+export function reportsGroupOf(tab: ReportsTab): ReportsGroup {
+  const groups = Object.keys(REPORTS_GROUPS) as ReportsGroup[];
+  return (
+    groups.find((group) => (REPORTS_GROUPS[group] as readonly ReportsTab[]).includes(tab)) ??
+    "overview"
+  );
+}
+
+/** The groups that hold any of `tabs`, each with its tabs in `tabs`' order. */
+export function visibleReportsGroups(tabs: readonly ReportsTab[]) {
+  return (Object.keys(REPORTS_GROUPS) as ReportsGroup[]).flatMap((group) => {
+    const inGroup = tabs.filter((tab) => reportsGroupOf(tab) === group);
+    return inGroup.length ? [{ group, tabs: inGroup }] : [];
+  });
+}
+
+/**
  * The ready-made date ranges, which move with today, and "custom" for dates chosen by hand.
  * Months and quarters are UTC calendar months, as Reports' days are.
  */

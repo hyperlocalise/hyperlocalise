@@ -33,18 +33,10 @@ describe.skipIf(!reportsEnabled)("reports", () => {
     });
     const tabs = page.getByRole("tab");
     await tabs.first().waitFor({ state: "visible", timeout: 60_000 });
-    expect(await tabs.allTextContents()).toEqual([
-      "Activity",
-      "Word counts",
-      "Contributors",
-      "Time",
-      "AI usage",
-      "Costs",
-      "Cost estimate",
-      "Budgets",
-    ]);
+    expect(await tabs.allTextContents()).toEqual(["Overview", "Output", "People", "Money"]);
 
-    await page.getByRole("tab", { name: "Contributors" }).click();
+    // People opens on Contributors, its first report.
+    await page.getByRole("tab", { name: "People" }).click();
     await page.waitForURL((url) => url.searchParams.get("tab") === "contributors");
     await waitForSettledPage(page);
     // A new workspace has no work yet: the empty state, or the table once it has some.

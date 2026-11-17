@@ -83,16 +83,13 @@ export function ContributorsTab({
   const numeric = "text-right tabular-nums";
   const data = contributors.data;
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {contributors.isPending && !data ? (
         <ReportStatCardsSkeleton count={3} />
       ) : data ? (
         <ReportStatCards>
           <ReportStatCard
-            label={intl.formatMessage(messages.people)}
-            value={formatCount(intl, data.totals.people)}
-          />
-          <ReportStatCard
+            featured
             label={intl.formatMessage(messages.finished)}
             value={formatCount(intl, data.totals.finished)}
             detail={
@@ -114,6 +111,10 @@ export function ContributorsTab({
               }
             />
           ) : null}
+          <ReportStatCard
+            label={intl.formatMessage(messages.people)}
+            value={formatCount(intl, data.totals.people)}
+          />
         </ReportStatCards>
       ) : null}
       {data && !data.financial ? (
