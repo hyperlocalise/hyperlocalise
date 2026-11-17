@@ -240,6 +240,10 @@ type irisImageLocaliseRegion struct {
 // irisMaxImageEditPrompt bounds an image-edit instruction, in runes.
 const irisMaxImageEditPrompt = 4000
 
+// irisMaxImageEditReferences bounds the reference images sent with an image
+// edit. GPT Image takes at most 16 images per edit, the edited one included.
+const irisMaxImageEditReferences = 8
+
 var irisSyncModes = map[string]bool{"cut_off": true, "loop": true, "bounce": true, "silence": true, "remap": true}
 
 // irisTranslationPair is one source string and the translation an image's
@@ -481,6 +485,9 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 			if _, ok := req.asset("mask"); !ok {
 				return model, fmt.Errorf("mask must be an uploaded asset")
 			}
+		}
+		if len(req.assets("images")) > irisMaxImageEditReferences {
+			return model, fmt.Errorf("image-edit takes at most %d reference images", irisMaxImageEditReferences)
 		}
 	}
 	return model, nil

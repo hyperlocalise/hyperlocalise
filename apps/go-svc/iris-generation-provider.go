@@ -324,12 +324,13 @@ func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest)
 		req.Model.GatewayID = irisEnvOr("IRIS_OPENAI_IMAGE_MODEL", req.Model.GatewayID)
 		return p.imageEdit(ctx, req, []irisProviderInput{image}, 1)
 	case "image-edit":
-		image, ok := firstInput(req.Inputs, "image")
-		if !ok {
+		// The edited image first, then any references (`images`) it is to take from.
+		images := inputsByRole(req.Inputs, "image")
+		if len(images) == 0 {
 			return nil, fmt.Errorf("image input is required")
 		}
 		req.Model.GatewayID = irisEnvOr("IRIS_OPENAI_IMAGE_MODEL", req.Model.GatewayID)
-		return p.imageEdit(ctx, req, []irisProviderInput{image}, 1)
+		return p.imageEdit(ctx, req, images, 1)
 	case "image-text":
 		return p.imageText(ctx, req)
 	case "elevenlabs-dubbing":
