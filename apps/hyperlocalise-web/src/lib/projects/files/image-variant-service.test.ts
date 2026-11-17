@@ -522,6 +522,46 @@ describe("image variant edits", () => {
     expect(forced.value.storedFileId).not.toBe(previous.id);
   });
 
+  it("sends numbered comment notes and maps credit failures on the edit path", async () => {
+    const { organization, project } = await createVariant("needs_review");
+
+    await editAndStoreImageVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      request: { kind: "comment", notes: ["Use the VND price", "", "Drop it"] },
+      image: Buffer.from("pinned-image"),
+    });
+
+    const commentCall = vi.mocked(regenerateImageFromAttachment).mock.calls[0];
+    expect(commentCall?.[2]).toContain("1. Use the VND price");
+    expect(commentCall?.[2]).toContain("3. Drop it");
+    expect(commentCall?.[2]).not.toContain("2.");
+    expect(commentCall?.[4]).not.toHaveProperty("mask");
+
+    regenerateImageFromAttachment.mockRejectedValueOnce(
+      new ManagedAiCreditAccessError({
+        code: "ai_credit_pricing_not_configured",
+        surface: "image",
+      }),
+    );
+    const unavailable = await editAndStoreImageVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      request: { kind: "removeBackground" },
+      image: Buffer.from("current-image"),
+    });
+    expect(isErr(unavailable)).toBe(true);
+    if (isOk(unavailable)) throw new Error("expected edit credit failure");
+    expect(unavailable.error).toEqual({
+      code: "ai_credit_unavailable",
+      message: "AI credit pricing is not configured for image",
+    });
+  });
+
   it("refuses to edit a locale that has no image yet", async () => {
     const { organization, project } = await createStoredProjectFixture();
 

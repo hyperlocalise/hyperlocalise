@@ -302,6 +302,17 @@ func TestValidateIrisGenerateRequest(t *testing.T) {
 			wantErr: "lyria-3-pro takes at most 1 image",
 			wantID:  "lyria-3-pro",
 		},
+		{
+			name:    "image-edit prompt too long",
+			req:     irisGenerateRequest{"model": "image-edit", "image": asset, "prompt": strings.Repeat("x", 4001)},
+			wantErr: "prompt is too long",
+			wantID:  "image-edit",
+		},
+		{
+			name:   "image-edit prompt at max runes is accepted",
+			req:    irisGenerateRequest{"model": "image-edit", "image": asset, "prompt": strings.Repeat("x", 4000)},
+			wantID: "image-edit",
+		},
 	}
 
 	for _, tc := range tests {

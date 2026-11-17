@@ -46,4 +46,37 @@ describe("buildLocalisationAuditProgressSnapshot", () => {
       pagePaths: [],
     });
   });
+
+  it("caps locales and unique paths and keeps unparseable URLs as-is", () => {
+    const snapshot = buildLocalisationAuditProgressSnapshot([
+      ...Array.from({ length: 14 }, (_, index) => ({
+        url: `https://acme.com/p${index}`,
+        htmlLang: `en-${String(index).padStart(2, "0")}`,
+        hreflang: [] as { locale: string; href: string }[],
+      })),
+      {
+        url: "https://acme.com/p0",
+        htmlLang: "  ",
+        hreflang: [{ locale: "x-default", href: "https://acme.com/" }],
+      },
+      {
+        url: "/not-a-url",
+        htmlLang: null,
+        hreflang: [],
+      },
+    ]);
+
+    expect(snapshot.pagesCrawled).toBe(16);
+    expect(snapshot.locales).toHaveLength(12);
+    expect(snapshot.locales[0]).toBe("en-00");
+    expect(snapshot.locales.at(-1)).toBe("en-11");
+    expect(snapshot.pagePaths).toEqual(["/p0", "/p1", "/p2", "/p3", "/p4", "/p5", "/p6", "/p7"]);
+  });
+
+  it("preserves an unparseable URL instead of dropping the page", () => {
+    expect(
+      buildLocalisationAuditProgressSnapshot([{ url: "not a url", htmlLang: "en", hreflang: [] }])
+        .pagePaths,
+    ).toEqual(["not a url"]);
+  });
 });

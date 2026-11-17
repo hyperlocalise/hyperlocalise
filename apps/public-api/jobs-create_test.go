@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -136,6 +137,36 @@ func TestJobCreateRoutes(t *testing.T) {
 			require.Equal(t, http.StatusBadRequest, w.Code, body)
 			require.Contains(t, w.Body.String(), `"error":"invalid_job_payload"`, body)
 		}
+	})
+
+	t.Run("rejects oversized metadata, context, and maxLength", func(t *testing.T) {
+		entries := make([]string, 51)
+		for i := range entries {
+			entries[i] = fmt.Sprintf(`"%d":"v"`, i)
+		}
+		for _, body := range []string{
+			fmt.Sprintf(`{"type":"string","projectId":"p","stringInput":{"sourceText":"Hi","sourceLocale":"en","targetLocales":["fr"],"metadata":{%s}}}`, strings.Join(entries, ",")),
+			fmt.Sprintf(`{"type":"string","projectId":"p","stringInput":{"sourceText":"Hi","sourceLocale":"en","targetLocales":["fr"],"metadata":{"%s":"v"}}}`, strings.Repeat("k", 101)),
+			fmt.Sprintf(`{"type":"string","projectId":"p","stringInput":{"sourceText":"Hi","sourceLocale":"en","targetLocales":["fr"],"metadata":{"k":"%s"}}}`, strings.Repeat("v", 1001)),
+			fmt.Sprintf(`{"type":"string","projectId":"p","stringInput":{"sourceText":"Hi","sourceLocale":"en","targetLocales":["fr"],"context":"%s"}}`, strings.Repeat("c", 20_001)),
+			`{"type":"string","projectId":"p","stringInput":{"sourceText":"Hi","sourceLocale":"en","targetLocales":["fr"],"maxLength":0}}`,
+			`{"type":"string","projectId":"p","stringInput":{"sourceText":"Hi","sourceLocale":"en","targetLocales":["fr"],"maxLength":100001}}`,
+			fmt.Sprintf(`{"type":"file","projectId":"p","fileInput":{"sourceFileId":"f","fileFormat":"json","sourceLocale":"en","targetLocales":["fr"],"metadata":{"%s":"ok"}}}`, strings.Repeat("k", 101)),
+		} {
+			w := sendResource(t, resourcePrincipal(jobWriteScopes...), &fakeResourceStore{}, http.MethodPost, "/v1/jobs", body)
+			require.Equal(t, http.StatusBadRequest, w.Code, body)
+			require.Contains(t, w.Body.String(), `"error":"invalid_job_payload"`, body)
+		}
+	})
+
+	t.Run("accepts metadata at the entry limit", func(t *testing.T) {
+		entries := make([]string, 50)
+		for i := range entries {
+			entries[i] = fmt.Sprintf(`"%d":"v"`, i)
+		}
+		body := fmt.Sprintf(`{"type":"string","projectId":"p","stringInput":{"sourceText":"Hi","sourceLocale":"en","targetLocales":["fr"],"metadata":{%s},"maxLength":1,"context":"%s"}}`, strings.Join(entries, ","), strings.Repeat("c", 20_000))
+		w := sendResource(t, resourcePrincipal(jobWriteScopes...), &fakeResourceStore{}, http.MethodPost, "/v1/jobs", body)
+		require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	})
 
 	t.Run("rejects a bad idempotency key", func(t *testing.T) {
