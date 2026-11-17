@@ -17,13 +17,18 @@ import { withWorkflow } from "workflow/next";
 
 import { AGENT_MARKDOWN_TRACE_GLOB } from "./src/agents/_runtime/paths";
 import { posthogNextRewrites } from "./src/lib/analytics/posthog-config";
+import {
+  PLAYWRIGHT_CORE_TRACE_GLOBS,
+  PLAYWRIGHT_CORE_TRACE_ROUTE,
+} from "./src/lib/localisation-audit/playwright-trace";
 
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   // Keep the tracer and the dependencies whose load hooks provide the spans we
-  // rely on as native Node.js modules instead of folding them into route bundles.
-  serverExternalPackages: ["dd-trace", "pg", "posthog-node", "undici"],
+  // rely on as native Node.js modules. playwright-core stays external so
+  // coreBundle.js keeps its package __dirname and can read browsers.json.
+  serverExternalPackages: ["dd-trace", "pg", "posthog-node", "undici", "playwright-core"],
   typescript: {
     // Exclude tests and typed-app.ts so next build does not instantiate AppType (TS2589).
     tsconfigPath: "tsconfig.build.json",
@@ -47,12 +52,9 @@ const nextConfig: NextConfig = {
   // Agent prompts load from src/agents/**/*.md at runtime via process.cwd() (see paths.ts).
   outputFileTracingIncludes: {
     "/*": [AGENT_MARKDOWN_TRACE_GLOB, "_posts/**/*.md", "datadog-init.mjs"],
-    // playwright-core stays external and loads browsers.json through a computed
-    // path, so file tracing misses it. The localisation audit step connects to
-    // Tilion over CDP and only needs the JS client, not browser binaries.
-    "/.well-known/workflow/v1/step": [
-      "./node_modules/.pnpm/playwright-core@*/node_modules/playwright-core/**/*",
-    ],
+    // Computed require of browsers.json is invisible to file tracing. Steps run
+    // on this route; the retired step route is not generated.
+    [PLAYWRIGHT_CORE_TRACE_ROUTE]: [...PLAYWRIGHT_CORE_TRACE_GLOBS],
   },
 };
 
