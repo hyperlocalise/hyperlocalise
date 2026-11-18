@@ -15,10 +15,30 @@
 import { defineMessages } from "react-intl";
 
 export const githubAutoReviewCardMessages = defineMessages({
-  sectionTitle: {
-    defaultMessage: "From Hyperlocalise",
-    id: "UbMdijMS9Y",
-    description: "Section heading for built-in Hyperlocalise automations",
+  rowTitle: {
+    defaultMessage: "GitHub Auto-review",
+    id: "5ULJLorB2I",
+    description: "Name of the built-in GitHub Auto-review row above the automations list",
+  },
+  builtIn: {
+    defaultMessage: "Built in",
+    id: "UlmKeEk9jf",
+    description: "Badge saying GitHub Auto-review comes with every workspace",
+  },
+  rowDescription: {
+    defaultMessage: "Reviews pull requests for localisation issues.",
+    id: "8agMI5ik44",
+    description: "One-line description of GitHub Auto-review above the automations list",
+  },
+  stateOn: {
+    defaultMessage: "On · {count, plural, one {# repository} other {# repositories}}",
+    id: "03+o57Xlgo",
+    description: "GitHub Auto-review is turned on, with how many repositories it reviews",
+  },
+  stateOff: {
+    defaultMessage: "Off",
+    id: "SU+1M/5QGg",
+    description: "GitHub Auto-review is turned off",
   },
   title: {
     defaultMessage: "Auto-review",

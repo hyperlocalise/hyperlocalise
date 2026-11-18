@@ -161,7 +161,7 @@ export function VisualWorkflowEditorPageContent({
     onSuccess: () => {
       toast.success(<FormattedMessage {...visualWorkflowsPageMessages.deleteSuccess} />);
       // The workflow is gone, so its unsaved changes are not asked about.
-      leaveTo(`/org/${organizationSlug}/automations/visual-workflows`);
+      leaveTo(`/org/${organizationSlug}/automations?type=workflow`);
     },
     onError: () => {
       toast.error(<FormattedMessage {...visualWorkflowsPageMessages.deleteFailed} />);

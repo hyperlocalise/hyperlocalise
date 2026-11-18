@@ -10,56 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
-import { isWorkspaceOperatorRole } from "@/api/auth/policy";
-import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
-import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
-import {
-  getAutumnWorkspaceBooleanFeatureEnabled,
-  getWorkspaceFeatureFlagEnabled,
-  workspaceAutomationsFlag,
-} from "@/lib/flags/workspace-flags";
-import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
-
-import { VisualWorkflowsPageContent } from "../_components/visual-workflows-page-content";
-
-export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
-  return generateAuthenticatedPageMetadata(params, "visualWorkflows");
-}
-
-export default function VisualWorkflowsPage({
-  params,
-}: {
-  params: Promise<{ organizationSlug: string }>;
-}) {
-  return <VisualWorkflowsPageLoader params={params} />;
-}
-
-async function VisualWorkflowsPageLoader({
+/** Workflows are listed with the rest of the automations now; old links land on that list. */
+export default async function VisualWorkflowsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  const auth = await requireAppAuthContext({ organizationSlug });
-  const [automationsEnabled, visualWorkflowsEnabled] = await Promise.all([
-    getWorkspaceFeatureFlagEnabled(workspaceAutomationsFlag, auth),
-    getAutumnWorkspaceBooleanFeatureEnabled(autumnFeatureIds.automationWorkflow, auth),
-  ]);
-
-  if (!automationsEnabled) {
-    return <FeatureTeaserPage feature="automations" scope="workspace" />;
-  }
-
-  if (!visualWorkflowsEnabled) {
-    notFound();
-  }
-
-  if (!isWorkspaceOperatorRole(auth.membership.role)) {
-    notFound();
-  }
-
-  return <VisualWorkflowsPageContent organizationSlug={organizationSlug} />;
+  return redirect(`/org/${organizationSlug}/automations?type=workflow`);
 }

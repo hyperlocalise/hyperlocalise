@@ -269,7 +269,7 @@ describe("VisualWorkflowEditorPageContent leave guard", () => {
 
     await waitFor(() => expect(deleteVisualWorkflow).toHaveBeenCalledOnce());
     await waitFor(() => {
-      expect(mocks.routerReplace).toHaveBeenCalledWith("/org/acme/automations/visual-workflows", {
+      expect(mocks.routerReplace).toHaveBeenCalledWith("/org/acme/automations?type=workflow", {
         scroll: undefined,
       });
     });

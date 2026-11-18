@@ -495,9 +495,9 @@ function formatNewAutomationTitle(intl: IntlShape): string {
 
 function formatVisualWorkflowsTitle(intl: IntlShape): string {
   return intl.formatMessage({
-    defaultMessage: "Visual workflows",
-    id: "Qfog4jJ47y",
-    description: "App shell breadcrumb title for the visual workflows page",
+    defaultMessage: "Workflow",
+    id: "hCsDX+6VsZ",
+    description: "App shell breadcrumb title for a workflow's canvas",
   });
 }
 
@@ -707,17 +707,12 @@ export function getAppShellBreadcrumbs(
           label: formatRouteTitle(intl, "automations"),
           href: automationsHref,
         },
-        {
-          label: formatVisualWorkflowsTitle(intl),
-          ...(projectSection
-            ? { href: buildOrgPath(organizationSlug, "automations", "visual-workflows") }
-            : {}),
-        },
+        { label: formatVisualWorkflowsTitle(intl) },
       ];
       return crumbs;
     }
 
-    if (subsection === "new") {
+    if (subsection === "new" || subsection === "create") {
       return [
         {
           label: formatRouteTitle(intl, "automations"),
@@ -775,7 +770,10 @@ export function getAppShellBreadcrumbs(
         },
       ];
 
-      if (projectSection === "automations" && issueIdSegment === "new") {
+      if (
+        projectSection === "automations" &&
+        (issueIdSegment === "new" || issueIdSegment === "create")
+      ) {
         crumbs.push({ label: formatNewAutomationTitle(intl) });
       }
 

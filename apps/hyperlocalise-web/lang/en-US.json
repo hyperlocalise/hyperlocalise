@@ -103,6 +103,10 @@
     "defaultMessage": "Archived",
     "description": "Badge label for an archived GitHub repository"
   },
+  "+4152IDY/y": {
+    "defaultMessage": "Build it yourself",
+    "description": "Heading above the choice between an agent and a workflow, without a prompt box"
+  },
   "+4aC40FyTC": {
     "defaultMessage": "{count, number} of {max, number} files",
     "description": "Count of uploaded knowledge files versus the maximum"
@@ -786,10 +790,6 @@
   "//QJ3Z/+ZO": {
     "defaultMessage": "{percent}% of score",
     "description": "Share of the overall score carried by a dimension on a localisation audit result page"
-  },
-  "//TpvvzaTN": {
-    "defaultMessage": "Active",
-    "description": "Visual workflow list status when the workflow is live"
   },
   "//aw3pq5aP": {
     "defaultMessage": "Cell update failed",
@@ -1546,6 +1546,10 @@
   "02hUDkxuJ0": {
     "defaultMessage": "Use the connection's content types",
     "description": "Button that replaces the automation's saved Contentful content types with the connection's current ones"
+  },
+  "03+o57Xlgo": {
+    "defaultMessage": "On · {count, plural, one {# repository} other {# repositories}}",
+    "description": "GitHub Auto-review is turned on, with how many repositories it reviews"
   },
   "04/aNgNk5U": {
     "defaultMessage": "Informal shortened name",
@@ -2863,6 +2867,10 @@
     "defaultMessage": "Navigation",
     "description": "Keyboard shortcuts dialog section for moving between strings"
   },
+  "1qL0M/R6/C": {
+    "defaultMessage": "Type",
+    "description": "Automations list column header for whether a row is an agent or a workflow"
+  },
   "1qUA3TQ2aW": {
     "defaultMessage": "Nothing was spent in these dates.",
     "description": "Shown when there are no costs"
@@ -3234,6 +3242,10 @@
   "2G2BsJhU36": {
     "defaultMessage": "Search items",
     "description": "Placeholder for filtering mapped Webflow items"
+  },
+  "2G8CF0pUmv": {
+    "defaultMessage": "Best for reviews, translation, syncs and reports.",
+    "description": "What an agent automation suits, on the card that starts one"
   },
   "2Gc1+aVeLn": {
     "defaultMessage": "Nothing to redo",
@@ -3939,6 +3951,10 @@
     "defaultMessage": "A timed test with a start date, an audience, and the versions you want to try.",
     "description": "Home card body for experiments"
   },
+  "3IL4ds7P3n": {
+    "defaultMessage": "Open to see runs",
+    "description": "Accessible text for the empty last run cell of a workflow, whose runs are listed on its canvas"
+  },
   "3IN5K2pGkM": {
     "defaultMessage": "Is every page fully translated, and does the writing still sound like you?",
     "description": "Body of the linguistic dimension on the localisation audit landing page methodology"
@@ -3986,6 +4002,10 @@
   "3OmQiHHUCs": {
     "defaultMessage": "Drag a screenshot here",
     "description": "Idle label for the visual context screenshot dropzone"
+  },
+  "3OnfnSk5HX": {
+    "defaultMessage": "Draw each step on a canvas, with branches, waits and approvals.",
+    "description": "What a workflow is, on the card that starts one"
   },
   "3OpVBAoDiq": {
     "defaultMessage": "#localisation",
@@ -4086,6 +4106,10 @@
   "3Yr0O98xb/": {
     "defaultMessage": "Dismiss",
     "description": "Hides the notice that explains how to make a task from strings"
+  },
+  "3ZKOZGi/Qc": {
+    "defaultMessage": "New automation",
+    "description": "Heading of the page where a new automation is started"
   },
   "3ZQsOW/pnR": {
     "defaultMessage": "Search timezones…",
@@ -4626,6 +4650,10 @@
   "4B3q4D8+NF": {
     "defaultMessage": "Loading file…",
     "description": "Loading state while project file details are fetched"
+  },
+  "4BZnk5LZmG": {
+    "defaultMessage": "Or build it yourself",
+    "description": "Heading above the choice between an agent and a workflow, after the prompt box"
   },
   "4C48CjJZ/y": {
     "defaultMessage": "Role permissions",
@@ -5539,6 +5567,10 @@
     "defaultMessage": "No items",
     "description": "Empty state when an expanded Drive folder has no child folders or files"
   },
+  "5ULJLorB2I": {
+    "defaultMessage": "GitHub Auto-review",
+    "description": "Name of the built-in GitHub Auto-review row above the automations list"
+  },
   "5ULYE1CQiU": {
     "defaultMessage": "Budgets",
     "description": "Accessible name of the budgets table"
@@ -6015,6 +6047,10 @@
     "defaultMessage": "New regions ramp up faster with shared GTM playbooks",
     "description": "Feature teaser benefit for guideline"
   },
+  "66nvTZUeaB": {
+    "defaultMessage": "Tell it the goal in plain words. The agent works out the steps each time it runs.",
+    "description": "What an agent automation is, on the card that starts one"
+  },
   "674eGK4ons": {
     "defaultMessage": "{passed} passed · {watch} to watch · {failed} to fix · {na} not applicable",
     "description": "Summary counts above localisation audit criteria groups"
@@ -6319,6 +6355,10 @@
     "defaultMessage": "All changes",
     "description": "Activity filter option that shows every kind of change"
   },
+  "6bhIe+GhSd": {
+    "defaultMessage": "Using",
+    "description": "Third part of the automation explainer: the tools an automation uses"
+  },
   "6br9F/sHMY": {
     "defaultMessage": "Status",
     "description": "Marketing homepage status"
@@ -6467,9 +6507,17 @@
     "defaultMessage": "Project",
     "description": "Secondary job property row label for project"
   },
+  "6pBQhLiu43": {
+    "defaultMessage": "{trigger} → {count, plural, one {# step} other {# steps}}",
+    "description": "One-line summary of a workflow in the list: what starts it, then how many steps it has"
+  },
   "6pa9eyshGx": {
     "defaultMessage": "Questions about localisation, pricing, or your account? Email us and we will reply within one business day.",
     "description": "Supporting copy under the contact page headline"
+  },
+  "6prHltOLvc": {
+    "defaultMessage": "All types",
+    "description": "Type filter option on the automations list that shows agents and workflows"
   },
   "6pyhkYjHro": {
     "defaultMessage": "{unit} to translate",
@@ -6795,6 +6843,10 @@
     "defaultMessage": "From strings in the content editor",
     "description": "Create job menu item that opens the content editor to tick strings for a task made of strings"
   },
+  "7DEQtGFLQ1": {
+    "defaultMessage": "What should happen?",
+    "description": "Heading above the box where a person describes the automation they want"
+  },
   "7DcMnrFZgv": {
     "defaultMessage": "Scale output without scaling headcount",
     "description": "Feature teaser benefit for automations"
@@ -7119,6 +7171,10 @@
     "defaultMessage": "Date",
     "description": "Label of the date the work was done"
   },
+  "7hw+ESYrhQ": {
+    "defaultMessage": "Could not create a workflow.",
+    "description": "Toast when creating a new workflow from the new automation page fails"
+  },
   "7itDAFKmls": {
     "defaultMessage": "Workspace creation requires WorkOS organization management to be configured.",
     "description": "Error when WorkOS organization management is not configured"
@@ -7334,6 +7390,10 @@
   "7zP273oZkl": {
     "defaultMessage": "Localisation audit",
     "description": "Marketing navbar link to the free localisation audit tool"
+  },
+  "7zXzSUooIz": {
+    "defaultMessage": "Each template sets up an agent you can adjust before you save it.",
+    "description": "Text under the heading of the templates section on the new automation page"
   },
   "7zni895OkR": {
     "defaultMessage": "Automation created",
@@ -7647,6 +7707,10 @@
     "defaultMessage": "Get started",
     "description": "Paid self-serve plan CTA label on the pricing page"
   },
+  "8P/z8xum8r": {
+    "defaultMessage": "{label} {count}",
+    "description": "Status filter tab with the number of automations it shows, for example Active 3"
+  },
   "8P9Vlj8jx9": {
     "defaultMessage": "Thread on issues, assign owners, and relate work across projects.",
     "description": "Pricing matrix detail for Queries collaboration features"
@@ -7774,6 +7838,10 @@
   "8aMYTx5g7o": {
     "defaultMessage": "Priority",
     "description": "Label for the issue list priority filter"
+  },
+  "8agMI5ik44": {
+    "defaultMessage": "Reviews pull requests for localisation issues.",
+    "description": "One-line description of GitHub Auto-review above the automations list"
   },
   "8akRFF2klx": {
     "defaultMessage": "The Startup Program is aimed at early-stage teams. Larger companies should still request a demo — we can discuss Growth or Enterprise options that fit your organisation.",
@@ -7910,6 +7978,10 @@
   "8mBZXmq4w/": {
     "defaultMessage": "Keep a word list for each language and attach the dictionary to the projects that need it.",
     "description": "Description of the third point in the empty dictionaries explainer"
+  },
+  "8mDbUiZ1Lc": {
+    "defaultMessage": "All",
+    "description": "Status filter tab on the automations list that shows every automation"
   },
   "8mLorWvZHa": {
     "defaultMessage": "Crowdin page {page}",
@@ -8430,6 +8502,10 @@
   "9Tey3vfO9H": {
     "defaultMessage": "The connection is working. Token ending in {suffix}.",
     "description": "Shown when the saved GitLab server connection passes a live check"
+  },
+  "9U7m22JnTL": {
+    "defaultMessage": "Status",
+    "description": "Accessible label of the status filter tabs on the automations list"
   },
   "9UrRl3AzZR": {
     "defaultMessage": "Export your data",
@@ -10099,6 +10175,10 @@
     "defaultMessage": "Lifecycle · 6 locales",
     "description": "localisation-operations use case page: hero › visual › primary › items › #4 › meta"
   },
+  "BjQAa4J39T": {
+    "defaultMessage": "Failed · {time}",
+    "description": "Last run cell when the latest run failed; time is how long ago, for example 2h"
+  },
   "BjVwBrTuYP": {
     "defaultMessage": "{sourceLocale} → {targetLocale}",
     "description": "Locale pair shown under a translation memory entry"
@@ -10195,6 +10275,10 @@
     "defaultMessage": "Week",
     "description": "Switch option: one bar per week"
   },
+  "Br6xvTqZXv": {
+    "defaultMessage": "{trigger} → {tools}",
+    "description": "One-line summary of an agent automation in the list: what starts it, then the tools it uses"
+  },
   "BrXfVaiNs0": {
     "defaultMessage": "Workspace subscription plan",
     "description": "Fallback description when an Autumn plan has no description"
@@ -10254,6 +10338,10 @@
   "BvipsKvoDg": {
     "defaultMessage": "Type",
     "description": "System field mapping label for issue type"
+  },
+  "Bw5wacO4vp": {
+    "defaultMessage": "Job changed",
+    "description": "Trigger label for a workflow started when a job changes, in the automations list"
   },
   "BwlhXjlmlH": {
     "defaultMessage": "Leave empty to apply to every locale.",
@@ -11143,10 +11231,6 @@
     "defaultMessage": "Edit locales",
     "description": "Manage domain locales from research"
   },
-  "D6Mi/m5caE": {
-    "defaultMessage": "Owner",
-    "description": "Automations list column header for owner"
-  },
   "D6N0QoCpN1": {
     "defaultMessage": "Reasoning failed to render",
     "description": "Error boundary title when reasoning UI crashes"
@@ -11190,6 +11274,10 @@
   "D9igbLAS2O": {
     "defaultMessage": "Admins can connect",
     "description": "Hint shown when the user lacks permission to connect an integration"
+  },
+  "D9w64PZ8DL": {
+    "defaultMessage": "Search automations",
+    "description": "Placeholder and accessible label of the search box on the automations list"
   },
   "DA8WP2BQhf": {
     "defaultMessage": "View",
@@ -11455,10 +11543,6 @@
     "defaultMessage": "Rules-based routing",
     "description": "localisation-operations use case page: capabilities › items › #2 › title"
   },
-  "DWXDNH6bM+": {
-    "defaultMessage": "Tools",
-    "description": "Automations list column header for tools"
-  },
   "DX2PXd39k/": {
     "defaultMessage": "Cultural context and GTM nuance for each market you enter",
     "description": "Guideline mock UI market knowledge use case description"
@@ -11603,10 +11687,6 @@
     "defaultMessage": "characters",
     "description": "Unit label beside the native segment max length input"
   },
-  "Dm+YgrdmFH": {
-    "defaultMessage": "Could not create a workflow.",
-    "description": "Toast when visual workflow creation fails"
-  },
   "Dn9lhDiLkD": {
     "defaultMessage": "Your story.\nIn sync everywhere.",
     "description": "Title for the video format panel"
@@ -11690,6 +11770,10 @@
   "DtXtrgUH7z": {
     "defaultMessage": "Could not load this approval request.",
     "description": "Error shown when an approval request cannot be loaded in Inbox."
+  },
+  "DtYQFpxh2B": {
+    "defaultMessage": "Running",
+    "description": "Last run cell when an automation is running or queued right now"
   },
   "Dtr9SPmsqm": {
     "defaultMessage": "Done",
@@ -11931,10 +12015,6 @@
     "defaultMessage": "AI Credit",
     "description": "Label for the AI credit usage feature on billing settings"
   },
-  "EGX8+adWDn": {
-    "defaultMessage": "Templates",
-    "description": "Section heading for automation templates"
-  },
   "EGYwL5o+kV": {
     "defaultMessage": "No. MCP access uses OAuth, not API keys or personal access tokens, so you do not paste secrets into your agent's config.",
     "description": "localisation-for-ai-coding-agents use case FAQ answer 5"
@@ -12147,6 +12227,10 @@
     "defaultMessage": "One tag name per line, in addition to head, script, style, and pre.",
     "description": "Hint for HTML excluded tag names"
   },
+  "ETjkOXJ/Xf": {
+    "defaultMessage": "Workflow",
+    "description": "Name of the kind of automation whose steps are drawn on a canvas"
+  },
   "EUFoxykwLu": {
     "defaultMessage": "Search projects",
     "description": "Placeholder for the project multi-select on the guideline upload page"
@@ -12355,6 +12439,10 @@
     "defaultMessage": "{name} (pull only)",
     "description": "Repository picker entry for a GitLab project the connection can read but not send merge requests to"
   },
+  "EivWPiu4Ba": {
+    "defaultMessage": "Agent",
+    "description": "Type of automation where an AI agent works out the steps from plain-language instructions"
+  },
   "Ej5U0a0604": {
     "defaultMessage": "Agent Instructions",
     "description": "Section heading for automation agent instructions"
@@ -12526,6 +12614,10 @@
   "F0KK3Ot1t7": {
     "defaultMessage": "{count, number} keys loaded",
     "description": "Multilingual table count label"
+  },
+  "F0Y5zyL5gv": {
+    "defaultMessage": "GitHub",
+    "description": "Trigger label for a workflow started by a GitHub event, in the automations list"
   },
   "F112ZDElyz": {
     "defaultMessage": "Glossary terminology",
@@ -13299,6 +13391,10 @@
     "defaultMessage": "Click to translate",
     "description": "Placeholder when a side-by-side row has no translation yet"
   },
+  "G3dMj2jl8m": {
+    "defaultMessage": "Best for fixed processes that must run the same way every time.",
+    "description": "What a workflow suits, on the card that starts one"
+  },
   "G3hsgHI8K5": {
     "defaultMessage": "Publish once. Get found everywhere.",
     "description": "Hero headline for the Domains product page"
@@ -13406,6 +13502,10 @@
   "GCOyt/P/VO": {
     "defaultMessage": "Content Studio",
     "description": "Sidebar group label for content studio navigation items"
+  },
+  "GDAIerdtbH": {
+    "defaultMessage": "Draft",
+    "description": "Badge label when a workflow has not been published yet"
   },
   "GDUQE2YEtY": {
     "defaultMessage": "A few things\nyou might ask.",
@@ -13566,6 +13666,10 @@
   "GSd2SW1wXQ": {
     "defaultMessage": "Could not attach the project.",
     "description": "Project attachment error"
+  },
+  "GSz/D4JeXe": {
+    "defaultMessage": "Browse templates",
+    "description": "Link from the empty automations page to the page with templates and build options"
   },
   "GT+/S5+lrp": {
     "defaultMessage": "@Hyperlocalise is the Japanese banner ready for review?",
@@ -14262,10 +14366,6 @@
   "HTSRjgYv0v": {
     "defaultMessage": "{provider} glossaries and term bases appear here after sync. Connect or resync from Integrations if you expected to see one.",
     "description": "Empty state description when a TMS provider is connected but no glossaries exist"
-  },
-  "HTsdqd2HP4": {
-    "defaultMessage": "Start from a curated workflow. Templates prefill the creation form with instructions, triggers, and tools.",
-    "description": "Section description for automation templates"
   },
   "HU7m4FhTH/": {
     "defaultMessage": "Cost estimate",
@@ -17039,10 +17139,6 @@
     "defaultMessage": "Merge with every locale ready",
     "description": "github-release-localisation use case page: guide › steps › #4 › title"
   },
-  "LWbZAQ/S/H": {
-    "defaultMessage": "Total automations",
-    "description": "Stat card label for total automation count"
-  },
   "LWzKak1wim": {
     "defaultMessage": "Choose another project: this is the Job changed trigger's project.",
     "description": "Validation issue when Use translation as source would send files back to the trigger's project"
@@ -17351,10 +17447,6 @@
     "defaultMessage": "Settings",
     "description": "Project sidebar navigation item for project settings"
   },
-  "LyO/knpzIv": {
-    "defaultMessage": "No visual workflows yet. Create one to start building on the canvas.",
-    "description": "Empty state on the visual workflows list page"
-  },
   "LyPYie6GUZ": {
     "defaultMessage": "Queued and completed imports and exports will appear here.",
     "description": "Empty import and export history description"
@@ -17630,6 +17722,10 @@
   "MK78Fh8i76": {
     "defaultMessage": "Error message",
     "description": "Box on a workflow step's Test tab for the message of the error the step fails with"
+  },
+  "MKBXn3R7sQ": {
+    "defaultMessage": "Last run",
+    "description": "Automations list column header for when the automation last ran"
   },
   "MKqk5CAbrB": {
     "defaultMessage": "Back to integrations",
@@ -18939,10 +19035,6 @@
     "defaultMessage": "Review",
     "description": "Job kind option on the job changed trigger"
   },
-  "O+ldw8Aj3z": {
-    "defaultMessage": "Unknown",
-    "description": "Fallback label when an automation has no creator name"
-  },
   "O/4w7DJ8Jn": {
     "defaultMessage": "Check copy against style guides and market rules before publish.",
     "description": "Empty state subtitle in brand chat mock"
@@ -19126,6 +19218,10 @@
   "OHXGeaHgF2": {
     "defaultMessage": "Open API keys",
     "description": "Link from an activity actor to the workspace API keys page"
+  },
+  "OIHkvCAmyV": {
+    "defaultMessage": "Agent",
+    "description": "Name of the kind of automation where an AI agent works out the steps"
   },
   "OIw4ri4SNr": {
     "defaultMessage": "It extracts messages from source code, pushes source files to your project, and pulls translations back into your repository. The same commands run on a laptop and in CI.",
@@ -19742,6 +19838,10 @@
   "PATshCyE6V": {
     "defaultMessage": "View",
     "description": "Label above the jobs view mode toggle"
+  },
+  "PAUs1XBHgW": {
+    "defaultMessage": "An automation runs when something happens and does the work for you.",
+    "description": "Text under the title of the automations page when there are no automations"
   },
   "PAcb3WMFyK": {
     "defaultMessage": "Project description",
@@ -20743,10 +20843,6 @@
     "defaultMessage": "Each workspace member connects their own {providerName} account. Projects, jobs, glossaries, and translation memories load live from {providerName} when you open those pages.",
     "description": "Status description when a TMS provider is connected with OAuth"
   },
-  "Qfog4jJ47y": {
-    "defaultMessage": "Visual workflows",
-    "description": "App shell breadcrumb title for the visual workflows page"
-  },
   "Qgbvs1lDve": {
     "defaultMessage": "Remove file",
     "description": "Accessible label for removing the chosen guideline upload file"
@@ -20786,10 +20882,6 @@
   "QhgL5ysg0T": {
     "defaultMessage": "Hyperlocalise logo",
     "description": "Accessible alt text for the Hyperlocalise logo on the onboarding page"
-  },
-  "QiMU0qq2o+": {
-    "defaultMessage": "or pick a template",
-    "description": "Divider between the assistant prompt box and the list of automation templates"
   },
   "QilddlbVEc": {
     "defaultMessage": "An engineer adds a new settings page with Cursor, including 9 new UI strings.",
@@ -21210,6 +21302,10 @@
   "RJqS5CWiIH": {
     "defaultMessage": "new-headline",
     "description": "Placeholder for a variant key field"
+  },
+  "RK3LMOlZP5": {
+    "defaultMessage": "Describe it in your own words and the assistant sets it up. Nothing is saved until you create it.",
+    "description": "Text under the heading of the box where a person describes the automation"
   },
   "RKHJ/olpXP": {
     "defaultMessage": "{count, plural, one {# word} other {# words}} in {locale}",
@@ -21659,10 +21755,6 @@
     "defaultMessage": "Target includes {tokens} that is not in the source string.",
     "description": "CAT format check message listing extra placeholders in the target"
   },
-  "RuPE0YKwSS": {
-    "defaultMessage": "Start from scratch",
-    "description": "Button that opens an empty automation editor without the assistant"
-  },
   "RuTNl1jP/V": {
     "defaultMessage": "Play by local rules.",
     "description": "Marketing homepage compliance section heading"
@@ -21694,6 +21786,10 @@
   "RwXMampnc5": {
     "defaultMessage": "Catch",
     "description": "Try / Catch handled failure exit"
+  },
+  "RxGgbJ88Yv": {
+    "defaultMessage": "Review, translate, check quality, write a report",
+    "description": "Examples of the work an automation does, in the automation explainer"
   },
   "RxXfO2kGMc": {
     "defaultMessage": "Ads and social creative",
@@ -21951,6 +22047,10 @@
     "defaultMessage": "—",
     "description": "Placeholder when a translation memory timestamp is unavailable"
   },
+  "SKbYojGGbi": {
+    "defaultMessage": "Clear filters",
+    "description": "Button that resets the search and filters on the automations list"
+  },
   "SKhTQyZkDY": {
     "defaultMessage": "Completed",
     "description": "Run history column header for completion time"
@@ -22046,6 +22146,10 @@
   "STIEPg13ap": {
     "defaultMessage": "Review translation",
     "description": "QA review: review"
+  },
+  "SU+1M/5QGg": {
+    "defaultMessage": "Off",
+    "description": "GitHub Auto-review is turned off"
   },
   "SULea/W/vK": {
     "defaultMessage": "Add to dictionary",
@@ -22254,10 +22358,6 @@
   "SlLtLEkppm": {
     "defaultMessage": "Delete column?",
     "description": "Title for delete issue column confirmation dialog"
-  },
-  "SluNUViHRX": {
-    "defaultMessage": "Active",
-    "description": "Stat card label for active automation count"
   },
   "Sm7h8rtC1v": {
     "defaultMessage": "Remove {filter} filter",
@@ -23255,6 +23355,10 @@
     "defaultMessage": "{locale}: Translated {translated}% · Approved {approved}%",
     "description": "Accessible label for a locale progress bar in a Content editor push dialog"
   },
+  "U4uH7q/yor": {
+    "defaultMessage": "When",
+    "description": "First part of the automation explainer: what starts an automation"
+  },
   "U4v7cQLBDc": {
     "defaultMessage": "{count, plural, one {# locale} other {# locales}}",
     "description": "Fallback locale readiness summary when only a total locale count is available"
@@ -23354,6 +23458,10 @@
   "UBkabx89xG": {
     "defaultMessage": "Enter a Zernio API key.",
     "description": "Validation error when Zernio API key is missing on create"
+  },
+  "UByj1+dqaB": {
+    "defaultMessage": "Show fewer",
+    "description": "Button that collapses the template grid back to the first few"
   },
   "UC0Pm35Zdc": {
     "defaultMessage": "The agent starts translation for German, French, Japanese, and Spanish from the same chat.",
@@ -23631,10 +23739,6 @@
     "defaultMessage": "Select a reusable workflow",
     "description": "Placeholder for selecting a reusable workflow"
   },
-  "UbMdijMS9Y": {
-    "defaultMessage": "From Hyperlocalise",
-    "description": "Section heading for built-in Hyperlocalise automations"
-  },
   "UbjS7TWxTi": {
     "defaultMessage": "Select a guideline",
     "description": "Placeholder for the guideline picker on a project page"
@@ -23743,6 +23847,10 @@
     "defaultMessage": "Integration limit reached for your current plan. Remove an unused integration or upgrade, then try again.",
     "description": "Error toast when saving the Webflow connection fails because the workspace integration limit is reached."
   },
+  "UlmKeEk9jf": {
+    "defaultMessage": "Built in",
+    "description": "Badge saying GitHub Auto-review comes with every workspace"
+  },
   "UlnuVlbp4t": {
     "defaultMessage": "No style guide yet. Add one in project settings.",
     "description": "Empty state when the project has no style guide"
@@ -23766,6 +23874,10 @@
   "UnFA9Bhy2I": {
     "defaultMessage": "Allow pop-ups for this site to print the quote.",
     "description": "Error when the browser blocked the window the quote prints from"
+  },
+  "Uo4rwaI5U9": {
+    "defaultMessage": "Never",
+    "description": "Last run cell when an automation has not run yet"
   },
   "UoGzrmcHW5": {
     "defaultMessage": "Within limit",
@@ -24291,6 +24403,10 @@
     "defaultMessage": "{count, plural, one {# occurrence} other {# occurrences}} with different translations",
     "description": "Tooltip on the occurrence badge of a grouped row whose copies disagree"
   },
+  "VQ6A5NjwLq": {
+    "defaultMessage": "Type",
+    "description": "Accessible label of the type filter on the automations list"
+  },
   "VQnDEkq3vd": {
     "defaultMessage": "Retry",
     "description": "Retry loading translation variants"
@@ -24675,6 +24791,10 @@
     "defaultMessage": "Since the previous audit",
     "description": "Heading of the comparison with the previous deep audit run"
   },
+  "W2du8IaTWw": {
+    "defaultMessage": "Opening the canvas…",
+    "description": "Shown on the workflow card while a new workflow is being created"
+  },
   "W2x+fZoaB/": {
     "defaultMessage": "Instructions rewritten",
     "description": "Listed change of the assistant: the instructions were written or rewritten"
@@ -24702,6 +24822,10 @@
   "W3mkNKamaw": {
     "defaultMessage": "Not connected",
     "description": "Slack agent status title when no workspace is linked"
+  },
+  "W4Go29IG6K": {
+    "defaultMessage": "No trigger yet",
+    "description": "Trigger label for a workflow whose canvas has no trigger step yet"
   },
   "W4ZKVctAzk": {
     "defaultMessage": "Loading items",
@@ -25495,10 +25619,6 @@
     "defaultMessage": "Copy export command",
     "description": "Tooltip for copying a shell export command for an environment variable"
   },
-  "XEIB3MxFUn": {
-    "defaultMessage": "Visual workflows",
-    "description": "Title for the visual workflows list page"
-  },
   "XFpqPsul6Y": {
     "defaultMessage": "Changed: {fields}",
     "description": "Badge listing which fields changed on an agent proposal"
@@ -25662,10 +25782,6 @@
   "XVkuBQ3TjB": {
     "defaultMessage": "Team slug must be 120 characters or fewer.",
     "description": "Validation error when the team slug exceeds 120 characters"
-  },
-  "XVyJ8t4WfM": {
-    "defaultMessage": "Draft",
-    "description": "Visual workflow list status for unpublished drafts"
   },
   "XVzHC8py80": {
     "defaultMessage": "Processing",
@@ -26371,6 +26487,10 @@
     "defaultMessage": "Erase",
     "description": "Gallery action that lets the user brush over something to remove it"
   },
+  "YQE2bLfMR8": {
+    "defaultMessage": "Show all {count} templates",
+    "description": "Button that shows every template in the selected category"
+  },
   "YQQTccmttg": {
     "defaultMessage": "Assignee changed",
     "description": "Checkbox on the job changed trigger for runs when a job is reassigned"
@@ -26847,10 +26967,6 @@
     "defaultMessage": "Line {line} is longer than {max} characters.",
     "description": "Validation error for a custom placeholder pattern that is too long"
   },
-  "Z7EtcHtkyS": {
-    "defaultMessage": "No automations yet. Start from a template below or create a new automation.",
-    "description": "Empty state when the workspace has no automations"
-  },
   "Z7KSDtyO43": {
     "defaultMessage": "Sending…",
     "description": "Send button label while a public web chat message is in flight"
@@ -27166,6 +27282,10 @@
   "Zbyw15pS8D": {
     "defaultMessage": "Choose which mapped templates and snippets to update with approved translations. This only writes content — it never sends.",
     "description": "Description of the Iterable item picker dialog"
+  },
+  "Zc38cqbqcd": {
+    "defaultMessage": "Do",
+    "description": "Second part of the automation explainer: the work an automation does"
   },
   "Zc3aO7AdzZ": {
     "defaultMessage": "Organization name",
@@ -27730,10 +27850,6 @@
   "aHtGik8gUy": {
     "defaultMessage": "File view",
     "description": "CAT workspace view mode that previews source and translated files side by side"
-  },
-  "aHvMV2aQQN": {
-    "defaultMessage": "New automation",
-    "description": "Heading of the section of the automations page where a new automation is started"
   },
   "aI9OdzlmW1": {
     "defaultMessage": "Delete",
@@ -28394,6 +28510,10 @@
   "bD+BiR3Yjm": {
     "defaultMessage": "No limit",
     "description": "Character meter status when the CAT segment has no character limit"
+  },
+  "bDQcC/JF79": {
+    "defaultMessage": "Upgrade",
+    "description": "Badge on the workflow card when the plan does not include workflows"
   },
   "bE+/1fvD7l": {
     "defaultMessage": "Case {index}",
@@ -29075,6 +29195,10 @@
     "defaultMessage": "Next string",
     "description": "Pager button that focuses the next string in side-by-side CAT view"
   },
+  "c803NwvdUl": {
+    "defaultMessage": "GitHub, Slack, Contentful, email and more",
+    "description": "Examples of the tools an automation uses, in the automation explainer"
+  },
   "c8ULJQ9Qs8": {
     "defaultMessage": "{matchPercent}% match",
     "description": "Translation memory match quality badge"
@@ -29142,10 +29266,6 @@
   "cF5KFpXkuE": {
     "defaultMessage": "Select a project",
     "description": "Project select placeholder"
-  },
-  "cFLoSPa62D": {
-    "defaultMessage": "Visual workflows",
-    "description": "Breadcrumb label for the visual workflows list page"
   },
   "cFR/xF3v08": {
     "defaultMessage": "Rankings, keywords, and estimated traffic come from third-party search data captured on demand. Estimated traffic is an estimate, not measured visits. Connect Search Console when you want real clicks.",
@@ -30591,6 +30711,10 @@
     "defaultMessage": "Could not change a step's settings",
     "description": "Line in the assistant's change list: changing a workflow step's settings was refused"
   },
+  "e5VJtY23cB": {
+    "defaultMessage": "A pull request opens, a file is uploaded, every Monday",
+    "description": "Examples of what starts an automation, in the automation explainer"
+  },
   "e5w8XM92TM": {
     "defaultMessage": "hid a string",
     "description": "Action for a hidden string activity"
@@ -31227,6 +31351,10 @@
     "defaultMessage": "Choose one or more event types.",
     "description": "Hint for the activity log event type filter"
   },
+  "eyqY+L+ZXJ": {
+    "defaultMessage": "Ask a workspace admin to build a workflow.",
+    "description": "Note on the workflow card when the person's role cannot create workflows"
+  },
   "ez8PrKiaQJ": {
     "defaultMessage": "Source mistake",
     "description": "Issue Sheet issue type option for a source mistake"
@@ -31594,6 +31722,10 @@
   "fRpdPlIg3w": {
     "defaultMessage": "i18next",
     "description": "Placeholder syntax option for i18next interpolation"
+  },
+  "fS6BudEiI9": {
+    "defaultMessage": "Recommended",
+    "description": "Badge on the agent card: the kind of automation most people should start with"
   },
   "fSTcFbGhuZ": {
     "defaultMessage": "deleted a project",
@@ -32018,6 +32150,10 @@
   "g+dqlGrXPT": {
     "defaultMessage": "Timezone",
     "description": "Label for experiment timezone"
+  },
+  "g+zgbBG1SF": {
+    "defaultMessage": "Webhook",
+    "description": "Trigger label for a workflow started by a webhook, in the automations list"
   },
   "g/SyG0phTI": {
     "defaultMessage": "Status",
@@ -32927,6 +33063,10 @@
     "defaultMessage": "No target locale is available for this provider task file.",
     "description": "Empty state when a provider job CAT file has no target locale"
   },
+  "hCsDX+6VsZ": {
+    "defaultMessage": "Workflow",
+    "description": "App shell breadcrumb title for a workflow's canvas"
+  },
   "hCvBHiYeFU": {
     "defaultMessage": "No description",
     "description": "Fallback when an agent tool has no description"
@@ -33182,6 +33322,10 @@
   "hXSssVY0i9": {
     "defaultMessage": "Pending",
     "description": "Tool status badge when tool input is still streaming"
+  },
+  "hXWQPTAV5J": {
+    "defaultMessage": "Start from a template",
+    "description": "Heading of the templates section on the new automation page"
   },
   "hXea3UMGXu": {
     "defaultMessage": "With the noise gone, reviewers only see the words that need fixing.",
@@ -35535,10 +35679,6 @@
     "defaultMessage": "Finished",
     "description": "Switch option: words finished in the dates"
   },
-  "ksFVpxkIyn": {
-    "defaultMessage": "Paused",
-    "description": "Visual workflow list status when the workflow is paused"
-  },
   "kscww+zSt8": {
     "defaultMessage": "Scroll to start",
     "description": "Accessible label for the message scroller jump-to-start control"
@@ -37135,6 +37275,10 @@
     "defaultMessage": "Draft with the PR description, diff, and glossary, using the model you choose.",
     "description": "github-release-localisation use case page: capabilities › items › #3 › body"
   },
+  "mxeQQYVS7G": {
+    "defaultMessage": "Workflow",
+    "description": "Type of automation whose steps are drawn on a canvas"
+  },
   "myA+eLggC8": {
     "defaultMessage": "Save",
     "description": "Shortcut label for saving an automation or visual workflow"
@@ -38543,10 +38687,6 @@
     "defaultMessage": "Last 7 days",
     "description": "Search Console last 7 days range"
   },
-  "ovGZxV6gQB": {
-    "defaultMessage": "Archived",
-    "description": "Visual workflow list status when the workflow is archived"
-  },
   "ovj4Hc0MYp": {
     "defaultMessage": "From social posts to campaigns",
     "description": "Supporting link line for the images format panel"
@@ -39262,10 +39402,6 @@
   "pp9GGJhzXL": {
     "defaultMessage": "Slack images",
     "description": "AI feature: images sent in Slack"
-  },
-  "pp9OzwrBNo": {
-    "defaultMessage": "Delete",
-    "description": "Button that deletes a visual workflow"
   },
   "ppXDMSLgyj": {
     "defaultMessage": "Queue panel failed to load",
@@ -40467,6 +40603,10 @@
     "defaultMessage": "{count}+ files",
     "description": "Count when more project files are available beyond the loaded page"
   },
+  "rM9rHeG5oE": {
+    "defaultMessage": "Workflows come with a higher plan.",
+    "description": "Note on the workflow card when the plan does not include workflows"
+  },
   "rO1dVLIBD9": {
     "defaultMessage": "CTAs: verb-first, max 3 words",
     "description": "Guideline mock UI style rule"
@@ -41562,10 +41702,6 @@
   "sxd8EorFWf": {
     "defaultMessage": "Add a domain",
     "description": "Open the add-domain dialog"
-  },
-  "sxoIk5o3gz": {
-    "defaultMessage": "Describe what you want done and the assistant sets it up for you. Nothing is saved until you create it.",
-    "description": "Text under the heading of the section where a new automation is started"
   },
   "syGH2Yunun": {
     "defaultMessage": "API key",
@@ -43575,10 +43711,6 @@
     "defaultMessage": "Do prices, dates, buttons, and examples make sense in each market?",
     "description": "Body of the contextual dimension on the localisation audit landing page methodology"
   },
-  "vj1b+ydRtP": {
-    "defaultMessage": "New workflow",
-    "description": "Button that creates a new visual workflow draft"
-  },
   "vjXHRG767Q": {
     "defaultMessage": "Created {createdCount} of {totalCount} jobs, then failed: {errorMessage}",
     "description": "Error after some native jobs were created before a later failure"
@@ -44723,6 +44855,10 @@
     "defaultMessage": "Accepted",
     "description": "Filter option for accepted proposals"
   },
+  "xCczpLAZTo": {
+    "defaultMessage": "Put your localisation work on autopilot",
+    "description": "Title of the automations page when the workspace has no automations"
+  },
   "xCzhnb7LDc": {
     "defaultMessage": "No runs yet. Test the workflow or activate a production trigger.",
     "description": "Empty state for the visual workflow executions list"
@@ -45839,6 +45975,10 @@
     "defaultMessage": "AI refinement is unavailable for this workspace.",
     "description": "Video refinement requires an available generation action"
   },
+  "yfNXwfVcU8": {
+    "defaultMessage": "No automations match these filters.",
+    "description": "Shown when the automations list filters or search hide every row"
+  },
   "yfZHxazSwv": {
     "defaultMessage": "Memory match",
     "description": "Rate line pricing: band shares go by the translation memory match when the string arrived"
@@ -46103,10 +46243,6 @@
     "defaultMessage": "Workflow test run failed.",
     "description": "Toast when a server-backed visual workflow test run fails"
   },
-  "z5k8iKEIXN": {
-    "defaultMessage": "Created",
-    "description": "Automations list column header for created date"
-  },
   "z5qDgQyncE": {
     "defaultMessage": "Label",
     "description": "Label field for an issue column"
@@ -46274,10 +46410,6 @@
   "zJxOt74NmI": {
     "defaultMessage": "Check",
     "description": "QA findings table check column"
-  },
-  "zK2bwfb+JP": {
-    "defaultMessage": "Visual workflows",
-    "description": "Link from automations list to visual workflows"
   },
   "zK8wdNY9ug": {
     "defaultMessage": "{count} units could not be matched against translation memory and are priced as new work.",
@@ -46714,10 +46846,6 @@
   "zwxg8T8BIz": {
     "defaultMessage": "Source control",
     "description": "Marketing integrations marketplace category label for source control"
-  },
-  "zxNwuNh3O4": {
-    "defaultMessage": "Paused",
-    "description": "Stat card label for paused automation count"
   },
   "zyDpy3oZz4": {
     "defaultMessage": "Inspect provenance, variants, and change history before editing.",

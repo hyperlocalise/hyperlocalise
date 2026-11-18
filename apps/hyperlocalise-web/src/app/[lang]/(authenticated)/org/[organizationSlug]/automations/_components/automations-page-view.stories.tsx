@@ -13,7 +13,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, within } from "storybook/test";
 
-import { automationTemplatesFixture, automationsFixture } from "./automations.fixture";
+import { automationsFixture, createVisualWorkflowSummary } from "./automations.fixture";
 import { AutomationsPageView } from "./automations-page-view";
 
 const fixedNow = Date.UTC(2026, 5, 7, 12, 0, 0);
@@ -34,7 +34,8 @@ const meta = {
   args: {
     organizationSlug: "acme",
     automations: automationsFixture,
-    templates: automationTemplatesFixture,
+    visualWorkflows: [createVisualWorkflowSummary()],
+    workflowsAvailable: true,
     isLoading: false,
     now: fixedNow,
     autoReview: {
@@ -59,24 +60,15 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   play: async ({ canvas, canvasElement, userEvent }) => {
-    await expect(canvas.getByRole("heading", { name: "Automations" })).toBeInTheDocument();
-    await expect(canvas.getByRole("heading", { name: "From Hyperlocalise" })).toBeInTheDocument();
-    await expect(
-      canvas.getByRole("heading", { name: "Automate GTM, review, and research workflows" }),
-    ).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: /Auto-review/ })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Configure" })).toBeInTheDocument();
-    await expect(canvas.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "GitHub Auto-review" })).toBeInTheDocument();
+    await expect(canvas.getByText("On · 1 repository")).toBeInTheDocument();
     await expect(canvas.getByText("Validate localisation on push")).toBeInTheDocument();
-    await expect(canvas.getAllByText("GitHub").length).toBeGreaterThan(0);
-    await expect(canvas.getAllByText("Slack").length).toBeGreaterThan(0);
-    await expect(canvas.getByText("Publish Contentful locales")).toBeInTheDocument();
-    await expect(canvas.getAllByText("Contentful").length).toBeGreaterThan(0);
-    await expect(canvas.getByText("Weekly translation sync")).toBeInTheDocument();
-    await expect(canvas.getByText("Ada Lovelace")).toBeInTheDocument();
-    await expect(canvas.getByText("Grace Hopper")).toBeInTheDocument();
-    await expect(canvas.getByText("Unknown")).toBeInTheDocument();
-    await expect(canvas.getByText("Translate Contentful article")).toBeInTheDocument();
+    await expect(canvas.getByText("Release localisation check")).toBeInTheDocument();
+    await expect(canvas.getByText("Manual → 2 steps")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: /New automation/ })).toHaveAttribute(
+      "href",
+      "/org/acme/automations/create",
+    );
 
     await userEvent.click(canvas.getByRole("button", { name: "Configure" }));
     const body = within(canvasElement.ownerDocument.body);
@@ -100,14 +92,21 @@ export const Loading: Story = {
 export const Empty: Story = {
   args: {
     automations: [],
+    visualWorkflows: [],
     isLoading: false,
+    assistant: { aiFeaturesStatus: "allowed", pending: false, onSubmitPrompt: () => {} },
   },
   play: async ({ canvas }) => {
     await expect(
-      canvas.getByText(
-        "No automations yet. Start from a template below or create a new automation.",
-      ),
+      canvas.getByRole("heading", { name: "Put your localisation work on autopilot" }),
     ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("textbox", { name: "Describe the automation" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Browse templates" })).toHaveAttribute(
+      "href",
+      "/org/acme/automations/create",
+    );
   },
 };
 
@@ -121,41 +120,11 @@ export const LoadError: Story = {
   },
 };
 
-export const ActiveAndPaused: Story = {
-  args: {
-    automations: automationsFixture,
-  },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByText("4")).toBeInTheDocument();
-    await expect(canvas.getAllByText("active")).toHaveLength(3);
-    await expect(canvas.getByText("paused")).toBeInTheDocument();
-  },
-};
-
-export const SingleAutomation: Story = {
-  args: {
-    automations: [automationsFixture[0]!],
-  },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByText("Validate localisation on push")).toBeInTheDocument();
-    await expect(canvas.queryByText("Weekly translation sync")).not.toBeInTheDocument();
-    await expect(canvas.getByText("1")).toBeInTheDocument();
-  },
-};
-
-export const MarketingTemplates: Story = {
+export const FilterByStatus: Story = {
   play: async ({ canvas, userEvent }) => {
-    await userEvent.click(canvas.getByRole("tab", { name: "Marketing" }));
-    await expect(canvas.getByText("Market messaging brief")).toBeInTheDocument();
-    await expect(canvas.getByText("Coming soon")).toBeInTheDocument();
-  },
-};
-
-export const ActivatableTemplate: Story = {
-  play: async ({ canvas }) => {
-    await expect(
-      canvas.getByRole("link", { name: /Translate Contentful article/i }),
-    ).toHaveAttribute("href", "/org/acme/automations/new?template=translate-contentful-article");
+    await userEvent.click(canvas.getByRole("tab", { name: "Paused 1" }));
+    await expect(canvas.getByText("Manual release checklist")).toBeInTheDocument();
+    await expect(canvas.queryByText("Weekly translation sync")).not.toBeInTheDocument();
   },
 };
 
@@ -174,13 +143,9 @@ export const ProjectScoped: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole("heading", { name: "Automations" })).toBeInTheDocument();
     await expect(canvas.getByText("Project")).toBeInTheDocument();
-    await expect(
-      canvas.queryByRole("heading", { name: "From Hyperlocalise" }),
-    ).not.toBeInTheDocument();
-    await expect(canvas.queryByText("Auto-review")).not.toBeInTheDocument();
-    await expect(canvas.getByText("Validate localisation on push")).toBeInTheDocument();
+    await expect(canvas.queryByText("GitHub Auto-review")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Release localisation check")).not.toBeInTheDocument();
     await expect(
       canvas.getByRole("link", { name: /Validate localisation on push/i }),
     ).toHaveAttribute(
@@ -189,7 +154,7 @@ export const ProjectScoped: Story = {
     );
     await expect(canvas.getByRole("link", { name: /New automation/i })).toHaveAttribute(
       "href",
-      "/org/acme/projects/project-1/automations/new",
+      "/org/acme/projects/project-1/automations/create",
     );
   },
 };

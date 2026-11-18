@@ -150,9 +150,36 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "3UVVqU60g6",
     description: "Tool badge when an automation uses Ahrefs",
   },
-  unknownCreator: {
-    defaultMessage: "Unknown",
-    id: "O+ldw8Aj3z",
-    description: "Fallback label when an automation has no creator name",
+  workflowTriggerGithub: {
+    defaultMessage: "GitHub",
+    id: "F0Y5zyL5gv",
+    description: "Trigger label for a workflow started by a GitHub event, in the automations list",
+  },
+  workflowTriggerWebhook: {
+    defaultMessage: "Webhook",
+    id: "g+zgbBG1SF",
+    description: "Trigger label for a workflow started by a webhook, in the automations list",
+  },
+  workflowTriggerJobChanged: {
+    defaultMessage: "Job changed",
+    id: "Bw5wacO4vp",
+    description: "Trigger label for a workflow started when a job changes, in the automations list",
+  },
+  workflowNoTrigger: {
+    defaultMessage: "No trigger yet",
+    id: "W4Go29IG6K",
+    description: "Trigger label for a workflow whose canvas has no trigger step yet",
+  },
+  agentSummary: {
+    defaultMessage: "{trigger} → {tools}",
+    id: "Br6xvTqZXv",
+    description:
+      "One-line summary of an agent automation in the list: what starts it, then the tools it uses",
+  },
+  workflowSummary: {
+    defaultMessage: "{trigger} → {count, plural, one {# step} other {# steps}}",
+    id: "6pBQhLiu43",
+    description:
+      "One-line summary of a workflow in the list: what starts it, then how many steps it has",
   },
 });
