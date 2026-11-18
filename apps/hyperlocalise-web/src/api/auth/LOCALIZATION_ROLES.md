@@ -36,12 +36,18 @@ So a vendor is refused at one gate per service and let through route by route:
   handlers opened to vendors (`vendor-access.go`).
 - **Tokens, agents, MCP, plugins and the public API** refuse a vendor outright
   (`api-key-access.ts`, `mcp.ts`, public-api `auth.go`).
+- **Lookups that never read the web session** (plugin sign-ins, the Slack and
+  email assistants, a Human approval reviewer) refuse the role where the member
+  is looked up (`lib/workos/vendor-membership.ts`).
+- **A vendor is in no team.** An invite joins none, the role change removes
+  them (go-svc, and `workos-sync.ts` for a role that arrives from WorkOS), and
+  adding one to a team is refused.
 
 Inside an opened route a vendor never goes through the team rule. Their access
 is always "an open post-edit or proofread task on a file that I own"
 (`task-access.ts`, `vendor-access.go`), limited to that task's file and
-languages. The same rule lets any other member open a task they own outside
-their teams. Design:
+languages. The same rule lets any other member whose role works on jobs open a
+task they own outside their teams. Design:
 [`docs/adr/2026-11-18-vendor-role-design.md`](../../../../../docs/adr/2026-11-18-vendor-role-design.md).
 
 Legacy workspaces that only use WorkOS `admin` and `member` continue to work:

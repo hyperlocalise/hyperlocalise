@@ -104,11 +104,14 @@ go-svc refuses the role in `resolveOrganizationActor` the same way.
 18b. **A route opened to vendors limits them itself.** Passing `allowVendor`
 only lets the request in. The handler must hold a vendor to an open task
 they own, and to that task's file and languages.
-18c. **Never the team rule.** `getVisibleTeamIds` returns nothing for a vendor,
-so a team they were left in opens no project.
+18c. **Never the team rule, and in no team.** `getVisibleTeamIds` returns
+nothing for a vendor, and a vendor holds no team membership: the role change
+removes them and adding one to a team is refused.
 18d. **No tokens, agents, MCP or plugins.** `resolveApiKeyTeamAccessContext`
 and the MCP session check fail closed for a vendor; a credential made
-before the person became a vendor works again only if the role changes.
+before the person became a vendor works again only if the role changes. Code
+that looks a member up without the web session must add
+`membershipIsNotVendor` (`lib/workos/vendor-membership.ts`).
 
 ## Personal access tokens (`api-key.ts`)
 

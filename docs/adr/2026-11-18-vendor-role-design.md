@@ -28,16 +28,16 @@ Other platforms handle vendors in three ways: a linked organization of the vendo
 | Where | What | Limits |
 |---|---|---|
 | **My jobs** | Their open and waiting tasks: title, project name, file, languages, step, status, due date. | Only the **Assigned** list. A finished or reassigned task leaves it. |
-| The task's page | The same details, **Open Editor** and **Mark done**. | A waiting task has neither button, and its **Comes after** row says it comes after an earlier task, with a link only when that task is also theirs. No owner, title or due date editing, no other job actions, no activity list, no **Report** tab. |
-| The editor | The task's file, in the task's languages: source and target text, saving translations, restoring an earlier version of a string, comments (read and add), a string's history, and screenshots already attached to a string. | Opened only from an open task. Any other file, any other language, another branch of the file, "all files" and groups of identical strings (which span files) are refused. The file's activity log and undoing a whole operation (a job's or an import's changes) are not opened. |
-| Translation memory and glossary | The suggestions and term matches the editor shows for a string of the task. | Lookup only, for the task's languages, from the memories and glossaries linked to the task's project. No list, no browsing, no editing. |
+| The task's page | The same details, **Open Editor** and **Mark done**. After **Mark done**, or when the task has ended or moved to someone else, they are taken back to **My jobs**. | A waiting task has neither button, and its **Comes after** row says it comes after an earlier task, with a link only when that task is also theirs. No owner, title or due date editing, no other job actions, no activity list, no **Report** tab. |
+| The editor | The task's file, in the task's languages: source and target text, saving translations, restoring an earlier version of a string, comments (read and add), a string's history, and screenshots already attached to a string. Saves are checked against the project's own QA rules, which are sent with the task's strings. | Opened only from an open task. Text files only for now: the views used for images, video, office files and documents rely on routes that stay closed (see Not built). Any other file, any other language, another branch of the file, "all files" and groups of identical strings (which span files) are refused. The task's file is the one upload record the task was made for, so it is one file on one branch. The file's activity log, a string's activity tab, tag search and undoing a whole operation (a job's or an import's changes) are not opened. |
+| Translation memory and glossary | The suggestions and term matches the editor shows for a string of the task. | Lookup only, for the task's languages, from the memories and glossaries linked to the task's project, and only for the source text of a string in the task's file, so it cannot be used to browse. Matches come without links to the entry or the means to change it. No list, no editing. |
 | Download | The editor's own download of the task's file; the file as uploaded and its translation in a task language, which the editor uses to show documents. | No new download button on the task's page. |
 | **Mark done** | On their own open task. | As for everyone else. |
 | Their account | Sign out, theme and language, choosing another workspace they belong to, leaving the workspace. | From the account menu. The settings pages stay closed. |
 
 By step:
 
-- **Post-edit task:** read, save translations, comment. Approving or rejecting is refused.
+- **Post-edit task:** read, save translations, comment. Approving or rejecting is refused, and so is restoring a string to a version that was approved or rejected. **Approve** is not shown.
 - **Proofread task:** the same, plus approve and reject.
 - **Never, at either step:** changing source text, tags, design links, string limits, hiding or locking strings, editing a memory entry, uploading or managing screenshots, AI actions (they are charged to the workspace).
 
@@ -62,17 +62,18 @@ So the role is refused at one gate in each, and opened route by route:
 
 - **Go service:** the function that resolves the signed-in person keeps refusing Vendor. A second function, which accepts Vendor, is called only by the handlers in the table above. A route added later refuses a vendor without anyone thinking about it.
 - **Web app:** the one function that every signed-in request and page goes through refuses a vendor unless the caller says the route is one of the vendor's. The vendor's routes are one short list in one file. The same holds for pages: a page refuses a vendor unless it opts in. A vendor gets a page frame of their own (My jobs and the account menu), because the usual frame loads the inbox, QA reports, the assistant and billing; it also sends a vendor back from the few pages that load nothing on the server, whose requests are refused anyway.
-- **Public API, MCP, agent sign-in and plugins:** refuse the Vendor role outright. A vendor cannot create an API token, and a token made before a person became a vendor stops working while they are one.
+- **Public API, MCP, agent sign-in and plugins:** refuse the Vendor role outright. A vendor cannot create an API token, and a token made before a person became a vendor stops working while they are one. The same holds for a Canva, Figma or Sanity plugin sign-in, which cannot be made, used or renewed.
+- **Ways in that never read the web session:** the Slack and email assistants do not know a vendor as a sender, and a **Human approval** step refuses a vendor as its reviewer, because a vendor has no inbox to answer from.
 - **Reports:** unchanged; it already refuses.
 
-Inside an opened route a vendor never goes through the team rule. Their access is always "an open task I own", so adding a vendor to a team gives them nothing.
+Inside an opened route a vendor never goes through the team rule. Their access is always "an open task I own". A vendor is also in no team, ever: an invite as Vendor joins none, a member who is given the role is taken out of their teams (whether the role is given in the app or arrives from WorkOS), and adding a vendor to a team is refused. That is one rule in the data in place of a check in every query that asks who is on a team, such as who is emailed about an issue.
 
 ### A task's owner need not be on the project's team
 
 This holds for every role, not only vendors, and fixes the task that shows in **My jobs** but cannot be opened:
 
-- The owner of an open post-edit or proofread task on a file can open its page, the editor for its file and languages, and **Mark done**, whatever team the project is in. Outside their teams they are limited to that file and those languages and to the editor actions a vendor has, and never more than their role allows: a member still cannot edit, and approving follows their role, not the task's step. Nothing changes for people working through their teams.
-- Such a task can be given to any active member of the workspace: when its owner is changed in the app, where the owner picker now lists them, and through the public API. Both asked for a member of the project's team before. Any other job keeps the rule each place had.
+- The owner of an open post-edit or proofread task on a file can open its page, the editor for its file and languages, and **Mark done**, whatever team the project is in. Outside their teams they get the same reduced task page a vendor has and are limited to that file and those languages and to the editor actions a vendor has, and never more than their role allows: approving follows their role, not the task's step. Nothing changes for people working through their teams.
+- Such a task, while it is open or waiting, can be given to a vendor or to any active member whose role can work on jobs (the Member role cannot, so it would be stuck): when its owner is changed in the app, where the owner picker now lists them, and through the public API. Both asked for a member of the project's team before, and someone on the project's team can still be given it as before. Any other job, a finished task included, keeps the rule each place had.
 - A vendor can be given post-edit and proofread tasks on a file. Giving a vendor any other job (a translate task, a task on chosen strings, an AI job) is refused with a message, in the app, the **Assign task** step and both API hosts, because nothing would let them open or finish it. An issue cannot be given to a vendor either.
 - API tokens keep the team rule: a token does not open a task through ownership.
 
@@ -80,12 +81,12 @@ This holds for every role, not only vendors, and fixes the task that shows in **
 
 - **Vendor** is in the role list when inviting and when changing a role, for admins and localization managers.
 - An invite as Vendor joins no team, and the team choice is not shown for it. Today every invite below localization manager joins the default team.
-- A vendor is a member like any other on the **Members** page and can be removed or given another role there. A vendor counts as a paid seat, as every member does; that is left as it is. Changing a member to Vendor leaves their team memberships in place, unused.
-- **Role permissions** shows Vendor with no rights and one line saying what a vendor can reach.
+- A vendor is a member like any other on the **Members** page and can be removed or given another role there. A vendor counts as a paid seat, as every member does; that is left as it is. Changing a member to Vendor takes them out of their teams. Jobs and issues they already own stay theirs and are not reassigned (see Not built).
+- **Role permissions** has one line under its table saying what a vendor can reach; a column of empty cells is not added.
 
 ## Not built
 
-Each is a follow-up, and nothing here prepares for it: agencies as teams (picking an assignee from a team, a team's name on a task); an agency's manager handing work on; accepting or declining a task; Reports by vendor and time logging by vendors; a linked workspace of the vendor's own; vendors on translate tasks and on tasks of chosen strings; a history of a vendor's finished tasks; notices by email or in the inbox when a task is given or opens.
+Each is a follow-up, and nothing here prepares for it: agencies as teams (picking an assignee from a team, a team's name on a task); an agency's manager handing work on; accepting or declining a task; Reports by vendor and time logging by vendors; a linked workspace of the vendor's own; vendors on translate tasks and on tasks of chosen strings; a history of a vendor's finished tasks; notices by email or in the inbox when a task is given or opens; working on images, video, office files and documents through a task (uploading a translated file, approving a file view, turning document edits into strings); reassigning what a member owns, and disconnecting accounts they connected for automations, when they are changed to Vendor.
 
 ## Alternatives considered
 
@@ -99,6 +100,8 @@ Each is a follow-up, and nothing here prepares for it: agencies as teams (pickin
 
 The Vendor role has to exist in WorkOS before anyone is invited with it: the setup command that creates the other six creates it too, and must be run for each environment. Until then an invite as Vendor fails and nothing is changed. The database gains the role value in one migration.
 
+The Go services are deployed before the web app. The web app is where a person is made a vendor; if it went first, a token that person made earlier would keep reading through the public API until that service was updated.
+
 ## Test plan
 
 This changes the access rules of live features, so an existing test that fails is treated as a possible regression: it is reported and decided on, not edited to pass.
@@ -108,7 +111,8 @@ This changes the access rules of live features, so an existing test that fails i
 - Each gate: the default refuses a vendor; the opted-in path accepts one. For the web app, a test walks every route the app registers and expects a refusal for a vendor on all but the listed ones, so a new route is covered the day it is added.
 - Every opened path, as a vendor: allowed on their own open task; refused on a waiting task (editor, Mark done), a finished task, a task given to someone else, another person's task, another file of the same project, another language of the same file, "all files", and another workspace.
 - Rights by step: saving on both; approving and rejecting refused on post-edit and allowed on proofread; each "never" action refused.
-- Memory and glossary lookup allowed for the task's languages and refused for others; lists and edits refused.
+- Memory and glossary lookup allowed for the task's languages and the text of the task's strings, and refused for other languages and other text; lists and edits refused.
+- Ways in that never read the web session: the Slack and email assistants, plugin sign-ins, MCP, the **Human approval** step, and the role as it arrives from WorkOS.
 - Representative closed paths in each service, named in "What stays closed", including the member directory, project templates, dictionaries, Reports, token creation, the public API with an older token, and MCP.
 - Owners off the project's team: page, editor, Mark done as each role; assignment accepted in the app, the step and the API; the refusals for vendors.
 - Invites: Vendor joins no team; other roles still join as before; who may assign the role.
