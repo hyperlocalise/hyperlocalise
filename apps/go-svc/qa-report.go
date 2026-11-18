@@ -102,6 +102,7 @@ func (api *qaReportAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("PATCH "+q+"/findings/{findingId}", bindActor(api, (*qaReportAPI).reviewFindingHandler))
 	route("POST "+q+"/findings/promote", bindActor(api, (*qaReportAPI).promoteWorkspaceFindingsHandler))
 	route("GET "+p, bindActor(api, (*qaReportAPI).listProjectQaReportsHandler))
+	route("POST "+p, bindActor(api, (*qaReportAPI).startProjectQaScanHandler))
 	route("GET "+p+"/last-successful", bindActor(api, (*qaReportAPI).lastSuccessfulProjectQaRunHandler))
 	route("PATCH "+p+"/settings", bindActor(api, (*qaReportAPI).patchProjectQaSettingsHandler))
 	route("GET "+p+"/latest-findings", bindActor(api, (*qaReportAPI).listProjectLatestFindingsHandler))
