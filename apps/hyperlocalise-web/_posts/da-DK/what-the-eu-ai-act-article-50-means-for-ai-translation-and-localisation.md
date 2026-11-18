@@ -1,8 +1,8 @@
 ---
-title: What the EU AI Act Article 50 Means for AI Translation and Localisation
+title: Hvad EU's AI-forordnings artikel 50 betyder for AI-oversættelse og lokalisering
 date: 2026-08-03T00:00:00.000Z
-excerpt: Article 50 of the EU AI Act begins applying from August 2026. For most AI translation workflows, labelling is not required — but transparency still matters for agents, transcreation, and responsible localisation.
-category: Product
+excerpt: Artikel 50 i EU's AI-forordning finder anvendelse fra august 2026. For de fleste AI-baserede oversættelsesarbejdsgange er mærkning ikke påkrævet — men gennemsigtighed er stadig vigtig for agenter, transcreation og ansvarlig lokalisering.
+category: Produkt
 tags:
   - EU AI Act
   - Article 50
@@ -17,179 +17,180 @@ tags:
   - product localisation
   - responsible AI
 ---
-The European Union's AI Act is the world's first comprehensive legal framework for artificial intelligence. As Article 50 begins applying from August 2026, many product teams and localisation leaders are asking the same question:
 
-> **Does the EU AI Act mean AI-generated translations need to be labelled?**
+Den Europæiske Unions AI-forordning er verdens første omfattende juridiske ramme for kunstig intelligens. Når artikel 50 begynder at gælde fra august 2026, stiller mange produktteams og lokaliseringsansvarlige sig selv det samme spørgsmål:
 
-The short answer is **generally no**.
+> **Betyder EU's AI-forordning, at AI-genererede oversættelser skal mærkes?**
 
-For most translation workflows, Article 50 is less disruptive than many expected. However, it introduces important transparency requirements that every company using AI for localisation should understand.
+Det korte svar er **generelt nej**.
 
-In this article, we'll explain what Article 50 covers, how it applies to AI translation, and what it means for modern localisation platforms.
+For de fleste oversættelsesarbejdsgange er artikel 50 mindre forstyrrende, end mange havde forventet. Den indfører dog vigtige krav til gennemsigtighed, som alle virksomheder, der bruger AI til lokalisering, bør forstå.
 
-## What is Article 50?
+I denne artikel forklarer vi, hvad artikel 50 omfatter, hvordan den gælder for AI-oversættelse, og hvad det betyder for moderne lokaliseringsplatforme.
 
-Article 50 of the EU AI Act focuses on **transparency**.
+## Hvad er artikel 50?
 
-Rather than restricting the use of AI, it requires organisations to be transparent when AI is interacting with people or generating certain types of content.
+Artikel 50 i EU's AI-forordning fokuserer på **gennemsigtighed**.
 
-Depending on the use case, providers may need to:
+I stedet for at begrænse brugen af AI kræver den, at organisationer er gennemsigtige, når AI interagerer med mennesker eller genererer bestemte typer indhold.
 
-- Inform users that they are interacting with an AI system.
-- Disclose certain AI-generated or manipulated content.
-- Apply machine-readable markings to some AI-generated outputs where required.
-- Provide additional transparency for AI-generated public-interest content.
+Afhængigt af anvendelsestilfældet kan udbydere være nødt til at:
 
-The objective is straightforward: people should understand when AI is involved, while allowing organisations to continue benefiting from AI responsibly.
+- Oplys brugerne om, at de interagerer med et AI-system.
+- Oplys, hvis indhold er AI-genereret eller manipuleret.
+- Anvend maskinlæsbare markeringer på visse AI-genererede output, når det er påkrævet.
+- Skab større gennemsigtighed om AI-genereret indhold af offentlig interesse.
 
-## Does AI translation need to be labelled?
+Målet er ligetil: Folk skal forstå, hvornår AI er involveret, samtidig med at organisationer fortsat kan drage fordel af AI på en ansvarlig måde.
 
-For **most AI translation workflows, the answer is no**.
+## Skal AI-oversættelse mærkes?
 
-The European Commission's guidance recognises that translation is fundamentally different from generating entirely new content.
+For **de fleste AI-oversættelsesworkflows er svaret nej**.
 
-A faithful translation preserves the meaning of the original text. It transforms existing content into another language rather than creating new information. Because of this, AI-assisted translation generally falls within the exception for systems performing standard editing or transformation without materially changing the meaning.
+Europa-Kommissionens vejledning anerkender, at oversættelse grundlæggende adskiller sig fra at generere helt nyt indhold.
 
-For localisation teams, this is reassuring.
+En troværdig oversættelse bevarer originaltekstens betydning. Den omformer eksisterende indhold til et andet sprog i stedet for at tilføje nye oplysninger. Derfor falder AI-assisteret oversættelse generelt ind under undtagelsen for systemer, der udfører standardredigering eller -omformning uden at ændre betydningen væsentligt.
 
-It means organisations can continue using AI to translate user interfaces, documentation, support content and product experiences without automatically treating every translated string as AI-generated content requiring additional labelling.
+For lokaliseringsteams er det betryggende.
 
-## Translation is not the same as transcreation
+Det betyder, at organisationer fortsat kan bruge AI til at oversætte brugergrænseflader, dokumentation, supportindhold og produktoplevelser uden automatisk at behandle enhver oversat streng som AI-genereret indhold, der kræver yderligere mærkning.
 
-Where organisations should pay closer attention is **transcreation**.
+## Oversættelse er ikke det samme som transkreation.
 
-Translation aims to preserve meaning.
+Det, organisationer bør være mere opmærksomme på, er **transkreation**.
 
-Transcreation intentionally adapts messaging for another culture or market, often introducing new wording, creative expression or marketing intent.
+Oversættelsen har til formål at bevare betydningen.
 
-Examples include:
+Transkreation tilpasser bevidst budskaber til en anden kultur eller et andet marked, ofte med nye formuleringer, kreative udtryk eller markedsføringsmæssige hensigter.
 
-- Adapting marketing campaigns for local audiences
-- Rewriting product messaging
-- Creating market-specific slogans
-- Generating new landing page copy
-- Producing social media campaigns
+Eksempler omfatter:
 
-These workflows may no longer fall within the same exception as faithful translation.
+- Tilpasning af marketingkampagner til lokale målgrupper
+- Omskrivning af produktbudskaber
+- Oprettelse af markedsspecifikke slogans
+- Genererer nyt tekstindhold til landingssiden
+- Udarbejdelse af kampagner på sociale medier
 
-In practice, it helps to think about localisation work in three categories:
+Disse arbejdsgange falder muligvis ikke længere ind under samme undtagelse som trofast oversættelse.
 
-| Workflow                 | Typical classification |
+I praksis er det nyttigt at tænke på lokaliseringsarbejde i tre kategorier:
+
+| Arbejdsgang              | Typisk klassificering   |
 | ------------------------ | ---------------------- |
-| UI translation           | Translation            |
-| Help centre localisation | Translation            |
-| Product documentation    | Translation            |
-| Marketing adaptation     | Transcreation          |
-| New campaign copy        | AI content generation  |
+| UI-oversættelse         | Oversættelse           |
+| Lokalisering af hjælpecenter | Oversættelse            |
+| Produktdokumentation    | Oversættelse            |
+| Markedsføringstilpasning     | Transcreation          |
+| Ny kampagnetekst        | AI-indholdsgenerering  |
 
-As AI becomes more capable, distinguishing between translation and content generation will become increasingly important.
+I takt med at AI bliver mere avanceret, bliver det stadig vigtigere at skelne mellem oversættelse og indholdsgenerering.
 
-## What about AI localisation agents?
+## Hvad med AI-agenter til lokalisering?
 
-Many modern localisation platforms now include AI agents that retrieve context, answer questions and automate repetitive work.
+Mange moderne lokaliseringsplatforme omfatter nu AI-agenter, der henter kontekst, besvarer spørgsmål og automatiserer gentagne opgaver.
 
-Article 50 also applies to interactions between users and AI systems.
+Artikel 50 gælder også for interaktioner mellem brugere og AI-systemer.
 
-If someone is interacting directly with an AI assistant, they should be informed that they are communicating with AI unless it is already obvious.
+Hvis nogen interagerer direkte med en AI-assistent, bør de informeres om, at de kommunikerer med AI, medmindre det allerede er tydeligt.
 
-For most products, this is a straightforward design consideration.
+For de fleste produkter er dette en ligetil designovervejelse.
 
-Simple interface elements such as:
+Enkle brugerfladeelementer såsom:
 
-- "Hyperlocalise AI Agent"
-- "Ask our AI localisation assistant"
+- "Hyperlocalise AI-agent"
+- "Spørg vores AI-lokaliseringsassistent"
 
-are generally sufficient to make the interaction transparent.
+er generelt tilstrækkelige til at gøre interaktionen gennemsigtig.
 
-This requirement should have little impact on the user experience while helping build trust with customers.
+Dette krav bør have begrænset indvirkning på brugeroplevelsen, samtidig med at det bidrager til at opbygge tillid hos kunderne.
 
-## Why Article 50 is actually good news for localisation
+## Hvorfor artikel 50 faktisk er godt nyt for lokalisering
 
-At first glance, new AI regulation can sound intimidating.
+Ved første øjekast kan ny AI-regulering virke skræmmende.
 
-In reality, Article 50 reinforces many of the best practices that localisation teams have followed for years.
+I virkeligheden styrker artikel 50 mange af de bedste praksisser, som lokaliseringsteams har fulgt i årevis.
 
-Successful localisation has never been just about translating text.
+Vellykket lokalisering har aldrig kun handlet om at oversætte tekst.
 
-It relies on:
+Det afhænger af:
 
-- Human review
-- Context
-- Quality assurance
-- Editorial ownership
-- Audit history
-- Collaboration
-- Clear approval workflows
+- Menneskelig gennemgang
+- Kontekst
+- Kvalitetssikring
+- Redaktionelt ejerskab
+- Revisionshistorik
+- Samarbejde
+- Overskuelige godkendelsesprocesser
 
-As AI becomes a larger part of the localisation process, these capabilities become even more valuable.
+Efterhånden som AI bliver en større del af lokaliseringsprocessen, bliver disse funktioner endnu mere værdifulde.
 
-The organisations that succeed won't simply use more AI.
+De organisationer, der får succes, vil ikke blot bruge mere AI.
 
-They'll use AI with better governance.
+De vil bruge AI med bedre styring.
 
-## How Hyperlocalise approaches AI transparency
+## Sådan griber Hyperlocalise an AI-transparens
 
-At Hyperlocalise, we've always believed AI should empower localisation teams, not replace them.
+Hos Hyperlocalise har vi altid ment, at AI skal styrke lokaliseringsteams, ikke erstatte dem.
 
-Our AI workforce is designed to:
+Vores AI-arbejdsstyrke er designet til at:
 
-- Gather context before making localisation decisions
-- Reduce repetitive manual work
-- Help translators and reviewers move faster
-- Keep humans in control of publishing decisions
-- Work alongside existing localisation tools and workflows
+- Indhent kontekst, før du træffer beslutninger om lokalisering.
+- Reducer gentaget manuelt arbejde
+- Hjælp oversættere og korrekturlæsere med at arbejde hurtigere
+- Lad mennesker bevare kontrollen over beslutninger om publicering.
+- Arbejd sammen med eksisterende lokaliseringsværktøjer og arbejdsgange
 
-We believe the future of localisation isn't fully autonomous AI.
+Vi mener, at fremtiden for lokalisering ikke er fuldt autonom AI.
 
-It's AI working alongside localisation professionals to help global teams launch faster with greater confidence, while maintaining the quality and accountability that customers expect.
+Det er AI, der arbejder side om side med lokaliseringsspecialister for at hjælpe globale teams med at lancere hurtigere og med større sikkerhed, samtidig med at kvaliteten og ansvarligheden, som kunderne forventer, bevares.
 
-## What product teams should do now
+## Hvad produktteams bør gøre nu
 
-If your organisation uses AI for localisation, Article 50 is an opportunity to strengthen your localisation workflow rather than something to fear.
+Hvis din organisation bruger AI til lokalisering, er artikel 50 en mulighed for at styrke din lokaliseringsarbejdsgang snarere end noget, du skal frygte.
 
-A few practical recommendations include:
+Nogle praktiske anbefalinger omfatter:
 
-- Clearly identify AI assistants within your product.
-- Maintain human review for important customer-facing content.
-- Distinguish translation from transcreation workflows.
-- Keep approval history and audit trails.
-- Preserve context and source information throughout the localisation process.
-- Ensure editorial responsibility remains clear before publishing content.
+- Identificér tydeligt AI-assistenter i dit produkt.
+- Oprethold menneskelig gennemgang af vigtigt kundevendt indhold.
+- Skeln mellem oversættelses- og transcreation-arbejdsgange.
+- Bevar godkendelseshistorik og revisionsspor.
+- Bevar kontekst og kildeinformation gennem hele lokaliseringsprocessen.
+- Sørg for, at det redaktionelle ansvar er tydeligt inden publicering af indhold.
 
-These practices not only support compliance but also improve translation quality and customer trust.
+Disse praksisser understøtter ikke kun overholdelse af regler, men forbedrer også oversættelseskvaliteten og kundernes tillid.
 
-## Looking ahead
+## Et blik fremad
 
-The EU AI Act marks an important step towards trustworthy AI adoption.
+EU's AI-forordning markerer et vigtigt skridt mod indførelsen af pålidelig AI.
 
-For product and localisation teams, the key takeaway is reassuring:
+For produkt- og lokaliseringsteams er det vigtigste budskab betryggende:
 
-AI-assisted translation remains a practical, valuable and compliant way to launch products globally.
+AI-assisteret oversættelse er fortsat en praktisk, værdifuld og regelkonform måde at lancere produkter globalt på.
 
-Rather than slowing innovation, Article 50 encourages organisations to build AI workflows that are transparent, accountable and human-centred.
+I stedet for at bremse innovationen tilskynder artikel 50 organisationer til at udvikle AI-arbejdsgange, der er gennemsigtige, ansvarlige og menneskecentrerede.
 
-At Hyperlocalise, we believe these principles lead to better localisation—not just better compliance.
+Hos Hyperlocalise mener vi, at disse principper fører til bedre lokalisering – ikke kun til bedre compliance.
 
-As AI continues to reshape global product development, the companies that combine automation with human expertise will be the ones that deliver exceptional experiences in every language.
+Efterhånden som AI fortsætter med at omforme global produktudvikling, vil de virksomheder, der kombinerer automatisering med menneskelig ekspertise, være dem, der leverer enestående oplevelser på alle sprog.
 
-## Frequently asked questions
+## Ofte stillede spørgsmål
 
-### Does every AI translation need to be labelled?
+### Skal enhver AI-oversættelse mærkes?
 
-Generally no. Faithful translations are typically treated differently from AI-generated original content because they preserve the meaning of the source material.
+Generelt nej. Tro oversættelser behandles typisk anderledes end AI-genereret originalindhold, fordi de bevarer kildematerialets betydning.
 
-### Does Article 50 ban AI translation?
-
-1. Article 50 introduces transparency requirements rather than restricting the use of AI for translation.
-
-### Is transcreation treated the same as translation?
+### Forbyder artikel 50 AI-oversættelse?
 
 Not necessarily. AI-generated marketing content, creative rewriting and original copy may be subject to different transparency considerations than faithful translations.
 
-### Does this only apply to companies based in Europe?
-
-1. The EU AI Act can also apply to organisations outside the European Union if their AI systems or outputs are placed on the EU market or used within the EU.
-
-### How does Hyperlocalise support responsible AI localisation?
+### Behandles transkreation på samme måde som oversættelse?
 
 Hyperlocalise combines AI agents with human review, contextual understanding and existing localisation workflows to help teams launch globally with greater speed, quality and confidence while maintaining transparency throughout the process.
+
+### Gælder dette kun for virksomheder, der er baseret i Europa?
+
+Nej. EU's AI-forordning kan også gælde for organisationer uden for Den Europæiske Union, hvis deres AI-systemer eller -output bringes i omsætning på EU-markedet eller anvendes inden for EU.
+
+### Hvordan understøtter Hyperlocalise ansvarlig AI-lokalisering?
+
+Hyperlocalise kombinerer AI-agenter med menneskelig gennemgang, kontekstforståelse og eksisterende lokaliseringsarbejdsgange for at hjælpe teams med at lancere globalt hurtigere, med højere kvalitet og større sikkerhed, samtidig med at gennemsigtigheden bevares gennem hele processen.
