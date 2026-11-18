@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
@@ -236,7 +235,7 @@ func TestMemberListMembersScripted(t *testing.T) {
 		require.Equal(t, "invited", members[1].Status)
 		require.Equal(t, "new@example.com", members[1].DisplayName)
 		require.True(t, *members[1].CanRemove)
-		require.Equal(t, memberManagementContext{CanInvite: true, AssignableRoles: authz.Roles}, body["memberManagement"])
+		require.Equal(t, memberManagementContext{CanInvite: true, AssignableRoles: memberSettingsRoles}, body["memberManagement"])
 		requireScriptDone(t, pool)
 	})
 }
