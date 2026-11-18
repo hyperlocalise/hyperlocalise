@@ -1119,6 +1119,26 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "v5ZuLrI48c",
     description: "Label for the OpenAI GPT-6 Sol automation model",
   },
+  modelGpt62Astra: {
+    defaultMessage: "GPT-6.2 Astra",
+    id: "DMUMJbi+rW",
+    description: "Label for the OpenAI GPT-6.2 Astra automation model",
+  },
+  modelGpt62AstraFast: {
+    defaultMessage: "GPT-6.2 Astra (Fast)",
+    id: "2lzLJH46+D",
+    description: "Label for the OpenAI GPT-6.2 Astra fast automation model",
+  },
+  modelGpt62Sol: {
+    defaultMessage: "GPT-6.2 Sol",
+    id: "cCuwW3DARP",
+    description: "Label for the OpenAI GPT-6.2 Sol automation model",
+  },
+  modelGpt62SolFast: {
+    defaultMessage: "GPT-6.2 Sol (Fast)",
+    id: "6t3gFz6pHD",
+    description: "Label for the OpenAI GPT-6.2 Sol fast automation model",
+  },
   modelGpt61Sol: {
     defaultMessage: "GPT-6.1 Sol",
     id: "nn5/Lv4WBX",

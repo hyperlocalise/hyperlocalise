@@ -266,6 +266,10 @@ const COMING_SOON_GOOGLE_TOOLS: readonly ComingSoonAutomationTool[] = [
 ] as const;
 
 const AUTOMATION_MODEL_MESSAGES = {
+  "openai/gpt-6.2-astra": workspaceAutomationFormMessages.modelGpt62Astra,
+  "openai/gpt-6.2-astra-fast": workspaceAutomationFormMessages.modelGpt62AstraFast,
+  "openai/gpt-6.2-sol": workspaceAutomationFormMessages.modelGpt62Sol,
+  "openai/gpt-6.2-sol-fast": workspaceAutomationFormMessages.modelGpt62SolFast,
   "openai/gpt-6.1-sol": workspaceAutomationFormMessages.modelGpt61Sol,
   "openai/gpt-6.1-sol-fast": workspaceAutomationFormMessages.modelGpt61SolFast,
   "openai/gpt-6-luna": workspaceAutomationFormMessages.modelGpt6Luna,

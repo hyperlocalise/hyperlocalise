@@ -20,9 +20,13 @@ import {
 } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
 
 describe("vercel-ai-gateway-openai-models", () => {
-  it("includes GPT-6.1 Sol and fast variants for supported OpenAI gateway models", () => {
+  it("includes GPT-6.2 Astra, GPT-6.2 Sol and fast variants for supported OpenAI gateway models", () => {
     expect(curatedOpenAiNativeModels).toEqual(buildCuratedOpenAiNativeModelsForTest());
     expect(curatedOpenAiNativeModels).toEqual([
+      "gpt-6.2-astra",
+      "gpt-6.2-astra-fast",
+      "gpt-6.2-sol",
+      "gpt-6.2-sol-fast",
       "gpt-6.1-sol",
       "gpt-6.1-sol-fast",
       "gpt-6-luna",
@@ -54,6 +58,10 @@ describe("vercel-ai-gateway-openai-models", () => {
       buildOpenAiWorkspaceAutomationGatewayModelsForTest(),
     );
     expect(OPENAI_WORKSPACE_AUTOMATION_GATEWAY_MODELS).toEqual([
+      "openai/gpt-6.2-astra",
+      "openai/gpt-6.2-astra-fast",
+      "openai/gpt-6.2-sol",
+      "openai/gpt-6.2-sol-fast",
       "openai/gpt-6.1-sol",
       "openai/gpt-6.1-sol-fast",
       "openai/gpt-6-luna",

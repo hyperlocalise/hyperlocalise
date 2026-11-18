@@ -111,6 +111,22 @@ describe("pricing model catalog", () => {
           "Universal 3.5 Pro",
         ],
         [
+          "openai/gpt-6.2-astra",
+          "GPT-6.2 Astra",
+        ],
+        [
+          "openai/gpt-6.2-astra-fast",
+          "GPT-6.2 Astra Fast",
+        ],
+        [
+          "openai/gpt-6.2-sol",
+          "GPT-6.2 Sol",
+        ],
+        [
+          "openai/gpt-6.2-sol-fast",
+          "GPT-6.2 Sol Fast",
+        ],
+        [
           "openai/gpt-6.1-sol",
           "GPT-6.1 Sol",
         ],
