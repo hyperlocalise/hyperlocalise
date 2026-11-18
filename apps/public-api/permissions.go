@@ -12,7 +12,14 @@ var apiKeyScopeCapability = map[string]string{
 	"reports:read":   "billing:read",
 }
 
+// roleVendor is refused when a token is read (auth.go). The role also holds no capability here,
+// so nothing is granted should a check ever see it.
+const roleVendor = "vendor"
+
 func roleAllowsCapability(role, capability string) bool {
+	if role == roleVendor {
+		return false
+	}
 	switch capability {
 	case "projects:read", "jobs:read":
 		return role != ""

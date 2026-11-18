@@ -9,12 +9,15 @@ import (
 	"time"
 )
 
+const vendorOwnerNotAllowedMessage = "A vendor can only be given a post-edit or proofread task on a file."
+
 var jobErrorResponses = []storeErrorResponse{
 	{errJobNotFound, http.StatusNotFound, "job_not_found", "Job not found"},
 	{errJobNotUpdatable, http.StatusConflict, "provider_job_not_updatable", "Provider-backed jobs are updated in the TMS provider"},
 	{errJobProjectRequired, http.StatusBadRequest, "project_required", "Job must belong to a project to update its owner or details"},
 	{errJobOwnerNotFound, http.StatusBadRequest, "owner_not_found", "ownerEmail must belong to a workspace member"},
 	{errJobOwnerUnassigable, http.StatusBadRequest, "assignee_not_assignable", "The owner must be an active member with project access"},
+	{errJobOwnerVendor, http.StatusBadRequest, "vendor_owner_not_allowed", vendorOwnerNotAllowedMessage},
 }
 
 func writeJobStoreError(w http.ResponseWriter, err error, operation string) {

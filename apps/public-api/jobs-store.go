@@ -18,6 +18,7 @@ var (
 	errJobProjectRequired  = errors.New("job has no project")
 	errJobOwnerNotFound    = errors.New("job owner is not a workspace member")
 	errJobOwnerUnassigable = errors.New("job owner cannot access the project")
+	errJobOwnerVendor      = errors.New("a vendor can own only a post-edit or proofread task on a file")
 )
 
 var (
@@ -273,13 +274,15 @@ func applyJobPatch(ctx context.Context, tx pgx.Tx, actor principal, jobID string
 	var external bool
 	var before jobAssignment
 	var beforeDetails jobDetails
+	var fileTask bool
 	err := tx.QueryRow(ctx, `SELECT j.project_id, j.kind::text, x.job_id IS NOT NULL,
+			`+jobFileTaskSQL+`,
 			j.owner_user_id::text, j.assignee_type::text,
 			j.due_at, j.input_payload->'metadata'->>'title', j.input_payload->'metadata'->>'description'
 		FROM jobs j
 		LEFT JOIN external_job_details x ON x.job_id = j.id
 		WHERE `+jobAccessPredicate+` AND j.id = $3
-		FOR UPDATE OF j`, actor.OrganizationID, actor.UserID, jobID).Scan(&projectID, &kind, &external, &before.OwnerUserID, &before.AssigneeType,
+		FOR UPDATE OF j`, actor.OrganizationID, actor.UserID, jobID).Scan(&projectID, &kind, &external, &fileTask, &before.OwnerUserID, &before.AssigneeType,
 		&beforeDetails.DueAt, &beforeDetails.Title, &beforeDetails.Description)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return job{}, errJobNotFound
@@ -302,7 +305,7 @@ func applyJobPatch(ctx context.Context, tx pgx.Tx, actor principal, jobID string
 		if patch.OwnerEmail.Value == nil {
 			set.conditions = append(set.conditions, "owner_user_id = NULL", "assignee_type = NULL")
 		} else {
-			ownerID, err := assignableJobOwner(ctx, tx, actor, *projectID, *patch.OwnerEmail.Value)
+			ownerID, err := assignableJobOwner(ctx, tx, actor, *projectID, *patch.OwnerEmail.Value, fileTask)
 			if err != nil {
 				return job{}, err
 			}
@@ -421,10 +424,16 @@ func insertJobChangeEvent(ctx context.Context, tx pgx.Tx, changeType, organizati
 	return nil
 }
 
-// assignableJobOwner follows findPublicJobOwner and assertAssignableIssueAssignee in the web
-// app: the owner is a workspace member by email whose membership is active and who is an
-// operator or on the project's team.
-func assignableJobOwner(ctx context.Context, tx pgx.Tx, actor principal, projectID, email string) (string, error) {
+// jobFileTaskSQL says whether a job is a post-edit or proofread task on one file. Both are
+// stored as proofread jobs; a job mirrored from a provider (joined as x) is not one.
+const jobFileTaskSQL = `(j.kind = 'proofread' AND x.job_id IS NULL AND COALESCE(j.input_payload->>'sourceFileId', '') <> '')`
+
+// assignableJobOwner follows updateNativeJob and job-owner.ts in the web app: the owner is a
+// workspace member by email whose membership is active. A post-edit or proofread task on a
+// file can go to any such member, a vendor included, because its owner reaches it through the
+// task itself. Any other job needs an operator or someone on the project's team, and is never
+// given to a vendor, who could not open or finish it.
+func assignableJobOwner(ctx context.Context, tx pgx.Tx, actor principal, projectID, email string, fileTask bool) (string, error) {
 	var ownerID, role string
 	var membershipID *string
 	err := tx.QueryRow(ctx, `SELECT u.id, om.role, om.workos_membership_id
@@ -439,10 +448,13 @@ func assignableJobOwner(ctx context.Context, tx pgx.Tx, actor principal, project
 		return "", fmt.Errorf("find job owner: %w", err)
 	}
 	active := membershipID != nil && *membershipID != "" && *membershipID != "replacing" && !strings.HasPrefix(*membershipID, "replacing:")
+	if !fileTask && role == roleVendor {
+		return "", errJobOwnerVendor
+	}
 	if !active {
 		return "", errJobOwnerUnassigable
 	}
-	if role == "admin" || role == "localization_manager" {
+	if fileTask || role == "admin" || role == "localization_manager" {
 		return ownerID, nil
 	}
 	var onTeam bool

@@ -94,6 +94,11 @@ func (a *postgresAuthenticator) authenticate(ctx context.Context, token string) 
 	if role == nil || *role == "" {
 		return principal{}, errForbidden
 	}
+	// The API never acts for a vendor (an outside person who sees only their own tasks in the
+	// app). A token made before its owner became a vendor is refused while they are one.
+	if *role == roleVendor {
+		return principal{}, errForbidden
+	}
 
 	var storedPermissions []string
 	if err := json.Unmarshal(permissionsRaw, &storedPermissions); err != nil {

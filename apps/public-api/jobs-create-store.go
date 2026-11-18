@@ -46,16 +46,20 @@ func (s *postgresStore) createJob(ctx context.Context, actor principal, input jo
 	}
 	var ownerID *string
 	if input.OwnerEmail != "" {
-		var id string
-		err := s.pool.QueryRow(ctx, `SELECT u.id FROM users u
+		var id, role string
+		err := s.pool.QueryRow(ctx, `SELECT u.id, om.role::text FROM users u
 			JOIN organization_memberships om ON om.user_id = u.id
 			WHERE lower(u.email) = lower($2) AND om.organization_id = $1
-			LIMIT 1`, actor.OrganizationID, input.OwnerEmail).Scan(&id)
+			LIMIT 1`, actor.OrganizationID, input.OwnerEmail).Scan(&id, &role)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return createdJobResult{}, false, errJobOwnerNotFound
 		}
 		if err != nil {
 			return createdJobResult{}, false, fmt.Errorf("find job owner: %w", err)
+		}
+		// Only a post-edit or proofread task on a file can be given to a vendor (jobs-store.go).
+		if role == roleVendor && (input.File == nil || input.File.Step == nil) {
+			return createdJobResult{}, false, errJobOwnerVendor
 		}
 		ownerID = &id
 	}
