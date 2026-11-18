@@ -2051,6 +2051,10 @@
     "defaultMessage": "Target locale",
     "description": "Label for the optional TMX export target locale"
   },
+  "0d5DFVkzn6": {
+    "defaultMessage": "Comes after",
+    "description": "Label for the Assign task workflow step's setting naming an earlier task that must be finished before this one opens"
+  },
   "0dFZxKMyvL": {
     "defaultMessage": "Run every step for real",
     "description": "Button in the test settings popover that sets every step that calls out to run for real in test runs"
@@ -2226,6 +2230,10 @@
   "0uQydL2hST": {
     "defaultMessage": "Email notifications",
     "description": "Label for enabling Issue Sheet email notifications"
+  },
+  "0uY8+g+/P5": {
+    "defaultMessage": "The source text couldn't be read from the file.",
+    "description": "Job failure reason when no source text could be read"
   },
   "0uaklEAkIh": {
     "defaultMessage": "Write in Content Studio. Test headlines in Hyperlab. Domains is where the live pages live and get found.",
@@ -3574,6 +3582,10 @@
   "2lyiINtqCm": {
     "defaultMessage": "Screenshots",
     "description": "Label for the screenshots presence filter"
+  },
+  "2lzLJH46+D": {
+    "defaultMessage": "GPT-6.2 Astra (Fast)",
+    "description": "Label for the OpenAI GPT-6.2 Astra fast automation model"
   },
   "2mJ+zZY2rg": {
     "defaultMessage": "Manage billing",
@@ -5011,6 +5023,10 @@
     "defaultMessage": "Unable to delete concept",
     "description": "Fallback error when a glossary concept deletion fails"
   },
+  "4kR6n0D7eD": {
+    "defaultMessage": "This file type has to be translated in the editor.",
+    "description": "Job failure reason for office files that need manual translation"
+  },
   "4km4YTRiRQ": {
     "defaultMessage": "Pending: {count}",
     "description": "Summary badge for pending proposal count"
@@ -5963,6 +5979,10 @@
     "defaultMessage": "A site connected to the bigger picture.",
     "description": "Headline for the Domains connected-products section"
   },
+  "5yOeakcU5Y": {
+    "defaultMessage": "Your workspace is out of AI credits. Add credits, then retry.",
+    "description": "Job failure reason when the workspace has no AI credits left"
+  },
   "5ykdkd6oqw": {
     "defaultMessage": "Local variant",
     "description": "market-experimentation use case page: guide › steps › #2 › visual › variants › #2 › note"
@@ -6467,6 +6487,10 @@
     "defaultMessage": "Watch the film",
     "description": "Opens the Iris launch film on YouTube from the product update announcement card"
   },
+  "6ghouuTHvo": {
+    "defaultMessage": "The project for this job no longer exists.",
+    "description": "Job failure reason when the project was deleted"
+  },
   "6hO1kU+HPL": {
     "defaultMessage": "Load more keys",
     "description": "Multilingual table more label"
@@ -6598,6 +6622,10 @@
   "6t3EqSwEpq": {
     "defaultMessage": "Fill missing locales and run QA while people stay in control.",
     "description": "AI feature capability body: TMS-aware drafting and QA"
+  },
+  "6t3gFz6pHD": {
+    "defaultMessage": "GPT-6.2 Sol (Fast)",
+    "description": "Label for the OpenAI GPT-6.2 Sol fast automation model"
   },
   "6uHZwOPqkd": {
     "defaultMessage": "Merged strings will split back out after Content Editor drafts are saved or discarded. Translations, approvals, comments, and saved separation exceptions will stay unchanged.",
@@ -7066,6 +7094,10 @@
   "7UHXRMjl+Y": {
     "defaultMessage": "Overwrite Iterable locales when the remote locale is newer.",
     "description": "Explains the selected automation overwrites newer Iterable locales on push"
+  },
+  "7UZkgZj5lA": {
+    "defaultMessage": "Actions",
+    "description": "Workspace QA projects list column for row actions"
   },
   "7UoNPs2uZA": {
     "defaultMessage": "Related",
@@ -7806,6 +7838,10 @@
   "8T9ADmB57c": {
     "defaultMessage": "Mailchimp",
     "description": "Name of the Mailchimp integration in the hint on a skill that needs it connected"
+  },
+  "8TDQwzZa3F": {
+    "defaultMessage": "The job ID from an earlier Assign task or Machine translate step. This task waits and opens when that job is marked done, finishes, or is cancelled. Leave empty to open the task straight away.",
+    "description": "Help text for the Comes after setting of the Assign task workflow step"
   },
   "8TEiv4VOyd": {
     "defaultMessage": "This video could not be played. Try reloading the preview.",
@@ -8695,6 +8731,10 @@
     "defaultMessage": "The file is sent once every string is approved. Until then the step fails, and the run can be retried.",
     "description": "Help text above the settings of the use translation as source step"
   },
+  "9ewv+9iYs3": {
+    "defaultMessage": "The translation model returned an error. Retrying usually works.",
+    "description": "Job failure reason when translation failed for an unspecified reason"
+  },
   "9fQig1Dm8L": {
     "defaultMessage": "Publish approved translations back to your help center without copy and paste.",
     "description": "help-center-localisation use case page: capabilities › items › #6 › body"
@@ -9130,6 +9170,10 @@
   "ACud1VtN9i": {
     "defaultMessage": "Display name",
     "description": "Label for the TMS provider credential display name field"
+  },
+  "ACyFoehSSc": {
+    "defaultMessage": "Research",
+    "description": "Job task type label for research jobs"
   },
   "ADCACm3JCm": {
     "defaultMessage": "Quote",
@@ -10327,6 +10371,10 @@
     "defaultMessage": "API keys",
     "description": "Link to workspace API keys from the native project settings panel"
   },
+  "Bpacu25hhF": {
+    "defaultMessage": "Hide spaces",
+    "description": "QA finding card action to hide whitespace markers"
+  },
   "BpmW9l3lxM": {
     "defaultMessage": "Run a free localisation audit, then see search demand, rankings, and AI visibility for the markets you want to win.",
     "description": "market-entry use case page: cta › body"
@@ -11502,6 +11550,10 @@
   "DMH8AixTRq": {
     "defaultMessage": "Install the GitHub app, add a config file, and every pull request is covered.",
     "description": "github-release-localisation use case page: guide › body"
+  },
+  "DMUMJbi+rW": {
+    "defaultMessage": "GPT-6.2 Astra",
+    "description": "Label for the OpenAI GPT-6.2 Astra automation model"
   },
   "DMziALn6m4": {
     "defaultMessage": "02 Check every language",
@@ -12939,6 +12991,10 @@
     "defaultMessage": "Could not load documents",
     "description": "Error when mapped Sanity documents fail to load"
   },
+  "FHInczqkpK": {
+    "defaultMessage": "The source file couldn't be parsed. Check that it is a supported, valid file.",
+    "description": "Job failure reason when the source file could not be parsed"
+  },
   "FHYpiHKFtf": {
     "defaultMessage": "File",
     "description": "Workspace files resource type badge or filter for file resources"
@@ -13999,6 +14055,10 @@
     "defaultMessage": "Choose source files and a target locale to export translated content.",
     "description": "Description of the download translations dialog"
   },
+  "GouwKj6LlS": {
+    "defaultMessage": "AI usage couldn't be checked. Retry in a few minutes.",
+    "description": "Job failure reason when the AI usage check failed"
+  },
   "GowAdbMOGm": {
     "defaultMessage": "List source files",
     "description": "Catalog title for the list source files node"
@@ -14238,6 +14298,10 @@
   "H3ZP4+H6tz": {
     "defaultMessage": "Log time",
     "description": "Button that opens the dialog for logging time"
+  },
+  "H3txk4r87t": {
+    "defaultMessage": "Asset management",
+    "description": "Job task type label for asset management jobs"
   },
   "H4+1o+HDkH": {
     "defaultMessage": "CDN",
@@ -15639,6 +15703,10 @@
     "defaultMessage": "Saved",
     "description": "Document editor: autosave finished"
   },
+  "JAv5imMLIJ": {
+    "defaultMessage": "Never",
+    "description": "Workspace QA projects list value when a project has no completed scan"
+  },
   "JB6oDpJ4ax": {
     "defaultMessage": "Select a project above to load live glossaries and term bases from your connected provider.",
     "description": "Description prompting the user to select a TMS project for live glossaries"
@@ -16255,6 +16323,10 @@
     "defaultMessage": "Attach a connected file to a campaign or draft. Reviewers see the PDF or page beside the copy, and agent suggestions cite the same clauses.",
     "description": "Guidelines FAQ answer about Content Studio"
   },
+  "K22gtW3611": {
+    "defaultMessage": "AI translation isn't enabled for this workspace.",
+    "description": "Job failure reason when AI features are not available"
+  },
   "K2MFUptMFT": {
     "defaultMessage": "Has untranslated blocks",
     "description": "Document editor: outline status for a section"
@@ -16278,6 +16350,10 @@
   "K3x5cISuVg": {
     "defaultMessage": "Task marked done",
     "description": "Success toast after marking a task for people done"
+  },
+  "K4CwoA7ICc": {
+    "defaultMessage": "Scanning",
+    "description": "Workspace QA project status while a scan is queued or running"
   },
   "K4EZaisMM5": {
     "defaultMessage": "Message the automation assistant",
@@ -16907,6 +16983,10 @@
     "defaultMessage": "Failing",
     "description": "Group heading for failing deep audit checks"
   },
+  "L5Hfhv+llN": {
+    "defaultMessage": "The run failed before any locale was translated.",
+    "description": "Run card summary when the run failed without finishing any locale"
+  },
   "L5UoC4Vg1/": {
     "defaultMessage": "Layout checks in every language",
     "description": "Marketing homepage cultureDetailLayoutTitle"
@@ -17222,10 +17302,6 @@
   "LTzJmEDEky": {
     "defaultMessage": "Watch",
     "description": "Legend label for a check close to passing on the localisation audit landing page"
-  },
-  "LUAw9P2inM": {
-    "defaultMessage": "The run failed before all locales were translated.",
-    "description": "Run card summary when the run failed"
   },
   "LUBBcMCqmP": {
     "defaultMessage": "Locales",
@@ -18427,10 +18503,6 @@
     "defaultMessage": "Translate {filename} into {targetLocale}.",
     "description": "Default CAT intelligence intent describing the file being translated"
   },
-  "N43XdOSMJ5": {
-    "defaultMessage": "Unfinished locales",
-    "description": "Job property row label for locales that did not finish translating"
-  },
   "N564Eak7tL": {
     "defaultMessage": "Installed on {workspace}",
     "description": "Slack integration description when a workspace is linked"
@@ -18502,6 +18574,10 @@
   "N9Db20xFJr": {
     "defaultMessage": "Yes. Approved terminology and past translations surface as you work, so reviewers catch conflicts early instead of after content ships.",
     "description": "Content Studio FAQ answer about TM and glossaries"
+  },
+  "N9QT573W/v": {
+    "defaultMessage": "Earlier task",
+    "description": "Link text on a task's page for the task it comes after, shown when that task's title cannot be read"
   },
   "NA/mPQd8Zc": {
     "defaultMessage": "During the day",
@@ -19411,6 +19487,10 @@
     "defaultMessage": "Timezone",
     "description": "Accessible label for the timezone combobox"
   },
+  "OOGPf6At4J": {
+    "defaultMessage": "Post-edit",
+    "description": "Job kind checkbox on the job changed trigger: a post-edit task for a person"
+  },
   "OPbww1wvuh": {
     "defaultMessage": "Team settings",
     "description": "Segment context label for team settings strings in the CAT mock"
@@ -19875,6 +19955,10 @@
     "defaultMessage": "Search trends",
     "description": "Keyword research screen: trends"
   },
+  "P3DM5+MVCF": {
+    "defaultMessage": "Ignore ({count})",
+    "description": "QA bulk action to ignore the selected findings"
+  },
   "P3FTUn97ec": {
     "defaultMessage": "CLI & CI",
     "description": "Project settings nav item for connecting the CLI and CI"
@@ -19962,6 +20046,10 @@
   "P9C1n98DZ2": {
     "defaultMessage": "Provider file",
     "description": "Metadata label for a TMS provider file resource in the files tree"
+  },
+  "P9Kxy3XGc5": {
+    "defaultMessage": "Warnings",
+    "description": "Workspace QA projects list column for warning count"
   },
   "PAC7QvAG7e": {
     "defaultMessage": "Failed to delete Canva connection.",
@@ -21759,6 +21847,10 @@
     "defaultMessage": "{count, plural, one {# file} other {# files}}",
     "description": "Count of project files in the list header"
   },
+  "Rjw14XFQ0k": {
+    "defaultMessage": "Technical details",
+    "description": "Disclosure on the job failure notice showing the recorded error text"
+  },
   "Rk8U85urY5": {
     "defaultMessage": "Test a change with some users before you show it to everyone.",
     "description": "Built-in experiments product description on the integrations page"
@@ -22734,6 +22826,10 @@
   "T538d2j6a5": {
     "defaultMessage": "Previous",
     "description": "Button that shows the previous page of a table"
+  },
+  "T7hOj18tKO": {
+    "defaultMessage": "No due date",
+    "description": "Job detail due date value when none is set; click to pick one"
   },
   "T7mc3F7zcl": {
     "defaultMessage": "{project} — {language}",
@@ -24543,6 +24639,10 @@
     "defaultMessage": "Sign in again to manage the {providerName} connection.",
     "description": "Error when a WorkOS access token is missing for the Pipes widget"
   },
+  "VN8yjG8Ix9": {
+    "defaultMessage": "Not scanned",
+    "description": "Workspace QA project status when it has never been scanned"
+  },
   "VNOmqIMmQh": {
     "defaultMessage": "Mailchimp",
     "description": "Mailchimp integration name on the integrations page"
@@ -25094,6 +25194,10 @@
   "WCzohOaFyx": {
     "defaultMessage": "Tuesday",
     "description": "Weekday option for scheduled automation"
+  },
+  "WDLvPq44w7": {
+    "defaultMessage": "Comes after",
+    "description": "Label of the row on a task's page naming the earlier task that must be finished before this one can start"
   },
   "WDaXRRP8RP": {
     "defaultMessage": "Next",
@@ -26475,6 +26579,10 @@
     "defaultMessage": "Run QA",
     "description": "Toggle label for running QA on Contentful translations"
   },
+  "Y9BFEryYpY": {
+    "defaultMessage": "No reason was recorded. Retry the job, or contact support if it keeps failing.",
+    "description": "Job failure notice text when the failure has no recorded reason"
+  },
   "Y9DpFK1RSa": {
     "defaultMessage": "People from",
     "description": "Label for choosing whether the Pick assignee step routes work to workspace members or Crowdin project members"
@@ -26686,6 +26794,10 @@
   "YSEvWFKZ+S": {
     "defaultMessage": "No screenshots are attached to this string.",
     "description": "Empty state when a string has no screenshot context"
+  },
+  "YSNcbNZ9DI": {
+    "defaultMessage": "Proofread",
+    "description": "Job task type label for proofreading jobs"
   },
   "YSXkmv+Ld6": {
     "defaultMessage": "Common localisation formats including JSON, YAML, PO, XLIFF, and more. See the file formats page in the docs for the full list.",
@@ -26922,6 +27034,10 @@
   "YlkCv2/Rn6": {
     "defaultMessage": "Delete this query?",
     "description": "Title for query delete confirmation"
+  },
+  "Ym36ljVso8": {
+    "defaultMessage": "Add description",
+    "description": "Job detail action to add a description when the job has none"
   },
   "YmDPiD+yJD": {
     "defaultMessage": "Task step",
@@ -27318,6 +27434,10 @@
   "ZOC86/UJbR": {
     "defaultMessage": "Add target languages in settings to track translation progress here.",
     "description": "Empty-state description when a project has no target locales"
+  },
+  "ZOQ2tKE1Jn": {
+    "defaultMessage": "The source file couldn't be downloaded.",
+    "description": "Job failure reason when the source file could not be fetched"
   },
   "ZOtHEDGurR": {
     "defaultMessage": "Give Japan a different headline, checkout, or feature. Hyperlab shows if people there like it. Then you can take that version everywhere.",
@@ -28763,6 +28883,10 @@
     "defaultMessage": "Value",
     "description": "Stringify JSON node value input label"
   },
+  "bISSBVAr7c": {
+    "defaultMessage": "{count, plural, one {Ignored # finding} other {Ignored # findings}}",
+    "description": "QA toast after ignoring several findings at once"
+  },
   "bIhHNqhcPu": {
     "defaultMessage": "Save & localise",
     "description": "Image viewer: saveLocalise"
@@ -29287,6 +29411,10 @@
     "defaultMessage": "Off",
     "description": "QA settings option that turns a check off"
   },
+  "c0wNlOeXsI": {
+    "defaultMessage": "Last completed scan",
+    "description": "Workspace QA projects list column for the last completed scan time"
+  },
   "c0wyG2sMeU": {
     "defaultMessage": "Remove relationship",
     "description": "Accessible label for the remove-relationship button"
@@ -29418,6 +29546,10 @@
   "cCr/fhUFwD": {
     "defaultMessage": "Proofread",
     "description": "What a task is for: proofreading translations"
+  },
+  "cCuwW3DARP": {
+    "defaultMessage": "GPT-6.2 Sol",
+    "description": "Label for the OpenAI GPT-6.2 Sol automation model"
   },
   "cDM7ee3Tdp": {
     "defaultMessage": "Coming soon",
@@ -29587,6 +29719,10 @@
     "defaultMessage": "Use workspace guideline",
     "description": "Menu item and tool title for the workspace guideline"
   },
+  "cTr+8INKam": {
+    "defaultMessage": "The image couldn't be translated.",
+    "description": "Job failure reason when image translation failed"
+  },
   "cUEs5UweV5": {
     "defaultMessage": "Passed audits ({count})",
     "description": "Heading for passed localisation audit criteria"
@@ -29634,6 +29770,10 @@
   "caNZDGtpcW": {
     "defaultMessage": "Remove file",
     "description": "Button to clear the selected translation memory import file"
+  },
+  "caOnhTFV4k": {
+    "defaultMessage": "This task opens when that one is marked done or cancelled.",
+    "description": "Note on a waiting task's page, under the link to the earlier task it comes after"
   },
   "cb/1dHJtyC": {
     "defaultMessage": "Search Console",
@@ -31667,6 +31807,10 @@
     "defaultMessage": "New flag",
     "description": "Primary action to create a flag"
   },
+  "f54I24NQZz": {
+    "defaultMessage": "Translation",
+    "description": "Job task type label for translation jobs"
+  },
   "f5Adx9k+6N": {
     "defaultMessage": "Partially approved",
     "description": "Filter option for partially approved Crowdin translations"
@@ -32074,10 +32218,6 @@
   "ff3jae0jNL": {
     "defaultMessage": "Each language is priced by the card's rate for it, as the card is now. Later changes to the card leave this task's prices as they are.",
     "description": "Description of the task pricing dialog"
-  },
-  "ffIGEm5KON": {
-    "defaultMessage": "Show spaces and line breaks",
-    "description": "QA review: showWhitespace"
   },
   "fgo8+NGFAV": {
     "defaultMessage": "Context in. Confidence out.",
@@ -32879,6 +33019,10 @@
     "defaultMessage": "Volume",
     "description": "Overview volume column"
   },
+  "gj0d/a8fYA": {
+    "defaultMessage": "Up to date",
+    "description": "Workspace QA project status when its latest scan completed"
+  },
   "gjDGAMSpNL": {
     "defaultMessage": "Entry added",
     "description": "Toast after a translation memory entry is added successfully"
@@ -33575,6 +33719,10 @@
     "defaultMessage": "Connect {integration} in <link>Integrations</link>",
     "description": "A still-needed step: an integration a skill needs is not connected"
   },
+  "hd2FQfv1tG": {
+    "defaultMessage": "Run first scan",
+    "description": "Workspace QA link to a project that has never been scanned"
+  },
   "hdRdVbVgtJ": {
     "defaultMessage": "Advanced Filter…",
     "description": "CAT queue filter option that opens the advanced filter dialog"
@@ -33710,6 +33858,10 @@
   "hqP31ZL7Z3": {
     "defaultMessage": "A number, such as the strings to do from Check progress.",
     "description": "Help text under the pick assignee size input"
+  },
+  "hqdHQFXJzw": {
+    "defaultMessage": "This job's settings are invalid, so it couldn't run.",
+    "description": "Job failure reason when the job input or type is invalid"
   },
   "hr/sRuub5S": {
     "defaultMessage": "Most tools stop at translation. Hyperlocalise covers the whole launch: the language, the culture and the rules of every market you enter.",
@@ -34135,6 +34287,10 @@
     "defaultMessage": "Guideline",
     "description": "Page heading for the organization guideline page"
   },
+  "iP04ulaRdB": {
+    "defaultMessage": "Show spaces",
+    "description": "QA finding card action to show spaces, tabs and line breaks as markers"
+  },
   "iP6WBy5oEv": {
     "defaultMessage": "Query unlinked",
     "description": "Toast when a query is unlinked from the string"
@@ -34338,6 +34494,10 @@
   "ifCgEWtzX/": {
     "defaultMessage": "Version restored.",
     "description": "Toast after an earlier version of a translation is put back"
+  },
+  "ig9OfxzEp9": {
+    "defaultMessage": "Not translated",
+    "description": "Run card locale row for a locale that failed before any progress"
   },
   "igKhQOsrv+": {
     "defaultMessage": "Translated",
@@ -35163,6 +35323,10 @@
     "defaultMessage": "Guidelines",
     "description": "Marketing integrations marketplace category label for guideline sources"
   },
+  "jrugIUKi2v": {
+    "defaultMessage": "Translation took too long and timed out. Retrying usually works.",
+    "description": "Job failure reason when translation timed out"
+  },
   "jt4oiRYF1R": {
     "defaultMessage": "Translation memory",
     "description": "Translation memory field label"
@@ -35730,6 +35894,10 @@
   "kc2Bfrbhx2": {
     "defaultMessage": "Undo",
     "description": "Shortcut label for undo on an automation or visual workflow"
+  },
+  "kcZeR4Ub6N": {
+    "defaultMessage": "Sync",
+    "description": "Job task type label for sync jobs"
   },
   "kca9z02Mat": {
     "defaultMessage": "03 Count what wins",
@@ -36878,6 +37046,10 @@
   "mBQ9xkM/3m": {
     "defaultMessage": "Edit in settings",
     "description": "Link to project settings from style guide tab"
+  },
+  "mBT7UnvJ4o": {
+    "defaultMessage": "Run first scan",
+    "description": "QA action to start the first scan of a project"
   },
   "mBox3Bi4Wv": {
     "defaultMessage": "Could not load issues.",
@@ -40083,6 +40255,10 @@
     "defaultMessage": "No QA checks for this string.",
     "description": "Empty state for the QA checks tab in the CAT details panel"
   },
+  "qN5vH5cFIw": {
+    "defaultMessage": "The source file could not be found. It may have been deleted or moved.",
+    "description": "Job failure reason when the source file no longer exists"
+  },
   "qNbrHndGz/": {
     "defaultMessage": "The Search Console connection needs to be authorized again. Reconnect it here.",
     "description": "Empty state description when the Search Console pipe needs reauthorization"
@@ -40134,6 +40310,10 @@
   "qSi5mzrfOt": {
     "defaultMessage": "Retry audit",
     "description": "Button to retry a failed or stalled localisation audit"
+  },
+  "qTeEQlfudM": {
+    "defaultMessage": "Intel Mac",
+    "description": "Link beside the Mac download button that downloads the Iris build for Intel Macs"
   },
   "qTqRADscBS": {
     "defaultMessage": "Images",
@@ -40438,10 +40618,6 @@
   "qtTx0ZhgLU": {
     "defaultMessage": "Polish (Poland)",
     "description": "Display name for BCP-47 locale pl-PL"
-  },
-  "qufyTH4w5s": {
-    "defaultMessage": "Failure reason",
-    "description": "Job property row label for the stored translation failure reason"
   },
   "quhhKaWY+z": {
     "defaultMessage": "Manage integrations",
@@ -40990,6 +41166,10 @@
   "raG3uRf8nJ": {
     "defaultMessage": "Active",
     "description": "Active status badge"
+  },
+  "razaxKQr7l": {
+    "defaultMessage": "The run failed after translating {done} of {total, plural, one {# locale} other {# locales}}.",
+    "description": "Run card summary when the run failed"
   },
   "rb6qeVq4O7": {
     "defaultMessage": "Fallback value {index}",
@@ -42667,6 +42847,10 @@
     "defaultMessage": "Branches",
     "description": "Project sidebar navigation item for native version branches"
   },
+  "u/YuKM1iYx": {
+    "defaultMessage": "Download for Mac",
+    "description": "Button that downloads the Iris desktop app for Apple Silicon Macs"
+  },
   "u/fBB4HZhM": {
     "defaultMessage": "Figma connection saved.",
     "description": "Toast when Figma connection is saved"
@@ -42730,6 +42914,10 @@
   "u5OvRKaeK4": {
     "defaultMessage": "daylight.example.com › journal › a-different-light",
     "description": "Sample search result URL in the Domains snippet mock"
+  },
+  "u5Y4u/n9Hk": {
+    "defaultMessage": "+{duration}",
+    "description": "Run step time since the first step, for example +1m 12s"
   },
   "u5hy7XQ9he": {
     "defaultMessage": "No content types found in this space.",
@@ -43422,6 +43610,10 @@
   "v1D5AwYN+5": {
     "defaultMessage": "Changes",
     "description": "Label above the job change type checkboxes on the job changed trigger"
+  },
+  "v1KLmya1dC": {
+    "defaultMessage": "Some languages didn't finish. This is usually temporary.",
+    "description": "Job failure reason when some locales were left unfinished"
   },
   "v1chSgy0BK": {
     "defaultMessage": "Condition",
@@ -44475,6 +44667,10 @@
     "defaultMessage": "Chat assistant",
     "description": "AI feature: the in-app chat assistant"
   },
+  "wPuTE+Xvt4": {
+    "defaultMessage": "More job actions",
+    "description": "Accessible label for the job detail overflow menu with cancel and mark as failed"
+  },
   "wQGnFQYS2q": {
     "defaultMessage": "Not set",
     "description": "Placeholder of a true or false test value that has no value yet"
@@ -45015,6 +45211,10 @@
     "defaultMessage": "Translation Memories",
     "description": "Sidebar navigation item for translation memories"
   },
+  "x71sGlLkHa": {
+    "defaultMessage": "Review",
+    "description": "Job task type label for review jobs"
+  },
   "x75xM3HY7a": {
     "defaultMessage": "Run requests, reviewers, vendors, and quality from one place, with a clear view of every locale.",
     "description": "Persona card description for localisation managers"
@@ -45486,6 +45686,10 @@
   "xiDdn1qcaz": {
     "defaultMessage": "9 locales",
     "description": "localisation-cli-and-api use case page: hero › visual › floating › items › #2 › meta"
+  },
+  "xiUq3JN/5o": {
+    "defaultMessage": "Errors",
+    "description": "Workspace QA projects list column for error count"
   },
   "xixmTqHWvz": {
     "defaultMessage": "Open",
@@ -46091,10 +46295,6 @@
     "defaultMessage": "Strings",
     "description": "Tab showing string-based translation progress"
   },
-  "yU1JjWL9rR": {
-    "defaultMessage": "{providerName} task",
-    "description": "Metric label identifying a TMS provider-backed job task"
-  },
   "yUJq1o3T8y": {
     "defaultMessage": "No template",
     "description": "Label for clearing the issue template selection in the create issue dialog"
@@ -46350,10 +46550,6 @@
   "yrv+7jidmf": {
     "defaultMessage": "Name",
     "description": "Label for the CDN distribution name field"
-  },
-  "ysf+RB1d04": {
-    "defaultMessage": "{kind} task",
-    "description": "Metric label identifying a native Hyperlocalise job kind"
   },
   "yt3gzzy/zO": {
     "defaultMessage": "Select projects",
@@ -47022,6 +47218,10 @@
   "znlespRIYt": {
     "defaultMessage": "Open Editor",
     "description": "Button label to open the job Content Editor"
+  },
+  "zo/6a3CRQX": {
+    "defaultMessage": "Retried in a new job",
+    "description": "Link from a failed run card to the job that retries every locale"
   },
   "zoDiURFcrJ": {
     "defaultMessage": "Loading project files…",
