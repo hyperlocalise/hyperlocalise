@@ -2,10 +2,14 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
+	"syscall"
+	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/envloader"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
@@ -13,6 +17,19 @@ import (
 )
 
 const defaultCommandName = "hyperlocalise"
+
+// interruptGracePeriod is how long a command may keep running after the first interrupt before
+// the CLI exits anyway. Tests shorten it.
+var interruptGracePeriod = 10 * time.Second
+
+// InterruptExitCode is the conventional exit status for a process stopped by SIGINT (128 + 2).
+const InterruptExitCode = 130
+
+// ErrInterrupted reports that the command was stopped by SIGINT or SIGTERM.
+var ErrInterrupted = errors.New("interrupted")
+
+// exitProcess is replaced in tests.
+var exitProcess = os.Exit
 
 func commandName() string {
 	if filepath.Base(os.Args[0]) == "hl" {
@@ -69,11 +86,54 @@ func newRootCmd(version string) *cobra.Command {
 func Execute(version string) error {
 	config.SetCLIVersion(version)
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := interruptContext(context.Background())
 	defer stop()
-	if err := newRootCmd(version).ExecuteContext(ctx); err != nil {
+	err := newRootCmd(version).ExecuteContext(ctx)
+	if ctx.Err() != nil {
+		return ErrInterrupted
+	}
+	if err != nil {
 		return fmt.Errorf("error executing root command: %w", err)
 	}
 
 	return nil
+}
+
+// interruptContext returns a context cancelled by the first SIGINT or SIGTERM. That signal also
+// restores default signal handling, so a second Ctrl+C terminates the process immediately even if
+// a command ignores cancellation, and the process exits after interruptGracePeriod regardless.
+func interruptContext(parent context.Context) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(parent)
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	done := make(chan struct{})
+	grace, exit := interruptGracePeriod, exitProcess
+
+	go func() {
+		select {
+		case <-signals:
+		case <-done:
+			return
+		}
+		signal.Stop(signals)
+		cancel()
+		_, _ = fmt.Fprintln(os.Stderr, "\nInterrupted, stopping… press Ctrl+C again to force quit.")
+		timer := time.NewTimer(grace)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			_, _ = fmt.Fprintln(os.Stderr, "Command did not stop in time, exiting.")
+			exit(InterruptExitCode)
+		case <-done:
+		}
+	}()
+
+	var once sync.Once
+	return ctx, func() {
+		once.Do(func() {
+			signal.Stop(signals)
+			close(done)
+			cancel()
+		})
+	}
 }

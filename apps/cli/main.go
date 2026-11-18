@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -27,6 +28,9 @@ func main() {
 
 	if err := cmd.Execute(version); err != nil {
 		fmt.Fprintf(os.Stderr, "%v", err)
+		if errors.Is(err, cmd.ErrInterrupted) {
+			os.Exit(cmd.InterruptExitCode)
+		}
 		os.Exit(1)
 	}
 }

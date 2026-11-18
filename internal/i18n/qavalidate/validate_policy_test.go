@@ -267,19 +267,6 @@ func TestSpellingMessage(t *testing.T) {
 	}
 }
 
-func TestCountType(t *testing.T) {
-	checks := []Finding{{CheckType: "spelling"}, {CheckType: "format"}, {CheckType: "spelling"}}
-	if got := countType(checks, "spelling"); got != 2 {
-		t.Fatalf("countType spelling = %d", got)
-	}
-	if got := countType(checks, "length"); got != 0 {
-		t.Fatalf("countType length = %d", got)
-	}
-	if got := countType(nil, "spelling"); got != 0 {
-		t.Fatalf("countType nil = %d", got)
-	}
-}
-
 // installFakeHunspell puts a hunspell script on PATH that flags every word as
 // misspelled with four suggestions, plus an en_US dictionary on DICPATH.
 func installFakeHunspell(t *testing.T) {

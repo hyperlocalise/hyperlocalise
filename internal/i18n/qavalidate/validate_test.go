@@ -129,7 +129,7 @@ func TestGlossaryFindings(t *testing.T) {
 	}
 	segment := Segment{SourceText: "Save and Cancel", TargetText: "Save and ANNULER", TargetLocale: "fr-FR"}
 
-	findings := glossaryFindings(segment, policy)
+	findings := newGlossaryMatcher(policy).findings(segment)
 	if len(findings) != 2 {
 		t.Fatalf("findings = %+v", findings)
 	}
@@ -140,28 +140,28 @@ func TestGlossaryFindings(t *testing.T) {
 		t.Fatalf("case-sensitive = %q", findings[1].Message)
 	}
 
-	forbidden := glossaryFindings(Segment{
+	forbidden := newGlossaryMatcher(policy).findings(Segment{
 		SourceText: "Press OK", TargetText: "Drücken Sie OK", TargetLocale: "de-DE",
-	}, policy)
+	})
 	if len(forbidden) != 1 || forbidden[0].Message != `Forbidden term "OK" appears in the target.` {
 		t.Fatalf("forbidden = %+v", forbidden)
 	}
 
-	ok := glossaryFindings(Segment{
+	ok := newGlossaryMatcher(policy).findings(Segment{
 		SourceText: "Save Draft", TargetText: "Enregistrer le brouillon", TargetLocale: "fr-FR",
-	}, policy)
+	})
 	if len(ok) != 0 {
 		t.Fatalf("matched required terms = %+v", ok)
 	}
 
 	policy.Checks["glossary_violation"] = Setting{Enabled: false, Severity: "warning"}
-	if findings := glossaryFindings(segment, policy); len(findings) != 0 {
+	if findings := newGlossaryMatcher(policy).findings(segment); len(findings) != 0 {
 		t.Fatalf("disabled = %+v", findings)
 	}
 	policy.Checks["glossary_violation"] = Setting{Enabled: true, Severity: "warning"}
-	if findings := glossaryFindings(Segment{
+	if findings := newGlossaryMatcher(policy).findings(Segment{
 		SourceText: "Save", TargetText: "   ", TargetLocale: "fr-FR",
-	}, policy); len(findings) != 0 {
+	}); len(findings) != 0 {
 		t.Fatalf("empty target = %+v", findings)
 	}
 }
