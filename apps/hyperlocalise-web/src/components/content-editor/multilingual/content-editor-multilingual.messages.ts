@@ -70,11 +70,123 @@ export const multilingualMessages = defineMessages({
     id: "z7zgiC7+v3",
     description: "Multilingual table open label",
   },
-  hint: {
-    defaultMessage:
-      "Click to edit. Enter moves down, Tab moves across, Shift+Enter adds a line, Escape cancels.",
-    id: "4XuQhGpKaz",
-    description: "Multilingual table hint label",
+  sourceTag: {
+    defaultMessage: "Source",
+    id: "8f+Z7j++lV",
+    description: "Tag next to the source locale in the multilingual table header",
+  },
+  localeProgress: {
+    defaultMessage: "{translated} translated, {approved} approved across the project",
+    id: "f2FwokIl/H",
+    description:
+      "Tooltip and accessible label for a locale's project progress bar in the multilingual table header",
+  },
+  highlight: {
+    defaultMessage: "Highlight",
+    id: "VnvSMOC7bu",
+    description: "Accessible label for the multilingual table highlight controls",
+  },
+  highlightAll: {
+    defaultMessage: "All",
+    id: "jOYcD1Iki8",
+    description: "Multilingual table highlight option that shows every cell normally",
+  },
+  highlightMissing: {
+    defaultMessage: "Missing",
+    id: "ePnFZKBU1V",
+    description: "Multilingual table highlight option for cells without a translation",
+  },
+  highlightNeedsReview: {
+    defaultMessage: "Needs review",
+    id: "lYH/c2rk1D",
+    description: "Multilingual table highlight option for translations waiting for review",
+  },
+  highlightVariants: {
+    defaultMessage: "Variants",
+    id: "PrrCu0ecSd",
+    description:
+      "Multilingual table highlight option for grouped strings with different translations",
+  },
+  density: {
+    defaultMessage: "Row density",
+    id: "M9Kzr2KsRw",
+    description: "Accessible label for the multilingual table row density controls",
+  },
+  densityComfortable: {
+    defaultMessage: "Comfortable rows",
+    id: "IaahpXZek4",
+    description: "Multilingual table row density option with more spacing",
+  },
+  densityCompact: {
+    defaultMessage: "Compact rows",
+    id: "Ut76PXj5Bp",
+    description: "Multilingual table row density option with less spacing",
+  },
+  shortcuts: {
+    defaultMessage: "Shortcuts and legend",
+    id: "63AxJv687c",
+    description:
+      "Button label that opens the multilingual table keyboard shortcuts and status legend",
+  },
+  shortcutsTitle: {
+    defaultMessage: "Keyboard shortcuts",
+    id: "p4BlLNpbhi",
+    description: "Heading for the keyboard shortcuts in the multilingual table help popover",
+  },
+  shortcutEdit: {
+    defaultMessage: "Edit a translation",
+    id: "sxXlObphWF",
+    description: "Multilingual table shortcut: clicking a cell edits it",
+  },
+  shortcutEditKey: {
+    defaultMessage: "Click",
+    id: "CzXbpX9Wfl",
+    description: "Key label for the multilingual table edit shortcut",
+  },
+  shortcutDown: {
+    defaultMessage: "Save and move down",
+    id: "rEhy+CeUvT",
+    description: "Multilingual table shortcut: Enter saves and moves to the row below",
+  },
+  shortcutAcross: {
+    defaultMessage: "Save and move across",
+    id: "KMLGXJn67q",
+    description: "Multilingual table shortcut: Tab saves and moves to the next language",
+  },
+  shortcutNewLine: {
+    defaultMessage: "Add a line",
+    id: "qkCin2ogab",
+    description: "Multilingual table shortcut: Shift+Enter inserts a line break",
+  },
+  shortcutCancel: {
+    defaultMessage: "Cancel",
+    id: "9RTjpQWqfc",
+    description: "Multilingual table shortcut: Escape discards the edit",
+  },
+  legendTitle: {
+    defaultMessage: "Status",
+    id: "4jKejftvw6",
+    description: "Heading for the status colour legend in the multilingual table help popover",
+  },
+  statusNeedsReview: {
+    defaultMessage: "Needs review",
+    id: "MD3nwHbObk",
+    description: "Multilingual table status for a translation waiting for review",
+  },
+  statusDraft: {
+    defaultMessage: "Draft",
+    id: "XREzwTw5rY",
+    description: "Multilingual table status for a draft translation",
+  },
+  statusRejected: {
+    defaultMessage: "Rejected",
+    id: "ghYkxOtbrK",
+    description: "Multilingual table status for a rejected translation",
+  },
+  statusUnsaved: {
+    defaultMessage: "Unsaved",
+    id: "QAs8k3PHCq",
+    description: "Multilingual table status for a cell with an edit that is not saved yet",
   },
   count: {
     defaultMessage: "{count, number} keys loaded",
