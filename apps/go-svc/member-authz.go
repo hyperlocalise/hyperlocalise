@@ -7,6 +7,7 @@ var memberSettingsRoleOrder = []string{
 	"reviewer",
 	"translator",
 	"member",
+	organizationRoleVendor,
 }
 
 // organizationCapabilityByRole ports the subset of the web policy table
@@ -51,6 +52,8 @@ var organizationCapabilityByRole = map[string]map[string]struct{}{
 		"workspace:read": {},
 		"projects:read":  {}, "jobs:read": {}, "memories:read": {},
 	},
+	// A vendor holds no capability: see organizationRoleVendor.
+	organizationRoleVendor: {},
 }
 
 func hasOrganizationCapability(role, capability string) bool {
@@ -128,6 +131,7 @@ func buildMemberManagementContext(actorRole string) memberManagementContext {
 	}
 }
 
+// isKnownMemberRole lists the roles a member can be given, which includes Vendor.
 func isKnownMemberRole(role string) bool {
-	return isKnownOrganizationRole(role)
+	return isKnownOrganizationRole(role) || role == organizationRoleVendor
 }

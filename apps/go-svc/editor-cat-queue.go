@@ -76,13 +76,15 @@ type editorCatContributorTeam struct {
 }
 
 type editorCatQueueFile struct {
-	SourcePath                string                     `json:"sourcePath"`
-	Filename                  string                     `json:"filename"`
-	Provider                  any                        `json:"provider"`
-	MessageFormat             string                     `json:"messageFormat,omitempty"`
-	PlaceholderPatterns       []string                   `json:"placeholderPatterns,omitempty"`
-	TargetLocale              string                     `json:"targetLocale"`
-	CanEditTranslations       bool                       `json:"canEditTranslations"`
+	SourcePath          string   `json:"sourcePath"`
+	Filename            string   `json:"filename"`
+	Provider            any      `json:"provider"`
+	MessageFormat       string   `json:"messageFormat,omitempty"`
+	PlaceholderPatterns []string `json:"placeholderPatterns,omitempty"`
+	TargetLocale        string   `json:"targetLocale"`
+	CanEditTranslations bool     `json:"canEditTranslations"`
+	// False for a vendor on a post-edit task, who may edit but not approve. Left out otherwise.
+	CanApproveTranslations    *bool                      `json:"canApproveTranslations,omitempty"`
 	Truncated                 bool                       `json:"truncated"`
 	TeamGlossaries            []editorCatTeamGlossary    `json:"teamGlossaries,omitempty"`
 	ContributorTeams          []editorCatContributorTeam `json:"contributorTeams,omitempty"`
@@ -865,6 +867,14 @@ func (api *editorCatAPI) withQueueContext(r *http.Request, actor editorCatActor,
 	}
 	if err := api.attachLocks(r, actor, project, &queue); err != nil {
 		return editorCatQueueFile{}, err
+	}
+	if !actor.mayApprove(queue.SourcePath, queue.TargetLocale) {
+		mayApprove := false
+		queue.CanApproveTranslations = &mayApprove
+	}
+	// Teams and their glossaries are not for someone who is here through a task.
+	if actor.taskScope != nil {
+		return queue, nil
 	}
 	glossaries, err := api.listTeamGlossaries(r, project.ID)
 	if err != nil {

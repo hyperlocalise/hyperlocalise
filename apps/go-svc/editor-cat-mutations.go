@@ -285,6 +285,9 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 	if body.Group != nil && (trimEditorCat(body.Group.SourcePath) == "" || len(body.Group.SourcePaths) > editorCatMaxGroupSaveOccurrences || len(body.Group.OccurrenceIDs) > editorCatMaxGroupSaveOccurrences) {
 		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
+	if body.Approve != nil && *body.Approve && !actor.mayApprove(sourcePath, targetLocale) {
+		return nil, 0, editorCatFailure(403, "forbidden", "Approving is for the proofread step")
+	}
 	if body.Group == nil {
 		if err := api.rejectIfLocked(r, actor, project, targetLocale, []string{trimEditorCat(body.ExternalStringID)}); err != nil {
 			return nil, 0, err

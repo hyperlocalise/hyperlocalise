@@ -569,8 +569,15 @@ func (api *projectAPI) orgJobsListHandler(r *http.Request, actor projectActor) (
 	}
 	var args []any
 	var conditions []string
-	switch query.relationship {
-	case "assigned":
+	switch {
+	case actor.isVendor() && query.relationship != "assigned":
+		// A vendor has only the Assigned list.
+		return map[string]any{"jobs": []jobWithProjectRecord{}}, http.StatusOK, nil
+	case actor.isVendor():
+		// Their open and waiting tasks: never a job matched by a provider account's name.
+		args = []any{actor.organizationID, actor.userID}
+		conditions = []string{ownedFileTaskSQL(1, 2, true)}
+	case query.relationship == "assigned":
 		args = []any{actor.organizationID}
 		var assigned string
 		assigned, args, err = api.jobAssignedCondition(r.Context(), actor, args)
@@ -578,7 +585,7 @@ func (api *projectAPI) orgJobsListHandler(r *http.Request, actor projectActor) (
 			return nil, 0, err
 		}
 		conditions = []string{"j.organization_id = $1", assigned}
-	case "created":
+	case query.relationship == "created":
 		args = []any{actor.organizationID, actor.canReadAllTeams(), actor.userID}
 		conditions = []string{overviewJobsVisibleSQL(), "j.created_by_user_id = $3"}
 	default:
@@ -599,7 +606,7 @@ func (api *projectAPI) orgJobsListHandler(r *http.Request, actor projectActor) (
 func (api *projectAPI) orgJobDetailHandler(r *http.Request, actor projectActor) (any, int, error) {
 	// Encoded provider ids on GET /jobs/{id} stay native (404 for postgres
 	// mirrors) unless a mint client is configured to read live Crowdin.
-	if api.tms != nil {
+	if api.tms != nil && !actor.isVendor() {
 		if job, ok := parseLiveJobID(r.PathValue("jobId")); ok {
 			return api.liveJobDetail(r, actor, job.liveProjectID, job.externalJobID)
 		}
@@ -608,12 +615,18 @@ func (api *projectAPI) orgJobDetailHandler(r *http.Request, actor projectActor) 
 	if !ok {
 		return nil, 0, projectJobNotFound()
 	}
+	// The team rule, or the person's own open or waiting task whatever the project's team.
+	// A vendor has only the second: a team they were left in gives them nothing.
+	visible := "(" + overviewJobsVisibleSQL() + " or " + ownedFileTaskSQL(1, 3, true) + ") and j.id = $4"
+	args := []any{actor.organizationID, actor.canReadAllTeams(), actor.userID, jobID}
+	if actor.isVendor() {
+		visible = ownedFileTaskSQL(1, 2, true) + " and j.id = $3"
+		args = []any{actor.organizationID, actor.userID, jobID}
+	}
 	job, err := scanJobRecord(api.pool.QueryRow(r.Context(), "select "+jobRecordColumnsSQL+"\n        "+jobRecordFromSQL+`
-        where `+overviewJobsVisibleSQL()+`
-            and j.id = $4
+        where `+visible+`
             and e.job_id is null
-        limit 1`,
-		actor.organizationID, actor.canReadAllTeams(), actor.userID, jobID))
+        limit 1`, args...))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, projectJobNotFound()
 	}
@@ -625,4 +638,86 @@ func (api *projectAPI) orgJobDetailHandler(r *http.Request, actor projectActor) 
 		return nil, 0, err
 	}
 	return map[string]jobWithProjectRecord{"job": jobs[0]}, http.StatusOK, nil
+}
+
+// orgJobAssignableOwnersHandler lists who a job can be given to. A post-edit or proofread task on
+// a file can go to any active member of the workspace, a vendor included, because its owner
+// reaches it through the task itself (vendor-access.go). Any other job needs someone who can
+// open the project, and is never given to a vendor. Keep in step with job-owner.ts in the web
+// app, which checks the choice when it is saved.
+func (api *projectAPI) orgJobAssignableOwnersHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if !actor.canWriteJobs() {
+		return nil, 0, projectForbidden()
+	}
+	jobID, ok := jobIDParam(r.PathValue("jobId"))
+	if !ok {
+		return nil, 0, projectJobNotFound()
+	}
+	var projectID *string
+	var fileTask bool
+	err := api.pool.QueryRow(r.Context(), `
+        select j.project_id,
+            (j.kind = 'proofread' and e.job_id is null and coalesce(j.input_payload->>'sourceFileId', '') <> '')
+        from jobs j
+        left join external_job_details e on e.job_id = j.id
+        where `+overviewJobsVisibleSQL()+` and j.id = $4
+        limit 1`,
+		actor.organizationID, actor.canReadAllTeams(), actor.userID, jobID,
+	).Scan(&projectID, &fileTask)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && projectID == nil) {
+		return nil, 0, projectJobNotFound()
+	}
+	if err != nil {
+		return nil, 0, fmt.Errorf("get job for assignable owners: %w", err)
+	}
+	rows, err := api.pool.Query(r.Context(), `
+        select u.id, u.workos_user_id, u.email, u.first_name, u.last_name, u.avatar_url
+        from organization_memberships m
+        join users u on u.id = m.user_id
+        join projects p on p.id = $2 and p.organization_id = $1
+        where m.organization_id = $1
+          and `+activeOrgMembershipSQL+`
+          and (
+            $3
+            or m.role::text in ('admin', 'localization_manager')
+            or (m.role::text <> $4 and exists (
+                select 1
+                from team_memberships tm
+                join teams t on t.id = tm.team_id
+                where tm.user_id = m.user_id
+                  and t.organization_id = $1
+                  and (t.id = p.team_id or (p.team_id is null and t.slug = 'default'))
+            ))
+          )
+        order by u.email asc`, actor.organizationID, *projectID, fileTask, organizationRoleVendor)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list assignable owners: %w", err)
+	}
+	defer rows.Close()
+	members := []map[string]any{}
+	for rows.Next() {
+		var userID, workosUserID, email string
+		var firstName, lastName, avatarURL *string
+		if err := rows.Scan(&userID, &workosUserID, &email, &firstName, &lastName, &avatarURL); err != nil {
+			return nil, 0, fmt.Errorf("scan assignable owner: %w", err)
+		}
+		display := strings.TrimSpace(stringFromPtr(firstName) + " " + stringFromPtr(lastName))
+		if display == "" {
+			display = email
+		}
+		members = append(members, map[string]any{
+			"userId":        userID,
+			"workosUserId":  workosUserID,
+			"email":         email,
+			"firstName":     firstName,
+			"lastName":      lastName,
+			"displayName":   display,
+			"avatarUrl":     avatarURL,
+			"isCurrentUser": userID == actor.userID,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate assignable owners: %w", err)
+	}
+	return map[string]any{"members": members}, http.StatusOK, nil
 }

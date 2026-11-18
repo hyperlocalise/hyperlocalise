@@ -449,6 +449,7 @@ func (api *issueSheetAPI) listAssignableMembers(ctx context.Context, actor issue
         join projects p on p.id = $2 and p.organization_id = $1
         where m.organization_id = $1
           and `+activeOrgMembershipSQL+`
+          and m.role::text <> 'vendor'
           and (
             m.role in ('admin', 'localization_manager')
             or exists (

@@ -151,6 +151,11 @@ func (api *memberAPI) ensureTeamAccessForInvitedMember(ctx context.Context, db d
 	if hasOrganizationCapability(role, "teams:write") && teamID == "" {
 		return nil, nil
 	}
+	// A vendor joins no team: team membership would open whole projects to other code paths,
+	// and gives a vendor nothing.
+	if role == organizationRoleVendor {
+		return nil, nil
+	}
 	if teamID != "" {
 		var found string
 		err := db.QueryRow(ctx, `select id from teams where id=$1 and organization_id=$2`, teamID, organizationID).Scan(&found)

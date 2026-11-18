@@ -46,6 +46,13 @@ func mapOrganizationAccessCode(err error, fail func(status int, code string) err
 	return err
 }
 
+// organizationRoleVendor is an outside person with no rights in the workspace. What a vendor may
+// reach comes from the open tasks they own (vendor-access.go), never from this role.
+const organizationRoleVendor = "vendor"
+
+// isKnownOrganizationRole lists the roles every route accepts. Vendor is left out on purpose, so
+// a route refuses a vendor unless its handler resolves the actor with
+// resolveOrganizationActorAllowingVendor.
 func isKnownOrganizationRole(slug string) bool {
 	switch slug {
 	case "admin", "localization_manager", "member", "developer", "translator", "reviewer":
@@ -61,6 +68,29 @@ func resolveOrganizationActor(
 	lookup organizationMembershipLookup,
 	claims AuthClaims,
 	slug string,
+) (organizationActor, error) {
+	return resolveOrganizationActorForRoles(ctx, db, lookup, claims, slug, false)
+}
+
+// resolveOrganizationActorAllowingVendor is for the few handlers a vendor may call. Each of
+// them must then limit a vendor to their own open tasks (vendor-access.go).
+func resolveOrganizationActorAllowingVendor(
+	ctx context.Context,
+	db dictionaryDB,
+	lookup organizationMembershipLookup,
+	claims AuthClaims,
+	slug string,
+) (organizationActor, error) {
+	return resolveOrganizationActorForRoles(ctx, db, lookup, claims, slug, true)
+}
+
+func resolveOrganizationActorForRoles(
+	ctx context.Context,
+	db dictionaryDB,
+	lookup organizationMembershipLookup,
+	claims AuthClaims,
+	slug string,
+	allowVendor bool,
 ) (organizationActor, error) {
 	var actor organizationActor
 	if strings.HasPrefix(claims.UserID, "invited_user_") {
@@ -79,7 +109,7 @@ func resolveOrganizationActor(
 	if err != nil {
 		return actor, err
 	}
-	actor.role, err = verifyLiveOrganizationMembership(ctx, lookup, membershipID, claims.UserID, workosOrg)
+	actor.role, err = verifyLiveOrganizationMembership(ctx, lookup, membershipID, claims.UserID, workosOrg, allowVendor)
 	return actor, err
 }
 
@@ -106,7 +136,7 @@ func resolveOrganizationActorByID(
 	if strings.HasPrefix(workosUserID, "invited_user_") {
 		return organizationActor{}, organizationAccessDenied()
 	}
-	actor.role, err = verifyLiveOrganizationMembership(ctx, lookup, membershipID, workosUserID, workosOrg)
+	actor.role, err = verifyLiveOrganizationMembership(ctx, lookup, membershipID, workosUserID, workosOrg, false)
 	if err != nil {
 		return organizationActor{}, err
 	}
@@ -117,6 +147,7 @@ func verifyLiveOrganizationMembership(
 	ctx context.Context,
 	lookup organizationMembershipLookup,
 	membershipID, workosUserID, workosOrganizationID string,
+	allowVendor bool,
 ) (string, error) {
 	if lookup == nil {
 		return "", organizationMembershipLookupFailed()
@@ -129,7 +160,10 @@ func verifyLiveOrganizationMembership(
 		}
 		return "", organizationMembershipLookupFailed()
 	}
-	if member == nil || member.ID != membershipID || member.UserID != workosUserID || member.OrganizationID != workosOrganizationID || member.Status != "active" || member.Role == nil || !isKnownOrganizationRole(member.Role.Slug) {
+	if member == nil || member.ID != membershipID || member.UserID != workosUserID || member.OrganizationID != workosOrganizationID || member.Status != "active" || member.Role == nil {
+		return "", organizationAccessDenied()
+	}
+	if !isKnownOrganizationRole(member.Role.Slug) && (!allowVendor || member.Role.Slug != organizationRoleVendor) {
 		return "", organizationAccessDenied()
 	}
 	return member.Role.Slug, nil

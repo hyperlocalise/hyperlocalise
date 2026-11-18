@@ -102,12 +102,20 @@ func (api *memberAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("POST "+m, bindActor(api, (*memberAPI).inviteMemberHandler))
 	route("PATCH "+m+"/{workosUserId}", bindActor(api, (*memberAPI).updateMemberHandler))
 	route("DELETE "+m+"/{workosUserId}", bindActor(api, (*memberAPI).deleteMemberHandler))
-	route("GET "+m+"/leave", bindActor(api, (*memberAPI).leaveWorkspacePreviewHandler))
-	route("POST "+m+"/leave", bindActor(api, (*memberAPI).leaveWorkspaceHandler))
+	// Leaving is about the caller's own membership, so a vendor may do it (vendor-access.go).
+	routeAllowingVendor := func(pattern string, fn func(*http.Request, memberActor) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, api.handleFor(fn, true))
+	}
+	routeAllowingVendor("GET "+m+"/leave", bindActor(api, (*memberAPI).leaveWorkspacePreviewHandler))
+	routeAllowingVendor("POST "+m+"/leave", bindActor(api, (*memberAPI).leaveWorkspaceHandler))
 }
 
-func (api *memberAPI) actor(ctx context.Context, claims AuthClaims, slug string) (memberActor, error) {
-	resolved, err := resolveOrganizationActor(ctx, api.pool, api.membership, claims, slug)
+func (api *memberAPI) actorFor(ctx context.Context, claims AuthClaims, slug string, allowVendor bool) (memberActor, error) {
+	resolve := resolveOrganizationActor
+	if allowVendor {
+		resolve = resolveOrganizationActorAllowingVendor
+	}
+	resolved, err := resolve(ctx, api.pool, api.membership, claims, slug)
 	if err != nil {
 		return memberActor{}, mapOrganizationAccessCode(err, func(status int, code string) error {
 			return memberFailure(status, code, organizationAccessMessage(code))
@@ -139,6 +147,10 @@ func organizationAccessMessage(code string) string {
 }
 
 func (api *memberAPI) handle(fn func(*http.Request, memberActor) (any, int, error)) http.Handler {
+	return api.handleFor(fn, false)
+}
+
+func (api *memberAPI) handleFor(fn func(*http.Request, memberActor) (any, int, error), allowVendor bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if denyBrowserMutation(r) {
@@ -157,7 +169,7 @@ func (api *memberAPI) handle(fn func(*http.Request, memberActor) (any, int, erro
 			writeMemberError(w, r, "auth", memberFailure(401, "unauthorized", "Unauthorized"))
 			return
 		}
-		actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
+		actor, err := api.actorFor(ctx, claims, r.PathValue("organizationSlug"), allowVendor)
 		if err != nil {
 			writeMemberError(w, r, "resolve_actor", err)
 			return

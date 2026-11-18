@@ -40,6 +40,11 @@ type projectActor struct {
 	userID, organizationID, role string
 }
 
+// isVendor is true for an outside person who reaches only their own tasks (vendor-access.go).
+func (a projectActor) isVendor() bool {
+	return a.role == organizationRoleVendor
+}
+
 func (a projectActor) canReadAllTeams() bool {
 	return a.role == "admin" || a.role == "localization_manager"
 }
@@ -146,18 +151,27 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+project+"/jobs/{jobId}/files", bindActor(api, (*projectAPI).projectJobFilesHandler))
 	route("GET "+project+"/jobs/{jobId}/comments", bindActor(api, (*projectAPI).projectJobCommentsHandler))
 	route("GET "+orgRoutePrefix+"/workspace-files", bindActor(api, (*projectAPI).workspaceFilesHandler))
-	route("GET "+orgRoutePrefix+"/jobs", bindActor(api, (*projectAPI).orgJobsListHandler))
-	route("GET "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobDetailHandler))
+	// The only project routes a vendor may call. Both limit a vendor to their own tasks.
+	routeAllowingVendor := func(pattern string, fn func(*http.Request, projectActor) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, api.handleFor(fn, true))
+	}
+	routeAllowingVendor("GET "+orgRoutePrefix+"/jobs", bindActor(api, (*projectAPI).orgJobsListHandler))
+	routeAllowingVendor("GET "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobDetailHandler))
 	route("PATCH "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobUpdateHandler))
 	route("PATCH "+orgRoutePrefix+"/jobs/{jobId}/description", bindActor(api, (*projectAPI).orgJobDescriptionHandler))
 	route("DELETE "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobDeleteHandler))
 	route("GET "+orgRoutePrefix+"/jobs/{jobId}/files", bindActor(api, (*projectAPI).orgJobFilesHandler))
 	route("GET "+orgRoutePrefix+"/jobs/{jobId}/comments", bindActor(api, (*projectAPI).orgJobCommentsHandler))
 	route("GET "+orgRoutePrefix+"/jobs/{jobId}/events", bindActor(api, (*projectAPI).orgJobEventsHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}/assignable-owners", bindActor(api, (*projectAPI).orgJobAssignableOwnersHandler))
 }
 
-func (api *projectAPI) actor(ctx context.Context, claims AuthClaims, slug string) (projectActor, error) {
-	resolved, err := resolveOrganizationActor(ctx, api.pool, api.membership, claims, slug)
+func (api *projectAPI) actorFor(ctx context.Context, claims AuthClaims, slug string, allowVendor bool) (projectActor, error) {
+	resolve := resolveOrganizationActor
+	if allowVendor {
+		resolve = resolveOrganizationActorAllowingVendor
+	}
+	resolved, err := resolve(ctx, api.pool, api.membership, claims, slug)
 	if err != nil {
 		return projectActor{}, mapOrganizationAccessError(err, projectFailure)
 	}
@@ -165,6 +179,10 @@ func (api *projectAPI) actor(ctx context.Context, claims AuthClaims, slug string
 }
 
 func (api *projectAPI) handle(fn func(*http.Request, projectActor) (any, int, error)) http.Handler {
+	return api.handleFor(fn, false)
+}
+
+func (api *projectAPI) handleFor(fn func(*http.Request, projectActor) (any, int, error), allowVendor bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if denyBrowserMutation(r) {
@@ -187,7 +205,7 @@ func (api *projectAPI) handle(fn func(*http.Request, projectActor) (any, int, er
 			writeProjectError(w, r, "auth", projectFailure(401, "unauthorized", "Unauthorized"))
 			return
 		}
-		actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
+		actor, err := api.actorFor(ctx, claims, r.PathValue("organizationSlug"), allowVendor)
 		if err != nil {
 			writeProjectError(w, r, "resolve_actor", err)
 			return
