@@ -1623,6 +1623,10 @@
     "defaultMessage": "Search icons",
     "description": "Placeholder for searching the custom issue column icon catalog"
   },
+  "08o43HFYsk": {
+    "defaultMessage": "Load sample data",
+    "description": "Button that creates sample projects, glossary and other resources"
+  },
   "08svfZAX+A": {
     "defaultMessage": "deleted a glossary",
     "description": "Action for a glossary deletion activity"
@@ -1730,6 +1734,10 @@
   "0HGkduChrS": {
     "defaultMessage": "Projects, seats, and connected tools for your team.",
     "description": "Pricing matrix section description for workspace limits"
+  },
+  "0I/Aupkz6X": {
+    "defaultMessage": "Projects, source files and translations",
+    "description": "Sample data step: creating projects with files and translations"
   },
   "0IVc9Jxawk": {
     "defaultMessage": "Workspace",
@@ -3846,6 +3854,10 @@
   "3A+Aw/ZcHg": {
     "defaultMessage": "Brand check",
     "description": "marketing-localisation use case page: hero › visual › floating › title"
+  },
+  "3A4mHcnJtI": {
+    "defaultMessage": "This deletes the sample projects with their files and translations, and the sample glossary, translation memory, dictionary and guidelines. Your own content is not affected.",
+    "description": "Body of the confirmation dialog before deleting sample data"
   },
   "3AEM15DaMz": {
     "defaultMessage": "Use glob patterns such as <mainExample>main</mainExample> or <releaseExample>release/*</releaseExample>. Up to 32 patterns.",
@@ -6279,6 +6291,10 @@
     "defaultMessage": "Derived automatically",
     "description": "Placeholder for the optional output filename of a file conversion"
   },
+  "6RUqnJxznS": {
+    "defaultMessage": "Remove",
+    "description": "Confirm button in the remove sample data dialog"
+  },
   "6RdOnlakN3": {
     "defaultMessage": "No matching source block. The structure differs here.",
     "description": "Document editor: assistant when the focused block has no aligned source"
@@ -6655,6 +6671,10 @@
     "defaultMessage": "No inbox items match these filters.",
     "description": "Empty state when inbox filters hide every loaded item"
   },
+  "7/ImBfxqFe": {
+    "defaultMessage": "Skipped",
+    "description": "Badge on a sample data step that could not run, such as guidelines on a plan without them"
+  },
   "70HN/E4IbW": {
     "defaultMessage": "A new onboarding step ships in nine languages on Friday",
     "description": "github-release-localisation use case page: scenario › title"
@@ -6942,6 +6962,10 @@
   "7KYhPstvD8": {
     "defaultMessage": "Start free, connect Claude Code, Codex, or Cursor in one command, and ask your first question.",
     "description": "localisation-for-ai-coding-agents use case page: cta › body"
+  },
+  "7Ky/uD32i8": {
+    "defaultMessage": "Guideline documents",
+    "description": "Sample data step: uploading guideline documents"
   },
   "7L1IE082cR": {
     "defaultMessage": "Approve with confidence",
@@ -9611,6 +9635,10 @@
     "defaultMessage": "Try it in one market.\nKeep what works.",
     "description": "Hero headline for the Hyperlab product page"
   },
+  "AwjpUt/AOn": {
+    "defaultMessage": "Sample data loaded",
+    "description": "Success toast after sample data has been created"
+  },
   "AxfK8LOKrc": {
     "defaultMessage": "Billing / Usage meter",
     "description": "Location breadcrumb for the usage segment in the hero CAT mock"
@@ -9962,6 +9990,10 @@
   "BNLTXT9U9i": {
     "defaultMessage": "Banner label for pending translation approvals in the review queue.",
     "description": "Product meaning for the QA banner segment in the hero CAT mock"
+  },
+  "BNTnpFca07": {
+    "defaultMessage": "Couldn't load sample data",
+    "description": "Fallback error when creating sample data fails"
   },
   "BNXNoD2oRi": {
     "defaultMessage": "Checks",
@@ -10678,6 +10710,10 @@
   "CJmTWcLA2W": {
     "defaultMessage": "Copied",
     "description": "Toast after copying a CDN URL"
+  },
+  "CK/cgWmupI": {
+    "defaultMessage": "Loading sample data…",
+    "description": "Button label while sample data is being created"
   },
   "CKG9S/rkQM": {
     "defaultMessage": "Schedule weekday",
@@ -12999,6 +13035,10 @@
     "defaultMessage": "Branch patterns may only use letters, numbers, ., _, -, /, *, and ?.",
     "description": "Validation error when a branch pattern contains invalid characters"
   },
+  "FSMJb5OB4b": {
+    "defaultMessage": "Glossary, translation memory and spellcheck dictionary",
+    "description": "Sample data step: creating glossary, translation memory and dictionary"
+  },
   "FSzANJElpd": {
     "defaultMessage": "Comments",
     "description": "Label for the comments presence filter"
@@ -14883,6 +14923,10 @@
     "defaultMessage": "{count, plural, one {# label} other {# labels}}",
     "description": "Summary of how many Crowdin labels are selected"
   },
+  "IBziNWxnaJ": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in the remove sample data dialog"
+  },
   "IC/L6/ETfl": {
     "defaultMessage": "GitHub",
     "description": "GitHub provider label on the content sync action"
@@ -15082,6 +15126,10 @@
   "IW6zsfvtOy": {
     "defaultMessage": "\"einzigartige\" is blocked by clause 3.2.",
     "description": "First compliance flag body"
+  },
+  "IWEp9eHVK0": {
+    "defaultMessage": "Load a fictional brand with projects, source files, translations, a glossary, a translation memory, a spellcheck dictionary and guidelines, so you can explore Hyperlocalise before adding your own content.",
+    "description": "Explains what loading sample data adds to the workspace"
   },
   "IWQH2bHvzr": {
     "defaultMessage": "No MCP servers connected yet.",
@@ -16634,6 +16682,10 @@
   "Klp/m/EPAw": {
     "defaultMessage": "Retry",
     "description": "Retry loading a guideline document"
+  },
+  "Km9EKf4Txo": {
+    "defaultMessage": "Sample data is loaded. Remove it when you're ready to work with your own content.",
+    "description": "Shown on the sample data card when sample data is already in the workspace"
   },
   "KmIemL3Bty": {
     "defaultMessage": "Agentic Localisation Platform & TMS for International Growth | Hyperlocalise",
@@ -19670,6 +19722,10 @@
   "OuhJgSgMVm": {
     "defaultMessage": "Choose the project: Use translation as source would otherwise send finished tasks from every project. To mean that, tick Send tasks from any project on each Use translation as source step.",
     "description": "Validation issue on a Job changed trigger with no project in a workflow that has a Use translation as source step"
+  },
+  "OvonIo9cAp": {
+    "defaultMessage": "Sample data",
+    "description": "Heading of the sample data card on workspace general settings"
   },
   "OvsW5vUzUg": {
     "defaultMessage": "Leave without saving?",
@@ -25582,6 +25638,10 @@
   "X6NUPESd72": {
     "defaultMessage": "Accept",
     "description": "Button on the workspace picker that accepts an invitation and opens that workspace"
+  },
+  "X6eIVuAlLK": {
+    "defaultMessage": "Remove sample data?",
+    "description": "Title of the confirmation dialog before deleting sample data"
   },
   "X6g1omP0I1": {
     "defaultMessage": "Notify #compliance when findings need review.",
@@ -37651,6 +37711,10 @@
     "defaultMessage": "Everything it takes to grow abroad",
     "description": "Marketing homepage growth stack overview heading"
   },
+  "nNe67OGUqJ": {
+    "defaultMessage": "Couldn't remove sample data",
+    "description": "Fallback error when deleting sample data fails"
+  },
   "nNoQa8f6jF": {
     "defaultMessage": "Saving…",
     "description": "Button label while the Loops connection is being saved"
@@ -38874,6 +38938,10 @@
   "p2i3sZqWF/": {
     "defaultMessage": "Assign new guideline",
     "description": "Subheading for assigning an org guideline to the current project"
+  },
+  "p35PLT2z7X": {
+    "defaultMessage": "Open {projectName}",
+    "description": "Link to a sample project after sample data has loaded"
   },
   "p3FC9aFD6g": {
     "defaultMessage": "Save split",
@@ -41007,6 +41075,10 @@
     "defaultMessage": "Owner",
     "description": "Dropdown heading for choosing an automation owner"
   },
+  "rmRbS0GoNu": {
+    "defaultMessage": "Couldn't check for sample data",
+    "description": "Error when reading whether sample data is loaded fails"
+  },
   "rn73xYsyFw": {
     "defaultMessage": "The document changed. Select the passage again before applying a suggestion.",
     "description": "Document selection AI: stale"
@@ -42326,6 +42398,10 @@
   "tg2s/tuo8D": {
     "defaultMessage": "Import translation memory",
     "description": "Marketing homepage guideTmTitle"
+  },
+  "thEFPkPaJE": {
+    "defaultMessage": "Remove sample data",
+    "description": "Button that deletes the sample projects and resources"
   },
   "thK9pQi9Ut": {
     "defaultMessage": "Resend",
@@ -44678,6 +44754,10 @@
   "wufZJk5FA/": {
     "defaultMessage": "Guideline",
     "description": "Label for the guideline button in the app shell footer"
+  },
+  "wv0BYwWOsy": {
+    "defaultMessage": "Sample data removed",
+    "description": "Success toast after sample data has been deleted"
   },
   "wv8HUfa79G": {
     "defaultMessage": "Workflow activated",
