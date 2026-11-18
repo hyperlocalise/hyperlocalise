@@ -61,8 +61,9 @@ async function postAction(
   });
 }
 
-async function seedNativeProject() {
-  const { organization, user } = await fixture.createLocalWorkosIdentity();
+async function seedNativeProject(identity = fixture.createWorkosIdentity()) {
+  const created = await fixture.createLocalWorkosIdentity(identity);
+  const { organization, user } = created;
   const team = await ensureDefaultWorkspaceTeam(organization.id);
   const [project] = await db
     .insert(schema.projects)
@@ -80,7 +81,7 @@ async function seedNativeProject() {
       targetLocales: ["fr-FR"],
     })
     .returning();
-  return { organization, user, project: project! };
+  return { ...created, project: project! };
 }
 
 async function insertJob(input: {
@@ -88,6 +89,9 @@ async function insertJob(input: {
   projectId: string;
   createdByUserId: string;
   status?: (typeof schema.jobs.$inferInsert)["status"];
+  kind?: (typeof schema.jobs.$inferInsert)["kind"];
+  assigneeType?: (typeof schema.jobs.$inferInsert)["assigneeType"];
+  ownerUserId?: string | null;
 }) {
   const [job] = await db
     .insert(schema.jobs)
@@ -96,12 +100,42 @@ async function insertJob(input: {
       organizationId: input.organizationId,
       projectId: input.projectId,
       createdByUserId: input.createdByUserId,
-      kind: "translation",
+      kind: input.kind ?? "translation",
       status: input.status ?? "queued",
+      assigneeType: input.assigneeType,
+      ownerUserId: input.ownerUserId,
       inputPayload: { sourceLocale: "en-US", targetLocales: ["fr-FR"] },
     })
     .returning();
   return job!;
+}
+
+async function seedOtherTeamProject(organizationId: string, createdByUserId: string) {
+  const [team] = await db
+    .insert(schema.teams)
+    .values({
+      organizationId,
+      slug: `other-${randomUUID().slice(0, 8)}`,
+      name: "Other team",
+    })
+    .returning();
+  const [project] = await db
+    .insert(schema.projects)
+    .values({
+      id: `project_${randomUUID()}`,
+      identifier: uniqueTestProjectIdentifier(),
+      organizationId,
+      teamId: team!.id,
+      createdByUserId,
+      name: "Other team project",
+      description: "",
+      translationContext: "",
+      source: "native",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    })
+    .returning();
+  return { team: team!, project: project! };
 }
 
 describe("internal iris project-action route", () => {
@@ -258,7 +292,7 @@ describe("internal iris project-action route", () => {
       userId: owned.user.id,
       projectId: `project_${randomUUID()}`,
     });
-    expect(missing.status).toBe(400);
+    expect(missing.status).toBe(404);
     await expect(missing.json()).resolves.toMatchObject({ error: "project_not_found" });
 
     const provider = await postAction("qa_start", {
@@ -266,8 +300,8 @@ describe("internal iris project-action route", () => {
       userId: owned.user.id,
       projectId: tmsProject.id,
     });
-    expect(provider.status).toBe(400);
-    await expect(provider.json()).resolves.toMatchObject({ error: "project_not_native" });
+    expect(provider.status).toBe(404);
+    await expect(provider.json()).resolves.toMatchObject({ error: "project_not_found" });
 
     const first = await postAction("qa_start", {
       organizationId: owned.organization.id,
@@ -293,6 +327,7 @@ describe("internal iris project-action route", () => {
       projectId: owned.project.id,
       createdByUserId: owned.user.id,
       status: "failed",
+      assigneeType: "agent",
     });
     const otherJob = await insertJob({
       organizationId: other.organization.id,
@@ -326,7 +361,8 @@ describe("internal iris project-action route", () => {
       jobId: otherJob.id,
       action: "mark_failed",
     });
-    expect(failed.status).toBe(200);
+    expect(failed.status).toBe(404);
+    await expect(failed.json()).resolves.toMatchObject({ error: "job_not_found" });
     const [untouched] = await db
       .select({ status: schema.jobs.status, lastError: schema.jobs.lastError })
       .from(schema.jobs)
@@ -392,5 +428,154 @@ describe("internal iris project-action route", () => {
       .from(schema.jobs)
       .where(eq(schema.jobs.id, otherJob.id));
     expect(otherRow?.status).toBe("queued");
+  });
+
+  it("hides another team's native project from developers who cannot GET it", async () => {
+    const admin = await seedNativeProject();
+    const developer = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityForOrganization(admin.identity.organization, "developer"),
+    );
+    await db.insert(schema.teamMemberships).values({
+      teamId: admin.project.teamId!,
+      userId: developer.user.id,
+      role: "member",
+    });
+    const other = await seedOtherTeamProject(admin.organization.id, admin.user.id);
+
+    const identity = {
+      organizationId: admin.organization.id,
+      userId: developer.user.id,
+      projectId: other.project.id,
+    };
+
+    const download = await postAction("download_file", {
+      ...identity,
+      sourcePath: "app.json",
+      locale: "fr-FR",
+    });
+    expect(download.status).toBe(404);
+    await expect(download.json()).resolves.toMatchObject({ error: "project_not_found" });
+
+    const upload = await postAction("upload_file", {
+      ...identity,
+      sourcePath: "app.json",
+      contentBase64: Buffer.from("{}").toString("base64"),
+    });
+    expect(upload.status).toBe(404);
+
+    const qa = await postAction("qa_start", identity);
+    expect(qa.status).toBe(404);
+
+    const otherJob = await insertJob({
+      organizationId: admin.organization.id,
+      projectId: other.project.id,
+      createdByUserId: admin.user.id,
+    });
+    const jobAction = await postAction("job_action", {
+      ...identity,
+      jobId: otherJob.id,
+      action: "cancel",
+    });
+    expect(jobAction.status).toBe(404);
+    const [untouched] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, otherJob.id));
+    expect(untouched?.status).toBe("queued");
+  });
+
+  it("does not let a path project rewrite a job that belongs to another team", async () => {
+    const admin = await seedNativeProject();
+    const developer = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityForOrganization(admin.identity.organization, "developer"),
+    );
+    await db.insert(schema.teamMemberships).values({
+      teamId: admin.project.teamId!,
+      userId: developer.user.id,
+      role: "member",
+    });
+    const other = await seedOtherTeamProject(admin.organization.id, admin.user.id);
+    const otherJob = await insertJob({
+      organizationId: admin.organization.id,
+      projectId: other.project.id,
+      createdByUserId: admin.user.id,
+    });
+
+    const response = await postAction("job_action", {
+      organizationId: admin.organization.id,
+      userId: developer.user.id,
+      projectId: admin.project.id,
+      jobId: otherJob.id,
+      action: "cancel",
+    });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "job_not_found" });
+    const [untouched] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, otherJob.id));
+    expect(untouched?.status).toBe("queued");
+  });
+
+  it("does not let a translator finish a colleague's proofread task", async () => {
+    const admin = await seedNativeProject();
+    const translator = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityForOrganization(admin.identity.organization, "translator"),
+    );
+    await db.insert(schema.teamMemberships).values({
+      teamId: admin.project.teamId!,
+      userId: translator.user.id,
+      role: "member",
+    });
+    const job = await insertJob({
+      organizationId: admin.organization.id,
+      projectId: admin.project.id,
+      createdByUserId: admin.user.id,
+      kind: "proofread",
+      status: "waiting_for_review",
+      assigneeType: "user",
+      ownerUserId: admin.user.id,
+    });
+
+    const response = await postAction("job_action", {
+      organizationId: admin.organization.id,
+      userId: translator.user.id,
+      projectId: admin.project.id,
+      jobId: job.id,
+      action: "mark_done",
+    });
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: "not_task_assignee" });
+    const [untouched] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, job.id));
+    expect(untouched?.status).toBe("waiting_for_review");
+  });
+
+  it("does not mark a human job failed", async () => {
+    const owned = await seedNativeProject();
+    const job = await insertJob({
+      organizationId: owned.organization.id,
+      projectId: owned.project.id,
+      createdByUserId: owned.user.id,
+      assigneeType: "user",
+      ownerUserId: owned.user.id,
+    });
+
+    const response = await postAction("job_action", {
+      organizationId: owned.organization.id,
+      userId: owned.user.id,
+      projectId: owned.project.id,
+      jobId: job.id,
+      action: "mark_failed",
+    });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "job_action_unavailable" });
+    const [untouched] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, job.id));
+    expect(untouched?.status).toBe("queued");
   });
 });

@@ -86,6 +86,14 @@ func workflowPayload(actor projectActor, projectID string, extra map[string]any)
 	return payload
 }
 
+func (api *projectAPI) accessibleWorkflowProject(r *http.Request, actor projectActor) (string, error) {
+	projectID := strings.TrimSpace(r.PathValue("projectId"))
+	if err := api.requireAccessibleNativeProject(r.Context(), actor, projectID); err != nil {
+		return "", err
+	}
+	return projectID, nil
+}
+
 func (api *projectAPI) uploadFileHandler(r *http.Request, actor projectActor) (any, int, error) {
 	if !actor.canMutateProjects() {
 		return nil, 0, projectForbidden()
@@ -94,7 +102,10 @@ func (api *projectAPI) uploadFileHandler(r *http.Request, actor projectActor) (a
 }
 
 func (api *projectAPI) downloadFileHandler(r *http.Request, actor projectActor) (any, int, error) {
-	projectID := strings.TrimSpace(r.PathValue("projectId"))
+	projectID, err := api.accessibleWorkflowProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
 	query := r.URL.Query()
 	return callProjectWorkflow(r.Context(), "download_file", workflowPayload(actor, projectID, map[string]any{
 		"sourcePath": query.Get("sourcePath"),
@@ -117,7 +128,10 @@ func (api *projectAPI) translateFileHandler(r *http.Request, actor projectActor)
 }
 
 func (api *projectAPI) fileSettingsGetHandler(r *http.Request, actor projectActor) (any, int, error) {
-	projectID := strings.TrimSpace(r.PathValue("projectId"))
+	projectID, err := api.accessibleWorkflowProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
 	query := r.URL.Query()
 	return callProjectWorkflow(r.Context(), "file_settings_get", workflowPayload(actor, projectID, map[string]any{
 		"sourcePath": query.Get("sourcePath"),
@@ -143,7 +157,10 @@ func (api *projectAPI) nativeJobActionHandler(r *http.Request, actor projectActo
 	if !actor.canWriteJobs() {
 		return nil, 0, projectForbidden()
 	}
-	projectID := strings.TrimSpace(r.PathValue("projectId"))
+	projectID, err := api.accessibleWorkflowProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
 	var body map[string]any
 	if err := decodeProjectBody(r, &body); err != nil {
 		return nil, 0, err
@@ -153,7 +170,10 @@ func (api *projectAPI) nativeJobActionHandler(r *http.Request, actor projectActo
 }
 
 func (api *projectAPI) forwardFileAction(r *http.Request, actor projectActor, action string) (any, int, error) {
-	projectID := strings.TrimSpace(r.PathValue("projectId"))
+	projectID, err := api.accessibleWorkflowProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
 	var body map[string]any
 	if err := decodeProjectBody(r, &body); err != nil {
 		return nil, 0, err
@@ -171,6 +191,9 @@ func (api *projectAPI) importQueriesHandler(r *http.Request, actor projectActor)
 func (api *qaReportAPI) startProjectQaScanHandler(r *http.Request, actor qaReportActor) (any, int, error) {
 	if !actor.canPromoteFindings() {
 		return nil, 0, qaReportFailure(http.StatusForbidden, "forbidden", "Forbidden")
+	}
+	if _, err := api.withOwnedProject(r, actor); err != nil {
+		return nil, 0, err
 	}
 	result, status, err := callProjectWorkflow(r.Context(), "qa_start", map[string]any{
 		"organizationId": actor.organizationID,
