@@ -47,6 +47,7 @@ function renderHistory(taskScope: ContentEditorTaskScope | null) {
           revision("approved", "approved"),
           revision("rejected", "rejected"),
           revision("draft", "draft"),
+          revision("machine", "needs_review"),
         ],
         nextCursor: null,
       })),
@@ -78,7 +79,7 @@ describe("a string's history for someone here through a task", () => {
     renderHistory(null);
 
     await screen.findAllByRole("button", { name: "Restore this version" });
-    expect(count("Restore this version")).toBe(3);
+    expect(count("Restore this version")).toBe(4);
     expect(count("Undo this change everywhere")).toBeGreaterThan(0);
   });
 
@@ -86,15 +87,15 @@ describe("a string's history for someone here through a task", () => {
     renderHistory({ taskScoped: true, canApprove: true });
 
     await screen.findAllByRole("button", { name: "Restore this version" });
-    expect(count("Restore this version")).toBe(3);
+    expect(count("Restore this version")).toBe(4);
     expect(count("Undo this change everywhere")).toBe(0);
   });
 
-  it("offers Restore only to a draft version on a post-edit task", async () => {
+  it("offers Restore on a post-edit task except to an approved or rejected version", async () => {
     renderHistory({ taskScoped: true, canApprove: false });
 
     await screen.findAllByRole("button", { name: "Restore this version" });
-    expect(count("Restore this version")).toBe(1);
+    expect(count("Restore this version")).toBe(2);
     expect(count("Undo this change everywhere")).toBe(0);
   });
 });

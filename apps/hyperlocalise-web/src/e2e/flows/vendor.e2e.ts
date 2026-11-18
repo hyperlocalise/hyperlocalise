@@ -148,8 +148,10 @@ describe("the Vendor role", () => {
     // Type a translation for the first string and save it as a draft.
     const translation = `Bon retour ${task.taskId.slice(-6)}`;
     await page.getByText(task.sourceTexts[0]).first().click();
-    const target = page.locator('textarea, [contenteditable="true"]').first();
+    const target = page.getByRole("textbox", { name: "Target translation" }).first();
     await target.click();
+    // Replace the machine translation that is there.
+    await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.type(translation);
     await page.getByRole("button", { name: "Save draft" }).first().click();
     await waitFor(async () => {

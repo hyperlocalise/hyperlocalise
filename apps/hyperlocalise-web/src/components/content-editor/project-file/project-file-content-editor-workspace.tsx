@@ -1624,6 +1624,11 @@ export function ProjectFileContentEditorWorkspace({
   const canEditTranslations = Boolean(contentEditorFile?.canEditTranslations);
   const showGroupingControls =
     groupingSupported && (!contentEditorFile || isNativeContentEditorFile(contentEditorFile));
+  const taskHistory = useMemo(
+    () =>
+      taskScoped ? { client: goSvcClient, organizationSlug, projectId, sourcePath } : undefined,
+    [goSvcClient, organizationSlug, projectId, sourcePath, taskScoped],
+  );
   const grouping = useMemo<ContentEditorGroupingController | null>(
     () =>
       showGroupingControls
@@ -1770,7 +1775,11 @@ export function ProjectFileContentEditorWorkspace({
                 </div>
               ) : null}
 
-              <ContentEditorGroupingView grouping={grouping} targetLocale={targetLocale}>
+              <ContentEditorGroupingView
+                grouping={grouping}
+                historyWithoutGrouping={taskHistory}
+                targetLocale={targetLocale}
+              >
                 <ContentEditorSourceTextEditingContext.Provider value={sourceTextEditing}>
                   <ContentEditorKeyDetailsEditingContext.Provider value={keyDetailsEditing}>
                     <ContentEditorKeyTagFilterContext.Provider

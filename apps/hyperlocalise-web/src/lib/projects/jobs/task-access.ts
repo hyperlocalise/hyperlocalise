@@ -272,7 +272,7 @@ export async function taskRouteAccessHasSourceText(
         // at its ends removed (line breaks and tabs included) is taken too.
         or(
           eq(schema.projectTranslationKeys.sourceText, input.sourceText),
-          sql`regexp_replace(${schema.projectTranslationKeys.sourceText}, '^\\s+|\\s+$', '', 'g') = ${input.sourceText.trim()}`,
+          sql`regexp_replace(${schema.projectTranslationKeys.sourceText}, ${"^\\s+|\\s+$"}, '', 'g') = ${input.sourceText.trim()}`,
         ),
       ),
     )

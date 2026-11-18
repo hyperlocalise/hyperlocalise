@@ -562,6 +562,8 @@ export function NativeJobDetailContent({
                   organizationSlug={organizationSlug}
                   projectId={projectId}
                   job={job}
+                  // A task owner's editor opens with the task, not while it waits.
+                  canOpenEditor={!(taskOwnerOnly && isWaitingTask(job))}
                 />
               )
             : undefined

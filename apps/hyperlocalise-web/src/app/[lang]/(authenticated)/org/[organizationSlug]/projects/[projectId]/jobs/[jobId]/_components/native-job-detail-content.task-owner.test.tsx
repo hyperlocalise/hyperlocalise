@@ -59,6 +59,7 @@ vi.mock("@/components/app-shell/store/use-app-shell-breadcrumb", () => ({
 vi.mock("@/components/reports/task-report", () => ({ TaskReport: () => <div>Report</div> }));
 
 import { NativeJobDetailContent } from "./native-job-detail-content";
+import { NativeJobSourceFilesSection } from "./native-job-detail-helpers";
 
 const task = {
   id: "job_1",
@@ -138,6 +139,31 @@ describe("the task page for someone here through a task they own", () => {
 
     expect(await screen.findByRole("link", { name: "Open Editor" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Mark done" })).toBeNull();
+  });
+
+  it("lists a waiting task's file without a way into the editor", () => {
+    const waiting = { ...task, status: "queued", afterJobId: "job_earlier" } as never;
+    const editorLinks = () => document.querySelectorAll('a[href*="/strings"]').length;
+    const renderFiles = (canOpenEditor: boolean) =>
+      render(
+        <IntlProvider locale="en" messages={{}}>
+          <NativeJobSourceFilesSection
+            organizationSlug="acme"
+            projectId="project_1"
+            job={waiting}
+            canOpenEditor={canOpenEditor}
+          />
+        </IntlProvider>,
+      );
+
+    renderFiles(true);
+    expect(editorLinks()).toBe(1);
+    cleanup();
+
+    const listed = renderFiles(false);
+    // The file is still listed.
+    expect(listed.container.querySelector("[aria-label]")).not.toBeNull();
+    expect(editorLinks()).toBe(0);
   });
 
   it("goes to My jobs once the task is marked done", async () => {

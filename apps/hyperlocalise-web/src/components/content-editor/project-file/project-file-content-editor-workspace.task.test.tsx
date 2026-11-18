@@ -14,6 +14,7 @@
 import { waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { useSegmentActivityOpener } from "@/components/content-editor/activity-log/content-editor-segment-activity";
 import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 import { ContentEditorWorkspaceProvider } from "@/components/content-editor/workspace/content-editor-workspace-context";
 import { DEFAULT_QA_POLICY } from "@/lib/qa/qa-policy";
@@ -29,7 +30,10 @@ import { ProjectFileContentEditorWorkspace } from "./project-file-content-editor
 const { calls, closedCalls, goSvcClient, container, queueExtras, validated } = vi.hoisted(() => {
   const calls: string[] = [];
   const closedCalls: string[] = [];
-  const container: { props: Record<string, never> | null } = { props: null };
+  const container: { props: Record<string, never> | null; hasHistory: boolean } = {
+    props: null,
+    hasHistory: false,
+  };
   const queueExtras: { value: Record<string, unknown> } = { value: {} };
   const validated: { modes: string[] | null } = { modes: null };
   type Query = { sourcePath: string; targetLocale: string; limit: number };
@@ -111,8 +115,10 @@ vi.mock("@/lib/api-client-instance", () => {
 });
 // The editor's own screen is not under test: its handlers are called as the screen would.
 vi.mock("@/components/content-editor/workspace/content-editor-workspace-container", () => ({
-  ContentEditorWorkspaceContainer: (props: Record<string, never>) => {
+  ContentEditorWorkspaceContainer: function Container(props: Record<string, never>) {
     container.props = props;
+    // What the editor's menus ask to know whether a string's history can be opened.
+    container.hasHistory = useSegmentActivityOpener() !== null;
     return null;
   },
 }));
@@ -156,6 +162,7 @@ afterEach(() => {
   calls.length = 0;
   closedCalls.length = 0;
   container.props = null;
+  container.hasHistory = false;
   queueExtras.value = {};
   validated.modes = null;
 });
@@ -169,6 +176,13 @@ describe("the editor for someone here through a task", () => {
 
     expect(validated.modes?.length).toBeGreaterThan(0);
     expect(calls).toContain("cat.saveTranslation");
+    expect(closedCalls).toEqual([]);
+  });
+
+  it("can open a string's history, which does not depend on the grouped view", async () => {
+    await openEditor(true);
+
+    expect(container.hasHistory).toBe(true);
     expect(closedCalls).toEqual([]);
   });
 

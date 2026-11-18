@@ -103,13 +103,26 @@ export async function provisionVendorTaskFixture(
       })
       .returning({ id: schema.repositorySourceFileVersions.id });
     for (const [key, text] of strings) {
-      await db.insert(schema.projectTranslationKeys).values({
+      const [translationKey] = await db
+        .insert(schema.projectTranslationKeys)
+        .values({
+          organizationId: organization!.id,
+          projectId,
+          repositorySourceFileId: sourceFile!.id,
+          key,
+          sourceText: text,
+          normalizedSourceText: text.toLowerCase(),
+        })
+        .returning({ id: schema.projectTranslationKeys.id });
+      // A machine translation waiting for a person, as a post-edit task has: the editor opens
+      // on the strings that need review.
+      await db.insert(schema.projectTranslations).values({
         organizationId: organization!.id,
         projectId,
-        repositorySourceFileId: sourceFile!.id,
-        key,
-        sourceText: text,
-        normalizedSourceText: text.toLowerCase(),
+        translationKeyId: translationKey!.id,
+        targetLocale: "fr-FR",
+        text: `MT ${text}`,
+        status: "needs_review",
       });
     }
     return { storedFileId, versionId: version!.id };

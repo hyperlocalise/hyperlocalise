@@ -234,7 +234,9 @@ export function SegmentRevisions({
                 <div className="mt-2 flex flex-wrap gap-2">
                   {/* On a post-edit task, restoring an approved or rejected version would approve
                       or reject, which the task does not allow. */}
-                  {!revision.isCurrent && (canApprove || revision.status === "draft") ? (
+                  {!revision.isCurrent &&
+                  (canApprove ||
+                    (revision.status !== "approved" && revision.status !== "rejected")) ? (
                     <Button
                       size="sm"
                       variant="outline"
