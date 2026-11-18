@@ -169,6 +169,18 @@ describe("native CAT queue search", () => {
     expect(result?.pagination?.totalCount).toBe(1);
   });
 
+  it("matches target text typed with combining accents", async () => {
+    const { organization, project, sourcePath } = await seedProjectWithSegments();
+    const result = await search({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+      search: "cuo\u0302\u0301i cu\u0300ng",
+    });
+
+    expect(result?.segments.map((segment) => segment.key)).toEqual(["nav.last"]);
+  });
+
   it("treats underscores in the query as literals", async () => {
     const { organization, project, sourcePath } = await seedProjectWithSegments();
     const result = await search({
