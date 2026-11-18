@@ -91,6 +91,25 @@ full WorkOS identity model.
     a membership role, are skipped during reconcile/webhook sync, and resolve to
     no capabilities. See [`LOCALIZATION_ROLES.md`](./LOCALIZATION_ROLES.md).
 
+## Vendors (`vendor-access.ts`)
+
+A vendor is an outside person who may reach only the open tasks they own.
+Regression coverage lives in `vendor-access.test.ts`, `vendor-session.test.ts`,
+`vendor-task-routes.test.ts`, and go-svc `vendor-access_test.go`.
+
+18a. **Closed by default.** A session whose active membership is `vendor` is
+refused by `resolveApiAuthContextFromSession` unless the caller passes
+`allowVendor`. Only routes in `VENDOR_API_ROUTES` and pages that opt in do.
+go-svc refuses the role in `resolveOrganizationActor` the same way.
+18b. **A route opened to vendors limits them itself.** Passing `allowVendor`
+only lets the request in. The handler must hold a vendor to an open task
+they own, and to that task's file and languages.
+18c. **Never the team rule.** `getVisibleTeamIds` returns nothing for a vendor,
+so a team they were left in opens no project.
+18d. **No tokens, agents, MCP or plugins.** `resolveApiKeyTeamAccessContext`
+and the MCP session check fail closed for a vendor; a credential made
+before the person became a vendor works again only if the role changes.
+
 ## Personal access tokens (`api-key.ts`)
 
 PATs reuse `organization_api_keys`. They act as the owner, never as a snapshot

@@ -13,12 +13,33 @@ Your workspace role controls permitted actions. Team and project access determin
 | Reviewer | Work on jobs and AI actions; approve and write back translations; no organization administration. |
 | Translator | Work on assigned jobs and draft translations; no approval or administration. |
 | Member | Read permitted workspace, project, team, glossary, memory, and job information. |
+| Vendor | An outside freelancer or agency linguist. Sees only the tasks given to them. |
 
 Open **Members** → **Role permissions** for the permissions shown in your workspace. An administrator can update a member’s role.
 
 ## Choose roles for a translation team
 
 Use translators for drafting and reviewers for final approval. Give localization managers responsibility for project setup and shared language resources. Reserve admin access for people who manage the workspace and billing.
+
+## Vendors
+
+Use **Vendor** for a freelancer or a person at an agency who should see their own work and nothing else in the workspace. A vendor belongs to no team.
+
+A vendor's **My Jobs** lists the post-edit and proofread tasks given to them. From an open task they can:
+
+- open the editor for the task's file, in the task's languages only
+- save translations, comment, read the history of a string, and see screenshots already attached to it
+- see the translation memory and glossary matches the editor shows for each string
+- download the file
+- select **Mark done**
+
+On a post-edit task a vendor can edit but not approve. On a proofread task they can also approve.
+
+A task [waiting for another](/platform/translation/jobs#tasks-that-wait-for-another) is listed, and opens for work when the earlier one is finished. When a task is marked done, cancelled, or given to someone else, the vendor can no longer open it.
+
+A vendor cannot open projects, files, other jobs, the member list, teams, glossaries, memories, dictionaries, guidelines, project templates, Reports, issues, automations, the assistant, or settings. They cannot create API keys or use the API, MCP, or the design and content plugins. AI actions in the editor are not offered to them.
+
+Only post-edit and proofread tasks on a file can be given to a vendor. A vendor counts as a member of the workspace on your plan.
 
 ## A button is unavailable
 

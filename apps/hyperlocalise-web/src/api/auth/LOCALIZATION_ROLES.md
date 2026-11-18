@@ -15,9 +15,34 @@ reconcile, webhooks, and member mutations.
 | `reviewer`             | Contribute to jobs, run AI actions, push draft translations; approve reviews and write-back. No org administration.            |
 | `translator`           | Contribute to assigned jobs, run AI actions, and push draft translations. No approvals or org administration.                  |
 | `member`               | Read workspace, project, team, glossary, memory, dictionary, and job surfaces only.                                            |
+| `vendor`               | Outside linguist with **no** capability. Reaches only the open tasks they own. See "Vendor" below.                             |
 
 Unknown WorkOS slugs map to `null` during reconcile and receive **no**
 capabilities (default deny).
+
+## Vendor
+
+`vendor` holds no capability, so every `hasCapability` check refuses it. That is
+not enough on its own: many routes and pages ask only for a signed-in member.
+So a vendor is refused at one gate per service and let through route by route:
+
+- **Web app.** `resolveApiAuthContextFromSession` throws
+  `VendorAccessDeniedError` unless the caller passes `allowVendor`. The API
+  middleware passes it only for the routes in `VENDOR_API_ROUTES`, and a page
+  only when it opts in (`vendor-access.ts`). A route or page added later is
+  closed to vendors without anyone thinking about it.
+- **go-svc.** `resolveOrganizationActor` refuses the role;
+  `resolveOrganizationActorAllowingVendor` accepts it and is called only by the
+  handlers opened to vendors (`vendor-access.go`).
+- **Tokens, agents, MCP, plugins and the public API** refuse a vendor outright
+  (`api-key-access.ts`, `mcp.ts`, public-api `auth.go`).
+
+Inside an opened route a vendor never goes through the team rule. Their access
+is always "an open post-edit or proofread task on a file that I own"
+(`task-access.ts`, `vendor-access.go`), limited to that task's file and
+languages. The same rule lets any other member open a task they own outside
+their teams. Design:
+[`docs/adr/2026-11-18-vendor-role-design.md`](../../../../../docs/adr/2026-11-18-vendor-role-design.md).
 
 Legacy workspaces that only use WorkOS `admin` and `member` continue to work:
 `member` stays read-only; `admin` retains full capability.

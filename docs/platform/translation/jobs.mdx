@@ -71,6 +71,12 @@ When the work on a proofread or post-edit task is finished, select **Mark done**
 
 Reviewers, localization managers, and admins can mark any such task done. Anyone else with job access can mark done only a task assigned to them. Translate tasks from visual workflows do not have **Mark done**. Key jobs are finished the same way. Automation can do the same with [Complete a task for people](/platform/api#complete-a-task-for-people).
 
+## Who a task can be given to
+
+A post-edit or proofread task on a file can be given to any active member of the workspace, whichever team the project belongs to, and to a [vendor](/platform/workspace/roles#vendors). Its owner can open the task, the editor for its file and languages, and **Mark done**, even without access to the rest of the project.
+
+Any other job can be given only to someone who can open its project, and never to a vendor.
+
 ## Tasks that wait for another
 
 A post-edit or proofread task can be made to come after another job in the same project, usually the task before it on the same file. A reviser's task then exists from the start, with its owner and due date, but opens only when the post-editing is finished. A [visual automation](/platform/visual-workflows)'s **Assign task** step and the [API](/platform/api#create-a-job) can make such tasks.

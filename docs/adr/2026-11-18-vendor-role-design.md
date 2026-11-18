@@ -28,12 +28,12 @@ Other platforms handle vendors in three ways: a linked organization of the vendo
 | Where | What | Limits |
 |---|---|---|
 | **My jobs** | Their open and waiting tasks: title, project name, file, languages, step, status, due date. | Only the **Assigned** list. A finished or reassigned task leaves it. |
-| The task's page | The same details, **Open Editor** and **Mark done**. | A waiting task has neither button, and its **Comes after** row names the earlier task without a link unless it is also theirs. No owner, title or due date editing, no activity list, no **Report** tab. |
-| The editor | The task's file, in the task's languages: source and target text, saving translations, undo and restoring an earlier version, comments (read and add), history, and screenshots already attached to a string. | Opened only from an open task. Any other file, any other language and "all files" are refused. |
+| The task's page | The same details, **Open Editor** and **Mark done**. | A waiting task has neither button, and its **Comes after** row says it comes after an earlier task, with a link only when that task is also theirs. No owner, title or due date editing, no other job actions, no activity list, no **Report** tab. |
+| The editor | The task's file, in the task's languages: source and target text, saving translations, restoring an earlier version of a string, comments (read and add), a string's history, and screenshots already attached to a string. | Opened only from an open task. Any other file, any other language, another branch of the file, "all files" and groups of identical strings (which span files) are refused. The file's activity log and undoing a whole operation (a job's or an import's changes) are not opened. |
 | Translation memory and glossary | The suggestions and term matches the editor shows for a string of the task. | Lookup only, for the task's languages, from the memories and glossaries linked to the task's project. No list, no browsing, no editing. |
-| Download | The editor's own download of the task's file. | No new download button on the task's page. |
+| Download | The editor's own download of the task's file; the file as uploaded and its translation in a task language, which the editor uses to show documents. | No new download button on the task's page. |
 | **Mark done** | On their own open task. | As for everyone else. |
-| Their account | Sign out, language and other personal preferences, leaving the workspace. | |
+| Their account | Sign out, theme and language, choosing another workspace they belong to, leaving the workspace. | From the account menu. The settings pages stay closed. |
 
 By step:
 
@@ -61,7 +61,7 @@ The platform checks roles in four code bases, and they do not behave alike for a
 So the role is refused at one gate in each, and opened route by route:
 
 - **Go service:** the function that resolves the signed-in person keeps refusing Vendor. A second function, which accepts Vendor, is called only by the handlers in the table above. A route added later refuses a vendor without anyone thinking about it.
-- **Web app:** the one function that every signed-in request and page goes through refuses a vendor unless the caller says the route is one of the vendor's. The vendor's routes are one short list in one file. The same holds for pages: a page refuses a vendor unless it opts in.
+- **Web app:** the one function that every signed-in request and page goes through refuses a vendor unless the caller says the route is one of the vendor's. The vendor's routes are one short list in one file. The same holds for pages: a page refuses a vendor unless it opts in. A vendor gets a page frame of their own (My jobs and the account menu), because the usual frame loads the inbox, QA reports, the assistant and billing; it also sends a vendor back from the few pages that load nothing on the server, whose requests are refused anyway.
 - **Public API, MCP, agent sign-in and plugins:** refuse the Vendor role outright. A vendor cannot create an API token, and a token made before a person became a vendor stops working while they are one.
 - **Reports:** unchanged; it already refuses.
 
@@ -71,9 +71,9 @@ Inside an opened route a vendor never goes through the team rule. Their access i
 
 This holds for every role, not only vendors, and fixes the task that shows in **My jobs** but cannot be opened:
 
-- The owner of an open task can open its page, the editor for its file and languages, and **Mark done**, whatever team the project is in. Outside their teams they are limited to that file and those languages; what they may do there still comes from their role. Nothing changes for people working through their teams.
-- A task can be given to any active member of the workspace, in the app, in the **Assign task** step and in the public API alike. Today the app and the API ask for a member of the project's team and the step does not.
-- A vendor can be given post-edit and proofread tasks on a file. Giving a vendor any other job (a translate task, a task on chosen strings, an AI job) is refused with a message, in all three places, because nothing would let them open or finish it.
+- The owner of an open post-edit or proofread task on a file can open its page, the editor for its file and languages, and **Mark done**, whatever team the project is in. Outside their teams they are limited to that file and those languages and to the editor actions a vendor has, and never more than their role allows: a member still cannot edit, and approving follows their role, not the task's step. Nothing changes for people working through their teams.
+- Such a task can be given to any active member of the workspace: when its owner is changed in the app, where the owner picker now lists them, and through the public API. Both asked for a member of the project's team before. Any other job keeps the rule each place had.
+- A vendor can be given post-edit and proofread tasks on a file. Giving a vendor any other job (a translate task, a task on chosen strings, an AI job) is refused with a message, in the app, the **Assign task** step and both API hosts, because nothing would let them open or finish it. An issue cannot be given to a vendor either.
 - API tokens keep the team rule: a token does not open a task through ownership.
 
 ### Inviting and managing
