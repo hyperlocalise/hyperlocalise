@@ -212,7 +212,10 @@ export async function runCrowdinCreateTaskAction(
   if (!title) return failure("missing_crowdin_task_title", "Enter a title for the task.");
   const deadline = parseWorkflowDueAt(input.dueAt);
   if (deadline === undefined) {
-    return failure("invalid_due_date", "The due date is not a date, such as 2026-05-01T17:00Z.");
+    return failure(
+      "invalid_due_date",
+      "The due date is not a date, such as 2026-05-01T17:00Z, or a period, such as +3d.",
+    );
   }
 
   const opened = await openCrowdinSession(input);

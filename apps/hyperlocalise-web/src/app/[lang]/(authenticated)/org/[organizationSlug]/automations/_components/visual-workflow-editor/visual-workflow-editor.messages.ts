@@ -2692,8 +2692,8 @@ export const visualWorkflowEditorMessages = defineMessages({
   },
   taskDueAtHint: {
     defaultMessage:
-      "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty for no due date.",
-    id: "SQUPAVRD+K",
+      "A date such as 2026-05-01T17:00Z, a period from when the step runs such as +3d or +12h, or a value from an earlier step. Leave empty for no due date.",
+    id: "r//PBG5Cpu",
     description:
       "Help text for the due date setting of the Assign task and Crowdin task workflow steps",
   },
@@ -2735,8 +2735,8 @@ export const visualWorkflowEditorMessages = defineMessages({
   },
   updateJobDueAtHint: {
     defaultMessage:
-      "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty to keep the current due date.",
-    id: "Yn8fBlm1d2",
+      "A date such as 2026-05-01T17:00Z, a period from when the step runs such as +3d or +12h, or a value from an earlier step. Leave empty to keep the current due date.",
+    id: "9x6oc8jVLH",
     description: "Help text for the due date setting of the Update job workflow step",
   },
   updateJobHint: {
