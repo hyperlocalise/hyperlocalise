@@ -20,6 +20,7 @@ import (
 	guidelinepg "github.com/hyperlocalise/hyperlocalise/internal/guidelines/postgres"
 	"github.com/hyperlocalise/hyperlocalise/internal/ota"
 	"github.com/hyperlocalise/hyperlocalise/internal/postgres"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/workos/workos-go/v10"
 )
@@ -149,15 +150,13 @@ func main() {
 	var membershipLookup organizationMembershipLookup
 	var workosClient *workos.Client
 	if key := strings.TrimSpace(os.Getenv("WORKOS_API_KEY")); key != "" {
-		workosClient = workos.NewClient(key, workos.WithBaseURL(workosAPIBaseURL()))
-		membershipLookup = func(ctx context.Context, id string) (*workos.UserOrganizationMembership, error) {
-			return workosClient.OrganizationMembership().Get(ctx, id)
-		}
-		h.members.workos = newLiveMemberWorkos(key, workosAPIBaseURL())
-		if identity := newLiveMemberWorkos(key, workosAPIBaseURL()); identity != nil {
+		workosClient = workos.NewClient(key, workos.WithBaseURL(publicauth.WorkOSAPIBaseURL()))
+		membershipLookup = publicauth.NewWorkOSMembershipLookup(key)
+		h.members.workos = newLiveMemberWorkos(key, publicauth.WorkOSAPIBaseURL())
+		if identity := newLiveMemberWorkos(key, publicauth.WorkOSAPIBaseURL()); identity != nil {
 			h.sessionOnboarding.workos = identity
 		}
-		if identity := newLiveMemberWorkos(key, workosAPIBaseURL()); identity != nil {
+		if identity := newLiveMemberWorkos(key, publicauth.WorkOSAPIBaseURL()); identity != nil {
 			h.workspaceSettings.workos = identity
 		}
 	}
@@ -305,7 +304,7 @@ func main() {
 		}
 		h.guidelineCheck.checker = check.New(checkRetriever, checkClassifier, checkModel, checkOpts...)
 	}
-	membershipLookup = newCachedOrganizationMembershipLookup(membershipLookup, valkeyClient)
+	membershipLookup = publicauth.NewCachedMembershipLookup(membershipLookup, valkeyClient)
 	h.dictionaries.membership = membershipLookup
 	h.glossaries.membership = membershipLookup
 	h.memories.membership = membershipLookup

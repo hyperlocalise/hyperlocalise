@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -94,7 +95,7 @@ func (api *publicTranslationsAPI) load(ctx context.Context, principal publicAPIP
         where p.id=$1 and p.organization_id=$2
         and ($3 or exists(select 1 from team_memberships m join teams t on t.id=m.team_id
             where m.user_id=$4 and t.organization_id=$2 and (t.id=p.team_id or (p.team_id is null and t.slug='default'))))`,
-		projectID, principal.organizationID, hasOrganizationCapability(principal.role, "teams:write"), principal.userID).Scan(&found)
+		projectID, principal.OrganizationID, authz.HasCapability(principal.Role, "teams:write"), principal.UserID).Scan(&found)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, "", publicTranslationProjectNotFound()
 	}
@@ -105,7 +106,7 @@ func (api *publicTranslationsAPI) load(ctx context.Context, principal publicAPIP
 	var sourceFileID string
 	err = pool.QueryRow(ctx, `select id from repository_source_files
         where organization_id=$1 and project_id=$2 and source_path=$3
-        limit 1`, principal.organizationID, projectID, sourcePath).Scan(&sourceFileID)
+        limit 1`, principal.OrganizationID, projectID, sourcePath).Scan(&sourceFileID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, "", publicAPIFailure(http.StatusNotFound, "source_file_not_found", "Source file not found")
 	}
@@ -113,7 +114,7 @@ func (api *publicTranslationsAPI) load(ctx context.Context, principal publicAPIP
 		return nil, "", publicAPIInternalFailure(fmt.Errorf("find source file: %w", err))
 	}
 
-	object, loaded, err := api.loadTranslations(ctx, principal.organizationID, projectID, sourceFileID, locale)
+	object, loaded, err := api.loadTranslations(ctx, principal.OrganizationID, projectID, sourceFileID, locale)
 	if err != nil {
 		return nil, "", publicAPIInternalFailure(err)
 	}

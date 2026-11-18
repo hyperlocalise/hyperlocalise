@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -150,7 +151,7 @@ func TestTranslationReviewRoutes(t *testing.T) {
 
 			// As in the app: only reviewing roles approve; everyone who edits may send back.
 			for _, role := range []string{"developer", "translator"} {
-				scopes := effectivePermissions([]string{"files:read", "files:write"}, role)
+				scopes := authz.EffectivePermissions([]string{"files:read", "files:write"}, role)
 				w := sendResource(t, resourcePrincipal(scopes...), &fakeResourceStore{}, http.MethodPost, target, `{"keys":["a"]}`)
 				want := http.StatusOK
 				if change == reviewApprove {
@@ -166,7 +167,7 @@ func TestTranslationReviewRoutes(t *testing.T) {
 	}
 }
 
-var keyJobScopes = effectivePermissions([]string{"jobs:read", "jobs:write"}, "translator")
+var keyJobScopes = authz.EffectivePermissions([]string{"jobs:read", "jobs:write"}, "translator")
 
 func TestKeyJobRoutes(t *testing.T) {
 	t.Run("adds and removes strings", func(t *testing.T) {
@@ -182,7 +183,7 @@ func TestKeyJobRoutes(t *testing.T) {
 	})
 
 	t.Run("lists strings and locales", func(t *testing.T) {
-		withStrings := effectivePermissions([]string{"jobs:read", "files:read"}, "translator")
+		withStrings := authz.EffectivePermissions([]string{"jobs:read", "files:read"}, "translator")
 		for _, target := range []string{"/v1/jobs/job-1/strings", "/v1/jobs/job-1/locales"} {
 			w := sendResource(t, resourcePrincipal(withStrings...), &fakeResourceStore{}, http.MethodGet, target, "")
 			require.Equal(t, http.StatusOK, w.Code, target)

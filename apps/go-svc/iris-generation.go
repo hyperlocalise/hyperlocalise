@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 )
 
 const (
@@ -125,9 +126,9 @@ func (api *irisGenerationAPI) scope(w http.ResponseWriter, r *http.Request) (iri
 	}
 	actor, err := resolveOrganizationActor(r.Context(), api.pool, api.membership, claims, slug)
 	if err != nil {
-		var access *organizationAccessError
+		var access *publicauth.AccessError
 		if errors.As(err, &access) {
-			writeJSON(w, access.status, map[string]string{"error": access.code, "message": access.message})
+			writeJSON(w, access.Status, map[string]string{"error": access.Code, "message": access.Message})
 			return irisOrgScope{}, false
 		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal_error", "message": "Could not resolve the workspace"})

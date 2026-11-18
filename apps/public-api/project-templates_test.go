@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
 	"github.com/hyperlocalise/hyperlocalise/internal/projecttemplate"
 	"github.com/stretchr/testify/require"
@@ -52,13 +53,13 @@ func (s *fakeProjectTemplateStore) createProject(_ context.Context, _ principal,
 	return project{ID: "project_new", Name: req.Name, TargetLocales: []string{}}, s.templateErr
 }
 
-var templateManagerScopes = effectivePermissions([]string{"files:read", "files:write"}, "localization_manager")
+var templateManagerScopes = authz.EffectivePermissions([]string{"files:read", "files:write"}, "localization_manager")
 
 func TestProjectTemplatePermissions(t *testing.T) {
-	require.Contains(t, effectivePermissions([]string{"files:read"}, "member"), "project-templates:read")
+	require.Contains(t, authz.EffectivePermissions([]string{"files:read"}, "member"), "project-templates:read")
 	require.Contains(t, templateManagerScopes, "project-templates:write")
-	require.NotContains(t, effectivePermissions([]string{"files:read", "files:write"}, "developer"), "project-templates:write")
-	require.Contains(t, effectivePermissions([]string{"files:read", "files:write"}, "developer"), "projects:write")
+	require.NotContains(t, authz.EffectivePermissions([]string{"files:read", "files:write"}, "developer"), "project-templates:write")
+	require.Contains(t, authz.EffectivePermissions([]string{"files:read", "files:write"}, "developer"), "projects:write")
 }
 
 func TestProjectTemplateRoutes(t *testing.T) {
@@ -134,7 +135,7 @@ func TestCreateProjectRoute(t *testing.T) {
 	})
 
 	t.Run("needs projects:write", func(t *testing.T) {
-		translator := effectivePermissions([]string{"files:read", "files:write"}, "translator")
+		translator := authz.EffectivePermissions([]string{"files:read", "files:write"}, "translator")
 		w := sendResource(t, resourcePrincipal(translator...), &fakeResourceStore{}, http.MethodPost, "/v1/projects", `{"name":"x"}`)
 		require.Equal(t, http.StatusForbidden, w.Code)
 	})

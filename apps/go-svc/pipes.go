@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/workos/workos-go/v10"
 	"golang.org/x/sync/errgroup"
 )
@@ -62,11 +63,11 @@ type pipesActor struct {
 }
 
 func (a pipesActor) canRead() bool {
-	return hasOrganizationCapability(a.role, "integrations:read") || hasOrganizationCapability(a.role, "integrations:write")
+	return authz.HasCapability(a.role, "integrations:read") || authz.HasCapability(a.role, "integrations:write")
 }
 
 func (a pipesActor) canWrite() bool {
-	return hasOrganizationCapability(a.role, "integrations:write")
+	return authz.HasCapability(a.role, "integrations:write")
 }
 
 type pipesError struct {

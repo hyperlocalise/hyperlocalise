@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 )
 
 const (
@@ -42,7 +44,7 @@ type automationActor struct {
 }
 
 func (a automationActor) canManage() bool {
-	return hasOrganizationCapability(a.role, "integrations:write")
+	return authz.HasCapability(a.role, "integrations:write")
 }
 
 type automationError struct {

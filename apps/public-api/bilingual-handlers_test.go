@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
 	"github.com/stretchr/testify/require"
 )
@@ -131,7 +132,7 @@ func TestBilingualImportRoute(t *testing.T) {
 		w := sendBilingualForm(t, resourcePrincipal(readScopes...), &fakeResourceStore{}, map[string]string{"locale": "fr"}, "fixed.csv", csv)
 		require.Equal(t, http.StatusForbidden, w.Code)
 		for _, role := range []string{"developer", "translator"} {
-			scopes := effectivePermissions([]string{"files:read", "files:write"}, role)
+			scopes := authz.EffectivePermissions([]string{"files:read", "files:write"}, role)
 			w := sendBilingualForm(t, resourcePrincipal(scopes...), &fakeResourceStore{}, map[string]string{"locale": "fr"}, "fixed.csv", csv)
 			require.Equal(t, http.StatusForbidden, w.Code, role)
 		}

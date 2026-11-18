@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +29,7 @@ func getWithKey(h http.Handler, target string) *httptest.ResponseRecorder {
 }
 
 func TestTranslationsDownloadRoute(t *testing.T) {
-	readScopes := effectivePermissions([]string{"files:read"}, "member")
+	readScopes := authz.EffectivePermissions([]string{"files:read"}, "member")
 
 	t.Run("forwards to the platform with the caller's token and streams the file", func(t *testing.T) {
 		h := translationsHandler(t, resourcePrincipal(readScopes...), func(w http.ResponseWriter, r *http.Request) {

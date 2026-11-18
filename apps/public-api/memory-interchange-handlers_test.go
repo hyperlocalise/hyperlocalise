@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -56,13 +57,13 @@ func TestGlossaryExportRoute(t *testing.T) {
 }
 
 var (
-	memoryReadScopes  = effectivePermissions([]string{"memories:read"}, "member")
-	memoryWriteScopes = effectivePermissions([]string{"memories:read", "memories:write"}, "localization_manager")
+	memoryReadScopes  = authz.EffectivePermissions([]string{"memories:read"}, "member")
+	memoryWriteScopes = authz.EffectivePermissions([]string{"memories:read", "memories:write"}, "localization_manager")
 )
 
 func TestMemoryScopes(t *testing.T) {
 	require.Contains(t, memoryReadScopes, "translation-memories:read")
-	require.NotContains(t, effectivePermissions([]string{"memories:write"}, "developer"), "translation-memories:write")
+	require.NotContains(t, authz.EffectivePermissions([]string{"memories:write"}, "developer"), "translation-memories:write")
 	require.Contains(t, memoryWriteScopes, "translation-memories:write")
 }
 

@@ -9,13 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/stretchr/testify/require"
 )
 
 var (
-	glossaryReadScopes   = effectivePermissions([]string{"files:read"}, "member")
-	glossaryWriteScopes  = effectivePermissions([]string{"files:read", "files:write"}, "localization_manager")
-	developerWriteScopes = effectivePermissions([]string{"files:read", "files:write"}, "developer")
+	glossaryReadScopes   = authz.EffectivePermissions([]string{"files:read"}, "member")
+	glossaryWriteScopes  = authz.EffectivePermissions([]string{"files:read", "files:write"}, "localization_manager")
+	developerWriteScopes = authz.EffectivePermissions([]string{"files:read", "files:write"}, "developer")
 )
 
 func sendGlossaryImport(t *testing.T, p principal, store resourceStore, fields map[string]string, files []struct {
@@ -237,7 +238,7 @@ func TestGlossaryImportReportRoute(t *testing.T) {
 	})
 
 	t.Run("rejects a write-only token", func(t *testing.T) {
-		w := sendResource(t, resourcePrincipal(effectivePermissions([]string{"files:write"}, "localization_manager")...), &fakeResourceStore{}, http.MethodGet, "/v1/glossaries/gl-1/import-reports/run-1", "")
+		w := sendResource(t, resourcePrincipal(authz.EffectivePermissions([]string{"files:write"}, "localization_manager")...), &fakeResourceStore{}, http.MethodGet, "/v1/glossaries/gl-1/import-reports/run-1", "")
 		require.Equal(t, http.StatusForbidden, w.Code)
 		require.Contains(t, w.Body.String(), "glossaries:read")
 	})
