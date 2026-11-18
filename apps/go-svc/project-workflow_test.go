@@ -9,9 +9,84 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 )
+
+type existsBoolPool struct{ exists bool }
+
+func (p existsBoolPool) Query(context.Context, string, ...any) (pgx.Rows, error) {
+	return nil, errors.New("unexpected query")
+}
+
+func (p existsBoolPool) QueryRow(context.Context, string, ...any) pgx.Row {
+	return existsBoolRow(p)
+}
+
+func (p existsBoolPool) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, errors.New("unexpected exec")
+}
+
+func (p existsBoolPool) Begin(context.Context) (pgx.Tx, error) {
+	return nil, errors.New("unexpected begin")
+}
+
+type existsBoolRow struct{ exists bool }
+
+func (r existsBoolRow) Scan(dest ...any) error {
+	*dest[0].(*bool) = r.exists
+	return nil
+}
+
+type qaOwnedProjectPool struct{}
+
+func (qaOwnedProjectPool) Query(context.Context, string, ...any) (pgx.Rows, error) {
+	return nil, errors.New("unexpected query")
+}
+
+func (qaOwnedProjectPool) QueryRow(context.Context, string, ...any) pgx.Row {
+	return qaOwnedProjectRow{}
+}
+
+func (qaOwnedProjectPool) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, errors.New("unexpected exec")
+}
+
+func (qaOwnedProjectPool) Begin(context.Context) (pgx.Tx, error) {
+	return nil, errors.New("unexpected begin")
+}
+
+type qaOwnedProjectRow struct{}
+
+func (qaOwnedProjectRow) Scan(dest ...any) error {
+	*dest[0].(*string) = "proj-1"
+	*dest[1].(*string) = "native"
+	*dest[2].(*string) = "manual"
+	*dest[3].(**time.Time) = nil
+	*dest[4].(*[]byte) = nil
+	return nil
+}
+
+type noRowsPool struct{}
+
+func (noRowsPool) Query(context.Context, string, ...any) (pgx.Rows, error) {
+	return nil, errors.New("unexpected query")
+}
+func (noRowsPool) QueryRow(context.Context, string, ...any) pgx.Row { return noRowsRow{} }
+func (noRowsPool) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, errors.New("unexpected exec")
+}
+
+func (noRowsPool) Begin(context.Context) (pgx.Tx, error) {
+	return nil, errors.New("unexpected begin")
+}
+
+type noRowsRow struct{}
+
+func (noRowsRow) Scan(...any) error { return pgx.ErrNoRows }
 
 func TestDecodeUpdateProjectRequestActive(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(`{"active":false}`))
@@ -145,14 +220,35 @@ func TestNativeProjectWorkflowActionsForbidMembers(t *testing.T) {
 func TestNativeProjectWorkflowActionsAllowTranslatorsToCreateJobs(t *testing.T) {
 	translator := projectActor{role: "translator", userID: "user-1", organizationID: "org-1"}
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"sourcePath":"app.json"}`))
+	req.SetPathValue("projectId", "proj-1")
+	api := &projectAPI{pool: existsBoolPool{exists: true}}
 
-	_, _, err := (&projectAPI{}).uploadFileHandler(req, translator)
+	_, _, err := api.uploadFileHandler(req, translator)
 	requireForbidden(t, err)
 
-	_, _, err = (&projectAPI{}).translateFileHandler(req, translator)
+	_, _, err = api.translateFileHandler(req, translator)
 	var failure *projectError
 	require.True(t, errors.As(err, &failure))
 	require.NotEqual(t, http.StatusForbidden, failure.status)
+}
+
+func TestNativeProjectWorkflowRequiresTeamAccess(t *testing.T) {
+	api := &projectAPI{pool: existsBoolPool{exists: false}}
+	developer := projectActor{role: "developer", userID: "user-1", organizationID: "org-1"}
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"sourcePath":"app.json","action":"mark_done"}`))
+	req.SetPathValue("projectId", "other-team-project")
+	req.SetPathValue("jobId", "job-1")
+
+	for _, fn := range []func(*http.Request, projectActor) (any, int, error){
+		api.downloadFileHandler,
+		api.uploadFileHandler,
+		api.fileSettingsGetHandler,
+		api.nativeJobActionHandler,
+		api.translateFileHandler,
+	} {
+		_, _, err := fn(req, developer)
+		requireWorkflowFailure(t, err, http.StatusNotFound, "project_not_found")
+	}
 }
 
 func TestProjectQaScanForbidsMembers(t *testing.T) {
@@ -180,7 +276,7 @@ func TestStartProjectQaScanForwardsWorkflowFailure(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/orgs/acme/projects/proj-1/qa-reports", nil)
 	req.SetPathValue("projectId", "proj-1")
-	_, _, err := (&qaReportAPI{}).startProjectQaScanHandler(req, qaReportActor{
+	_, _, err := (&qaReportAPI{pool: qaOwnedProjectPool{}}).startProjectQaScanHandler(req, qaReportActor{
 		role:           "admin",
 		userID:         "user-1",
 		organizationID: "org-1",
@@ -189,6 +285,20 @@ func TestStartProjectQaScanForwardsWorkflowFailure(t *testing.T) {
 	require.True(t, errors.As(err, &failure))
 	require.Equal(t, http.StatusConflict, failure.status)
 	require.Equal(t, "scan_in_progress", failure.code)
+}
+
+func TestStartProjectQaScanHidesOtherTeamProjects(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/v1/orgs/acme/projects/other/qa-reports", nil)
+	req.SetPathValue("projectId", "other")
+	_, _, err := (&qaReportAPI{pool: noRowsPool{}}).startProjectQaScanHandler(req, qaReportActor{
+		role:           "developer",
+		userID:         "user-1",
+		organizationID: "org-1",
+	})
+	var failure *qaReportError
+	require.True(t, errors.As(err, &failure))
+	require.Equal(t, http.StatusNotFound, failure.status)
+	require.Equal(t, "project_not_found", failure.code)
 }
 
 func requireWorkflowFailure(t *testing.T, err error, status int, code string) {
