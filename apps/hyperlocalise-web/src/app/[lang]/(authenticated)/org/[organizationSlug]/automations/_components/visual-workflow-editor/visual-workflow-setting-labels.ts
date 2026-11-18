@@ -87,6 +87,11 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     ...ON_ERROR,
   },
   "action.run_qa": { projectId: messages.localizationProjectId, ...ON_ERROR },
+  "action.list_review_work": {
+    projectId: messages.localizationProjectId,
+    pathPrefix: messages.listFilesPathPrefix,
+    ...ON_ERROR,
+  },
   "action.list_source_files": {
     projectId: messages.localizationProjectId,
     pathPrefix: messages.listFilesPathPrefix,

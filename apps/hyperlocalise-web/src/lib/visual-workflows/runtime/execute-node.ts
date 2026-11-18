@@ -56,6 +56,7 @@ import {
   runQaChecksAction,
   runUpdateJobAction,
 } from "./localization-actions";
+import { runListReviewWorkAction } from "./review-work-actions";
 
 export type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 
@@ -267,6 +268,12 @@ export async function executeVisualWorkflowNode(input: {
       });
     case "action.list_source_files":
       return runListSourceFilesAction({
+        organizationId: input.organizationId,
+        projectId: text(node.config.projectId).trim(),
+        pathPrefix: text(node.config.pathPrefix),
+      });
+    case "action.list_review_work":
+      return runListReviewWorkAction({
         organizationId: input.organizationId,
         projectId: text(node.config.projectId).trim(),
         pathPrefix: text(node.config.pathPrefix),

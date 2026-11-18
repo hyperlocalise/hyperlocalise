@@ -142,6 +142,21 @@ On **Pick assignee**, rules are checked from top to bottom; the first rule whose
 
 Job types accept common aliases such as `post-edit`, `MTPE`, and `review` for translate, edit, and proofread steps.
 
+## Follow up edits on a schedule
+
+Editing a translation or source text in the Content Editor changes its status and starts nothing by itself. To turn those edits into work for people, run a workflow on a schedule that finds what is waiting:
+
+**Schedule** → **List work to review** → **For each** → **Pick assignee** → **Assign task** → **Send email**
+
+**List work to review** returns each file and language of a project that has translations in **Needs review** or saved as drafts, and that no open or waiting post-edit or proofread task already covers. Each item has `projectId`, `sourceFileId`, `path`, `targetLocale` and `needsReview` (the number of strings). Loop over `items` with **For each**, pick the person for `item.targetLocale`, and give them a task on `item.sourceFileId` for that language.
+
+- A file and language stay off the list while a task is open on them. That task's editor already shows whatever needs review in its file, including edits made after it was given, so a second run makes no second task.
+- They come back once every task on them is finished and something still needs review. End the workflow in a proofread task: a post-editor cannot approve, so a post-edit task alone would be made again at each run.
+- For source text edits to produce review work, set the project's [**When source text changes**](/platform/cat) setting to **Needs review**.
+- Only files on the project's main branch are listed, up to 100 items a run. **Path starts with** keeps to one folder.
+
+Approved translations leave for your repository with the project's sync, on its own schedule, as one merge request.
+
 ## Call reusable workflows
 
 **Call workflow** runs a **pinned published version** of another visual workflow as a subworkflow. Use it to share a reviewed branch (validation, notifications, enrichment) across many parent workflows without copying nodes.

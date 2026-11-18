@@ -270,6 +270,17 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "LSAb8ph9tQ",
     description: "Catalog description for the list source files node",
   },
+  nodeListReviewWork: {
+    defaultMessage: "List work to review",
+    id: "x6+CVCpXnQ",
+    description: "Catalog title for the step that lists files and languages with review work",
+  },
+  nodeListReviewWorkHint: {
+    defaultMessage:
+      "Find each file and language with translations waiting for review that nobody has a task for.",
+    id: "zdITXRNL2Q",
+    description: "Catalog description for the step that lists files and languages with review work",
+  },
   nodeFileRead: {
     defaultMessage: "Read file",
     id: "4+YLajE++n",
@@ -2695,6 +2706,12 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "For example locales/en/. Up to 100 files are listed.",
     id: "ijFxeRDSFN",
     description: "Help text under the path setting of the list source files step",
+  },
+  listReviewWorkPathPrefixHint: {
+    defaultMessage:
+      "For example locales/en/. Up to 100 files and languages are listed; the rest come at the next run.",
+    id: "wlp63zuJYJ",
+    description: "Help text under the path setting of the list work to review step",
   },
   updateJobJobId: {
     defaultMessage: "Job ID",

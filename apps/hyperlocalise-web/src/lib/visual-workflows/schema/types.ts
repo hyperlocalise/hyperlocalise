@@ -39,6 +39,7 @@ export type VisualCatalogType =
   | "action.check_progress"
   | "action.run_qa"
   | "action.list_source_files"
+  | "action.list_review_work"
   | "action.translation_as_source"
   | "action.file_read"
   | "action.file_write"
@@ -333,6 +334,13 @@ export type VisualNodeConfig =
       kind: "action.list_source_files";
       projectId: string;
       /** Keeps only files whose path starts with this; empty lists every source file. */
+      pathPrefix: string;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.list_review_work";
+      projectId: string;
+      /** Keeps only files whose path starts with this; empty looks at every file. */
       pathPrefix: string;
       onError?: VisualNodeErrorBehavior;
     }

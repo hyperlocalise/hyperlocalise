@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, isNotNull, isNull, ne, notExists, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { canAccessProject } from "@/api/auth/team-access";
@@ -20,6 +20,7 @@ import { db, schema, type DatabaseClient } from "@/lib/database/client";
 
 import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
 
+import { openFileTaskWhere } from "./open-file-task";
 import { POST_EDIT_WORKFLOW_TASK_STEP } from "./person-task";
 
 /**
@@ -39,24 +40,7 @@ export function ownedFileTaskWhere(input: {
   /** Also match a task that has not opened yet. */
   includeWaiting?: boolean;
 }): SQL {
-  const open = eq(schema.jobs.status, "waiting_for_review");
-  return and(
-    eq(schema.jobs.organizationId, input.organizationId),
-    eq(schema.jobs.ownerUserId, input.userId),
-    // Post-edit and proofread tasks are both stored as proofread jobs.
-    eq(schema.jobs.kind, "proofread"),
-    or(isNull(schema.jobs.assigneeType), ne(schema.jobs.assigneeType, "agent")),
-    sql`coalesce(${schema.jobs.inputPayload}->>'sourceFileId', '') <> ''`,
-    notExists(
-      db
-        .select({ jobId: schema.externalJobDetails.jobId })
-        .from(schema.externalJobDetails)
-        .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
-    ),
-    input.includeWaiting
-      ? or(open, and(eq(schema.jobs.status, "queued"), isNotNull(schema.jobs.afterJobId)))
-      : open,
-  )!;
+  return and(openFileTaskWhere(input), eq(schema.jobs.ownerUserId, input.userId))!;
 }
 
 export type OwnedFileTask = {

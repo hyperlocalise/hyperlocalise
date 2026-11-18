@@ -68,6 +68,11 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     title: "Run QA checks",
     purpose: "Run the project's QA checks and report errors and warnings.",
   },
+  "action.list_review_work": {
+    title: "List work to review",
+    purpose:
+      "List each file and language of a project that has translations waiting for review and no open post-edit or proofread task, so a For each on a schedule can give each one to a person once. Each item has projectId, sourceFileId, path, targetLocale and needsReview. Edits made in the editor show up here at the next run; nothing starts from an edit itself.",
+  },
   "action.list_source_files": {
     title: "List source files",
     purpose:
