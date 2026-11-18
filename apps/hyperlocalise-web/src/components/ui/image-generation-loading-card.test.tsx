@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 import { act, render, screen } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { ImageGenerationLoadingCard } from "./image-generation-loading-card";
 
@@ -25,8 +25,14 @@ function show(props: React.ComponentProps<typeof ImageGenerationLoadingCard> = {
   );
 }
 
+beforeEach(() => {
+  // happy-dom's 2D context lacks setTransform; the dot field is decorative.
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+});
+
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("ImageGenerationLoadingCard", () => {
