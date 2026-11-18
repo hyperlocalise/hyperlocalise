@@ -439,6 +439,7 @@ type updateProjectRequest struct {
 	sourceLocale       *string
 	targetLocales      *[]string
 	identifier         *string
+	active             *bool
 }
 
 func decodeUpdateProjectRequest(r *http.Request) (updateProjectRequest, []string, error) {
@@ -523,6 +524,14 @@ func decodeUpdateProjectRequest(r *http.Request) (updateProjectRequest, []string
 		req.identifier = &v
 		changed = append(changed, "identifier")
 	}
+	if raw, ok := fields["active"]; ok {
+		var v bool
+		if err := json.Unmarshal(raw, &v); err != nil {
+			return updateProjectRequest{}, nil, invalidProjectPayload()
+		}
+		req.active = &v
+		changed = append(changed, "active")
+	}
 
 	if len(changed) == 0 {
 		return updateProjectRequest{}, nil, invalidProjectPayload()
@@ -598,6 +607,9 @@ func (api *projectAPI) updateHandler(r *http.Request, actor projectActor) (any, 
 			return nil, 0, err
 		}
 		sets = append(sets, "team_id="+arg(teamID))
+	}
+	if req.active != nil {
+		sets = append(sets, "is_active="+arg(*req.active))
 	}
 
 	localeChanging := req.sourceLocale != nil || req.targetLocales != nil

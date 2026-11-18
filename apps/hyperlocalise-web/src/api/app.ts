@@ -56,6 +56,7 @@ import { createJobChangeEventsCronRoutes } from "./routes/cron/job-change-events
 import { createLocalisationAuditRoutes } from "./routes/localisation-audit/localisation-audit.route";
 import {
   createLocalisationAuditQueue,
+  createTranslationFileImportQueue,
   createTranslationQaScanQueue,
   createProviderAgentCommentQueue,
   createProviderAgentQaQueue,
@@ -72,6 +73,7 @@ import type {
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
 import { createPublicOtaRoutes } from "./routes/ota-distribution/public-ota.route";
 import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
+import { createIrisProjectActionRoutes } from "./routes/internal-iris/iris-project-action.route";
 import { createInternalDeepAuditRoutes } from "./routes/internal-deep-audits/internal-deep-audits.route";
 import { createInternalWebhookRoutes } from "./routes/internal-webhooks/internal-webhooks.route";
 
@@ -155,6 +157,14 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
   return new Hono()
     .route("/health", healthRoutes)
     .route("/internal/tms", createInternalTmsRoutes())
+    .route(
+      "/internal/iris",
+      createIrisProjectActionRoutes({
+        jobQueue: options.jobQueue ?? createApiTranslationJobQueue(),
+        qaQueue: options.translationQaScanQueue ?? createTranslationQaScanQueue(),
+        importQueue: options.translationFileImportQueue ?? createTranslationFileImportQueue(),
+      }),
+    )
     .route("/internal/webhooks", createInternalWebhookRoutes())
     .route(
       "/internal/deep-audits",
