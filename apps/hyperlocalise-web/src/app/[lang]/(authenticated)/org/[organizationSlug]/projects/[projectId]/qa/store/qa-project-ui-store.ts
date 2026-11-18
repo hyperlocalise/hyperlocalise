@@ -18,10 +18,13 @@ import {
   emptyQaFindingFilters,
   hasQaFindingFilters,
   QA_FILTER_ALL,
+  type QaFindingFilterState,
   type QaFindingFocus,
 } from "@/components/qa/qa-filters-store";
 import type { QaCheckPolicy } from "@/lib/qa/qa-policy";
 import type { TranslationQaCheckType } from "@/lib/qa/types";
+
+export type QaCadence = "off" | "daily";
 
 export class QaProjectUiStore {
   readonly organizationSlug: string;
@@ -30,8 +33,9 @@ export class QaProjectUiStore {
   checkType = QA_FILTER_ALL;
   severity = QA_FILTER_ALL;
   status = DEFAULT_QA_STATUS_FILTER;
-  tab = "findings";
   selectedRunId: string | null = null;
+  settingsOpen = false;
+  draftCadence: QaCadence | null = null;
   draftPolicy: QaCheckPolicy | null = null;
 
   constructor(organizationSlug: string, projectId: string) {
@@ -42,6 +46,14 @@ export class QaProjectUiStore {
 
   get isFiltered() {
     return hasQaFindingFilters(this);
+  }
+
+  get hasSettingsDraft() {
+    return this.draftCadence !== null || this.draftPolicy !== null;
+  }
+
+  setFilter(key: keyof QaFindingFilterState, value: string) {
+    this[key] = value;
   }
 
   setLocale(locale: string) {
@@ -60,10 +72,6 @@ export class QaProjectUiStore {
     this.status = status;
   }
 
-  setTab(tab: string) {
-    this.tab = tab;
-  }
-
   showFindingsFor(filter: QaFindingFocus) {
     applyQaFindingFocus(this, filter);
   }
@@ -80,23 +88,27 @@ export class QaProjectUiStore {
     this.selectedRunId = null;
   }
 
-  viewRun(runId: string) {
-    this.selectedRunId = runId;
-  }
-
+  /** Keeps filters so the same slice can be compared across scans. */
   selectRun(runId: string, latestRunId?: string) {
     this.selectedRunId = runId === latestRunId ? null : runId;
-    this.clearFindingFilters();
-    this.tab = "findings";
   }
 
   resetAfterScanStart() {
     this.selectedRunId = null;
-    this.tab = "findings";
   }
 
-  setDraftPolicy(policy: QaCheckPolicy | null) {
-    this.draftPolicy = policy;
+  openSettings() {
+    this.settingsOpen = true;
+  }
+
+  /** Closing without saving discards unsaved setting changes. */
+  closeSettings() {
+    this.settingsOpen = false;
+    this.clearSettingsDraft();
+  }
+
+  setDraftCadence(cadence: QaCadence) {
+    this.draftCadence = cadence;
   }
 
   updateRule(
@@ -110,7 +122,8 @@ export class QaProjectUiStore {
     };
   }
 
-  clearDraftPolicy() {
+  clearSettingsDraft() {
+    this.draftCadence = null;
     this.draftPolicy = null;
   }
 }

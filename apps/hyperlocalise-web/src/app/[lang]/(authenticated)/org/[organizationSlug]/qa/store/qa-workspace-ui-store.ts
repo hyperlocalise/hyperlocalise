@@ -20,6 +20,7 @@ import {
   QA_FILTER_ALL,
   type QaFindingFocus,
 } from "@/components/qa/qa-filters-store";
+import type { QaFindingFilterKey } from "@/components/qa/qa-filter";
 
 export type QaWorkspaceFindingFocus = QaFindingFocus & {
   projectId?: string;
@@ -67,9 +68,14 @@ export class QaWorkspaceUiStore {
     this.projectId = projectId;
   }
 
+  setFilter(key: QaFindingFilterKey, value: string) {
+    this[key] = value;
+  }
+
   showFindingsFor(filter: QaWorkspaceFindingFocus) {
     if (filter.projectId) this.projectId = filter.projectId;
     applyQaFindingFocus(this, filter);
+    this.tab = "findings";
   }
 
   clearFilters() {

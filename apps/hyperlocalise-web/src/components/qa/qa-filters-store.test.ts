@@ -38,14 +38,13 @@ describe("QA finding filter helpers", () => {
     expect(hasQaFindingFilters({ ...emptyQaFindingFilters(), status: "ignored" })).toBe(true);
   });
 
-  it("applies an overview focus and switches to findings without clearing other filters", () => {
-    const target = { ...emptyQaFindingFilters(), severity: "warning", tab: "projects" };
+  it("applies an overview focus without clearing other filters", () => {
+    const target = { ...emptyQaFindingFilters(), severity: "warning" };
 
     applyQaFindingFocus(target, { locale: "de-DE", checkType: "length" });
 
     expect(target.locale).toBe("de-DE");
     expect(target.checkType).toBe("length");
     expect(target.severity).toBe("warning");
-    expect(target.tab).toBe("findings");
   });
 });

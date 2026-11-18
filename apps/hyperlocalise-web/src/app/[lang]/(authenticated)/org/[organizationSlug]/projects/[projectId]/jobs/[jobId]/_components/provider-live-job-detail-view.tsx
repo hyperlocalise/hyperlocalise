@@ -33,7 +33,6 @@ import { getProviderPayloadString } from "../../../../../jobs/_components/provid
 import { CrowdinJobAssigneesField } from "./job-detail-assignee-field";
 import { JobDetailEditableTitle } from "./job-detail-editable-title";
 import {
-  defaultRenderBackLink,
   defaultRenderError,
   type JobDetailBackLinkRenderer,
   type JobDetailErrorRenderer,
@@ -79,7 +78,7 @@ export function ProviderLiveJobDetailView({
   onRefresh,
   organizationSlug,
   projectId,
-  renderBackLink = defaultRenderBackLink,
+  renderBackLink,
   renderDescriptionField,
   renderError = defaultRenderError,
   renderExternalLink,

@@ -431,7 +431,10 @@ func (api *qaReportAPI) getProjectQaRunDetail(ctx context.Context, actor qaRepor
                related_tokens, source_text, target_text
         from translation_qa_findings
         where ` + filterSQL + `
-        order by severity, target_locale, key, id
+        -- Rank each key's group by its worst finding so errors come first and a
+        -- group's findings stay together across pages.
+        order by min(severity) over (partition by source_path, key, target_locale),
+            target_locale, key, source_path, severity, id
         limit $` + strconv.Itoa(arg) + ` offset $` + strconv.Itoa(arg+1)
 	listArgs := append(filters, limit, offset)
 	rows, err := api.pool.Query(ctx, listSQL, listArgs...)

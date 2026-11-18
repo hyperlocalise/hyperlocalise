@@ -18,7 +18,7 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { QaTrendChartCard } from "./qa-overview-cards";
+import { QaOverviewTray, QaTrendChartCard } from "./qa-overview-cards";
 
 vi.mock("@/components/ui/chart", () => ({
   ChartContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -34,30 +34,49 @@ vi.mock("recharts", () => ({
   YAxis: () => null,
 }));
 
-const rows = [
-  { id: "run_older", label: "Sep 24", errors: 1, warnings: 0 },
-  { id: "run_latest", label: "Oct 1", errors: 2, warnings: 3 },
-];
+vi.mock("next/image", () => ({ default: () => null }));
 
-describe("QaTrendChartCard", () => {
-  it("lets keyboard users select a scan", async () => {
+describe("QaOverviewTray", () => {
+  it("keeps charts collapsed until asked and shows them on toggle", async () => {
     const user = userEvent.setup();
-    const onSelect = vi.fn();
     render(
       <IntlProvider locale="en" messages={{}}>
-        <QaTrendChartCard rows={rows} selectedId="run_latest" onSelect={onSelect} />
+        <QaOverviewTray
+          needsAction={false}
+          hint="Select a bar to filter the findings below."
+          metrics={<p>Metric</p>}
+          charts={<p>Chart</p>}
+        />
       </IntlProvider>,
     );
 
-    expect(screen.getByRole("group", { name: "Select a scan" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Oct 1: 2 errors, 3 warnings" })).toHaveAttribute(
-      "aria-pressed",
+    expect(screen.getByText("Metric")).toBeInTheDocument();
+    expect(screen.queryByText("Chart")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Show charts" }));
+    expect(screen.getByText("Chart")).toBeInTheDocument();
+    expect(screen.getByText("Select a bar to filter the findings below.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hide charts" })).toHaveAttribute(
+      "aria-expanded",
       "true",
     );
+  });
+});
 
-    await user.tab();
-    expect(screen.getByRole("button", { name: "Sep 24: 1 errors, 0 warnings" })).toHaveFocus();
-    await user.keyboard("{Enter}");
-    expect(onSelect).toHaveBeenCalledWith("run_older");
+describe("QaTrendChartCard", () => {
+  it("explains the trend needs at least two scans", () => {
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <QaTrendChartCard
+          rows={[{ id: "run_latest", label: "Oct 1", errors: 2, warnings: 3 }]}
+          selectedId="run_latest"
+          onSelect={vi.fn()}
+        />
+      </IntlProvider>,
+    );
+
+    expect(screen.getByRole("region", { name: "Errors and warnings over time" })).toHaveTextContent(
+      "Run more scans to see a trend.",
+    );
   });
 });

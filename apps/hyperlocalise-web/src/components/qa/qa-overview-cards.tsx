@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { useIntl } from "react-intl";
 import { Bar, BarChart, Cell, XAxis, YAxis } from "recharts";
 
@@ -31,6 +31,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
+import { qaMessages } from "./qa.messages";
 import { qaOverviewMessages as messages } from "./qa-overview.messages";
 
 export const QA_OVERVIEW_MAX_CHART_ROWS = 6;
@@ -38,6 +39,23 @@ const CHART_ROW_HEIGHT_PX = 32;
 const CHART_LABEL_WIDTH_PX = 112;
 const CHART_LABEL_MAX_CHARS = 16;
 const TREND_CHART_HEIGHT_PX = 160;
+const SHOW_CHARTS_STORAGE_KEY = "qa-overview-show-charts";
+
+function readShowCharts() {
+  try {
+    return window.localStorage.getItem(SHOW_CHARTS_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function writeShowCharts(value: boolean) {
+  try {
+    window.localStorage.setItem(SHOW_CHARTS_STORAGE_KEY, String(value));
+  } catch {
+    // The toggle still works for this visit.
+  }
+}
 
 export type QaChartRow = { id: string; label: string } & Record<string, number | string>;
 
@@ -75,11 +93,23 @@ export function QaOverviewTray({
   charts: ReactNode;
 }) {
   const intl = useIntl();
+  const chartsId = useId();
+  // Charts start collapsed so findings stay near the top of the page.
+  const [showCharts, setShowCharts] = useState(false);
+  useEffect(() => {
+    setShowCharts(readShowCharts());
+  }, []);
+  const toggleCharts = () => {
+    setShowCharts((current) => {
+      writeShowCharts(!current);
+      return !current;
+    });
+  };
   return (
     <section
       aria-label={intl.formatMessage(messages.overviewLabel)}
       aria-busy={isLoading || undefined}
-      className="relative overflow-clip rounded-3xl border border-border p-3"
+      className="relative overflow-clip rounded-2xl border border-border p-2"
     >
       <Image
         src={needsAction ? PROJECT_OVERVIEW_ACTION_MESH_SRC : PROJECT_OVERVIEW_CALM_MESH_SRC}
@@ -90,25 +120,37 @@ export function QaOverviewTray({
         className="object-cover object-center"
         priority
       />
-      <div className="relative flex flex-col gap-3">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="relative flex flex-col gap-2">
+        <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
           {isLoading
             ? Array.from({ length: 4 }, (_, index) => (
-                <Skeleton key={index} className="min-h-[132px] rounded-xl" />
+                <Skeleton key={index} className="min-h-[88px] rounded-xl" />
               ))
             : metrics}
         </div>
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-          {isLoading
-            ? Array.from({ length: 3 }, (_, index) => (
-                <Skeleton key={index} className="min-h-[220px] rounded-xl" />
-              ))
-            : charts}
-        </div>
-        {!isLoading && hint ? (
-          <p className="w-fit rounded-lg bg-card/80 px-3 py-1.5 text-xs text-muted-foreground">
-            {hint}
-          </p>
+        {showCharts && !isLoading ? (
+          <div id={chartsId} className="grid grid-cols-1 gap-2 lg:grid-cols-3">
+            {charts}
+          </div>
+        ) : null}
+        {!isLoading ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="xs"
+              variant="secondary"
+              aria-expanded={showCharts}
+              aria-controls={showCharts ? chartsId : undefined}
+              onClick={toggleCharts}
+            >
+              {intl.formatMessage(showCharts ? qaMessages.hideCharts : qaMessages.showCharts)}
+            </Button>
+            {showCharts && hint ? (
+              <p className="rounded-lg bg-card/80 px-2 py-1 text-xs text-muted-foreground">
+                {hint}
+              </p>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </section>
@@ -131,12 +173,12 @@ export function QaMetricCard({
 }) {
   const intl = useIntl();
   return (
-    <div className="flex min-h-[132px] min-w-0 flex-col gap-4 rounded-xl border border-border bg-card px-4 pt-4 pb-[18px]">
+    <div className="flex min-h-[88px] min-w-0 flex-col gap-1 rounded-xl border border-border bg-card px-3 py-2.5">
       <p className="text-[13px] leading-5 font-medium text-muted-foreground">{label}</p>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-0.5">
         <p
           className={cn(
-            "text-3xl/loose font-medium tracking-[-0.03em] text-foreground tabular-nums",
+            "text-2xl font-medium tracking-[-0.03em] text-foreground tabular-nums",
             emphasis === "risk" && "text-destructive",
             emphasis === "watch" && "text-warning-foreground",
           )}
@@ -285,7 +327,7 @@ export function QaBarChartCard({
   );
 }
 
-/** Stacked errors and warnings per scan, oldest on the left. */
+/** Stacked errors and warnings per scan, oldest on the left. Bars select a scan. */
 export function QaTrendChartCard({
   rows,
   selectedId,
@@ -302,72 +344,36 @@ export function QaTrendChartCard({
   return (
     <QaChartCardFrame title={title}>
       {rows.length > 1 ? (
-        <>
-          <ChartContainer
-            config={series}
-            className="aspect-auto w-full [&_.recharts-bar-rectangle]:cursor-pointer"
-            style={{ height: TREND_CHART_HEIGHT_PX }}
-            aria-hidden
-          >
-            <BarChart data={rows} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-              <XAxis
-                dataKey="label"
-                tickLine={false}
-                axisLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis hide allowDecimals={false} />
-              <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-              {keys.map((key, index) => (
-                <Bar
-                  key={key}
-                  dataKey={key}
-                  stackId="findings"
-                  fill={`var(--color-${key})`}
-                  radius={index === keys.length - 1 ? [4, 4, 0, 0] : 0}
-                  isAnimationActive={false}
-                  onClick={(_, rowIndex) => {
-                    const row = rows[rowIndex];
-                    if (row) onSelect(row.id);
-                  }}
-                >
-                  {rows.map((row) => (
-                    <Cell
-                      key={row.id}
-                      fillOpacity={selectedId && row.id !== selectedId ? 0.45 : 1}
-                    />
-                  ))}
-                </Bar>
-              ))}
-            </BarChart>
-          </ChartContainer>
-          <div
-            role="group"
-            aria-label={intl.formatMessage(messages.selectScan)}
-            className="flex flex-wrap gap-1"
-          >
-            {rows.map((row) => {
-              const selected = row.id === selectedId;
-              return (
-                <Button
-                  key={row.id}
-                  type="button"
-                  size="xs"
-                  variant={selected ? "secondary" : "ghost"}
-                  aria-pressed={selected}
-                  aria-label={intl.formatMessage(messages.selectScanOption, {
-                    label: row.label,
-                    errors: intl.formatNumber(Number(row.errors ?? 0)),
-                    warnings: intl.formatNumber(Number(row.warnings ?? 0)),
-                  })}
-                  onClick={() => onSelect(row.id)}
-                >
-                  {row.label}
-                </Button>
-              );
-            })}
-          </div>
-        </>
+        <ChartContainer
+          config={series}
+          className="aspect-auto w-full [&_.recharts-bar-rectangle]:cursor-pointer"
+          style={{ height: TREND_CHART_HEIGHT_PX }}
+          aria-hidden
+        >
+          <BarChart data={rows} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+            <XAxis dataKey="label" tickLine={false} axisLine={false} interval="preserveStartEnd" />
+            <YAxis hide allowDecimals={false} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+            {keys.map((key, index) => (
+              <Bar
+                key={key}
+                dataKey={key}
+                stackId="findings"
+                fill={`var(--color-${key})`}
+                radius={index === keys.length - 1 ? [4, 4, 0, 0] : 0}
+                isAnimationActive={false}
+                onClick={(_, rowIndex) => {
+                  const row = rows[rowIndex];
+                  if (row) onSelect(row.id);
+                }}
+              >
+                {rows.map((row) => (
+                  <Cell key={row.id} fillOpacity={selectedId && row.id !== selectedId ? 0.45 : 1} />
+                ))}
+              </Bar>
+            ))}
+          </BarChart>
+        </ChartContainer>
       ) : (
         <QaChartEmpty text={intl.formatMessage(messages.trendEmpty)} />
       )}

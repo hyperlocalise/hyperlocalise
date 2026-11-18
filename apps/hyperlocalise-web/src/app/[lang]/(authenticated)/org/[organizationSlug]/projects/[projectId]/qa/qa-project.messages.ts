@@ -211,4 +211,60 @@ export const qaProjectMessages = defineMessages({
     id: "hI5mcHlF5p",
     description: "Project QA overview metric detail for languages with findings",
   },
+  scanPicker: {
+    defaultMessage: "Scan",
+    id: "UYTcVt3FZK",
+    description: "Accessible label for the project QA scan picker",
+  },
+  scanPickerValue: {
+    defaultMessage: "Scan: {date}",
+    id: "AhhKC7T2t0",
+    description: "Project QA scan picker trigger showing the selected scan date",
+  },
+  scanOption: {
+    defaultMessage: "{date} · {summary}",
+    id: "XK7JWFwGaI",
+    description: "Project QA scan picker option with the scan date and its result",
+  },
+  scanOptionLatest: {
+    defaultMessage: "{date} · {summary} · Latest",
+    id: "lxuJnb0riA",
+    description: "Project QA scan picker option for the most recent scan",
+  },
+  scanOptionFailed: {
+    defaultMessage: "Failed",
+    id: "iRLdkcgIz1",
+    description: "Project QA scan picker result for a failed scan",
+  },
+  scanOptionRunning: {
+    defaultMessage: "In progress",
+    id: "lDYWBRICCs",
+    description: "Project QA scan picker result for a queued or running scan",
+  },
+  olderScanBanner: {
+    defaultMessage: "You are viewing the scan from {date}, not the latest one.",
+    id: "hzctviyEHQ",
+    description: "Project QA banner shown while an older scan is selected",
+  },
+  openSettings: {
+    defaultMessage: "Check settings",
+    id: "UGP0Yv7lV2",
+    description: "Project QA button that opens the check settings dialog",
+  },
+  settingsDescription: {
+    defaultMessage:
+      "Choose which checks run and how strict they are. Changes apply to the next scan and to the editor.",
+    id: "TVGb1bgxbG",
+    description: "Project QA check settings dialog description",
+  },
+  settingsReadOnly: {
+    defaultMessage: "You don't have permission to change these settings.",
+    id: "B45dmP3Ag+",
+    description: "Project QA check settings note for members who cannot edit",
+  },
+  saveSettings: {
+    defaultMessage: "Save changes",
+    id: "ym+SefNrfo",
+    description: "Project QA check settings dialog save button",
+  },
 });

@@ -14,33 +14,30 @@
  */
 import { useEffect, useMemo } from "react";
 import { observer } from "mobx-react-lite";
-import { CheckCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ClockCounterClockwiseIcon, GearIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
-import { QaFindingsTable, qaCheckLabel } from "@/components/qa/qa-findings-table";
-import { QaFilter } from "@/components/qa/qa-filter";
+import { QaFindingsTable } from "@/components/qa/qa-findings-table";
+import { QaFindingFilterBar } from "@/components/qa/qa-filter";
 import { QaNotice, QaRunStatus } from "@/components/qa/qa-status";
 import { qaMessages as m } from "@/components/qa/qa.messages";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
 import { workspaceQaReportsQueryKey } from "@/lib/qa/use-workspace-qa-reports";
-import { DEFAULT_QA_POLICY, resolveQaPolicy, type QaCheckPolicy } from "@/lib/qa/qa-policy";
-import {
-  translationQaCheckTypes,
-  translationQaScanCheckTypes,
-  type TranslationQaCheckType,
-} from "@/lib/qa/types";
+import type { QaCheckPolicy } from "@/lib/qa/qa-policy";
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
 import { QA_FILTER_ALL } from "@/components/qa/qa-filters-store";
 import { QaProjectUiStoreProvider, useQaProjectUiStore } from "../store/qa-project-store-context";
 import { qaProjectMessages as messages } from "../qa-project.messages";
+import type { QaCadence } from "../store/qa-project-ui-store";
 import { QaProjectOverview } from "./qa-project-overview";
+import { QaProjectSettingsDialog } from "./qa-project-settings-dialog";
+import { QaScanPicker } from "./qa-scan-picker";
 
 const PAGE_SIZE = 100;
 type QaScanStartErrorCode = "qa_scan_in_progress" | "qa_scan_start_failed";
@@ -80,13 +77,11 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
   const pageStore = useQaProjectUiStore();
   const organizationSlug = pageStore.organizationSlug;
   const projectId = pageStore.projectId;
-  const tab = pageStore.tab;
   const locale = pageStore.locale;
   const checkType = pageStore.checkType;
   const severity = pageStore.severity;
   const status = pageStore.status;
   const selectedRunId = pageStore.selectedRunId;
-  const draftPolicy = pageStore.draftPolicy;
   const listKey = ["project-qa-reports", organizationSlug, projectId];
   const param = { organizationSlug, projectId };
   const list = useQuery({
@@ -177,38 +172,56 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
     },
   });
   const settingsMutation = useMutation({
-    mutationFn: (json: { cadence?: "off" | "daily"; checks?: QaCheckPolicy }) =>
+    mutationFn: (json: { cadence?: QaCadence; checks?: QaCheckPolicy }) =>
       api.updateSettings({ param, json }),
     onSuccess: async () => {
-      pageStore.clearDraftPolicy();
+      pageStore.closeSettings();
+      toast.success(intl.formatMessage(m.policySaved));
       await queryClient.invalidateQueries({ queryKey: listKey });
     },
   });
-  const policy = resolveQaPolicy(draftPolicy ?? settings?.checks ?? DEFAULT_QA_POLICY);
-  const updateRule = (
-    check: TranslationQaCheckType,
-    change: Partial<QaCheckPolicy[TranslationQaCheckType]>,
-  ) => {
-    pageStore.updateRule(policy, check, change);
-  };
   const canReview =
     canPromoteFindings &&
     report?.status === "succeeded" &&
     report.id === reports.find((row) => row.status === "succeeded")?.id;
-  const all = { value: "all", label: intl.formatMessage(m.all) };
   const filtered = pageStore.isFiltered;
   const unsupported =
     list.error instanceof GoSvcClientError && list.error.code === "qa_scan_not_supported";
+  const viewingOlderScan = Boolean(report && reports[0] && report.id !== reports[0].id);
   return (
     <ProjectPageShell>
       <ProjectSectionHeader
         icon={CheckCircleIcon}
         section={intl.formatMessage(messages.title)}
         actions={
-          settings?.canRun ? (
-            <Button size="sm" disabled={running || start.isPending} onClick={() => start.mutate()}>
-              {intl.formatMessage(running || start.isPending ? messages.running : messages.run)}
-            </Button>
+          list.isSuccess ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <QaScanPicker
+                reports={reports}
+                selectedId={report?.id}
+                onSelect={(runId) => pageStore.selectRun(runId, reports[0]?.id)}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  settingsMutation.reset();
+                  pageStore.openSettings();
+                }}
+              >
+                <GearIcon data-icon="inline-start" />
+                {intl.formatMessage(messages.openSettings)}
+              </Button>
+              {settings?.canRun ? (
+                <Button
+                  size="sm"
+                  disabled={running || start.isPending}
+                  onClick={() => start.mutate()}
+                >
+                  {intl.formatMessage(running || start.isPending ? messages.running : messages.run)}
+                </Button>
+              ) : null}
+            </div>
           ) : null
         }
       />
@@ -241,6 +254,24 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
           }
         />
       ) : null}
+      {viewingOlderScan && report ? (
+        <Alert className="border-warning/40 bg-warning/10">
+          <ClockCounterClockwiseIcon />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3 text-foreground">
+            <span>
+              {intl.formatMessage(messages.olderScanBanner, {
+                date: intl.formatDate(report.completedAt ?? report.createdAt, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }),
+              })}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => pageStore.selectLatestRun()}>
+              {intl.formatMessage(m.latest)}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {list.isSuccess && report?.status === "succeeded" ? (
         <QaProjectOverview
           report={report}
@@ -252,25 +283,8 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
         />
       ) : null}
       {list.isSuccess ? (
-        <Tabs
-          value={tab}
-          onValueChange={(value) => pageStore.setTab(String(value))}
-          className="gap-6"
-        >
-          <TabsList variant="line">
-            <TabsTrigger value="findings">{intl.formatMessage(m.findings)}</TabsTrigger>
-            <TabsTrigger value="settings">{intl.formatMessage(m.settings)}</TabsTrigger>
-            <TabsTrigger value="history">{intl.formatMessage(m.history)}</TabsTrigger>
-          </TabsList>
-          <TabsContent value="findings" className="flex flex-col gap-5">
-            {selectedRunId && report?.id !== reports[0]?.id ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm">{intl.formatMessage(m.older)}</p>
-                <Button variant="outline" size="sm" onClick={() => pageStore.selectLatestRun()}>
-                  {intl.formatMessage(m.latest)}
-                </Button>
-              </div>
-            ) : null}
+        <section className="flex flex-col gap-5">
+          {report?.status === "succeeded" ? null : (
             <QaRunStatus
               report={report}
               onRetry={settings?.canRun && !running ? () => start.mutate() : undefined}
@@ -281,229 +295,73 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => pageStore.viewRun(lastSuccessfulReport.id)}
+                    onClick={() => pageStore.selectRun(lastSuccessfulReport.id, reports[0]?.id)}
                   >
                     {intl.formatMessage(messages.viewLastCompleted)}
                   </Button>
                 ) : null
               }
             />
-            {report?.status === "succeeded" ? (
-              <>
-                <p className="text-xs text-muted-foreground">{intl.formatMessage(m.snapshot)}</p>
-                <div className="flex flex-wrap items-end gap-3">
-                  <QaFilter
-                    label={intl.formatMessage(m.language)}
-                    value={locale}
-                    onChange={(value) => pageStore.setLocale(value)}
-                    options={[
-                      all,
-                      ...Object.keys(report.summary.byLocale).map((value) => ({
-                        value,
-                        label: value,
-                      })),
-                    ]}
-                  />
-                  <QaFilter
-                    label={intl.formatMessage(m.check)}
-                    value={checkType}
-                    onChange={(value) => pageStore.setCheckType(value)}
-                    options={[
-                      all,
-                      ...translationQaScanCheckTypes.map((value) => ({
-                        value,
-                        label: qaCheckLabel(value, intl),
-                      })),
-                    ]}
-                  />
-                  <QaFilter
-                    label={intl.formatMessage(m.severity)}
-                    value={severity}
-                    onChange={(value) => pageStore.setSeverity(value)}
-                    options={[
-                      all,
-                      ...(["error", "warning"] as const).map((value) => ({
-                        value,
-                        label: intl.formatMessage(m[value]),
-                      })),
-                    ]}
-                  />
-                  <QaFilter
-                    label={intl.formatMessage(m.status)}
-                    value={status}
-                    onChange={(value) => pageStore.setStatus(value)}
-                    options={[
-                      all,
-                      ...(["open", "ignored", "resolved"] as const).map((value) => ({
-                        value,
-                        label: intl.formatMessage(m[value]),
-                      })),
-                    ]}
-                  />
-                </div>
-                {detail.isPending ? (
-                  <Skeleton className="h-40 w-full" aria-label={intl.formatMessage(m.loading)} />
-                ) : null}
-                {detail.isError ? (
-                  <QaNotice
-                    message={intl.formatMessage(m.loadError)}
-                    onRetry={() => {
-                      void detail.refetch();
-                    }}
-                  />
-                ) : null}
-                {detail.isSuccess && findings.length === 0 ? (
-                  <div className="flex items-center gap-3">
-                    <p className="text-sm">
-                      {intl.formatMessage(
-                        report.findingCount === 0 && !filtered ? m.clean : m.noMatches,
-                      )}
-                    </p>
-                    {filtered ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => pageStore.clearFindingFilters()}
-                      >
-                        {intl.formatMessage(m.clearFilters)}
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : null}
-                {findings.length ? (
-                  <QaFindingsTable
-                    key={`${report.id}-${locale}-${checkType}-${severity}-${status}`}
-                    organizationSlug={organizationSlug}
-                    projectId={projectId}
-                    findings={findings}
-                    total={detail.data?.pages[0]?.total ?? 0}
-                    shownCount={findings.length}
-                    canPromote={canReview}
-                    promoteScope="project"
-                    hasMore={detail.hasNextPage}
-                    isLoadingMore={detail.isFetchingNextPage}
-                    onLoadMore={() => {
-                      void detail.fetchNextPage();
-                    }}
-                  />
-                ) : null}
-              </>
-            ) : null}
-          </TabsContent>
-          <TabsContent value="settings" className="flex flex-col gap-6">
-            <Field>
-              <FieldLabel htmlFor="qa-daily">{intl.formatMessage(messages.schedule)}</FieldLabel>
-              <Switch
-                id="qa-daily"
-                checked={settings?.cadence === "daily"}
-                disabled={!settings?.canManageSchedule || settingsMutation.isPending}
-                onCheckedChange={(checked) =>
-                  settingsMutation.mutate({ cadence: checked ? "daily" : "off" })
-                }
+          )}
+          {report?.status === "succeeded" ? (
+            <>
+              <QaRunStatus report={report} />
+              <QaFindingFilterBar
+                values={{ locale, checkType, severity, status }}
+                locales={Object.keys(report.summary.byLocale)}
+                total={detail.data?.pages[0]?.total}
+                isFiltered={filtered}
+                onChange={(key, value) => {
+                  if (key !== "projectId") pageStore.setFilter(key, value);
+                }}
+                onClear={() => pageStore.clearFindingFilters()}
               />
-              <FieldDescription>{intl.formatMessage(messages.scheduleHelp)}</FieldDescription>
-            </Field>
-            {settingsMutation.isError ? (
-              <QaNotice message={intl.formatMessage(m.policyError)} />
-            ) : null}
-            <div className="flex max-w-2xl flex-col gap-3">
-              <h3 className="text-sm font-medium">{intl.formatMessage(m.coverage)}</h3>
-              <p className="text-sm text-muted-foreground">{intl.formatMessage(m.coverageHelp)}</p>
-              <p className="text-xs text-muted-foreground">
-                {intl.formatMessage(m.warningBehavior)}
-              </p>
-              <p className="text-xs text-muted-foreground">{intl.formatMessage(m.errorBehavior)}</p>
-              <div className="flex flex-col divide-y divide-border">
-                {translationQaCheckTypes.map((check) => (
-                  <div
-                    key={check}
-                    className="flex flex-wrap items-center justify-between gap-3 py-3"
-                  >
-                    <Field className="w-auto">
-                      <FieldLabel htmlFor={`qa-rule-${check}`}>
-                        {qaCheckLabel(check, intl)}
-                      </FieldLabel>
-                      <Switch
-                        id={`qa-rule-${check}`}
-                        checked={policy[check].enabled}
-                        disabled={!settings?.canManageSchedule || settingsMutation.isPending}
-                        aria-label={intl.formatMessage(m.enableCheck, {
-                          check: qaCheckLabel(check, intl),
-                        })}
-                        onCheckedChange={(enabled) => updateRule(check, { enabled })}
-                      />
-                      {check === "guideline" ? (
-                        <FieldDescription>
-                          {intl.formatMessage(m.guidelineCheckHelp)}
-                        </FieldDescription>
-                      ) : null}
-                    </Field>
-                    <QaFilter
-                      label={intl.formatMessage(m.severity)}
-                      disabled={!settings?.canManageSchedule || settingsMutation.isPending}
-                      value={policy[check].severity}
-                      onChange={(severity) =>
-                        updateRule(check, { severity: severity as "error" | "warning" })
-                      }
-                      options={(["error", "warning"] as const).map((value) => ({
-                        value,
-                        label: intl.formatMessage(m[value]),
-                      }))}
-                    />
-                  </div>
-                ))}
-              </div>
-              <Button
-                className="w-fit"
-                size="sm"
-                disabled={
-                  !draftPolicy || settingsMutation.isPending || !settings?.canManageSchedule
-                }
-                onClick={() => settingsMutation.mutate({ checks: policy })}
-              >
-                {intl.formatMessage(m.savePolicy)}
-              </Button>
-              {settingsMutation.isSuccess && !draftPolicy ? (
-                <p className="text-sm">{intl.formatMessage(m.policySaved)}</p>
+              {detail.isPending ? (
+                <Skeleton className="h-40 w-full" aria-label={intl.formatMessage(m.loading)} />
               ) : null}
-            </div>
-          </TabsContent>
-          <TabsContent value="history" className="flex flex-col gap-3">
-            {reports.length === 0 ? <QaNotice message={intl.formatMessage(m.notScanned)} /> : null}
-            {reports.map((row) => (
-              <div
-                key={row.id}
-                className="flex flex-wrap items-center justify-between gap-3 border-b border-border py-3"
-              >
-                <div className="flex flex-col gap-1">
-                  <p className="text-sm">
-                    {intl.formatDate(row.createdAt, { dateStyle: "medium", timeStyle: "short" })}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {intl.formatMessage(
-                      row.trigger === "scheduled" ? m.triggerScheduled : m.triggerManual,
-                    )}
-                  </p>
-                  <QaRunStatus report={row} compact />
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => pageStore.selectRun(row.id, reports[0]?.id)}
-                >
+              {detail.isError ? (
+                <QaNotice
+                  message={intl.formatMessage(m.loadError)}
+                  onRetry={() => {
+                    void detail.refetch();
+                  }}
+                />
+              ) : null}
+              {detail.isSuccess && findings.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
                   {intl.formatMessage(
-                    row.status === "failed"
-                      ? m.viewFailure
-                      : row.status === "succeeded"
-                        ? m.findings
-                        : m.viewStatus,
+                    report.findingCount === 0 && !filtered ? m.clean : m.noMatches,
                   )}
-                </Button>
-              </div>
-            ))}
-          </TabsContent>
-        </Tabs>
+                </p>
+              ) : null}
+              {findings.length ? (
+                <QaFindingsTable
+                  key={`${report.id}-${locale}-${checkType}-${severity}-${status}`}
+                  organizationSlug={organizationSlug}
+                  projectId={projectId}
+                  findings={findings}
+                  total={detail.data?.pages[0]?.total ?? 0}
+                  shownCount={findings.length}
+                  canPromote={canReview}
+                  promoteScope="project"
+                  hasMore={detail.hasNextPage}
+                  isLoadingMore={detail.isFetchingNextPage}
+                  onLoadMore={() => {
+                    void detail.fetchNextPage();
+                  }}
+                />
+              ) : null}
+              <p className="text-xs text-muted-foreground">{intl.formatMessage(m.snapshot)}</p>
+            </>
+          ) : null}
+        </section>
       ) : null}
+      <QaProjectSettingsDialog
+        settings={settings}
+        isSaving={settingsMutation.isPending}
+        isError={settingsMutation.isError}
+        onSave={(json) => settingsMutation.mutate(json)}
+      />
     </ProjectPageShell>
   );
 });
