@@ -95,11 +95,13 @@ func BenchmarkGlossaryFindings(b *testing.B) {
 	policy := benchPolicy()
 	segments := benchSegments(5)
 
+	matcher := newGlossaryMatcher(policy)
+
 	for _, segment := range segments {
 		b.Run(segment.SourcePath+"/"+segment.ID, func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				_ = glossaryFindings(segment, policy)
+				_ = matcher.findings(segment)
 			}
 		})
 	}

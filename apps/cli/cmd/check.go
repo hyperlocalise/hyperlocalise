@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -33,6 +32,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/errgroup"
 )
 
 var runCheckFixSvc = runsvc.Run
@@ -117,10 +117,6 @@ type checkSummary struct {
 	BySeverity map[string]int `json:"bySeverity"`
 	ByBucket   map[string]int `json:"byBucket"`
 	ByLocale   map[string]int `json:"byLocale"`
-}
-
-type checkLocationResolver struct {
-	content map[string][]byte
 }
 
 type checkReport struct {
@@ -474,6 +470,9 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	collectSpan.End()
 
 	sortCheckFindings(collected.Findings)
+	if err := ctx.Err(); err != nil {
+		return checkReport{}, err
+	}
 	if qaPolicy != nil {
 		for name, setting := range qaPolicy.Checks {
 			if setting.Enabled {
@@ -710,7 +709,9 @@ func executeCheckFix(cmd *cobra.Command, parentCtx context.Context, o checkOptio
 	)
 
 	output := cmd.OutOrStdout()
-	runCtx, stop := signal.NotifyContext(fixCtx, os.Interrupt)
+	// The root context already cancels on SIGINT/SIGTERM; this cancel lets the progress UI stop
+	// the run when it captures Ctrl+C as a key press.
+	runCtx, stop := context.WithCancel(fixCtx)
 	defer stop()
 
 	var renderer *progressui.Renderer
@@ -1005,76 +1006,107 @@ func normalizeCheckChangedKeys(changed map[string]struct{}, prefixIndex packPref
 	return out, nil
 }
 
+// checkSourceJob is one selected source file and its parsed entries.
+type checkSourceJob struct {
+	desc           checkSourceDescriptor
+	entries        map[string]string
+	packedToSource map[string]string
+}
+
+// checkPairResult holds the findings and cloud QA segments for one source/target pair.
+type checkPairResult struct {
+	findings    []checkFinding
+	qaSegments  []qavalidate.Segment
+	qaLocations []cloudQALocation
+}
+
 func collectCheckFindings(ctx context.Context, index *checkConfigIndex, enabledChecks []string, selection checkSelection, prefixID, ignoreDuplicateID bool, prefixIndex packPrefixIndex, qaPolicy *qavalidate.Policy) (checkReport, error) {
 	parser := translationfileparser.NewDefaultStrategy()
-	resolver := checkLocationResolver{content: make(map[string][]byte)}
+	files := newCheckFileCache()
+	resolver := &checkLocationResolver{files: files}
 	checkSet := make(map[string]struct{}, len(enabledChecks))
 	for _, check := range enabledChecks {
 		checkSet[check] = struct{}{}
+	}
+	workers := runtime.GOMAXPROCS(0)
+
+	sources := make([]checkSourceJob, 0, len(index.sources))
+	for _, sourceDesc := range index.sources {
+		if selection.allowsSource(sourceDesc.sourcePath) {
+			sources = append(sources, checkSourceJob{desc: sourceDesc})
+		}
+	}
+	sourceGroup, sourceCtx := errgroup.WithContext(ctx)
+	sourceGroup.SetLimit(workers)
+	for i := range sources {
+		sourceGroup.Go(func() error {
+			if err := sourceCtx.Err(); err != nil {
+				return err
+			}
+			job := &sources[i]
+			entries, err := readCheckSourceEntries(parser, files, job.desc.sourcePath, index.sourceLocale)
+			if err != nil {
+				return err
+			}
+			if prefixID {
+				entries, job.packedToSource, err = normalizeCheckSourceEntries(entries, prefixIndex, ignoreDuplicateID)
+				if err != nil {
+					return err
+				}
+			}
+			job.entries = entries
+			return nil
+		})
+	}
+	if err := sourceGroup.Wait(); err != nil {
+		return checkReport{}, checkContextError(ctx, err)
+	}
+
+	type pairJob struct {
+		source *checkSourceJob
+		target checkTargetDescriptor
+	}
+	sourceEntryKeysByPacked := make(map[string]map[string]string)
+	var pairs []pairJob
+	for i := range sources {
+		source := &sources[i]
+		if len(source.packedToSource) > 0 {
+			sourceEntryKeysByPacked[filepath.Clean(source.desc.sourcePath)] = source.packedToSource
+		}
+		for _, target := range source.desc.targets {
+			if selection.allowsLocale(source.desc.sourcePath, target.locale) {
+				pairs = append(pairs, pairJob{source: source, target: target})
+			}
+		}
+	}
+
+	results := make([]checkPairResult, len(pairs))
+	pairGroup, pairCtx := errgroup.WithContext(ctx)
+	pairGroup.SetLimit(workers)
+	for i, pair := range pairs {
+		pairGroup.Go(func() error {
+			if err := pairCtx.Err(); err != nil {
+				return err
+			}
+			result, err := collectCheckPairFindings(pairCtx, parser, files, resolver, pair.source.desc.bucketName, pair.source.desc.sourcePath, pair.target, pair.source.entries, checkSet, selection, qaPolicy != nil)
+			if err != nil {
+				return err
+			}
+			results[i] = result
+			return nil
+		})
+	}
+	if err := pairGroup.Wait(); err != nil {
+		return checkReport{}, checkContextError(ctx, err)
 	}
 
 	var findings []checkFinding
 	var qaSegments []qavalidate.Segment
 	var qaLocations []cloudQALocation
-	sourceEntryKeysByPacked := make(map[string]map[string]string)
-	for _, sourceDesc := range index.sources {
-		if !selection.allowsSource(sourceDesc.sourcePath) {
-			continue
-		}
-		sourceEntries, err := readEntriesForStatus(parser, sourceDesc.sourcePath, index.sourceLocale)
-		if err != nil {
-			return checkReport{}, err
-		}
-		if prefixID {
-			var packedToSource map[string]string
-			sourceEntries, packedToSource, err = normalizeCheckSourceEntries(sourceEntries, prefixIndex, ignoreDuplicateID)
-			if err != nil {
-				return checkReport{}, err
-			}
-			if len(packedToSource) > 0 {
-				sourceEntryKeysByPacked[filepath.Clean(sourceDesc.sourcePath)] = packedToSource
-			}
-		}
-		for _, target := range sourceDesc.targets {
-			if !selection.allowsLocale(sourceDesc.sourcePath, target.locale) {
-				continue
-			}
-
-			targetEntries, sourceContent, targetContent, targetExists, err := readCheckTargetEntries(parser, sourceDesc.sourcePath, target.targetPath, target.locale)
-			if err != nil {
-				return checkReport{}, err
-			}
-			if !targetExists {
-				if selection.shouldRunFileScopedChecks() {
-					if _, ok := checkSet[checkMissingTargetFile]; ok {
-						annotationFile, annotationLine := resolver.resolve(sourceDesc.sourcePath, target.targetPath, "", "", "", true)
-						findings = append(findings, checkFinding{
-							Type:           checkMissingTargetFile,
-							Severity:       severityForCheck(checkMissingTargetFile),
-							Bucket:         sourceDesc.bucketName,
-							Locale:         target.locale,
-							SourceFile:     sourceDesc.sourcePath,
-							TargetFile:     target.targetPath,
-							Message:        "target file does not exist",
-							AnnotationFile: annotationFile,
-							AnnotationLine: annotationLine,
-						})
-					}
-				}
-				if qaPolicy != nil {
-					appendCloudQASegments(&qaSegments, &qaLocations, selection, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceEntries, nil, true)
-				}
-				continue
-			}
-
-			findings = append(findings, collectEntryCheckFindings(&resolver, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceEntries, targetEntries, checkSet, selection)...)
-			if qaPolicy != nil {
-				appendCloudQASegments(&qaSegments, &qaLocations, selection, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceEntries, targetEntries, false)
-			}
-			if selection.shouldRunFileScopedChecks() && hasCheck(checkSet, checkMarkdownAST) && isMarkdownPath(target.targetPath) {
-				findings = append(findings, collectMarkdownASTParityFindings(&resolver, sourceDesc.bucketName, target.locale, sourceDesc.sourcePath, target.targetPath, sourceContent, targetContent)...)
-			}
-		}
+	for _, result := range results {
+		findings = append(findings, result.findings...)
+		qaSegments = append(qaSegments, result.qaSegments...)
+		qaLocations = append(qaLocations, result.qaLocations...)
 	}
 	if qaPolicy != nil && len(qaSegments) > 0 {
 		report, err := qavalidate.ValidateBatch(ctx, qaSegments, *qaPolicy)
@@ -1100,6 +1132,56 @@ func collectCheckFindings(ctx context.Context, index *checkConfigIndex, enabledC
 		Findings:                findings,
 		sourceEntryKeysByPacked: sourceEntryKeysByPacked,
 	}, nil
+}
+
+// checkContextError prefers the caller's cancellation over the errors it caused in workers.
+func checkContextError(ctx context.Context, err error) error {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	return err
+}
+
+func collectCheckPairFindings(ctx context.Context, parser *translationfileparser.Strategy, files *checkFileCache, resolver *checkLocationResolver, bucketName, sourcePath string, target checkTargetDescriptor, sourceEntries map[string]string, checkSet map[string]struct{}, selection checkSelection, cloudQA bool) (checkPairResult, error) {
+	var result checkPairResult
+	targetEntries, targetExists, err := readCheckTargetEntries(parser, files, sourcePath, target.targetPath, target.locale)
+	if err != nil {
+		return result, err
+	}
+	if !targetExists {
+		if selection.shouldRunFileScopedChecks() {
+			if _, ok := checkSet[checkMissingTargetFile]; ok {
+				annotationFile, annotationLine := resolver.resolve(sourcePath, target.targetPath, "", "", "", true)
+				result.findings = append(result.findings, checkFinding{
+					Type:           checkMissingTargetFile,
+					Severity:       severityForCheck(checkMissingTargetFile),
+					Bucket:         bucketName,
+					Locale:         target.locale,
+					SourceFile:     sourcePath,
+					TargetFile:     target.targetPath,
+					Message:        "target file does not exist",
+					AnnotationFile: annotationFile,
+					AnnotationLine: annotationLine,
+				})
+			}
+		}
+		if cloudQA {
+			appendCloudQASegments(&result.qaSegments, &result.qaLocations, selection, bucketName, target.locale, sourcePath, target.targetPath, sourceEntries, nil, true)
+		}
+		return result, nil
+	}
+
+	result.findings = append(result.findings, collectEntryCheckFindings(ctx, resolver, bucketName, target.locale, sourcePath, target.targetPath, sourceEntries, targetEntries, checkSet, selection)...)
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
+	if cloudQA {
+		appendCloudQASegments(&result.qaSegments, &result.qaLocations, selection, bucketName, target.locale, sourcePath, target.targetPath, sourceEntries, targetEntries, false)
+	}
+	if selection.shouldRunFileScopedChecks() && hasCheck(checkSet, checkMarkdownAST) && isMarkdownPath(target.targetPath) {
+		result.findings = append(result.findings, collectMarkdownASTParityFindings(resolver, bucketName, target.locale, sourcePath, target.targetPath)...)
+	}
+	return result, nil
 }
 
 type cloudQALocation struct {
@@ -1143,65 +1225,87 @@ func appendCloudQASegments(
 	}
 }
 
-func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, targetPath, locale string) (map[string]string, []byte, []byte, bool, error) {
-	ext := strings.ToLower(filepath.Ext(targetPath))
-	if ext == ".md" || ext == ".mdx" {
-		sourceContent, err := os.ReadFile(sourcePath)
-		if err != nil {
-			return nil, nil, nil, false, err
-		}
-		targetContent, err := os.ReadFile(targetPath)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil, nil, nil, false, nil
-			}
-			return nil, nil, nil, false, err
-		}
-		targetEntries := translationfileparser.AlignMarkdownTargetToSource(sourceContent, targetContent, ext == ".mdx")
-		return targetEntries, sourceContent, targetContent, true, nil
-	}
-	if translationfileparser.IsAsciiDocDocumentExtension(targetPath) {
-		sourceContent, err := os.ReadFile(sourcePath)
-		if err != nil {
-			return nil, nil, nil, false, err
-		}
-		targetContent, err := os.ReadFile(targetPath)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil, nil, nil, false, nil
-			}
-			return nil, nil, nil, false, err
-		}
-		targetEntries := translationfileparser.AlignAsciiDocTargetToSource(sourceContent, targetContent)
-		return targetEntries, sourceContent, targetContent, true, nil
-	}
-	if translationfileparser.IsPlainTextDocumentExtension(targetPath) {
-		sourceContent, err := os.ReadFile(sourcePath)
-		if err != nil {
-			return nil, nil, nil, false, err
-		}
-		targetContent, err := os.ReadFile(targetPath)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil, nil, nil, false, nil
-			}
-			return nil, nil, nil, false, err
-		}
-		targetEntries := translationfileparser.AlignPlainTextTargetToSource(sourceContent, targetContent)
-		return targetEntries, sourceContent, targetContent, true, nil
-	}
-
-	targetEntries, err := readTargetEntriesForStatus(parser, sourcePath, targetPath, locale)
+func readCheckSourceEntries(parser *translationfileparser.Strategy, files *checkFileCache, sourcePath, sourceLocale string) (map[string]string, error) {
+	content, err := files.read(sourcePath)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil, nil, false, nil
-		}
-		return nil, nil, nil, false, err
+		return nil, err
 	}
-	return targetEntries, nil, nil, true, nil
+	entries, _, err := parser.ParseSource(sourcePath, content, sourceLocale)
+	if err != nil {
+		return nil, fmt.Errorf("parse translation file %q: %w", sourcePath, err)
+	}
+	return entries, nil
 }
 
-func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string, sourceEntries, targetEntries map[string]string, checkSet map[string]struct{}, selection checkSelection) []checkFinding {
+// readCheckTargetEntries returns the target entries keyed like the source. A missing target
+// file reports exists=false without an error.
+func readCheckTargetEntries(parser *translationfileparser.Strategy, files *checkFileCache, sourcePath, targetPath, locale string) (map[string]string, bool, error) {
+	ext := strings.ToLower(filepath.Ext(targetPath))
+	isMarkdown := ext == ".md" || ext == ".mdx"
+	isAsciiDoc := translationfileparser.IsAsciiDocDocumentExtension(targetPath)
+	isPlainText := translationfileparser.IsPlainTextDocumentExtension(targetPath)
+
+	var sourceContent []byte
+	if isMarkdown || isAsciiDoc || isPlainText {
+		content, err := files.read(sourcePath)
+		if err != nil {
+			return nil, false, err
+		}
+		sourceContent = content
+	}
+	targetContent, err := files.read(targetPath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+
+	switch {
+	case isMarkdown:
+		mdx := ext == ".mdx"
+		sourceDoc, err := files.markdownDocument(sourcePath, mdx)
+		if err != nil {
+			return nil, false, err
+		}
+		targetDoc, err := files.markdownDocument(targetPath, mdx)
+		if err != nil {
+			return nil, false, err
+		}
+		return sourceDoc.AlignTargetDocument(targetDoc), true, nil
+	case isAsciiDoc:
+		sourceDoc, err := files.asciiDocDocument(sourcePath)
+		if err != nil {
+			return nil, false, err
+		}
+		targetDoc, err := files.asciiDocDocument(targetPath)
+		if err != nil {
+			return nil, false, err
+		}
+		return sourceDoc.AlignTargetDocument(targetDoc), true, nil
+	case isPlainText:
+		return translationfileparser.AlignPlainTextTargetToSource(sourceContent, targetContent), true, nil
+	case ext == ".xcstrings" || ext == ".csv" || ext == ".tsv":
+		entries, err := parser.ParseWithLocale(targetPath, targetContent, locale)
+		if err != nil {
+			return nil, false, fmt.Errorf("parse translation file %q: %w", targetPath, err)
+		}
+		return entries, true, nil
+	default:
+		entries, _, err := parser.ParseSource(targetPath, targetContent, "")
+		if err != nil {
+			return nil, false, fmt.Errorf("parse translation file %q: %w", targetPath, err)
+		}
+		return entries, true, nil
+	}
+}
+
+// checkCancelInterval is how many keys collectEntryCheckFindings processes between cancellation checks.
+const checkCancelInterval = 1024
+
+// collectEntryCheckFindings returns early with partial findings when ctx is cancelled; callers
+// check ctx.Err() before using the result.
+func collectEntryCheckFindings(ctx context.Context, resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string, sourceEntries, targetEntries map[string]string, checkSet map[string]struct{}, selection checkSelection) []checkFinding {
 	keys := make([]string, 0, len(sourceEntries))
 	for key := range sourceEntries {
 		keys = append(keys, key)
@@ -1209,7 +1313,10 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 	slices.Sort(keys)
 
 	findings := make([]checkFinding, 0)
-	for _, key := range keys {
+	for i, key := range keys {
+		if i%checkCancelInterval == 0 && ctx.Err() != nil {
+			return findings
+		}
 		if !selection.allowsKey(sourcePath, key) {
 			continue
 		}
@@ -1394,14 +1501,23 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 	return findings
 }
 
-func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string, sourceContent, targetContent []byte) []checkFinding {
-	if len(sourceContent) == 0 || len(targetContent) == 0 {
+func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string) []checkFinding {
+	files := resolver.files
+	sourceContent, sourceErr := files.read(sourcePath)
+	targetContent, targetErr := files.read(targetPath)
+	if sourceErr != nil || targetErr != nil || len(sourceContent) == 0 || len(targetContent) == 0 {
 		return nil
 	}
-	sourceMDX := strings.EqualFold(filepath.Ext(sourcePath), ".mdx")
-	targetMDX := strings.EqualFold(filepath.Ext(targetPath), ".mdx")
-	sourcePaths := translationfileparser.MarkdownASTPaths(sourceContent, sourceMDX)
-	targetPaths := translationfileparser.MarkdownASTPaths(targetContent, targetMDX)
+	sourceDoc, err := files.markdownDocument(sourcePath, strings.EqualFold(filepath.Ext(sourcePath), ".mdx"))
+	if err != nil {
+		return nil
+	}
+	targetDoc, err := files.markdownDocument(targetPath, strings.EqualFold(filepath.Ext(targetPath), ".mdx"))
+	if err != nil {
+		return nil
+	}
+	sourcePaths := sourceDoc.ASTPaths()
+	targetPaths := targetDoc.ASTPaths()
 
 	sourceSet := make(map[string]struct{}, len(sourcePaths))
 	for _, path := range sourcePaths {
@@ -2136,95 +2252,6 @@ func severityForCheck(name string) string {
 	default:
 		return checkSeverityError
 	}
-}
-
-func (r *checkLocationResolver) resolve(sourcePath, targetPath, key, sourceValue, targetValue string, preferSource bool) (string, int) {
-	primaryPath, primaryValue := targetPath, targetValue
-	secondaryPath, secondaryValue := sourcePath, sourceValue
-	if preferSource {
-		primaryPath, primaryValue, secondaryPath, secondaryValue = sourcePath, sourceValue, targetPath, targetValue
-	}
-	if file, line := r.resolveInFile(primaryPath, key, primaryValue); file != "" {
-		return file, line
-	}
-	if file, line := r.resolveInFile(secondaryPath, key, secondaryValue); file != "" {
-		return file, line
-	}
-	if primaryPath != "" {
-		return primaryPath, 1
-	}
-	if secondaryPath != "" {
-		return secondaryPath, 1
-	}
-	return "", 0
-}
-
-func (r *checkLocationResolver) resolveInFile(filePath, key, value string) (string, int) {
-	if filePath == "" {
-		return "", 0
-	}
-	if r.content == nil {
-		r.content = make(map[string][]byte)
-	}
-	content, ok := r.content[filePath]
-	if !ok {
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			return "", 0
-		}
-		content = data
-		r.content[filePath] = data
-	}
-	ext := strings.ToLower(filepath.Ext(filePath))
-	if (ext == ".md" || ext == ".mdx") && strings.HasPrefix(key, "md.") {
-		if line := translationfileparser.LineForMarkdownKey(content, ext == ".mdx", key); line > 0 {
-			return filePath, line
-		}
-	}
-	if translationfileparser.IsAsciiDocDocumentExtension(filePath) && strings.HasPrefix(key, "adoc.") {
-		if line := translationfileparser.LineForAsciiDocKey(content, key); line > 0 {
-			return filePath, line
-		}
-	}
-	if line := lineForKey(content, key); line > 0 {
-		return filePath, line
-	}
-	if line := lineForValue(content, value); line > 0 {
-		return filePath, line
-	}
-	return filePath, 1
-}
-
-func lineForKey(content []byte, key string) int {
-	key = strings.TrimSpace(key)
-	if key == "" {
-		return 0
-	}
-	segments := strings.Split(key, ".")
-	for i := len(segments) - 1; i >= 0; i-- {
-		segment := strings.TrimSpace(segments[i])
-		if segment == "" {
-			continue
-		}
-		if line := lineForValue(content, `"`+segment+`"`); line > 0 {
-			return line
-		}
-	}
-	return 0
-}
-
-func lineForValue(content []byte, value string) int {
-	needle := strings.TrimSpace(value)
-	if needle == "" {
-		return 0
-	}
-	lines := strings.Split(string(content), "\n")
-	for i, line := range lines {
-		if strings.Contains(line, needle) {
-			return i + 1
-		}
-	}
-	return 0
 }
 
 func writeCheckSummaryMap(w io.Writer, heading string, counts map[string]int) error {

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -288,7 +287,9 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 	)
 
 	output := cmd.OutOrStdout()
-	runCtx, stop := signal.NotifyContext(spanCtx, os.Interrupt)
+	// The root context already cancels on SIGINT/SIGTERM; this cancel lets the progress UI stop
+	// the run when it captures Ctrl+C as a key press.
+	runCtx, stop := context.WithCancel(spanCtx)
 	defer stop()
 
 	var renderer *progressui.Renderer
