@@ -28,6 +28,15 @@ func TestPostgresAuthenticatorRequiresPool(t *testing.T) {
 	requireAuthFailure(t, err, http.StatusServiceUnavailable, "public_api_unavailable")
 }
 
+// restore runs sql when the test ends. t.Context() is already canceled by then.
+func (f dbFixture) restore(t *testing.T, sql string, args ...any) {
+	t.Helper()
+	t.Cleanup(func() {
+		_, err := f.pool.Exec(context.Background(), sql, args...)
+		require.NoError(t, err)
+	})
+}
+
 // liveMembership answers WorkOS membership lookups for the fixture's user with role.
 func (f dbFixture) liveMembership(t *testing.T, role *string) publicauth.MembershipLookup {
 	t.Helper()
@@ -89,16 +98,14 @@ func TestPostgresAuthenticatorDatabase(t *testing.T) {
 		requireAuthFailure(t, err, http.StatusUnauthorized, "unauthorized")
 
 		f.exec(t, `UPDATE organization_api_keys SET revoked_at = now() WHERE id = $1`, keyID)
-		t.Cleanup(func() { f.exec(t, `UPDATE organization_api_keys SET revoked_at = NULL WHERE id = $1`, keyID) })
+		f.restore(t, `UPDATE organization_api_keys SET revoked_at = NULL WHERE id = $1`, keyID)
 		_, err = auth.authenticate(ctx, token)
 		requireAuthFailure(t, err, http.StatusUnauthorized, "unauthorized")
 	})
 
 	t.Run("archived workspace", func(t *testing.T) {
 		f.exec(t, `UPDATE organizations SET lifecycle_status = 'archived' WHERE id = $1`, f.actor.OrganizationID)
-		t.Cleanup(func() {
-			f.exec(t, `UPDATE organizations SET lifecycle_status = 'active' WHERE id = $1`, f.actor.OrganizationID)
-		})
+		f.restore(t, `UPDATE organizations SET lifecycle_status = 'active' WHERE id = $1`, f.actor.OrganizationID)
 		_, err := auth.authenticate(ctx, token)
 		requireAuthFailure(t, err, http.StatusForbidden, "workspace_archived")
 	})
