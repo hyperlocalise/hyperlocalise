@@ -387,13 +387,13 @@ export const qaMessages = defineMessages({
   guideline: {
     defaultMessage: "Guidelines",
     description: "QA review: guideline check that runs in the editor and in project scans",
-    id: 'igEEUV9KY8',
+    id: "igEEUV9KY8",
   },
   guidelineCheckHelp: {
     defaultMessage:
       "Checked in the editor while you translate and in project QA scans when enabled. Warnings do not block saving. An error asks the translator to confirm before saving when the editor has already reported it. Each check counts toward your weekly guideline allowance; a cache hit is not billed. Flagged rows include an explanation when reasoning succeeds. If a scan hits the allowance or the checker stops, it keeps findings it already saved, leaves older guideline findings open, and notes that guideline checks were incomplete.",
     description: "Help for the guideline QA check in the editor and scans",
-    id: 'bWXwUPH5z8',
+    id: "bWXwUPH5z8",
   },
   guidelineCheckHalted: {
     defaultMessage:

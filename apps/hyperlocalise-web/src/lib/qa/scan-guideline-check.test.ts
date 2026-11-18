@@ -174,7 +174,7 @@ describe("runScanGuidelineChecks", () => {
           field: "target",
           severity: "warning",
           start: 0,
-          end: [...targetText].reduce((n, char) => n + (char.codePointAt(0)! > 0xffff ? 2 : 1), 0),
+          end: targetText.length,
           message: "This text may not match a project guideline.",
           passageId: "p1",
           reasoningAvailable: true,
@@ -217,7 +217,11 @@ describe("runScanGuidelineChecks", () => {
       ],
     });
     expect(internalCheck).toHaveBeenCalledTimes(2);
-    expect(internalCheck.mock.calls.map((call) => call[1].targetLocale).toSorted()).toEqual([
+    expect(
+      internalCheck.mock.calls
+        .map((call) => call[1].targetLocale ?? "")
+        .toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual([
       "de-DE",
       "fr-FR",
     ]);
