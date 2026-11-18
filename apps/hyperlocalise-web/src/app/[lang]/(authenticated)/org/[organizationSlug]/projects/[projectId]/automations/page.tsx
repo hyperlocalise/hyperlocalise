@@ -12,7 +12,6 @@
  */
 import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
-import { getMergedWorkspaceAutomationTemplates } from "@/lib/agents/workspace-automation-templates.server";
 import {
   getWorkspaceFeatureFlagEnabled,
   workspaceAutomationsFlag,
@@ -47,14 +46,12 @@ async function ProjectAutomationsPageLoader({
     return <FeatureTeaserPage feature="automations" scope="project" />;
   }
 
-  const templates = getMergedWorkspaceAutomationTemplates();
   const assistantEnabled = await canUseWorkspaceAutomationAssistant(auth);
 
   return (
     <AutomationsPageContent
       organizationSlug={organizationSlug}
       projectId={projectId}
-      templates={templates}
       assistantEnabled={assistantEnabled}
     />
   );

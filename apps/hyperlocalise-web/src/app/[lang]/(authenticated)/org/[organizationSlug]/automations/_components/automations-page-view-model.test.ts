@@ -10,33 +10,28 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createIntl } from "@formatjs/intl";
+import { createIntl } from "react-intl";
 import { describe, expect, it } from "vite-plus/test";
 
-import { automationTemplatesFixture, createAutomationSummary } from "./automations.fixture";
 import {
-  resolveAutomationCreatorName,
+  automationTemplatesFixture,
+  createAutomationSummary,
+  createVisualWorkflowSummary,
+} from "./automations.fixture";
+import {
+  filterAutomationListItems,
+  resolveAgentAutomationSummary,
+  resolveAutomationListCounts,
+  resolveAutomationListItems,
   resolveAutomationTools,
+  resolveUsableAutomationTemplates,
+  resolveVisualWorkflowSummary,
   resolveSortedAutomationTemplates,
   resolveTemplateCategoryTabs,
   resolveVisibleAutomations,
 } from "./automations-page-view-model";
 
 const intl = createIntl({ locale: "en", messages: {} });
-
-describe("resolveAutomationCreatorName", () => {
-  it("uses the author display name when present", () => {
-    expect(
-      resolveAutomationCreatorName(intl, createAutomationSummary({ authorName: "Ada Lovelace" })),
-    ).toBe("Ada Lovelace");
-  });
-
-  it("falls back to Unknown when the author is missing", () => {
-    expect(resolveAutomationCreatorName(intl, createAutomationSummary({ authorName: null }))).toBe(
-      "Unknown",
-    );
-  });
-});
 
 describe("resolveVisibleAutomations", () => {
   it("hides archived automations", () => {
@@ -56,6 +51,80 @@ describe("resolveVisibleAutomations", () => {
     expect(
       resolveVisibleAutomations([matching, other, unscoped], "project-1").map((item) => item.id),
     ).toEqual(["matching"]);
+  });
+});
+
+describe("resolveAutomationListItems", () => {
+  const agent = createAutomationSummary({
+    id: "agent",
+    name: "Validate on push",
+    updatedAt: "2026-06-01T00:00:00.000Z",
+  });
+  const workflow = createVisualWorkflowSummary({
+    id: "workflow",
+    name: "Release check",
+    updatedAt: "2026-06-05T00:00:00.000Z",
+  });
+
+  it("lists agents and workflows together, most recently changed first", () => {
+    const items = resolveAutomationListItems([agent], [workflow]);
+
+    expect(items.map((item) => [item.type, item.id])).toEqual([
+      ["workflow", "workflow"],
+      ["agent", "agent"],
+    ]);
+  });
+
+  it("leaves out archived workflows and content syncs", () => {
+    const items = resolveAutomationListItems(
+      [agent, createAutomationSummary({ id: "sync", kind: "content_sync" })],
+      [workflow, createVisualWorkflowSummary({ id: "archived", status: "archived" })],
+    );
+
+    expect(items.map((item) => item.id).toSorted()).toEqual(["agent", "workflow"]);
+  });
+
+  it("lists agents alone on a project's page", () => {
+    const items = resolveAutomationListItems([agent], [workflow], "project-1");
+
+    expect(items.map((item) => item.id)).toEqual(["agent"]);
+  });
+
+  it("counts and filters by status, type and name", () => {
+    const paused = createAutomationSummary({ id: "paused", name: "Paused sync", status: "paused" });
+    const items = resolveAutomationListItems([agent, paused], [workflow]);
+
+    expect(resolveAutomationListCounts(items)).toEqual({ all: 3, active: 1, paused: 1, draft: 1 });
+    const filter = (filters: Partial<Parameters<typeof filterAutomationListItems>[1]>) =>
+      filterAutomationListItems(items, { status: "all", type: "all", query: "", ...filters }).map(
+        (item) => item.id,
+      );
+    expect(filter({ status: "draft" })).toEqual(["workflow"]);
+    expect(filter({ type: "agent" }).toSorted()).toEqual(["agent", "paused"]);
+    expect(filter({ query: "  RELEASE " })).toEqual(["workflow"]);
+  });
+});
+
+describe("automation summaries", () => {
+  it("reads an agent as its trigger and then its tools", () => {
+    expect(resolveAgentAutomationSummary(intl, createAutomationSummary())).toBe(
+      "GitHub push → GitHub, Slack",
+    );
+  });
+
+  it("reads a workflow as its trigger and then how many steps follow", () => {
+    expect(resolveVisualWorkflowSummary(intl, createVisualWorkflowSummary())).toBe(
+      "Manual → 2 steps",
+    );
+  });
+});
+
+describe("resolveUsableAutomationTemplates", () => {
+  it("leaves out the templates that are not ready yet", () => {
+    const usable = resolveUsableAutomationTemplates(automationTemplatesFixture);
+
+    expect(usable.length).toBeGreaterThan(0);
+    expect(usable.every((template) => template.activatable)).toBe(true);
   });
 });
 

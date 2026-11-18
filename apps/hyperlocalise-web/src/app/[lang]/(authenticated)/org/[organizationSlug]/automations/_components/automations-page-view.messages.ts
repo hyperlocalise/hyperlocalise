@@ -35,55 +35,153 @@ export const automationsPageViewMessages = defineMessages({
     id: "RkEdGugJ9D",
     description: "Button to create a new workspace automation",
   },
-  visualWorkflows: {
-    defaultMessage: "Visual workflows",
-    id: "zK2bwfb+JP",
-    description: "Link from automations list to visual workflows",
-  },
   loadingAutomations: {
     defaultMessage: "Loading automations",
     id: "o1Kg4Vat6I",
     description: "Accessible label while the automations list is loading",
-  },
-  totalAutomations: {
-    defaultMessage: "Total automations",
-    id: "LWbZAQ/S/H",
-    description: "Stat card label for total automation count",
-  },
-  activeCount: {
-    defaultMessage: "Active",
-    id: "SluNUViHRX",
-    description: "Stat card label for active automation count",
-  },
-  pausedCount: {
-    defaultMessage: "Paused",
-    id: "zxNwuNh3O4",
-    description: "Stat card label for paused automation count",
   },
   columnAutomation: {
     defaultMessage: "Automation",
     id: "phMXmlQCix",
     description: "Automations list column header for name",
   },
-  columnTools: {
-    defaultMessage: "Tools",
-    id: "DWXDNH6bM+",
-    description: "Automations list column header for tools",
-  },
   columnStatus: {
     defaultMessage: "Status",
     id: "g/SyG0phTI",
     description: "Automations list column header for status",
   },
-  columnCreator: {
-    defaultMessage: "Owner",
-    id: "D6Mi/m5caE",
-    description: "Automations list column header for owner",
+  columnType: {
+    defaultMessage: "Type",
+    id: "1qL0M/R6/C",
+    description: "Automations list column header for whether a row is an agent or a workflow",
   },
-  columnCreated: {
-    defaultMessage: "Created",
-    id: "z5k8iKEIXN",
-    description: "Automations list column header for created date",
+  columnLastRun: {
+    defaultMessage: "Last run",
+    id: "MKBXn3R7sQ",
+    description: "Automations list column header for when the automation last ran",
+  },
+  typeAgent: {
+    defaultMessage: "Agent",
+    id: "EivWPiu4Ba",
+    description:
+      "Type of automation where an AI agent works out the steps from plain-language instructions",
+  },
+  typeWorkflow: {
+    defaultMessage: "Workflow",
+    id: "mxeQQYVS7G",
+    description: "Type of automation whose steps are drawn on a canvas",
+  },
+  statusDraft: {
+    defaultMessage: "Draft",
+    id: "GDAIerdtbH",
+    description: "Badge label when a workflow has not been published yet",
+  },
+  filterAll: {
+    defaultMessage: "All",
+    id: "8mDbUiZ1Lc",
+    description: "Status filter tab on the automations list that shows every automation",
+  },
+  filterAllTypes: {
+    defaultMessage: "All types",
+    id: "6prHltOLvc",
+    description: "Type filter option on the automations list that shows agents and workflows",
+  },
+  filterTypeLabel: {
+    defaultMessage: "Type",
+    id: "VQ6A5NjwLq",
+    description: "Accessible label of the type filter on the automations list",
+  },
+  filterStatusLabel: {
+    defaultMessage: "Status",
+    id: "9U7m22JnTL",
+    description: "Accessible label of the status filter tabs on the automations list",
+  },
+  filterCount: {
+    defaultMessage: "{label} {count}",
+    id: "8P/z8xum8r",
+    description: "Status filter tab with the number of automations it shows, for example Active 3",
+  },
+  searchPlaceholder: {
+    defaultMessage: "Search automations",
+    id: "D9w64PZ8DL",
+    description: "Placeholder and accessible label of the search box on the automations list",
+  },
+  noMatches: {
+    defaultMessage: "No automations match these filters.",
+    id: "yfNXwfVcU8",
+    description: "Shown when the automations list filters or search hide every row",
+  },
+  clearFilters: {
+    defaultMessage: "Clear filters",
+    id: "SKbYojGGbi",
+    description: "Button that resets the search and filters on the automations list",
+  },
+  lastRunNever: {
+    defaultMessage: "Never",
+    id: "Uo4rwaI5U9",
+    description: "Last run cell when an automation has not run yet",
+  },
+  lastRunRunning: {
+    defaultMessage: "Running",
+    id: "DtYQFpxh2B",
+    description: "Last run cell when an automation is running or queued right now",
+  },
+  lastRunFailed: {
+    defaultMessage: "Failed · {time}",
+    id: "BjQAa4J39T",
+    description: "Last run cell when the latest run failed; time is how long ago, for example 2h",
+  },
+  lastRunUnavailable: {
+    defaultMessage: "Open to see runs",
+    id: "3IL4ds7P3n",
+    description:
+      "Accessible text for the empty last run cell of a workflow, whose runs are listed on its canvas",
+  },
+  emptyTitle: {
+    defaultMessage: "Put your localisation work on autopilot",
+    id: "xCczpLAZTo",
+    description: "Title of the automations page when the workspace has no automations",
+  },
+  emptyDescription: {
+    defaultMessage: "An automation runs when something happens and does the work for you.",
+    id: "PAUs1XBHgW",
+    description: "Text under the title of the automations page when there are no automations",
+  },
+  conceptWhen: {
+    defaultMessage: "When",
+    id: "U4uH7q/yor",
+    description: "First part of the automation explainer: what starts an automation",
+  },
+  conceptWhenExample: {
+    defaultMessage: "A pull request opens, a file is uploaded, every Monday",
+    id: "e5VJtY23cB",
+    description: "Examples of what starts an automation, in the automation explainer",
+  },
+  conceptDo: {
+    defaultMessage: "Do",
+    id: "Zc38cqbqcd",
+    description: "Second part of the automation explainer: the work an automation does",
+  },
+  conceptDoExample: {
+    defaultMessage: "Review, translate, check quality, write a report",
+    id: "RxGgbJ88Yv",
+    description: "Examples of the work an automation does, in the automation explainer",
+  },
+  conceptUsing: {
+    defaultMessage: "Using",
+    id: "6bhIe+GhSd",
+    description: "Third part of the automation explainer: the tools an automation uses",
+  },
+  conceptUsingExample: {
+    defaultMessage: "GitHub, Slack, Contentful, email and more",
+    id: "c803NwvdUl",
+    description: "Examples of the tools an automation uses, in the automation explainer",
+  },
+  browseWaysToStart: {
+    defaultMessage: "Browse templates",
+    id: "GSz/D4JeXe",
+    description:
+      "Link from the empty automations page to the page with templates and build options",
   },
   loadError: {
     defaultMessage: "Automations failed to load.",
@@ -95,11 +193,6 @@ export const automationsPageViewMessages = defineMessages({
     id: "XMW6IBe3PH",
     description: "Fallback error description when no API message is available",
   },
-  emptyList: {
-    defaultMessage: "No automations yet. Start from a template below or create a new automation.",
-    id: "Z7EtcHtkyS",
-    description: "Empty state when the workspace has no automations",
-  },
   statusActive: {
     defaultMessage: "Active",
     id: "MyhfQjH0sE",
@@ -109,38 +202,6 @@ export const automationsPageViewMessages = defineMessages({
     defaultMessage: "Paused",
     id: "+5c87/Ii+m",
     description: "Badge label when an automation is paused",
-  },
-  newAutomationSectionTitle: {
-    defaultMessage: "New automation",
-    id: "aHvMV2aQQN",
-    description: "Heading of the section of the automations page where a new automation is started",
-  },
-  newAutomationSectionDescription: {
-    defaultMessage:
-      "Describe what you want done and the assistant sets it up for you. Nothing is saved until you create it.",
-    id: "sxoIk5o3gz",
-    description: "Text under the heading of the section where a new automation is started",
-  },
-  startFromScratch: {
-    defaultMessage: "Start from scratch",
-    id: "RuPE0YKwSS",
-    description: "Button that opens an empty automation editor without the assistant",
-  },
-  orPickTemplate: {
-    defaultMessage: "or pick a template",
-    id: "QiMU0qq2o+",
-    description: "Divider between the assistant prompt box and the list of automation templates",
-  },
-  templatesTitle: {
-    defaultMessage: "Templates",
-    id: "EGX8+adWDn",
-    description: "Section heading for automation templates",
-  },
-  templatesDescription: {
-    defaultMessage:
-      "Start from a curated workflow. Templates prefill the creation form with instructions, triggers, and tools.",
-    id: "HTsdqd2HP4",
-    description: "Section description for automation templates",
   },
   categoryPopular: {
     defaultMessage: "Popular",

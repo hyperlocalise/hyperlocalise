@@ -15,6 +15,10 @@ import {
   type WorkspaceAutomationTemplate,
 } from "@/lib/agents/workspace-automation-templates";
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
+import { parseVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/definition-migration";
+import { createEmptyVisualWorkflowDefinition } from "@/lib/visual-workflows/schema/serializers";
+import type { VisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/types";
+import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
 
 /** Client-safe template data for Storybook and component tests. */
 export const automationTemplatesFixture: WorkspaceAutomationTemplate[] =
@@ -175,3 +179,34 @@ export const automationsFixture: WorkspaceAutomationRecord[] = [
     authorName: "Ada Lovelace",
   }),
 ];
+
+/** A workflow whose canvas is a manual trigger followed by two steps. */
+export function createVisualWorkflowSummary(
+  overrides: Partial<VisualWorkflowRecord> = {},
+): VisualWorkflowRecord {
+  const name = overrides.name ?? "Release localisation check";
+  const definition = parseVisualWorkflowV3Definition(createEmptyVisualWorkflowDefinition(name));
+  const steps = [
+    { id: "notify", type: "action.notify_slack", config: { kind: "action.notify_slack" } },
+    { id: "stop", type: "flow.stop", config: { kind: "flow.stop" } },
+  ] as unknown as VisualWorkflowV3Definition["nodes"];
+
+  return {
+    id: "33333333-3333-4333-8333-333333333333",
+    organizationId: "org_001",
+    authorUserId: "user_001",
+    projectId: null,
+    status: "draft",
+    name,
+    definition: { ...definition, nodes: [...definition.nodes, ...steps] },
+    definitionVersion: 1,
+    revision: 1,
+    publishedVersion: null,
+    publishedDefinition: null,
+    triggerFingerprint: null,
+    nextRunAt: null,
+    createdAt: fixedNow,
+    updatedAt: fixedNow,
+    ...overrides,
+  };
+}

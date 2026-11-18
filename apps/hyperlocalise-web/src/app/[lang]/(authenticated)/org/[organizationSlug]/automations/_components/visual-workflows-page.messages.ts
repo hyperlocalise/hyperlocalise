@@ -15,36 +15,6 @@
 import { defineMessages } from "react-intl";
 
 export const visualWorkflowsPageMessages = defineMessages({
-  pageLabel: {
-    defaultMessage: "Visual workflows",
-    id: "cFLoSPa62D",
-    description: "Breadcrumb label for the visual workflows list page",
-  },
-  pageTitle: {
-    defaultMessage: "Visual workflows",
-    id: "XEIB3MxFUn",
-    description: "Title for the visual workflows list page",
-  },
-  newWorkflow: {
-    defaultMessage: "New workflow",
-    id: "vj1b+ydRtP",
-    description: "Button that creates a new visual workflow draft",
-  },
-  emptyState: {
-    defaultMessage: "No visual workflows yet. Create one to start building on the canvas.",
-    id: "LyO/knpzIv",
-    description: "Empty state on the visual workflows list page",
-  },
-  createFailed: {
-    defaultMessage: "Could not create a workflow.",
-    id: "Dm+YgrdmFH",
-    description: "Toast when visual workflow creation fails",
-  },
-  deleteWorkflow: {
-    defaultMessage: "Delete",
-    id: "pp9OzwrBNo",
-    description: "Button that deletes a visual workflow",
-  },
   deleteTitle: {
     defaultMessage: "Delete workflow?",
     id: "Cuem8lXjuP",
@@ -79,25 +49,5 @@ export const visualWorkflowsPageMessages = defineMessages({
     defaultMessage: "Could not delete this workflow.",
     id: "it5kPOtvZj",
     description: "Toast when visual workflow deletion fails",
-  },
-  statusDraft: {
-    defaultMessage: "Draft",
-    id: "XVyJ8t4WfM",
-    description: "Visual workflow list status for unpublished drafts",
-  },
-  statusActive: {
-    defaultMessage: "Active",
-    id: "//TpvvzaTN",
-    description: "Visual workflow list status when the workflow is live",
-  },
-  statusPaused: {
-    defaultMessage: "Paused",
-    id: "ksFVpxkIyn",
-    description: "Visual workflow list status when the workflow is paused",
-  },
-  statusArchived: {
-    defaultMessage: "Archived",
-    id: "ovGZxV6gQB",
-    description: "Visual workflow list status when the workflow is archived",
   },
 });

@@ -16,10 +16,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import {
-  AUTOMATIONS_MOCK_AUTO_REVIEW_ID,
-  AutomationsMockUI,
-} from "@/components/marketing/product/automations-mock-ui";
+import { GithubLogoIcon } from "@phosphor-icons/react";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -36,11 +35,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 
 import type { GithubAutoReviewSettingsDto, GithubAutoReviewSettingsWrite } from "./automations-api";
-import { automationsPageViewMessages } from "./automations-page-view.messages";
+import { AutomationIconTile } from "./automation-icon-tile";
 import { githubAutoReviewCardMessages as messages } from "./github-auto-review-card.messages";
 
 const ADDITIONAL_PROMPT_MAX_LENGTH = 8_000;
-const MOCK_CTA_BUTTON_CLASS = "cursor-pointer rounded-sm";
 
 function GithubAutoReviewSettingsForm({
   organizationSlug,
@@ -213,7 +211,39 @@ function GithubAutoReviewSettingsForm({
   );
 }
 
-export function GithubAutoReviewCard({
+function GithubAutoReviewState({
+  settings,
+  isLoading,
+}: {
+  settings?: GithubAutoReviewSettingsDto | null;
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return <Skeleton className="h-4 w-24 rounded-full bg-muted" />;
+  }
+  if (!settings) {
+    return null;
+  }
+
+  return (
+    <span className="text-sm text-muted-foreground">
+      {settings.enabled ? (
+        <FormattedMessage
+          {...messages.stateOn}
+          values={{ count: settings.githubInstallationRepositoryIds.length }}
+        />
+      ) : (
+        <FormattedMessage {...messages.stateOff} />
+      )}
+    </span>
+  );
+}
+
+/**
+ * GitHub Auto-review, built into every workspace: one row above the automations list, with its
+ * settings in a side panel.
+ */
+export function GithubAutoReviewRow({
   organizationSlug,
   settings,
   isLoading,
@@ -231,32 +261,34 @@ export function GithubAutoReviewCard({
   const [configOpen, setConfigOpen] = useState(false);
 
   return (
-    <section className="flex flex-col gap-4">
-      <div>
-        <h2 className="font-sans text-base font-medium text-balance text-foreground">
-          <FormattedMessage {...messages.sectionTitle} />
-        </h2>
+    <section
+      aria-labelledby="github-auto-review-title"
+      className="flex flex-col gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3 sm:flex-row sm:items-center"
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <AutomationIconTile tone="builtIn">
+          <GithubLogoIcon className="size-4" />
+        </AutomationIconTile>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 id="github-auto-review-title" className="font-sans text-sm font-medium">
+              <FormattedMessage {...messages.rowTitle} />
+            </h2>
+            <Badge variant="secondary">
+              <FormattedMessage {...messages.builtIn} />
+            </Badge>
+          </div>
+          <p className="truncate text-xs text-muted-foreground">
+            <FormattedMessage {...messages.rowDescription} />
+          </p>
+        </div>
       </div>
-      <AutomationsMockUI
-        pauseAutoplay
-        renderCta={(useCaseId) =>
-          useCaseId === AUTOMATIONS_MOCK_AUTO_REVIEW_ID ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className={MOCK_CTA_BUTTON_CLASS}
-              onClick={() => setConfigOpen(true)}
-            >
-              <FormattedMessage {...messages.configure} />
-            </Button>
-          ) : (
-            <Button type="button" variant="outline" size="lg" className="rounded-sm" disabled>
-              <FormattedMessage {...automationsPageViewMessages.comingSoon} />
-            </Button>
-          )
-        }
-      />
+      <div className="flex items-center justify-between gap-4 sm:justify-end">
+        <GithubAutoReviewState settings={settings} isLoading={isLoading} />
+        <Button type="button" variant="outline" size="sm" onClick={() => setConfigOpen(true)}>
+          <FormattedMessage {...messages.configure} />
+        </Button>
+      </div>
       <Sheet open={configOpen} onOpenChange={setConfigOpen}>
         <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl md:max-w-2xl">
           <SheetHeader>

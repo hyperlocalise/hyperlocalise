@@ -15,7 +15,7 @@
 
 import type { ComponentProps, ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -23,12 +23,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
 import { takeAutomationAssistantHandoff } from "@/lib/automation-assistant/handoff";
 
-import { automationTemplatesFixture, createAutomationSummary } from "./automations.fixture";
+import { createAutomationSummary, createVisualWorkflowSummary } from "./automations.fixture";
 import { AutomationsPageContent } from "./automations-page-content";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   listAutomations: vi.fn(),
+  listVisualWorkflows: vi.fn(),
   aiFeaturesStatus: { status: "allowed" as "loading" | "allowed" | "denied" },
 }));
 
@@ -50,6 +51,8 @@ vi.mock("@/lib/api-client-instance", () => ({ apiClient: {} }));
 
 vi.mock("./automations-api", () => ({ createAutomationsApi: () => ({}) }));
 
+vi.mock("./visual-workflows-api", () => ({ createVisualWorkflowsApi: () => ({}) }));
+
 vi.mock("@/lib/billing/use-ai-features-access", () => ({
   useAiFeaturesAccess: () => mocks.aiFeaturesStatus,
 }));
@@ -69,9 +72,9 @@ function renderPage(props: Partial<ComponentProps<typeof AutomationsPageContent>
         <AppShellStoreProvider defaultNavigationGroups={[]}>
           <AutomationsPageContent
             organizationSlug="acme"
-            templates={[]}
             assistantEnabled
             automationsApi={automationsApi}
+            visualWorkflowsApi={{ listVisualWorkflows: mocks.listVisualWorkflows }}
             {...props}
           />
         </AppShellStoreProvider>
@@ -79,9 +82,6 @@ function renderPage(props: Partial<ComponentProps<typeof AutomationsPageContent>
     </IntlProvider>,
   );
 }
-
-const EMPTY_LIST_TEXT =
-  "No automations yet. Start from a template below or create a new automation.";
 
 function promptBox() {
   return screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Describe the automation" });
@@ -94,29 +94,110 @@ async function listLoaded() {
   });
 }
 
-const scrollIntoView = vi.fn();
-
 beforeEach(() => {
   mocks.listAutomations.mockResolvedValue([]);
-  Element.prototype.scrollIntoView = scrollIntoView;
-  window.matchMedia = vi.fn().mockReturnValue({ matches: false });
+  mocks.listVisualWorkflows.mockResolvedValue([]);
 });
 
 afterEach(() => {
   vi.clearAllMocks();
   mocks.aiFeaturesStatus.status = "allowed";
-  window.location.hash = "";
 });
 
 describe("AutomationsPageContent", () => {
-  it("hands what the person asked for to the setup page", async () => {
+  it("sends New automation to the page where a new automation starts", async () => {
+    mocks.listAutomations.mockResolvedValue([createAutomationSummary()]);
+    renderPage();
+    await listLoaded();
+
+    expect(screen.getByRole("link", { name: "New automation" }).getAttribute("href")).toBe(
+      "/org/acme/automations/create",
+    );
+    expect(screen.queryByRole("textbox", { name: "Describe the automation" })).toBeNull();
+  });
+
+  it("lists agents and workflows together for someone who can open workflows", async () => {
+    mocks.listAutomations.mockResolvedValue([createAutomationSummary()]);
+    mocks.listVisualWorkflows.mockResolvedValue([createVisualWorkflowSummary()]);
+    renderPage({ canOpenVisualWorkflows: true });
+
+    const workflowRow = await screen.findByRole("link", { name: /Release localisation check/ });
+    expect(workflowRow.getAttribute("href")).toBe(
+      "/org/acme/automations/visual-workflows/33333333-3333-4333-8333-333333333333",
+    );
+    expect(within(workflowRow).getByText("Workflow")).toBeTruthy();
+    expect(within(workflowRow).getByText("Manual → 2 steps")).toBeTruthy();
+    const agentRow = screen.getByRole("link", { name: /Validate localisation on push/ });
+    expect(within(agentRow).getByText("Agent")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Draft 1" })).toBeTruthy();
+  });
+
+  it("does not ask for workflows without access to them", async () => {
+    mocks.listAutomations.mockResolvedValue([createAutomationSummary()]);
+    renderPage();
+    await listLoaded();
+
+    expect(mocks.listVisualWorkflows).not.toHaveBeenCalled();
+    expect(screen.queryByRole("combobox", { name: "Type" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: /Draft/ })).toBeNull();
+  });
+
+  it("opens on workflows alone when the address asks for them", async () => {
+    mocks.listAutomations.mockResolvedValue([createAutomationSummary()]);
+    mocks.listVisualWorkflows.mockResolvedValue([createVisualWorkflowSummary()]);
+    renderPage({ canOpenVisualWorkflows: true, initialTypeFilter: "workflow" });
+
+    expect(await screen.findByText("Release localisation check")).toBeTruthy();
+    expect(screen.queryByText("Validate localisation on push")).toBeNull();
+  });
+
+  it("filters by status and by name, and clears the filters", async () => {
     const user = userEvent.setup();
+    mocks.listAutomations.mockResolvedValue([
+      createAutomationSummary(),
+      createAutomationSummary({ id: "paused", name: "Weekly sync", status: "paused" }),
+    ]);
+    renderPage();
+    await listLoaded();
+
+    await user.click(screen.getByRole("tab", { name: "Paused 1" }));
+    expect(screen.getByText("Weekly sync")).toBeTruthy();
+    expect(screen.queryByText("Validate localisation on push")).toBeNull();
+
+    await user.type(screen.getByRole("searchbox", { name: "Search automations" }), "release");
+    expect(screen.getByText("No automations match these filters.")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByText("Weekly sync")).toBeTruthy();
+    expect(screen.getByText("Validate localisation on push")).toBeTruthy();
+  });
+
+  it("shows when the latest run failed", async () => {
+    mocks.listAutomations.mockResolvedValue([
+      createAutomationSummary({
+        lastRunStatus: "failed",
+        lastRunAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      }),
+    ]);
     renderPage();
 
-    await user.type(
-      screen.getByRole("textbox", { name: "Describe the automation" }),
-      "Post a weekly summary to Slack",
+    expect(await screen.findByText("Failed · 2h")).toBeTruthy();
+  });
+
+  it("explains automations and offers the prompt box to a workspace with none", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await listLoaded();
+
+    expect(
+      screen.getByRole("heading", { name: "Put your localisation work on autopilot" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("searchbox", { name: "Search automations" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Browse templates" }).getAttribute("href")).toBe(
+      "/org/acme/automations/create",
     );
+
+    await user.type(promptBox(), "Post a weekly summary to Slack");
     await user.click(screen.getByRole("button", { name: "Set it up" }));
 
     await waitFor(() => {
@@ -129,11 +210,9 @@ describe("AutomationsPageContent", () => {
   it("sends a project's request to that project's setup page", async () => {
     const user = userEvent.setup();
     renderPage({ projectId: "proj_1" });
+    await listLoaded();
 
-    await user.type(
-      screen.getByRole("textbox", { name: "Describe the automation" }),
-      "Translate new articles",
-    );
+    await user.type(promptBox(), "Translate new articles");
     await user.click(screen.getByRole("button", { name: "Set it up" }));
 
     await waitFor(() => {
@@ -141,91 +220,23 @@ describe("AutomationsPageContent", () => {
     });
   });
 
-  it("puts the new-automation section below the list of automations", async () => {
-    mocks.listAutomations.mockResolvedValue([createAutomationSummary()]);
-    renderPage({ templates: automationTemplatesFixture });
-
-    // The creator's name is only in the list; the automation's own name is also a template's.
-    const creator = await screen.findByText("Ada Lovelace");
-    const heading = screen.getByRole("heading", { name: "New automation" });
-    expect(
-      creator.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Start from scratch" }).getAttribute("href")).toBe(
-      "/org/acme/automations/new",
-    );
-    expect(screen.getByText("or pick a template")).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Templates" })).toBeNull();
-  });
-
-  it("shows the section in place of the list when there are no automations", async () => {
-    renderPage();
-    await listLoaded();
-
-    expect(screen.getByRole("heading", { name: "New automation" })).toBeTruthy();
-    expect(screen.queryByText(EMPTY_LIST_TEXT)).toBeNull();
-    expect(screen.queryByText("Owner")).toBeNull();
-  });
-
   it("keeps the list when it could not be loaded", async () => {
     mocks.listAutomations.mockRejectedValue(new Error("network down"));
     renderPage();
 
     expect(await screen.findByText("network down")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "New automation" })).toBeTruthy();
+    expect(
+      screen.queryByRole("heading", { name: "Put your localisation work on autopilot" }),
+    ).toBeNull();
   });
 
-  it("takes the person to the prompt box from the New automation button", async () => {
-    const user = userEvent.setup();
-    mocks.listAutomations.mockResolvedValue([createAutomationSummary()]);
-    renderPage();
+  it("leaves the prompt box out without the assistant", async () => {
+    renderPage({ assistantEnabled: false });
     await listLoaded();
 
-    await user.click(screen.getByRole("button", { name: "New automation" }));
-
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(scrollIntoView.mock.contexts[0]).toBe(document.getElementById("new-automation"));
-    expect(document.activeElement).toBe(promptBox());
-    expect(mocks.push).not.toHaveBeenCalled();
-  });
-
-  it("goes to the prompt box for someone who followed a link to the section", async () => {
-    window.location.hash = "#new-automation";
-    mocks.listAutomations.mockResolvedValue([createAutomationSummary()]);
-    renderPage();
-    await listLoaded();
-
-    await waitFor(() => {
-      expect(document.activeElement).toBe(promptBox());
-    });
-    expect(scrollIntoView).toHaveBeenCalled();
-  });
-
-  it("offers an upgrade in place of the prompt, and opens the editor, without AI features", async () => {
-    mocks.aiFeaturesStatus.status = "denied";
-    renderPage();
-    await listLoaded();
-
-    expect(screen.getByText("The assistant needs a plan with AI features.")).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Put your localisation work on autopilot" }),
+    ).toBeTruthy();
     expect(screen.queryByRole("textbox", { name: "Describe the automation" })).toBeNull();
-    expect(screen.getByRole("link", { name: "New automation" }).getAttribute("href")).toBe(
-      "/org/acme/automations/new",
-    );
-    expect(screen.getByRole("link", { name: "Start from scratch" })).toBeTruthy();
-  });
-
-  it("is the list and the templates, as before, without the assistant", async () => {
-    renderPage({ assistantEnabled: false, templates: automationTemplatesFixture });
-    await listLoaded();
-
-    expect(screen.getByText(EMPTY_LIST_TEXT)).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Templates" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "New automation" }).getAttribute("href")).toBe(
-      "/org/acme/automations/new",
-    );
-    expect(screen.queryByRole("heading", { name: "New automation" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Start from scratch" })).toBeNull();
-    expect(screen.queryByRole("textbox", { name: "Describe the automation" })).toBeNull();
-    expect(screen.queryByText("The assistant needs a plan with AI features.")).toBeNull();
   });
 });

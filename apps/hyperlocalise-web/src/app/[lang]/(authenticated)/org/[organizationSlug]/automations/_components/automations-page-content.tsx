@@ -13,25 +13,22 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
-import { stashAutomationAssistantHandoff } from "@/lib/automation-assistant/handoff";
-import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
-import { useOrgRouter } from "@/lib/navigation/use-org-router";
-
-import type { WorkspaceAutomationTemplate } from "@/lib/agents/workspace-automation-templates";
 
 import { createAutomationsApi } from "./automations-api";
+import type { AutomationListFilters } from "./automations-page-view-model";
 import { AUTOMATIONS_ACTION_LINK_BUTTON_PROPS, AutomationsPageView } from "./automations-page-view";
 import { githubAutoReviewCardMessages } from "./github-auto-review-card.messages";
+import { useAutomationAssistantStart } from "./use-automation-assistant-start";
+import { createVisualWorkflowsApi } from "./visual-workflows-api";
 
 const automationsApi = createAutomationsApi(apiClient);
+const visualWorkflowsApi = createVisualWorkflowsApi();
 
 function automationsQueryKey(organizationSlug: string, projectId?: string) {
   return ["workspace-automations", organizationSlug, projectId ?? "all"] as const;
@@ -72,27 +69,39 @@ function renderProductionActionLink({
 export function AutomationsPageContent({
   organizationSlug,
   projectId,
-  templates,
   assistantEnabled = false,
   canOpenVisualWorkflows = false,
+  initialTypeFilter,
   automationsApi: injectedAutomationsApi = automationsApi,
+  visualWorkflowsApi: injectedVisualWorkflowsApi = visualWorkflowsApi,
 }: {
   organizationSlug: string;
   projectId?: string;
-  templates: WorkspaceAutomationTemplate[];
   assistantEnabled?: boolean;
   canOpenVisualWorkflows?: boolean;
+  initialTypeFilter?: AutomationListFilters["type"];
   automationsApi?: typeof automationsApi;
+  visualWorkflowsApi?: Pick<typeof visualWorkflowsApi, "listVisualWorkflows">;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const router = useOrgRouter();
-  const aiFeaturesAccess = useAiFeaturesAccess();
-  const [handoffPending, setHandoffPending] = useState(false);
+  const assistant = useAutomationAssistantStart({
+    organizationSlug,
+    projectId,
+    enabled: assistantEnabled,
+  });
+  // Workflows belong to the workspace, so a project's list is agents alone.
+  const workflowsListed = canOpenVisualWorkflows && !projectId;
 
   const automationsQuery = useQuery({
     queryKey: automationsQueryKey(organizationSlug, projectId),
     queryFn: () => injectedAutomationsApi.listAutomations(organizationSlug, { projectId }),
+  });
+  const visualWorkflowsQuery = useQuery({
+    // The same key the workflow editor refreshes after a save or a delete.
+    queryKey: ["visual-workflows", organizationSlug],
+    enabled: workflowsListed,
+    queryFn: () => injectedVisualWorkflowsApi.listVisualWorkflows(organizationSlug),
   });
   const autoReviewQuery = useQuery({
     queryKey: githubAutoReviewQueryKey(organizationSlug),
@@ -121,23 +130,12 @@ export function AutomationsPageContent({
       organizationSlug={organizationSlug}
       projectId={projectId}
       automations={automationsQuery.data ?? []}
-      templates={templates}
-      assistant={
-        assistantEnabled
-          ? {
-              aiFeaturesStatus: aiFeaturesAccess.status,
-              pending: handoffPending,
-              // The setup page opens with the assistant, which starts with this request.
-              onSubmitPrompt: (text) => {
-                stashAutomationAssistantHandoff(text);
-                setHandoffPending(true);
-                router.push(`${buildAutomationsPath(organizationSlug, { projectId })}/new`);
-              },
-            }
-          : undefined
-      }
-      isLoading={automationsQuery.isLoading}
-      error={automationsQuery.error}
+      visualWorkflows={visualWorkflowsQuery.data ?? []}
+      workflowsAvailable={workflowsListed}
+      initialTypeFilter={initialTypeFilter}
+      assistant={assistant}
+      isLoading={automationsQuery.isLoading || (workflowsListed && visualWorkflowsQuery.isLoading)}
+      error={automationsQuery.error ?? visualWorkflowsQuery.error}
       autoReview={autoReviewQuery.data}
       autoReviewLoading={autoReviewQuery.isLoading}
       autoReviewError={autoReviewQuery.error}
@@ -147,7 +145,6 @@ export function AutomationsPageContent({
       }}
       renderAutomationLink={renderProductionAutomationLink}
       renderActionLink={renderProductionActionLink}
-      canOpenVisualWorkflows={canOpenVisualWorkflows}
     />
   );
 }

@@ -39,6 +39,9 @@ import {
   type WorkspaceAutomationTriggerConfig,
 } from "@/lib/agents/workspace-automation-types";
 
+import type { VisualCatalogType } from "@/lib/visual-workflows/schema/types";
+import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
+
 import { automationsPageViewModelMessages } from "./automations-page-view-model.messages";
 
 export function resolveVisibleAutomations(
@@ -56,15 +59,103 @@ export function resolveVisibleAutomations(
   });
 }
 
-export function resolveAutomationPageStats(automations: WorkspaceAutomationRecord[]) {
-  const active = automations.filter((automation) => automation.status === "active").length;
-  const paused = automations.filter((automation) => automation.status === "paused").length;
+/** The two ways to build an automation: an agent that works out the steps, or drawn steps. */
+export type AutomationListType = "agent" | "workflow";
 
+export type AutomationListStatus = "draft" | "active" | "paused";
+
+export type AutomationListItem =
+  | {
+      type: "agent";
+      id: string;
+      name: string;
+      status: AutomationListStatus;
+      updatedAt: string;
+      automation: WorkspaceAutomationRecord;
+    }
+  | {
+      type: "workflow";
+      id: string;
+      name: string;
+      status: AutomationListStatus;
+      updatedAt: string;
+      workflow: VisualWorkflowRecord;
+    };
+
+export type AutomationListFilters = {
+  status: AutomationListStatus | "all";
+  type: AutomationListType | "all";
+  query: string;
+};
+
+/**
+ * Agents and workflows as one list, most recently changed first. Content syncs and archived
+ * records are left out, and so are workflows on a project's page, since workflows belong to the
+ * workspace.
+ */
+export function resolveAutomationListItems(
+  automations: WorkspaceAutomationRecord[],
+  visualWorkflows: VisualWorkflowRecord[],
+  projectId?: string,
+): AutomationListItem[] {
+  const agents: AutomationListItem[] = resolveVisibleAutomations(automations, projectId)
+    .filter((automation) => !isContentSyncAutomation(automation))
+    .map((automation) => ({
+      type: "agent",
+      id: automation.id,
+      name: automation.name,
+      status: automation.status === "active" ? "active" : "paused",
+      updatedAt: automation.updatedAt,
+      automation,
+    }));
+  const workflows: AutomationListItem[] = projectId
+    ? []
+    : visualWorkflows.flatMap((workflow) =>
+        workflow.status === "archived"
+          ? []
+          : [
+              {
+                type: "workflow" as const,
+                id: workflow.id,
+                name: workflow.name,
+                status: workflow.status,
+                updatedAt: workflow.updatedAt,
+                workflow,
+              },
+            ],
+      );
+
+  return [...agents, ...workflows].toSorted(
+    (left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
+  );
+}
+
+export function resolveAutomationListCounts(items: AutomationListItem[]) {
   return {
-    total: automations.length,
-    active,
-    paused,
+    all: items.length,
+    active: items.filter((item) => item.status === "active").length,
+    paused: items.filter((item) => item.status === "paused").length,
+    draft: items.filter((item) => item.status === "draft").length,
   };
+}
+
+export function filterAutomationListItems(
+  items: AutomationListItem[],
+  filters: AutomationListFilters,
+) {
+  const query = filters.query.trim().toLocaleLowerCase();
+
+  return items.filter(
+    (item) =>
+      (filters.status === "all" || item.status === filters.status) &&
+      (filters.type === "all" || item.type === filters.type) &&
+      (!query || item.name.toLocaleLowerCase().includes(query)),
+  );
+}
+
+/** The templates that can be used today, in the order the template picker shows them. */
+export function resolveUsableAutomationTemplates(templates: WorkspaceAutomationTemplate[]) {
+  return resolveSortedAutomationTemplates(templates).filter((template) => template.activatable);
 }
 
 export function resolveSortedAutomationTemplates(
@@ -120,18 +211,6 @@ export function formatAutomationRelativeTimestamp(
     unit: "day",
     unitDisplay: "narrow",
   });
-}
-
-export function resolveAutomationCreatorName(
-  intl: Pick<IntlShape, "formatMessage">,
-  automation: WorkspaceAutomationRecord,
-) {
-  const name = automation.authorName?.trim();
-  if (name) {
-    return name;
-  }
-
-  return intl.formatMessage(automationsPageViewModelMessages.unknownCreator);
 }
 
 export function resolveAutomationTriggerLabel(
@@ -319,4 +398,67 @@ export function resolveAutomationTools(
     addTool(tools, "ahrefs", intl.formatMessage(automationsPageViewModelMessages.toolAhrefs));
   }
   return tools;
+}
+
+/** "When this happens → using these tools", read off an agent automation. */
+export function resolveAgentAutomationSummary(
+  intl: IntlShape,
+  automation: WorkspaceAutomationRecord,
+) {
+  const trigger = resolveAutomationTriggerLabel(intl, automation.triggerConfig, automation);
+  const tools = resolveAutomationTools(intl, automation).map((tool) => tool.label);
+  if (tools.length === 0) {
+    return trigger;
+  }
+
+  return intl.formatMessage(automationsPageViewModelMessages.agentSummary, {
+    trigger,
+    tools: intl.formatList(tools, { type: "conjunction", style: "narrow" }),
+  });
+}
+
+export type VisualWorkflowTriggerKind = Extract<VisualCatalogType, `trigger.${string}`>;
+
+/** The trigger step of a workflow as it was last published, or as drafted when never published. */
+export function resolveVisualWorkflowTriggerKind(
+  workflow: VisualWorkflowRecord,
+): VisualWorkflowTriggerKind | null {
+  const definition = workflow.publishedDefinition ?? workflow.definition;
+  const trigger = definition.nodes.find((node) => node.type.startsWith("trigger."));
+
+  return (trigger?.type as VisualWorkflowTriggerKind | undefined) ?? null;
+}
+
+function resolveVisualWorkflowTriggerLabel(
+  intl: IntlShape,
+  triggerKind: VisualWorkflowTriggerKind | null,
+) {
+  switch (triggerKind) {
+    case "trigger.manual":
+      return intl.formatMessage(automationsPageViewModelMessages.triggerManual);
+    case "trigger.scheduled":
+      return intl.formatMessage(automationsPageViewModelMessages.triggerScheduled);
+    case "trigger.github":
+      return intl.formatMessage(automationsPageViewModelMessages.workflowTriggerGithub);
+    case "trigger.source_upload":
+      return intl.formatMessage(automationsPageViewModelMessages.triggerSourceUpload);
+    case "trigger.webhook":
+      return intl.formatMessage(automationsPageViewModelMessages.workflowTriggerWebhook);
+    case "trigger.job_changed":
+      return intl.formatMessage(automationsPageViewModelMessages.workflowTriggerJobChanged);
+    case null:
+      return intl.formatMessage(automationsPageViewModelMessages.workflowNoTrigger);
+  }
+}
+
+/** "When this happens → N steps", read off a workflow's canvas. */
+export function resolveVisualWorkflowSummary(intl: IntlShape, workflow: VisualWorkflowRecord) {
+  const definition = workflow.publishedDefinition ?? workflow.definition;
+  const triggerKind = resolveVisualWorkflowTriggerKind(workflow);
+  const steps = definition.nodes.filter((node) => !node.type.startsWith("trigger.")).length;
+
+  return intl.formatMessage(automationsPageViewModelMessages.workflowSummary, {
+    trigger: resolveVisualWorkflowTriggerLabel(intl, triggerKind),
+    count: steps,
+  });
 }

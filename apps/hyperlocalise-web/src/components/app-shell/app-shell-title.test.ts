@@ -404,14 +404,17 @@ describe("getAppShellBreadcrumbs", () => {
     ]);
   });
 
-  it("links Automations when viewing visual workflows", () => {
-    expect(getAppShellBreadcrumbs("/org/acme/automations/visual-workflows", intl)).toEqual([
-      { label: "Automations", href: "/org/acme/automations" },
-      { label: "Visual workflows" },
-    ]);
+  it("links Automations from a workflow's canvas", () => {
     expect(getAppShellBreadcrumbs("/org/acme/automations/visual-workflows/wf_1", intl)).toEqual([
       { label: "Automations", href: "/org/acme/automations" },
-      { label: "Visual workflows", href: "/org/acme/automations/visual-workflows" },
+      { label: "Workflow" },
+    ]);
+  });
+
+  it("names the page where a new automation starts", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/automations/create", intl)).toEqual([
+      { label: "Automations", href: "/org/acme/automations" },
+      { label: "New automation" },
     ]);
   });
 
