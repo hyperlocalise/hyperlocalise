@@ -46,7 +46,8 @@ export function workflowStructuredOutputSchema(fields: readonly WorkflowOutputFi
           schema = z.array(z.unknown());
           break;
         case "object":
-          schema = z.record(z.string(), z.unknown());
+          // Not `z.record`: its `propertyNames` is stripped by the AI SDK for OpenAI, with a warning.
+          schema = z.looseObject({});
           break;
         default:
           schema = z.unknown();

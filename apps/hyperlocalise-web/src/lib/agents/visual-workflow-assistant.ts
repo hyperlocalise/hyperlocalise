@@ -87,6 +87,11 @@ const newNodeIdSchema = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/);
 const nodeIdSchema = z.string().trim().min(1).max(128);
 const handleSchema = z.string().max(64).nullable();
 const positionSchema = z.object({ x: z.number().finite(), y: z.number().finite() });
+/**
+ * Free-form settings. Not `z.record`: Zod writes `propertyNames` for a record, which OpenAI rejects
+ * and the AI SDK strips with a warning on every call.
+ */
+const configSchema = z.looseObject({});
 
 const addNodeSchema = z.object({
   op: z.literal("add_node"),
@@ -95,7 +100,7 @@ const addNodeSchema = z.object({
   /** Places the node after this one and connects it from this output; null for nowhere. */
   after: z.object({ nodeId: nodeIdSchema, handle: handleSchema }).nullable().optional(),
   /** Settings merged into the type's defaults. */
-  config: z.record(z.string(), z.unknown()).nullable().optional(),
+  config: configSchema.nullable().optional(),
 });
 
 const operationSchema = z.discriminatedUnion("op", [
@@ -119,7 +124,7 @@ const operationSchema = z.discriminatedUnion("op", [
     op: z.literal("configure_node"),
     nodeId: nodeIdSchema,
     /** Settings merged into the node's; null for none. */
-    config: z.record(z.string(), z.unknown()).nullable().optional(),
+    config: configSchema.nullable().optional(),
   }),
   z.object({
     op: z.literal("rename_workflow"),

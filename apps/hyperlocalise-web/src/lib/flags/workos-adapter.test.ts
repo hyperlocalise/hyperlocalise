@@ -32,6 +32,7 @@ const waitUntilReady = vi.fn().mockResolvedValue(undefined);
 vi.mock("@workos-inc/authkit-nextjs", () => ({
   getFeatureFlagsRuntimeClient: () => ({
     isEnabled,
+    on: vi.fn(),
     waitUntilReady,
   }),
 }));

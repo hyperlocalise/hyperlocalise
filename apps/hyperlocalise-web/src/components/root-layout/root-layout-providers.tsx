@@ -35,7 +35,12 @@ export async function RootLayoutProviders({ children }: RootLayoutProvidersProps
   return (
     <>
       <RootDocumentLocale locale={locale} />
-      <AuthKitProvider initialAuth={initialAuth}>
+      {/*
+        No session check on tab focus: it calls an AuthKit server action, and a tab left open
+        across a deploy sends a stale action id ("Failed to find Server Action"). API routes
+        already answer 401 for an expired session.
+      */}
+      <AuthKitProvider initialAuth={initialAuth} onSessionExpired={false}>
         {env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN ? <PostHogIdentity /> : null}
         <I18nProvider locale={locale}>
           <QueryProvider>
