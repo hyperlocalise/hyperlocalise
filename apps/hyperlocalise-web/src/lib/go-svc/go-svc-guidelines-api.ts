@@ -92,7 +92,6 @@ export type GuidelineCheckResult = {
   passages: { id: string; documentId: string; text: string }[];
   searchAvailable: boolean;
   model: string;
-  uncheckedSegmentIds?: string[];
 };
 
 export type GuidelineProjectAssignment = {

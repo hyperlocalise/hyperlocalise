@@ -47,7 +47,7 @@ change is which model runs on the check path, plus a new explain path.
 |--------|----------------|----------------|
 | CAT editor | Always, on the existing debounce | On demand: **Explain** on a flagged row |
 | MCP `check_guidelines` | Always | Automatic for segments Jev flags; skip Luna when every segment is OK |
-| Project QA scans | Out of scope for this change | Out of scope |
+| Project QA scans | Always, when Guidelines is enabled | Automatic for segments Jev flags, same as MCP |
 
 Agents need the explanation to fix copy, so MCP does not wait for a click.
 The cost win still holds: clean segments never call Luna.
@@ -173,13 +173,13 @@ no passage id until Luna. The editor could not cite a document, and MCP
 would send the full corpus into Luna. Rejected; per-segment×passage booleans
 match Jev's independent-question model and keep grounding.
 
-**Keep Luna for editor checks, add Jev only to project QA scans.** Scans
-explicitly exclude guidelines today. Cheaper scans are a follow-up once the
-classifier is trusted in CAT. They are not the cost that fires every 1.5s.
+**Keep Luna for editor checks, add Jev only to project QA scans.** Rejected
+for the first change: the live editor debounce was the cost that fired every
+1.5s. Project scans now use the same Jev classify path, with Luna only on
+flagged segments (MCP’s contract).
 
 ## Non-goals
 
-- Adding guideline findings to project QA scans
 - Scoring or pass/fail grades beyond the existing warning / error policy
 - Showing retrieved passage text in the inline QA row (still the guideline
   sheet)

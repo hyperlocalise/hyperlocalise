@@ -200,12 +200,8 @@ export async function runScanGuidelineChecks(input: {
           target: segment.targetText,
         })),
       });
-      const unchecked = new Set(result.uncheckedSegmentIds ?? []);
       let mappedCount = 0;
       for (const segment of batch.segments) {
-        if (unchecked.has(segment.translationKeyId)) {
-          continue;
-        }
         for (const finding of result.findings) {
           if (finding.segmentId !== segment.translationKeyId) {
             continue;
@@ -222,18 +218,10 @@ export async function runScanGuidelineChecks(input: {
           projectId: input.projectId,
           segmentCount: batch.segments.length,
           mappedFindingCount: mappedCount,
-          uncheckedCount: unchecked.size,
           durationMs: Date.now() - batchStartedAt,
         },
         "translation qa scan guideline batch completed",
       );
-      if (unchecked.size > 0) {
-        return {
-          ok: false,
-          haltCode: "guideline_check_limit_reached",
-          findings,
-        };
-      }
       await input.onBatchComplete?.();
     } catch (error) {
       const code =

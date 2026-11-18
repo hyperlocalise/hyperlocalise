@@ -40,6 +40,7 @@ vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import type { TranslationQaScanQueue } from "@/lib/workflow/types";
@@ -920,7 +921,7 @@ describe("scanTranslationQaPage", () => {
     expect(allFindings).toHaveLength(keyCount);
   });
 
-  it("inserts guideline findings from go-svc and records a halt on the run", async () => {
+  it("inserts guideline findings from go-svc", async () => {
     const { organization, user } = await authFixture.createLocalWorkosIdentity();
     const team = await ensureDefaultWorkspaceTeam(organization.id);
     const project = await insertProject({
@@ -984,8 +985,7 @@ describe("scanTranslationQaPage", () => {
       ],
       passages: [],
       searchAvailable: true,
-      model: "test",
-      uncheckedSegmentIds: ["unchecked-key"],
+      model: "openai/gpt-6-luna",
     });
 
     await expect(
@@ -1027,6 +1027,79 @@ describe("scanTranslationQaPage", () => {
         segments: [{ id: key!.id, source: "Hello", target: "Hallo" }],
       }),
     );
+
+    const [run] = await db
+      .select({ summary: schema.translationQaRuns.summary })
+      .from(schema.translationQaRuns)
+      .where(eq(schema.translationQaRuns.id, claimed.runId));
+    expect(run?.summary.guidelineCheckHaltCode).toBeUndefined();
+  });
+
+  it("records a guideline halt when classify hits the allowance", async () => {
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+    await db
+      .update(schema.projects)
+      .set({
+        qaCheckPolicy: {
+          ...DEFAULT_QA_POLICY,
+          guideline: { enabled: true, severity: "warning" },
+        },
+      })
+      .where(eq(schema.projects.id, project.id));
+
+    const [key] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "greeting",
+        sourceText: "Hello",
+        normalizedSourceText: "hello",
+      })
+      .returning({ id: schema.projectTranslationKeys.id });
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: key!.id,
+      targetLocale: "de-DE",
+      text: "Hallo",
+    });
+
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+    });
+    expect(claimed).toMatchObject({ ok: true });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+
+    internalCheck.mockRejectedValueOnce(
+      new GoSvcClientError({
+        code: "guideline_check_limit_reached",
+        message: "limit",
+        status: 402,
+      }),
+    );
+
+    await expect(
+      scanTranslationQaPage({
+        runId: claimed.runId,
+        organizationId: organization.id,
+        projectId: project.id,
+        afterKeyId: null,
+      }),
+    ).resolves.toEqual({ done: true });
 
     const [run] = await db
       .select({ summary: schema.translationQaRuns.summary })

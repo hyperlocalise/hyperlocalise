@@ -130,7 +130,7 @@ describe("runScanGuidelineChecks", () => {
     expect(result.findings).toEqual([]);
   });
 
-  it("maps findings from a partial 200 and keeps cached hits when some segments are unchecked", async () => {
+  it("maps explained findings from internalCheck", async () => {
     internalCheck.mockResolvedValueOnce({
       findings: [
         {
@@ -143,38 +143,84 @@ describe("runScanGuidelineChecks", () => {
           suggestion: "vous",
           passageId: "p1",
         },
-        {
-          segmentId: "key-2",
-          field: "target",
-          severity: "error",
-          start: 0,
-          end: 2,
-          message: "Should not map an unchecked segment",
-          passageId: "p1",
-        },
       ],
       passages: [],
       searchAvailable: true,
-      model: "test",
-      uncheckedSegmentIds: ["key-2"],
+      model: "openai/gpt-6-luna",
     });
     const result = await runScanGuidelineChecks({
       organizationId: "org",
       projectId: "proj",
       sourceLocale: "en-US",
       policy: enabledPolicy,
-      segments: [segment("key-1", { targetText: "Peux-tu aider ?" }), segment("key-2")],
+      segments: [segment("key-1", { targetText: "Peux-tu aider ?" })],
     });
-    expect(result.ok).toBe(false);
-    expect(result.haltCode).toBe("guideline_check_limit_reached");
+    expect(result.ok).toBe(true);
     expect(result.findings).toHaveLength(1);
-    expect(result.findings[0]?.segment.translationKeyId).toBe("key-1");
     expect(result.findings[0]?.check).toMatchObject({
       checkType: "guideline",
       severity: "warning",
       message: "Use vous Suggestion: vous",
       relatedTokens: ["tu", "vous"],
     });
+  });
+
+  it("keeps canned classifier findings when explain did not run", async () => {
+    const targetText = "Peux-tu aider ?";
+    internalCheck.mockResolvedValueOnce({
+      findings: [
+        {
+          segmentId: "key-1",
+          field: "target",
+          severity: "warning",
+          start: 0,
+          end: [...targetText].reduce((n, char) => n + (char.codePointAt(0)! > 0xffff ? 2 : 1), 0),
+          message: "This text may not match a project guideline.",
+          passageId: "p1",
+          reasoningAvailable: true,
+        },
+      ],
+      passages: [],
+      searchAvailable: true,
+      model: "typesafe-ai/jev",
+    });
+    const result = await runScanGuidelineChecks({
+      organizationId: "org",
+      projectId: "proj",
+      sourceLocale: "en-US",
+      policy: enabledPolicy,
+      segments: [segment("key-1", { targetText })],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.findings[0]?.check).toMatchObject({
+      checkType: "guideline",
+      message: "This text may not match a project guideline.",
+      relatedTokens: [],
+    });
+  });
+
+  it("sends one internalCheck per locale batch", async () => {
+    internalCheck.mockResolvedValue({
+      findings: [],
+      passages: [],
+      searchAvailable: true,
+      model: "typesafe-ai/jev",
+    });
+    await runScanGuidelineChecks({
+      organizationId: "org",
+      projectId: "proj",
+      sourceLocale: "en-US",
+      policy: enabledPolicy,
+      segments: [
+        segment("fr-1", { targetLocale: "fr-FR" }),
+        segment("de-1", { targetLocale: "de-DE", targetText: "Hallo" }),
+      ],
+    });
+    expect(internalCheck).toHaveBeenCalledTimes(2);
+    expect(internalCheck.mock.calls.map((call) => call[1].targetLocale).toSorted()).toEqual([
+      "de-DE",
+      "fr-FR",
+    ]);
   });
 });
 
@@ -197,5 +243,23 @@ describe("mapGuidelineFindingToQaCheck", () => {
     expect(check?.checkType).toBe("guideline");
     expect(check?.message).toBe("Use vous");
     expect(check?.relatedTokens).toEqual(["tu"]);
+  });
+
+  it("drops source-field findings", () => {
+    expect(
+      mapGuidelineFindingToQaCheck(
+        {
+          segmentId: "key",
+          field: "source",
+          severity: "warning",
+          start: 0,
+          end: 5,
+          message: "Source issue",
+          passageId: "p1",
+        },
+        "Bonjour",
+        "warning",
+      ),
+    ).toBeNull();
   });
 });

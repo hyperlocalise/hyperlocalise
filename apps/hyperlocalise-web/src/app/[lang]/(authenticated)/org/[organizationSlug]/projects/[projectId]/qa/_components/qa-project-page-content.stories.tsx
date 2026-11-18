@@ -314,9 +314,7 @@ export const Settings: Story = {
     const dialog = within(await within(canvasElement.ownerDocument.body).findByRole("dialog"));
     await expect(dialog.getByRole("switch", { name: "Daily scan" })).toBeChecked();
     await expect(dialog.getByText(/Scan this project once a day/)).toBeInTheDocument();
-    await expect(
-      dialog.getByText(/An error blocks saving when the editor has already reported it/),
-    ).toBeInTheDocument();
+    await expect(dialog.getByText(/project QA scans when enabled/)).toBeInTheDocument();
     await expect(
       dialog.getByText("Error: ask the translator to confirm before saving or approving."),
     ).toBeInTheDocument();
