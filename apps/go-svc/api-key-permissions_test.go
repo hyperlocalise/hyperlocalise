@@ -62,10 +62,12 @@ func TestOrganizationCapabilityMapKeepsMemberCapabilities(t *testing.T) {
 		"developer": true, "reviewer": true, "translator": true,
 	}
 	for _, role := range memberSettingsRoleOrder {
-		require.True(t, hasOrganizationCapability(role, "workspace:read"), role)
-		require.True(t, hasOrganizationCapability(role, "projects:read"), role)
-		require.True(t, hasOrganizationCapability(role, "jobs:read"), role)
-		require.True(t, hasOrganizationCapability(role, "memories:read"), role)
+		// A vendor holds no capability: they reach only their own open tasks (vendor-access.go).
+		reads := role != organizationRoleVendor
+		require.Equal(t, reads, hasOrganizationCapability(role, "workspace:read"), role)
+		require.Equal(t, reads, hasOrganizationCapability(role, "projects:read"), role)
+		require.Equal(t, reads, hasOrganizationCapability(role, "jobs:read"), role)
+		require.Equal(t, reads, hasOrganizationCapability(role, "memories:read"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "memories:write"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "workspace:update"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "members:invite"), role)

@@ -84,8 +84,14 @@ describe("setupWorkosLocalizationRoles", () => {
 
     expect(result.skipped).toBe(false);
     expect(result.unchanged).toEqual(["admin", "member"]);
-    expect(result.created).toEqual(["localization_manager", "developer", "reviewer", "translator"]);
-    expect(createEnvironmentRoleMock).toHaveBeenCalledTimes(4);
+    expect(result.created).toEqual([
+      "localization_manager",
+      "developer",
+      "reviewer",
+      "translator",
+      "vendor",
+    ]);
+    expect(createEnvironmentRoleMock).toHaveBeenCalledTimes(5);
     expect(createEnvironmentRoleMock).toHaveBeenCalledWith(
       expect.objectContaining({ slug: "developer", name: "Developer" }),
     );
@@ -105,7 +111,15 @@ describe("setupWorkosLocalizationRoles", () => {
 
     expect(result).toEqual({
       created: [],
-      unchanged: ["admin", "localization_manager", "developer", "reviewer", "translator", "member"],
+      unchanged: [
+        "admin",
+        "localization_manager",
+        "developer",
+        "reviewer",
+        "translator",
+        "member",
+        "vendor",
+      ],
       skipped: false,
     });
     expect(createEnvironmentRoleMock).not.toHaveBeenCalled();
@@ -132,6 +146,7 @@ describe("setupWorkosLocalizationRoles", () => {
       "reviewer",
       "translator",
       "member",
+      "vendor",
     ]);
   });
 });

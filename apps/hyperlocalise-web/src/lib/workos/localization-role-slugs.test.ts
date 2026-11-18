@@ -26,6 +26,7 @@ describe("WORKOS_LOCALIZATION_ROLE_SLUGS", () => {
       "reviewer",
       "translator",
       "member",
+      "vendor",
     ]);
   });
 });
