@@ -13,6 +13,8 @@
 
 /** OpenAI model slugs on Vercel AI Gateway that expose a `-fast` variant. */
 const openAiGatewayFastVariantSlugs = new Set([
+  "gpt-6.2-astra",
+  "gpt-6.2-sol",
   "gpt-6.1-sol",
   "gpt-6-luna",
   "gpt-6-astra",
@@ -26,6 +28,8 @@ const openAiGatewayFastVariantSlugs = new Set([
 ]);
 
 const curatedOpenAiNativeModelSlugs = [
+  "gpt-6.2-astra",
+  "gpt-6.2-sol",
   "gpt-6.1-sol",
   "gpt-6-luna",
   "gpt-6-astra",
@@ -42,6 +46,8 @@ const curatedOpenAiNativeModelSlugs = [
 ] as const;
 
 const workspaceAutomationOpenAiNativeModelSlugs = [
+  "gpt-6.2-astra",
+  "gpt-6.2-sol",
   "gpt-6.1-sol",
   "gpt-6-luna",
   "gpt-6-astra",
@@ -68,6 +74,10 @@ export const curatedOpenAiNativeModels = expandOpenAiNativeSlugsWithFastVariants
 
 /** OpenAI gateway model ids selectable for workspace automations. */
 export const OPENAI_WORKSPACE_AUTOMATION_GATEWAY_MODELS = [
+  "openai/gpt-6.2-astra",
+  "openai/gpt-6.2-astra-fast",
+  "openai/gpt-6.2-sol",
+  "openai/gpt-6.2-sol-fast",
   "openai/gpt-6.1-sol",
   "openai/gpt-6.1-sol-fast",
   "openai/gpt-6-luna",
