@@ -24,11 +24,6 @@ export const qaMessages = defineMessages({
     description: "QA review: settings",
     id: "7mkm3YXe+D",
   },
-  history: {
-    defaultMessage: "History",
-    description: "QA review: history",
-    id: "JAa3u44Ff3",
-  },
   projects: {
     defaultMessage: "Projects",
     description: "QA review: projects",
@@ -179,16 +174,6 @@ export const qaMessages = defineMessages({
     description: "QA run ID copy failure",
     id: "kxPNFiSAfY",
   },
-  viewFailure: {
-    defaultMessage: "View failure",
-    description: "QA run history action to inspect failure",
-    id: "mTsK/KrTgC",
-  },
-  viewStatus: {
-    defaultMessage: "View status",
-    description: "QA run history action to inspect running scan",
-    id: "Z8iMQbn2KB",
-  },
   running: {
     defaultMessage: "Checking translations\u2026 Results will refresh when the scan finishes.",
     description: "QA review: running",
@@ -209,15 +194,10 @@ export const qaMessages = defineMessages({
     description: "QA review: notScanned",
     id: "cgdeN4r2SO",
   },
-  clearFilters: {
-    defaultMessage: "Clear filters",
-    description: "QA review: clearFilters",
-    id: "+N01w67gWu",
-  },
   review: {
-    defaultMessage: "Review translation",
-    description: "QA review: review",
-    id: "STIEPg13ap",
+    defaultMessage: "Fix in editor",
+    description: "QA review: open the translation in the editor to fix the finding",
+    id: "q04Mtm8DKj",
   },
   ignore: { defaultMessage: "Ignore", description: "QA review: ignore", id: "H1kAb9fqeL" },
   undo: { defaultMessage: "Reopen finding", description: "QA review: undo", id: "JmcxiTldDn" },
@@ -243,11 +223,6 @@ export const qaMessages = defineMessages({
     description: "QA review: reviewError",
     id: "toROT17dSP",
   },
-  needsRecheck: {
-    defaultMessage: "Translation changed \u2014 run a scan to recheck.",
-    description: "QA review: needsRecheck",
-    id: "P3c/gqRJ32",
-  },
   snapshot: {
     defaultMessage:
       "Results are from the selected scan. After editing translations, run a scan to verify fixes.",
@@ -258,12 +233,6 @@ export const qaMessages = defineMessages({
     defaultMessage: "Checks included",
     description: "QA review: coverage",
     id: "rC0aFF7mAf",
-  },
-  coverageHelp: {
-    defaultMessage:
-      "Scans and the editor use the same format, placeholder, ICU, length, spelling and glossary checks. Warnings flag an issue. Errors also ask the translator to confirm before saving or approving in the editor.",
-    description: "QA review: coverageHelp",
-    id: "BQ27wqYAxf",
   },
   legacy: {
     defaultMessage:
@@ -298,9 +267,9 @@ export const qaMessages = defineMessages({
     id: "d0cLHpPv5k",
   },
   showWhitespace: {
-    defaultMessage: "Show spaces and line breaks",
-    description: "QA review: showWhitespace",
-    id: "ffIGEm5KON",
+    defaultMessage: "Show spaces",
+    description: "QA finding card action to show spaces, tabs and line breaks as markers",
+    id: "iP04ulaRdB",
   },
   nbsp: {
     defaultMessage: "Non-breaking space",
@@ -327,11 +296,6 @@ export const qaMessages = defineMessages({
     defaultMessage: "Select {key}, {locale}, {check}",
     description: "QA review: select",
     id: "xqyGtroaKn",
-  },
-  selectLoaded: {
-    defaultMessage: "Select loaded open findings",
-    description: "QA review: selectLoaded",
-    id: "ycpTXfqEM8",
   },
   createSelected: {
     defaultMessage: "Create issues ({count})",
@@ -425,16 +389,6 @@ export const qaMessages = defineMessages({
     description: "Help for the editor-only guideline QA check",
     id: "dxHRYcypd0",
   },
-  enableCheck: {
-    defaultMessage: "Enable {check}",
-    description: "Enable translation QA check",
-    id: "QJstPBKp4K",
-  },
-  savePolicy: {
-    defaultMessage: "Save check settings",
-    description: "Save QA policy",
-    id: "oayHNZPeA1",
-  },
   policySaved: {
     defaultMessage: "Check settings saved. Run a new scan to apply them to existing translations.",
     description: "QA policy saved",
@@ -451,14 +405,9 @@ export const qaMessages = defineMessages({
     id: "UTk9vb74bY",
   },
   errorBehavior: {
-    defaultMessage: "Error: resolve the issue before saving or approving.",
+    defaultMessage: "Error: ask the translator to confirm before saving or approving.",
     description: "QA error behavior",
-    id: "lTJVZLlOrt",
-  },
-  older: {
-    defaultMessage: "Viewing an older scan. Open the latest scan for the current report.",
-    description: "QA review: older",
-    id: "gcpJ8hX+G6",
+    id: "4N+2slujci",
   },
   latest: {
     defaultMessage: "View latest scan",
@@ -475,5 +424,115 @@ export const qaMessages = defineMessages({
     defaultMessage: "Issue {identifier}",
     description: "QA review: linkedIssue",
     id: "8FIj+RZsTt",
+  },
+  errorsFilter: {
+    defaultMessage: "Errors",
+    description: "QA findings severity filter option for errors",
+    id: "F1mswDK3dN",
+  },
+  warningsFilter: {
+    defaultMessage: "Warnings",
+    description: "QA findings severity filter option for warnings",
+    id: "/HrhRXll0S",
+  },
+  filterChip: {
+    defaultMessage: "{label}: {value}",
+    description: "QA active filter chip, for example Language: de-DE",
+    id: "r0PXBuEaOF",
+  },
+  removeFilter: {
+    defaultMessage: "Remove filter {label}: {value}",
+    description: "Accessible label for removing one active QA filter",
+    id: "EUl/k6hPi8",
+  },
+  clearAll: {
+    defaultMessage: "Clear all",
+    description: "QA action to reset every findings filter",
+    id: "TSE/OdVs3y",
+  },
+  resultCount: {
+    defaultMessage: "{count, plural, one {# finding} other {# findings}}",
+    description: "QA count of findings that match the current filters",
+    id: "O3JiAXCVWc",
+  },
+  selectAllOpen: {
+    defaultMessage: "Select all open ({count})",
+    description: "QA checkbox label to select every loaded open finding",
+    id: "pJZlD9A8hJ",
+  },
+  selectedCount: {
+    defaultMessage: "{count} selected",
+    description: "QA count of selected findings in the bulk action bar",
+    id: "1E60Au5VY0",
+  },
+  clearSelection: {
+    defaultMessage: "Clear selection",
+    description: "QA action to deselect every finding",
+    id: "epgqMIB5N1",
+  },
+  ignoreBecause: {
+    defaultMessage: "Ignore because",
+    description: "QA ignore menu heading above preset reasons",
+    id: "+PjGZL4Kq1",
+  },
+  ignoreFalsePositive: {
+    defaultMessage: "Not a real issue",
+    description: "QA preset reason for ignoring a false positive finding",
+    id: "EqTEhbXnWU",
+  },
+  ignoreIntentional: {
+    defaultMessage: "Intentional for this market",
+    description: "QA preset reason for ignoring a deliberate translation choice",
+    id: "xOytcDysjb",
+  },
+  ignoreBrandTerm: {
+    defaultMessage: "Brand or product term",
+    description: "QA preset reason for ignoring a brand or product name",
+    id: "OYdZN+Q8q4",
+  },
+  ignoreOther: {
+    defaultMessage: "Other reason\u2026",
+    description: "QA ignore menu item that asks for a custom reason",
+    id: "d8ajNV4LOu",
+  },
+  needsRecheckBadge: {
+    defaultMessage: "Needs recheck",
+    description: "QA badge for a finding whose translation changed after the scan",
+    id: "CGzpmDlpq3",
+  },
+  showCharts: {
+    defaultMessage: "Show charts",
+    description: "QA overview action to expand the breakdown charts",
+    id: "QQlco7X5aK",
+  },
+  hideCharts: {
+    defaultMessage: "Hide charts",
+    description: "QA overview action to collapse the breakdown charts",
+    id: "VEphw4mha8",
+  },
+  checkOff: {
+    defaultMessage: "Off",
+    description: "QA settings option that turns a check off",
+    id: "c0ch1EgIn0",
+  },
+  bulkIgnored: {
+    defaultMessage: "{count, plural, one {Ignored # finding} other {Ignored # findings}}",
+    description: "QA toast after ignoring several findings at once",
+    id: "bISSBVAr7c",
+  },
+  ignoreSelected: {
+    defaultMessage: "Ignore ({count})",
+    description: "QA bulk action to ignore the selected findings",
+    id: "P3DM5+MVCF",
+  },
+  hideWhitespace: {
+    defaultMessage: "Hide spaces",
+    description: "QA finding card action to hide whitespace markers",
+    id: "Bpacu25hhF",
+  },
+  runFirstScan: {
+    defaultMessage: "Run first scan",
+    description: "QA action to start the first scan of a project",
+    id: "mBT7UnvJ4o",
   },
 });

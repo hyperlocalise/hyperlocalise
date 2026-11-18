@@ -190,7 +190,8 @@ export function IssueAssigneePicker({
             title={isCompact ? triggerLabel : undefined}
             className={cn(
               "justify-between gap-2 font-normal",
-              size === "ghost" && "h-auto px-2 py-1.5 hover:bg-muted/60",
+              // Negative margins line the label up with plain text in property lists.
+              size === "ghost" && "-ms-2 -my-1.5 h-auto px-2 py-1.5 hover:bg-muted/60",
               isCompact &&
                 "size-8 shrink-0 justify-center rounded-md border-0 bg-transparent p-0 shadow-none hover:bg-muted/50",
               triggerClassName,

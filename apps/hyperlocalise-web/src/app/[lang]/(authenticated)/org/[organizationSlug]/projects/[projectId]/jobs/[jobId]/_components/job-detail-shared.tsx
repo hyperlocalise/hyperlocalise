@@ -12,35 +12,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { CaretLeftIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
-
-import { Button } from "@/components/ui/button";
 
 import { jobDetailSharedMessages as messages } from "./job-detail-shared.messages";
 
 export type JobDetailBackLinkRenderer = (props: { href: string; children: ReactNode }) => ReactNode;
 
 export type JobDetailErrorRenderer = (props: { error: unknown }) => ReactNode;
-
-export function defaultRenderBackLink({
-  href,
-  children,
-}: Parameters<JobDetailBackLinkRenderer>[0]) {
-  return (
-    <Button
-      nativeButton={false}
-      render={<Link href={href} />}
-      variant="ghost"
-      className="-ms-2 mb-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-    >
-      <CaretLeftIcon />
-      {children}
-    </Button>
-  );
-}
 
 export function defaultRenderError({ error }: Parameters<JobDetailErrorRenderer>[0]) {
   return (

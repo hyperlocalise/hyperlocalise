@@ -259,12 +259,13 @@ export const FailedJob: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Failed")).toBeInTheDocument();
-    await expect(canvas.getByText("Failure reason")).toBeInTheDocument();
+    // The reason lives in the notice only, not repeated as a property row.
+    await expect(canvas.queryByText("Failure reason")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Progress")).not.toBeInTheDocument();
     await expect(
-      canvas.getAllByText("Translation provider timed out after 120 seconds.").length,
-    ).toBeGreaterThan(0);
-    await expect(canvas.getByText("Unfinished locales")).toBeInTheDocument();
-    await expect(canvas.getByText("ja-JP, ko-KR")).toBeInTheDocument();
+      canvas.getByText("Translation provider timed out after 120 seconds."),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("Unfinished locales: ja-JP, ko-KR")).toBeInTheDocument();
     await expect(canvas.getByText("This job failed")).toBeInTheDocument();
   },
 };

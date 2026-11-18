@@ -123,4 +123,49 @@ export const qaWorkspaceMessages = defineMessages({
     id: "Fnuknw5/27",
     description: "Workspace QA chart empty state",
   },
+  lastScanColumn: {
+    defaultMessage: "Last completed scan",
+    id: "c0wNlOeXsI",
+    description: "Workspace QA projects list column for the last completed scan time",
+  },
+  errorsColumn: {
+    defaultMessage: "Errors",
+    id: "xiUq3JN/5o",
+    description: "Workspace QA projects list column for error count",
+  },
+  warningsColumn: {
+    defaultMessage: "Warnings",
+    id: "P9Kxy3XGc5",
+    description: "Workspace QA projects list column for warning count",
+  },
+  actionsColumn: {
+    defaultMessage: "Actions",
+    id: "7UZkgZj5lA",
+    description: "Workspace QA projects list column for row actions",
+  },
+  never: {
+    defaultMessage: "Never",
+    id: "JAv5imMLIJ",
+    description: "Workspace QA projects list value when a project has no completed scan",
+  },
+  statusScanned: {
+    defaultMessage: "Up to date",
+    id: "gj0d/a8fYA",
+    description: "Workspace QA project status when its latest scan completed",
+  },
+  statusRunning: {
+    defaultMessage: "Scanning",
+    id: "K4CwoA7ICc",
+    description: "Workspace QA project status while a scan is queued or running",
+  },
+  statusNotScanned: {
+    defaultMessage: "Not scanned",
+    id: "VN8yjG8Ix9",
+    description: "Workspace QA project status when it has never been scanned",
+  },
+  openProjectToScan: {
+    defaultMessage: "Run first scan",
+    id: "hd2FQfv1tG",
+    description: "Workspace QA link to a project that has never been scanned",
+  },
 });

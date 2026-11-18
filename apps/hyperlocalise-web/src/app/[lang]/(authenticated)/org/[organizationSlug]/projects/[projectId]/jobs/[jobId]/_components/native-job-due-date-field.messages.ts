@@ -35,4 +35,9 @@ export const nativeJobDueDateFieldMessages = defineMessages({
     id: "VePDpO3djR",
     description: "Toast when saving a native job's due date fails",
   },
+  noDueDate: {
+    defaultMessage: "No due date",
+    id: "T7hOj18tKO",
+    description: "Job detail due date value when none is set; click to pick one",
+  },
 });

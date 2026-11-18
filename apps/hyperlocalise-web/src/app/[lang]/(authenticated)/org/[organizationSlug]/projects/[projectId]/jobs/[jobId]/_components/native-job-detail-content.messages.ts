@@ -184,4 +184,9 @@ export const nativeJobDetailContentMessages = defineMessages({
     description:
       "Error toast when someone without review rights marks done a task not assigned to them",
   },
+  moreActions: {
+    defaultMessage: "More job actions",
+    id: "wPuTE+Xvt4",
+    description: "Accessible label for the job detail overflow menu with cancel and mark as failed",
+  },
 });

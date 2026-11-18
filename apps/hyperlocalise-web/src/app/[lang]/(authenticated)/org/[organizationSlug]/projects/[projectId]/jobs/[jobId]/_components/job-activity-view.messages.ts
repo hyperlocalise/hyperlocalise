@@ -119,8 +119,9 @@ export const jobActivityViewMessages = defineMessages({
     description: "Run card summary when the run finished",
   },
   summaryFailed: {
-    defaultMessage: "The run failed before all locales were translated.",
-    id: "LUAw9P2inM",
+    defaultMessage:
+      "The run failed after translating {done} of {total, plural, one {# locale} other {# locales}}.",
+    id: "razaxKQr7l",
     description: "Run card summary when the run failed",
   },
   summaryStopped: {
@@ -314,5 +315,25 @@ export const jobActivityViewMessages = defineMessages({
     defaultMessage: "Skipped guideline search passages.",
     id: "hXSN/OaRHq",
     description: "Job activity step when guideline search passages are not considered",
+  },
+  summaryFailedAll: {
+    defaultMessage: "The run failed before any locale was translated.",
+    id: "L5Hfhv+llN",
+    description: "Run card summary when the run failed without finishing any locale",
+  },
+  localeNotTranslated: {
+    defaultMessage: "Not translated",
+    id: "ig9OfxzEp9",
+    description: "Run card locale row for a locale that failed before any progress",
+  },
+  followUpRetryLink: {
+    defaultMessage: "Retried in a new job",
+    id: "zo/6a3CRQX",
+    description: "Link from a failed run card to the job that retries every locale",
+  },
+  elapsed: {
+    defaultMessage: "+{duration}",
+    id: "u5Y4u/n9Hk",
+    description: "Run step time since the first step, for example +1m 12s",
   },
 });

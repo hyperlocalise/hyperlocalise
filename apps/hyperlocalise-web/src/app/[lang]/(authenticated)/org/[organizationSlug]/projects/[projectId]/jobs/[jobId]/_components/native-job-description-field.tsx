@@ -27,12 +27,16 @@ export function NativeJobDescriptionField({
   description,
   editable,
   queryKey,
+  startEditing = false,
+  onCancel,
 }: {
   organizationSlug: string;
   jobId: string;
   description: string;
   editable: boolean;
   queryKey: readonly unknown[];
+  startEditing?: boolean;
+  onCancel?: () => void;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -83,6 +87,8 @@ export function NativeJobDescriptionField({
     <ProviderJobDescriptionFieldView
       description={description}
       editable={editable}
+      initialIsEditing={startEditing}
+      onCancel={onCancel}
       isSaving={saveMutation.isPending}
       onSaveDescription={(nextDescription) => saveMutation.mutateAsync(nextDescription)}
       onSaveError={(error) => {

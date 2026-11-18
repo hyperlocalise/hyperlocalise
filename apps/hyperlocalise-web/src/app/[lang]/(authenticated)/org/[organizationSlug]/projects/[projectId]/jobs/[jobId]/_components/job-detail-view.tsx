@@ -21,7 +21,6 @@ import { cn } from "@/lib/primitives/cn";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import {
-  defaultRenderBackLink,
   defaultRenderError,
   type JobDetailBackLinkRenderer,
   type JobDetailErrorRenderer,
@@ -29,6 +28,9 @@ import {
 import { JobDetailSkeleton } from "./job-detail-skeleton";
 import { buildJobsListHref } from "./job-detail-types";
 import { jobDetailViewMessages as messages } from "./job-detail-view.messages";
+
+/** Job titles are often generated file names, so they get a heading size that fits one or two lines. */
+export const JOB_TITLE_CLASS = "text-2xl leading-tight tracking-[-0.02em] break-words md:text-3xl";
 
 export type JobDetailViewMetric = {
   icon: Icon;
@@ -130,7 +132,7 @@ export function JobDetailView({
   organizationSlug,
   projectId,
   properties,
-  renderBackLink = defaultRenderBackLink,
+  renderBackLink,
   renderError = defaultRenderError,
   renderMain,
   secondaryProperties = [],
@@ -162,17 +164,17 @@ export function JobDetailView({
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          {renderBackLink({
+          {renderBackLink?.({
             href: jobsListHref,
             children: intl.formatMessage(messages.jobsBackLink),
           })}
           {typeof title === "string" || title == null ? (
-            <TypographyH1>{title ?? jobId}</TypographyH1>
+            <TypographyH1 className={JOB_TITLE_CLASS}>{title ?? jobId}</TypographyH1>
           ) : (
             title
           )}
           {metrics.length > 0 ? (
-            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+            <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2">
               {metrics.map((metric) => (
                 <MetricItem key={metric.label} {...metric} />
               ))}
@@ -180,8 +182,8 @@ export function JobDetailView({
           ) : null}
         </div>
         {headerActions ? (
-          <div className="flex flex-col items-start gap-3 sm:items-end">
-            <div className="flex flex-wrap gap-2 sm:justify-end">{headerActions}</div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-nowrap">
+            {headerActions}
           </div>
         ) : null}
       </div>

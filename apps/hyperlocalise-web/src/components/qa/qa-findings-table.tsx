@@ -17,9 +17,19 @@ import { useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
+import { ArrowRightIcon, CaretDownIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
@@ -94,13 +104,13 @@ export function QaFindingsTable({
   const { client } = useGoSvcClient();
   const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [showWhitespace, setShowWhitespace] = useState(false);
+  const [whitespaceGroups, setWhitespaceGroups] = useState<Set<string>>(new Set());
+  // A finding id, or BULK_IGNORE while the bulk bar asks for a custom reason.
   const [ignoringId, setIgnoringId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
-  const eligible = findings.filter(
-    (f) => (f.status ?? "open") === "open" && !f.needsRecheck && !f.issueIdentifier,
-  );
+  const eligible = findings.filter((f) => (f.status ?? "open") === "open" && !f.needsRecheck);
   const selected = eligible.filter((f) => selectedIds.has(f.id));
+  const promotable = selected.filter((f) => !f.issueIdentifier);
   async function refresh() {
     await Promise.all(
       [
@@ -129,6 +139,68 @@ export function QaFindingsTable({
       await refresh();
     },
   });
+  const bulkIgnore = useMutation({
+    mutationFn: async ({ ids, reason: reviewReason }: { ids: string[]; reason: string }) => {
+      for (let offset = 0; offset < ids.length; offset += BULK_REVIEW_BATCH_SIZE) {
+        await client.qaReport.findings.reviewMany(organizationSlug, {
+          findingIds: ids.slice(offset, offset + BULK_REVIEW_BATCH_SIZE),
+          status: "ignored",
+          reason: reviewReason,
+        });
+      }
+    },
+    onSuccess: async (_, { ids }) => {
+      setSelectedIds(new Set());
+      setIgnoringId(null);
+      setReason("");
+      toast.success(intl.formatMessage(m.bulkIgnored, { count: ids.length }));
+      await refresh();
+    },
+    onError: () => {
+      toast.error(intl.formatMessage(m.reviewError));
+      void refresh();
+    },
+  });
+  const ignoreSelected = (reviewReason: string) =>
+    bulkIgnore.mutate({ ids: selected.map((f) => f.id), reason: reviewReason });
+  const ignoreOne = (id: string, reviewReason: string) => {
+    review.reset();
+    review.mutate({ id, status: "ignored", reason: reviewReason });
+  };
+  const ignoreForm = (onSubmit: () => void) => (
+    <form
+      className="flex max-w-xl flex-col gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      <Field>
+        <FieldLabel htmlFor={`reason-${ignoringId}`}>{intl.formatMessage(m.reason)}</FieldLabel>
+        <Input
+          id={`reason-${ignoringId}`}
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          required
+          autoFocus
+          maxLength={1000}
+        />
+        <FieldDescription>{intl.formatMessage(m.ignoreHelp)}</FieldDescription>
+      </Field>
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          type="submit"
+          disabled={!reason.trim() || review.isPending || bulkIgnore.isPending}
+        >
+          {intl.formatMessage(m.saveIgnore)}
+        </Button>
+        <Button variant="ghost" size="sm" type="button" onClick={() => setIgnoringId(null)}>
+          {intl.formatMessage(m.cancel)}
+        </Button>
+      </div>
+    </form>
+  );
   const promote = useMutation({
     mutationFn: async (ids: string[]) => {
       for (let offset = 0; offset < ids.length; offset += 100) {
@@ -159,44 +231,65 @@ export function QaFindingsTable({
   );
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={showWhitespace}
-            onCheckedChange={(value) => setShowWhitespace(value === true)}
-          />
-          {intl.formatMessage(m.showWhitespace)}
-        </label>
-        {canPromote ? (
-          <>
-            <Checkbox
-              aria-label={intl.formatMessage(m.selectLoaded)}
-              checked={
-                selected.length === 0
-                  ? false
-                  : selected.length === eligible.length
-                    ? true
-                    : "indeterminate"
-              }
-              onCheckedChange={(checked) =>
-                setSelectedIds(checked ? new Set(eligible.map((f) => f.id)) : new Set())
-              }
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!selected.length || promote.isPending}
-              onClick={() => promote.mutate(selected.map((f) => f.id))}
-            >
-              {intl.formatMessage(m.createSelected, { count: selected.length })}
-            </Button>
-          </>
-        ) : null}
+      <div className="flex min-h-8 flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {canPromote && eligible.length ? (
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={
+                  selected.length === 0
+                    ? false
+                    : selected.length === eligible.length
+                      ? true
+                      : "indeterminate"
+                }
+                onCheckedChange={(checked) =>
+                  setSelectedIds(checked ? new Set(eligible.map((f) => f.id)) : new Set())
+                }
+              />
+              {selected.length
+                ? intl.formatMessage(m.selectedCount, { count: selected.length })
+                : intl.formatMessage(m.selectAllOpen, { count: eligible.length })}
+            </label>
+          ) : null}
+          {selected.length ? (
+            <>
+              {promotable.length ? (
+                <Button
+                  size="sm"
+                  disabled={promote.isPending || bulkIgnore.isPending}
+                  onClick={() => promote.mutate(promotable.map((f) => f.id))}
+                >
+                  {intl.formatMessage(m.createSelected, { count: promotable.length })}
+                </Button>
+              ) : null}
+              <QaIgnoreMenu
+                label={intl.formatMessage(m.ignoreSelected, { count: selected.length })}
+                variant="outline"
+                disabled={promote.isPending || bulkIgnore.isPending}
+                onIgnore={ignoreSelected}
+                onOther={() => {
+                  setIgnoringId(BULK_IGNORE);
+                  setReason("");
+                }}
+              />
+              <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                {intl.formatMessage(m.clearSelection)}
+              </Button>
+            </>
+          ) : null}
+        </div>
       </div>
+      {ignoringId === BULK_IGNORE && selected.length
+        ? ignoreForm(() => ignoreSelected(reason))
+        : null}
       {review.isError ? <QaNotice message={intl.formatMessage(m.reviewError)} /> : null}
       {[...groups.entries()].map(([groupId, rows]) => {
         const first = rows[0]!;
         const completedAt = lastCompletedByProject?.[first.projectId];
+        const canShowWhitespace =
+          hasNotableWhitespace(first.sourceText) || hasNotableWhitespace(first.targetText);
+        const showWhitespace = canShowWhitespace && whitespaceGroups.has(groupId);
         return (
           <section
             key={groupId}
@@ -221,16 +314,31 @@ export function QaFindingsTable({
                   </p>
                 ) : null}
               </div>
-              <Button
-                nativeButton={false}
-                render={<Link href={first.editorHref} />}
-                variant="outline"
-                size="sm"
-              >
+              <Button nativeButton={false} render={<Link href={first.editorHref} />} size="sm">
                 {intl.formatMessage(m.review)}
+                <ArrowRightIcon data-icon="inline-end" />
               </Button>
             </div>
-            <div className="grid gap-px border-y border-border bg-border md:grid-cols-2">
+            <div className="relative grid gap-px border-y border-border bg-border md:grid-cols-2">
+              {canShowWhitespace ? (
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="ghost"
+                  className="absolute end-2 top-2 z-10"
+                  aria-pressed={showWhitespace}
+                  onClick={() =>
+                    setWhitespaceGroups((current) => {
+                      const next = new Set(current);
+                      if (next.has(groupId)) next.delete(groupId);
+                      else next.add(groupId);
+                      return next;
+                    })
+                  }
+                >
+                  {intl.formatMessage(showWhitespace ? m.hideWhitespace : m.showWhitespace)}
+                </Button>
+              ) : null}
               <div className="bg-muted/40 px-4 py-3">
                 <p className="mb-1 text-xs font-medium text-muted-foreground">
                   {intl.formatMessage(m.source)}
@@ -254,17 +362,20 @@ export function QaFindingsTable({
             </div>
             {rows.map((finding) => {
               const displayMessage = humanizeQaFindingMessage(finding.message);
+              const status = finding.status ?? "open";
+              const canReviewFinding = canPromote && status !== "resolved" && !finding.needsRecheck;
               return (
                 <div
                   key={finding.id}
                   className={cn(
-                    "flex flex-col gap-2 border-l-4 px-4 py-3",
+                    "flex flex-col gap-3 border-l-4 px-4 py-3",
                     findingAccentClass(finding),
                   )}
                 >
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-start gap-3">
                     {canPromote && eligible.some((f) => f.id === finding.id) ? (
                       <Checkbox
+                        className="mt-0.5"
                         checked={selectedIds.has(finding.id)}
                         aria-label={intl.formatMessage(m.select, {
                           key: finding.key,
@@ -281,99 +392,76 @@ export function QaFindingsTable({
                         }
                       />
                     ) : null}
-                    <Badge variant={finding.severity === "error" ? "destructive" : "warning"}>
-                      {intl.formatMessage(m[finding.severity])}
-                    </Badge>
-                    <span className="text-sm font-medium">
-                      {qaCheckLabel(finding.checkType, intl)}
-                    </span>
-                    <Badge variant={findingStatusVariant(finding.status)}>
-                      {intl.formatMessage(m[finding.status ?? "open"])}
-                    </Badge>
-                    {finding.issueIdentifier ? (
-                      <Link
-                        className="text-sm underline"
-                        href={`/org/${encodeURIComponent(organizationSlug)}/issues/${encodeURIComponent(finding.issueIdentifier)}`}
-                      >
-                        {intl.formatMessage(m.linkedIssue, { identifier: finding.issueIdentifier })}
-                      </Link>
-                    ) : null}
-                    {canPromote && finding.status !== "resolved" && !finding.needsRecheck ? (
+                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                      <p className="text-sm font-medium whitespace-pre-wrap break-words">
+                        {displayMessage}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant={finding.severity === "error" ? "destructive" : "warning"}>
+                          {intl.formatMessage(m[finding.severity])}
+                        </Badge>
+                        <span>{qaCheckLabel(finding.checkType, intl)}</span>
+                        {status !== "open" ? (
+                          <Badge variant={findingStatusVariant(status)}>
+                            {intl.formatMessage(m[status])}
+                          </Badge>
+                        ) : null}
+                        {finding.needsRecheck ? (
+                          <Badge variant="outline">{intl.formatMessage(m.needsRecheckBadge)}</Badge>
+                        ) : null}
+                        {finding.issueIdentifier ? (
+                          <Link
+                            className="text-foreground underline"
+                            href={`/org/${encodeURIComponent(organizationSlug)}/issues/${encodeURIComponent(finding.issueIdentifier)}`}
+                          >
+                            {intl.formatMessage(m.linkedIssue, {
+                              identifier: finding.issueIdentifier,
+                            })}
+                          </Link>
+                        ) : null}
+                      </div>
+                      {finding.ignoreReason ? (
+                        <p className="text-xs text-muted-foreground">{finding.ignoreReason}</p>
+                      ) : null}
+                      {displayMessage !== finding.message ? (
+                        <details className="text-xs text-muted-foreground">
+                          <summary className="cursor-pointer">
+                            {intl.formatMessage(m.technicalDetails)}
+                          </summary>
+                          <p className="mt-1 whitespace-pre-wrap break-words">{finding.message}</p>
+                        </details>
+                      ) : null}
+                    </div>
+                    {canReviewFinding && status === "ignored" ? (
                       <Button
                         variant="ghost"
                         size="sm"
                         disabled={review.isPending}
                         onClick={() => {
                           review.reset();
-                          if (finding.status === "ignored")
-                            review.mutate({ id: finding.id, status: "open" });
-                          else {
-                            setIgnoringId(finding.id);
-                            setReason("");
-                          }
+                          review.mutate({ id: finding.id, status: "open" });
                         }}
                       >
-                        {intl.formatMessage(finding.status === "ignored" ? m.undo : m.ignore)}
+                        {intl.formatMessage(m.undo)}
                       </Button>
                     ) : null}
+                    {canReviewFinding && status === "open" ? (
+                      <QaIgnoreMenu
+                        label={intl.formatMessage(m.ignore)}
+                        variant="ghost"
+                        disabled={review.isPending || bulkIgnore.isPending}
+                        onIgnore={(value) => ignoreOne(finding.id, value)}
+                        onOther={() => {
+                          review.reset();
+                          setIgnoringId(finding.id);
+                          setReason("");
+                        }}
+                      />
+                    ) : null}
                   </div>
-                  <p className="text-sm whitespace-pre-wrap break-words">{displayMessage}</p>
-                  {displayMessage !== finding.message ? (
-                    <details className="text-xs text-muted-foreground">
-                      <summary className="cursor-pointer">
-                        {intl.formatMessage(m.technicalDetails)}
-                      </summary>
-                      <p className="mt-1 whitespace-pre-wrap break-words">{finding.message}</p>
-                    </details>
-                  ) : null}
-                  {finding.ignoreReason ? (
-                    <p className="text-xs text-muted-foreground">{finding.ignoreReason}</p>
-                  ) : null}
-                  {finding.needsRecheck ? (
-                    <p className="text-xs text-muted-foreground">
-                      {intl.formatMessage(m.needsRecheck)}
-                    </p>
-                  ) : null}
-                  {ignoringId === finding.id ? (
-                    <form
-                      className="flex max-w-xl flex-col gap-3"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        review.mutate({ id: finding.id, status: "ignored", reason });
-                      }}
-                    >
-                      <Field>
-                        <FieldLabel htmlFor={`reason-${finding.id}`}>
-                          {intl.formatMessage(m.reason)}
-                        </FieldLabel>
-                        <Input
-                          id={`reason-${finding.id}`}
-                          value={reason}
-                          onChange={(event) => setReason(event.target.value)}
-                          required
-                          maxLength={1000}
-                        />
-                        <FieldDescription>{intl.formatMessage(m.ignoreHelp)}</FieldDescription>
-                      </Field>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          type="submit"
-                          disabled={!reason.trim() || review.isPending}
-                        >
-                          {intl.formatMessage(m.saveIgnore)}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          type="button"
-                          onClick={() => setIgnoringId(null)}
-                        >
-                          {intl.formatMessage(m.cancel)}
-                        </Button>
-                      </div>
-                    </form>
-                  ) : null}
+                  {ignoringId === finding.id
+                    ? ignoreForm(() => review.mutate({ id: finding.id, status: "ignored", reason }))
+                    : null}
                 </div>
               );
             })}
@@ -393,6 +481,56 @@ export function QaFindingsTable({
     </div>
   );
 }
+const BULK_IGNORE = "bulk";
+const BULK_REVIEW_BATCH_SIZE = 100;
+const IGNORE_REASONS = [m.ignoreFalsePositive, m.ignoreIntentional, m.ignoreBrandTerm];
+
+/** Spaces that are easy to miss: non-breaking, tabs, line breaks, doubled or at the edges. */
+function hasNotableWhitespace(text: string) {
+  return /[\u00a0\t\r\n]| {2}|^\s|\s$/.test(text);
+}
+
+function QaIgnoreMenu({
+  label,
+  variant,
+  disabled,
+  onIgnore,
+  onOther,
+}: {
+  label: string;
+  variant: "ghost" | "outline";
+  disabled: boolean;
+  onIgnore: (reason: string) => void;
+  onOther: () => void;
+}) {
+  const intl = useIntl();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button type="button" variant={variant} size="sm" disabled={disabled} />}
+      >
+        {label}
+        <CaretDownIcon data-icon="inline-end" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-auto">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{intl.formatMessage(m.ignoreBecause)}</DropdownMenuLabel>
+          {IGNORE_REASONS.map((descriptor) => (
+            <DropdownMenuItem
+              key={descriptor.id}
+              onClick={() => onIgnore(intl.formatMessage(descriptor))}
+            >
+              {intl.formatMessage(descriptor)}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onOther}>{intl.formatMessage(m.ignoreOther)}</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function QaText({
   text,
   tokens,

@@ -63,6 +63,8 @@ export const Default: Story = {
     ).toBeInTheDocument();
     await expect(overview.getAllByText("Across 1 scanned project")).toHaveLength(2);
     await expect(overview.getByText("128")).toBeInTheDocument();
+    await expect(overview.queryByRole("region", { name: "Findings by check" })).toBeNull();
+    await userEvent.click(overview.getByRole("button", { name: "Show charts" }));
     await expect(
       overview.getByRole("img", { name: "Findings by language: de-DE 3, fr-FR 2" }),
     ).toBeInTheDocument();
@@ -76,34 +78,37 @@ export const Default: Story = {
     await expect(canvas.getByRole("combobox", { name: "Projects" })).toHaveTextContent("All");
     await expect(canvas.getByRole("combobox", { name: "Language" })).toHaveTextContent("All");
     await expect(canvas.getByRole("combobox", { name: "Check" })).toHaveTextContent("All");
-    await expect(canvas.getByRole("combobox", { name: "Severity" })).toHaveTextContent("All");
-    await expect(canvas.getByRole("combobox", { name: "Review status" })).toHaveTextContent("Open");
+    await expect(
+      within(canvas.getByRole("group", { name: "Severity" })).getByRole("button", { name: "All" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      within(canvas.getByRole("group", { name: "Review status" })).getByRole("button", {
+        name: "Open",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(canvas.getByText("4 findings")).toBeInTheDocument();
     await expect(canvas.getByText("Placeholder mismatch")).toBeInTheDocument();
     await expect(canvas.getByText("The translation is missing {count}.")).toBeInTheDocument();
     await expect(canvas.getByText("Issue WEB-14")).toBeInTheDocument();
-    await expect(canvas.getByText(/Translation changed/)).toBeInTheDocument();
+    await expect(canvas.getByText("Needs recheck")).toBeInTheDocument();
     await expect(canvas.getByText("Showing 4 of 4 findings")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Create issues (0)" })).toBeDisabled();
-    await expect(canvas.getByRole("link", { name: "Review translation" })).toBeInTheDocument();
+    await expect(canvas.getByRole("checkbox", { name: "Select all open (3)" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: /Create issues/ })).not.toBeInTheDocument();
+    await expect(canvas.getAllByRole("link", { name: "Fix in editor" }).length).toBeGreaterThan(0);
 
-    await userEvent.click(canvas.getByRole("checkbox", { name: "Show spaces and line breaks" }));
+    await userEvent.click(canvas.getAllByRole("button", { name: "Show spaces" })[0]!);
     await expect(canvas.getByText(/reviews··waiting/)).toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole("tab", { name: "Projects" }));
     await expect(canvas.getByRole("heading", { name: "Website localization" })).toBeInTheDocument();
-    await expect(
-      canvas.getByText("128 translations checked · 2 errors · 3 warnings"),
-    ).toBeInTheDocument();
-    await expect(
-      canvas.getByText("Checking translations… Results will refresh when the scan finishes."),
-    ).toBeInTheDocument();
-    await expect(
-      canvas.getByText("Not checked yet. Run a scan to review translation quality."),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText("Up to date")).toBeInTheDocument();
+    await expect(canvas.getByText("Scanning")).toBeInTheDocument();
+    await expect(canvas.getByText("Not scanned")).toBeInTheDocument();
     await expect(
       canvas.getByText("The scan stopped while checking translations."),
     ).toBeInTheDocument();
-    await expect(canvas.getAllByRole("link", { name: "Open QA" })).toHaveLength(4);
+    await expect(canvas.getAllByRole("link", { name: "Open QA" })).toHaveLength(3);
+    await expect(canvas.getByRole("link", { name: "Run first scan" })).toBeInTheDocument();
     await expect(
       canvas.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent),
     ).toEqual(["Release notes", "Website localization", "Mobile app", "Help center"]);
@@ -134,7 +139,7 @@ export const ReadOnly: Story = {
     await expect(canvas.queryByRole("button", { name: /Create issues/ })).not.toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Ignore" })).not.toBeInTheDocument();
     await expect(
-      canvas.queryByRole("checkbox", { name: "Select loaded open findings" }),
+      canvas.queryByRole("checkbox", { name: /Select all open/ }),
     ).not.toBeInTheDocument();
   },
 };
@@ -149,7 +154,7 @@ export const Empty: Story = {
     await expect(
       await canvas.findByText("No issues found by the completed checks."),
     ).toBeInTheDocument();
-    await expect(canvas.queryByRole("button", { name: "Clear filters" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Clear all" })).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole("tab", { name: "Projects" }));
     await expect(canvas.getByText("No native projects yet.")).toBeInTheDocument();
   },
@@ -231,13 +236,29 @@ export const FilterByLanguage: Story = {
     await waitFor(() => expect(canvas.queryByText("checkout.pay_now")).not.toBeInTheDocument());
     await expect(canvas.getByText("dashboard.reviews.pending")).toBeInTheDocument();
     await expect(canvas.queryByText("auth.sign_in")).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Remove filter Language: de-DE" }));
+    await expect(await canvas.findByText("checkout.pay_now")).toBeInTheDocument();
   },
 };
 
 export const IgnoreFinding: Story = {
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
+    const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getAllByRole("button", { name: "Ignore" })[0]!);
+    await userEvent.click(await body.findByRole("menuitem", { name: "Not a real issue" }));
+    await waitFor(() =>
+      expect(canvas.queryByText("dashboard.reviews.pending")).not.toBeInTheDocument(),
+    );
+  },
+};
+
+export const IgnoreFindingWithCustomReason: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getAllByRole("button", { name: "Ignore" })[0]!);
+    await userEvent.click(await body.findByRole("menuitem", { name: "Other reason…" }));
     await userEvent.type(
       canvas.getByRole("textbox", { name: "Reason for ignoring" }),
       "False positive",
@@ -249,10 +270,25 @@ export const IgnoreFinding: Story = {
   },
 };
 
+export const BulkIgnore: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("checkbox", { name: "Select all open (3)" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Ignore (3)" }));
+    await userEvent.click(await body.findByRole("menuitem", { name: "Brand or product term" }));
+    await waitFor(() =>
+      expect(canvas.queryByText("dashboard.reviews.pending")).not.toBeInTheDocument(),
+    );
+    await expect(canvas.queryByRole("button", { name: /Ignore \(/ })).not.toBeInTheDocument();
+  },
+};
+
 export const PromoteFindings: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("checkbox", { name: "Select loaded open findings" }));
+    await userEvent.click(canvas.getByRole("checkbox", { name: "Select all open (3)" }));
+    await expect(canvas.getByRole("checkbox", { name: "3 selected" })).toBeChecked();
     await userEvent.click(canvas.getByRole("button", { name: "Create issues (2)" }));
     await expect(await canvas.findByText("Issue WEB-21")).toBeInTheDocument();
     await expect(canvas.getByText("Issue WEB-22")).toBeInTheDocument();
@@ -270,7 +306,11 @@ export const WhitespaceMismatch: Story = {
       await canvas.findByText("Non-breaking space count differs from source"),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("combobox", { name: "Projects" })).toHaveTextContent("All");
-    await expect(canvas.getByRole("combobox", { name: "Review status" })).toHaveTextContent("Open");
+    await expect(
+      within(canvas.getByRole("group", { name: "Review status" })).getByRole("button", {
+        name: "Open",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
     await expect(canvas.getByTitle("Non-breaking space")).toBeInTheDocument();
     await expect(canvas.getByText("Format, tags & ICU")).toBeInTheDocument();
     await expect(canvas.getByText("Error")).toBeInTheDocument();

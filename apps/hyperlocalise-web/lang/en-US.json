@@ -299,10 +299,6 @@
     "defaultMessage": "Add rule",
     "description": "Button that adds a rule to the pick assignee rule table"
   },
-  "+N01w67gWu": {
-    "defaultMessage": "Clear filters",
-    "description": "QA review: clearFilters"
-  },
   "+NYs5YKkI7": {
     "defaultMessage": "Home",
     "description": "Hyperlab mock UI nav tab"
@@ -310,6 +306,10 @@
   "+NsjaCC9pk": {
     "defaultMessage": "Start a free workspace or book a demo, and see your next article update reach every locale in hours instead of weeks.",
     "description": "help-center-localisation use case page: cta › body"
+  },
+  "+PjGZL4Kq1": {
+    "defaultMessage": "Ignore because",
+    "description": "QA ignore menu heading above preset reasons"
   },
   "+Pn3eYONmL": {
     "defaultMessage": "Semrush",
@@ -1030,6 +1030,10 @@
   "/HYQsZiVvN": {
     "defaultMessage": "Plan usage",
     "description": "Plan usage card title on billing settings"
+  },
+  "/HrhRXll0S": {
+    "defaultMessage": "Warnings",
+    "description": "QA findings severity filter option for warnings"
   },
   "/I4cav3gE2": {
     "defaultMessage": "Localize product emails and customer messaging in Loops.",
@@ -2446,6 +2450,10 @@
   "1Dpcm8IxPm": {
     "defaultMessage": "Test data taken from this run for {count, plural, one {# step} other {# steps}}.",
     "description": "Toast after a past workflow run's values were copied into the steps' test data"
+  },
+  "1E60Au5VY0": {
+    "defaultMessage": "{count} selected",
+    "description": "QA count of selected findings in the bulk action bar"
   },
   "1EFh6senwK": {
     "defaultMessage": "Reviewer",
@@ -4782,6 +4790,10 @@
   "4MUAkFDjce": {
     "defaultMessage": "Failed to load segment translation",
     "description": "Fallback error when loading a CAT segment target translation fails"
+  },
+  "4N+2slujci": {
+    "defaultMessage": "Error: ask the translator to confirm before saving or approving.",
+    "description": "QA error behavior"
   },
   "4NRfGc3Yk+": {
     "defaultMessage": "Pictures",
@@ -9487,6 +9499,10 @@
     "defaultMessage": "What to fill it with (optional)",
     "description": "Placeholder for the optional instruction while erasing part of the image"
   },
+  "AhhKC7T2t0": {
+    "defaultMessage": "Scan: {date}",
+    "description": "Project QA scan picker trigger showing the selected scan date"
+  },
   "AiIn5ZbV8s": {
     "defaultMessage": "Cancel",
     "description": "Button that closes the quote dialog"
@@ -9730,6 +9746,10 @@
   "B410H43ikZ": {
     "defaultMessage": "Everything ships",
     "description": "localisation-operations use case page: scenario › events › #4 › title"
+  },
+  "B45dmP3Ag+": {
+    "defaultMessage": "You don't have permission to change these settings.",
+    "description": "Project QA check settings note for members who cannot edit"
   },
   "B49vrN6vd7": {
     "defaultMessage": "Trigger",
@@ -10022,10 +10042,6 @@
   "BPMUoJXbTa": {
     "defaultMessage": "01 Publish",
     "description": "Domains workflow step 1"
-  },
-  "BQ27wqYAxf": {
-    "defaultMessage": "Scans and the editor use the same format, placeholder, ICU, length, spelling and glossary checks. Warnings flag an issue. Errors also ask the translator to confirm before saving or approving in the editor.",
-    "description": "QA review: coverageHelp"
   },
   "BQ2Um1RaCK": {
     "defaultMessage": "Use approved medical terminology and regulatory glossary as guidance.",
@@ -10662,6 +10678,10 @@
   "CGit9CSACq": {
     "defaultMessage": "Files",
     "description": "App shell breadcrumb title for the files page"
+  },
+  "CGzpmDlpq3": {
+    "defaultMessage": "Needs recheck",
+    "description": "QA badge for a finding whose translation changed after the scan"
   },
   "CHjEMV0nUm": {
     "defaultMessage": "Showing {pageStart}–{pageEnd} of {memoryTotal} translation memories",
@@ -12299,6 +12319,10 @@
     "defaultMessage": "Queue",
     "description": "Heading for the CAT segment queue panel"
   },
+  "EUl/k6hPi8": {
+    "defaultMessage": "Remove filter {label}: {value}",
+    "description": "Accessible label for removing one active QA filter"
+  },
   "EVH8TUWi0h": {
     "defaultMessage": "Generating localized landing page drafts...",
     "description": "Campaign mock step 2"
@@ -12563,6 +12587,10 @@
     "defaultMessage": "Empty strings",
     "description": "Treat empty strings as missing"
   },
+  "EqTEhbXnWU": {
+    "defaultMessage": "Not a real issue",
+    "description": "QA preset reason for ignoring a false positive finding"
+  },
   "EqlihiOWKx": {
     "defaultMessage": "Assign works when selected issues belong to one project",
     "description": "Tooltip when bulk assign is disabled for a multi-project selection"
@@ -12686,6 +12714,10 @@
   "F1KUlqpyf6": {
     "defaultMessage": "Error",
     "description": "Tool status badge when the tool returned an error"
+  },
+  "F1mswDK3dN": {
+    "defaultMessage": "Errors",
+    "description": "QA findings severity filter option for errors"
   },
   "F25y8G/ydQ": {
     "defaultMessage": "All",
@@ -15602,10 +15634,6 @@
   "JA+rxr35jC": {
     "defaultMessage": "Automations",
     "description": "Activity log event type group for automations"
-  },
-  "JAa3u44Ff3": {
-    "defaultMessage": "History",
-    "description": "QA review: history"
   },
   "JAndr5j6uF": {
     "defaultMessage": "Saved",
@@ -19171,6 +19199,10 @@
     "defaultMessage": "No jobs",
     "description": "Empty state inside a kanban column with no jobs"
   },
+  "O3JiAXCVWc": {
+    "defaultMessage": "{count, plural, one {# finding} other {# findings}}",
+    "description": "QA count of findings that match the current filters"
+  },
   "O3OXLAres/": {
     "defaultMessage": "Source text",
     "description": "Label for the source text field on a translation memory entry form"
@@ -19490,6 +19522,10 @@
   "OYX4uMwpwD": {
     "defaultMessage": "Run AI",
     "description": "Permission row for running AI actions"
+  },
+  "OYdZN+Q8q4": {
+    "defaultMessage": "Brand or product term",
+    "description": "QA preset reason for ignoring a brand or product name"
   },
   "OZfnTzJi03": {
     "defaultMessage": "Member",
@@ -19842,10 +19878,6 @@
   "P3FTUn97ec": {
     "defaultMessage": "CLI & CI",
     "description": "Project settings nav item for connecting the CLI and CI"
-  },
-  "P3c/gqRJ32": {
-    "defaultMessage": "Translation changed — run a scan to recheck.",
-    "description": "QA review: needsRecheck"
   },
   "P3hJ1/69DS": {
     "defaultMessage": "Could not leave the workspace. Try again.",
@@ -20731,10 +20763,6 @@
     "defaultMessage": "Add to glossary",
     "description": "Document editor: toolbar action that adds the selected term to the glossary"
   },
-  "QJstPBKp4K": {
-    "defaultMessage": "Enable {check}",
-    "description": "Enable translation QA check"
-  },
   "QJzxM6hpei": {
     "defaultMessage": "AI suggestion",
     "description": "Document editor: assistant section heading"
@@ -20790,6 +20818,10 @@
   "QQ7mjZLpf/": {
     "defaultMessage": "See market entry",
     "description": "Link from an integration detail page to a related use case"
+  },
+  "QQlco7X5aK": {
+    "defaultMessage": "Show charts",
+    "description": "QA overview action to expand the breakdown charts"
   },
   "QR/HxiItgI": {
     "defaultMessage": "Term base",
@@ -22251,10 +22283,6 @@
     "defaultMessage": "All sync states",
     "description": "Sync filter option for all sync states"
   },
-  "STIEPg13ap": {
-    "defaultMessage": "Review translation",
-    "description": "QA review: review"
-  },
   "SU+1M/5QGg": {
     "defaultMessage": "Off",
     "description": "GitHub Auto-review is turned off"
@@ -22999,6 +23027,10 @@
     "defaultMessage": "Finish a localised video in Iris. Upscale footage, or re-time a speaker's lips to the new language so the dub looks natural.",
     "description": "Story for Iris video tools (upscaling, lip-sync) on the pricing page"
   },
+  "TSE/OdVs3y": {
+    "defaultMessage": "Clear all",
+    "description": "QA action to reset every findings filter"
+  },
   "TSLfOgCp9k": {
     "defaultMessage": "Collection expression",
     "description": "Label for for-each collection expression field"
@@ -23018,6 +23050,10 @@
   "TV/xfNXFY0": {
     "defaultMessage": "Slide {number}",
     "description": "Group heading for paragraphs on a PowerPoint slide"
+  },
+  "TVGb1bgxbG": {
+    "defaultMessage": "Choose which checks run and how strict they are. Changes apply to the next scan and to the editor.",
+    "description": "Project QA check settings dialog description"
   },
   "TVH49oxDSg": {
     "defaultMessage": "Projects",
@@ -23619,6 +23655,10 @@
     "defaultMessage": "Redo",
     "description": "Shortcut label for redo on an automation or visual workflow"
   },
+  "UGP0Yv7lV2": {
+    "defaultMessage": "Check settings",
+    "description": "Project QA button that opens the check settings dialog"
+  },
   "UGc7qcLPZM": {
     "defaultMessage": "Approved work syncs back to your TMS and repositories. Reports show volume, turnaround, and cost by market.",
     "description": "localisation-operations use case page: guide › steps › #4 › body"
@@ -23830,6 +23870,10 @@
   "UYOEsTHp00": {
     "defaultMessage": "Fail workflow",
     "description": "Catalog title for the terminal workflow failure node"
+  },
+  "UYTcVt3FZK": {
+    "defaultMessage": "Scan",
+    "description": "Accessible label for the project QA scan picker"
   },
   "UZScHD9hML": {
     "defaultMessage": "Go global faster with one system for content and GTM",
@@ -24062,10 +24106,6 @@
   "Ut76PXj5Bp": {
     "defaultMessage": "Compact rows",
     "description": "Multilingual table row density option with less spacing"
-  },
-  "UtHu3v+Njx": {
-    "defaultMessage": "{label}: {errors} errors, {warnings} warnings",
-    "description": "Accessible name for one QA trend scan selection control"
   },
   "UtP8mQ6w9v": {
     "defaultMessage": "How traffic is split",
@@ -24382,6 +24422,10 @@
   "VElAUDjdAE": {
     "defaultMessage": "Run {count, plural, one {# step} other {# steps}} for real?",
     "description": "Title of the dialog before a test run in which some steps call out for real"
+  },
+  "VEphw4mha8": {
+    "defaultMessage": "Hide charts",
+    "description": "QA overview action to collapse the breakdown charts"
   },
   "VFS/q4p0GR": {
     "defaultMessage": "Schedule timezone",
@@ -25799,6 +25843,10 @@
     "defaultMessage": "Hidden",
     "description": "Filter option for hidden source strings"
   },
+  "XK7JWFwGaI": {
+    "defaultMessage": "{date} · {summary}",
+    "description": "Project QA scan picker option with the scan date and its result"
+  },
   "XL3HPQrRJ1": {
     "defaultMessage": "This document has no readable text yet.",
     "description": "Shown when a guideline document has no previewable content"
@@ -27102,10 +27150,6 @@
   "Z7pKHoBx5a": {
     "defaultMessage": "Name",
     "description": "Column header for translation memory name"
-  },
-  "Z8iMQbn2KB": {
-    "defaultMessage": "View status",
-    "description": "QA run history action to inspect running scan"
   },
   "Z8vLB9dxFv": {
     "defaultMessage": "Source",
@@ -29239,6 +29283,10 @@
     "defaultMessage": "No target locale is available for this task file.",
     "description": "Empty state when a native job CAT file has no target locale"
   },
+  "c0ch1EgIn0": {
+    "defaultMessage": "Off",
+    "description": "QA settings option that turns a check off"
+  },
   "c0wyG2sMeU": {
     "defaultMessage": "Remove relationship",
     "description": "Accessible label for the remove-relationship button"
@@ -30014,6 +30062,10 @@
   "d8Vs3k3UER": {
     "defaultMessage": "This conversation is no longer available.",
     "description": "Toast when a docked conversation returns 404"
+  },
+  "d8ajNV4LOu": {
+    "defaultMessage": "Other reason…",
+    "description": "QA ignore menu item that asks for a custom reason"
   },
   "d8cIu66K7q": {
     "defaultMessage": "The five largest projects on their own, the rest as Other.",
@@ -31354,6 +31406,10 @@
   "eogv8qHzO7": {
     "defaultMessage": "Direct and familiar French SaaS CTA phrasing.",
     "description": "AI reasoning for the CTA segment in the hero CAT mock"
+  },
+  "epgqMIB5N1": {
+    "defaultMessage": "Clear selection",
+    "description": "QA action to deselect every finding"
   },
   "eq+MOWqVs2": {
     "defaultMessage": "Create your first localization project",
@@ -32747,10 +32803,6 @@
     "defaultMessage": "ICU structure",
     "description": "Format check label for ICU structure in the hero CAT mock"
   },
-  "gcpJ8hX+G6": {
-    "defaultMessage": "Viewing an older scan. Open the latest scan for the current report.",
-    "description": "QA review: older"
-  },
   "gd3jONVykU": {
     "defaultMessage": "New experiment",
     "description": "market-experimentation use case page: guide › steps › #1 › visual › title"
@@ -33763,6 +33815,10 @@
     "defaultMessage": "Notion",
     "description": "Notion source name on the guidelines board"
   },
+  "hzctviyEHQ": {
+    "defaultMessage": "You are viewing the scan from {date}, not the latest one.",
+    "description": "Project QA banner shown while an older scan is selected"
+  },
   "hzrUUPWRn2": {
     "defaultMessage": "Failed to load the Braze REST cluster.",
     "description": "Error when the Braze REST cluster cannot be loaded"
@@ -34106,6 +34162,10 @@
   "iRIRASFRNC": {
     "defaultMessage": "Unlimited projects",
     "description": "Starter plan feature: unlimited projects"
+  },
+  "iRLdkcgIz1": {
+    "defaultMessage": "Failed",
+    "description": "Project QA scan picker result for a failed scan"
   },
   "iRSXECRcYZ": {
     "defaultMessage": "Localisation managers run the programme, growth teams open new markets, and developers ship the code. Find the workflow that matches your job.",
@@ -35347,10 +35407,6 @@
     "defaultMessage": "another issue",
     "description": "Fallback name for a related issue when its title isn't available (cross-project)"
   },
-  "kBixxU3NdD": {
-    "defaultMessage": "Select a scan",
-    "description": "Accessible label for QA trend chart scan selection controls"
-  },
   "kBjfpWlIHs": {
     "defaultMessage": "Running",
     "description": "Tool status badge when the tool is running"
@@ -36087,6 +36143,10 @@
     "defaultMessage": "Workspace archived",
     "description": "Access denied page title when the workspace is archived"
   },
+  "lDYWBRICCs": {
+    "defaultMessage": "In progress",
+    "description": "Project QA scan picker result for a queued or running scan"
+  },
   "lDqKdjmLTP": {
     "defaultMessage": "Enter a template name.",
     "description": "Validation error when a project template has no name"
@@ -36270,10 +36330,6 @@
   "lT66MLzS6u": {
     "defaultMessage": "Could not queue Loops push",
     "description": "Toast when queuing a Loops push automation run fails"
-  },
-  "lTJVZLlOrt": {
-    "defaultMessage": "Error: resolve the issue before saving or approving.",
-    "description": "QA error behavior"
   },
   "lTLErStLe+": {
     "defaultMessage": "Define locales, files, and mappings in i18n.yml, versioned with your code.",
@@ -36618,6 +36674,10 @@
   "lxpGDA483/": {
     "defaultMessage": "Translating",
     "description": "Accessible label for a locale that is translating"
+  },
+  "lxuJnb0riA": {
+    "defaultMessage": "{date} · {summary} · Latest",
+    "description": "Project QA scan picker option for the most recent scan"
   },
   "ly6RyY/2Uy": {
     "defaultMessage": "Built for your role",
@@ -37070,10 +37130,6 @@
   "mTauU9Q8fj": {
     "defaultMessage": "Unchanged",
     "description": "Tab for deep audit findings also present in the previous run"
-  },
-  "mTsK/KrTgC": {
-    "defaultMessage": "View failure",
-    "description": "QA run history action to inspect failure"
   },
   "mUSeeXuwsP": {
     "defaultMessage": "Failed to load dictionaries.",
@@ -38575,10 +38631,6 @@
     "defaultMessage": "Choose which mapped templates to write as locale-suffixed Braze copies. This does not change the source or publish.",
     "description": "Description of the Braze template picker dialog"
   },
-  "oayHNZPeA1": {
-    "defaultMessage": "Save check settings",
-    "description": "Save QA policy"
-  },
   "ob6BOeVg1Z": {
     "defaultMessage": "Quicker, cheaper Veo clips",
     "description": "Card summary for the Veo 3.1 Fast video model on the pricing page"
@@ -39147,6 +39199,10 @@
     "defaultMessage": "That file type is not supported. Use a supported format.",
     "description": "Toast when the selected knowledge upload file uses an unsupported format"
   },
+  "pJZlD9A8hJ": {
+    "defaultMessage": "Select all open ({count})",
+    "description": "QA checkbox label to select every loaded open finding"
+  },
   "pJnog+S4bX": {
     "defaultMessage": "Hyperlab",
     "description": "Sidebar section label above Hyperlab navigation items"
@@ -39710,6 +39766,10 @@
   "q/krUbYzC9": {
     "defaultMessage": "Query Ahrefs SEO data through the connection in Integrations.",
     "description": "Description for the Ahrefs automation tool when a connection exists"
+  },
+  "q04Mtm8DKj": {
+    "defaultMessage": "Fix in editor",
+    "description": "QA review: open the translation in the editor to fix the finding"
   },
   "q0HrIWf6j7": {
     "defaultMessage": "Pick where work starts (Notion, Slack, Contentful, GitHub). Draw the steps: write, translate, check, publish.",
@@ -40466,6 +40526,10 @@
   "r/zdhHnzwh": {
     "defaultMessage": "Ran for real",
     "description": "Mark beside a step in a test run's step list: the step called out for real"
+  },
+  "r0PXBuEaOF": {
+    "defaultMessage": "{label}: {value}",
+    "description": "QA active filter chip, for example Language: de-DE"
   },
   "r0YvO5Z1tm": {
     "defaultMessage": "Your own GitLab.com account, for chat and for automations you create. To sync files, connect GitLab for the workspace above.",
@@ -45167,6 +45231,10 @@
     "defaultMessage": "recorded a failed job",
     "description": "Action for job failure"
   },
+  "xOytcDysjb": {
+    "defaultMessage": "Intentional for this market",
+    "description": "QA preset reason for ignoring a deliberate translation choice"
+  },
   "xPJS2krjks": {
     "defaultMessage": "Glossary Imported",
     "description": "Activity log event type label for glossary imports"
@@ -46139,10 +46207,6 @@
     "defaultMessage": "Adapt for each market",
     "description": "marketing-localisation use case page: guide › steps › #2 › title"
   },
-  "ycpTXfqEM8": {
-    "defaultMessage": "Select loaded open findings",
-    "description": "QA review: selectLoaded"
-  },
   "ydDpJd3kaY": {
     "defaultMessage": "Add rule",
     "description": "Add a break rule within a language rule set"
@@ -46218,6 +46282,10 @@
   "yllmXGQJt9": {
     "defaultMessage": "Untranslated",
     "description": "Label for untranslated string count in visual editor progress"
+  },
+  "ym+SefNrfo": {
+    "defaultMessage": "Save changes",
+    "description": "Project QA check settings dialog save button"
   },
   "ym88cOvbnb": {
     "defaultMessage": "Locale",

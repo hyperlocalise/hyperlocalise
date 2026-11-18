@@ -18,48 +18,54 @@ import { DEFAULT_QA_POLICY } from "@/lib/qa/qa-policy";
 import { QaProjectUiStore } from "./qa-project-ui-store";
 
 describe("QaProjectUiStore", () => {
-  it("selects an older run, clears finding filters, and returns to findings", () => {
+  it("selects an older run and keeps finding filters for comparison", () => {
     const store = new QaProjectUiStore("acme", "project_web");
     store.setLocale("fr-FR");
-    store.setTab("history");
 
     store.selectRun("run_old", "run_latest");
     expect(store.selectedRunId).toBe("run_old");
-    expect(store.locale).toBe(QA_FILTER_ALL);
-    expect(store.isFiltered).toBe(false);
-    expect(store.tab).toBe("findings");
+    expect(store.locale).toBe("fr-FR");
 
-    store.setSeverity("error");
     store.selectRun("run_latest", "run_latest");
     expect(store.selectedRunId).toBeNull();
-    expect(store.severity).toBe(QA_FILTER_ALL);
-
-    store.setLocale("de-DE");
-    store.viewRun("run_previous");
-    expect(store.selectedRunId).toBe("run_previous");
-    expect(store.locale).toBe("de-DE");
   });
 
-  it("resets the selected run after a new scan starts without touching policy drafts", () => {
+  it("sets and clears finding filters by key", () => {
+    const store = new QaProjectUiStore("acme", "project_web");
+    store.setFilter("severity", "error");
+    store.setFilter("checkType", "spelling");
+    expect(store.isFiltered).toBe(true);
+
+    store.clearFindingFilters();
+    expect(store.severity).toBe(QA_FILTER_ALL);
+    expect(store.checkType).toBe(QA_FILTER_ALL);
+    expect(store.isFiltered).toBe(false);
+  });
+
+  it("resets the selected run after a new scan starts without touching setting drafts", () => {
     const store = new QaProjectUiStore("acme", "project_web");
     store.selectedRunId = "run_old";
-    store.setTab("settings");
     store.updateRule(DEFAULT_QA_POLICY, "spelling", { enabled: false });
 
     store.resetAfterScanStart();
     expect(store.selectedRunId).toBeNull();
-    expect(store.tab).toBe("findings");
     expect(store.draftPolicy?.spelling.enabled).toBe(false);
   });
 
-  it("drafts policy rule edits from the saved policy and can discard them", () => {
+  it("drafts schedule and rule edits together and discards them when settings close", () => {
     const store = new QaProjectUiStore("acme", "project_web");
+    store.openSettings();
 
+    store.setDraftCadence("daily");
     store.updateRule(DEFAULT_QA_POLICY, "length", { severity: "warning" });
+    expect(store.hasSettingsDraft).toBe(true);
     expect(store.draftPolicy?.length).toEqual({ enabled: true, severity: "warning" });
     expect(store.draftPolicy?.spelling).toEqual(DEFAULT_QA_POLICY.spelling);
 
-    store.clearDraftPolicy();
+    store.closeSettings();
+    expect(store.settingsOpen).toBe(false);
+    expect(store.draftCadence).toBeNull();
     expect(store.draftPolicy).toBeNull();
+    expect(store.hasSettingsDraft).toBe(false);
   });
 });

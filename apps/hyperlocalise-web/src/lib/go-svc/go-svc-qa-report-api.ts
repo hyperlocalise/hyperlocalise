@@ -58,6 +58,14 @@ export class GoSvcQaReportFindingsApi {
     );
   }
 
+  /** Applies one review to up to 100 findings; the server rejects the batch if any is stale. */
+  reviewMany(organizationSlug: string, body: GoSvcRecord) {
+    return this.request.json<GoSvcRecord>(
+      orgPath(organizationSlug, "qa-reports", "findings", "review"),
+      { method: "POST", body },
+    );
+  }
+
   promote(organizationSlug: string, body: GoSvcRecord, options: GoSvcRequestOptions = {}) {
     return this.request.json<GoSvcRecord>(
       orgPath(organizationSlug, "qa-reports", "findings", "promote"),

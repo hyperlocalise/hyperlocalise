@@ -35,4 +35,9 @@ export const jobFailureNoticeMessages = defineMessages({
     id: "taC1Y4ZVNm",
     description: "Link to the automatic follow-up job for leftover locales",
   },
+  technicalDetails: {
+    defaultMessage: "Technical details",
+    id: "Rjw14XFQ0k",
+    description: "Disclosure on the job failure notice showing the recorded error text",
+  },
 });
