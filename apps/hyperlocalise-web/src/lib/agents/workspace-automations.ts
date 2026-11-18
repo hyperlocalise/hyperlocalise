@@ -114,7 +114,6 @@ import {
   hasWorkspaceAutomationWebflowTool,
   hasWorkspaceAutomationListIssuesTool,
   hoistLegacyWorkspaceAutomationProjectId,
-  isContentSyncAutomation,
   normalizeRepositoryTarget,
   normalizeSkillIds,
   normalizeToolConfig,
@@ -2568,7 +2567,7 @@ export async function listWorkspaceAutomations(input: {
     .offset(input.offset ?? 0);
 
   const automations = rows.map(serializeAutomationWithAuthor);
-  return attachLatestContentSyncRuns(input.organizationId, automations);
+  return attachLatestAutomationRuns(input.organizationId, automations);
 }
 
 export async function listContentSyncAutomations(input: {
@@ -2608,34 +2607,36 @@ export async function listContentSyncAutomations(input: {
   return rows.map((row) => serializeAutomation(row));
 }
 
-async function attachLatestContentSyncRuns(
+async function attachLatestAutomationRuns(
   organizationId: string,
   automations: WorkspaceAutomationRecord[],
 ): Promise<WorkspaceAutomationRecord[]> {
-  const syncIds = automations
-    .filter((automation) => isContentSyncAutomation(automation))
-    .map((automation) => automation.id);
-  if (syncIds.length === 0) {
+  const automationIds = automations.map((automation) => automation.id);
+  if (automationIds.length === 0) {
     return automations;
   }
 
   const runs = await db
-    .select()
+    .selectDistinctOn([schema.workspaceAutomationRuns.automationId], {
+      automationId: schema.workspaceAutomationRuns.automationId,
+      status: schema.workspaceAutomationRuns.status,
+      error: schema.workspaceAutomationRuns.error,
+      completedAt: schema.workspaceAutomationRuns.completedAt,
+      createdAt: schema.workspaceAutomationRuns.createdAt,
+    })
     .from(schema.workspaceAutomationRuns)
     .where(
       and(
         eq(schema.workspaceAutomationRuns.organizationId, organizationId),
-        inArray(schema.workspaceAutomationRuns.automationId, syncIds),
+        inArray(schema.workspaceAutomationRuns.automationId, automationIds),
       ),
     )
-    .orderBy(desc(schema.workspaceAutomationRuns.createdAt));
+    .orderBy(
+      schema.workspaceAutomationRuns.automationId,
+      desc(schema.workspaceAutomationRuns.createdAt),
+    );
 
-  const latestByAutomation = new Map<string, AutomationRunRow>();
-  for (const run of runs) {
-    if (!latestByAutomation.has(run.automationId)) {
-      latestByAutomation.set(run.automationId, run);
-    }
-  }
+  const latestByAutomation = new Map(runs.map((run) => [run.automationId, run]));
 
   return automations.map((automation) => {
     const latest = latestByAutomation.get(automation.id);

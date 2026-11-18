@@ -184,6 +184,26 @@ describe("AutomationsPageContent", () => {
     expect(await screen.findByText("Failed · 2h")).toBeTruthy();
   });
 
+  it("says Never when an agent has no recorded last run", async () => {
+    mocks.listAutomations.mockResolvedValue([createAutomationSummary()]);
+    renderPage();
+
+    expect(await screen.findByText("Never")).toBeTruthy();
+  });
+
+  it("shows how long ago a successful agent run finished", async () => {
+    mocks.listAutomations.mockResolvedValue([
+      createAutomationSummary({
+        lastRunStatus: "succeeded",
+        lastRunAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      }),
+    ]);
+    renderPage();
+
+    expect(await screen.findByText("2h")).toBeTruthy();
+    expect(screen.queryByText("Never")).toBeNull();
+  });
+
   it("explains automations and offers the prompt box to a workspace with none", async () => {
     const user = userEvent.setup();
     renderPage();
