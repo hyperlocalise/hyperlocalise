@@ -106,10 +106,10 @@ describe("markTaskDone", () => {
     });
   });
 
-  it("finishes a visual-workflow proofread task assigned to a person", async () => {
+  it.each(["proofread", "edit"])("finishes a %s task assigned to a person", async (step) => {
     const { task, input } = await createTask({
       assigneeType: "user",
-      inputPayload: { metadata: { workflowTaskStep: "proofread" } },
+      inputPayload: { metadata: { workflowTaskStep: step } },
     });
 
     expect(isOk(await markTaskDone(input))).toBe(true);
@@ -119,10 +119,6 @@ describe("markTaskDone", () => {
   it.each<[string, Partial<typeof schema.jobs.$inferInsert>, boolean?]>([
     ["an agent's job", { kind: "translation", assigneeType: "agent" }],
     ["a translation task for people", { kind: "translation", assigneeType: "user" }],
-    [
-      "a post-edit task",
-      { inputPayload: { metadata: { workflowTaskStep: "edit" } }, assigneeType: "user" },
-    ],
     ["an AI review", { kind: "review" }],
     ["a task already cancelled", { status: "cancelled" }],
     ["a task still queued", { status: "queued" }],

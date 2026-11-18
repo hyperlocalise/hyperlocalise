@@ -11,37 +11,38 @@
  * Version 2.0 or later.
  */
 
-/** Visual-workflow post-edit tasks are stored as proofread jobs with this step. */
+import type { VisualTaskStep } from "@/lib/visual-workflows/schema/types";
+
+/** Post-edit tasks are stored as proofread jobs with this step. */
 export const POST_EDIT_WORKFLOW_TASK_STEP = "edit";
 
-export function readWorkflowTaskStep(inputPayload: unknown): string | null {
-  if (!inputPayload || typeof inputPayload !== "object" || Array.isArray(inputPayload)) {
+/**
+ * The step of a task for people, or null for any other job. A proofread job is a post-edit task
+ * when its stored step says so and a proofread task otherwise, which covers proofread tasks made
+ * in the app and tasks made of chosen strings. A translation job is a translate task only when a
+ * person was given it as one.
+ */
+export function personTaskStep(job: {
+  kind: string;
+  assigneeType?: string | null;
+  workflowTaskStep: string | null;
+}): VisualTaskStep | null {
+  if (job.assigneeType === "agent") {
     return null;
   }
-
-  const metadata = (inputPayload as Record<string, unknown>).metadata;
-  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
-    return null;
+  if (job.kind === "proofread") {
+    return job.workflowTaskStep === POST_EDIT_WORKFLOW_TASK_STEP ? "edit" : "proofread";
   }
-
-  const step = (metadata as Record<string, unknown>).workflowTaskStep;
-  return typeof step === "string" && step.length > 0 ? step : null;
+  return job.kind === "translation" && job.workflowTaskStep === "translate" ? "translate" : null;
 }
 
-/**
- * An open proofread task waiting on a person. Visual-workflow post-edit and
- * translate tasks are excluded; those steps do not use Mark done yet.
- */
+/** An open proofread or post-edit task waiting on a person. Translate tasks have no Mark done. */
 export function isMarkableProofreadTask(job: {
   kind: string;
   status: string;
   assigneeType?: string | null;
-  inputPayload?: unknown;
 }): boolean {
   return (
-    job.kind === "proofread" &&
-    job.status === "waiting_for_review" &&
-    job.assigneeType !== "agent" &&
-    readWorkflowTaskStep(job.inputPayload) !== POST_EDIT_WORKFLOW_TASK_STEP
+    job.kind === "proofread" && job.status === "waiting_for_review" && job.assigneeType !== "agent"
   );
 }

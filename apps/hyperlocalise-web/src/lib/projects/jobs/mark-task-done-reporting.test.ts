@@ -33,7 +33,10 @@ afterEach(async () => {
 });
 
 describe("markTaskDone with Reports", () => {
-  it("charges a proofread task's fixed fee once when it is marked done", async () => {
+  it.each([
+    ["proofread", {}],
+    ["post-edit", { metadata: { workflowTaskStep: "edit" } }],
+  ])("charges a %s task's fixed fee once when it is marked done", async (_step, inputPayload) => {
     const { organization, project, user } = await projectFixture.createStoredProjectFixture();
     const [task] = await db
       .insert(schema.jobs)
@@ -44,7 +47,7 @@ describe("markTaskDone with Reports", () => {
         createdByUserId: user.id,
         kind: "proofread",
         status: "waiting_for_review",
-        inputPayload: {},
+        inputPayload,
       })
       .returning();
     const [rate] = await db

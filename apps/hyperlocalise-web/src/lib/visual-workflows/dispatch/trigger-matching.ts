@@ -16,6 +16,7 @@ import { branchMatchesAutomationPatterns } from "@/lib/agents/github/github-repo
 import { isTriggerType } from "../catalog/node-catalog";
 import type {
   CanonicalVisualWorkflowNode,
+  VisualJobChangedJobKind,
   VisualNodeConfig,
   VisualWorkflowGithubTriggerEvent,
 } from "../schema/types";
@@ -156,9 +157,32 @@ function matchesOptionalFilter<T>(filter: readonly T[] | undefined, value: T): b
   return !filter || filter.length === 0 || filter.includes(value);
 }
 
+/**
+ * Job kinds on the trigger list post-edit tasks apart from other proofread jobs, though both are
+ * stored as kind `proofread`. `postEdit` says which this job is. Left out, a proofread job matches
+ * either choice: the dispatcher reads the job only once a workflow matches without it.
+ */
+function matchesJobKinds(
+  filter: readonly VisualJobChangedJobKind[] | undefined,
+  event: { kind: JobChangeEventRecord["kind"]; postEdit?: boolean },
+): boolean {
+  if (!filter || filter.length === 0) {
+    return true;
+  }
+  if (event.kind !== "proofread") {
+    return filter.includes(event.kind);
+  }
+  if (event.postEdit === undefined) {
+    return filter.includes("proofread") || filter.includes("post_edit");
+  }
+  return filter.includes(event.postEdit ? "post_edit" : "proofread");
+}
+
 export function visualWorkflowShouldDispatchOnJobChange(
   workflow: VisualWorkflowRecord,
-  event: Pick<JobChangeEventRecord, "type" | "projectId" | "kind" | "toStatus">,
+  event: Pick<JobChangeEventRecord, "type" | "projectId" | "kind" | "toStatus"> & {
+    postEdit?: boolean;
+  },
 ): boolean {
   if (workflow.status !== "active") {
     return false;
@@ -176,7 +200,7 @@ export function visualWorkflowShouldDispatchOnJobChange(
 
   return (
     matchesOptionalFilter(config.eventTypes, event.type) &&
-    matchesOptionalFilter(config.jobKinds, event.kind) &&
+    matchesJobKinds(config.jobKinds, event) &&
     matchesOptionalFilter(config.toStatuses, event.toStatus)
   );
 }

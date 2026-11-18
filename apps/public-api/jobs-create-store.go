@@ -228,7 +228,7 @@ func jobInputPayload(input jobCreate, scope projectScope) (map[string]any, strin
 			targetLocales[i] = projectLocaleSpelling(scope.TargetLocales, locale)
 		}
 		if in.Metadata != nil {
-			// A visual workflow step name would hide Mark done, so a key job never carries one.
+			// A key job is a proofread task, so it never carries another step's name.
 			metadata = make(map[string]string, len(in.Metadata))
 			for key, value := range in.Metadata {
 				if key != "workflowTaskStep" {

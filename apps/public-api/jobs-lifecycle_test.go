@@ -140,11 +140,18 @@ func TestJobLifecycleDatabase(t *testing.T) {
 		require.ErrorIs(t, err, errJobActionUnavailable)
 	})
 
+	t.Run("complete finishes an open post-edit task", func(t *testing.T) {
+		jobID := insertJob(t, "proofread", "waiting_for_review", `{"workflowTaskStep":"edit"}`, &f.actor.UserID)
+		done, err := f.store.completeJob(ctx, f.actor, jobID)
+		require.NoError(t, err)
+		require.Equal(t, "succeeded", done.Status)
+		require.Equal(t, [][2]string{{"waiting_for_review", "succeeded"}}, changeEvents(t, jobID))
+	})
+
 	t.Run("complete refuses other tasks", func(t *testing.T) {
 		for _, jobID := range []string{
 			insertJob(t, "translation", "waiting_for_review", `{}`, nil),
 			insertJob(t, "proofread", "queued", `{}`, nil),
-			insertJob(t, "proofread", "waiting_for_review", `{"workflowTaskStep":"edit"}`, nil),
 		} {
 			_, err := f.store.completeJob(ctx, f.actor, jobID)
 			require.ErrorIs(t, err, errJobActionUnavailable)

@@ -90,6 +90,7 @@ import type {
   VisualCatalogType,
   VisualComparisonOperand,
   VisualComparisonOperator,
+  VisualJobChangedJobKind,
   VisualKeyValuePair,
   VisualNodeConfig,
   VisualNodeErrorBehavior,
@@ -101,6 +102,7 @@ import type {
   VisualWorkflowValidationIssue,
   WorkflowValueType,
 } from "@/lib/visual-workflows/schema/types";
+import { JOB_CHANGED_JOB_KINDS } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowV3ValidationIssue } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
 import {
@@ -136,10 +138,8 @@ import { getVisualWorkflowWebhookUrl } from "../visual-workflows-api";
 import { deriveReusableWorkflowContract } from "@/lib/visual-workflows/validation/subworkflow-validation";
 import {
   JOB_CHANGE_EVENT_TYPES,
-  JOB_KINDS,
   JOB_STATUSES,
   type JobChangeEventType,
-  type JobKind,
   type JobStatus,
 } from "@/lib/job-change-events/job-change-events-contract";
 
@@ -4438,10 +4438,11 @@ const JOB_CHANGE_EVENT_LABELS: Record<JobChangeEventType, MessageDescriptor> = {
   "job.due_date_changed": messages.jobChangedEventDueDateChanged,
   "job.details_changed": messages.jobChangedEventDetailsChanged,
 };
-const JOB_KIND_LABELS: Record<JobKind, MessageDescriptor> = {
+const JOB_KIND_LABELS: Record<VisualJobChangedJobKind, MessageDescriptor> = {
   translation: messages.jobKindTranslation,
   research: messages.jobKindResearch,
   review: messages.jobKindReview,
+  post_edit: messages.jobKindPostEdit,
   proofread: messages.jobKindProofread,
   sync: messages.jobKindSync,
   asset_management: messages.jobKindAssetManagement,
@@ -4536,7 +4537,7 @@ function JobChangedTriggerFields({
       <JobChangedFilterGroup
         idPrefix="vw-job-changed-kind"
         label={messages.jobChangedJobKinds}
-        options={JOB_KINDS}
+        options={JOB_CHANGED_JOB_KINDS}
         labels={JOB_KIND_LABELS}
         values={config.jobKinds}
         onChange={(jobKinds) => onChangeConfig({ ...config, jobKinds })}

@@ -783,7 +783,9 @@ function jobChangedSubtitle(config: Extract<VisualNodeConfig, { kind: "trigger.j
     parts.push(config.eventTypes.map((type) => JOB_CHANGED_EVENT_LABELS[type] ?? type).join(", "));
   }
   if (config.jobKinds?.length) {
-    parts.push(config.jobKinds.join(", "));
+    parts.push(
+      config.jobKinds.map((kind) => (kind === "post_edit" ? "post-edit" : kind)).join(", "),
+    );
   }
   if (config.toStatuses?.length) {
     parts.push(config.toStatuses.join(", "));

@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, isNull, ne, notExists, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, isNull, ne, notExists, or, type SQL } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { updateJobs } from "@/lib/job-change-events/job-writes";
@@ -18,9 +18,7 @@ import { recordJobEvents } from "@/lib/job-events/job-events-writer";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import { captureJobStatus } from "@/lib/reporting/capture";
 
-import { POST_EDIT_WORKFLOW_TASK_STEP } from "./person-task";
-
-export { isMarkableProofreadTask, POST_EDIT_WORKFLOW_TASK_STEP } from "./person-task";
+export { isMarkableProofreadTask } from "./person-task";
 
 export type MarkTaskDoneError =
   | { code: "job_not_found" }
@@ -28,8 +26,8 @@ export type MarkTaskDoneError =
   | { code: "not_task_assignee" };
 
 /**
- * Marks an open proofread task done. Visual-workflow post-edit and translation
- * tasks, agent jobs, and provider mirrors are excluded.
+ * Marks an open proofread or post-edit task done. Translate tasks, agent jobs, and provider
+ * mirrors are excluded.
  * Reviewers and managers may finish any such task; anyone else only a task assigned to them.
  */
 export async function markTaskDone(input: {
@@ -57,7 +55,6 @@ export async function markTaskDone(input: {
       input.actorMayFinishAnyTask ? undefined : eq(schema.jobs.ownerUserId, input.actorUserId),
       eq(schema.jobs.status, "waiting_for_review"),
       eq(schema.jobs.kind, "proofread"),
-      sql`coalesce(${schema.jobs.inputPayload}->'metadata'->>'workflowTaskStep', '') <> ${POST_EDIT_WORKFLOW_TASK_STEP}`,
       or(isNull(schema.jobs.assigneeType), ne(schema.jobs.assigneeType, "agent")),
       notExists(
         database

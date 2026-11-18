@@ -6,6 +6,8 @@
 
 [Key store and key jobs](2026-11-05-key-store-and-key-jobs-design.md) added tags, design links and tasks made of strings to the content editor. Teams moving from Phrase Strings also run this work from scripts: their automation tags keys, uploads screenshots and links them to keys, puts keys into jobs, adds and removes a job's keys and languages, completes jobs, and marks translations unverified in batches. Phrase, Lokalise, Smartling and Crowdin all offer these actions through their API as well as their editor.
 
+Tasks for a person on a whole file, made and finished through the same job routes, are designed in [A file's human steps in order](2026-11-16-task-steps-in-order-design.md).
+
 ## Decision
 
 All routes are for native projects and use the existing scopes (`strings:read` / `strings:write`, `jobs:read` / `jobs:write`), plus `translations:approve` for approving (below). Permissions match the app's role rules in `policy.ts`. Tags and links follow the editor's rules in `internal/keymeta`.

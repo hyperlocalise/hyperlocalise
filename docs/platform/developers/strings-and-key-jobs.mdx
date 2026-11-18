@@ -291,7 +291,7 @@ curl --fail-with-body -X POST "https://public-api.hyperlocalise.com/v1/jobs/$JOB
   -H "x-api-key: $HYPERLOCALISE_API_KEY"
 ```
 
-- `POST /v1/jobs/{jobId}/complete` moves an open proofread task for people (`waiting_for_review`) to `succeeded`. Unfinished strings stay as they are. Reviewers, localization managers, and admins can complete any task. Anyone else can complete only tasks they own, and gets `403 not_task_assignee` for the rest. Tasks for an agent, and the post-editing step of a workflow, finish on their own.
+- `POST /v1/jobs/{jobId}/complete` moves an open proofread or post-edit task for people (`waiting_for_review`) to `succeeded`. Unfinished strings stay as they are. Reviewers, localization managers, and admins can complete any task. Anyone else can complete only tasks they own, and gets `403 not_task_assignee` for the rest. Tasks for an agent finish on their own.
 - `POST /v1/jobs/{jobId}/cancel` moves a `queued`, `running`, or `waiting_for_review` job to `cancelled` and stops it. A cancelled job can't be reopened.
 
 A job that can't take the action, including a provider-backed job, returns `409 job_action_unavailable`.

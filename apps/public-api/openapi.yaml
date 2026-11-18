@@ -2660,9 +2660,9 @@ paths:
       tags: [Jobs]
       summary: Complete an open task for people
       description: >-
-        Requires `jobs:write`. Same rules as Mark done in the app. Only an open proofread task
-        (`waiting_for_review`) assigned to people can be completed, not one for an agent or a
-        post-editing step of a workflow. Reviewers, localization managers and admins can complete
+        Requires `jobs:write`. Same rules as Mark done in the app. Only an open proofread or
+        post-edit task (`waiting_for_review`) for people can be completed, not one for an agent.
+        Reviewers, localization managers and admins can complete
         any task. Anyone else can complete only a task they own, and gets `403 not_task_assignee`
         otherwise. Other jobs, and provider-backed jobs, return `409 job_action_unavailable`. The
         job moves to `succeeded` and its unfinished strings stay as they are.

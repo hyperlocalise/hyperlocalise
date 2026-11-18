@@ -13,10 +13,11 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { EmailProviderSlug } from "@/lib/email/constants";
-import type {
-  JobChangeEventType,
-  JobKind,
-  JobStatus,
+import {
+  JOB_KINDS,
+  type JobChangeEventType,
+  type JobKind,
+  type JobStatus,
 } from "@/lib/job-change-events/job-change-events-contract";
 
 export const VISUAL_WORKFLOW_SCHEMA_VERSION = 2 as const;
@@ -100,6 +101,16 @@ export type VisualConcatenateSegment =
 /** Who works on a human task: translating from scratch, post-editing a draft, or proofreading. */
 export type VisualTaskStep = "translate" | "edit" | "proofread";
 
+/**
+ * The kinds a Job changed trigger can pick: the stored job kinds, and post-edit tasks as a kind of
+ * their own. A post-edit task is stored as a proofread job, so here `proofread` means every other
+ * proofread job.
+ */
+export type VisualJobChangedJobKind = JobKind | "post_edit";
+export const JOB_CHANGED_JOB_KINDS: readonly VisualJobChangedJobKind[] = JOB_KINDS.flatMap(
+  (kind): VisualJobChangedJobKind[] => (kind === "proofread" ? ["post_edit", kind] : [kind]),
+);
+
 export type VisualCrowdinTaskType = "translate" | "proofread";
 
 export type VisualComparisonOperator =
@@ -174,7 +185,7 @@ export type VisualWorkflowJobChangedTriggerConfig = {
   /** Which job changes start a run; every change when unset or empty. */
   eventTypes?: JobChangeEventType[];
   /** Only jobs of these kinds; every kind when unset or empty. */
-  jobKinds?: JobKind[];
+  jobKinds?: VisualJobChangedJobKind[];
   /** Only changes that leave the job in one of these statuses; any status when unset or empty. */
   toStatuses?: JobStatus[];
 };
