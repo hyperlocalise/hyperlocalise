@@ -21,6 +21,8 @@ import {
   ArrowSquareOutIcon,
   ArrowClockwiseIcon,
   CheckCircleIcon,
+  DotsThreeIcon,
+  ProhibitIcon,
   StopCircleIcon,
 } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -36,6 +38,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { TaskReport } from "@/components/reports/task-report";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
@@ -65,8 +73,8 @@ import { JobDetailEditableTitle } from "./job-detail-editable-title";
 import {
   getInputPayloadMetadataDescription,
   jobDetailTaskLayoutFromRecord,
+  shortJobTitle,
 } from "./job-detail-layout-helpers";
-import { defaultRenderBackLink } from "./job-detail-shared";
 import { JobDetailTaskView } from "./job-detail-task-view";
 import type { JobDetailRecord } from "./job-detail-types";
 import { JobFailureNotice } from "./job-failure-notice";
@@ -331,8 +339,13 @@ export function NativeJobDetailContent({
   const jobActionPending =
     retryJob.isPending || markJobFailed.isPending || cancelJob.isPending || markTaskDone.isPending;
   const failureDetails = job ? readJobFailureDetails(job) : null;
+  // Any failed job that a person did not own explains itself, whether or not an
+  // agent was formally assigned; partial agent runs list their unfinished locales.
   const showFailureNotice = Boolean(
-    job && failureDetails && shouldShowJobFailureDetails(job, failureDetails),
+    job &&
+    failureDetails &&
+    ((job.status === "failed" && job.assigneeType !== "user") ||
+      shouldShowJobFailureDetails(job, failureDetails)),
   );
   const followUpHref =
     job && failureDetails?.followUpJobId
@@ -437,9 +450,35 @@ export function NativeJobDetailContent({
 
   useAppShellBreadcrumbAppend({
     id: "job-detail",
-    label: layout?.title,
+    label: layout ? shortJobTitle(layout.title) : undefined,
   });
 
+  const isFailed = job?.status === "failed";
+  // A task owner outside the project's team gets Mark done and the editor, nothing else.
+  const showRetry = Boolean(job && !taskOwnerOnly && canRetryJob(job));
+  const showCancel = Boolean(job && !taskOwnerOnly && canCancelJob(job));
+  const showMarkFailed = Boolean(job && !taskOwnerOnly && canMarkJobFailed(job));
+  // A failed job's notice carries Retry next to the reason; the header keeps it otherwise.
+  const retryInNotice = isFailed && showRetry && showFailureNotice;
+  const retryInHeader = showRetry && !retryInNotice;
+  const retryButton = (
+    <Button
+      size="sm"
+      variant={isFailed ? "default" : "outline"}
+      disabled={jobActionPending}
+      onClick={() => retryJob.mutate()}
+    >
+      <ArrowClockwiseIcon />
+      {retryJob.isPending ? (
+        <FormattedMessage {...messages.retrying} />
+      ) : (
+        <FormattedMessage {...messages.retryJob} />
+      )}
+    </Button>
+  );
+
+  // One filled button per status: Retry on a failed job, the editor otherwise.
+  // Destructive and rare actions sit in the overflow menu.
   const headerActions = job ? (
     <>
       {job.externalUrl ? (
@@ -458,42 +497,6 @@ export function NativeJobDetailContent({
           variant="outline"
         />
       ) : null}
-      {!taskOwnerOnly && canRetryJob(job) ? (
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={jobActionPending}
-          onClick={() => retryJob.mutate()}
-        >
-          <ArrowClockwiseIcon />
-          {retryJob.isPending ? (
-            <FormattedMessage {...messages.retrying} />
-          ) : (
-            <FormattedMessage {...messages.retryJob} />
-          )}
-        </Button>
-      ) : null}
-      {!taskOwnerOnly && canCancelJob(job) ? (
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={jobActionPending}
-          onClick={() => setCancelDialogOpen(true)}
-        >
-          <FormattedMessage {...messages.cancelJob} />
-        </Button>
-      ) : null}
-      {!taskOwnerOnly && canMarkJobFailed(job) ? (
-        <Button
-          size="sm"
-          variant="destructive"
-          disabled={jobActionPending}
-          onClick={() => setMarkFailedDialogOpen(true)}
-        >
-          <StopCircleIcon />
-          <FormattedMessage {...messages.markAsFailed} />
-        </Button>
-      ) : null}
       {(canEditJobFields || (taskOwnerOnly && canMarkOwnTaskDone)) &&
       canMarkTaskDone(job) &&
       (canMarkAnyTaskDone || (currentUserId !== undefined && job.ownerUserId === currentUserId)) ? (
@@ -508,10 +511,47 @@ export function NativeJobDetailContent({
         </Button>
       ) : null}
       {showCatAction && contentEditorHref ? (
-        <Button size="sm" render={<Link href={contentEditorHref} />}>
+        <Button
+          size="sm"
+          variant={isFailed && retryInHeader ? "outline" : "default"}
+          nativeButton={false}
+          render={<Link href={contentEditorHref} />}
+        >
           <ListBulletsIcon />
           <FormattedMessage {...messages.openEditor} />
         </Button>
+      ) : null}
+      {retryInHeader ? retryButton : null}
+      {showCancel || showMarkFailed ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                disabled={jobActionPending}
+                aria-label={intl.formatMessage(messages.moreActions)}
+              />
+            }
+          >
+            <DotsThreeIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-auto">
+            {showCancel ? (
+              <DropdownMenuItem onClick={() => setCancelDialogOpen(true)}>
+                <ProhibitIcon />
+                <FormattedMessage {...messages.cancelJob} />
+              </DropdownMenuItem>
+            ) : null}
+            {showMarkFailed ? (
+              <DropdownMenuItem variant="destructive" onClick={() => setMarkFailedDialogOpen(true)}>
+                <StopCircleIcon />
+                <FormattedMessage {...messages.markAsFailed} />
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
     </>
   ) : null;
@@ -536,29 +576,21 @@ export function NativeJobDetailContent({
         properties={properties}
         secondaryProperties={layout?.secondaryProperties ?? []}
         headerActions={headerActions}
-        // A task owner cannot open the project's job list, so the way back is My jobs.
-        {...(taskOwnerOnly
-          ? {
-              renderBackLink: () =>
-                defaultRenderBackLink({
-                  href: myJobsHref,
-                  children: intl.formatMessage(messages.taskOwnerBackLink),
-                }),
-            }
-          : {})}
         isLoading={jobQuery.isLoading || taskNoLongerOpen}
         error={jobQuery.isError ? jobQuery.error : undefined}
         description={description}
         canEditDescription={isNativeEditable}
         renderDescriptionField={
           isNativeEditable
-            ? ({ description: fieldDescription, editable }) => (
+            ? ({ description: fieldDescription, editable, startEditing, onCancel }) => (
                 <NativeJobDescriptionField
                   organizationSlug={organizationSlug}
                   jobId={jobId}
                   description={fieldDescription}
                   editable={editable}
                   queryKey={jobQueryKey}
+                  startEditing={startEditing}
+                  onCancel={onCancel}
                 />
               )
             : description.trim().length > 0
@@ -601,6 +633,7 @@ export function NativeJobDetailContent({
                       details={failureDetails}
                       followUpHref={followUpHref}
                       variant={job?.status === "failed" ? "failed" : "partial"}
+                      action={retryInNotice ? retryButton : null}
                     />
                   ) : null}
                   {job && !taskOwnerOnly && hasJobActivityFeed(job) ? (

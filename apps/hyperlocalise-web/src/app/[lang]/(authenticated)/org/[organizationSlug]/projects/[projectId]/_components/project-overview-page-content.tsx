@@ -45,7 +45,7 @@ import type { ProjectListRow } from "../../_components/project-list";
 import { ProjectLocaleProgressList } from "./project-locale-progress-list";
 import { projectOverviewPageContentMessages as messages } from "./project-overview-page-content.messages";
 import { ProjectPageShell, useProjectPageQuery } from "./project-page-shell";
-import { useProjectLocaleProgressQuery } from "./use-project-locale-progress";
+import { useProjectLocaleProgressQuery } from "@/lib/projects/use-project-locale-progress";
 import { TranslateLocaleWithAgentDialog } from "./translate-locale-with-agent-dialog";
 import { useProjectOverviewJobsQuery } from "./use-project-overview-jobs";
 import {

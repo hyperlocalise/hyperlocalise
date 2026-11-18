@@ -1,69 +1,9 @@
 package main
 
-var memberSettingsRoleOrder = []string{
-	"admin",
-	"localization_manager",
-	"developer",
-	"reviewer",
-	"translator",
-	"member",
-	organizationRoleVendor,
-}
+import "github.com/hyperlocalise/hyperlocalise/internal/authz"
 
-// organizationCapabilityByRole ports the subset of the web policy table
-// (src/api/auth/policy.ts) that go-svc checks. Keep entries in step with it.
-var organizationCapabilityByRole = map[string]map[string]struct{}{
-	"admin": {
-		"workspace:read": {}, "workspace:update": {}, "members:invite": {}, "teams:write": {},
-		"projects:read": {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
-		"memories:read": {}, "memories:write": {},
-		"api_keys:read": {}, "api_keys:write": {},
-		"integrations:read": {}, "integrations:write": {},
-		"ai_actions:run": {}, "billing:read": {}, "billing:write": {},
-	},
-	"localization_manager": {
-		"workspace:read": {}, "workspace:update": {}, "members:invite": {}, "teams:write": {},
-		"projects:read": {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
-		"memories:read": {}, "memories:write": {},
-		"api_keys:read": {}, "api_keys:write": {},
-		"integrations:read": {}, "integrations:write": {},
-		"ai_actions:run": {}, "billing:read": {},
-	},
-	"developer": {
-		"workspace:read": {},
-		"projects:read":  {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
-		"memories:read":     {},
-		"integrations:read": {},
-		"ai_actions:run":    {},
-	},
-	"reviewer": {
-		"workspace:read": {},
-		"projects:read":  {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
-		"memories:read":  {},
-		"ai_actions:run": {},
-	},
-	"translator": {
-		"workspace:read": {},
-		"projects:read":  {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
-		"memories:read":  {},
-		"ai_actions:run": {},
-	},
-	"member": {
-		"workspace:read": {},
-		"projects:read":  {}, "jobs:read": {}, "memories:read": {},
-	},
-	// A vendor holds no capability: see organizationRoleVendor.
-	organizationRoleVendor: {},
-}
-
-func hasOrganizationCapability(role, capability string) bool {
-	caps, ok := organizationCapabilityByRole[role]
-	if !ok {
-		return false
-	}
-	_, ok = caps[capability]
-	return ok
-}
+// memberSettingsRoles lists the roles a member can be given: the workspace roles, then Vendor.
+var memberSettingsRoles = append(append([]string(nil), authz.Roles...), organizationRoleVendor)
 
 func isOrganizationAdminRole(role string) bool {
 	return role == "admin"
@@ -71,11 +11,11 @@ func isOrganizationAdminRole(role string) bool {
 
 func assignableRolesForActor(actorRole string) []string {
 	if isOrganizationAdminRole(actorRole) {
-		return append([]string(nil), memberSettingsRoleOrder...)
+		return append([]string(nil), memberSettingsRoles...)
 	}
-	if hasOrganizationCapability(actorRole, "members:invite") {
-		roles := make([]string, 0, len(memberSettingsRoleOrder)-1)
-		for _, role := range memberSettingsRoleOrder {
+	if authz.HasCapability(actorRole, "members:invite") {
+		roles := make([]string, 0, len(memberSettingsRoles)-1)
+		for _, role := range memberSettingsRoles {
 			if role != "admin" {
 				roles = append(roles, role)
 			}
@@ -95,7 +35,7 @@ func canActorAssignRole(actorRole, role string) bool {
 }
 
 func canActorManageTarget(actorRole, targetRole string, nextRole *string) bool {
-	if !hasOrganizationCapability(actorRole, "members:invite") {
+	if !authz.HasCapability(actorRole, "members:invite") {
 		return false
 	}
 	if !canActorAssignRole(actorRole, targetRole) {
@@ -133,5 +73,5 @@ func buildMemberManagementContext(actorRole string) memberManagementContext {
 
 // isKnownMemberRole lists the roles a member can be given, which includes Vendor.
 func isKnownMemberRole(role string) bool {
-	return isKnownOrganizationRole(role) || role == organizationRoleVendor
+	return authz.IsKnownRole(role) || role == organizationRoleVendor
 }

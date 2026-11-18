@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -185,7 +187,7 @@ func parseCreateAPIKeyBody(r *http.Request) (createAPIKeyRequest, error) {
 			req.permissions = make([]string, 0, len(items))
 			for i, item := range items {
 				var scope string
-				if json.Unmarshal(item, &scope) != nil || bytes.Equal(item, []byte("null")) || !isAPIKeyScope(scope) {
+				if json.Unmarshal(item, &scope) != nil || bytes.Equal(item, []byte("null")) || !authz.IsAPIKeyScope(scope) {
 					issues = append(issues, apiKeyValidationIssue{
 						Path:    []any{"permissions", i},
 						Message: apiKeyScopeOptionMessage(),
@@ -217,12 +219,12 @@ func (api *apiKeyAPI) createAPIKeyHandler(r *http.Request, actor organizationAct
 
 func (api *apiKeyAPI) createAPIKey(ctx context.Context, actor organizationActor, req createAPIKeyRequest) (createdAPIKey, error) {
 	var created createdAPIKey
-	grantable := grantableAPIKeyPermissions(actor.role)
+	grantable := authz.GrantableAPIKeyScopes(actor.role)
 	requested := grantable
 	if req.permissions != nil {
 		requested = req.permissions
 	}
-	refused := refusedAPIKeyPermissions(actor.role, requested)
+	refused := authz.RefusedAPIKeyScopes(actor.role, requested)
 	if len(grantable) == 0 || len(refused) > 0 {
 		reported := refused
 		if len(reported) == 0 {
@@ -269,7 +271,7 @@ func (api *apiKeyAPI) createAPIKey(ctx context.Context, actor organizationActor,
         insert into organization_api_keys (organization_id, name, key_hash, key_prefix, permissions, created_by_user_id)
         values ($1, $2, $3, $4, $5::jsonb, $6)
         returning id, name, key_prefix, permissions, created_at`,
-		actor.organizationID, req.name, hashAPIKey(plainKey), apiKeyPrefix(plainKey), string(permissionsJSON), actor.userID,
+		actor.organizationID, req.name, publicauth.HashAPIKey(plainKey), apiKeyPrefix(plainKey), string(permissionsJSON), actor.userID,
 	).Scan(&created.ID, &created.Name, &created.KeyPrefix, &permissions, &createdAt)
 	if err != nil {
 		return created, apiKeyInternalFailure("internal_error", "The token could not be created", err)

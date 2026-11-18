@@ -72,6 +72,7 @@ export const Default: Story = {
     await expect(overview.getAllByText("From the selected scan")).toHaveLength(2);
     await expect(overview.getByText("2 languages have findings")).toBeInTheDocument();
     await expect(overview.getByText("Scans daily")).toBeInTheDocument();
+    await userEvent.click(overview.getByRole("button", { name: "Show charts" }));
     await expect(
       overview.getByRole("img", { name: "Findings by language: de-DE 3, fr-FR 2" }),
     ).toBeInTheDocument();
@@ -81,11 +82,18 @@ export const Default: Story = {
     await expect(canvas.getByText("dashboard.reviews.pending")).toBeInTheDocument();
     await expect(canvas.getByRole("combobox", { name: "Language" })).toHaveTextContent("All");
     await expect(canvas.getByRole("combobox", { name: "Check" })).toHaveTextContent("All");
-    await expect(canvas.getByRole("combobox", { name: "Severity" })).toHaveTextContent("All");
-    await expect(canvas.getByRole("combobox", { name: "Review status" })).toHaveTextContent("Open");
+    await expect(
+      within(canvas.getByRole("group", { name: "Severity" })).getByRole("button", { name: "All" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      within(canvas.getByRole("group", { name: "Review status" })).getByRole("button", {
+        name: "Open",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(canvas.getByRole("combobox", { name: "Scan" })).toHaveTextContent(/^Scan: /);
     await expect(canvas.getByText("Placeholder mismatch")).toBeInTheDocument();
     await expect(canvas.getByText("Showing 4 of 4 findings")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Create issues (0)" })).toBeDisabled();
+    await expect(canvas.queryByRole("button", { name: /Create issues/ })).not.toBeInTheDocument();
   },
 };
 
@@ -147,13 +155,11 @@ export const Failed: Story = {
     await expect(canvas.getByRole("button", { name: "Retry scan" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "View last completed scan" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "Run QA check" })).toBeEnabled();
+    await expect(canvas.getByText("A member")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "View last completed scan" }));
-    await expect(canvas.getByText(/Viewing an older scan/)).toBeInTheDocument();
+    await expect(await canvas.findByText(/not the latest one/)).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "View latest scan" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "Run QA check" })).toBeEnabled();
-    await userEvent.click(canvas.getByRole("tab", { name: "History" }));
-    await expect(canvas.getByRole("button", { name: "View failure" })).toBeInTheDocument();
-    await expect(canvas.getByText("A member")).toBeInTheDocument();
   },
 };
 
@@ -168,10 +174,8 @@ export const NotScanned: Story = {
       await canvas.findByText("Not checked yet. Run a scan to review translation quality."),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Run QA check" })).toBeEnabled();
-    await userEvent.click(canvas.getByRole("tab", { name: "History" }));
-    await expect(
-      canvas.getByText("Not checked yet. Run a scan to review translation quality."),
-    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Run first scan" })).toBeEnabled();
+    await expect(canvas.queryByRole("combobox", { name: "Scan" })).not.toBeInTheDocument();
   },
 };
 
@@ -192,7 +196,7 @@ export const Unsupported: Story = {
       { timeout: 15_000 },
     );
     await expect(canvas.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("tab", { name: "Findings" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("combobox", { name: "Scan" })).not.toBeInTheDocument();
   },
 };
 
@@ -272,49 +276,72 @@ export const History: Story = {
       handlers: qaProjectHistoryMswHandlers,
     },
   },
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
     const overview = within(canvas.getByRole("region", { name: "QA overview" }));
     await expect(overview.getByText("+1 vs previous scan")).toBeInTheDocument();
     await expect(overview.getByText("+3 vs previous scan")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("tab", { name: "History" }));
-    await expect(canvas.getByText("A member")).toBeInTheDocument();
-    await expect(canvas.getByText("Daily schedule")).toBeInTheDocument();
-    await userEvent.click(canvas.getAllByRole("button", { name: "Findings" })[1]!);
-    await expect(await canvas.findByText(/Viewing an older scan/)).toBeInTheDocument();
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("combobox", { name: "Scan" }));
+    const options = await body.findAllByRole("option");
+    await expect(options[0]).toHaveTextContent(/Latest$/);
+    await userEvent.click(options[1]!);
+    await expect(await canvas.findByText(/not the latest one/)).toBeInTheDocument();
     await expect(canvas.getByText("billing.invoice.empty")).toBeInTheDocument();
     await expect(canvas.queryByText("dashboard.reviews.pending")).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "View latest scan" }));
     await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
-    await expect(canvas.queryByText(/Viewing an older scan/)).not.toBeInTheDocument();
+    await expect(canvas.queryByText(/not the latest one/)).not.toBeInTheDocument();
   },
 };
 
 export const Settings: Story = {
   play: async ({ canvas, canvasElement }) => {
     await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("tab", { name: "Check settings" }));
-    await expect(canvas.getByRole("switch", { name: "Daily scan" })).toBeChecked();
-    await expect(canvas.getByText(/Scan this project once a day/)).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Check settings" }));
+    const dialog = within(await within(canvasElement.ownerDocument.body).findByRole("dialog"));
+    await expect(dialog.getByRole("switch", { name: "Daily scan" })).toBeChecked();
+    await expect(dialog.getByText(/Scan this project once a day/)).toBeInTheDocument();
     await expect(
-      canvas.getByText(/An error blocks saving when the editor has already reported it/),
+      dialog.getByText(/An error blocks saving when the editor has already reported it/),
     ).toBeInTheDocument();
-    const guidelinesSwitch = canvas.getByRole("switch", { name: "Enable Guidelines" });
-    const guidelinesRow = guidelinesSwitch.closest("div.py-3");
-    if (!(guidelinesRow instanceof HTMLElement)) {
-      throw new Error("Guidelines settings row was not found.");
-    }
-    const severity = within(guidelinesRow).getByRole("combobox", { name: "Severity" });
-    await expect(severity).toHaveTextContent("Warning");
-    await expect(canvas.getByRole("button", { name: "Save check settings" })).toBeDisabled();
-    await userEvent.click(canvas.getByRole("switch", { name: "Enable Numbers" }));
-    await expect(canvas.getByRole("button", { name: "Save check settings" })).toBeEnabled();
+    await expect(
+      dialog.getByText("Error: ask the translator to confirm before saving or approving."),
+    ).toBeInTheDocument();
+    const guidelines = within(dialog.getByRole("group", { name: "Guidelines" }));
+    await expect(guidelines.getByRole("button", { name: "Warning" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(dialog.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await userEvent.click(
+      within(dialog.getByRole("group", { name: "Numbers" })).getByRole("button", { name: "Off" }),
+    );
+    await userEvent.click(guidelines.getByRole("button", { name: "Error" }));
+    await expect(guidelines.getByRole("button", { name: "Error" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await userEvent.click(dialog.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(within(canvasElement.ownerDocument.body).queryByRole("dialog")).toBeNull(),
+    );
+  },
+};
+
+export const SettingsDiscardOnCancel: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
     const body = within(canvasElement.ownerDocument.body);
-    await userEvent.click(severity);
-    await userEvent.click(await body.findByRole("option", { name: "Error" }));
-    await expect(severity).toHaveTextContent("Error");
-    await userEvent.click(canvas.getByRole("button", { name: "Save check settings" }));
-    await expect(await canvas.findByText(/Check settings saved/)).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Check settings" }));
+    let dialog = within(await body.findByRole("dialog"));
+    await userEvent.click(dialog.getByRole("switch", { name: "Daily scan" }));
+    await expect(dialog.getByRole("switch", { name: "Daily scan" })).not.toBeChecked();
+    await userEvent.click(dialog.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(body.queryByRole("dialog")).toBeNull());
+    await userEvent.click(canvas.getByRole("button", { name: "Check settings" }));
+    dialog = within(await body.findByRole("dialog"));
+    await expect(dialog.getByRole("switch", { name: "Daily scan" })).toBeChecked();
   },
 };
 
@@ -324,12 +351,16 @@ export const SettingsLocked: Story = {
       handlers: qaProjectLockedMswHandlers,
     },
   },
-  play: async ({ canvas }) => {
-    await expect(await canvas.findByRole("tab", { name: "Check settings" })).toBeInTheDocument();
+  play: async ({ canvas, canvasElement }) => {
+    await expect(await canvas.findByRole("button", { name: "Check settings" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Run QA check" })).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("tab", { name: "Check settings" }));
-    await expect(canvas.getByRole("switch", { name: "Daily scan" })).toBeDisabled();
-    await expect(canvas.getByRole("button", { name: "Save check settings" })).toBeDisabled();
+    await userEvent.click(canvas.getByRole("button", { name: "Check settings" }));
+    const dialog = within(await within(canvasElement.ownerDocument.body).findByRole("dialog"));
+    await expect(dialog.getByRole("switch", { name: "Daily scan" })).toBeDisabled();
+    await expect(
+      dialog.getByText("You don't have permission to change these settings."),
+    ).toBeInTheDocument();
+    await expect(dialog.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
   },
 };
 
@@ -339,14 +370,15 @@ export const SettingsError: Story = {
       handlers: qaProjectSettingsErrorMswHandlers,
     },
   },
-  play: async ({ canvas }) => {
-    await expect(await canvas.findByRole("tab", { name: "Check settings" })).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("tab", { name: "Check settings" }));
-    await userEvent.click(canvas.getByRole("switch", { name: "Daily scan" }));
+  play: async ({ canvas, canvasElement }) => {
+    await expect(await canvas.findByRole("button", { name: "Check settings" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Check settings" }));
+    const dialog = within(await within(canvasElement.ownerDocument.body).findByRole("dialog"));
+    await userEvent.click(dialog.getByRole("switch", { name: "Daily scan" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Save changes" }));
     await expect(
-      await canvas.findByText("Could not save check settings. Retry the change."),
+      await dialog.findByText("Could not save check settings. Retry the change."),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("switch", { name: "Daily scan" })).not.toBeChecked();
   },
 };
 
@@ -378,7 +410,7 @@ export const RunError: Story = {
 export const PromoteFindings: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("checkbox", { name: "Select loaded open findings" }));
+    await userEvent.click(canvas.getByRole("checkbox", { name: "Select all open (3)" }));
     await userEvent.click(canvas.getByRole("button", { name: "Create issues (2)" }));
     await waitFor(() => expect(canvas.getByText("Issue WEB-21")).toBeInTheDocument());
     await expect(canvas.getByText("Issue WEB-22")).toBeInTheDocument();

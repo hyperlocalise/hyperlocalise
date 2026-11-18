@@ -15,6 +15,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/s3compat"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/vercelblob"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -52,7 +53,11 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("connect database: %w", err)
 	}
 	autumn := autumnClientFromEnv(os.Getenv("AUTUMN_API_KEY"))
-	auth := newPostgresAuthenticator(pool, autumn)
+	membership := publicauth.NewWorkOSMembershipLookup(os.Getenv("WORKOS_API_KEY"))
+	if membership == nil {
+		slog.Warn("token authentication disabled", "reason", "WORKOS_API_KEY not configured")
+	}
+	auth := newPostgresAuthenticator(pool, publicauth.NewCachedMembershipLookup(membership, nil), autumn)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort

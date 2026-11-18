@@ -128,6 +128,31 @@ export function createQaMswHandlers({
       }
       return HttpResponse.json(pageFindings(findings, new URL(request.url), firstPageSize));
     }),
+    http.post("*/v1/orgs/:organizationSlug/qa-reports/findings/review", async ({ request }) => {
+      const body = (await request.json()) as {
+        findingIds?: string[];
+        status?: "open" | "ignored";
+        reason?: string;
+      };
+      const ids = new Set(body.findingIds ?? []);
+      const apply = (row: WorkspaceQaFinding) =>
+        ids.has(row.id)
+          ? {
+              ...row,
+              status: body.status ?? row.status,
+              ignoreReason: body.status === "ignored" ? (body.reason ?? "") : null,
+            }
+          : row;
+      findings = findings.map(apply);
+      projectRowsFindings = projectRowsFindings.map(apply);
+      return HttpResponse.json({
+        findings: [...ids].map((id) => ({
+          id,
+          status: body.status,
+          ignoreReason: body.status === "ignored" ? (body.reason ?? "") : "",
+        })),
+      });
+    }),
     http.patch(
       "*/v1/orgs/:organizationSlug/qa-reports/findings/:findingId",
       async ({ params, request }) => {

@@ -105,7 +105,10 @@ import {
 } from "./content-editor-side-by-side-qa";
 import { ContentEditorSideBySideQaStatus } from "./content-editor-side-by-side-qa-status";
 
-const CELL_BOX_CLASS_NAME = "rounded-md border border-border bg-background px-3 py-2";
+// Matches the compact target editor so source and translation line up.
+const CELL_BOX_CLASS_NAME = "rounded-lg border border-border bg-background px-2.5 py-1.5";
+const CELL_FOOTER_CLASS_NAME =
+  "flex min-h-7 items-center gap-2 border-t border-border/70 px-2.5 py-0.5";
 
 function isImageEditorSegment(segment: ContentEditorSegment) {
   return segment.contentKind === "image_file" || segment.contentKind === "image_url";
@@ -299,6 +302,8 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
     </Box>
   );
   const showMediaSourceEditor = isFocused && (showVideoSource || showImageSource);
+  // Text sources render in a card whose footer holds the key, path, tags and copy/clear.
+  const isSourceCard = !showMediaSourceEditor && !isAssetSegment;
   const treatAsImageButton =
     showTreatAsImageAction && !showMediaSourceEditor ? (
       <Button
@@ -339,7 +344,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
     <TooltipProvider>
       <div
         className={cn(
-          "flex items-center gap-0.5 transition-opacity",
+          "flex shrink-0 items-center transition-opacity",
           !isFocused && "opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100",
         )}
       >
@@ -348,18 +353,41 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
           disabled={isTargetLoading}
           onClick={() => onTargetChange(segment.sourceText)}
         >
-          <CopyIcon className="size-4" aria-hidden />
+          <CopyIcon className="size-3.5" aria-hidden />
         </IconActionButton>
         <IconActionButton
           label={clearTargetLabel}
           disabled={isTargetLoading || segment.targetText.length === 0}
           onClick={() => onTargetChange("")}
         >
-          <EraserIcon className="size-4" aria-hidden />
+          <EraserIcon className="size-3.5" aria-hidden />
         </IconActionButton>
       </div>
     </TooltipProvider>
   ) : null;
+  const occurrenceBadge =
+    (segment.occurrenceCount ?? 0) > 1 ? (
+      <ContentEditorOccurrenceBadge
+        count={segment.occurrenceCount!}
+        divergent={hasTranslationVariants}
+      />
+    ) : null;
+  const sourceMeta = (
+    <ContentEditorSegmentKeyMeta
+      segmentKey={segment.key}
+      sourcePath={segment.sourcePath}
+      inline
+      className="flex-1"
+    />
+  );
+  const sourceTags =
+    segmentTags.length > 0 ? (
+      <ContentEditorSegmentTags
+        tags={segmentTags}
+        className="shrink-0 flex-nowrap"
+        badgeClassName="h-5 px-1.5 text-[0.625rem]"
+      />
+    ) : null;
 
   useHotkeys(
     "mod+enter",
@@ -558,33 +586,41 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
               />
             </button>
           ) : (
-            <div className={CELL_BOX_CLASS_NAME}>
-              <Text size="small" wrapStyle="pretty">
-                <ContentEditorMessagePreview
-                  message={segment.sourceText}
-                  placeholderPatterns={segment.placeholderPatterns}
-                  companionMessage={segment.targetText}
-                />
-              </Text>
+            <div className="overflow-hidden rounded-lg border border-border bg-background">
+              <div className="px-2.5 py-1.5">
+                <Text size="small" wrapStyle="pretty">
+                  <ContentEditorMessagePreview
+                    message={segment.sourceText}
+                    placeholderPatterns={segment.placeholderPatterns}
+                    companionMessage={segment.targetText}
+                  />
+                </Text>
+              </div>
+              <div className={CELL_FOOTER_CLASS_NAME}>
+                {sourceMeta}
+                {sourceTags}
+                {occurrenceBadge}
+                {copyClearActions}
+              </div>
             </div>
           )}
-          <ContentEditorSegmentKeyMeta
-            segmentKey={segment.key}
-            sourcePath={segment.sourcePath}
-            keyClassName="text-xs font-medium text-foreground"
-            trailing={
-              (segment.occurrenceCount ?? 0) > 1 ? (
-                <ContentEditorOccurrenceBadge
-                  count={segment.occurrenceCount!}
-                  divergent={hasTranslationVariants}
-                />
-              ) : null
-            }
-          />
-          {segmentTags.length > 0 ? <ContentEditorSegmentTags tags={segmentTags} /> : null}
-          {copyClearActions || treatAsImageButton || treatAsVideoButton ? (
-            <Box display="flex" flexWrap="wrap" alignItems="center" gap="0.5u">
+          {/* The focused media sections carry their own key and path. */}
+          {isAssetSegment && !showMediaSourceEditor ? (
+            <ContentEditorSegmentKeyMeta
+              segmentKey={segment.key}
+              sourcePath={segment.sourcePath}
+              keyClassName="text-xs font-medium text-foreground"
+              trailing={occurrenceBadge}
+            />
+          ) : null}
+          {isSourceCard ? null : (
+            <>
+              {segmentTags.length > 0 ? <ContentEditorSegmentTags tags={segmentTags} /> : null}
               {copyClearActions}
+            </>
+          )}
+          {treatAsImageButton || treatAsVideoButton ? (
+            <Box display="flex" flexWrap="wrap" alignItems="center" gap="0.5u">
               {treatAsImageButton}
               {treatAsVideoButton}
             </Box>
@@ -813,7 +849,7 @@ function IconActionButton({
           <Button
             type="button"
             variant="ghost"
-            size="icon-sm"
+            size="icon-xs"
             className="shrink-0"
             disabled={disabled}
             onClick={onClick}

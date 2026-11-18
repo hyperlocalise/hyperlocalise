@@ -92,7 +92,7 @@ Each is a follow-up, and nothing here prepares for it: agencies as teams (pickin
 
 - **An existing role (Translator or Reviewer) in no team.** No new role, but the person still sees members' names and email addresses, dictionaries, project templates and workspace glossaries, and one ordinary action (adding them to a team) opens whole projects.
 - **A mark on the membership over an existing role.** Safe only where each check remembers the mark; a route that forgets it, or is added later, is open. It would also live only in our database while roles live in WorkOS.
-- **A new role with no gate, relying on each route's own check.** This was the first plan. Reading the code showed the web app and the public API do not refuse a role they do not know, so each of several dozen routes and most pages would need its own check, and a missed one is a leak.
+- **A new role with no gate, relying on each route's own check.** This was the first plan. Reading the code showed the web app does not refuse a role it does not know, so each of several dozen routes and most pages would need its own check, and a missed one is a leak. The Go services do refuse an unknown role, through the membership check they share, and Vendor is kept out of their list of known roles for that reason.
 - **A linked workspace for the vendor.** The strongest separation, but nothing is shared between workspaces today.
 - **No account, exchanging a file.** Already possible through the public API, and fits an agency working in its own tool. It is not assigning a vendor in the product.
 
@@ -100,7 +100,7 @@ Each is a follow-up, and nothing here prepares for it: agencies as teams (pickin
 
 The Vendor role has to exist in WorkOS before anyone is invited with it: the setup command that creates the other six creates it too, and must be run for each environment. Until then an invite as Vendor fails and nothing is changed. The database gains the role value in one migration.
 
-The Go services are deployed before the web app. The web app is where a person is made a vendor; if it went first, a token that person made earlier would keep reading through the public API until that service was updated.
+The Go services are deployed before the web app. The web app is where a person is made a vendor; if it went first, that person's **My Jobs** and editor would be refused until the Go service that opens the task routes to vendors was updated, and a Go service older than the shared membership check would still honour a token they made earlier.
 
 ## Test plan
 

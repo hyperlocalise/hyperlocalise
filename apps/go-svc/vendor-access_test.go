@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/stretchr/testify/require"
 	"github.com/workos/workos-go/v10"
 )
@@ -65,11 +66,8 @@ func TestResolveOrganizationActorVendor(t *testing.T) {
 	})
 }
 
-func TestVendorRoleHasNoCapabilityAndIsAssignable(t *testing.T) {
-	for capability := range organizationCapabilityByRole["admin"] {
-		require.False(t, hasOrganizationCapability(organizationRoleVendor, capability), capability)
-	}
-	require.False(t, isKnownOrganizationRole(organizationRoleVendor), "every route must refuse a vendor by default")
+func TestVendorRoleIsAssignableAndRefusedByDefault(t *testing.T) {
+	require.False(t, authz.IsKnownRole(organizationRoleVendor), "every route must refuse a vendor by default")
 	require.True(t, isKnownMemberRole(organizationRoleVendor), "a member can be given the Vendor role")
 	require.Contains(t, assignableRolesForActor("admin"), organizationRoleVendor)
 	require.Contains(t, assignableRolesForActor("localization_manager"), organizationRoleVendor)

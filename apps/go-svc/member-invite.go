@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -148,7 +149,7 @@ func (api *memberAPI) findOrCreateInvitedUser(ctx context.Context, db dictionary
 }
 
 func (api *memberAPI) ensureTeamAccessForInvitedMember(ctx context.Context, db dictionaryDB, organizationID, userID, role, teamID string) (*createdTeamMembership, error) {
-	if hasOrganizationCapability(role, "teams:write") && teamID == "" {
+	if authz.HasCapability(role, "teams:write") && teamID == "" {
 		return nil, nil
 	}
 	// A vendor joins no team: team membership would open whole projects to other code paths,

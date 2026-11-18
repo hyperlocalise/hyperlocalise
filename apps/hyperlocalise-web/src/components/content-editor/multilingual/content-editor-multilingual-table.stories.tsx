@@ -89,6 +89,14 @@ const meta = {
                         sourceStrings[index % sourceStrings.length],
                       externalTranslationId: null,
                       isApproved: index % 3 === 0,
+                      status:
+                        index % 3 === 0
+                          ? "approved"
+                          : index % 7 === 4
+                            ? "rejected"
+                            : index % 5 === 1
+                              ? "draft"
+                              : "needs_review",
                     },
             });
           },
@@ -109,8 +117,17 @@ const meta = {
       organizationSlug: "demo",
       projectId: "demo",
       sourcePath: "messages.json",
+      // Keeps target reads on the mocked app route; native projects read from go-svc.
+      externalResourceId: "demo-file",
       sourceLocale: "en",
       targetLocales: ["fr", "de", "ja", "ar", "vi"],
+      localeProgress: new Map([
+        ["fr", { translated: 94, approved: 71 }],
+        ["de", { translated: 82, approved: 40 }],
+        ["ja", { translated: 61, approved: 22 }],
+        ["ar", { translated: 35, approved: 8 }],
+        ["vi", { translated: 100, approved: 100 }],
+      ]),
     },
     segments: Array.from({ length: 10_000 }, (_, index) => ({
       id: `key-${index}`,

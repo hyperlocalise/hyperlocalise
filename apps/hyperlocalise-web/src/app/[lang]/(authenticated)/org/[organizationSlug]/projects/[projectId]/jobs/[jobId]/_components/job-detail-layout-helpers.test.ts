@@ -14,7 +14,7 @@ import { createIntl, createIntlCache } from "react-intl";
 import { describe, expect, it } from "vite-plus/test";
 
 import { createNativeJobDetail } from "./job-detail.fixture";
-import { jobDetailTaskLayoutFromRecord } from "./job-detail-layout-helpers";
+import { jobDetailTaskLayoutFromRecord, shortJobTitle } from "./job-detail-layout-helpers";
 
 const intl = createIntl({ locale: "en-US", messages: {} }, createIntlCache());
 
@@ -82,7 +82,7 @@ describe("jobDetailTaskLayoutFromRecord", () => {
     expect(typeof assignees?.value).toBe("object");
   });
 
-  it("surfaces the stored failure reason and leftover locales", () => {
+  it("leaves the failure reason to the notice and keeps the retry job id", () => {
     const job = createNativeJobDetail({
       assigneeType: "agent",
       ownerUserId: null,
@@ -98,16 +98,8 @@ describe("jobDetailTaskLayoutFromRecord", () => {
 
     const layout = jobDetailTaskLayoutFromRecord(job, intl);
 
-    expect(layout.properties.find((property) => property.id === "failure-reason")).toEqual({
-      id: "failure-reason",
-      label: "Failure reason",
-      value: "Translating the json file failed. This is usually temporary — try again.",
-    });
-    expect(layout.properties.find((property) => property.id === "failed-locales")).toEqual({
-      id: "failed-locales",
-      label: "Unfinished locales",
-      value: "ja-JP, ko-KR",
-    });
+    expect(layout.properties.find((property) => property.id === "failure-reason")).toBeUndefined();
+    expect(layout.properties.find((property) => property.id === "failed-locales")).toBeUndefined();
     expect(layout.secondaryProperties.find((property) => property.id === "follow-up-job")).toEqual({
       id: "follow-up-job",
       label: "Retry job",
@@ -115,7 +107,7 @@ describe("jobDetailTaskLayoutFromRecord", () => {
     });
   });
 
-  it("surfaces leftover locales on a succeeded agent job when lastError was cleared", () => {
+  it("keeps the retry job id on a succeeded agent job with leftover locales", () => {
     const job = createNativeJobDetail({
       assigneeType: "agent",
       ownerUserId: null,
@@ -133,17 +125,8 @@ describe("jobDetailTaskLayoutFromRecord", () => {
 
     const layout = jobDetailTaskLayoutFromRecord(job, intl);
 
-    expect(layout.properties.find((property) => property.id === "failure-reason")).toEqual({
-      id: "failure-reason",
-      label: "Failure reason",
-      value:
-        "The translation environment disconnected mid-run. This is usually temporary — try again.",
-    });
-    expect(layout.properties.find((property) => property.id === "failed-locales")).toEqual({
-      id: "failed-locales",
-      label: "Unfinished locales",
-      value: "ja-JP",
-    });
+    expect(layout.properties.find((property) => property.id === "failure-reason")).toBeUndefined();
+    expect(layout.properties.find((property) => property.id === "failed-locales")).toBeUndefined();
     expect(layout.secondaryProperties.find((property) => property.id === "follow-up-job")).toEqual({
       id: "follow-up-job",
       label: "Retry job",
@@ -168,5 +151,32 @@ describe("jobDetailTaskLayoutFromRecord", () => {
 
     expect(layout.properties.find((property) => property.id === "failure-reason")).toBeUndefined();
     expect(layout.properties.find((property) => property.id === "failed-locales")).toBeUndefined();
+  });
+
+  it("drops the Progress row when it would only repeat the status", () => {
+    const job = createNativeJobDetail({ status: "failed", externalStatus: null });
+
+    const layout = jobDetailTaskLayoutFromRecord(job, intl);
+
+    expect(layout.properties.map((property) => property.label)).not.toContain("Progress");
+    expect(layout.properties.find((property) => property.label === "Task type")?.value).toBe(
+      "Translation",
+    );
+  });
+
+  it("lists only facts the Properties card does not repeat under the title", () => {
+    const layout = jobDetailTaskLayoutFromRecord(createNativeJobDetail(), intl);
+
+    expect(layout.metrics).toHaveLength(2);
+    expect(layout.metrics[1]?.label).toMatch(/^Updated /);
+  });
+});
+
+describe("shortJobTitle", () => {
+  it("keeps the file name without its folder or creation timestamp", () => {
+    expect(shortJobTitle("_posts/en/what-the-eu-ai-act.md · 2026-11-03 21:43")).toBe(
+      "what-the-eu-ai-act.md",
+    );
+    expect(shortJobTitle("Homepage copy")).toBe("Homepage copy");
   });
 });

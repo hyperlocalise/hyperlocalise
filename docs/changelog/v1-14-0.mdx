@@ -1,0 +1,37 @@
+---
+title: "v1.14.0"
+description: "Go CLI release notes for v1.14.0."
+---
+
+`hl check` finishes large catalogs in milliseconds instead of tens of seconds, and Ctrl+C stops `check`, `run`, `status`, and `sync`. Unreachable ICU plural categories are warnings, so `--quiet` no longer fails a run that only has leftover `one`/`few` cases.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.14.0) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.13.10...v1.14.0)
+
+## Breaking changes
+
+None.
+
+## Features
+
+- Stop [the CLI on SIGINT or SIGTERM](https://github.com/hyperlocalise/hyperlocalise/pull/3334). The first Ctrl+C cancels the command. A second Ctrl+C kills it. If the command ignores cancel, the process exits after 10 seconds. Interrupted runs exit `130`. `check`, `status`, and `sync` watch the context; `run` and `check --fix` no longer install their own signal handlers.
+
+## Fixes
+
+- Treat [`unreachable_plural_case` as a warning](https://github.com/hyperlocalise/hyperlocalise/pull/3268) in `hl check`, `hl validate`, and the default Cloud QA policy. ICU never selects those categories, so an extra `one` in Japanese is no longer an error. Default `hl check` still exits `1` when any finding exists. With `--quiet`, a run that only has unreachable-plural findings now exits `0`. See [`check`](/cli/commands/check) and [`validate`](/cli/commands/validate).
+
+## Performance
+
+- Speed up [`hl check`](https://github.com/hyperlocalise/hyperlocalise/pull/3334). Line lookups use a per-file index instead of splitting the file once per finding. Markdown and AsciiDoc parse once and reuse the document for alignment, AST paths, and key lines. Source/target pairs collect in parallel. Glossary terms are lowercased once per policy, not once per segment. On the check benchmark (every key untranslated): JSON 10k keys 1.98 s → 9.4 ms; JSON 40k keys 31.9 s / 86 GB alloc → 34 ms / 78 MB alloc; JSON 10k keys × 8 locales 15.8 s → 45 ms. See [`check`](/cli/commands/check).
+
+## Tests
+
+- Location lookup matches the previous per-finding scan.
+- Cancelled-context `check`, signal cancel, and forced exit after the grace period.
+- Markdown and AsciiDoc parse reuse vs `Align*` and `KeyLines`.
+- Unreachable plural findings report severity `warning`.
+- `BenchmarkRunCheck` for JSON catalogs and markdown documents.
+
+## Maintenance
+
+- Bump Go dependencies, including AWS SDK for Go v2 (aws-sdk-go-v2 to v1.48.0, config to v1.33.18, S3 to v1.114.10, Secrets Manager to v1.51.0, SQS to v1.53.0, Textract to v1.50.0), OpenAI Go to v3.99.0, lipgloss to v2.1.0, goldmark to v2.1.16, Lokalise Go to v5.1.1, WorkOS Go to v10.8.0, and `golang.org/x/text` to v0.44.0 ([#3300](https://github.com/hyperlocalise/hyperlocalise/pull/3300), [#3308](https://github.com/hyperlocalise/hyperlocalise/pull/3308)).
+- Bump the `google.golang.org/genproto` replace to `v0.0.0-20261110000943-09e21b237f2c` ([#3293](https://github.com/hyperlocalise/hyperlocalise/pull/3293)).

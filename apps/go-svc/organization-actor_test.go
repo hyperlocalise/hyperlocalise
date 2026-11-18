@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/workos/workos-go/v10"
@@ -183,7 +184,7 @@ func TestResolveOrganizationActorByID(t *testing.T) {
 }
 
 func TestMapOrganizationAccessError(t *testing.T) {
-	err := mapOrganizationAccessError(organizationAccessDenied(), dictionaryFailure)
+	err := mapOrganizationAccessError(publicauth.AccessDenied(), dictionaryFailure)
 	require.EqualError(t, err, "organization_access_denied")
 	var failure *dictionaryError
 	require.True(t, errors.As(err, &failure))
@@ -193,7 +194,7 @@ func TestMapOrganizationAccessError(t *testing.T) {
 	passthrough := errors.New("query failed")
 	require.Equal(t, passthrough, mapOrganizationAccessError(passthrough, dictionaryFailure))
 
-	coded := mapOrganizationAccessCode(organizationMembershipLookupFailed(), teamFailure)
+	coded := mapOrganizationAccessCode(publicauth.MembershipLookupFailed(), teamFailure)
 	require.EqualError(t, coded, "workos_membership_lookup_failed")
 	var teamErr *teamError
 	require.True(t, errors.As(coded, &teamErr))

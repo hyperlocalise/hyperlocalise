@@ -111,18 +111,15 @@ describe("the task page for someone here through a task they own", () => {
     renderPage(taskOwner);
 
     expect(await screen.findByRole("button", { name: "Mark done" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open Editor" })).toBeTruthy();
-    for (const name of ["Cancel job", "Mark as failed"]) {
-      expect(screen.queryByRole("button", { name }), name).toBeNull();
-    }
+    expect(screen.getByRole("button", { name: "Open Editor" })).toBeTruthy();
+    // Cancel and Mark as failed sit in the overflow menu, which a task owner does not get.
+    expect(screen.queryByRole("button", { name: "More job actions" })).toBeNull();
     // The task is their own, and the member list is closed to them.
     expect(screen.getByText("You")).toBeTruthy();
-    expect(screen.getByText("My Jobs")).toBeTruthy();
-    // The way back is My jobs, not the project's job list.
+    // Nothing leads to the project's job list, which is closed to them.
     const hrefs = Array.from(document.querySelectorAll("a[href]"), (link) =>
       link.getAttribute("href"),
     );
-    expect(hrefs).toContain("/org/acme/my-jobs");
     expect(hrefs).not.toContain("/org/acme/projects/project_1/jobs");
   });
 
@@ -131,7 +128,7 @@ describe("the task page for someone here through a task they own", () => {
 
     renderPage({ canEditJobFields: true });
 
-    expect(await screen.findByRole("button", { name: "Cancel job" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "More job actions" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Mark done" })).toBeTruthy();
   });
 
@@ -140,7 +137,7 @@ describe("the task page for someone here through a task they own", () => {
 
     renderPage({ taskOwnerOnly: true, canMarkOwnTaskDone: false });
 
-    expect(await screen.findByRole("link", { name: "Open Editor" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Open Editor" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Mark done" })).toBeNull();
   });
 

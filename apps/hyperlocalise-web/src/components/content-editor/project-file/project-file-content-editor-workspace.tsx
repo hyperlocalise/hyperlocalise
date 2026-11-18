@@ -61,6 +61,7 @@ import { contentEditorSourceTextEditorMessages } from "@/components/content-edit
 import { buildAvailablePlansHref } from "@/lib/billing/plan-usage";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { useProjectLocaleProgressQuery } from "@/lib/projects/use-project-locale-progress";
 import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 import { cn } from "@/lib/primitives/cn";
 import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
@@ -1461,6 +1462,22 @@ export function ProjectFileContentEditorWorkspace({
     [intl, organizationSlug, projectId, sourcePath, targetLocale],
   );
 
+  const localeProgressQuery = useProjectLocaleProgressQuery(organizationSlug, projectId, {
+    enabled: (targetLocales?.length ?? 0) > 1,
+  });
+  const localeProgress = useMemo(
+    () =>
+      localeProgressQuery.data
+        ? new Map(
+            localeProgressQuery.data.map((row) => [
+              row.locale,
+              { translated: row.translationProgress, approved: row.approvalProgress },
+            ]),
+          )
+        : undefined,
+    [localeProgressQuery.data],
+  );
+
   const multilingual = useMemo(
     () => ({
       organizationSlug,
@@ -1476,6 +1493,7 @@ export function ProjectFileContentEditorWorkspace({
         contentEditorFile?.segments.map((segment) => [segment.externalStringId, segment]),
       ),
       canEdit: Boolean(contentEditorFile?.canEditTranslations),
+      localeProgress,
       onSaveTranslation: async (
         segment: ContentEditorSegment,
         locale: string,
@@ -1561,6 +1579,7 @@ export function ProjectFileContentEditorWorkspace({
       externalResourceId,
       resourceType,
       contentEditorFile,
+      localeProgress,
       setSearch,
       setQueueFilter,
       setQueueFilterQualifier,

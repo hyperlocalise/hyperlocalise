@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 )
 
 const (
@@ -35,11 +37,11 @@ type conversationActor struct {
 }
 
 func (a conversationActor) canReadAllTeams() bool {
-	return hasOrganizationCapability(a.role, "teams:write")
+	return authz.HasCapability(a.role, "teams:write")
 }
 
 func (a conversationActor) canRunAIActions() bool {
-	return hasOrganizationCapability(a.role, "ai_actions:run")
+	return authz.HasCapability(a.role, "ai_actions:run")
 }
 
 type conversationError struct {

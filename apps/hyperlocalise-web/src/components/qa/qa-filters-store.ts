@@ -43,11 +43,7 @@ export function hasQaFindingFilters(filters: QaFindingFilterState) {
   );
 }
 
-export function applyQaFindingFocus<T extends QaFindingFilterState & { tab: string }>(
-  target: T,
-  filter: QaFindingFocus,
-) {
+export function applyQaFindingFocus(target: QaFindingFilterState, filter: QaFindingFocus) {
   if (filter.locale) target.locale = filter.locale;
   if (filter.checkType) target.checkType = filter.checkType;
-  target.tab = "findings";
 }

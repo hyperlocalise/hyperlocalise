@@ -16,6 +16,7 @@ import { SpeakerHighIcon, SpeakerSlashIcon } from "@phosphor-icons/react";
 import { useCallback, useRef, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { IrisDownloadCta } from "./iris-download-cta";
 import { irisPageMessages } from "./iris-page.messages";
 import { IrisVideoBackground, type IrisYoutubePlayerHandle } from "./iris-video-background";
 import { IrisWaitlistCta } from "./iris-waitlist-cta";
@@ -59,6 +60,7 @@ export function IrisPage() {
           </Button>
         ) : null}
         <IrisWaitlistCta />
+        <IrisDownloadCta />
       </div>
     </section>
   );

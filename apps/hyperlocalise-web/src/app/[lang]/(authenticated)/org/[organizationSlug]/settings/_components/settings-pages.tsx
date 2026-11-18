@@ -17,6 +17,7 @@ import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { AccountProfileForm } from "./account-profile-form";
 import { NotificationPreferencesSection } from "./notification-preferences-section";
 import { PreferencesForm } from "./preferences-form";
+import { SampleWorkspaceSection } from "./sample-workspace-section";
 import { SettingsPageBody, SettingsPageHeader } from "./settings-page-chrome";
 import { WorkspaceSettingsForm } from "./workspace-settings-form";
 
@@ -55,6 +56,7 @@ export async function GeneralSettingsPageContent({
           organizationName={organizationName}
           organizationSlug={organizationSlug}
         />
+        {canUpdateWorkspace ? <SampleWorkspaceSection organizationSlug={organizationSlug} /> : null}
       </Rows>
     </SettingsPageBody>
   );

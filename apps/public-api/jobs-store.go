@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -451,7 +452,7 @@ func assignableJobOwner(ctx context.Context, tx pgx.Tx, actor principal, project
 		return "", fmt.Errorf("find job owner: %w", err)
 	}
 	active := membershipID != nil && *membershipID != "" && *membershipID != "replacing" && !strings.HasPrefix(*membershipID, "replacing:")
-	if !fileTask && role == roleVendor {
+	if !fileTask && role == authz.RoleVendor {
 		return "", errJobOwnerVendor
 	}
 	if !active {
@@ -460,7 +461,7 @@ func assignableJobOwner(ctx context.Context, tx pgx.Tx, actor principal, project
 	if role == "admin" || role == "localization_manager" {
 		return ownerID, nil
 	}
-	if fileTask && (role == roleVendor || role == "developer" || role == "reviewer" || role == "translator") {
+	if fileTask && (role == authz.RoleVendor || role == "developer" || role == "reviewer" || role == "translator") {
 		return ownerID, nil
 	}
 	var onTeam bool

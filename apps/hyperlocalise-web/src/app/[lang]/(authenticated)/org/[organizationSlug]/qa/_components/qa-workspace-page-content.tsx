@@ -18,17 +18,17 @@ import { observer } from "mobx-react-lite";
 import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
-import { QaFindingsTable, qaCheckLabel } from "@/components/qa/qa-findings-table";
-import { QaFilter } from "@/components/qa/qa-filter";
+import { QaFindingsTable } from "@/components/qa/qa-findings-table";
+import { QaFindingFilterBar } from "@/components/qa/qa-filter";
 import { QaNotice, QaRunStatus } from "@/components/qa/qa-status";
 import { qaMessages as m } from "@/components/qa/qa.messages";
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/primitives/cn";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
-import { translationQaScanCheckTypes } from "@/lib/qa/types";
 import { createWorkspaceQaReportClient } from "@/lib/qa/qa-report-client";
 import { useWorkspaceQaReports } from "@/lib/qa/use-workspace-qa-reports";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
@@ -127,7 +127,6 @@ const QaWorkspacePageContentView = observer(function QaWorkspacePageContentView(
   const locales = [
     ...new Set(reports.flatMap((row) => Object.keys(row.report?.summary.byLocale ?? {}))),
   ].sort();
-  const all = { value: "all", label: intl.formatMessage(m.all) };
   return (
     <WorkspacePageShell>
       <PageHeader icon={CheckCircleIcon} title={intl.formatMessage(messages.title)} />
@@ -179,59 +178,15 @@ const QaWorkspacePageContentView = observer(function QaWorkspacePageContentView(
           <TabsTrigger value="projects">{intl.formatMessage(m.projects)}</TabsTrigger>
         </TabsList>
         <TabsContent value="findings" className="flex flex-col gap-5">
-          <div className="flex flex-wrap gap-3">
-            <QaFilter
-              label={intl.formatMessage(m.projects)}
-              value={projectId}
-              onChange={(value) => pageStore.setProjectId(value)}
-              options={[
-                all,
-                ...reports.map((row) => ({ value: row.projectId, label: row.projectName })),
-              ]}
-            />
-            <QaFilter
-              label={intl.formatMessage(m.language)}
-              value={locale}
-              onChange={(value) => pageStore.setLocale(value)}
-              options={[all, ...locales.map((value) => ({ value, label: value }))]}
-            />
-            <QaFilter
-              label={intl.formatMessage(m.check)}
-              value={checkType}
-              onChange={(value) => pageStore.setCheckType(value)}
-              options={[
-                all,
-                ...translationQaScanCheckTypes.map((value) => ({
-                  value,
-                  label: qaCheckLabel(value, intl),
-                })),
-              ]}
-            />
-            <QaFilter
-              label={intl.formatMessage(m.severity)}
-              value={severity}
-              onChange={(value) => pageStore.setSeverity(value)}
-              options={[
-                all,
-                ...(["error", "warning"] as const).map((value) => ({
-                  value,
-                  label: intl.formatMessage(m[value]),
-                })),
-              ]}
-            />
-            <QaFilter
-              label={intl.formatMessage(m.status)}
-              value={status}
-              onChange={(value) => pageStore.setStatus(value)}
-              options={[
-                all,
-                ...(["open", "ignored", "resolved"] as const).map((value) => ({
-                  value,
-                  label: intl.formatMessage(m[value]),
-                })),
-              ]}
-            />
-          </div>
+          <QaFindingFilterBar
+            values={{ projectId, locale, checkType, severity, status }}
+            projects={reports.map((row) => ({ value: row.projectId, label: row.projectName }))}
+            locales={locales}
+            total={findingsQuery.data?.pages[0]?.total}
+            isFiltered={filtered}
+            onChange={(key, value) => pageStore.setFilter(key, value)}
+            onClear={() => pageStore.clearFilters()}
+          />
           {selectedReport?.report?.status === "failed" ? (
             <p className="text-pretty text-sm text-muted-foreground">
               {selectedReport.lastSuccessfulAt
@@ -258,17 +213,10 @@ const QaWorkspacePageContentView = observer(function QaWorkspacePageContentView(
               }}
             />
           ) : null}
-          {findingsQuery.isSuccess && !findings.length ? (
-            <div className="flex items-center gap-3">
-              {!selectedFailedWithoutResults ? (
-                <p className="text-sm">{intl.formatMessage(filtered ? m.noMatches : m.clean)}</p>
-              ) : null}
-              {filtered ? (
-                <Button variant="outline" size="sm" onClick={() => pageStore.clearFilters()}>
-                  {intl.formatMessage(m.clearFilters)}
-                </Button>
-              ) : null}
-            </div>
+          {findingsQuery.isSuccess && !findings.length && !selectedFailedWithoutResults ? (
+            <p className="text-sm text-muted-foreground">
+              {intl.formatMessage(filtered ? m.noMatches : m.clean)}
+            </p>
           ) : null}
           {findings.length ? (
             <QaFindingsTable
@@ -292,58 +240,107 @@ const QaWorkspacePageContentView = observer(function QaWorkspacePageContentView(
           {reportsQuery.isSuccess && !reports.length ? (
             <p className="text-sm">{intl.formatMessage(messages.empty)}</p>
           ) : null}
-          {summary.projects
-            .flatMap((project) => {
-              const row = reportsByProject.get(project.projectId);
-              return row ? [row] : [];
-            })
-            .map((row) => (
+          {summary.projects.length ? (
+            <div role="list" className="flex flex-col divide-y divide-border">
               <div
-                key={row.projectId}
-                className="flex flex-wrap items-start justify-between gap-4 border-b border-border py-4"
+                aria-hidden
+                className="hidden grid-cols-[minmax(0,2fr)_minmax(0,1fr)_4.5rem_4.5rem_minmax(0,1.5fr)_auto] gap-4 pb-2 text-xs font-medium text-muted-foreground md:grid"
               >
-                <div className="flex flex-col gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-medium">{row.projectName}</h3>
-                    <Badge variant="outline">
-                      {intl.formatMessage(
-                        row.cadence === "daily" ? messages.daily : messages.manual,
-                      )}
-                    </Badge>
-                  </div>
-                  <QaRunStatus report={row.report ?? undefined} compact />
-                  {row.report?.status === "failed" && row.lastSuccessfulAt ? (
-                    <p className="text-xs text-muted-foreground tabular-nums">
-                      {intl.formatMessage(m.lastCompleted, {
-                        date: intl.formatDate(row.lastSuccessfulAt, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        }),
-                      })}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {row.lastSuccessfulAt ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => showFindingsFor({ projectId: row.projectId })}
-                    >
-                      {intl.formatMessage(messages.viewFindings)}
-                    </Button>
-                  ) : null}
-                  <Button
-                    nativeButton={false}
-                    render={<Link href={buildProjectPath(organizationSlug, row.projectId, "qa")} />}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {intl.formatMessage(messages.openProject)}
-                  </Button>
-                </div>
+                <span>{intl.formatMessage(m.projects)}</span>
+                <span>{intl.formatMessage(messages.lastScanColumn)}</span>
+                <span className="text-end">{intl.formatMessage(messages.errorsColumn)}</span>
+                <span className="text-end">{intl.formatMessage(messages.warningsColumn)}</span>
+                <span>{intl.formatMessage(m.status)}</span>
+                <span className="sr-only">{intl.formatMessage(messages.actionsColumn)}</span>
               </div>
-            ))}
+              {summary.projects.flatMap((project) => {
+                const row = reportsByProject.get(project.projectId);
+                if (!row) return [];
+                const scanned = project.state === "scanned";
+                return [
+                  <div
+                    role="listitem"
+                    key={row.projectId}
+                    className="grid grid-cols-2 items-center gap-x-4 gap-y-2 py-3 text-sm md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_4.5rem_4.5rem_minmax(0,1.5fr)_auto]"
+                  >
+                    <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 md:col-span-1">
+                      <h3 className="truncate font-medium">{row.projectName}</h3>
+                      <Badge variant="outline">
+                        {intl.formatMessage(
+                          row.cadence === "daily" ? messages.daily : messages.manual,
+                        )}
+                      </Badge>
+                    </div>
+                    <span className="text-muted-foreground tabular-nums">
+                      {row.lastSuccessfulAt
+                        ? intl.formatDate(row.lastSuccessfulAt, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })
+                        : intl.formatMessage(messages.never)}
+                    </span>
+                    <span
+                      className={cn(
+                        "tabular-nums md:text-end",
+                        scanned && project.errors > 0 && "font-medium text-destructive",
+                      )}
+                    >
+                      <span className="md:sr-only">
+                        {intl.formatMessage(messages.errorsColumn)}{" "}
+                      </span>
+                      {scanned ? intl.formatNumber(project.errors) : "—"}
+                    </span>
+                    <span className="tabular-nums md:text-end">
+                      <span className="md:sr-only">
+                        {intl.formatMessage(messages.warningsColumn)}{" "}
+                      </span>
+                      {scanned ? intl.formatNumber(project.warnings) : "—"}
+                    </span>
+                    <div className="col-span-2 min-w-0 md:col-span-1">
+                      {project.state === "failed" ? (
+                        <QaRunStatus report={row.report ?? undefined} compact />
+                      ) : (
+                        <Badge variant={project.state === "scanned" ? "success" : "secondary"}>
+                          {intl.formatMessage(
+                            project.state === "scanned"
+                              ? messages.statusScanned
+                              : project.state === "running"
+                                ? messages.statusRunning
+                                : messages.statusNotScanned,
+                          )}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="col-span-2 flex flex-wrap gap-2 md:col-span-1 md:justify-end">
+                      {row.lastSuccessfulAt ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => showFindingsFor({ projectId: row.projectId })}
+                        >
+                          {intl.formatMessage(messages.viewFindings)}
+                        </Button>
+                      ) : null}
+                      <Button
+                        nativeButton={false}
+                        render={
+                          <Link href={buildProjectPath(organizationSlug, row.projectId, "qa")} />
+                        }
+                        variant="outline"
+                        size="sm"
+                      >
+                        {intl.formatMessage(
+                          project.state === "not_scanned"
+                            ? messages.openProjectToScan
+                            : messages.openProject,
+                        )}
+                      </Button>
+                    </div>
+                  </div>,
+                ];
+              })}
+            </div>
+          ) : null}
         </TabsContent>
       </Tabs>
     </WorkspacePageShell>

@@ -40,4 +40,9 @@ export const jobDetailTaskViewMessages = defineMessages({
     id: "lJypQuzM0X",
     description: "Tab label for the task's own report: its words, cost, time and pricing",
   },
+  addDescription: {
+    defaultMessage: "Add description",
+    id: "Ym36ljVso8",
+    description: "Job detail action to add a description when the job has none",
+  },
 });

@@ -62,7 +62,7 @@ func (api *publicJobsAPI) analysis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	principal, _ := publicAPIPrincipalFrom(r.Context())
-	analysis, err := api.loadAnalysis(r.Context(), principal.organizationID, job.id, unit)
+	analysis, err := api.loadAnalysis(r.Context(), principal.OrganizationID, job.id, unit)
 	if err != nil {
 		api.auth.writeError(w, r, "analysis", err)
 		return

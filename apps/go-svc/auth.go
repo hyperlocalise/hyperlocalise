@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/ironsession"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/workos/workos-go/v10"
 )
 
@@ -70,7 +71,7 @@ type WorkOSSessionVerifier struct {
 	apiKey         string
 	clientID       string
 	apiBaseURL     string
-	jwks           *jwksCache
+	jwks           *publicauth.JWKS
 	refresh        sessionRefreshFunc
 }
 
@@ -101,7 +102,7 @@ func NewWorkOSSessionVerifier(cookiePassword string) (*WorkOSSessionVerifier, er
 		return nil, errors.New("WORKOS_COOKIE_PASSWORD must be at least 32 characters")
 	}
 	clientID := strings.TrimSpace(os.Getenv("WORKOS_CLIENT_ID"))
-	apiBaseURL := workosAPIBaseURL()
+	apiBaseURL := publicauth.WorkOSAPIBaseURL()
 	verifier := &WorkOSSessionVerifier{
 		cookiePassword: cookiePassword,
 		apiKey:         strings.TrimSpace(os.Getenv("WORKOS_API_KEY")),
@@ -109,7 +110,7 @@ func NewWorkOSSessionVerifier(cookiePassword string) (*WorkOSSessionVerifier, er
 		apiBaseURL:     apiBaseURL,
 	}
 	if clientID != "" {
-		verifier.jwks = newJWKSCache(workos.GetJWKSURL(apiBaseURL, clientID))
+		verifier.jwks = publicauth.NewJWKS(workos.GetJWKSURL(apiBaseURL, clientID))
 	}
 	verifier.refresh = verifier.refreshWithWorkOS
 	return verifier, nil

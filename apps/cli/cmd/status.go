@@ -75,7 +75,7 @@ Status values:
 				return fmt.Errorf("resolve config directory: %w", err)
 			}
 
-			entries, err := collectStatusEntries(context.Background(), cfg, syncsvc.LocalReadRequest{
+			entries, err := collectStatusEntries(cmd.Context(), cfg, syncsvc.LocalReadRequest{
 				Locales: locales,
 			}, buckets, configRoot)
 			if err != nil {
@@ -204,7 +204,7 @@ func statusBucketFiles(cfg *config.I18NConfig, bucket string) (map[string]struct
 	return files, nil
 }
 
-func collectStatusEntries(_ context.Context, cfg *config.I18NConfig, req syncsvc.LocalReadRequest, buckets []string, configRoot string) ([]storage.Entry, error) {
+func collectStatusEntries(ctx context.Context, cfg *config.I18NConfig, req syncsvc.LocalReadRequest, buckets []string, configRoot string) ([]storage.Entry, error) {
 	parser := translationfileparser.NewDefaultStrategy()
 	locales := req.Locales
 	if len(locales) == 0 {
@@ -223,6 +223,9 @@ func collectStatusEntries(_ context.Context, cfg *config.I18NConfig, req syncsvc
 			for _, sourcePath := range sourcePaths {
 				if shouldIgnoreSourcePathForStatus(sourcePath, configRoot, cfg.Locales.Targets) {
 					continue
+				}
+				if err := ctx.Err(); err != nil {
+					return nil, err
 				}
 
 				sourceEntries, err := readEntriesForStatus(parser, sourcePath, cfg.Locales.Source)

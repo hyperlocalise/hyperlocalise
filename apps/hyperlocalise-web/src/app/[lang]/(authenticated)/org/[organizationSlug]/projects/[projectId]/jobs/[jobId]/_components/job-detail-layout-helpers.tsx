@@ -12,16 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ClockIcon, FileIcon, TranslateIcon, CheckSquareIcon } from "@phosphor-icons/react";
-import type { IntlShape } from "react-intl";
+import { ClockIcon, FileIcon } from "@phosphor-icons/react";
+import type { IntlShape, MessageDescriptor } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
-import {
-  formatJobFailureReason,
-  isAgentAssignedJob,
-  readJobFailureDetails,
-} from "@/lib/projects/jobs/job-failure-details";
+import { isAgentAssignedJob, readJobFailureDetails } from "@/lib/projects/jobs/job-failure-details";
 import { nativeJobSourceFileDisplayLabel } from "@/lib/projects/jobs/native-job-source-file-display";
 import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
 import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
@@ -80,8 +76,26 @@ function statusTone(status: JobDetailRecord["status"]) {
   }
 }
 
-function formatJobKind(kind: string) {
-  return kind.replaceAll("_", " ");
+const JOB_KIND_LABELS: Record<string, MessageDescriptor> = {
+  translation: messages.kindTranslation,
+  research: messages.kindResearch,
+  review: messages.kindReview,
+  proofread: messages.kindProofread,
+  sync: messages.kindSync,
+  asset_management: messages.kindAssetManagement,
+};
+
+function formatJobKind(kind: string, intl: IntlShape) {
+  const label = JOB_KIND_LABELS[kind];
+  return label ? intl.formatMessage(label) : kind.replaceAll("_", " ");
+}
+
+const TITLE_TIMESTAMP_SUFFIX = / · \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/;
+
+/** A short label for breadcrumbs: the file name without its folder or creation timestamp. */
+export function shortJobTitle(title: string) {
+  const withoutTimestamp = title.replace(TITLE_TIMESTAMP_SUFFIX, "");
+  return withoutTimestamp.split("/").at(-1) || withoutTimestamp;
 }
 
 function formatProviderKind(kind: string | null | undefined) {
@@ -146,42 +160,18 @@ export function jobDetailTaskTitle(input: JobDetailTaskLayoutInput) {
   return input.title ?? input.id;
 }
 
+/**
+ * Facts shown under the title that the Properties card does not already list:
+ * the file or string count, and when the job last changed.
+ */
 export function jobDetailTaskMetrics(
   input: JobDetailTaskLayoutInput,
   intl: IntlShape,
 ): JobDetailViewMetric[] {
-  const providerKind = input.externalProviderKind;
-  const payload = input.externalProviderPayload;
   const readiness = resolveTaskLocaleReadiness(input);
   const wordsToDo = formatWordsToDo(readiness);
-  const taskLabel = providerKind
-    ? intl.formatMessage(messages.providerTaskMetric, {
-        providerName: formatProviderKind(providerKind),
-      })
-    : intl.formatMessage(messages.nativeTaskMetric, {
-        kind: formatJobKind(input.kind),
-      });
 
   return [
-    {
-      icon: CheckSquareIcon,
-      label: taskLabel,
-    },
-    {
-      icon: TranslateIcon,
-      label:
-        resolveProviderTaskLanguageLabel(providerKind, payload) ??
-        formatLocaleList(
-          resolveProviderTargetLocales(
-            providerKind,
-            payload,
-            input.externalTargetLocales?.length
-              ? input.externalTargetLocales
-              : input.nativeTargetLocales,
-          ),
-        ) ??
-        intl.formatMessage(messages.emptyValue),
-    },
     {
       icon: FileIcon,
       label:
@@ -223,9 +213,9 @@ export function jobDetailTaskProperties(
       input.externalTargetLocales?.length ? input.externalTargetLocales : input.nativeTargetLocales,
     ),
   );
+  const kindLabel = formatJobKind(input.kind, intl);
   const taskType =
-    resolveProviderTaskTypeLabel(input.externalProviderKind, payload, formatJobKind(input.kind)) ??
-    formatJobKind(input.kind);
+    resolveProviderTaskTypeLabel(input.externalProviderKind, payload, kindLabel) ?? kindLabel;
   const wordsToDo = formatWordsToDo(readiness);
   const emptyValue = intl.formatMessage(messages.emptyValue);
 
@@ -241,14 +231,17 @@ export function jobDetailTaskProperties(
         </Badge>
       ),
     },
-    {
-      label: intl.formatMessage(messages.labelProgress),
-      value:
-        progressLabel ??
-        (input.externalStatus
-          ? intl.formatMessage(messages.providerStatus, { status: input.externalStatus })
-          : intl.formatMessage(getJobStatusMessage(input.status))),
-    },
+    // Without progress data or a provider status the row would only repeat Status.
+    ...(progressLabel || input.externalStatus
+      ? [
+          {
+            label: intl.formatMessage(messages.labelProgress),
+            value:
+              progressLabel ??
+              intl.formatMessage(messages.providerStatus, { status: input.externalStatus }),
+          },
+        ]
+      : []),
     { label: intl.formatMessage(messages.labelProvider), value: providerName },
     { label: intl.formatMessage(messages.labelTaskType), value: taskType },
     { label: intl.formatMessage(messages.labelTargetLocales), value: targetLocales },
@@ -337,22 +330,10 @@ export function jobDetailTaskLayoutFromRecord(
   };
 
   const { properties, secondaryProperties } = jobDetailTaskProperties(input, intl);
+  // The failure notice explains the reason and unfinished locales; only the
+  // retry job's id belongs with the other identifiers.
   if (isAgentAssignedJob(job)) {
     const failure = readJobFailureDetails(job);
-    if (failure.reason) {
-      properties.splice(1, 0, {
-        id: "failure-reason",
-        label: intl.formatMessage(messages.labelFailureReason),
-        value: formatJobFailureReason(failure.reason),
-      });
-    }
-    if (failure.failedLocales.length > 0) {
-      properties.splice(failure.reason ? 2 : 1, 0, {
-        id: "failed-locales",
-        label: intl.formatMessage(messages.labelFailedLocales),
-        value: failure.failedLocales.join(", "),
-      });
-    }
     if (failure.followUpJobId) {
       secondaryProperties.push({
         id: "follow-up-job",

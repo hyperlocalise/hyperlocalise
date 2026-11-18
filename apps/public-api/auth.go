@@ -2,19 +2,10 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
-	"errors"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5/pgxpool"
-)
-
-var (
-	errUnauthorized    = errors.New("invalid or revoked API key")
-	errForbidden       = errors.New("workspace access denied")
-	errAuthUnavailable = errors.New("authentication service unavailable")
 )
 
 type entitlements struct {
@@ -31,99 +22,42 @@ type principal struct {
 	Role string `json:"-"`
 }
 
+// authenticator returns a *publicauth.Error for a credential it refuses.
 type authenticator interface {
 	authenticate(context.Context, string) (principal, error)
 }
 
+// postgresAuthenticator checks personal access tokens as go-svc does, through publicauth: the
+// owner's membership and role are confirmed live in WorkOS on each request (cached briefly).
 type postgresAuthenticator struct {
-	pool   *pgxpool.Pool
+	auth   publicauth.Authenticator
 	autumn *autumnClient
 }
 
-func newPostgresAuthenticator(pool *pgxpool.Pool, autumn *autumnClient) *postgresAuthenticator {
-	return &postgresAuthenticator{pool: pool, autumn: autumn}
+func newPostgresAuthenticator(pool *pgxpool.Pool, membership publicauth.MembershipLookup, autumn *autumnClient) *postgresAuthenticator {
+	a := &postgresAuthenticator{auth: publicauth.Authenticator{Membership: membership}, autumn: autumn}
+	if pool != nil {
+		a.auth.DB = pool
+	}
+	return a
 }
 
 func (a *postgresAuthenticator) authenticate(ctx context.Context, token string) (principal, error) {
-	if a.pool == nil {
-		return principal{}, errAuthUnavailable
-	}
-	hash := sha256.Sum256([]byte(token))
-	keyHash := hex.EncodeToString(hash[:])
-
-	const query = `
-		SELECT
-			k.id,
-			k.organization_id,
-			k.permissions,
-			k.created_by_user_id,
-			k.revoked_at,
-			o.lifecycle_status,
-			om.role
-		FROM organization_api_keys k
-		INNER JOIN organizations o ON o.id = k.organization_id
-		LEFT JOIN organization_memberships om
-			ON om.organization_id = k.organization_id AND om.user_id = k.created_by_user_id
-		WHERE k.key_hash = $1
-		LIMIT 1`
-
-	var (
-		tokenID        string
-		organizationID string
-		permissionsRaw []byte
-		createdBy      *string
-		revokedAt      any
-		lifecycle      string
-		role           *string
-	)
-	err := a.pool.QueryRow(ctx, query, keyHash).Scan(
-		&tokenID, &organizationID, &permissionsRaw, &createdBy, &revokedAt, &lifecycle, &role,
-	)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return principal{}, errUnauthorized
-	}
+	p, err := a.auth.AuthenticateAPIKey(ctx, token)
 	if err != nil {
-		return principal{}, errAuthUnavailable
+		return principal{}, err
 	}
-	if revokedAt != nil || createdBy == nil || *createdBy == "" {
-		return principal{}, errUnauthorized
-	}
-	if lifecycle != "active" {
-		return principal{}, errForbidden
-	}
-	if role == nil || *role == "" {
-		return principal{}, errForbidden
-	}
-	// The API never acts for a vendor (an outside person who sees only their own tasks in the
-	// app). A token made before its owner became a vendor is refused while they are one.
-	if *role == roleVendor {
-		return principal{}, errForbidden
-	}
-
-	var storedPermissions []string
-	if err := json.Unmarshal(permissionsRaw, &storedPermissions); err != nil {
-		return principal{}, errAuthUnavailable
-	}
-
-	permissions := effectivePermissions(storedPermissions, *role)
+	permissions := authz.EffectivePermissions(p.Permissions, p.Role)
 	ent := entitlements{}
 	if a.autumn != nil {
-		ent = a.autumn.queriesEnabledForPermissions(ctx, organizationID, permissions)
+		ent = a.autumn.queriesEnabledForPermissions(ctx, p.OrganizationID, permissions)
 	}
-
-	go func(apiKeyID string) {
-		_, _ = a.pool.Exec(context.Background(), `
-			UPDATE organization_api_keys
-			SET last_used_at = NOW()
-			WHERE id = $1`, apiKeyID)
-	}(tokenID)
-
 	return principal{
-		TokenID:        tokenID,
-		UserID:         *createdBy,
-		OrganizationID: organizationID,
+		TokenID:        p.CredentialID,
+		UserID:         p.UserID,
+		OrganizationID: p.OrganizationID,
 		Permissions:    permissions,
 		Entitlements:   ent,
-		Role:           *role,
+		Role:           p.Role,
 	}, nil
 }

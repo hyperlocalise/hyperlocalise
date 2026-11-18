@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -58,7 +59,7 @@ func (s *postgresStore) createJob(ctx context.Context, actor principal, input jo
 			return createdJobResult{}, false, fmt.Errorf("find job owner: %w", err)
 		}
 		// Only a post-edit or proofread task on a file can be given to a vendor (jobs-store.go).
-		if role == roleVendor && (input.File == nil || input.File.Step == nil) {
+		if role == authz.RoleVendor && (input.File == nil || input.File.Step == nil) {
 			return createdJobResult{}, false, errJobOwnerVendor
 		}
 		ownerID = &id

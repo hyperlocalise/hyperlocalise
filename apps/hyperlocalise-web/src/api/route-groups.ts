@@ -51,6 +51,7 @@ import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semru
 import { createZernioConnectionRoutes } from "./routes/zernio-connection/zernio-connection.route";
 import { createIntercomConnectionRoutes } from "./routes/intercom-connection/intercom-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
+import { createSampleWorkspaceRoutes } from "./routes/sample-workspace/sample-workspace.route";
 import { createEngineSetupRoutes } from "./routes/engine-setup/engine-setup.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
@@ -223,10 +224,16 @@ export function createOrgAgentsRoutes() {
     .route("/sanity", createSanityRoutes());
 }
 
-export function createOrgWorkspaceRoutes() {
+export function createOrgWorkspaceRoutes(
+  options: Pick<OrgScopedRouteOptions, "fileStorageAdapter"> = {},
+) {
   return new Hono()
     .route("/webhook-endpoints", createWebhookEndpointRoutes())
-    .route("/cdn-destinations", createCdnDestinationRoutes());
+    .route("/cdn-destinations", createCdnDestinationRoutes())
+    .route(
+      "/sample-workspace",
+      createSampleWorkspaceRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    );
 }
 
 export function createOrgScopedAppRoutes(options: OrgScopedRouteOptions) {
@@ -237,5 +244,5 @@ export function createOrgScopedAppRoutes(options: OrgScopedRouteOptions) {
     .route("/", createOrgTmsRoutes(options))
     .route("/", createOrgIntegrationsRoutes())
     .route("/", createOrgAgentsRoutes())
-    .route("/", createOrgWorkspaceRoutes());
+    .route("/", createOrgWorkspaceRoutes(options));
 }

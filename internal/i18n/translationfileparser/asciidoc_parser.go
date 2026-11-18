@@ -1153,25 +1153,7 @@ func MarshalAsciiDocWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate
 }
 
 func AlignAsciiDocTargetToSource(sourceTemplate, targetTemplate []byte) map[string]string {
-	sourceDoc, sourceEntries := parseAsciiDocDocument(stripBOM(sourceTemplate))
-	targetDoc, _ := parseAsciiDocDocument(stripBOM(targetTemplate))
-	fallback := newAsciiDocAligner(sourceDoc, targetDoc)
-	aligned := make(map[string]string, len(sourceEntries))
-	for _, part := range sourceDoc.parts {
-		if part.key == "" {
-			continue
-		}
-		if _, ok := sourceEntries[part.key]; !ok {
-			fallback.advance()
-			continue
-		}
-		if text, ok := fallback.take(); ok {
-			aligned[part.key] = text
-			continue
-		}
-		aligned[part.key] = ""
-	}
-	return aligned
+	return ParseAsciiDocDocument(sourceTemplate).AlignTarget(targetTemplate)
 }
 
 type asciiDocAligner struct {

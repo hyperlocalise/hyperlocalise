@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/vercelblob"
 	"github.com/stretchr/testify/require"
@@ -31,7 +32,7 @@ func (s *fakeFileStore) openStoredFile(_ context.Context, _ principal, fileID st
 }
 
 func TestFileDownloadRoute(t *testing.T) {
-	readScopes := effectivePermissions([]string{"files:read"}, "member")
+	readScopes := authz.EffectivePermissions([]string{"files:read"}, "member")
 
 	t.Run("streams the file as an attachment", func(t *testing.T) {
 		store := &fakeResourceStore{}

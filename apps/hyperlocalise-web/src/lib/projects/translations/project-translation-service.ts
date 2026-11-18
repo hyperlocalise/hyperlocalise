@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, count, eq, inArray, or, sql } from "drizzle-orm";
 import { createHash, randomUUID } from "node:crypto";
 
 import type {
@@ -116,7 +116,8 @@ function translationKeysSearchCondition(input: {
   projectId: string;
   targetLocale?: string;
 }) {
-  const query = input.search?.trim();
+  // NFC on both sides so combining accents match the same letters stored precomposed.
+  const query = input.search?.trim().normalize("NFC");
   if (!query) {
     return undefined;
   }
@@ -124,9 +125,9 @@ function translationKeysSearchCondition(input: {
   const pattern = `%${escapeIlikePattern(query)}%`;
 
   const keySourceOrContext = or(
-    ilike(schema.projectTranslationKeys.key, pattern),
-    ilike(schema.projectTranslationKeys.sourceText, pattern),
-    ilike(schema.projectTranslationKeys.context, pattern),
+    sql`normalize(${schema.projectTranslationKeys.key}, NFC) ilike ${pattern}`,
+    sql`normalize(${schema.projectTranslationKeys.sourceText}, NFC) ilike ${pattern}`,
+    sql`normalize(${schema.projectTranslationKeys.context}, NFC) ilike ${pattern}`,
   );
 
   if (!input.targetLocale) {
@@ -142,7 +143,7 @@ function translationKeysSearchCondition(input: {
       and ${schema.projectTranslations.organizationId} = ${input.organizationId}
       and ${schema.projectTranslations.projectId} = ${input.projectId}
       and ${schema.projectTranslations.targetLocale} = ${input.targetLocale}
-      and ${schema.projectTranslations.text} ilike ${pattern}
+      and normalize(${schema.projectTranslations.text}, NFC) ilike ${pattern}
   )`;
 
   return or(keySourceOrContext, targetTextMatch);

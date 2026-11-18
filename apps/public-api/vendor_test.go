@@ -1,12 +1,12 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,40 +22,28 @@ func (f dbFixture) memberWithRole(t *testing.T, role string) (id, email string) 
 	return id, email
 }
 
-// The API never acts for a vendor: a token is refused while its owner is one.
+// The API never acts for a vendor: a token is refused while WorkOS reports its owner as one.
 func TestVendorTokenIsRefused(t *testing.T) {
 	f := newDBFixture(t)
 	ctx := t.Context()
-	auth := newPostgresAuthenticator(f.pool, nil)
-	ownerID, _ := f.memberWithRole(t, "translator")
+	role := "translator"
+	auth := newPostgresAuthenticator(f.pool, f.liveMembership(t, &role), nil)
 	token := "hl_test_" + uuid.NewString()
-	hash := sha256.Sum256([]byte(token))
 	f.exec(t, `INSERT INTO organization_api_keys
 		(organization_id, name, key_hash, key_prefix, permissions, created_by_user_id)
 		VALUES ($1, 'Made before becoming a vendor', $2, $3, '["jobs:read","files:read"]'::jsonb, $4)`,
-		f.actor.OrganizationID, hex.EncodeToString(hash[:]), token[:8], ownerID)
+		f.actor.OrganizationID, publicauth.HashAPIKey(token), token[:8], f.actor.UserID)
 
 	_, err := auth.authenticate(ctx, token)
 	require.NoError(t, err)
 
-	f.exec(t, `UPDATE organization_memberships SET role = 'vendor' WHERE user_id = $1`, ownerID)
+	role = authz.RoleVendor
 	_, err = auth.authenticate(ctx, token)
-	require.ErrorIs(t, err, errForbidden)
+	requireAuthFailure(t, err, http.StatusForbidden, "forbidden")
 
-	f.exec(t, `UPDATE organization_memberships SET role = 'translator' WHERE user_id = $1`, ownerID)
+	role = "translator"
 	_, err = auth.authenticate(ctx, token)
 	require.NoError(t, err)
-}
-
-// Permission checks never see the role, because the token is refused first. Should one ever
-// reach them, a vendor's token carries nothing.
-func TestVendorRoleHasNoPermission(t *testing.T) {
-	stored := make([]string, 0, len(apiKeyScopeCapability))
-	for scope := range apiKeyScopeCapability {
-		stored = append(stored, scope)
-	}
-	require.Empty(t, effectivePermissions(stored, roleVendor))
-	require.NotEmpty(t, effectivePermissions(stored, "member"))
 }
 
 // Who a job can be given to: any active member for a post-edit or proofread task on a file, a

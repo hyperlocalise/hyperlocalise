@@ -125,6 +125,46 @@ func TestWorkspaceAutomationCRUD(t *testing.T) {
 	require.Contains(t, eventTypes, "automation_deleted")
 }
 
+func TestWorkspaceAutomationListIncludesLatestAgentRun(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	path := f.scope.OrgPath("/automations")
+
+	create := f.request(http.MethodPost, path, `{
+        "name": "Daily localisation review",
+        "instructions": "Review localisation."
+    }`)
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+	var created struct {
+		Automation workspaceAutomationRecord `json:"automation"`
+	}
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+
+	_, err := f.scope.Pool.Exec(t.Context(), `
+        insert into workspace_automation_runs (
+            automation_id, organization_id, trigger_source, status, error, completed_at, created_at
+        ) values
+            ($1, $2, 'scheduled', 'succeeded', null, '2026-06-01T11:00:00Z', '2026-06-01T11:00:00Z'),
+            ($1, $2, 'scheduled', 'failed', '{"message":"Slack channel missing"}', '2026-06-01T12:00:00Z', '2026-06-01T12:00:00Z')`,
+		created.Automation.ID, f.scope.OrganizationID)
+	require.NoError(t, err)
+
+	list := f.request(http.MethodGet, path, "")
+	require.Equal(t, http.StatusOK, list.Code, list.Body.String())
+	var listed struct {
+		Automations []workspaceAutomationRecord `json:"automations"`
+	}
+	require.NoError(t, json.Unmarshal(list.Body.Bytes(), &listed))
+	require.Len(t, listed.Automations, 1)
+	require.Equal(t, created.Automation.ID, listed.Automations[0].ID)
+	require.NotNil(t, listed.Automations[0].LastRunStatus)
+	require.Equal(t, "failed", *listed.Automations[0].LastRunStatus)
+	require.NotNil(t, listed.Automations[0].LastRunError)
+	require.Equal(t, "Slack channel missing", *listed.Automations[0].LastRunError)
+	require.NotNil(t, listed.Automations[0].LastRunAt)
+	require.Equal(t, "2026-06-01T12:00:00.000Z", *listed.Automations[0].LastRunAt)
+}
+
 func TestWorkspaceAutomationRejectsUnknownFieldsAndMissingInstructions(t *testing.T) {
 	testenv.Require(t)
 	f := newAutomationFixture(t, "admin")

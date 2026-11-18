@@ -25,6 +25,16 @@ export const irisPageMessages = defineMessages({
     id: "tm2wgAMGK3",
     description: "Primary button that opens the Iris Tally waitlist form",
   },
+  downloadForMac: {
+    defaultMessage: "Download for Mac",
+    id: "u/YuKM1iYx",
+    description: "Button that downloads the Iris desktop app for Apple Silicon Macs",
+  },
+  downloadForIntelMac: {
+    defaultMessage: "Intel Mac",
+    id: "qTeEQlfudM",
+    description: "Link beside the Mac download button that downloads the Iris build for Intel Macs",
+  },
   unmuteVideo: {
     defaultMessage: "Unmute the launch film",
     id: "8uYx7/RU25",

@@ -162,15 +162,31 @@ function QaFailureStatus({
   );
 }
 
-export function QaNotice({ message, onRetry }: { message: string; onRetry?: () => void }) {
+export function QaNotice({
+  message,
+  onRetry,
+  actionLabel,
+  actionDisabled,
+}: {
+  message: string;
+  onRetry?: () => void;
+  /** Replaces the default "Retry" label. */
+  actionLabel?: string;
+  actionDisabled?: boolean;
+}) {
   const intl = useIntl();
   return (
     <Alert>
       <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
         <span>{message}</span>
         {onRetry ? (
-          <Button variant="outline" size="sm" onClick={onRetry}>
-            {intl.formatMessage(m.retry)}
+          <Button
+            variant={actionLabel ? "default" : "outline"}
+            size="sm"
+            disabled={actionDisabled}
+            onClick={onRetry}
+          >
+            {actionLabel ?? intl.formatMessage(m.retry)}
           </Button>
         ) : null}
       </AlertDescription>
@@ -193,7 +209,15 @@ export function QaRunStatus({
   compact?: boolean;
 }) {
   const intl = useIntl();
-  if (!report) return <QaNotice message={intl.formatMessage(m.notScanned)} />;
+  if (!report)
+    return (
+      <QaNotice
+        message={intl.formatMessage(m.notScanned)}
+        onRetry={onRetry}
+        actionLabel={intl.formatMessage(m.runFirstScan)}
+        actionDisabled={isRetrying}
+      />
+    );
   if (report.status === "failed")
     return (
       <QaFailureStatus

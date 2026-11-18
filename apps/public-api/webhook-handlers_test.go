@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,8 +60,8 @@ func (s *fakeWebhookStore) listWebhookDeliveries(_ context.Context, _ principal,
 }
 
 var (
-	webhookReadScopes  = effectivePermissions([]string{"jobs:read"}, "admin")
-	webhookWriteScopes = effectivePermissions([]string{"jobs:read", "jobs:write"}, "localization_manager")
+	webhookReadScopes  = authz.EffectivePermissions([]string{"jobs:read"}, "admin")
+	webhookWriteScopes = authz.EffectivePermissions([]string{"jobs:read", "jobs:write"}, "localization_manager")
 	webhookEndpointID  = "6f1c2a4e-0b8e-4c1e-9d0f-2b6a8c1d3e5f"
 )
 

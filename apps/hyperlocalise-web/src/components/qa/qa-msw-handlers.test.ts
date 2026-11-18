@@ -78,6 +78,31 @@ describe("QA Storybook handlers", () => {
     expect(body.findings.map((finding) => finding.key)).not.toContain("dashboard.reviews.pending");
   });
 
+  it("ignores several findings in one bulk review", async () => {
+    const list = async () => {
+      const response = await fetch(
+        "https://api.hyperlocalise.com/v1/orgs/acme/qa-reports/findings?status=open&limit=50&offset=0",
+      );
+      return ((await response.json()) as { findings: Array<{ id: string }> }).findings;
+    };
+    const before = await list();
+    const ids = before.slice(0, 2).map((finding) => finding.id);
+
+    const review = await fetch(
+      "https://api.hyperlocalise.com/v1/orgs/acme/qa-reports/findings/review",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ findingIds: ids, status: "ignored", reason: "Brand term" }),
+      },
+    );
+    expect(review.ok).toBe(true);
+    const after = (await list()).map((finding) => finding.id);
+    expect(after).toHaveLength(before.length - 2);
+    expect(after).not.toContain(ids[0]);
+    expect(after).not.toContain(ids[1]);
+  });
+
   it("pages findings and promotes the selected ids", async () => {
     server.use(...qaWorkspaceLoadMoreMswHandlers);
     const first = await fetch(

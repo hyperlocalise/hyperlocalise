@@ -31,11 +31,13 @@ So a vendor is refused at one gate per service and let through route by route:
   middleware passes it only for the routes in `VENDOR_API_ROUTES`, and a page
   only when it opts in (`vendor-access.ts`). A route or page added later is
   closed to vendors without anyone thinking about it.
-- **go-svc.** `resolveOrganizationActor` refuses the role;
-  `resolveOrganizationActorAllowingVendor` accepts it and is called only by the
-  handlers opened to vendors (`vendor-access.go`).
-- **Tokens, agents, MCP, plugins and the public API** refuse a vendor outright
-  (`api-key-access.ts`, `mcp.ts`, public-api `auth.go`).
+- **go-svc and the public API.** Both confirm a membership through
+  `internal/publicauth`, which accepts only the roles `internal/authz` knows.
+  Vendor is named there (`authz.RoleVendor`) but left out of that list, so both
+  services refuse it. go-svc's `resolveOrganizationActorAllowingVendor` accepts
+  it and is called only by the handlers opened to vendors (`vendor-access.go`).
+- **Tokens, agents, MCP and plugins** refuse a vendor outright
+  (`api-key-access.ts`, `mcp.ts`, and the shared check above for the public API).
 - **Lookups that never read the web session** (plugin sign-ins, the Slack and
   email assistants, a Human approval reviewer) refuse the role where the member
   is looked up (`lib/workos/vendor-membership.ts`).

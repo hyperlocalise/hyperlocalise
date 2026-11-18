@@ -43,13 +43,21 @@ function segmentTagClassName(kind: ContentEditorSegmentTagKind) {
   }
 }
 
-export function ContentEditorSegmentTags({ tags }: { tags: string[] }) {
+export function ContentEditorSegmentTags({
+  tags,
+  className,
+  badgeClassName,
+}: {
+  tags: string[];
+  className?: string;
+  badgeClassName?: string;
+}) {
   if (tags.length === 0) {
     return null;
   }
 
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className={cn("flex flex-wrap gap-1", className)}>
       {tags.map((tag, index) => {
         const kind = getSegmentTagKind(tag);
 
@@ -57,7 +65,7 @@ export function ContentEditorSegmentTags({ tags }: { tags: string[] }) {
           <Badge
             key={`${tag}-${index}`}
             variant="outline"
-            className={cn("max-w-full font-normal", segmentTagClassName(kind))}
+            className={cn("max-w-full font-normal", segmentTagClassName(kind), badgeClassName)}
           >
             <span className="truncate">{tag}</span>
           </Badge>

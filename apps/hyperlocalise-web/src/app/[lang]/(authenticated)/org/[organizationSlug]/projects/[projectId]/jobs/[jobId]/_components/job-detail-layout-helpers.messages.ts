@@ -15,16 +15,6 @@
 import { defineMessages } from "react-intl";
 
 export const jobDetailLayoutHelpersMessages = defineMessages({
-  providerTaskMetric: {
-    defaultMessage: "{providerName} task",
-    id: "yU1JjWL9rR",
-    description: "Metric label identifying a TMS provider-backed job task",
-  },
-  nativeTaskMetric: {
-    defaultMessage: "{kind} task",
-    id: "ysf+RB1d04",
-    description: "Metric label identifying a native Hyperlocalise job kind",
-  },
   loadingProgress: {
     defaultMessage: "Loading progress…",
     id: "M+N6SmzTI9",
@@ -60,16 +50,6 @@ export const jobDetailLayoutHelpersMessages = defineMessages({
     defaultMessage: "Status",
     id: "WPDWJsbAQo",
     description: "Job property row label for status",
-  },
-  labelFailureReason: {
-    defaultMessage: "Failure reason",
-    id: "qufyTH4w5s",
-    description: "Job property row label for the stored translation failure reason",
-  },
-  labelFailedLocales: {
-    defaultMessage: "Unfinished locales",
-    id: "N43XdOSMJ5",
-    description: "Job property row label for locales that did not finish translating",
   },
   labelFollowUpJob: {
     defaultMessage: "Retry job",
@@ -135,5 +115,35 @@ export const jobDetailLayoutHelpersMessages = defineMessages({
     defaultMessage: "—",
     id: "GpsLS8ojw/",
     description: "Placeholder when a job layout property value is empty",
+  },
+  kindTranslation: {
+    defaultMessage: "Translation",
+    id: "f54I24NQZz",
+    description: "Job task type label for translation jobs",
+  },
+  kindResearch: {
+    defaultMessage: "Research",
+    id: "ACyFoehSSc",
+    description: "Job task type label for research jobs",
+  },
+  kindReview: {
+    defaultMessage: "Review",
+    id: "x71sGlLkHa",
+    description: "Job task type label for review jobs",
+  },
+  kindProofread: {
+    defaultMessage: "Proofread",
+    id: "YSNcbNZ9DI",
+    description: "Job task type label for proofreading jobs",
+  },
+  kindSync: {
+    defaultMessage: "Sync",
+    id: "kcZeR4Ub6N",
+    description: "Job task type label for sync jobs",
+  },
+  kindAssetManagement: {
+    defaultMessage: "Asset management",
+    id: "H3txk4r87t",
+    description: "Job task type label for asset management jobs",
   },
 });
