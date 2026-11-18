@@ -24,7 +24,7 @@ passwordless sudo), with:
 | Node.js + npm + pnpm 11 | pinned (`NODE_VERSION`, currently **24.22.1**) |
 | ripgrep (`rg`) | pinned (`RIPGREP_VERSION`; apt + GitHub release fallback) |
 | Volta | `/vercel/.volta` (`VOLTA_VERSION` optional pin) |
-| hyperlocalise CLI (`hl`) | pinned (`HYPERLOCALISE_VERSION`) |
+| hyperlocalise CLI (`hl`) | pinned (`HYPERLOCALISE_VERSION`, currently **1.14.0**) |
 | Playwright + Chromium | pinned (`PLAYWRIGHT_VERSION`), under `/tmp/hyperlocalise-browser-runtime` |
 | Hunspell (`hunspell`) | apt |
 | Hunspell dictionaries (20 locales) | pinned by [`DICTIONARIES.md`](../../internal/i18n/spellcheck/DICTIONARIES.md), under `/usr/share/hunspell` |

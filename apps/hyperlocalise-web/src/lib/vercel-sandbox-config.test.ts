@@ -10,6 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const sandboxMocks = vi.hoisted(() => ({
@@ -158,6 +161,11 @@ describe("installRequiredSandboxToolsCommand", () => {
       'https://github.com/hyperlocalise/hyperlocalise/releases/download/${HL_VERSION}/${ARCHIVE}" || return 1',
     );
     expect(installRequiredSandboxToolsCommand).toContain("command -v hl >/dev/null 2>&1");
+  });
+
+  it("keeps the sandbox image CLI ARG on the same pin", () => {
+    const dockerfile = readFileSync(join(process.cwd(), "../sandbox-image/Dockerfile"), "utf8");
+    expect(dockerfile).toContain(`ARG HYPERLOCALISE_VERSION=${sandboxHyperlocaliseReleaseVersion}`);
   });
 
   it("installs curl before GitHub release downloaders on Ubuntu images", () => {

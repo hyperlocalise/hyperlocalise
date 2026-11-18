@@ -22,7 +22,6 @@ With **`--diff-stdin`**, `check` reads a unified git patch from stdin and valida
 - `placeholder_mismatch`: placeholders differ from the source
 - `html_tag_mismatch`: inline HTML tag **names** (known elements from the HTML tokenizer’s tag set) differ in sequence between source and target. Angle-bracket text in paths or docs—such as `&lt;name&gt;` in `llm.profiles.&lt;name&gt;.provider`—does not count as HTML for this check
 - `icu_shape_mismatch`: ICU structure differs from the source or is malformed (non-markdown files). CLDR plural categories may differ by locale; exact matches such as `=0` must stay
-- `unreachable_plural_case`: the target keeps a `plural` or `selectordinal` category that the locale never selects, such as `one` in Japanese
 - `markdown_ast_mismatch`: markdown or MDX document structure differs from the source (heading/component tree parity)
 
 ### Warning
@@ -31,6 +30,7 @@ With **`--diff-stdin`**, `check` reads a unified git patch from stdin and valida
 - `orphaned_key`: target key exists but the source key does not
 - `whitespace_only`: target value contains only whitespace
 - `escaped_char_mismatch`: target introduces escaped characters or control characters (`\t`, `\n`, `\r`, `\uXXXX`, `\xXX`, and other C0/C1 controls such as NUL) that are not in the source. Common when a model leaves leftover English after a tab, such as `Inclus\tgranted`. Also flags decoded controls after JSON or CAT unescape, not only the literal two-character sequences
+- `unreachable_plural_case`: the target keeps a `plural` or `selectordinal` category that the locale never selects, such as `one` in Japanese. ICU ignores that branch, so the extra case is harmless. With **`--quiet`**, a run that only has these findings exits `0`
 
 Selecting `--check icu_shape_mismatch` runs ICU checks only; it does not include `markdown_ast_mismatch`. Use both flags if you need ICU and MD/MDX structure checks together.
 
