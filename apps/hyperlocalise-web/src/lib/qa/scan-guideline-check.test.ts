@@ -221,10 +221,7 @@ describe("runScanGuidelineChecks", () => {
       internalCheck.mock.calls
         .map((call) => call[1].targetLocale ?? "")
         .toSorted((left, right) => left.localeCompare(right)),
-    ).toEqual([
-      "de-DE",
-      "fr-FR",
-    ]);
+    ).toEqual(["de-DE", "fr-FR"]);
   });
 });
 
