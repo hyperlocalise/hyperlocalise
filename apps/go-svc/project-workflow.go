@@ -15,8 +15,10 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/tmsauth"
 )
 
-const projectWorkflowPath = "/api/internal/iris/project-action"
-const projectWorkflowTimeout = 2 * time.Minute
+const (
+	projectWorkflowPath    = "/api/internal/iris/project-action"
+	projectWorkflowTimeout = 2 * time.Minute
+)
 
 // callProjectWorkflow asks the web app to run a file, job, QA, or query action
 // with the signed-in member. The web app keeps the workflow and storage code.

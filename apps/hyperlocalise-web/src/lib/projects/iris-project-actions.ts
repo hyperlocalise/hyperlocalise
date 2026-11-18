@@ -39,10 +39,7 @@ import { createWorkflowTaskJob } from "@/lib/projects/jobs/create-workflow-task-
 import { enqueueFileTranslationJob } from "@/lib/projects/jobs/enqueue-file-translation-job";
 import { markTaskDone } from "@/lib/projects/jobs/mark-task-done";
 import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
-import {
-  getRepositorySourceFileByPath,
-  loadProjectTranslationsAsPrefilledEntries,
-} from "@/lib/projects/translations/project-translation-service";
+import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 import { messageFormatSchema } from "@/lib/i18n/message-format";
 import { isErr } from "@/lib/primitives/result/results";
 import { startTranslationQaScan } from "@/lib/qa/run-project-qa-scan";
@@ -84,7 +81,9 @@ async function loadProject(organizationId: string, projectId: string) {
   const [project] = await db
     .select()
     .from(schema.projects)
-    .where(and(eq(schema.projects.id, projectId), eq(schema.projects.organizationId, organizationId)))
+    .where(
+      and(eq(schema.projects.id, projectId), eq(schema.projects.organizationId, organizationId)),
+    )
     .limit(1);
   return project ?? null;
 }
@@ -160,7 +159,8 @@ async function upload(
   if (!project) return fail(404, "project_not_found", "Project not found");
   const bytes = bytesOf(payload.contentBase64);
   const sourcePath = String(payload.sourcePath ?? "");
-  if (!bytes || !sourcePath) return fail(400, "invalid_request_body", "File and source path are required");
+  if (!bytes || !sourcePath)
+    return fail(400, "invalid_request_body", "File and source path are required");
   const uploaded = await uploadSourceFile({
     organizationId,
     project,
@@ -186,7 +186,8 @@ async function download(
 ): Promise<ActionResult> {
   const sourcePath = String(payload.sourcePath ?? "");
   const locale = String(payload.locale ?? "");
-  if (!sourcePath || !locale) return fail(400, "invalid_request_body", "source path and locale are required");
+  if (!sourcePath || !locale)
+    return fail(400, "invalid_request_body", "source path and locale are required");
   const office = await loadProjectOfficeTranslationDownload({
     organizationId,
     projectId,
@@ -318,7 +319,8 @@ async function fileSettings(
       return ok({ settings: record.segmentation });
     }
     const settings = repositorySourceFileSegmentationSettingsSchema.safeParse(payload.settings);
-    if (!settings.success) return fail(400, "invalid_request_body", "Invalid segmentation settings");
+    if (!settings.success)
+      return fail(400, "invalid_request_body", "Invalid segmentation settings");
     const result = await updateRepositorySourceFileSegmentation({
       ...scope,
       settings: settings.data,
@@ -334,7 +336,8 @@ async function fileSettings(
     const messageFormat = messageFormatSchema.safeParse(
       (payload.settings as { messageFormat?: unknown } | undefined)?.messageFormat,
     );
-    if (!messageFormat.success) return fail(400, "invalid_request_body", "messageFormat is required");
+    if (!messageFormat.success)
+      return fail(400, "invalid_request_body", "messageFormat is required");
     const settings = await updateRepositorySourceFilePlaceholderSettings({
       ...scope,
       messageFormat: messageFormat.data,
@@ -373,7 +376,8 @@ async function useTranslation(
     sourcePath: String(payload.sourcePath ?? ""),
     locale: String(payload.locale ?? ""),
     actorUserId: userId,
-    replaceVersionId: typeof payload.replaceVersionId === "string" ? payload.replaceVersionId : undefined,
+    replaceVersionId:
+      typeof payload.replaceVersionId === "string" ? payload.replaceVersionId : undefined,
   });
   if (isErr(sent)) return fail(400, sent.error.code, "Could not send the translation as source");
   return ok({ sent: true, sourcePath: String(payload.sourcePath ?? "") });
@@ -394,14 +398,17 @@ async function createJob(
   const locales = Array.isArray(payload.targetLocales) ? payload.targetLocales.map(String) : [];
   const title = String(payload.title ?? "");
   const description = typeof payload.description === "string" ? payload.description : undefined;
-  const assigneeIds = Array.isArray(payload.assigneeUserIds) ? payload.assigneeUserIds.map(String) : [];
+  const assigneeIds = Array.isArray(payload.assigneeUserIds)
+    ? payload.assigneeUserIds.map(String)
+    : [];
   const metadata: Record<string, string> = { title };
   if (description) metadata.description = description;
   const jobs: { id: string; title: string }[] = [];
   for (const sourcePath of files) {
-    const fileId = sourcePath.includes("/") || sourcePath.includes(".")
-      ? await storedFileIdForPath(organizationId, projectId, sourcePath)
-      : sourcePath;
+    const fileId =
+      sourcePath.includes("/") || sourcePath.includes(".")
+        ? await storedFileIdForPath(organizationId, projectId, sourcePath)
+        : sourcePath;
     if (!fileId) return fail(404, "source_file_not_found", "Source file not found");
     if (payload.kind === "proofread") {
       const assigneeWorkosUserId = assigneeIds[0] ? await workosUserId(assigneeIds[0]) : undefined;
@@ -457,7 +464,12 @@ async function jobAction(
   const action = String(payload.action ?? "");
   const accessWhere = eq(schema.jobs.organizationId, organizationId);
   if (action === "cancel") {
-    const cancelled = await cancelNativeJob({ organizationId, jobId, actorUserId: userId, accessWhere });
+    const cancelled = await cancelNativeJob({
+      organizationId,
+      jobId,
+      actorUserId: userId,
+      accessWhere,
+    });
     if (isErr(cancelled)) return fail(409, cancelled.error.code, "Job action is not available");
     return ok({ id: jobId, action });
   }
@@ -478,7 +490,9 @@ async function jobAction(
       accessWhere,
       body: {
         ...(ownerWorkosUserId !== undefined ? { ownerWorkosUserId } : {}),
-        ...(action === "due" ? { dueAt: payload.dueAt === null ? null : String(payload.dueAt ?? "") } : {}),
+        ...(action === "due"
+          ? { dueAt: payload.dueAt === null ? null : String(payload.dueAt ?? "") }
+          : {}),
       },
     });
     if (isErr(updated)) return fail(400, updated.error.code, "Could not update the job");
@@ -507,7 +521,12 @@ async function jobAction(
       set: { status: "queued", lastError: null, completedAt: null, workflowRunId: null },
       where: and(eq(schema.jobs.id, jobId), accessWhere),
     });
-    await deps.jobQueue.enqueue({ kind: "translation", jobId, projectId: String(payload.projectId ?? ""), type: "file" });
+    await deps.jobQueue.enqueue({
+      kind: "translation",
+      jobId,
+      projectId: String(payload.projectId ?? ""),
+      type: "file",
+    });
     return ok({ id: jobId, action });
   }
   return fail(400, "invalid_request_body", "Unknown job action");

@@ -13,27 +13,33 @@
 import { Hono } from "hono";
 
 import { verifyGoSvcServiceToken } from "@/lib/go-svc/go-svc-service-token";
-import { runIrisProjectAction, type IrisProjectActionDeps } from "@/lib/projects/iris-project-actions";
+import {
+  runIrisProjectAction,
+  type IrisProjectActionDeps,
+} from "@/lib/projects/iris-project-actions";
 import { serviceUnavailableResponse, unauthorizedResponse } from "@/api/response.schema";
 
 export function createIrisProjectActionRoutes(deps: IrisProjectActionDeps) {
-  return new Hono().use("*", async (c, next) => {
-    const auth = verifyGoSvcServiceToken(c.req.raw);
-    if (!auth.ok) {
-      if (auth.reason === "misconfigured") {
-        return serviceUnavailableResponse(c, "project_workflow_unconfigured");
+  return new Hono()
+    .use("*", async (c, next) => {
+      const auth = verifyGoSvcServiceToken(c.req.raw);
+      if (!auth.ok) {
+        if (auth.reason === "misconfigured") {
+          return serviceUnavailableResponse(c, "project_workflow_unconfigured");
+        }
+        return unauthorizedResponse(c, "unauthorized", "missing server call token");
       }
-      return unauthorizedResponse(c, "unauthorized", "missing server call token");
-    }
-    await next();
-  }).post("/project-action", async (c) => {
-    const body = (await c.req.json().catch(() => null)) as
-      | { action?: string; payload?: Record<string, unknown> }
-      | null;
-    if (!body?.action || !body.payload) {
-      return c.json({ error: "invalid_request_body", message: "Invalid project action" }, 400);
-    }
-    const result = await runIrisProjectAction(body.action, body.payload, deps);
-    return c.json(result.body, result.status as 200);
-  });
+      await next();
+    })
+    .post("/project-action", async (c) => {
+      const body = (await c.req.json().catch(() => null)) as {
+        action?: string;
+        payload?: Record<string, unknown>;
+      } | null;
+      if (!body?.action || !body.payload) {
+        return c.json({ error: "invalid_request_body", message: "Invalid project action" }, 400);
+      }
+      const result = await runIrisProjectAction(body.action, body.payload, deps);
+      return c.json(result.body, result.status as 200);
+    });
 }
