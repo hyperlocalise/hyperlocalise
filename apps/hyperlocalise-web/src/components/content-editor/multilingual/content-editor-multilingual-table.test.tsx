@@ -292,4 +292,76 @@ describe("multilingual table", () => {
       screen.queryByRole("button", { name: "Edit message.0 in French" }),
     ).not.toBeInTheDocument();
   });
+
+  it("marks each cell with its translation status", async () => {
+    targetQuery.mockImplementation((input) => ({
+      data:
+        input.targetLocale === "fr"
+          ? { text: "Bonjour", isApproved: true }
+          : input.targetLocale === "de"
+            ? { text: "Hallo", isApproved: false, status: "needs_review" }
+            : null,
+      isPending: false,
+      isError: false,
+      refetch: retry,
+    }));
+    renderTable({ segments: segments.slice(0, 1) });
+    expect(await screen.findByRole("button", { name: "Edit message.0 in French" })).toHaveAttribute(
+      "data-status",
+      "approved",
+    );
+    expect(screen.getByRole("button", { name: "Edit message.0 in German" })).toHaveAttribute(
+      "data-status",
+      "needs_review",
+    );
+    expect(screen.getByRole("button", { name: "Edit message.0 in Japanese" })).toHaveAttribute(
+      "data-status",
+      "missing",
+    );
+  });
+
+  it("dims cells that do not match the highlight", async () => {
+    targetQuery.mockImplementation((input) => ({
+      data: input.targetLocale === "fr" ? null : { text: "Text", isApproved: false },
+      isPending: false,
+      isError: false,
+      refetch: retry,
+    }));
+    renderTable({ segments: segments.slice(0, 1) });
+    const french = await screen.findByRole("button", { name: "Edit message.0 in French" });
+    const german = screen.getByRole("button", { name: "Edit message.0 in German" });
+    expect(german).not.toHaveClass("opacity-35");
+
+    fireEvent.click(screen.getByRole("button", { name: "Missing" }));
+
+    expect(screen.getByRole("button", { name: "Missing" })).toHaveAttribute("aria-pressed", "true");
+    expect(french).not.toHaveClass("opacity-35");
+    expect(german).toHaveClass("opacity-35");
+  });
+
+  it("switches to compact rows", async () => {
+    renderTable({ segments: segments.slice(0, 1) });
+    await screen.findByRole("button", { name: "Edit message.0 in French" });
+    const row = screen.getAllByRole("row")[1];
+    expect(row).toHaveStyle({ height: "48px" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Compact rows" }));
+
+    await waitFor(() => expect(screen.getAllByRole("row")[1]).toHaveStyle({ height: "36px" }));
+  });
+
+  it("shows project progress in the language headers", async () => {
+    renderTable({
+      segments: segments.slice(0, 1),
+      config: {
+        ...config,
+        localeProgress: new Map([["fr", { translated: 80, approved: 50 }]]),
+      },
+    });
+    expect(
+      await screen.findByRole("meter", {
+        name: "80% translated, 50% approved across the project",
+      }),
+    ).toHaveAttribute("aria-valuenow", "80");
+  });
 });

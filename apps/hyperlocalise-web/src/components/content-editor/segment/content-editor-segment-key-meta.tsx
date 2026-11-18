@@ -23,6 +23,7 @@ export function ContentEditorSegmentKeyMeta({
   keyClassName,
   pathClassName,
   trailing,
+  inline = false,
 }: {
   segmentKey: string;
   sourcePath?: string | null;
@@ -30,7 +31,35 @@ export function ContentEditorSegmentKeyMeta({
   keyClassName?: string;
   pathClassName?: string;
   trailing?: ReactNode;
+  /** Key and path share one line; the path truncates first. */
+  inline?: boolean;
 }) {
+  if (inline) {
+    return (
+      <div className={cn("flex min-w-0 items-center gap-1.5 font-mono text-[11px]", className)}>
+        <span
+          className={cn("max-w-[60%] shrink-0 truncate text-foreground", keyClassName)}
+          title={segmentKey}
+        >
+          {segmentKey}
+        </span>
+        {sourcePath ? (
+          <>
+            <span className="shrink-0 text-muted-foreground/50" aria-hidden>
+              ·
+            </span>
+            <span
+              className={cn("min-w-0 truncate text-muted-foreground", pathClassName)}
+              title={sourcePath}
+            >
+              {sourcePath}
+            </span>
+          </>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex min-w-0 flex-col gap-0.5", className)}>
       <div className="flex min-w-0 items-center justify-between gap-2">

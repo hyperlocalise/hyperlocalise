@@ -19,9 +19,13 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { reaction } from "mobx";
 import { observer } from "mobx-react-lite";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
-import { useIntl } from "react-intl";
+import { useIntl, type IntlShape } from "react-intl";
+import { ListIcon, QuestionIcon, RowsIcon } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -32,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/primitives/cn";
 import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
+import { getLocaleFlagEmoji } from "@/lib/i18n/locales";
 import type {
   ContentEditorFormatCheck,
   ContentEditorSegment,
@@ -52,9 +57,123 @@ import { ContentEditorOccurrenceBadge } from "../groups/content-editor-occurrenc
 
 const KEY_WIDTH = 224;
 const LANGUAGE_WIDTH = 320;
-const ROW_HEIGHT = 56;
 const HEADER_HEIGHT = 44;
 const ROW_OVERSCAN = 3;
+// A source longer than this likely wraps once translated, so its row gets two lines.
+const TALL_SOURCE_LENGTH = 26;
+const ROW_HEIGHTS = {
+  comfortable: { short: 48, tall: 68 },
+  compact: { short: 36, tall: 52 },
+} as const;
+const TWO_LINE_MIN_HEIGHT = 48;
+const KEY_COLUMN_SHADOW_CLASS_NAME = "shadow-[6px_0_8px_-6px_rgb(0_0_0/0.15)]";
+const DENSITY_STORAGE_KEY = "hl:content-editor:multilingual-density";
+
+type RowDensity = keyof typeof ROW_HEIGHTS;
+type CellHighlight = "all" | "missing" | "needs_review" | "variants";
+type CellStatus =
+  | "approved"
+  | "needs_review"
+  | "draft"
+  | "rejected"
+  | "unsaved"
+  | "error"
+  | "missing";
+
+const CELL_HIGHLIGHTS = [
+  { value: "all", message: messages.highlightAll },
+  { value: "missing", message: messages.highlightMissing },
+  { value: "needs_review", message: messages.highlightNeedsReview },
+  { value: "variants", message: messages.highlightVariants },
+] as const satisfies readonly { value: CellHighlight; message: unknown }[];
+
+const STATUS_BAR_CLASS_NAME: Record<CellStatus, string | null> = {
+  approved: "bg-grove-700 dark:bg-grove-300",
+  needs_review: "bg-beam-700 dark:bg-warning",
+  draft: "bg-muted-foreground/40",
+  rejected: "bg-flame-700",
+  unsaved: "bg-bud-400",
+  error: "bg-destructive",
+  missing: null,
+};
+
+const LEGEND_STATUSES = [
+  { status: "approved", message: messages.approved },
+  { status: "needs_review", message: messages.statusNeedsReview },
+  { status: "draft", message: messages.statusDraft },
+  { status: "rejected", message: messages.statusRejected },
+  { status: "unsaved", message: messages.statusUnsaved },
+] as const satisfies readonly { status: CellStatus; message: unknown }[];
+
+function cellStatus(input: {
+  text?: string;
+  status?: "draft" | "needs_review" | "approved" | "rejected";
+  isApproved?: boolean;
+  dirty?: boolean;
+  error?: string | null;
+}): CellStatus {
+  if (input.error) return "error";
+  if (input.dirty) return "unsaved";
+  if (!input.text) return "missing";
+  if (input.isApproved || input.status === "approved") return "approved";
+  if (input.status === "rejected") return "rejected";
+  if (input.status === "draft") return "draft";
+  return "needs_review";
+}
+
+function cellStatusLabel(intl: IntlShape, status: CellStatus) {
+  switch (status) {
+    case "approved":
+      return intl.formatMessage(messages.approved);
+    case "needs_review":
+      return intl.formatMessage(messages.statusNeedsReview);
+    case "draft":
+      return intl.formatMessage(messages.statusDraft);
+    case "rejected":
+      return intl.formatMessage(messages.statusRejected);
+    case "unsaved":
+      return intl.formatMessage(messages.statusUnsaved);
+    case "error":
+      return intl.formatMessage(messages.failed);
+    case "missing":
+      return intl.formatMessage(messages.missing);
+  }
+}
+
+function matchesHighlight(highlight: CellHighlight, status: CellStatus, divergent: boolean) {
+  switch (highlight) {
+    case "all":
+      return true;
+    case "missing":
+      return status === "missing";
+    case "needs_review":
+      return status === "needs_review" || status === "rejected";
+    case "variants":
+      return divergent;
+  }
+}
+
+function rowHeight(sourceText: string, density: RowDensity) {
+  const tall = sourceText.length > TALL_SOURCE_LENGTH || sourceText.includes("\n");
+  return ROW_HEIGHTS[density][tall ? "tall" : "short"];
+}
+
+function readStoredDensity(): RowDensity | null {
+  try {
+    const value = window.localStorage.getItem(DENSITY_STORAGE_KEY);
+    return value === "compact" || value === "comfortable" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeDensity(density: RowDensity) {
+  try {
+    window.localStorage.setItem(DENSITY_STORAGE_KEY, density);
+  } catch {
+    // Density is a per-viewer convenience; losing it is fine.
+  }
+}
 
 export interface ContentEditorMultilingualConfig {
   organizationSlug: string;
@@ -73,6 +192,8 @@ export interface ContentEditorMultilingualConfig {
     }
   >;
   canEdit?: boolean;
+  /** Project-wide progress per target locale (0–100), shown in the column headers. */
+  localeProgress?: ReadonlyMap<string, { translated: number; approved: number }>;
   onSaveTranslation?: (
     segment: ContentEditorSegment,
     locale: string,
@@ -104,14 +225,22 @@ export interface ContentEditorMultilingualConfig {
 function GroupedTranslationCell(props: Parameters<typeof TranslationCell>[0]) {
   const divergent = useHasGroupTranslationVariants(props.segment, props.locale);
   if (!divergent) return <TranslationCell {...props} />;
+  const dimmed = !props.active && props.highlight !== "all" && props.highlight !== "variants";
   return (
-    <ContentEditorGroupVariantsCell
-      segment={props.segment}
-      locale={props.locale}
-      active={props.active}
-      onActivate={props.onActivate}
-      onClose={() => props.onFinish()}
-    />
+    <div
+      className={cn(
+        "flex h-full w-full items-center px-2 transition-opacity",
+        dimmed && "opacity-35",
+      )}
+    >
+      <ContentEditorGroupVariantsCell
+        segment={props.segment}
+        locale={props.locale}
+        active={props.active}
+        onActivate={props.onActivate}
+        onClose={() => props.onFinish()}
+      />
+    </div>
   );
 }
 
@@ -122,6 +251,8 @@ const TranslationCell = observer(function TranslationCell({
   pending,
   drafts,
   active,
+  lines,
+  highlight,
   onActivate,
   onFinish,
   onOpenTranslation,
@@ -132,6 +263,9 @@ const TranslationCell = observer(function TranslationCell({
   pending: boolean;
   drafts: MultilingualDrafts;
   active: boolean;
+  /** How many lines of text the row has room for. */
+  lines: 1 | 2;
+  highlight: CellHighlight;
   onActivate: () => void;
   onFinish: (direction?: "down" | "next" | "previous") => void;
   onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
@@ -180,7 +314,7 @@ const TranslationCell = observer(function TranslationCell({
       cancelled.current = false;
     }
   }, [active]);
-  if (pending || query.isPending) return <Skeleton className="mx-3 h-4 w-3/4" />;
+  if (pending || query.isPending) return <Skeleton className="mx-4 h-4 w-3/4" />;
   if (query.isError && query.data === undefined) {
     return (
       <Button
@@ -198,7 +332,7 @@ const TranslationCell = observer(function TranslationCell({
   if (active && draft && editable) {
     return (
       <div
-        className="absolute inset-x-0 top-0 z-40 min-h-full border border-ring bg-background shadow-sm"
+        className="absolute inset-x-1 top-1 z-40 min-h-[calc(100%-0.5rem)] rounded-md bg-background shadow-lg ring-2 ring-ring"
         onBlur={(event) => {
           if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
           if (!cancelled.current) save();
@@ -246,16 +380,28 @@ const TranslationCell = observer(function TranslationCell({
       </div>
     );
   }
+  const status = cellStatus({
+    text,
+    status: query.data?.status,
+    isApproved: query.data?.isApproved,
+    dirty: draft?.dirty,
+    error: draft?.error,
+  });
+  const statusBarClassName = STATUS_BAR_CLASS_NAME[status];
+  const dimmed = !matchesHighlight(highlight, status, false);
   return (
     <button
       ref={buttonRef}
       type="button"
       disabled={!editable && !openTranslation}
+      data-status={status}
       className={cn(
-        "flex h-full w-full items-center gap-2 px-3 text-start text-sm hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+        "relative flex h-full w-full items-center gap-2 ps-4 pe-3 text-start text-sm transition-[opacity,background-color] hover:bg-muted/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
         !text && "text-muted-foreground",
+        dimmed && "opacity-35",
       )}
       aria-label={label}
+      aria-description={cellStatusLabel(intl, status)}
       onClick={() => {
         if (!editable) {
           openTranslation?.(segment, locale);
@@ -267,23 +413,161 @@ const TranslationCell = observer(function TranslationCell({
       }}
       title={draft?.error ?? text ?? intl.formatMessage(messages.missing)}
     >
-      <span dir="auto" className="line-clamp-2 min-w-0 flex-1 whitespace-pre-wrap break-words">
-        {text ? formatInternalMarkupForDisplay(text) : intl.formatMessage(messages.missing)}
-      </span>
+      {statusBarClassName ? (
+        <span
+          aria-hidden
+          className={cn("absolute inset-y-2.5 start-1.5 w-[3px] rounded-full", statusBarClassName)}
+        />
+      ) : null}
+      {text ? (
+        <span
+          dir="auto"
+          className={cn(
+            "min-w-0 flex-1 whitespace-pre-wrap break-words",
+            lines === 2 ? "line-clamp-2" : "line-clamp-1",
+          )}
+        >
+          {formatInternalMarkupForDisplay(text)}
+        </span>
+      ) : (
+        <span className="min-w-0 flex-1">
+          <span className="inline-flex items-center rounded-md border border-dashed border-border px-1.5 py-0.5 text-xs">
+            {intl.formatMessage(messages.missing)}
+          </span>
+        </span>
+      )}
       {draft?.saving ? <span role="status">{intl.formatMessage(messages.saving)}</span> : null}
       {draft?.error ? (
         <span role="alert" className="text-destructive">
           {intl.formatMessage(messages.retry)}
         </span>
       ) : null}
-      {!draft?.dirty && query.data?.isApproved ? (
-        <span className="shrink-0 text-primary" aria-label={intl.formatMessage(messages.approved)}>
-          ✓
-        </span>
-      ) : null}
     </button>
   );
 });
+
+function LocaleColumnHeader({
+  locale,
+  isSource,
+  progress,
+}: {
+  locale: string;
+  isSource: boolean;
+  progress?: { translated: number; approved: number };
+}) {
+  const intl = useIntl();
+  const flag = getLocaleFlagEmoji(locale);
+  const language = formatLocaleDisplayName(intl, locale);
+  const progressLabel = progress
+    ? intl.formatMessage(messages.localeProgress, {
+        translated: intl.formatNumber(progress.translated / 100, { style: "percent" }),
+        approved: intl.formatNumber(progress.approved / 100, { style: "percent" }),
+      })
+    : null;
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-2" title={language}>
+      {flag ? <span aria-hidden>{flag}</span> : null}
+      <span aria-hidden className="truncate font-mono text-xs font-medium text-foreground">
+        {locale}
+      </span>
+      <span className="sr-only">
+        {isSource ? intl.formatMessage(messages.source, { language }) : language}
+      </span>
+      {isSource ? (
+        <span
+          aria-hidden
+          className="shrink-0 rounded bg-muted px-1.5 py-px text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
+        >
+          {intl.formatMessage(messages.sourceTag)}
+        </span>
+      ) : null}
+      {progress && progressLabel ? (
+        <div className="ms-auto flex shrink-0 items-center gap-1.5" title={progressLabel}>
+          <div
+            role="meter"
+            aria-label={progressLabel}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progress.translated)}
+            className="relative h-1 w-12 overflow-hidden rounded-full bg-muted"
+          >
+            <div
+              className="absolute inset-y-0 start-0 rounded-full bg-grove-300"
+              style={{ width: `${Math.min(100, progress.translated)}%` }}
+            />
+            <div
+              className="absolute inset-y-0 start-0 rounded-full bg-grove-700"
+              style={{ width: `${Math.min(100, progress.approved)}%` }}
+            />
+          </div>
+          <span aria-hidden className="text-[11px] font-normal text-muted-foreground tabular-nums">
+            {intl.formatNumber(progress.translated / 100, {
+              style: "percent",
+              maximumFractionDigits: 0,
+            })}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const SHORTCUTS = [
+  { message: messages.shortcutEdit, keys: null },
+  { message: messages.shortcutDown, keys: ["Enter"] },
+  { message: messages.shortcutAcross, keys: ["Tab"] },
+  { message: messages.shortcutNewLine, keys: ["Shift", "Enter"] },
+  { message: messages.shortcutCancel, keys: ["Esc"] },
+] as const;
+
+function MultilingualHelpPopover() {
+  const intl = useIntl();
+  const label = intl.formatMessage(messages.shortcuts);
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={<Button variant="ghost" size="icon-sm" aria-label={label} title={label} />}
+      >
+        <QuestionIcon className="size-4" aria-hidden />
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 gap-3">
+        <p className="text-xs font-medium text-muted-foreground">
+          {intl.formatMessage(messages.shortcutsTitle)}
+        </p>
+        <dl className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 text-sm">
+          {SHORTCUTS.map((shortcut) => (
+            <div key={shortcut.message.id} className="contents">
+              <dt>{intl.formatMessage(shortcut.message)}</dt>
+              <dd className="justify-self-end">
+                <KbdGroup>
+                  {shortcut.keys ? (
+                    shortcut.keys.map((key) => <Kbd key={key}>{key}</Kbd>)
+                  ) : (
+                    <Kbd>{intl.formatMessage(messages.shortcutEditKey)}</Kbd>
+                  )}
+                </KbdGroup>
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <p className="text-xs font-medium text-muted-foreground">
+          {intl.formatMessage(messages.legendTitle)}
+        </p>
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+          {LEGEND_STATUSES.map((item) => (
+            <li key={item.status} className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className={cn("h-3.5 w-[3px] rounded-full", STATUS_BAR_CLASS_NAME[item.status])}
+              />
+              {intl.formatMessage(item.message)}
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export const ContentEditorMultilingualTable = observer(function ContentEditorMultilingualTable({
   config,
@@ -342,6 +626,22 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   );
   // The virtualizer invalidates measurements when these callbacks change.
   const getRowKey = useCallback((index: number) => segments[index].id, [segments]);
+  const [density, setDensity] = useState<RowDensity>("comfortable");
+  useEffect(() => {
+    const stored = readStoredDensity();
+    if (stored) setDensity(stored);
+  }, []);
+  const changeDensity = (next: RowDensity) => {
+    setDensity(next);
+    storeDensity(next);
+  };
+  const [highlight, setHighlight] = useState<CellHighlight>("all");
+  const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
+  const [isScrolledX, setIsScrolledX] = useState(false);
+  const estimateRowSize = useCallback(
+    (index: number) => rowHeight(segments[index].sourceText, density),
+    [segments, density],
+  );
   const getColumnKey = useCallback(
     (index: number) => (index === 0 ? "source" : columns[index]),
     [columns],
@@ -349,7 +649,7 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   const rowVirtualizer = useVirtualizer({
     count: segments.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: estimateRowSize,
     getItemKey: getRowKey,
     overscan: ROW_OVERSCAN,
     rangeExtractor: (range) =>
@@ -359,6 +659,9 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
     paddingStart: HEADER_HEIGHT,
   });
   useEditorPageWindow(segments, scrollRef, rowVirtualizer);
+  useEffect(() => {
+    rowVirtualizer.measure();
+  }, [rowVirtualizer, estimateRowSize]);
   const columnVirtualizer = useVirtualizer({
     horizontal: true,
     count: columns.length,
@@ -415,41 +718,79 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   const width = columnVirtualizer.getTotalSize();
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b px-3 py-2">
-        <p className="truncate text-xs text-muted-foreground">
-          {intl.formatMessage(messages.hint)}
-        </p>
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
-            {intl.formatMessage(messages.languages)}{" "}
-            <span className="tabular-nums">{visibleLocales.length}</span>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuGroup>
-              {locales.map((locale) => (
-                <DropdownMenuCheckboxItem
-                  key={locale}
-                  checked={!hiddenLocales.has(locale)}
-                  onCheckedChange={(checked) => {
-                    setHiddenLocales((previous) => {
-                      const next = new Set(previous);
-                      if (checked) next.delete(locale);
-                      else next.add(locale);
-                      return next;
-                    });
-                  }}
-                >
-                  {formatLocaleDisplayName(intl, locale)}{" "}
-                  <span className="text-muted-foreground">{locale}</span>
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
+        <ButtonGroup aria-label={intl.formatMessage(messages.highlight)}>
+          {CELL_HIGHLIGHTS.map((option) => (
+            <Button
+              key={option.value}
+              variant={highlight === option.value ? "secondary" : "outline"}
+              size="sm"
+              aria-pressed={highlight === option.value}
+              onClick={() => setHighlight(option.value)}
+            >
+              {intl.formatMessage(option.message)}
+            </Button>
+          ))}
+        </ButtonGroup>
+        <div className="ms-auto flex items-center gap-1.5">
+          <ButtonGroup aria-label={intl.formatMessage(messages.density)}>
+            {(
+              [
+                { value: "comfortable", Icon: RowsIcon, message: messages.densityComfortable },
+                { value: "compact", Icon: ListIcon, message: messages.densityCompact },
+              ] as const
+            ).map(({ value, Icon, message }) => (
+              <Button
+                key={value}
+                variant={density === value ? "secondary" : "outline"}
+                size="icon-sm"
+                aria-pressed={density === value}
+                aria-label={intl.formatMessage(message)}
+                title={intl.formatMessage(message)}
+                onClick={() => changeDensity(value)}
+              >
+                <Icon className="size-4" aria-hidden />
+              </Button>
+            ))}
+          </ButtonGroup>
+          <MultilingualHelpPopover />
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+              {intl.formatMessage(messages.languages)}{" "}
+              <span className="tabular-nums">{visibleLocales.length}</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                {locales.map((locale) => (
+                  <DropdownMenuCheckboxItem
+                    key={locale}
+                    checked={!hiddenLocales.has(locale)}
+                    onCheckedChange={(checked) => {
+                      setHiddenLocales((previous) => {
+                        const next = new Set(previous);
+                        if (checked) next.delete(locale);
+                        else next.add(locale);
+                        return next;
+                      });
+                    }}
+                  >
+                    {formatLocaleDisplayName(intl, locale)}{" "}
+                    <span className="text-muted-foreground">{locale}</span>
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       <div
         ref={scrollRef}
         className="min-h-0 flex-1 overflow-auto [overflow-anchor:none]"
+        onScroll={(event) => {
+          const scrolled = event.currentTarget.scrollLeft > 0;
+          if (scrolled !== isScrolledX) setIsScrolledX(scrolled);
+        }}
+        onMouseLeave={() => setHoveredColumn(null)}
         tabIndex={0}
         role="region"
         aria-label={intl.formatMessage(messages.title)}
@@ -466,13 +807,16 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
           <div
             role="row"
             aria-rowindex={1}
-            className="sticky top-0 z-20 border-b bg-muted"
+            className="sticky top-0 z-20 border-b bg-background"
             style={{ height: HEADER_HEIGHT, width }}
           >
             <div
               role="columnheader"
               aria-colindex={1}
-              className="sticky left-0 z-30 flex h-full items-center border-r bg-muted px-3 text-xs font-medium"
+              className={cn(
+                "sticky left-0 z-30 flex h-full items-center border-r bg-background px-3 text-xs font-medium text-muted-foreground transition-shadow",
+                isScrolledX && KEY_COLUMN_SHADOW_CLASS_NAME,
+              )}
               style={{ width: KEY_WIDTH }}
             >
               {intl.formatMessage(messages.key)}
@@ -482,29 +826,38 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
                 role="columnheader"
                 aria-colindex={column.index + 2}
                 key={column.key}
-                className="absolute top-0 flex h-full items-center border-r px-3 text-xs font-medium"
+                className={cn(
+                  "absolute top-0 flex h-full items-center px-4 transition-colors",
+                  column.index === 0 && "border-r",
+                  hoveredColumn === column.key && "bg-muted/40",
+                )}
                 style={{ left: column.start, width: column.size }}
+                onMouseEnter={() => setHoveredColumn(String(column.key))}
               >
-                <span className="truncate">
-                  {column.index === 0
-                    ? intl.formatMessage(messages.source, {
-                        language: formatLocaleDisplayName(intl, config.sourceLocale),
-                      })
-                    : formatLocaleDisplayName(intl, columns[column.index])}
-                </span>
+                <LocaleColumnHeader
+                  locale={columns[column.index]}
+                  isSource={column.index === 0}
+                  progress={
+                    column.index === 0
+                      ? undefined
+                      : config.localeProgress?.get(columns[column.index])
+                  }
+                />
               </div>
             ))}
           </div>
           {rows.map((row) => {
             const segment = segments[row.index];
+            const isSelected = segment.id === selectedSegmentId;
+            const lines = row.size >= TWO_LINE_MIN_HEIGHT ? 2 : 1;
             return (
               <div
                 role="row"
                 aria-rowindex={row.index + 2}
                 key={row.key}
                 className={cn(
-                  "absolute left-0 border-b",
-                  segment.id === selectedSegmentId ? "bg-accent/40" : "bg-background",
+                  "group/row absolute left-0 border-b border-border/50 transition-colors",
+                  isSelected ? "bg-accent/40" : "hover:bg-muted/30",
                 )}
                 style={{ top: row.start, height: row.size, width }}
               >
@@ -514,9 +867,22 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
                   // In Select mode, named by the key alone, not the tick box's "Select …" label.
                   aria-labelledby={showSelection ? `${keyIdPrefix}-${row.index}` : undefined}
                   title={segment.key}
-                  className="sticky left-0 z-10 flex h-full items-center gap-1.5 border-r bg-background px-3 font-mono text-xs"
+                  className={cn(
+                    "sticky left-0 z-10 isolate flex h-full items-center gap-1.5 border-r bg-background px-3 font-mono text-xs transition-shadow",
+                    isScrolledX && KEY_COLUMN_SHADOW_CLASS_NAME,
+                  )}
                   style={{ width: KEY_WIDTH }}
                 >
+                  {/* Repeats the row tint, which the sticky cell's opaque background hides. */}
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "pointer-events-none absolute inset-0 -z-10 transition-opacity",
+                      isSelected
+                        ? "bg-accent/40"
+                        : "bg-muted/30 opacity-0 group-hover/row:opacity-100",
+                    )}
+                  />
                   {showSelection && onToggleSegmentChecked ? (
                     <ContentEditorSegmentCheckbox
                       segmentId={segment.id}
@@ -543,14 +909,22 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
                     role="cell"
                     aria-colindex={column.index + 2}
                     key={column.key}
-                    className="absolute top-0 flex h-full items-center border-r"
+                    className={cn(
+                      "absolute top-0 flex h-full items-center transition-colors",
+                      column.index === 0 && "border-r",
+                      hoveredColumn === column.key && "bg-muted/30",
+                    )}
                     style={{ left: column.start, width: column.size }}
+                    onMouseEnter={() => setHoveredColumn(String(column.key))}
                   >
                     {column.index === 0 ? (
                       <span
                         dir="auto"
                         title={segment.sourceText}
-                        className="line-clamp-2 whitespace-pre-wrap break-words px-3"
+                        className={cn(
+                          "whitespace-pre-wrap break-words px-4",
+                          lines === 2 ? "line-clamp-2" : "line-clamp-1",
+                        )}
                       >
                         {formatInternalMarkupForDisplay(segment.sourceText)}
                       </span>
@@ -565,6 +939,8 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
                           activeCell?.id === segment.id &&
                           activeCell.locale === columns[column.index]
                         }
+                        lines={lines}
+                        highlight={highlight}
                         onActivate={() =>
                           setActiveCell({ id: segment.id, locale: columns[column.index] })
                         }

@@ -4863,10 +4863,6 @@
     "defaultMessage": "The assistant set up this automation",
     "description": "Summary line above the form after the assistant's first change on a new automation"
   },
-  "4XuQhGpKaz": {
-    "defaultMessage": "Click to edit. Enter moves down, Tab moves across, Shift+Enter adds a line, Escape cancels.",
-    "description": "Multilingual table hint label"
-  },
   "4Xya9zkpLQ": {
     "defaultMessage": "Evaluate Hyperlocalise with a single-seat workspace.",
     "description": "Free plan description on the pricing page"
@@ -4978,6 +4974,10 @@
   "4iwHjxb1FM": {
     "defaultMessage": "Guideline retrieval finished with no guidelines included.",
     "description": "Job activity step when retrieval succeeds but no guideline documents are included"
+  },
+  "4jKejftvw6": {
+    "defaultMessage": "Status",
+    "description": "Heading for the status colour legend in the multilingual table help popover"
   },
   "4jL6ZFEZhQ": {
     "defaultMessage": "Glossary",
@@ -6030,6 +6030,10 @@
   "62pAZqbZzL": {
     "defaultMessage": "Unable to load entries",
     "description": "Fallback error when translation memory entries fail to load"
+  },
+  "63AxJv687c": {
+    "defaultMessage": "Shortcuts and legend",
+    "description": "Button label that opens the multilingual table keyboard shortcuts and status legend"
   },
   "63DyMGYSwU": {
     "defaultMessage": "Contributors",
@@ -7923,6 +7927,10 @@
     "defaultMessage": "{count} characters used",
     "description": "Accessible label for the CAT target character counter without a max length"
   },
+  "8f+Z7j++lV": {
+    "defaultMessage": "Source",
+    "description": "Tag next to the source locale in the multilingual table header"
+  },
   "8fEAeumr3B": {
     "defaultMessage": "Bring your own models",
     "description": "localisation-operations use case page: capabilities › items › #4 › title"
@@ -8474,6 +8482,10 @@
   "9QrrRor3/1": {
     "defaultMessage": "It runs in every language",
     "description": "Proof point 2 title for the agents automation product page"
+  },
+  "9RTjpQWqfc": {
+    "defaultMessage": "Cancel",
+    "description": "Multilingual table shortcut: Escape discards the edit"
   },
   "9RWd1cWWqm": {
     "defaultMessage": "Add/edit multi-language variations first",
@@ -11154,6 +11166,10 @@
   "CzW/0u2+bW": {
     "defaultMessage": "OAuth works when your Enterprise OAuth app is configured. Personal access tokens let each member paste a token from Crowdin without OAuth setup.",
     "description": "Description for the Crowdin authentication method selector"
+  },
+  "CzXbpX9Wfl": {
+    "defaultMessage": "Click",
+    "description": "Key label for the multilingual table edit shortcut"
   },
   "D/4WiILgjn": {
     "defaultMessage": "Save",
@@ -15083,6 +15099,10 @@
     "defaultMessage": "Brand-voice and claims PDFs stay in Google Drive. Agents cite the clause when they flag a draft.",
     "description": "Proof point 1 body for the Guidelines product page"
   },
+  "IaahpXZek4": {
+    "defaultMessage": "Comfortable rows",
+    "description": "Multilingual table row density option with more spacing"
+  },
   "IarSQrZ6vP": {
     "defaultMessage": "Copy value",
     "description": "Tooltip for copying an environment variable value"
@@ -16346,6 +16366,10 @@
   "KMFSdYMdm6": {
     "defaultMessage": "Android XML",
     "description": "Android XML format option for a CDN distribution"
+  },
+  "KMLGXJn67q": {
+    "defaultMessage": "Save and move across",
+    "description": "Multilingual table shortcut: Tab saves and moves to the next language"
   },
   "KMqfuFnJC7": {
     "defaultMessage": "New projects created from this template start with these languages, settings, translation memories and glossaries. Changing the template later doesn't change existing projects.",
@@ -17619,6 +17643,10 @@
     "defaultMessage": "Create workspace",
     "description": "Link from the sidebar workspace switcher to the page for creating another workspace"
   },
+  "M9Kzr2KsRw": {
+    "defaultMessage": "Row density",
+    "description": "Accessible label for the multilingual table row density controls"
+  },
   "M9MtJAsUOq": {
     "defaultMessage": "On error is set to Stop, so the test run stops at this step.",
     "description": "On a workflow step's Test tab, what a failure does when the step's On error setting is Stop"
@@ -17658,6 +17686,10 @@
   "MCViSbp0Sq": {
     "defaultMessage": "Run a scheduled compliance check on medical device labelling and IFU translations. Compare locales against approved terminology, flag missing translations for regulated markets, check unit and warning phrase consistency, then report blockers for review. Do not publish.",
     "description": "Sample agent instructions in the marketing automation editor mock"
+  },
+  "MD3nwHbObk": {
+    "defaultMessage": "Needs review",
+    "description": "Multilingual table status for a translation waiting for review"
   },
   "MDFHda6r2V": {
     "defaultMessage": "Description saved",
@@ -20311,6 +20343,10 @@
     "defaultMessage": "FAQ and structured answers help AI search tools cite your page instead of a competitor.",
     "description": "Proof point 3 body for the Domains product page"
   },
+  "PrrCu0ecSd": {
+    "defaultMessage": "Variants",
+    "description": "Multilingual table highlight option for grouped strings with different translations"
+  },
   "Ps/K17cn8c": {
     "defaultMessage": "Type",
     "description": "Label for the issue type select"
@@ -20530,6 +20566,10 @@
   "QAZYQBBFd9": {
     "defaultMessage": "Re-running…",
     "description": "Button label while re-running a localisation audit"
+  },
+  "QAs8k3PHCq": {
+    "defaultMessage": "Unsaved",
+    "description": "Multilingual table status for a cell with an edit that is not saved yet"
   },
   "QBLs7J0ZVO": {
     "defaultMessage": "First name is required.",
@@ -23963,6 +24003,10 @@
     "defaultMessage": "Search timezones",
     "description": "Placeholder for the timezone search input"
   },
+  "Ut76PXj5Bp": {
+    "defaultMessage": "Compact rows",
+    "description": "Multilingual table row density option with less spacing"
+  },
   "UtHu3v+Njx": {
     "defaultMessage": "{label}: {errors} errors, {warnings} warnings",
     "description": "Accessible name for one QA trend scan selection control"
@@ -24638,6 +24682,10 @@
   "Vngdg1iWMO": {
     "defaultMessage": "With an i18n.yml file in the repository root that lists the source locale, target locales, and file mappings. Each project's settings include a sample you can copy.",
     "description": "localisation-cli-and-api use case FAQ answer 2"
+  },
+  "VnvSMOC7bu": {
+    "defaultMessage": "Highlight",
+    "description": "Accessible label for the multilingual table highlight controls"
   },
   "Vnwufq/GzB": {
     "defaultMessage": "Could not load this automation.",
@@ -25762,6 +25810,10 @@
   "XR2kKN8gAW": {
     "defaultMessage": "This file was not sent, because the other project would not read it as the same strings. For an Excel file, the usual causes are a first-row cell that is just the name of that project's source language, a formula in that language's column, or Import filters saved without a source column. The Files guide lists the others.",
     "description": "Shown when a file cannot be sent because the other project would split it into different strings"
+  },
+  "XREzwTw5rY": {
+    "defaultMessage": "Draft",
+    "description": "Multilingual table status for a draft translation"
   },
   "XRHW9DFjAT": {
     "defaultMessage": "API keys",
@@ -30955,6 +31007,10 @@
     "defaultMessage": "No workspace members yet",
     "description": "Empty state title when the workspace has no members"
   },
+  "ePnFZKBU1V": {
+    "defaultMessage": "Missing",
+    "description": "Multilingual table highlight option for cells without a translation"
+  },
   "eQ9Hm8R7yH": {
     "defaultMessage": "{workflowName} will be removed from this workspace and will no longer run.",
     "description": "Delete visual workflow confirmation describing the selected workflow"
@@ -31446,6 +31502,10 @@
   "f28BtwGbZV": {
     "defaultMessage": "Couldn't check this connection just now.",
     "description": "Shown when the live check of a saved GitLab server connection can't run"
+  },
+  "f2FwokIl/H": {
+    "defaultMessage": "{translated} translated, {approved} approved across the project",
+    "description": "Tooltip and accessible label for a locale's project progress bar in the multilingual table header"
   },
   "f2SPcmNGJg": {
     "defaultMessage": "Everything a localisation programme needs",
@@ -32694,6 +32754,10 @@
   "gh3szaohtI": {
     "defaultMessage": "Scheduled run · 1st of month",
     "description": "Automations mock UI trigger label for keyword research schedule"
+  },
+  "ghYkxOtbrK": {
+    "defaultMessage": "Rejected",
+    "description": "Multilingual table status for a rejected translation"
   },
   "giZZw2GSFO": {
     "defaultMessage": "—",
@@ -34643,6 +34707,10 @@
     "defaultMessage": "Edit team...",
     "description": "Menu item to open the edit team dialog"
   },
+  "jOYcD1Iki8": {
+    "defaultMessage": "All",
+    "description": "Multilingual table highlight option that shows every cell normally"
+  },
   "jOtw3PC362": {
     "defaultMessage": "Default (general prose)",
     "description": "SRX template option: default"
@@ -36206,6 +36274,10 @@
   "lYGZ/1ylRT": {
     "defaultMessage": "Other",
     "description": "AI origin: anything else"
+  },
+  "lYH/c2rk1D": {
+    "defaultMessage": "Needs review",
+    "description": "Multilingual table highlight option for translations waiting for review"
   },
   "lYqWI3Hv5b": {
     "defaultMessage": "This string is locked. Unlock it to add a concept.",
@@ -38811,6 +38883,10 @@
     "defaultMessage": "Glossary Deleted",
     "description": "Activity log event type label for glossary deletion"
   },
+  "p4BlLNpbhi": {
+    "defaultMessage": "Keyboard shortcuts",
+    "description": "Heading for the keyboard shortcuts in the multilingual table help popover"
+  },
   "p4EP3lBEdG": {
     "defaultMessage": "Line {line} uses lookaround or a backreference, which is not supported.",
     "description": "Validation error for a custom placeholder pattern that uses unsupported syntax"
@@ -40127,6 +40203,10 @@
     "defaultMessage": "Transcribe",
     "description": "Hyperlocalise Agent transcribe capability name"
   },
+  "qkCin2ogab": {
+    "defaultMessage": "Add a line",
+    "description": "Multilingual table shortcut: Shift+Enter inserts a line break"
+  },
   "qkPZNDSLGU": {
     "defaultMessage": "Search locales…",
     "description": "Search placeholder for the target locale multi-select"
@@ -40522,6 +40602,10 @@
   "rEY6WLCBSc": {
     "defaultMessage": "Use an HTTPS URL on a public host. Leave every change unticked to receive all of them.",
     "description": "Description of the dialog that adds a webhook endpoint"
+  },
+  "rEhy+CeUvT": {
+    "defaultMessage": "Save and move down",
+    "description": "Multilingual table shortcut: Enter saves and moves to the row below"
   },
   "rGLAOwkIrN": {
     "defaultMessage": "Unsaved changes",
@@ -41714,6 +41798,10 @@
   "swxYu1FPby": {
     "defaultMessage": "Hosted MCP server",
     "description": "localisation-for-ai-coding-agents use case page: capabilities › items › #1 › title"
+  },
+  "sxXlObphWF": {
+    "defaultMessage": "Edit a translation",
+    "description": "Multilingual table shortcut: clicking a cell edits it"
   },
   "sxd8EorFWf": {
     "defaultMessage": "Add a domain",
