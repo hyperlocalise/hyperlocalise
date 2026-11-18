@@ -17,6 +17,7 @@ import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vite-plus/test";
 
 import { IrisPage } from "./iris-page";
+import { irisMacDownloadUrl } from "@/lib/iris/iris-download";
 import { IRIS_WAITLIST_URL } from "@/lib/iris/iris-waitlist";
 
 describe("IrisPage", () => {
@@ -36,6 +37,14 @@ describe("IrisPage", () => {
     expect(screen.getByRole("button", { name: "Join the waitlist" })).toHaveAttribute(
       "href",
       IRIS_WAITLIST_URL,
+    );
+    expect(screen.getByRole("button", { name: "Download for Mac" })).toHaveAttribute(
+      "href",
+      irisMacDownloadUrl("arm64"),
+    );
+    expect(screen.getByRole("button", { name: "Intel Mac" })).toHaveAttribute(
+      "href",
+      irisMacDownloadUrl("x64"),
     );
 
     await waitFor(() => {
