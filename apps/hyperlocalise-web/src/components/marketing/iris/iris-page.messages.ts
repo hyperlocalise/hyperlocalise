@@ -30,10 +30,21 @@ export const irisPageMessages = defineMessages({
     id: "u/YuKM1iYx",
     description: "Button that downloads the Iris desktop app for Apple Silicon Macs",
   },
+  moreMacDownloads: {
+    defaultMessage: "More Mac downloads",
+    id: "TrXo9+oXLP",
+    description:
+      "Accessible label for the menu button beside the Mac download button that lists the Iris builds for each Mac chip",
+  },
+  downloadForAppleSiliconMac: {
+    defaultMessage: "Apple Silicon Mac",
+    id: "ak4YvgSO+q",
+    description: "Menu item that downloads the Iris desktop app for Apple Silicon Macs",
+  },
   downloadForIntelMac: {
     defaultMessage: "Intel Mac",
-    id: "qTeEQlfudM",
-    description: "Link beside the Mac download button that downloads the Iris build for Intel Macs",
+    id: "JROV82hcMT",
+    description: "Menu item that downloads the Iris desktop app for Intel Macs",
   },
   unmuteVideo: {
     defaultMessage: "Unmute the launch film",
