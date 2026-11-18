@@ -120,6 +120,9 @@ func (api *automationAPI) listWorkspaceAutomations(r *http.Request, actor automa
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := api.attachLatestWorkspaceAutomationRuns(r.Context(), actor.organizationID, records); err != nil {
+		return nil, 0, err
+	}
 	if records == nil {
 		records = []workspaceAutomationRecord{}
 	}
@@ -778,6 +781,70 @@ func (api *automationAPI) loadWorkspaceAutomations(ctx context.Context, organiza
 		records = append(records, record)
 	}
 	return records, rows.Err()
+}
+
+func (api *automationAPI) attachLatestWorkspaceAutomationRuns(ctx context.Context, organizationID string, records []workspaceAutomationRecord) error {
+	if len(records) == 0 {
+		return nil
+	}
+	ids := make([]string, len(records))
+	indexByID := make(map[string]int, len(records))
+	for i, record := range records {
+		ids[i] = record.ID
+		indexByID[record.ID] = i
+	}
+	rows, err := api.pool.Query(ctx, `
+        select distinct on (automation_id)
+            automation_id::text, status, error, completed_at, created_at
+        from workspace_automation_runs
+        where organization_id=$1 and automation_id = any($2::uuid[])
+        order by automation_id, created_at desc`, organizationID, ids)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			automationID   string
+			status         string
+			errorRaw       []byte
+			completedAtPtr *time.Time
+			createdAt      time.Time
+		)
+		if err := rows.Scan(&automationID, &status, &errorRaw, &completedAtPtr, &createdAt); err != nil {
+			return err
+		}
+		index, ok := indexByID[automationID]
+		if !ok {
+			continue
+		}
+		lastRunAt := createdAt
+		if completedAtPtr != nil {
+			lastRunAt = *completedAtPtr
+		}
+		records[index].LastRunStatus = stringPtr(status)
+		records[index].LastRunError = workspaceAutomationRunErrorMessage(errorRaw)
+		records[index].LastRunAt = stringPtr(formatAutomationTime(lastRunAt))
+	}
+	return rows.Err()
+}
+
+func workspaceAutomationRunErrorMessage(errorRaw []byte) *string {
+	trimmed := bytes.TrimSpace(errorRaw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return nil
+	}
+	var payload struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(trimmed, &payload); err != nil {
+		return nil
+	}
+	message := strings.TrimSpace(payload.Message)
+	if message == "" {
+		return nil
+	}
+	return stringPtr(message)
 }
 
 func (api *automationAPI) loadWorkspaceAutomation(ctx context.Context, organizationID, automationID string) (workspaceAutomationRecord, error) {
