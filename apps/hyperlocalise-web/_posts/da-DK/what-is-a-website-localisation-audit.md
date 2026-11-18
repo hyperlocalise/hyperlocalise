@@ -170,7 +170,7 @@ Hvis der findes tidligere godkendte oversættelser, kan gennemgangen identificer
 
 Kulturel tilpasning ser på valuta, datoer, måleenheder, adresser, telefonnumre, betalingskonventioner, lokale eksempler, kulturelle referencer og idiomer. Ikke alle forskelle er fejl. Kulturelle fund præsenteres, når det er relevant, som anbefalinger eller emner til gennemgang.
 
-Audience context also matters. Language that fits a consumer travel product may be wrong for an enterprise developer tool, a finance product, or healthcare.
+Målgruppen har også betydning. Sprog, der passer til et rejseprodukt til forbrugere, kan være forkert til et udviklerværktøj til virksomheder, et finansprodukt eller sundhedssektoren.
 
 ## Visuel kontrol: fungerer det lokaliserede website faktisk?
 

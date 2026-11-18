@@ -100,7 +100,7 @@ Praktiske måder at gøre dette på, afhængigt af din teknologistak:
 - Giv leverandører direkte adgang til retningslinjernes kilde i stedet for et PDF-øjebliksbillede i en brief.
 - Når du bruger AI til oversættelse eller korrektur, skal du hente den relevante retningslinje på tidspunktet for forespørgslen i stedet for at indlejre uddrag i prompts.
 
-For example, Hyperlocalise [Guidelines](/product/guidelines) connects to brand and policy files where they already live — Google Drive, Notion, and SharePoint — or lets teams type guidelines in directly. Agents read the connected file when they translate or review, and the file stays the source of truth: when legal updates the PDF, the next check uses the updated wording. Other teams achieve the same principle with TMS glossary sync, a headless terminology database, or a well-maintained internal wiki that every tool points to.
+For eksempel opretter Hyperlocalise [retningslinjer](/product/guidelines) forbindelse til brand- og politikfiler dér, hvor de allerede ligger — i Google Drive, Notion og SharePoint — eller giver teams mulighed for at indtaste retningslinjer direkte. Agenter læser den tilknyttede fil, når de oversætter eller gennemgår, og filen forbliver den autoritative kilde: Når juristerne opdaterer PDF'en, bruger den næste kontrol den opdaterede ordlyd. Andre teams opnår samme princip med synkronisering af TMS-ordlister, en headless-terminologidatabase eller en velholdt intern wiki, som alle værktøjer henviser til.
 
 ## Trin 4: Håndhæv regler dér, hvor indholdet skrives, ikke kun til sidst
 
@@ -114,7 +114,7 @@ En regel, der først kontrolleres ved den endelige gennemgang, opdages sent, er 
 
 **Før publicering.** Kør en automatiseret gennemgang af deterministiske kontroller — forbudte termer, manglende termer, der ikke må oversættes, forbudte formuleringer og påkrævede oplysninger — så menneskelige korrekturlæsere kan bruge tiden på skønsmæssige vurderinger.
 
-Citation is what makes this auditable. When a flag points to a specific clause in a specific file, a reviewer can open the source instead of re-explaining the rule, and a compliance team can see exactly why a sentence was changed. Hyperlocalise agents work this way: they cite the clause in the connected guideline file when they flag a line, and in [Content Studio](/product/multilingual-content-studio) the attached file sits beside the draft so reviewers and agents are reading the same document.
+Kildehenvisninger gør det muligt at efterprøve dette. Når en markering peger på en bestemt klausul i en bestemt fil, kan en reviewer åbne kilden i stedet for at skulle forklare reglen igen, og et compliance-team kan se præcis, hvorfor en sætning blev ændret. Hyperlocalise-agenter arbejder sådan: De henviser til klausulen i den tilknyttede retningslinjefil, når de markerer en linje, og i [Content Studio](/product/multilingual-content-studio) ligger den vedhæftede fil ved siden af kladden, så reviewere og agenter læser det samme dokument.
 
 ## Trin 5: Overvåg løbende, hvad der er live
 
@@ -127,7 +127,7 @@ Governance slutter ikke ved publicering. Liveindhold ændrer sig:
 
 Behandl liveindhold som produktionskode: Kontrollér det efter en fast tidsplan i forhold til de gældende regler, og send resultaterne til den ansvarlige, der kan rette dem. Målet er at finde en påstand, der ikke overholder reglerne, på den tyske hjemmeside morgenen efter, at den dukker op – ikke først efter, at en tilsynsmyndighed eller kunde gør det.
 
-This can be a scheduled crawl with your own scripts, a periodic [localisation audit](/blog/what-is-a-website-localisation-audit), or an automated job. In Hyperlocalise, teams schedule an [Automation](/product/agents-automation) that checks product copy and live pages against the same connected guideline files every day, so flags show up in the morning instead of after a launch.
+Det kan være en planlagt crawl med dine egne scripts, en periodisk [lokaliseringsaudit](/blog/what-is-a-website-localisation-audit) eller et automatiseret job. I Hyperlocalise planlægger teams en [automatisering](/product/agents-automation), der hver dag tjekker produkttekster og live-sider i forhold til de samme tilknyttede retningslinjefiler, så advarslerne dukker op om morgenen i stedet for efter en lancering.
 
 ## Trin 6: Saml trådene
 
@@ -148,7 +148,7 @@ For finansielle tjenester, sundhedspleje, lægemidler, gambling og andre reguler
 - **Regler for påstande pr. marked.** Hvad man må påstå, varierer fra jurisdiktion til jurisdiktion. Afgræns hver regel for påstande til de markeder, hvor den gælder.
 - **Obligatorisk menneskelig godkendelse** af regulerede indholdstyper, hvor godkenderen og versionen af retningslinjen registreres.
 - **Et revisionsspor**, der knytter hver publiceret streng til de regler, den blev kontrolleret op imod, samt resultatet.
-- **AI transparency obligations.** Where AI generates or translates customer-facing content, check whether disclosure rules apply. We covered one example in [what the EU AI Act Article 50 means for AI translation](/blog/what-the-eu-ai-act-article-50-means-for-ai-translation-and-localisation).
+- **Forpligtelser vedrørende AI-gennemsigtighed.** Når AI genererer eller oversætter indhold rettet mod kunder, skal du undersøge, om oplysningskrav gælder. Vi har gennemgået et eksempel i [hvad artikel 50 i EU's AI-forordning betyder for AI-oversættelse](/blog/what-the-eu-ai-act-article-50-means-for-ai-translation-and-localisation).
 
 ## Sådan evaluerer du værktøjer til styring af brand og terminologi
 
@@ -162,7 +162,7 @@ Uanset om du vurderer et TMS, en AI-lokaliseringsplatform eller en intern løsni
 6. **Overvåges liveindhold?** Planlagte kontroller i forhold til de aktuelle regler, ikke kun gennemgang før publicering.
 7. **Kan fund forbedre reglerne?** Indblik i gentagne markeringer, tilsidesættelser og nye termer.
 
-Most mature TMS platforms handle glossary and style-guide enforcement inside their own workflow well. The gaps usually appear at the edges: rules that live outside the TMS, content that never passes through it, and live pages that are never checked again. That is where an intelligence layer around existing tools tends to help — a pattern we described in [how to add AI translation without replacing your TMS](/blog/how-to-add-ai-translation-without-replacing-tms).
+De fleste veletablerede TMS-platforme håndhæver ordlister og stilguider godt i deres egne arbejdsgange. Manglerne opstår som regel i udkanten: regler, der ligger uden for TMS'et, indhold, der aldrig passerer gennem det, og live-sider, der aldrig bliver kontrolleret igen. Det er her, et intelligenslag omkring de eksisterende værktøjer typisk kan være en hjælp — et mønster, vi beskrev i [sådan tilføjer du AI-oversættelse uden at erstatte dit TMS](/blog/how-to-add-ai-translation-without-replacing-tms).
 
 ## En praktisk implementeringsplan
 
@@ -206,4 +206,4 @@ Registrér for hvert offentliggjort indhold, hvilke regler og hvilken version af
 
 Konsistens på tværs af markeder skyldes fire ting: tydeligt ansvar, regler, der kan håndhæves, én fælles sandhedskilde, der henvises til, og kontroller både før og efter publicering. Værktøjer hjælper, men kun hvis de respekterer, hvor jeres regler allerede findes, og gør det muligt at spore alle beslutninger tilbage til dem.
 
-If your guidelines already live in Google Drive, Notion, or SharePoint, see how [Hyperlocalise Guidelines](/product/guidelines) puts them to work in translation, review, and daily audits — or start with a free [localisation audit](/localisation-audit) to see where terminology and voice are drifting today.
+Hvis jeres retningslinjer allerede ligger i Google Drive, Notion eller SharePoint, kan du se, hvordan [Hyperlocalise Guidelines](/product/guidelines) sætter dem i spil i oversættelse, gennemgang og daglige audits — eller starte med en gratis [lokaliseringsaudit](/localisation-audit) for at se, hvor terminologi og tonefald afviger i dag.

@@ -52,7 +52,7 @@ En løbende lokaliseringsproces skal derfor gentagne gange udføre fem opgaver:
 
 Hvis en platform kun gemmer tekststrenge og genererer oversættelser, dækker den to af disse opgaver. De andre tre er dér, hvor flersprogede udgivelser faktisk går galt.
 
-For the product-side pattern, see [GitHub localisation workflow: from pull request to multilingual release](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release). For why fluent output is not enough on its own, see [AI translation is not enough](/blog/ai-translation-is-not-enough-context-aware-localisation).
+Se [GitHub-arbejdsgang for lokalisering: fra pull request til flersproget udgivelse](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release) for mønstret på produktsiden. Se [AI-oversættelse er ikke nok](/blog/ai-translation-is-not-enough-context-aware-localisation) for at forstå, hvorfor et flydende resultat ikke er nok i sig selv.
 
 ## Hvad du kan forvente af en AI-native lokaliseringsplatform
 
@@ -68,7 +68,7 @@ En AI-native lokaliseringsplatform er en platform, hvis driftsmodel bygger på, 
 
 I praksis betyder det, at platformen skal kunne mere end blot at kalde en model. Den skal indsamle produktkontekst, før oversættelsen går i gang, anvende ordliste- og stilregler, bevare variabler og markup, forklare usikre valg, inddrage korrekturlæsere, når deres vurdering ændrer resultatet, og løbende holde styr på, hvor klar hver lokalitet er.
 
-[Translation intelligence](/blog/what-is-translation-intelligence) is the name for that surrounding layer: the infrastructure that turns scattered product, brand, UI, market, and reviewer knowledge into better decisions. [Translation management](/blog/from-translation-management-to-translation-intelligence) remains necessary. It organises work. It does not, by itself, reconstruct meaning.
+[Oversættelsesintelligens](/blog/what-is-translation-intelligence) er navnet på dette omgivende lag: den infrastruktur, der omsætter spredt viden om produkt, brand, brugergrænseflade, marked og korrekturlæsere til bedre beslutninger. [Oversættelsesstyring](/blog/from-translation-management-to-translation-intelligence) er stadig nødvendig. Den organiserer arbejdet. I sig selv genskaber den ikke betydningen.
 
 Forvent, at AI ændrer omkostningen ved et første udkast. Forvent ikke, at den fjerner behovet for produktkontekst, menneskelig gennemgang eller signaler ved lancering. Det er de dele af kategorien, der stadig kræver et system, ikke en prompt.
 
@@ -119,7 +119,7 @@ En platform understøtter dette, når den kan:
 
 Hvis bedømmerne kun ser et målfelt og en score, vil de enten redigere for meget eller for lidt. Hvis systemet ikke kan lære af rettelser, gentager den samme fejl sig i næste sprint. Human-in-the-loop er ikke bare et spørgsmål om, hvorvidt der findes en godkendelsesknap. Det er en proces: udarbejd et udkast, gennemgå det, ret det, husk det.
 
-For how this sits alongside an existing TMS rather than replacing it, see [How to add AI translation without replacing Phrase, Lokalise, Crowdin, or Smartling](/blog/how-to-add-ai-translation-without-replacing-tms).
+Hvis du vil vide, hvordan dette fungerer sammen med et eksisterende TMS i stedet for at erstatte det, kan du se [Sådan tilføjer du AI-oversættelse uden at erstatte Phrase, Lokalise, Crowdin eller Smartling](/blog/how-to-add-ai-translation-without-replacing-tms).
 
 ### 3. TMS-interoperabilitet
 
@@ -184,7 +184,7 @@ Denne klasse tager ikke udgangspunkt i en central strengdatabase. Den tager udga
 
 Et agentbaseret lag bruger specialiserede agenter til at indsamle kontekst, udarbejde oversættelser, sende dem til gennemgang, synkronisere systemer og kontrollere kvaliteten. Det er designet til at fungere på tværs af et TMS, et repository og et reviewmiljø i stedet for at erstatte dem. Hyperlocalise hører til i denne kategori. Andre leverandører tilføjer agenter og copiloter til eksisterende platforme; forskellen er, om agenten er en hjælper i ét produkt eller et workflow, der kan fungere på tværs af den stak, du allerede bruger.
 
-Use this class when coordination is the problem: too much time assembling context, too much review of low-risk copy, too little visibility at release time, and no appetite for a TMS migration. See [Should you build your own localisation agent?](/blog/should-you-build-your-own-localisation-agent) before assuming you should recreate this layer internally.
+Brug denne klasse, når koordinering er problemet: for meget tid på at samle kontekst, for meget gennemgang af tekst med lav risiko, for lidt synlighed ved udgivelsen og ingen lyst til at migrere et TMS. Se [Bør du bygge din egen lokaliseringsagent?](/blog/should-you-build-your-own-localisation-agent), før du antager, at du bør genskabe dette lag internt.
 
 Vælg denne klasse, når du ønsker, at lokalisering skal fungere som en produktarbejdsgang. Du har stadig brug for en autoritativ datakilde og personer, der har ansvar for kvaliteten på de enkelte markeder.
 
@@ -265,12 +265,12 @@ Placér hver leverandør i en kategori, og test derefter de fire kriterier på d
 
 Hyperlocalise er et agentbaseret lokaliseringslag. Det er udviklet til at indsamle kontekst fra tilsluttede værktøjer, udføre oversættelse og gennemgang med mennesker i processen, fungere sammen med et eksisterende TMS og vise, om en sprogvariant er klar. Det er ikke en erstatning for eller en rangordning af Crowdin, Phrase, Lokalise, Smartling eller et brugerdefineret script.
 
-If that class matches the job you have — product context missing, review overloaded, TMS staying put, releases slipping in some locales — [see how product localisation works on Hyperlocalise](/use-cases/product-localisation) or [request a demo](https://calendar.app.google/gEiRwNvAZ1ERXvT26) with a real upcoming release, not a generic bake-off.
+Hvis den beskrivelse passer på din situation — manglende produktkontekst, en overbelastet reviewproces, et uændret TMS, forsinkelser på nogle sprogmarkeder — [se, hvordan produktlokalisering fungerer hos Hyperlocalise](/use-cases/product-localisation) eller [anmod om en demo](https://calendar.app.google/gEiRwNvAZ1ERXvT26)med en konkret kommende udgivelse, ikke en generisk sammenligning.
 
 Yderligere læsning:
 
-- [What is translation intelligence?](/blog/what-is-translation-intelligence)
-- [From translation management to translation intelligence](/blog/from-translation-management-to-translation-intelligence)
-- [How to add AI translation without replacing your TMS](/blog/how-to-add-ai-translation-without-replacing-tms)
-- [Should you build your own localisation agent?](/blog/should-you-build-your-own-localisation-agent)
-- [AI translation is not enough](/blog/ai-translation-is-not-enough-context-aware-localisation)
+- [Hvad er oversættelsesintelligens?](/blog/what-is-translation-intelligence)
+- [Fra oversættelsesstyring til oversættelsesintelligens](/blog/from-translation-management-to-translation-intelligence)
+- [Sådan tilføjer du AI-oversættelse uden at erstatte dit TMS](/blog/how-to-add-ai-translation-without-replacing-tms)
+- [Bør du bygge din egen lokaliseringsagent?](/blog/should-you-build-your-own-localisation-agent)
+- [AI-oversættelse er ikke nok](/blog/ai-translation-is-not-enough-context-aware-localisation)
