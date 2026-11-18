@@ -74,14 +74,15 @@ func callProjectWorkflow(ctx context.Context, action string, payload map[string]
 }
 
 func workflowPayload(actor projectActor, projectID string, extra map[string]any) map[string]any {
-	payload := map[string]any{
-		"organizationId": actor.organizationID,
-		"userId":         actor.userID,
-		"projectId":      projectID,
-	}
+	payload := map[string]any{}
 	for key, value := range extra {
 		payload[key] = value
 	}
+	// Actor and path identity win over the request body so a client cannot
+	// impersonate another member or switch organizations.
+	payload["organizationId"] = actor.organizationID
+	payload["userId"] = actor.userID
+	payload["projectId"] = projectID
 	return payload
 }
 
