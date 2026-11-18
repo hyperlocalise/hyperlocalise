@@ -92,6 +92,7 @@ func (api *irisGenerationAPI) register(mux *http.ServeMux, verifier SessionVerif
 	registerAuthenticated(mux, verifier, "GET "+irisGenerationPath+"/jobs/{jobId}", http.HandlerFunc(api.getJob))
 	registerAuthenticated(mux, verifier, "POST "+irisGenerationPath+"/jobs/{jobId}/cancel", http.HandlerFunc(api.cancelJob))
 	api.registerLocalise(mux, verifier)
+	api.registerChat(mux, verifier)
 }
 
 func (api *irisGenerationAPI) claims(r *http.Request) (AuthClaims, bool) {
@@ -163,8 +164,8 @@ func (api *irisGenerationAPI) autumnEstimate(ctx context.Context, orgID string, 
 	return estimate
 }
 
-// ensureAIAllowed gates iris generate on Autumn ai_features and the USD
-// ai_tokens wallet. Platform Fal and ElevenLabs keys always consume AI credit.
+// ensureAIAllowed gates iris generate, localise, and chat on Autumn ai_features
+// and the USD ai_tokens wallet. Platform Fal and ElevenLabs keys always consume AI credit.
 // Org LLM BYOK is not consulted: those credentials do not pay Fal or ElevenLabs.
 func (api *irisGenerationAPI) ensureAIAllowed(ctx context.Context, orgID string) (int, string, string, bool) {
 	if api.meter == nil {
