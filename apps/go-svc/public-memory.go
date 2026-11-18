@@ -96,7 +96,7 @@ func (api *publicMemoryAPI) serveOwned(
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, memoryBodyLimit)
-	actor := memoryActor{userID: principal.userID, organizationID: principal.organizationID, role: principal.role}
+	actor := memoryActor{userID: principal.UserID, organizationID: principal.OrganizationID, role: principal.Role}
 	memory, err := ownedMemory(r.Context(), api.memories.pool, actor, r.PathValue("memoryId"))
 	if err != nil {
 		writeMemoryError(w, r, "load", err)

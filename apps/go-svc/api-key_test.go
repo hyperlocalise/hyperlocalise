@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,7 +45,7 @@ func TestAPIKeyCreateIssuesHashedTokenOnce(t *testing.T) {
         select key_hash, key_prefix, created_by_user_id::text, revoked_at::text, row_to_json(k)::text
         from organization_api_keys k where id=$1`, key.ID).
 		Scan(&keyHash, &keyPrefix, &createdBy, &revokedAt, &row))
-	require.Equal(t, hashAPIKey(key.Key), keyHash)
+	require.Equal(t, publicauth.HashAPIKey(key.Key), keyHash)
 	require.Equal(t, key.KeyPrefix, keyPrefix)
 	require.Equal(t, env.owner.userID, createdBy)
 	require.Nil(t, revokedAt)
@@ -210,7 +211,7 @@ func TestAPIKeyCreateNeverLogsSecrets(t *testing.T) {
 	logs := buf.String()
 	require.Contains(t, logs, `"msg":"pat.created"`)
 	require.NotContains(t, logs, created.APIKey.Key)
-	require.NotContains(t, logs, hashAPIKey(created.APIKey.Key))
+	require.NotContains(t, logs, publicauth.HashAPIKey(created.APIKey.Key))
 	require.NotContains(t, logs, "secret-body-marker-1")
 
 	buf.Reset()
@@ -285,7 +286,7 @@ func TestAPIKeyListFormatsUsageAndLegacyOwnerlessTokens(t *testing.T) {
 	require.NoError(t, env.scope.Pool.QueryRow(t.Context(), `
         insert into organization_api_keys (organization_id, name, key_hash, key_prefix, created_by_user_id, updated_at)
         values ($1, 'legacy', $2, 'hl_Legac', null, '2026-03-04T05:06:07.123456Z')
-        returning id`, env.scope.OrganizationID, hashAPIKey("legacy-"+env.scope.OrganizationID)).Scan(&legacyID))
+        returning id`, env.scope.OrganizationID, publicauth.HashAPIKey("legacy-"+env.scope.OrganizationID)).Scan(&legacyID))
 
 	listed := env.list(t, env.owner)
 	require.Len(t, listed.APIKeys, 2)

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,7 +36,7 @@ func (s *fakeProjectLookupStore) getProjectContentSync(_ context.Context, _ prin
 }
 
 func TestProjectLookupRoutes(t *testing.T) {
-	readScopes := effectivePermissions([]string{"files:read"}, "member")
+	readScopes := authz.EffectivePermissions([]string{"files:read"}, "member")
 
 	t.Run("lists source files with filters", func(t *testing.T) {
 		store := &fakeResourceStore{}

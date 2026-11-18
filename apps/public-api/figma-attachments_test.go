@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -151,7 +152,7 @@ func TestFigmaAttachmentRoutes(t *testing.T) {
 	})
 
 	t.Run("writes need an editing role", func(t *testing.T) {
-		translator := resourcePrincipal(effectivePermissions([]string{"files:read", "files:write"}, "translator")...)
+		translator := resourcePrincipal(authz.EffectivePermissions([]string{"files:read", "files:write"}, "translator")...)
 		translator.Role = "translator"
 		store := &fakeResourceStore{}
 		w := sendResource(t, translator, store, http.MethodPost, base, `{"url":"https://www.figma.com/design/AbC/x"}`)

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -251,7 +252,7 @@ func (api *publicJobsAPI) loadJob(ctx context.Context, principal publicAPIPrinci
         left join users ou on ou.id=j.owner_user_id
         where j.id=$1 and `+publicJobAccessSQL+`
         limit 1`,
-		jobID, principal.organizationID, hasOrganizationCapability(principal.role, "teams:write"), principal.userID)
+		jobID, principal.OrganizationID, authz.HasCapability(principal.Role, "teams:write"), principal.UserID)
 	job, err := scanPublicJob(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return publicJobRow{}, publicJobNotFound()
@@ -267,14 +268,14 @@ func (api *publicJobsAPI) loadLatest(ctx context.Context, principal publicAPIPri
 	if pool == nil {
 		return publicJobRow{}, publicJobsUnavailable()
 	}
-	orgWide := hasOrganizationCapability(principal.role, "teams:write")
+	orgWide := authz.HasCapability(principal.Role, "teams:write")
 
 	var found string
 	err := pool.QueryRow(ctx, `select p.id from projects p
         where p.id=$1 and p.organization_id=$2
         and ($3 or exists(select 1 from team_memberships m join teams t on t.id=m.team_id
             where m.user_id=$4 and t.organization_id=$2 and (t.id=p.team_id or (p.team_id is null and t.slug='default'))))`,
-		projectID, principal.organizationID, orgWide, principal.userID).Scan(&found)
+		projectID, principal.OrganizationID, orgWide, principal.UserID).Scan(&found)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return publicJobRow{}, publicJobProjectNotFound()
 	}
@@ -296,7 +297,7 @@ func (api *publicJobsAPI) loadLatest(ctx context.Context, principal publicAPIPri
             and d.type='file' and d.outcome_kind='file_result'
         order by v.created_at desc, j.created_at desc
         limit 1`,
-		found, principal.organizationID, orgWide, principal.userID, sourcePath)
+		found, principal.OrganizationID, orgWide, principal.UserID, sourcePath)
 	job, err := scanPublicJob(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return publicJobRow{}, publicJobNotFound()

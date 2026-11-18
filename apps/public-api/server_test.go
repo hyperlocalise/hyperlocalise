@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,6 +19,13 @@ type authFunc func(context.Context, string) (principal, error)
 func (f authFunc) authenticate(ctx context.Context, token string) (principal, error) {
 	return f(ctx, token)
 }
+
+var (
+	errUnauthorized    = &publicauth.Error{Status: http.StatusUnauthorized, Code: "unauthorized", Message: publicauth.InvalidKeyMessage}
+	errForbidden       = &publicauth.Error{Status: http.StatusForbidden, Code: "forbidden", Message: "API key creator is not authorized for this workspace"}
+	errArchived        = &publicauth.Error{Status: http.StatusForbidden, Code: "workspace_archived", Message: "This workspace has been archived"}
+	errAuthUnavailable = &publicauth.Error{Status: http.StatusServiceUnavailable, Code: "workos_membership_lookup_failed", Message: "Organization membership could not be verified"}
+)
 
 func TestRoutes(t *testing.T) {
 	for _, tt := range []struct {
@@ -30,7 +39,9 @@ func TestRoutes(t *testing.T) {
 		{"valid token", "GET", "/v1/me", "hl_test", nil, 200, 1},
 		{"revoked token", "GET", "/v1/me", "hl_test", errUnauthorized, 401, 1},
 		{"forbidden", "GET", "/v1/me", "hl_test", errForbidden, 403, 1},
+		{"archived", "GET", "/v1/me", "hl_test", errArchived, 403, 1},
 		{"auth unavailable", "GET", "/v1/me", "hl_test", errAuthUnavailable, 503, 1},
+		{"auth failure", "GET", "/v1/me", "hl_test", errors.New("db down"), 503, 1},
 		{"method", "POST", "/v1/me", "hl_test", nil, 405, 0},
 		{"unknown route", "GET", "/v1/missing", "hl_test", nil, 404, 0},
 		{"ambiguous token", "GET", "/v1/me", "hl_a,hl_b", nil, 401, 0},

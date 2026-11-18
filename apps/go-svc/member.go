@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 )
 
 const (
@@ -40,11 +42,11 @@ type memberActor struct {
 }
 
 func (a memberActor) canListMembers() bool {
-	return hasOrganizationCapability(a.role, "workspace:read")
+	return authz.HasCapability(a.role, "workspace:read")
 }
 
 func (a memberActor) canManageMembers() bool {
-	return hasOrganizationCapability(a.role, "members:invite")
+	return authz.HasCapability(a.role, "members:invite")
 }
 
 type memberError struct {

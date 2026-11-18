@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,8 +39,8 @@ func TestAPIKeyMatchesWebImplementation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "hl_AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8", key)
 	require.Equal(t, "hl_AAECA", apiKeyPrefix(key))
-	require.Equal(t, "61a1a08e892e2df8cdfed26086aae805fc035d0a0dfcc196f4f4928374f21553", hashAPIKey(key))
-	require.Equal(t, "4a81d1296e0bb818c44cc510b17f32b8f74573c17391a5b6c2d8fbb6772ebc36", hashAPIKey("hl_test"))
+	require.Equal(t, "61a1a08e892e2df8cdfed26086aae805fc035d0a0dfcc196f4f4928374f21553", publicauth.HashAPIKey(key))
+	require.Equal(t, "4a81d1296e0bb818c44cc510b17f32b8f74573c17391a5b6c2d8fbb6772ebc36", publicauth.HashAPIKey("hl_test"))
 }
 
 func TestGenerateAPIKeyFailsWhenRandomnessFails(t *testing.T) {

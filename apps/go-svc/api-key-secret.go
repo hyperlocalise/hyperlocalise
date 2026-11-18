@@ -2,9 +2,7 @@ package main
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"io"
 )
@@ -25,11 +23,6 @@ func generateAPIKeyFrom(random io.Reader) (string, error) {
 		return "", fmt.Errorf("generate api key: %w", err)
 	}
 	return apiKeyPlaintextPrefix + base64.RawURLEncoding.EncodeToString(secret), nil
-}
-
-func hashAPIKey(key string) string {
-	sum := sha256.Sum256([]byte(key))
-	return hex.EncodeToString(sum[:])
 }
 
 func apiKeyPrefix(key string) string {

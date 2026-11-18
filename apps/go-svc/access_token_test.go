@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
-	"encoding/json"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/stretchr/testify/require"
 	"github.com/workos/workos-go/v10"
 )
@@ -57,9 +57,9 @@ func accessTokenVerifier(t *testing.T, fixture accessTokenFixture) *WorkOSSessio
 	t.Setenv("WORKOS_CLIENT_ID", testWorkOSClientID)
 	verifier := mustVerifier(t)
 	verifier.clientID = testWorkOSClientID
-	verifier.apiBaseURL = workOSProductionAPIURL
-	verifier.jwks = newJWKSCache("https://jwks.test/sso/jwks/" + testWorkOSClientID)
-	verifier.jwks.fetch = func(_ context.Context, _ string) (*workos.JWKSResponse, error) {
+	verifier.apiBaseURL = publicauth.WorkOSProductionAPIURL
+	verifier.jwks = publicauth.NewJWKS("https://jwks.test/sso/jwks/" + testWorkOSClientID)
+	verifier.jwks.Fetch = func(_ context.Context, _ string) (*workos.JWKSResponse, error) {
 		return fixture.jwks, nil
 	}
 	return verifier
@@ -69,7 +69,7 @@ func TestWorkOSSessionVerifierAcceptsAccessToken(t *testing.T) {
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
 	token := fixture.sign(t, map[string]any{
-		"iss":    workOSProductionAPIURL,
+		"iss":    publicauth.WorkOSProductionAPIURL,
 		"aud":    testWorkOSClientID,
 		"sub":    "user_native",
 		"sid":    "session_native",
@@ -89,7 +89,7 @@ func TestWorkOSSessionVerifierAcceptsAccessTokenIssuerWithClientID(t *testing.T)
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
 	token := fixture.sign(t, map[string]any{
-		"iss": workOSProductionAPIURL + "/" + testWorkOSClientID,
+		"iss": publicauth.WorkOSProductionAPIURL + "/" + testWorkOSClientID,
 		"aud": testWorkOSClientID,
 		"sub": "user_native",
 		"sid": "session_native",
@@ -105,7 +105,7 @@ func TestWorkOSSessionVerifierAcceptsAuthKitAccessToken(t *testing.T) {
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
 	token := fixture.sign(t, map[string]any{
-		"iss":       workOSProductionAPIURL + "/user_management/" + testWorkOSClientID,
+		"iss":       publicauth.WorkOSProductionAPIURL + "/user_management/" + testWorkOSClientID,
 		"client_id": testWorkOSClientID,
 		"sub":       "user_authkit",
 		"sid":       "session_authkit",
@@ -126,7 +126,7 @@ func TestWorkOSSessionVerifierAcceptsAccessTokenFromAnotherApplication(t *testin
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
 	token := fixture.sign(t, map[string]any{
-		"iss":       workOSProductionAPIURL + "/user_management/" + testWorkOSClientID,
+		"iss":       publicauth.WorkOSProductionAPIURL + "/user_management/" + testWorkOSClientID,
 		"aud":       "client_desktop",
 		"client_id": "client_desktop",
 		"sub":       "user_desktop",
@@ -146,7 +146,7 @@ func TestWorkOSSessionVerifierRejectsAccessTokenFromAnotherEnvironment(t *testin
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
 	token := fixture.sign(t, map[string]any{
-		"iss":       workOSProductionAPIURL + "/user_management/client_other_environment",
+		"iss":       publicauth.WorkOSProductionAPIURL + "/user_management/client_other_environment",
 		"client_id": "client_other_environment",
 		"sub":       "user_authkit",
 		"sid":       "session_authkit",
@@ -165,7 +165,7 @@ func TestWorkOSSessionVerifierRejectsAccessTokenTampering(t *testing.T) {
 	require.NoError(t, err)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
-		"iss": workOSProductionAPIURL,
+		"iss": publicauth.WorkOSProductionAPIURL,
 		"aud": testWorkOSClientID,
 		"sub": "user_native",
 		"sid": "session_native",
@@ -184,7 +184,7 @@ func TestWorkOSSessionVerifierRejectsExpiredAccessToken(t *testing.T) {
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
 	token := fixture.sign(t, map[string]any{
-		"iss": workOSProductionAPIURL,
+		"iss": publicauth.WorkOSProductionAPIURL,
 		"aud": testWorkOSClientID,
 		"sub": "user_native",
 		"sid": "session_native",
@@ -201,7 +201,7 @@ func TestWorkOSSessionVerifierRejectsAgentAccessToken(t *testing.T) {
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
 	token := fixture.sign(t, map[string]any{
-		"iss":    workOSProductionAPIURL,
+		"iss":    publicauth.WorkOSProductionAPIURL,
 		"aud":    testWorkOSClientID,
 		"sub":    "agent_reg_01TEST",
 		"sid":    "session_native",
@@ -219,7 +219,7 @@ func TestWorkOSSessionVerifierRejectsActWithUserSubject(t *testing.T) {
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
 	token := fixture.sign(t, map[string]any{
-		"iss":    workOSProductionAPIURL,
+		"iss":    publicauth.WorkOSProductionAPIURL,
 		"aud":    testWorkOSClientID,
 		"sub":    "user_native",
 		"sid":    "session_native",
@@ -244,7 +244,7 @@ func TestWorkOSSessionVerifierRejectsMalformedAct(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			token := fixture.sign(t, map[string]any{
-				"iss":    workOSProductionAPIURL,
+				"iss":    publicauth.WorkOSProductionAPIURL,
 				"aud":    testWorkOSClientID,
 				"sub":    "user_native",
 				"sid":    "session_native",
@@ -264,7 +264,7 @@ func TestWorkOSSessionVerifierAcceptsImpersonationAccessToken(t *testing.T) {
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
 	token := fixture.sign(t, map[string]any{
-		"iss":    workOSProductionAPIURL,
+		"iss":    publicauth.WorkOSProductionAPIURL,
 		"aud":    testWorkOSClientID,
 		"sub":    "user_native",
 		"sid":    "session_native",
@@ -282,7 +282,7 @@ func TestWorkOSSessionVerifierRejectsMissingSessionID(t *testing.T) {
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
 	token := fixture.sign(t, map[string]any{
-		"iss": workOSProductionAPIURL,
+		"iss": publicauth.WorkOSProductionAPIURL,
 		"aud": testWorkOSClientID,
 		"sub": "user_native",
 		"exp": time.Now().Add(time.Hour).Unix(),
@@ -297,7 +297,7 @@ func TestAuthMiddlewareAcceptsVerifiedWorkOSAccessToken(t *testing.T) {
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
 	token := fixture.sign(t, map[string]any{
-		"iss":    workOSProductionAPIURL,
+		"iss":    publicauth.WorkOSProductionAPIURL,
 		"aud":    testWorkOSClientID,
 		"sub":    "user_native",
 		"sid":    "session_native",
@@ -323,70 +323,10 @@ func TestAuthMiddlewareAcceptsVerifiedWorkOSAccessToken(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, rec.Code)
 }
 
-func TestFetchWorkOSJWKS(t *testing.T) {
-	fixture := newAccessTokenFixture(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		require.NoError(t, json.NewEncoder(w).Encode(fixture.jwks))
-	}))
-	t.Cleanup(server.Close)
-
-	resp, err := fetchWorkOSJWKS(context.Background(), server.URL)
-	require.NoError(t, err)
-	require.Len(t, resp.Keys, 1)
-	require.Equal(t, "test-kid", resp.Keys[0].Kid)
-}
-
 func TestIssuerAllowed(t *testing.T) {
 	require.True(t, issuerAllowed("https://api.workos.com", "https://api.workos.com", "client_1"))
 	require.True(t, issuerAllowed("https://api.workos.com/client_1", "https://api.workos.com", "client_1"))
 	require.True(t, issuerAllowed("https://api.workos.com/user_management/client_1", "https://api.workos.com", "client_1"))
 	require.False(t, issuerAllowed("https://authkit.example", "https://api.workos.com", "client_1"))
 	require.False(t, issuerAllowed("", "https://api.workos.com", "client_1"))
-}
-
-func TestJWKSCacheDoesNotRefreshUnknownKidWhileFresh(t *testing.T) {
-	fixture := newAccessTokenFixture(t)
-	verifier := accessTokenVerifier(t, fixture)
-	fetches := 0
-	verifier.jwks.fetch = func(_ context.Context, _ string) (*workos.JWKSResponse, error) {
-		fetches++
-		return fixture.jwks, nil
-	}
-
-	_, err := verifier.jwks.publicKey(context.Background(), "test-kid")
-	require.NoError(t, err)
-	require.Equal(t, 1, fetches)
-
-	_, err = verifier.jwks.publicKey(context.Background(), "unknown-kid-1")
-	require.Error(t, err)
-	_, err = verifier.jwks.publicKey(context.Background(), "unknown-kid-2")
-	require.Error(t, err)
-	require.Equal(t, 1, fetches)
-
-	_, err = verifier.jwks.publicKey(context.Background(), "test-kid")
-	require.NoError(t, err)
-	require.Equal(t, 1, fetches)
-}
-
-func TestJWKSCacheRefreshesUnknownKidAfterExpiry(t *testing.T) {
-	fixture := newAccessTokenFixture(t)
-	verifier := accessTokenVerifier(t, fixture)
-	fetches := 0
-	verifier.jwks.fetch = func(_ context.Context, _ string) (*workos.JWKSResponse, error) {
-		fetches++
-		return fixture.jwks, nil
-	}
-
-	_, err := verifier.jwks.publicKey(context.Background(), "test-kid")
-	require.NoError(t, err)
-	require.Equal(t, 1, fetches)
-
-	verifier.jwks.mu.Lock()
-	verifier.jwks.expiry = time.Now().Add(-time.Second)
-	verifier.jwks.mu.Unlock()
-
-	_, err = verifier.jwks.publicKey(context.Background(), "unknown-kid")
-	require.Error(t, err)
-	require.Equal(t, 2, fetches)
 }

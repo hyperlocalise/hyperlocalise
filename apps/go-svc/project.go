@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
 	"github.com/jackc/pgx/v5"
 )
@@ -57,15 +58,15 @@ func (a projectActor) canManageContentEditorBehavior() bool {
 }
 
 func (a projectActor) canReadJobs() bool {
-	return hasOrganizationCapability(a.role, "jobs:read")
+	return authz.HasCapability(a.role, "jobs:read")
 }
 
 func (a projectActor) canCreateJobs() bool {
-	return hasOrganizationCapability(a.role, "jobs:create")
+	return authz.HasCapability(a.role, "jobs:create")
 }
 
 func (a projectActor) canWriteJobs() bool {
-	return hasOrganizationCapability(a.role, "jobs:write")
+	return authz.HasCapability(a.role, "jobs:write")
 }
 
 type projectError struct {

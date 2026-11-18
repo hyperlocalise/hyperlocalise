@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,12 +27,12 @@ func (s *fakeProjectAdminStore) upsertStrings(_ context.Context, _ principal, _ 
 	return s.batch, s.adminErr
 }
 
-var projectWriteScopes = effectivePermissions([]string{"files:read", "files:write"}, "admin")
+var projectWriteScopes = authz.EffectivePermissions([]string{"files:read", "files:write"}, "admin")
 
 func TestProjectsWritePermission(t *testing.T) {
-	require.Contains(t, effectivePermissions([]string{"files:write"}, "developer"), "projects:write")
-	require.NotContains(t, effectivePermissions([]string{"files:write"}, "translator"), "projects:write")
-	require.NotContains(t, effectivePermissions([]string{"files:read"}, "admin"), "projects:write")
+	require.Contains(t, authz.EffectivePermissions([]string{"files:write"}, "developer"), "projects:write")
+	require.NotContains(t, authz.EffectivePermissions([]string{"files:write"}, "translator"), "projects:write")
+	require.NotContains(t, authz.EffectivePermissions([]string{"files:read"}, "admin"), "projects:write")
 }
 
 func TestUpdateProjectRoute(t *testing.T) {
@@ -52,7 +53,7 @@ func TestUpdateProjectRoute(t *testing.T) {
 	})
 
 	t.Run("requires projects:write", func(t *testing.T) {
-		translator := effectivePermissions([]string{"files:read", "files:write"}, "translator")
+		translator := authz.EffectivePermissions([]string{"files:read", "files:write"}, "translator")
 		w := sendResource(t, resourcePrincipal(translator...), &fakeResourceStore{}, http.MethodPatch, "/v1/projects/project-1", `{"name":"x"}`)
 		require.Equal(t, http.StatusForbidden, w.Code)
 	})

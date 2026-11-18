@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
 )
 
@@ -52,7 +53,7 @@ func BenchmarkEffectivePermissions(b *testing.B) {
 	stored := []string{"jobs:read", "jobs:write", "files:read", "files:write", "memories:read", "memories:write"}
 	b.ReportAllocs()
 	for b.Loop() {
-		if len(effectivePermissions(stored, "admin")) < 8 {
+		if len(authz.EffectivePermissions(stored, "admin")) < 8 {
 			b.Fatal("expected expanded permissions")
 		}
 	}
