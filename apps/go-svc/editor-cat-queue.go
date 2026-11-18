@@ -16,6 +16,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
 	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/text/unicode/norm"
 )
 
 var hashedHTMLSegmentKey = regexp.MustCompile(`^html\.[0-9a-f]{16}(?:\.\d+)?(?:#srx\.\d+)?$`)
@@ -129,7 +130,8 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 	if err != nil {
 		return editorCatQueueQuery{}, err
 	}
-	search := trimEditorCat(values.Get("search"))
+	// NFC so a query typed with combining accents matches the same letters stored precomposed.
+	search := norm.NFC.String(trimEditorCat(values.Get("search")))
 	if len(search) > editorCatMaxSearchLen {
 		return editorCatQueueQuery{}, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
 	}
@@ -598,13 +600,13 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		args = append(args, query.targetLocale)
 		localeN := strconv.Itoa(len(args))
 		where += ` and (
-            k.key ilike $` + searchN + ` escape '\' or
-            k.source_text ilike $` + searchN + ` escape '\' or
-            coalesce(k.context,'') ilike $` + searchN + ` escape '\' or
+            normalize(k.key, NFC) ilike $` + searchN + ` escape '\' or
+            normalize(k.source_text, NFC) ilike $` + searchN + ` escape '\' or
+            normalize(coalesce(k.context,''), NFC) ilike $` + searchN + ` escape '\' or
             exists (
                 select 1 from project_translations t
                 where t.translation_key_id=k.id and t.organization_id=$1 and t.project_id=$2
-                  and t.target_locale=$` + localeN + ` and t.text ilike $` + searchN + ` escape '\'
+                  and t.target_locale=$` + localeN + ` and normalize(t.text, NFC) ilike $` + searchN + ` escape '\'
             )
         )`
 	}
