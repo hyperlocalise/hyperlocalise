@@ -13,6 +13,7 @@
 import { getFeatureFlagsRuntimeClient } from "@workos-inc/authkit-nextjs";
 import type { Adapter } from "flags";
 
+import { createLogger } from "@/lib/log";
 import { getWorkosAuthKitConfig } from "@/lib/workos/config";
 
 import type { WorkosFlagEntities } from "./workos-flag-entities";
@@ -22,15 +23,34 @@ const FEATURE_FLAGS_READY_TIMEOUT_MS = 2_000;
 
 let defaultWorkosAdapter: ReturnType<typeof createWorkosAdapter> | undefined;
 let featureFlagsReadyPromise: Promise<void> | undefined;
+let featureFlagsErrorListenerAttached = false;
+
+const logger = createLogger("workos-feature-flags");
+
+/**
+ * The shared WorkOS flags client, with an `error` listener attached. Without one the SDK warns on
+ * stderr whenever a background poll fails. A poll that times out (often after a serverless
+ * instance was frozen mid-request) reads as "Poll aborted" or "Request timed out"; the client keeps
+ * its last good flags and retries, so those are logged at debug only.
+ */
+function getFeatureFlagsClient() {
+  const client = getFeatureFlagsRuntimeClient();
+  if (!featureFlagsErrorListenerAttached) {
+    featureFlagsErrorListenerAttached = true;
+    client.on("error", (error: Error) => {
+      const timedOut = error.message === "Poll aborted" || error.message === "Request timed out";
+      logger[timedOut ? "debug" : "warn"]("feature_flag_poll_failed", { error: error.name });
+    });
+  }
+  return client;
+}
 
 function isWorkosFeatureFlagsEnabled() {
   const config = getWorkosAuthKitConfig();
   return Boolean(config?.apiKey);
 }
 
-function waitForFeatureFlagsReady(
-  client: ReturnType<typeof getFeatureFlagsRuntimeClient>,
-): Promise<void> {
+function waitForFeatureFlagsReady(client: ReturnType<typeof getFeatureFlagsClient>): Promise<void> {
   if (!featureFlagsReadyPromise) {
     featureFlagsReadyPromise = client
       .waitUntilReady({ timeoutMs: FEATURE_FLAGS_READY_TIMEOUT_MS })
@@ -58,7 +78,7 @@ export function createWorkosAdapter() {
         const context = entities as WorkosFlagEntities | undefined;
 
         try {
-          const client = getFeatureFlagsRuntimeClient();
+          const client = getFeatureFlagsClient();
           await waitForFeatureFlagsReady(client);
           return (await Promise.resolve(
             client.isEnabled(key, {
@@ -94,7 +114,7 @@ export async function waitForWorkosFeatureFlags(options: { timeoutMs: number }):
     return false;
   }
 
-  await getFeatureFlagsRuntimeClient().waitUntilReady({ timeoutMs: options.timeoutMs });
+  await getFeatureFlagsClient().waitUntilReady({ timeoutMs: options.timeoutMs });
   return true;
 }
 
@@ -108,7 +128,7 @@ export async function readWorkosFeatureFlag(
   entities: WorkosFlagEntities,
 ): Promise<boolean> {
   const enabled = await Promise.resolve(
-    getFeatureFlagsRuntimeClient().isEnabled(key, {
+    getFeatureFlagsClient().isEnabled(key, {
       organizationId: entities.organization?.id,
       userId: entities.user?.id,
     }),
