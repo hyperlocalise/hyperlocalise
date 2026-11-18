@@ -31,6 +31,8 @@ export type ImageGenerationOptions = {
   mask?: Buffer;
   /** Ask the model for a transparent background (background removal). */
   transparentBackground?: boolean;
+  /** Images sent after the source for the model to take from; the prompt names them. */
+  references?: Buffer[];
 };
 
 export type ImageGenerationBilling = {
@@ -76,7 +78,7 @@ async function generateImageFromPrompt(
   const result = await generateImage({
     model,
     prompt: {
-      images: [imageBuffer],
+      images: [imageBuffer, ...(options.references ?? [])],
       text: prompt,
       ...(options.mask ? { mask: options.mask } : {}),
     },

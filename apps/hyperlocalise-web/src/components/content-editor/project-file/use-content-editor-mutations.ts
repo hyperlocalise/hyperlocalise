@@ -699,6 +699,7 @@ export function useContentEditorMutations(input: {
       request: ImageEditRequest;
       image: Blob;
       mask: Blob | null;
+      references?: Blob[];
       force?: boolean;
       signal?: AbortSignal;
     }) => {
@@ -727,6 +728,19 @@ export function useContentEditorMutations(input: {
               : {}),
             ...(request.instruction ? { instruction: request.instruction } : {}),
             ...(request.notes ? { notes: request.notes } : {}),
+            ...(request.noteReferences
+              ? { noteReferences: request.noteReferences.map(String) }
+              : {}),
+            ...(mutationInput.references?.length
+              ? {
+                  references: mutationInput.references.map(
+                    (reference, index) =>
+                      new File([reference], `reference-${index + 1}.webp`, {
+                        type: reference.type || "image/webp",
+                      }),
+                  ),
+                }
+              : {}),
             ...(mutationInput.force ? { force: "true" } : {}),
           },
         } as never,

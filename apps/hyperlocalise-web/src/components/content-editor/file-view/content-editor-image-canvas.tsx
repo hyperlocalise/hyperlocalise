@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Slider } from "@base-ui/react/slider";
 import { useIntl } from "react-intl";
 import { Spinner } from "@/components/ui/spinner";
@@ -31,6 +31,7 @@ export function ImageCanvas({
   reveal,
   showRegions,
   onRevealChange,
+  overlay,
 }: {
   src: string;
   compareSrc?: string | null;
@@ -42,6 +43,8 @@ export function ImageCanvas({
   reveal: number;
   showRegions: boolean;
   onRevealChange: (value: number) => void;
+  /** Drawn over the image at its size, such as an AI edit being marked up. */
+  overlay?: ReactNode;
 }) {
   const intl = useIntl();
   const [sourceFailed, setSourceFailed] = useState(false);
@@ -157,6 +160,7 @@ export function ImageCanvas({
             ))}
           </div>
         ) : null}
+        {overlay}
       </div>
       {mismatched ? (
         <p className="pt-3 text-xs text-muted-foreground">

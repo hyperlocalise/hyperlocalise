@@ -871,6 +871,11 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               ? (input) => editing.onRegenerateImage?.(fileViewSegment.id, input)
               : undefined
           }
+          onEditImage={
+            capabilities.viewerId === "image" && editing.onEditImage
+              ? (input) => editing.onEditImage!(fileViewSegment.id, input)
+              : undefined
+          }
           adaptiveWorkspaceEnabled={isAdaptiveEnabled}
           isDesignerPersona={isAdaptiveEnabled && store.ui.isDesignerPersona}
           intelligence={selectedSegmentIntelligence}

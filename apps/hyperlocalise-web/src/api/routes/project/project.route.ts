@@ -141,7 +141,11 @@ import {
   updateRepositorySourceFileImportSettings,
 } from "@/lib/projects/files/source-file-import-settings";
 import { localizeAndStoreDocumentVariant } from "@/lib/projects/files/document-variant-service";
-import { imageEditRequestSchema, imageEditUsesMask } from "@/lib/projects/files/image-edit";
+import {
+  imageEditReferenceCount,
+  imageEditRequestSchema,
+  imageEditUsesMask,
+} from "@/lib/projects/files/image-edit";
 import {
   editAndStoreImageVariant,
   localizeAndStoreImageVariant,
@@ -884,8 +888,17 @@ function asString(value: unknown) {
 }
 
 function asFile(value: unknown) {
+  return asFiles(value)[0] ?? null;
+}
+
+function asFiles(value: unknown) {
   const values = Array.isArray(value) ? value : value ? [value] : [];
-  return values.find((item): item is File => item instanceof File && item.size > 0) ?? null;
+  return values.filter((item): item is File => item instanceof File && item.size > 0);
+}
+
+function asStrings(value: unknown) {
+  const values = Array.isArray(value) ? value : value === undefined ? [] : [value];
+  return values.filter((item): item is string => typeof item === "string");
 }
 
 async function getNativeContentEditorTranslationKey(input: {
@@ -2727,16 +2740,29 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         )
           .map((note) => asString(note))
           .filter((note): note is string => typeof note === "string");
+        const noteReferences = asStrings(form.noteReferences).map(Number);
+        const references = asFiles(form.references);
         const request = imageEditRequestSchema.safeParse({
           kind: asString(form.kind),
           instruction: asString(form.instruction) || undefined,
           notes: notes.length ? notes : undefined,
+          noteReferences: noteReferences.length ? noteReferences : undefined,
         });
 
-        if (!sourcePath || !targetLocale || !image || !request.success) {
+        if (
+          !sourcePath ||
+          !targetLocale ||
+          !image ||
+          !request.success ||
+          imageEditReferenceCount(request.data) !== references.length
+        ) {
           return invalidProjectPayloadResponse(c);
         }
-        if (!image.type.startsWith("image/") || (mask && !mask.type.startsWith("image/"))) {
+        if (
+          ![image, ...(mask ? [mask] : []), ...references].every((file) =>
+            file.type.startsWith("image/"),
+          )
+        ) {
           return badRequestResponse(c, "unsupported_image_response", "Edits must be images");
         }
         if (imageEditUsesMask(request.data.kind) && !mask) {
@@ -2790,6 +2816,9 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           request: request.data,
           image: Buffer.from(await image.arrayBuffer()),
           mask: mask ? Buffer.from(await mask.arrayBuffer()) : null,
+          references: await Promise.all(
+            references.map(async (reference) => Buffer.from(await reference.arrayBuffer())),
+          ),
           repositorySourceFileId: sourceFile.id,
           createdByUserId: c.var.auth.user.localUserId,
           force,

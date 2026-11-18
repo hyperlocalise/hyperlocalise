@@ -12,6 +12,8 @@
  */
 import { makeAutoObservable } from "mobx";
 
+import { MAX_IMAGE_EDIT_REFERENCES } from "@/lib/projects/files/image-edit";
+
 import type {
   ImageEditDrawing,
   ImageEditPin,
@@ -82,7 +84,7 @@ export class ContentEditorImageEditStore {
   }
 
   addPin(point: ImageEditPoint) {
-    this.pins.push({ ...point, text: "" });
+    this.pins.push({ ...point, text: "", references: [] });
     this.editingPin = this.pins.length - 1;
   }
 
@@ -93,6 +95,26 @@ export class ContentEditorImageEditStore {
 
   editPin(index: number | null) {
     this.editingPin = index;
+  }
+
+  /** How many more reference images the edit can take, across its pins. */
+  get referencesLeft() {
+    return (
+      MAX_IMAGE_EDIT_REFERENCES -
+      this.pins.reduce((sum, pin) => sum + (pin.references?.length ?? 0), 0)
+    );
+  }
+
+  /** Adds images to a pin's references, as many as the edit has room for. */
+  addReferences(index: number, files: readonly Blob[]) {
+    const pin = this.pins[index];
+    if (!pin) return;
+    const images = files.filter((file) => file.type.startsWith("image/"));
+    pin.references = [...(pin.references ?? []), ...images.slice(0, this.referencesLeft)];
+  }
+
+  removeReference(index: number, reference: number) {
+    this.pins[index]?.references?.splice(reference, 1);
   }
 
   removePin(index: number) {
@@ -116,7 +138,7 @@ export class ContentEditorImageEditStore {
       case "markup":
         return this.strokes.length > 0 && this.instruction.trim().length > 0;
       case "comment":
-        return this.pins.some((pin) => pin.text.trim());
+        return this.pins.some((pin) => pin.text.trim() || pin.references?.length);
       case "erase":
         return this.strokes.length > 0;
       default:
@@ -139,7 +161,10 @@ export class ContentEditorImageEditStore {
       tool === "markup"
         ? { kind: "markup", strokes, instruction: this.instruction }
         : tool === "comment"
-          ? { kind: "comment", pins: this.pins.map((pin) => ({ ...pin })) }
+          ? {
+              kind: "comment",
+              pins: this.pins.map((pin) => ({ ...pin, references: [...(pin.references ?? [])] })),
+            }
           : { kind: "erase", strokes, instruction: this.instruction };
     this.cancel();
     return { target, drawing };

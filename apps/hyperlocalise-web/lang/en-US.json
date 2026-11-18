@@ -4631,6 +4631,10 @@
     "defaultMessage": "Scheduling…",
     "description": "Button label while scheduling subscription cancellation"
   },
+  "49k1zSGHH4": {
+    "defaultMessage": "Add reference image",
+    "description": "Button on an image note that attaches an image for the AI to take from"
+  },
   "49xYhuwsTz": {
     "defaultMessage": "Human approval",
     "description": "Human Approval node title"
@@ -5498,6 +5502,10 @@
   "5Ol0Sy99An": {
     "defaultMessage": "https://…",
     "description": "Placeholder for the link URL input"
+  },
+  "5Oy8VIf/qh": {
+    "defaultMessage": "Side by side",
+    "description": "Image viewer: shows the original and the localised image next to each other"
   },
   "5PG+VBWgIw": {
     "defaultMessage": "Couldn't load assignable members",
@@ -14506,6 +14514,10 @@
   "Hf4qHC8Sxe": {
     "defaultMessage": "{count, plural, one {# warning} other {# warnings}}",
     "description": "QA run summary: warning count"
+  },
+  "HfR6ecD8Qi": {
+    "defaultMessage": "Remove reference {number}",
+    "description": "Removes one reference image from a note pinned on the image"
   },
   "HgPHDYcLMY": {
     "defaultMessage": "Sync now",
@@ -24987,6 +24999,10 @@
     "defaultMessage": "Current translation",
     "description": "Description skeleton heading for the translation mistake issue template"
   },
+  "WJlozROrx5": {
+    "defaultMessage": "Version branches copy files and strings. Sync from the parent, then merge when the work is ready.",
+    "description": "Page description for native project version branches"
+  },
   "WJqQdc4moH": {
     "defaultMessage": "A string held by more than one task counts in each task's row, so the rows can add up to more than the total.",
     "description": "Note above the word counts table when showing work that arrived grouped by task or by task step"
@@ -31587,10 +31603,6 @@
     "defaultMessage": "Photoreal motion",
     "description": "Card summary for the FLUX.3 Video model on the pricing page"
   },
-  "fHHK+KSHKf": {
-    "defaultMessage": "Version branches copy files and strings, like Phrase Strings. Sync from the parent, then merge when the work is ready.",
-    "description": "Page description for native project version branches"
-  },
   "fHIwmwiNEw": {
     "defaultMessage": "Hyperlocalise reloads in the language you pick.",
     "description": "Helper text under the language picker dialog title"
@@ -36174,6 +36186,10 @@
   "lX5fkBbKOJ": {
     "defaultMessage": "Figma is requesting access to localize designs through a Hyperlocalise workspace connection.",
     "description": "Description for the Figma OAuth consent page"
+  },
+  "lXCtej92/g": {
+    "defaultMessage": "+{count}",
+    "description": "How many more reference images a note has beyond the one shown"
   },
   "lXXmdSGuM3": {
     "defaultMessage": "Reconnect {providerName} to keep this integration working.",
@@ -42355,6 +42371,10 @@
     "defaultMessage": "Greek (Greece)",
     "description": "Display name for BCP-47 locale el-GR"
   },
+  "tvFKt2Hte9": {
+    "defaultMessage": "Add, drop or paste images for the AI to use here",
+    "description": "Hint under a note pinned on the image about attaching reference images"
+  },
   "tvWxEL+OeJ": {
     "defaultMessage": "Guideline retrieval failed ({code}).",
     "description": "Job activity step when guideline retrieval fails with an error code"
@@ -46062,6 +46082,10 @@
   "yoyVExO9DC": {
     "defaultMessage": "Language",
     "description": "Label of the language filter"
+  },
+  "yoyYY9+ov8": {
+    "defaultMessage": "Image view",
+    "description": "Image viewer: accessible label for the group that switches between views"
   },
   "yppbhxn60H": {
     "defaultMessage": "Activity",

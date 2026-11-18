@@ -66,7 +66,7 @@ function ActionButton({
     <Button
       size="sm"
       variant="ghost"
-      className={cn("w-full justify-start", className)}
+      className={cn("justify-start", className)}
       disabled={disabled}
       aria-label={ariaLabel}
       onClick={onClick}
@@ -88,7 +88,8 @@ function ActionButton({
  * The hyperlocalisation actions under one locale's image: regenerate it,
  * review its copy, or make a targeted AI edit — Markup, Comment, Remove BG
  * and Erase. While Markup, Comment or Erase is drawn on the image, the panel
- * holds that tool's instruction, undo, cancel and apply instead.
+ * holds that tool's instruction, undo, cancel and apply instead. `grid` fits
+ * under a gallery card; `toolbar` is one row over a large image.
  */
 export const ContentEditorImageEditActions = observer(function ContentEditorImageEditActions({
   store,
@@ -102,6 +103,7 @@ export const ContentEditorImageEditActions = observer(function ContentEditorImag
   canEdit: editable,
   onRemoveBackground,
   onApply,
+  layout = "grid",
 }: {
   store: ContentEditorImageEditStore;
   segmentId: string;
@@ -116,12 +118,21 @@ export const ContentEditorImageEditActions = observer(function ContentEditorImag
   canEdit: boolean;
   onRemoveBackground?: () => void;
   onApply?: () => void;
+  layout?: "grid" | "toolbar";
 }) {
   const intl = useIntl();
   const drawingTool = store.toolFor(segmentId, locale);
 
   if (drawingTool) {
-    return <DrawingBar store={store} tool={drawingTool} busy={busy} onApply={() => onApply?.()} />;
+    return (
+      <DrawingBar
+        store={store}
+        tool={drawingTool}
+        busy={busy}
+        layout={layout}
+        onApply={() => onApply?.()}
+      />
+    );
   }
 
   const canEdit = editable && hasImage;
@@ -133,11 +144,14 @@ export const ContentEditorImageEditActions = observer(function ContentEditorImag
     <div
       role="group"
       aria-label={intl.formatMessage(messages.actions, { language })}
-      className="grid grid-cols-2 gap-0.5 rounded-xl border border-border/60 p-1"
+      className={cn(
+        "gap-0.5 rounded-xl border border-border/60 p-1",
+        layout === "grid" ? "grid grid-cols-2" : "flex flex-wrap items-center",
+      )}
     >
       {onGenerate ? (
         <ActionButton
-          className="col-span-2"
+          className={layout === "grid" ? "col-span-2 w-full" : undefined}
           icon={
             hasImage ? (
               <ArrowClockwiseIcon data-icon="inline-start" aria-hidden />
@@ -160,6 +174,7 @@ export const ContentEditorImageEditActions = observer(function ContentEditorImag
       ) : null}
       {onEditCopy ? (
         <ActionButton
+          className={layout === "grid" ? "w-full" : undefined}
           icon={<TextTIcon data-icon="inline-start" aria-hidden />}
           label={intl.formatMessage(messages.editCopy)}
           ariaLabel={intl.formatMessage(messages.editCopyAria, { language })}
@@ -169,6 +184,7 @@ export const ContentEditorImageEditActions = observer(function ContentEditorImag
       {canEdit ? (
         <>
           <ActionButton
+            className={layout === "grid" ? "w-full" : undefined}
             icon={<ScribbleIcon data-icon="inline-start" aria-hidden />}
             label={intl.formatMessage(messages.markup)}
             hint={intl.formatMessage(messages.markupHint)}
@@ -176,6 +192,7 @@ export const ContentEditorImageEditActions = observer(function ContentEditorImag
             onClick={() => begin("markup")}
           />
           <ActionButton
+            className={layout === "grid" ? "w-full" : undefined}
             icon={<ChatCircleTextIcon data-icon="inline-start" aria-hidden />}
             label={intl.formatMessage(messages.comment)}
             hint={intl.formatMessage(messages.commentHint)}
@@ -183,6 +200,7 @@ export const ContentEditorImageEditActions = observer(function ContentEditorImag
             onClick={() => begin("comment")}
           />
           <ActionButton
+            className={layout === "grid" ? "w-full" : undefined}
             icon={<SelectionBackgroundIcon data-icon="inline-start" aria-hidden />}
             label={intl.formatMessage(messages.removeBackground)}
             hint={intl.formatMessage(messages.removeBackgroundHint)}
@@ -190,6 +208,7 @@ export const ContentEditorImageEditActions = observer(function ContentEditorImag
             onClick={() => onRemoveBackground?.()}
           />
           <ActionButton
+            className={layout === "grid" ? "w-full" : undefined}
             icon={<EraserIcon data-icon="inline-start" aria-hidden />}
             label={intl.formatMessage(messages.erase)}
             hint={intl.formatMessage(messages.eraseHint)}
@@ -206,11 +225,13 @@ const DrawingBar = observer(function DrawingBar({
   store,
   tool,
   busy,
+  layout,
   onApply,
 }: {
   store: ContentEditorImageEditStore;
   tool: ImageEditTool;
   busy: boolean;
+  layout: "grid" | "toolbar";
   onApply: () => void;
 }) {
   const intl = useIntl();
@@ -220,13 +241,16 @@ const DrawingBar = observer(function DrawingBar({
 
   return (
     <div
-      className="flex flex-col gap-2 rounded-xl border border-primary/60 p-2"
+      className={cn(
+        "flex gap-2 rounded-xl border border-primary/60 p-2",
+        layout === "grid" ? "flex-col" : "flex-wrap items-center",
+      )}
       onKeyDown={(event) => {
         if (event.key === "Escape") store.cancel();
       }}
     >
       {tool === "comment" ? (
-        <p className="px-1 text-xs text-muted-foreground">
+        <p className={cn("px-1 text-xs text-muted-foreground", layout === "toolbar" && "flex-1")}>
           {intl.formatMessage(store.pins.length ? messages.pinMore : messages.clickToPin)}
         </p>
       ) : (
@@ -248,7 +272,10 @@ const DrawingBar = observer(function DrawingBar({
             aria-label={intl.formatMessage(
               tool === "erase" ? messages.eraseInstruction : messages.describeChange,
             )}
-            className="h-8 w-full rounded-lg border bg-background px-2 text-xs outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(
+              "h-8 rounded-lg border bg-background px-2 text-xs outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring",
+              layout === "grid" ? "w-full" : "min-w-48 flex-1",
+            )}
           />
           <div
             role="radiogroup"
@@ -280,7 +307,7 @@ const DrawingBar = observer(function DrawingBar({
           </div>
         </>
       )}
-      <div className="flex items-center justify-end gap-1">
+      <div className={cn("flex items-center justify-end gap-1", layout === "toolbar" && "ml-auto")}>
         <Button
           size="icon-sm"
           variant="ghost"

@@ -18,8 +18,8 @@ export type ImageEditPoint = { x: number; y: number };
 /** A brush stroke; `size` is its width as a share of the image's width. */
 export type ImageEditStroke = { points: ImageEditPoint[]; size: number };
 
-/** A note pinned to a point of the image. */
-export type ImageEditPin = ImageEditPoint & { text: string };
+/** A note pinned to a point of the image, with images for the model to take from. */
+export type ImageEditPin = ImageEditPoint & { text: string; references?: Blob[] };
 
 /** What the editor drew, ready to send with the edit request. */
 export type ImageEditDrawing =
@@ -31,12 +31,21 @@ export type ImageEditDrawing =
 /** The tallest or widest an image is sent at; the model draws at most 1536 px. */
 export const IMAGE_EDIT_MAX_SIDE = 2048;
 
+/** The tallest or widest a reference is sent at: enough for the model to see it. */
+const IMAGE_EDIT_REFERENCE_SIDE = 1536;
+
 export function imageEditRequest(drawing: ImageEditDrawing): ImageEditRequest {
   switch (drawing.kind) {
     case "markup":
       return { kind: "markup", instruction: drawing.instruction.trim() };
-    case "comment":
-      return { kind: "comment", notes: drawing.pins.map((pin) => pin.text.trim()) };
+    case "comment": {
+      const noteReferences = drawing.pins.map((pin) => pin.references?.length ?? 0);
+      return {
+        kind: "comment",
+        notes: drawing.pins.map((pin) => pin.text.trim()),
+        ...(noteReferences.some(Boolean) ? { noteReferences } : {}),
+      };
+    }
     case "erase":
       return {
         kind: "erase",
@@ -113,14 +122,31 @@ function surface(
   return [canvas, context];
 }
 
+/** `reference` as a WebP no bigger than the model needs, keeping any transparency. */
+async function shrinkReference(reference: Blob): Promise<Blob> {
+  const bitmap = await createImageBitmap(reference);
+  try {
+    const scale = Math.min(1, IMAGE_EDIT_REFERENCE_SIDE / Math.max(bitmap.width, bitmap.height));
+    const [canvas, context] = surface(
+      Math.round(bitmap.width * scale),
+      Math.round(bitmap.height * scale),
+    );
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return await canvas.convertToBlob({ type: "image/webp", quality: 0.92 });
+  } finally {
+    bitmap.close();
+  }
+}
+
 /**
- * The image to send for `drawing`, with marks and pins drawn on it, and for
- * an erase the mask: opaque everywhere except the brushed-over area.
+ * The image to send for `drawing`, with marks and pins drawn on it; for an
+ * erase the mask, opaque everywhere except the brushed-over area; and for a
+ * comment its notes' references, in note order.
  */
 export async function prepareImageEdit(
   source: Blob,
   drawing: ImageEditDrawing,
-): Promise<{ image: Blob; mask: Blob | null }> {
+): Promise<{ image: Blob; mask: Blob | null; references: Blob[] }> {
   const bitmap = await createImageBitmap(source);
   try {
     const { width, height } = imageEditSendSize(bitmap.width, bitmap.height);
@@ -128,11 +154,15 @@ export async function prepareImageEdit(
     context.drawImage(bitmap, 0, 0, width, height);
 
     let mask: Blob | null = null;
+    let references: Blob[] = [];
     if (drawing.kind === "markup") {
       context.strokeStyle = IMAGE_EDIT_MARK_COLOR;
       drawImageEditStrokes(context, drawing.strokes, width, height);
     } else if (drawing.kind === "comment") {
       drawPins(context, drawing.pins, width, height);
+      references = await Promise.all(
+        drawing.pins.flatMap((pin) => pin.references ?? []).map(shrinkReference),
+      );
     } else if (drawing.kind === "erase") {
       const [maskCanvas, masking] = surface(width, height);
       masking.fillStyle = "#000000";
@@ -143,7 +173,7 @@ export async function prepareImageEdit(
       mask = await maskCanvas.convertToBlob({ type: "image/png" });
     }
 
-    return { image: await canvas.convertToBlob({ type: "image/png" }), mask };
+    return { image: await canvas.convertToBlob({ type: "image/png" }), mask, references };
   } finally {
     bitmap.close();
   }

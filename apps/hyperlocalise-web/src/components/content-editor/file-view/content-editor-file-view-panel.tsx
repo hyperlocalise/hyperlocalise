@@ -47,6 +47,7 @@ import type {
   ContentEditorSegmentIntelligence,
 } from "@/components/content-editor/shared/types";
 import type { ContentEditorFileViewerId } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
+import type { ContentEditorImageEditInput } from "@/components/content-editor/shared/dependencies";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -179,6 +180,7 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
   onApprove,
   onUpload,
   onRegenerate,
+  onEditImage,
   selectionAi,
   documentAssistant,
   className,
@@ -206,6 +208,8 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
   selectionAi?: MarkdownSelectionAiConfig;
   documentAssistant?: DocumentAssistantServices;
   onRegenerate?: (input: { instructions?: string }) => void | Promise<void>;
+  /** Runs a targeted AI edit on the localised image. */
+  onEditImage?: (input: ContentEditorImageEditInput) => Promise<void>;
   className?: string;
   adaptiveWorkspaceEnabled?: boolean;
   isDesignerPersona?: boolean;
@@ -593,6 +597,9 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
             actions={hasTargetFileActions ? targetFileActions : null}
             onDirtyChange={setImageLayersDirty}
             onRegenerate={onRegenerate}
+            onEdit={onEditImage}
+            isApproved={segment.status === "reviewed"}
+            onSourcePaneVisibleChange={(visible) => ui.setFileViewSourcePaneVisible(visible)}
           />
         ) : viewerId === "video" ? (
           <ContentEditorVideoWorkspace

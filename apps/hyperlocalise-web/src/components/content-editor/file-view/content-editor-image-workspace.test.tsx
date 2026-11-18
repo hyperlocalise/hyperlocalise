@@ -22,6 +22,23 @@ import {
 import { ApiResponseError } from "@/lib/api-error";
 import type { ImageTextLayers } from "@/lib/projects/files/image-text-layers";
 
+vi.mock(
+  "@/components/content-editor/multilingual/image-edit/content-editor-image-edit-canvas",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/components/content-editor/multilingual/image-edit/content-editor-image-edit-canvas")
+    >()),
+    // Canvas drawing is not available in the test DOM; the references pass through.
+    prepareImageEdit: vi.fn(
+      async (_source: Blob, drawing: { kind: string; pins?: { references?: Blob[] }[] }) => ({
+        image: new Blob(["image"], { type: "image/png" }),
+        mask: null,
+        references: drawing.pins?.flatMap((pin) => pin.references ?? []) ?? [],
+      }),
+    ),
+  }),
+);
+
 const initialLayers: ImageTextLayers = {
   version: 1,
   sourceHash: "source-hash",
@@ -260,7 +277,7 @@ describe("image workspace", () => {
     );
     const user = userEvent.setup();
     show();
-    await user.click(await screen.findByRole("button", { name: "Overlay comparison" }));
+    await user.click(await screen.findByRole("radio", { name: "Overlay comparison" }));
     fireEvent.load(screen.getByAltText("Localised image"));
     const divider = screen.getByRole("slider", { name: "Original and localised image divider" });
     expect(divider.closest('[class*="absolute inset-0"]')).not.toBeNull();
@@ -277,7 +294,7 @@ describe("image workspace", () => {
     );
     const user = userEvent.setup();
     const { container } = show();
-    await user.click(await screen.findByRole("button", { name: "Overlay comparison" }));
+    await user.click(await screen.findByRole("radio", { name: "Overlay comparison" }));
 
     const images = container.querySelectorAll("img");
     expect(images).toHaveLength(2);
@@ -287,5 +304,104 @@ describe("image workspace", () => {
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(images[0].closest("div.relative")).not.toHaveClass("hidden");
     expect(container.querySelector('[role="slider"]')).not.toBeInTheDocument();
+  });
+  it("switches between one image, side by side, and overlay with a clear selection", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ textLayers: null })),
+    );
+    const onSourcePaneVisibleChange = vi.fn();
+    const user = userEvent.setup();
+    const { rerender } = show({ sourcePaneVisible: true, onSourcePaneVisibleChange });
+
+    const view = await screen.findByRole("radiogroup", { name: "Image view" });
+    expect(within(view).getByRole("radio", { name: "Side by side" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    await user.click(within(view).getByRole("radio", { name: "Original" }));
+    expect(onSourcePaneVisibleChange).toHaveBeenLastCalledWith(false);
+    rerender(
+      <ContentEditorTestProviders>
+        <ContentEditorImageWorkspace
+          {...baseProps}
+          sourcePaneVisible={false}
+          onSourcePaneVisibleChange={onSourcePaneVisibleChange}
+        />
+      </ContentEditorTestProviders>,
+    );
+    expect(within(view).getByRole("radio", { name: "Original" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.queryByRole("heading", { name: "Localised · fr" })).not.toBeInTheDocument();
+
+    await user.click(within(view).getByRole("radio", { name: "Localised" }));
+    expect(within(view).getByRole("radio", { name: "Localised" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByRole("heading", { name: "Localised · fr" })).toBeInTheDocument();
+  });
+  it("sends a comment with its reference image as an edit of the localised image", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url === "/localised.png"
+          ? new Response(new Blob(["png"], { type: "image/png" }))
+          : Response.json({ textLayers: null }),
+      ),
+    );
+    const onEdit = vi.fn(async () => undefined);
+    const user = userEvent.setup();
+    const { container } = show({ onEdit });
+
+    await user.click(await screen.findByRole("button", { name: "Comment" }));
+    fireEvent.load(screen.getByAltText("Localised image"));
+    const overlay = screen.getByTestId("image-edit-overlay");
+    overlay.getBoundingClientRect = () => new DOMRect(0, 0, 200, 100);
+    fireEvent.pointerDown(overlay, { button: 0, clientX: 50, clientY: 25 });
+
+    await user.type(screen.getByRole("textbox", { name: "Note 1" }), "Use this logo");
+    const reference = new File(["logo"], "logo.png", { type: "image/png" });
+    await user.upload(container.querySelector<HTMLInputElement>('input[type="file"]')!, reference);
+    expect(screen.queryByText("Add, drop or paste images for the AI to use here")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    expect(onEdit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: { kind: "comment", notes: ["Use this logo"], noteReferences: [1] },
+        references: [reference],
+        force: undefined,
+      }),
+    );
+  });
+  it("asks before editing an approved image, then forces the edit", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url === "/localised.png"
+          ? new Response(new Blob(["png"], { type: "image/png" }))
+          : Response.json({ textLayers: null }),
+      ),
+    );
+    const onEdit = vi.fn(async () => undefined);
+    const user = userEvent.setup();
+    show({ onEdit, isApproved: true });
+
+    await user.click(await screen.findByRole("button", { name: "Remove BG" }));
+    expect(onEdit).not.toHaveBeenCalled();
+    await user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Edit image" }),
+    );
+
+    await waitFor(() =>
+      expect(onEdit).toHaveBeenCalledWith(
+        expect.objectContaining({ request: { kind: "removeBackground" }, force: true }),
+      ),
+    );
   });
 });
