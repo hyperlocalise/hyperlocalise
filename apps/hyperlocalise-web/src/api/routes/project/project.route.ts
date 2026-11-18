@@ -1830,6 +1830,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               organizationId: c.var.auth.organization.localOrganizationId,
               projectId: params.projectId,
               sourceText: body.sourceText,
+              locale: body.targetLocale,
             }))
           ) {
             return projectNotFoundResponse(c);

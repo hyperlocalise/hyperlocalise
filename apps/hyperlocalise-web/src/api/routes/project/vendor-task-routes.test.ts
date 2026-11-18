@@ -336,6 +336,35 @@ describe("memory and glossary lookup", () => {
     expect((await s.lookUp("fr-FR", s.project.id, s.otherFile.sourceText)).status).toBe(404);
   });
 
+  it("answers for a string that begins or ends with a line break or a tab", async () => {
+    const s = await setUp("vendor");
+    await s.addTask();
+    await db.insert(schema.projectTranslationKeys).values({
+      organizationId: s.organization.id,
+      projectId: s.project.id,
+      repositorySourceFileId: s.file.sourceFileId,
+      branchName: "main",
+      key: "notice",
+      sourceText: "\tTwo lines\nof text\n",
+      normalizedSourceText: "two lines of text",
+    });
+    // As the editor sends it, and with the ends trimmed.
+    expect((await s.lookUp("fr-FR", s.project.id, "\tTwo lines\nof text\n")).status).toBe(200);
+    expect((await s.lookUp("fr-FR", s.project.id, "Two lines\nof text")).status).toBe(200);
+    expect((await s.lookUp("fr-FR", s.project.id, "Two lines")).status).toBe(404);
+  });
+
+  it("answers for a string only in a language of the task that has it", async () => {
+    const s = await setUp("vendor");
+    await s.addTask();
+    await s.addTask({ storedFileId: s.otherFile.storedFileId, targetLocales: ["de-DE"] });
+
+    expect((await s.lookUp("de-DE", s.project.id, s.otherFile.sourceText)).status).toBe(200);
+    // French belongs to the task on the first file, which does not have this string.
+    expect((await s.lookUp("fr-FR", s.project.id, s.otherFile.sourceText)).status).toBe(404);
+    expect((await s.lookUp("de-DE", s.project.id, "Hello")).status).toBe(404);
+  });
+
   it("gives matches without links or the means to change them", async () => {
     const s = await setUp("vendor");
     await s.addTask();

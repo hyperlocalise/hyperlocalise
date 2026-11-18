@@ -160,7 +160,8 @@ const (
 )
 
 func editorScopeDenied() error {
-	return editorCatFailure(403, "forbidden", "This is outside the task you were given")
+	// Also what a person with another open task in the project gets once this one has ended.
+	return editorCatFailure(403, "forbidden", "This is not part of an open task of yours")
 }
 
 // checkEditorTaskScope holds a task-scoped request to the task's file and languages. It also

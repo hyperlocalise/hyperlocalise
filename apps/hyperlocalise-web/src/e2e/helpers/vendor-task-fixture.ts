@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { insertJobs } from "@/lib/job-change-events/job-writes";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import type { EmulatorIdentity } from "./emulator-identity";
@@ -90,14 +91,17 @@ export async function provisionVendorTaskFixture(
       .insert(schema.repositorySourceFiles)
       .values({ organizationId: organization!.id, projectId, sourcePath })
       .returning({ id: schema.repositorySourceFiles.id });
-    await db.insert(schema.repositorySourceFileVersions).values({
-      repositorySourceFileId: sourceFile!.id,
-      organizationId: organization!.id,
-      projectId,
-      sourcePath,
-      storedFileId,
-      ingestState: "ingested",
-    });
+    const [version] = await db
+      .insert(schema.repositorySourceFileVersions)
+      .values({
+        repositorySourceFileId: sourceFile!.id,
+        organizationId: organization!.id,
+        projectId,
+        sourcePath,
+        storedFileId,
+        ingestState: "ingested",
+      })
+      .returning({ id: schema.repositorySourceFileVersions.id });
     for (const [key, text] of strings) {
       await db.insert(schema.projectTranslationKeys).values({
         organizationId: organization!.id,
@@ -108,13 +112,13 @@ export async function provisionVendorTaskFixture(
         normalizedSourceText: text.toLowerCase(),
       });
     }
-    return storedFileId;
+    return { storedFileId, versionId: version!.id };
   }
 
   const sourcePath = `locales/vendor-${suffix}.json`;
   const otherSourcePath = `locales/other-${suffix}.json`;
   const sourceTexts: [string, string] = [`Welcome back ${suffix}`, `Sign out ${suffix}`];
-  const storedFileId = await addFile(sourcePath, [
+  const { storedFileId, versionId } = await addFile(sourcePath, [
     ["home.welcome", sourceTexts[0]],
     ["home.signOut", sourceTexts[1]],
   ]);
@@ -122,20 +126,28 @@ export async function provisionVendorTaskFixture(
 
   const taskId = `job_${randomUUID()}`;
   const taskTitle = `Post-edit: vendor-${suffix}.json`;
-  await db.insert(schema.jobs).values({
-    id: taskId,
-    organizationId: organization.id,
-    projectId,
-    ownerUserId: user.id,
-    assigneeType: "user",
-    kind: "proofread",
-    status: "waiting_for_review",
-    inputPayload: {
-      sourceFileId: storedFileId,
-      sourceLocale: "en-US",
-      targetLocales: ["fr-FR"],
-      metadata: { title: taskTitle, workflowTaskStep: "edit", sourcePath },
+  await insertJobs(db, {
+    values: {
+      id: taskId,
+      organizationId: organization.id,
+      projectId,
+      ownerUserId: user.id,
+      assigneeType: "user",
+      kind: "proofread",
+      status: "waiting_for_review",
+      inputPayload: {
+        sourceFileId: storedFileId,
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+        metadata: { title: taskTitle, workflowTaskStep: "edit", sourcePath },
+      },
     },
+  });
+  // The upload the task was made for: what gives its owner the file.
+  await db.insert(schema.translationJobDetails).values({
+    jobId: taskId,
+    type: "file",
+    sourceFileVersionId: versionId,
   });
 
   return {

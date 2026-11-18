@@ -250,7 +250,6 @@ export function VendorShellClient({
               {isAllowedPage ? children : null}
             </div>
           </SidebarInset>
-          {/* So a vendor is told to reload after a new version ships, as everyone is. */}
         </SidebarProvider>
         <LocaleDialog open={languageDialogOpen} onOpenChange={setLanguageDialogOpen} />
         <LeaveWorkspaceDialog

@@ -303,8 +303,9 @@ func (api *memberAPI) updateMember(ctx context.Context, actor memberActor, worko
 	}
 
 	// A vendor is in no team: a team would open whole projects to every check that asks only
-	// whether a person is on the project's team.
-	if roleChanged && body.Role == organizationRoleVendor {
+	// whether a person is on the project's team. Done whenever the role is set to Vendor, changed
+	// or not, so a retry after a failure here still removes them.
+	if body.Role == organizationRoleVendor {
 		if _, err := api.pool.Exec(ctx, `
             delete from team_memberships tm using teams t
             where t.id = tm.team_id and t.organization_id = $1 and tm.user_id = $2`,

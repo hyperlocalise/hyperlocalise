@@ -130,16 +130,21 @@ export function createWorkosAuthMiddleware() {
         throw new Error("missing_auth_context");
       }
 
-      // The route that will handle the request: the last match that is not a middleware.
+      // The routes that can handle the request: every match that is not a middleware. Hono runs
+      // them in the order they were registered, so a vendor is let in only when all of them are
+      // vendor routes; a closed route that also matched the path could otherwise answer first.
       // Read from the request itself. The `hono/route` helper finds the same list through a
       // symbol, which is a different one whenever Hono is loaded twice (as the test runner
       // does), and then every request here would fail.
-      const handlerRoute = c.req.matchedRoutes.filter((route) => route.method !== "ALL").at(-1);
+      const handlerRoutes = c.req.matchedRoutes.filter((route) => route.method !== "ALL");
+      const allowVendor =
+        handlerRoutes.length > 0 &&
+        handlerRoutes.every((route) => isVendorApiRoute(route.method, route.path));
       const authFromSession = await resolveApiAuthContextFromSession({
         cookie: c.req.header("cookie"),
         organizationSlug,
         teamSlug,
-        allowVendor: isVendorApiRoute(c.req.method, handlerRoute?.path),
+        allowVendor,
       });
       if (!authFromSession) {
         if (organizationSlug) {

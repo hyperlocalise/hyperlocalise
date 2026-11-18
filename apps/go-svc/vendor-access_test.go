@@ -664,7 +664,7 @@ func TestVendorIsAcceptedOnlyWhereListed(t *testing.T) {
 	// The two helpers above are the only ways a route is opened: nothing else may ask a wrapper
 	// to accept a vendor.
 	var accepting []string
-	acceptsVendor := regexp.MustCompile(`handleFor\([^)]*\)|\.handle\(fn, [a-zA-Z]+\)`)
+	acceptsVendor := regexp.MustCompile(`handleFor\([^)]*\)|\.handle\([^,()]+, [a-zA-Z]+\)`)
 	for _, file := range files {
 		if strings.HasSuffix(file, "_test.go") {
 			continue
@@ -736,6 +736,7 @@ func TestTaskScopeIsOneBranchOfTheFile(t *testing.T) {
 
 	// Naming the other branch's string while on the task's branch returns nothing of it.
 	targets := f.cat(http.MethodPost, "/targets", `{"segments":[{"externalStringId":"`+branchKey+`","sourcePath":"`+f.path+`"}],"targetLocales":["fr"]}`)
+	require.Equal(t, http.StatusOK, targets.Code, targets.Body.String())
 	require.NotContains(t, targets.Body.String(), "Bonjour release")
 
 	// A task made on the branch opens that branch and not the default one.

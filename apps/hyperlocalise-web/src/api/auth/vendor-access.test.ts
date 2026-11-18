@@ -12,6 +12,10 @@
  */
 import "dotenv/config";
 
+import { createHash } from "node:crypto";
+
+import { evlog } from "evlog/hono";
+import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
@@ -25,7 +29,9 @@ import {
   VendorAccessDeniedError,
   vendorHomePath,
 } from "@/api/auth/vendor-access";
-import type { ApiAuthContext } from "@/api/auth/workos";
+import { createMcpAuthorizationRequest, MCP_AUTH_REQUEST_COOKIE } from "@/api/auth/mcp";
+import { workosAuthMiddleware, type ApiAuthContext } from "@/api/auth/workos";
+import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(),
@@ -210,6 +216,69 @@ describe("the API routes a vendor may call", () => {
     expect(wronglyOpen).toEqual([]);
     expect([...allowed].toSorted()).toEqual([...VENDOR_API_ROUTES].toSorted());
   }, 120_000);
+
+  it("does not let a vendor in when a closed route also matches the path", async () => {
+    signInAsVendor();
+    const allowedFor = async (routes: { request: Hono["request"] }) => {
+      resolveApiAuthContextFromSessionMock.mockClear();
+      await routes.request("http://localhost/api/orgs/acme/projects/p1/assets/f1", {
+        headers: { cookie: "wos-session=vendor" },
+      });
+      const [options] = resolveApiAuthContextFromSessionMock.mock.calls[0] as [
+        { allowVendor?: boolean },
+      ];
+      return options.allowVendor;
+    };
+    const vendorRoute = "/api/orgs/:organizationSlug/projects/:projectId/assets/:fileId";
+    const gated = () =>
+      new Hono().use("*", evlog()).use("/api/orgs/:organizationSlug/*", workosAuthMiddleware);
+
+    expect(await allowedFor(gated().get(vendorRoute, (c) => c.text("task file")))).toBe(true);
+    // Hono would run the closed route first, so the vendor must not get past the gate.
+    for (const closedRoute of [
+      "/api/orgs/:organizationSlug/projects/:projectId/:kind/:id",
+      "/api/orgs/:organizationSlug/projects/*",
+    ]) {
+      const before = gated()
+        .get(closedRoute, (c) => c.text("closed"))
+        .get(vendorRoute, (c) => c.text("task file"));
+      const after = gated()
+        .get(vendorRoute, (c) => c.text("task file"))
+        .get(closedRoute, (c) => c.text("closed"));
+      expect(await allowedFor(before), closedRoute).toBe(false);
+      expect(await allowedFor(after), closedRoute).toBe(false);
+    }
+  });
+
+  it("answers a vendor's MCP sign-in with a refusal, not an error", async () => {
+    signInAsVendor();
+    const mcp = createMcpTestApp();
+    const challenge = createHash("sha256").update("v".repeat(64)).digest("base64url");
+    const authRequest = createMcpAuthorizationRequest({
+      clientId: "test-client",
+      redirectUri: "http://localhost:8787/callback",
+      codeChallenge: challenge,
+      codeChallengeMethod: "S256",
+      scope: "mcp",
+    });
+    for (const path of ["/mcp/callback", "/mcp/consent"]) {
+      const url = new URL(`http://localhost${path}`);
+      url.searchParams.set("response_type", "code");
+      url.searchParams.set("client_id", "test-client");
+      url.searchParams.set("redirect_uri", "http://localhost:8787/callback");
+      url.searchParams.set("code_challenge", challenge);
+      url.searchParams.set("code_challenge_method", "S256");
+      for (const method of path === "/mcp/consent" ? ["GET", "POST"] : ["GET"]) {
+        const response = await mcp.request(url, {
+          method,
+          headers: { cookie: `${MCP_AUTH_REQUEST_COOKIE}=${authRequest}` },
+          redirect: "manual",
+        });
+        expect(response.status, `${method} ${path}`).toBe(403);
+        expect(await response.json(), `${method} ${path}`).toEqual({ error: "access_denied" });
+      }
+    }
+  });
 
   it("lists exactly the routes the design opens", () => {
     expect([...VENDOR_API_ROUTES].toSorted()).toEqual([

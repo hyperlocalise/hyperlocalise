@@ -243,15 +243,22 @@ export function taskRouteAccessCovers(
 }
 
 /**
- * Whether the text is the source text of a string in one of the files the access covers. Used
- * to keep memory and glossary lookup to the strings of a task, so it cannot be used to browse.
+ * Whether the text is the source text of a string in one of the files the access covers for
+ * the language. Used to keep memory and glossary lookup to the strings of a task, so it cannot
+ * be used to browse.
  */
 export async function taskRouteAccessHasSourceText(
   access: TaskRouteProjectAccess,
-  input: { organizationId: string; projectId: string; sourceText: string },
+  input: { organizationId: string; projectId: string; sourceText: string; locale: string },
 ): Promise<boolean> {
   if (access.kind === "team") {
     return true;
+  }
+  const fileIds = access.files
+    .filter((file) => file.targetLocales.includes(input.locale))
+    .map((file) => file.repositorySourceFileId);
+  if (fileIds.length === 0) {
+    return false;
   }
   const [key] = await db
     .select({ id: schema.projectTranslationKeys.id })
@@ -260,12 +267,13 @@ export async function taskRouteAccessHasSourceText(
       and(
         eq(schema.projectTranslationKeys.organizationId, input.organizationId),
         eq(schema.projectTranslationKeys.projectId, input.projectId),
-        inArray(
-          schema.projectTranslationKeys.repositorySourceFileId,
-          access.files.map((file) => file.repositorySourceFileId),
+        inArray(schema.projectTranslationKeys.repositorySourceFileId, fileIds),
+        // The editor sends a string's text as it is stored; the same text with the white space
+        // at its ends removed (line breaks and tabs included) is taken too.
+        or(
+          eq(schema.projectTranslationKeys.sourceText, input.sourceText),
+          sql`regexp_replace(${schema.projectTranslationKeys.sourceText}, '^\\s+|\\s+$', '', 'g') = ${input.sourceText.trim()}`,
         ),
-        // The request trims the text, so the comparison does too.
-        sql`btrim(${schema.projectTranslationKeys.sourceText}) = ${input.sourceText.trim()}`,
       ),
     )
     .limit(1);

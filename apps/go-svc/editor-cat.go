@@ -376,8 +376,9 @@ func (api *editorCatAPI) handle(fn func(*http.Request, editorCatActor, editorCat
 		}
 		if err != nil {
 			if actor.isVendor() {
-				// Their only way in is an open task of their own, so say what happened to it.
-				err = editorCatFailure(404, "task_not_open", "This task is finished or was given to someone else")
+				// Their only way in is an open task of their own. It may also be waiting for an
+				// earlier task, so the message does not claim to know which.
+				err = editorCatFailure(404, "task_not_open", "This task is not open for you. It may be finished, waiting for an earlier task, or given to someone else")
 			}
 			writeEditorCatError(w, r, "resolve_project", err)
 			return

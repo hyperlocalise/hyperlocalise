@@ -772,11 +772,16 @@ export function ProjectFileContentEditorWorkspace({
       formatChecks?: readonly ContentEditorFormatCheck[],
     ): Promise<ContentEditorFormatCheck[]> => {
       if (!isNativeProject) return [];
-      const policyResult = await qaPolicyQuery.refetch();
-      if (!policyResult.isSuccess || !policyResult.data) {
-        throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.qaValidationRequired));
+      // Someone here through a task cannot read the project's QA settings (and `refetch` would
+      // ask for them even with the query off), so the gate uses the rules sent with the queue.
+      let policy: QaCheckPolicy = qaPolicy;
+      if (!taskScoped) {
+        const policyResult = await qaPolicyQuery.refetch();
+        if (!policyResult.isSuccess || !policyResult.data) {
+          throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.qaValidationRequired));
+        }
+        policy = policyResult.data.settings.checks;
       }
-      const policy = policyResult.data.settings.checks;
       const validation = await fetchCatSegmentValidation(
         {
           sourceText: segment.sourceText,
@@ -822,9 +827,11 @@ export function ProjectFileContentEditorWorkspace({
       glossaryTermsForQaGate,
       intl,
       isNativeProject,
+      qaPolicy,
       qaPolicyQuery,
       sourcePath,
       spellcheckDictionary.acceptedWords,
+      taskScoped,
     ],
   );
   /** Bulk and batch writes pass `allowOverride: false` so they never open one dialog per row. */

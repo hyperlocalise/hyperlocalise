@@ -74,6 +74,7 @@ import {
   type McpAuthVariables,
 } from "@/api/auth/mcp";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { VendorAccessDeniedError } from "@/api/auth/vendor-access";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
@@ -2928,6 +2929,20 @@ const validateRegisterBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+// MCP never acts for a vendor (`api/auth/vendor-access.ts`). The session function refuses one by
+// throwing, and these routes have no error handler of their own, so the refusal is answered here.
+const VENDOR_REFUSED = Symbol("vendor_refused");
+async function resolveSignInAuth(organizationSlug: string | undefined) {
+  try {
+    return await resolveApiAuthContextFromSession({ organizationSlug });
+  } catch (error) {
+    if (error instanceof VendorAccessDeniedError) {
+      return VENDOR_REFUSED;
+    }
+    throw error;
+  }
+}
+
 export function createMcpRoutes(
   options: {
     apiBasePath?: string;
@@ -3047,9 +3062,10 @@ export function createMcpRoutes(
         return c.json({ error: "invalid_request" }, 400);
       }
 
-      const auth = await resolveApiAuthContextFromSession({
-        organizationSlug: query.organizationSlug ?? authRequest.organizationSlug,
-      });
+      const auth = await resolveSignInAuth(query.organizationSlug ?? authRequest.organizationSlug);
+      if (auth === VENDOR_REFUSED) {
+        return c.json({ error: "access_denied" }, 403);
+      }
 
       if (!auth) {
         const requestUrl = new URL(c.req.url);
@@ -3090,9 +3106,10 @@ export function createMcpRoutes(
         return c.json({ error: "invalid_request" }, 400);
       }
 
-      const auth = await resolveApiAuthContextFromSession({
-        organizationSlug: query.organizationSlug ?? authRequest.organizationSlug,
-      });
+      const auth = await resolveSignInAuth(query.organizationSlug ?? authRequest.organizationSlug);
+      if (auth === VENDOR_REFUSED) {
+        return c.json({ error: "access_denied" }, 403);
+      }
 
       if (!auth) {
         return c.json({ error: "access_denied" }, 403);
@@ -3126,9 +3143,10 @@ export function createMcpRoutes(
         return c.json({ error: "invalid_request" }, 400);
       }
 
-      const auth = await resolveApiAuthContextFromSession({
-        organizationSlug: query.organizationSlug ?? authRequest.organizationSlug,
-      });
+      const auth = await resolveSignInAuth(query.organizationSlug ?? authRequest.organizationSlug);
+      if (auth === VENDOR_REFUSED) {
+        return c.json({ error: "access_denied" }, 403);
+      }
 
       if (!auth) {
         const requestUrl = new URL(c.req.url);
