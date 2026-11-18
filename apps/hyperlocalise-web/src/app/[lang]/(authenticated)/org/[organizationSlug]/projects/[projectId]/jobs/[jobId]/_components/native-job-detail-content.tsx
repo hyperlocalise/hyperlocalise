@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -372,6 +372,15 @@ export function NativeJobDetailContent({
 
   const propertyEditDisabled = jobActionPending || saveTitle.isPending;
   const editableProperties = (layout?.properties ?? []).map((property) => {
+    // A task owner cannot read the member list, and the task is their own.
+    if (
+      taskOwnerOnly &&
+      property.id === "assignees" &&
+      job?.ownerUserId &&
+      job.ownerUserId === currentUserId
+    ) {
+      return { ...property, value: intl.formatMessage(messages.taskOwnerIsYou) };
+    }
     if (!isNativeEditable || !job) {
       return property;
     }
@@ -530,8 +539,11 @@ export function NativeJobDetailContent({
         // A task owner cannot open the project's job list, so the way back is My jobs.
         {...(taskOwnerOnly
           ? {
-              renderBackLink: ({ children }: { children: ReactNode }) =>
-                defaultRenderBackLink({ href: myJobsHref, children }),
+              renderBackLink: () =>
+                defaultRenderBackLink({
+                  href: myJobsHref,
+                  children: intl.formatMessage(messages.taskOwnerBackLink),
+                }),
             }
           : {})}
         isLoading={jobQuery.isLoading || taskNoLongerOpen}

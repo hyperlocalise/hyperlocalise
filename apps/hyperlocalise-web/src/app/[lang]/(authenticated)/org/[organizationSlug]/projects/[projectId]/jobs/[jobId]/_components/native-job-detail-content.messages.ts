@@ -178,6 +178,18 @@ export const nativeJobDetailContentMessages = defineMessages({
     id: "xkC+jko3kk",
     description: "Error toast when marking a task done after someone else finished or cancelled it",
   },
+  taskOwnerBackLink: {
+    defaultMessage: "My Jobs",
+    id: "NKjRfsbKUd",
+    description:
+      "Back link on a task's page for someone who reached it only because they own the task; leads to My Jobs",
+  },
+  taskOwnerIsYou: {
+    defaultMessage: "You",
+    id: "kD8yTqsdeD",
+    description:
+      "Assignee shown on a task's page to the person who owns the task, when they see the page only because they own it",
+  },
   taskNoLongerYours: {
     defaultMessage: "This task is finished or was given to someone else.",
     id: "3+tuLaI0A+",

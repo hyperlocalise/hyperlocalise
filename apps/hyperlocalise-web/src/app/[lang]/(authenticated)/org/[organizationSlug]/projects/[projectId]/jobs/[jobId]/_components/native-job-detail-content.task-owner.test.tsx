@@ -115,6 +115,9 @@ describe("the task page for someone here through a task they own", () => {
     for (const name of ["Cancel job", "Mark as failed"]) {
       expect(screen.queryByRole("button", { name }), name).toBeNull();
     }
+    // The task is their own, and the member list is closed to them.
+    expect(screen.getByText("You")).toBeTruthy();
+    expect(screen.getByText("My Jobs")).toBeTruthy();
     // The way back is My jobs, not the project's job list.
     const hrefs = Array.from(document.querySelectorAll("a[href]"), (link) =>
       link.getAttribute("href"),
