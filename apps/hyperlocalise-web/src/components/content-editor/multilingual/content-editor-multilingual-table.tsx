@@ -94,6 +94,7 @@ export interface ContentEditorMultilingualConfig {
       request: ImageEditRequest;
       image: Blob;
       mask: Blob | null;
+      references: Blob[];
       force?: boolean;
       signal?: AbortSignal;
     },

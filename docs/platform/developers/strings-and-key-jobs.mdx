@@ -179,7 +179,7 @@ Creating, linking, and deleting take `strings:write` and the admin, localization
 
 ## Batch review
 
-**Approve** waiting translations and drafts that have text (Phrase-style verify):
+**Approve** waiting translations and drafts that have text:
 
 ```bash
 curl --fail-with-body \
@@ -194,7 +194,7 @@ curl --fail-with-body \
 
 Requires `translations:approve`. Blank translations, rejected translations, text over the string's maximum length, and segments locked in the Content Editor are skipped.
 
-**Send back to review** keeps the current translation text but sets status to needs review (Phrase-style unverify):
+**Send back to review** keeps the current translation text but sets status to needs review:
 
 ```bash
 curl --fail-with-body \

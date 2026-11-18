@@ -188,6 +188,16 @@ export const imageViewerMessages = defineMessages({
     defaultMessage: "Detected regions are approximate. Review the text before generating.",
     description: "Image viewer: inferred",
   },
+  viewMode: {
+    id: "yoyYY9+ov8",
+    defaultMessage: "Image view",
+    description: "Image viewer: accessible label for the group that switches between views",
+  },
+  sideBySideView: {
+    id: "5Oy8VIf/qh",
+    defaultMessage: "Side by side",
+    description: "Image viewer: shows the original and the localised image next to each other",
+  },
   sourceView: {
     id: "5nMGAs/8dj",
     defaultMessage: "Original",

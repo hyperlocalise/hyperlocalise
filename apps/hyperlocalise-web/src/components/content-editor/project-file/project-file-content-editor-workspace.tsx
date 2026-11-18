@@ -1792,6 +1792,13 @@ export function ProjectFileContentEditorWorkspace({
                                           force: options?.force,
                                         });
                                       },
+                                      onEditImage: async (segmentId, edit) => {
+                                        await editImage({
+                                          externalStringId: segmentId,
+                                          targetLocale,
+                                          ...edit,
+                                        });
+                                      },
                                     }
                                   : {}),
                                 onSetMaxLength: handleSetMaxLength,

@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { MAX_IMAGE_EDIT_REFERENCES } from "@/lib/projects/files/image-edit";
 import { describe, expect, it } from "vite-plus/test";
 
 import { imageEditRequest } from "./content-editor-image-edit-canvas";
@@ -82,6 +83,32 @@ describe("image edit store", () => {
     expect(taken && imageEditRequest(taken.drawing)).toEqual({
       kind: "comment",
       notes: ["Use dong"],
+    });
+  });
+
+  it("adds reference images to a note, up to the edit's limit, and applies with them alone", () => {
+    const store = new ContentEditorImageEditStore();
+    store.begin(target, "comment");
+    store.addPin({ x: 0.5, y: 0.5 });
+    const image = () => new Blob(["x"], { type: "image/png" });
+
+    store.addReferences(0, [image(), new Blob(["x"], { type: "text/plain" })]);
+    expect(store.pins[0]?.references).toHaveLength(1);
+    expect(store.canApply).toBe(true);
+
+    store.addPin({ x: 0.1, y: 0.1 });
+    store.addReferences(1, Array.from({ length: 12 }, image));
+    expect(store.pins[1]?.references).toHaveLength(MAX_IMAGE_EDIT_REFERENCES - 1);
+    expect(store.referencesLeft).toBe(0);
+
+    store.removeReference(1, 0);
+    expect(store.referencesLeft).toBe(1);
+
+    const taken = store.takeDrawing();
+    expect(taken && imageEditRequest(taken.drawing)).toEqual({
+      kind: "comment",
+      notes: ["", ""],
+      noteReferences: [1, MAX_IMAGE_EDIT_REFERENCES - 2],
     });
   });
 

@@ -22,8 +22,8 @@ export const projectBranchesPageContentMessages = defineMessages({
   },
   description: {
     defaultMessage:
-      "Version branches copy files and strings, like Phrase Strings. Sync from the parent, then merge when the work is ready.",
-    id: "fHHK+KSHKf",
+      "Version branches copy files and strings. Sync from the parent, then merge when the work is ready.",
+    id: "WJlozROrx5",
     description: "Page description for native project version branches",
   },
   nameLabel: {

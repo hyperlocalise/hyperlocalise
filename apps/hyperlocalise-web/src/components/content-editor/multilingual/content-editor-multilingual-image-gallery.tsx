@@ -514,11 +514,15 @@ export const ContentEditorMultilingualImageGallery = observer(
         await generations.run(segment.id, locale, async (signal) => {
           const response = await fetch(imageSrc, { signal });
           if (!response.ok) throw new Error("Could not load the image to edit");
-          const { image, mask } = await prepareImageEdit(await response.blob(), drawing);
+          const { image, mask, references } = await prepareImageEdit(
+            await response.blob(),
+            drawing,
+          );
           await onEditImage(segment, locale, {
             request: imageEditRequest(drawing),
             image,
             mask,
+            references,
             force: options?.force,
             signal,
           });

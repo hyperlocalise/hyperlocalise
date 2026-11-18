@@ -534,7 +534,7 @@ export async function replaceImageVariantBytes(input: {
  * locale's current image and stores the result as the locale's new variant,
  * back in review. `image` is the current variant as prepared by the editor
  * (marks and pins drawn on it); `mask`, when sent, marks the only area the
- * model may redraw.
+ * model may redraw; `references` are the comment notes' reference images.
  */
 export async function editAndStoreImageVariant(input: {
   organizationId: string;
@@ -544,6 +544,7 @@ export async function editAndStoreImageVariant(input: {
   request: ImageEditRequest;
   image: Buffer;
   mask?: Buffer | null;
+  references?: Buffer[];
   repositorySourceFileId?: string | null;
   createdByUserId?: string | null;
   force?: boolean;
@@ -579,6 +580,7 @@ export async function editAndStoreImageVariant(input: {
       {
         signal: input.signal,
         ...(input.mask && imageEditUsesMask(input.request.kind) ? { mask: input.mask } : {}),
+        ...(input.references?.length ? { references: input.references } : {}),
         transparentBackground: input.request.kind === "removeBackground",
       },
     );

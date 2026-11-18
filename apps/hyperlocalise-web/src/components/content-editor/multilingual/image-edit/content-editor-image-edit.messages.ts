@@ -150,6 +150,26 @@ export const imageEditMessages = defineMessages({
     id: "lxeDn/IoZe",
     description: "Removes a note pinned on the image",
   },
+  addReference: {
+    defaultMessage: "Add reference image",
+    id: "49k1zSGHH4",
+    description: "Button on an image note that attaches an image for the AI to take from",
+  },
+  removeReference: {
+    defaultMessage: "Remove reference {number}",
+    id: "HfR6ecD8Qi",
+    description: "Removes one reference image from a note pinned on the image",
+  },
+  referenceHint: {
+    defaultMessage: "Add, drop or paste images for the AI to use here",
+    id: "tvFKt2Hte9",
+    description: "Hint under a note pinned on the image about attaching reference images",
+  },
+  moreReferences: {
+    defaultMessage: "+{count}",
+    id: "lXCtej92/g",
+    description: "How many more reference images a note has beyond the one shown",
+  },
   editError: {
     defaultMessage: "Could not edit this image. Try again.",
     id: "bypuk8nZN6",

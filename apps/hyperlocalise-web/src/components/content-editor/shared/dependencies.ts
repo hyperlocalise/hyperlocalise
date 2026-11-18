@@ -12,6 +12,7 @@
  */
 import type { ContentEditorMultilingualConfig } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import type { ContentEditorVisualContext } from "@/lib/translation/content-editor-visual-context";
+import type { ImageEditRequest } from "@/lib/projects/files/image-edit";
 import type {
   ContentEditorFormatCheck,
   ContentEditorGlossaryConcept,
@@ -49,6 +50,16 @@ export interface ContentEditorWorkspaceNavigation {
   onReviewInSequence: () => void;
 }
 
+/** An AI image edit as the editor prepared it: the request and the images it sends. */
+export type ContentEditorImageEditInput = {
+  request: ImageEditRequest;
+  image: Blob;
+  mask: Blob | null;
+  references: Blob[];
+  force?: boolean;
+  signal?: AbortSignal;
+};
+
 export interface ContentEditorWorkspaceEditing {
   onTargetChange: (segmentId: string, value: string) => void;
   onUseAiSuggestion: (segmentId: string) => void;
@@ -60,6 +71,8 @@ export interface ContentEditorWorkspaceEditing {
     segmentId: string,
     options?: { instructions?: string; force?: boolean },
   ) => void | Promise<void>;
+  /** Runs a targeted AI edit (markup, comment, erase, remove background) on the segment's image. */
+  onEditImage?: (segmentId: string, input: ContentEditorImageEditInput) => Promise<void>;
   onUploadImage?: (segmentId: string, file: File) => void | Promise<void>;
   onUploadVisualContext?: (
     segmentId: string,

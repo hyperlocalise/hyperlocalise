@@ -13,16 +13,38 @@
  * Version 2.0 or later.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { observer } from "mobx-react-lite";
 import { ImageCanvas } from "./content-editor-image-canvas";
 import { ContentEditorFileGenerateDialog } from "./content-editor-file-generate-dialog";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useIntl } from "react-intl";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { ImageGenerationLoadingCard } from "@/components/ui/image-generation-loading-card";
 import { useImageNaturalSize } from "@/components/content-editor/shared/use-image-natural-size";
 import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
+import { ContentEditorImageEditActions } from "@/components/content-editor/multilingual/image-edit/content-editor-image-edit-actions";
+import {
+  imageEditRequest,
+  prepareImageEdit,
+  type ImageEditDrawing,
+} from "@/components/content-editor/multilingual/image-edit/content-editor-image-edit-canvas";
+import { ContentEditorImageEditOverlay } from "@/components/content-editor/multilingual/image-edit/content-editor-image-edit-overlay";
+import { ContentEditorImageEditStore } from "@/components/content-editor/multilingual/image-edit/content-editor-image-edit-store";
+import { imageEditMessages } from "@/components/content-editor/multilingual/image-edit/content-editor-image-edit.messages";
+import type { ContentEditorImageEditInput } from "@/components/content-editor/shared/dependencies";
+import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
 import { readApiResponseError } from "@/lib/api-error";
 import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
 import { cn } from "@/lib/primitives/cn";
@@ -47,7 +69,19 @@ type ImageWorkspaceProps = {
   actions: ReactNode;
   onDirtyChange: (dirty: boolean) => void;
   onRegenerate?: (input: { instructions?: string }) => void | Promise<void>;
+  /** Runs a targeted AI edit (markup, comment, erase, remove background) on the localised image. */
+  onEdit?: (input: ContentEditorImageEditInput) => Promise<void>;
+  /** The localised image is approved: editing it asks first, then sends it back to review. */
+  isApproved?: boolean;
+  /** Shows or hides the original next to the localised image. */
+  onSourcePaneVisibleChange?: (visible: boolean) => void;
 };
+
+/** How the image is shown: one of them, both next to each other, or one over the other. */
+type ImageViewMode = "target" | "source" | "sideBySide" | "overlay";
+
+/** The edit target in the shared edit store: this workspace shows one image. */
+const EDIT_SEGMENT = "file";
 
 export function imageTextLayersEndpoint(src: string | null): string | null {
   if (!src || !URL.canParse(src, window.location.origin)) return null;
@@ -60,14 +94,22 @@ export function imageTextLayersEndpoint(src: string | null): string | null {
   return `${url.pathname}/text-layers`;
 }
 
-export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
+export const ContentEditorImageWorkspace = observer(function ContentEditorImageWorkspace(
+  props: ImageWorkspaceProps,
+) {
   const intl = useIntl();
+  const [editStore] = useState(() => new ContentEditorImageEditStore());
+  const editRef = useRef<AbortController | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editFailed, setEditFailed] = useState<{ refused: boolean } | null>(null);
+  const [pendingEdit, setPendingEdit] = useState<ImageEditDrawing | null>(null);
   const reduceMotion = useReducedMotion();
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      editRef.current?.abort();
     };
   }, []);
   const mutationRef = useRef<AbortController | null>(null);
@@ -100,8 +142,8 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
   // URL parsing occurs in an effect so server rendering never reads window.
   const [endpoint, setEndpoint] = useState<string | null>(null);
   const selected = layers?.regions.find((region) => region.id === selectedId) ?? layers?.regions[0];
-  const busy = props.isBusy || generating || status !== "idle";
-  const showGenerationCard = generating || Boolean(props.isGenerating);
+  const busy = props.isBusy || generating || editing || status !== "idle";
+  const showGenerationCard = generating || editing || Boolean(props.isGenerating);
   const sourceSize = useImageNaturalSize(props.sourceSrc);
   const transition = { duration: reduceMotion ? 0 : 0.2, ease: "easeOut" as const };
   useEffect(() => {
@@ -223,6 +265,39 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
     }
   }
 
+  async function runEdit(drawing: ImageEditDrawing, force?: boolean) {
+    if (!props.onEdit || !props.targetSrc) return;
+    const controller = new AbortController();
+    editRef.current = controller;
+    setEditing(true);
+    setEditFailed(null);
+    setWipe(false);
+    setView("target");
+    try {
+      const response = await fetch(props.targetSrc, { signal: controller.signal });
+      if (!response.ok) throw new Error("Could not load the image to edit");
+      const { image, mask, references } = await prepareImageEdit(await response.blob(), drawing);
+      await props.onEdit({
+        request: imageEditRequest(drawing),
+        image,
+        mask,
+        references,
+        force,
+        signal: controller.signal,
+      });
+    } catch (cause) {
+      if (!controller.signal.aborted && mountedRef.current) {
+        setEditFailed({ refused: isAiCreditExhaustedError(cause) });
+      }
+    } finally {
+      if (mountedRef.current) setEditing(false);
+    }
+  }
+  function requestEdit(drawing: ImageEditDrawing) {
+    if (props.isApproved) setPendingEdit(drawing);
+    else void runEdit(drawing);
+  }
+
   function editRegion(update: Partial<ImageTextRegion>) {
     if (!selected || !layers) return;
     setLayers({
@@ -255,6 +330,46 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
   });
   const displaySource = view === "source" || (!props.targetSrc && !props.sourcePaneVisible);
   const mainSrc = displaySource ? props.sourceSrc : props.targetSrc;
+  const viewMode: ImageViewMode = wipe
+    ? "overlay"
+    : props.sourcePaneVisible && props.sourceSrc
+      ? "sideBySide"
+      : displaySource
+        ? "source"
+        : "target";
+  const viewModes: { mode: ImageViewMode; label: string; disabled: boolean }[] = [
+    {
+      mode: "target",
+      label: intl.formatMessage(messages.targetView),
+      disabled: !props.targetSrc,
+    },
+    { mode: "source", label: intl.formatMessage(messages.sourceView), disabled: !props.sourceSrc },
+    ...(props.onSourcePaneVisibleChange
+      ? [
+          {
+            mode: "sideBySide" as const,
+            label: intl.formatMessage(messages.sideBySideView),
+            disabled: !props.sourceSrc,
+          },
+        ]
+      : []),
+    {
+      mode: "overlay",
+      label: intl.formatMessage(messages.wipe),
+      disabled: !props.targetSrc || !props.sourceSrc,
+    },
+  ];
+  function changeView(mode: ImageViewMode) {
+    editStore.cancel();
+    setWipe(mode === "overlay");
+    setView(mode === "source" ? "source" : "target");
+    if (mode !== "overlay") props.onSourcePaneVisibleChange?.(mode === "sideBySide");
+  }
+  const language = formatLocaleDisplayName(intl, props.targetLocale);
+  const drawingTool = editStore.toolFor(EDIT_SEGMENT, props.targetLocale);
+  const canEditImage = Boolean(
+    props.onEdit && props.canEdit && props.targetSrc && !displaySource && !wipe,
+  );
   const canvasProps = {
     regions: layers?.regions ?? [],
     selectedId: selected?.id ?? null,
@@ -272,38 +387,28 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
       <div className="mx-auto flex max-w-[96rem] flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="xs"
-              variant="outline"
-              aria-pressed={displaySource}
-              onClick={() => {
-                setView("source");
-                setWipe(false);
-              }}
+            <div
+              role="radiogroup"
+              aria-label={intl.formatMessage(messages.viewMode)}
+              className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-border/60 bg-muted/60 p-0.5"
             >
-              {intl.formatMessage(messages.sourceView)}
-            </Button>
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={!props.targetSrc}
-              aria-pressed={!displaySource}
-              onClick={() => setView("target")}
-            >
-              {intl.formatMessage(messages.targetView)}
-            </Button>
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={!props.targetSrc || !props.sourceSrc}
-              aria-pressed={wipe}
-              onClick={() => {
-                setWipe(!wipe);
-                setView("target");
-              }}
-            >
-              {intl.formatMessage(messages.wipe)}
-            </Button>
+              {viewModes.map(({ mode, label, disabled }) => (
+                <button
+                  key={mode}
+                  type="button"
+                  role="radio"
+                  aria-checked={viewMode === mode}
+                  disabled={disabled}
+                  onClick={() => changeView(mode)}
+                  className={cn(
+                    "h-6 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+                    viewMode === mode && "bg-background text-foreground shadow-sm",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <Button
               size="xs"
               variant="ghost"
@@ -405,6 +510,25 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
                     ) : null}
                   </div>
                 </div>
+                {canEditImage && !showGenerationCard ? (
+                  <div className="border-b px-4 py-2">
+                    <ContentEditorImageEditActions
+                      layout="toolbar"
+                      store={editStore}
+                      segmentId={EDIT_SEGMENT}
+                      locale={props.targetLocale}
+                      language={language}
+                      hasImage
+                      busy={busy || conflict}
+                      canEdit
+                      onRemoveBackground={() => requestEdit({ kind: "removeBackground" })}
+                      onApply={() => {
+                        const taken = editStore.takeDrawing();
+                        if (taken) requestEdit(taken.drawing);
+                      }}
+                    />
+                  </div>
+                ) : null}
                 {showGenerationCard ? (
                   <div className="bg-muted/30 p-4 sm:p-6">
                     <ImageGenerationLoadingCard
@@ -423,10 +547,15 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
                     {...canvasProps}
                     src={wipe && props.sourceSrc ? props.sourceSrc : mainSrc}
                     compareSrc={wipe ? props.targetSrc : null}
-                    showRegions={showRegions && (displaySource || wipe)}
+                    showRegions={showRegions && (displaySource || wipe) && !drawingTool}
                     label={intl.formatMessage(
                       displaySource ? messages.sourceAlt : messages.targetAlt,
                     )}
+                    overlay={
+                      drawingTool && canEditImage ? (
+                        <ContentEditorImageEditOverlay store={editStore} tool={drawingTool} />
+                      ) : null
+                    }
                   />
                 ) : (
                   <p className="p-6 text-sm text-muted-foreground">
@@ -458,6 +587,15 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
                       </Button>
                     )}
                   </div>
+                ) : null}
+                {editFailed && !showGenerationCard ? (
+                  <p role="alert" className="border-t p-4 text-sm text-destructive">
+                    {intl.formatMessage(
+                      editFailed.refused
+                        ? aiCreditExhaustedMessages.exhausted
+                        : imageEditMessages.editError,
+                    )}
+                  </p>
                 ) : null}
                 {previewOutdated ? (
                   <p role="status" className="border-t p-4 text-sm text-muted-foreground">
@@ -630,6 +768,35 @@ export function ContentEditorImageWorkspace(props: ImageWorkspaceProps) {
           }}
         />
       ) : null}
+      <AlertDialog
+        open={pendingEdit !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingEdit(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {intl.formatMessage(imageEditMessages.editApprovedTitle, { language })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {intl.formatMessage(imageEditMessages.editApprovedDescription)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{intl.formatMessage(imageEditMessages.cancel)}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const drawing = pendingEdit;
+                setPendingEdit(null);
+                if (drawing) void runEdit(drawing, true);
+              }}
+            >
+              {intl.formatMessage(imageEditMessages.editApprovedConfirm)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
-}
+});

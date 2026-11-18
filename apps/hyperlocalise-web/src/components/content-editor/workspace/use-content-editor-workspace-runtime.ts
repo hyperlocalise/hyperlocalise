@@ -245,6 +245,7 @@ export function useContentEditorWorkspaceRuntime({
       ...(editingOverrides?.onRegenerateImage
         ? { onRegenerateImage: editingOverrides.onRegenerateImage }
         : {}),
+      ...(editingOverrides?.onEditImage ? { onEditImage: editingOverrides.onEditImage } : {}),
       ...(editingOverrides?.onUploadImage ? { onUploadImage: editingOverrides.onUploadImage } : {}),
       ...(editingOverrides?.onUploadVisualContext
         ? {
@@ -320,6 +321,7 @@ export function useContentEditorWorkspaceRuntime({
     };
   }, [
     editingOverrides?.onRegenerateImage,
+    editingOverrides?.onEditImage,
     editingOverrides?.onSetMaxLength,
     editingOverrides?.onTreatAsImage,
     editingOverrides?.onTreatAsVideo,

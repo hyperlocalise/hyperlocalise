@@ -29057,9 +29057,6 @@
   "fHCU/ReHP1": {
     "defaultMessage": "个人访问令牌已撤销"
   },
-  "fHHK+KSHKf": {
-    "defaultMessage": "版本分支会复制文件和字符串，例如 Phrase Strings。先与父分支同步，准备就绪后再合并。"
-  },
   "fHIwmwiNEw": {
     "defaultMessage": "Hyperlocalise 会以您选择的语言重新加载。"
   },
