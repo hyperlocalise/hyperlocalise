@@ -474,7 +474,8 @@ export type MemberRole =
   | "developer"
   | "reviewer"
   | "translator"
-  | "member";
+  | "member"
+  | "vendor";
 
 export type MemberRecord = {
   userId: string;

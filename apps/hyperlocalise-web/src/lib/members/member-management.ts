@@ -24,6 +24,7 @@ export const MEMBER_SETTINGS_ROLE_ORDER: OrganizationMembershipRole[] = [
   "reviewer",
   "translator",
   "member",
+  "vendor",
 ];
 
 const NON_ADMIN_ASSIGNABLE_ROLES: OrganizationMembershipRole[] = MEMBER_SETTINGS_ROLE_ORDER.filter(

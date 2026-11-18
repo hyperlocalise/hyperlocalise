@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useIntl } from "react-intl";
 
+import { useOptionalAppShellSession } from "@/components/app-shell/store/app-shell-session-context";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { buildJobDetailHref } from "../../../../../jobs/_components/jobs-view-helpers";
@@ -40,6 +41,8 @@ export function JobComesAfterField({
 }) {
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
+  // A vendor can open the earlier task only when it is also theirs, which is when it loads.
+  const isVendor = useOptionalAppShellSession()?.isVendor ?? false;
   const earlierJob = useQuery({
     queryKey: ["job", organizationSlug, projectId, afterJobId] as const,
     queryFn: async () =>
@@ -49,7 +52,10 @@ export function JobComesAfterField({
   const title = earlierJob.data
     ? jobDetailTaskLayoutFromRecord(earlierJob.data, intl).title
     : intl.formatMessage(messages.earlierTask);
-  const href = buildJobDetailHref(organizationSlug, projectId, afterJobId);
+  const href =
+    isVendor && !earlierJob.data
+      ? null
+      : buildJobDetailHref(organizationSlug, projectId, afterJobId);
 
   return (
     <span className="flex min-w-0 flex-col gap-1">

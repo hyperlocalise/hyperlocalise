@@ -15,6 +15,7 @@ import type { EvlogVariables } from "evlog/hono";
 
 import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from "@/api/response.schema";
 import { type OrganizationCapability } from "@/api/auth/policy";
+import { isVendorApiRoute, VendorAccessDeniedError } from "@/api/auth/vendor-access";
 import type { OrganizationMembershipRole, TeamMembershipRole } from "@/lib/database/types";
 import type { OrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 import {
@@ -129,10 +130,13 @@ export function createWorkosAuthMiddleware() {
         throw new Error("missing_auth_context");
       }
 
+      // The route that will handle the request: the last match that is not a middleware.
+      const handlerRoute = c.req.matchedRoutes.filter((route) => route.method !== "ALL").at(-1);
       const authFromSession = await resolveApiAuthContextFromSession({
         cookie: c.req.header("cookie"),
         organizationSlug,
         teamSlug,
+        allowVendor: isVendorApiRoute(c.req.method, handlerRoute?.path),
       });
       if (!authFromSession) {
         if (organizationSlug) {
@@ -167,6 +171,10 @@ export function createWorkosAuthMiddleware() {
           "organization_slug_unresolvable",
           "Organization slug is unavailable; choose another workspace",
         );
+      }
+
+      if (error instanceof VendorAccessDeniedError) {
+        return forbiddenResponse(c, "forbidden", "Insufficient permissions");
       }
 
       const message = error instanceof Error ? error.message : "unauthorized";

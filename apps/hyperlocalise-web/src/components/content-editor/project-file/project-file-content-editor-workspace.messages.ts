@@ -51,6 +51,12 @@ export const projectFileCatWorkspaceMessages = defineMessages({
     id: "qGSAjtA2ao",
     description: "Error when the user tries to save or approve without write permission",
   },
+  cannotApproveOnTask: {
+    defaultMessage: "Approving is for the proofread step. Your task is post-editing.",
+    id: "Vnfqx2SAYx",
+    description:
+      "Error when a vendor on a post-edit task tries to approve a translation in the editor",
+  },
   failedToApproveImage: {
     defaultMessage: "Failed to approve image",
     id: "nqfqbc0zeN",

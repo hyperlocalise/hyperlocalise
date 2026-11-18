@@ -17,6 +17,7 @@ import {
   resolveApiAuthContextFromSession,
   StaleOrganizationSlugError,
 } from "@/api/auth/workos-session";
+import { VendorAccessDeniedError } from "@/api/auth/vendor-access";
 import { setStoredActiveOrganizationSlug } from "@/lib/workos/active-organization";
 import {
   clearStoredOnboardingState,
@@ -24,13 +25,31 @@ import {
   setStoredOnboardingState,
 } from "@/lib/workos/onboarding-state";
 
+/**
+ * Onboarding is about the person (creating a workspace of their own), so a vendor passes
+ * here; the pages it leads to refuse them. The request is made as for anyone else first, so
+ * nothing changes for the other roles.
+ */
+async function resolveAllowingVendor(
+  options: NonNullable<Parameters<typeof resolveApiAuthContextFromSession>[0]>,
+) {
+  try {
+    return await resolveApiAuthContextFromSession(options);
+  } catch (error) {
+    if (error instanceof VendorAccessDeniedError) {
+      return resolveApiAuthContextFromSession({ ...options, allowVendor: true });
+    }
+    throw error;
+  }
+}
+
 export async function loadOnboardingContext() {
   const session = await withAuth({ ensureSignedIn: true });
   let onboardingState = await getStoredOnboardingState();
   let auth;
 
   try {
-    auth = await resolveApiAuthContextFromSession({
+    auth = await resolveAllowingVendor({
       session,
       organizationSlug: onboardingState?.organizationSlug,
     });
@@ -44,7 +63,7 @@ export async function loadOnboardingContext() {
       onboardingState = updatedOnboardingState;
 
       try {
-        auth = await resolveApiAuthContextFromSession({
+        auth = await resolveAllowingVendor({
           session,
           organizationSlug: error.currentSlug,
         });
@@ -68,7 +87,7 @@ export async function loadOnboardingContext() {
     } else if (error instanceof OrganizationSlugUnresolvableError) {
       await clearStoredOnboardingState();
       onboardingState = null;
-      auth = await resolveApiAuthContextFromSession({ session });
+      auth = await resolveAllowingVendor({ session });
     } else if (
       error instanceof Error &&
       (error.message === "organization_access_denied" ||

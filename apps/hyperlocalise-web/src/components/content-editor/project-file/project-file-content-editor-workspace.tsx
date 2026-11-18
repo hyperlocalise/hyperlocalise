@@ -197,6 +197,7 @@ export function ProjectFileContentEditorWorkspace({
   pageNavigationGuardRef,
   canWriteDictionaries = false,
   adaptiveWorkspaceEnabled = false,
+  taskScoped = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -224,6 +225,13 @@ export function ProjectFileContentEditorWorkspace({
   pageNavigationGuardRef?: ContentEditorPageNavigationGuardRef;
   canWriteDictionaries?: boolean;
   adaptiveWorkspaceEnabled?: boolean;
+  /**
+   * The person is here through a task they own and not through the project's team (a vendor,
+   * or a member given a task outside their teams). They may read, save, comment, look up
+   * memory and glossary matches, see history and attached screenshots, and download. Everything
+   * about the project itself is closed to them, so it is neither asked for nor offered.
+   */
+  taskScoped?: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -250,7 +258,7 @@ export function ProjectFileContentEditorWorkspace({
       createProjectQaReportClient(goSvcClient).listReports({
         param: { organizationSlug, projectId },
       }),
-    enabled: Boolean(organizationSlug && projectId) && !isExternalProject,
+    enabled: Boolean(organizationSlug && projectId) && !isExternalProject && !taskScoped,
     staleTime: 30_000,
   });
   const qaPolicy = qaPolicyQuery.data?.settings.checks ?? DEFAULT_QA_POLICY;
@@ -260,14 +268,15 @@ export function ProjectFileContentEditorWorkspace({
     queryFn: async () =>
       (await goSvcClient.project.contentEditorBehavior(organizationSlug, projectId))
         .contentEditorBehavior,
-    enabled: Boolean(organizationSlug && projectId && catGoSvcClient),
+    enabled: Boolean(organizationSlug && projectId && catGoSvcClient) && !taskScoped,
     staleTime: 30_000,
   });
   const editorBehavior = editorBehaviorQuery.data;
   const aiFeaturesAccess = useAiFeaturesAccess();
-  const aiFeaturesAllowed = aiFeaturesAccess.status === "allowed";
+  // AI actions are charged to the workspace, so a task owner is offered none, nor the plans.
+  const aiFeaturesAllowed = aiFeaturesAccess.status === "allowed" && !taskScoped;
   const upgradePlanHref =
-    aiFeaturesAccess.status === "denied"
+    aiFeaturesAccess.status === "denied" && !taskScoped
       ? { organizationSlug, href: buildAvailablePlansHref(organizationSlug) }
       : null;
   const [openedSegmentKey, setOpenedSegmentKey] = useState<string | null>(null);
@@ -308,11 +317,15 @@ export function ProjectFileContentEditorWorkspace({
     projectId,
     locale: targetLocale,
     canWriteDictionaries,
+    enabled: !taskScoped,
   });
   const showLocaleSelector = !targetLocaleProp && (targetLocales?.length ?? 0) > 0;
   // Decided before the queue loads so the grouped flag never flips the queue key mid-load.
+  // Groups of identical strings span files, so a task owner has none.
   const groupingSupported =
-    Boolean(catGoSvcClient) && isContentEditorGroupingAvailable({ provider: null }, sourcePath);
+    !taskScoped &&
+    Boolean(catGoSvcClient) &&
+    isContentEditorGroupingAvailable({ provider: null }, sourcePath);
   const groupingMode = useContentEditorGroupingMode({
     client: goSvcClient,
     organizationSlug,
@@ -846,10 +859,11 @@ export function ProjectFileContentEditorWorkspace({
     projectId,
     sourcePath,
     targetLocale,
-    enabled: isNativeProject,
+    enabled: isNativeProject && !taskScoped,
   });
   const canHideNativeStrings =
     isNativeProject &&
+    !taskScoped &&
     Boolean(
       contentEditorFile?.segments.some((segment) => !isFileBackedCatSegment(segment.contentKind)),
     );
@@ -867,6 +881,9 @@ export function ProjectFileContentEditorWorkspace({
         throw new Error(
           intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
         );
+      }
+      if (contentEditorFile.canApproveTranslations === false) {
+        throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.cannotApproveOnTask));
       }
 
       const segment = contentEditorFile.segments.find(
@@ -1765,81 +1782,89 @@ export function ProjectFileContentEditorWorkspace({
                           isFullscreen && "rounded-lg border border-border",
                         )}
                         navigation={{}}
-                        editing={{
-                          onTreatAsImage: async (segmentId, nextTreatAsImage) => {
-                            await treatAsImage({
-                              externalStringId: segmentId,
-                              treatAsImage: nextTreatAsImage,
-                            });
-                          },
-                          ...(isNativeProject
-                            ? {
-                                onTreatAsVideo: async (
-                                  segmentId: string,
-                                  nextTreatAsVideo: boolean,
-                                ) => {
-                                  await treatAsVideo({
+                        editing={
+                          taskScoped
+                            ? {}
+                            : {
+                                onTreatAsImage: async (segmentId, nextTreatAsImage) => {
+                                  await treatAsImage({
                                     externalStringId: segmentId,
-                                    treatAsVideo: nextTreatAsVideo,
+                                    treatAsImage: nextTreatAsImage,
                                   });
                                 },
-                                ...(aiFeaturesAllowed
+                                ...(isNativeProject
                                   ? {
-                                      onRegenerateImage: async (segmentId, options) => {
-                                        await regenerateImage({
+                                      onTreatAsVideo: async (
+                                        segmentId: string,
+                                        nextTreatAsVideo: boolean,
+                                      ) => {
+                                        await treatAsVideo({
                                           externalStringId: segmentId,
-                                          instructions: options?.instructions,
-                                          force: options?.force,
+                                          treatAsVideo: nextTreatAsVideo,
                                         });
                                       },
-                                      onEditImage: async (segmentId, edit) => {
-                                        await editImage({
-                                          externalStringId: segmentId,
-                                          targetLocale,
-                                          ...edit,
-                                        });
+                                      ...(aiFeaturesAllowed
+                                        ? {
+                                            onRegenerateImage: async (segmentId, options) => {
+                                              await regenerateImage({
+                                                externalStringId: segmentId,
+                                                instructions: options?.instructions,
+                                                force: options?.force,
+                                              });
+                                            },
+                                            onEditImage: async (segmentId, edit) => {
+                                              await editImage({
+                                                externalStringId: segmentId,
+                                                targetLocale,
+                                                ...edit,
+                                              });
+                                            },
+                                          }
+                                        : {}),
+                                      onSetMaxLength: handleSetMaxLength,
+                                    }
+                                  : {}),
+                                onUploadImage: async (segmentId, file) => {
+                                  await uploadImage({ externalStringId: segmentId, file });
+                                  if (isKeyedDocumentFileView(segmentId)) {
+                                    await writeDocumentEditsToSegments(file);
+                                  }
+                                },
+                                ...(!contentEditorFile?.provider?.kind ||
+                                contentEditorFile.provider.kind === "native"
+                                  ? {
+                                      onUploadVisualContext: async (
+                                        segmentId: string,
+                                        file: File,
+                                      ) => {
+                                        const visualContext =
+                                          await uploadNativeVisualContextScreenshot({
+                                            client: goSvcClient,
+                                            organizationSlug,
+                                            projectId,
+                                            sourcePath,
+                                            externalStringId: segmentId,
+                                            file,
+                                          });
+                                        return visualContext;
                                       },
                                     }
                                   : {}),
-                                onSetMaxLength: handleSetMaxLength,
                               }
-                            : {}),
-                          onUploadImage: async (segmentId, file) => {
-                            await uploadImage({ externalStringId: segmentId, file });
-                            if (isKeyedDocumentFileView(segmentId)) {
-                              await writeDocumentEditsToSegments(file);
-                            }
-                          },
-                          ...(!contentEditorFile?.provider?.kind ||
-                          contentEditorFile.provider.kind === "native"
-                            ? {
-                                onUploadVisualContext: async (segmentId: string, file: File) => {
-                                  const visualContext = await uploadNativeVisualContextScreenshot({
-                                    client: goSvcClient,
-                                    organizationSlug,
-                                    projectId,
-                                    sourcePath,
-                                    externalStringId: segmentId,
-                                    file,
-                                  });
-                                  return visualContext;
-                                },
-                              }
-                            : {}),
-                        }}
+                        }
                         services={{
                           validateFormat,
-                          runQaChecks,
+                          runQaChecks: taskScoped ? undefined : runQaChecks,
                           runGuidelineCheck:
-                            isNativeProject && qaPolicy.guideline.enabled
+                            isNativeProject && qaPolicy.guideline.enabled && !taskScoped
                               ? runGuidelineCheck
                               : undefined,
                           runGuidelineExplain:
-                            isNativeProject && qaPolicy.guideline.enabled
+                            isNativeProject && qaPolicy.guideline.enabled && !taskScoped
                               ? runGuidelineExplain
                               : undefined,
                           lookupSegmentConcordance,
-                          lookupSegmentContext,
+                          lookupSegmentContext: taskScoped ? undefined : lookupSegmentContext,
                           lookupSegmentVisualContext,
                           generateAiRecommendation:
                             aiFeaturesAccess.status === "allowed"
@@ -1851,7 +1876,7 @@ export function ProjectFileContentEditorWorkspace({
                           onBulkApproveComplete: handleBulkApproveComplete,
                           onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
                           onAddComment: handleAddComment,
-                          onAddToIssueSheet: handleAddToIssueSheet,
+                          onAddToIssueSheet: taskScoped ? undefined : handleAddToIssueSheet,
                           onResolveComment:
                             contentEditorFile?.provider?.kind === "crowdin"
                               ? handleResolveComment
@@ -1865,12 +1890,18 @@ export function ProjectFileContentEditorWorkspace({
                                   handleSetStringsHidden(segmentIds, false),
                               }
                             : {}),
-                          onSetLocked: handleSetStringsLocked,
-                          onBulkLock: (segmentIds: string[]) =>
-                            handleSetStringsLocked(segmentIds, true),
-                          onBulkUnlock: (segmentIds: string[]) =>
-                            handleSetStringsLocked(segmentIds, false),
-                          ...(isNativeProject && contentEditorFile?.canEditTranslations
+                          ...(taskScoped
+                            ? {}
+                            : {
+                                onSetLocked: handleSetStringsLocked,
+                                onBulkLock: (segmentIds: string[]) =>
+                                  handleSetStringsLocked(segmentIds, true),
+                                onBulkUnlock: (segmentIds: string[]) =>
+                                  handleSetStringsLocked(segmentIds, false),
+                              }),
+                          ...(isNativeProject &&
+                          contentEditorFile?.canEditTranslations &&
+                          !taskScoped
                             ? {
                                 onCreateKeyTask: openKeyTaskDialog,
                               }
@@ -1905,11 +1936,11 @@ export function ProjectFileContentEditorWorkspace({
                         hasMoreQueue={pagination?.hasMore ?? false}
                         canLookupFreshContext={aiFeaturesAllowed && canLookupFreshContext}
                         onPageLimitChange={setPageLimit}
-                        nativeIssuesEnabled={isNativeProject}
+                        nativeIssuesEnabled={isNativeProject && !taskScoped}
                         onDownloadFilteredView={handleDownloadFilteredView}
                         isDownloadingFilteredView={isExporting}
                         onImportBilingualFile={
-                          isNativeProject && canEditTranslations
+                          isNativeProject && canEditTranslations && !taskScoped
                             ? handleImportBilingualFile
                             : undefined
                         }

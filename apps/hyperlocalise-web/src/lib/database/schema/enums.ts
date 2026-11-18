@@ -61,6 +61,7 @@ export const organizationMembershipRoleEnum = pgEnum("organization_membership_ro
   "reviewer",
   "translator",
   "member",
+  "vendor",
 ]);
 /**
  * Defines team-level authorization roles used for project visibility and team membership management inside an organization.

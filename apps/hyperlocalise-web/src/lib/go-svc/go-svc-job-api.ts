@@ -55,6 +55,14 @@ export class GoSvcJobApi {
     return this.request.json<{ job: T }>(orgPath(organizationSlug, "jobs", jobId), options);
   }
 
+  /** Who the job can be given to: any active member for a task on a file (`job-owner.ts`). */
+  assignableOwners<T>(organizationSlug: string, jobId: string, options: GoSvcRequestOptions = {}) {
+    return this.request.json<{ members: T[] }>(
+      orgPath(organizationSlug, "jobs", jobId, "assignable-owners"),
+      options,
+    );
+  }
+
   listEvents(organizationSlug: string, jobId: string, options: GoSvcRequestOptions = {}) {
     return this.request.json<{ events: JobEventRecord[] }>(
       orgPath(organizationSlug, "jobs", jobId, "events"),

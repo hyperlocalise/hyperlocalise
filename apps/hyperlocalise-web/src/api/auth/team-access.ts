@@ -13,6 +13,7 @@
 import { and, eq, exists, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
+import { isVendorRole } from "@/api/auth/vendor-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database/client";
 import { providerAssignedUsersMatch } from "@/lib/providers/jobs/tms-provider-assignee-match";
@@ -31,6 +32,11 @@ export function hasOrganizationWideProjectAccess(auth: ApiAuthContext) {
 
 export async function getVisibleTeamIds(auth: ApiAuthContext) {
   const organizationId = auth.activeOrganization.localOrganizationId;
+
+  // A vendor never passes the team rule: a team they were left in gives them nothing.
+  if (isVendorRole(auth.membership.role)) {
+    return [];
+  }
 
   if (hasOrganizationWideProjectAccess(auth)) {
     const teams = await db

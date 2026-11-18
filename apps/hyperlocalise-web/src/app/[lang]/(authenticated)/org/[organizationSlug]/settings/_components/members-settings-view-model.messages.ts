@@ -45,6 +45,11 @@ export const membersSettingsViewModelMessages = defineMessages({
     id: "nOCS+qmeJF",
     description: "Organization membership role label for members",
   },
+  roleVendor: {
+    defaultMessage: "Vendor",
+    id: "3On6Re5why",
+    description: "Organization membership role label for outside vendors",
+  },
   roleAdminDescription: {
     defaultMessage: "Full workspace control including billing and organization settings.",
     id: "PxhmMvItIU",
@@ -78,6 +83,12 @@ export const membersSettingsViewModelMessages = defineMessages({
     defaultMessage: "Read workspace, project, team, glossary, memory, and job surfaces.",
     id: "BuGVGob/k5",
     description: "Description of the member role",
+  },
+  roleVendorDescription: {
+    defaultMessage:
+      "Outside linguist. Sees only the tasks given to them, with the file, memory and glossary each task needs.",
+    id: "AZOD02wbPP",
+    description: "Description of the vendor role",
   },
   statusPending: {
     defaultMessage: "Pending",

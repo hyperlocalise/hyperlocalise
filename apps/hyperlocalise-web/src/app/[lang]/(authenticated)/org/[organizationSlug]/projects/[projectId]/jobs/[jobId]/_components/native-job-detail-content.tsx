@@ -37,6 +37,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { TaskReport } from "@/components/reports/task-report";
+import { useOptionalAppShellSession } from "@/components/app-shell/store/app-shell-session-context";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
@@ -123,6 +124,9 @@ export function NativeJobDetailContent({
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
   const queryClient = useQueryClient();
+  // A vendor has the task's details, Open Editor and Mark done; the rest of the page (other
+  // actions, the activity list, the report) is closed to them, so it is not offered.
+  const isVendor = useOptionalAppShellSession()?.isVendor ?? false;
   const jobQueryKey = ["job", organizationSlug, projectId, jobId] as const;
 
   const jobQuery = useQuery({
@@ -409,7 +413,7 @@ export function NativeJobDetailContent({
           variant="outline"
         />
       ) : null}
-      {canRetryJob(job) ? (
+      {!isVendor && canRetryJob(job) ? (
         <Button
           size="sm"
           variant="outline"
@@ -424,7 +428,7 @@ export function NativeJobDetailContent({
           )}
         </Button>
       ) : null}
-      {canCancelJob(job) ? (
+      {!isVendor && canCancelJob(job) ? (
         <Button
           size="sm"
           variant="outline"
@@ -434,7 +438,7 @@ export function NativeJobDetailContent({
           <FormattedMessage {...messages.cancelJob} />
         </Button>
       ) : null}
-      {canMarkJobFailed(job) ? (
+      {!isVendor && canMarkJobFailed(job) ? (
         <Button
           size="sm"
           variant="destructive"
@@ -445,7 +449,7 @@ export function NativeJobDetailContent({
           <FormattedMessage {...messages.markAsFailed} />
         </Button>
       ) : null}
-      {canEditJobFields &&
+      {(canEditJobFields || isVendor) &&
       canMarkTaskDone(job) &&
       (canMarkAnyTaskDone || (currentUserId !== undefined && job.ownerUserId === currentUserId)) ? (
         <Button
@@ -520,7 +524,7 @@ export function NativeJobDetailContent({
             : undefined
         }
         renderReportSection={
-          job && !isProviderBackedJob(job)
+          job && !isProviderBackedJob(job) && !isVendor
             ? () => (
                 <TaskReport
                   organizationSlug={organizationSlug}
@@ -531,7 +535,8 @@ export function NativeJobDetailContent({
             : undefined
         }
         renderExtraMain={
-          showFailureNotice || (job && (isProviderBackedJob(job) || hasJobActivityFeed(job)))
+          showFailureNotice ||
+          (job && (isProviderBackedJob(job) || (!isVendor && hasJobActivityFeed(job))))
             ? () => (
                 <>
                   {showFailureNotice && failureDetails ? (
@@ -541,7 +546,7 @@ export function NativeJobDetailContent({
                       variant={job?.status === "failed" ? "failed" : "partial"}
                     />
                   ) : null}
-                  {job && hasJobActivityFeed(job) ? (
+                  {job && !isVendor && hasJobActivityFeed(job) ? (
                     <JobActivitySection
                       organizationSlug={organizationSlug}
                       projectId={projectId}

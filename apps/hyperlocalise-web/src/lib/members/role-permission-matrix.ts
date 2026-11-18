@@ -15,6 +15,7 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 /** Least privilege first, matching the admin-facing matrix. */
 export const ROLE_PERMISSION_MATRIX_ROLES = [
+  "vendor",
   "member",
   "translator",
   "reviewer",

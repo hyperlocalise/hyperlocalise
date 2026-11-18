@@ -60,6 +60,7 @@ import {
 } from "@/lib/file-storage/records";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { isErr } from "@/lib/primitives/result/results";
+import { refuseVendorOwnerUnlessFileTask } from "@/lib/projects/jobs/job-owner";
 import { markTaskDone } from "@/lib/projects/jobs/mark-task-done";
 import { statusForTaskAfter } from "@/lib/projects/jobs/waiting-task";
 import { startTaskAnalysis } from "@/lib/reporting/task-analysis-start";
@@ -466,6 +467,14 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           const owner = await findPublicJobOwner(organizationId, payload.ownerEmail);
           if (!owner) {
             return ownerNotFoundResponse(c);
+          }
+          const vendorAllowed = await refuseVendorOwnerUnlessFileTask({
+            organizationId,
+            ownerUserId: owner.id,
+            fileTask: payload.type === "file" && taskStep !== undefined,
+          });
+          if (isErr(vendorAllowed)) {
+            return badRequestResponse(c, vendorAllowed.error.code, vendorAllowed.error.message);
           }
           ownerUserId = owner.id;
         }

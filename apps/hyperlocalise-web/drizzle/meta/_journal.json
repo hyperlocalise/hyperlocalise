@@ -1359,6 +1359,13 @@
       "when": 1794927869018,
       "tag": "0193_job_after_job",
       "breakpoints": true
+    },
+    {
+      "idx": 194,
+      "version": "7",
+      "when": 1794966120346,
+      "tag": "0194_membership_role_vendor",
+      "breakpoints": true
     }
   ]
 }

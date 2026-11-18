@@ -15,6 +15,7 @@ import { withAuth } from "@/lib/workos/server-auth";
 
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
+import { refuseVendorUnlessAllowed } from "@/api/auth/vendor-access";
 import {
   assertWorkosMembershipReconcileAllowsAccess,
   reconcileWorkosMembershipsForUser,
@@ -31,6 +32,11 @@ type ResolveApiAuthContextOptions = {
   organizationSlug?: string;
   teamSlug?: string;
   session?: Awaited<ReturnType<typeof withAuth>>;
+  /**
+   * Only the routes and pages opened to vendors pass true (`vendor-access.ts`). Everywhere
+   * else a vendor is refused here with `VendorAccessDeniedError`.
+   */
+  allowVendor?: boolean;
 };
 
 type OrganizationMembershipRecord = {
@@ -356,6 +362,11 @@ export async function resolveApiAuthContextFromSession(
   if (!membership) {
     return null;
   }
+
+  refuseVendorUnlessAllowed(
+    { membership: activeOrganization.membership, activeOrganization },
+    options.allowVendor,
+  );
 
   const authBase = {
     user: {

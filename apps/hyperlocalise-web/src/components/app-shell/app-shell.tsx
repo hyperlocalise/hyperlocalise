@@ -13,7 +13,9 @@
 import type { ReactNode } from "react";
 
 import { hasCapability } from "@/api/auth/policy";
+import { isVendorRole } from "@/api/auth/vendor-access";
 import { AppShellClient } from "@/components/app-shell/app-shell-client";
+import { VendorShellClient } from "@/components/app-shell/vendor-shell-client";
 import { evaluateWorkspaceFeatureFlags } from "@/lib/flags/workspace-flags";
 import { getTmsProviderConnection } from "@/lib/providers/jobs/tms-provider-live";
 import {
@@ -21,6 +23,7 @@ import {
   type TmsUserConnectCta,
 } from "@/lib/providers/credentials/tms-user-connection";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { switchableWorkspaces } from "@/lib/workos/switchable-workspaces";
 import { OrgTmsQueryProvider } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/org-tms-query-provider";
 import type { ActiveTmsProviderConnection } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-active-tms-provider";
 
@@ -35,12 +38,30 @@ export async function AppShell({
   children,
   organizationSlug,
 }: AppShellProps) {
-  const auth = await requireAppAuthContext({ organizationSlug });
+  // The frame wraps every page, so a vendor passes here; each page then decides for itself.
+  const auth = await requireAppAuthContext({ organizationSlug, allowVendor: true });
   const activeOrganizationSlug = auth.activeOrganization.slug ?? organizationSlug;
 
   const displayName =
     [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
     auth.sessionUser.email;
+
+  if (isVendorRole(auth.membership.role)) {
+    return (
+      <VendorShellClient
+        activeOrganization={{ name: auth.activeOrganization.name, slug: activeOrganizationSlug }}
+        isOnlyWorkspace={switchableWorkspaces(auth.organizations).length <= 1}
+        user={{
+          name: displayName,
+          email: auth.sessionUser.email,
+          avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,
+        }}
+      >
+        {children}
+      </VendorShellClient>
+    );
+  }
+
   const workspaceFeatureFlagsPromise = evaluateWorkspaceFeatureFlags(auth);
   const tmsUserConnectCtaPromise: Promise<TmsUserConnectCta> = hasCapability(
     auth.membership.role,

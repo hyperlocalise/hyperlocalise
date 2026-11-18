@@ -14,6 +14,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 import { ownedProjectWhere } from "@/api/auth/team-access";
+import { isVendorRole } from "@/api/auth/vendor-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import {
   isMembershipReconcileFresh,
@@ -33,6 +34,8 @@ import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membersh
  * - WorkOS lookup failed and the last reconcile is stale
  * - no authoritative WorkOS membership (pending invite, replacing sentinel,
  *   removed member, or inactive local row)
+ * - the owner is a vendor: tokens, agents and plugin connections never act for a vendor,
+ *   and one made before the person became a vendor stops working while they are one
  *
  * A successful result is the access the owner would have interactively. Token
  * scopes subtract from it in `requireApiKeyPermission`; they never add.
@@ -116,7 +119,7 @@ export async function resolveApiKeyTeamAccessContext(input: {
     )
     .limit(1);
 
-  if (!membership) {
+  if (!membership || isVendorRole(membership.role)) {
     return null;
   }
 

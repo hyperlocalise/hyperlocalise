@@ -19,7 +19,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { IssueAssigneePicker } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/issue-assignee-picker";
-import { useAssignableIssueMembersQuery } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/use-assignable-issue-members";
+import type { AssignableIssueMember } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/use-assignable-issue-members";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -33,6 +33,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 
 import { JobAssigneeOverflowLabel } from "./job-assignee-overflow-label";
@@ -45,7 +47,6 @@ function toggleValue(values: string[], value: string) {
 
 export function NativeJobOwnerField({
   organizationSlug,
-  projectId,
   jobId,
   ownerUserId,
   assigneeType,
@@ -63,9 +64,23 @@ export function NativeJobOwnerField({
   const intl = useIntl();
   const queryClient = useQueryClient();
 
-  const membersQuery = useAssignableIssueMembersQuery({
-    organizationSlug,
-    projectId,
+  // Who this job can be given to: any active member for a task on a file, a vendor included;
+  // for any other job, the people who can open its project.
+  const { client: goSvcClient } = useGoSvcClient();
+  const membersQuery = useQuery({
+    queryKey: ["job-assignable-owners", organizationSlug, jobId] as const,
+    queryFn: async () => {
+      try {
+        return await goSvcClient.job.assignableOwners<AssignableIssueMember>(
+          organizationSlug,
+          jobId,
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.saveFailed)), {
+          cause: error,
+        });
+      }
+    },
   });
   const members = membersQuery.data?.members ?? [];
 

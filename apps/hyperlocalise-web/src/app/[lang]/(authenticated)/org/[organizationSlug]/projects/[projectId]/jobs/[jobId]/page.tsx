@@ -10,7 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { redirect } from "next/navigation";
+
 import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
+import { isVendorRole, vendorHomePath } from "@/api/auth/vendor-access";
+import { findOwnedFileTask } from "@/lib/projects/jobs/task-access";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
@@ -36,7 +40,19 @@ async function ProjectJobDetailPageLoader({
 }) {
   const { organizationSlug, projectId: rawProjectId, jobId } = await params;
   const projectId = normalizeProjectId(rawProjectId);
-  const auth = await requireAppAuthContext({ organizationSlug });
+  // Open to vendors (`vendor-access.ts`), for an open or waiting task they own.
+  const auth = await requireAppAuthContext({ organizationSlug, allowVendor: true });
+  if (isVendorRole(auth.membership.role)) {
+    const task = await findOwnedFileTask({
+      organizationId: auth.organization.localOrganizationId,
+      userId: auth.user.localUserId,
+      jobId,
+      includeWaiting: true,
+    });
+    if (!task || task.projectId !== projectId) {
+      redirect(vendorHomePath(organizationSlug));
+    }
+  }
   const canEditJobFields = hasCapability(auth.membership.role, "jobs:write");
   const canMarkAnyTaskDone = hasCapability(auth.membership.role, "reviews:approve");
   const canEditSharedCredentialProviderJobFields = isWorkspaceOperatorRole(auth.membership.role);

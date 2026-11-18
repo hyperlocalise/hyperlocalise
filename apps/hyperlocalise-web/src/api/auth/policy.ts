@@ -114,6 +114,12 @@ const LOCALIZATION_MANAGER_CAPABILITY_SET = new Set<OrganizationCapability>(
 
 const ADMIN_CAPABILITIES = new Set<OrganizationCapability>(ADMIN_CAPABILITIES_LIST);
 
+/**
+ * A vendor holds no workspace capability. What a vendor may reach comes from the open tasks
+ * they own (`vendor-access.ts`), so every capability check refuses them.
+ */
+const VENDOR_CAPABILITIES: ReadonlySet<OrganizationCapability> = new Set();
+
 const ROLE_CAPABILITIES: Record<OrganizationMembershipRole, ReadonlySet<OrganizationCapability>> = {
   admin: ADMIN_CAPABILITIES,
   localization_manager: LOCALIZATION_MANAGER_CAPABILITY_SET,
@@ -121,6 +127,7 @@ const ROLE_CAPABILITIES: Record<OrganizationMembershipRole, ReadonlySet<Organiza
   reviewer: REVIEWER_CAPABILITIES,
   translator: TRANSLATOR_CAPABILITY_SET,
   member: MEMBER_CAPABILITIES,
+  vendor: VENDOR_CAPABILITIES,
 };
 
 export function getCapabilitiesForRole(role: OrganizationMembershipRole): OrganizationCapability[] {

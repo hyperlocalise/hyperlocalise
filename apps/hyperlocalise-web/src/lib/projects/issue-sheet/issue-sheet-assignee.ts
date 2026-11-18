@@ -13,6 +13,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
+import { isVendorRole } from "@/api/auth/vendor-access";
 import { formatMemberDisplayName } from "@/lib/members/member-management";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -80,6 +81,10 @@ function membershipHasProjectAccess(
   projectTeamId: string | null,
   memberTeamIds: Set<string>,
 ) {
+  // A vendor reaches only tasks on files (`job-owner.ts`), whatever team they were left in.
+  if (isVendorRole(role)) {
+    return false;
+  }
   if (hasCapability(role, "teams:write")) {
     return true;
   }
@@ -125,7 +130,11 @@ export async function assertAssignableIssueAssignee(input: {
     )
     .limit(1);
 
-  if (!membership || !isActiveOrganizationMembership(membership.workosMembershipId)) {
+  if (
+    !membership ||
+    !isActiveOrganizationMembership(membership.workosMembershipId) ||
+    isVendorRole(membership.role)
+  ) {
     return err({ code: "assignee_not_assignable" });
   }
 

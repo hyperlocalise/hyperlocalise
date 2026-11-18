@@ -57,4 +57,10 @@ export const WORKOS_LOCALIZATION_ROLE_DEFINITIONS: WorkosLocalizationRoleDefinit
     name: "Member",
     description: "Read workspace, project, team, glossary, memory, and job surfaces.",
   },
+  {
+    slug: "vendor",
+    name: "Vendor",
+    description:
+      "Outside linguist. Sees only the tasks given to them, with the file, memory and glossary each task needs.",
+  },
 ];

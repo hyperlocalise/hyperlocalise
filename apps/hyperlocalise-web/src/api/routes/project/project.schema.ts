@@ -1133,6 +1133,8 @@ export const projectFileCatResponseSchema = z.object({
     provider: projectFileRecordSchema.shape.provider,
     targetLocale: z.string(),
     canEditTranslations: z.boolean(),
+    // False for a vendor on a post-edit task, who may edit but not approve. Absent otherwise.
+    canApproveTranslations: z.boolean().optional(),
     truncated: z.boolean(),
     teamGlossaries: z
       .array(

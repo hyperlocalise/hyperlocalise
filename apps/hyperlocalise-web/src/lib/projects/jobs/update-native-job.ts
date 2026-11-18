@@ -17,6 +17,13 @@ import { updateJobs } from "@/lib/job-change-events/job-writes";
 import { assertAssignableIssueAssignee } from "@/lib/projects/issue-sheet/issue-sheet-assignee";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
+import {
+  isActiveWorkspaceMember,
+  isFileTaskForPeople,
+  readJobSourceFileId,
+  refuseVendorOwnerUnlessFileTask,
+} from "./job-owner";
+
 export type UpdateNativeJobInput = {
   title?: string;
   description?: string | null;
@@ -30,6 +37,7 @@ export type UpdateNativeJobError =
   | { code: "provider_job_not_updatable"; message: string }
   | { code: "owner_not_found"; message: string }
   | { code: "assignee_not_assignable"; message: string }
+  | { code: "vendor_owner_not_allowed"; message: string }
   | { code: "project_required"; message: string };
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -94,6 +102,7 @@ export async function updateNativeJob(input: {
       .select({
         id: schema.jobs.id,
         projectId: schema.jobs.projectId,
+        kind: schema.jobs.kind,
         inputPayload: schema.jobs.inputPayload,
         ownerUserId: schema.jobs.ownerUserId,
         externalProviderKind: schema.externalJobDetails.providerKind,
@@ -153,16 +162,41 @@ export async function updateNativeJob(input: {
           });
         }
 
-        const assignable = await assertAssignableIssueAssignee({
+        // A post-edit or proofread task on a file can go to any active member; any other job
+        // needs an owner who can open the project, and is never a vendor (`job-owner.ts`).
+        const fileTask = isFileTaskForPeople({
+          kind: existing.kind,
+          sourceFileId: readJobSourceFileId(existing.inputPayload),
+        });
+        const vendorAllowed = await refuseVendorOwnerUnlessFileTask({
           organizationId: input.organizationId,
-          projectId: existing.projectId,
-          assigneeUserId: resolvedOwnerId,
+          ownerUserId: resolvedOwnerId,
+          fileTask,
           database: tx,
         });
-        if (isErr(assignable)) {
+        if (isErr(vendorAllowed)) {
+          return err(vendorAllowed.error);
+        }
+        const assignable = fileTask
+          ? await isActiveWorkspaceMember({
+              organizationId: input.organizationId,
+              userId: resolvedOwnerId,
+              database: tx,
+            })
+          : !isErr(
+              await assertAssignableIssueAssignee({
+                organizationId: input.organizationId,
+                projectId: existing.projectId,
+                assigneeUserId: resolvedOwnerId,
+                database: tx,
+              }),
+            );
+        if (!assignable) {
           return err({
             code: "assignee_not_assignable" as const,
-            message: "Assigned owner must be an active member with project access",
+            message: fileTask
+              ? "Assigned owner must be an active member"
+              : "Assigned owner must be an active member with project access",
           });
         }
         updates.ownerUserId = resolvedOwnerId;

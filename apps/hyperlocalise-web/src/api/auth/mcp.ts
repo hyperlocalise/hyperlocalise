@@ -29,6 +29,7 @@ import {
   isMembershipReconcileFresh,
   reconcileWorkosMembershipsForUser,
 } from "@/api/auth/workos-membership-reconcile";
+import { isVendorRole } from "@/api/auth/vendor-access";
 import { db, schema } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { env } from "@/lib/env";
@@ -373,6 +374,11 @@ export async function resolveAuthoritativeMcpSessionAuth(
 
   if (!membership) {
     await revokeMcpSession(session.id);
+    return { status: "unauthorized" };
+  }
+
+  // MCP never acts for a vendor. The session is kept: it works again if the role changes.
+  if (isVendorRole(membership.role)) {
     return { status: "unauthorized" };
   }
 

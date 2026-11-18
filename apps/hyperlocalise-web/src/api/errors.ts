@@ -14,10 +14,12 @@ import type { Context } from "hono";
 import { validator } from "hono/validator";
 import type { z } from "zod";
 
+import { VendorAccessDeniedError } from "@/api/auth/vendor-access";
 import { createLogger } from "@/lib/log";
 
 import {
   badRequestResponse,
+  forbiddenResponse,
   internalErrorResponse,
   notFoundResponse,
   type JsonContext,
@@ -89,6 +91,11 @@ export function handleUnexpectedError(err: Error, c: Context): Response {
   // don't overwrite it.
   if (c.finalized) {
     return c.res;
+  }
+
+  // Routes that read the session themselves (plugin and MCP sign-in) refuse a vendor here.
+  if (err instanceof VendorAccessDeniedError) {
+    return forbiddenResponse(c as unknown as JsonContext, "forbidden", "Insufficient permissions");
   }
 
   // Log the full error for observability; return a safe message to the client.

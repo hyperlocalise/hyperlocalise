@@ -18,6 +18,7 @@ import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { hasCapability } from "@/api/auth/policy";
+import { isVendorRole } from "@/api/auth/vendor-access";
 import { createTeamsApi } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/teams/_components/teams-api";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
@@ -84,7 +85,8 @@ export function MembersPageContent({
   const { members, assignableRoles, canInvite } = pageState;
   const inviteTeams = teamsQuery.data ?? [];
   const defaultInviteTeamId = resolveDefaultTeamId(inviteTeams);
-  const inviteRequiresTeam = !hasCapability(inviteRole, "teams:write");
+  // A vendor joins no team: they reach only the tasks they are given.
+  const inviteRequiresTeam = !hasCapability(inviteRole, "teams:write") && !isVendorRole(inviteRole);
 
   useEffect(() => {
     if (!isInviteOpen || inviteTeams.length === 0) {
