@@ -150,6 +150,7 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       field("assigneeWorkosUserId", "string", false),
       field("title", "string", false),
       field("dueAt", "string", false),
+      field("afterJobId", "string", false),
     ],
     outputs: [
       output("jobId"),

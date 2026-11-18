@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   index,
   integer,
   jsonb,
@@ -102,6 +103,11 @@ export const jobs = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     // When a native job is due. Provider-backed jobs keep the provider's date on externalJobDetails.
     dueAt: timestamp("due_at", { withTimezone: true }),
+    // The job a task for people comes after. While that job is unfinished the task waits, as
+    // `queued`; see `waiting-task.ts`.
+    afterJobId: text("after_job_id").references((): AnyPgColumn => jobs.id, {
+      onDelete: "set null",
+    }),
   },
   (table) => [
     index("idx_jobs_org_created_at").on(table.organizationId, table.createdAt),
@@ -115,6 +121,9 @@ export const jobs = pgTable(
     index("idx_jobs_status").on(table.status),
     index("idx_jobs_interaction").on(table.interactionId),
     index("idx_jobs_api_key_id").on(table.apiKeyId),
+    index("idx_jobs_after_job_id")
+      .on(table.afterJobId)
+      .where(sql`${table.afterJobId} IS NOT NULL`),
   ],
 );
 

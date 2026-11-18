@@ -20,6 +20,7 @@ import {
   type DeliverDueWebhooksResult,
   type WebhookSender,
 } from "@/lib/outbound-webhooks/webhook-deliveries";
+import { openWaitingTasks } from "@/lib/projects/jobs/waiting-task";
 import {
   dispatchVisualWorkflowsForJobChange,
   type ActiveVisualWorkflowCache,
@@ -209,32 +210,50 @@ export async function pruneJobChangeEvents(now = new Date()): Promise<{
 }
 
 export type JobChangeEventPumpResult = {
+  /** Waiting tasks opened because the job they come after was marked done or cancelled. */
+  openedTasks: number;
   events: DispatchJobChangeEventsResult;
   webhooks: DeliverDueWebhooksResult;
   pruned: { events: number; deliveries: number };
 };
 
-/** One tick: fan out new job changes, send due webhooks, prune old rows. */
+/** One tick: open waiting tasks, fan out new job changes, send due webhooks, prune old rows. */
 export async function runJobChangeEventPump(input?: {
   eventLimit?: number;
   deliveryLimit?: number;
   now?: Date;
   queue?: VisualWorkflowExecutionQueue;
   sender?: WebhookSender;
+  /** Only this workspace, for replays and tests; every workspace when unset. Pruning is not scoped. */
+  organizationId?: string;
 }): Promise<JobChangeEventPumpResult> {
   const now = input?.now ?? new Date();
+  const organizationId = input?.organizationId;
+  // First, so a task opened now has its change sent in this tick. A failure here must not hold
+  // back the events; the next tick opens what this one could not.
+  let openedTasks = 0;
+  try {
+    openedTasks = await openWaitingTasks(db, { organizationId });
+  } catch (error) {
+    logger.warn(
+      { error: error instanceof Error ? error.name : "unknown" },
+      "opening waiting tasks failed; will retry",
+    );
+  }
   const events = await dispatchJobChangeEvents({
     limit: input?.eventLimit,
     now,
     queue: input?.queue,
+    organizationId,
   });
   const webhooks = await deliverDueWebhooks({
     limit: input?.deliveryLimit,
     now,
     sender: input?.sender,
+    organizationId,
   });
   const pruned = await pruneJobChangeEvents(now);
 
-  logger.info({ events, webhooks, pruned }, "job change event pump tick completed");
-  return { events, webhooks, pruned };
+  logger.info({ openedTasks, events, webhooks, pruned }, "job change event pump tick completed");
+  return { openedTasks, events, webhooks, pruned };
 }

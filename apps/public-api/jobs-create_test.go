@@ -73,6 +73,14 @@ func TestJobCreateRequestHashMatchesPlatform(t *testing.T) {
 				TargetLocales: []string{"fr", "de"}, Branch: strPtr("release/1"),
 			},
 		}, "da19f3eb5bbbcc61d67a05867d2cdb154c4f2dfd2013b6ccb4b84c718423c0c1"},
+		{"file task", jobCreate{
+			Type: "file", ProjectID: "proj_1",
+			File: &fileJobInput{
+				SourceFileID: "file_1", FileFormat: "json", SourceLocale: "en",
+				TargetLocales: []string{"fr", "de"}, Branch: strPtr("release/1"),
+				Step: strPtr("proofread"), After: strPtr("job_1"),
+			},
+		}, "c2c25d6925d2bc09e1ff2251ed107374f5b08a1fed874499c787a4753de662c6"},
 	}
 	for _, tc := range cases {
 		got, err := tc.input.requestHash()
@@ -125,6 +133,9 @@ func TestJobCreateRoutes(t *testing.T) {
 			`{"type":"string","projectId":"p","stringInput":{"sourceText":" ","sourceLocale":"en","targetLocales":["fr"]}}`,
 			`{"type":"file","projectId":"p","fileInput":{"sourceFileId":"f","fileFormat":"exe","sourceLocale":"en","targetLocales":["fr"]}}`,
 			`{"type":"file","projectId":"p","fileInput":{"sourceFileId":"f","fileFormat":"json","sourceLocale":"en","targetLocales":["fr"],"branch":"a//b"}}`,
+			`{"type":"file","projectId":"p","fileInput":{"sourceFileId":"f","fileFormat":"json","sourceLocale":"en","targetLocales":["fr"],"step":"translate"}}`,
+			`{"type":"file","projectId":"p","fileInput":{"sourceFileId":"f","fileFormat":"json","sourceLocale":"en","targetLocales":["fr"],"after":"job_1"}}`,
+			`{"type":"file","projectId":"p","fileInput":{"sourceFileId":"f","fileFormat":"json","sourceLocale":"en","targetLocales":["fr"],"step":"proofread","after":" "}}`,
 			`{"type":"keys","projectId":"p","keysInput":{"sourceLocale":"en","targetLocales":["fr"]}}`,
 			`{"type":"keys","projectId":"p","keysInput":{"sourceLocale":"en","targetLocales":["fr"],"keys":["a"],"tags":["b"]}}`,
 			`{"type":"keys","projectId":"p","keysInput":{"sourceLocale":"en","targetLocales":["fr"],"stringIds":["nope"]}}`,
@@ -392,6 +403,83 @@ func TestJobCreateDatabase(t *testing.T) {
 			JOIN repository_source_files sf ON sf.id = v.repository_source_file_id
 			WHERE d.job_id = $1`, mainJob.ID).Scan(&branch))
 		require.Equal(t, "main", branch)
+	})
+
+	t.Run("file task for a person, and one that comes after it", func(t *testing.T) {
+		fileID := "file_" + uuid.NewString()
+		f.exec(t, `INSERT INTO stored_files (id, organization_id, project_id, created_by_user_id, role, source_kind,
+				storage_provider, storage_key, storage_url, filename, content_type, byte_size, sha256, metadata)
+			VALUES ($1, $2, $3, $4, 'source', 'repository_file', 'vercel_blob', $1, 'https://blob.test/' || $1,
+				'guide.json', 'application/json', 2, 'abc', '{"sourcePath":"docs/guide.json"}'::jsonb)`,
+			fileID, f.actor.OrganizationID, f.project, f.actor.UserID)
+		task := func(step string, after *string, title string) jobCreate {
+			return jobCreate{
+				Type: "file", ProjectID: f.project, Title: title,
+				File: &fileJobInput{
+					SourceFileID: fileID, FileFormat: "json", SourceLocale: "en", TargetLocales: []string{"fr"},
+					Metadata: map[string]string{"ticket": "WX-2"}, Step: &step, After: after,
+				},
+			}
+		}
+		afterOf := func(jobID string) *string {
+			var after *string
+			require.NoError(t, f.pool.QueryRow(ctx, `SELECT after_job_id FROM jobs WHERE id = $1`, jobID).Scan(&after))
+			return after
+		}
+
+		postEdit, _, err := f.store.createJob(ctx, f.actor, task("post_edit", nil, ""), nil)
+		require.NoError(t, err)
+		require.Equal(t, "waiting_for_review", postEdit.Status)
+		kind, status, payload, _ := jobRow(t, postEdit.ID)
+		require.Equal(t, "proofread", kind)
+		require.Equal(t, "waiting_for_review", status)
+		require.Equal(t, map[string]any{"ticket": "WX-2", "workflowTaskStep": "edit", "title": "Post-edit: guide.json"}, payload["metadata"])
+		require.NotContains(t, payload, "step")
+		require.Nil(t, afterOf(postEdit.ID))
+
+		proofread, _, err := f.store.createJob(ctx, f.actor, task("proofread", &postEdit.ID, "Revise FR"), nil)
+		require.NoError(t, err)
+		require.Equal(t, "queued", proofread.Status)
+		kind, status, payload, _ = jobRow(t, proofread.ID)
+		require.Equal(t, "proofread", kind)
+		require.Equal(t, "queued", status)
+		require.Equal(t, map[string]any{"ticket": "WX-2", "workflowTaskStep": "proofread", "title": "Revise FR"}, payload["metadata"])
+		require.Equal(t, postEdit.ID, *afterOf(proofread.ID))
+
+		// A waiting task cannot be completed; reads return its step and what it comes after.
+		_, err = f.store.completeJob(ctx, f.actor, proofread.ID)
+		require.ErrorIs(t, err, errJobActionUnavailable)
+		read, err := f.store.getJob(ctx, f.actor, proofread.ID)
+		require.NoError(t, err)
+		require.Equal(t, "proofread", *read.Step)
+		require.Equal(t, postEdit.ID, *read.After)
+		read, err = f.store.getJob(ctx, f.actor, postEdit.ID)
+		require.NoError(t, err)
+		require.Equal(t, "post_edit", *read.Step)
+		require.Nil(t, read.After)
+
+		// After the earlier task is done or cancelled, a new task that comes after it opens at once.
+		_, err = f.store.completeJob(ctx, f.actor, postEdit.ID)
+		require.NoError(t, err)
+		late, _, err := f.store.createJob(ctx, f.actor, task("proofread", &postEdit.ID, ""), nil)
+		require.NoError(t, err)
+		require.Equal(t, "waiting_for_review", late.Status)
+
+		for _, missing := range []string{"job_missing", "job_" + uuid.NewString()} {
+			_, _, err = f.store.createJob(ctx, f.actor, task("proofread", &missing, ""), nil)
+			require.ErrorIs(t, err, errAfterJobNotFound)
+		}
+
+		// A file job without a step is still AI work, with no step on its read.
+		ai, _, err := f.store.createJob(ctx, f.actor, jobCreate{
+			Type: "file", ProjectID: f.project,
+			File: &fileJobInput{SourceFileID: fileID, FileFormat: "json", SourceLocale: "en", TargetLocales: []string{"fr"}},
+		}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "queued", ai.Status)
+		read, err = f.store.getJob(ctx, f.actor, ai.ID)
+		require.NoError(t, err)
+		require.Nil(t, read.Step)
 	})
 
 	t.Run("locales must belong to the project", func(t *testing.T) {

@@ -186,7 +186,7 @@ const jobRecordColumnsSQL = `j.id, j.organization_id::text, j.project_id, j.crea
             e.sync_state, e.provider_payload, e.linked_job_id, j.created_at, j.updated_at, j.completed_at, j.due_at, p.name,
             case when t.type = 'keys' then (select count(*)::int from translation_job_keys jk
                 join project_translation_keys jkk on jkk.id = jk.translation_key_id and not jkk.is_hidden
-                where jk.job_id = j.id) end`
+                where jk.job_id = j.id) end, j.after_job_id`
 
 const jobRecordFromSQL = `from jobs j
         left join translation_job_details t on t.job_id = j.id
@@ -240,6 +240,8 @@ type jobRecord struct {
 	CompletedAt             *string         `json:"completedAt"`
 	// Set on key jobs: how many keys the job holds.
 	KeyCount *int `json:"keyCount,omitempty"`
+	// The job a task comes after; while that job is unfinished the task waits as queued.
+	AfterJobID *string `json:"afterJobId"`
 	jobSourceFileDisplay
 }
 
@@ -404,6 +406,7 @@ func scanJobRecord(row pgx.Row) (jobWithProjectRecord, error) {
 		&job.AssetType, &job.AssetOperation, &job.AssetConfig, &job.ExternalProviderKind, &job.ExternalJobID, &job.ExternalTaskID,
 		&job.ExternalStatus, &job.ExternalTitle, &dueDate, &job.ExternalTargetLocales, &job.ExternalAssignedUsers, &job.ExternalURL,
 		&job.ExternalSyncState, &job.ExternalProviderPayload, &job.LinkedJobID, &createdAt, &updatedAt, &completedAt, &dueAt, &job.ProjectName, &job.KeyCount,
+		&job.AfterJobID,
 	)
 	if err != nil {
 		return jobWithProjectRecord{}, err

@@ -1352,6 +1352,13 @@
       "when": 1794908037660,
       "tag": "0192_hesitant_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 193,
+      "version": "7",
+      "when": 1794927869018,
+      "tag": "0193_job_after_job",
+      "breakpoints": true
     }
   ]
 }

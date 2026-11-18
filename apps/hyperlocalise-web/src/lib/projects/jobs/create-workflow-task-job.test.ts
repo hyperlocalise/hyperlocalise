@@ -12,12 +12,13 @@
  */
 import "dotenv/config";
 
+import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { insertStoredSourceFile } from "@/api/routes/public-jobs/public-jobs.fixture";
-import { db } from "@/lib/database/client";
-import { isOk } from "@/lib/primitives/result/results";
+import { db, schema } from "@/lib/database/client";
+import { isErr, isOk } from "@/lib/primitives/result/results";
 
 import { createWorkflowTaskJob } from "./create-workflow-task-job";
 
@@ -81,5 +82,72 @@ describe("createWorkflowTaskJob", () => {
       });
     }
     expect(mocks.startTaskAnalysis).toHaveBeenCalledTimes(3);
+  });
+
+  it("makes a task that comes after an unfinished job wait, and one after a finished job open", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    const file = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+      sourceKind: "repository_file",
+      metadata: { sourcePath: "locales/messages.json" },
+    });
+    const task = { organizationId: organization.id, projectId: project.id, sourceFileId: file.id };
+    const create = (step: "translate" | "edit" | "proofread", afterJobId?: string) =>
+      createWorkflowTaskJob({
+        ...task,
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+        step,
+        afterJobId,
+      });
+    const stored = async (jobId: string) => {
+      const [job] = await db
+        .select({ status: schema.jobs.status, afterJobId: schema.jobs.afterJobId })
+        .from(schema.jobs)
+        .where(eq(schema.jobs.id, jobId));
+      return job;
+    };
+
+    const postEdit = await create("edit");
+    if (!isOk(postEdit)) throw new Error("post-edit task not created");
+    expect(postEdit.value.status).toBe("waiting_for_review");
+
+    const proofread = await create("proofread", postEdit.value.jobId);
+    if (!isOk(proofread)) throw new Error("proofread task not created");
+    expect(proofread.value.status).toBe("queued");
+    expect(await stored(proofread.value.jobId)).toEqual({
+      status: "queued",
+      afterJobId: postEdit.value.jobId,
+    });
+
+    for (const status of ["succeeded", "cancelled"] as const) {
+      await db.update(schema.jobs).set({ status }).where(eq(schema.jobs.id, postEdit.value.jobId));
+      const late = await create("proofread", postEdit.value.jobId);
+      expect(isOk(late) && late.value.status).toBe("waiting_for_review");
+    }
+
+    const translate = await create("translate", postEdit.value.jobId);
+    expect(isErr(translate) && translate.error.code).toBe("translate_task_cannot_wait");
+
+    // A job in another project is not one this task can come after.
+    const other = await projectFixture.createStoredProjectFixture();
+    const [elsewhere] = await db
+      .insert(schema.jobs)
+      .values({
+        id: `job_${crypto.randomUUID()}`,
+        organizationId: other.organization.id,
+        projectId: other.project.id,
+        kind: "proofread",
+        status: "waiting_for_review",
+        inputPayload: {},
+      })
+      .returning({ id: schema.jobs.id });
+    for (const afterJobId of [elsewhere!.id, "job_missing"]) {
+      const refused = await create("proofread", afterJobId);
+      expect(isErr(refused) && refused.error.code).toBe("after_job_not_found");
+    }
   });
 });

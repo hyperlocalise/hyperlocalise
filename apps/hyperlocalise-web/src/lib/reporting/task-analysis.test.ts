@@ -433,6 +433,66 @@ describe("openPersonTaskForString", () => {
   });
 });
 
+describe("openPersonTaskForString with a task that comes after another", () => {
+  it("gives a save to the task that was open when it was made", async () => {
+    const { organization, project, sourceFile, createPersonTask } = await createFileWithStrings();
+    const started = new Date(Date.now() - 10 * 60_000);
+    const postEdit = await createPersonTask({ kind: "proofread", createdAt: started });
+    const proofread = await createPersonTask({
+      kind: "proofread",
+      createdAt: new Date(started.getTime() + 1_000),
+    });
+    await db
+      .update(schema.jobs)
+      .set({ status: "queued", afterJobId: postEdit.id })
+      .where(eq(schema.jobs.id, proofread.id));
+    const savedAt = (when?: Date) =>
+      openPersonTaskForString({
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: sourceFile.id,
+        targetLocale: "fr-FR",
+        step: "review",
+        savedAt: when,
+      });
+
+    // While the proofread task waits, the post-editor's saves are the post-edit task's.
+    await expect(savedAt()).resolves.toBe(postEdit.id);
+
+    // The post-edit task is marked done and the proofread task opens.
+    const handover = new Date(Date.now() - 5 * 60_000);
+    await db
+      .update(schema.jobs)
+      .set({ status: "succeeded", completedAt: handover })
+      .where(eq(schema.jobs.id, postEdit.id));
+    await db
+      .update(schema.jobs)
+      .set({ status: "waiting_for_review" })
+      .where(eq(schema.jobs.id, proofread.id));
+
+    await expect(savedAt()).resolves.toBe(proofread.id);
+    // A save from before the handover that reaches Reports afterwards is still the post-editor's.
+    await expect(savedAt(new Date(handover.getTime() - 60_000))).resolves.toBe(postEdit.id);
+    await expect(savedAt(new Date(handover.getTime() + 60_000))).resolves.toBe(proofread.id);
+
+    // Tasks are tried newest first by when each began to cover saves: a task made on its own
+    // before the handover is older than the proofread task that opened at the handover.
+    const between = await createPersonTask({
+      kind: "proofread",
+      createdAt: new Date(handover.getTime() - 2 * 60_000),
+    });
+    const tasks = await personTasksForString({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      targetLocale: "fr-FR",
+      step: "review",
+    });
+    expect(tasks.map((task) => task.id)).toEqual([proofread.id, between.id, postEdit.id]);
+    await expect(savedAt()).resolves.toBe(proofread.id);
+  });
+});
+
 describe("personTaskForSave", () => {
   it("counts a person's edit inside a proofread task as its review work, unless a translate task covers it", async () => {
     const { organization, project, sourceFile, createPersonTask } = await createFileWithStrings();

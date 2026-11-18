@@ -54,6 +54,8 @@ export type JobDetailRecord = {
   externalSyncState: string | null;
   externalProviderPayload: Record<string, unknown> | null;
   linkedJobId: string | null;
+  /** The job a task comes after; while that job is unfinished the task waits as queued. */
+  afterJobId?: string | null;
   providerSourceFiles?: Array<{
     id: string;
     displayName: string;

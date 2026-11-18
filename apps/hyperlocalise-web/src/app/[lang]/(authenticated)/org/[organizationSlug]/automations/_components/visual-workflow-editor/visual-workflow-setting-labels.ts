@@ -76,6 +76,7 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     assigneeWorkosUserId: messages.createTaskAssignee,
     title: messages.createTaskTitle,
     dueAt: messages.taskDueAt,
+    afterJobId: messages.createTaskAfterJob,
     ...ON_ERROR,
   },
   "action.check_progress": {

@@ -35,6 +35,13 @@ function createJob(
 }
 
 describe("canOpenJobContentEditor", () => {
+  it("does not offer the editor for a task still waiting for the job it comes after", () => {
+    const task = createJob({ kind: "proofread", afterJobId: "job_post_edit" });
+    expect(canOpenJobContentEditor({ ...task, status: "queued" })).toBe(false);
+    expect(canOpenJobContentEditor({ ...task, status: "waiting_for_review" })).toBe(true);
+    expect(canOpenJobContentEditor(createJob({ kind: "proofread", status: "queued" }))).toBe(true);
+  });
+
   it("allows provider-backed translation and review jobs", () => {
     expect(canOpenJobContentEditor(createJob())).toBe(true);
     expect(canOpenJobContentEditor(createJob({ kind: "review" }))).toBe(true);

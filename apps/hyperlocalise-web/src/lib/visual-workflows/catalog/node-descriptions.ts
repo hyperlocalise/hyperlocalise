@@ -57,7 +57,7 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   "action.create_task": {
     title: "Assign task",
     purpose:
-      "Give a person a translate, post-edit, or proofread task on a source file, with an optional due date, for MTPE and TEP steps.",
+      "Give a person a translate, post-edit, or proofread task on a source file, with an optional due date, for MTPE and TEP steps. A post-edit or proofread task can come after an earlier task: it waits, and opens when that one is marked done or cancelled.",
   },
   "action.check_progress": {
     title: "Check progress",

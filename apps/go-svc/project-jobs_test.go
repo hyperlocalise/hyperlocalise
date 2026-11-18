@@ -292,7 +292,7 @@ func TestProjectJobReadsShape(t *testing.T) {
         "assetType":"image","assetOperation":"resize","assetConfig":{},
         "externalProviderKind":null,"externalJobId":null,"externalTaskId":null,"externalStatus":null,"externalTitle":null,
         "externalDueDate":null,"externalTargetLocales":null,"externalAssignedUsers":null,"externalUrl":null,
-        "externalSyncState":null,"externalProviderPayload":null,"linkedJobId":null,
+        "externalSyncState":null,"externalProviderPayload":null,"linkedJobId":null,"afterJobId":null,
         "createdAt":"2026-01-02T03:04:05.123Z","updatedAt":"2026-01-02T03:04:05.123Z","completedAt":"2026-01-02T03:04:05.123Z","dueAt":null,
         "sourceFilename":null,"sourcePath":null`
 
@@ -584,7 +584,9 @@ func TestOrgJobReadsShape(t *testing.T) {
 	require.Contains(t, detail.Job, "sourceFilename")
 	require.Contains(t, detail.Job, "dueAt")
 	require.Nil(t, detail.Job["dueAt"])
-	require.Len(t, detail.Job, 44)
+	require.Contains(t, detail.Job, "afterJobId")
+	require.Nil(t, detail.Job["afterJobId"])
+	require.Len(t, detail.Job, 45)
 
 	requireProjectJobsError(t, f.get(t, "/jobs/"+url.PathEscape(mirrorID)), http.StatusNotFound, "job_not_found", "Job not found")
 }

@@ -250,6 +250,7 @@ export async function executeVisualWorkflowNode(input: {
         assigneeWorkosUserId: text(node.config.assigneeWorkosUserId).trim(),
         title: text(node.config.title),
         dueAt: text(node.config.dueAt ?? ""),
+        afterJobId: text(node.config.afterJobId ?? "").trim(),
       });
     case "action.check_progress":
       return runCheckProgressAction({

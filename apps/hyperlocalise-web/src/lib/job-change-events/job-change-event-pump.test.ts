@@ -31,12 +31,14 @@ import {
 } from "@/lib/outbound-webhooks/webhook-endpoints";
 import { verifyWebhookSignature } from "@/lib/outbound-webhooks/webhook-signing";
 import { isErr } from "@/lib/primitives/result/results";
+import { openWaitingTasks } from "@/lib/projects/jobs/waiting-task";
 
 import {
   dispatchJobChangeEvents,
   JOB_CHANGE_EVENT_MAX_CLAIMS,
   JOB_CHANGE_EVENT_RETENTION_MS,
   pruneJobChangeEvents,
+  runJobChangeEventPump,
 } from "./job-change-event-pump";
 import { insertJobs, updateJobs } from "./job-writes";
 
@@ -167,6 +169,106 @@ describe("dispatchJobChangeEvents", () => {
 
     expect((await listEvents(jobId)).every((event) => event.abandonedAt !== null)).toBe(true);
     expect((await dispatchJobChangeEvents({ organizationId, enqueueWebhooks })).claimed).toBe(0);
+  });
+});
+
+describe("tasks that come after another job", () => {
+  async function insertTask(organizationId: string, afterJobId: string | null) {
+    const jobId = `job_${randomUUID()}`;
+    await insertJobs(db, {
+      values: {
+        id: jobId,
+        organizationId,
+        kind: "proofread",
+        status: afterJobId ? "queued" : "waiting_for_review",
+        afterJobId,
+        inputPayload: {},
+      },
+    });
+    return jobId;
+  }
+  async function statusOf(jobId: string) {
+    const [job] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, jobId));
+    return job?.status;
+  }
+  const finish = (jobId: string, status: "succeeded" | "cancelled" | "failed") =>
+    updateJobs(db, { set: { status }, where: eq(schema.jobs.id, jobId) });
+
+  it("opens one step at a time as each earlier task is marked done", async () => {
+    const organizationId = await insertOrganization();
+    const postEdit = await insertTask(organizationId, null);
+    const proofread = await insertTask(organizationId, postEdit);
+    const signOff = await insertTask(organizationId, proofread);
+
+    expect(await openWaitingTasks(db, { organizationId })).toBe(0);
+    expect(await statusOf(proofread)).toBe("queued");
+
+    await finish(postEdit, "succeeded");
+    expect(await openWaitingTasks(db, { organizationId })).toBe(1);
+    expect(await statusOf(proofread)).toBe("waiting_for_review");
+    // The opened task is not finished yet, so the task after it still waits.
+    expect(await statusOf(signOff)).toBe("queued");
+    // Opening is a status change of its own, for webhooks and Job changed workflows.
+    expect(
+      (await listEvents(proofread)).map((event) => [event.type, event.fromStatus, event.toStatus]),
+    ).toEqual([
+      ["job.created", null, "queued"],
+      ["job.status_changed", "queued", "waiting_for_review"],
+    ]);
+
+    expect(await openWaitingTasks(db, { organizationId })).toBe(0);
+    await finish(proofread, "succeeded");
+    expect(await openWaitingTasks(db, { organizationId })).toBe(1);
+    expect(await statusOf(signOff)).toBe("waiting_for_review");
+  });
+
+  it("opens after a cancelled step or a finished AI job, waits on a failed one, and leaves other queued jobs alone", async () => {
+    const organizationId = await insertOrganization();
+    const cancelled = await insertTask(organizationId, null);
+    const afterCancelled = await insertTask(organizationId, cancelled);
+    const aiJob = await insertJob(organizationId);
+    const afterAiJob = await insertTask(organizationId, aiJob);
+    const failed = await insertJob(organizationId);
+    const afterFailed = await insertTask(organizationId, failed);
+    const unrelated = await insertJob(organizationId);
+
+    await finish(cancelled, "cancelled");
+    await finish(aiJob, "succeeded");
+    await finish(failed, "failed");
+    expect(await openWaitingTasks(db, { organizationId })).toBe(2);
+
+    expect(await statusOf(afterCancelled)).toBe("waiting_for_review");
+    expect(await statusOf(afterAiJob)).toBe("waiting_for_review");
+    expect(await statusOf(afterFailed)).toBe("queued");
+    expect(await statusOf(unrelated)).toBe("queued");
+
+    // A waiting task that was cancelled meanwhile stays cancelled.
+    await finish(afterFailed, "cancelled");
+    await finish(failed, "succeeded");
+    expect(await openWaitingTasks(db, { organizationId })).toBe(0);
+    expect(await statusOf(afterFailed)).toBe("cancelled");
+  });
+
+  it("opens waiting tasks in a pump tick and sends their change in the same tick", async () => {
+    const organizationId = await insertOrganization();
+    const { endpoint } = await createEndpoint(organizationId, ["job.status_changed"]);
+    const postEdit = await insertTask(organizationId, null);
+    const proofread = await insertTask(organizationId, postEdit);
+    await finish(postEdit, "succeeded");
+
+    const { requests, sender } = recordingSender(204);
+    const tick = await runJobChangeEventPump({ organizationId, now: afterQueueTime(), sender });
+
+    expect(tick.openedTasks).toBe(1);
+    expect(await statusOf(proofread)).toBe("waiting_for_review");
+    const sent = requests
+      .filter((request) => request.url === endpoint.url)
+      .map((request) => JSON.parse(request.body) as { data: { job: Record<string, unknown> } })
+      .map((body) => [body.data.job.id, body.data.job.previousStatus, body.data.job.status]);
+    expect(sent).toContainEqual([proofread, "queued", "waiting_for_review"]);
   });
 });
 

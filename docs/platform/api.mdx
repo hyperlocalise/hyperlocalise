@@ -259,6 +259,33 @@ A task for people on a chosen set of strings, picked one way only: `stringIds`, 
 
 A key job's `201` response has `"type": "keys"` and `"status": "waiting_for_review"`.
 
+**File task for a person**
+
+Add `step` to a file job's `fileInput` to make a task for a person on that file instead of AI work: `post_edit` or `proofread`. It runs no AI translation and uses no AI credit. Set who does it and by when with `ownerEmail` and `dueAt`. Left without a `title`, the task is named after its step and file, for example "Post-edit: guide.docx".
+
+Add `after` with the ID of an earlier job in the same project to make the task wait for it. A waiting task has status `queued`, can't be completed, and opens (`waiting_for_review`) when the earlier job is marked done or cancelled, usually within a minute. That sends a `job.status_changed` [webhook](/platform/developers/webhooks) for the task. If the earlier job is already done or cancelled, the task starts open. What a task comes after is set when it is created and can't be changed.
+
+To set up a file's steps in one go, create the post-edit task, then the proofread task with `after` set to the first task's ID:
+
+```json
+{
+  "type": "file",
+  "projectId": "project_123",
+  "dueAt": "2026-11-20T17:00:00Z",
+  "ownerEmail": "reviser@example.com",
+  "fileInput": {
+    "sourceFileId": "file_...",
+    "fileFormat": "docx",
+    "sourceLocale": "en-US",
+    "targetLocales": ["fr-FR"],
+    "step": "proofread",
+    "after": "job_..."
+  }
+}
+```
+
+The `201` response has `"status": "waiting_for_review"`, or `"queued"` for a task that waits. Finish each task with [Complete a task for people](#complete-a-task-for-people). Tasks on files count towards the workspace's limit of 50 open jobs.
+
 #### Title, deadline and owner
 
 Every job type takes these optional top-level fields:
@@ -316,6 +343,7 @@ curl --fail-with-body "https://hyperlocalise.com/api/v1/jobs" \
 | 400 | `no_strings_matched` | A key job's selection matches no visible string |
 | 400 | `too_many_strings` | A key job's selection matches more than 5,000 strings |
 | 409 | `project_not_native` | A key job names an external TMS project |
+| 400 | `after_job_not_found` | `after` names no job in the same project |
 | 503 | `job_queue_unavailable` | The job was created but not enqueued. Retry with the same key |
 
 ### Complete a task for people
@@ -334,7 +362,7 @@ Finishes an open task for people, such as a key job, a proofread task or a post-
 |---|---|---|
 | 403 | `forbidden` | The task is assigned to someone else, or your role can't change jobs |
 | 404 | `job_not_found` | No such job in a project you can access |
-| 409 | `job_action_unavailable` | The job is not an open task for people |
+| 409 | `job_action_unavailable` | The job is not an open task for people, or it still waits for the task it comes after |
 
 The CLI does not call these endpoints during `sync push`. Platform automations and the UI create jobs after upload.
 
@@ -384,10 +412,14 @@ Permission: `jobs:read`
     ],
     "sourceFile": { "fileId": "file_...", "path": "locales/en.json", "branch": "main" },
     "sourceLocale": "en",
-    "targetLocales": ["fr-FR"]
+    "targetLocales": ["fr-FR"],
+    "step": null,
+    "after": null
   }
 }
 ```
+
+`step` is the job's step as a task for people: `translate`, `post_edit` or `proofread`, and `null` for AI jobs and jobs synced from another TMS. A post-edit task and a proofread task both have kind `proofread`, so read `step` to tell them apart. `after` is the ID of the job a task comes after, or `null`; while that job is unfinished the task's `status` is `queued`.
 
 `sourceFile` is the stored file the job translates or reviews: `fileId` is its id for [Download a stored file](#download-a-stored-file), `path` is its path in the project, and `branch` is the project version branch it is on (both `null` if it has no path). It is `null` for jobs not made from a stored file, such as key jobs. `sourceLocale` and `targetLocales` are the languages the job was created with; they are `null` for jobs synced from another TMS.
 

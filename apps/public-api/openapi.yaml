@@ -2210,10 +2210,16 @@ paths:
         Requires `jobs:write`. Takes the same body and checks as `POST /api/v1/jobs` on the files and
         jobs host. A `keys` job is a task for people on a native project's strings. It starts as
         `waiting_for_review` and is ready to work in the editor. A `string` or `file` job is recorded
-        as `queued`. This API does not start AI translation for it.
+        as `queued`. This API does not start AI translation for it. A `file` job with
+        `fileInput.step` is a task for a person on that file instead: it starts as
+        `waiting_for_review`, or as `queued` when `fileInput.after` names a job of the same project
+        that is not yet `succeeded` or `cancelled`, and opens when that job is
+        (`400 after_job_not_found` when no such job is in the project). A task created here is not
+        analysed for Reports until work is saved in it; one created with `POST /api/v1/jobs` is.
         Languages must be enabled on the project. A file job's `fileFormat` must match its source
         file's name (`400 source_file_format_mismatch` gives `details.expectedFileFormat`). A
-        workspace holds at most 50 open jobs, not counting tasks for people, and creates at most 120
+        workspace holds at most 50 open jobs, not counting `keys` jobs (a task for a person on a file
+        counts), and creates at most 120
         jobs an hour (`429 organization_job_budget_exceeded`). Send an `Idempotency-Key` header to
         retry safely. A repeat of the same request returns the first job with `200` and
         `Idempotent-Replayed: true`. The same key with a different body returns
@@ -2277,6 +2283,8 @@ paths:
                     targetLocales: { type: array, minItems: 1, maxItems: 20, items: { type: string, minLength: 1, maxLength: 32 } }
                     metadata: { $ref: "#/components/schemas/JobMetadata" }
                     branch: { type: string, minLength: 1, maxLength: 128, description: "The project version branch; `main` when left out." }
+                    step: { type: string, enum: [post_edit, proofread], description: "Makes the job a task for a person at this step, not AI work." }
+                    after: { type: string, minLength: 1, maxLength: 128, description: "With `step`: the id of a job in the same project that this task comes after. The task waits as `queued` until that job is marked done or cancelled." }
       responses:
         "200":
           description: The job an earlier request with this Idempotency-Key created.
@@ -3824,7 +3832,7 @@ components:
         updatedAt: { type: string, format: date-time }
     Job:
       type: object
-      required: [id, projectId, kind, type, status, createdAt, updatedAt, completedAt, lastError, title, description, dueAt, ownerEmail, outputFiles, sourceFile, sourceLocale, targetLocales]
+      required: [id, projectId, kind, type, status, createdAt, updatedAt, completedAt, lastError, title, description, dueAt, ownerEmail, outputFiles, sourceFile, sourceLocale, targetLocales, step, after]
       properties:
         id: { type: string }
         projectId: { type: [string, "null"] }
@@ -3863,6 +3871,17 @@ components:
         targetLocales:
           type: [array, "null"]
           items: { type: string }
+        step:
+          type: [string, "null"]
+          enum: [translate, post_edit, proofread, null]
+          description: >-
+            The job's step as a task for people. `null` for AI jobs and for jobs synced from another
+            TMS. A post-edit task and a proofread task both have kind `proofread`.
+        after:
+          type: [string, "null"]
+          description: >-
+            The job this task comes after. While that job is unfinished the task's status is
+            `queued`.
     JobResponse:
       type: object
       required: [job]

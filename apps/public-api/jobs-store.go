@@ -59,6 +59,10 @@ type job struct {
 	SourceFile    *jobSourceFile   `json:"sourceFile"`
 	SourceLocale  *string          `json:"sourceLocale"`
 	TargetLocales *[]string        `json:"targetLocales"`
+	// Step is the job's step as a task for people: translate, post_edit or proofread.
+	Step *string `json:"step"`
+	// After is the job this task comes after; while that job is unfinished the task is queued.
+	After *string `json:"after"`
 }
 
 type jobFilters struct {
@@ -92,7 +96,15 @@ const jobColumns = `
 	j.input_payload->'metadata'->>'title', j.input_payload->'metadata'->>'description',
 	j.due_at, ou.email,
 	j.input_payload->>'sourceFileId', sf.source_path, sf.branch_name,
-	j.input_payload->>'sourceLocale', j.input_payload->'targetLocales'`
+	j.input_payload->>'sourceLocale', j.input_payload->'targetLocales',
+	` + jobTaskStepSQL + `, j.after_job_id`
+
+// jobTaskStepSQL is a job's step as a task for people, as the web app's personTaskStep names it
+// (post-edit as post_edit): null for an agent's job and for one mirrored from a provider. go-svc's
+// publicJobTaskStepSQL is the same text.
+const jobTaskStepSQL = `CASE WHEN j.assignee_type = 'agent' OR EXISTS (SELECT 1 FROM external_job_details x WHERE x.job_id = j.id) THEN NULL
+		WHEN j.kind = 'proofread' THEN CASE WHEN j.input_payload->'metadata'->>'workflowTaskStep' = 'edit' THEN 'post_edit' ELSE 'proofread' END
+		WHEN j.kind = 'translation' AND j.input_payload->'metadata'->>'workflowTaskStep' = 'translate' THEN 'translate' END`
 
 const jobFrom = `
 	FROM jobs j
@@ -109,7 +121,8 @@ func scanJob(row rowScanner) (job, error) {
 	err := row.Scan(&item.ID, &item.ProjectID, &item.Kind, &item.Type, &item.Status, &outcomeKind,
 		&outcomePayload, &item.LastError, &item.CreatedAt, &item.UpdatedAt, &item.CompletedAt,
 		&item.Title, &item.Description, &item.DueAt, &item.OwnerEmail,
-		&sourceFileID, &sourcePath, &sourceBranch, &item.SourceLocale, &targetLocales)
+		&sourceFileID, &sourcePath, &sourceBranch, &item.SourceLocale, &targetLocales,
+		&item.Step, &item.After)
 	if err == nil {
 		item.OutputFiles = jobOutputFiles(item.Type, outcomeKind, outcomePayload)
 		item.SourceFile = jobSourceFileOf(sourceFileID, sourcePath, sourceBranch)

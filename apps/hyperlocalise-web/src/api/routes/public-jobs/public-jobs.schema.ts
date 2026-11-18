@@ -33,12 +33,23 @@ const publicJobMetadataSchema = z
 
 export const maxPublicJobIdempotencyKeyLength = 255;
 
+/**
+ * The steps a file job can be made a task for a person at. Stored as the visual workflow Assign
+ * task step stores them: `edit` for post-edit.
+ */
+export const PUBLIC_TASK_STEPS = ["post_edit", "proofread"] as const;
+export type PublicTaskStep = (typeof PUBLIC_TASK_STEPS)[number];
+
 /** Fields every public job takes, whatever its input. Stored as the in-app job editor stores them. */
 const createPublicJobSharedFields = {
   title: z.string().trim().min(1).max(256).optional(),
   description: z.string().trim().max(2_048).optional(),
   dueAt: z.string().datetime({ offset: true }).optional(),
   ownerEmail: z.string().trim().email().max(320).optional(),
+  // `step` and `after` belong in `fileInput`. Left here they would be dropped and the file sent to
+  // the AI, so they are refused, as the Go public API refuses any unknown field.
+  step: z.never().optional(),
+  after: z.never().optional(),
 };
 
 export const createPublicJobBodySchema = z.discriminatedUnion("type", [
@@ -62,17 +73,26 @@ export const createPublicJobBodySchema = z.discriminatedUnion("type", [
     type: z.literal("file"),
     projectId: projectIdSchema,
     ...createPublicJobSharedFields,
-    fileInput: z.object({
-      sourceFileId: z.string().trim().min(1).max(128),
-      fileFormat: z.enum(supportedFileTranslationFileFormats),
-      sourceLocale: z.string().trim().min(1).max(32),
-      targetLocales: z
-        .array(z.string().trim().min(1).max(32))
-        .min(1)
-        .max(maxTranslationTargetLocales),
-      metadata: publicJobMetadataSchema,
-      branch: fileJobBranchSchema.optional(),
-    }),
+    fileInput: z
+      .object({
+        sourceFileId: z.string().trim().min(1).max(128),
+        fileFormat: z.enum(supportedFileTranslationFileFormats),
+        sourceLocale: z.string().trim().min(1).max(32),
+        targetLocales: z
+          .array(z.string().trim().min(1).max(32))
+          .min(1)
+          .max(maxTranslationTargetLocales),
+        metadata: publicJobMetadataSchema,
+        branch: fileJobBranchSchema.optional(),
+        // With a step the job is a task for a person, not AI work.
+        step: z.enum(PUBLIC_TASK_STEPS).optional(),
+        // The job a task comes after: it waits until that job is marked done or cancelled.
+        after: z.string().trim().min(1).max(128).optional(),
+      })
+      .refine((input) => input.after === undefined || input.step !== undefined, {
+        message: "after is for a task with a step",
+        path: ["after"],
+      }),
   }),
   z.object({
     type: z.literal("keys"),
@@ -173,6 +193,8 @@ export function hashPublicJobRequest(payload: CreatePublicJobBody) {
               targetLocales: payload.fileInput.targetLocales,
               metadata: sortedMetadata(payload.fileInput.metadata),
               branch: payload.fileInput.branch,
+              step: payload.fileInput.step,
+              after: payload.fileInput.after,
             },
           };
 

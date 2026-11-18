@@ -2661,6 +2661,18 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "wFfOIZj5wX",
     description: "Title of the job the assign task step creates",
   },
+  createTaskAfterJob: {
+    defaultMessage: "Comes after",
+    id: "0d5DFVkzn6",
+    description:
+      "Label for the Assign task workflow step's setting naming an earlier task that must be finished before this one opens",
+  },
+  createTaskAfterJobHint: {
+    defaultMessage:
+      "The job ID from an earlier Assign task or Machine translate step. This task waits and opens when that job is marked done, finishes, or is cancelled. Leave empty to open the task straight away.",
+    id: "8TDQwzZa3F",
+    description: "Help text for the Comes after setting of the Assign task workflow step",
+  },
   taskDueAt: {
     defaultMessage: "Due date",
     id: "upV29iL/j6",
