@@ -57,6 +57,7 @@ go_library(
         "@io_opentelemetry_go_otel//attribute:attribute",
         "@io_opentelemetry_go_otel//codes:codes",
         "@io_opentelemetry_go_otel_trace//:trace",
+        "@org_golang_x_sync//errgroup",
     ],
 )
 

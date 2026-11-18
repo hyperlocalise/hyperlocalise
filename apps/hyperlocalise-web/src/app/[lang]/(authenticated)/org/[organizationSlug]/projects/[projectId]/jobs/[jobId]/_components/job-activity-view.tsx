@@ -45,6 +45,7 @@ import type {
   JobActivityRunStage,
 } from "./build-job-activity";
 import { jobActivityViewMessages as messages } from "./job-activity-view.messages";
+import { jobFailureCodeMessage } from "./job-failure-code";
 
 export type JobActivityViewProps = {
   /** `null` while the first load is in flight. */
@@ -183,8 +184,15 @@ function RunSummary({ run }: { run: JobActivityRun }) {
       return <FormattedMessage {...messages.summaryTranslating} values={{ done, total }} />;
     case "succeeded":
       return <FormattedMessage {...messages.summarySucceeded} values={{ done, total }} />;
-    case "failed":
-      return <FormattedMessage {...messages.summaryFailed} />;
+    case "failed": {
+      const reason = jobFailureCodeMessage(run.failureCode);
+      if (reason) return <FormattedMessage {...reason} />;
+      return done > 0 ? (
+        <FormattedMessage {...messages.summaryFailed} values={{ done, total }} />
+      ) : (
+        <FormattedMessage {...messages.summaryFailedAll} />
+      );
+    }
     case "stopped":
       return <FormattedMessage {...messages.summaryStopped} />;
     default:
@@ -258,15 +266,22 @@ function LocaleRow({ locale, runActive }: { locale: JobActivityLocale; runActive
     <li className="grid grid-cols-[1rem_4.5rem_minmax(0,1fr)_auto] items-center gap-3 text-sm">
       <LocaleStatusIcon locale={locale} runActive={runActive} />
       <span className="truncate font-medium">{locale.locale}</span>
-      <Progress
-        value={percent}
-        aria-label={locale.locale}
-        className={cn(
-          "[&_[data-slot=progress-track]]:h-1.5",
-          locale.status === "completed" && "[&_[data-slot=progress-indicator]]:bg-success",
-          locale.status === "failed" && "[&_[data-slot=progress-indicator]]:bg-destructive",
-        )}
-      />
+      {locale.status === "failed" && !hasCounts ? (
+        // An empty bar says nothing about a locale that never started.
+        <span className="text-xs text-destructive">
+          <FormattedMessage {...messages.localeNotTranslated} />
+        </span>
+      ) : (
+        <Progress
+          value={percent}
+          aria-label={locale.locale}
+          className={cn(
+            "[&_[data-slot=progress-track]]:h-1.5",
+            locale.status === "completed" && "[&_[data-slot=progress-indicator]]:bg-success",
+            locale.status === "failed" && "[&_[data-slot=progress-indicator]]:bg-destructive",
+          )}
+        />
+      )}
       <span className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
         {locale.status === "retrying" && runActive ? (
           <FormattedMessage {...messages.localeStatusRetrying} />
@@ -432,7 +447,31 @@ function GuidelineResultMessage({
   return <FormattedMessage {...messages.stepGuidelinesResultIncluded} values={{ names }} />;
 }
 
-function RunSteps({ run, now }: { run: JobActivityRun; now: number }) {
+function isFailureStep(step: JobEventRecord) {
+  return step.type === "locale_failed" || step.type === "job_failed";
+}
+
+/** Time since the run's first step, so the list shows how long each part took. */
+function formatElapsed(intl: IntlShape, from: string, to: string) {
+  const seconds = Math.max(
+    0,
+    Math.round((new Date(to).getTime() - new Date(from).getTime()) / 1000),
+  );
+  const unit = (value: number, name: "hour" | "minute" | "second") =>
+    intl.formatNumber(value, { style: "unit", unit: name, unitDisplay: "narrow" });
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const parts =
+    hours > 0
+      ? [unit(hours, "hour"), unit(minutes, "minute")]
+      : minutes > 0
+        ? [unit(minutes, "minute"), unit(seconds % 60, "second")]
+        : [unit(seconds, "second")];
+  return intl.formatMessage(messages.elapsed, { duration: parts.join(" ") });
+}
+
+function RunSteps({ run }: { run: JobActivityRun }) {
+  const intl = useIntl();
   const steps = run.steps.flatMap((step) => {
     const message = stepMessage(step);
     return message ? [{ step, message }] : [];
@@ -452,11 +491,37 @@ function RunSteps({ run, now }: { run: JobActivityRun; now: number }) {
       </CollapsibleTrigger>
       <CollapsibleContent>
         <ol className="mt-2 space-y-1.5 border-s ps-3 text-xs text-muted-foreground">
-          {steps.map(({ step, message }) => (
-            <li key={step.id} className="flex justify-between gap-3">
+          {steps.map(({ step, message }, index) => (
+            <li
+              key={step.id}
+              className={cn(
+                "flex justify-between gap-3",
+                isFailureStep(step) && "font-medium text-destructive",
+              )}
+            >
               <span className="min-w-0">{message}</span>
-              <span className="shrink-0">
-                <RelativeTime date={step.createdAt} now={now} />
+              <span className="shrink-0 tabular-nums">
+                {index === 0 ? (
+                  <time
+                    dateTime={step.createdAt}
+                    title={intl.formatDate(step.createdAt, {
+                      dateStyle: "medium",
+                      timeStyle: "medium",
+                    })}
+                  >
+                    {intl.formatDate(step.createdAt, { dateStyle: "medium", timeStyle: "short" })}
+                  </time>
+                ) : (
+                  <time
+                    dateTime={step.createdAt}
+                    title={intl.formatDate(step.createdAt, {
+                      dateStyle: "medium",
+                      timeStyle: "medium",
+                    })}
+                  >
+                    {formatElapsed(intl, steps[0]!.step.createdAt, step.createdAt)}
+                  </time>
+                )}
               </span>
             </li>
           ))}
@@ -523,12 +588,16 @@ function RunCard({
         {followUpHref ? (
           <p className="text-sm">
             <Link href={followUpHref} className="underline underline-offset-4">
-              <FormattedMessage {...messages.followUpLink} />
+              <FormattedMessage
+                {...(run.locales.some((locale) => locale.status === "completed")
+                  ? messages.followUpLink
+                  : messages.followUpRetryLink)}
+              />
             </Link>
           </p>
         ) : null}
 
-        <RunSteps run={run} now={now} />
+        <RunSteps run={run} />
       </section>
     </li>
   );

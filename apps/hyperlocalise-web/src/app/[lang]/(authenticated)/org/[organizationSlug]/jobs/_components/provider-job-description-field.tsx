@@ -29,6 +29,7 @@ export function ProviderJobDescriptionFieldView({
   editable,
   initialDraft,
   initialIsEditing = false,
+  onCancel,
   isSaving = false,
   imageUpload = null,
   onSaveDescription,
@@ -38,6 +39,8 @@ export function ProviderJobDescriptionFieldView({
   editable: boolean;
   initialDraft?: string;
   initialIsEditing?: boolean;
+  /** Called after the editor is closed without saving. */
+  onCancel?: () => void;
   isSaving?: boolean;
   imageUpload?: { organizationSlug: string; projectId?: string | null } | null;
   onSaveDescription?: (description: string) => Promise<string | void>;
@@ -142,6 +145,7 @@ export function ProviderJobDescriptionFieldView({
           onClick={() => {
             setDraftState({ baseDescription: description, draft: description });
             setIsEditing(false);
+            onCancel?.();
           }}
         >
           <FormattedMessage {...providerJobDescriptionFieldMessages.cancel} />

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/hyperlocalise/hyperlocalise/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/ota"
 	"github.com/stretchr/testify/require"
@@ -115,7 +116,7 @@ func sendOTA(t *testing.T, p principal, store resourceStore, method, target stri
 }
 
 func TestProjectOtaDistributionRoutes(t *testing.T) {
-	readScopes := effectivePermissions([]string{"files:read"}, "member")
+	readScopes := authz.EffectivePermissions([]string{"files:read"}, "member")
 
 	t.Run("needs files:read", func(t *testing.T) {
 		w := sendOTA(t, resourcePrincipal(jobReadScopes...), &fakeResourceStore{}, http.MethodGet, "/v1/projects/project-1/ota-distributions")
@@ -148,7 +149,7 @@ func TestProjectOtaDistributionsDatabase(t *testing.T) {
 	f := newDBFixture(t)
 	ctx := t.Context()
 	p := f.actor
-	p.Permissions = effectivePermissions([]string{"files:read"}, "admin")
+	p.Permissions = authz.EffectivePermissions([]string{"files:read"}, "admin")
 
 	insertPack := func(t *testing.T, projectID, name, format, branch string) (id, hash string) {
 		t.Helper()
@@ -220,7 +221,7 @@ func TestProjectOtaDistributionsDatabase(t *testing.T) {
 
 	t.Run("members without project access see no pack", func(t *testing.T) {
 		outsider := f.member(t, "translator")
-		outsider.Permissions = effectivePermissions([]string{"files:read"}, "translator")
+		outsider.Permissions = authz.EffectivePermissions([]string{"files:read"}, "translator")
 		w := get(t, outsider, f.project)
 		require.Equal(t, http.StatusNotFound, w.Code, w.Body.String())
 		require.Contains(t, w.Body.String(), `"error":"project_not_found"`)

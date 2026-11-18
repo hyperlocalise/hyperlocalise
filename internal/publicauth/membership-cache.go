@@ -1,4 +1,4 @@
-package main
+package publicauth
 
 import (
 	"context"
@@ -20,7 +20,7 @@ const (
 	organizationMembershipLocalCacheLimit = 10_000
 )
 
-type organizationMembershipCacheStore interface {
+type CacheStore interface {
 	Get(context.Context, string) (string, error)
 	Set(context.Context, string, string, time.Duration) error
 }
@@ -71,8 +71,8 @@ type localMembershipCacheEntry struct {
 }
 
 type organizationMembershipCache struct {
-	live  organizationMembershipLookup
-	store organizationMembershipCacheStore
+	live  MembershipLookup
+	store CacheStore
 	now   func() time.Time
 
 	mu      sync.Mutex
@@ -80,10 +80,10 @@ type organizationMembershipCache struct {
 	flights singleflight.Group
 }
 
-func newCachedOrganizationMembershipLookup(
-	live organizationMembershipLookup,
-	store organizationMembershipCacheStore,
-) organizationMembershipLookup {
+func NewCachedMembershipLookup(
+	live MembershipLookup,
+	store CacheStore,
+) MembershipLookup {
 	if live == nil {
 		return nil
 	}

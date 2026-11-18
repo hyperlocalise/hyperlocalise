@@ -88,6 +88,9 @@ func (s *Service) Pull(ctx context.Context, in PullInput) (Report, error) {
 		return Report{}, fmt.Errorf("read local snapshot: %w", err)
 	}
 
+	if err := ctx.Err(); err != nil {
+		return Report{}, err
+	}
 	remoteResult, err := in.Adapter.Pull(ctx, in.Request)
 	if err != nil {
 		return Report{}, fmt.Errorf("pull remote snapshot: %w", err)
@@ -105,6 +108,9 @@ func (s *Service) Pull(ctx context.Context, in PullInput) (Report, error) {
 		return report, nil
 	}
 
+	if err := ctx.Err(); err != nil {
+		return report, err
+	}
 	apply, err := in.Local.ApplyPull(ctx, ApplyPullPlan{
 		Creates: report.Creates,
 		Updates: report.Updates,
@@ -123,6 +129,9 @@ func (s *Service) Push(ctx context.Context, in PushInput) (Report, error) {
 		return Report{}, fmt.Errorf("build local push snapshot: %w", err)
 	}
 
+	if err := ctx.Err(); err != nil {
+		return Report{}, err
+	}
 	remoteResult, err := in.Adapter.Pull(ctx, storage.PullRequest{
 		Locales:     in.Read.Locales,
 		KeyPrefixes: in.Read.KeyPrefixes,
@@ -148,6 +157,9 @@ func (s *Service) Push(ctx context.Context, in PushInput) (Report, error) {
 		return report, nil
 	}
 
+	if err := ctx.Err(); err != nil {
+		return report, err
+	}
 	pushResult, err := in.Adapter.Push(ctx, pushReq)
 	report.Applied = append(report.Applied, pushResult.Applied...)
 	report.Skipped = append(report.Skipped, pushResult.Skipped...)

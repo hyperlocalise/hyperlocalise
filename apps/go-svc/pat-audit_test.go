@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/stretchr/testify/require"
 )
 
@@ -123,7 +124,7 @@ func TestEmitPatCreatedWritesSafeAudit(t *testing.T) {
 
 	serialized := buf.String()
 	require.NotContains(t, serialized, key)
-	require.NotContains(t, serialized, hashAPIKey(key))
+	require.NotContains(t, serialized, publicauth.HashAPIKey(key))
 }
 
 func TestEmitPatCreatedRecordsEmptyPermissionsAsArray(t *testing.T) {

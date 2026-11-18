@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 )
 
 const billingRequestTimeout = 30 * time.Second
@@ -80,7 +81,7 @@ func (api *billingAPI) authorize(w http.ResponseWriter, r *http.Request, capabil
 		writeBillingError(w, r, "resolve_actor", mapOrganizationAccessError(err, billingFailure))
 		return organizationActor{}, false
 	}
-	if !hasOrganizationCapability(actor.role, capability) {
+	if !authz.HasCapability(actor.role, capability) {
 		writeBillingError(w, r, "capability", billingFailure(403, forbiddenCode, forbiddenMessage))
 		return organizationActor{}, false
 	}

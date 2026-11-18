@@ -13,14 +13,16 @@
  * Version 2.0 or later.
  */
 import { useState, type ReactNode } from "react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
+
+import { Button } from "@/components/ui/button";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyH4 } from "@/components/ui/typography";
 
 import {
-  defaultRenderBackLink,
   defaultRenderError,
   type JobDetailBackLinkRenderer,
   type JobDetailErrorRenderer,
@@ -37,6 +39,10 @@ import { TmsLiveJobCommentsSection } from "./tms/tms-live-job-comments-section";
 export type JobDetailTaskDescriptionRenderer = (props: {
   description: string;
   editable: boolean;
+  /** Open straight into the editor, after "Add description" was chosen. */
+  startEditing?: boolean;
+  /** Called when editing is cancelled, so an empty description can collapse again. */
+  onCancel?: () => void;
 }) => ReactNode;
 
 export type JobDetailTaskFilesRenderer = (props: {
@@ -64,7 +70,7 @@ export function JobDetailTaskView({
   organizationSlug,
   projectId,
   properties,
-  renderBackLink = defaultRenderBackLink,
+  renderBackLink,
   renderDescriptionField,
   renderError = defaultRenderError,
   renderExtraMain,
@@ -99,9 +105,12 @@ export function JobDetailTaskView({
   title?: ReactNode;
 }) {
   const [activeTab, setActiveTab] = useState<JobDetailTaskTab>("overview");
+  const [addingDescription, setAddingDescription] = useState(false);
 
-  const showDescriptionSection =
-    description.trim().length > 0 || (canEditDescription && renderDescriptionField);
+  const hasDescription = description.trim().length > 0;
+  const canAddDescription =
+    !hasDescription && canEditDescription && Boolean(renderDescriptionField);
+  const showDescriptionSection = hasDescription || (canAddDescription && addingDescription);
   const hasFilesTab = Boolean(renderFilesSection);
   const hasCommentsTab = showComments;
   const hasReportTab = Boolean(renderReportSection);
@@ -117,9 +126,22 @@ export function JobDetailTaskView({
           {renderDescriptionField({
             description,
             editable: canEditDescription,
+            startEditing: !hasDescription,
+            onCancel: () => setAddingDescription(false),
           })}
         </div>
       </section>
+    ) : canAddDescription ? (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="-ms-2 w-fit text-muted-foreground"
+        onClick={() => setAddingDescription(true)}
+      >
+        <PlusIcon data-icon="inline-start" />
+        <FormattedMessage {...messages.addDescription} />
+      </Button>
     ) : null;
 
   const filesSection =
@@ -141,21 +163,21 @@ export function JobDetailTaskView({
       className="gap-4"
     >
       <TabsList variant="line" className="w-full justify-start">
-        <TabsTrigger value="overview">
+        <TabsTrigger value="overview" className="flex-none px-3">
           <FormattedMessage {...messages.overviewTab} />
         </TabsTrigger>
         {hasFilesTab ? (
-          <TabsTrigger value="files">
+          <TabsTrigger value="files" className="flex-none px-3">
             <FormattedMessage {...messages.filesTab} />
           </TabsTrigger>
         ) : null}
         {hasCommentsTab ? (
-          <TabsTrigger value="comments">
+          <TabsTrigger value="comments" className="flex-none px-3">
             <FormattedMessage {...messages.commentsTab} />
           </TabsTrigger>
         ) : null}
         {hasReportTab ? (
-          <TabsTrigger value="report">
+          <TabsTrigger value="report" className="flex-none px-3">
             <FormattedMessage {...messages.reportTab} />
           </TabsTrigger>
         ) : null}

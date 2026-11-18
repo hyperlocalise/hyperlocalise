@@ -21,6 +21,7 @@ import { TypographyH1 } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 import { jobDetailEditableTitleMessages as messages } from "./job-detail-editable-title.messages";
+import { JOB_TITLE_CLASS } from "./job-detail-view";
 
 export function JobDetailEditableTitle({
   title,
@@ -42,7 +43,7 @@ export function JobDetailEditableTitle({
   }, [title]);
 
   if (!editable || !onSave) {
-    return <TypographyH1>{title}</TypographyH1>;
+    return <TypographyH1 className={JOB_TITLE_CLASS}>{title}</TypographyH1>;
   }
 
   const commit = async () => {
@@ -90,7 +91,8 @@ export function JobDetailEditableTitle({
       aria-label={intl.formatMessage(messages.titleAriaLabel)}
       rows={1}
       className={cn(
-        "font-heading min-h-10 shrink-0 overflow-hidden rounded-none border-transparent bg-transparent px-0 py-1 text-3xl font-semibold tracking-[-0.04em] text-balance text-foreground shadow-none md:min-h-14 md:text-6xl",
+        "font-heading min-h-9 shrink-0 overflow-hidden rounded-none border-transparent bg-transparent px-0 py-0.5 font-semibold text-balance text-foreground shadow-none",
+        JOB_TITLE_CLASS,
         "focus-visible:border-transparent focus-visible:ring-0",
       )}
     />

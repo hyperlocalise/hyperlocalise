@@ -381,7 +381,10 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
         inner join latest_succeeded_qa_run lr on lr.id = f.run_id
         inner join projects p on p.id = f.project_id
         where ` + filterSQL + `
-        order by f.severity, p.name, f.target_locale, f.key, f.id
+        -- Rank each key's group by its worst finding so errors come first and a
+        -- group's findings stay together across pages.
+        order by min(f.severity) over (partition by f.project_id, f.source_path, f.key, f.target_locale),
+            p.name, f.target_locale, f.key, f.source_path, f.severity, f.id
         limit $` + strconv.Itoa(len(queryArgs)+1) + ` offset $` + strconv.Itoa(len(queryArgs)+2)
 
 	var total int

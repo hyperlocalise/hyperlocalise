@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 )
 
 const (
@@ -92,6 +93,7 @@ func (api *irisGenerationAPI) register(mux *http.ServeMux, verifier SessionVerif
 	registerAuthenticated(mux, verifier, "GET "+irisGenerationPath+"/jobs/{jobId}", http.HandlerFunc(api.getJob))
 	registerAuthenticated(mux, verifier, "POST "+irisGenerationPath+"/jobs/{jobId}/cancel", http.HandlerFunc(api.cancelJob))
 	api.registerLocalise(mux, verifier)
+	api.registerChat(mux, verifier)
 }
 
 func (api *irisGenerationAPI) claims(r *http.Request) (AuthClaims, bool) {
@@ -124,9 +126,9 @@ func (api *irisGenerationAPI) scope(w http.ResponseWriter, r *http.Request) (iri
 	}
 	actor, err := resolveOrganizationActor(r.Context(), api.pool, api.membership, claims, slug)
 	if err != nil {
-		var access *organizationAccessError
+		var access *publicauth.AccessError
 		if errors.As(err, &access) {
-			writeJSON(w, access.status, map[string]string{"error": access.code, "message": access.message})
+			writeJSON(w, access.Status, map[string]string{"error": access.Code, "message": access.Message})
 			return irisOrgScope{}, false
 		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal_error", "message": "Could not resolve the workspace"})
@@ -163,8 +165,8 @@ func (api *irisGenerationAPI) autumnEstimate(ctx context.Context, orgID string, 
 	return estimate
 }
 
-// ensureAIAllowed gates iris generate on Autumn ai_features and the USD
-// ai_tokens wallet. Platform Fal and ElevenLabs keys always consume AI credit.
+// ensureAIAllowed gates iris generate, localise, and chat on Autumn ai_features
+// and the USD ai_tokens wallet. Platform Fal and ElevenLabs keys always consume AI credit.
 // Org LLM BYOK is not consulted: those credentials do not pay Fal or ElevenLabs.
 func (api *irisGenerationAPI) ensureAIAllowed(ctx context.Context, orgID string) (int, string, string, bool) {
 	if api.meter == nil {

@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/ota"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -312,12 +313,13 @@ func (s apiServer) authenticate(w http.ResponseWriter, r *http.Request, permissi
 		return principal{}, false
 	}
 	p, err := s.auth.authenticate(r.Context(), tokens[0])
+	var failure *publicauth.Error
 	switch {
-	case errors.Is(err, errUnauthorized):
-		writeError(w, http.StatusUnauthorized, "unauthorized", "Invalid or revoked API key")
-	case errors.Is(err, errForbidden):
-		writeError(w, http.StatusForbidden, "forbidden", "Workspace access denied")
+	case errors.As(err, &failure) && failure.Status < http.StatusInternalServerError:
+		writeError(w, failure.Status, failure.Code, failure.Message)
 	case err != nil:
+		// Database and WorkOS outages keep this API's single retryable answer.
+		slog.Warn("authentication unavailable", "error", err)
 		writeError(w, http.StatusServiceUnavailable, "authentication_unavailable", "Authentication is temporarily unavailable")
 	case permission != "" && !contains(p.Permissions, permission):
 		writeError(w, http.StatusForbidden, "forbidden", "Missing required permission: "+permission)

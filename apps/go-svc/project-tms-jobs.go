@@ -317,7 +317,7 @@ func (api *projectAPI) liveProjectMembersHandler(r *http.Request, actor projectA
 func (api *projectAPI) projectJobsCreateHandler(r *http.Request, actor projectActor) (any, int, error) {
 	id, live := parseLiveProjectID(r.PathValue("projectId"))
 	if !live {
-		return nil, 0, projectFailure(http.StatusNotImplemented, "job_create_deferred", "Creating native jobs is not available on this server")
+		return api.nativeJobCreate(r, actor)
 	}
 	if !actor.canCreateJobs() {
 		return nil, 0, projectForbidden()

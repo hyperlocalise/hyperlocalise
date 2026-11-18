@@ -11,12 +11,48 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 	"github.com/workos/workos-go/v10"
 )
 
-const publicAPITestPath = "/v1/public-api-auth-test"
+const (
+	publicAPITestPath = "/v1/public-api-auth-test"
+	testAuthkitDomain = "auth.example.test"
+	testAuthkitIssuer = "https://" + testAuthkitDomain
+	testPublicAppURL  = "https://app.example.test/some/path"
+)
+
+func testAgentVerifier(t *testing.T, fixture accessTokenFixture) *publicauth.AgentVerifier {
+	t.Helper()
+	verifier := publicauth.NewAgentVerifier(testAuthkitDomain, testWorkOSClientID, testPublicAppURL)
+	verifier.Keys.Fetch = func(_ context.Context, jwksURL string) (*workos.JWKSResponse, error) {
+		require.Equal(t, testAuthkitIssuer+"/.well-known/jwks.json", jwksURL)
+		return fixture.jwks, nil
+	}
+	return verifier
+}
+
+func agentClaims(overrides map[string]any) map[string]any {
+	claims := map[string]any{
+		"iss":    testAuthkitIssuer,
+		"aud":    "https://app.example.test/api/v1",
+		"sub":    "agent_registration_1",
+		"org_id": "org_agent",
+		"act":    map[string]any{"sub": "user_agent"},
+		"scope":  "files:read jobs:read",
+		"exp":    time.Now().Add(time.Hour).Unix(),
+	}
+	for key, value := range overrides {
+		if value == nil {
+			delete(claims, key)
+			continue
+		}
+		claims[key] = value
+	}
+	return claims
+}
 
 type publicAPITestPrincipal struct {
 	OrganizationID string   `json:"organizationId"`
@@ -33,12 +69,12 @@ func publicAPITestHandler(auth *publicAPIAuth) http.Handler {
 		principal, _ := publicAPIPrincipalFrom(r.Context())
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(publicAPITestPrincipal{
-			OrganizationID: principal.organizationID,
-			UserID:         principal.userID,
-			Role:           principal.role,
-			CredentialID:   principal.credentialID,
-			Kind:           principal.kind,
-			Permissions:    principal.permissions,
+			OrganizationID: principal.OrganizationID,
+			UserID:         principal.UserID,
+			Role:           principal.Role,
+			CredentialID:   principal.CredentialID,
+			Kind:           principal.Kind,
+			Permissions:    principal.Permissions,
 		})
 	}))))
 	return mux
@@ -110,30 +146,6 @@ func TestPublicAPIRequirePermissionWithoutPrincipal(t *testing.T) {
 	requirePublicAPIError(t, rec, http.StatusUnauthorized, "unauthorized", "Authentication required")
 }
 
-func TestPublicAPIRoleAllowsScope(t *testing.T) {
-	for _, role := range []string{"admin", "localization_manager", "developer", "reviewer", "translator", "member"} {
-		require.True(t, publicAPIRoleAllowsScope(role, "files:read"), role)
-		require.True(t, publicAPIRoleAllowsScope(role, "jobs:read"), role)
-		require.True(t, publicAPIRoleAllowsScope(role, "memories:read"), role)
-		require.Equal(t, role != "member", publicAPIRoleAllowsScope(role, "files:write"), role)
-		require.Equal(t, role != "member", publicAPIRoleAllowsScope(role, "jobs:write"), role)
-		require.Equal(t, role == "admin" || role == "localization_manager", publicAPIRoleAllowsScope(role, "memories:write"), role)
-		require.False(t, publicAPIRoleAllowsScope(role, "mcp"), role)
-		require.False(t, publicAPIRoleAllowsScope(role, "api_keys:write"), role)
-	}
-	require.False(t, publicAPIRoleAllowsScope("owner", "files:read"))
-	require.False(t, publicAPIRoleAllowsScope("", "files:read"))
-}
-
-func TestParseAPIKeyPermissions(t *testing.T) {
-	permissions, err := parseAPIKeyPermissions([]byte(`["files:read", 7, null, "jobs:read"]`))
-	require.NoError(t, err)
-	require.Equal(t, []string{"files:read", "jobs:read"}, permissions)
-
-	_, err = parseAPIKeyPermissions([]byte(`{"files:read": true}`))
-	require.Error(t, err)
-}
-
 func TestNewPublicAPIAuthFromEnv(t *testing.T) {
 	t.Setenv("WORKOS_AUTHKIT_DOMAIN", testAuthkitDomain)
 	t.Setenv("WORKOS_CLIENT_ID", testWorkOSClientID)
@@ -141,7 +153,8 @@ func TestNewPublicAPIAuthFromEnv(t *testing.T) {
 
 	auth := newPublicAPIAuthFromEnv(nil, nil)
 	require.Equal(t, testPublicAppURL, auth.publicAppURL)
-	require.Equal(t, testAuthkitIssuer, auth.agent.issuer)
+	require.NotNil(t, auth.agent)
+	require.NotNil(t, auth.agent.Keys)
 }
 
 // --- PostgreSQL integration ---
@@ -173,7 +186,7 @@ func mustPublicAPIKey(t *testing.T, scope *testenv.Scope, opts publicAPIKeyOptio
         insert into organization_api_keys (organization_id, name, key_hash, key_prefix, permissions, created_by_user_id, revoked_at)
         values ($1, 'Test key', $2, $3, $4::jsonb, $5, $6)
         returning id`,
-		scope.OrganizationID, hashAPIKey(plaintext), apiKeyPrefix(plaintext), string(encoded), owner, revokedAt).Scan(&id)
+		scope.OrganizationID, publicauth.HashAPIKey(plaintext), apiKeyPrefix(plaintext), string(encoded), owner, revokedAt).Scan(&id)
 	require.NoError(t, err)
 	return plaintext, id
 }
@@ -223,7 +236,7 @@ func TestPublicAPIAuthAPIKey(t *testing.T) {
 			UserID:         scope.UserID,
 			Role:           "translator",
 			CredentialID:   id,
-			Kind:           publicAPIKindPAT,
+			Kind:           publicauth.KindPAT,
 			Permissions:    []string{"files:read"},
 		}, principal)
 		requireLastUsedAtSet(t, scope, id)
@@ -238,7 +251,7 @@ func TestPublicAPIAuthAPIKey(t *testing.T) {
 		var bodies []string
 		for _, key := range []string{"hl_unknown_" + uuid.NewString(), revoked, ownerless} {
 			rec := publicAPITestRequest(handler, map[string]string{"X-API-Key": key})
-			requirePublicAPIError(t, rec, http.StatusUnauthorized, "unauthorized", publicAPIInvalidKeyMessage)
+			requirePublicAPIError(t, rec, http.StatusUnauthorized, "unauthorized", publicauth.InvalidKeyMessage)
 			require.Empty(t, rec.Header().Get("WWW-Authenticate"))
 			bodies = append(bodies, rec.Body.String())
 		}
@@ -262,7 +275,7 @@ func TestPublicAPIAuthAPIKey(t *testing.T) {
 			"X-API-Key":     "hl_unknown_" + uuid.NewString(),
 			"Authorization": "Bearer " + bearer,
 		})
-		requirePublicAPIError(t, rec, http.StatusUnauthorized, "unauthorized", publicAPIInvalidKeyMessage)
+		requirePublicAPIError(t, rec, http.StatusUnauthorized, "unauthorized", publicauth.InvalidKeyMessage)
 	})
 
 	t.Run("archived workspace", func(t *testing.T) {
@@ -278,7 +291,7 @@ func TestPublicAPIAuthAPIKey(t *testing.T) {
 		requireLastUsedAtUnset(t, scope, id)
 
 		requirePublicAPIError(t, publicAPITestRequest(handler, map[string]string{"X-API-Key": revoked}),
-			http.StatusUnauthorized, "unauthorized", publicAPIInvalidKeyMessage)
+			http.StatusUnauthorized, "unauthorized", publicauth.InvalidKeyMessage)
 	})
 
 	t.Run("creator no longer a member", func(t *testing.T) {
@@ -374,7 +387,7 @@ func TestPublicAPIAuthAgent(t *testing.T) {
 			UserID:         scope.UserID,
 			Role:           "reviewer",
 			CredentialID:   "agent_registration_1",
-			Kind:           publicAPIKindAgent,
+			Kind:           publicauth.KindAgent,
 			Permissions:    []string{"files:read", "jobs:read"},
 		}, principal)
 	})

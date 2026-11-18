@@ -1425,9 +1425,7 @@ func MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate
 // AlignMarkdownTargetToSource maps translated target segments back to source-derived markdown keys.
 // This is useful for status/reporting where source key identity must remain stable across locales.
 func AlignMarkdownTargetToSource(sourceTemplate, targetTemplate []byte, mdx bool) map[string]string {
-	sourceDoc, sourceEntries := parseMarkdownDocument(stripBOM(sourceTemplate), mdx)
-	targetDoc, _ := parseMarkdownDocument(stripBOM(targetTemplate), mdx)
-	return alignMarkdownFallback(sourceDoc, sourceEntries, targetDoc)
+	return ParseMarkdownDocument(sourceTemplate, mdx).AlignTarget(targetTemplate)
 }
 
 func alignMarkdownFallback(sourceDoc markdownDocument, sourceEntries map[string]string, targetDoc markdownDocument) map[string]string {

@@ -62,7 +62,6 @@ import {
   parseProjectRoute,
   type NavigationGroup,
   type NavigationItem,
-  type NavigationTone,
 } from "./navigation-config";
 import { useAppShellStore } from "./store/app-shell-store-context";
 import { createElement } from "react";
@@ -582,7 +581,7 @@ function NavigationGroupItems({
                 className={navigationButtonClass(!item.disabled && isActive)}
               >
                 {createElement(item.icon, {
-                  className: cn("size-4", item.tone && NAVIGATION_TONE_ICON_CLASS[item.tone]),
+                  className: cn("size-4", !item.disabled && isActive && "text-primary"),
                   weight: !item.disabled && isActive ? "fill" : "regular",
                 })}
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -611,21 +610,6 @@ function NavigationGroupItems({
     </SidebarGroupContent>
   );
 }
-
-const NAVIGATION_TONE_ICON_CLASS: Record<NavigationTone, string> = {
-  amber: "text-amber-600 dark:text-amber-400",
-  blue: "text-blue-600 dark:text-blue-400",
-  emerald: "text-emerald-600 dark:text-emerald-400",
-  fuchsia: "text-fuchsia-600 dark:text-fuchsia-400",
-  indigo: "text-indigo-600 dark:text-indigo-400",
-  orange: "text-orange-600 dark:text-orange-400",
-  pink: "text-pink-600 dark:text-pink-400",
-  purple: "text-purple-600 dark:text-purple-400",
-  rose: "text-rose-600 dark:text-rose-400",
-  sky: "text-sky-600 dark:text-sky-400",
-  teal: "text-teal-600 dark:text-teal-400",
-  violet: "text-violet-600 dark:text-violet-400",
-};
 
 function navigationButtonClass(isActive: boolean) {
   return cn(

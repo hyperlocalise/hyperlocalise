@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -177,7 +178,7 @@ func (api *workspaceSettingsAPI) updateWorkspace(r *http.Request, actor organiza
 			details: map[string]any{"issues": issues},
 		}
 	}
-	if !hasOrganizationCapability(actor.role, "workspace:update") {
+	if !authz.HasCapability(actor.role, "workspace:update") {
 		return nil, 0, workspaceSettingsFailure(http.StatusForbidden, "forbidden", "Only workspace admins can update settings")
 	}
 	if update.slug != nil && *update.slug != r.PathValue("organizationSlug") {
@@ -296,7 +297,7 @@ func (api *workspaceSettingsAPI) syncWorkosOrganizationName(ctx context.Context,
 }
 
 func (api *workspaceSettingsAPI) archiveWorkspace(r *http.Request, actor organizationActor) (any, int, error) {
-	if !hasOrganizationCapability(actor.role, "workspace:update") {
+	if !authz.HasCapability(actor.role, "workspace:update") {
 		return nil, 0, workspaceSettingsFailure(http.StatusForbidden, "forbidden", "Only workspace admins can archive workspaces")
 	}
 	var organizationID string

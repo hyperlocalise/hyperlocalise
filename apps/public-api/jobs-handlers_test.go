@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,8 +35,8 @@ func (s *fakeJobStore) updateJob(_ context.Context, _ principal, jobID string, p
 }
 
 var (
-	jobReadScopes  = effectivePermissions([]string{"jobs:read"}, "member")
-	jobWriteScopes = effectivePermissions([]string{"jobs:read", "jobs:write"}, "developer")
+	jobReadScopes  = authz.EffectivePermissions([]string{"jobs:read"}, "member")
+	jobWriteScopes = authz.EffectivePermissions([]string{"jobs:read", "jobs:write"}, "developer")
 )
 
 func TestJobRoutes(t *testing.T) {

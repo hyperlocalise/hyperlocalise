@@ -21,6 +21,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/memory"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/stretchr/testify/require"
 )
 
@@ -140,7 +141,7 @@ func newIrisGenerationFixture(t *testing.T, provider irisGenerationProvider) *ir
 		run:      func(fn func()) { fn() },
 		resolve: func(_ context.Context, _ AuthClaims, slug string) (irisOrgScope, error) {
 			if slug != "acme" {
-				return irisOrgScope{}, organizationAccessDenied()
+				return irisOrgScope{}, publicauth.AccessDenied()
 			}
 			return irisOrgScope{OrganizationID: "org_local", UserID: "user_iris"}, nil
 		},
@@ -371,7 +372,7 @@ func TestIrisGenerationReviewFixes(t *testing.T) {
 			run:      func(fn func()) { fn() },
 			resolve: func(_ context.Context, _ AuthClaims, slug string) (irisOrgScope, error) {
 				if slug != "acme" {
-					return irisOrgScope{}, organizationAccessDenied()
+					return irisOrgScope{}, publicauth.AccessDenied()
 				}
 				return irisOrgScope{OrganizationID: "org_local", UserID: "user_iris"}, nil
 			},

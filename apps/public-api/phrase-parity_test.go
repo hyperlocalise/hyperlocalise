@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,8 +35,8 @@ func (s *fakeParityStore) listStringMetadataKeys(_ context.Context, _ principal,
 }
 
 func TestPhraseParityRoutes(t *testing.T) {
-	readScopes := effectivePermissions([]string{"files:read"}, "member")
-	writeScopes := effectivePermissions([]string{"files:read", "files:write"}, "developer")
+	readScopes := authz.EffectivePermissions([]string{"files:read"}, "member")
+	writeScopes := authz.EffectivePermissions([]string{"files:read", "files:write"}, "developer")
 
 	t.Run("deletes a project", func(t *testing.T) {
 		store := &fakeResourceStore{}

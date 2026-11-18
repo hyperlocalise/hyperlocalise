@@ -227,3 +227,112 @@ func TestQaReportReviewRejectsStaleFinding(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Contains(t, rec.Body.String(), "qa_finding_stale")
 }
+
+func TestQaReportBulkReviewIgnoresAndReopensFindings(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	ctx := t.Context()
+	runID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 3, 3, 0)
+	firstID := mustQaFinding(t, scope, runID, scope.ProjectID, "bulk-a")
+	secondID := mustQaFinding(t, scope, runID, scope.ProjectID, "bulk-b")
+	untouchedID := mustQaFinding(t, scope, runID, scope.ProjectID, "bulk-c")
+
+	rec := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/qa-reports/findings/review"),
+		`{"findingIds":["`+firstID+`","`+secondID+`"],"status":"ignored","reason":"Brand term"}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		Findings []struct {
+			ID           string `json:"id"`
+			Status       string `json:"status"`
+			IgnoreReason string `json:"ignoreReason"`
+		} `json:"findings"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.Findings, 2)
+	require.Equal(t, "ignored", body.Findings[0].Status)
+	require.Equal(t, "Brand term", body.Findings[0].IgnoreReason)
+
+	statusOf := func(id string) string {
+		var status string
+		require.NoError(t, scope.Pool.QueryRow(ctx,
+			`select status from translation_qa_findings where id=$1`, id).Scan(&status))
+		return status
+	}
+	require.Equal(t, "ignored", statusOf(firstID))
+	require.Equal(t, "ignored", statusOf(secondID))
+	require.Equal(t, "open", statusOf(untouchedID))
+
+	reopen := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/qa-reports/findings/review"),
+		`{"findingIds":["`+firstID+`","`+secondID+`"],"status":"open"}`)
+	require.Equal(t, http.StatusOK, reopen.Code, reopen.Body.String())
+	require.Equal(t, "open", statusOf(firstID))
+	require.Equal(t, "open", statusOf(secondID))
+}
+
+func TestQaReportBulkReviewRejectsInvalidBatches(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	runID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 1, 0)
+	findingID := mustQaFinding(t, scope, runID, scope.ProjectID, "bulk-invalid")
+	tooMany := make([]string, 101)
+	for i := range tooMany {
+		tooMany[i] = `"` + uuid.NewString() + `"`
+	}
+
+	for _, tc := range []struct {
+		name, body, code string
+	}{
+		{name: "no findings", body: `{"findingIds":[],"status":"ignored","reason":"x"}`, code: "invalid_qa_review"},
+		{name: "too many findings", body: `{"findingIds":[` + strings.Join(tooMany, ",") + `],"status":"ignored","reason":"x"}`, code: "invalid_qa_review"},
+		{name: "missing reason", body: `{"findingIds":["` + findingID + `"],"status":"ignored"}`, code: "invalid_qa_review"},
+		{name: "unknown finding", body: `{"findingIds":["` + findingID + `","` + uuid.NewString() + `"],"status":"ignored","reason":"x"}`, code: "qa_finding_not_found"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/qa-reports/findings/review"), tc.body)
+			require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+			require.Contains(t, rec.Body.String(), tc.code)
+		})
+	}
+
+	var status string
+	require.NoError(t, scope.Pool.QueryRow(t.Context(),
+		`select status from translation_qa_findings where id=$1`, findingID).Scan(&status))
+	require.Equal(t, "open", status, "a rejected batch must not change any finding")
+}
+
+func TestQaReportBulkReviewForbiddenForMember(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "member")
+	rec := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/qa-reports/findings/review"),
+		`{"findingIds":["`+uuid.NewString()+`"],"status":"ignored","reason":"x"}`)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestQaReportWorkspaceFindingsKeepKeyGroupsTogether(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	runID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 3, 1, 2)
+	insert := func(key, severity, check string) {
+		_, err := scope.Pool.Exec(t.Context(), `
+            insert into translation_qa_findings (
+                id, run_id, organization_id, project_id, key, target_locale, check_type, severity, category, message, source_text, target_text
+            ) values ($1, $2, $3, $4, $5, 'de-DE', $6, $7, 'qa', $6, 'Hello', 'Hallo')`,
+			uuid.NewString(), runID, scope.OrganizationID, scope.ProjectID, key, check, severity)
+		require.NoError(t, err)
+	}
+	insert("a-warning-only", "warning", "length")
+	insert("b-mixed", "warning", "length")
+	insert("b-mixed", "error", "placeholder_mismatch")
+
+	rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/qa-reports/findings?status=all"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		Findings []struct {
+			Key      string `json:"key"`
+			Severity string `json:"severity"`
+		} `json:"findings"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.Findings, 3)
+	got := []string{}
+	for _, f := range body.Findings {
+		got = append(got, f.Key+":"+f.Severity)
+	}
+	require.Equal(t, []string{"b-mixed:error", "b-mixed:warning", "a-warning-only:warning"}, got)
+}

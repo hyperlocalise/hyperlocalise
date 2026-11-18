@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
@@ -126,7 +127,7 @@ func TestAPIKeyRevokeLegacyOwnerlessToken(t *testing.T) {
 	require.NoError(t, env.scope.Pool.QueryRow(t.Context(), `
         insert into organization_api_keys (organization_id, name, key_hash, key_prefix, created_by_user_id)
         values ($1, 'legacy', $2, 'hl_Legac', null) returning id`,
-		env.scope.OrganizationID, hashAPIKey("legacy-revoke-"+env.scope.OrganizationID)).Scan(&legacyID))
+		env.scope.OrganizationID, publicauth.HashAPIKey("legacy-revoke-"+env.scope.OrganizationID)).Scan(&legacyID))
 
 	require.Equal(t, http.StatusNotFound, env.request(member, http.MethodDelete, "/"+legacyID, "").Code)
 	require.Equal(t, http.StatusNoContent, env.request(env.owner, http.MethodDelete, "/"+legacyID, "").Code)
@@ -411,7 +412,7 @@ func TestAPIKeyRevokeReportsAuditFailureWithoutUndoingRevocation(t *testing.T) {
 	logs := buf.String()
 	requirePatAuditFailureLogged(t, logs, env.scope.OrganizationID, created.ID)
 	require.NotContains(t, logs, created.Key)
-	require.NotContains(t, logs, hashAPIKey(created.Key))
+	require.NotContains(t, logs, publicauth.HashAPIKey(created.Key))
 }
 
 func TestMembershipRemovalReportsPatAuditFailure(t *testing.T) {
@@ -430,5 +431,5 @@ func TestMembershipRemovalReportsPatAuditFailure(t *testing.T) {
 	logs := buf.String()
 	requirePatAuditFailureLogged(t, logs, env.scope.OrganizationID, created.ID)
 	require.NotContains(t, logs, created.Key)
-	require.NotContains(t, logs, hashAPIKey(created.Key))
+	require.NotContains(t, logs, publicauth.HashAPIKey(created.Key))
 }

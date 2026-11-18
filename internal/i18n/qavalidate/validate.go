@@ -167,16 +167,17 @@ func ValidateBatch(ctx context.Context, segments []Segment, policy Policy) (Repo
 	if err != nil {
 		return Report{}, err
 	}
+	modes := make([]string, 0, 8)
+	for _, mode := range segmentvalidate.KnownQAModes() {
+		if policy.Checks[mode].Enabled {
+			modes = append(modes, mode)
+		}
+	}
+	glossary := newGlossaryMatcher(policy)
 	report := Report{Results: make([]Result, 0, len(segments))}
 	for _, segment := range segments {
 		if segment.TargetLocale == "" {
 			return Report{}, errors.New("targetLocale is required")
-		}
-		modes := make([]string, 0, 8)
-		for _, mode := range segmentvalidate.KnownQAModes() {
-			if policy.Checks[mode].Enabled {
-				modes = append(modes, mode)
-			}
 		}
 		checks := segmentvalidate.ValidateSegment(segmentvalidate.Request{
 			SourceText: segment.SourceText, TargetText: segment.TargetText,
@@ -200,12 +201,13 @@ func ValidateBatch(ctx context.Context, segments []Segment, policy Policy) (Repo
 				Message: check.Message, RelatedTokens: nonNil(check.RelatedTokens),
 			})
 		}
-		result.Checks = append(result.Checks, glossaryFindings(segment, policy)...)
+		result.Checks = append(result.Checks, glossary.findings(segment)...)
 		if policy.Checks["spelling"].Enabled {
 			if skipped[segment.TargetLocale] {
 				result.SkippedChecks = []string{"spelling"}
 			} else {
 				seen := map[string]bool{}
+				spellingCount := 0
 				for _, word := range spellcheck.Tokenize(segment.TargetText) {
 					key := strings.ToLower(word)
 					if seen[key] {
@@ -218,7 +220,8 @@ func ValidateBatch(ctx context.Context, segments []Segment, policy Policy) (Repo
 							Category: "spelling", Message: spellingMessage(word, issue),
 							RelatedTokens: append([]string{word}, issue...),
 						})
-						if countType(result.Checks, "spelling") >= 5 {
+						spellingCount++
+						if spellingCount >= maxSpellingFindingsPerSegment {
 							break
 						}
 					}
@@ -266,36 +269,72 @@ func categoryForCheck(check segmentvalidate.Check) string {
 	}
 }
 
-func glossaryFindings(segment Segment, policy Policy) []Finding {
-	if !policy.Checks["glossary_violation"].Enabled || strings.TrimSpace(segment.TargetText) == "" {
+// maxSpellingFindingsPerSegment caps spelling findings so one garbled segment cannot flood a report.
+const maxSpellingFindingsPerSegment = 5
+
+// glossaryMatcher holds the policy's glossary terms grouped by locale, with case-insensitive
+// terms lowercased once instead of once per segment.
+type glossaryMatcher struct {
+	enabled  bool
+	severity string
+	byLocale map[string][]glossaryMatcherTerm
+}
+
+type glossaryMatcherTerm struct {
+	term                   GlossaryTerm
+	sourceTerm, targetTerm string
+}
+
+func newGlossaryMatcher(policy Policy) glossaryMatcher {
+	setting := policy.Checks["glossary_violation"]
+	matcher := glossaryMatcher{enabled: setting.Enabled, severity: setting.Severity, byLocale: map[string][]glossaryMatcherTerm{}}
+	if !setting.Enabled {
+		return matcher
+	}
+	for _, term := range policy.GlossaryTerms {
+		if term.SourceTerm == "" || term.TargetTerm == "" {
+			continue
+		}
+		entry := glossaryMatcherTerm{term: term, sourceTerm: term.SourceTerm, targetTerm: term.TargetTerm}
+		if !term.CaseSensitive {
+			entry.sourceTerm, entry.targetTerm = strings.ToLower(term.SourceTerm), strings.ToLower(term.TargetTerm)
+		}
+		matcher.byLocale[term.TargetLocale] = append(matcher.byLocale[term.TargetLocale], entry)
+	}
+	return matcher
+}
+
+func (m glossaryMatcher) findings(segment Segment) []Finding {
+	if !m.enabled || strings.TrimSpace(segment.TargetText) == "" {
 		return nil
 	}
+	terms := m.byLocale[segment.TargetLocale]
 	findings := []Finding{}
-	for _, term := range policy.GlossaryTerms {
-		if term.TargetLocale != segment.TargetLocale || term.SourceTerm == "" || term.TargetTerm == "" {
+	var lowerSource, lowerTarget string
+	lowered := false
+	for _, entry := range terms {
+		source, target := segment.SourceText, segment.TargetText
+		if !entry.term.CaseSensitive {
+			if !lowered {
+				lowerSource, lowerTarget, lowered = strings.ToLower(source), strings.ToLower(target), true
+			}
+			source, target = lowerSource, lowerTarget
+		}
+		if !strings.Contains(source, entry.sourceTerm) {
 			continue
 		}
-		source, sourceTerm := segment.SourceText, term.SourceTerm
-		target, targetTerm := segment.TargetText, term.TargetTerm
-		if !term.CaseSensitive {
-			source, sourceTerm = strings.ToLower(source), strings.ToLower(sourceTerm)
-			target, targetTerm = strings.ToLower(target), strings.ToLower(targetTerm)
-		}
-		if !strings.Contains(source, sourceTerm) {
+		contains := strings.Contains(target, entry.targetTerm)
+		if entry.term.Forbidden && !contains || !entry.term.Forbidden && contains {
 			continue
 		}
-		contains := strings.Contains(target, targetTerm)
-		if term.Forbidden && !contains || !term.Forbidden && contains {
-			continue
-		}
-		message := fmt.Sprintf("Glossary term %q requires %q.", term.SourceTerm, term.TargetTerm)
-		if term.Forbidden {
-			message = fmt.Sprintf("Forbidden term %q appears in the target.", term.TargetTerm)
+		message := fmt.Sprintf("Glossary term %q requires %q.", entry.term.SourceTerm, entry.term.TargetTerm)
+		if entry.term.Forbidden {
+			message = fmt.Sprintf("Forbidden term %q appears in the target.", entry.term.TargetTerm)
 		}
 		findings = append(findings, Finding{
-			"glossary_violation", policy.Checks["glossary_violation"].Severity,
+			"glossary_violation", m.severity,
 			"glossary", message,
-			[]string{term.TargetTerm},
+			[]string{entry.term.TargetTerm},
 		})
 	}
 	return findings
@@ -306,16 +345,6 @@ func nonNil(values []string) []string {
 		return []string{}
 	}
 	return values
-}
-
-func countType(checks []Finding, name string) int {
-	n := 0
-	for _, check := range checks {
-		if check.CheckType == name {
-			n++
-		}
-	}
-	return n
 }
 
 func spellingMessage(word string, suggestions []string) string {

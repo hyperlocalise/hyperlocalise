@@ -1278,6 +1278,49 @@ describe("workspace automations", () => {
     expect(loadedEmail?.authorName).toBe(`${emailOnlyUserId}@example.test`);
   });
 
+  it("attaches the latest agent run when listing automations", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Daily localisation review",
+        instructions: "Review localisation.",
+      }),
+    );
+    const older = await createWorkspaceAutomationRun({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+      triggerSource: "scheduled",
+      status: "succeeded",
+      completedAt: new Date("2026-06-01T11:00:00.000Z"),
+    });
+    const latest = await createWorkspaceAutomationRun({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+      triggerSource: "scheduled",
+      status: "failed",
+      error: { message: "Slack channel missing" },
+      completedAt: new Date("2026-06-01T12:00:00.000Z"),
+    });
+    await db
+      .update(schema.workspaceAutomationRuns)
+      .set({ createdAt: new Date("2026-06-01T11:00:00.000Z") })
+      .where(eq(schema.workspaceAutomationRuns.id, older.id));
+    await db
+      .update(schema.workspaceAutomationRuns)
+      .set({ createdAt: new Date("2026-06-01T12:00:00.000Z") })
+      .where(eq(schema.workspaceAutomationRuns.id, latest.id));
+
+    const [listed] = await listWorkspaceAutomations({ organizationId: scope.organizationId });
+    expect(listed).toMatchObject({
+      id: automation.id,
+      lastRunStatus: "failed",
+      lastRunError: "Slack channel missing",
+      lastRunAt: "2026-06-01T12:00:00.000Z",
+    });
+  });
+
   it("creates and serializes run history with optional GitHub job links", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const automation = expectOk(

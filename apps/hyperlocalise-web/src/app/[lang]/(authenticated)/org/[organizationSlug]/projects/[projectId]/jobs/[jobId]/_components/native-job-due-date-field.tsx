@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useState } from "react";
 import { XIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
@@ -80,6 +81,29 @@ export function NativeJobDueDateField({
 
   const value = toDateInputValue(dueAt);
   const isDisabled = disabled || saveDueAt.isPending;
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Text until clicked, so a job without a date reads "No due date" rather
+  // than showing an empty dd/mm/yyyy picker.
+  if (!isEditing) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="-ms-2 -my-1 h-auto px-2 py-1 font-normal"
+        disabled={isDisabled}
+        aria-label={intl.formatMessage(messages.dueDateAriaLabel)}
+        onClick={() => setIsEditing(true)}
+      >
+        {dueAt ? (
+          intl.formatDate(dueAt, { dateStyle: "medium" })
+        ) : (
+          <span className="text-muted-foreground">{intl.formatMessage(messages.noDueDate)}</span>
+        )}
+      </Button>
+    );
+  }
 
   return (
     <div className="flex items-center gap-1">
@@ -89,6 +113,11 @@ export function NativeJobDueDateField({
         aria-label={intl.formatMessage(messages.dueDateAriaLabel)}
         value={value}
         disabled={isDisabled}
+        autoFocus
+        onBlur={() => setIsEditing(false)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setIsEditing(false);
+        }}
         onChange={(event) => {
           const next = event.target.value;
           if (next === value) return;
@@ -102,7 +131,12 @@ export function NativeJobDueDateField({
           variant="ghost"
           aria-label={intl.formatMessage(messages.clearDueDate)}
           disabled={isDisabled}
-          onClick={() => saveDueAt.mutate(null)}
+          // Keep the picker focused so the click lands before blur closes it.
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            saveDueAt.mutate(null);
+            setIsEditing(false);
+          }}
         >
           <XIcon />
         </Button>

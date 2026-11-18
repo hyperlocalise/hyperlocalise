@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
+	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
 	"github.com/jackc/pgx/v5"
 )
@@ -57,15 +58,15 @@ func (a projectActor) canManageContentEditorBehavior() bool {
 }
 
 func (a projectActor) canReadJobs() bool {
-	return hasOrganizationCapability(a.role, "jobs:read")
+	return authz.HasCapability(a.role, "jobs:read")
 }
 
 func (a projectActor) canCreateJobs() bool {
-	return hasOrganizationCapability(a.role, "jobs:create")
+	return authz.HasCapability(a.role, "jobs:create")
 }
 
 func (a projectActor) canWriteJobs() bool {
-	return hasOrganizationCapability(a.role, "jobs:write")
+	return authz.HasCapability(a.role, "jobs:write")
 }
 
 type projectError struct {
@@ -135,12 +136,21 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+orgRoutePrefix+"/tms/projects", bindActor(api, (*projectAPI).liveProjectsHandler))
 	route("GET "+orgRoutePrefix+"/tms/jobs", bindActor(api, (*projectAPI).liveWorkspaceJobsHandler))
 	route("GET "+project+"/files", bindActor(api, (*projectAPI).filesHandler))
+	route("POST "+project+"/files", bindActor(api, (*projectAPI).uploadFileHandler))
+	route("GET "+project+"/files/download", bindActor(api, (*projectAPI).downloadFileHandler))
+	route("POST "+project+"/files/translations/import", bindActor(api, (*projectAPI).importTranslationsHandler))
+	route("POST "+project+"/files/translate", bindActor(api, (*projectAPI).translateFileHandler))
+	route("GET "+project+"/files/settings", bindActor(api, (*projectAPI).fileSettingsGetHandler))
+	route("POST "+project+"/files/settings", bindActor(api, (*projectAPI).fileSettingsPatchHandler))
+	route("POST "+project+"/files/use-translation-as-source", bindActor(api, (*projectAPI).useTranslationAsSourceHandler))
 	route("GET "+project+"/files/branches", bindActor(api, (*projectAPI).fileBranchesHandler))
 	route("GET "+project+"/hidden-files", bindActor(api, (*projectAPI).hiddenFilesHandler))
 	route("GET "+project+"/file-progress", bindActor(api, (*projectAPI).fileProgressHandler))
 	route("GET "+project+"/members", bindActor(api, (*projectAPI).liveProjectMembersHandler))
 	route("GET "+project+"/jobs", bindActor(api, (*projectAPI).projectJobsListHandler))
 	route("POST "+project+"/jobs", bindActor(api, (*projectAPI).projectJobsCreateHandler))
+	route("POST "+project+"/jobs/{jobId}/actions", bindActor(api, (*projectAPI).nativeJobActionHandler))
+	route("POST "+project+"/issue-sheet/import", bindActor(api, (*projectAPI).importQueriesHandler))
 	route("GET "+project+"/jobs/{jobId}", bindActor(api, (*projectAPI).projectJobDetailHandler))
 	route("GET "+project+"/jobs/{jobId}/status", bindActor(api, (*projectAPI).projectJobStatusHandler))
 	route("GET "+project+"/jobs/{jobId}/files", bindActor(api, (*projectAPI).projectJobFilesHandler))

@@ -98,6 +98,39 @@ export const FailedThenRetried: Story = {
   },
 };
 
+export const AllLocalesFailed: Story = {
+  args: {
+    items: buildJobActivity(
+      jobEventsFixture([
+        { type: "job_started", payload: { targetLocales: ["ko-KR"] } },
+        { type: "context_ready", payload: { glossaryTermCount: 0 } },
+        { type: "strings_extracted", payload: { stringCount: 106, localeCount: 1 } },
+        { type: "locale_retrying", locale: "ko-KR", payload: {} },
+        { type: "locale_failed", locale: "ko-KR", payload: {} },
+        {
+          type: "job_failed",
+          payload: {
+            code: "sandbox_timeout",
+            failedLocales: ["ko-KR"],
+            followUpJobId: "job_retry",
+          },
+        },
+      ]),
+      { jobStatus: "failed" },
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText("Translation took too long and timed out. Retrying usually works."),
+    ).toBeVisible();
+    await expect(canvas.getByText("Not translated")).toBeVisible();
+    await expect(canvas.getByRole("link", { name: "Retried in a new job" })).toBeVisible();
+    await expect(
+      canvas.queryByRole("link", { name: "Remaining locales continue in a follow-up job" }),
+    ).not.toBeInTheDocument();
+  },
+};
+
 const includedGuidelineTrace: GuidelineRetrievalTrace = {
   localeCount: 2,
   result: "ok",

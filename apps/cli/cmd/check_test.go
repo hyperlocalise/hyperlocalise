@@ -955,6 +955,7 @@ func TestCheckCommandEscapedCharMismatch(t *testing.T) {
 
 func TestCollectEntryCheckFindingsEscapedCharMismatch(t *testing.T) {
 	findings := collectEntryCheckFindings(
+		context.Background(),
 		&checkLocationResolver{},
 		"ui",
 		"fr",
@@ -990,6 +991,7 @@ func TestCollectEntryCheckFindingsEscapedCharMismatch(t *testing.T) {
 
 func TestCollectEntryCheckFindingsDecodedControlChars(t *testing.T) {
 	findings := collectEntryCheckFindings(
+		context.Background(),
 		&checkLocationResolver{},
 		"ui",
 		"fr",
@@ -1020,6 +1022,7 @@ func TestCollectEntryCheckFindingsDecodedControlChars(t *testing.T) {
 
 func TestCollectEntryCheckFindingsSkipsRedundantChecksForWhitespaceOnlyNotLocalizedValues(t *testing.T) {
 	findings := collectEntryCheckFindings(
+		context.Background(),
 		&checkLocationResolver{},
 		"ui",
 		"fr",
@@ -1897,7 +1900,7 @@ func TestReadCheckTargetEntries(t *testing.T) {
 	}
 
 	t.Run("missing target returns false without error", func(t *testing.T) {
-		entries, _, _, exists, err := readCheckTargetEntries(parser, sourcePath, missingTargetPath, "fr")
+		entries, exists, err := readCheckTargetEntries(parser, newCheckFileCache(), sourcePath, missingTargetPath, "fr")
 		if err != nil {
 			t.Fatalf("readCheckTargetEntries: %v", err)
 		}
@@ -1910,7 +1913,7 @@ func TestReadCheckTargetEntries(t *testing.T) {
 	})
 
 	t.Run("parse error is returned", func(t *testing.T) {
-		_, _, _, _, err := readCheckTargetEntries(parser, sourcePath, invalidTargetPath, "fr")
+		_, _, err := readCheckTargetEntries(parser, newCheckFileCache(), sourcePath, invalidTargetPath, "fr")
 		if err == nil {
 			t.Fatalf("expected parse error")
 		}
