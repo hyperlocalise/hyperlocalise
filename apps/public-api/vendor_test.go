@@ -92,6 +92,20 @@ func TestJobOwnerRule(t *testing.T) {
 		require.ErrorIs(t, give(fileTask, pendingEmail), errJobOwnerUnassigable)
 	})
 
+	t.Run("a task on a file is not given off the team to a role that cannot do the work", func(t *testing.T) {
+		_, readerEmail := f.memberWithRole(t, "member")
+		require.ErrorIs(t, give(fileTask, readerEmail), errJobOwnerUnassigable)
+	})
+
+	t.Run("a finished task is an ordinary job again", func(t *testing.T) {
+		finished := "job_" + uuid.NewString()
+		f.exec(t, `INSERT INTO jobs (id, organization_id, project_id, kind, status, input_payload)
+			VALUES ($1, $2, $3, 'proofread', 'succeeded', '{"sourceFileId":"file_1","targetLocales":["fr"]}'::jsonb)`,
+			finished, f.actor.OrganizationID, f.project)
+		require.ErrorIs(t, give(finished, vendorEmail), errJobOwnerVendor)
+		require.ErrorIs(t, give(finished, offTeamEmail), errJobOwnerUnassigable)
+	})
+
 	t.Run("any other job is never given to a vendor", func(t *testing.T) {
 		require.ErrorIs(t, give(otherJob, vendorEmail), errJobOwnerVendor)
 		require.ErrorIs(t, give(stringsTask, vendorEmail), errJobOwnerVendor)

@@ -62,6 +62,7 @@ func userHasIssueProjectAccess(ctx context.Context, db dictionaryDB, organizatio
             where m.organization_id = $1
               and m.user_id = $2
               and `+activeOrgMembershipSQL+`
+              and m.role::text <> 'vendor'
               and (
                 m.role in ('admin', 'localization_manager')
                 or exists (

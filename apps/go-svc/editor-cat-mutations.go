@@ -234,6 +234,10 @@ func (api *editorCatAPI) listCommentsForKeys(r *http.Request, actor editorCatAct
 		comment.Text = text
 		comment.CreatedAt = &createdAt
 		comment.Locale = &locale
+		if actor.taskScope != nil {
+			// Names only: a member's email address is not for someone here through a task.
+			email = nil
+		}
 		comment.Author = formatEditorCatAuthor(first, last, email)
 		result[keyID] = append(result[keyID], comment)
 	}

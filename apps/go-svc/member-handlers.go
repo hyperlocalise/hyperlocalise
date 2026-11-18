@@ -302,6 +302,19 @@ func (api *memberAPI) updateMember(ctx context.Context, actor memberActor, worko
 		}
 	}
 
+	// A vendor is in no team: a team would open whole projects to every check that asks only
+	// whether a person is on the project's team.
+	if roleChanged && body.Role == organizationRoleVendor {
+		if _, err := api.pool.Exec(ctx, `
+            delete from team_memberships tm using teams t
+            where t.id = tm.team_id and t.organization_id = $1 and tm.user_id = $2`,
+			actor.organizationID, member.localUserID); err != nil {
+			slog.ErrorContext(ctx, "workspace vendor team removal failed",
+				"organization_id", actor.organizationID, "membership_id", member.membershipID)
+			return nil, 0, err
+		}
+	}
+
 	if roleChanged {
 		api.enqueueMemberActivity(ctx, actor, "member_role_changed", "membership", member.membershipID, map[string]any{
 			"memberUserId": member.localUserID,

@@ -505,27 +505,31 @@ func (api *teamAPI) addTeamMember(ctx context.Context, actor teamActor, teamID s
 	if err != nil {
 		return nil, 0, err
 	}
-	var userID, workosUserID, email string
+	var userID, workosUserID, email, memberRole string
 	if body.WorkosUserID != nil {
 		err = api.pool.QueryRow(ctx, `
-            select u.id, u.workos_user_id, u.email
+            select u.id, u.workos_user_id, u.email, m.role::text
             from users u
             inner join organization_memberships m on m.user_id=u.id
             where u.workos_user_id=$1 and m.organization_id=$2`, *body.WorkosUserID, actor.organizationID).
-			Scan(&userID, &workosUserID, &email)
+			Scan(&userID, &workosUserID, &email, &memberRole)
 	} else {
 		err = api.pool.QueryRow(ctx, `
-            select u.id, u.workos_user_id, u.email
+            select u.id, u.workos_user_id, u.email, m.role::text
             from users u
             inner join organization_memberships m on m.user_id=u.id
             where u.email=$1 and m.organization_id=$2`, *body.Email, actor.organizationID).
-			Scan(&userID, &workosUserID, &email)
+			Scan(&userID, &workosUserID, &email, &memberRole)
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, teamFailure(404, "organization_member_not_found")
 	}
 	if err != nil {
 		return nil, 0, err
+	}
+	// A vendor is in no team (vendor-access.go).
+	if memberRole == organizationRoleVendor {
+		return nil, 0, teamFailure(400, "vendor_cannot_join_team")
 	}
 	var role string
 	if body.Role == nil {

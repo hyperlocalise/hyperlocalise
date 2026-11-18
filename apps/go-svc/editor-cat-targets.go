@@ -102,6 +102,12 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
 		ids[i], paths[i], kinds[i] = segment.ExternalStringID, segment.SourcePath, string(kind)
 		result[i] = editorCatTargetRow{editorCatTargetIdentity: segment, Targets: make(map[string]*editorCatTranslation)}
 	}
+	// A person here through a task is held to the task's branch of the file; everyone else reads
+	// by path as before.
+	scopedBranch := ""
+	if actor.taskScope != nil {
+		scopedBranch = actor.branch
+	}
 	rows, err := api.pool.Query(r.Context(), `
         with requested as (
             select * from unnest($3::text[], $4::text[], $5::text[]) with ordinality as r(id, path, kind, ordinal)
@@ -117,10 +123,12 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
             left join project_translations t on t.translation_key_id=k.id and t.target_locale=l.locale
                 and t.organization_id=$1 and t.project_id=$2
             where r.kind='text' and (r.path='*' or f.source_path=r.path)
+                and ($7 = '' or f.branch_name = $7)
             union all
             select r.ordinal, l.locale, v.id::text, ''::text, v.status::text, r.kind, v.stored_file_id::text, v.updated_at::text, null::text
             from requested r
             join repository_source_files f on f.organization_id=$1 and f.project_id=$2 and f.source_path=r.path
+                and ($7 = '' or f.branch_name = $7)
                 and (r.id=f.id::text or r.id in ('binary:'||r.path, 'image:'||r.path, 'video:'||r.path))
             cross join unnest($6::text[]) l(locale)
             left join project_image_variants v on v.organization_id=$1 and v.project_id=$2
@@ -130,13 +138,14 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
             select r.ordinal, l.locale, v.id::text, ''::text, v.status::text, r.kind, v.stored_file_id::text, v.updated_at::text, null::text
             from requested r
             join repository_source_files f on f.organization_id=$1 and f.project_id=$2 and f.source_path=r.path
+                and ($7 = '' or f.branch_name = $7)
                 and (r.id=f.id::text or r.id in ('binary:'||r.path, 'video:'||r.path))
             cross join unnest($6::text[]) l(locale)
             left join project_video_variants v on v.organization_id=$1 and v.project_id=$2
                 and v.source_path=r.path and v.target_locale=l.locale
             where r.kind='video_file'
         ) select ordinal, locale, id, text, status, kind, stored_file_id, revision, origin from cells`,
-		actor.organizationID, project.ID, ids, paths, kinds, body.TargetLocales)
+		actor.organizationID, project.ID, ids, paths, kinds, body.TargetLocales, scopedBranch)
 	if err != nil {
 		return nil, err
 	}

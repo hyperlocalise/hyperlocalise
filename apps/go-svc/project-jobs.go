@@ -242,6 +242,8 @@ type jobRecord struct {
 	KeyCount *int `json:"keyCount,omitempty"`
 	// The job a task comes after; while that job is unfinished the task waits as queued.
 	AfterJobID *string `json:"afterJobId"`
+	// Set on a job's own page: the file the job is on, as the editor names it.
+	TaskFile *jobTaskFile `json:"taskFile,omitempty"`
 	jobSourceFileDisplay
 }
 
@@ -600,6 +602,11 @@ func (api *projectAPI) orgJobsListHandler(r *http.Request, actor projectActor) (
 	if err != nil {
 		return nil, 0, err
 	}
+	if actor.isVendor() {
+		for i := range jobs {
+			redactJobForVendor(&jobs[i])
+		}
+	}
 	return map[string]any{"jobs": jobs}, http.StatusOK, nil
 }
 
@@ -637,14 +644,21 @@ func (api *projectAPI) orgJobDetailHandler(r *http.Request, actor projectActor) 
 	if err := api.attachJobSourceFiles(r.Context(), jobs); err != nil {
 		return nil, 0, err
 	}
+	if jobs[0].TaskFile, err = loadJobTaskFile(r.Context(), api.pool, actor.organizationID, jobID); err != nil {
+		return nil, 0, err
+	}
+	if actor.isVendor() {
+		redactJobForVendor(&jobs[0])
+	}
 	return map[string]jobWithProjectRecord{"job": jobs[0]}, http.StatusOK, nil
 }
 
-// orgJobAssignableOwnersHandler lists who a job can be given to. A post-edit or proofread task on
-// a file can go to any active member of the workspace, a vendor included, because its owner
-// reaches it through the task itself (vendor-access.go). Any other job needs someone who can
-// open the project, and is never given to a vendor. Keep in step with job-owner.ts in the web
-// app, which checks the choice when it is saved.
+// orgJobAssignableOwnersHandler lists who a job can be given to. An open or waiting post-edit or
+// proofread task on a file can go to a vendor, and to any active member whose role works on
+// jobs, whatever team the project is in: its owner reaches it through the task itself
+// (vendor-access.go). Anyone who can open the project can be given any job, as before, and no
+// other job is ever given to a vendor. Keep in step with job-owner.ts in the web app, which
+// checks the choice when it is saved.
 func (api *projectAPI) orgJobAssignableOwnersHandler(r *http.Request, actor projectActor) (any, int, error) {
 	if !actor.canWriteJobs() {
 		return nil, 0, projectForbidden()
@@ -657,7 +671,8 @@ func (api *projectAPI) orgJobAssignableOwnersHandler(r *http.Request, actor proj
 	var fileTask bool
 	err := api.pool.QueryRow(r.Context(), `
         select j.project_id,
-            (j.kind = 'proofread' and e.job_id is null and coalesce(j.input_payload->>'sourceFileId', '') <> '')
+            (j.kind = 'proofread' and e.job_id is null and coalesce(j.input_payload->>'sourceFileId', '') <> ''
+                and (j.status = 'waiting_for_review' or (j.status = 'queued' and j.after_job_id is not null)))
         from jobs j
         left join external_job_details e on e.job_id = j.id
         where `+overviewJobsVisibleSQL()+` and j.id = $4
@@ -678,8 +693,8 @@ func (api *projectAPI) orgJobAssignableOwnersHandler(r *http.Request, actor proj
         where m.organization_id = $1
           and `+activeOrgMembershipSQL+`
           and (
-            $3
-            or m.role::text in ('admin', 'localization_manager')
+            m.role::text in ('admin', 'localization_manager')
+            or ($3 and m.role::text in ('developer', 'reviewer', 'translator', $4))
             or (m.role::text <> $4 and exists (
                 select 1
                 from team_memberships tm

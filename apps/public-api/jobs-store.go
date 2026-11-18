@@ -424,14 +424,17 @@ func insertJobChangeEvent(ctx context.Context, tx pgx.Tx, changeType, organizati
 	return nil
 }
 
-// jobFileTaskSQL says whether a job is a post-edit or proofread task on one file. Both are
-// stored as proofread jobs; a job mirrored from a provider (joined as x) is not one.
-const jobFileTaskSQL = `(j.kind = 'proofread' AND x.job_id IS NULL AND COALESCE(j.input_payload->>'sourceFileId', '') <> '')`
+// jobFileTaskSQL says whether a job is an open or waiting post-edit or proofread task on one
+// file. Both are stored as proofread jobs; a job mirrored from a provider (joined as x) is not
+// one.
+const jobFileTaskSQL = `(j.kind = 'proofread' AND x.job_id IS NULL AND COALESCE(j.input_payload->>'sourceFileId', '') <> ''
+			AND (j.status = 'waiting_for_review' OR (j.status = 'queued' AND j.after_job_id IS NOT NULL)))`
 
 // assignableJobOwner follows updateNativeJob and job-owner.ts in the web app: the owner is a
-// workspace member by email whose membership is active. A post-edit or proofread task on a
-// file can go to any such member, a vendor included, because its owner reaches it through the
-// task itself. Any other job needs an operator or someone on the project's team, and is never
+// workspace member by email whose membership is active. An open or waiting post-edit or
+// proofread task on a file can go to a vendor, and to any member whose role works on jobs,
+// whatever team the project is in, because its owner reaches it through the task itself.
+// Anyone who can open the project can be given any job, as before, and no other job is ever
 // given to a vendor, who could not open or finish it.
 func assignableJobOwner(ctx context.Context, tx pgx.Tx, actor principal, projectID, email string, fileTask bool) (string, error) {
 	var ownerID, role string
@@ -454,7 +457,10 @@ func assignableJobOwner(ctx context.Context, tx pgx.Tx, actor principal, project
 	if !active {
 		return "", errJobOwnerUnassigable
 	}
-	if fileTask || role == "admin" || role == "localization_manager" {
+	if role == "admin" || role == "localization_manager" {
+		return ownerID, nil
+	}
+	if fileTask && (role == roleVendor || role == "developer" || role == "reviewer" || role == "translator") {
 		return ownerID, nil
 	}
 	var onTeam bool

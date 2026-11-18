@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
+	"github.com/jackc/pgx/v5"
 )
 
 // Access through a task, used for vendors and for task owners outside the project's team.
@@ -40,6 +42,14 @@ func ownedFileTaskSQL(organizationArg, userArg int, includeWaiting bool) string 
             and not exists (select 1 from external_job_details vx where vx.job_id = j.id)
             and %s)`, organizationArg, userArg, status)
 }
+
+// taskFileJoinSQL joins a job (aliased j) to the one file it is on: the file, on its branch, of
+// the upload the job was made for. A stored file can have uploads on several branches (creating
+// or merging a branch copies them), so the stored file id alone does not name a branch.
+const taskFileJoinSQL = `join translation_job_details tjd on tjd.job_id = j.id
+        join repository_source_file_versions tv on tv.id = tjd.source_file_version_id
+            and tv.organization_id = j.organization_id and tv.project_id = j.project_id
+        join repository_source_files sf on sf.id = tv.repository_source_file_id`
 
 // editorTaskFile is one file a person reaches through open tasks they own, with the languages
 // those tasks cover. A language maps to true when one of the tasks is a proofread task.
@@ -90,9 +100,7 @@ func loadEditorTaskScope(ctx context.Context, db dictionaryDB, organizationID, u
             coalesce(j.input_payload->'targetLocales', '[]'::jsonb),
             coalesce(j.input_payload->'metadata'->>'workflowTaskStep', '')
         from jobs j
-        join repository_source_file_versions v on v.stored_file_id = j.input_payload->>'sourceFileId'
-            and v.organization_id = j.organization_id and v.project_id = j.project_id
-        join repository_source_files sf on sf.id = v.repository_source_file_id
+        `+taskFileJoinSQL+`
         where j.project_id = $3 and `+ownedFileTaskSQL(1, 2, false),
 		organizationID, userID, projectID)
 	if err != nil {
@@ -228,4 +236,72 @@ func checkEditorTaskScope(r *http.Request, rule editorScopeRule, rawBody []byte,
 func isJSONValueSet(raw json.RawMessage) bool {
 	trimmed := strings.TrimSpace(string(raw))
 	return trimmed != "" && trimmed != "null"
+}
+
+// jobTaskFile is the file a task is on, as the editor names it.
+type jobTaskFile struct {
+	SourcePath string `json:"sourcePath"`
+	Branch     string `json:"branch"`
+}
+
+// loadJobTaskFile reads the file a job is on, or nil for a job with none.
+func loadJobTaskFile(ctx context.Context, db dictionaryDB, organizationID, jobID string) (*jobTaskFile, error) {
+	var file jobTaskFile
+	err := db.QueryRow(ctx, `
+        select sf.source_path, sf.branch_name
+        from jobs j
+        `+taskFileJoinSQL+`
+        where j.id = $1 and j.organization_id = $2`, jobID, organizationID).Scan(&file.SourcePath, &file.Branch)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("load task file: %w", err)
+	}
+	return &file, nil
+}
+
+// taskOwnerMetadataKeys are the parts of a job's saved metadata the task's page shows.
+var taskOwnerMetadataKeys = []string{"title", "description", "workflowTaskStep", "sourcePath", "sourceFilename"}
+
+// redactJobForVendor leaves a vendor only what the job list and the task's page show: who made
+// the job, how it ran and whatever its creator stored with it are not theirs to read.
+func redactJobForVendor(job *jobWithProjectRecord) {
+	job.CreatedByUserID = nil
+	job.OutcomeKind = nil
+	job.OutcomePayload = nil
+	job.LastError = nil
+	job.WorkflowRunID = nil
+	job.InteractionID = nil
+	job.ContextSnapshot = nil
+	job.ReviewCriteria = nil
+	job.ReviewConfig = nil
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(job.InputPayload, &payload); err != nil {
+		job.InputPayload = json.RawMessage(`{}`)
+		return
+	}
+	kept := map[string]json.RawMessage{}
+	for _, key := range []string{"sourceFileId", "fileFormat", "sourceLocale", "targetLocales"} {
+		if value, ok := payload[key]; ok {
+			kept[key] = value
+		}
+	}
+	var metadata map[string]json.RawMessage
+	if err := json.Unmarshal(payload["metadata"], &metadata); err == nil {
+		keptMetadata := map[string]json.RawMessage{}
+		for _, key := range taskOwnerMetadataKeys {
+			if value, ok := metadata[key]; ok {
+				keptMetadata[key] = value
+			}
+		}
+		if raw, err := json.Marshal(keptMetadata); err == nil {
+			kept["metadata"] = raw
+		}
+	}
+	raw, err := json.Marshal(kept)
+	if err != nil {
+		raw = []byte(`{}`)
+	}
+	job.InputPayload = raw
 }
