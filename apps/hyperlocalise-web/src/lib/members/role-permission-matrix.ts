@@ -14,8 +14,8 @@ import { hasCapability, type OrganizationCapability } from "@/api/auth/policy";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 /** Least privilege first, matching the admin-facing matrix. */
+// Vendor is left out: it holds none of these rights, and the page says so under the table.
 export const ROLE_PERMISSION_MATRIX_ROLES = [
-  "vendor",
   "member",
   "translator",
   "reviewer",

@@ -178,6 +178,12 @@ export const nativeJobDetailContentMessages = defineMessages({
     id: "xkC+jko3kk",
     description: "Error toast when marking a task done after someone else finished or cancelled it",
   },
+  taskNoLongerYours: {
+    defaultMessage: "This task is finished or was given to someone else.",
+    id: "3+tuLaI0A+",
+    description:
+      "Notice when someone who reached a task only because they own it opens it after it was finished, cancelled or reassigned",
+  },
   taskNotAssignedToYou: {
     defaultMessage: "You can only mark done a task assigned to you.",
     id: "aTt1oyDiQ4",

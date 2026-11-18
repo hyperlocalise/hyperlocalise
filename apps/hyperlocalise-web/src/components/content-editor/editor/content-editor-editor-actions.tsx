@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useContentEditorTaskScope } from "@/components/content-editor/shared/content-editor-task-scope-context";
 import { FloppyDiskIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
@@ -40,6 +41,9 @@ export function ContentEditorEditorActions({
   onSaveDraft?: () => void;
   showApprove?: boolean;
 }) {
+  // A vendor on a post-edit task edits but does not approve: Save draft is their action.
+  const { canApprove } = useContentEditorTaskScope();
+  showApprove = showApprove && canApprove;
   if (!showApprove && !onSaveDraft) {
     return null;
   }

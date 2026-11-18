@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useContentEditorTaskScope } from "@/components/content-editor/shared/content-editor-task-scope-context";
 import type { ContentEditorSegmentCheckHandler } from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import {
   ContentEditorMultilingualTable,
@@ -123,6 +124,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   onReloadConcordance,
 }: ContentEditorWorkspaceViewProps) {
   const store = useContentEditorWorkspace();
+  // False on a post-edit task for a vendor: Approve is not offered, Save draft is.
+  const { canApprove: mayApproveOnTask } = useContentEditorTaskScope();
   const notifyAiCreditRefusal = useAiCreditRefusalToast();
   const isApproving = store.isApproving;
   const isSavingDraft = store.isSavingDraft;
@@ -603,13 +606,17 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           onNextSegment={dependencies.navigation.onNextSegment}
           onFocusSegment={dependencies.navigation.onSelectSegment}
           onTargetChange={(segmentId, value) => editing.onTargetChange(segmentId, value)}
-          onApprove={(segmentId) => {
-            const targetText = store.getSegmentView(segmentId)?.targetText;
-            if (targetText === undefined) {
-              return;
-            }
-            void review.onApprove(segmentId, targetText);
-          }}
+          onApprove={
+            mayApproveOnTask
+              ? (segmentId) => {
+                  const targetText = store.getSegmentView(segmentId)?.targetText;
+                  if (targetText === undefined) {
+                    return;
+                  }
+                  void review.onApprove(segmentId, targetText);
+                }
+              : undefined
+          }
           onSaveDraft={
             review.onSaveDraft
               ? (segmentId) => {
@@ -763,7 +770,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           onPrevious={navigation.onPreviousSegment}
           onNext={navigation.onNextSegment}
           onApprove={
-            isGeneratedFileView
+            isGeneratedFileView || !mayApproveOnTask
               ? undefined
               : () => void review.onApprove(fileViewSegment.id, fileViewSegment.targetText)
           }

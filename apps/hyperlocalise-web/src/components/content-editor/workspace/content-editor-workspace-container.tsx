@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useContentEditorTaskScope } from "@/components/content-editor/shared/content-editor-task-scope-context";
 import type { ContentEditorMultilingualConfig } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import { observer } from "mobx-react-lite";
 import { useEffect, useLayoutEffect } from "react";
@@ -185,6 +186,8 @@ const ContentEditorWorkspaceContainerObserver = observer(
     fileScopeKey,
     adaptiveWorkspaceEnabled = false,
   }: ContentEditorWorkspaceContainerProps & { store: ContentEditorWorkspaceOrchestrator }) {
+    // False on a post-edit task for a vendor: bulk approve is not offered.
+    const { canApprove } = useContentEditorTaskScope();
     const controller = useContentEditorWorkspaceRuntime({
       store,
       dependencies,
@@ -296,12 +299,16 @@ const ContentEditorWorkspaceContainerObserver = observer(
               }
               store.selectAllVisible(controller.queueSegments.map((segment) => segment.id));
             }}
-            onBulkApprove={() => {
-              if (isQueueBulkBlocked) {
-                return;
-              }
-              void controller.handleBulkApprove();
-            }}
+            onBulkApprove={
+              canApprove
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkApprove();
+                  }
+                : undefined
+            }
             onBulkSkip={() => {
               if (isQueueBulkBlocked) {
                 return;

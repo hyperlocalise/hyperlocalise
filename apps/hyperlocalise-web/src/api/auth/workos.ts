@@ -131,6 +131,9 @@ export function createWorkosAuthMiddleware() {
       }
 
       // The route that will handle the request: the last match that is not a middleware.
+      // Read from the request itself. The `hono/route` helper finds the same list through a
+      // symbol, which is a different one whenever Hono is loaded twice (as the test runner
+      // does), and then every request here would fail.
       const handlerRoute = c.req.matchedRoutes.filter((route) => route.method !== "ALL").at(-1);
       const authFromSession = await resolveApiAuthContextFromSession({
         cookie: c.req.header("cookie"),

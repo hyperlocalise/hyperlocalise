@@ -149,6 +149,38 @@ function requestInput(
 }
 
 describe("Human Approval request persistence", () => {
+  it("does not ask a vendor to approve, by either of the ids a reviewer is saved with", async () => {
+    const seeded = await seedApprovalNodeRun();
+    const reviewer = fixture.createWorkosIdentityWithRole("translator");
+    const synced = await syncWorkosIdentity(db, {
+      ...reviewer,
+      organization: {
+        ...reviewer.organization,
+        workosOrganizationId: seeded.organization.workosOrganizationId,
+      },
+    });
+    expect(synced.organization.id).toBe(seeded.organization.id);
+    const ask = (reviewerId: string) =>
+      createHumanApprovalRequest(requestInput(seeded, { reviewerId }));
+
+    await db
+      .update(schema.organizationMemberships)
+      .set({ role: "vendor" })
+      .where(eq(schema.organizationMemberships.userId, synced.user.id));
+    for (const reviewerId of [synced.user.id, reviewer.user.workosUserId]) {
+      const refused = await ask(reviewerId);
+      expect(isErr(refused) && refused.error.code, reviewerId).toBe("vendor_cannot_approve");
+    }
+    expect(await db.select().from(schema.visualWorkflowApprovalRequests)).toEqual([]);
+
+    // The same person with another role is asked as before.
+    await db
+      .update(schema.organizationMemberships)
+      .set({ role: "translator" })
+      .where(eq(schema.organizationMemberships.userId, synced.user.id));
+    expect(isOk(await ask(synced.user.id))).toBe(true);
+  });
+
   it("creates a durable request and an active Inbox item in one transaction", async () => {
     const seeded = await seedApprovalNodeRun();
 

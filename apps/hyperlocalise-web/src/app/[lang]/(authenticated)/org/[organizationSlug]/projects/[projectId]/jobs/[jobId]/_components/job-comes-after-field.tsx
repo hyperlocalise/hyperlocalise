@@ -16,7 +16,6 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useIntl } from "react-intl";
 
-import { useOptionalAppShellSession } from "@/components/app-shell/store/app-shell-session-context";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { buildJobDetailHref } from "../../../../../jobs/_components/jobs-view-helpers";
@@ -33,16 +32,20 @@ export function JobComesAfterField({
   projectId,
   afterJobId,
   waiting,
+  linkOnlyWhenReadable = false,
 }: {
   organizationSlug: string;
   projectId: string;
   afterJobId: string;
   waiting: boolean;
+  /**
+   * For someone here only through a task they own: the earlier task is linked only when they
+   * can open it too, which is when it loads.
+   */
+  linkOnlyWhenReadable?: boolean;
 }) {
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
-  // A vendor can open the earlier task only when it is also theirs, which is when it loads.
-  const isVendor = useOptionalAppShellSession()?.isVendor ?? false;
   const earlierJob = useQuery({
     queryKey: ["job", organizationSlug, projectId, afterJobId] as const,
     queryFn: async () =>
@@ -53,7 +56,7 @@ export function JobComesAfterField({
     ? jobDetailTaskLayoutFromRecord(earlierJob.data, intl).title
     : intl.formatMessage(messages.earlierTask);
   const href =
-    isVendor && !earlierJob.data
+    linkOnlyWhenReadable && !earlierJob.data
       ? null
       : buildJobDetailHref(organizationSlug, projectId, afterJobId);
 

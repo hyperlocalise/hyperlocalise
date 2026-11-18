@@ -21,6 +21,7 @@ import { isVendorRole } from "@/api/auth/vendor-access";
 import {
   resolveTaskRouteProjectAccess,
   taskRouteAccessCovers,
+  taskRouteAccessHasSourceText,
 } from "@/lib/projects/jobs/task-access";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
@@ -1821,7 +1822,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         let lookupOnly = false;
         if (target.kind === "native") {
           const access = await resolveTaskRouteProjectAccess(c.var.auth, params.projectId);
-          if (!access || !taskRouteAccessCovers(access, { locale: body.targetLocale })) {
+          if (
+            !access ||
+            !taskRouteAccessCovers(access, { locale: body.targetLocale }) ||
+            // Only for the text of a string in the task's file, so it cannot be used to browse.
+            !(await taskRouteAccessHasSourceText(access, {
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              sourceText: body.sourceText,
+            }))
+          ) {
             return projectNotFoundResponse(c);
           }
           lookupOnly = access.kind === "task";

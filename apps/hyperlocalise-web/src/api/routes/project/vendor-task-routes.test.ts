@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
@@ -84,7 +85,8 @@ async function setUp(role: OrganizationMembershipRole) {
   const adminId = await fixture.getLocalUserId(admin.user.workosUserId);
   const slug = admin.organization.slug ?? "missing-slug";
 
-  async function addFile(sourcePath: string) {
+  /** Adds a source file with one upload and one string. */
+  async function addFile(sourcePath: string, branchName = "main", sourceText = "Hello") {
     const stored = await insertStoredSourceFile({
       organizationId: organization.id,
       projectId: project.id,
@@ -94,20 +96,35 @@ async function setUp(role: OrganizationMembershipRole) {
     });
     const [sourceFile] = await db
       .insert(schema.repositorySourceFiles)
-      .values({ organizationId: organization.id, projectId: project.id, sourcePath })
+      .values({ organizationId: organization.id, projectId: project.id, sourcePath, branchName })
       .returning({ id: schema.repositorySourceFiles.id });
-    await db.insert(schema.repositorySourceFileVersions).values({
-      repositorySourceFileId: sourceFile!.id,
+    const [version] = await db
+      .insert(schema.repositorySourceFileVersions)
+      .values({
+        repositorySourceFileId: sourceFile!.id,
+        organizationId: organization.id,
+        projectId: project.id,
+        sourcePath,
+        storedFileId: stored.id,
+      })
+      .returning({ id: schema.repositorySourceFileVersions.id });
+    await db.insert(schema.projectTranslationKeys).values({
       organizationId: organization.id,
       projectId: project.id,
-      sourcePath,
-      storedFileId: stored.id,
+      repositorySourceFileId: sourceFile!.id,
+      branchName,
+      key: "greeting",
+      sourceText,
+      normalizedSourceText: sourceText.toLowerCase(),
     });
-    return { storedFileId: stored.id, sourceFileId: sourceFile!.id, sourcePath };
+    versionByStoredFile.set(stored.id, version!.id);
+    return { storedFileId: stored.id, sourceFileId: sourceFile!.id, sourcePath, sourceText };
   }
+  // The upload each stored file was added with: a task names its file through it.
+  const versionByStoredFile = new Map<string, string>();
 
-  const file = await addFile("locales/app.json");
-  const otherFile = await addFile("locales/other.json");
+  const file = await addFile("locales/app.json", "main", "Hello");
+  const otherFile = await addFile("locales/other.json", "main", "Only in the other file");
 
   async function addTask(
     input: Partial<{
@@ -140,6 +157,11 @@ async function setUp(role: OrganizationMembershipRole) {
         },
       })
       .returning({ id: schema.jobs.id });
+    await db.insert(schema.translationJobDetails).values({
+      jobId: job!.id,
+      type: "file",
+      sourceFileVersionId: storedFileId ? (versionByStoredFile.get(storedFileId) ?? null) : null,
+    });
     return job!.id;
   }
 
@@ -164,11 +186,11 @@ async function setUp(role: OrganizationMembershipRole) {
     addFile,
     addTask,
     markDone: (jobId: string) => request("POST", `/jobs/${jobId}/mark-done`),
-    lookUp: (targetLocale: string, projectId = project.id) =>
+    lookUp: (targetLocale: string, projectId = project.id, sourceText = "Hello") =>
       request("POST", `/projects/${projectId}/files/detail/cat/concordance`, {
         sourceLocale: "en-US",
         targetLocale,
-        sourceText: "Hello",
+        sourceText,
       }),
     asset: (fileId: string) => request("GET", `/projects/${project.id}/assets/${fileId}`),
     download: (sourcePath: string, locale: string) =>
@@ -196,9 +218,19 @@ describe("Mark done for a vendor", () => {
     const s = await setUp("vendor");
     const task = await s.addTask({ step: "edit" });
 
+    await db
+      .update(schema.jobs)
+      .set({ createdByUserId: s.adminId, workflowRunId: "run_secret", lastError: "secret error" })
+      .where(eq(schema.jobs.id, task));
+
     const response = await s.markDone(task);
     expect(response.status).toBe(200);
-    expect(((await response.json()) as { job: { status: string } }).job.status).toBe("succeeded");
+    const body = await response.text();
+    expect((JSON.parse(body) as { job: { status: string } }).job.status).toBe("succeeded");
+    // The reply says it is done, and nothing about who made the job or how it ran.
+    for (const hidden of [s.adminId, "run_secret", "secret error", s.file.storedFileId]) {
+      expect(body).not.toContain(hidden);
+    }
     expect(await jobStatus(task)).toBe("succeeded");
 
     expect((await s.markDone(task)).status).toBe(404);
@@ -295,6 +327,66 @@ describe("memory and glossary lookup", () => {
     expect((await s.lookUp("fr-FR", "ext:crowdin:123")).status).toBe(404);
   });
 
+  it("answers only for the text of a string in the task's file, so it cannot be used to browse", async () => {
+    const s = await setUp("vendor");
+    await s.addTask();
+    expect((await s.lookUp("fr-FR", s.project.id, "Hello")).status).toBe(200);
+    expect((await s.lookUp("fr-FR", s.project.id, "  Hello  ")).status).toBe(200);
+    expect((await s.lookUp("fr-FR", s.project.id, "Any other words")).status).toBe(404);
+    expect((await s.lookUp("fr-FR", s.project.id, s.otherFile.sourceText)).status).toBe(404);
+  });
+
+  it("gives matches without links or the means to change them", async () => {
+    const s = await setUp("vendor");
+    await s.addTask();
+    const [memory] = await db
+      .insert(schema.memories)
+      .values({ organizationId: s.organization.id, name: "Project memory" })
+      .returning({ id: schema.memories.id });
+    await db.insert(schema.projectMemories).values({
+      organizationId: s.organization.id,
+      projectId: s.project.id,
+      memoryId: memory!.id,
+    });
+    await db.insert(schema.memoryEntries).values({
+      memoryId: memory!.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceText: "Hello",
+      normalizedSourceText: normalizeTranslationMemorySourceText("Hello"),
+      targetText: "Bonjour",
+    });
+
+    type Match = { targetText: string; canEdit: boolean; canDelete: boolean; segmentRef?: unknown };
+    const matchesFor = async (response: Response) =>
+      ((await response.json()) as { concordance: { translationMemoryMatches: Match[] } })
+        .concordance.translationMemoryMatches;
+
+    const asVendor = await matchesFor(await s.lookUp("fr-FR"));
+    expect(asVendor.map((match) => match.targetText)).toEqual(["Bonjour"]);
+    expect(asVendor[0]).toMatchObject({ canEdit: false, canDelete: false });
+    expect(asVendor[0]?.segmentRef).toBeUndefined();
+
+    // The same lookup for the project's admin still carries the means to edit the entry.
+    const admin = await fixture.authHeadersFor(s.admin);
+    const asAdmin = await matchesFor(
+      await app.request(
+        `http://localhost/api/orgs/${s.admin.organization.slug}/projects/${s.project.id}/files/detail/cat/concordance`,
+        {
+          method: "POST",
+          headers: { ...admin, "content-type": "application/json" },
+          body: JSON.stringify({
+            sourceLocale: "en-US",
+            targetLocale: "fr-FR",
+            sourceText: "Hello",
+          }),
+        },
+      ),
+    );
+    expect(asAdmin[0]).toMatchObject({ targetText: "Bonjour", canEdit: true, canDelete: true });
+    expect(asAdmin[0]?.segmentRef).toBeDefined();
+  });
+
   it("stops when the task is finished or given to someone else", async () => {
     const s = await setUp("vendor");
     const task = await s.addTask();
@@ -341,8 +433,57 @@ describe("the task's file", () => {
     expect(await s.errorCode(await s.download(s.file.sourcePath, "de-DE"))).toBe(
       "project_not_found",
     );
+    // Past the access check, the route answers with the file itself.
     const own = await s.download(s.file.sourcePath, "fr-FR");
-    expect(own.status === 200 ? "ok" : await s.errorCode(own)).not.toBe("project_not_found");
+    expect(own.status).toBe(200);
+    expect(own.headers.get("content-disposition")).toContain("app-fr-FR.json");
+  });
+
+  it("does not open the default branch's file to a task on another branch of that path", async () => {
+    const s = await setUp("vendor");
+    const onBranch = await s.addFile(s.file.sourcePath, "release", "Hello on release");
+    await s.addTask({ storedFileId: onBranch.storedFileId });
+
+    // The download serves the default branch only, which is not the task's file.
+    expect(await s.errorCode(await s.download(s.file.sourcePath, "fr-FR"))).toBe(
+      "project_not_found",
+    );
+    // The task's own upload is still theirs; the default branch's upload is not.
+    expect(await s.errorCode(await s.asset(onBranch.storedFileId))).toBe("not_found");
+    expect(await s.errorCode(await s.asset(s.file.storedFileId))).toBe("project_not_found");
+    // Lookup is for the strings of the task's file, not the default branch's.
+    expect((await s.lookUp("fr-FR", s.project.id, "Hello on release")).status).toBe(200);
+    expect((await s.lookUp("fr-FR", s.project.id, "Hello")).status).toBe(404);
+  });
+
+  it("does not take a copy of the upload on another branch for the task's file", async () => {
+    const s = await setUp("vendor");
+    await s.addTask();
+    // Creating a branch copies the upload record with the same stored file.
+    const [branchFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({
+        organizationId: s.organization.id,
+        projectId: s.project.id,
+        sourcePath: s.file.sourcePath,
+        branchName: "release",
+      })
+      .returning({ id: schema.repositorySourceFiles.id });
+    await db.insert(schema.repositorySourceFileVersions).values({
+      repositorySourceFileId: branchFile!.id,
+      organizationId: s.organization.id,
+      projectId: s.project.id,
+      sourcePath: s.file.sourcePath,
+      storedFileId: s.file.storedFileId,
+    });
+
+    const access = await resolveTaskRouteProjectAccess(
+      globalThis.__testApiAuthContext!,
+      s.project.id,
+    );
+    expect(access?.kind === "task" ? access.files.map((file) => file.branchName) : null).toEqual([
+      "main",
+    ]);
   });
 
   it("changes nothing for someone on the project's team", async () => {
@@ -351,6 +492,46 @@ describe("the task's file", () => {
     expect(await s.errorCode(await s.asset(s.otherFile.storedFileId))).toBe("not_found");
     const other = await s.download(s.otherFile.sourcePath, "de-DE");
     expect(other.status === 200 ? "ok" : await s.errorCode(other)).not.toBe("project_not_found");
+  });
+});
+
+describe("creating a job with an owner", () => {
+  it("gives a vendor a proofread task on a file, and no other job", async () => {
+    const s = await setUp("vendor");
+    const headers = await fixture.authHeadersFor(s.admin);
+    const create = (kind: "proofread" | "translation") =>
+      app.request(
+        `http://localhost/api/orgs/${s.admin.organization.slug}/projects/${s.project.id}/jobs`,
+        {
+          method: "POST",
+          headers: { ...headers, "content-type": "application/json" },
+          body: JSON.stringify({
+            type: "file",
+            title: "Homepage",
+            kind,
+            ownerWorkosUserId: s.personIdentity.user.workosUserId,
+            fileInput: {
+              sourceFileId: s.file.storedFileId,
+              fileFormat: "json",
+              sourceLocale: "en-US",
+              targetLocales: ["fr-FR"],
+            },
+          }),
+        },
+      );
+
+    const refused = await create("translation");
+    expect(refused.status).toBe(400);
+    expect(await s.errorCode(refused)).toBe("vendor_owner_not_allowed");
+
+    const made = await create("proofread");
+    expect(made.status).toBe(201);
+    const { job } = (await made.json()) as { job: { id: string } };
+    const [stored] = await db
+      .select({ ownerUserId: schema.jobs.ownerUserId })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, job.id));
+    expect(stored?.ownerUserId).toBe(s.personId);
   });
 });
 
@@ -375,6 +556,9 @@ describe("access through a task", () => {
     const auth = globalThis.__testApiAuthContext!;
     const access = await resolveTaskRouteProjectAccess(auth, s.project.id);
     expect(access?.kind).toBe("task");
+    expect(access?.kind === "task" ? access.files[0]?.storedFileIds.toSorted() : null).toEqual(
+      [newer.id, s.file.storedFileId].toSorted(),
+    );
     expect(taskRouteAccessCovers(access!, { sourceFileId: newer.id })).toBe(true);
     expect(taskRouteAccessCovers(access!, { sourceFileId: s.file.storedFileId })).toBe(true);
     expect(taskRouteAccessCovers(access!, { sourceFileId: s.otherFile.storedFileId })).toBe(false);

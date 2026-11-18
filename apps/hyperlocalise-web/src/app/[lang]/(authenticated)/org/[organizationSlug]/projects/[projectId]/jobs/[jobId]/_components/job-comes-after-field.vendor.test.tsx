@@ -18,8 +18,6 @@ import type { ComponentProps } from "react";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { AppShellSessionProvider } from "@/components/app-shell/store/app-shell-session-context";
-
 const mocks = vi.hoisted(() => ({ getJob: vi.fn() }));
 
 vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
@@ -33,33 +31,28 @@ vi.mock("next/link", () => ({
 
 import { JobComesAfterField } from "./job-comes-after-field";
 
-function renderAsVendor() {
+function renderForTaskOwner() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
       <IntlProvider locale="en" messages={{}}>
-        <AppShellSessionProvider
-          canDeleteQueries={false}
-          currentUser={{ avatarUrl: null, email: "vendor@example.com", name: "Vendor" }}
-          isVendor
-        >
-          <JobComesAfterField
-            organizationSlug="acme"
-            projectId="project_1"
-            afterJobId="job_post_edit"
-            waiting
-          />
-        </AppShellSessionProvider>
+        <JobComesAfterField
+          organizationSlug="acme"
+          projectId="project_1"
+          afterJobId="job_post_edit"
+          waiting
+          linkOnlyWhenReadable
+        />
       </IntlProvider>
     </QueryClientProvider>,
   );
 }
 
-describe("JobComesAfterField for a vendor", () => {
-  it("does not link to an earlier task the vendor cannot open", async () => {
+describe("JobComesAfterField for someone here through a task", () => {
+  it("does not link to an earlier task the person cannot open", async () => {
     mocks.getJob.mockRejectedValue(new Error("not found"));
 
-    renderAsVendor();
+    renderForTaskOwner();
 
     await waitFor(() => expect(mocks.getJob).toHaveBeenCalled());
     expect(await screen.findByText("Earlier task")).toBeTruthy();
@@ -81,7 +74,7 @@ describe("JobComesAfterField for a vendor", () => {
       },
     });
 
-    renderAsVendor();
+    renderForTaskOwner();
 
     const link = await screen.findByRole("link", { name: "Post-edit: guide.docx" });
     expect(link.getAttribute("href")).toBe("/org/acme/projects/project_1/jobs/job_post_edit");

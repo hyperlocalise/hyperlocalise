@@ -30,7 +30,7 @@ import { ensureTeamMembership } from "@/lib/teams/default-workspace-team";
 
 import { createWorkflowTaskJob } from "./create-workflow-task-job";
 import {
-  isActiveWorkspaceMember,
+  canOwnFileTaskOutsideTeam,
   isFileTaskForPeople,
   readJobSourceFileId,
   refuseVendorOwnerUnlessFileTask,
@@ -80,6 +80,7 @@ async function setUp() {
   async function job(input: {
     kind: (typeof schema.jobs.$inferInsert)["kind"];
     sourceFileId?: string;
+    status?: (typeof schema.jobs.$inferInsert)["status"];
   }) {
     const [created] = await db
       .insert(schema.jobs)
@@ -88,7 +89,7 @@ async function setUp() {
         organizationId: organization.id,
         projectId: project.id,
         kind: input.kind,
-        status: input.kind === "proofread" ? "waiting_for_review" : "queued",
+        status: input.status ?? (input.kind === "proofread" ? "waiting_for_review" : "queued"),
         inputPayload: {
           ...(input.sourceFileId ? { sourceFileId: input.sourceFileId } : {}),
           sourceLocale: "en-US",
@@ -118,13 +119,21 @@ async function setUp() {
 }
 
 describe("which jobs are tasks on a file", () => {
+  const open = { kind: "proofread", sourceFileId: "file_1", status: "waiting_for_review" };
+
   it("is a proofread job that names a file and is not mirrored from a provider", () => {
-    expect(isFileTaskForPeople({ kind: "proofread", sourceFileId: "file_1" })).toBe(true);
-    expect(isFileTaskForPeople({ kind: "proofread", sourceFileId: null })).toBe(false);
-    expect(isFileTaskForPeople({ kind: "translation", sourceFileId: "file_1" })).toBe(false);
-    expect(
-      isFileTaskForPeople({ kind: "proofread", sourceFileId: "file_1", isProviderJob: true }),
-    ).toBe(false);
+    expect(isFileTaskForPeople(open)).toBe(true);
+    expect(isFileTaskForPeople({ ...open, sourceFileId: null })).toBe(false);
+    expect(isFileTaskForPeople({ ...open, kind: "translation" })).toBe(false);
+    expect(isFileTaskForPeople({ ...open, isProviderJob: true })).toBe(false);
+  });
+
+  it("only while it is open, or waiting for the task before it", () => {
+    expect(isFileTaskForPeople({ ...open, status: "queued", afterJobId: "job_1" })).toBe(true);
+    expect(isFileTaskForPeople({ ...open, status: "queued" })).toBe(false);
+    for (const status of ["succeeded", "failed", "cancelled", "running"]) {
+      expect(isFileTaskForPeople({ ...open, status }), status).toBe(false);
+    }
   });
 
   it("reads the file from a job's saved input", () => {
@@ -138,7 +147,7 @@ describe("which jobs are tasks on a file", () => {
 });
 
 describe("who a job can be given to in the app", () => {
-  it("gives a task on a file to any active member, a vendor included", async () => {
+  it("gives an open task on a file to a vendor, and to someone off the team who works on jobs", async () => {
     const s = await setUp();
     const task = await s.job({ kind: "proofread", sourceFileId: s.file.id });
     const vendor = await s.member("vendor");
@@ -162,8 +171,35 @@ describe("who a job can be given to in the app", () => {
     const result = await s.give(task, pending.workosUserId);
     expect(isErr(result) && result.error.code).toBe("assignee_not_assignable");
     expect(
-      await isActiveWorkspaceMember({ organizationId: s.organization.id, userId: pending.id }),
+      await canOwnFileTaskOutsideTeam({ organizationId: s.organization.id, userId: pending.id }),
     ).toBe(false);
+  });
+
+  it("does not give a task to someone off the team whose role cannot work on jobs", async () => {
+    const s = await setUp();
+    const task = await s.job({ kind: "proofread", sourceFileId: s.file.id });
+    const member = await s.member("member");
+
+    const result = await s.give(task, member.workosUserId);
+    expect(isErr(result) && result.error.code).toBe("assignee_not_assignable");
+    expect(await s.ownerOf(task)).toBeNull();
+  });
+
+  it("treats a finished task as any other job: not for a vendor, and for the team only", async () => {
+    const s = await setUp();
+    const finished = await s.job({
+      kind: "proofread",
+      sourceFileId: s.file.id,
+      status: "succeeded",
+    });
+    const vendor = await s.member("vendor");
+    const offTeam = await s.member("translator");
+
+    const toVendor = await s.give(finished, vendor.workosUserId);
+    expect(isErr(toVendor) && toVendor.error.code).toBe("vendor_owner_not_allowed");
+    const toOffTeam = await s.give(finished, offTeam.workosUserId);
+    expect(isErr(toOffTeam) && toOffTeam.error.code).toBe("assignee_not_assignable");
+    expect(await s.ownerOf(finished)).toBeNull();
   });
 
   it("never gives any other job to a vendor, even one left in the project's team", async () => {

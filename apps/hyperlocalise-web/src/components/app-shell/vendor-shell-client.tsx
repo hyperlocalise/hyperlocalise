@@ -21,7 +21,7 @@ import {
   GlobeIcon,
   ListChecksIcon,
   SignOutIcon,
-  SignOutIcon as LeaveIcon,
+  UserMinusIcon,
 } from "@phosphor-icons/react";
 
 import { isVendorPagePath, vendorHomePath } from "@/api/auth/vendor-access";
@@ -149,7 +149,7 @@ export function VendorShellClient({
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    isActive
+                    isActive={pathname.replace(/\/$/, "").endsWith("/my-jobs")}
                     tooltip={intl.formatMessage(vendorShellMessages.myJobs)}
                     render={<Link href={homePath} />}
                   >
@@ -230,7 +230,7 @@ export function VendorShellClient({
                         <FormattedMessage {...vendorShellMessages.allWorkspaces} />
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setLeaveOpen(true)}>
-                        <LeaveIcon className="size-4" />
+                        <UserMinusIcon className="size-4" />
                         <FormattedMessage {...vendorShellMessages.leaveWorkspace} />
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -250,6 +250,7 @@ export function VendorShellClient({
               {isAllowedPage ? children : null}
             </div>
           </SidebarInset>
+          {/* So a vendor is told to reload after a new version ships, as everyone is. */}
         </SidebarProvider>
         <LocaleDialog open={languageDialogOpen} onOpenChange={setLanguageDialogOpen} />
         <LeaveWorkspaceDialog

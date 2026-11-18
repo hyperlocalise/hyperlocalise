@@ -12,6 +12,7 @@
  */
 import { and, eq } from "drizzle-orm";
 
+import { hasCapability } from "@/api/auth/policy";
 import { isVendorRole } from "@/api/auth/vendor-access";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
@@ -20,12 +21,14 @@ import { isActiveOrganizationMembership } from "@/lib/workos/constants";
 /**
  * Who a job can be given to.
  *
- * A post-edit or proofread task on a file can be given to any active member of the workspace,
- * a vendor included, whatever team the project is in: its owner reaches it through the task
- * itself (`task-access.ts`). Every other job keeps the rule its caller had, and can never be
- * given to a vendor, because nothing would let a vendor open or finish it.
+ * An open or waiting post-edit or proofread task on a file can be given to a vendor, and to any
+ * active member whose role works on jobs, whatever team the project is in: its owner reaches it
+ * through the task itself (`task-access.ts`). Anyone who can open the project can be given any
+ * job, as before. No other job is ever given to a vendor, because nothing would let a vendor
+ * open or finish it.
  *
- * Keep in step with `assignableJobOwner` in apps/public-api/jobs-store.go.
+ * Keep in step with `assignableJobOwner` in apps/public-api/jobs-store.go and
+ * `orgJobAssignableOwnersHandler` in apps/go-svc/project-jobs.go.
  */
 export const VENDOR_OWNER_NOT_ALLOWED_MESSAGE =
   "A vendor can only be given a post-edit or proofread task on a file.";
@@ -45,15 +48,22 @@ export function readJobSourceFileId(inputPayload: unknown): string | null {
 }
 
 /**
- * A post-edit or proofread task on one file. Both are stored as proofread jobs; a job mirrored
- * from a provider is not one.
+ * An open or waiting post-edit or proofread task on one file. Both steps are stored as
+ * proofread jobs; a job mirrored from a provider is not one. A finished task is an ordinary job
+ * again: its owner could no longer open it through the task.
  */
 export function isFileTaskForPeople(job: {
   kind: string;
   sourceFileId: string | null | undefined;
+  status: string;
+  afterJobId?: string | null;
   isProviderJob?: boolean;
 }): boolean {
-  return job.kind === "proofread" && Boolean(job.sourceFileId) && !job.isProviderJob;
+  const openOrWaiting =
+    job.status === "waiting_for_review" || (job.status === "queued" && Boolean(job.afterJobId));
+  return (
+    job.kind === "proofread" && Boolean(job.sourceFileId) && !job.isProviderJob && openOrWaiting
+  );
 }
 
 async function findWorkspaceMembership(input: {
@@ -77,14 +87,22 @@ async function findWorkspaceMembership(input: {
   return membership ?? null;
 }
 
-/** Whether the person is a member whose membership is active (not a pending invitation). */
-export async function isActiveWorkspaceMember(input: {
+/**
+ * Whether the person can be given a task on a file whatever team its project is in: an active
+ * member (not a pending invitation) who is a vendor or whose role works on jobs. A role that
+ * only reads could neither save nor mark the task done.
+ */
+export async function canOwnFileTaskOutsideTeam(input: {
   organizationId: string;
   userId: string;
   database?: DatabaseClient;
 }): Promise<boolean> {
   const membership = await findWorkspaceMembership({ ...input, database: input.database ?? db });
-  return Boolean(membership && isActiveOrganizationMembership(membership.workosMembershipId));
+  return Boolean(
+    membership &&
+    isActiveOrganizationMembership(membership.workosMembershipId) &&
+    (isVendorRole(membership.role) || hasCapability(membership.role, "jobs:write")),
+  );
 }
 
 /** Refuses a vendor as the owner of anything but a post-edit or proofread task on a file. */

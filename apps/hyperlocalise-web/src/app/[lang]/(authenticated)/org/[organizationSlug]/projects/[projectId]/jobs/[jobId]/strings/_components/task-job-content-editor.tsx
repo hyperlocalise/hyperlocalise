@@ -32,6 +32,8 @@ import type {
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
+import { buildCatNavigationSearchParams } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { ProjectPageShell } from "../../../../_components/project-page-shell";
@@ -118,7 +120,14 @@ export function TaskJobContentEditor({
   }
 
   const job = jobQuery.data ?? null;
-  const file = job ? nativeJobToProjectFileRecord(job) : null;
+  // The file and branch the task is on, from the upload it was made for. The job's own display
+  // name for its file is not always the path the editor uses (a task made through the API
+  // carries none), so it is not used here.
+  const taskFile = job?.taskFile ?? null;
+  const displayFile = job ? nativeJobToProjectFileRecord(job) : null;
+  const file = displayFile && taskFile ? { ...displayFile, sourcePath: taskFile.sourcePath } : null;
+  const branch =
+    taskFile && taskFile.branch !== DEFAULT_PROJECT_BRANCH_NAME ? taskFile.branch : null;
   const sourceLocale = job ? readSourceLocale(job) : null;
   const targetLocales = job ? resolveJobContentEditorSelectableTargetLocales(job) : [];
   const activeTargetLocale = selectJobContentEditorTargetLocale({
@@ -133,6 +142,8 @@ export function TaskJobContentEditor({
           <TypographyP className="text-flame-100" size="small">
             {jobQuery.error instanceof Error ? (
               jobQuery.error.message
+            ) : job && file ? (
+              <FormattedMessage {...jobCatPageContentMessages.projectMissingSourceLocale} />
             ) : (
               <FormattedMessage {...jobCatPageContentMessages.noSourceFileLinked} />
             )}
@@ -159,7 +170,11 @@ export function TaskJobContentEditor({
       return;
     }
     attemptCatPageNavigation(pageNavigationGuardRef, () => {
-      router.push(`${taskHref}/strings?targetLocale=${encodeURIComponent(nextLocale)}`);
+      // Keeps the filter and search, as the editor does for everyone else.
+      const params = buildCatNavigationSearchParams(window.location.search, {
+        targetLocale: nextLocale,
+      });
+      router.push(`${taskHref}/strings?${params.toString()}`);
     });
   };
 
@@ -201,6 +216,7 @@ export function TaskJobContentEditor({
         projectSource="native"
         sourceLocale={sourceLocale}
         sourcePath={file.sourcePath}
+        branch={branch}
         targetLocale={activeTargetLocale}
         highlightLocale={activeTargetLocale}
         canLookupFreshContext={false}

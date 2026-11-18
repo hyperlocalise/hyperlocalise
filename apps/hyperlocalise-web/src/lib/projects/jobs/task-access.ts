@@ -10,13 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, isNotNull, isNull, ne, notExists, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, ne, notExists, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { canAccessProject } from "@/api/auth/team-access";
 import { isVendorRole } from "@/api/auth/vendor-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+
+import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
 
 import { POST_EDIT_WORKFLOW_TASK_STEP } from "./person-task";
 
@@ -124,10 +126,16 @@ export async function findOwnedFileTask(input: {
   };
 }
 
-/** One file a person reaches through open tasks they own, with the languages those tasks cover. */
+/**
+ * One file a person reaches through open tasks they own, with the languages those tasks cover.
+ * A task is on one file on one branch: the file of the upload the task was made for.
+ */
 export type OwnedTaskFile = {
-  sourceFileId: string;
+  repositorySourceFileId: string;
   sourcePath: string;
+  branchName: string;
+  /** Every upload of that file, since the editor always works on the file's latest one. */
+  storedFileIds: string[];
   targetLocales: string[];
 };
 
@@ -146,30 +154,30 @@ export async function resolveTaskRouteProjectAccess(
     return { kind: "team" };
   }
 
-  // The task names one upload of its file; every upload of that same file counts, since the
-  // editor always works on the file's latest one.
+  // The upload a task was made for names its file and branch. The stored file alone does not:
+  // creating or merging a branch copies an upload, so one stored file can sit on several
+  // branches. Keep in step with `taskFileJoinSQL` in apps/go-svc/vendor-access.go.
   const taskVersion = alias(schema.repositorySourceFileVersions, "task_version");
-  const rows = await db
+  const tasks = await db
     .select({
       inputPayload: schema.jobs.inputPayload,
-      storedFileId: schema.repositorySourceFileVersions.storedFileId,
-      sourcePath: schema.repositorySourceFileVersions.sourcePath,
+      repositorySourceFileId: schema.repositorySourceFiles.id,
+      sourcePath: schema.repositorySourceFiles.sourcePath,
+      branchName: schema.repositorySourceFiles.branchName,
     })
     .from(schema.jobs)
+    .innerJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
     .innerJoin(
       taskVersion,
       and(
-        sql`${taskVersion.storedFileId} = ${schema.jobs.inputPayload}->>'sourceFileId'`,
+        eq(taskVersion.id, schema.translationJobDetails.sourceFileVersionId),
         eq(taskVersion.organizationId, schema.jobs.organizationId),
         eq(taskVersion.projectId, schema.jobs.projectId),
       ),
     )
     .innerJoin(
-      schema.repositorySourceFileVersions,
-      eq(
-        schema.repositorySourceFileVersions.repositorySourceFileId,
-        taskVersion.repositorySourceFileId,
-      ),
+      schema.repositorySourceFiles,
+      eq(schema.repositorySourceFiles.id, taskVersion.repositorySourceFileId),
     )
     .where(
       and(
@@ -180,22 +188,43 @@ export async function resolveTaskRouteProjectAccess(
         }),
       ),
     );
+  if (tasks.length === 0) {
+    return null;
+  }
 
-  const files = rows.flatMap((row) =>
-    row.storedFileId
-      ? [
-          {
-            sourceFileId: row.storedFileId,
-            sourcePath: row.sourcePath,
-            targetLocales: readTargetLocales(row.inputPayload),
-          },
-        ]
-      : [],
-  );
-  return files.length > 0 ? { kind: "task", files } : null;
+  const fileIds = [...new Set(tasks.map((task) => task.repositorySourceFileId))];
+  const uploads = await db
+    .select({
+      repositorySourceFileId: schema.repositorySourceFileVersions.repositorySourceFileId,
+      storedFileId: schema.repositorySourceFileVersions.storedFileId,
+    })
+    .from(schema.repositorySourceFileVersions)
+    .where(inArray(schema.repositorySourceFileVersions.repositorySourceFileId, fileIds));
+
+  const files = new Map<string, OwnedTaskFile>();
+  for (const task of tasks) {
+    const file = files.get(task.repositorySourceFileId) ?? {
+      repositorySourceFileId: task.repositorySourceFileId,
+      sourcePath: task.sourcePath,
+      branchName: task.branchName,
+      storedFileIds: uploads
+        .filter((upload) => upload.repositorySourceFileId === task.repositorySourceFileId)
+        .map((upload) => upload.storedFileId),
+      targetLocales: [],
+    };
+    file.targetLocales = [
+      ...new Set([...file.targetLocales, ...readTargetLocales(task.inputPayload)]),
+    ];
+    files.set(task.repositorySourceFileId, file);
+  }
+  return { kind: "task", files: [...files.values()] };
 }
 
-/** Whether the access covers the file (by path or stored file id) and, when given, the language. */
+/**
+ * Whether the access covers the file and, when given, the language. A file is named either by
+ * one of its uploads (`sourceFileId`) or by its path. A path names a file on the default
+ * branch only, because the routes that take a path serve that branch and no other.
+ */
 export function taskRouteAccessCovers(
   access: TaskRouteProjectAccess,
   target: { sourcePath?: string; sourceFileId?: string; locale?: string },
@@ -205,8 +234,40 @@ export function taskRouteAccessCovers(
   }
   return access.files.some(
     (file) =>
-      (target.sourcePath === undefined || file.sourcePath === target.sourcePath) &&
-      (target.sourceFileId === undefined || file.sourceFileId === target.sourceFileId) &&
+      (target.sourcePath === undefined ||
+        (file.sourcePath === target.sourcePath &&
+          file.branchName === DEFAULT_PROJECT_BRANCH_NAME)) &&
+      (target.sourceFileId === undefined || file.storedFileIds.includes(target.sourceFileId)) &&
       (target.locale === undefined || file.targetLocales.includes(target.locale)),
   );
+}
+
+/**
+ * Whether the text is the source text of a string in one of the files the access covers. Used
+ * to keep memory and glossary lookup to the strings of a task, so it cannot be used to browse.
+ */
+export async function taskRouteAccessHasSourceText(
+  access: TaskRouteProjectAccess,
+  input: { organizationId: string; projectId: string; sourceText: string },
+): Promise<boolean> {
+  if (access.kind === "team") {
+    return true;
+  }
+  const [key] = await db
+    .select({ id: schema.projectTranslationKeys.id })
+    .from(schema.projectTranslationKeys)
+    .where(
+      and(
+        eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+        eq(schema.projectTranslationKeys.projectId, input.projectId),
+        inArray(
+          schema.projectTranslationKeys.repositorySourceFileId,
+          access.files.map((file) => file.repositorySourceFileId),
+        ),
+        // The request trims the text, so the comparison does too.
+        sql`btrim(${schema.projectTranslationKeys.sourceText}) = ${input.sourceText.trim()}`,
+      ),
+    )
+    .limit(1);
+  return Boolean(key);
 }

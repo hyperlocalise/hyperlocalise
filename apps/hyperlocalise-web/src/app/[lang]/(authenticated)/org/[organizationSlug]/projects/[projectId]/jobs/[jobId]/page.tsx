@@ -13,7 +13,9 @@
 import { redirect } from "next/navigation";
 
 import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
+import { canAccessProject } from "@/api/auth/team-access";
 import { isVendorRole, vendorHomePath } from "@/api/auth/vendor-access";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { findOwnedFileTask } from "@/lib/projects/jobs/task-access";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
@@ -42,18 +44,30 @@ async function ProjectJobDetailPageLoader({
   const projectId = normalizeProjectId(rawProjectId);
   // Open to vendors (`vendor-access.ts`), for an open or waiting task they own.
   const auth = await requireAppAuthContext({ organizationSlug, allowVendor: true });
-  if (isVendorRole(auth.membership.role)) {
+  const isVendor = isVendorRole(auth.membership.role);
+  // A person is here through the project's team, as before, or only through a task they own:
+  // a vendor always, anyone else when the project is outside their teams. A task owner gets
+  // the task's details, Open Editor and Mark done, and none of the page's other controls,
+  // which all go through the team. (A provider project is not asked about: only native
+  // projects have such tasks, and asking would call the provider on every page load.)
+  let taskOwnerOnly = false;
+  if (
+    isVendor ||
+    (!parseProviderProjectId(projectId) && !(await canAccessProject(auth, projectId)))
+  ) {
     const task = await findOwnedFileTask({
       organizationId: auth.organization.localOrganizationId,
       userId: auth.user.localUserId,
       jobId,
       includeWaiting: true,
     });
-    if (!task || task.projectId !== projectId) {
+    taskOwnerOnly = Boolean(task && task.projectId === projectId);
+    if (isVendor && !taskOwnerOnly) {
       redirect(vendorHomePath(organizationSlug));
     }
   }
-  const canEditJobFields = hasCapability(auth.membership.role, "jobs:write");
+  const mayWorkOnJobs = hasCapability(auth.membership.role, "jobs:write");
+  const canEditJobFields = mayWorkOnJobs && !taskOwnerOnly;
   const canMarkAnyTaskDone = hasCapability(auth.membership.role, "reviews:approve");
   const canEditSharedCredentialProviderJobFields = isWorkspaceOperatorRole(auth.membership.role);
 
@@ -64,6 +78,8 @@ async function ProjectJobDetailPageLoader({
       projectId={projectId}
       canEditJobFields={canEditJobFields}
       canMarkAnyTaskDone={canMarkAnyTaskDone}
+      taskOwnerOnly={taskOwnerOnly}
+      canMarkOwnTaskDone={isVendor || mayWorkOnJobs}
       currentUserId={auth.user.localUserId}
       canEditSharedCredentialProviderJobFields={canEditSharedCredentialProviderJobFields}
     />

@@ -13,7 +13,8 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ListBulletsIcon,
@@ -37,7 +38,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { TaskReport } from "@/components/reports/task-report";
-import { useOptionalAppShellSession } from "@/components/app-shell/store/app-shell-session-context";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
@@ -66,6 +66,7 @@ import {
   getInputPayloadMetadataDescription,
   jobDetailTaskLayoutFromRecord,
 } from "./job-detail-layout-helpers";
+import { defaultRenderBackLink } from "./job-detail-shared";
 import { JobDetailTaskView } from "./job-detail-task-view";
 import type { JobDetailRecord } from "./job-detail-types";
 import { JobFailureNotice } from "./job-failure-notice";
@@ -102,12 +103,17 @@ async function parseActionError(response: Response, fallback: string) {
   return error ? `${fallback}: ${error}` : `${fallback} (${response.status})`;
 }
 
+/** The task behind a task owner's page is finished, cancelled or was given to someone else. */
+class TaskNoLongerOpenError extends Error {}
+
 export function NativeJobDetailContent({
   jobId,
   organizationSlug,
   projectId,
   canEditJobFields = false,
   canMarkAnyTaskDone = false,
+  taskOwnerOnly = false,
+  canMarkOwnTaskDone = false,
   currentUserId,
 }: {
   jobId: string;
@@ -116,6 +122,14 @@ export function NativeJobDetailContent({
   canEditJobFields?: boolean;
   /** Reviewers and managers may finish any proofread task; others only their own. */
   canMarkAnyTaskDone?: boolean;
+  /**
+   * The person is here only through a task they own, not the project's team: a vendor, or a
+   * member given a task outside their teams. They get the task's details, Open Editor and Mark
+   * done. The page's other controls all go through the team, so they are not offered.
+   */
+  taskOwnerOnly?: boolean;
+  /** Whether a task owner may finish their own task: a vendor, or a role that works on jobs. */
+  canMarkOwnTaskDone?: boolean;
   currentUserId?: string;
 }) {
   const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
@@ -124,9 +138,8 @@ export function NativeJobDetailContent({
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
   const queryClient = useQueryClient();
-  // A vendor has the task's details, Open Editor and Mark done; the rest of the page (other
-  // actions, the activity list, the report) is closed to them, so it is not offered.
-  const isVendor = useOptionalAppShellSession()?.isVendor ?? false;
+  const router = useRouter();
+  const myJobsHref = `/org/${organizationSlug}/my-jobs`;
   const jobQueryKey = ["job", organizationSlug, projectId, jobId] as const;
 
   const jobQuery = useQuery({
@@ -141,6 +154,12 @@ export function NativeJobDetailContent({
       } catch (error) {
         if (!(error instanceof GoSvcClientError) || error.status !== 404) {
           throw error;
+        }
+        if (taskOwnerOnly) {
+          // A task owner's page ends with the task: finished, cancelled or given to someone else.
+          throw new TaskNoLongerOpenError(intl.formatMessage(messages.taskNoLongerYours), {
+            cause: error,
+          });
         }
       }
       const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$get({
@@ -274,6 +293,14 @@ export function NativeJobDetailContent({
       return body.job;
     },
     onSuccess: async (updatedJob) => {
+      if (taskOwnerOnly) {
+        // The finished task is no longer theirs to open, so the page ends here.
+        setMarkDoneDialogOpen(false);
+        toast.success(intl.formatMessage(messages.taskMarkedDone));
+        await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
+        router.replace(myJobsHref);
+        return;
+      }
       queryClient.setQueryData(jobQueryKey, updatedJob);
       await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
       setMarkDoneDialogOpen(false);
@@ -290,6 +317,14 @@ export function NativeJobDetailContent({
       await queryClient.invalidateQueries({ queryKey: jobQueryKey });
     },
   });
+
+  const taskNoLongerOpen = jobQuery.error instanceof TaskNoLongerOpenError;
+  useEffect(() => {
+    if (taskNoLongerOpen) {
+      toast.info(intl.formatMessage(messages.taskNoLongerYours));
+      router.replace(myJobsHref);
+    }
+  }, [intl, myJobsHref, router, taskNoLongerOpen]);
 
   const job = jobQuery.data;
   const layout = job ? jobDetailTaskLayoutFromRecord(job, intl) : null;
@@ -384,6 +419,7 @@ export function NativeJobDetailContent({
               projectId={projectId}
               afterJobId={job.afterJobId}
               waiting={isWaitingTask(job)}
+              linkOnlyWhenReadable={taskOwnerOnly}
             />
           ),
         },
@@ -413,7 +449,7 @@ export function NativeJobDetailContent({
           variant="outline"
         />
       ) : null}
-      {!isVendor && canRetryJob(job) ? (
+      {!taskOwnerOnly && canRetryJob(job) ? (
         <Button
           size="sm"
           variant="outline"
@@ -428,7 +464,7 @@ export function NativeJobDetailContent({
           )}
         </Button>
       ) : null}
-      {!isVendor && canCancelJob(job) ? (
+      {!taskOwnerOnly && canCancelJob(job) ? (
         <Button
           size="sm"
           variant="outline"
@@ -438,7 +474,7 @@ export function NativeJobDetailContent({
           <FormattedMessage {...messages.cancelJob} />
         </Button>
       ) : null}
-      {!isVendor && canMarkJobFailed(job) ? (
+      {!taskOwnerOnly && canMarkJobFailed(job) ? (
         <Button
           size="sm"
           variant="destructive"
@@ -449,7 +485,7 @@ export function NativeJobDetailContent({
           <FormattedMessage {...messages.markAsFailed} />
         </Button>
       ) : null}
-      {(canEditJobFields || isVendor) &&
+      {(canEditJobFields || (taskOwnerOnly && canMarkOwnTaskDone)) &&
       canMarkTaskDone(job) &&
       (canMarkAnyTaskDone || (currentUserId !== undefined && job.ownerUserId === currentUserId)) ? (
         <Button
@@ -491,7 +527,14 @@ export function NativeJobDetailContent({
         properties={properties}
         secondaryProperties={layout?.secondaryProperties ?? []}
         headerActions={headerActions}
-        isLoading={jobQuery.isLoading}
+        // A task owner cannot open the project's job list, so the way back is My jobs.
+        {...(taskOwnerOnly
+          ? {
+              renderBackLink: ({ children }: { children: ReactNode }) =>
+                defaultRenderBackLink({ href: myJobsHref, children }),
+            }
+          : {})}
+        isLoading={jobQuery.isLoading || taskNoLongerOpen}
         error={jobQuery.isError ? jobQuery.error : undefined}
         description={description}
         canEditDescription={isNativeEditable}
@@ -524,7 +567,7 @@ export function NativeJobDetailContent({
             : undefined
         }
         renderReportSection={
-          job && !isProviderBackedJob(job) && !isVendor
+          job && !isProviderBackedJob(job) && !taskOwnerOnly
             ? () => (
                 <TaskReport
                   organizationSlug={organizationSlug}
@@ -536,7 +579,7 @@ export function NativeJobDetailContent({
         }
         renderExtraMain={
           showFailureNotice ||
-          (job && (isProviderBackedJob(job) || (!isVendor && hasJobActivityFeed(job))))
+          (job && (isProviderBackedJob(job) || (!taskOwnerOnly && hasJobActivityFeed(job))))
             ? () => (
                 <>
                   {showFailureNotice && failureDetails ? (
@@ -546,7 +589,7 @@ export function NativeJobDetailContent({
                       variant={job?.status === "failed" ? "failed" : "partial"}
                     />
                   ) : null}
-                  {job && !isVendor && hasJobActivityFeed(job) ? (
+                  {job && !taskOwnerOnly && hasJobActivityFeed(job) ? (
                     <JobActivitySection
                       organizationSlug={organizationSlug}
                       projectId={projectId}

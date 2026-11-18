@@ -1571,6 +1571,28 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         )
         .limit(1);
 
+      // A vendor's finished task is no longer theirs: the reply says it is done and leaves out
+      // who made the job, how it ran and what its creator stored with it.
+      if (isVendor && job) {
+        return c.json(
+          {
+            job: {
+              ...job,
+              createdByUserId: null,
+              inputPayload: {},
+              outcomePayload: null,
+              lastError: null,
+              workflowRunId: null,
+              interactionId: null,
+              contextSnapshot: null,
+              reviewCriteria: null,
+              reviewConfig: null,
+            },
+          },
+          200,
+        );
+      }
+
       return c.json({ job }, 200);
     });
 }

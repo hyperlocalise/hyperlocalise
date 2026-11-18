@@ -14,7 +14,7 @@
  * A vendor is an outside person with no rights in the workspace. Every signed-in request and
  * page goes through `resolveApiAuthContextFromSession`, which refuses a vendor unless the
  * caller passes `allowVendor`. Only the routes listed here and the pages that opt in do, and
- * each of them then limits a vendor to their own open tasks (`vendor-task.ts`).
+ * each of them then limits a vendor to their own open tasks (`lib/projects/jobs/task-access.ts`).
  *
  * The Go service keeps the same rule in `apps/go-svc/vendor-access.go`.
  */
@@ -74,8 +74,8 @@ export function isVendorApiRoute(method: string, routePattern: string | undefine
  * own tasks. The path may carry a language prefix.
  */
 const VENDOR_PAGE_PATHS = [
-  /\/org\/[^/]+\/(?:my-jobs|my-work)\/?$/,
-  /\/org\/[^/]+\/projects\/[^/]+\/jobs\/[^/]+(?:\/strings)?\/?$/,
+  /^(?:\/[A-Za-z-]+)?\/org\/[^/]+\/(?:my-jobs|my-work)\/?$/,
+  /^(?:\/[A-Za-z-]+)?\/org\/[^/]+\/projects\/[^/]+\/jobs\/[^/]+(?:\/strings)?\/?$/,
 ];
 
 export function isVendorPagePath(pathname: string | null | undefined) {

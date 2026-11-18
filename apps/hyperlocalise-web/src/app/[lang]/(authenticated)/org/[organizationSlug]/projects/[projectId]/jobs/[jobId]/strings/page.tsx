@@ -28,7 +28,11 @@ import {
   parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
 } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
-import { parseJobContentEditorQueueFilterParam } from "@/lib/projects/job-content-editor-routing";
+import {
+  parseJobContentEditorQueueFilterParam,
+  resolveDefaultJobContentEditorQueueFilter,
+} from "@/lib/projects/job-content-editor-routing";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { resolveJobContentEditorInitialQueueFilter } from "@/lib/projects/resolve-job-content-editor-initial-queue-filter";
 import {
   contentEditorAllFilesProviderKindFromTarget,
@@ -100,7 +104,12 @@ async function ProjectJobStringsPageLoader({
   const isVendor = isVendorRole(auth.membership.role);
   // Through the project's team, as before; otherwise through an open task the person owns,
   // which shows that task's file and languages and nothing else of the project.
-  const throughTeam = !isVendor && Boolean(await canAccessProject(auth, projectId));
+  // A provider project is not asked about: only native projects have such tasks, and asking
+  // would call the provider on every load.
+  const throughTeam =
+    !isVendor &&
+    (Boolean(parseProviderProjectId(projectId)) ||
+      Boolean(await canAccessProject(auth, projectId)));
   if (!throughTeam) {
     const task = await findOwnedFileTask({
       organizationId: auth.organization.localOrganizationId,
@@ -115,7 +124,13 @@ async function ProjectJobStringsPageLoader({
           jobId={jobId}
           targetLocale={targetLocale ?? null}
           initialSegmentKey={segment ?? null}
-          initialQueueFilter={parseJobContentEditorQueueFilterParam(queueFilter) ?? "all"}
+          initialQueueFilter={
+            parseJobContentEditorQueueFilterParam(queueFilter) ??
+            resolveDefaultJobContentEditorQueueFilter({
+              kind: "proofread",
+              status: "waiting_for_review",
+            })
+          }
           initialQueueSort={parseCatWorkspaceQueueSortParam(queueSort) ?? "file_order"}
           initialSearch={parseCatWorkspaceSearchParam(search)}
           adaptiveWorkspaceEnabled={await isReleaseCatAdaptiveWorkspaceEnabled(auth)}

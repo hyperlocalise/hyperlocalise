@@ -16,6 +16,7 @@ import { and, eq, gt, inArray, lte } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { isVendorMember } from "@/lib/workos/vendor-membership";
 
 import { decryptWorkflowPayload, encryptWorkflowPayload } from "./workflow-credentials";
 
@@ -52,7 +53,8 @@ type CreateHumanApprovalRequestInput = {
 
 type CreateHumanApprovalRequestError =
   | { code: "workflow_run_not_found" }
-  | { code: "workflow_node_run_not_found" };
+  | { code: "workflow_node_run_not_found" }
+  | { code: "vendor_cannot_approve" };
 
 export async function createHumanApprovalRequest(
   input: CreateHumanApprovalRequestInput,
@@ -90,6 +92,18 @@ export async function createHumanApprovalRequest(
 
     if (!nodeRun || nodeRun.nodeId !== input.nodeId) {
       return err({ code: "workflow_node_run_not_found" });
+    }
+
+    // A vendor answers nothing but their own tasks: they have no inbox to approve from, so the
+    // step would wait until its deadline.
+    if (
+      input.reviewerType === "user" &&
+      (await isVendorMember({
+        organizationId: input.organizationId,
+        userIdOrWorkosUserId: input.reviewerId,
+      }))
+    ) {
+      return err({ code: "vendor_cannot_approve" });
     }
 
     const [created] = await tx

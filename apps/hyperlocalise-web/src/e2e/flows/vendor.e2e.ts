@@ -15,7 +15,8 @@ import { describe, expect, it } from "vite-plus/test";
 import { e2eUrl, organizationPath } from "../constants";
 import { getE2ePage, loginWithRole, useE2eBrowser, waitForSettledPage } from "../fixtures/browser";
 
-// Pages a vendor must never see. Each sends them back to My jobs.
+// Pages a vendor must never see: every section of a workspace but My jobs. Each sends them
+// back to My jobs.
 const CLOSED_PAGES = [
   "/dashboard",
   "/projects",
@@ -23,10 +24,18 @@ const CLOSED_PAGES = [
   "/members",
   "/teams",
   "/glossaries",
-  "/memories",
+  "/translation-memories",
+  "/dictionaries",
+  "/knowledge",
   "/reports",
   "/issues",
   "/inbox",
+  "/chat",
+  "/automations",
+  "/integrations",
+  "/ai-engine",
+  "/qa",
+  "/domains",
   "/settings",
   "/settings/account",
   "/settings/api-keys",
@@ -61,10 +70,19 @@ describe("the Vendor role", () => {
     }
 
     for (const suffix of CLOSED_PAGES) {
-      await page.goto(e2eUrl(organizationPath(identity.organizationSlug, suffix)), {
-        waitUntil: "domcontentloaded",
-        timeout: 60_000,
-      });
+      const url = e2eUrl(organizationPath(identity.organizationSlug, suffix));
+
+      // The server itself refuses, before any script runs: its answer is a redirect, either as
+      // the response or, once the page has begun streaming, as the redirect tag Next.js writes.
+      // The frame's own guard in the browser would hide a page the server still sent.
+      const response = await page.request.get(url, { maxRedirects: 0 });
+      const redirected =
+        response.status() >= 300 && response.status() < 400
+          ? (response.headers().location ?? "")
+          : (/id="__next-page-redirect"[^>]*url=([^"]+)"/.exec(await response.text())?.[1] ?? "");
+      expect(redirected, suffix).toContain(`/org/${identity.organizationSlug}/my-jobs`);
+
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
       await page.waitForURL(isMyJobs, { timeout: 30_000 });
     }
   }, 240_000);

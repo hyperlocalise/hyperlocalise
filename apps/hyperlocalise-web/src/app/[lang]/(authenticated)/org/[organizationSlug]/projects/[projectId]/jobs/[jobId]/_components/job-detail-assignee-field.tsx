@@ -76,7 +76,7 @@ export function NativeJobOwnerField({
           jobId,
         );
       } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.saveFailed)), {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadFailed)), {
           cause: error,
         });
       }
