@@ -19,7 +19,6 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines/check"
 	guidelinepg "github.com/hyperlocalise/hyperlocalise/internal/guidelines/postgres"
 	"github.com/hyperlocalise/hyperlocalise/internal/ota"
-	"github.com/hyperlocalise/hyperlocalise/internal/postgres"
 	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/workos/workos-go/v10"
@@ -187,7 +186,7 @@ func main() {
 
 	var guidelinePool *pgxpool.Pool
 	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
-		pool, err := postgres.NewPool(context.Background(), databaseURL)
+		pool, err := openServiceDatabase(context.Background(), databaseURL)
 		if err != nil {
 			log.Fatalf("configure dictionary store: %v", err)
 		}
@@ -251,9 +250,7 @@ func main() {
 	}
 	h.guidelineDocuments = newGuidelineDocumentAPI(h.knowledgeMemories, h.objects, guidelineIngestPublisher)
 
-	guidelinesCtx, cancelGuidelines := context.WithTimeout(context.Background(), 15*time.Second)
-	guidelineSearch, closeGuidelines, err := configureGuidelineSearch(guidelinesCtx)
-	cancelGuidelines()
+	guidelineSearch, closeGuidelines, err := configureGuidelineSearch(guidelinePool)
 	if err != nil {
 		log.Fatalf("configure guideline search: %v", err)
 	}
