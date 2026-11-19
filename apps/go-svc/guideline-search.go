@@ -12,6 +12,7 @@ import (
 	guidelinepg "github.com/hyperlocalise/hyperlocalise/internal/guidelines/postgres"
 	guidelineindex "github.com/hyperlocalise/hyperlocalise/internal/guidelines/turbopuffer"
 	"github.com/hyperlocalise/hyperlocalise/internal/rerank"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func (h *handler) requireGuidelines(w http.ResponseWriter, r *http.Request) bool {
@@ -59,7 +60,9 @@ func (h *handler) searchGuidelines(w http.ResponseWriter, r *http.Request) {
 }
 
 // configureGuidelineSearch connects the optional index to canonical guidelines.
-func configureGuidelineSearch(ctx context.Context) (*guidelines.Service, func(), error) {
+// pool is the service database pool. Guideline search uses that pool so a task
+// does not open a second set of connections at startup.
+func configureGuidelineSearch(pool *pgxpool.Pool) (*guidelines.Service, func(), error) {
 	indexKey := strings.TrimSpace(os.Getenv("TURBOPUFFER_API_KEY"))
 	if indexKey == "" {
 		return nil, func() {}, nil
@@ -71,10 +74,10 @@ func configureGuidelineSearch(ctx context.Context) (*guidelines.Service, func(),
 	if err != nil {
 		return nil, nil, errors.New("invalid turbopuffer configuration")
 	}
-	source, err := guidelinepg.New(ctx, os.Getenv("DATABASE_URL"))
-	if err != nil {
-		return nil, nil, errors.New("cannot connect guideline database")
+	if pool == nil {
+		return nil, nil, errors.New("DATABASE_URL is required for guideline retrieval")
 	}
+	source := guidelinepg.NewWithPool(pool)
 	var opts []guidelines.Option
 	if reranker := newGuidelineReranker(); reranker != nil {
 		opts = append(opts, guidelines.WithReranker(reranker))

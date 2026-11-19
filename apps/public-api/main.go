@@ -16,7 +16,6 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/s3compat"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/vercelblob"
 	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -44,7 +43,7 @@ func run(ctx context.Context) error {
 	if databaseURL == "" {
 		return errors.New("DATABASE_URL is required")
 	}
-	pool, err := pgxpool.New(ctx, databaseURL)
+	pool, err := openServiceDatabase(ctx, databaseURL)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}

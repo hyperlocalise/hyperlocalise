@@ -51,6 +51,9 @@ func (api *editorCatAPI) setSourceText(r *http.Request, actor editorCatActor, pr
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, keyID); err != nil {
+		return nil, 0, err
+	}
 
 	ctx := r.Context()
 	tx, err := api.pool.Begin(ctx)

@@ -10,9 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, notExists, or, type SQL } from "drizzle-orm";
 
+import { hasCapability } from "@/api/auth/policy";
 import { db, schema } from "@/lib/database/client";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
@@ -77,15 +80,68 @@ function sourceLocaleOf(project: { sourceLocale: string | null }): string | null
   return locale ? locale : null;
 }
 
-async function loadProject(organizationId: string, projectId: string) {
+type NativeProjectRow = typeof schema.projects.$inferSelect;
+
+type AccessibleNativeProject = {
+  project: NativeProjectRow;
+  role: OrganizationMembershipRole;
+};
+
+function jobAccessWhere(organizationId: string, projectId: string): SQL {
+  return and(eq(schema.jobs.organizationId, organizationId), eq(schema.jobs.projectId, projectId))!;
+}
+
+async function loadAccessibleNativeProject(
+  organizationId: string,
+  userId: string,
+  projectId: string,
+): Promise<AccessibleNativeProject | null> {
+  const [membership] = await db
+    .select({ role: schema.organizationMemberships.role })
+    .from(schema.organizationMemberships)
+    .where(
+      and(
+        eq(schema.organizationMemberships.organizationId, organizationId),
+        eq(schema.organizationMemberships.userId, userId),
+      ),
+    )
+    .limit(1);
+  if (!membership) return null;
+
   const [project] = await db
     .select()
     .from(schema.projects)
     .where(
-      and(eq(schema.projects.id, projectId), eq(schema.projects.organizationId, organizationId)),
+      and(
+        eq(schema.projects.id, projectId),
+        eq(schema.projects.organizationId, organizationId),
+        eq(schema.projects.source, "native"),
+      ),
     )
     .limit(1);
-  return project ?? null;
+  if (!project) return null;
+
+  if (hasCapability(membership.role, "teams:write")) {
+    return { project, role: membership.role };
+  }
+
+  const [team] = await db
+    .select({ id: schema.teams.id })
+    .from(schema.teamMemberships)
+    .innerJoin(schema.teams, eq(schema.teamMemberships.teamId, schema.teams.id))
+    .where(
+      and(
+        eq(schema.teamMemberships.userId, userId),
+        eq(schema.teams.organizationId, organizationId),
+        project.teamId
+          ? eq(schema.teams.id, project.teamId)
+          : eq(schema.teams.slug, DEFAULT_WORKSPACE_TEAM_SLUG),
+      ),
+    )
+    .limit(1);
+  if (!team) return null;
+
+  return { project, role: membership.role };
 }
 
 async function storedFileIdForPath(organizationId: string, projectId: string, sourcePath: string) {
@@ -123,23 +179,44 @@ export async function runIrisProjectAction(
 
   switch (action) {
     case "upload_file":
-      return upload(organizationId, userId, projectId, payload);
+    case "download_file":
+    case "import_translations":
+    case "translate_file":
+    case "file_settings_get":
+    case "file_settings_patch":
+    case "use_translation_as_source":
+    case "create_job":
+    case "job_action":
+    case "qa_start":
+    case "import_queries":
+      break;
+    default:
+      return fail(400, "unknown_project_action", "Unknown project action");
+  }
+
+  const accessible = await loadAccessibleNativeProject(organizationId, userId, projectId);
+  if (!accessible) return fail(404, "project_not_found", "Project not found");
+  const { project, role } = accessible;
+
+  switch (action) {
+    case "upload_file":
+      return upload(organizationId, userId, project, payload);
     case "download_file":
       return download(organizationId, projectId, payload);
     case "import_translations":
       return importTranslations(organizationId, userId, projectId, payload, deps);
     case "translate_file":
-      return translateFile(organizationId, userId, projectId, payload, deps);
+      return translateFile(organizationId, userId, project, payload, deps);
     case "file_settings_get":
       return fileSettings(organizationId, projectId, payload, false);
     case "file_settings_patch":
       return fileSettings(organizationId, projectId, payload, true);
     case "use_translation_as_source":
-      return useTranslation(organizationId, userId, projectId, payload);
+      return useTranslation(organizationId, userId, project, payload);
     case "create_job":
-      return createJob(organizationId, userId, projectId, payload, deps);
+      return createJob(organizationId, userId, project, payload, deps);
     case "job_action":
-      return jobAction(organizationId, userId, payload, deps);
+      return jobAction(organizationId, userId, projectId, role, payload, deps);
     case "qa_start":
       return qaStart(organizationId, userId, projectId, deps);
     case "import_queries":
@@ -152,11 +229,9 @@ export async function runIrisProjectAction(
 async function upload(
   organizationId: string,
   userId: string,
-  projectId: string,
+  project: NativeProjectRow,
   payload: Record<string, unknown>,
 ): Promise<ActionResult> {
-  const project = await loadProject(organizationId, projectId);
-  if (!project) return fail(404, "project_not_found", "Project not found");
   const bytes = bytesOf(payload.contentBase64);
   const sourcePath = String(payload.sourcePath ?? "");
   if (!bytes || !sourcePath)
@@ -276,21 +351,19 @@ async function importTranslations(
 async function translateFile(
   organizationId: string,
   userId: string,
-  projectId: string,
+  project: NativeProjectRow,
   payload: Record<string, unknown>,
   deps: IrisProjectActionDeps,
 ): Promise<ActionResult> {
-  const project = await loadProject(organizationId, projectId);
-  if (!project) return fail(404, "project_not_found", "Project not found");
   const sourceLocale = sourceLocaleOf(project);
   if (!sourceLocale) return fail(400, "invalid_request_body", "Project has no source language");
   const sourcePath = String(payload.sourcePath ?? "");
   const locales = Array.isArray(payload.locales) ? payload.locales.map(String) : [];
-  const fileId = await storedFileIdForPath(organizationId, projectId, sourcePath);
+  const fileId = await storedFileIdForPath(organizationId, project.id, sourcePath);
   if (!fileId) return fail(404, "source_file_not_found", "Source file not found");
   const created = await enqueueFileTranslationJob({
     organizationId,
-    projectId,
+    projectId: project.id,
     createdByUserId: userId,
     sourceFileId: fileId,
     sourceLocale,
@@ -363,16 +436,19 @@ async function fileSettings(
 async function useTranslation(
   organizationId: string,
   userId: string,
-  projectId: string,
+  source: NativeProjectRow,
   payload: Record<string, unknown>,
 ): Promise<ActionResult> {
-  const source = await loadProject(organizationId, projectId);
-  const destination = await loadProject(organizationId, String(payload.destinationProjectId ?? ""));
-  if (!source || !destination) return fail(404, "project_not_found", "Project not found");
+  const destination = await loadAccessibleNativeProject(
+    organizationId,
+    userId,
+    String(payload.destinationProjectId ?? ""),
+  );
+  if (!destination) return fail(404, "project_not_found", "Project not found");
   const sent = await sendTranslationAsSource({
     organizationId,
     sourceProject: source,
-    destinationProject: destination,
+    destinationProject: destination.project,
     sourcePath: String(payload.sourcePath ?? ""),
     locale: String(payload.locale ?? ""),
     actorUserId: userId,
@@ -386,12 +462,10 @@ async function useTranslation(
 async function createJob(
   organizationId: string,
   userId: string,
-  projectId: string,
+  project: NativeProjectRow,
   payload: Record<string, unknown>,
   deps: IrisProjectActionDeps,
 ): Promise<ActionResult> {
-  const project = await loadProject(organizationId, projectId);
-  if (!project) return fail(404, "project_not_found", "Project not found");
   const sourceLocale = sourceLocaleOf(project);
   if (!sourceLocale) return fail(400, "invalid_request_body", "Project has no source language");
   const files = Array.isArray(payload.fileIds) ? payload.fileIds.map(String) : [];
@@ -407,14 +481,14 @@ async function createJob(
   for (const sourcePath of files) {
     const fileId =
       sourcePath.includes("/") || sourcePath.includes(".")
-        ? await storedFileIdForPath(organizationId, projectId, sourcePath)
+        ? await storedFileIdForPath(organizationId, project.id, sourcePath)
         : sourcePath;
     if (!fileId) return fail(404, "source_file_not_found", "Source file not found");
     if (payload.kind === "proofread") {
       const assigneeWorkosUserId = assigneeIds[0] ? await workosUserId(assigneeIds[0]) : undefined;
       const created = await createWorkflowTaskJob({
         organizationId,
-        projectId,
+        projectId: project.id,
         sourceFileId: fileId,
         sourceLocale,
         targetLocales: locales,
@@ -429,7 +503,7 @@ async function createJob(
     }
     const created = await enqueueFileTranslationJob({
       organizationId,
-      projectId,
+      projectId: project.id,
       createdByUserId: userId,
       sourceFileId: fileId,
       sourceLocale,
@@ -457,12 +531,14 @@ async function workosUserId(userId: string): Promise<string | null> {
 async function jobAction(
   organizationId: string,
   userId: string,
+  projectId: string,
+  role: OrganizationMembershipRole,
   payload: Record<string, unknown>,
   deps: IrisProjectActionDeps,
 ): Promise<ActionResult> {
   const jobId = String(payload.jobId ?? "");
   const action = String(payload.action ?? "");
-  const accessWhere = eq(schema.jobs.organizationId, organizationId);
+  const accessWhere = jobAccessWhere(organizationId, projectId);
   if (action === "cancel") {
     const cancelled = await cancelNativeJob({
       organizationId,
@@ -503,28 +579,75 @@ async function jobAction(
       organizationId,
       jobId,
       actorUserId: userId,
-      actorMayFinishAnyTask: true,
+      actorMayFinishAnyTask: hasCapability(role, "reviews:approve"),
       accessWhere,
     });
-    if (isErr(done)) return fail(409, done.error.code, "Job action is not available");
+    if (isErr(done)) {
+      if (done.error.code === "not_task_assignee") {
+        return fail(403, done.error.code, "Only the assignee or a reviewer can finish this task");
+      }
+      return fail(409, done.error.code, "Job action is not available");
+    }
     return ok({ id: jobId, action });
   }
   if (action === "mark_failed") {
-    await updateJobs(db, {
+    const [failed] = await updateJobs(db, {
       set: { status: "failed", completedAt: new Date(), lastError: "Marked failed" },
-      where: and(eq(schema.jobs.id, jobId), accessWhere),
+      where: and(
+        eq(schema.jobs.id, jobId),
+        accessWhere,
+        eq(schema.jobs.assigneeType, "agent"),
+        or(
+          eq(schema.jobs.status, "queued"),
+          eq(schema.jobs.status, "running"),
+          eq(schema.jobs.status, "waiting_for_review"),
+        ),
+        notExists(
+          db
+            .select({ jobId: schema.externalJobDetails.jobId })
+            .from(schema.externalJobDetails)
+            .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
+        ),
+      ),
+      returning: { id: schema.jobs.id },
     });
+    if (!failed) {
+      const [existing] = await db
+        .select({ id: schema.jobs.id })
+        .from(schema.jobs)
+        .where(and(eq(schema.jobs.id, jobId), accessWhere))
+        .limit(1);
+      return existing
+        ? fail(409, "job_action_unavailable", "Job action is not available")
+        : fail(404, "job_not_found", "Job not found");
+    }
     return ok({ id: jobId, action });
   }
   if (action === "retry") {
-    await updateJobs(db, {
+    const [retried] = await updateJobs(db, {
       set: { status: "queued", lastError: null, completedAt: null, workflowRunId: null },
-      where: and(eq(schema.jobs.id, jobId), accessWhere),
+      where: and(
+        eq(schema.jobs.id, jobId),
+        accessWhere,
+        eq(schema.jobs.kind, "translation"),
+        or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "failed")),
+      ),
+      returning: { id: schema.jobs.id },
     });
+    if (!retried) {
+      const [existing] = await db
+        .select({ id: schema.jobs.id })
+        .from(schema.jobs)
+        .where(and(eq(schema.jobs.id, jobId), accessWhere))
+        .limit(1);
+      return existing
+        ? fail(409, "job_action_unavailable", "Job action is not available")
+        : fail(404, "job_not_found", "Job not found");
+    }
     await deps.jobQueue.enqueue({
       kind: "translation",
       jobId,
-      projectId: String(payload.projectId ?? ""),
+      projectId,
       type: "file",
     });
     return ok({ id: jobId, action });

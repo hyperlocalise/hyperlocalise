@@ -2,7 +2,10 @@ load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "pathresolver",
-    srcs = ["pathresolver.go"],
+    srcs = [
+        "glob.go",
+        "pathresolver.go",
+    ],
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver",
     visibility = ["//visibility:public"],
 )

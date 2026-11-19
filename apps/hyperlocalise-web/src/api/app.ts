@@ -46,6 +46,7 @@ import { createAutumnRoutes } from "./routes/autumn/autumn.route";
 import { createBlogOgImageRoutes } from "./routes/blog-og-image/blog-og-image.route";
 import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
 import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
+import { createLocalisationAuditScheduleRoutes } from "./routes/cron/localisation-audit-schedule.route";
 import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
 import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
 import { createReportingCaptureRoutes } from "./routes/cron/reporting-capture.route";
@@ -176,6 +177,12 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
     )
     .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes())
     .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes())
+    .route(
+      "/cron/localisation-audit-schedule",
+      createLocalisationAuditScheduleRoutes({
+        localisationAuditQueue: options.localisationAuditQueue ?? createLocalisationAuditQueue(),
+      }),
+    )
     .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes())
     .route("/cron/reporting-capture", createReportingCaptureRoutes())
     .route("/cron/guideline-ingest-sweep", createGuidelineIngestSweepRoutes())

@@ -1,5 +1,5 @@
 {
-  "id": "29a94f0e-ff23-4ad0-b77b-2f35004dd5b4",
+  "id": "c070a563-e2bb-4399-9a22-96b1fec976b1",
   "prevId": "53f718ac-0ca4-4c77-8ab7-48fbb9de2804",
   "version": "7",
   "dialect": "postgresql",
@@ -27583,6 +27583,19 @@
           "notNull": true,
           "default": "'[]'::jsonb"
         },
+        "passage_id": {
+          "name": "passage_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reasoning_available": {
+          "name": "reasoning_available",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "source_text": {
           "name": "source_text",
           "type": "text",
@@ -41830,8 +41843,7 @@
         "developer",
         "reviewer",
         "translator",
-        "member",
-        "vendor"
+        "member"
       ]
     },
     "public.ota_distribution_format": {

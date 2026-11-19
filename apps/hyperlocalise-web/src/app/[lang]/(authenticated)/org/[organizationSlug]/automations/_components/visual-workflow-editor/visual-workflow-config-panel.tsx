@@ -13,12 +13,12 @@
  * Version 2.0 or later.
  */
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { WorkflowCredentialField } from "./workflow-credential-field";
 import { WorkflowDataPanel } from "./workflow-data-panel";
-import { WorkflowBoundField, type BoundPort } from "./workflow-bound-field";
+import { PortMark, WorkflowBoundField, type BoundPort } from "./workflow-bound-field";
 import { WorkflowTestDataPanel } from "./workflow-test-data-panel";
 import { ConcatenateConfig, TextTemplateConfig } from "./visual-workflow-text-config";
 import type {
@@ -2837,6 +2837,9 @@ export function VisualWorkflowConfigPanel({
             value={config.projectId}
             {...connectedInputProps("projectId")}
             onChange={(value) => onChangeConfig({ ...config, projectId: value })}
+            loading={resources.projectsLoading}
+            // The panel stays mounted from step to step; the field's own state must not.
+            key={node.id}
           />
         ) : null}
         {config.kind === "action.translation_as_source" ? (
@@ -4210,31 +4213,101 @@ function WebhookTriggerFields({
 }
 
 const PICK_PROJECT_VALUE = "__pick_project__";
+const PROJECT_FIELD_ID = "vw-localization-project";
 
 /**
- * A project setting typed or fed by an earlier step, with a picker that fills in a project's ID
- * and the name of the project a typed ID belongs to.
+ * A step's project. One picked from the list shows by its name. Edited as text, to read the
+ * project from an earlier step or to type an ID, or fed by a wire, it is drawn like the step's
+ * other settings, with the list under it to go back to a picked project.
  */
 function ProjectIdField({
   projects,
+  loading = false,
   value,
   onChange,
   port,
   invalid,
 }: {
   projects: readonly VisualWorkflowProjectOption[];
+  /** The list has not arrived yet, so a stored ID cannot be given its name. */
+  loading?: boolean;
   value: string;
   onChange: (value: string) => void;
   port?: BoundPort;
   invalid?: boolean;
 }) {
   const intl = useIntl();
-  const project = projects.find((entry) => entry.id === value.trim());
+  // Set by Edit as text and by typing, so that emptying the text does not swap the editor for
+  // the list in the middle of an edit. Picking a project clears it.
+  const [asText, setAsText] = useState(false);
+  // Going between the list and the text removes the control in use, so focus follows to the one
+  // that takes its place: the text takes it as it appears, the list is given it here.
+  const focusList = useRef(false);
+  useEffect(() => {
+    if (focusList.current) {
+      focusList.current = false;
+      document.getElementById(PROJECT_FIELD_ID)?.focus();
+    }
+  });
+  const trimmed = value.trim();
+  const project = projects.find((entry) => entry.id === trimmed);
+  const label = intl.formatMessage(messages.localizationProjectId);
+  const pickLabel = intl.formatMessage(messages.localizationPickProject);
+  // While the list loads, a stored ID waits for its name instead of showing first.
+  const listed = loading
+    ? !trimmed.includes("{{")
+    : projects.length > 0 && (trimmed === "" || project !== undefined);
+
+  if (listed && !asText && !port?.source) {
+    return (
+      <div className="grid gap-1.5" data-slot="project-field">
+        <div className="flex items-center gap-1.5">
+          {port ? <PortMark type={port.type} filled={false} /> : null}
+          <Label htmlFor={PROJECT_FIELD_ID}>{label}</Label>
+          {port ? <span className="text-xs text-muted-foreground">{port.type}</span> : null}
+        </div>
+        <div className="flex items-center gap-1">
+          <Select
+            value={project?.id ?? null}
+            items={projects.map((entry) => ({ value: entry.id, label: entry.name }))}
+            disabled={loading}
+            onValueChange={(next) => {
+              if (next) {
+                onChange(next);
+              }
+            }}
+          >
+            <SelectTrigger
+              id={PROJECT_FIELD_ID}
+              className="min-w-0 flex-1"
+              aria-invalid={invalid || undefined}
+            >
+              {/* No project passes no text, so the placeholder shows. */}
+              <SelectValue placeholder={loading ? undefined : pickLabel}>
+                {project?.name}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {projects.map((entry) => (
+                <SelectItem key={entry.id} value={entry.id} label={entry.name}>
+                  {entry.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button type="button" variant="ghost" size="xs" onClick={() => setAsText(true)}>
+            <FormattedMessage {...messages.editBindingAsText} />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-1.5">
       <TextField
-        id="vw-localization-project"
-        label={intl.formatMessage(messages.localizationProjectId)}
+        id={PROJECT_FIELD_ID}
+        label={label}
         description={
           project
             ? intl.formatMessage(messages.localizationProjectName, { name: project.name })
@@ -4243,7 +4316,12 @@ function ProjectIdField({
         value={value}
         port={port}
         invalid={invalid}
-        onChange={onChange}
+        // Only Edit as text shows the text with this set: typing sets it on text already shown.
+        autoFocus={asText}
+        onChange={(next) => {
+          setAsText(true);
+          onChange(next);
+        }}
         placeholder="{{ trigger.projectId }}"
       />
       {projects.length > 0 && !port?.source ? (
@@ -4252,22 +4330,20 @@ function ProjectIdField({
           items={[
             {
               value: PICK_PROJECT_VALUE,
-              label: intl.formatMessage(messages.localizationPickProject),
+              label: pickLabel,
             },
             ...projects.map((entry) => ({ value: entry.id, label: entry.name })),
           ]}
           onValueChange={(next) => {
             if (next && next !== PICK_PROJECT_VALUE) {
+              focusList.current = true;
+              setAsText(false);
               onChange(next);
             }
           }}
         >
-          <SelectTrigger
-            size="sm"
-            className="w-full"
-            aria-label={intl.formatMessage(messages.localizationPickProject)}
-          >
-            <SelectValue>{intl.formatMessage(messages.localizationPickProject)}</SelectValue>
+          <SelectTrigger size="sm" className="w-full" aria-label={pickLabel}>
+            <SelectValue>{pickLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {projects.map((entry) => (
@@ -4363,6 +4439,7 @@ function TextField({
   disabled = false,
   description,
   invalid = false,
+  autoFocus = false,
   port,
 }: {
   id: string;
@@ -4373,6 +4450,8 @@ function TextField({
   disabled?: boolean;
   description?: string;
   invalid?: boolean;
+  /** The text takes focus when it first appears. */
+  autoFocus?: boolean;
   /** Set for a setting that a wire or an earlier step's field can feed. */
   port?: BoundPort;
 }) {
@@ -4386,6 +4465,7 @@ function TextField({
         placeholder={placeholder}
         invalid={invalid}
         description={description}
+        autoFocus={autoFocus}
         port={port}
       />
     );
@@ -4397,6 +4477,7 @@ function TextField({
         id={id}
         value={value}
         disabled={disabled}
+        autoFocus={autoFocus}
         aria-invalid={invalid || undefined}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}

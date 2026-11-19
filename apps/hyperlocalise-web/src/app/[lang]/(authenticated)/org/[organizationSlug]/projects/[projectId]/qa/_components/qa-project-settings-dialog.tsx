@@ -15,6 +15,7 @@
 import { observer } from "mobx-react-lite";
 import { useIntl } from "react-intl";
 
+import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import { QaSegmentedControl } from "@/components/qa/qa-filter";
 import { qaCheckLabel } from "@/components/qa/qa-findings-table";
 import { QaNotice } from "@/components/qa/qa-status";
@@ -59,11 +60,16 @@ export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog
 }) {
   const intl = useIntl();
   const store = useQaProjectUiStore();
+  const { workspaceFeatureFlags } = useAppShellStore();
+  const knowledgeEnabled = workspaceFeatureFlags.knowledge;
   const savedPolicy = settings?.checks ?? DEFAULT_QA_POLICY;
   const policy = resolveQaPolicy(store.draftPolicy ?? savedPolicy);
   const cadence = store.draftCadence ?? settings?.cadence ?? "off";
   const canManage = Boolean(settings?.canManageSchedule);
   const disabled = !canManage || isSaving;
+  const visibleCheckTypes = knowledgeEnabled
+    ? translationQaCheckTypes
+    : translationQaCheckTypes.filter((check) => check !== "guideline");
   const levelOptions = [
     { value: CHECK_LEVEL_OFF, label: intl.formatMessage(m.checkOff) },
     { value: "warning", label: intl.formatMessage(m.warning) },
@@ -101,13 +107,14 @@ export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <h3 className="text-sm font-medium">{intl.formatMessage(m.coverage)}</h3>
+              <p className="text-xs text-muted-foreground">{intl.formatMessage(m.coverageHelp)}</p>
               <p className="text-xs text-muted-foreground">
                 {intl.formatMessage(m.warningBehavior)}
               </p>
               <p className="text-xs text-muted-foreground">{intl.formatMessage(m.errorBehavior)}</p>
             </div>
             <div className="flex flex-col divide-y divide-border">
-              {translationQaCheckTypes.map((check) => {
+              {visibleCheckTypes.map((check) => {
                 const label = qaCheckLabel(check, intl);
                 return (
                   <div

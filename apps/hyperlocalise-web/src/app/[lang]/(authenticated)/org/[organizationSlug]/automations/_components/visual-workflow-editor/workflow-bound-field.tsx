@@ -74,7 +74,7 @@ function sampleText(value: unknown): string {
 }
 
 /** The mark beside a setting's label: the port on the card, hollow until something feeds it. */
-function PortMark({ type, filled }: { type: WorkflowValueType; filled: boolean }) {
+export function PortMark({ type, filled }: { type: WorkflowValueType; filled: boolean }) {
   return (
     <span
       aria-hidden
@@ -118,6 +118,7 @@ export function WorkflowBoundField({
   description,
   multiline = false,
   editable = true,
+  autoFocus = false,
   port,
 }: {
   id: string;
@@ -130,6 +131,8 @@ export function WorkflowBoundField({
   multiline?: boolean;
   /** Off for a setting that only a wire can feed. */
   editable?: boolean;
+  /** The text takes focus when it first appears. */
+  autoFocus?: boolean;
   port: BoundPort;
 }) {
   const intl = useIntl();
@@ -230,6 +233,7 @@ export function WorkflowBoundField({
             placeholder={placeholder}
             invalid={invalid}
             multiline={multiline}
+            autoFocus={autoFocus}
             fields={canInsert ? port.fields : []}
             stepTitle={port.stepTitle}
             describeReference={describeReference}

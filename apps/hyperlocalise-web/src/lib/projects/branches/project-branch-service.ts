@@ -15,6 +15,7 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import {
   DEFAULT_PROJECT_BRANCH_NAME,
@@ -834,7 +835,33 @@ async function copyBranchContent(
       ];
     });
     if (versionRows.length > 0) {
-      await tx.insert(schema.repositorySourceFileVersions).values(versionRows);
+      const insertedVersions = await tx
+        .insert(schema.repositorySourceFileVersions)
+        .values(versionRows)
+        .returning({
+          id: schema.repositorySourceFileVersions.id,
+          repositorySourceFileId: schema.repositorySourceFileVersions.repositorySourceFileId,
+        });
+      const versionIdByFile = new Map(
+        insertedVersions.map((version) => [version.repositorySourceFileId, version.id]),
+      );
+      for (const file of files) {
+        const latest = latestByFile.get(file.id);
+        const clonedFileId = fileIdBySource.get(file.sourcePath);
+        const clonedVersionId = clonedFileId ? versionIdByFile.get(clonedFileId) : undefined;
+        if (
+          !latest ||
+          !clonedFileId ||
+          !clonedVersionId ||
+          file.reconciledSourceFileVersionId !== latest.id
+        ) {
+          continue;
+        }
+        await tx
+          .update(schema.repositorySourceFiles)
+          .set({ reconciledSourceFileVersionId: clonedVersionId })
+          .where(eq(schema.repositorySourceFiles.id, clonedFileId));
+      }
     }
   }
 
@@ -971,6 +998,25 @@ async function applyBranchChanges(
     if (change.sourcePath) {
       fileId = fileIdByPath.get(change.sourcePath) ?? null;
       if (!fileId) {
+        const [sourceFile] = await tx
+          .select({
+            id: schema.repositorySourceFiles.id,
+            segmentationSettings: schema.repositorySourceFiles.segmentationSettings,
+            messageFormat: schema.repositorySourceFiles.messageFormat,
+            placeholderPatterns: schema.repositorySourceFiles.placeholderPatterns,
+            importSettings: schema.repositorySourceFiles.importSettings,
+            reconciledSourceFileVersionId:
+              schema.repositorySourceFiles.reconciledSourceFileVersionId,
+          })
+          .from(schema.repositorySourceFiles)
+          .where(
+            and(
+              eq(schema.repositorySourceFiles.projectId, input.projectId),
+              eq(schema.repositorySourceFiles.branchName, input.sourceBranchName),
+              eq(schema.repositorySourceFiles.sourcePath, change.sourcePath),
+            ),
+          )
+          .limit(1);
         const [createdFile] = await tx
           .insert(schema.repositorySourceFiles)
           .values({
@@ -978,22 +1024,19 @@ async function applyBranchChanges(
             projectId: input.projectId,
             sourcePath: change.sourcePath,
             branchName: input.targetBranchName,
+            ...(sourceFile
+              ? {
+                  segmentationSettings: sourceFile.segmentationSettings,
+                  messageFormat: sourceFile.messageFormat,
+                  placeholderPatterns: sourceFile.placeholderPatterns,
+                  importSettings: sourceFile.importSettings,
+                }
+              : {}),
           })
           .returning({ id: schema.repositorySourceFiles.id });
         if (createdFile) {
           fileId = createdFile.id;
           fileIdByPath.set(change.sourcePath, fileId);
-          const [sourceFile] = await tx
-            .select()
-            .from(schema.repositorySourceFiles)
-            .where(
-              and(
-                eq(schema.repositorySourceFiles.projectId, input.projectId),
-                eq(schema.repositorySourceFiles.branchName, input.sourceBranchName),
-                eq(schema.repositorySourceFiles.sourcePath, change.sourcePath),
-              ),
-            )
-            .limit(1);
           if (sourceFile) {
             const [latest] = await tx
               .select()
@@ -1002,15 +1045,24 @@ async function applyBranchChanges(
               .orderBy(desc(schema.repositorySourceFileVersions.createdAt))
               .limit(1);
             if (latest) {
-              await tx.insert(schema.repositorySourceFileVersions).values({
-                repositorySourceFileId: fileId,
-                organizationId: latest.organizationId,
-                projectId: latest.projectId,
-                sourcePath: latest.sourcePath,
-                storedFileId: latest.storedFileId,
-                sourceHash: latest.sourceHash,
-                ingestState: latest.ingestState,
-              });
+              const [copied] = await tx
+                .insert(schema.repositorySourceFileVersions)
+                .values({
+                  repositorySourceFileId: fileId,
+                  organizationId: latest.organizationId,
+                  projectId: latest.projectId,
+                  sourcePath: latest.sourcePath,
+                  storedFileId: latest.storedFileId,
+                  sourceHash: latest.sourceHash,
+                  ingestState: latest.ingestState,
+                })
+                .returning({ id: schema.repositorySourceFileVersions.id });
+              if (copied && sourceFile.reconciledSourceFileVersionId === latest.id) {
+                await tx
+                  .update(schema.repositorySourceFiles)
+                  .set({ reconciledSourceFileVersionId: copied.id })
+                  .where(eq(schema.repositorySourceFiles.id, fileId));
+              }
             }
           }
         }
@@ -1043,7 +1095,7 @@ async function applyBranchChanges(
           key: snapshot.key,
           branchName: input.targetBranchName,
           sourceText: snapshot.sourceText,
-          normalizedSourceText: snapshot.sourceText,
+          normalizedSourceText: normalizeTranslationMemorySourceText(snapshot.sourceText),
           context: snapshot.context,
           type: snapshot.type,
           maxLength: snapshot.maxLength,
@@ -1057,7 +1109,7 @@ async function applyBranchChanges(
         .update(schema.projectTranslationKeys)
         .set({
           sourceText: snapshot.sourceText,
-          normalizedSourceText: snapshot.sourceText,
+          normalizedSourceText: normalizeTranslationMemorySourceText(snapshot.sourceText),
           context: snapshot.context,
           type: snapshot.type,
           maxLength: snapshot.maxLength,

@@ -108,6 +108,103 @@ func TestIrisChatRejectsUnknownModel(t *testing.T) {
 		"messages": []map[string]any{{"role": "user", "content": "hello"}},
 	})
 	require.Equal(t, http.StatusBadRequest, rec.Code)
+	var body map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "invalid_input", body["error"])
+}
+
+func TestIrisChatRejectsInvalidMessagesBeforeBilling(t *testing.T) {
+	meter := &stubIrisMeter{features: false, tokens: false}
+	api := irisChatAPI(t, &stubIrisChatStream{reply: "hi"}, meter)
+
+	tooMany := make([]map[string]any, irisChatMaxMsgs+1)
+	for i := range tooMany {
+		tooMany[i] = map[string]any{"role": "user", "content": "x"}
+	}
+
+	cases := []struct {
+		name     string
+		messages any
+		message  string
+	}{
+		{name: "missing", messages: []map[string]any{}, message: "messages are required"},
+		{name: "too many", messages: tooMany, message: "too many messages"},
+		{name: "unknown role", messages: []map[string]any{{"role": "developer", "content": "hi"}}, message: "unsupported message role"},
+		{
+			name: "tool call without id",
+			messages: []map[string]any{{
+				"role": "assistant",
+				"tool_calls": []map[string]any{{
+					"function": map[string]any{"name": "capture"},
+				}},
+			}},
+			message: "tool calls need an id and name",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := irisRequest(api, http.MethodPost, irisTestPath+"/chat", map[string]any{
+				"messages": tc.messages,
+			})
+			require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+			var body map[string]string
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+			require.Equal(t, "invalid_input", body["error"])
+			require.Equal(t, tc.message, body["message"])
+			require.Empty(t, meter.tokenTracks)
+		})
+	}
+}
+
+func TestIrisChatGatewayMessagesAndTools(t *testing.T) {
+	_, err := irisChatGatewayMessages(nil)
+	require.EqualError(t, err, "messages are required")
+
+	call := irisChatToolCall{ID: " call_1 "}
+	call.Function.Name = " capture "
+	call.Function.Arguments = `{"ok":true}`
+	messages, err := irisChatGatewayMessages([]irisChatMessage{
+		{Role: " USER ", Content: "hello", Name: " writer "},
+		{Role: "assistant", ToolCalls: []irisChatToolCall{call}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "user", messages[0]["role"])
+	require.Equal(t, "writer", messages[0]["name"])
+	require.Equal(t, []map[string]any{{
+		"id":   "call_1",
+		"type": "function",
+		"function": map[string]any{
+			"name":      "capture",
+			"arguments": `{"ok":true}`,
+		},
+	}}, messages[1]["tool_calls"])
+
+	require.Nil(t, irisChatGatewayTools(nil))
+	named := irisChatTool{}
+	named.Function.Name = " capture "
+	named.Function.Description = " Preview "
+	named.Function.Parameters = map[string]any{"type": "object"}
+	blank := irisChatTool{}
+	blank.Function.Name = "   "
+	require.Equal(t, []map[string]any{{
+		"type": "function",
+		"function": map[string]any{
+			"name":        "capture",
+			"description": "Preview",
+			"parameters":  map[string]any{"type": "object"},
+		},
+	}}, irisChatGatewayTools([]irisChatTool{named, blank}))
+}
+
+func TestIrisChatUnavailableWhenTextModelMissing(t *testing.T) {
+	api := irisChatAPI(t, nil, &stubIrisMeter{features: true, tokens: true})
+	rec := irisRequest(api, http.MethodPost, irisTestPath+"/chat", map[string]any{
+		"messages": []map[string]any{{"role": "user", "content": "hello"}},
+	})
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	var body map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "service_unavailable", body["error"])
 }
 
 func TestIrisChatStreamsProductModel(t *testing.T) {

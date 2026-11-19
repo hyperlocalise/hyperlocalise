@@ -59,6 +59,9 @@ export type WorkspaceQaReportRow = {
       byLocale: Record<string, number>;
       checkVersion?: number;
       skippedChecksByLocale?: Record<string, string[]>;
+      guidelineCheckHaltCode?: string;
+      guidelineChecksIncomplete?: boolean;
+      guidelineKnowledgeSkipped?: boolean;
     };
     errorCode: string | null;
     errorMessage: string | null;
@@ -84,6 +87,8 @@ export type WorkspaceQaFinding = {
   sourceText: string;
   targetText: string;
   editorHref: string;
+  passageId?: string | null;
+  reasoningAvailable?: boolean;
   status?: "open" | "ignored" | "resolved";
   ignoreReason?: string | null;
   issueIdentifier?: string | null;
@@ -105,6 +110,9 @@ export type ProjectQaReport = {
     byLocale: Record<string, number>;
     checkVersion?: number;
     skippedChecksByLocale?: Record<string, string[]>;
+    guidelineCheckHaltCode?: string;
+    guidelineChecksIncomplete?: boolean;
+    guidelineKnowledgeSkipped?: boolean;
   };
   errorCode: string | null;
   errorMessage: string | null;
@@ -128,6 +136,8 @@ export type ProjectQaFinding = {
   sourceText: string;
   targetText: string;
   editorHref: string;
+  passageId?: string | null;
+  reasoningAvailable?: boolean;
   status?: "open" | "ignored" | "resolved";
   ignoreReason?: string | null;
   issueIdentifier?: string | null;

@@ -2556,8 +2556,8 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Help text under the path template setting",
   },
   localizationProjectId: {
-    defaultMessage: "Project ID",
-    id: "7qPJACmQFj",
+    defaultMessage: "Project",
+    id: "frAXBd97L5",
     description: "Project setting on the translation, task, progress, and QA steps",
   },
   localizationPickProject: {

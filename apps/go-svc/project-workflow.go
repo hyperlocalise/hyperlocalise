@@ -74,15 +74,24 @@ func callProjectWorkflow(ctx context.Context, action string, payload map[string]
 }
 
 func workflowPayload(actor projectActor, projectID string, extra map[string]any) map[string]any {
-	payload := map[string]any{
-		"organizationId": actor.organizationID,
-		"userId":         actor.userID,
-		"projectId":      projectID,
-	}
+	payload := map[string]any{}
 	for key, value := range extra {
 		payload[key] = value
 	}
+	// Actor and path identity win over the request body so a client cannot
+	// impersonate another member or switch organizations.
+	payload["organizationId"] = actor.organizationID
+	payload["userId"] = actor.userID
+	payload["projectId"] = projectID
 	return payload
+}
+
+func (api *projectAPI) accessibleWorkflowProject(r *http.Request, actor projectActor) (string, error) {
+	projectID := strings.TrimSpace(r.PathValue("projectId"))
+	if err := api.requireAccessibleNativeProject(r.Context(), actor, projectID); err != nil {
+		return "", err
+	}
+	return projectID, nil
 }
 
 func (api *projectAPI) uploadFileHandler(r *http.Request, actor projectActor) (any, int, error) {
@@ -93,7 +102,10 @@ func (api *projectAPI) uploadFileHandler(r *http.Request, actor projectActor) (a
 }
 
 func (api *projectAPI) downloadFileHandler(r *http.Request, actor projectActor) (any, int, error) {
-	projectID := strings.TrimSpace(r.PathValue("projectId"))
+	projectID, err := api.accessibleWorkflowProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
 	query := r.URL.Query()
 	return callProjectWorkflow(r.Context(), "download_file", workflowPayload(actor, projectID, map[string]any{
 		"sourcePath": query.Get("sourcePath"),
@@ -116,7 +128,10 @@ func (api *projectAPI) translateFileHandler(r *http.Request, actor projectActor)
 }
 
 func (api *projectAPI) fileSettingsGetHandler(r *http.Request, actor projectActor) (any, int, error) {
-	projectID := strings.TrimSpace(r.PathValue("projectId"))
+	projectID, err := api.accessibleWorkflowProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
 	query := r.URL.Query()
 	return callProjectWorkflow(r.Context(), "file_settings_get", workflowPayload(actor, projectID, map[string]any{
 		"sourcePath": query.Get("sourcePath"),
@@ -142,7 +157,10 @@ func (api *projectAPI) nativeJobActionHandler(r *http.Request, actor projectActo
 	if !actor.canWriteJobs() {
 		return nil, 0, projectForbidden()
 	}
-	projectID := strings.TrimSpace(r.PathValue("projectId"))
+	projectID, err := api.accessibleWorkflowProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
 	var body map[string]any
 	if err := decodeProjectBody(r, &body); err != nil {
 		return nil, 0, err
@@ -152,10 +170,18 @@ func (api *projectAPI) nativeJobActionHandler(r *http.Request, actor projectActo
 }
 
 func (api *projectAPI) forwardFileAction(r *http.Request, actor projectActor, action string) (any, int, error) {
-	projectID := strings.TrimSpace(r.PathValue("projectId"))
+	projectID, err := api.accessibleWorkflowProject(r, actor)
+	if err != nil {
+		return nil, 0, err
+	}
 	var body map[string]any
 	if err := decodeProjectBody(r, &body); err != nil {
 		return nil, 0, err
+	}
+	if action == "upload_file" || action == "import_translations" || action == "file_settings_patch" || action == "use_translation_as_source" {
+		if err := api.rejectProtectedBranchWrite(r, actor, projectID, action, body); err != nil {
+			return nil, 0, err
+		}
 	}
 	return callProjectWorkflow(r.Context(), action, workflowPayload(actor, projectID, body))
 }
@@ -170,6 +196,9 @@ func (api *projectAPI) importQueriesHandler(r *http.Request, actor projectActor)
 func (api *qaReportAPI) startProjectQaScanHandler(r *http.Request, actor qaReportActor) (any, int, error) {
 	if !actor.canPromoteFindings() {
 		return nil, 0, qaReportFailure(http.StatusForbidden, "forbidden", "Forbidden")
+	}
+	if _, err := api.withOwnedProject(r, actor); err != nil {
+		return nil, 0, err
 	}
 	result, status, err := callProjectWorkflow(r.Context(), "qa_start", map[string]any{
 		"organizationId": actor.organizationID,

@@ -325,6 +325,7 @@ export function WorkflowTemplateEditor({
   placeholder,
   invalid = false,
   multiline = false,
+  autoFocus = false,
   fields,
   stepTitle,
   describeReference,
@@ -341,6 +342,8 @@ export function WorkflowTemplateEditor({
   placeholder?: string;
   invalid?: boolean;
   multiline?: boolean;
+  /** Takes focus, at the end of its text, when it first appears. */
+  autoFocus?: boolean;
   /** The fields `{{` offers; none turns the menu off. */
   fields: readonly UpstreamField[];
   stepTitle: (nodeId: string) => string;
@@ -413,6 +416,7 @@ export function WorkflowTemplateEditor({
   const editor = useEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
+    autofocus: autoFocus ? "end" : false,
     extensions: [
       StarterKit.configure({
         blockquote: false,

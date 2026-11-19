@@ -34,14 +34,20 @@ import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
 
 const resourceOptionsMock = vi.hoisted(() => ({
   resourceOptionsFor: vi.fn(() => [{ id: "repo-1", label: "acme/web", resourceKey: "acme/web" }]),
+  projectsLoading: false,
+  noProjects: false,
 }));
 
 vi.mock("./visual-workflow-resource-options", () => ({
   useVisualWorkflowResourceOptions: () => ({
-    projects: [
-      { id: "project-1", name: "Acme", source: "native", sourceLocale: "en-US" },
-      { id: "project-en", name: "Website", source: "native", sourceLocale: "en-US" },
-    ],
+    projects:
+      resourceOptionsMock.projectsLoading || resourceOptionsMock.noProjects
+        ? []
+        : [
+            { id: "project-1", name: "Acme", source: "native", sourceLocale: "en-US" },
+            { id: "project-en", name: "Website", source: "native", sourceLocale: "en-US" },
+          ],
+    projectsLoading: resourceOptionsMock.projectsLoading,
     members: [
       { userId: "11111111-1111-4111-8111-111111111111", workosUserId: "user_1", label: "Ana" },
     ],
@@ -2005,6 +2011,157 @@ describe("VisualWorkflowConfigPanel", () => {
     );
     expect(screen.getByRole("combobox", { name: "Target format" })).toHaveTextContent("YAML");
     expect(screen.getByRole("textbox", { name: "Filename" })).toHaveTextContent("messages.yaml");
+  });
+});
+
+describe("a step's project", () => {
+  function projectStep(projectId: string, id = "progress"): VisualWorkflowRfNode {
+    return {
+      id,
+      type: "action.check_progress",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("action.check_progress"),
+      data: {
+        catalogType: "action.check_progress",
+        config: {
+          ...createDefaultConfig("action.check_progress"),
+          projectId,
+        } as VisualNodeConfig,
+        runStatus: "idle",
+      },
+    };
+  }
+
+  /** The panel over a step whose settings change as they would in the editor. */
+  function StepPanel({
+    step,
+    onChangeConfig,
+  }: {
+    step: VisualWorkflowRfNode;
+    onChangeConfig?: (config: VisualNodeConfig) => void;
+  }) {
+    const [configs, setConfigs] = useState<Record<string, VisualNodeConfig>>({});
+    const node = { ...step, data: { ...step.data, config: configs[step.id] ?? step.data.config } };
+    return (
+      <VisualWorkflowConfigPanel
+        node={node}
+        nodes={[node]}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={(config) => {
+          onChangeConfig?.(config);
+          setConfigs((current) => ({ ...current, [step.id]: config }));
+        }}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />
+    );
+  }
+
+  it("shows a picked project by its name and not its ID", () => {
+    renderPanel(<StepPanel step={projectStep("project-1")} />);
+
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Acme");
+    expect(screen.queryByText("project-1")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Project" })).not.toBeInTheDocument();
+  });
+
+  it("offers the workspace's projects when none is picked", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    renderPanel(<StepPanel step={projectStep("")} onChangeConfig={onChangeConfig} />);
+
+    const picker = screen.getByRole("combobox", { name: "Project" });
+    expect(picker).toHaveTextContent("Choose a project");
+    await user.click(picker);
+    await user.click(await screen.findByRole("option", { name: "Website" }));
+
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ projectId: "project-en" }),
+    );
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Website");
+  });
+
+  it("turns a picked project into text, and back when one is picked under the text", async () => {
+    const user = userEvent.setup();
+    renderPanel(<StepPanel step={projectStep("project-1")} />);
+
+    await user.click(screen.getByRole("button", { name: "Edit as text" }));
+    const text = screen.getByRole("textbox", { name: "Project" });
+    expect(text).toHaveTextContent("project-1");
+    await waitFor(() => expect(text).toHaveFocus());
+    expect(screen.getByText("Project: Acme")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: "Choose a project" }));
+    await user.click(await screen.findByRole("option", { name: "Website" }));
+    const picker = screen.getByRole("combobox", { name: "Project" });
+    expect(picker).toHaveTextContent("Website");
+    await waitFor(() => expect(picker).toHaveFocus());
+    expect(screen.queryByRole("textbox", { name: "Project" })).not.toBeInTheDocument();
+  });
+
+  it("leaves a project fed by an earlier step's value to that value", () => {
+    const step = projectStep("project-1");
+    step.data.inputs = {
+      projectId: { kind: "reference", nodeId: "$trigger", path: ["projectId"] },
+    };
+    renderPanel(<StepPanel step={step} />);
+
+    expect(screen.queryByRole("combobox", { name: "Project" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Choose a project" })).not.toBeInTheDocument();
+    expect(document.querySelector('[data-slot="bound-source"]')).toHaveTextContent("projectId");
+  });
+
+  it("shows a stored ID as text when the workspace has no projects to pick from", () => {
+    resourceOptionsMock.noProjects = true;
+    try {
+      renderPanel(<StepPanel step={projectStep("project-1")} />);
+
+      expect(screen.getByRole("textbox", { name: "Project" })).toHaveTextContent("project-1");
+      expect(screen.queryByRole("combobox", { name: "Project" })).not.toBeInTheDocument();
+    } finally {
+      resourceOptionsMock.noProjects = false;
+    }
+  });
+
+  it("keeps a project read from an earlier step as text", () => {
+    renderPanel(<StepPanel step={projectStep("{{ trigger.projectId }}")} />);
+
+    expect(screen.getByRole("textbox", { name: "Project" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Project" })).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Choose a project" })).toBeInTheDocument();
+  });
+
+  it("keeps the text box while its text is emptied", () => {
+    renderPanel(<StepPanel step={projectStep("{{ trigger.projectId }}")} />);
+
+    replaceText(screen.getByRole("textbox", { name: "Project" }), "");
+
+    expect(screen.getByRole("textbox", { name: "Project" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Project" })).not.toBeInTheDocument();
+  });
+
+  it("starts from the picker again on another step", async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderPanel(<StepPanel step={projectStep("project-1", "first")} />);
+    await user.click(screen.getByRole("button", { name: "Edit as text" }));
+    expect(screen.getByRole("textbox", { name: "Project" })).toBeInTheDocument();
+
+    rerender(<StepPanel step={projectStep("project-en", "second")} />);
+
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Website");
+  });
+
+  it("does not show a stored ID while the projects load", () => {
+    resourceOptionsMock.projectsLoading = true;
+    try {
+      renderPanel(<StepPanel step={projectStep("project-1")} />);
+
+      expect(screen.getByRole("combobox", { name: "Project" })).toBeDisabled();
+      expect(screen.queryByText("project-1")).not.toBeInTheDocument();
+    } finally {
+      resourceOptionsMock.projectsLoading = false;
+    }
   });
 });
 
