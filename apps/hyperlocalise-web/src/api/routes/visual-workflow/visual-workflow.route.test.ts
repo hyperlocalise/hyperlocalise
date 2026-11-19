@@ -536,6 +536,71 @@ describe("visual workflow routes", () => {
     expect(row?.nextRunAt).toBeNull();
   });
 
+  it("saves a draft whose setting holds a reference a run cannot read, and refuses to publish it", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createdResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Short loop item",
+          definition: {
+            schemaVersion: 3 as const,
+            name: "Short loop item",
+            nodes: [
+              {
+                id: "t1",
+                type: "trigger.manual" as const,
+                config: { kind: "trigger.manual" as const },
+              },
+              {
+                id: "slack",
+                type: "action.notify_slack" as const,
+                config: {
+                  kind: "action.notify_slack" as const,
+                  channelId: "C123",
+                  message: "Review {{ item.path }}",
+                },
+              },
+            ],
+            edges: [
+              {
+                id: "t1-slack",
+                kind: "execution" as const,
+                source: "t1",
+                target: "slack",
+                sourcePortId: "success",
+                targetPortId: "input",
+              },
+            ],
+            editor: { positions: { t1: { x: 0, y: 0 }, slack: { x: 300, y: 0 } } },
+          },
+        },
+      },
+      { headers },
+    );
+    expect(createdResponse.status).toBe(201);
+    const created = (await createdResponse.json()) as { visualWorkflow: { id: string } };
+
+    const publishedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].publish.$post(
+      {
+        param: { organizationSlug, visualWorkflowId: created.visualWorkflow.id },
+        json: { expectedRevision: 1 },
+      },
+      { headers },
+    );
+
+    expect(publishedResponse.status).toBe(400);
+    expect(JSON.stringify(await publishedResponse.json())).toContain(
+      '"field":"message","reason":"unreadable_reference"',
+    );
+    expect(enqueueVisualWorkflowPublishedActivityMock).not.toHaveBeenCalled();
+  });
+
   it("returns forbidden when the Automation Workflow entitlement is disabled", async () => {
     isAutumnBooleanFeatureEnabledMock.mockResolvedValue(false);
     const identity = fixture.createWorkosIdentityWithRole("admin");
