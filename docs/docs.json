@@ -162,6 +162,7 @@
                         "group": "Sources",
                         "pages": [
                           "platform/projects/files",
+                          "platform/projects/branches",
                           "platform/guides/update-source-content"
                         ],
                         "expanded": false

@@ -31,7 +31,19 @@ On a native project, open **QA**, then **Check settings**. Turn on **Guidelines*
 
 With **Guidelines** on, each scan checks stored translations against your [guideline documents](/platform/knowledge/guidelines) and saves each issue as a finding. Empty or whitespace-only targets are skipped. Warnings do not block saving in the editor. An error blocks saving only after the editor has already reported it.
 
-Each classified segment counts toward your plan's weekly guideline check allowance. A cache hit is not billed. Flagged rows include an explanation when reasoning succeeds. If the allowance runs out, a translation is too long to check, or a batch cannot be reached, the scan still finishes its other checks, keeps guideline findings it already saved, and leaves older guideline findings in place. The run notes that guideline checks were incomplete, so a clean guideline count is not a full recheck.
+Each classified segment counts toward your plan's weekly guideline check allowance. A cache hit is not billed. Scans save a short warning for each flagged segment. Choose **Explain** on a row to load the cited passage, reason, and optional replacement; explaining spends AI credit. If the allowance runs out, a translation is too long to check, or a batch cannot be reached, the scan still finishes its other checks, keeps guideline findings it already saved, and leaves older guideline findings in place. The run notes that guideline checks were incomplete, so a clean guideline count is not a full recheck.
+
+### Review findings
+
+On the project **QA** page or workspace **QA** overview, open the findings table to work through results from the latest scans.
+
+1. Use filters for check type, severity, locale, and status.
+2. Select **Open editor** on a row to fix the string in context.
+3. For an open **Guidelines** finding, choose **Explain** when you need the full reasoning before you change the translation.
+4. Select one or more rows, then **Ignore selected** and enter a reason when the finding is a false positive or accepted deviation. **Undo** on an ignored row reopens it.
+5. Select rows and **Create issues** to open Board items linked to the findings.
+
+Reviewers, localization managers, and admins can ignore findings and create issues. Translators can read findings and use **Explain** where it is shown.
 
 ## Test the improvement
 
