@@ -335,7 +335,7 @@ func collectStatusSourceEntries(parser *translationfileparser.Strategy, files *c
 		}
 	}
 
-	entries := make([]storage.Entry, 0, len(locales)*len(keys))
+	var entries []storage.Entry
 	for _, locale := range locales {
 		targetEntries := targetByLocale[locale]
 		for i, key := range keys {
