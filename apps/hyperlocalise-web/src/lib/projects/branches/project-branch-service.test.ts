@@ -166,4 +166,88 @@ describe("ProjectBranchService", () => {
       expect(writable.error).toBe("protected_branch");
     }
   });
+
+  it("syncs added parent keys and keeps conflicted child source when using the base", async () => {
+    const { organization, user, project } = await seedProject();
+    const created = await projectBranchService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      name: "feature/checkout",
+      createdByUserId: user.id,
+    });
+    expect(created.ok).toBe(true);
+
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ sourceText: "Hello there", normalizedSourceText: "hello there" })
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.projectId, project.id),
+          eq(schema.projectTranslationKeys.branchName, "main"),
+          eq(schema.projectTranslationKeys.key, "greeting"),
+        ),
+      );
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: (
+        await db
+          .select({ id: schema.repositorySourceFiles.id })
+          .from(schema.repositorySourceFiles)
+          .where(
+            and(
+              eq(schema.repositorySourceFiles.projectId, project.id),
+              eq(schema.repositorySourceFiles.branchName, "main"),
+            ),
+          )
+      )[0]!.id,
+      entries: [{ key: "farewell", text: "Goodbye", context: null }],
+    });
+
+    const kept = await projectBranchService.sync({
+      projectId: project.id,
+      name: "feature/checkout",
+      strategy: "use_base",
+    });
+    expect(kept.ok).toBe(true);
+    if (!kept.ok) {
+      return;
+    }
+    expect(kept.value.lastSyncedAt).toEqual(expect.any(String));
+
+    const featureKeys = await db
+      .select({
+        key: schema.projectTranslationKeys.key,
+        sourceText: schema.projectTranslationKeys.sourceText,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.projectId, project.id),
+          eq(schema.projectTranslationKeys.branchName, "feature/checkout"),
+        ),
+      );
+    const byKey = new Map(featureKeys.map((row) => [row.key, row.sourceText]));
+    expect(byKey.get("greeting")).toBe("Hello");
+    expect(byKey.get("farewell")).toBe("Goodbye");
+
+    const resolved = await projectBranchService.sync({
+      projectId: project.id,
+      name: "feature/checkout",
+      strategy: "use_branch",
+    });
+    expect(resolved.ok).toBe(true);
+
+    const [greeting] = await db
+      .select({ sourceText: schema.projectTranslationKeys.sourceText })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.projectId, project.id),
+          eq(schema.projectTranslationKeys.branchName, "feature/checkout"),
+          eq(schema.projectTranslationKeys.key, "greeting"),
+        ),
+      );
+    expect(greeting?.sourceText).toBe("Hello there");
+  });
 });
