@@ -572,6 +572,8 @@ export async function scanTranslationQaPage(input: {
       category: row.check.category,
       message: row.check.message,
       relatedTokens: row.check.relatedTokens,
+      passageId: row.check.passageId ?? null,
+      reasoningAvailable: row.check.reasoningAvailable === true,
       sourceText: row.segment.sourceText,
       targetText: row.segment.targetText,
       ruleVersion: QA_CHECK_VERSION,

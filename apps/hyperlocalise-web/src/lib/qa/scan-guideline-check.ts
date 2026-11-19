@@ -141,6 +141,8 @@ export function mapGuidelineFindingToQaCheck(
     category: "qa",
     message: suggestion ? `${message} Suggestion: ${suggestion}` : message,
     relatedTokens,
+    ...(finding.passageId ? { passageId: finding.passageId } : {}),
+    ...(finding.reasoningAvailable ? { reasoningAvailable: true } : {}),
   };
 }
 
@@ -220,6 +222,7 @@ async function checkBatch(input: {
           source: segment.sourceText,
           target: segment.targetText,
         })),
+        autoExplain: false,
       });
       return { kind: "ok", result };
     } catch (error) {

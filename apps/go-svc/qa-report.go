@@ -24,6 +24,7 @@ type qaReportAPI struct {
 	pool        dictionaryPool
 	membership  func(context.Context, string) (*workos.UserOrganizationMembership, error)
 	activityLog activityLogPublisher
+	guidelines  *guidelineCheckAPI
 }
 
 type qaReportActor struct {
@@ -100,6 +101,7 @@ func (api *qaReportAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+q, bindActor(api, (*qaReportAPI).listWorkspaceReportsHandler))
 	route("GET "+q+"/findings", bindActor(api, (*qaReportAPI).listWorkspaceFindingsHandler))
 	route("PATCH "+q+"/findings/{findingId}", bindActor(api, (*qaReportAPI).reviewFindingHandler))
+	registerAuthenticated(mux, verifier, "POST "+q+"/findings/{findingId}/explain", api.handleWithin(guidelineCheckTimeout, bindActor(api, (*qaReportAPI).explainFindingHandler)))
 	route("POST "+q+"/findings/review", bindActor(api, (*qaReportAPI).reviewFindingsHandler))
 	route("POST "+q+"/findings/promote", bindActor(api, (*qaReportAPI).promoteWorkspaceFindingsHandler))
 	route("GET "+p, bindActor(api, (*qaReportAPI).listProjectQaReportsHandler))
@@ -153,8 +155,15 @@ func (api *qaReportAPI) actor(ctx context.Context, claims AuthClaims, slug strin
 }
 
 func (api *qaReportAPI) handle(fn func(*http.Request, qaReportActor) (any, int, error)) http.Handler {
+	return api.handleWithin(qaReportRequestTimeout, fn)
+}
+
+func (api *qaReportAPI) handleWithin(timeout time.Duration, fn func(*http.Request, qaReportActor) (any, int, error)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
+		if timeout > qaReportRequestTimeout {
+			setGuidelineCheckWriteDeadline(w)
+		}
 		if denyBrowserMutation(r) {
 			writeQaReportError(w, r, "origin_guard", qaReportFailure(403, "forbidden", "Cross-origin request denied"))
 			return
@@ -163,7 +172,7 @@ func (api *qaReportAPI) handle(fn func(*http.Request, qaReportActor) (any, int, 
 			writeQaReportError(w, r, "availability", qaReportFailure(503, "qa_report_unavailable", "QA report service unavailable"))
 			return
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), qaReportRequestTimeout)
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
 		r = r.WithContext(ctx)
 		claims, ok := ctx.Value(authContextKey{}).(AuthClaims)

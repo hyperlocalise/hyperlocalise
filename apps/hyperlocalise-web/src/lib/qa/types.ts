@@ -76,6 +76,10 @@ export type TranslationQaCheck = {
   category: "qa" | "length" | "placeholder" | "glossary" | "syntax" | "spelling";
   message: string;
   relatedTokens: string[];
+  /** Guideline passage a classifier finding can explain on demand. */
+  passageId?: string;
+  /** True when Luna has not yet written the quote and suggestion. */
+  reasoningAvailable?: boolean;
 };
 
 export type TranslationQaSummary = {

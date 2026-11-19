@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
+import { contentEditorGuidelineCheckMessages } from "@/components/content-editor/project-file/content-editor-guideline-checks.messages";
 import { humanizeQaFindingMessage } from "@/lib/qa/humanize-qa-finding-message";
 import {
   createProjectQaReportClient,
@@ -122,6 +123,15 @@ export function QaFindingsTable({
     );
     onPromoted?.();
   }
+  const explainFinding = useMutation({
+    mutationFn: (id: string) => client.qaReport.findings.explain(organizationSlug, id),
+    onSuccess: async () => {
+      await refresh();
+    },
+    onError: () => {
+      toast.error(intl.formatMessage(m.explainError));
+    },
+  });
   const review = useMutation({
     mutationFn: ({
       id,
@@ -432,6 +442,22 @@ export function QaFindingsTable({
                         </details>
                       ) : null}
                     </div>
+                    {status === "open" &&
+                    finding.checkType === "guideline" &&
+                    finding.reasoningAvailable &&
+                    finding.passageId ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={explainFinding.isPending}
+                        onClick={() => explainFinding.mutate(finding.id)}
+                      >
+                        {explainFinding.isPending && explainFinding.variables === finding.id
+                          ? intl.formatMessage(contentEditorGuidelineCheckMessages.explaining)
+                          : intl.formatMessage(contentEditorGuidelineCheckMessages.explain)}
+                      </Button>
+                    ) : null}
                     {canReviewFinding && status === "ignored" ? (
                       <Button
                         variant="ghost"
