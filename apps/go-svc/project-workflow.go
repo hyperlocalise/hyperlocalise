@@ -178,6 +178,11 @@ func (api *projectAPI) forwardFileAction(r *http.Request, actor projectActor, ac
 	if err := decodeProjectBody(r, &body); err != nil {
 		return nil, 0, err
 	}
+	if action == "upload_file" || action == "import_translations" || action == "file_settings_patch" || action == "use_translation_as_source" {
+		if err := api.rejectProtectedBranchWrite(r, actor, projectID, body); err != nil {
+			return nil, 0, err
+		}
+	}
 	return callProjectWorkflow(r.Context(), action, workflowPayload(actor, projectID, body))
 }
 

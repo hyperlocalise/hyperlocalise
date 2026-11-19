@@ -297,6 +297,9 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		}
 		return nil, 0, err
 	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, keyID); err != nil {
+		return nil, 0, err
+	}
 	tx, err := api.pool.Begin(r.Context())
 	if err != nil {
 		return nil, 0, err
@@ -503,6 +506,9 @@ func (api *editorCatAPI) updateTranslationStatus(r *http.Request, actor editorCa
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, keyID); err != nil {
+		return nil, 0, err
+	}
 	var reviewedAt *time.Time
 	var reviewedBy *string
 	if body.Status == "approved" || body.Status == "rejected" {
@@ -598,6 +604,9 @@ func (api *editorCatAPI) saveComment(r *http.Request, actor editorCatActor, proj
 	}
 	keyID, err := api.requireTranslationKey(r, actor, project, trimEditorCat(body.SourcePath), body.ExternalStringID)
 	if err != nil {
+		return nil, 0, err
+	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, keyID); err != nil {
 		return nil, 0, err
 	}
 	var comment editorCatComment
@@ -1111,6 +1120,23 @@ func uniqueEditorCatIDs(values []string, max int) []string {
 		}
 	}
 	return ids
+}
+
+func (api *editorCatAPI) rejectProtectedKey(ctx context.Context, projectID, keyID string) error {
+	var protected bool
+	err := api.pool.QueryRow(ctx, `
+		select coalesce(b.is_protected, false)
+		from project_translation_keys k
+		left join project_branches b
+			on b.project_id = k.project_id and b.name = k.branch_name and b.status = 'active'
+		where k.project_id = $1 and k.id = $2`, projectID, keyID).Scan(&protected)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !protected) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return editorCatFailure(http.StatusConflict, "protected_branch", "This branch is protected.")
 }
 
 func ioReadAllLimited(r *http.Request) ([]byte, error) {
