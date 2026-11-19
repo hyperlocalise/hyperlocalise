@@ -5,6 +5,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/localisation-audit-schedule",
+      "schedule": "0 13,14 * * *"
+    },
+    {
       "path": "/api/cron/sandbox-cleanup",
       "schedule": "0 3 * * *"
     },
