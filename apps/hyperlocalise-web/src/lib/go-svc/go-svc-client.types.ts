@@ -17,6 +17,7 @@ export type GoSvcRecord = Record<string, unknown>;
 
 export type GoSvcRequestOptions = {
   signal?: AbortSignal;
+  query?: GoSvcQuery;
 };
 
 export type GoSvcPageQuery = {

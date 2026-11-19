@@ -44,6 +44,7 @@ function setup(
   overrides: Partial<ContentEditorSegment> = {},
   intelligence?: Partial<ContentEditorSegmentIntelligence>,
   aiOverrides: Partial<ContentEditorGroupVariantsAi> = {},
+  branch?: string,
 ) {
   const groupVariants = vi.fn().mockResolvedValue({ variants });
   const saveVariant = vi.fn().mockResolvedValue(undefined);
@@ -58,6 +59,7 @@ function setup(
         organizationSlug: "acme",
         projectId: "p1",
         sourcePath: "*",
+        branch,
         canEdit: true,
         saveVariant,
       }}
@@ -122,6 +124,24 @@ describe("ContentEditorGroupVariantsGate", () => {
       "k1",
       { targetLocale: "fr", sourcePath: "*", groupSourcePath: "*" },
       expect.anything(),
+    );
+  });
+
+  it("sends the open version branch when fetching group variants", async () => {
+    const { groupVariants } = setup(
+      [{ text: "Membre", isApproved: true, occurrences: [occurrence("k1"), occurrence("k2")] }],
+      undefined,
+      undefined,
+      undefined,
+      "feature-checkout",
+    );
+    await screen.findByText("Single target");
+    expect(groupVariants).toHaveBeenCalledWith(
+      "acme",
+      "p1",
+      "k1",
+      { targetLocale: "fr", sourcePath: "*", groupSourcePath: "*" },
+      expect.objectContaining({ query: { branch: "feature-checkout" } }),
     );
   });
 

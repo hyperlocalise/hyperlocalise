@@ -22,7 +22,7 @@ export type GoSvcClientOptions = {
   fetch?: typeof fetch;
 };
 
-export type GoSvcJsonRequest = GoSvcRequestOptions & {
+export type GoSvcJsonRequest = Omit<GoSvcRequestOptions, "query"> & {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   query?: object;
   body?: unknown;
