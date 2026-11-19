@@ -46,10 +46,9 @@ type ResolvedSite = ScheduledLocalisationAuditSite & { identity: DomainIdentity 
  * Sites without an audit come first, then the ones audited longest ago.
  * Sites with an active run or a report from the last 24h are skipped.
  */
-async function pickDueSites(
+async function listDueSites(
   sites: readonly ScheduledLocalisationAuditSite[],
-  limit: number,
-): Promise<{ eligible: number; due: ResolvedSite[] }> {
+): Promise<ResolvedSite[]> {
   const resolved: ResolvedSite[] = [];
   for (const site of sites) {
     const identity = resolveDomainIdentity(site.url);
@@ -74,7 +73,7 @@ async function pickDueSites(
       return aTime - bTime || a.index - b.index;
     });
 
-  return { eligible: eligible.length, due: eligible.slice(0, limit).map(({ site }) => site) };
+  return eligible.map(({ site }) => site);
 }
 
 export async function runScheduledLocalisationAudits(input: {
@@ -82,19 +81,19 @@ export async function runScheduledLocalisationAudits(input: {
   queue: LocalisationAuditQueue;
   sites?: readonly ScheduledLocalisationAuditSite[];
 }): Promise<ScheduledLocalisationAuditResults> {
-  const { eligible, due } = await pickDueSites(
-    input.sites ?? SCHEDULED_LOCALISATION_AUDIT_SITES,
-    input.limit,
-  );
+  const due = await listDueSites(input.sites ?? SCHEDULED_LOCALISATION_AUDIT_SITES);
   const results: ScheduledLocalisationAuditResults = {
-    eligible,
+    eligible: due.length,
     started: 0,
     reused: 0,
     failed: 0,
     quotaExceeded: false,
   };
 
+  // Walk the whole due list so a site that keeps failing before it is claimed
+  // (and so never moves back in the order) does not take one of the night's slots.
   for (const site of due) {
+    if (results.started >= input.limit) break;
     const { identity } = site;
     const resolvable = await assertResolvablePublicHttpUrl(identity.sourceUrl);
     if (isErr(resolvable)) {
@@ -156,6 +155,8 @@ export async function runScheduledLocalisationAudits(input: {
         errorMessage: "Audit could not be queued. You can retry shortly.",
       });
       results.failed += 1;
+      // The queue is shared, so the remaining sites would fail the same way.
+      break;
     }
   }
 

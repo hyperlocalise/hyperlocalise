@@ -25,8 +25,15 @@ const storeMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./store", () => storeMocks);
+const assertResolvablePublicHttpUrlMock = vi.hoisted(() =>
+  vi.fn(
+    async (url: string) =>
+      ({ ok: true, value: url }) as { ok: boolean; value?: string; error?: unknown },
+  ),
+);
+
 vi.mock("@/lib/security/public-http-fetch", () => ({
-  assertResolvablePublicHttpUrl: vi.fn(async (url: string) => ({ ok: true, value: url })),
+  assertResolvablePublicHttpUrl: assertResolvablePublicHttpUrlMock,
 }));
 
 const { runScheduledLocalisationAudits } = await import("./run-scheduled-localisation-audits");
@@ -106,6 +113,35 @@ describe("runScheduledLocalisationAudits", () => {
     expect(storeMocks.attachLocalisationAuditWorkflowRun).toHaveBeenCalledTimes(2);
   });
 
+  it("fills the night's slots past sites that fail before they are claimed", async () => {
+    storeMocks.listLocalisationAuditsByDomainKeys.mockResolvedValue([]);
+    assertResolvablePublicHttpUrlMock.mockResolvedValueOnce({
+      ok: false,
+      error: { code: "dns_resolution_failed" },
+    });
+    storeMocks.claimOrReuseLocalisationAudit
+      .mockResolvedValueOnce({
+        audit: { id: "audit-b", attemptNumber: 1 },
+        outcome: "reused_active",
+      })
+      .mockResolvedValueOnce({ audit: { id: "audit-c", attemptNumber: 1 }, outcome: "created" })
+      .mockResolvedValueOnce({ audit: { id: "audit-d", attemptNumber: 1 }, outcome: "created" });
+
+    const results = await runScheduledLocalisationAudits({
+      limit: 2,
+      queue: createQueue(),
+      sites,
+    });
+
+    expect(results).toEqual({
+      eligible: 4,
+      started: 2,
+      reused: 1,
+      failed: 1,
+      quotaExceeded: false,
+    });
+  });
+
   it("stops when the scheduled quota is exhausted", async () => {
     storeMocks.listLocalisationAuditsByDomainKeys.mockResolvedValue([]);
     storeMocks.claimOrReuseLocalisationAudit
@@ -122,17 +158,18 @@ describe("runScheduledLocalisationAudits", () => {
     expect(storeMocks.claimOrReuseLocalisationAudit).toHaveBeenCalledTimes(2);
   });
 
-  it("marks the audit failed when it cannot be enqueued", async () => {
+  it("marks the audit failed and stops when it cannot be enqueued", async () => {
     storeMocks.listLocalisationAuditsByDomainKeys.mockResolvedValue([]);
     const queue = { enqueue: vi.fn(async () => Promise.reject(new Error("queue down"))) };
 
     const results = await runScheduledLocalisationAudits({
-      limit: 1,
+      limit: 4,
       queue,
       sites,
     });
 
     expect(results).toMatchObject({ started: 0, failed: 1 });
+    expect(queue.enqueue).toHaveBeenCalledTimes(1);
     expect(storeMocks.failLocalisationAudit).toHaveBeenCalledWith(
       expect.objectContaining({ errorCode: "localisation_audit_enqueue_failed" }),
     );
