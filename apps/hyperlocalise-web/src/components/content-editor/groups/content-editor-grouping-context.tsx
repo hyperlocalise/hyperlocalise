@@ -45,6 +45,8 @@ export type ContentEditorGroupingController = {
   /** Queue scope of grouped rows: a file path or the all-files path. */
   sourcePath: string;
   sourcePaths?: string;
+  /** Native version branch of the open queue; omitted on `main`. */
+  branch?: string | null;
   canEdit: boolean;
   saveVariant: (input: ContentEditorGroupVariantSaveInput) => Promise<void>;
 };

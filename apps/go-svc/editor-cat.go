@@ -333,6 +333,18 @@ func isEditorCatAllFiles(sourcePath string) bool {
 	return trimmed == "" || trimmed == "*"
 }
 
+// editorCatSourcePathScopeSQL keeps a mutation on keys whose file has this source path,
+// on any version branch. Callers bind organization_id=$1, project_id=$2, and sourcePath
+// at argN. Matching by path (not a single file id) lets a version-branch key stay
+// writable when the request omits ?branch=.
+func editorCatSourcePathScopeSQL(keyTable string, argN int) string {
+	return ` and exists (
+        select 1 from repository_source_files f
+        where f.id = ` + keyTable + `.repository_source_file_id
+            and f.organization_id=$1 and f.project_id=$2 and f.source_path=$` + strconv.Itoa(argN) + `
+    )`
+}
+
 func filenameFromSourcePath(sourcePath string) string {
 	base := path.Base(strings.ReplaceAll(sourcePath, "\\", "/"))
 	if base == "." || base == "/" || base == "" {

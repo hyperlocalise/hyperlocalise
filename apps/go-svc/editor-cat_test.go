@@ -72,12 +72,28 @@ func mustEditorCatSourceFile(t *testing.T, scope *testenv.Scope, sourcePath stri
 
 func mustEditorCatKey(t *testing.T, scope *testenv.Scope, fileID, key, sourceText string) string {
 	t.Helper()
+	return mustEditorCatBranchKey(t, scope, fileID, "main", key, sourceText)
+}
+
+func mustEditorCatSourceFileOnBranch(t *testing.T, scope *testenv.Scope, sourcePath, branch string) string {
+	t.Helper()
+	id := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into repository_source_files (id, organization_id, project_id, source_path, branch_name)
+        values ($1, $2, $3, $4, $5)`,
+		id, scope.OrganizationID, scope.ProjectID, sourcePath, branch)
+	require.NoError(t, err)
+	return id
+}
+
+func mustEditorCatBranchKey(t *testing.T, scope *testenv.Scope, fileID, branch, key, sourceText string) string {
+	t.Helper()
 	id := uuid.NewString()
 	_, err := scope.Pool.Exec(t.Context(), `
         insert into project_translation_keys (
-            id, organization_id, project_id, repository_source_file_id, key, source_text, normalized_source_text
-        ) values ($1, $2, $3, $4, $5, $6, $7)`,
-		id, scope.OrganizationID, scope.ProjectID, fileID, key, sourceText, strings.ToLower(sourceText))
+            id, organization_id, project_id, repository_source_file_id, branch_name, key, source_text, normalized_source_text
+        ) values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		id, scope.OrganizationID, scope.ProjectID, fileID, branch, key, sourceText, strings.ToLower(sourceText))
 	require.NoError(t, err)
 	return id
 }
