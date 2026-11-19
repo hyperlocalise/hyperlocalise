@@ -93,10 +93,12 @@ go-svc serves `POST /v1/orgs/{org}/guidelines/check` and
 `POST /internal/guidelines/check` and `POST /internal/guidelines/explain` for
 trusted server callers such as MCP and project QA scans. Check meters each
 segment on Autumn `guideline_checks`. Explain meters Luna usage on `ai_tokens`.
-The internal check route explains flagged segments automatically; a Luna failure
-keeps the classifier findings. Public CAT check does not auto-explain. Project
-scans batch up to 50 segments per locale, persist findings, and leave older
-guideline issues open if classify hits the allowance or Knowledge is off.
+The internal check route explains flagged segments automatically unless the
+request sets `autoExplain` to false. Project QA scans set that flag and explain
+a finding when someone chooses **Explain**. A Luna failure keeps the classifier
+findings. Public CAT check does not auto-explain. Project scans batch up to 50
+segments per locale, persist findings, and leave older guideline issues open if
+classify hits the allowance or Knowledge is off.
 
 Models are configured with `AI_GATEWAY_API_KEY`, optionally
 `AI_GATEWAY_BASE_URL` / `AI_GATEWAY_EVALUATE_BASE_URL`,

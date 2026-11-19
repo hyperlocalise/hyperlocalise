@@ -778,9 +778,10 @@ checks use mandatory guidelines only.
 - `POST /v1/orgs/{org}/guidelines/explain`: the check body plus optional
   `passageIds`. Runs Luna and returns grounded findings. Metered on Autumn
   `ai_tokens`.
-- `POST /internal/guidelines/check`: the same body plus `organizationId`, for
-  service-token callers that already enforced access (MCP, project QA scans).
-  Flagged segments are explained automatically; a Luna failure keeps the
+- `POST /internal/guidelines/check`: the same body plus `organizationId` and
+  optional `autoExplain`, for service-token callers that already enforced
+  access (MCP, project QA scans). Omitted or true explains flagged segments
+  automatically. Project QA scans send false. A Luna failure keeps the
   classifier findings.
 - `POST /internal/guidelines/explain`: the explain body plus `organizationId`.
 - `POST /internal/guidelines/retrieve`:

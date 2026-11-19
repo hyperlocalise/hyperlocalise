@@ -136,6 +136,9 @@ func (api *guidelineCheckAPI) explain(w http.ResponseWriter, r *http.Request, ac
 
 type internalGuidelineCheckPayload struct {
 	OrganizationID string `json:"organizationId"`
+	// AutoExplain is optional. Omitted or true explains flagged segments.
+	// Project QA scans send false and explain a finding when someone asks.
+	AutoExplain *bool `json:"autoExplain"`
 	guidelineCheckPayload
 }
 
@@ -144,11 +147,11 @@ type internalGuidelineExplainPayload struct {
 	guidelineExplainPayload
 }
 
-// internalCheck serves trusted server callers such as MCP, which enforce
-// feature flags and team project access before calling. Flagged segments are
-// explained with Luna when the reasoning model is configured.
+// internalCheck serves trusted server callers such as MCP and project QA scans,
+// which enforce feature flags and team project access before calling. Flagged
+// segments are explained with Luna unless the body sets autoExplain to false.
 func (api *guidelineCheckAPI) internalCheck(w http.ResponseWriter, r *http.Request) {
-	api.serveInternal(w, r, true)
+	api.serveInternal(w, r)
 }
 
 func (api *guidelineCheckAPI) internalExplain(w http.ResponseWriter, r *http.Request) {
@@ -180,7 +183,7 @@ func (api *guidelineCheckAPI) internalExplain(w http.ResponseWriter, r *http.Req
 	writeKnowledgeMemoryJSON(w, status, value)
 }
 
-func (api *guidelineCheckAPI) serveInternal(w http.ResponseWriter, r *http.Request, autoExplain bool) {
+func (api *guidelineCheckAPI) serveInternal(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	setGuidelineCheckWriteDeadline(w)
 	if api.knowledge == nil || api.knowledge.workspace == nil || api.knowledge.workspace.pool == nil {
@@ -201,6 +204,7 @@ func (api *guidelineCheckAPI) serveInternal(w http.ResponseWriter, r *http.Reque
 		writeKnowledgeMemoryError(w, r, invalidGuidelineCheck("organizationId"))
 		return
 	}
+	autoExplain := payload.AutoExplain == nil || *payload.AutoExplain
 	status, value, err := api.evaluate(r.Context(), organizationID, payload.guidelineCheckPayload, api.internalProjectResolver(organizationID), autoExplain)
 	if err != nil {
 		writeKnowledgeMemoryError(w, r, err)

@@ -58,6 +58,14 @@ export class GoSvcQaReportFindingsApi {
     );
   }
 
+  /** Asks Luna to replace a classifier guideline finding with a grounded explanation. */
+  explain(organizationSlug: string, findingId: string, options: GoSvcRequestOptions = {}) {
+    return this.request.json<GoSvcRecord>(
+      orgPath(organizationSlug, "qa-reports", "findings", findingId, "explain"),
+      { method: "POST", ...options },
+    );
+  }
+
   /** Applies one review to up to 100 findings; the server rejects the batch if any is stale. */
   reviewMany(organizationSlug: string, body: GoSvcRecord) {
     return this.request.json<GoSvcRecord>(

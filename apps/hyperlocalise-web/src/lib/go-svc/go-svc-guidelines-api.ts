@@ -331,7 +331,7 @@ export class GoSvcGuidelinesApi {
    */
   internalCheck(
     organizationId: string,
-    body: GuidelineCheckRequest,
+    body: GuidelineCheckRequest & { autoExplain?: boolean },
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<GuidelineCheckResult>("/internal/guidelines/check", {

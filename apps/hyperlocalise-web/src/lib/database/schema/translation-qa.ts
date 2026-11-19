@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -132,6 +133,8 @@ export const translationQaFindings = pgTable(
     ruleVersion: integer("rule_version").notNull().default(1),
     message: text("message").notNull(),
     relatedTokens: jsonb("related_tokens").$type<string[]>().notNull().default([]),
+    passageId: text("passage_id"),
+    reasoningAvailable: boolean("reasoning_available").notNull().default(false),
     sourceText: text("source_text").notNull(),
     targetText: text("target_text").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

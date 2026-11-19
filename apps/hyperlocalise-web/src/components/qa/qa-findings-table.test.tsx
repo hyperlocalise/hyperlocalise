@@ -12,11 +12,40 @@
  */
 // @vitest-environment happy-dom
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { IntlProvider } from "react-intl";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
-import { QaText } from "./qa-findings-table";
+import type { QaFindingRow } from "./qa-findings-table";
+
+const { explain } = vi.hoisted(() => ({
+  explain: vi.fn(),
+}));
+
+vi.mock("next/link", () => ({
+  default: ({ href, children }: { href: string; children: ReactNode }) => <a href={href}>{children}</a>,
+}));
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    loading: false,
+    client: {
+      qaReport: {
+        findings: {
+          explain,
+          review: vi.fn(),
+          reviewMany: vi.fn(),
+        },
+        project: { promoteFindings: vi.fn() },
+      },
+    },
+  }),
+}));
+
+import { QaFindingsTable, QaText } from "./qa-findings-table";
 
 describe("QaText", () => {
   it("marks non-breaking spaces so the difference is visible", () => {
@@ -51,5 +80,79 @@ describe("QaText", () => {
       /^[·⇥]+$/.test(element.textContent ?? ""),
     );
     expect(marks.map((element) => element.textContent)).toEqual(["···", "⇥⇥"]);
+  });
+});
+
+function finding(overrides: Partial<QaFindingRow> = {}): QaFindingRow {
+  return {
+    id: "finding-1",
+    runId: "run-1",
+    projectId: "project-1",
+    key: "greeting",
+    sourcePath: null,
+    targetLocale: "fr-FR",
+    checkType: "guideline",
+    severity: "warning",
+    category: "qa",
+    message: "This text may not match a project guideline.",
+    relatedTokens: [],
+    sourceText: "Hello",
+    targetText: "Bonjour",
+    editorHref: "/editor",
+    status: "open",
+    passageId: "passage-1",
+    reasoningAvailable: true,
+    ...overrides,
+  };
+}
+
+describe("QaFindingsTable guideline explain", () => {
+  it("explains only an unexplained guideline finding", async () => {
+    explain.mockReset();
+    let resolveExplain: (value: unknown) => void = () => {};
+    explain.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveExplain = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <IntlProvider locale="en" messages={{}}>
+          <QaFindingsTable
+            organizationSlug="acme"
+            findings={[
+              finding(),
+              finding({
+                id: "finding-explained",
+                key: "already",
+                reasoningAvailable: false,
+              }),
+              finding({
+                id: "finding-spelling",
+                key: "spelling",
+                checkType: "spelling",
+                passageId: null,
+                reasoningAvailable: false,
+              }),
+            ]}
+            total={3}
+            shownCount={3}
+            canPromote={false}
+            promoteScope="project"
+            projectId="project-1"
+          />
+        </IntlProvider>
+      </QueryClientProvider>,
+    );
+
+    const button = screen.getByRole("button", { name: "Explain" });
+    await user.click(button);
+    expect(explain).toHaveBeenCalledTimes(1);
+    expect(explain).toHaveBeenCalledWith("acme", "finding-1");
+    expect(screen.getByRole("button", { name: "Explaining…" })).toBeDisabled();
+    resolveExplain({ finding: { id: "finding-1" } });
   });
 });

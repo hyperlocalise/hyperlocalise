@@ -1034,6 +1034,8 @@ describe("scanTranslationQaPage", () => {
         message: schema.translationQaFindings.message,
         targetLocale: schema.translationQaFindings.targetLocale,
         relatedTokens: schema.translationQaFindings.relatedTokens,
+        passageId: schema.translationQaFindings.passageId,
+        reasoningAvailable: schema.translationQaFindings.reasoningAvailable,
       })
       .from(schema.translationQaFindings)
       .where(eq(schema.translationQaFindings.runId, claimed.runId));
@@ -1045,11 +1047,14 @@ describe("scanTranslationQaPage", () => {
         message: "Use informal greeting Suggestion: Hi",
         targetLocale: "de-DE",
         relatedTokens: ["Ha", "Hi"],
+        passageId: "p1",
+        reasoningAvailable: false,
       },
     ]);
     expect(internalCheck).toHaveBeenCalledWith(
       organization.id,
       expect.objectContaining({
+        autoExplain: false,
         projectId: project.id,
         sourceLocale: "en-US",
         targetLocale: "de-DE",

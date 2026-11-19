@@ -304,6 +304,7 @@ func main() {
 		}
 		h.guidelineCheck.checker = check.New(checkRetriever, checkClassifier, checkModel, checkOpts...)
 	}
+	h.qaReports.guidelines = h.guidelineCheck
 	membershipLookup = publicauth.NewCachedMembershipLookup(membershipLookup, valkeyClient)
 	h.dictionaries.membership = membershipLookup
 	h.glossaries.membership = membershipLookup

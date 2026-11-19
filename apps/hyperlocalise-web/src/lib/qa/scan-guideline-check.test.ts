@@ -193,10 +193,16 @@ describe("runScanGuidelineChecks", () => {
       segments: [segment("key-1", { targetText })],
     });
     expect(result.ok).toBe(true);
+    expect(internalCheck).toHaveBeenCalledWith(
+      "org",
+      expect.objectContaining({ autoExplain: false, projectId: "proj" }),
+    );
     expect(result.findings[0]?.check).toMatchObject({
       checkType: "guideline",
       message: "This text may not match a project guideline.",
       relatedTokens: [],
+      passageId: "p1",
+      reasoningAvailable: true,
     });
   });
 
