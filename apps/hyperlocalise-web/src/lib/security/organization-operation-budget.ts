@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, gte, inArray, notExists, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, not, notExists, or, sql } from "drizzle-orm";
 
 import { schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
@@ -33,6 +33,36 @@ async function lockOrganizationJobBudget(tx: DatabaseTransaction, organizationId
   );
 }
 
+/**
+ * A task for people: a job that starts no AI call and no sandbox while it is open, and can stay
+ * open for days. That is a proofread or post-edit task, on a file or on chosen strings (nothing
+ * starts a proofread job, also while it waits as `queued` for an earlier job), and a translate
+ * task a person holds (`personTaskStep`). A translate task is stored like an AI translation job
+ * with a step in its metadata, which any caller can set, so it only passes while it waits for
+ * review: no AI translation job is ever in that status. A job given to an agent, or mirrored from
+ * a provider (an agent run can start on it), is not one. The Go public API has the same rule in
+ * `jobBudgetPersonTaskSQL` (`apps/public-api/jobs-create-store.go`): keep the two in step.
+ */
+function personTaskWhere(client: DatabaseClient) {
+  return and(
+    sql`${schema.jobs.assigneeType} is distinct from 'agent'`,
+    notExists(
+      client
+        .select({ jobId: schema.externalJobDetails.jobId })
+        .from(schema.externalJobDetails)
+        .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
+    ),
+    or(
+      eq(schema.jobs.kind, "proofread"),
+      and(
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.status, "waiting_for_review"),
+        sql`coalesce(${schema.jobs.inputPayload} -> 'metadata' ->> 'workflowTaskStep', '') = 'translate'`,
+      ),
+    ),
+  )!;
+}
+
 async function countOrganizationJobBudgetUsage(client: DatabaseClient, organizationId: string) {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
@@ -44,21 +74,8 @@ async function countOrganizationJobBudgetUsage(client: DatabaseClient, organizat
         and(
           eq(schema.jobs.organizationId, organizationId),
           inArray(schema.jobs.status, [...OPEN_JOB_STATUSES]),
-          // Key jobs for people stay open for days and run nothing, so they don't hold back AI
-          // jobs; key jobs for AI translation count like any other. All count towards the
-          // hourly rate.
-          notExists(
-            client
-              .select({ jobId: schema.translationJobDetails.jobId })
-              .from(schema.translationJobDetails)
-              .where(
-                and(
-                  eq(schema.translationJobDetails.jobId, schema.jobs.id),
-                  eq(schema.translationJobDetails.type, "keys"),
-                  eq(schema.jobs.kind, "proofread"),
-                ),
-              ),
-          ),
+          // Tasks for people don't hold back AI jobs. All jobs count towards the hourly rate.
+          not(personTaskWhere(client)),
         ),
       ),
     client
@@ -110,11 +127,11 @@ export async function assertOrganizationCanEnqueueTranslationJobInTransaction(
   tx: DatabaseTransaction,
   organizationId: string,
   options?: {
-    /** A key job for people doesn't count as open, so other open jobs don't hold it back; the rate does. */
-    isKeyJob?: boolean;
+    /** A task for people (`personTaskWhere`) doesn't count as open, so other open jobs don't hold it back; the rate does. */
+    isPersonTask?: boolean;
   },
 ): Promise<Result<void, OrganizationOperationBudgetError>> {
   await lockOrganizationJobBudget(tx, organizationId);
   const counts = await countOrganizationJobBudgetUsage(tx, organizationId);
-  return evaluateOrganizationJobBudgetUsage(counts, { checkOpenJobs: !options?.isKeyJob });
+  return evaluateOrganizationJobBudgetUsage(counts, { checkOpenJobs: !options?.isPersonTask });
 }

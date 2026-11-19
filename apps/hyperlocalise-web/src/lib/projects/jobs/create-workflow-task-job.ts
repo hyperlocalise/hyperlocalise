@@ -75,9 +75,9 @@ class AfterJobNotFoundError extends Error {}
 /**
  * Creates a job a person works on in the editor: translating from scratch, post-editing machine
  * output, or proofreading. Like a proofread job made in the app, it waits for review from the
- * start, is never queued for the translation agent and reserves no AI usage, but still takes one
- * of the organization's open job slots. A post-edit or proofread task that comes after an
- * unfinished job starts as waiting instead (`waiting-task.ts`).
+ * start, is never queued for the translation agent, reserves no AI usage and takes none of the
+ * organization's open job slots; the hourly creation rate applies. A post-edit or proofread task
+ * that comes after an unfinished job starts as waiting instead (`waiting-task.ts`).
  */
 export async function createWorkflowTaskJob(
   input: CreateWorkflowTaskJobInput,
@@ -183,6 +183,7 @@ export async function createWorkflowTaskJob(
       const budget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
         tx,
         input.organizationId,
+        { isPersonTask: true },
       );
       if (isErr(budget)) {
         throw new OrganizationJobBudgetExceededError(budget.error);

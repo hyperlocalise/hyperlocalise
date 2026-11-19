@@ -226,4 +226,26 @@ describe("public file tasks for a person", () => {
     expect(await jobRow(aiJob.id)).toMatchObject({ kind: "translation", afterJobId: null });
     expect(enqueueJob).toHaveBeenCalledOnce();
   });
+
+  it("creates a file task while 50 AI jobs are open", async () => {
+    const { project, post } = await fixtureWithFile();
+    await db.insert(schema.jobs).values(
+      Array.from({ length: 50 }, () => ({
+        id: `job_${crypto.randomUUID()}`,
+        organizationId: project.organizationId,
+        projectId: project.id,
+        kind: "translation" as const,
+        status: "queued" as const,
+        inputPayload: { sourceText: "Hi", sourceLocale: "en-US", targetLocales: ["fr-FR"] },
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      })),
+    );
+
+    expect((await post({ step: "post_edit" })).status).toBe(201);
+    // A file job without a step is AI work, which the open jobs hold back.
+    ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
+    const aiJob = await post({});
+    expect(aiJob.status).toBe(429);
+    expect(await aiJob.json()).toMatchObject({ error: "organization_job_budget_exceeded" });
+  });
 });
