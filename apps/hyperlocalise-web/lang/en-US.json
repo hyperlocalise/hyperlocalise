@@ -15923,6 +15923,10 @@
     "defaultMessage": "Only when I click Sync now",
     "description": "Schedule option: the project syncs only when someone clicks Sync now"
   },
+  "JROV82hcMT": {
+    "defaultMessage": "Intel Mac",
+    "description": "Menu item that downloads the Iris desktop app for Intel Macs"
+  },
   "JRW1qm8WII": {
     "defaultMessage": "Enable",
     "description": "Button that enables a webhook endpoint"
@@ -23467,6 +23471,10 @@
     "defaultMessage": "HTTP, webhooks & AI steps",
     "description": "Pricing matrix row for Automation Workflow step types"
   },
+  "TrXo9+oXLP": {
+    "defaultMessage": "More Mac downloads",
+    "description": "Accessible label for the menu button beside the Mac download button that lists the Iris builds for each Mac chip"
+  },
   "TrnH0+MELk": {
     "defaultMessage": "Failed to copy to clipboard",
     "description": "Error toast when clipboard copy fails"
@@ -28426,6 +28434,10 @@
   "ak/7eZQvtU": {
     "defaultMessage": "Could not start Google Drive authorization.",
     "description": "Toast when Google Drive OAuth URL request fails"
+  },
+  "ak4YvgSO+q": {
+    "defaultMessage": "Apple Silicon Mac",
+    "description": "Menu item that downloads the Iris desktop app for Apple Silicon Macs"
   },
   "akBS4XwW21": {
     "defaultMessage": "An invite was just sent. Try again in a couple of minutes.",
@@ -40310,10 +40322,6 @@
   "qSi5mzrfOt": {
     "defaultMessage": "Retry audit",
     "description": "Button to retry a failed or stalled localisation audit"
-  },
-  "qTeEQlfudM": {
-    "defaultMessage": "Intel Mac",
-    "description": "Link beside the Mac download button that downloads the Iris build for Intel Macs"
   },
   "qTqRADscBS": {
     "defaultMessage": "Images",

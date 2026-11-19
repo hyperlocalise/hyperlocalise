@@ -395,6 +395,33 @@ func TestGuidelineCheckInternalKeepsClassifierFindingsWhenExplainFails(t *testin
 	require.Equal(t, 1, explainer.calls)
 }
 
+func TestGuidelineCheckInternalSkipsExplainWhenDisabled(t *testing.T) {
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
+	env := newGuidelineTestEnv(t, "admin")
+	projectID := env.scope.MustProject(t, "", "Project")
+	seedReadyProjectGuideline(t, env, projectID, "Never translate Acme.")
+	classifier := &fixedGuidelineClassifier{fill: 0.91}
+	explainer := &fixedGuidelineModel{output: `{"findings":[{"segmentId":"s1","field":"target","severity":"warning","quote":"Akme","message":"Keep Acme.","suggestion":"Acme","passage":"P1"}]}`, inputTokens: 12}
+	meter := &recordingGuidelineMeter{allowed: true, tokenAllow: true}
+	withGuidelineCheck(env, classifier, explainer, meter)
+
+	req := httptest.NewRequest(http.MethodPost, "/internal/guidelines/check", strings.NewReader(`{"organizationId":"`+env.scope.OrganizationID+`","projectId":"`+projectID+`","autoExplain":false,"segments":[{"id":"s1","target":"Akme"}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(serverCallTokenHeader, serverCallToken())
+	rec := httptest.NewRecorder()
+	mux := http.NewServeMux()
+	registerRoutes(mux, env.handler, stubSessionVerifier{})
+	mux.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), check.ClassifierFindingMessage)
+	require.Contains(t, rec.Body.String(), `"reasoningAvailable":true`)
+	require.NotContains(t, rec.Body.String(), "Keep Acme.")
+	require.Equal(t, 1, classifier.calls)
+	require.Zero(t, explainer.calls)
+	require.Empty(t, meter.tokens)
+}
+
 func TestGuidelineCheckProjectScope(t *testing.T) {
 	env := newGuidelineTestEnv(t, "admin")
 	projectID := env.scope.MustProject(t, "", "Project")

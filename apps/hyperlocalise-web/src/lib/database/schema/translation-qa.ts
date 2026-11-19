@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -37,6 +38,12 @@ export type TranslationQaSummary = {
   byLocale: Record<string, number>;
   skippedChecksByLocale?: Record<string, string[]>;
   checkVersion?: number;
+  /** Set when guideline checks stop early; holds the go-svc error code only. */
+  guidelineCheckHaltCode?: string;
+  /** A segment or batch was skipped. Later batches still ran. */
+  guidelineChecksIncomplete?: boolean;
+  /** Knowledge was off or the entitlement read failed, so the checker was not called. */
+  guidelineKnowledgeSkipped?: boolean;
 };
 
 /**
@@ -126,6 +133,8 @@ export const translationQaFindings = pgTable(
     ruleVersion: integer("rule_version").notNull().default(1),
     message: text("message").notNull(),
     relatedTokens: jsonb("related_tokens").$type<string[]>().notNull().default([]),
+    passageId: text("passage_id"),
+    reasoningAvailable: boolean("reasoning_available").notNull().default(false),
     sourceText: text("source_text").notNull(),
     targetText: text("target_text").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

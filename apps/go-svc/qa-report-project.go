@@ -435,7 +435,7 @@ func (api *qaReportAPI) getProjectQaRunDetail(ctx context.Context, actor qaRepor
 
 	listSQL := `
         select id, run_id, key, source_path, target_locale, check_type, severity, category, message,
-               related_tokens, source_text, target_text
+               related_tokens, source_text, target_text, passage_id, reasoning_available
         from translation_qa_findings
         where ` + filterSQL + `
         -- Rank each key's group by its worst finding so errors come first and a
@@ -455,12 +455,13 @@ func (api *qaReportAPI) getProjectQaRunDetail(ctx context.Context, actor qaRepor
 		var (
 			id, runIDStr, key, targetLocale, checkTypeVal, severityVal, category, message string
 			sourceText, targetText                                                        string
-			sourcePath                                                                    *string
+			sourcePath, passageID                                                         *string
 			relatedTokensRaw                                                              []byte
+			reasoningAvailable                                                            bool
 		)
 		if err := rows.Scan(
 			&id, &runIDStr, &key, &sourcePath, &targetLocale, &checkTypeVal, &severityVal, &category, &message,
-			&relatedTokensRaw, &sourceText, &targetText,
+			&relatedTokensRaw, &sourceText, &targetText, &passageID, &reasoningAvailable,
 		); err != nil {
 			return nil, 0, err
 		}
@@ -469,20 +470,22 @@ func (api *qaReportAPI) getProjectQaRunDetail(ctx context.Context, actor qaRepor
 			_ = json.Unmarshal(relatedTokensRaw, &relatedTokens)
 		}
 		findings = append(findings, map[string]any{
-			"id":            id,
-			"runId":         runIDStr,
-			"projectId":     projectID,
-			"key":           key,
-			"sourcePath":    sourcePath,
-			"targetLocale":  targetLocale,
-			"checkType":     checkTypeVal,
-			"severity":      severityVal,
-			"category":      category,
-			"message":       message,
-			"relatedTokens": relatedTokens,
-			"sourceText":    sourceText,
-			"targetText":    targetText,
-			"editorHref":    buildTranslationQaFindingHref(actor.organizationSlug, projectID, sourcePath, targetLocale, key),
+			"id":                 id,
+			"runId":              runIDStr,
+			"projectId":          projectID,
+			"key":                key,
+			"sourcePath":         sourcePath,
+			"targetLocale":       targetLocale,
+			"checkType":          checkTypeVal,
+			"severity":           severityVal,
+			"category":           category,
+			"message":            message,
+			"relatedTokens":      relatedTokens,
+			"sourceText":         sourceText,
+			"targetText":         targetText,
+			"passageId":          passageID,
+			"reasoningAvailable": reasoningAvailable,
+			"editorHref":         buildTranslationQaFindingHref(actor.organizationSlug, projectID, sourcePath, targetLocale, key),
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -529,7 +532,7 @@ func (api *qaReportAPI) listProjectLatestFindings(ctx context.Context, actor qaR
 
 	listSQL := `
         select translation_key_id, key, source_path, target_locale, check_type, severity, category, message,
-               related_tokens, source_text, target_text
+               related_tokens, source_text, target_text, passage_id, reasoning_available
         from translation_qa_findings
         where ` + filterSQL + `
         order by key, check_type, id
@@ -546,13 +549,13 @@ func (api *qaReportAPI) listProjectLatestFindings(ctx context.Context, actor qaR
 		var (
 			key, targetLocale, checkTypeVal, severityVal, category, message string
 			sourceText, targetText                                          string
-			translationKeyID                                                *string
-			sourcePathVal                                                   *string
+			translationKeyID, sourcePathVal, passageID                      *string
 			relatedTokensRaw                                                []byte
+			reasoningAvailable                                              bool
 		)
 		if err := rows.Scan(
 			&translationKeyID, &key, &sourcePathVal, &targetLocale, &checkTypeVal, &severityVal, &category, &message,
-			&relatedTokensRaw, &sourceText, &targetText,
+			&relatedTokensRaw, &sourceText, &targetText, &passageID, &reasoningAvailable,
 		); err != nil {
 			return nil, 0, err
 		}
@@ -561,17 +564,19 @@ func (api *qaReportAPI) listProjectLatestFindings(ctx context.Context, actor qaR
 			_ = json.Unmarshal(relatedTokensRaw, &relatedTokens)
 		}
 		findings = append(findings, map[string]any{
-			"translationKeyId": translationKeyID,
-			"key":              key,
-			"sourcePath":       sourcePathVal,
-			"targetLocale":     targetLocale,
-			"checkType":        checkTypeVal,
-			"severity":         severityVal,
-			"category":         category,
-			"message":          message,
-			"relatedTokens":    relatedTokens,
-			"sourceText":       sourceText,
-			"targetText":       targetText,
+			"translationKeyId":   translationKeyID,
+			"key":                key,
+			"sourcePath":         sourcePathVal,
+			"targetLocale":       targetLocale,
+			"checkType":          checkTypeVal,
+			"severity":           severityVal,
+			"category":           category,
+			"message":            message,
+			"relatedTokens":      relatedTokens,
+			"sourceText":         sourceText,
+			"targetText":         targetText,
+			"passageId":          passageID,
+			"reasoningAvailable": reasoningAvailable,
 		})
 	}
 	if err := rows.Err(); err != nil {

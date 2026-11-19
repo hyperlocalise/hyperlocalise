@@ -205,6 +205,32 @@ func TestStatusBucketFiles(t *testing.T) {
 	})
 }
 
+func TestWriteStatusCSVKeepsLastDuplicateEntry(t *testing.T) {
+	entries := []storage.Entry{
+		{Key: "welcome", Namespace: "a.json", Locale: "fr", Value: ""},
+		{Key: "welcome", Namespace: "b.json", Locale: "fr", Value: "salut"},
+		{Key: "welcome", Namespace: "a.json", Locale: "fr", Value: "bonjour"},
+	}
+
+	var out bytes.Buffer
+	if err := writeStatusCSV(&out, entries, "en"); err != nil {
+		t.Fatalf("writeStatusCSV() error = %v", err)
+	}
+
+	rows, err := csv.NewReader(bytes.NewReader(out.Bytes())).ReadAll()
+	if err != nil {
+		t.Fatalf("parse csv: %v", err)
+	}
+	want := [][]string{
+		{"key", "namespace", "locale", "status", "origin", "state"},
+		{"welcome", "a.json", "fr", "translated", "", ""},
+		{"welcome", "b.json", "fr", "translated", "", ""},
+	}
+	if !reflect.DeepEqual(rows, want) {
+		t.Fatalf("csv rows mismatch\n got: %v\nwant: %v", rows, want)
+	}
+}
+
 func TestWriteStatusCSVSortsLocalesPerKey(t *testing.T) {
 	entries := []storage.Entry{
 		{Key: "welcome", Locale: "fr", Value: "bonjour"},

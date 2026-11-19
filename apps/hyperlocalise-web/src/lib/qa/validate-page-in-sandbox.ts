@@ -117,7 +117,7 @@ function outputBytes(output: string | undefined) {
   return output ? utf8Bytes(output) : 0;
 }
 
-/** Older sandbox CLIs reject an error severity. The scan does not run this check. */
+/** Older sandbox CLIs reject an error severity. The CLI does not run this check; go-svc does. */
 function cliQaPolicy(policy: QaCheckPolicy): QaCheckPolicy {
   return {
     ...policy,

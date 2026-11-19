@@ -53,17 +53,20 @@ var (
 		"not_localized": {}, "whitespace_only": {}, "same_as_source": {}, "escaped_char_mismatch": {},
 		"length": {}, "placeholder_mismatch": {}, "glossary_violation": {}, "format": {}, "spelling": {},
 		"numbers_mismatch": {}, "punctuation_mismatch": {}, "character_case_mismatch": {},
-		"unreachable_plural_case": {},
+		"unreachable_plural_case": {}, "guideline": {},
 	}
 	translationQaSeverities = map[string]struct{}{"error": {}, "warning": {}}
 )
 
 type qaSummary struct {
-	ByCheckType           map[string]int      `json:"byCheckType"`
-	BySeverity            map[string]int      `json:"bySeverity"`
-	ByLocale              map[string]int      `json:"byLocale"`
-	SkippedChecksByLocale map[string][]string `json:"skippedChecksByLocale,omitempty"`
-	CheckVersion          int                 `json:"checkVersion,omitempty"`
+	ByCheckType               map[string]int      `json:"byCheckType"`
+	BySeverity                map[string]int      `json:"bySeverity"`
+	ByLocale                  map[string]int      `json:"byLocale"`
+	SkippedChecksByLocale     map[string][]string `json:"skippedChecksByLocale,omitempty"`
+	CheckVersion              int                 `json:"checkVersion,omitempty"`
+	GuidelineCheckHaltCode    string              `json:"guidelineCheckHaltCode,omitempty"`
+	GuidelineChecksIncomplete bool                `json:"guidelineChecksIncomplete,omitempty"`
+	GuidelineKnowledgeSkipped bool                `json:"guidelineKnowledgeSkipped,omitempty"`
 }
 
 func emptyQaSummary() qaSummary {
@@ -376,7 +379,7 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
         select
             f.id, f.run_id, f.project_id, p.name, f.translation_key_id, f.key, f.source_path,
             f.target_locale, f.check_type, f.severity, f.category, f.message, f.related_tokens,
-            f.source_text, f.target_text
+            f.source_text, f.target_text, f.passage_id, f.reasoning_available
         from translation_qa_findings f
         inner join latest_succeeded_qa_run lr on lr.id = f.run_id
         inner join projects p on p.id = f.project_id
@@ -404,14 +407,14 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
 		var (
 			id, runID, projectID, projectName, key, targetLocale, checkType, severity, category, message string
 			sourceText, targetText                                                                       string
-			translationKeyID                                                                             *string
-			sourcePath                                                                                   *string
+			translationKeyID, sourcePath, passageID                                                      *string
 			relatedTokensRaw                                                                             []byte
+			reasoningAvailable                                                                           bool
 		)
 		if err := rows.Scan(
 			&id, &runID, &projectID, &projectName, &translationKeyID, &key, &sourcePath,
 			&targetLocale, &checkType, &severity, &category, &message, &relatedTokensRaw,
-			&sourceText, &targetText,
+			&sourceText, &targetText, &passageID, &reasoningAvailable,
 		); err != nil {
 			return nil, 0, err
 		}
@@ -421,22 +424,24 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
 		}
 		editorHref := buildTranslationQaFindingHref(actor.organizationSlug, projectID, sourcePath, targetLocale, key)
 		findings = append(findings, map[string]any{
-			"id":               id,
-			"runId":            runID,
-			"projectId":        projectID,
-			"projectName":      projectName,
-			"translationKeyId": translationKeyID,
-			"key":              key,
-			"sourcePath":       sourcePath,
-			"targetLocale":     targetLocale,
-			"checkType":        checkType,
-			"severity":         severity,
-			"category":         category,
-			"message":          message,
-			"relatedTokens":    relatedTokens,
-			"sourceText":       sourceText,
-			"targetText":       targetText,
-			"editorHref":       editorHref,
+			"id":                 id,
+			"runId":              runID,
+			"projectId":          projectID,
+			"projectName":        projectName,
+			"translationKeyId":   translationKeyID,
+			"key":                key,
+			"sourcePath":         sourcePath,
+			"targetLocale":       targetLocale,
+			"checkType":          checkType,
+			"severity":           severity,
+			"category":           category,
+			"message":            message,
+			"relatedTokens":      relatedTokens,
+			"sourceText":         sourceText,
+			"targetText":         targetText,
+			"passageId":          passageID,
+			"reasoningAvailable": reasoningAvailable,
+			"editorHref":         editorHref,
 		})
 	}
 	if err := rows.Err(); err != nil {

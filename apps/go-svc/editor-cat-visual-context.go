@@ -455,6 +455,9 @@ func (api *editorCatAPI) bindVisualContextScreenshot(r *http.Request, actor edit
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, keyID); err != nil {
+		return nil, 0, err
+	}
 	binding, err := insertVisualContextBinding(r, api.pool, actor, project, screenshotID, keyID, body.Marker)
 	if err != nil {
 		return nil, 0, err
@@ -475,6 +478,22 @@ func (api *editorCatAPI) unbindVisualContextScreenshot(r *http.Request, actor ed
 	}
 	bindingID, err := parseEditorCatUUID(r.PathValue("bindingId"))
 	if err != nil {
+		return nil, 0, err
+	}
+	var translationKeyID string
+	err = api.pool.QueryRow(r.Context(), `
+        select translation_key_id
+        from project_visual_context_bindings
+        where id=$1 and screenshot_id=$2 and organization_id=$3 and project_id=$4`,
+		bindingID, screenshotID, actor.organizationID, project.ID,
+	).Scan(&translationKeyID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, 0, editorCatFailure(404, "visual_context_binding_not_found", "Visual context binding not found")
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, translationKeyID); err != nil {
 		return nil, 0, err
 	}
 	tag, err := api.pool.Exec(r.Context(), `

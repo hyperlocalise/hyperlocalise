@@ -34,6 +34,7 @@ export async function translationQaScanWorkflow(event: TranslationQaScanEventDat
 
   try {
     let afterKeyId: string | null = null;
+    let guidelineBatchOffset: number | undefined;
     for (let page = 0; page < MAX_SCAN_PAGES; page += 1) {
       const result = await scanTranslationQaPageStep({
         runId: event.runId,
@@ -41,11 +42,13 @@ export async function translationQaScanWorkflow(event: TranslationQaScanEventDat
         projectId: event.projectId,
         afterKeyId,
         page,
+        guidelineBatchOffset,
       });
       if (result.done) {
         break;
       }
       afterKeyId = result.afterKeyId;
+      guidelineBatchOffset = result.guidelineBatchOffset;
     }
 
     failureCode = "qa_scan_finalization_failed";

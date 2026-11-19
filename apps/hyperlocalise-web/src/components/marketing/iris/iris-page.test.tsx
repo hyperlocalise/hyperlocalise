@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -42,7 +42,13 @@ describe("IrisPage", () => {
       "href",
       irisMacDownloadUrl("arm64"),
     );
-    expect(screen.getByRole("button", { name: "Intel Mac" })).toHaveAttribute(
+
+    fireEvent.click(screen.getByRole("button", { name: "More Mac downloads" }));
+    expect(await screen.findByRole("menuitem", { name: "Apple Silicon Mac" })).toHaveAttribute(
+      "href",
+      irisMacDownloadUrl("arm64"),
+    );
+    expect(screen.getByRole("menuitem", { name: "Intel Mac" })).toHaveAttribute(
       "href",
       irisMacDownloadUrl("x64"),
     );

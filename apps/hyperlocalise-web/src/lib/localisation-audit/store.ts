@@ -48,6 +48,8 @@ export type ClaimLocalisationAuditOutcome =
   | "reclaimed"
   | "created";
 
+const SCHEDULED_QUOTA_WINDOW_GRACE_MS = 60 * 60 * 1000;
+
 function now() {
   return new Date();
 }
@@ -96,6 +98,15 @@ export function isLocalisationAuditRerunnable(audit: LocalisationAuditRow) {
   return availableAt != null && Date.now() >= availableAt.getTime();
 }
 
+/** True when `claimOrReuseLocalisationAudit` would start a new attempt instead of reusing this row. */
+export function isLocalisationAuditClaimable(audit: LocalisationAuditRow) {
+  if (isActiveAudit(audit)) return false;
+  if (audit.status === "succeeded" && audit.report) {
+    return isLocalisationAuditRerunnable(audit);
+  }
+  return true;
+}
+
 export function isLocalisationAuditRetryable(audit: LocalisationAuditRow) {
   if (audit.status === "failed") return true;
   if (audit.status === "succeeded") return audit.report == null;
@@ -124,6 +135,14 @@ export async function findLocalisationAuditByDomainKey(
     .where(eq(schema.localisationAudits.domainKey, domainKey))
     .limit(1);
   return row ?? null;
+}
+
+export async function listLocalisationAuditsByDomainKeys(domainKeys: string[]) {
+  if (domainKeys.length === 0) return [];
+  return db
+    .select()
+    .from(schema.localisationAudits)
+    .where(inArray(schema.localisationAudits.domainKey, domainKeys));
 }
 
 export async function findLocalisationAuditById(auditId: string) {
@@ -291,7 +310,13 @@ async function assertLocalisationAuditDailyQuotaAvailable(
   if (!localisationAuditRunConsumesDailyQuota(lastAttemptAt)) {
     return;
   }
-  const cutoff = new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS);
+  // The daily cron can fire a little earlier than the day before. The grace keeps
+  // yesterday's scheduled runs out of today's window.
+  const windowMs =
+    runSource === "scheduled"
+      ? LOCALISATION_AUDIT_RERUN_MS - SCHEDULED_QUOTA_WINDOW_GRACE_MS
+      : LOCALISATION_AUDIT_RERUN_MS;
+  const cutoff = new Date(Date.now() - windowMs);
   const [row] = await client
     .select({ count: sql<number>`count(*)`.mapWith(Number) })
     .from(schema.localisationAudits)

@@ -195,6 +195,7 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
 
   return {
     projects,
+    projectsLoading: projectsQuery.isLoading,
     members: membersQuery.data ?? [],
     teams: teamsQuery.data ?? [],
     repositories,

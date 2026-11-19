@@ -47,6 +47,9 @@ func (api *editorCatAPI) setTags(r *http.Request, actor editorCatActor, project 
 		!keymeta.ValidTags(body.RemoveTags, keymeta.MaxTagsPerChange) {
 		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
+	if err := api.rejectProtectedKeys(r.Context(), project.ID, ids); err != nil {
+		return nil, 0, err
+	}
 	tags := keymeta.TagsAfterChangeSQL("tags", 4, 5)
 	sql := `update project_translation_keys set tags = ` + tags + `, updated_at=now()
         where organization_id=$1 and project_id=$2 and id = any($3::uuid[]) and tags is distinct from ` + tags
@@ -114,6 +117,9 @@ func (api *editorCatAPI) setDesignURL(r *http.Request, actor editorCatActor, pro
 	keyID, err := api.requireTranslationKey(r, actor, project, trimEditorCat(body.SourcePath), body.ExternalStringID)
 	if err != nil {
 		return nil, 0, editorCatFailure(404, "translation_key_not_found", "Translation key not found")
+	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, keyID); err != nil {
+		return nil, 0, err
 	}
 	var saved *string
 	err = api.pool.QueryRow(r.Context(), `
