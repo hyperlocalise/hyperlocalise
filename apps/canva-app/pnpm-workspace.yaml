@@ -18,13 +18,6 @@ overrides:
   qs: "6.17.1"
   browserslist: "4.29.5"
   vite@*: "catalog:"
-  vitest: "catalog:"
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@1.6.0
-  vite-plus: 1.6.0
-  vitest: 5.1.0
-peerDependencyRules:
-  allowAny:
-    - vite
-  allowedVersions:
-    vite: "*"
+  vite: npm:@voidzero-dev/vite-plus-core@8.3.8000
+  vite-plus: 1.7.0
