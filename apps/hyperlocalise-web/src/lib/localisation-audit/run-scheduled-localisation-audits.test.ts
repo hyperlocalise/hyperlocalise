@@ -55,10 +55,12 @@ function auditRow(input: {
   url: string;
   lastAttemptAt: Date;
   claimable?: boolean;
+  status?: LocalisationAuditRow["status"];
 }): LocalisationAuditRow & { claimable: boolean } {
   return {
     id: `audit-${input.url}`,
     domainKey: domainKey(input.url),
+    status: input.status ?? "succeeded",
     lastAttemptAt: input.lastAttemptAt,
     claimable: input.claimable ?? true,
   } as LocalisationAuditRow & { claimable: boolean };
@@ -140,6 +142,28 @@ describe("runScheduledLocalisationAudits", () => {
       failed: 1,
       quotaExceeded: false,
     });
+  });
+
+  it("skips sites whose last audit was blocked", async () => {
+    storeMocks.listLocalisationAuditsByDomainKeys.mockResolvedValue([
+      auditRow({
+        url: sites[0].url,
+        lastAttemptAt: new Date("2026-10-01T00:00:00Z"),
+        status: "blocked",
+      }),
+    ]);
+
+    const results = await runScheduledLocalisationAudits({
+      limit: 4,
+      queue: createQueue(),
+      sites,
+    });
+
+    expect(results).toMatchObject({ eligible: 3, started: 3 });
+    const claimedKeys = storeMocks.claimOrReuseLocalisationAudit.mock.calls.map(
+      ([input]) => input.domainKey,
+    );
+    expect(claimedKeys).not.toContain(domainKey(sites[0].url));
   });
 
   it("stops when the scheduled quota is exhausted", async () => {

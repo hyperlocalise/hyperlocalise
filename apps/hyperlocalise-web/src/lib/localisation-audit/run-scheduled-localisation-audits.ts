@@ -44,7 +44,8 @@ type ResolvedSite = ScheduledLocalisationAuditSite & { identity: DomainIdentity 
 
 /**
  * Sites without an audit come first, then the ones audited longest ago.
- * Sites with an active run or a report from the last 24h are skipped.
+ * Sites with an active run, a report from the last 24h, or a blocked audit are skipped.
+ * A blocked site stays out of the rotation until someone re-runs it by hand.
  */
 async function listDueSites(
   sites: readonly ScheduledLocalisationAuditSite[],
@@ -66,7 +67,10 @@ async function listDueSites(
 
   const eligible = resolved
     .map((site, index) => ({ site, index, audit: auditsByKey.get(site.identity.domainKey) }))
-    .filter(({ audit }) => audit == null || isLocalisationAuditClaimable(audit))
+    .filter(
+      ({ audit }) =>
+        audit == null || (audit.status !== "blocked" && isLocalisationAuditClaimable(audit)),
+    )
     .sort((a, b) => {
       const aTime = a.audit?.lastAttemptAt?.getTime() ?? -1;
       const bTime = b.audit?.lastAttemptAt?.getTime() ?? -1;
