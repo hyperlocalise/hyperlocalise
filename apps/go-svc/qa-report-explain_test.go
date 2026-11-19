@@ -150,3 +150,86 @@ func assertGuidelineFindingUnchanged(t *testing.T, scope *testenv.Scope, finding
 	require.Equal(t, message, stored)
 	require.True(t, reasoning)
 }
+
+func TestQaFindingExplainHidesOtherOrgAndOtherTeamProjects(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "translator")
+	_, err := scope.Pool.Exec(t.Context(), `update projects set source_locale = 'en-US' where id = $1`, scope.ProjectID)
+	require.NoError(t, err)
+	teamID := scope.MustTeam(t, "platform", "Platform", "")
+	_, err = scope.Pool.Exec(t.Context(), `update projects set team_id = $1 where id = $2`, teamID, scope.ProjectID)
+	require.NoError(t, err)
+	runID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 0, 1)
+	findingID := insertExplainableGuidelineFinding(t, scope, runID, "greeting")
+	checker := &stubGuidelineChecker{result: check.Result{Findings: []check.Finding{{
+		SegmentID: "greeting", Field: check.FieldTarget, Message: "Use vous.",
+	}}}}
+	api.guidelines = &guidelineCheckAPI{checker: checker}
+
+	hiddenTeam := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/qa-reports/findings/"+findingID+"/explain"), "")
+	require.Equal(t, http.StatusNotFound, hiddenTeam.Code, hiddenTeam.Body.String())
+	require.Contains(t, hiddenTeam.Body.String(), "project_not_found")
+	require.Zero(t, checker.calls)
+
+	other := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
+	otherRun := mustQaRun(t, other, other.ProjectID, "succeeded", 1, 0, 1)
+	otherFinding := insertExplainableGuidelineFinding(t, other, otherRun, "greeting")
+	hiddenOrg := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/qa-reports/findings/"+otherFinding+"/explain"), "")
+	require.Equal(t, http.StatusNotFound, hiddenOrg.Code, hiddenOrg.Body.String())
+	require.Contains(t, hiddenOrg.Body.String(), "qa_finding_not_found")
+	require.Zero(t, checker.calls)
+}
+
+func TestQaFindingExplainConflictsWhenAnotherExplainWins(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	_, err := scope.Pool.Exec(t.Context(), `update projects set source_locale = 'en-US' where id = $1`, scope.ProjectID)
+	require.NoError(t, err)
+	runID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 0, 1)
+	findingID := insertExplainableGuidelineFinding(t, scope, runID, "greeting")
+	original := "This text may not match a project guideline."
+	checker := &explainLockStealer{
+		scope:     scope,
+		findingID: findingID,
+		result: check.Result{Findings: []check.Finding{{
+			SegmentID: "greeting", Field: check.FieldTarget, Message: "Use vous.",
+		}}},
+	}
+	api.guidelines = &guidelineCheckAPI{checker: checker}
+
+	rec := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/qa-reports/findings/"+findingID+"/explain"), "")
+	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "qa_finding_not_explainable")
+	require.Equal(t, 1, checker.calls)
+	var stored string
+	var reasoning bool
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `
+        select message, reasoning_available from translation_qa_findings where id = $1`, findingID).
+		Scan(&stored, &reasoning))
+	require.Equal(t, original, stored)
+	require.False(t, reasoning)
+}
+
+type explainLockStealer struct {
+	scope     *testenv.Scope
+	findingID string
+	result    check.Result
+	calls     int
+}
+
+func (s *explainLockStealer) CheckBeforeModel(context.Context, guidelines.Scope, check.Request, func(context.Context) error) (check.Result, error) {
+	return check.Result{}, nil
+}
+
+func (s *explainLockStealer) ExplainBeforeModel(ctx context.Context, _ guidelines.Scope, _ check.ExplainRequest, before func(context.Context) error) (check.Result, error) {
+	s.calls++
+	if before != nil {
+		if err := before(ctx); err != nil {
+			return check.Result{}, err
+		}
+	}
+	_, err := s.scope.Pool.Exec(ctx, `
+		update translation_qa_findings set reasoning_available = false where id = $1`, s.findingID)
+	if err != nil {
+		return check.Result{}, err
+	}
+	return s.result, nil
+}

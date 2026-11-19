@@ -21,7 +21,9 @@ import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { SAMPLE_PROJECTS } from "@/lib/sample-workspace/sample-workspace-content";
+import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -134,5 +136,41 @@ describe("sampleWorkspaceRoutes", () => {
 
     const response = await sampleWorkspace.$post({ param: param(member) }, await headers(member));
     expect(response.status).toBe(403);
+  });
+
+  it("loads sample projects even when the workspace already has a project", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const auth = await headers(admin);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext!.user.localUserId;
+    const team = await ensureDefaultWorkspaceTeam(organizationId);
+    const [existing] = await db
+      .insert(schema.projects)
+      .values({
+        id: `project_${crypto.randomUUID()}`,
+        identifier: uniqueTestProjectIdentifier(),
+        organizationId,
+        teamId: team.id,
+        createdByUserId: userId,
+        name: "Customer project",
+        description: "",
+        translationContext: "",
+        source: "native",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .returning({ id: schema.projects.id });
+
+    const loaded = await sampleWorkspace.$post({ param: param(admin) }, auth);
+    expect(loaded.status).toBe(201);
+    const body = (await loaded.json()) as { sampleWorkspace: { projects: { id: string }[] } };
+    expect(body.sampleWorkspace.projects).toHaveLength(SAMPLE_PROJECTS.length);
+    expect(body.sampleWorkspace.projects.map((project) => project.id)).not.toContain(existing!.id);
+
+    const projects = await db
+      .select({ id: schema.projects.id })
+      .from(schema.projects)
+      .where(eq(schema.projects.organizationId, organizationId));
+    expect(projects).toHaveLength(SAMPLE_PROJECTS.length + 1);
   });
 });
