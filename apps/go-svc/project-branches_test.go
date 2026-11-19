@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
@@ -37,6 +38,26 @@ func TestProjectBranchesCreateSyncMergeAndDelete(t *testing.T) {
 	require.NoError(t, scope.Pool.QueryRow(ctx, `
 		select id::text from repository_source_files where project_id = $1 and branch_name = 'main'`,
 		scope.ProjectID).Scan(&fileID))
+	storedID := "file_" + fileID
+	_, err = scope.Pool.Exec(ctx, `
+		insert into stored_files (
+			id, organization_id, role, source_kind, storage_provider, storage_key, storage_url,
+			filename, content_type, byte_size, sha256
+		) values ($1, $2, 'source', 'repository_file', 'test', $1, $1, 'en.json', 'application/json', 2, 'x')`,
+		storedID, scope.OrganizationID)
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(ctx, `
+		with version as (
+			insert into repository_source_file_versions (
+				organization_id, project_id, repository_source_file_id, source_path, stored_file_id, source_hash
+			) values ($1, $2, $3, 'lang/en.json', $4, 'sha256:x')
+			returning id
+		)
+		update repository_source_files
+		set reconciled_source_file_version_id = (select id from version)
+		where id = $3`,
+		scope.OrganizationID, scope.ProjectID, fileID, storedID)
+	require.NoError(t, err)
 	_, err = scope.Pool.Exec(ctx, `
 		insert into project_translation_keys (
 			organization_id, project_id, repository_source_file_id, key, branch_name, source_text, normalized_source_text
@@ -48,6 +69,13 @@ func TestProjectBranchesCreateSyncMergeAndDelete(t *testing.T) {
 		"name": "feature-checkout", "title": "Checkout", "baseBranchName": "main",
 	})
 	require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
+
+	var clonedReconciled bool
+	require.NoError(t, scope.Pool.QueryRow(ctx, `
+		select reconciled_source_file_version_id is not null
+		from repository_source_files
+		where project_id = $1 and branch_name = 'feature-checkout'`, scope.ProjectID).Scan(&clonedReconciled))
+	require.True(t, clonedReconciled, "clone keeps the reconciled source version")
 
 	var featureKeys int
 	require.NoError(t, scope.Pool.QueryRow(ctx, `
@@ -88,10 +116,13 @@ func TestProjectBranchesCreateSyncMergeAndDelete(t *testing.T) {
 	})
 	require.Equal(t, http.StatusOK, merged.Code, merged.Body.String())
 	var added int
+	var addedNormalized string
 	require.NoError(t, scope.Pool.QueryRow(ctx, `
-		select count(*) from project_translation_keys
-		where project_id = $1 and branch_name = 'main' and key = 'new_key'`, scope.ProjectID).Scan(&added))
+		select count(*), coalesce(max(normalized_source_text), '')
+		from project_translation_keys
+		where project_id = $1 and branch_name = 'main' and key = 'new_key'`, scope.ProjectID).Scan(&added, &addedNormalized))
 	require.Equal(t, 1, added)
+	require.Equal(t, "new", addedNormalized)
 
 	child := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/branches"), map[string]any{
 		"name": "child", "baseBranchName": "main", "clone": false,
@@ -117,6 +148,29 @@ func TestProjectBranchesCreateSyncMergeAndDelete(t *testing.T) {
 	})
 	require.Equal(t, http.StatusConflict, upload.Code, upload.Body.String())
 	require.Contains(t, upload.Body.String(), "protected_branch")
+
+	// Translation import always writes main, so naming another branch does not skip protection.
+	imported := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/files/translations/import"), map[string]any{
+		"branch":     "feature-checkout",
+		"sourcePath": "lang/en.json",
+		"locale":     "fr",
+	})
+	require.Equal(t, http.StatusConflict, imported.Code, imported.Body.String())
+	require.Contains(t, imported.Body.String(), "protected_branch")
+
+	settings := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/files/settings"), map[string]any{
+		"sourcePath": "lang/en.json",
+		"kind":       "import",
+		"settings":   map[string]any{},
+	})
+	require.Equal(t, http.StatusConflict, settings.Code, settings.Body.String())
+	require.Contains(t, settings.Body.String(), "protected_branch")
+
+	longTitle := projectMutationRequest(api, scope, http.MethodPatch, scope.OrgPath("/projects/"+scope.ProjectID+"/branches/main"), map[string]any{
+		"title": strings.Repeat("a", 257),
+	})
+	require.Equal(t, http.StatusBadRequest, longTitle.Code, longTitle.Body.String())
+	require.Contains(t, longTitle.Body.String(), "invalid_branch_title")
 }
 
 func TestProjectBranchWritesForbidMembers(t *testing.T) {

@@ -1,6 +1,9 @@
 package nativeproject
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestValidBranchName(t *testing.T) {
 	t.Parallel()
@@ -21,6 +24,26 @@ func TestValidBranchName(t *testing.T) {
 
 func stringsRepeat() string {
 	return "a" + string(make([]byte, branchNameMax))
+}
+
+func TestBranchTitleLength(t *testing.T) {
+	t.Parallel()
+	if err := validateBranchTitle(nil); err != nil {
+		t.Fatal(err)
+	}
+	ok := "Checkout"
+	if err := validateBranchTitle(&ok); err != nil {
+		t.Fatal(err)
+	}
+	long := strings.Repeat("a", branchTitleMax+1)
+	code, isBranchErr := AsError(validateBranchTitle(&long))
+	if !isBranchErr || code != "invalid_branch_title" {
+		t.Fatalf("validateBranchTitle = %v, %v", code, isBranchErr)
+	}
+	spaces := "   "
+	if err := validateBranchTitle(trimmedTitle(&spaces)); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestResolveBranchName(t *testing.T) {

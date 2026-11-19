@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -35,7 +36,10 @@ func AsError(err error) (string, bool) {
 	return "", false
 }
 
-const branchNameMax = 128
+const (
+	branchNameMax  = 128
+	branchTitleMax = 256
+)
 
 // Go's regexp is RE2 and has no lookahead, so "//" is rejected separately.
 var branchNamePattern = regexp.MustCompile(`^[A-Za-z0-9._](?:[A-Za-z0-9._/-]{0,126}[A-Za-z0-9._])?$`)
@@ -186,6 +190,13 @@ func CreateBranch(ctx context.Context, pool Pool, input CreateBranchInput) (Bran
 	if !ValidBranchName(name) {
 		return BranchRecord{}, branchErr("invalid_branch_name")
 	}
+	if input.BaseBranchName != nil && strings.TrimSpace(*input.BaseBranchName) != "" && !ValidBranchName(*input.BaseBranchName) {
+		return BranchRecord{}, branchErr("invalid_branch_name")
+	}
+	title := trimmedTitle(input.Title)
+	if err := validateBranchTitle(title); err != nil {
+		return BranchRecord{}, err
+	}
 	taken, err := findActiveByName(ctx, pool, input.ProjectID, name)
 	if err != nil {
 		return BranchRecord{}, err
@@ -209,7 +220,7 @@ func CreateBranch(ctx context.Context, pool Pool, input CreateBranchInput) (Bran
 		insert into project_branches (organization_id, project_id, name, title, base_branch_id, created_by_user_id)
 		values ($1, $2, $3, $4, $5, $6)
 		returning `+branchColumns,
-		input.OrganizationID, input.ProjectID, name, trimmedTitle(input.Title), base.ID, nullableUser(input.CreatedByUserID)))
+		input.OrganizationID, input.ProjectID, name, title, base.ID, nullableUser(input.CreatedByUserID)))
 	if err != nil {
 		if mapped := mapWriteError(err); mapped != nil {
 			return BranchRecord{}, mapped
@@ -248,6 +259,9 @@ func UpdateBranch(ctx context.Context, db DB, input UpdateBranchInput) (BranchRe
 	title := row.Title
 	if input.TitleSet {
 		title = trimmedTitle(input.Title)
+		if err := validateBranchTitle(title); err != nil {
+			return BranchRecord{}, err
+		}
 	}
 	protected := row.IsProtected
 	if input.IsProtected != nil {
@@ -297,6 +311,9 @@ func DeleteBranch(ctx context.Context, pool Pool, projectID, name string) error 
 
 // PreviewMerge diffs source onto its parent, or onto targetName when set.
 func PreviewMerge(ctx context.Context, db DB, projectID, sourceName string, targetName *string) ([]MergeChange, error) {
+	if err := validateOptionalBranchName(targetName); err != nil {
+		return nil, err
+	}
 	source, target, err := mergePair(ctx, db, projectID, sourceName, targetName)
 	if err != nil {
 		return nil, err
@@ -316,6 +333,9 @@ type MergeBranchInput struct {
 // MergeBranch copies accepted changes onto the parent and marks the source merged.
 // deleteAfter defaults to true, which removes the source branch's files and keys.
 func MergeBranch(ctx context.Context, pool Pool, input MergeBranchInput) (BranchRecord, error) {
+	if err := validateOptionalBranchName(input.TargetName); err != nil {
+		return BranchRecord{}, err
+	}
 	changes, err := PreviewMerge(ctx, pool, input.ProjectID, input.SourceName, input.TargetName)
 	if err != nil {
 		return BranchRecord{}, err
@@ -562,6 +582,23 @@ func trimmedTitle(value *string) *string {
 	return &trimmed
 }
 
+func validateBranchTitle(title *string) error {
+	if title != nil && len([]rune(*title)) > branchTitleMax {
+		return branchErr("invalid_branch_title")
+	}
+	return nil
+}
+
+func validateOptionalBranchName(name *string) error {
+	if name == nil || strings.TrimSpace(*name) == "" {
+		return nil
+	}
+	if !ValidBranchName(*name) {
+		return branchErr("invalid_branch_name")
+	}
+	return nil
+}
+
 func nullableUser(id string) any {
 	if id == "" {
 		return nil
@@ -758,6 +795,30 @@ func copyBranchContent(ctx context.Context, db DB, projectID, fromName, toName s
 		where ofile.project_id = $1 and ofile.branch_name = $2`, projectID, fromName, toName); err != nil {
 		return err
 	}
+	// Point the clone at the copied version when that version is the one the
+	// source file has reconciled. Downloads and source-text edits read this id.
+	if _, err := db.Exec(ctx, `
+		update repository_source_files nf
+		set reconciled_source_file_version_id = (
+			select id
+			from repository_source_file_versions
+			where repository_source_file_id = nf.id
+			order by created_at desc, id desc
+			limit 1
+		)
+		from repository_source_files ofile
+		where ofile.project_id = $1 and ofile.branch_name = $2
+			and nf.project_id = ofile.project_id and nf.branch_name = $3
+			and nf.source_path = ofile.source_path
+			and ofile.reconciled_source_file_version_id = (
+				select id
+				from repository_source_file_versions
+				where repository_source_file_id = ofile.id
+				order by created_at desc, id desc
+				limit 1
+			)`, projectID, fromName, toName); err != nil {
+		return err
+	}
 	if _, err := db.Exec(ctx, `
 		insert into project_translation_keys (
 			organization_id, project_id, repository_source_file_id, key, branch_name,
@@ -849,11 +910,25 @@ func applyBranchChanges(
 				fileID = &id
 			} else {
 				var created string
-				if err := db.QueryRow(ctx, `
-					insert into repository_source_files (organization_id, project_id, source_path, branch_name)
-					values ($1, $2, $3, $4)
+				err := db.QueryRow(ctx, `
+					insert into repository_source_files (
+						organization_id, project_id, source_path, branch_name,
+						segmentation_settings, message_format, placeholder_patterns, import_settings
+					)
+					select organization_id, project_id, source_path, $4,
+						segmentation_settings, message_format, placeholder_patterns, import_settings
+					from repository_source_files
+					where project_id = $2 and branch_name = $5 and source_path = $3
 					returning id::text`,
-					organizationID, projectID, *change.SourcePath, targetBranch).Scan(&created); err != nil {
+					organizationID, projectID, *change.SourcePath, targetBranch, sourceBranch).Scan(&created)
+				if errors.Is(err, pgx.ErrNoRows) {
+					err = db.QueryRow(ctx, `
+						insert into repository_source_files (organization_id, project_id, source_path, branch_name)
+						values ($1, $2, $3, $4)
+						returning id::text`,
+						organizationID, projectID, *change.SourcePath, targetBranch).Scan(&created)
+				}
+				if err != nil {
 					return err
 				}
 				fileID = &created
@@ -863,6 +938,7 @@ func applyBranchChanges(
 				}
 			}
 		}
+		normalized := memoryinterchange.NormalizeSourceText(snapshot.sourceText)
 		var keyID string
 		err := db.QueryRow(ctx, `
 			select id::text from project_translation_keys
@@ -874,18 +950,18 @@ func applyBranchChanges(
 				insert into project_translation_keys (
 					organization_id, project_id, repository_source_file_id, key, branch_name,
 					source_text, normalized_source_text, context, type, max_length, tags, is_hidden
-				) values ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9, $10, $11)
+				) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 				returning id::text`,
-				organizationID, projectID, fileID, snapshot.key, targetBranch, snapshot.sourceText,
+				organizationID, projectID, fileID, snapshot.key, targetBranch, snapshot.sourceText, normalized,
 				snapshot.context, snapshot.keyType, snapshot.maxLength, snapshot.tags, snapshot.isHidden,
 			).Scan(&keyID)
 		} else if err == nil {
 			_, err = db.Exec(ctx, `
 				update project_translation_keys
-				set source_text = $2, normalized_source_text = $2, context = $3, type = $4,
-					max_length = $5, tags = $6, is_hidden = $7, updated_at = now()
+				set source_text = $2, normalized_source_text = $3, context = $4, type = $5,
+					max_length = $6, tags = $7, is_hidden = $8, updated_at = now()
 				where id = $1`,
-				keyID, snapshot.sourceText, snapshot.context, snapshot.keyType, snapshot.maxLength, snapshot.tags, snapshot.isHidden)
+				keyID, snapshot.sourceText, normalized, snapshot.context, snapshot.keyType, snapshot.maxLength, snapshot.tags, snapshot.isHidden)
 		}
 		if err != nil {
 			return err
@@ -920,6 +996,30 @@ func copyLatestVersion(ctx context.Context, db DB, projectID, sourceBranch, sour
 			limit 1
 		) v on true
 		where f.project_id = $1 and f.branch_name = $2 and f.source_path = $3`,
+		projectID, sourceBranch, sourcePath, targetFileID)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(ctx, `
+		update repository_source_files target
+		set reconciled_source_file_version_id = (
+			select id from repository_source_file_versions
+			where repository_source_file_id = target.id
+			order by created_at desc, id desc
+			limit 1
+		)
+		where target.id = $4::uuid
+			and exists (
+				select 1
+				from repository_source_files source
+				join lateral (
+					select id from repository_source_file_versions
+					where repository_source_file_id = source.id
+					order by created_at desc, id desc
+					limit 1
+				) latest on latest.id = source.reconciled_source_file_version_id
+				where source.project_id = $1 and source.branch_name = $2 and source.source_path = $3
+			)`,
 		projectID, sourceBranch, sourcePath, targetFileID)
 	return err
 }

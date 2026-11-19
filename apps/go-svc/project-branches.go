@@ -219,6 +219,8 @@ func branchFailure(err error) error {
 	switch code {
 	case "invalid_branch_name":
 		return projectFailure(http.StatusBadRequest, code, "Enter a valid branch name.")
+	case "invalid_branch_title":
+		return projectFailure(http.StatusBadRequest, code, "Title must be 256 characters or fewer.")
 	case "branch_not_found":
 		return projectFailure(http.StatusNotFound, code, "Branch not found.")
 	case "branch_name_taken":
@@ -242,8 +244,32 @@ func branchFailure(err error) error {
 	}
 }
 
-func (api *projectAPI) rejectProtectedBranchWrite(r *http.Request, actor projectActor, projectID string, body map[string]any) error {
-	branch, _ := body["branch"].(string)
+func (api *projectAPI) rejectProtectedBranchWrite(r *http.Request, actor projectActor, projectID, action string, body map[string]any) error {
+	switch action {
+	case "import_translations":
+		// The importer always writes the default branch, so a client-supplied
+		// branch name cannot choose a different line of work.
+		return api.assertProjectBranchWritable(r, actor, projectID, "")
+	case "use_translation_as_source":
+		// A send reads this project and writes the destination's default branch.
+		destinationID, _ := body["destinationProjectId"].(string)
+		destinationID = strings.TrimSpace(destinationID)
+		if destinationID == "" || destinationID == projectID {
+			return nil
+		}
+		if err := api.requireAccessibleNativeProject(r.Context(), actor, destinationID); err != nil {
+			return err
+		}
+		return api.assertProjectBranchWritable(r, actor, destinationID, "")
+	case "file_settings_patch":
+		return api.rejectProtectedFileSettings(r, actor, projectID, body)
+	default:
+		branch, _ := body["branch"].(string)
+		return api.assertProjectBranchWritable(r, actor, projectID, branch)
+	}
+}
+
+func (api *projectAPI) assertProjectBranchWritable(r *http.Request, actor projectActor, projectID, branch string) error {
 	if err := nativeproject.EnsureDefaultBranch(r.Context(), api.pool, actor.organizationID, projectID, actor.userID); err != nil {
 		return err
 	}
@@ -251,4 +277,46 @@ func (api *projectAPI) rejectProtectedBranchWrite(r *http.Request, actor project
 		return branchFailure(err)
 	}
 	return nil
+}
+
+func (api *projectAPI) rejectProtectedFileSettings(r *http.Request, actor projectActor, projectID string, body map[string]any) error {
+	sourcePath, _ := body["sourcePath"].(string)
+	sourcePath = normalizeWorkflowSourcePath(sourcePath)
+	if sourcePath == "" {
+		return nil
+	}
+	if err := nativeproject.EnsureDefaultBranch(r.Context(), api.pool, actor.organizationID, projectID, actor.userID); err != nil {
+		return err
+	}
+	// File settings are stored on the file row. The same path can exist on more
+	// than one branch, and the writer does not name which row it updates, so a
+	// protected branch at that path blocks the write.
+	var protected bool
+	err := api.pool.QueryRow(r.Context(), `
+		select exists (
+			select 1
+			from repository_source_files f
+			join project_branches b
+				on b.project_id = f.project_id and b.name = f.branch_name
+				and b.status = 'active' and b.is_protected
+			where f.organization_id = $1 and f.project_id = $2 and f.source_path = $3
+		)`, actor.organizationID, projectID, sourcePath).Scan(&protected)
+	if err != nil {
+		return err
+	}
+	if !protected {
+		return nil
+	}
+	return branchFailure(&nativeproject.Error{Code: "protected_branch"})
+}
+
+func normalizeWorkflowSourcePath(value string) string {
+	value = strings.ReplaceAll(strings.TrimSpace(value), "\\", "/")
+	for strings.HasPrefix(value, "./") {
+		value = strings.TrimPrefix(value, "./")
+	}
+	for strings.Contains(value, "//") {
+		value = strings.ReplaceAll(value, "//", "/")
+	}
+	return value
 }

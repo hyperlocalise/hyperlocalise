@@ -303,6 +303,9 @@ func (api *editorCatAPI) restoreSegmentRevision(r *http.Request, actor editorCat
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, keyID); err != nil {
+		return nil, 0, err
+	}
 	tx, err := api.pool.Begin(r.Context())
 	if err != nil {
 		return nil, 0, err
@@ -441,6 +444,9 @@ func (api *editorCatAPI) undoOperation(r *http.Request, actor editorCatActor, pr
 	for _, member := range members {
 		keyIDs = append(keyIDs, member.keyID)
 		keysByLocale[member.targetLocale] = append(keysByLocale[member.targetLocale], member.keyID)
+	}
+	if err := api.rejectProtectedKeys(r.Context(), project.ID, uniqueEditorCatIDs(keyIDs, editorCatMaxGroupSaveOccurrences)); err != nil {
+		return nil, 0, err
 	}
 	if err := lockEditorCatKeys(r.Context(), tx, actor, project, uniqueEditorCatIDs(keyIDs, editorCatMaxGroupSaveOccurrences)); err != nil {
 		return nil, 0, err
