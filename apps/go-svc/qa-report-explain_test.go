@@ -72,8 +72,8 @@ func TestQaFindingExplainReplacesClassifierCopy(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "Use vous. Suggestion: vous")
 	require.Equal(t, 1, checker.calls)
 	require.Equal(t, []string{"p1"}, checker.last.PassageIDs)
-	require.Equal(t, "en-US", checker.last.Request.SourceLocale)
-	require.Equal(t, "fr-FR", checker.last.Request.TargetLocale)
+	require.Equal(t, "en-US", checker.last.SourceLocale)
+	require.Equal(t, "fr-FR", checker.last.TargetLocale)
 
 	var message string
 	var reasoning bool
