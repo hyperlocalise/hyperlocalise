@@ -1,14 +1,14 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -20,6 +20,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/pathguard"
 	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 const statusSourceValueMetadataKey = "status_source_value"
@@ -204,14 +205,20 @@ func statusBucketFiles(cfg *config.I18NConfig, bucket string) (map[string]struct
 	return files, nil
 }
 
+// statusSourceJob is one resolved source file and the bucket file mapping it came from.
+type statusSourceJob struct {
+	file          config.BucketFileMapping
+	sourcePattern string
+	sourcePath    string
+}
+
 func collectStatusEntries(ctx context.Context, cfg *config.I18NConfig, req syncsvc.LocalReadRequest, buckets []string, configRoot string) ([]storage.Entry, error) {
-	parser := translationfileparser.NewDefaultStrategy()
 	locales := req.Locales
 	if len(locales) == 0 {
 		locales = append([]string(nil), cfg.Locales.Targets...)
 	}
 
-	entries := make([]storage.Entry, 0)
+	var jobs []statusSourceJob
 	for _, bucketName := range buckets {
 		bucket := cfg.Buckets[bucketName]
 		for _, file := range bucket.Files {
@@ -224,91 +231,135 @@ func collectStatusEntries(ctx context.Context, cfg *config.I18NConfig, req syncs
 				if shouldIgnoreSourcePathForStatus(sourcePath, configRoot, cfg.Locales.Targets) {
 					continue
 				}
-				if err := ctx.Err(); err != nil {
-					return nil, err
-				}
-
-				sourceEntries, err := readEntriesForStatus(parser, sourcePath, cfg.Locales.Source)
-				sourceMissing := false
-				if err != nil {
-					if os.IsNotExist(err) {
-						sourceMissing = true
-						sourceEntries = map[string]string{}
-					} else {
-						return nil, err
-					}
-				}
-				sourceStatusEntries, err := readSourceEntriesForStatus(parser, sourcePath, cfg.Locales.Source)
-				if err != nil {
-					if !os.IsNotExist(err) {
-						return nil, err
-					}
-					sourceStatusEntries = map[string]string{}
-				}
-
-				targetByLocale := make(map[string]map[string]string, len(locales))
-				keySet := make(map[string]struct{}, len(sourceEntries))
-				for key := range sourceEntries {
-					keySet[key] = struct{}{}
-				}
-
-				for _, locale := range locales {
-					targetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, locale)
-					targetPath, err := resolveTargetPathForStatus(configRoot, sourcePattern, targetPattern, sourcePath)
-					if err != nil {
-						return nil, fmt.Errorf("resolve target path for source %q: %w", sourcePath, err)
-					}
-					targetEntries, err := readTargetEntriesForStatus(parser, sourcePath, targetPath, locale)
-					if err != nil {
-						if !os.IsNotExist(err) {
-							return nil, err
-						}
-						targetEntries = map[string]string{}
-					}
-					targetByLocale[locale] = targetEntries
-					if sourceMissing {
-						for key := range targetEntries {
-							keySet[key] = struct{}{}
-						}
-					}
-				}
-
-				keys := make([]string, 0, len(keySet))
-				for key := range keySet {
-					keys = append(keys, key)
-				}
-				slices.Sort(keys)
-
-				for _, locale := range locales {
-					targetEntries := targetByLocale[locale]
-					for _, key := range keys {
-						metadata := map[string]string(nil)
-						if shouldTrackSourceValueForStatus(sourcePath) {
-							metadata = map[string]string{
-								statusSourceValueMetadataKey: sourceStatusEntries[key],
-							}
-						}
-						entries = append(entries, storage.Entry{
-							Key:       key,
-							Namespace: file.From,
-							Locale:    locale,
-							Value:     targetEntries[key],
-							Metadata:  metadata,
-							Provenance: storage.EntryProvenance{
-								Origin: storage.OriginUnknown,
-							},
-						})
-					}
-				}
+				jobs = append(jobs, statusSourceJob{file: file, sourcePattern: sourcePattern, sourcePath: sourcePath})
 			}
 		}
 	}
 
+	parser := translationfileparser.NewDefaultStrategy()
+	files := newCheckFileCache()
+	results := make([][]storage.Entry, len(jobs))
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(runtime.GOMAXPROCS(0))
+	for i, job := range jobs {
+		group.Go(func() error {
+			if err := groupCtx.Err(); err != nil {
+				return err
+			}
+			entries, err := collectStatusSourceEntries(parser, files, cfg.Locales.Source, locales, configRoot, job)
+			if err != nil {
+				return err
+			}
+			results[i] = entries
+			return nil
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return nil, checkContextError(ctx, err)
+	}
+
+	total := 0
+	for _, result := range results {
+		total += len(result)
+	}
+	entries := make([]storage.Entry, 0, total)
+	for _, result := range results {
+		entries = append(entries, result...)
+	}
 	return entries, nil
 }
 
-func readEntriesForStatus(parser *translationfileparser.Strategy, path, locale string) (map[string]string, error) {
-	content, err := os.ReadFile(path)
+// collectStatusSourceEntries returns one entry per key and locale for a single source file.
+func collectStatusSourceEntries(parser *translationfileparser.Strategy, files *checkFileCache, sourceLocale string, locales []string, configRoot string, job statusSourceJob) ([]storage.Entry, error) {
+	sourcePath := job.sourcePath
+	sourceEntries, err := readEntriesForStatus(parser, files, sourcePath, sourceLocale)
+	sourceMissing := false
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+		sourceMissing = true
+		sourceEntries = map[string]string{}
+	}
+	trackSourceValue := shouldTrackSourceValueForStatus(sourcePath)
+	var sourceStatusEntries map[string]string
+	if trackSourceValue {
+		sourceStatusEntries, err = readSourceEntriesForStatus(parser, files, sourcePath, sourceLocale)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return nil, err
+			}
+			sourceStatusEntries = map[string]string{}
+		}
+	}
+
+	targetByLocale := make(map[string]map[string]string, len(locales))
+	keySet := make(map[string]struct{}, len(sourceEntries))
+	for key := range sourceEntries {
+		keySet[key] = struct{}{}
+	}
+
+	for _, locale := range locales {
+		targetPattern := pathresolver.ResolveTargetPath(job.file.To, sourceLocale, locale)
+		targetPath, err := resolveTargetPathForStatus(configRoot, job.sourcePattern, targetPattern, sourcePath)
+		if err != nil {
+			return nil, fmt.Errorf("resolve target path for source %q: %w", sourcePath, err)
+		}
+		targetEntries, err := readTargetEntriesForStatus(parser, files, sourcePath, targetPath, locale)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return nil, err
+			}
+			targetEntries = map[string]string{}
+		}
+		targetByLocale[locale] = targetEntries
+		if sourceMissing {
+			for key := range targetEntries {
+				keySet[key] = struct{}{}
+			}
+		}
+	}
+
+	keys := make([]string, 0, len(keySet))
+	for key := range keySet {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+
+	// Every locale's entry for a key shares one read-only metadata map.
+	var metadataByKey []map[string]string
+	if trackSourceValue {
+		metadataByKey = make([]map[string]string, len(keys))
+		for i, key := range keys {
+			metadataByKey[i] = map[string]string{statusSourceValueMetadataKey: sourceStatusEntries[key]}
+		}
+	}
+
+	var entries []storage.Entry
+	for _, locale := range locales {
+		targetEntries := targetByLocale[locale]
+		for i, key := range keys {
+			var metadata map[string]string
+			if trackSourceValue {
+				metadata = metadataByKey[i]
+			}
+			entries = append(entries, storage.Entry{
+				Key:       key,
+				Namespace: job.file.From,
+				Locale:    locale,
+				Value:     targetEntries[key],
+				Metadata:  metadata,
+				Provenance: storage.EntryProvenance{
+					Origin: storage.OriginUnknown,
+				},
+			})
+		}
+	}
+	return entries, nil
+}
+
+func readEntriesForStatus(parser *translationfileparser.Strategy, files *checkFileCache, path, locale string) (map[string]string, error) {
+	content, err := files.read(path)
 	if err != nil {
 		return nil, err
 	}
@@ -319,71 +370,70 @@ func readEntriesForStatus(parser *translationfileparser.Strategy, path, locale s
 	return entries, nil
 }
 
-func readSourceEntriesForStatus(parser *translationfileparser.Strategy, path, locale string) (map[string]string, error) {
+func readSourceEntriesForStatus(parser *translationfileparser.Strategy, files *checkFileCache, path, locale string) (map[string]string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == ".md" || ext == ".mdx" {
-		content, err := os.ReadFile(path)
+		doc, err := files.markdownDocument(path, ext == ".mdx")
 		if err != nil {
 			return nil, err
 		}
-		mdx := ext == ".mdx"
-		return translationfileparser.AlignMarkdownTargetToSource(content, content, mdx), nil
+		return doc.AlignTargetDocument(doc), nil
 	}
 	if translationfileparser.IsAsciiDocDocumentExtension(path) {
-		content, err := os.ReadFile(path)
+		doc, err := files.asciiDocDocument(path)
 		if err != nil {
 			return nil, err
 		}
-		return translationfileparser.AlignAsciiDocTargetToSource(content, content), nil
+		return doc.AlignTargetDocument(doc), nil
 	}
 	if translationfileparser.IsPlainTextDocumentExtension(path) {
-		content, err := os.ReadFile(path)
+		content, err := files.read(path)
 		if err != nil {
 			return nil, err
 		}
 		return translationfileparser.AlignPlainTextTargetToSource(content, content), nil
 	}
-	return readEntriesForStatus(parser, path, locale)
+	return readEntriesForStatus(parser, files, path, locale)
 }
 
-func readTargetEntriesForStatus(parser *translationfileparser.Strategy, sourcePath, targetPath, locale string) (map[string]string, error) {
+func readTargetEntriesForStatus(parser *translationfileparser.Strategy, files *checkFileCache, sourcePath, targetPath, locale string) (map[string]string, error) {
 	ext := strings.ToLower(filepath.Ext(targetPath))
 	if ext == ".md" || ext == ".mdx" {
-		sourceContent, err := os.ReadFile(sourcePath)
+		mdx := ext == ".mdx"
+		sourceDoc, err := files.markdownDocument(sourcePath, mdx)
 		if err != nil {
 			return nil, err
 		}
-		targetContent, err := os.ReadFile(targetPath)
+		targetDoc, err := files.markdownDocument(targetPath, mdx)
 		if err != nil {
 			return nil, err
 		}
-		mdx := strings.ToLower(filepath.Ext(targetPath)) == ".mdx"
-		return translationfileparser.AlignMarkdownTargetToSource(sourceContent, targetContent, mdx), nil
+		return sourceDoc.AlignTargetDocument(targetDoc), nil
 	}
 	if translationfileparser.IsAsciiDocDocumentExtension(targetPath) {
-		sourceContent, err := os.ReadFile(sourcePath)
+		sourceDoc, err := files.asciiDocDocument(sourcePath)
 		if err != nil {
 			return nil, err
 		}
-		targetContent, err := os.ReadFile(targetPath)
+		targetDoc, err := files.asciiDocDocument(targetPath)
 		if err != nil {
 			return nil, err
 		}
-		return translationfileparser.AlignAsciiDocTargetToSource(sourceContent, targetContent), nil
+		return sourceDoc.AlignTargetDocument(targetDoc), nil
 	}
 	if translationfileparser.IsPlainTextDocumentExtension(targetPath) {
-		sourceContent, err := os.ReadFile(sourcePath)
+		sourceContent, err := files.read(sourcePath)
 		if err != nil {
 			return nil, err
 		}
-		targetContent, err := os.ReadFile(targetPath)
+		targetContent, err := files.read(targetPath)
 		if err != nil {
 			return nil, err
 		}
 		return translationfileparser.AlignPlainTextTargetToSource(sourceContent, targetContent), nil
 	}
 	if ext == ".xcstrings" || ext == ".csv" || ext == ".tsv" {
-		content, err := os.ReadFile(targetPath)
+		content, err := files.read(targetPath)
 		if err != nil {
 			return nil, err
 		}
@@ -393,7 +443,7 @@ func readTargetEntriesForStatus(parser *translationfileparser.Strategy, sourcePa
 		}
 		return entries, nil
 	}
-	return readEntriesForStatus(parser, targetPath, "")
+	return readEntriesForStatus(parser, files, targetPath, "")
 }
 
 func filterByLocale(entries []storage.Entry, locales []string) []storage.Entry {
@@ -562,40 +612,9 @@ func resolveSourcePathsForStatus(configRoot, sourcePattern string) ([]string, er
 		return nil, err
 	}
 
-	var matches []string
-	if !strings.ContainsAny(resolvedPattern, "*?[") {
-		matches = []string{resolvedPattern}
-	} else if !strings.Contains(resolvedPattern, "**") {
-		matches, err = filepath.Glob(resolvedPattern)
-		if err != nil {
-			return nil, err
-		}
-		slices.Sort(matches)
-	} else {
-		normalizedPattern := filepath.ToSlash(resolvedPattern)
-		re, err := globToRegexForStatus(normalizedPattern)
-		if err != nil {
-			return nil, err
-		}
-
-		baseDir := baseDirForDoublestarForStatus(resolvedPattern)
-		matches = make([]string, 0)
-		err = filepath.WalkDir(baseDir, func(candidate string, d fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if d.IsDir() {
-				return nil
-			}
-			if re.MatchString(filepath.ToSlash(candidate)) {
-				matches = append(matches, candidate)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		slices.Sort(matches)
+	matches, err := pathresolver.ResolveGlob(resolvedPattern)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := ensureStatusPathsUnderConfigRoot(configRoot, matches); err != nil {
@@ -657,58 +676,8 @@ func resolveTargetPathForStatus(configRoot, sourcePattern, targetPattern, source
 	return targetPath, nil
 }
 
-func baseDirForDoublestarForStatus(pattern string) string {
-	normalized := filepath.ToSlash(pattern)
-	idx := strings.Index(normalized, "**")
-	if idx == -1 {
-		return filepath.Dir(pattern)
-	}
-	prefix := strings.TrimSuffix(normalized[:idx], "/")
-	if prefix == "" {
-		return "."
-	}
-	return filepath.FromSlash(prefix)
-}
-
 func globBaseDirForStatus(pattern string) string {
-	idx := strings.IndexAny(filepath.ToSlash(pattern), "*?[")
-	if idx == -1 {
-		return filepath.Dir(pattern)
-	}
-	prefix := filepath.ToSlash(pattern)[:idx]
-	prefix = strings.TrimSuffix(prefix, "/")
-	if prefix == "" {
-		return "."
-	}
-	return filepath.FromSlash(prefix)
-}
-
-func globToRegexForStatus(pattern string) (*regexp.Regexp, error) {
-	var b strings.Builder
-	b.WriteString("^")
-	for i := 0; i < len(pattern); {
-		switch pattern[i] {
-		case '*':
-			if i+1 < len(pattern) && pattern[i+1] == '*' {
-				if i+2 < len(pattern) && pattern[i+2] == '/' {
-					b.WriteString("(?:.*/)?")
-					i += 3
-					continue
-				}
-				b.WriteString(".*")
-				i += 2
-				continue
-			}
-			b.WriteString("[^/]*")
-		case '?':
-			b.WriteString("[^/]")
-		default:
-			b.WriteString(regexp.QuoteMeta(pattern[i : i+1]))
-		}
-		i++
-	}
-	b.WriteString("$")
-	return regexp.Compile(b.String())
+	return pathresolver.GlobBaseDir(pattern)
 }
 
 func computeStatus(entry storage.Entry) string {
@@ -735,52 +704,49 @@ func shouldTrackSourceValueForStatus(path string) bool {
 	}
 }
 
-func sortedLocales(entries map[string]storage.Entry) []string {
-	locales := make([]string, 0, len(entries))
-	for locale := range entries {
-		locales = append(locales, locale)
-	}
-	slices.Sort(locales)
-	return locales
-}
-
 func writeStatusCSV(w io.Writer, entries []storage.Entry, _ string) error {
-	records := [][]string{
-		{"key", "namespace", "locale", "status", "origin", "state"},
+	// Order rows by namespace, key, then locale. The stable sort keeps duplicates of one
+	// namespace/key/locale in input order, and only the last of them is written.
+	order := make([]int, len(entries))
+	for i := range order {
+		order[i] = i
 	}
-
-	byNamespaceKeyLocale := make(map[string]map[string]storage.Entry)
-	for _, e := range entries {
-		composite := e.Namespace + "\x1f" + e.Key
-		if byNamespaceKeyLocale[composite] == nil {
-			byNamespaceKeyLocale[composite] = make(map[string]storage.Entry)
+	slices.SortStableFunc(order, func(a, b int) int {
+		ea, eb := &entries[a], &entries[b]
+		if c := cmp.Compare(ea.Namespace, eb.Namespace); c != 0 {
+			return c
 		}
-		byNamespaceKeyLocale[composite][e.Locale] = e
-	}
-
-	compositeKeys := make([]string, 0, len(byNamespaceKeyLocale))
-	for k := range byNamespaceKeyLocale {
-		compositeKeys = append(compositeKeys, k)
-	}
-	slices.Sort(compositeKeys)
-
-	for _, composite := range compositeKeys {
-		byLocale := byNamespaceKeyLocale[composite]
-		for _, locale := range sortedLocales(byLocale) {
-			entry := byLocale[locale]
-			records = append(records, []string{
-				csvsafe.EscapeFormula(entry.Key),
-				csvsafe.EscapeFormula(entry.Namespace),
-				csvsafe.EscapeFormula(entry.Locale),
-				csvsafe.EscapeFormula(computeStatus(entry)),
-				csvsafe.EscapeFormula(entry.Provenance.Origin),
-				csvsafe.EscapeFormula(entry.Provenance.State),
-			})
+		if c := cmp.Compare(ea.Key, eb.Key); c != 0 {
+			return c
 		}
-	}
+		return cmp.Compare(ea.Locale, eb.Locale)
+	})
 
 	csvWriter := csv.NewWriter(w)
-	if err := csvWriter.WriteAll(records); err != nil {
+	if err := csvWriter.Write([]string{"key", "namespace", "locale", "status", "origin", "state"}); err != nil {
+		return fmt.Errorf("write csv: %w", err)
+	}
+	record := make([]string, 6)
+	for i, idx := range order {
+		entry := &entries[idx]
+		if i+1 < len(order) {
+			next := &entries[order[i+1]]
+			if next.Namespace == entry.Namespace && next.Key == entry.Key && next.Locale == entry.Locale {
+				continue
+			}
+		}
+		record[0] = csvsafe.EscapeFormula(entry.Key)
+		record[1] = csvsafe.EscapeFormula(entry.Namespace)
+		record[2] = csvsafe.EscapeFormula(entry.Locale)
+		record[3] = csvsafe.EscapeFormula(computeStatus(*entry))
+		record[4] = csvsafe.EscapeFormula(entry.Provenance.Origin)
+		record[5] = csvsafe.EscapeFormula(entry.Provenance.State)
+		if err := csvWriter.Write(record); err != nil {
+			return fmt.Errorf("write csv: %w", err)
+		}
+	}
+	csvWriter.Flush()
+	if err := csvWriter.Error(); err != nil {
 		return fmt.Errorf("write csv: %w", err)
 	}
 

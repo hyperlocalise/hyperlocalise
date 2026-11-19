@@ -40,6 +40,7 @@ func commandName() string {
 }
 
 func newRootCmd(version string) *cobra.Command {
+	var updates *updateCheck
 	cmd := &cobra.Command{
 		Use:   commandName(),
 		Short: "High-performance localization CLI written in Go",
@@ -47,11 +48,14 @@ func newRootCmd(version string) *cobra.Command {
 			if err := envloader.LoadProjectFiles(); err != nil {
 				return fmt.Errorf("load env files: %w", err)
 			}
+			if updateNoticeEnabled(cmd.ErrOrStderr()) {
+				updates = startUpdateCheck(cmd.Context(), version)
+			}
 
 			return nil
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
-			notifyIfUpdateAvailable(cmd, version)
+			updates.finish(cmd.ErrOrStderr(), updateCheckFinishWait)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
