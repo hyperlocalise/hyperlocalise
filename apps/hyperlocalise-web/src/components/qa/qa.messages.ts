@@ -393,12 +393,12 @@ export const qaMessages = defineMessages({
     defaultMessage:
       "Checked in the editor while you translate and in project QA scans when enabled. Warnings do not block saving. An error asks the translator to confirm before saving when the editor has already reported it. Each check counts toward your weekly guideline allowance; a cache hit is not billed. A flagged row stays a short warning until you choose Explain, which spends AI credit. If a scan hits the allowance, skips a translation that is too long to check, or the checker stops, it keeps findings it already saved, leaves older guideline findings open, and notes that guideline checks were incomplete.",
     description: "Help for the guideline QA check in the editor and scans",
-    id: "eCtP9bettx",
+    id: "qkcs2YRJiN",
   },
   explainError: {
     defaultMessage: "Could not explain this finding. Please retry.",
     description: "QA finding card error when on-demand guideline reasoning fails",
-    id: "b7QkExplainE",
+    id: "HvCdgmY78G",
   },
   guidelineCheckHalted: {
     defaultMessage:
