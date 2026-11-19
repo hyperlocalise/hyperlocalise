@@ -234,6 +234,12 @@ export const qaMessages = defineMessages({
     description: "QA review: coverage",
     id: "rC0aFF7mAf",
   },
+  coverageHelp: {
+    defaultMessage:
+      "Scans and the editor use the same format, placeholder, ICU, length, spelling, glossary and guideline checks. Warnings flag an issue; errors also block saving and approving in the editor.",
+    description: "QA review: coverageHelp",
+    id: "tkvPfaR9Sq",
+  },
   legacy: {
     defaultMessage:
       "This older scan used a limited set of checks. Run a new scan for full coverage.",
@@ -380,14 +386,20 @@ export const qaMessages = defineMessages({
   },
   guideline: {
     defaultMessage: "Guidelines",
-    description: "QA review: guideline check that runs in the editor",
-    id: "uxlgIxjFm4",
+    description: "QA review: guideline check that runs in the editor and in project scans",
+    id: "igEEUV9KY8",
   },
   guidelineCheckHelp: {
     defaultMessage:
-      "Checked in the editor while you translate. A warning does not affect saving. An error asks the translator to confirm before saving when the editor has already reported it. Project scans do not run this check.",
-    description: "Help for the editor-only guideline QA check",
-    id: "dxHRYcypd0",
+      "Checked in the editor while you translate and in project QA scans when enabled. Warnings do not block saving. An error asks the translator to confirm before saving when the editor has already reported it. Each check counts toward your weekly guideline allowance; a cache hit is not billed. Flagged rows include an explanation when reasoning succeeds. If a scan hits the allowance, skips a translation that is too long to check, or the checker stops, it keeps findings it already saved, leaves older guideline findings open, and notes that guideline checks were incomplete.",
+    description: "Help for the guideline QA check in the editor and scans",
+    id: "eCtP9bettx",
+  },
+  guidelineCheckHalted: {
+    defaultMessage:
+      "Guideline checks stopped before every translation was reviewed. Findings from this scan are incomplete, and older guideline findings stay open.",
+    description: "QA run notice when guideline checks halted mid-scan",
+    id: "WaSnm7wizj",
   },
   policySaved: {
     defaultMessage: "Check settings saved. Run a new scan to apply them to existing translations.",
