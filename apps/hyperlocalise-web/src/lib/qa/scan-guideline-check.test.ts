@@ -14,6 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { DEFAULT_QA_POLICY } from "./qa-policy";
 import {
+  GUIDELINE_CHECK_MAX_RUNES,
   mapGuidelineFindingToQaCheck,
   runScanGuidelineChecks,
   type ScanGuidelineSegment,
@@ -222,6 +223,188 @@ describe("runScanGuidelineChecks", () => {
         .map((call) => call[1].targetLocale ?? "")
         .toSorted((left, right) => left.localeCompare(right)),
     ).toEqual(["de-DE", "fr-FR"]);
+  });
+
+  it("skips a segment over the rune limit and checks the rest", async () => {
+    internalCheck.mockResolvedValue({
+      findings: [],
+      passages: [],
+      searchAvailable: true,
+      model: "typesafe-ai/jev",
+    });
+    const result = await runScanGuidelineChecks({
+      organizationId: "org",
+      projectId: "proj",
+      sourceLocale: "en-US",
+      policy: enabledPolicy,
+      segments: [
+        segment("big", {
+          targetLocale: "fr-FR",
+          sourceText: "a".repeat(GUIDELINE_CHECK_MAX_RUNES + 1),
+        }),
+        segment("small", { targetLocale: "de-DE", targetText: "Hallo" }),
+      ],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.haltCode).toBeUndefined();
+    expect(result.incomplete).toBe(true);
+    expect(internalCheck).toHaveBeenCalledTimes(1);
+    expect(internalCheck.mock.calls[0]?.[1].targetLocale).toBe("de-DE");
+  });
+
+  it("retries a transport failure and then checks the next locale", async () => {
+    internalCheck
+      .mockRejectedValueOnce(
+        new GoSvcClientError({ code: "network_error", message: "down", status: null }),
+      )
+      .mockRejectedValueOnce(
+        new GoSvcClientError({ code: "network_error", message: "down", status: null }),
+      )
+      .mockResolvedValue({
+        findings: [],
+        passages: [],
+        searchAvailable: true,
+        model: "typesafe-ai/jev",
+      });
+    const result = await runScanGuidelineChecks({
+      organizationId: "org",
+      projectId: "proj",
+      sourceLocale: "en-US",
+      policy: enabledPolicy,
+      segments: [
+        segment("fr-1", { targetLocale: "fr-FR" }),
+        segment("de-1", { targetLocale: "de-DE", targetText: "Hallo" }),
+      ],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.haltCode).toBeUndefined();
+    expect(result.incomplete).toBeUndefined();
+    expect(internalCheck).toHaveBeenCalledTimes(4);
+  });
+
+  it("skips a batch after transport retries are exhausted and continues", async () => {
+    internalCheck
+      .mockRejectedValueOnce(
+        new GoSvcClientError({ code: "network_error", message: "down", status: null }),
+      )
+      .mockRejectedValueOnce(
+        new GoSvcClientError({ code: "network_error", message: "down", status: null }),
+      )
+      .mockRejectedValueOnce(
+        new GoSvcClientError({ code: "network_error", message: "down", status: null }),
+      )
+      .mockResolvedValueOnce({
+        findings: [],
+        passages: [],
+        searchAvailable: true,
+        model: "typesafe-ai/jev",
+      });
+    const result = await runScanGuidelineChecks({
+      organizationId: "org",
+      projectId: "proj",
+      sourceLocale: "en-US",
+      policy: enabledPolicy,
+      segments: [
+        segment("fr-1", { targetLocale: "fr-FR" }),
+        segment("de-1", { targetLocale: "de-DE", targetText: "Hallo" }),
+      ],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.haltCode).toBeUndefined();
+    expect(result.incomplete).toBe(true);
+    expect(internalCheck.mock.calls.map((call) => call[1].targetLocale)).toEqual([
+      "fr-FR",
+      "fr-FR",
+      "fr-FR",
+      "de-DE",
+    ]);
+  });
+
+  it("does not halt the run when a batch is invalid", async () => {
+    internalCheck
+      .mockRejectedValueOnce(
+        new GoSvcClientError({ code: "invalid_guideline_check", message: "bad", status: 400 }),
+      )
+      .mockResolvedValueOnce({
+        findings: [],
+        passages: [],
+        searchAvailable: true,
+        model: "typesafe-ai/jev",
+      });
+    const result = await runScanGuidelineChecks({
+      organizationId: "org",
+      projectId: "proj",
+      sourceLocale: "en-US",
+      policy: enabledPolicy,
+      segments: [
+        segment("fr-1", { targetLocale: "fr-FR" }),
+        segment("de-1", { targetLocale: "de-DE", targetText: "Hallo" }),
+      ],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.incomplete).toBe(true);
+    expect(result.haltCode).toBeUndefined();
+    expect(internalCheck).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns the next batch offset when the slice is capped", async () => {
+    internalCheck.mockResolvedValue({
+      findings: [],
+      passages: [],
+      searchAvailable: true,
+      model: "typesafe-ai/jev",
+    });
+    const segments = [
+      segment("fr-1", { targetLocale: "fr-FR" }),
+      segment("de-1", { targetLocale: "de-DE", targetText: "Hallo" }),
+    ];
+    const first = await runScanGuidelineChecks({
+      organizationId: "org",
+      projectId: "proj",
+      sourceLocale: "en-US",
+      policy: enabledPolicy,
+      segments,
+      maxBatches: 1,
+    });
+    expect(first.nextBatchOffset).toBe(1);
+    expect(internalCheck).toHaveBeenCalledTimes(1);
+
+    const second = await runScanGuidelineChecks({
+      organizationId: "org",
+      projectId: "proj",
+      sourceLocale: "en-US",
+      policy: enabledPolicy,
+      segments,
+      batchOffset: first.nextBatchOffset,
+      maxBatches: 1,
+    });
+    expect(second.nextBatchOffset).toBeUndefined();
+    expect(second.ok).toBe(true);
+    expect(internalCheck).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops later batches when the allowance is reached", async () => {
+    internalCheck.mockRejectedValueOnce(
+      new GoSvcClientError({
+        code: "guideline_check_limit_reached",
+        message: "limit",
+        status: 402,
+      }),
+    );
+    const result = await runScanGuidelineChecks({
+      organizationId: "org",
+      projectId: "proj",
+      sourceLocale: "en-US",
+      policy: enabledPolicy,
+      segments: [
+        segment("fr-1", { targetLocale: "fr-FR" }),
+        segment("de-1", { targetLocale: "de-DE", targetText: "Hallo" }),
+      ],
+    });
+    expect(result.ok).toBe(false);
+    expect(result.haltCode).toBe("guideline_check_limit_reached");
+    expect(result.nextBatchOffset).toBeUndefined();
+    expect(internalCheck).toHaveBeenCalledTimes(1);
   });
 });
 

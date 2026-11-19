@@ -21,6 +21,9 @@ import type { TranslationQaCheck, TranslationQaSeverity } from "./types";
 
 export const GUIDELINE_CHECK_MAX_SEGMENTS = 50;
 export const GUIDELINE_CHECK_MAX_RUNES = 16_000;
+/** One workflow step checks this many locale batches, then the next step continues. */
+export const GUIDELINE_BATCHES_PER_STEP = 4;
+const GUIDELINE_CHECK_ATTEMPTS = 3;
 
 const logger = createLogger("translation-qa-scan-guidelines");
 
@@ -30,6 +33,8 @@ const HALT_CODES = new Set([
   "guideline_check_unavailable",
   "guideline_check_mandatory_too_large",
 ]);
+
+const RETRYABLE_CODES = new Set(["network_error", "guideline_check_limit_check_failed"]);
 
 export type ScanGuidelineSegment = {
   translationKeyId: string;
@@ -41,6 +46,11 @@ export type ScanGuidelineSegment = {
   sourcePath: string | null;
 };
 
+export type ScanGuidelineBatch = {
+  targetLocale: string;
+  segments: ScanGuidelineSegment[];
+};
+
 export type ScanGuidelineFindingRow = {
   segment: ScanGuidelineSegment;
   check: TranslationQaCheck;
@@ -50,6 +60,12 @@ export type ScanGuidelineBatchResult = {
   ok: boolean;
   findings: ScanGuidelineFindingRow[];
   haltCode?: string;
+  /** Knowledge is off, or the entitlement read failed, so this page did not check. */
+  knowledgeSkipped?: boolean;
+  /** A segment or batch was skipped. Later batches still run. */
+  incomplete?: boolean;
+  /** More batches remain after this slice. */
+  nextBatchOffset?: number;
 };
 
 function utf16Len(text: string) {
@@ -128,19 +144,25 @@ export function mapGuidelineFindingToQaCheck(
   };
 }
 
-function buildBatches(
-  segments: ScanGuidelineSegment[],
-): Array<{ targetLocale: string; segments: ScanGuidelineSegment[] }> {
+export function planScanGuidelineBatches(segments: ScanGuidelineSegment[]): {
+  batches: ScanGuidelineBatch[];
+  skippedOversized: boolean;
+} {
   const byLocale = new Map<string, ScanGuidelineSegment[]>();
+  let skippedOversized = false;
   for (const segment of segments) {
     if (!segment.targetText.trim()) {
+      continue;
+    }
+    if (segmentRuneCount(segment) > GUIDELINE_CHECK_MAX_RUNES) {
+      skippedOversized = true;
       continue;
     }
     const list = byLocale.get(segment.targetLocale) ?? [];
     list.push(segment);
     byLocale.set(segment.targetLocale, list);
   }
-  const batches: Array<{ targetLocale: string; segments: ScanGuidelineSegment[] }> = [];
+  const batches: ScanGuidelineBatch[] = [];
   for (const [targetLocale, localeSegments] of byLocale) {
     let current: ScanGuidelineSegment[] = [];
     let runes = 0;
@@ -162,7 +184,69 @@ function buildBatches(
       batches.push({ targetLocale, segments: current });
     }
   }
-  return batches;
+  return { batches, skippedOversized };
+}
+
+function errorCode(error: unknown) {
+  return error instanceof GoSvcClientError && error.code ? error.code : "";
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+type BatchAttempt =
+  | { kind: "ok"; result: { findings: GuidelineCheckFinding[] } }
+  | { kind: "halt"; code: string }
+  | { kind: "skip"; code: string };
+
+async function checkBatch(input: {
+  client: ReturnType<typeof createGoSvcServerClient>;
+  organizationId: string;
+  projectId: string;
+  sourceLocale: string;
+  batch: ScanGuidelineBatch;
+}): Promise<BatchAttempt> {
+  let lastCode = "guideline_check_failed";
+  for (let attempt = 1; attempt <= GUIDELINE_CHECK_ATTEMPTS; attempt += 1) {
+    try {
+      const result = await input.client.guidelines.internalCheck(input.organizationId, {
+        projectId: input.projectId,
+        sourceLocale: input.sourceLocale,
+        targetLocale: input.batch.targetLocale,
+        checks: ["target"],
+        segments: input.batch.segments.map((segment) => ({
+          id: segment.translationKeyId,
+          source: segment.sourceText,
+          target: segment.targetText,
+        })),
+      });
+      return { kind: "ok", result };
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+      const code = errorCode(error);
+      lastCode = code || "guideline_check_failed";
+      if (HALT_CODES.has(lastCode)) {
+        return { kind: "halt", code: lastCode };
+      }
+      if (RETRYABLE_CODES.has(lastCode) && attempt < GUIDELINE_CHECK_ATTEMPTS) {
+        logger.warn(
+          {
+            projectId: input.projectId,
+            segmentCount: input.batch.segments.length,
+            errorCode: lastCode,
+            attempt,
+          },
+          "translation qa scan guideline batch retrying",
+        );
+        continue;
+      }
+      return { kind: "skip", code: lastCode };
+    }
+  }
+  return { kind: "skip", code: lastCode };
 }
 
 export async function runScanGuidelineChecks(input: {
@@ -172,6 +256,8 @@ export async function runScanGuidelineChecks(input: {
   segments: ScanGuidelineSegment[];
   policy: QaCheckPolicy;
   alreadyHalted?: boolean;
+  batchOffset?: number;
+  maxBatches?: number;
   onBatchComplete?: () => Promise<void>;
 }): Promise<ScanGuidelineBatchResult> {
   const severity = input.policy.guideline.severity;
@@ -182,64 +268,98 @@ export async function runScanGuidelineChecks(input: {
   }
 
   if (!(await resolveWorkspaceKnowledgeFlag({ organizationId: input.organizationId }))) {
-    return { ok: true, findings };
+    return { ok: true, findings, knowledgeSkipped: true };
+  }
+
+  const { batches, skippedOversized } = planScanGuidelineBatches(input.segments);
+  if (skippedOversized) {
+    logger.warn(
+      { projectId: input.projectId },
+      "translation qa scan skipped a guideline segment over the rune limit",
+    );
+  }
+  const offset = input.batchOffset ?? 0;
+  const end = input.maxBatches == null ? batches.length : offset + input.maxBatches;
+  const slice = batches.slice(offset, end);
+  let incomplete = skippedOversized;
+  if (slice.length === 0) {
+    return {
+      ok: true,
+      findings,
+      ...(incomplete ? { incomplete: true } : {}),
+    };
   }
 
   const client = createGoSvcServerClient();
-  for (const batch of buildBatches(input.segments)) {
+  for (const batch of slice) {
     const batchStartedAt = Date.now();
-    try {
-      const result = await client.guidelines.internalCheck(input.organizationId, {
-        projectId: input.projectId,
-        sourceLocale: input.sourceLocale,
-        targetLocale: batch.targetLocale,
-        checks: ["target"],
-        segments: batch.segments.map((segment) => ({
-          id: segment.translationKeyId,
-          source: segment.sourceText,
-          target: segment.targetText,
-        })),
-      });
-      let mappedCount = 0;
-      for (const segment of batch.segments) {
-        for (const finding of result.findings) {
-          if (finding.segmentId !== segment.translationKeyId) {
-            continue;
-          }
-          const mapped = mapGuidelineFindingToQaCheck(finding, segment.targetText, severity);
-          if (mapped) {
-            findings.push({ segment, check: mapped });
-            mappedCount += 1;
-          }
-        }
-      }
-      logger.info(
-        {
-          projectId: input.projectId,
-          segmentCount: batch.segments.length,
-          mappedFindingCount: mappedCount,
-          durationMs: Date.now() - batchStartedAt,
-        },
-        "translation qa scan guideline batch completed",
-      );
-      await input.onBatchComplete?.();
-    } catch (error) {
-      const code =
-        error instanceof GoSvcClientError && error.code && HALT_CODES.has(error.code)
-          ? error.code
-          : "guideline_check_failed";
+    const attempt = await checkBatch({
+      client,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourceLocale: input.sourceLocale,
+      batch,
+    });
+    if (attempt.kind === "halt") {
       logger.warn(
         {
           projectId: input.projectId,
           segmentCount: batch.segments.length,
           durationMs: Date.now() - batchStartedAt,
-          haltCode: code,
+          haltCode: attempt.code,
         },
         "translation qa scan guideline batch halted",
       );
-      return { ok: false, haltCode: code, findings };
+      return {
+        ok: false,
+        haltCode: attempt.code,
+        findings,
+        ...(incomplete ? { incomplete: true } : {}),
+      };
     }
+    if (attempt.kind === "skip") {
+      incomplete = true;
+      logger.warn(
+        {
+          projectId: input.projectId,
+          segmentCount: batch.segments.length,
+          durationMs: Date.now() - batchStartedAt,
+          errorCode: attempt.code,
+        },
+        "translation qa scan guideline batch skipped",
+      );
+      continue;
+    }
+    let mappedCount = 0;
+    for (const segment of batch.segments) {
+      for (const finding of attempt.result.findings) {
+        if (finding.segmentId !== segment.translationKeyId) {
+          continue;
+        }
+        const mapped = mapGuidelineFindingToQaCheck(finding, segment.targetText, severity);
+        if (mapped) {
+          findings.push({ segment, check: mapped });
+          mappedCount += 1;
+        }
+      }
+    }
+    logger.info(
+      {
+        projectId: input.projectId,
+        segmentCount: batch.segments.length,
+        mappedFindingCount: mappedCount,
+        durationMs: Date.now() - batchStartedAt,
+      },
+      "translation qa scan guideline batch completed",
+    );
+    await input.onBatchComplete?.();
   }
 
-  return { ok: true, findings };
+  const nextBatchOffset = end < batches.length ? end : undefined;
+  return {
+    ok: true,
+    findings,
+    ...(incomplete ? { incomplete: true } : {}),
+    ...(nextBatchOffset != null ? { nextBatchOffset } : {}),
+  };
 }

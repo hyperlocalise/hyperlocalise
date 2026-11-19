@@ -59,12 +59,14 @@ var (
 )
 
 type qaSummary struct {
-	ByCheckType            map[string]int      `json:"byCheckType"`
-	BySeverity             map[string]int      `json:"bySeverity"`
-	ByLocale               map[string]int      `json:"byLocale"`
-	SkippedChecksByLocale  map[string][]string `json:"skippedChecksByLocale,omitempty"`
-	CheckVersion           int                 `json:"checkVersion,omitempty"`
-	GuidelineCheckHaltCode string              `json:"guidelineCheckHaltCode,omitempty"`
+	ByCheckType               map[string]int      `json:"byCheckType"`
+	BySeverity                map[string]int      `json:"bySeverity"`
+	ByLocale                  map[string]int      `json:"byLocale"`
+	SkippedChecksByLocale     map[string][]string `json:"skippedChecksByLocale,omitempty"`
+	CheckVersion              int                 `json:"checkVersion,omitempty"`
+	GuidelineCheckHaltCode    string              `json:"guidelineCheckHaltCode,omitempty"`
+	GuidelineChecksIncomplete bool                `json:"guidelineChecksIncomplete,omitempty"`
+	GuidelineKnowledgeSkipped bool                `json:"guidelineKnowledgeSkipped,omitempty"`
 }
 
 func emptyQaSummary() qaSummary {

@@ -39,6 +39,10 @@ export type TranslationQaSummary = {
   checkVersion?: number;
   /** Set when guideline checks stop early; holds the go-svc error code only. */
   guidelineCheckHaltCode?: string;
+  /** A segment or batch was skipped. Later batches still ran. */
+  guidelineChecksIncomplete?: boolean;
+  /** Knowledge was off or the entitlement read failed, so the checker was not called. */
+  guidelineKnowledgeSkipped?: boolean;
 };
 
 /**

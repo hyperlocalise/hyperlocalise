@@ -56,6 +56,7 @@ import {
   scanTranslationQaPage,
   startTranslationQaScan,
   STALE_RUNNING_SCAN_MS,
+  type TranslationQaScanPageResult,
 } from "./run-project-qa-scan";
 
 const authFixture = createAuthTestFixture();
@@ -791,6 +792,10 @@ describe("run-project-qa-scan claim and reclaim", () => {
           ...DEFAULT_QA_POLICY,
           guideline: { enabled: true, severity: "warning" },
         },
+        summary: {
+          ...emptyTranslationQaSummary(),
+          guidelineKnowledgeSkipped: true,
+        },
       })
       .where(eq(schema.translationQaRuns.id, claimed.runId));
 
@@ -827,11 +832,36 @@ describe("run-project-qa-scan claim and reclaim", () => {
       .where(eq(schema.translationQaFindings.runId, previousRun!.id));
 
     expect(findings).toEqual([{ checkType: "guideline", status: "open" }]);
-    expect(resolveWorkspaceKnowledgeFlag).toHaveBeenCalledWith({
-      organizationId: organization.id,
-    });
+    expect(resolveWorkspaceKnowledgeFlag).not.toHaveBeenCalled();
   });
 });
+
+async function scanKeyPage(input: {
+  runId: string;
+  organizationId: string;
+  projectId: string;
+  afterKeyId: string | null;
+}) {
+  let afterKeyId = input.afterKeyId;
+  let guidelineBatchOffset: number | undefined;
+  let result: TranslationQaScanPageResult = { done: true };
+  for (let step = 0; step < 40; step += 1) {
+    result = await scanTranslationQaPage({
+      runId: input.runId,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      afterKeyId,
+      guidelineBatchOffset,
+      page: step,
+    });
+    if (result.done || result.guidelineBatchOffset == null) {
+      return result;
+    }
+    afterKeyId = result.afterKeyId;
+    guidelineBatchOffset = result.guidelineBatchOffset;
+  }
+  throw new Error("guideline slices did not finish");
+}
 
 describe("scanTranslationQaPage", () => {
   it("returns done when the run is missing or no longer running", async () => {
@@ -989,7 +1019,7 @@ describe("scanTranslationQaPage", () => {
     });
 
     await expect(
-      scanTranslationQaPage({
+      scanKeyPage({
         runId: claimed.runId,
         organizationId: organization.id,
         projectId: project.id,
@@ -1093,7 +1123,7 @@ describe("scanTranslationQaPage", () => {
     );
 
     await expect(
-      scanTranslationQaPage({
+      scanKeyPage({
         runId: claimed.runId,
         organizationId: organization.id,
         projectId: project.id,
@@ -1106,6 +1136,189 @@ describe("scanTranslationQaPage", () => {
       .from(schema.translationQaRuns)
       .where(eq(schema.translationQaRuns.id, claimed.runId));
     expect(run?.summary.guidelineCheckHaltCode).toBe("guideline_check_limit_reached");
+  });
+
+  it("records a knowledge skip and does not resolve older guideline findings if the flag recovers", async () => {
+    resolveWorkspaceKnowledgeFlag.mockResolvedValue(false);
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+    await db
+      .update(schema.projects)
+      .set({
+        qaCheckPolicy: {
+          ...DEFAULT_QA_POLICY,
+          guideline: { enabled: true, severity: "warning" },
+        },
+      })
+      .where(eq(schema.projects.id, project.id));
+
+    const [key] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "greeting",
+        sourceText: "Hello",
+        normalizedSourceText: "hello",
+      })
+      .returning({ id: schema.projectTranslationKeys.id });
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: key!.id,
+      targetLocale: "de-DE",
+      text: "Hallo",
+    });
+
+    const [previousRun] = await db
+      .insert(schema.translationQaRuns)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        trigger: "manual",
+        status: "succeeded",
+        createdByUserId: user.id,
+        summary: emptyTranslationQaSummary(),
+        completedAt: new Date(),
+      })
+      .returning({ id: schema.translationQaRuns.id });
+
+    await db.insert(schema.translationQaFindings).values({
+      runId: previousRun!.id,
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: key!.id,
+      key: "greeting",
+      sourceText: "Hello",
+      targetText: "Hallo",
+      relatedTokens: [],
+      message: "Earlier finding",
+      targetLocale: "de-DE",
+      checkType: "guideline",
+      category: "qa",
+      severity: "warning",
+    });
+
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+    });
+    expect(claimed).toMatchObject({ ok: true });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+
+    await scanKeyPage({
+      runId: claimed.runId,
+      organizationId: organization.id,
+      projectId: project.id,
+      afterKeyId: null,
+    });
+    expect(internalCheck).not.toHaveBeenCalled();
+
+    const [running] = await db
+      .select({ summary: schema.translationQaRuns.summary })
+      .from(schema.translationQaRuns)
+      .where(eq(schema.translationQaRuns.id, claimed.runId));
+    expect(running?.summary.guidelineKnowledgeSkipped).toBe(true);
+
+    resolveWorkspaceKnowledgeFlag.mockResolvedValue(true);
+    await completeTranslationQaScan({
+      runId: claimed.runId,
+      organizationId: organization.id,
+      projectId: project.id,
+    });
+
+    const findings = await db
+      .select({ status: schema.translationQaFindings.status })
+      .from(schema.translationQaFindings)
+      .where(eq(schema.translationQaFindings.runId, previousRun!.id));
+    expect(findings).toEqual([{ status: "open" }]);
+  });
+
+  it("checks every locale across guideline slices", async () => {
+    const locales = ["de-DE", "es-ES", "fr-FR", "it-IT", "ja-JP"];
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+    await db
+      .update(schema.projects)
+      .set({
+        targetLocales: locales,
+        qaCheckPolicy: {
+          ...DEFAULT_QA_POLICY,
+          guideline: { enabled: true, severity: "warning" },
+        },
+      })
+      .where(eq(schema.projects.id, project.id));
+
+    const [key] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "greeting",
+        sourceText: "Hello",
+        normalizedSourceText: "hello",
+      })
+      .returning({ id: schema.projectTranslationKeys.id });
+
+    await db.insert(schema.projectTranslations).values(
+      locales.map((targetLocale) => ({
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: key!.id,
+        targetLocale,
+        text: "Hallo",
+      })),
+    );
+
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+    });
+    expect(claimed).toMatchObject({ ok: true });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+
+    internalCheck.mockResolvedValue({
+      findings: [],
+      passages: [],
+      searchAvailable: true,
+      model: "typesafe-ai/jev",
+    });
+
+    await expect(
+      scanKeyPage({
+        runId: claimed.runId,
+        organizationId: organization.id,
+        projectId: project.id,
+        afterKeyId: null,
+      }),
+    ).resolves.toEqual({ done: true });
+    expect(internalCheck).toHaveBeenCalledTimes(locales.length);
+    expect(
+      internalCheck.mock.calls
+        .map((call) => call[1].targetLocale ?? "")
+        .toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(locales);
   });
 });
 

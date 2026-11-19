@@ -60,6 +60,8 @@ export type WorkspaceQaReportRow = {
       checkVersion?: number;
       skippedChecksByLocale?: Record<string, string[]>;
       guidelineCheckHaltCode?: string;
+      guidelineChecksIncomplete?: boolean;
+      guidelineKnowledgeSkipped?: boolean;
     };
     errorCode: string | null;
     errorMessage: string | null;
@@ -107,6 +109,8 @@ export type ProjectQaReport = {
     checkVersion?: number;
     skippedChecksByLocale?: Record<string, string[]>;
     guidelineCheckHaltCode?: string;
+    guidelineChecksIncomplete?: boolean;
+    guidelineKnowledgeSkipped?: boolean;
   };
   errorCode: string | null;
   errorMessage: string | null;

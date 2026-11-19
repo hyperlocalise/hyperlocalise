@@ -10,10 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, count, eq, gt, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, lt, ne, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
-import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import type { MessageFormat } from "@/lib/i18n/message-format";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
@@ -31,7 +30,13 @@ import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-wi
 import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
 import { DEFAULT_QA_POLICY, resolveQaPolicy, type QaCheckPolicy } from "./qa-policy";
 import { notifyQaScanFailed, notifyQaScanSucceeded } from "./qa-scan-notifications";
-import { runScanGuidelineChecks, type ScanGuidelineSegment } from "./scan-guideline-check";
+import {
+  GUIDELINE_BATCHES_PER_STEP,
+  planScanGuidelineBatches,
+  runScanGuidelineChecks,
+  type ScanGuidelineBatch,
+  type ScanGuidelineSegment,
+} from "./scan-guideline-check";
 import { QaCliUnavailableError, validateQaPageInSandbox } from "./validate-page-in-sandbox";
 
 const logger = createLogger("translation-qa-scan");
@@ -61,7 +66,9 @@ export type TranslationQaScanResult =
   | { ok: true; runId: string }
   | { ok: false; code: "project_not_native" | "scan_in_progress" | "project_not_found" };
 
-export type TranslationQaScanPageResult = { done: true } | { done: false; afterKeyId: string };
+export type TranslationQaScanPageResult =
+  | { done: true }
+  | { done: false; afterKeyId: string | null; guidelineBatchOffset?: number };
 
 export async function startTranslationQaScan(input: {
   organizationId: string;
@@ -158,11 +165,13 @@ export async function executeTranslationQaScan(input: {
   let failureCode = "qa_scan_processing_failed";
   try {
     let afterKeyId: string | null = null;
+    let guidelineBatchOffset: number | undefined;
     for (let page = 0; page < MAX_SCAN_PAGES; page += 1) {
       const result = await scanTranslationQaPage({
         ...input,
         afterKeyId,
         page,
+        guidelineBatchOffset,
       });
       if (result.done) {
         logger.info(
@@ -172,6 +181,7 @@ export async function executeTranslationQaScan(input: {
         break;
       }
       afterKeyId = result.afterKeyId;
+      guidelineBatchOffset = result.guidelineBatchOffset;
     }
 
     failureCode = "qa_scan_finalization_failed";
@@ -195,19 +205,79 @@ export async function executeTranslationQaScan(input: {
   }
 }
 
+function advancePastKeyPage(
+  keys: readonly { translationKeyId: string }[],
+): TranslationQaScanPageResult {
+  const afterKeyId = keys[keys.length - 1]?.translationKeyId ?? null;
+  if (!afterKeyId || keys.length < KEY_PAGE_SIZE) {
+    return { done: true };
+  }
+  return { done: false, afterKeyId };
+}
+
+async function persistGuidelineMarkers(
+  runId: string,
+  markers: { haltCode?: string; incomplete?: boolean; knowledgeSkipped?: boolean },
+) {
+  const patch: Record<string, string | boolean> = {};
+  if (markers.haltCode) {
+    patch.guidelineCheckHaltCode = markers.haltCode;
+  }
+  if (markers.incomplete) {
+    patch.guidelineChecksIncomplete = true;
+  }
+  if (markers.knowledgeSkipped) {
+    patch.guidelineKnowledgeSkipped = true;
+  }
+  if (Object.keys(patch).length === 0) {
+    return;
+  }
+  await db.execute(
+    sql`update translation_qa_runs set summary = coalesce(summary, '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb
+      where id = ${runId}`,
+  );
+}
+
+async function deleteGuidelineFindingsForBatches(
+  runId: string,
+  batches: readonly ScanGuidelineBatch[],
+) {
+  for (const batch of batches) {
+    const keyIds = [...new Set(batch.segments.map((segment) => segment.translationKeyId))];
+    if (keyIds.length === 0) {
+      continue;
+    }
+    await db
+      .delete(schema.translationQaFindings)
+      .where(
+        and(
+          eq(schema.translationQaFindings.runId, runId),
+          eq(schema.translationQaFindings.checkType, "guideline"),
+          eq(schema.translationQaFindings.targetLocale, batch.targetLocale),
+          inArray(schema.translationQaFindings.translationKeyId, keyIds),
+        ),
+      );
+  }
+}
+
 export async function scanTranslationQaPage(input: {
   runId: string;
   organizationId: string;
   projectId: string;
   afterKeyId: string | null;
   page?: number;
+  /** Set while a key page still has guideline batches left. Omit to validate that page. */
+  guidelineBatchOffset?: number;
 }): Promise<TranslationQaScanPageResult> {
   const pageStartedAt = Date.now();
+  const checkingGuidelines = input.guidelineBatchOffset != null;
+  const guidelineBatchOffset = input.guidelineBatchOffset ?? 0;
   const pageLog = logger.child({
     runId: input.runId,
     projectId: input.projectId,
     page: input.page,
     hasAfterKeyId: Boolean(input.afterKeyId),
+    guidelineBatchOffset: checkingGuidelines ? guidelineBatchOffset : undefined,
   });
   const run = await loadRunningQaScan(input.runId);
   if (!run) {
@@ -222,13 +292,6 @@ export async function scanTranslationQaPage(input: {
   }
 
   const locales = uniqueSortedLocales(project.targetLocales);
-  const glossaryTerms = await loadProjectGlossaryTerms({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    sourceLocale: project.sourceLocale,
-    targetLocales: project.targetLocales,
-  });
-
   const keys: QaScanKeyRow[] = await db
     .select({
       translationKeyId: schema.projectTranslationKeys.id,
@@ -260,24 +323,33 @@ export async function scanTranslationQaPage(input: {
     return { done: true };
   }
 
+  if (checkingGuidelines && run.summary.guidelineCheckHaltCode) {
+    return advancePastKeyPage(keys);
+  }
+
   pageLog.info(
     {
       keyCount: keys.length,
       localeCount: locales.length,
-      glossaryTermCount: glossaryTerms.length,
+      guidelineBatchOffset: checkingGuidelines ? guidelineBatchOffset : undefined,
     },
     "translation qa scan page loaded",
   );
 
   const keyIds = keys.map((row) => row.translationKeyId);
-  await db
-    .delete(schema.translationQaFindings)
-    .where(
-      and(
-        eq(schema.translationQaFindings.runId, input.runId),
-        inArray(schema.translationQaFindings.translationKeyId, keyIds),
-      ),
-    );
+  if (!checkingGuidelines) {
+    await db
+      .delete(schema.translationQaFindings)
+      .where(
+        and(
+          eq(schema.translationQaFindings.runId, input.runId),
+          inArray(schema.translationQaFindings.translationKeyId, keyIds),
+          run.summary.guidelineCheckHaltCode
+            ? ne(schema.translationQaFindings.checkType, "guideline")
+            : undefined,
+        ),
+      );
+  }
 
   const translations =
     locales.length === 0
@@ -313,125 +385,176 @@ export async function scanTranslationQaPage(input: {
     pendingFindings = [];
   }
 
-  const wordRows = await db.execute<{ locale: string; word: string }>(sql`
+  const requests = keys.flatMap((key) => locales.map((targetLocale) => ({ key, targetLocale })));
+  const policy = resolveQaPolicy(run.checkPolicy ?? DEFAULT_QA_POLICY);
+  const segmentByKeyLocale = new Map<string, ScanGuidelineSegment>();
+  for (const { key, targetLocale } of requests) {
+    const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
+    segmentByKeyLocale.set(`${key.translationKeyId}\0${targetLocale}`, {
+      translationKeyId: key.translationKeyId,
+      key: key.key,
+      sourceText: key.sourceText,
+      targetText: translation?.text ?? "",
+      targetLocale,
+      translationId: translation?.id ?? null,
+      sourcePath: key.sourcePath,
+    });
+  }
+  const guidelineSegments = [...segmentByKeyLocale.values()];
+
+  if (!checkingGuidelines) {
+    const glossaryTerms = await loadProjectGlossaryTerms({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourceLocale: project.sourceLocale,
+      targetLocales: project.targetLocales,
+    });
+    const wordRows = await db.execute<{ locale: string; word: string }>(sql`
       select w.locale, w.word from project_spellcheck_word_libraries p
       join spellcheck_word_libraries d on d.id = p.library_id and d.status = 'active'
       join spellcheck_word_library_words w on w.library_id = d.id
       where p.organization_id = ${input.organizationId} and p.project_id = ${input.projectId}
       order by p.priority, w.created_at, w.id`);
-  const acceptedWordsByLocale = acceptedSpellcheckWordsByLocale(wordRows.rows);
-  const skippedChecksByLocale: Record<string, string[]> = {};
-  const requests = keys.flatMap((key) => locales.map((targetLocale) => ({ key, targetLocale })));
-  const policy = resolveQaPolicy(run.checkPolicy ?? DEFAULT_QA_POLICY);
-  const segments = requests.map(({ key, targetLocale }, index) => {
-    const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
-    return {
-      id: String(index),
-      sourceText: key.sourceText,
-      targetText: translation?.text ?? "",
-      sourcePath: key.sourcePath ?? "",
-      maxLength: key.maxLength ?? 0,
-      targetLocale,
-      ...(key.messageFormat ? { messageFormat: key.messageFormat } : {}),
-      ...(key.placeholderPatterns?.length ? { placeholderPatterns: key.placeholderPatterns } : {}),
-    };
-  });
-  let results: Awaited<ReturnType<typeof validateQaPageInSandbox>>;
-  try {
-    results = await validateQaPageInSandbox({
-      policy,
-      glossaryTerms,
-      acceptedWordsByLocale: Object.fromEntries(acceptedWordsByLocale),
-      segments,
-      logContext: {
-        runId: input.runId,
-        projectId: input.projectId,
-        page: input.page,
-      },
+    const acceptedWordsByLocale = acceptedSpellcheckWordsByLocale(wordRows.rows);
+    const skippedChecksByLocale: Record<string, string[]> = {};
+    const segments = requests.map(({ key, targetLocale }, index) => {
+      const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
+      return {
+        id: String(index),
+        sourceText: key.sourceText,
+        targetText: translation?.text ?? "",
+        sourcePath: key.sourcePath ?? "",
+        maxLength: key.maxLength ?? 0,
+        targetLocale,
+        ...(key.messageFormat ? { messageFormat: key.messageFormat } : {}),
+        ...(key.placeholderPatterns?.length
+          ? { placeholderPatterns: key.placeholderPatterns }
+          : {}),
+      };
     });
-  } catch (error) {
-    if (!(error instanceof QaCliUnavailableError)) {
-      pageLog.error(
-        { err: serializeErrorForLog(error), segmentCount: segments.length },
-        "translation qa scan page sandbox validate failed",
-      );
-      throw error;
-    }
-    logger.warn(
-      { runId: input.runId, projectId: input.projectId, page: input.page },
-      "QA CLI is not available in sandbox",
-    );
-    const fallbackStartedAt = Date.now();
-    const fallbackSegments = segments.map((segment, index) => ({
-      ...segment,
-      glossaryTerms,
-      messageFormat: requests[index]?.key.messageFormat ?? null,
-      placeholderPatterns: requests[index]?.key.placeholderPatterns ?? null,
-    }));
-    results = await mapWithConcurrency(fallbackSegments, 8, async (segment) => {
-      const { checks, skippedChecks } = await validateScanSegment(
-        segment,
-        acceptedWordsByLocale.get(normalizeQaSpellcheckLocale(segment.targetLocale)) ?? [],
+    let results: Awaited<ReturnType<typeof validateQaPageInSandbox>>;
+    try {
+      results = await validateQaPageInSandbox({
         policy,
+        glossaryTerms,
+        acceptedWordsByLocale: Object.fromEntries(acceptedWordsByLocale),
+        segments,
+        logContext: {
+          runId: input.runId,
+          projectId: input.projectId,
+          page: input.page,
+        },
+      });
+    } catch (error) {
+      if (!(error instanceof QaCliUnavailableError)) {
+        pageLog.error(
+          { err: serializeErrorForLog(error), segmentCount: segments.length },
+          "translation qa scan page sandbox validate failed",
+        );
+        throw error;
+      }
+      logger.warn(
+        { runId: input.runId, projectId: input.projectId, page: input.page },
+        "QA CLI is not available in sandbox",
       );
-      return { id: segment.id, checks, skippedChecks };
-    });
+      const fallbackStartedAt = Date.now();
+      const fallbackSegments = segments.map((segment, index) => ({
+        ...segment,
+        glossaryTerms,
+        messageFormat: requests[index]?.key.messageFormat ?? null,
+        placeholderPatterns: requests[index]?.key.placeholderPatterns ?? null,
+      }));
+      results = await mapWithConcurrency(fallbackSegments, 8, async (segment) => {
+        const { checks, skippedChecks } = await validateScanSegment(
+          segment,
+          acceptedWordsByLocale.get(normalizeQaSpellcheckLocale(segment.targetLocale)) ?? [],
+          policy,
+        );
+        return { id: segment.id, checks, skippedChecks };
+      });
+      pageLog.info(
+        {
+          segmentCount: segments.length,
+          durationMs: Date.now() - fallbackStartedAt,
+        },
+        "translation qa scan page used in-process fallback",
+      );
+    }
+    for (const [index, { key, targetLocale }] of requests.entries()) {
+      const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
+      const targetText = translation?.text ?? "";
+      const { checks, skippedChecks = [] } = results[index] ?? { checks: [], skippedChecks: [] };
+      if (skippedChecks.length) skippedChecksByLocale[targetLocale] = skippedChecks;
+      for (const check of checks) {
+        if (!translationQaCheckTypes.includes(check.checkType as TranslationQaCheckType)) {
+          throw new Error("QA CLI returned an unknown check type");
+        }
+        pendingFindings.push({
+          runId: input.runId,
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          translationKeyId: key.translationKeyId,
+          translationId: translation?.id ?? null,
+          sourcePath: key.sourcePath,
+          key: key.key,
+          targetLocale,
+          checkType: check.checkType as TranslationQaCheckType,
+          severity: check.severity,
+          category: check.category,
+          message: check.message,
+          relatedTokens: check.relatedTokens,
+          sourceText: key.sourceText,
+          targetText,
+          ruleVersion: QA_CHECK_VERSION,
+        });
+        if (pendingFindings.length >= FINDING_INSERT_CHUNK) await flushFindings();
+      }
+    }
+    await flushFindings();
+    await db.execute(sql`update translation_qa_runs set summary = jsonb_set(summary, '{skippedChecksByLocale}',
+      coalesce(summary->'skippedChecksByLocale', '{}'::jsonb) || ${JSON.stringify(skippedChecksByLocale)}::jsonb)
+      where id = ${input.runId}`);
+    const planned = planScanGuidelineBatches(guidelineSegments);
+    const guidelineWorkRemains =
+      policy.guideline.enabled &&
+      !run.summary.guidelineCheckHaltCode &&
+      (planned.batches.length > 0 || planned.skippedOversized);
+    await touchTranslationQaRun(input.runId);
     pageLog.info(
       {
+        keyCount: keys.length,
+        localeCount: locales.length,
         segmentCount: segments.length,
-        durationMs: Date.now() - fallbackStartedAt,
+        findingCount: results.reduce((count, result) => count + result.checks.length, 0),
+        skippedLocaleCount: Object.keys(skippedChecksByLocale).length,
+        guidelineWorkRemains,
+        durationMs: Date.now() - pageStartedAt,
       },
-      "translation qa scan page used in-process fallback",
+      "translation qa scan page validated",
     );
-  }
-  const segmentByKeyLocale = new Map<string, ScanGuidelineSegment>();
-  for (const [index, { key, targetLocale }] of requests.entries()) {
-    const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
-    const targetText = translation?.text ?? "";
-    const { checks, skippedChecks = [] } = results[index] ?? { checks: [], skippedChecks: [] };
-    if (skippedChecks.length) skippedChecksByLocale[targetLocale] = skippedChecks;
-    segmentByKeyLocale.set(`${key.translationKeyId}\0${targetLocale}`, {
-      translationKeyId: key.translationKeyId,
-      key: key.key,
-      sourceText: key.sourceText,
-      targetText,
-      targetLocale,
-      translationId: translation?.id ?? null,
-      sourcePath: key.sourcePath,
-    });
-    for (const check of checks) {
-      if (!translationQaCheckTypes.includes(check.checkType as TranslationQaCheckType)) {
-        throw new Error("QA CLI returned an unknown check type");
-      }
-      pendingFindings.push({
-        runId: input.runId,
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        translationKeyId: key.translationKeyId,
-        translationId: translation?.id ?? null,
-        sourcePath: key.sourcePath,
-        key: key.key,
-        targetLocale,
-        checkType: check.checkType as TranslationQaCheckType,
-        severity: check.severity,
-        category: check.category,
-        message: check.message,
-        relatedTokens: check.relatedTokens,
-        sourceText: key.sourceText,
-        targetText,
-        ruleVersion: QA_CHECK_VERSION,
-      });
-      if (pendingFindings.length >= FINDING_INSERT_CHUNK) await flushFindings();
+    if (guidelineWorkRemains) {
+      return { done: false, afterKeyId: input.afterKeyId, guidelineBatchOffset: 0 };
     }
+    return advancePastKeyPage(keys);
   }
 
+  const planned = planScanGuidelineBatches(guidelineSegments);
+  const slice = planned.batches.slice(
+    guidelineBatchOffset,
+    guidelineBatchOffset + GUIDELINE_BATCHES_PER_STEP,
+  );
+  if (slice.length > 0) {
+    await deleteGuidelineFindingsForBatches(input.runId, slice);
+  }
   const guidelineResult = await runScanGuidelineChecks({
     organizationId: input.organizationId,
     projectId: input.projectId,
     sourceLocale: project.sourceLocale,
-    segments: [...segmentByKeyLocale.values()],
+    segments: guidelineSegments,
     policy,
     alreadyHalted: Boolean(run.summary.guidelineCheckHaltCode),
+    batchOffset: guidelineBatchOffset,
+    maxBatches: GUIDELINE_BATCHES_PER_STEP,
     onBatchComplete: () => touchTranslationQaRun(input.runId),
   });
   for (const row of guidelineResult.findings) {
@@ -455,41 +578,37 @@ export async function scanTranslationQaPage(input: {
     });
     if (pendingFindings.length >= FINDING_INSERT_CHUNK) await flushFindings();
   }
-
-  if (!guidelineResult.ok && guidelineResult.haltCode && !run.summary.guidelineCheckHaltCode) {
-    await db.execute(
-      sql`update translation_qa_runs set summary = jsonb_set(summary, '{guidelineCheckHaltCode}', ${JSON.stringify(guidelineResult.haltCode)}::jsonb)
-        where id = ${input.runId}`,
-    );
-  }
-
-  await db.execute(sql`update translation_qa_runs set summary = jsonb_set(summary, '{skippedChecksByLocale}',
-      coalesce(summary->'skippedChecksByLocale', '{}'::jsonb) || ${JSON.stringify(skippedChecksByLocale)}::jsonb)
-      where id = ${input.runId}`);
-
   await flushFindings();
+  await persistGuidelineMarkers(input.runId, {
+    haltCode:
+      !guidelineResult.ok && guidelineResult.haltCode && !run.summary.guidelineCheckHaltCode
+        ? guidelineResult.haltCode
+        : undefined,
+    incomplete: guidelineResult.incomplete,
+    knowledgeSkipped: guidelineResult.knowledgeSkipped,
+  });
   await touchTranslationQaRun(input.runId);
-
-  const afterKeyId = keys[keys.length - 1]?.translationKeyId;
-  const done = !afterKeyId || keys.length < KEY_PAGE_SIZE;
   pageLog.info(
     {
       keyCount: keys.length,
       localeCount: locales.length,
-      segmentCount: segments.length,
-      findingCount: results.reduce((count, result) => count + result.checks.length, 0),
       guidelineFindingCount: guidelineResult.findings.length,
       guidelineHaltCode: guidelineResult.haltCode,
-      skippedLocaleCount: Object.keys(skippedChecksByLocale).length,
+      guidelineIncomplete: guidelineResult.incomplete,
+      guidelineKnowledgeSkipped: guidelineResult.knowledgeSkipped,
+      nextBatchOffset: guidelineResult.nextBatchOffset,
       durationMs: Date.now() - pageStartedAt,
-      done,
     },
-    "translation qa scan page completed",
+    "translation qa scan guideline slice completed",
   );
-  if (!afterKeyId || done) {
-    return { done: true };
+  if (guidelineResult.nextBatchOffset != null) {
+    return {
+      done: false,
+      afterKeyId: input.afterKeyId,
+      guidelineBatchOffset: guidelineResult.nextBatchOffset,
+    };
   }
-  return { done: false, afterKeyId };
+  return advancePastKeyPage(keys);
 }
 
 export async function completeTranslationQaScan(input: {
@@ -584,6 +703,8 @@ export async function completeTranslationQaScan(input: {
         checkVersion: QA_CHECK_VERSION,
         skippedChecksByLocale: run.summary.skippedChecksByLocale ?? {},
         guidelineCheckHaltCode: run.summary.guidelineCheckHaltCode,
+        guidelineChecksIncomplete: run.summary.guidelineChecksIncomplete,
+        guidelineKnowledgeSkipped: run.summary.guidelineKnowledgeSkipped,
       },
       completedAt,
     })
@@ -602,24 +723,20 @@ export async function completeTranslationQaScan(input: {
   // Older snapshots become fixed only after this run rechecked that check and
   // no longer finds it. Disabled policy checks were not rechecked, including
   // spelling turned off in policy. Skipped spelling was not rechecked either.
-  // A guideline halt means this run did not finish checking, so previous
-  // guideline findings stay open. Knowledge off is the same: the scan skipped
-  // internalCheck even if the saved policy still has Guidelines enabled.
+  // A guideline halt, a skipped batch, or a page that did not call the checker
+  // because Knowledge was off leaves previous guideline findings open.
   const disabledCheckTypes = disabledQaCheckTypes(run.checkPolicy);
-  if (!disabledCheckTypes.includes("guideline")) {
-    const knowledgeEnabled = await resolveWorkspaceKnowledgeFlag({
-      organizationId: input.organizationId,
-    });
-    if (!knowledgeEnabled) {
-      disabledCheckTypes.push("guideline");
-    }
-  }
+  const guidelineUnchecked = Boolean(
+    run.summary.guidelineCheckHaltCode ||
+    run.summary.guidelineChecksIncomplete ||
+    run.summary.guidelineKnowledgeSkipped,
+  );
   await db.execute(sql`update translation_qa_findings old set status = 'resolved', reviewed_at = ${completedAt}
       where old.organization_id = ${input.organizationId} and old.project_id = ${input.projectId}
       and old.run_id <> ${input.runId} and old.status = 'open'
       and not (${JSON.stringify(disabledCheckTypes)}::jsonb ? old.check_type)
       and not (old.check_type = 'spelling' and ${JSON.stringify(run.summary.skippedChecksByLocale ?? {})}::jsonb ? old.target_locale)
-      and not (old.check_type = 'guideline' and ${Boolean(run.summary.guidelineCheckHaltCode)})
+      and not (old.check_type = 'guideline' and ${guidelineUnchecked})
       and not exists (select 1 from translation_qa_findings current
           where current.run_id = ${input.runId} and current.translation_key_id = old.translation_key_id
           and current.target_locale = old.target_locale and current.check_type = old.check_type)`);

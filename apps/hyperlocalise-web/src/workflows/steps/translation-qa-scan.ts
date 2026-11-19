@@ -18,6 +18,7 @@ export async function scanTranslationQaPageStep(input: {
   projectId: string;
   afterKeyId: string | null;
   page: number;
+  guidelineBatchOffset?: number;
 }) {
   "use step";
   const { createLogger, serializeErrorForLog } = await import("@/lib/log");
@@ -27,6 +28,7 @@ export async function scanTranslationQaPageStep(input: {
     projectId: input.projectId,
     page: input.page,
     hasAfterKeyId: Boolean(input.afterKeyId),
+    guidelineBatchOffset: input.guidelineBatchOffset,
   };
   const startedAt = Date.now();
   logger.info(stepContext, "translation qa scan page step started");

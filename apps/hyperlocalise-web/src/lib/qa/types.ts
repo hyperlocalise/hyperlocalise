@@ -85,4 +85,8 @@ export type TranslationQaSummary = {
   skippedChecksByLocale?: Record<string, string[]>;
   checkVersion?: number;
   guidelineCheckHaltCode?: string;
+  /** A segment or batch was skipped. Later batches still ran. */
+  guidelineChecksIncomplete?: boolean;
+  /** Knowledge was off or the entitlement read failed, so the checker was not called. */
+  guidelineKnowledgeSkipped?: boolean;
 };
