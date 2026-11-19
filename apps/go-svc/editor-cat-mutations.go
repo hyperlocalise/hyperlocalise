@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
 	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 	"github.com/jackc/pgx/v5"
 )
@@ -297,6 +298,9 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		}
 		return nil, 0, err
 	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, keyID); err != nil {
+		return nil, 0, err
+	}
 	tx, err := api.pool.Begin(r.Context())
 	if err != nil {
 		return nil, 0, err
@@ -322,6 +326,9 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		if len(keyIDs) == 0 {
 			keyIDs = []string{keyID}
 		}
+	}
+	if err := api.rejectProtectedKeys(r.Context(), project.ID, keyIDs); err != nil {
+		return nil, 0, err
 	}
 	lockedIDs, err := editorCatLockedKeyIDs(r, tx, actor, project, targetLocale, keyIDs)
 	if err != nil {
@@ -503,6 +510,9 @@ func (api *editorCatAPI) updateTranslationStatus(r *http.Request, actor editorCa
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, keyID); err != nil {
+		return nil, 0, err
+	}
 	var reviewedAt *time.Time
 	var reviewedBy *string
 	if body.Status == "approved" || body.Status == "rejected" {
@@ -600,6 +610,9 @@ func (api *editorCatAPI) saveComment(r *http.Request, actor editorCatActor, proj
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, keyID); err != nil {
+		return nil, 0, err
+	}
 	var comment editorCatComment
 	var created time.Time
 	var locale string
@@ -641,11 +654,12 @@ func (api *editorCatAPI) resolveComment(r *http.Request, actor editorCatActor, p
 	}
 	var existingType, status string
 	var authorID *string
+	var translationKeyID string
 	err = api.pool.QueryRow(r.Context(), `
-        select type, coalesce(status,''), author_user_id
+        select type, coalesce(status,''), author_user_id, translation_key_id
         from project_translation_comments
         where id=$1 and organization_id=$2 and project_id=$3`, commentID, actor.organizationID, project.ID,
-	).Scan(&existingType, &status, &authorID)
+	).Scan(&existingType, &status, &authorID, &translationKeyID)
 	if errors.Is(err, pgx.ErrNoRows) || existingType != "issue" || status == "resolved" {
 		return nil, 0, editorCatFailure(400, "native_cat_issue_unsupported", "Native CAT issues are tracked in Issues. Resolve them from the Issues section.")
 	}
@@ -654,6 +668,9 @@ func (api *editorCatAPI) resolveComment(r *http.Request, actor editorCatActor, p
 	}
 	if authorID != nil && *authorID != actor.userID && !actor.canReviewApprove() {
 		return nil, 0, editorCatFailure(400, "native_cat_issue_unsupported", "Native CAT issues are tracked in Issues. Resolve them from the Issues section.")
+	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, translationKeyID); err != nil {
+		return nil, 0, err
 	}
 	var comment editorCatComment
 	var created time.Time
@@ -698,6 +715,9 @@ func (api *editorCatAPI) setHidden(r *http.Request, actor editorCatActor, projec
 	ids := uniqueEditorCatIDs(body.ExternalStringIDs, editorCatMaxHiddenBatch)
 	if len(ids) == 0 {
 		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
+	}
+	if err := api.rejectProtectedKeys(r.Context(), project.ID, ids); err != nil {
+		return nil, 0, err
 	}
 	// A person's choice, so a repository sync no longer owns the hidden state.
 	sql := `update project_translation_keys set is_hidden=$4, hidden_by_sync_at=null, updated_at=now()
@@ -859,6 +879,9 @@ func (api *editorCatAPI) setMaxLength(r *http.Request, actor editorCatActor, pro
 	if err != nil {
 		return nil, 0, editorCatFailure(404, "translation_key_not_found", "Translation key not found")
 	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, keyID); err != nil {
+		return nil, 0, err
+	}
 	var saved *int
 	err = api.pool.QueryRow(r.Context(), `
         update project_translation_keys set max_length=$2, updated_at=now()
@@ -908,6 +931,9 @@ func (api *editorCatAPI) setContentKind(r *http.Request, actor editorCatActor, p
 	keyID, err := api.requireTranslationKey(r, actor, project, trimEditorCat(sourcePath), externalStringID)
 	if err != nil {
 		return nil, 0, editorCatFailure(400, "key_not_found", "Translation key not found")
+	}
+	if err := api.rejectProtectedKey(r.Context(), project.ID, keyID); err != nil {
+		return nil, 0, err
 	}
 	var metadata []byte
 	var key, sourceText string
@@ -980,6 +1006,9 @@ func (api *editorCatAPI) updateImageStatus(r *http.Request, actor editorCatActor
 	}
 	sourcePath := trimEditorCat(body.SourcePath)
 	targetLocale := trimEditorCat(body.TargetLocale)
+	if err := api.rejectProtectedBranchQuery(r, project.ID); err != nil {
+		return nil, 0, err
+	}
 	sourceFile, _ := api.sourceFileID(r, actor, project, sourcePath)
 	ids := []string{binaryEditorCatStringID(sourceFile, sourcePath), "binary:" + sourcePath, "image:" + sourcePath, "video:" + sourcePath}
 	if err := api.rejectIfLocked(r, actor, project, targetLocale, ids); err != nil {
@@ -1111,6 +1140,44 @@ func uniqueEditorCatIDs(values []string, max int) []string {
 		}
 	}
 	return ids
+}
+
+func (api *editorCatAPI) rejectProtectedKey(ctx context.Context, projectID, keyID string) error {
+	return api.rejectProtectedKeys(ctx, projectID, []string{keyID})
+}
+
+func (api *editorCatAPI) rejectProtectedKeys(ctx context.Context, projectID string, keyIDs []string) error {
+	if len(keyIDs) == 0 {
+		return nil
+	}
+	var protected bool
+	err := api.pool.QueryRow(ctx, `
+		select exists (
+			select 1
+			from project_translation_keys k
+			join project_branches b
+				on b.project_id = k.project_id and b.name = k.branch_name
+				and b.status = 'active' and b.is_protected
+			where k.project_id = $1 and k.id = any($2::uuid[])
+		)`, projectID, keyIDs).Scan(&protected)
+	if err != nil || !protected {
+		return err
+	}
+	return editorCatFailure(http.StatusConflict, "protected_branch", "This branch is protected.")
+}
+
+func (api *editorCatAPI) rejectProtectedBranchQuery(r *http.Request, projectID string) error {
+	name := nativeproject.ResolveBranchName(r.URL.Query().Get("branch"))
+	var protected bool
+	err := api.pool.QueryRow(r.Context(), `
+		select coalesce((
+			select is_protected from project_branches
+			where project_id = $1 and name = $2 and status = 'active'
+		), false)`, projectID, name).Scan(&protected)
+	if err != nil || !protected {
+		return err
+	}
+	return editorCatFailure(http.StatusConflict, "protected_branch", "This branch is protected.")
 }
 
 func ioReadAllLimited(r *http.Request) ([]byte, error) {

@@ -134,6 +134,18 @@ describe("ProjectBranchService", () => {
     const mainPaths = mainFiles.map((file) => file.sourcePath);
     expect(mainPaths).toContain("locales/en.json");
     expect(mainPaths).toContain("locales/checkout.json");
+
+    const [pay] = await db
+      .select({ normalizedSourceText: schema.projectTranslationKeys.normalizedSourceText })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.projectId, project.id),
+          eq(schema.projectTranslationKeys.branchName, "main"),
+          eq(schema.projectTranslationKeys.key, "pay"),
+        ),
+      );
+    expect(pay?.normalizedSourceText).toBe("pay now");
   });
 
   it("blocks writes to a protected branch", async () => {
