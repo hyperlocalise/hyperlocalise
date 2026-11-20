@@ -549,6 +549,7 @@ export const projectFileUploadBodySchema = z.object({
 export const projectFileTranslationImportBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   locale: z.string().trim().min(1).max(32),
+  branch: z.string().trim().min(1).max(128).optional(),
 });
 
 export const projectSourceStringEntrySchema = z.object({

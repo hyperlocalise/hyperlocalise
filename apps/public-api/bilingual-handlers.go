@@ -58,8 +58,9 @@ func (s apiServer) projectBilingualFile(w http.ResponseWriter, r *http.Request) 
 	format, formatErr := editor_export.ParseFormat(rawFormat)
 	includeHidden := values.Get("includeHidden")
 	filePath := trimmedOrNil(optionalQuery(values, "filePath"))
+	branch, branchOK := parseBilingualBranch(values.Get("branch"))
 	if locale == "" || len(locale) > maxLocaleLength || formatErr != nil || !member(includeHidden, "", "true", "false") ||
-		!validOptionalText(filePath, maxFilePathLength) {
+		!validOptionalText(filePath, maxFilePathLength) || !branchOK {
 		writeError(w, http.StatusBadRequest, "invalid_query", "locale is required; format must be csv, tmx, xlf, xliff, or xlsx")
 		return
 	}
@@ -67,6 +68,7 @@ func (s apiServer) projectBilingualFile(w http.ResponseWriter, r *http.Request) 
 		Locale:        locale,
 		FilePath:      filePath,
 		IncludeHidden: includeHidden == "true",
+		Branch:        branch,
 	})
 	if err != nil {
 		writeBilingualStoreError(w, err, "export bilingual file")
@@ -118,6 +120,7 @@ func (s apiServer) importBilingualFile(w http.ResponseWriter, r *http.Request, p
 		Locale:   form.locale,
 		FilePath: form.filePath,
 		Rows:     rows,
+		Branch:   form.branch,
 	})
 	if err != nil {
 		writeBilingualStoreError(w, err, "import bilingual file")
@@ -131,12 +134,25 @@ func (s apiServer) importBilingualFile(w http.ResponseWriter, r *http.Request, p
 type bilingualForm struct {
 	locale   string
 	filePath *string
+	branch   string
 	format   editor_export.Format
 	body     []byte
 }
 
+func parseBilingualBranch(raw string) (string, bool) {
+	name := normalizeBranchName(raw)
+	if name == "" {
+		return "main", true
+	}
+	if !validBranchName(name) {
+		return "", false
+	}
+	return name, true
+}
+
 // readBilingualForm reads a multipart form with a `file` part and `locale`, and optional
-// `filePath` and `format` fields. The format defaults to the file name's extension.
+// `filePath`, `branch`, and `format` fields. The format defaults to the file name's extension.
+// An omitted or empty branch is the default branch, main.
 func readBilingualForm(w http.ResponseWriter, r *http.Request) (bilingualForm, bool) {
 	invalid := func(message string) (bilingualForm, bool) {
 		writeError(w, http.StatusBadRequest, "invalid_body", message)
@@ -197,6 +213,12 @@ func readBilingualForm(w http.ResponseWriter, r *http.Request) (bilingualForm, b
 		case "filePath":
 			text := string(value)
 			form.filePath = trimmedOrNil(&text)
+		case "branch":
+			branch, ok := parseBilingualBranch(string(value))
+			if !ok {
+				return invalid("branch must be a native version branch name")
+			}
+			form.branch = branch
 		case "format":
 			rawFormat = string(value)
 		default:
@@ -208,6 +230,9 @@ func readBilingualForm(w http.ResponseWriter, r *http.Request) (bilingualForm, b
 	}
 	if form.locale == "" || len(form.locale) > maxLocaleLength {
 		return invalid("locale is required")
+	}
+	if form.branch == "" {
+		form.branch = "main"
 	}
 	if rawFormat != "" {
 		form.format, err = editor_export.ParseFormat(rawFormat)

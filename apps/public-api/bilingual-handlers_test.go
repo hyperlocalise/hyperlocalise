@@ -61,7 +61,7 @@ func TestBilingualExportRoute(t *testing.T) {
 		store.bilingualRows = []editor_export.Row{{Key: "home.title", SourceText: "Home", TargetText: "Accueil", SourceLocale: "en", TargetLocale: "fr", SourcePath: "en.json"}}
 		w := sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/bilingual-file?locale=fr&filePath=en.json", "")
 		require.Equal(t, http.StatusOK, w.Code)
-		require.Equal(t, bilingualExportQuery{Locale: "fr", FilePath: ptr("en.json")}, store.bilingualQuery)
+		require.Equal(t, bilingualExportQuery{Locale: "fr", FilePath: ptr("en.json"), Branch: "main"}, store.bilingualQuery)
 		require.Contains(t, w.Header().Get("Content-Type"), "xliff")
 		require.Equal(t, "attachment; filename*=UTF-8''en-fr.xliff", w.Header().Get("Content-Disposition"))
 		require.Contains(t, w.Body.String(), "Accueil")
@@ -72,8 +72,16 @@ func TestBilingualExportRoute(t *testing.T) {
 		store.bilingualRows = []editor_export.Row{{Key: "a", SourceText: "A", TargetLocale: "fr"}}
 		w := sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/bilingual-file?locale=fr&format=csv&includeHidden=true", "")
 		require.Equal(t, http.StatusOK, w.Code)
-		require.Equal(t, bilingualExportQuery{Locale: "fr", IncludeHidden: true}, store.bilingualQuery)
+		require.Equal(t, bilingualExportQuery{Locale: "fr", IncludeHidden: true, Branch: "main"}, store.bilingualQuery)
 		require.Equal(t, "attachment; filename*=UTF-8''all-files-fr.csv", w.Header().Get("Content-Disposition"))
+	})
+
+	t.Run("exports a named version branch", func(t *testing.T) {
+		store := &fakeResourceStore{}
+		store.bilingualRows = []editor_export.Row{{Key: "a", SourceText: "A", TargetLocale: "fr"}}
+		w := sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/projects/project-1/bilingual-file?locale=fr&branch=feature-checkout", "")
+		require.Equal(t, http.StatusOK, w.Code)
+		require.Equal(t, bilingualExportQuery{Locale: "fr", Branch: "feature-checkout"}, store.bilingualQuery)
 	})
 
 	t.Run("rejects invalid queries", func(t *testing.T) {
@@ -82,6 +90,7 @@ func TestBilingualExportRoute(t *testing.T) {
 			"/v1/projects/project-1/bilingual-file",
 			"/v1/projects/project-1/bilingual-file?locale=fr&format=docx",
 			"/v1/projects/project-1/bilingual-file?locale=fr&includeHidden=yes",
+			"/v1/projects/project-1/bilingual-file?locale=fr&branch=a//b",
 		} {
 			w := sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, target, "")
 			require.Equal(t, http.StatusBadRequest, w.Code, target)
@@ -117,8 +126,17 @@ func TestBilingualImportRoute(t *testing.T) {
 		require.JSONEq(t, `{"import":{"matched":1,"imported":1,"skipped":0,"files":1}}`, w.Body.String())
 		require.Equal(t, "fr", store.bilingualImport.Locale)
 		require.Equal(t, ptr("en.json"), store.bilingualImport.FilePath)
+		require.Equal(t, "main", store.bilingualImport.Branch)
 		require.Len(t, store.bilingualImport.Rows, 1)
 		require.Equal(t, "Accueil", store.bilingualImport.Rows[0].TargetText)
+	})
+
+	t.Run("imports onto a named version branch", func(t *testing.T) {
+		store := &fakeResourceStore{}
+		store.bilingualCounts = bilingualImportCounts{Matched: 1, Imported: 1, Files: 1}
+		w := sendBilingualForm(t, resourcePrincipal(approveScopes...), store, map[string]string{"locale": "fr", "filePath": "en.json", "branch": "feature-checkout"}, "fixed.csv", csv)
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+		require.Equal(t, "feature-checkout", store.bilingualImport.Branch)
 	})
 
 	t.Run("format field overrides the file name", func(t *testing.T) {
@@ -126,6 +144,7 @@ func TestBilingualImportRoute(t *testing.T) {
 		w := sendBilingualForm(t, resourcePrincipal(approveScopes...), store, map[string]string{"locale": "fr", "format": "csv"}, "upload.bin", csv)
 		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 		require.Nil(t, store.bilingualImport.FilePath)
+		require.Equal(t, "main", store.bilingualImport.Branch)
 	})
 
 	t.Run("requires translations:approve", func(t *testing.T) {
@@ -149,6 +168,7 @@ func TestBilingualImportRoute(t *testing.T) {
 			{map[string]string{"locale": "fr"}, "", nil, "invalid_body"},
 			{map[string]string{"locale": "fr"}, "fixed.docx", csv, "unsupported_bilingual_format"},
 			{map[string]string{"locale": "fr", "extra": "x"}, "fixed.csv", csv, "invalid_body"},
+			{map[string]string{"locale": "fr", "branch": "a//b"}, "fixed.csv", csv, "invalid_body"},
 			{map[string]string{"locale": "fr"}, "fixed.tmx", []byte("<not-tmx"), "invalid_bilingual_file"},
 		}
 		for _, tc := range cases {
