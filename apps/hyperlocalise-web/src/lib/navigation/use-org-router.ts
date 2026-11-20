@@ -16,6 +16,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { addTransitionType, startTransition } from "react";
 
 import { navigateThroughLeaveGuard } from "@/lib/navigation/leave-guard";
+import { localizeOrgHref } from "@/lib/navigation/localize-org-href";
 import { getOrgNavigationTransitionTypes } from "@/lib/navigation/org-nav-transition";
 
 type OrgRouterNavigateOptions = {
@@ -23,11 +24,16 @@ type OrgRouterNavigateOptions = {
   scroll?: boolean;
 };
 
+/**
+ * Router for moving between org pages. Use it over `useRouter` for `/org/...` hrefs: it adds the
+ * current locale, which saves the proxy's locale redirect, and respects the page's leave guard.
+ */
 export function useOrgRouter() {
   const router = useRouter();
   const pathname = usePathname();
 
-  function navigate(href: string, options?: OrgRouterNavigateOptions) {
+  function navigate(orgHref: string, options?: OrgRouterNavigateOptions) {
+    const href = localizeOrgHref(orgHref, pathname);
     const transitionTypes = getOrgNavigationTransitionTypes(pathname, href);
 
     // A page with unsaved changes may ask first, and may need its extra history entry replaced.

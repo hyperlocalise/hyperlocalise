@@ -545,3 +545,81 @@ func TestJobCreateDatabase(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+func TestJobBudgetLeavesOutTasksForPeople(t *testing.T) {
+	f := newDBFixture(t)
+	ctx := t.Context()
+	// Fifty open jobs of one shape, made two hours ago so the hourly limit stays out of the way.
+	fill := func(t *testing.T, kind, status, assignee, metadata string, mirrored bool) {
+		f.exec(t, `DELETE FROM jobs WHERE organization_id = $1`, f.actor.OrganizationID)
+		f.exec(t, `INSERT INTO jobs (id, organization_id, project_id, kind, status, assignee_type, input_payload, created_at)
+			SELECT 'job_fill_' || gen_random_uuid(), $1, $2, $3::job_kind, $4::job_status, NULLIF($5, '')::job_assignee_type,
+				jsonb_build_object('metadata', $6::jsonb), now() - interval '2 hours'
+			FROM generate_series(1, 50)`,
+			f.actor.OrganizationID, f.project, kind, status, assignee, metadata)
+		if mirrored {
+			f.exec(t, `INSERT INTO external_job_details (job_id, organization_id, provider_kind, external_job_id, external_status)
+				SELECT id, organization_id, 'crowdin', id, 'todo' FROM jobs WHERE organization_id = $1`, f.actor.OrganizationID)
+		}
+	}
+	aiJob := func() error {
+		_, _, err := f.store.createJob(ctx, f.actor, jobCreate{
+			Type: "string", ProjectID: f.project,
+			String: &stringJobInput{SourceText: "Hi", SourceLocale: "en", TargetLocales: []string{"fr"}},
+		}, nil)
+		return err
+	}
+
+	for _, tc := range []struct {
+		name                             string
+		kind, status, assignee, metadata string
+		mirrored, counts                 bool
+	}{
+		{name: "an open proofread task", kind: "proofread", status: "waiting_for_review", metadata: `{}`},
+		{name: "an open post-edit task with an owner", kind: "proofread", status: "waiting_for_review", assignee: "user", metadata: `{"workflowTaskStep":"edit"}`},
+		{name: "a task waiting for an earlier job", kind: "proofread", status: "queued", metadata: `{}`},
+		{name: "a translate task a person holds", kind: "translation", status: "waiting_for_review", metadata: `{"workflowTaskStep":"translate"}`},
+		{name: "a proofread job given to an agent", kind: "proofread", status: "waiting_for_review", assignee: "agent", metadata: `{}`, counts: true},
+		{name: "a proofread job mirrored from a provider", kind: "proofread", status: "waiting_for_review", metadata: `{}`, mirrored: true, counts: true},
+		{name: "a queued AI job carrying the translate step", kind: "translation", status: "queued", metadata: `{"workflowTaskStep":"translate"}`, counts: true},
+		{name: "a translation job waiting for review without the step", kind: "translation", status: "waiting_for_review", metadata: `{}`, counts: true},
+		{name: "an AI review waiting for review", kind: "review", status: "waiting_for_review", metadata: `{}`, counts: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fill(t, tc.kind, tc.status, tc.assignee, tc.metadata, tc.mirrored)
+			err := aiJob()
+			if tc.counts {
+				var budget jobBudgetError
+				require.ErrorAs(t, err, &budget)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+
+	t.Run("a file task is created while 50 AI jobs are open, within the hourly limit", func(t *testing.T) {
+		fill(t, "translation", "queued", "", `{}`, false)
+		fileID := "file_" + uuid.NewString()
+		f.exec(t, `INSERT INTO stored_files (id, organization_id, project_id, created_by_user_id, role, source_kind,
+				storage_provider, storage_key, storage_url, filename, content_type, byte_size, sha256, metadata)
+			VALUES ($1, $2, $3, $4, 'source', 'repository_file', 'vercel_blob', $1, 'https://blob.test/' || $1,
+				'guide.json', 'application/json', 2, 'abc', '{"sourcePath":"docs/limit.json"}'::jsonb)`,
+			fileID, f.actor.OrganizationID, f.project, f.actor.UserID)
+		step := "proofread"
+		task := jobCreate{
+			Type: "file", ProjectID: f.project,
+			File: &fileJobInput{SourceFileID: fileID, FileFormat: "json", SourceLocale: "en", TargetLocales: []string{"fr"}, Step: &step},
+		}
+		_, _, err := f.store.createJob(ctx, f.actor, task, nil)
+		require.NoError(t, err)
+
+		f.exec(t, `UPDATE jobs SET created_at = now() WHERE organization_id = $1`, f.actor.OrganizationID)
+		f.exec(t, `INSERT INTO jobs (id, organization_id, project_id, kind, status, input_payload)
+			SELECT 'job_rate_' || g, $1, $2, 'proofread', 'cancelled', '{}'::jsonb FROM generate_series(1, 69) g`,
+			f.actor.OrganizationID, f.project)
+		_, _, err = f.store.createJob(ctx, f.actor, task, nil)
+		var budget jobBudgetError
+		require.ErrorAs(t, err, &budget)
+		require.Contains(t, budget.Error(), "rate limit")
+	})
+}

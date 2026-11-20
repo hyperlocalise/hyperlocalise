@@ -230,8 +230,8 @@ async function activeJobWhere(auth: ApiAuthContext, jobId: string) {
     eq(schema.jobs.id, jobId),
     await buildAccessibleJobsWhere(auth),
     // Include waiting_for_review so native proofread jobs (and review-gated
-    // translation jobs) can be cancelled — they count toward the open-job
-    // budget and otherwise have no completion path.
+    // translation jobs) can be cancelled. Those that are not tasks for people
+    // count toward the open-job budget while they wait.
     or(
       eq(schema.jobs.status, "queued"),
       eq(schema.jobs.status, "running"),
@@ -542,12 +542,12 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       let job;
       try {
         [job] = await db.transaction(async (tx) => {
-          // Proofread jobs skip AI enqueue/usage but still occupy open slots
-          // (waiting_for_review). Always enforce the org open-job / rate budget.
+          // A proofread job is a task for people: it runs no AI, so open jobs don't hold it
+          // back. The hourly rate still applies.
           const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
             tx,
             c.var.auth.organization.localOrganizationId,
-            { isKeyJob: payload.type === "keys" && isProofreadJob },
+            { isPersonTask: isProofreadJob },
           );
           if (isErr(jobBudget)) {
             throw new OrganizationJobBudgetExceededError(jobBudget.error);

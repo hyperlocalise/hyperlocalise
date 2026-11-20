@@ -64,7 +64,7 @@ Not built here:
 ## Risks
 
 - **Jobs, the public API and Reports are in use by customers.** Part 1 changes which tasks can be finished and what a workflow hears. A workflow with no job kind chosen starts on finished post-edit tasks as on any other job; one set to Proofread does not. A workflow set to Proofread that reacts to other changes, such as a task being created, no longer starts for post-edit tasks unless Post-edit is ticked too.
-- **Open jobs limit.** A workspace may hold 50 open jobs, and tasks on files count. Making every step's task at the start doubles how fast a workspace reaches it.
+- **Open jobs limit.** When this was written, tasks on files counted towards a workspace's limit of 50 open jobs, so making every step's task at the start doubled how fast a workspace reached it. Since 2026-11-19 tasks for people, waiting ones included, do not count towards that limit; the limit of 120 jobs created an hour still applies to them.
 - **Opening is not instant.** Waiting tasks are opened about once a minute, so one opens up to a minute after the earlier job is finished.
 - **A task after an AI job.** A file translation that finishes only some languages counts as finished, so a task after it opens while the rest are still being translated; a job that never finishes, such as an AI review left waiting, keeps the task waiting until it is cancelled.
 - **No notice of its own.** The owner of a task that opens is not sent a message by the platform; assigning a task sends none today either. They see it in their jobs, and a webhook or a workflow can tell them.
