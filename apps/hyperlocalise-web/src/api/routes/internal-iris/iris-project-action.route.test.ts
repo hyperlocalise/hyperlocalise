@@ -578,4 +578,72 @@ describe("internal iris project-action route", () => {
       .where(eq(schema.jobs.id, job.id));
     expect(untouched?.status).toBe("queued");
   });
+
+  it("retries only a queued or failed translation job on the path project", async () => {
+    const owned = await seedNativeProject();
+    const sibling = (
+      await db
+        .insert(schema.projects)
+        .values({
+          id: `project_${randomUUID()}`,
+          identifier: uniqueTestProjectIdentifier(),
+          organizationId: owned.organization.id,
+          teamId: owned.project.teamId,
+          createdByUserId: owned.user.id,
+          name: "Iris sibling",
+          description: "",
+          translationContext: "",
+          source: "native",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        })
+        .returning()
+    )[0]!;
+    const siblingJob = await insertJob({
+      organizationId: owned.organization.id,
+      projectId: sibling.id,
+      createdByUserId: owned.user.id,
+      status: "failed",
+      assigneeType: "agent",
+    });
+    const running = await insertJob({
+      organizationId: owned.organization.id,
+      projectId: owned.project.id,
+      createdByUserId: owned.user.id,
+      status: "running",
+      assigneeType: "agent",
+    });
+
+    const wrongProject = await postAction("job_action", {
+      organizationId: owned.organization.id,
+      userId: owned.user.id,
+      projectId: owned.project.id,
+      jobId: siblingJob.id,
+      action: "retry",
+    });
+    expect(wrongProject.status).toBe(404);
+    await expect(wrongProject.json()).resolves.toMatchObject({ error: "job_not_found" });
+    expect(enqueueJob).not.toHaveBeenCalled();
+    const [siblingRow] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, siblingJob.id));
+    expect(siblingRow?.status).toBe("failed");
+
+    const unavailable = await postAction("job_action", {
+      organizationId: owned.organization.id,
+      userId: owned.user.id,
+      projectId: owned.project.id,
+      jobId: running.id,
+      action: "retry",
+    });
+    expect(unavailable.status).toBe(409);
+    await expect(unavailable.json()).resolves.toMatchObject({ error: "job_action_unavailable" });
+    expect(enqueueJob).not.toHaveBeenCalled();
+    const [runningRow] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, running.id));
+    expect(runningRow?.status).toBe("running");
+  });
 });

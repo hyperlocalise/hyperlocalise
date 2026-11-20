@@ -127,7 +127,7 @@ func queryEditorCatGroupID(ctx context.Context, db dictionaryDB, organizationID,
 }
 
 // editorCatGroupOccurrenceIDs returns every key in the queue scope whose source is identical
-// to keyID. Media strings stay separate, so they only match themselves.
+// to keyID, on the same version branch. Media strings stay separate, so they only match themselves.
 func (api *editorCatAPI) editorCatGroupOccurrenceIDs(r *http.Request, actor editorCatActor, project editorCatProject, keyID string, scope editorCatSaveGroupScope, db dictionaryDB) ([]string, error) {
 	paths := scope.SourcePaths
 	if paths == nil {
@@ -135,7 +135,7 @@ func (api *editorCatAPI) editorCatGroupOccurrenceIDs(r *http.Request, actor edit
 	}
 	rows, err := db.Query(r.Context(), `
         with representative as (
-            select `+editorCatGroupIdentitySQL("rk")+` as group_identity
+            select `+editorCatGroupIdentitySQL("rk")+` as group_identity, rk.branch_name as branch_name
             from project_translation_keys rk
             join repository_source_files rf on rf.id=rk.repository_source_file_id
                 and rf.organization_id=rk.organization_id and rf.project_id=rk.project_id
@@ -146,6 +146,7 @@ func (api *editorCatAPI) editorCatGroupOccurrenceIDs(r *http.Request, actor edit
         join repository_source_files f on f.id=k.repository_source_file_id
             and f.organization_id=k.organization_id and f.project_id=k.project_id
         join representative r on r.group_identity = `+editorCatGroupIdentitySQL("k")+`
+            and r.branch_name = k.branch_name
         where k.organization_id=$1 and k.project_id=$2
             and ($3='*' or f.source_path=$3)
             and (cardinality($4::text[])=0 or f.source_path=any($4::text[]))

@@ -95,6 +95,18 @@ import type {
   CatUndoOperationResponse,
 } from "./go-svc-cat-revisions.types";
 
+/** Adds `?branch=` for native version-branch CAT calls. Empty means the default branch. */
+export function withCatBranch(
+  branch?: string | null,
+  options: GoSvcRequestOptions = {},
+): GoSvcRequestOptions {
+  const name = branch?.trim();
+  if (!name) {
+    return options;
+  }
+  return { ...options, query: { ...options.query, branch: name } };
+}
+
 export class GoSvcCatApi {
   constructor(private readonly request: GoSvcRequest) {}
 
@@ -107,7 +119,7 @@ export class GoSvcCatApi {
   ) {
     return this.request.json<{ variants: CatGroupVariant[] }>(
       catPath(organizationSlug, projectId, "segments", externalStringId, "variants"),
-      { query, ...options },
+      { ...options, query: { ...query, ...options.query } },
     );
   }
 

@@ -24,6 +24,7 @@ import {
 } from "@/api/routes/project/project.schema";
 import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { withCatBranch } from "@/lib/go-svc/go-svc-cat-api";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 
@@ -240,10 +241,13 @@ export function useContentEditorMutations(input: {
   invalidateQueue: () => Promise<void>;
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
   goSvcClient?: GoSvcClient;
+  /** Native version branch of the open queue; omitted on `main`. */
+  branch?: string | null;
   /** Queue scope for grouped rows. Saves on rows with several occurrences write to all of them. */
   groupScope?: ContentEditorGroupSaveScope | null;
 }) {
   const intl = useIntl();
+  const catOptions = withCatBranch(input.branch);
   const queryClient = useQueryClient();
   const invalidateSegmentTarget = useInvalidateCatSegmentTarget();
   const syncSegmentTargetAfterSave = useSyncCatSegmentTargetAfterSave();
@@ -308,6 +312,7 @@ export function useContentEditorMutations(input: {
               approve: mutationInput.approve,
               ...(group ? { group } : {}),
             },
+            catOptions,
           );
           // Product analytics only; Reports learns of the save from the Go service's activity
           // event through the reporting-capture cron, so the save does not wait on this.
@@ -433,6 +438,7 @@ export function useContentEditorMutations(input: {
               type: mutationInput.type,
               issueType: mutationInput.issueType,
             },
+            catOptions,
           );
           await captureNativeCatCommentProductUsageViaApp({
             organizationSlug: input.organizationSlug,
@@ -542,6 +548,7 @@ export function useContentEditorMutations(input: {
             input.projectId,
             mutationInput.externalCommentId,
             { sourcePath, externalResourceId },
+            catOptions,
           );
           return body.comment;
         },
@@ -830,6 +837,7 @@ export function useContentEditorMutations(input: {
               externalResourceId,
               treatAsImage: mutationInput.treatAsImage,
             },
+            catOptions,
           ),
         async () => {
           const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -887,6 +895,7 @@ export function useContentEditorMutations(input: {
               externalStringId: mutationInput.externalStringId,
               treatAsVideo: mutationInput.treatAsVideo,
             },
+            catOptions,
           ),
         async () => {
           const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -936,7 +945,13 @@ export function useContentEditorMutations(input: {
         };
         const saved = await runNativeCat(
           prefersGoSvcCat(input),
-          () => input.goSvcClient!.cat.setHidden(input.organizationSlug, input.projectId, body),
+          () =>
+            input.goSvcClient!.cat.setHidden(
+              input.organizationSlug,
+              input.projectId,
+              body,
+              catOptions,
+            ),
           async () => {
             const response = await apiClient.api.orgs[":organizationSlug"].projects[
               ":projectId"
@@ -987,7 +1002,13 @@ export function useContentEditorMutations(input: {
         };
         const saved = await runNativeCat(
           prefersGoSvcCat(input),
-          () => input.goSvcClient!.cat.setLocked(input.organizationSlug, input.projectId, body),
+          () =>
+            input.goSvcClient!.cat.setLocked(
+              input.organizationSlug,
+              input.projectId,
+              body,
+              catOptions,
+            ),
           async () => {
             const response = await apiClient.api.orgs[":organizationSlug"].projects[
               ":projectId"
@@ -1040,6 +1061,7 @@ export function useContentEditorMutations(input: {
               externalStringId: mutationInput.externalStringId,
               maxLength: mutationInput.maxLength,
             },
+            catOptions,
           ),
         async () => {
           const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -1098,6 +1120,7 @@ export function useContentEditorMutations(input: {
               addTags: mutationInput.addTags,
               removeTags: mutationInput.removeTags,
             },
+            catOptions,
           );
           updatedCount += saved.updatedCount;
         }
@@ -1144,6 +1167,7 @@ export function useContentEditorMutations(input: {
             externalStringId: mutationInput.externalStringId,
             designUrl: mutationInput.designUrl,
           },
+          catOptions,
         );
       } catch (error) {
         throw new Error(goSvcErrorMessage(error, fallback), { cause: error });
@@ -1183,6 +1207,7 @@ export function useContentEditorMutations(input: {
             sourceText: mutationInput.sourceText,
             keepApproved: mutationInput.keepApproved,
           },
+          catOptions,
         );
       } catch (error) {
         throw new Error(goSvcErrorMessage(error, fallback), { cause: error });
