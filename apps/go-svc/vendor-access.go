@@ -311,6 +311,11 @@ var errVendorInOtherTeam = errors.New("vendor_in_other_team")
 // workspace would have no admin left who can reach it.
 var errLastAdminToVendorTeam = errors.New("last_admin_protected")
 
+// errJoinMemberGone refuses a join whose person is not, or is no longer, in the workspace: they
+// were removed while the join waited. Joining anyway would leave a team row for nobody, which
+// would make them a vendor if they were invited again.
+var errJoinMemberGone = errors.New("organization_member_not_found")
+
 // errCannotMoveToVendorTeam refuses putting someone in a vendor team whom the actor may not
 // manage, such as an admin added by a localization manager: it would shut them out.
 var errCannotMoveToVendorTeam = errors.New("forbidden")
@@ -350,11 +355,13 @@ func applyVendorTeamJoinRules(ctx context.Context, db dictionaryDB, organization
 	if err != nil {
 		return fmt.Errorf("read team join rules: %w", err)
 	}
+	if role == nil {
+		return errJoinMemberGone
+	}
 	if vendorElsewhere {
 		return errVendorInOtherTeam
 	}
-	if !vendorTeam || role == nil {
-		// An ordinary team, or a person not yet in the workspace, who is in no team yet.
+	if !vendorTeam {
 		return nil
 	}
 	// The admin lock, as removals and demotions take it, and the role read again under it.
@@ -363,8 +370,8 @@ func applyVendorTeamJoinRules(ctx context.Context, db dictionaryDB, organization
 	}
 	err = readRules()
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && role == nil) {
-		// The team or the person went while this waited for the lock: the join finds nothing.
-		return nil
+		// The team or the person went while this waited for the lock.
+		return errJoinMemberGone
 	}
 	if err != nil {
 		return fmt.Errorf("read team join rules: %w", err)

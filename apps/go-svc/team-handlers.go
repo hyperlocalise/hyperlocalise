@@ -554,6 +554,8 @@ func (api *teamAPI) addTeamMember(ctx context.Context, actor teamActor, teamID s
 		return nil, 0, teamFailureWithMessage(409, "vendor_in_other_team", "Someone in a vendor team cannot join another team. Remove them from their vendor team first.")
 	case errors.Is(err, errLastAdminToVendorTeam):
 		return nil, 0, teamFailureWithMessage(409, "last_admin_protected", "The workspace needs an admin outside vendor teams, so this admin cannot join one.")
+	case errors.Is(err, errJoinMemberGone):
+		return nil, 0, teamFailure(404, "organization_member_not_found")
 	case errors.Is(err, errCannotMoveToVendorTeam):
 		return nil, 0, teamFailureWithMessage(403, "forbidden", "You cannot put this member in a vendor team, because you cannot manage their role.")
 	case err != nil:

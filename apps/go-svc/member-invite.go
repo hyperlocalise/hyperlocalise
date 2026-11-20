@@ -199,6 +199,8 @@ func (api *memberAPI) applyInviteJoinRules(ctx context.Context, db dictionaryDB,
 		return memberFailure(409, "vendor_in_other_team", "Someone in a vendor team cannot join another team")
 	case errors.Is(err, errLastAdminToVendorTeam):
 		return memberFailure(409, "last_admin_protected", "The workspace needs an admin outside vendor teams")
+	case errors.Is(err, errJoinMemberGone):
+		return memberFailure(404, "organization_member_not_found", "Organization member not found")
 	default:
 		return err
 	}
