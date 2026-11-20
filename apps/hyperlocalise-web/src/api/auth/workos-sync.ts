@@ -12,7 +12,6 @@
  */
 import { and, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 
-import { isVendorRole } from "@/api/auth/vendor-access";
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
@@ -237,23 +236,6 @@ export async function syncWorkosIdentity(
         role: schema.organizationMemberships.role,
         workosMembershipId: schema.organizationMemberships.workosMembershipId,
       });
-
-    // A vendor is in no team (`vendor-access.ts`). A role that arrives from WorkOS is held to
-    // the same rule as one given in the app, where go-svc removes the teams.
-    if (isVendorRole(membership.role)) {
-      const teams = tx
-        .select({ id: schema.teams.id })
-        .from(schema.teams)
-        .where(eq(schema.teams.organizationId, organization.id));
-      await tx
-        .delete(schema.teamMemberships)
-        .where(
-          and(
-            eq(schema.teamMemberships.userId, user.id),
-            inArray(schema.teamMemberships.teamId, teams),
-          ),
-        );
-    }
 
     if (options.recordActivity) {
       activityLogEvents.push(

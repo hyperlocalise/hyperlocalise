@@ -18,6 +18,8 @@ const (
 type teamAPI struct {
 	pool       dictionaryPool
 	membership organizationMembershipLookup
+	// workosSynced is true when WorkOS holds the memberships, as for memberAPI.workos.
+	workosSynced bool
 }
 
 type teamActor struct {

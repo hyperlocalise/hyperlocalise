@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { sql } from "drizzle-orm";
-import { index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import {
   organizationLifecycleStatusEnum,
@@ -140,6 +140,12 @@ export const teams = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
+    /**
+     * An outside vendor's team (an agency, or a freelancer alone). Its people reach only the open
+     * tasks they own, whatever their role, and are in no other team; it owns no projects. Set when
+     * the team is made and never changed. See `api/auth/vendor-access.ts`.
+     */
+    isVendor: boolean("is_vendor").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

@@ -12,26 +12,20 @@
  */
 import "dotenv/config";
 
+import { and, eq, inArray } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { resolveApiKeyTeamAccessContext } from "@/api/auth/api-key-access";
-import {
-  getCapabilitiesForRole,
-  hasCapability,
-  ORGANIZATION_CAPABILITIES,
-} from "@/api/auth/policy";
 import { getVisibleTeamIds } from "@/api/auth/team-access";
 import { VendorAccessDeniedError } from "@/api/auth/vendor-access";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db } from "@/lib/database/client";
-import { assignableRolesForActor } from "@/lib/members/member-management";
+import { db, schema } from "@/lib/database/client";
 import {
   ensureDefaultWorkspaceTeam,
   ensureTeamMembership,
 } from "@/lib/teams/default-workspace-team";
-import { workosRoleSlugToMembershipRole } from "@/lib/workos/membership-role";
 
 // The real session function, with only WorkOS itself stood in for, as in
 // identity-access-regression.test.ts.
@@ -117,10 +111,30 @@ afterAll(() => {
   liveWorkosApiKey.enabled = false;
 });
 
+/** Takes the person out of every vendor team of their workspace. */
+async function leaveVendorTeams(identity: Identity) {
+  const userId = await fixture.getLocalUserId(identity.user.workosUserId);
+  await db
+    .delete(schema.teamMemberships)
+    .where(
+      and(
+        eq(schema.teamMemberships.userId, userId),
+        inArray(
+          schema.teamMemberships.teamId,
+          db
+            .select({ id: schema.teams.id })
+            .from(schema.teams)
+            .where(eq(schema.teams.isVendor, true)),
+        ),
+      ),
+    );
+}
+
 describe("a vendor's session", () => {
-  it("is refused unless the caller allows vendors", async () => {
-    const vendor = fixture.createWorkosIdentityWithRole("vendor");
+  it("is refused unless the caller allows vendors, and keeps the person's role", async () => {
+    const vendor = fixture.createWorkosIdentityWithRole("reviewer");
     await syncWorkosIdentity(db, vendor);
+    await fixture.joinVendorTeam(vendor);
     signIn(vendor);
     const { resolveApiAuthContextFromSession } = await import("./workos-session");
 
@@ -132,27 +146,30 @@ describe("a vendor's session", () => {
     ).rejects.toMatchObject({ organizationSlug: vendor.organization.slug });
 
     const auth = await resolveApiAuthContextFromSession({ allowVendor: true });
-    expect(auth?.membership.role).toBe("vendor");
-    expect(auth?.capabilities).toEqual([]);
+    expect(auth?.membership.role).toBe("reviewer");
+    expect(auth?.membership.inVendorTeam).toBe(true);
     expect(auth?.activeTeam).toBeNull();
   });
 
-  it("keeps the role when WorkOS reports it at sign-in", async () => {
-    expect(workosRoleSlugToMembershipRole("vendor")).toBe("vendor");
-    // The local row says translator; WorkOS, which is authoritative, says vendor.
-    const local = fixture.createWorkosIdentityWithRole("translator");
-    await syncWorkosIdentity(db, local);
-    signIn({ ...local, membership: { ...local.membership, role: "vendor" } });
+  it("starts when the person joins a vendor team and ends when they leave it", async () => {
+    const person = fixture.createWorkosIdentityWithRole("admin");
+    await syncWorkosIdentity(db, person);
+    signIn(person);
     const { resolveApiAuthContextFromSession } = await import("./workos-session");
 
+    expect((await resolveApiAuthContextFromSession())?.membership.inVendorTeam).toBe(false);
+    await fixture.joinVendorTeam(person);
     await expect(resolveApiAuthContextFromSession()).rejects.toBeInstanceOf(
       VendorAccessDeniedError,
     );
+    await leaveVendorTeams(person);
+    expect((await resolveApiAuthContextFromSession())?.membership.role).toBe("admin");
   });
 
   it("is refused by the API on a route that is not opened, and reaches one that is", async () => {
-    const vendor = fixture.createWorkosIdentityWithRole("vendor");
+    const vendor = fixture.createWorkosIdentityWithRole("admin");
     await syncWorkosIdentity(db, vendor);
+    await fixture.joinVendorTeam(vendor);
     signIn(vendor);
     const base = `http://localhost/api/orgs/${vendor.organization.slug}`;
 
@@ -170,12 +187,13 @@ describe("a vendor's session", () => {
     await expect(markDone.json()).resolves.toMatchObject({ error: "job_not_found" });
   });
 
-  it("does not shut the person out of another workspace where they have another role", async () => {
-    const vendor = fixture.createWorkosIdentityWithRole("vendor");
+  it("does not shut the person out of another workspace where they are in no vendor team", async () => {
+    const vendor = fixture.createWorkosIdentityWithRole("translator");
     const elsewhere = fixture.createWorkosIdentityWithRole("admin");
     const adminElsewhere = { ...elsewhere, user: vendor.user };
     await syncWorkosIdentity(db, vendor);
     await syncWorkosIdentity(db, adminElsewhere);
+    await fixture.joinVendorTeam(vendor);
     signIn(vendor, [vendor, adminElsewhere]);
     const { resolveApiAuthContextFromSession } = await import("./workos-session");
 
@@ -183,53 +201,38 @@ describe("a vendor's session", () => {
       organizationSlug: elsewhere.organization.slug,
     });
     expect(auth?.membership.role).toBe("admin");
+    expect(auth?.membership.inVendorTeam).toBe(false);
     await expect(
       resolveApiAuthContextFromSession({ organizationSlug: vendor.organization.slug }),
     ).rejects.toBeInstanceOf(VendorAccessDeniedError);
   });
 });
 
-describe("the Vendor role", () => {
-  it("holds no capability", () => {
-    expect(getCapabilitiesForRole("vendor")).toEqual([]);
-    for (const capability of ORGANIZATION_CAPABILITIES) {
-      expect(hasCapability("vendor", capability), capability).toBe(false);
-    }
-  });
-
-  it("can be given by admins and localization managers only", () => {
-    expect(assignableRolesForActor("admin")).toContain("vendor");
-    expect(assignableRolesForActor("localization_manager")).toContain("vendor");
-    for (const role of ["developer", "reviewer", "translator", "member", "vendor"] as const) {
-      expect(assignableRolesForActor(role)).toEqual([]);
-    }
-  });
-
-  it("never passes the team rule, whatever team the person was left in", async () => {
-    const vendor = fixture.createWorkosIdentityWithRole("vendor");
+describe("a person in a vendor team", () => {
+  it("never passes the team rule, whatever other team they are in", async () => {
+    const vendor = fixture.createWorkosIdentityWithRole("translator");
     const auth = await fixture.authContextFor(vendor);
     const team = await ensureDefaultWorkspaceTeam(auth.organization.localOrganizationId);
     await ensureTeamMembership({ teamId: team.id, userId: auth.user.localUserId, role: "member" });
 
-    expect(await getVisibleTeamIds(auth)).toEqual([]);
+    expect(
+      await getVisibleTeamIds({ ...auth, membership: { ...auth.membership, inVendorTeam: true } }),
+    ).toEqual([]);
   });
 
-  it("cannot act through a token, an agent or a plugin connection", async () => {
-    // The same person, first as a translator and then as a vendor.
+  it("cannot act through a token while in a vendor team", async () => {
     const person = fixture.createWorkosIdentityWithRole("translator");
     const auth = await fixture.authContextFor(person);
     const owner = {
       organizationId: auth.organization.localOrganizationId,
       createdByUserId: auth.user.localUserId,
     };
-
     signIn(person);
+
     expect((await resolveApiKeyTeamAccessContext(owner))?.membership.role).toBe("translator");
-
-    signIn({ ...person, membership: { ...person.membership, role: "vendor" } });
+    await fixture.joinVendorTeam(person);
     expect(await resolveApiKeyTeamAccessContext(owner)).toBeNull();
-
-    signIn(person);
+    await leaveVendorTeams(person);
     expect((await resolveApiKeyTeamAccessContext(owner))?.membership.role).toBe("translator");
   });
 });

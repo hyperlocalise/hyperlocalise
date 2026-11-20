@@ -157,4 +157,9 @@ export const teamsPageViewMessages = defineMessages({
     id: "Yy3NR/q4ik",
     description: "Confirm button to delete a team",
   },
+  vendorTeam: {
+    defaultMessage: "Vendor",
+    id: "ZRezwcaCoI",
+    description: "Badge beside a team's name in the team list when it is an outside vendor's team",
+  },
 });

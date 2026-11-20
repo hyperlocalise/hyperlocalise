@@ -23,13 +23,10 @@ import { createContext, use } from "react";
 export type ContentEditorTaskScope = {
   /** True for a person here through a task. */
   taskScoped: boolean;
-  /** False on a post-edit task for a vendor, who edits but does not approve. */
-  canApprove: boolean;
 };
 
 const ContentEditorTaskScopeContext = createContext<ContentEditorTaskScope>({
   taskScoped: false,
-  canApprove: true,
 });
 
 export const ContentEditorTaskScopeProvider = ContentEditorTaskScopeContext.Provider;

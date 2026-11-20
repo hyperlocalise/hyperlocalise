@@ -14,11 +14,10 @@ import "dotenv/config";
 
 import { createHash, randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAuthorizationCode } from "@/api/auth/mcp";
-import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { resolveInboundEmailOrganization } from "@/lib/agents/email/organizations";
@@ -30,7 +29,6 @@ import {
   refreshCanvaOauthTokens,
 } from "@/lib/canva/oauth";
 import { db, schema } from "@/lib/database/client";
-import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
   getFigmaConnectionByOauthAccessToken,
   issueFigmaOauthTokens,
@@ -44,7 +42,6 @@ import {
   listSanityOauthConsentOrganizations,
   refreshSanityOauthTokens,
 } from "@/lib/sanity/oauth";
-import { ensureTeamMembership } from "@/lib/teams/default-workspace-team";
 
 import { isVendorMember } from "./vendor-membership";
 
@@ -78,16 +75,30 @@ async function setUp() {
     email: identity.user.email,
   };
 
-  const setRole = (role: OrganizationMembershipRole) =>
-    db
-      .update(schema.organizationMemberships)
-      .set({ role })
-      .where(
-        and(
-          eq(schema.organizationMemberships.userId, person.id),
-          eq(schema.organizationMemberships.organizationId, organization.id),
+  /** Puts the person in a vendor team ("vendor"), or takes them out of it ("translator"). */
+  const setRole = async (role: "vendor" | "translator") => {
+    if (role === "vendor") {
+      await fixture.joinVendorTeam(identity);
+      return;
+    }
+    await db.delete(schema.teamMemberships).where(
+      and(
+        eq(schema.teamMemberships.userId, person.id),
+        inArray(
+          schema.teamMemberships.teamId,
+          db
+            .select({ id: schema.teams.id })
+            .from(schema.teams)
+            .where(
+              and(
+                eq(schema.teams.organizationId, organization.id),
+                eq(schema.teams.isVendor, true),
+              ),
+            ),
         ),
-      );
+      ),
+    );
+  };
 
   return { admin, adminId, organization, project, person, setRole };
 }
@@ -269,38 +280,15 @@ describe("MCP", () => {
   });
 });
 
-describe("a role that arrives from WorkOS", () => {
-  it("takes a person who is now a vendor out of their teams", async () => {
+describe("looking a person up as a vendor", () => {
+  it("finds a person in a vendor team by either id, and no one else", async () => {
     const s = await setUp();
-    await ensureTeamMembership({ teamId: s.project.teamId!, userId: s.person.id, role: "member" });
-    const teams = async () =>
-      (
-        await db
-          .select({ teamId: schema.teamMemberships.teamId })
-          .from(schema.teamMemberships)
-          .where(eq(schema.teamMemberships.userId, s.person.id))
-      ).map((row) => row.teamId);
-
-    await syncWorkosIdentity(db, s.person.identity);
-    expect(await teams()).toContain(s.project.teamId);
-
-    await syncWorkosIdentity(db, {
-      ...s.person.identity,
-      membership: { ...s.person.identity.membership, role: "vendor" },
-    });
-    expect(await teams()).toEqual([]);
-    expect(
-      await isVendorMember({
-        organizationId: s.organization.id,
-        userIdOrWorkosUserId: s.person.id,
-      }),
-    ).toBe(true);
-    expect(
-      await isVendorMember({
-        organizationId: s.organization.id,
-        userIdOrWorkosUserId: s.person.identity.user.workosUserId,
-      }),
-    ).toBe(true);
+    await s.setRole("vendor");
+    for (const userIdOrWorkosUserId of [s.person.id, s.person.identity.user.workosUserId]) {
+      expect(
+        await isVendorMember({ organizationId: s.organization.id, userIdOrWorkosUserId }),
+      ).toBe(true);
+    }
     expect(
       await isVendorMember({ organizationId: s.organization.id, userIdOrWorkosUserId: s.adminId }),
     ).toBe(false);

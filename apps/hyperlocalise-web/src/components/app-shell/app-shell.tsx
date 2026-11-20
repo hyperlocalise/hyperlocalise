@@ -13,7 +13,7 @@
 import type { ReactNode } from "react";
 
 import { hasCapability } from "@/api/auth/policy";
-import { isVendorRole } from "@/api/auth/vendor-access";
+import { isInVendorTeam } from "@/api/auth/vendor-access";
 import { AppShellClient } from "@/components/app-shell/app-shell-client";
 import { VendorShellClient } from "@/components/app-shell/vendor-shell-client";
 import { evaluateWorkspaceFeatureFlags } from "@/lib/flags/workspace-flags";
@@ -46,7 +46,7 @@ export async function AppShell({
     [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
     auth.sessionUser.email;
 
-  if (isVendorRole(auth.membership.role)) {
+  if (isInVendorTeam(auth)) {
     return (
       <VendorShellClient
         activeOrganization={{ name: auth.activeOrganization.name, slug: activeOrganizationSlug }}

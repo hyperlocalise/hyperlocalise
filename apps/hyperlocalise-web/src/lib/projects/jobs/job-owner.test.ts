@@ -67,10 +67,16 @@ async function setUp() {
     metadata: { sourcePath: "locales/messages.json" },
   });
 
-  /** Adds a member with the role, in no team. */
-  async function member(role: OrganizationMembershipRole) {
-    const identity = fixture.createWorkosIdentityForOrganization(admin.organization, role);
+  /** Adds a member with the role, in no team. "vendor" is a reviewer in a vendor team. */
+  async function member(role: OrganizationMembershipRole | "vendor") {
+    const identity = fixture.createWorkosIdentityForOrganization(
+      admin.organization,
+      role === "vendor" ? "reviewer" : role,
+    );
     await fixture.authHeadersFor(identity);
+    if (role === "vendor") {
+      await fixture.joinVendorTeam(identity);
+    }
     return {
       workosUserId: identity.user.workosUserId,
       id: await fixture.getLocalUserId(identity.user.workosUserId),

@@ -1,5 +1,5 @@
 {
-  "id": "a1ad5232-f559-4b8c-b067-a9c13c191763",
+  "id": "43443de4-bd6d-498d-a335-9cf83832a7e7",
   "prevId": "c070a563-e2bb-4399-9a22-96b1fec976b1",
   "version": "7",
   "dialect": "postgresql",
@@ -401,6 +401,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "is_vendor": {
+          "name": "is_vendor",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "created_at": {
           "name": "created_at",
@@ -41843,8 +41850,7 @@
         "developer",
         "reviewer",
         "translator",
-        "member",
-        "vendor"
+        "member"
       ]
     },
     "public.ota_distribution_format": {

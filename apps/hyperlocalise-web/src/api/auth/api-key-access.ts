@@ -14,7 +14,6 @@ import { and, eq, isNotNull } from "drizzle-orm";
 
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 import { ownedProjectWhere } from "@/api/auth/team-access";
-import { isVendorRole } from "@/api/auth/vendor-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import {
   isMembershipReconcileFresh,
@@ -23,6 +22,7 @@ import {
 import { db, schema } from "@/lib/database/client";
 import { excludeReplacingWorkosMembershipSql } from "@/lib/workos/constants";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
+import { vendorTeamMemberSql } from "@/lib/workos/vendor-membership";
 
 /**
  * Rebuild the PAT owner's live organization membership, role, team scope, and
@@ -101,6 +101,7 @@ export async function resolveApiKeyTeamAccessContext(input: {
       organizationSlug: schema.organizations.slug,
       workosMembershipId: schema.organizationMemberships.workosMembershipId,
       role: schema.organizationMemberships.role,
+      inVendorTeam: vendorTeamMemberSql(schema.users.id, schema.organizations.id),
     })
     .from(schema.organizationMemberships)
     .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
@@ -119,7 +120,8 @@ export async function resolveApiKeyTeamAccessContext(input: {
     )
     .limit(1);
 
-  if (!membership || isVendorRole(membership.role)) {
+  // A token never acts for a vendor (`vendor-access.ts`).
+  if (!membership || membership.inVendorTeam) {
     return null;
   }
 

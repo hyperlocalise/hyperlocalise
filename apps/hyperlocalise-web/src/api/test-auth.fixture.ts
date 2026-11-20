@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { expect } from "vite-plus/test";
 
 import type { ApiAuthContext, WorkosAuthIdentity } from "@/api/auth/workos";
@@ -37,6 +37,12 @@ declare global {
 }
 
 const testApiAuthContextsBySession = new Map<string, ApiAuthContext>();
+
+/**
+ * People a test put in a vendor team, as `localUserId:localOrganizationId`. The session function
+ * reads it from the database with the membership; this stand-in reads it from here.
+ */
+const testVendorTeamMembers = new Set<string>();
 
 type CreatedTestAuthRecords = {
   workosOrganizationIds: Set<string>;
@@ -65,7 +71,13 @@ globalThis.__resolveTestApiAuthContextFromSession = (options = {}) => {
     return null;
   }
 
-  return switchAuthContextOrganization(authContext, options.organizationSlug);
+  const switched = switchAuthContextOrganization(authContext, options.organizationSlug);
+  const inVendorTeam = testVendorTeamMembers.has(
+    `${switched.user.localUserId}:${switched.organization.localOrganizationId}`,
+  );
+  return inVendorTeam
+    ? { ...switched, membership: { ...switched.membership, inVendorTeam } }
+    : switched;
 };
 
 export function createAuthTestFixture() {
@@ -239,6 +251,61 @@ export function createAuthTestFixture() {
     return user.id;
   }
 
+  /**
+   * Puts the person in a new vendor team of the identity's workspace, out of their other teams,
+   * as joining one in the app does. Returns the team's id.
+   */
+  async function joinVendorTeam(identity: WorkosAuthIdentity) {
+    const userId = await getLocalUserId(identity.user.workosUserId);
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.organizations)
+      .where(
+        eq(schema.organizations.workosOrganizationId, identity.organization.workosOrganizationId),
+      )
+      .limit(1);
+    if (!organization) {
+      throw new Error(
+        `expected local organization for ${identity.organization.workosOrganizationId}`,
+      );
+    }
+    const [team] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: organization.id,
+        slug: `vendor-${randomUUID()}`,
+        name: "Vendor",
+        isVendor: true,
+      })
+      .returning({ id: schema.teams.id });
+    const otherTeams = db
+      .select({ id: schema.teams.id })
+      .from(schema.teams)
+      .where(eq(schema.teams.organizationId, organization.id));
+    await db
+      .delete(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.userId, userId),
+          inArray(schema.teamMemberships.teamId, otherTeams),
+        ),
+      );
+    await db.insert(schema.teamMemberships).values({ teamId: team!.id, userId, role: "member" });
+    testVendorTeamMembers.add(`${userId}:${organization.id}`);
+    // Tests that read the signed-in person directly see it too.
+    const current = globalThis.__testApiAuthContext;
+    if (
+      current?.user.localUserId === userId &&
+      current.organization.localOrganizationId === organization.id
+    ) {
+      globalThis.__testApiAuthContext = {
+        ...current,
+        membership: { ...current.membership, inVendorTeam: true },
+      };
+    }
+    return team!.id;
+  }
+
   async function cleanup() {
     const testKey = currentTestKey();
     const records = createdRecordsByTest.get(testKey);
@@ -275,6 +342,7 @@ export function createAuthTestFixture() {
     createWorkosIdentityForOrganization,
     createWorkosIdentityWithRole: createTrackedWorkosIdentityWithRole,
     getLocalUserId,
+    joinVendorTeam,
     trackWorkosUserId,
   };
 }

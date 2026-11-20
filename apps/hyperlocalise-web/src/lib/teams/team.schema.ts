@@ -14,7 +14,7 @@ import { z } from "zod";
 
 export const teamRoleSchema = z.enum(["manager", "member"]);
 
-export const createTeamBodySchema = z.object({
+const teamNameAndSlugSchema = z.object({
   name: z.string().trim().min(1).max(120),
   slug: z
     .string()
@@ -25,7 +25,12 @@ export const createTeamBodySchema = z.object({
     .optional(),
 });
 
-export const updateTeamBodySchema = createTeamBodySchema
+export const createTeamBodySchema = teamNameAndSlugSchema.extend({
+  /** An outside vendor's team (`api/auth/vendor-access.ts`). Chosen when the team is made only. */
+  isVendor: z.boolean().optional(),
+});
+
+export const updateTeamBodySchema = teamNameAndSlugSchema
   .partial()
   .refine((value) => value.name !== undefined || value.slug !== undefined);
 
@@ -53,6 +58,7 @@ export const teamRecordSchema = z.object({
   organizationId: z.string(),
   slug: z.string(),
   name: z.string(),
+  isVendor: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -62,6 +68,7 @@ export const teamSummarySchema = teamRecordSchema
     id: true,
     slug: true,
     name: true,
+    isVendor: true,
     createdAt: true,
     updatedAt: true,
   })

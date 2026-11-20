@@ -113,11 +113,7 @@ func (api *memberAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 }
 
 func (api *memberAPI) actorFor(ctx context.Context, claims AuthClaims, slug string, allowVendor bool) (memberActor, error) {
-	resolve := resolveOrganizationActor
-	if allowVendor {
-		resolve = resolveOrganizationActorAllowingVendor
-	}
-	resolved, err := resolve(ctx, api.pool, api.membership, claims, slug)
+	resolved, _, err := resolveOrganizationActorAllowingVendorIf(ctx, api.pool, api.membership, claims, slug, allowVendor)
 	if err != nil {
 		return memberActor{}, mapOrganizationAccessCode(err, func(status int, code string) error {
 			return memberFailure(status, code, organizationAccessMessage(code))

@@ -40,6 +40,9 @@ type editorCatAPI struct {
 
 type editorCatActor struct {
 	userID, organizationID, organizationSlug, role string
+	// vendor is set for a person in a vendor team, who reaches the editor only through open tasks
+	// they own (vendor-access.go). Their role decides what they may do there.
+	vendor bool
 	// taskScope is set when the person reaches the project through open tasks they own and not
 	// through the team rule (vendor-access.go). The request was already held to those tasks'
 	// files and languages; branch is the file branch it named.
@@ -48,22 +51,14 @@ type editorCatActor struct {
 }
 
 func (a editorCatActor) isVendor() bool {
-	return a.role == organizationRoleVendor
-}
-
-// mayApprove says whether the person may set a translation approved in this file and language.
-// A vendor may only on a proofread task; everyone else as their role allowed before.
-func (a editorCatActor) mayApprove(sourcePath, targetLocale string) bool {
-	if !a.isVendor() {
-		return true
-	}
-	return a.taskScope != nil && a.taskScope.isProofread(sourcePath, a.branch, targetLocale)
+	return a.vendor
 }
 
 func (a editorCatActor) canRead() bool {
-	// A vendor's rights come from the task: the wrapper lets one through only with a task scope.
-	if a.isVendor() {
-		return a.taskScope != nil
+	// A vendor reaches the editor only through a task: the wrapper lets one in only with a task
+	// scope. Within it their role decides, as for anyone.
+	if a.isVendor() && a.taskScope == nil {
+		return false
 	}
 	switch a.role {
 	case "admin", "localization_manager", "member", "developer", "translator", "reviewer":
@@ -74,8 +69,8 @@ func (a editorCatActor) canRead() bool {
 }
 
 func (a editorCatActor) canEdit() bool {
-	if a.isVendor() {
-		return a.taskScope != nil
+	if a.isVendor() && a.taskScope == nil {
+		return false
 	}
 	switch a.role {
 	case "admin", "localization_manager", "developer", "translator", "reviewer":
@@ -234,11 +229,7 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 }
 
 func (api *editorCatAPI) actorFor(ctx context.Context, claims AuthClaims, slug string, allowVendor bool) (editorCatActor, error) {
-	resolve := resolveOrganizationActor
-	if allowVendor {
-		resolve = resolveOrganizationActorAllowingVendor
-	}
-	resolved, err := resolve(ctx, api.pool, api.membership, claims, slug)
+	resolved, vendor, err := resolveOrganizationActorAllowingVendorIf(ctx, api.pool, api.membership, claims, slug, allowVendor)
 	if err != nil {
 		return editorCatActor{}, mapOrganizationAccessError(err, editorCatFailure)
 	}
@@ -247,6 +238,7 @@ func (api *editorCatAPI) actorFor(ctx context.Context, claims AuthClaims, slug s
 		organizationID:   resolved.organizationID,
 		organizationSlug: slug,
 		role:             resolved.role,
+		vendor:           vendor,
 	}, nil
 }
 

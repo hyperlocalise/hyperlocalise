@@ -18,7 +18,6 @@ import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { hasCapability } from "@/api/auth/policy";
-import { isVendorRole } from "@/api/auth/vendor-access";
 import { createTeamsApi } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/teams/_components/teams-api";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
@@ -37,8 +36,13 @@ import {
 
 const membersQueryKey = (organizationSlug: string) => ["workspace-members", organizationSlug];
 const teamsQueryKey = (organizationSlug: string) => ["workspace-teams", organizationSlug];
-function resolveDefaultTeamId(teams: { id: string; slug: string }[]) {
-  return teams.find((team) => team.slug === DEFAULT_WORKSPACE_TEAM_SLUG)?.id ?? teams[0]?.id ?? "";
+// A vendor team is never offered first: it would shut the invited person out of the workspace.
+function resolveDefaultTeamId(teams: { id: string; slug: string; isVendor?: boolean }[]) {
+  return (
+    teams.find((team) => team.slug === DEFAULT_WORKSPACE_TEAM_SLUG)?.id ??
+    teams.find((team) => !team.isVendor)?.id ??
+    ""
+  );
 }
 
 export function MembersPageContent({
@@ -85,8 +89,7 @@ export function MembersPageContent({
   const { members, assignableRoles, canInvite } = pageState;
   const inviteTeams = teamsQuery.data ?? [];
   const defaultInviteTeamId = resolveDefaultTeamId(inviteTeams);
-  // A vendor joins no team: they reach only the tasks they are given.
-  const inviteRequiresTeam = !hasCapability(inviteRole, "teams:write") && !isVendorRole(inviteRole);
+  const inviteRequiresTeam = !hasCapability(inviteRole, "teams:write");
 
   useEffect(() => {
     if (!isInviteOpen || inviteTeams.length === 0) {

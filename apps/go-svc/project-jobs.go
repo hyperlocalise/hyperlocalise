@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -693,18 +694,20 @@ func (api *projectAPI) orgJobAssignableOwnersHandler(r *http.Request, actor proj
         where m.organization_id = $1
           and `+activeOrgMembershipSQL+`
           and (
-            m.role::text in ('admin', 'localization_manager')
-            or ($3 and m.role::text in ('developer', 'reviewer', 'translator', $4))
-            or (m.role::text <> $4 and exists (
-                select 1
-                from team_memberships tm
-                join teams t on t.id = tm.team_id
-                where tm.user_id = m.user_id
-                  and t.organization_id = $1
-                  and (t.id = p.team_id or (p.team_id is null and t.slug = 'default'))
+            ($3 and m.role::text in ('admin', 'localization_manager', 'developer', 'reviewer', 'translator'))
+            or (not `+publicauth.VendorTeamMemberSQLFor("m.user_id", "$1")+` and (
+                m.role::text in ('admin', 'localization_manager')
+                or exists (
+                    select 1
+                    from team_memberships tm
+                    join teams t on t.id = tm.team_id
+                    where tm.user_id = m.user_id
+                      and t.organization_id = $1
+                      and (t.id = p.team_id or (p.team_id is null and t.slug = 'default'))
+                )
             ))
           )
-        order by u.email asc`, actor.organizationID, *projectID, fileTask, organizationRoleVendor)
+        order by u.email asc`, actor.organizationID, *projectID, fileTask)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list assignable owners: %w", err)
 	}

@@ -201,6 +201,7 @@ export function ProjectFileContentEditorWorkspace({
   canWriteDictionaries = false,
   adaptiveWorkspaceEnabled = false,
   taskScoped = false,
+  taskAiSuggestionAllowed = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -235,6 +236,8 @@ export function ProjectFileContentEditorWorkspace({
    * about the project itself is closed to them, so it is neither asked for nor offered.
    */
   taskScoped?: boolean;
+  /** For someone here through a task: whether their role runs AI actions. */
+  taskAiSuggestionAllowed?: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -275,8 +278,11 @@ export function ProjectFileContentEditorWorkspace({
   });
   const editorBehavior = editorBehaviorQuery.data;
   const aiFeaturesAccess = useAiFeaturesAccess();
-  // AI actions are charged to the workspace, so a task owner is offered none, nor the plans.
+  // Someone here through a task is offered only the AI suggestion, and no plans.
   const aiFeaturesAllowed = aiFeaturesAccess.status === "allowed" && !taskScoped;
+  // They cannot read the workspace's plan, so their role decides whether it is offered and the
+  // service refuses a suggestion the plan does not include.
+  const aiSuggestionAllowed = taskScoped ? taskAiSuggestionAllowed : aiFeaturesAllowed;
   const upgradePlanHref =
     aiFeaturesAccess.status === "denied" && !taskScoped
       ? { organizationSlug, href: buildAvailablePlansHref(organizationSlug) }
@@ -393,10 +399,7 @@ export function ProjectFileContentEditorWorkspace({
     (taskScoped
       ? (contentEditorFile?.qaChecks as QaCheckPolicy | undefined)
       : qaPolicyQuery.data?.settings.checks) ?? DEFAULT_QA_POLICY;
-  const taskScope = useMemo(
-    () => ({ taskScoped, canApprove: contentEditorFile?.canApproveTranslations !== false }),
-    [contentEditorFile?.canApproveTranslations, taskScoped],
-  );
+  const taskScope = useMemo(() => ({ taskScoped }), [taskScoped]);
 
   useContentEditorWorkspaceQuerySync({
     queueFilter,
@@ -901,9 +904,6 @@ export function ProjectFileContentEditorWorkspace({
         throw new Error(
           intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
         );
-      }
-      if (contentEditorFile.canApproveTranslations === false) {
-        throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.cannotApproveOnTask));
       }
 
       const segment = contentEditorFile.segments.find(
@@ -1938,7 +1938,7 @@ export function ProjectFileContentEditorWorkspace({
                             lookupSegmentConcordance,
                             lookupSegmentContext: taskScoped ? undefined : lookupSegmentContext,
                             lookupSegmentVisualContext,
-                            generateAiRecommendation: aiFeaturesAllowed
+                            generateAiRecommendation: aiSuggestionAllowed
                               ? generateAiRecommendation
                               : undefined,
                           }}

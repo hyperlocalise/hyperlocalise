@@ -84,8 +84,6 @@ type editorCatQueueFile struct {
 	PlaceholderPatterns []string `json:"placeholderPatterns,omitempty"`
 	TargetLocale        string   `json:"targetLocale"`
 	CanEditTranslations bool     `json:"canEditTranslations"`
-	// False for a vendor on a post-edit task, who may edit but not approve. Left out otherwise.
-	CanApproveTranslations *bool `json:"canApproveTranslations,omitempty"`
 	// The project's QA check policy, sent only to a person here through a task, who cannot read
 	// the project's QA settings: their saves are checked against the same rules as everyone's.
 	QaChecks                  map[string]qaCheckSetting  `json:"qaChecks,omitempty"`
@@ -872,10 +870,6 @@ func (api *editorCatAPI) withQueueContext(r *http.Request, actor editorCatActor,
 	}
 	if err := api.attachLocks(r, actor, project, &queue); err != nil {
 		return editorCatQueueFile{}, err
-	}
-	if !actor.mayApprove(queue.SourcePath, queue.TargetLocale) {
-		mayApprove := false
-		queue.CanApproveTranslations = &mayApprove
 	}
 	// Teams and their glossaries are not for someone who is here through a task.
 	if actor.taskScope != nil {

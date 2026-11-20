@@ -17,7 +17,7 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
-import { isVendorRole } from "@/api/auth/vendor-access";
+import { isInVendorTeam } from "@/api/auth/vendor-access";
 import {
   resolveTaskRouteProjectAccess,
   taskRouteAccessCovers,
@@ -399,6 +399,8 @@ async function resolveProjectTeamId(auth: ApiAuthContext, requestedTeamId?: stri
         and(
           eq(schema.teams.id, requestedTeamId),
           eq(schema.teams.organizationId, auth.organization.localOrganizationId),
+          // A vendor team owns no projects (`vendor-access.ts`).
+          eq(schema.teams.isVendor, false),
         ),
       )
       .limit(1);
@@ -407,7 +409,7 @@ async function resolveProjectTeamId(auth: ApiAuthContext, requestedTeamId?: stri
   }
 
   if (auth.activeTeam) {
-    return auth.activeTeam.id;
+    return resolveProjectTeamId(auth, auth.activeTeam.id);
   }
 
   const defaultTeam = await ensureDefaultWorkspaceTeam(auth.organization.localOrganizationId);
@@ -1810,7 +1812,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const params = c.req.valid("param");
         const body = c.req.valid("json");
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-        if (target.kind !== "native" && isVendorRole(c.var.auth.membership.role)) {
+        if (target.kind !== "native" && isInVendorTeam(c.var.auth)) {
           return projectNotFoundResponse(c);
         }
         if (target.kind === "provider_unavailable") {
@@ -2058,10 +2060,23 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         let recommendationProjectId = params.projectId;
 
         if (target.kind === "native") {
-          const project = await getOwnedProject(c.var.auth, params.projectId);
-          if (!project) {
+          // Open to the owner of an open task in the project, a vendor included
+          // (`vendor-access.ts`): only for the text of a string of the task, in its languages.
+          const access = await resolveTaskRouteProjectAccess(c.var.auth, params.projectId);
+          if (
+            !access ||
+            !taskRouteAccessCovers(access, { locale: body.targetLocale }) ||
+            !(await taskRouteAccessHasSourceText(access, {
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              sourceText: body.sourceText,
+              locale: body.targetLocale,
+            }))
+          ) {
             return projectNotFoundResponse(c);
           }
+        } else if (isInVendorTeam(c.var.auth)) {
+          return projectNotFoundResponse(c);
         } else {
           const ensured = await ensureOrganizationProjectRecord({
             organizationId: c.var.auth.organization.localOrganizationId,

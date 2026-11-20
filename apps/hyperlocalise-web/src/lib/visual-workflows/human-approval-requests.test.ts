@@ -163,21 +163,28 @@ describe("Human Approval request persistence", () => {
     const ask = (reviewerId: string) =>
       createHumanApprovalRequest(requestInput(seeded, { reviewerId }));
 
+    const [vendorTeam] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: seeded.organization.id,
+        slug: "vendor-approval",
+        name: "Vendor",
+        isVendor: true,
+      })
+      .returning({ id: schema.teams.id });
     await db
-      .update(schema.organizationMemberships)
-      .set({ role: "vendor" })
-      .where(eq(schema.organizationMemberships.userId, synced.user.id));
+      .insert(schema.teamMemberships)
+      .values({ teamId: vendorTeam!.id, userId: synced.user.id, role: "member" });
     for (const reviewerId of [synced.user.id, reviewer.user.workosUserId]) {
       const refused = await ask(reviewerId);
       expect(isErr(refused) && refused.error.code, reviewerId).toBe("vendor_cannot_approve");
     }
     expect(await db.select().from(schema.visualWorkflowApprovalRequests)).toEqual([]);
 
-    // The same person with another role is asked as before.
+    // The same person out of the vendor team is asked as before.
     await db
-      .update(schema.organizationMemberships)
-      .set({ role: "translator" })
-      .where(eq(schema.organizationMemberships.userId, synced.user.id));
+      .delete(schema.teamMemberships)
+      .where(eq(schema.teamMemberships.teamId, vendorTeam!.id));
     expect(isOk(await ask(synced.user.id))).toBe(true);
   });
 

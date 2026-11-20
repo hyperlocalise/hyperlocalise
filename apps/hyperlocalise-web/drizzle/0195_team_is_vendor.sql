@@ -1,0 +1,1 @@
+ALTER TABLE "teams" ADD COLUMN "is_vendor" boolean DEFAULT false NOT NULL;

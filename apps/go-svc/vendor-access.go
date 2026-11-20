@@ -14,11 +14,12 @@ import (
 
 // Access through a task, used for vendors and for task owners outside the project's team.
 //
-// A vendor (organizationRoleVendor) has no rights in the workspace. Every route refuses a
-// vendor unless its handler resolves the actor with resolveOrganizationActorAllowingVendor,
-// and each handler that does must limit a vendor to the post-edit and proofread tasks on a
-// file that they own: the job list and the task's page for open and waiting tasks, the
-// editor for open tasks only, in the task's file and languages.
+// A vendor is a person in a vendor team (publicauth.VendorTeamMemberSQL). Whatever their role,
+// they reach nothing in the workspace but their own tasks. Every route refuses a vendor unless
+// its handler resolves the actor with resolveOrganizationActorAllowingVendorIf, and each handler
+// that does must limit a vendor to the post-edit and proofread tasks on a file that they own:
+// the job list and the task's page for open and waiting tasks, the editor for open tasks only,
+// in the task's file and languages. Within those, their role decides what they may do.
 //
 // The same rule lets the owner of such a task reach it when they are not on the project's
 // team, whatever their role.
@@ -84,12 +85,6 @@ func (s *editorTaskScope) allows(sourcePath, branch, locale string) bool {
 	}
 	_, ok := file.proofreadByLocale[locale]
 	return ok
-}
-
-// isProofread reports whether a proofread task covers the file and language.
-func (s *editorTaskScope) isProofread(sourcePath, branch, locale string) bool {
-	file := s.file(sourcePath, branch)
-	return file != nil && file.proofreadByLocale[locale]
 }
 
 // loadEditorTaskScope reads the files and languages of the open tasks the person owns in the
@@ -305,4 +300,63 @@ func redactJobForVendor(job *jobWithProjectRecord) {
 		raw = []byte(`{}`)
 	}
 	job.InputPayload = raw
+}
+
+// errVendorInOtherTeam refuses adding a vendor to another team: a vendor is in their vendor team
+// only. Teams decide who is told about a project and who appears in its pickers, so a second
+// team would reach them past the gate.
+var errVendorInOtherTeam = errors.New("vendor_in_other_team")
+
+// errLastAdminToVendorTeam refuses adding the last admin outside vendor teams to one: the
+// workspace would have no admin left who can reach it.
+var errLastAdminToVendorTeam = errors.New("last_admin_protected")
+
+// applyVendorTeamJoinRules runs before a person joins a team. A vendor joins no other team, and a
+// person who joins a vendor team leaves every other team of the workspace. The workspace keeps an
+// admin outside vendor teams, counted as countOtherAcceptedAdmins does. Run it in the same
+// transaction as the join, so the admin lock it takes holds until the join commits.
+func applyVendorTeamJoinRules(ctx context.Context, db dictionaryDB, organizationID, teamID, userID string, workosSynced bool) error {
+	var vendorTeam, vendorElsewhere bool
+	var role string
+	err := db.QueryRow(ctx, `
+        select t.is_vendor, m.role::text,
+            exists (select 1 from team_memberships vtm join teams vt on vt.id = vtm.team_id
+                where vtm.user_id = m.user_id and vt.organization_id = t.organization_id
+                  and vt.is_vendor and vt.id <> t.id)
+        from teams t
+        join organization_memberships m on m.organization_id = t.organization_id and m.user_id = $3
+        where t.id = $1 and t.organization_id = $2`,
+		teamID, organizationID, userID).Scan(&vendorTeam, &role, &vendorElsewhere)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// The caller has already found both; nothing to hold here.
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read team join rules: %w", err)
+	}
+	if vendorElsewhere {
+		return errVendorInOtherTeam
+	}
+	if !vendorTeam {
+		return nil
+	}
+	if role == "admin" {
+		if _, err := db.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, organizationAdminsLockKey(organizationID)); err != nil {
+			return err
+		}
+		others, err := countOtherAcceptedAdmins(ctx, db, organizationID, userID, workosSynced)
+		if err != nil {
+			return err
+		}
+		if others < 1 {
+			return errLastAdminToVendorTeam
+		}
+	}
+	if _, err := db.Exec(ctx, `
+        delete from team_memberships tm using teams t
+        where t.id = tm.team_id and t.organization_id = $1 and tm.user_id = $2 and tm.team_id <> $3`,
+		organizationID, userID, teamID); err != nil {
+		return fmt.Errorf("leave other teams: %w", err)
+	}
+	return nil
 }

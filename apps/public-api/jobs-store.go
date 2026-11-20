@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hyperlocalise/hyperlocalise/internal/authz"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -440,11 +440,12 @@ const jobFileTaskSQL = `(j.kind = 'proofread' AND x.job_id IS NULL AND COALESCE(
 func assignableJobOwner(ctx context.Context, tx pgx.Tx, actor principal, projectID, email string, fileTask bool) (string, error) {
 	var ownerID, role string
 	var membershipID *string
-	err := tx.QueryRow(ctx, `SELECT u.id, om.role, om.workos_membership_id
+	var vendor bool
+	err := tx.QueryRow(ctx, `SELECT u.id, om.role, om.workos_membership_id, `+publicauth.VendorTeamMemberSQLFor("u.id", "om.organization_id")+`
 		FROM users u
 		JOIN organization_memberships om ON om.user_id = u.id AND om.organization_id = $1
 		WHERE lower(u.email) = lower($2)
-		LIMIT 1`, actor.OrganizationID, email).Scan(&ownerID, &role, &membershipID)
+		LIMIT 1`, actor.OrganizationID, email).Scan(&ownerID, &role, &membershipID, &vendor)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", errJobOwnerNotFound
 	}
@@ -452,7 +453,7 @@ func assignableJobOwner(ctx context.Context, tx pgx.Tx, actor principal, project
 		return "", fmt.Errorf("find job owner: %w", err)
 	}
 	active := membershipID != nil && *membershipID != "" && *membershipID != "replacing" && !strings.HasPrefix(*membershipID, "replacing:")
-	if !fileTask && role == authz.RoleVendor {
+	if !fileTask && vendor {
 		return "", errJobOwnerVendor
 	}
 	if !active {
@@ -461,7 +462,7 @@ func assignableJobOwner(ctx context.Context, tx pgx.Tx, actor principal, project
 	if role == "admin" || role == "localization_manager" {
 		return ownerID, nil
 	}
-	if fileTask && (role == authz.RoleVendor || role == "developer" || role == "reviewer" || role == "translator") {
+	if fileTask && (role == "developer" || role == "reviewer" || role == "translator") {
 		return ownerID, nil
 	}
 	var onTeam bool

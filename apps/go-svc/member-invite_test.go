@@ -135,6 +135,8 @@ func TestEnsureTeamAccessForInvitedMemberScripted(t *testing.T) {
 	t.Run("selected team already joined", func(t *testing.T) {
 		pool := &scriptPool{steps: []dbStep{
 			{op: opQueryRow, scan: []any{teamID}},
+			// The vendor team rules: an ordinary team, and the person in no vendor team.
+			{op: opQueryRow, scan: []any{false, "member", false}},
 			{op: opQueryRow, scan: []any{"team_membership_1"}},
 		}}
 		created, err := api.ensureTeamAccessForInvitedMember(ctx, pool, "org_1", "user_1", "admin", teamID)
@@ -146,6 +148,8 @@ func TestEnsureTeamAccessForInvitedMemberScripted(t *testing.T) {
 	t.Run("selected team joined", func(t *testing.T) {
 		pool := &scriptPool{steps: []dbStep{
 			{op: opQueryRow, scan: []any{teamID}},
+			// The vendor team rules: an ordinary team, and the person in no vendor team.
+			{op: opQueryRow, scan: []any{false, "member", false}},
 			{op: opQueryRow, err: pgx.ErrNoRows},
 			{op: opExec},
 		}}

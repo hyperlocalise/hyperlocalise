@@ -23,7 +23,7 @@ import {
   isReviewApproveAllowed,
 } from "@/api/auth/capability-guards";
 import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
-import { isVendorRole } from "@/api/auth/vendor-access";
+import { isInVendorTeam } from "@/api/auth/vendor-access";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { validationErrorResponse } from "@/api/errors";
@@ -1511,7 +1511,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     })
     .post("/:jobId/mark-done", validateWorkspaceJobParams, async (c) => {
       // Open to vendors (`vendor-access.ts`): a vendor finishes only an open task they own.
-      const isVendor = isVendorRole(c.var.auth.membership.role);
+      const isVendor = isInVendorTeam(c.var.auth);
       if (!isVendor && !isJobMutationAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);
       }
@@ -1527,7 +1527,8 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         organizationId,
         jobId: params.jobId,
         actorUserId: c.var.auth.user.localUserId,
-        actorMayFinishAnyTask: hasCapability(c.var.auth.membership.role, "reviews:approve"),
+        actorMayFinishAnyTask:
+          !isVendor && hasCapability(c.var.auth.membership.role, "reviews:approve"),
         accessWhere: isVendor ? ownTask : or(await buildAccessibleJobsWhere(c.var.auth), ownTask),
       });
 

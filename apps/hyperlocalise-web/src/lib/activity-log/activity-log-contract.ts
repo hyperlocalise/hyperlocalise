@@ -168,8 +168,7 @@ export type ActivityMembershipRole =
   | "developer"
   | "reviewer"
   | "translator"
-  | "member"
-  | "vendor";
+  | "member";
 
 type SafeResourcePayload = {
   resourceId: string;

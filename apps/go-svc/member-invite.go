@@ -152,11 +152,6 @@ func (api *memberAPI) ensureTeamAccessForInvitedMember(ctx context.Context, db d
 	if authz.HasCapability(role, "teams:write") && teamID == "" {
 		return nil, nil
 	}
-	// A vendor joins no team: team membership would open whole projects to other code paths,
-	// and gives a vendor nothing.
-	if role == organizationRoleVendor {
-		return nil, nil
-	}
 	if teamID != "" {
 		var found string
 		err := db.QueryRow(ctx, `select id from teams where id=$1 and organization_id=$2`, teamID, organizationID).Scan(&found)
@@ -164,6 +159,14 @@ func (api *memberAPI) ensureTeamAccessForInvitedMember(ctx context.Context, db d
 			return nil, memberFailure(404, "team_not_found", "Team not found")
 		}
 		if err != nil {
+			return nil, err
+		}
+		switch err := applyVendorTeamJoinRules(ctx, db, organizationID, found, userID, api.workos != nil); {
+		case errors.Is(err, errVendorInOtherTeam):
+			return nil, memberFailure(409, "vendor_in_other_team", "A person in a vendor team cannot join another team")
+		case errors.Is(err, errLastAdminToVendorTeam):
+			return nil, memberFailure(409, "last_admin_protected", "The workspace needs another admin outside vendor teams")
+		case err != nil:
 			return nil, err
 		}
 		created, err := api.ensureTeamMembership(ctx, db, found, userID)

@@ -1133,8 +1133,6 @@ export const projectFileCatResponseSchema = z.object({
     provider: projectFileRecordSchema.shape.provider,
     targetLocale: z.string(),
     canEditTranslations: z.boolean(),
-    // False for a vendor on a post-edit task, who may edit but not approve. Absent otherwise.
-    canApproveTranslations: z.boolean().optional(),
     // The project's QA check policy, sent only to a person who is here through a task.
     qaChecks: z
       .record(z.string(), z.object({ enabled: z.boolean(), severity: z.string() }))

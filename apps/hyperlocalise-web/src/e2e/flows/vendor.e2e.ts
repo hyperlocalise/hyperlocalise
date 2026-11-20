@@ -16,8 +16,26 @@ import { describe, expect, it } from "vite-plus/test";
 import { db, schema } from "@/lib/database/client";
 
 import { e2eUrl, organizationPath } from "../constants";
-import { getE2ePage, loginWithRole, useE2eBrowser, waitForSettledPage } from "../fixtures/browser";
-import { provisionVendorTaskFixture } from "../helpers/vendor-task-fixture";
+import {
+  getE2ePage,
+  loginAsIdentity,
+  provisionWorkspaceIdentity,
+  useE2eBrowser,
+  waitForSettledPage,
+} from "../fixtures/browser";
+import { joinVendorTeam, provisionVendorTaskFixture } from "../helpers/vendor-task-fixture";
+
+/** Signs in as a reviewer, then puts them in a vendor team and opens their workspace. */
+async function loginAsVendor(page: ReturnType<typeof getE2ePage>) {
+  const identity = await provisionWorkspaceIdentity("reviewer");
+  await loginAsIdentity(page, identity);
+  await joinVendorTeam(identity);
+  await page.goto(e2eUrl(organizationPath(identity.organizationSlug, "/dashboard")), {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+  return identity;
+}
 
 /** Retries a check until it passes, for a save that lands a moment after the click. */
 async function waitFor(check: () => Promise<void>, timeoutMs = 15_000) {
@@ -63,12 +81,12 @@ const CLOSED_PAGES = [
   "/settings/project-templates",
 ];
 
-describe("the Vendor role", () => {
+describe("a person in a vendor team", () => {
   useE2eBrowser();
 
   it("lands on My jobs, has nothing else in the navigation, and is sent back from closed pages", async () => {
     const page = getE2ePage();
-    const identity = await loginWithRole(page, "vendor");
+    const identity = await loginAsVendor(page);
     const isMyJobs = (url: URL) =>
       url.pathname.endsWith(`/org/${identity.organizationSlug}/my-jobs`);
 
@@ -109,7 +127,7 @@ describe("the Vendor role", () => {
 
   it("works an open task: its page, the editor for its file only, and Mark done ends the access", async () => {
     const page = getE2ePage();
-    const identity = await loginWithRole(page, "vendor");
+    const identity = await loginAsVendor(page);
     const isMyJobs = (url: URL) =>
       url.pathname.endsWith(`/org/${identity.organizationSlug}/my-jobs`);
     await page.waitForURL(isMyJobs, { timeout: 30_000 });
@@ -142,8 +160,6 @@ describe("the Vendor role", () => {
       .first()
       .waitFor({ state: "visible", timeout: 30_000 });
     expect(await page.getByText(`Not for the vendor`).count()).toBe(0);
-    // Approve is not offered on a post-edit task.
-    expect(await page.getByRole("button", { name: "Approve", exact: true }).count()).toBe(0);
 
     // Type a translation for the first string and save it as a draft.
     const translation = `Bon retour ${task.taskId.slice(-6)}`;

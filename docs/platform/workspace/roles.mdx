@@ -13,7 +13,6 @@ Your workspace role controls permitted actions. Team and project access determin
 | Reviewer | Work on jobs and AI actions; approve and write back translations; no organization administration. |
 | Translator | Work on assigned jobs and draft translations; no approval or administration. |
 | Member | Read permitted workspace, project, team, glossary, memory, and job information. |
-| Vendor | An outside freelancer or agency linguist. Sees only the tasks given to them. |
 
 Open **Members** → **Role permissions** for the permissions shown in your workspace. An administrator can update a member’s role.
 
@@ -23,25 +22,25 @@ Use translators for drafting and reviewers for final approval. Give localization
 
 ## Vendors
 
-Use **Vendor** for a freelancer or a person at an agency who should see their own work and nothing else in the workspace. A vendor belongs to no team: an invited vendor joins none, and a member changed to Vendor is removed from theirs.
+Put an outside agency or freelancer in a **vendor team**: on **Teams**, select **Create team** and tick **Vendor team**. A freelancer is a vendor team of one. People in a vendor team keep a role such as **Translator** or **Reviewer**, and see their own work and nothing else in the workspace. The role decides what they can do in that work: a translator edits, a reviewer can also approve.
 
-A vendor's **My Jobs** lists the post-edit and proofread tasks given to them. From an open task they can:
+A person in a vendor team is in no other team: adding someone to a vendor team removes them from their other teams. A vendor team holds no projects. The admin who makes a vendor team does not join it, and the workspace always keeps an admin outside vendor teams.
+
+Their **My Jobs** lists the post-edit and proofread tasks given to them. From an open task they can:
 
 - open the editor for the task's file, in the task's languages only
 - save translations, comment, read the history of a string, and see screenshots already attached to it
-- see the translation memory and glossary matches the editor shows for each string
+- see the translation memory and glossary matches, and ask for an AI suggestion for a string, as their role allows
 - download the file
 - select **Mark done**
 
-On a post-edit task a vendor can edit but not approve. On a proofread task they can also approve.
+They work on text files. Images, video, office files and documents cannot be worked on through a task yet.
 
-A vendor works on text files. Images, video, office files and documents cannot be worked on through a task yet.
+A task [waiting for another](/platform/translation/jobs#tasks-that-wait-for-another) is listed, and opens for work when the earlier one is finished. When a task is marked done, cancelled, or given to someone else, they can no longer open it.
 
-A task [waiting for another](/platform/translation/jobs#tasks-that-wait-for-another) is listed, and opens for work when the earlier one is finished. When a task is marked done, cancelled, or given to someone else, the vendor can no longer open it.
+They cannot open projects, files, other jobs, the member list, teams, glossaries, memories, dictionaries, guidelines, project templates, Reports, issues, automations, the assistant, or settings. They cannot create API keys or use the API, MCP, the Slack and email assistants, or the design and content plugins, and cannot be the reviewer of a **Human approval** step.
 
-A vendor cannot open projects, files, other jobs, the member list, teams, glossaries, memories, dictionaries, guidelines, project templates, Reports, issues, automations, the assistant, or settings. They cannot create API keys or use the API, MCP, the Slack and email assistants, or the design and content plugins, and cannot be the reviewer of a **Human approval** step. AI actions in the editor are not offered to them.
-
-Only post-edit and proofread tasks on a file can be given to a vendor. A vendor counts as a member of the workspace on your plan.
+Only post-edit and proofread tasks on a file can be given to them. Each person in a vendor team counts as a member of the workspace on your plan.
 
 ## A button is unavailable
 

@@ -92,7 +92,7 @@ export function SegmentRevisions({
   targetLocale: string;
 }) {
   // Undoing a whole operation reaches other strings and files, so a task owner has no Undo.
-  const { taskScoped, canApprove } = useContentEditorTaskScope();
+  const { taskScoped } = useContentEditorTaskScope();
   const intl = useIntl();
   const queryClient = useQueryClient();
   const [pendingUndo, setPendingUndo] = useState<string | null>(null);
@@ -232,11 +232,7 @@ export function SegmentRevisions({
                 ) : null}
                 <RevisionText text={revision.text} previousText={previous?.text} />
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {/* On a post-edit task, restoring an approved or rejected version would approve
-                      or reject, which the task does not allow. */}
-                  {!revision.isCurrent &&
-                  (canApprove ||
-                    (revision.status !== "approved" && revision.status !== "rejected")) ? (
+                  {!revision.isCurrent ? (
                     <Button
                       size="sm"
                       variant="outline"

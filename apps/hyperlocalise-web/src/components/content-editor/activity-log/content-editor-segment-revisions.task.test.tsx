@@ -83,19 +83,11 @@ describe("a string's history for someone here through a task", () => {
     expect(count("Undo this change everywhere")).toBeGreaterThan(0);
   });
 
-  it("offers Restore on every earlier version on a proofread task, and no Undo", async () => {
-    renderHistory({ taskScoped: true, canApprove: true });
+  it("offers Restore on every earlier version through a task, and no Undo", async () => {
+    renderHistory({ taskScoped: true });
 
     await screen.findAllByRole("button", { name: "Restore this version" });
     expect(count("Restore this version")).toBe(4);
-    expect(count("Undo this change everywhere")).toBe(0);
-  });
-
-  it("offers Restore on a post-edit task except to an approved or rejected version", async () => {
-    renderHistory({ taskScoped: true, canApprove: false });
-
-    await screen.findAllByRole("button", { name: "Restore this version" });
-    expect(count("Restore this version")).toBe(2);
     expect(count("Undo this change everywhere")).toBe(0);
   });
 });

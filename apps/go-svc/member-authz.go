@@ -2,20 +2,17 @@ package main
 
 import "github.com/hyperlocalise/hyperlocalise/internal/authz"
 
-// memberSettingsRoles lists the roles a member can be given: the workspace roles, then Vendor.
-var memberSettingsRoles = append(append([]string(nil), authz.Roles...), organizationRoleVendor)
-
 func isOrganizationAdminRole(role string) bool {
 	return role == "admin"
 }
 
 func assignableRolesForActor(actorRole string) []string {
 	if isOrganizationAdminRole(actorRole) {
-		return append([]string(nil), memberSettingsRoles...)
+		return append([]string(nil), authz.Roles...)
 	}
 	if authz.HasCapability(actorRole, "members:invite") {
-		roles := make([]string, 0, len(memberSettingsRoles)-1)
-		for _, role := range memberSettingsRoles {
+		roles := make([]string, 0, len(authz.Roles)-1)
+		for _, role := range authz.Roles {
 			if role != "admin" {
 				roles = append(roles, role)
 			}
@@ -71,7 +68,6 @@ func buildMemberManagementContext(actorRole string) memberManagementContext {
 	}
 }
 
-// isKnownMemberRole lists the roles a member can be given, which includes Vendor.
 func isKnownMemberRole(role string) bool {
-	return authz.IsKnownRole(role) || role == organizationRoleVendor
+	return authz.IsKnownRole(role)
 }

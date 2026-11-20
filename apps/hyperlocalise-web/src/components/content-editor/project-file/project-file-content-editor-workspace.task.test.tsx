@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 // @vitest-environment happy-dom
-import { waitFor } from "@testing-library/react";
+import { cleanup, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { useSegmentActivityOpener } from "@/components/content-editor/activity-log/content-editor-segment-activity";
@@ -129,7 +129,7 @@ type SaveTranslation = (
   text: string,
 ) => Promise<void>;
 
-async function openEditor(taskScoped: boolean) {
+async function openEditor(taskScoped: boolean, taskAiSuggestionAllowed = false) {
   renderWithContentEditorProviders(
     <ContentEditorWorkspaceProvider
       initialState={createContentEditorLoadingWorkspaceState({
@@ -147,6 +147,7 @@ async function openEditor(taskScoped: boolean) {
         targetLocale="de"
         layout="fullscreen"
         taskScoped={taskScoped}
+        taskAiSuggestionAllowed={taskAiSuggestionAllowed}
       />
     </ContentEditorWorkspaceProvider>,
   );
@@ -169,7 +170,7 @@ afterEach(() => {
 
 describe("the editor for someone here through a task", () => {
   it("saves a string asking only for what a task owner may reach", async () => {
-    queueExtras.value = { qaChecks: DEFAULT_QA_POLICY, canApproveTranslations: false };
+    queueExtras.value = { qaChecks: DEFAULT_QA_POLICY };
     const save = await openEditor(true);
 
     await save({ id: "a-1", sourceText: "Source a-1" }, "de", "Quelle a-1");
@@ -177,6 +178,19 @@ describe("the editor for someone here through a task", () => {
     expect(validated.modes?.length).toBeGreaterThan(0);
     expect(calls).toContain("cat.saveTranslation");
     expect(closedCalls).toEqual([]);
+  });
+
+  it("offers the AI suggestion when the person's role runs AI actions", async () => {
+    const suggestion = () =>
+      (container.props?.services as { generateAiRecommendation?: unknown } | undefined)
+        ?.generateAiRecommendation;
+
+    await openEditor(true, false);
+    expect(suggestion()).toBeUndefined();
+    cleanup();
+
+    await openEditor(true, true);
+    expect(suggestion()).toBeTypeOf("function");
   });
 
   it("can open a string's history, which does not depend on the grouped view", async () => {

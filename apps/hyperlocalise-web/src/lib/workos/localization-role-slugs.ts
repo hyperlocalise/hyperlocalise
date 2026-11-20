@@ -23,7 +23,6 @@ export const WORKOS_LOCALIZATION_ROLE_SLUGS = [
   "reviewer",
   "translator",
   "member",
-  "vendor",
 ] as const;
 
 export type WorkosLocalizationRoleSlug = (typeof WORKOS_LOCALIZATION_ROLE_SLUGS)[number];
@@ -38,7 +37,6 @@ export const WORKOS_ROLE_SLUG_BY_MEMBERSHIP_ROLE: Record<
   reviewer: "reviewer",
   translator: "translator",
   member: "member",
-  vendor: "vendor",
 };
 
 export const MEMBERSHIP_ROLE_BY_WORKOS_ROLE_SLUG: Record<
@@ -51,7 +49,6 @@ export const MEMBERSHIP_ROLE_BY_WORKOS_ROLE_SLUG: Record<
   reviewer: "reviewer",
   translator: "translator",
   member: "member",
-  vendor: "vendor",
 };
 
 export function isKnownWorkosLocalizationRoleSlug(

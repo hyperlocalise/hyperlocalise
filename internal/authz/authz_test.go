@@ -45,21 +45,6 @@ func TestCapabilitiesByRole(t *testing.T) {
 	require.False(t, HasCapability(RoleAdmin, "not-a-capability"))
 }
 
-// A vendor reaches only their own open tasks in the app, so the role is unknown here: no
-// capability, no token scope, and nothing from a token made before its owner became one.
-func TestVendorRoleHoldsNothing(t *testing.T) {
-	t.Parallel()
-
-	require.False(t, IsKnownRole(RoleVendor))
-	require.NotContains(t, Roles, RoleVendor)
-	for capability := range capabilitiesByRole[RoleAdmin] {
-		require.False(t, HasCapability(RoleVendor, capability), capability)
-	}
-	require.Empty(t, GrantableAPIKeyScopes(RoleVendor))
-	require.Empty(t, EffectivePermissions(APIKeyScopes, RoleVendor))
-	require.NotEmpty(t, EffectivePermissions(APIKeyScopes, RoleMember))
-}
-
 func TestGrantableAPIKeyScopesByRole(t *testing.T) {
 	t.Parallel()
 

@@ -13,12 +13,6 @@ const (
 	RoleMember              = "member"
 )
 
-// RoleVendor is an outside person who holds no capability and no token scope. It is left out of
-// Roles and the capability table on purpose: IsKnownRole refuses it, so the public API and every
-// go-svc route are closed to a vendor unless a route asks for the role by name. What a vendor
-// may reach comes from the open tasks they own (apps/go-svc/vendor-access.go).
-const RoleVendor = "vendor"
-
 // Roles lists the workspace roles from most to least privileged.
 var Roles = []string{
 	RoleAdmin,
