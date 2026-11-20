@@ -2218,9 +2218,9 @@ paths:
         analysed for Reports until work is saved in it; one created with `POST /api/v1/jobs` is.
         Languages must be enabled on the project. A file job's `fileFormat` must match its source
         file's name (`400 source_file_format_mismatch` gives `details.expectedFileFormat`). A
-        workspace holds at most 50 open jobs, not counting `keys` jobs (a task for a person on a file
-        counts), and creates at most 120
-        jobs an hour (`429 organization_job_budget_exceeded`). Send an `Idempotency-Key` header to
+        workspace holds at most 50 open jobs, not counting tasks for people (`keys` jobs and file
+        jobs with a `step`), and creates at most 120 jobs an hour, tasks for people included
+        (`429 organization_job_budget_exceeded`). Send an `Idempotency-Key` header to
         retry safely. A repeat of the same request returns the first job with `200` and
         `Idempotent-Replayed: true`. The same key with a different body returns
         `422 idempotency_key_reused`. Keys are shared with `POST /api/v1/jobs`.

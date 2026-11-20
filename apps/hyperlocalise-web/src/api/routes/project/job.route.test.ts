@@ -1482,7 +1482,7 @@ describe("project job create", () => {
     expect(unchanged?.status).toBe("waiting_for_review");
   });
 
-  it("rejects proofread create when open-job budget is exhausted", async () => {
+  it("creates a proofread job while 50 proofread jobs are open", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);
     const sourceFile = await insertStoredSourceFile({
@@ -1492,7 +1492,7 @@ describe("project job create", () => {
       contentType: "application/json",
     });
 
-    // MAX_OPEN_JOBS_PER_ORGANIZATION is 50; fill open slots with waiting_for_review.
+    // MAX_OPEN_JOBS_PER_ORGANIZATION is 50; tasks for people take none of the open slots.
     await db.insert(schema.jobs).values(
       Array.from({ length: 50 }, () => ({
         id: `job_${randomUUID()}`,
@@ -1519,7 +1519,7 @@ describe("project job create", () => {
         },
         json: {
           type: "file",
-          title: "Proofread over budget",
+          title: "Proofread beside open tasks",
           kind: "proofread",
           fileInput: {
             sourceFileId: sourceFile.id,
@@ -1532,9 +1532,7 @@ describe("project job create", () => {
       { headers },
     );
 
-    expect(response.status).toBe(429);
-    const body = (await response.json()) as { error: string };
-    expect(body.error).toBe("organization_job_budget_exceeded");
+    expect(response.status).toBe(201);
     expect(enqueueJob).not.toHaveBeenCalled();
   });
 
