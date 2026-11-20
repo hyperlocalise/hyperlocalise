@@ -40,6 +40,7 @@ import {
   LOCALISATION_AUDIT_DIMENSIONS,
   rankCriteriaByGain,
 } from "@/lib/localisation-audit/score-composition";
+import type { LocalisationAuditRelatedScore } from "@/lib/localisation-audit/related-scores";
 import { scoreTone, severityTone } from "@/lib/localisation-audit/score-tone";
 import type { LocalisationAuditStanding } from "@/lib/localisation-audit/store";
 import type {
@@ -68,6 +69,8 @@ import {
   type LocalisationAuditResultCopy,
 } from "./localisation-audit-page-content";
 import { LocalisationAuditResultErrorBoundary } from "./localisation-audit-result-error-boundary";
+import { LocalisationAuditForm } from "./localisation-audit-form";
+import { LocalisationAuditSiteMark } from "./localisation-audit-site-mark";
 import { LocalisationAuditScoreBreakdown } from "./localisation-audit-score-breakdown";
 import {
   AnimatedNumber,
@@ -190,7 +193,7 @@ function CompanyMark({
           onError={() => setLogoFailed(true)}
         />
       ) : (
-        <span className="font-serif text-2xl tracking-tight">
+        <span className="font-sans text-2xl font-semibold tracking-tight">
           {companyMonogram(profile?.name, domainKey)}
         </span>
       )}
@@ -297,7 +300,9 @@ function Stat({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0 rounded-xl border border-border p-4">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1 font-serif text-2xl tracking-tight sm:text-3xl">{children}</dd>
+      <dd className="mt-1 font-sans text-2xl font-semibold tracking-tight sm:text-3xl">
+        {children}
+      </dd>
     </div>
   );
 }
@@ -305,6 +310,7 @@ function Stat({ label, children }: { label: string; children: ReactNode }) {
 export function LocalisationAuditReportView({
   audit,
   standing,
+  relatedScores = [],
   copy,
   locale,
   appLocale,
@@ -317,6 +323,7 @@ export function LocalisationAuditReportView({
 }: {
   audit: LocalisationAuditReportAudit;
   standing: LocalisationAuditStanding | null;
+  relatedScores?: LocalisationAuditRelatedScore[];
   copy: LocalisationAuditResultCopy;
   locale: string;
   appLocale: string;
@@ -418,6 +425,10 @@ export function LocalisationAuditReportView({
         }
       : null,
     { id: "locales", label: copy.localesHeading },
+    !isWorkspace && relatedScores.length > 0
+      ? { id: "related-scores", label: copy.relatedHeading }
+      : null,
+    isWorkspace ? null : { id: "audit-yours", label: copy.auditYoursHeading },
     isWorkspace ? null : { id: "next-step", label: copy.reauditHeading },
   ].filter((link): link is { id: string; label: string } => link != null);
 
@@ -449,7 +460,7 @@ export function LocalisationAuditReportView({
               {copy.companyReportEyebrow}
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-3">
-              <h1 className="font-serif text-3xl tracking-tight text-balance sm:text-4xl lg:text-5xl">
+              <h1 className="font-sans text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-5xl">
                 {displayName}
               </h1>
               {companyProfile?.industry ? (
@@ -656,13 +667,13 @@ export function LocalisationAuditReportView({
                     className="flex flex-col rounded-2xl border border-border p-5"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <span className="font-serif text-2xl leading-none text-muted-foreground tabular-nums">
+                      <span className="font-sans text-2xl leading-none font-semibold text-muted-foreground tabular-nums">
                         {index + 1}
                       </span>
                       <div className="text-end">
                         <p
                           className={cn(
-                            "font-serif text-3xl leading-none tracking-tight tabular-nums",
+                            "font-sans text-3xl leading-none font-semibold tracking-tight tabular-nums",
                             auditToneTextClass("safe"),
                           )}
                         >
@@ -695,7 +706,7 @@ export function LocalisationAuditReportView({
             <ol className="mt-8 space-y-4">
               {fallbackFindings.map((finding, index) => (
                 <li key={finding.id} className="flex min-w-0 gap-4">
-                  <span className="font-serif text-2xl leading-none text-muted-foreground tabular-nums">
+                  <span className="font-sans text-2xl leading-none font-semibold text-muted-foreground tabular-nums">
                     {index + 1}
                   </span>
                   <div className="min-w-0">
@@ -868,6 +879,75 @@ export function LocalisationAuditReportView({
           ) : null}
         </section>
       </IsolatedReportSection>
+
+      {!isWorkspace && relatedScores.length > 0 ? (
+        <IsolatedReportSection section="related-scores">
+          <section id="related-scores" className={sectionClassName}>
+            <SectionHeading title={copy.relatedHeading} subcopy={copy.relatedSubcopy} />
+            <ul className="mt-6 divide-y divide-border overflow-hidden rounded-2xl border border-border">
+              {relatedScores.map((entry) => {
+                const name = entry.companyName?.trim() || entry.domainKey;
+                return (
+                  <li key={entry.domainSlug}>
+                    <Link
+                      href={`/${locale}/localisation-audit/${entry.domainSlug}`}
+                      className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/40 sm:px-5"
+                      aria-label={copy.relatedScoreLink({ name, score: entry.score })}
+                    >
+                      <LocalisationAuditSiteMark
+                        domainKey={entry.domainKey}
+                        companyName={entry.companyName}
+                        logoUrl={entry.logoUrl}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{name}</span>
+                        {entry.companyName ? (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {entry.domainKey}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-sm font-semibold tabular-nums",
+                          auditToneTextClass(scoreTone(entry.score)),
+                        )}
+                      >
+                        {entry.score}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-4">
+              <Link
+                href={leaderboardHref}
+                className="inline-flex items-center gap-1 text-sm underline-offset-4 hover:underline"
+              >
+                {copy.relatedHubLink}
+                <ArrowRightIcon className="size-4 rtl:rotate-180" aria-hidden />
+              </Link>
+            </p>
+          </section>
+        </IsolatedReportSection>
+      ) : null}
+
+      {isWorkspace ? null : (
+        <IsolatedReportSection section="audit-yours">
+          <section id="audit-yours" className={sectionClassName}>
+            <div className="rounded-3xl bg-muted/40 p-6 sm:p-10">
+              <SectionHeading
+                title={copy.auditYoursHeading}
+                subcopy={copy.auditYoursBody({ domain: audit.domainKey })}
+              />
+              <div className="mt-6">
+                <LocalisationAuditForm locale={locale} idPrefix="audit-yours" />
+              </div>
+            </div>
+          </section>
+        </IsolatedReportSection>
+      )}
 
       {isWorkspace ? null : (
         <IsolatedReportSection

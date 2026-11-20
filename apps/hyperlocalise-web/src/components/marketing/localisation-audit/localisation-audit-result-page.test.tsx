@@ -20,11 +20,21 @@ import { LocalisationAuditResultPage } from "./localisation-audit-result-page";
 import {
   createRunningAudit,
   createSucceededAudit,
+  localisationAuditRelatedScores,
   localisationAuditStanding,
 } from "./localisation-audit.fixture";
 
 vi.mock("@workos-inc/authkit-nextjs/components", () => ({
   useAuth: () => ({ user: null, loading: false, featureFlags: {} }),
+}));
+
+vi.mock("@/lib/analytics/client", () => ({
+  clientAnalytics: { track: vi.fn() },
+}));
+
+vi.mock("@/lib/analytics/posthog-client", () => ({
+  capturePostHogClientEvent: vi.fn(),
+  capturePostHogClientException: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -49,12 +59,23 @@ describe("LocalisationAuditResultPage", () => {
           locale="en"
           domainSlug={audit.domainSlug}
           standing={localisationAuditStanding(audit.score ?? 0)}
+          relatedScores={localisationAuditRelatedScores()}
           audit={audit}
         />
       </IntlProvider>,
     );
 
     expect(screen.getByRole("heading", { name: "Acme" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Related scores" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Northstar, score 91 out of 100" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "See all public scores" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Audit your site" })).toBeTruthy();
+    expect(
+      screen.getByText(
+        "This report is for acme.example. Enter your URL to get the same localisation score.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByPlaceholderText("https://your-site.com")).toBeTruthy();
     expect(screen.getByText(/You can re-run this audit once a day/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Re-run audit" })).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();

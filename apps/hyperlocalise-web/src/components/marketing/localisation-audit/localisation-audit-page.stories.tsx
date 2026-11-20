@@ -40,8 +40,9 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvas, userEvent }) => {
     await expect(
-      canvas.getByRole("heading", { name: "See how your brand travels." }),
+      canvas.getByRole("heading", { name: "Free website localisation audit." }),
     ).toBeInTheDocument();
+    await expect(canvas.getByText(/See how your brand travels/)).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "See my score" })).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "How the score works" })).toBeInTheDocument();
     await expect(canvas.getByText("What each check result means")).toBeInTheDocument();

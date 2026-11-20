@@ -27,6 +27,7 @@ import {
   createRunningAudit,
   createSucceededAudit,
   localisationAuditDomainSlug,
+  localisationAuditRelatedScores,
   localisationAuditStanding,
 } from "./localisation-audit.fixture";
 
@@ -54,6 +55,7 @@ const meta = {
     locale: "en",
     domainSlug: localisationAuditDomainSlug,
     standing: localisationAuditStanding(publicAudit.score ?? 0),
+    relatedScores: localisationAuditRelatedScores(),
     audit: publicAudit,
   },
 } satisfies Meta<typeof LocalisationAuditResultPage>;
@@ -105,6 +107,13 @@ export const PublicFullReport: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Show all 6 pages" }));
     await expect(canvas.getByText("HTTP 403")).toBeInTheDocument();
     await expect(canvas.getByText("French")).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Related scores" })).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("link", { name: "Northstar, score 91 out of 100" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "See all public scores" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Audit your site" })).toBeInTheDocument();
+    await expect(canvas.getByPlaceholderText("https://your-site.com")).toBeInTheDocument();
     await expect(canvas.getByText("Get a copy by email")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Re-run audit" })).toBeInTheDocument();
   },
