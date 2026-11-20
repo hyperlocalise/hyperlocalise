@@ -148,7 +148,7 @@ Editing a translation or source text in the Content Editor changes its status an
 
 **Schedule** → **List work to review** → **For each** → **Pick assignee** → **Assign task** (set to **Proofread**) → **Send email**
 
-**List work to review** returns each file and language of a project that has translations in **Needs review** or saved as drafts, and that no open or waiting post-edit or proofread task already covers. Each item has `projectId`, `sourceFileId`, `path`, `targetLocale` and `needsReview` (the number of strings). Loop over `items` with **For each**, pick the person for `item.targetLocale`, and give them a task on `item.sourceFileId` for that language.
+**List work to review** returns each file and language of a project that has translations in **Needs review** or saved as drafts, and that no open or waiting post-edit or proofread task already covers. Each item has `projectId`, `sourceFileId`, `path`, `targetLocale` and `needsReview` (the number of strings). Loop over `items` with **For each**. In **Pick assignee** and **Assign task**, read a field of the current item through the loop step, as `{{ nodes.<loop step id>.item.targetLocale }}` (and the same for `projectId` and `sourceFileId`). A run cannot read `{{ item.targetLocale }}`.
 
 - A file and language stay off the list while a task is open on them. That task's editor already shows whatever needs review in its file, including edits made after it was given, so a second run makes no second task.
 - They come back once every task on them is finished and something still needs review. Set **Assign task** to **Proofread**, or follow a post-edit task with a proofread task that **Comes after** it: a post-editor cannot approve, so a post-edit task alone would be made again at each run.
