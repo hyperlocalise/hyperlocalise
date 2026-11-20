@@ -22,7 +22,7 @@ Use translators for drafting and reviewers for final approval. Give localization
 
 ## Vendors
 
-Put an outside agency or freelancer in a **vendor team**: on **Teams**, select **Create team** and tick **Vendor team**. A freelancer is a vendor team of one. People in a vendor team keep a role such as **Translator** or **Reviewer**, and see their own work and nothing else in the workspace. Their role decides what they can do in that work, as it does for anyone in the editor.
+Put an outside agency or freelancer in a **vendor team**: on **Teams**, select **Create team** and tick **Vendor team**. A freelancer is a vendor team of one. People in a vendor team keep a role such as **Translator** or **Reviewer**, and see their own work and nothing else in the workspace (the team's [manager](#a-vendor-teams-manager) also sees the tasks given to the team). Their role decides what they can do in that work, as it does for anyone in the editor.
 
 A person in a vendor team is in no other team: adding someone to a vendor team removes them from their other teams. A vendor team holds no projects. The admin who makes a vendor team does not join it, and the workspace always keeps an admin outside vendor teams.
 
@@ -36,11 +36,17 @@ Their **My Jobs** lists the post-edit and proofread tasks given to them. From an
 
 They work on text files. Images, video, office files and documents cannot be worked on through a task yet.
 
-A task [waiting for another](/platform/translation/jobs#tasks-that-wait-for-another) is listed, and opens for work when the earlier one is finished. When a task is marked done, cancelled, or given to someone else, they can no longer open it.
+A task [waiting for another](/platform/translation/jobs#tasks-that-wait-for-another) is listed, and opens for work when the earlier one is finished. When a task is marked done, cancelled, or given to someone else, they can no longer open it, unless it is still open or waiting and given to a team they manage.
 
 They cannot open projects, files, other jobs, the member list, teams, glossaries, memories, dictionaries, guidelines, project templates, Reports, issues, automations, the assistant, or settings. They cannot create API keys or use the API, MCP, the Slack and email assistants, or the design and content plugins, and cannot be the reviewer of a **Human approval** step.
 
 Only post-edit and proofread tasks on a file can be given to them. Each person in a vendor team counts as a member of the workspace on your plan.
+
+### A vendor team's manager
+
+A task can also be given to the vendor team itself, so the agency decides who does it: choose the team in the task's owner picker. Give the agency's project manager the **Manager** role in the vendor team first: the picker lists only vendor teams with a manager who has joined the workspace and whose role can work on jobs. Their **My Jobs** lists every open or waiting task given to the team, and on a task's page they pick the person in the team who does it, or **Not handed out** to take it back. They can open the editor and select **Mark done** only on a task they gave to themselves. Everyone else in the team sees only the tasks handed to them.
+
+The owner picker shows the team ticked while the task is with it. Choosing the team again takes the task back from the person it was handed to. Choosing another person or **Unassigned**, in the picker, the API or an automation, takes the task away from the team. If the team loses its manager, or its manager's role changes to **Member**, the tasks no one in the team has yet wait unseen and read as unassigned: give them to a person or to another team. Deleting the team leaves a task that was never handed out unassigned. The API, MCP and webhooks do not show the team: a task given to a team with no one handling it yet reads as unassigned there.
 
 ## A button is unavailable
 

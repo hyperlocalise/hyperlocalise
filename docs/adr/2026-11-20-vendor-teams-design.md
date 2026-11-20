@@ -38,11 +38,12 @@ Other platforms handle vendors in three ways: a linked organization of the vendo
 | Translation memory and glossary | The suggestions and term matches the editor shows for a string of the task. | Lookup only, for the task's languages, from the memories and glossaries linked to the task's project, and only for the source text of a string in the task's file, so it cannot be used to browse. Matches come without links to the entry or the means to change it. No list, no editing. |
 | Download | The editor's own download of the task's file; the file as uploaded and its translation in a task language, which the editor uses to show documents. | No new download button on the task's page. |
 | **Mark done** | On their own open task. | As for everyone else. |
+| A task given to their team (team **Manager** only) | In **My jobs** with their own tasks, and its page, where they hand it to a person in the team or back to the team. | Open and waiting tasks given to a team they manage. No editor and no **Mark done** unless they hand it to themselves. |
 | Their account | Sign out, theme and language, choosing another workspace they belong to, leaving the workspace. | From the account menu. The settings pages stay closed. |
 
 Inside a task their role decides, exactly as it does in the editor for anyone: saving, commenting, approving and asking for an AI suggestion follow the role's rights there, and the task's step does not change them. (The editor lets a Translator approve a string when saving it, as it does on main; whether a vendor Translator should is an open question.) Source text, tags, design links, string limits, hiding or locking strings, memory entries and screenshots stay closed whatever the role, because those routes are not opened.
 
-Vendor people see the names of the people who wrote comments or earlier versions in their file. They see no other names.
+Vendor people see the names of the people who wrote comments or earlier versions in their file. A team's manager also sees the names and email addresses of the team's people who can be handed a task. They see no other names.
 
 ### What stays closed
 
@@ -79,6 +80,19 @@ This holds for every person, not only vendor people, and fixes the task that sho
 - Vendor people can be given post-edit and proofread tasks on a file. Giving them any other job (a translate task, a task on chosen strings, an AI job) is refused with a message, in the app, the **Assign task** step and both API hosts, because nothing would let them open or finish it. An issue cannot be given to them either.
 - API tokens keep the team rule: a token does not open a task through ownership.
 
+### Giving a task to a vendor team
+
+Built in the second pull request. An agency decides who in it does a task, so a task can be given to the vendor team itself:
+
+- While it is open or waiting, a post-edit or proofread task on a file can be given to a vendor team from the owner picker on its page, which lists vendor teams beside people. Only a vendor team with a manager who is an active member whose role works on jobs is listed or accepted: a team without one would hold the task where no one sees it. The task then holds the team and no person (`jobs.owner_team_id`). The **Assign task** step and the public API still take a person only.
+- The team's managers (team role **Manager**) see every open or waiting task given to the team, in **My jobs** with their own tasks, and its page. There they hand it to a person in the team whose role works on jobs, or back to the team (**Not handed out**). The task stays the team's, so they can move it again. They open the editor and **Mark done** only once they own it, like anyone in the team.
+- Everyone else in the team sees only the tasks they own, as before. A task given straight to a person in the team is theirs, not the team's, and its manager does not see it.
+- Choosing another person or no one in the owner picker, the public API or an automation takes the task from the team; choosing the person who already has it changes nothing. The picker shows the team ticked while the task is with it, and choosing the team again takes the task back from the person, for the managers to hand out again. Deleting the team leaves the task with whoever has it, or with no one if it was never handed out. Removing the manager later does the same as having none: the team's tasks wait unseen until someone in the workspace gives them to a person.
+- The manager's view goes through the same gate as everything else a vendor reaches: two routes are opened for it (who the task can be handed to, in the Go service, and the hand-out itself, in the web app), and the job list and task page add "a task given to a team I manage" to "a task I own". Both are written in each code base (`team-task.ts`, `managedTeamTaskSQL`).
+- On a vendor team the team role is chosen again when adding a person or with **Change role**, and says what it means there. The rule that a team keeps its last manager does not apply to a vendor team: its manager does not manage the team, admins and localization managers do.
+
+Not built in it, as the smallest change: a separate list of team tasks, the owner shown in the job list rows (the manager opens the task to see it), giving a task to a team from the **Assign task** step or the public API, a notice when a task is handed out, and the team in what other systems read. Job change events (webhooks, the **Job changed** trigger), the public API and MCP see only the person: giving an unowned task to a team records no assignee change, giving a person's task to a team reads as unassigned, and MCP's unassigned filter includes tasks a team holds with no one on them yet.
+
 ### Making a vendor team and adding people
 
 - On **Teams**, an admin or localization manager making a team can mark it as a vendor team. The list shows which teams are vendor teams, and a vendor team's page, its add-member dialog and the dialogs that remove a person or delete the team say what that means.
@@ -90,7 +104,6 @@ This holds for every person, not only vendor people, and fixes the task that sho
 
 Each is a follow-up, and nothing here prepares for it unless said:
 
-- **Second pull request:** giving a task to a vendor team, and the team's manager (the agency's project manager) seeing all the team's tasks and handing each one to a person in the team. Until then a task is given to a person, and the team's manager is shut out like the rest of the team.
 - A vendor team's manager adding or inviting their own people; accepting or declining a task; Reports by vendor and time logging by vendors; a linked workspace of the vendor's own; vendors on translate tasks and on tasks of chosen strings; a history of a vendor's finished tasks; notices by email or in the inbox when a task is given or opens; working on images, video, office files and documents through a task (uploading a translated file, approving a file view, turning document edits into strings); reassigning what a member owns, and disconnecting accounts they connected for automations, when they join a vendor team; the editor's other AI actions (rewriting, guideline checks, finding context in a repository, image and video actions) through a task; turning a team into a vendor team or back; recording joining and leaving a team in the activity log.
 
 ## Alternatives considered
@@ -103,9 +116,9 @@ Each is a follow-up, and nothing here prepares for it unless said:
 
 ## Before release
 
-The database gains a column on teams in one migration. Nothing is needed in WorkOS.
+The database gains a column on teams in one migration, and the second pull request a column on jobs (the team a task was given to) in another. Nothing is needed in WorkOS.
 
-The Go services are deployed before the web app. The web app is where a vendor team is made; if it went first, vendor people's **My Jobs** and editor would be refused until the Go service that opens the task routes to them was updated, and an older Go service and public API would still honour tokens they made earlier.
+The migrations are applied before either goes out: the second pull request's Go services read and write the new column on jobs, so every job list and page would fail without it. The Go services are deployed before the web app. The web app is where a vendor team is made; if it went first, vendor people's **My Jobs** and editor would be refused until the Go service that opens the task routes to them was updated, and an older Go service and public API would still honour tokens they made earlier.
 
 ## Test plan
 
