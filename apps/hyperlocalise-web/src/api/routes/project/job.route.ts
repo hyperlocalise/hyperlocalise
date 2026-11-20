@@ -1510,9 +1510,10 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       return c.json({ job }, 200);
     })
     .post("/:jobId/mark-done", validateWorkspaceJobParams, async (c) => {
-      // Open to vendors (`vendor-access.ts`): a vendor finishes only an open task they own.
+      // Open to vendors (`vendor-access.ts`): a vendor finishes only an open task they own, and
+      // only if their role works on jobs, as for anyone.
       const isVendor = isInVendorTeam(c.var.auth);
-      if (!isVendor && !isJobMutationAllowed(c.var.auth.membership.role)) {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);
       }
 

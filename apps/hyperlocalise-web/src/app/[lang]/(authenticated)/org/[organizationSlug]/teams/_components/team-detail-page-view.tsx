@@ -380,7 +380,9 @@ export function TeamDetailPageView({
             </TypographyP>
             <TypographyP className="mt-1" size="small" tone="subtle">
               <FormattedMessage
-                {...teamDetailPageViewMessages.membersDescription}
+                {...(team?.isVendor
+                  ? teamDetailPageViewMessages.vendorMembersDescription
+                  : teamDetailPageViewMessages.membersDescription)}
                 values={{
                   invite: (chunks) => (
                     <OrgNavLink
@@ -533,6 +535,7 @@ export function TeamDetailPageView({
         open={isAddMemberOpen}
         assignableMembers={assignableMembers}
         isSaving={isAddingMember}
+        isVendorTeam={team?.isVendor === true}
         onOpenChange={onAddMemberOpenChange}
         onSubmit={onAddMember}
       />
@@ -559,9 +562,14 @@ export function TeamDetailPageView({
             </DialogTitle>
             <DialogDescription>
               {removingMember
-                ? intl.formatMessage(teamDetailPageViewMessages.removeMemberDescription, {
-                    email: removingMember.email,
-                  })
+                ? intl.formatMessage(
+                    team?.isVendor
+                      ? teamDetailPageViewMessages.removeVendorMemberDescription
+                      : teamDetailPageViewMessages.removeMemberDescription,
+                    {
+                      email: removingMember.email,
+                    },
+                  )
                 : ""}
             </DialogDescription>
           </DialogHeader>

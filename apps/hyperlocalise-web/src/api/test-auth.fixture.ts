@@ -319,6 +319,7 @@ export function createAuthTestFixture() {
     for (const sessionToken of records.sessionTokens) {
       testApiAuthContextsBySession.delete(sessionToken);
     }
+    testVendorTeamMembers.clear();
 
     await cleanupWorkosTestRecords({
       workosOrganizationIds: records.workosOrganizationIds,

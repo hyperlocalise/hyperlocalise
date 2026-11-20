@@ -409,7 +409,7 @@ async function resolveProjectTeamId(auth: ApiAuthContext, requestedTeamId?: stri
   }
 
   if (auth.activeTeam) {
-    return resolveProjectTeamId(auth, auth.activeTeam.id);
+    return auth.activeTeam.id;
   }
 
   const defaultTeam = await ensureDefaultWorkspaceTeam(auth.organization.localOrganizationId);

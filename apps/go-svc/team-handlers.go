@@ -335,6 +335,7 @@ func (api *teamAPI) getTeam(ctx context.Context, actor teamActor, teamID string)
 		"organizationId": record.OrganizationID,
 		"slug":           record.Slug,
 		"name":           record.Name,
+		"isVendor":       record.IsVendor,
 		"createdAt":      record.CreatedAt,
 		"updatedAt":      record.UpdatedAt,
 		"members":        members,
@@ -369,7 +370,7 @@ func (api *teamAPI) updateTeam(ctx context.Context, actor teamActor, teamID stri
 	if err != nil {
 		return nil, 0, err
 	}
-	_, err = api.accessibleTeam(ctx, actor, teamID)
+	existing, err := api.accessibleTeam(ctx, actor, teamID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -392,6 +393,10 @@ func (api *teamAPI) updateTeam(ctx context.Context, actor teamActor, teamID stri
 		}
 		slug = validated
 		setSlug = true
+	}
+	// The default team takes projects that name no team, which a vendor team never does.
+	if existing.IsVendor && setSlug && slug == defaultWorkspaceTeamSlug {
+		return nil, 0, teamFailure(409, "team_slug_already_exists")
 	}
 	var record teamRecord
 	var created, updated time.Time
@@ -544,11 +549,13 @@ func (api *teamAPI) addTeamMember(ctx context.Context, actor teamActor, teamID s
 		return nil, 0, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	switch err := applyVendorTeamJoinRules(ctx, tx, actor.organizationID, teamID, userID, api.workosSynced); {
+	switch err := applyVendorTeamJoinRules(ctx, tx, actor.organizationID, teamID, userID, actor.role, api.workosSynced); {
 	case errors.Is(err, errVendorInOtherTeam):
-		return nil, 0, teamFailure(409, "vendor_in_other_team")
+		return nil, 0, teamFailureWithMessage(409, "vendor_in_other_team", "Someone in a vendor team cannot join another team. Remove them from their vendor team first.")
 	case errors.Is(err, errLastAdminToVendorTeam):
-		return nil, 0, teamFailure(409, "last_admin_protected")
+		return nil, 0, teamFailureWithMessage(409, "last_admin_protected", "The workspace needs an admin outside vendor teams, so this admin cannot join one.")
+	case errors.Is(err, errCannotMoveToVendorTeam):
+		return nil, 0, teamFailureWithMessage(403, "forbidden", "You cannot put this member in a vendor team, because you cannot manage their role.")
 	case err != nil:
 		return nil, 0, err
 	}

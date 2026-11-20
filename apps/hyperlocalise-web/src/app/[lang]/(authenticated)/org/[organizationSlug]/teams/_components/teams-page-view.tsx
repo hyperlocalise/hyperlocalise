@@ -422,9 +422,14 @@ export function TeamsPageView({
             </DialogTitle>
             <DialogDescription>
               {deletingTeam
-                ? intl.formatMessage(teamsPageViewMessages.deleteTeamDescription, {
-                    teamName: deletingTeam.name,
-                  })
+                ? intl.formatMessage(
+                    deletingTeam.isVendor
+                      ? teamsPageViewMessages.deleteVendorTeamDescription
+                      : teamsPageViewMessages.deleteTeamDescription,
+                    {
+                      teamName: deletingTeam.name,
+                    },
+                  )
                 : ""}
             </DialogDescription>
           </DialogHeader>

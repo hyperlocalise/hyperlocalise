@@ -162,4 +162,10 @@ export const teamsPageViewMessages = defineMessages({
     id: "ZRezwcaCoI",
     description: "Badge beside a team's name in the team list when it is an outside vendor's team",
   },
+  deleteVendorTeamDescription: {
+    defaultMessage:
+      "{teamName} will be removed. Its people will no longer be limited to their tasks: they get back what their role allows in the workspace, in no team.",
+    id: "DeAIWiwQhH",
+    description: "Delete team confirmation for a vendor team",
+  },
 });

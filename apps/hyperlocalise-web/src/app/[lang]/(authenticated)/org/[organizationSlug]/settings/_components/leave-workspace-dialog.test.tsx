@@ -182,7 +182,7 @@ describe("LeaveWorkspaceDialog", () => {
 
     expect(
       await screen.findByText(
-        "You are the only admin of this workspace. Make another member an admin before you leave.",
+        "You are the only admin of this workspace outside vendor teams. Make another member an admin before you leave.",
       ),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Leave workspace" })).toBeNull();
@@ -204,7 +204,7 @@ describe("LeaveWorkspaceDialog", () => {
 
     expect(
       await screen.findByText(
-        "You are the only admin of this workspace. Make another member an admin before you leave.",
+        "You are the only admin of this workspace outside vendor teams. Make another member an admin before you leave.",
       ),
     ).toBeTruthy();
     expect(mocks.finishLeavingWorkspaceAction).not.toHaveBeenCalled();

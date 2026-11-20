@@ -189,6 +189,8 @@ async function resolveActiveTeam(
   const teamConditions = [
     eq(schema.teams.organizationId, organizationId),
     inArray(schema.teams.id, visibleTeamIds),
+    // A vendor team is never anyone's working team: it holds no projects.
+    eq(schema.teams.isVendor, false),
   ];
 
   if (teamSlug) {

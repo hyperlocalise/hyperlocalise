@@ -34,13 +34,13 @@ Other platforms handle vendors in three ways: a linked organization of the vendo
 |---|---|---|
 | **My jobs** | Their open and waiting tasks: title, project name, file, languages, step, status, due date. | Only the **Assigned** list. A finished or reassigned task leaves it. |
 | The task's page | The same details, **Open Editor** and **Mark done**. After **Mark done**, or when the task has ended or moved to someone else, they are taken back to **My jobs**. | A waiting task has neither button, and its **Comes after** row says it comes after an earlier task, with a link only when that task is also theirs. No owner, title or due date editing, no other job actions, no activity list, no **Report** tab. |
-| The editor | The task's file, in the task's languages: what their role allows on its strings, including the AI actions, which are charged to the workspace as for anyone. Saves are checked against the project's own QA rules, which are sent with the task's strings. | Opened only from an open task. Text files only for now: the views used for images, video, office files and documents rely on routes that stay closed (see Not built). Any other file, any other language, another branch of the file, "all files" and groups of identical strings (which span files) are refused. The task's file is the one upload record the task was made for, so it is one file on one branch. The file's activity log, a string's activity tab, tag search and undoing a whole operation (a job's or an import's changes) are not opened. |
+| The editor | The task's file, in the task's languages: what their role allows on its strings, including the AI suggestion, which is charged to the workspace as for anyone. The editor's other AI actions are not opened (see Not built). Saves are checked against the project's own QA rules, which are sent with the task's strings. | Opened only from an open task. Text files only for now: the views used for images, video, office files and documents rely on routes that stay closed (see Not built). Any other file, any other language, another branch of the file, "all files" and groups of identical strings (which span files) are refused. The task's file is the one upload record the task was made for, so it is one file on one branch. The file's activity log, a string's activity tab, tag search and undoing a whole operation (a job's or an import's changes) are not opened. |
 | Translation memory and glossary | The suggestions and term matches the editor shows for a string of the task. | Lookup only, for the task's languages, from the memories and glossaries linked to the task's project, and only for the source text of a string in the task's file, so it cannot be used to browse. Matches come without links to the entry or the means to change it. No list, no editing. |
 | Download | The editor's own download of the task's file; the file as uploaded and its translation in a task language, which the editor uses to show documents. | No new download button on the task's page. |
 | **Mark done** | On their own open task. | As for everyone else. |
 | Their account | Sign out, theme and language, choosing another workspace they belong to, leaving the workspace. | From the account menu. The settings pages stay closed. |
 
-By role, inside a task: a Translator saves translations, comments and uses the AI actions; a Reviewer may also approve and reject. The task's step does not change this. Source text, tags, design links, string limits, hiding or locking strings, memory entries and screenshots stay closed whatever the role, because those routes are not opened.
+By role, inside a task: a Translator saves translations, comments and asks for an AI suggestion; a Reviewer may also approve and reject. The task's step does not change this. Source text, tags, design links, string limits, hiding or locking strings, memory entries and screenshots stay closed whatever the role, because those routes are not opened.
 
 Vendor people see the names of the people who wrote comments or earlier versions in their file. They see no other names.
 
@@ -52,22 +52,23 @@ Vendor people's navigation shows **My jobs** only. Any other page sends them bac
 
 ### How it is kept closed
 
-Each code base checks "is this person in a vendor team of this workspace" once, where it already looks the person up, and refuses them unless the route was opened on purpose:
+Each code base checks "is this person in a vendor team of this workspace" once, where it already looks the person up, and refuses them unless the route was opened on purpose. Every way in goes through that one check: a vendor keeps a real role (an admin's, even), so a path that confirmed the person by itself and then trusted the role would let them in.
 
 - **Web app:** the one function that every signed-in request and page goes through reads it with the membership and refuses vendor people unless the caller says the route is one of theirs. Their routes are one short list in one file. A request is let in only when every route that matches its path and method is on that list (middleware aside), so a closed route that overlaps an open one cannot answer for it. The same holds for pages: a page refuses them unless it opts in. They get a page frame of their own (My jobs and the account menu), because the usual frame loads the inbox, QA reports, the assistant and billing.
-- **Go service:** the function that resolves the signed-in person reads it and refuses vendor people. A second function, which accepts them, is called only by the handlers in the table above. A route added later refuses them without anyone thinking about it.
+- **Go service:** the function that resolves the signed-in person reads it and refuses vendor people, and every service uses it. A second function, which accepts them, is called only by the handlers in the table above. A route added later refuses them without anyone thinking about it.
+- **Onboarding:** a workspace where the person is a vendor is not theirs to set up, so its onboarding steps (such as the AI provider key) treat them as having no workspace there. They can still create a workspace of their own.
 - **Public API, MCP, agent sign-in and plugins:** the shared check that confirms a person by id, which every token, agent and plugin sign-in goes through, refuses vendor people outright. A token made before a person joined a vendor team stops working while they are in it.
 - **Ways in that never read the web session:** the Slack and email assistants do not know vendor people as senders, and a **Human approval** step refuses one as its reviewer, because they have no inbox to answer from.
-- **Reports:** needs billing rights, which Translator and Reviewer do not have.
+- **Reports:** closed by the web app's gate and by the shared Go check, like any other route.
 
 Inside an opened route vendor people never go through the team rule. Their access is always "an open task I own".
 
 Two rules in the data keep queries that ask who is on a team (such as who is emailed about an issue, or who appears in an assignee list) from reaching vendor people:
 
-- **Vendor people are in no other team.** Adding someone to a vendor team takes them out of their other teams, and adding a vendor person to another team is refused.
-- **A vendor team has no projects.** It cannot be chosen as a project's team, and it is never picked as the team a new project goes to.
+- **Vendor people are in no other team.** Adding someone to a vendor team takes them out of their other teams, and adding a vendor person to another team (the default team included, when an invite names none) is refused.
+- **A vendor team has no projects.** It cannot be chosen as a project's or a template's team, it is never picked as the team a new project or sample data goes to, and it cannot take the default team's slug.
 
-**The workspace keeps an admin outside vendor teams.** The rule that a workspace always has an admin who has accepted their invitation counts only admins outside vendor teams. Adding the last such admin to a vendor team is refused, as is removing, demoting or the leaving of the last such admin when every other admin is in a vendor team. An admin in no team counts.
+**Only someone who may manage a person can put them in a vendor team**, as for changing their role: a localization manager cannot shut an admin out. **The workspace keeps an admin outside vendor teams.** The rule that a workspace always has an admin who has accepted their invitation counts only admins outside vendor teams. Adding the last such admin to a vendor team is refused, as is removing, demoting or the leaving of the last such admin when every other admin is in a vendor team. An admin in no team counts.
 
 ### A task's owner need not be on the project's team
 
@@ -80,9 +81,9 @@ This holds for every person, not only vendor people, and fixes the task that sho
 
 ### Making a vendor team and adding people
 
-- On **Teams**, an admin or localization manager making a team can mark it as a vendor team. The list shows which teams are vendor teams.
-- An invite's team choice lists vendor teams, so a person can be invited straight into one with any role.
-- An existing member is added to a vendor team as to any team, and is then taken out of their other teams. Jobs and issues they already own stay theirs and are not reassigned (see Not built). Removing them from the vendor team gives them back the workspace their role allows, in no team.
+- On **Teams**, an admin or localization manager making a team can mark it as a vendor team. The list shows which teams are vendor teams, and a vendor team's page, its add-member dialog and the dialogs that remove a person or delete the team say what that means.
+- An invite's team choice lists vendor teams, so a person can be invited straight into one. The invite form asks for a team only for roles below localization manager; anyone else is added on **Teams** after they join.
+- An existing member is added to a vendor team as to any team, and is then taken out of their other teams. Jobs and issues they already own stay theirs and are not reassigned (see Not built). Removing them from the vendor team, or deleting the team, gives them back the workspace their role allows, in no team; the dialogs say so.
 - Vendor people count as paid seats, as every member does; that is left as it is.
 
 ## Not built
@@ -90,7 +91,7 @@ This holds for every person, not only vendor people, and fixes the task that sho
 Each is a follow-up, and nothing here prepares for it unless said:
 
 - **Second pull request:** giving a task to a vendor team, and the team's manager (the agency's project manager) seeing all the team's tasks and handing each one to a person in the team. Until then a task is given to a person, and the team's manager is shut out like the rest of the team.
-- A vendor team's manager adding or inviting their own people; accepting or declining a task; Reports by vendor and time logging by vendors; a linked workspace of the vendor's own; vendors on translate tasks and on tasks of chosen strings; a history of a vendor's finished tasks; notices by email or in the inbox when a task is given or opens; working on images, video, office files and documents through a task (uploading a translated file, approving a file view, turning document edits into strings); reassigning what a member owns, and disconnecting accounts they connected for automations, when they join a vendor team; turning a team into a vendor team or back.
+- A vendor team's manager adding or inviting their own people; accepting or declining a task; Reports by vendor and time logging by vendors; a linked workspace of the vendor's own; vendors on translate tasks and on tasks of chosen strings; a history of a vendor's finished tasks; notices by email or in the inbox when a task is given or opens; working on images, video, office files and documents through a task (uploading a translated file, approving a file view, turning document edits into strings); reassigning what a member owns, and disconnecting accounts they connected for automations, when they join a vendor team; the editor's other AI actions (rewriting, guideline checks, finding context in a repository, image and video actions) through a task; turning a team into a vendor team or back; recording joining and leaving a team in the activity log.
 
 ## Alternatives considered
 
@@ -114,7 +115,7 @@ This changes the access rules of live features, so an existing test that fails i
 
 - Each gate: the default refuses vendor people; the opted-in path accepts them. For the web app, a test walks every route the app registers and expects a refusal for vendor people on all but the listed ones, so a new route is covered the day it is added.
 - Every opened path, as vendor people: allowed on their own open task; refused on a waiting task (editor, Mark done), a finished task, a task given to someone else, another person's task, another file of the same project, another language of the same file, "all files", and another workspace.
-- Rights by role: saving and AI actions as a Translator and a Reviewer; approving and rejecting refused for a Translator and allowed for a Reviewer, on both steps; each closed action refused.
+- Rights by role: saving and the AI suggestion as a Translator and a Reviewer; approving and rejecting refused for a Translator and allowed for a Reviewer, on both steps; each closed action refused.
 - Memory and glossary lookup allowed for the task's languages and the text of the task's strings, and refused for other languages and other text; lists and edits refused.
 - Ways in that never read the web session: the Slack and email assistants, plugin sign-ins, MCP, the **Human approval** step, tokens and agents.
 - Representative closed paths in each service, named in "What stays closed", including the member directory, project templates, dictionaries, Reports, token creation, the public API with an older token, and MCP.

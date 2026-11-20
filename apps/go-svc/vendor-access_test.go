@@ -962,6 +962,37 @@ func TestVendorTeamRules(t *testing.T) {
 		require.Zero(t, others, "an admin in a vendor team cannot run the workspace")
 	})
 
+	t.Run("only someone who may manage the person can put them in a vendor team", func(t *testing.T) {
+		api, scope := teamTestAPI(t, "localization_manager")
+		vendorTeam := mustVendorTeam(t, scope)
+		workosUserID := "admin_" + uuid.NewString()
+		adminID := mustOrgTeammate(t, scope, workosUserID, uniqueTestEmail("admin"), "admin")
+		mustOrgTeammate(t, scope, "admin_"+uuid.NewString(), uniqueTestEmail("other-admin"), "admin")
+
+		rec := teamRequest(api, scope, http.MethodPost, scope.OrgPath("/teams/"+vendorTeam+"/members"), `{"workosUserId":"`+workosUserID+`"}`)
+		require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), "cannot manage their role")
+		require.Empty(t, teamsOf(t, scope, adminID))
+	})
+
+	t.Run("a vendor team cannot take the default team's slug by editing", func(t *testing.T) {
+		api, scope := teamTestAPI(t, "admin")
+		vendorTeam := mustVendorTeam(t, scope)
+		rec := teamRequest(api, scope, http.MethodPatch, scope.OrgPath("/teams/"+vendorTeam), `{"slug":"default"}`)
+		require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	})
+
+	t.Run("an invite with no team does not put a vendor in the default team", func(t *testing.T) {
+		scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+		scope.MustTeam(t, "default", "Default", "")
+		invited := mustOrgTeammate(t, scope, "invited_"+uuid.NewString(), uniqueTestEmail("invited"), "translator")
+		vendorTeam := mustVendorTeam(t, scope, invited)
+
+		_, err := (&memberAPI{pool: scope.Pool}).ensureTeamAccessForInvitedMember(t.Context(), scope.Pool, scope.OrganizationID, invited, "translator", "")
+		requireMemberFailure(t, err, http.StatusConflict, "vendor_in_other_team")
+		require.Equal(t, []string{vendorTeam}, teamsOf(t, scope, invited))
+	})
+
 	t.Run("a new vendor team has no members and is never a default", func(t *testing.T) {
 		api, scope := teamTestAPI(t, "admin")
 		rec := teamRequest(api, scope, http.MethodPost, scope.OrgPath("/teams"), `{"name":"Acme Agency","isVendor":true}`)
@@ -1015,4 +1046,25 @@ func TestVendorTeamRules(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, notified)
 	})
+}
+
+// Services that confirm the person themselves go through the shared check, which refuses a vendor
+// whatever their role.
+func TestVendorRefusedByEveryActorCheck(t *testing.T) {
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	mustVendorTeam(t, scope, scope.UserID)
+	claims := AuthClaims{UserID: scope.WorkOSUserID}
+	lookup := scope.Membership("admin")
+
+	_, err := (&issueSheetAPI{pool: scope.Pool, membership: lookup}).actor(t.Context(), claims, scope.Slug)
+	require.Error(t, err, "issue sheets")
+	_, err = (&qaReportAPI{pool: scope.Pool, membership: lookup}).actor(t.Context(), claims, scope.Slug)
+	require.Error(t, err, "QA reports")
+	_, err = (&activityLogAPI{pool: scope.Pool, membership: lookup}).actor(t.Context(), claims, scope.Slug)
+	require.Error(t, err, "activity log")
+
+	leaveVendorTeams(t, scope)
+	actor, err := (&activityLogAPI{pool: scope.Pool, membership: lookup}).actor(t.Context(), claims, scope.Slug)
+	require.NoError(t, err)
+	require.Equal(t, "admin", actor.role)
 }

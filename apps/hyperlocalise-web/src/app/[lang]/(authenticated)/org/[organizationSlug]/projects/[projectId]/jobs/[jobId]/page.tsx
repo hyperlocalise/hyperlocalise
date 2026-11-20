@@ -80,7 +80,7 @@ async function ProjectJobDetailPageLoader({
       canEditJobFields={canEditJobFields}
       canMarkAnyTaskDone={canMarkAnyTaskDone}
       taskOwnerOnly={taskOwnerOnly}
-      canMarkOwnTaskDone={isVendor || mayWorkOnJobs}
+      canMarkOwnTaskDone={mayWorkOnJobs}
       currentUserId={auth.user.localUserId}
       canEditSharedCredentialProviderJobFields={canEditSharedCredentialProviderJobFields}
     />

@@ -311,24 +311,40 @@ var errVendorInOtherTeam = errors.New("vendor_in_other_team")
 // workspace would have no admin left who can reach it.
 var errLastAdminToVendorTeam = errors.New("last_admin_protected")
 
+// errCannotMoveToVendorTeam refuses putting someone in a vendor team whom the actor may not
+// manage, such as an admin added by a localization manager: it would shut them out.
+var errCannotMoveToVendorTeam = errors.New("forbidden")
+
+// actorRoleCheckedByCaller is passed by a caller that has already checked that the actor may
+// give the person their role, as an invite does.
+const actorRoleCheckedByCaller = ""
+
 // applyVendorTeamJoinRules runs before a person joins a team. A vendor joins no other team, and a
-// person who joins a vendor team leaves every other team of the workspace. The workspace keeps an
-// admin outside vendor teams, counted as countOtherAcceptedAdmins does. Run it in the same
-// transaction as the join, so the admin lock it takes holds until the join commits.
-func applyVendorTeamJoinRules(ctx context.Context, db dictionaryDB, organizationID, teamID, userID string, workosSynced bool) error {
+// person who joins a vendor team leaves every other team of the workspace. Only someone who may
+// manage the person can put them in a vendor team, and the workspace keeps an admin outside
+// vendor teams, counted as countOtherAcceptedAdmins does. Run it in the same transaction as the
+// join, so the locks it takes hold until the join commits.
+func applyVendorTeamJoinRules(ctx context.Context, db dictionaryDB, organizationID, teamID, userID, actorRole string, workosSynced bool) error {
+	// One join per person at a time, so two joins cannot both pass the rules.
+	if _, err := db.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, "team_join:"+organizationID+":"+userID); err != nil {
+		return err
+	}
 	var vendorTeam, vendorElsewhere bool
-	var role string
-	err := db.QueryRow(ctx, `
-        select t.is_vendor, m.role::text,
-            exists (select 1 from team_memberships vtm join teams vt on vt.id = vtm.team_id
-                where vtm.user_id = m.user_id and vt.organization_id = t.organization_id
-                  and vt.is_vendor and vt.id <> t.id)
-        from teams t
-        join organization_memberships m on m.organization_id = t.organization_id and m.user_id = $3
-        where t.id = $1 and t.organization_id = $2`,
-		teamID, organizationID, userID).Scan(&vendorTeam, &role, &vendorElsewhere)
+	var role *string
+	readRules := func() error {
+		return db.QueryRow(ctx, `
+            select t.is_vendor, m.role::text,
+                exists (select 1 from team_memberships vtm join teams vt on vt.id = vtm.team_id
+                    where vtm.user_id = $3 and vt.organization_id = t.organization_id
+                      and vt.is_vendor and vt.id <> t.id)
+            from teams t
+            left join organization_memberships m on m.organization_id = t.organization_id and m.user_id = $3
+            where t.id = $1 and t.organization_id = $2`,
+			teamID, organizationID, userID).Scan(&vendorTeam, &role, &vendorElsewhere)
+	}
+	err := readRules()
 	if errors.Is(err, pgx.ErrNoRows) {
-		// The caller has already found both; nothing to hold here.
+		// The caller has already found the team; nothing to hold here.
 		return nil
 	}
 	if err != nil {
@@ -337,13 +353,21 @@ func applyVendorTeamJoinRules(ctx context.Context, db dictionaryDB, organization
 	if vendorElsewhere {
 		return errVendorInOtherTeam
 	}
-	if !vendorTeam {
+	if !vendorTeam || role == nil {
+		// An ordinary team, or a person not yet in the workspace, who is in no team yet.
 		return nil
 	}
-	if role == "admin" {
-		if _, err := db.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, organizationAdminsLockKey(organizationID)); err != nil {
-			return err
-		}
+	// The admin lock, as removals and demotions take it, and the role read again under it.
+	if _, err := db.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, organizationAdminsLockKey(organizationID)); err != nil {
+		return err
+	}
+	if err := readRules(); err != nil {
+		return fmt.Errorf("read team join rules: %w", err)
+	}
+	if actorRole != actorRoleCheckedByCaller && !canActorManageTarget(actorRole, *role, nil) {
+		return errCannotMoveToVendorTeam
+	}
+	if *role == "admin" {
 		others, err := countOtherAcceptedAdmins(ctx, db, organizationID, userID, workosSynced)
 		if err != nil {
 			return err
