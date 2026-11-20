@@ -9687,6 +9687,10 @@
     "defaultMessage": "Save this automation to get a public chat URL.",
     "description": "Hint shown before a web chat automation has been saved"
   },
+  "AuEwPzJu/g": {
+    "defaultMessage": "A clip has the right words but the wrong mix or the wrong voice.",
+    "description": "Situation for Iris voice tools on the pricing page"
+  },
   "AuYw3s9yoM": {
     "defaultMessage": "No words for {locale} yet. Add one above or import a .txt file.",
     "description": "Empty state for a dictionary locale with no words"
@@ -13574,6 +13578,10 @@
   "G4hd1copw0": {
     "defaultMessage": "Scroll to end",
     "description": "Accessible label for the message scroller jump-to-end control"
+  },
+  "G66FBcR/Y7": {
+    "defaultMessage": "{field} reads a value that a run cannot find. Choose it from the fields of earlier steps instead.",
+    "description": "Validation message when a setting of a workflow step holds a reference in double curly brackets that does not point at the trigger or an earlier step. {field} is the setting's key, such as projectId"
   },
   "G6Gi/jdmf1": {
     "defaultMessage": "Video translations",
@@ -27271,6 +27279,10 @@
     "defaultMessage": "Tools",
     "description": "Section heading for automation tool settings"
   },
+  "Z3DwRJesqT": {
+    "defaultMessage": "Pull speech out of mixed audio",
+    "description": "Card summary for the ElevenLabs Voice Isolator model on the pricing page"
+  },
   "Z3S7OrVNyY": {
     "defaultMessage": "Email agent enabled",
     "description": "Toast after enabling the email agent"
@@ -34519,6 +34531,10 @@
     "defaultMessage": "Active",
     "description": "Status toggle label when the automation is active"
   },
+  "ibV/CKuQ9K": {
+    "defaultMessage": "Pull speech out of a mixed track, or recast it in another voice, without leaving the Iris timeline.",
+    "description": "Story for Iris voice tools (voice isolation, voice changer) on the pricing page"
+  },
   "icuWnstCMG": {
     "defaultMessage": "Edit locales",
     "description": "Edit locales for a domain in the list"
@@ -38462,6 +38478,10 @@
   "o/5bDmAGTd": {
     "defaultMessage": "Used as the prefix for new issue IDs (e.g. HL-12). Must be unique among projects in this workspace. Existing issue IDs are kept.",
     "description": "Help text under the project issue identifier field"
+  },
+  "o/WNblFvuF": {
+    "defaultMessage": "Recast speech in another voice",
+    "description": "Card summary for the ElevenLabs Voice Changer model on the pricing page"
   },
   "o/m/oSG780": {
     "defaultMessage": "Open issues",
