@@ -77,13 +77,16 @@ type editorCatContributorTeam struct {
 }
 
 type editorCatQueueFile struct {
-	SourcePath                string                     `json:"sourcePath"`
-	Filename                  string                     `json:"filename"`
-	Provider                  any                        `json:"provider"`
-	MessageFormat             string                     `json:"messageFormat,omitempty"`
-	PlaceholderPatterns       []string                   `json:"placeholderPatterns,omitempty"`
-	TargetLocale              string                     `json:"targetLocale"`
-	CanEditTranslations       bool                       `json:"canEditTranslations"`
+	SourcePath          string   `json:"sourcePath"`
+	Filename            string   `json:"filename"`
+	Provider            any      `json:"provider"`
+	MessageFormat       string   `json:"messageFormat,omitempty"`
+	PlaceholderPatterns []string `json:"placeholderPatterns,omitempty"`
+	TargetLocale        string   `json:"targetLocale"`
+	CanEditTranslations bool     `json:"canEditTranslations"`
+	// The project's QA check policy, sent only to a person here through a task, who cannot read
+	// the project's QA settings: their saves are checked against the same rules as everyone's.
+	QaChecks                  map[string]qaCheckSetting  `json:"qaChecks,omitempty"`
 	Truncated                 bool                       `json:"truncated"`
 	TeamGlossaries            []editorCatTeamGlossary    `json:"teamGlossaries,omitempty"`
 	ContributorTeams          []editorCatContributorTeam `json:"contributorTeams,omitempty"`
@@ -867,6 +870,21 @@ func (api *editorCatAPI) withQueueContext(r *http.Request, actor editorCatActor,
 	}
 	if err := api.attachLocks(r, actor, project, &queue); err != nil {
 		return editorCatQueueFile{}, err
+	}
+	// Teams and their glossaries are not for someone who is here through a task.
+	if actor.taskScope != nil {
+		var policy []byte
+		if err := api.pool.QueryRow(r.Context(), `select qa_check_policy from projects where id=$1 and organization_id=$2`,
+			project.ID, actor.organizationID).Scan(&policy); err != nil {
+			return editorCatQueueFile{}, err
+		}
+		queue.QaChecks = qaChecksFromPolicy(policy)
+		// Guideline checks read the project's guidelines, which stay closed to them.
+		if guideline, ok := queue.QaChecks["guideline"]; ok {
+			guideline.Enabled = false
+			queue.QaChecks["guideline"] = guideline
+		}
+		return queue, nil
 	}
 	glossaries, err := api.listTeamGlossaries(r, project.ID)
 	if err != nil {

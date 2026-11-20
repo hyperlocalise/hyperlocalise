@@ -24,6 +24,7 @@ export function createTeamSummary(overrides: Partial<TeamSummaryRow> = {}): Team
     id: "11111111-1111-4111-8111-111111111111",
     slug: "localization",
     name: "Localization",
+    isVendor: false,
     createdAt: fixedNow,
     updatedAt: fixedNow,
     memberCount: 4,
@@ -48,6 +49,7 @@ export function createTeamDetail(overrides: Partial<TeamDetail> = {}): TeamDetai
     organizationId: "org_001",
     slug: summary.slug,
     name: summary.name,
+    isVendor: summary.isVendor,
     createdAt: summary.createdAt,
     updatedAt: summary.updatedAt,
     members: [

@@ -17,6 +17,13 @@ import { updateJobs } from "@/lib/job-change-events/job-writes";
 import { assertAssignableIssueAssignee } from "@/lib/projects/issue-sheet/issue-sheet-assignee";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
+import {
+  canOwnFileTaskOutsideTeam,
+  isFileTaskForPeople,
+  readJobSourceFileId,
+  refuseVendorOwnerUnlessFileTask,
+} from "./job-owner";
+
 export type UpdateNativeJobInput = {
   title?: string;
   description?: string | null;
@@ -30,6 +37,7 @@ export type UpdateNativeJobError =
   | { code: "provider_job_not_updatable"; message: string }
   | { code: "owner_not_found"; message: string }
   | { code: "assignee_not_assignable"; message: string }
+  | { code: "vendor_owner_not_allowed"; message: string }
   | { code: "project_required"; message: string };
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -94,6 +102,9 @@ export async function updateNativeJob(input: {
       .select({
         id: schema.jobs.id,
         projectId: schema.jobs.projectId,
+        kind: schema.jobs.kind,
+        status: schema.jobs.status,
+        afterJobId: schema.jobs.afterJobId,
         inputPayload: schema.jobs.inputPayload,
         ownerUserId: schema.jobs.ownerUserId,
         externalProviderKind: schema.externalJobDetails.providerKind,
@@ -153,13 +164,40 @@ export async function updateNativeJob(input: {
           });
         }
 
-        const assignable = await assertAssignableIssueAssignee({
+        // An open task on a file can go to a vendor or to any member who works on jobs,
+        // whatever the project's team; anyone who can open the project can be given any job,
+        // as before; a vendor is given nothing else (`job-owner.ts`).
+        const fileTask = isFileTaskForPeople({
+          kind: existing.kind,
+          status: existing.status,
+          afterJobId: existing.afterJobId,
+          sourceFileId: readJobSourceFileId(existing.inputPayload),
+        });
+        const vendorAllowed = await refuseVendorOwnerUnlessFileTask({
           organizationId: input.organizationId,
-          projectId: existing.projectId,
-          assigneeUserId: resolvedOwnerId,
+          ownerUserId: resolvedOwnerId,
+          fileTask,
           database: tx,
         });
-        if (isErr(assignable)) {
+        if (isErr(vendorAllowed)) {
+          return err(vendorAllowed.error);
+        }
+        const assignable =
+          (fileTask &&
+            (await canOwnFileTaskOutsideTeam({
+              organizationId: input.organizationId,
+              userId: resolvedOwnerId,
+              database: tx,
+            }))) ||
+          !isErr(
+            await assertAssignableIssueAssignee({
+              organizationId: input.organizationId,
+              projectId: existing.projectId,
+              assigneeUserId: resolvedOwnerId,
+              database: tx,
+            }),
+          );
+        if (!assignable) {
           return err({
             code: "assignee_not_assignable" as const,
             message: "Assigned owner must be an active member with project access",

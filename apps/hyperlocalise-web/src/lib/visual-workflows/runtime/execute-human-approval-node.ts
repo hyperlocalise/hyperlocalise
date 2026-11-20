@@ -75,7 +75,10 @@ export async function executeHumanApprovalNode(input: {
         ok: false,
         error: {
           code: created.error.code,
-          message: "The Human Approval request could not be created.",
+          message:
+            created.error.code === "vendor_cannot_approve"
+              ? "A vendor cannot be asked to approve. Choose another reviewer."
+              : "The Human Approval request could not be created.",
         },
       };
     }

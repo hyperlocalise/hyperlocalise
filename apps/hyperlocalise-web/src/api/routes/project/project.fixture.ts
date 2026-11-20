@@ -122,6 +122,7 @@ export function createProjectTestFixture() {
     createWorkosIdentityForOrganization: authFixture.createWorkosIdentityForOrganization,
     createWorkosIdentityWithRole: authFixture.createWorkosIdentityWithRole,
     getLocalUserId: authFixture.getLocalUserId,
+    joinVendorTeam: authFixture.joinVendorTeam,
     trackWorkosUserId: authFixture.trackWorkosUserId,
   };
 }

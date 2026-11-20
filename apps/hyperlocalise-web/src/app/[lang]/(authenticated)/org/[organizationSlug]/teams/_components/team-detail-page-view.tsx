@@ -380,7 +380,9 @@ export function TeamDetailPageView({
             </TypographyP>
             <TypographyP className="mt-1" size="small" tone="subtle">
               <FormattedMessage
-                {...teamDetailPageViewMessages.membersDescription}
+                {...(team?.isVendor
+                  ? teamDetailPageViewMessages.vendorMembersDescription
+                  : teamDetailPageViewMessages.membersDescription)}
                 values={{
                   invite: (chunks) => (
                     <OrgNavLink
@@ -436,11 +438,14 @@ export function TeamDetailPageView({
             <MembersTableHeader showActions={pageState.canManageMembers} />
             {pageState.members.map((member) => {
               const isCurrentUser = member.workosUserId === currentUserWorkosId;
-              const canUpdateRole = canUpdateTeamMemberRole({
-                member,
-                members: pageState.members,
-                canManageMembers: pageState.canManageMembers,
-              });
+              // A vendor team's people are all members: its manager has no part yet.
+              const canUpdateRole =
+                team?.isVendor !== true &&
+                canUpdateTeamMemberRole({
+                  member,
+                  members: pageState.members,
+                  canManageMembers: pageState.canManageMembers,
+                });
               const canRemove = canRemoveTeamMember({
                 member,
                 members: pageState.members,
@@ -533,6 +538,7 @@ export function TeamDetailPageView({
         open={isAddMemberOpen}
         assignableMembers={assignableMembers}
         isSaving={isAddingMember}
+        isVendorTeam={team?.isVendor === true}
         onOpenChange={onAddMemberOpenChange}
         onSubmit={onAddMember}
       />
@@ -559,9 +565,14 @@ export function TeamDetailPageView({
             </DialogTitle>
             <DialogDescription>
               {removingMember
-                ? intl.formatMessage(teamDetailPageViewMessages.removeMemberDescription, {
-                    email: removingMember.email,
-                  })
+                ? intl.formatMessage(
+                    team?.isVendor
+                      ? teamDetailPageViewMessages.removeVendorMemberDescription
+                      : teamDetailPageViewMessages.removeMemberDescription,
+                    {
+                      email: removingMember.email,
+                    },
+                  )
                 : ""}
             </DialogDescription>
           </DialogHeader>

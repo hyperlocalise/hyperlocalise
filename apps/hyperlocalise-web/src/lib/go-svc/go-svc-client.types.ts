@@ -455,6 +455,8 @@ export type TeamRecord = {
   organizationId: string;
   slug: string;
   name: string;
+  /** An outside vendor's team: its people reach only the tasks they own. */
+  isVendor: boolean;
   createdAt: string;
   updatedAt: string;
 };

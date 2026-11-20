@@ -26,7 +26,7 @@ Built: the two parts above, for people who are workspace members.
 
 Not built here:
 
-- **Outside vendors.** Who a task can be given to stays exactly as it is today: a member of the workspace (and, where the public API already asks for it, one who can open the project). Whether an agency or a freelancer is a new role, a team, or a linked workspace is a later and separate decision. Nothing here depends on it, and whichever way it goes adds to who can own a task without changing how tasks wait for one another.
+- **Outside vendors.** Who a task can be given to stays exactly as it is today: a member of the workspace (and, where the public API already asks for it, one who can open the project). Whether an agency or a freelancer is a new role, a team, or a linked workspace is a later and separate decision. Nothing here depends on it, and whichever way it goes adds to who can own a task without changing how tasks wait for one another. It was settled as a team: [Vendor teams](2026-11-20-vendor-teams-design.md).
 - Accepting or declining a task, sending work back a step, a due date counted from when a task opens, and a project setting that chooses the steps.
 
 ## Decision

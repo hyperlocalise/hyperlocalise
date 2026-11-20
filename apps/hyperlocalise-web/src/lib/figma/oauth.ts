@@ -22,6 +22,7 @@ import {
 import { and, eq, exists, gt, isNull } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { membershipIsNotVendor } from "@/lib/workos/vendor-membership";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { env } from "@/lib/env";
 
@@ -266,6 +267,7 @@ async function lockLiveOrganizationMembership(
       and(
         eq(schema.organizationMemberships.userId, userId),
         eq(schema.organizationMemberships.organizationId, organizationId),
+        membershipIsNotVendor,
       ),
     )
     .limit(1)
@@ -415,6 +417,7 @@ export async function refreshFigmaOauthTokens(refreshToken: string) {
       and(
         eq(schema.organizationMemberships.userId, row.userId),
         eq(schema.organizationMemberships.organizationId, row.organizationId),
+        membershipIsNotVendor,
       ),
     )
     .limit(1);
@@ -509,6 +512,7 @@ export async function getFigmaConnectionByOauthAccessToken(
       and(
         eq(schema.organizationMemberships.userId, schema.figmaOauthTokens.userId),
         eq(schema.organizationMemberships.organizationId, schema.figmaOauthTokens.organizationId),
+        membershipIsNotVendor,
       ),
     )
     .where(
@@ -541,6 +545,7 @@ function liveOrganizationMembershipExists(userId: string, organizationId: string
         and(
           eq(schema.organizationMemberships.userId, userId),
           eq(schema.organizationMemberships.organizationId, organizationId),
+          membershipIsNotVendor,
         ),
       ),
   );
@@ -669,7 +674,7 @@ export async function listFigmaOauthConsentConnections(
       schema.figmaConnections,
       eq(schema.figmaConnections.organizationId, schema.organizations.id),
     )
-    .where(eq(schema.organizationMemberships.userId, userId));
+    .where(and(eq(schema.organizationMemberships.userId, userId), membershipIsNotVendor));
 
   return rows;
 }

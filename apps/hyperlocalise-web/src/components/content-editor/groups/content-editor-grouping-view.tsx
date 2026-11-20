@@ -26,14 +26,31 @@ import {
  */
 export function ContentEditorGroupingView({
   grouping,
+  historyWithoutGrouping,
   targetLocale,
   children,
 }: {
   grouping: ContentEditorGroupingController | null;
+  /**
+   * A string's history where there is no grouped view: someone here through a task has no
+   * grouping, and still reads and restores the versions of their task's strings.
+   */
+  historyWithoutGrouping?: Pick<
+    ContentEditorGroupingController,
+    "client" | "organizationSlug" | "projectId" | "sourcePath"
+  >;
   targetLocale: string;
   children: ReactNode;
 }) {
-  if (!grouping) return children;
+  if (!grouping) {
+    return historyWithoutGrouping ? (
+      <SegmentActivityProvider {...historyWithoutGrouping} targetLocale={targetLocale}>
+        {children}
+      </SegmentActivityProvider>
+    ) : (
+      children
+    );
+  }
   return (
     <SegmentActivityProvider
       client={grouping.client}

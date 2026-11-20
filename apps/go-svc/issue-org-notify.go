@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -62,6 +63,7 @@ func userHasIssueProjectAccess(ctx context.Context, db dictionaryDB, organizatio
             where m.organization_id = $1
               and m.user_id = $2
               and `+activeOrgMembershipSQL+`
+              and not `+publicauth.VendorTeamMemberSQLFor("m.user_id", "$1")+`
               and (
                 m.role in ('admin', 'localization_manager')
                 or exists (

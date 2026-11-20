@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CaretDownIcon, PlusIcon, TranslateIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { useOptionalAppShellSession } from "@/components/app-shell/store/app-shell-session-context";
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Button } from "@/components/ui/button";
 import {
@@ -211,6 +212,8 @@ export const JobsPageContent = observer(function JobsPageContent({
 }) {
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
+  // A vendor has only the Assigned list: the other lists are closed to them, so not asked for.
+  const isVendor = useOptionalAppShellSession()?.isVendor ?? false;
   const pageStore = useJobsListUrlState(projectId);
   const statusFilter = pageStore.statusFilter;
   const parsedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
@@ -240,7 +243,7 @@ export const JobsPageContent = observer(function JobsPageContent({
 
   const nativeJobsQuery = useQuery({
     queryKey: nativeJobsQueryKey,
-    enabled: !isProviderProjectScope && (scope !== "personal" || !projectId),
+    enabled: !isVendor && !isProviderProjectScope && (scope !== "personal" || !projectId),
     queryFn: async () => {
       if (projectId) {
         return fetchNativeProjectJobs(goSvcClient.job, organizationSlug, projectId, statusFilter);
@@ -257,13 +260,13 @@ export const JobsPageContent = observer(function JobsPageContent({
   });
   const createdNativeJobsQuery = useQuery({
     queryKey: [...nativeJobsQueryKey, "created"],
-    enabled: scope === "personal" && !projectId,
+    enabled: !isVendor && scope === "personal" && !projectId,
     queryFn: async () =>
       fetchNativeWorkspaceJobs(goSvcClient.job, organizationSlug, statusFilter, "created"),
   });
   const tmsJobsQuery = useQuery({
     queryKey: tmsJobsQueryKey,
-    enabled: isProviderProjectScope || !projectId,
+    enabled: !isVendor && (isProviderProjectScope || !projectId),
     queryFn: async () => {
       if (parsedProviderProject) {
         return fetchTmsProjectJobs(
@@ -291,7 +294,7 @@ export const JobsPageContent = observer(function JobsPageContent({
     nativeJobsQuery.error ?? assignedNativeJobsQuery.error ?? createdNativeJobsQuery.error;
   const isNativeLoading =
     scope === "personal"
-      ? assignedNativeJobsQuery.isLoading || createdNativeJobsQuery.isLoading
+      ? assignedNativeJobsQuery.isLoading || (!isVendor && createdNativeJobsQuery.isLoading)
       : nativeJobsQuery.isLoading;
 
   const canCreateJob = Boolean(projectId);
@@ -350,6 +353,7 @@ export const JobsPageContent = observer(function JobsPageContent({
         renderError={renderProductionJobsError}
         renderJobLink={renderProductionJobLink}
         scope={scope}
+        showCreatedByMe={!isVendor}
         tmsError={tmsJobsQuery.error}
         tmsJobs={tmsJobs}
       />

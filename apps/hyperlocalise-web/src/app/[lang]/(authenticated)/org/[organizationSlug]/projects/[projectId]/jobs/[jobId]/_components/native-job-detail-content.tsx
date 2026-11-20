@@ -13,7 +13,8 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ListBulletsIcon,
@@ -110,12 +111,17 @@ async function parseActionError(response: Response, fallback: string) {
   return error ? `${fallback}: ${error}` : `${fallback} (${response.status})`;
 }
 
+/** The task behind a task owner's page is finished, cancelled or was given to someone else. */
+class TaskNoLongerOpenError extends Error {}
+
 export function NativeJobDetailContent({
   jobId,
   organizationSlug,
   projectId,
   canEditJobFields = false,
   canMarkAnyTaskDone = false,
+  taskOwnerOnly = false,
+  canMarkOwnTaskDone = false,
   currentUserId,
 }: {
   jobId: string;
@@ -124,6 +130,14 @@ export function NativeJobDetailContent({
   canEditJobFields?: boolean;
   /** Reviewers and managers may finish any proofread task; others only their own. */
   canMarkAnyTaskDone?: boolean;
+  /**
+   * The person is here only through a task they own, not the project's team: a vendor, or a
+   * member given a task outside their teams. They get the task's details, Open Editor and Mark
+   * done. The page's other controls all go through the team, so they are not offered.
+   */
+  taskOwnerOnly?: boolean;
+  /** Whether a task owner may finish their own task: a vendor, or a role that works on jobs. */
+  canMarkOwnTaskDone?: boolean;
   currentUserId?: string;
 }) {
   const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
@@ -132,6 +146,8 @@ export function NativeJobDetailContent({
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const myJobsHref = `/org/${organizationSlug}/my-jobs`;
   const jobQueryKey = ["job", organizationSlug, projectId, jobId] as const;
 
   const jobQuery = useQuery({
@@ -146,6 +162,12 @@ export function NativeJobDetailContent({
       } catch (error) {
         if (!(error instanceof GoSvcClientError) || error.status !== 404) {
           throw error;
+        }
+        if (taskOwnerOnly) {
+          // A task owner's page ends with the task: finished, cancelled or given to someone else.
+          throw new TaskNoLongerOpenError(intl.formatMessage(messages.taskNoLongerYours), {
+            cause: error,
+          });
         }
       }
       const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$get({
@@ -279,6 +301,14 @@ export function NativeJobDetailContent({
       return body.job;
     },
     onSuccess: async (updatedJob) => {
+      if (taskOwnerOnly) {
+        // The finished task is no longer theirs to open, so the page ends here.
+        setMarkDoneDialogOpen(false);
+        toast.success(intl.formatMessage(messages.taskMarkedDone));
+        await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
+        router.replace(myJobsHref);
+        return;
+      }
       queryClient.setQueryData(jobQueryKey, updatedJob);
       await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
       setMarkDoneDialogOpen(false);
@@ -295,6 +325,14 @@ export function NativeJobDetailContent({
       await queryClient.invalidateQueries({ queryKey: jobQueryKey });
     },
   });
+
+  const taskNoLongerOpen = jobQuery.error instanceof TaskNoLongerOpenError;
+  useEffect(() => {
+    if (taskNoLongerOpen) {
+      toast.info(intl.formatMessage(messages.taskNoLongerYours));
+      router.replace(myJobsHref);
+    }
+  }, [intl, myJobsHref, router, taskNoLongerOpen]);
 
   const job = jobQuery.data;
   const layout = job ? jobDetailTaskLayoutFromRecord(job, intl) : null;
@@ -347,6 +385,15 @@ export function NativeJobDetailContent({
 
   const propertyEditDisabled = jobActionPending || saveTitle.isPending;
   const editableProperties = (layout?.properties ?? []).map((property) => {
+    // A task owner cannot read the member list, and the task is their own.
+    if (
+      taskOwnerOnly &&
+      property.id === "assignees" &&
+      job?.ownerUserId &&
+      job.ownerUserId === currentUserId
+    ) {
+      return { ...property, value: intl.formatMessage(messages.taskOwnerIsYou) };
+    }
     if (!isNativeEditable || !job) {
       return property;
     }
@@ -394,6 +441,7 @@ export function NativeJobDetailContent({
               projectId={projectId}
               afterJobId={job.afterJobId}
               waiting={isWaitingTask(job)}
+              linkOnlyWhenReadable={taskOwnerOnly}
             />
           ),
         },
@@ -406,9 +454,10 @@ export function NativeJobDetailContent({
   });
 
   const isFailed = job?.status === "failed";
-  const showRetry = Boolean(job && canRetryJob(job));
-  const showCancel = Boolean(job && canCancelJob(job));
-  const showMarkFailed = Boolean(job && canMarkJobFailed(job));
+  // A task owner outside the project's team gets Mark done and the editor, nothing else.
+  const showRetry = Boolean(job && !taskOwnerOnly && canRetryJob(job));
+  const showCancel = Boolean(job && !taskOwnerOnly && canCancelJob(job));
+  const showMarkFailed = Boolean(job && !taskOwnerOnly && canMarkJobFailed(job));
   // A failed job's notice carries Retry next to the reason; the header keeps it otherwise.
   const retryInNotice = isFailed && showRetry && showFailureNotice;
   const retryInHeader = showRetry && !retryInNotice;
@@ -448,7 +497,7 @@ export function NativeJobDetailContent({
           variant="outline"
         />
       ) : null}
-      {canEditJobFields &&
+      {(canEditJobFields || (taskOwnerOnly && canMarkOwnTaskDone)) &&
       canMarkTaskDone(job) &&
       (canMarkAnyTaskDone || (currentUserId !== undefined && job.ownerUserId === currentUserId)) ? (
         <Button
@@ -527,7 +576,7 @@ export function NativeJobDetailContent({
         properties={properties}
         secondaryProperties={layout?.secondaryProperties ?? []}
         headerActions={headerActions}
-        isLoading={jobQuery.isLoading}
+        isLoading={jobQuery.isLoading || taskNoLongerOpen}
         error={jobQuery.isError ? jobQuery.error : undefined}
         description={description}
         canEditDescription={isNativeEditable}
@@ -557,12 +606,14 @@ export function NativeJobDetailContent({
                   organizationSlug={organizationSlug}
                   projectId={projectId}
                   job={job}
+                  // A task owner's editor opens with the task, not while it waits.
+                  canOpenEditor={!(taskOwnerOnly && isWaitingTask(job))}
                 />
               )
             : undefined
         }
         renderReportSection={
-          job && !isProviderBackedJob(job)
+          job && !isProviderBackedJob(job) && !taskOwnerOnly
             ? () => (
                 <TaskReport
                   organizationSlug={organizationSlug}
@@ -573,7 +624,8 @@ export function NativeJobDetailContent({
             : undefined
         }
         renderExtraMain={
-          showFailureNotice || (job && (isProviderBackedJob(job) || hasJobActivityFeed(job)))
+          showFailureNotice ||
+          (job && (isProviderBackedJob(job) || (!taskOwnerOnly && hasJobActivityFeed(job))))
             ? () => (
                 <>
                   {showFailureNotice && failureDetails ? (
@@ -584,7 +636,7 @@ export function NativeJobDetailContent({
                       action={retryInNotice ? retryButton : null}
                     />
                   ) : null}
-                  {job && hasJobActivityFeed(job) ? (
+                  {job && !taskOwnerOnly && hasJobActivityFeed(job) ? (
                     <JobActivitySection
                       organizationSlug={organizationSlug}
                       projectId={projectId}

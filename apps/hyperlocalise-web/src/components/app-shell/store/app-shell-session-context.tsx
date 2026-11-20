@@ -19,6 +19,8 @@ import type { InboxCurrentUser } from "@/app/[lang]/(authenticated)/org/[organiz
 export type AppShellSession = {
   canDeleteQueries: boolean;
   currentUser: InboxCurrentUser;
+  /** An outside person who reaches only their own tasks; pages skip what is closed to them. */
+  isVendor?: boolean;
 };
 
 const AppShellSessionContext = createContext<AppShellSession | null>(null);
@@ -27,10 +29,12 @@ export function AppShellSessionProvider({
   canDeleteQueries,
   children,
   currentUser,
+  isVendor = false,
 }: AppShellSession & { children: ReactNode }) {
+  // Present only for a vendor, so the session is unchanged for everyone else.
   const session = useMemo(
-    () => ({ canDeleteQueries, currentUser }),
-    [canDeleteQueries, currentUser],
+    () => ({ canDeleteQueries, currentUser, ...(isVendor ? { isVendor } : {}) }),
+    [canDeleteQueries, currentUser, isVendor],
   );
 
   return (

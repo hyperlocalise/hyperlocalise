@@ -74,24 +74,41 @@ func MembershipLookupFailed() error {
 	return &AccessError{http.StatusServiceUnavailable, "workos_membership_lookup_failed", "Organization membership could not be verified"}
 }
 
+// VendorTeamMemberSQL is true when the person (the users row, aliased u) is in a vendor team of
+// the workspace (the organizations row, aliased o). A vendor reaches nothing in the workspace but
+// the open tasks they own, whatever their role, so every way in that does not open a route to
+// vendors on purpose refuses them. Keep in step with vendorTeamMemberSql in the web app
+// (src/lib/workos/vendor-membership.ts).
+var VendorTeamMemberSQL = VendorTeamMemberSQLFor("u.id", "o.id")
+
+// VendorTeamMemberSQLFor is VendorTeamMemberSQL for other expressions naming the person's user
+// id and the workspace's id.
+func VendorTeamMemberSQLFor(userID, organizationID string) string {
+	return `exists (select 1 from team_memberships vtm join teams vt on vt.id = vtm.team_id
+        where vtm.user_id = ` + userID + ` and vt.organization_id = ` + organizationID + ` and vt.is_vendor)`
+}
+
 // ResolveActorByID confirms that a local user is an active member of a local workspace, first
-// in the database and then live in WorkOS, and returns the role WorkOS holds for them.
+// in the database and then live in WorkOS, and returns the role WorkOS holds for them. A vendor
+// is refused: tokens, agents and the other callers never act for one.
 func ResolveActorByID(ctx context.Context, db DB, lookup MembershipLookup, localUserID, organizationID string) (Actor, error) {
 	var actor Actor
 	var workosUserID, membershipID, workosOrg string
-	err := db.QueryRow(ctx, `select u.id, o.id, u.workos_user_id, m.workos_membership_id, o.workos_organization_id
+	var vendor bool
+	err := db.QueryRow(ctx, `select u.id, o.id, u.workos_user_id, m.workos_membership_id, o.workos_organization_id,
+            `+VendorTeamMemberSQL+`
         from users u join organization_memberships m on m.user_id=u.id join organizations o on o.id=m.organization_id
         where u.id=$1 and o.id=$2 and o.lifecycle_status='active'
         and m.workos_membership_id is not null and m.workos_membership_id not in ('', 'replacing')
         and m.workos_membership_id not like 'replacing:%'`,
-		localUserID, organizationID).Scan(&actor.UserID, &actor.OrganizationID, &workosUserID, &membershipID, &workosOrg)
+		localUserID, organizationID).Scan(&actor.UserID, &actor.OrganizationID, &workosUserID, &membershipID, &workosOrg, &vendor)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Actor{}, AccessDenied()
 	}
 	if err != nil {
 		return Actor{}, err
 	}
-	if strings.HasPrefix(workosUserID, "invited_user_") {
+	if strings.HasPrefix(workosUserID, "invited_user_") || vendor {
 		return Actor{}, AccessDenied()
 	}
 	actor.Role, err = VerifyLiveMembership(ctx, lookup, membershipID, workosUserID, workosOrg)

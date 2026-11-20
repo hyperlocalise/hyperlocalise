@@ -149,6 +149,80 @@ function requestInput(
 }
 
 describe("Human Approval request persistence", () => {
+  it("does not ask a vendor to approve, by either of the ids a reviewer is saved with", async () => {
+    const seeded = await seedApprovalNodeRun();
+    const reviewer = fixture.createWorkosIdentityWithRole("translator");
+    const synced = await syncWorkosIdentity(db, {
+      ...reviewer,
+      organization: {
+        ...reviewer.organization,
+        workosOrganizationId: seeded.organization.workosOrganizationId,
+      },
+    });
+    expect(synced.organization.id).toBe(seeded.organization.id);
+    const ask = (reviewerId: string) =>
+      createHumanApprovalRequest(requestInput(seeded, { reviewerId }));
+
+    const [vendorTeam] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: seeded.organization.id,
+        slug: "vendor-approval",
+        name: "Vendor",
+        isVendor: true,
+      })
+      .returning({ id: schema.teams.id });
+    await db
+      .insert(schema.teamMemberships)
+      .values({ teamId: vendorTeam!.id, userId: synced.user.id, role: "member" });
+    for (const reviewerId of [synced.user.id, reviewer.user.workosUserId]) {
+      const refused = await ask(reviewerId);
+      expect(isErr(refused) && refused.error.code, reviewerId).toBe("vendor_cannot_approve");
+    }
+    expect(await db.select().from(schema.visualWorkflowApprovalRequests)).toEqual([]);
+
+    // The same person out of the vendor team is asked as before.
+    await db
+      .delete(schema.teamMemberships)
+      .where(eq(schema.teamMemberships.teamId, vendorTeam!.id));
+    expect(isOk(await ask(synced.user.id))).toBe(true);
+  });
+
+  it("does not ask a vendor team to approve", async () => {
+    const seeded = await seedApprovalNodeRun();
+    const [vendorTeam] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: seeded.organization.id,
+        slug: "vendor-team-approval",
+        name: "Vendor",
+        isVendor: true,
+      })
+      .returning({ id: schema.teams.id });
+    const [reviewTeam] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: seeded.organization.id,
+        slug: "review-team-approval",
+        name: "Reviewers",
+      })
+      .returning({ id: schema.teams.id });
+
+    const refused = await createHumanApprovalRequest(
+      requestInput(seeded, { reviewerType: "team", reviewerId: vendorTeam!.id }),
+    );
+    expect(isErr(refused) && refused.error.code).toBe("vendor_cannot_approve");
+    expect(await db.select().from(schema.visualWorkflowApprovalRequests)).toEqual([]);
+
+    expect(
+      isOk(
+        await createHumanApprovalRequest(
+          requestInput(seeded, { reviewerType: "team", reviewerId: reviewTeam!.id }),
+        ),
+      ),
+    ).toBe(true);
+  });
+
   it("creates a durable request and an active Inbox item in one transaction", async () => {
     const seeded = await seedApprovalNodeRun();
 

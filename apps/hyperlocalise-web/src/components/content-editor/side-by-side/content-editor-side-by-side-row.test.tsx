@@ -113,6 +113,15 @@ describe("ContentEditorSideBySideRow", () => {
     expect(screen.getByRole("button", { name: /Draft/i })).toBeInTheDocument();
   });
 
+  it("shows save draft on its own when approving is not offered, as on a post-edit task", async () => {
+    const user = userEvent.setup();
+    const { props } = renderRow({ onApprove: undefined });
+
+    expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Draft/i }));
+    expect(props.onSaveDraft).toHaveBeenCalledTimes(1);
+  });
+
   it("uses the provider primary action label when provided", () => {
     renderRow({ primaryActionLabel: "Save to provider" });
 

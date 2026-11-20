@@ -10,7 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { redirect } from "next/navigation";
+
 import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
+import { canAccessProject } from "@/api/auth/team-access";
+import { isAiActionAllowed } from "@/api/auth/capability-guards";
+import { isInVendorTeam, vendorHomePath } from "@/api/auth/vendor-access";
+import { normalizeProjectId } from "@/lib/projects/identity/project-id";
+import { findOwnedFileTask } from "@/lib/projects/jobs/task-access";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import {
   isReleaseCatAdaptiveWorkspaceEnabled,
@@ -22,6 +29,11 @@ import {
   parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
 } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
+import {
+  parseJobContentEditorQueueFilterParam,
+  resolveDefaultJobContentEditorQueueFilter,
+} from "@/lib/projects/job-content-editor-routing";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { resolveJobContentEditorInitialQueueFilter } from "@/lib/projects/resolve-job-content-editor-initial-queue-filter";
 import {
   contentEditorAllFilesProviderKindFromTarget,
@@ -30,6 +42,7 @@ import {
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { JobContentEditorPageContent } from "./_components/job-content-editor-page-content";
+import { TaskJobContentEditor } from "./_components/task-job-content-editor";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "projectJobStrings");
@@ -87,7 +100,49 @@ async function ProjectJobStringsPageLoader({
     queueFilterQualifier,
     queueAdvanced,
   } = await searchParams;
-  const auth = await requireAppAuthContext({ organizationSlug });
+  // Open to vendors (`vendor-access.ts`), who reach the editor only through an open task.
+  const auth = await requireAppAuthContext({ organizationSlug, allowVendor: true });
+  const isVendor = isInVendorTeam(auth);
+  // Through the project's team, as before; otherwise through an open task the person owns,
+  // which shows that task's file and languages and nothing else of the project.
+  // A provider project is not asked about: only native projects have such tasks, and asking
+  // would call the provider on every load.
+  const throughTeam =
+    !isVendor &&
+    (Boolean(parseProviderProjectId(projectId)) ||
+      Boolean(await canAccessProject(auth, projectId)));
+  if (!throughTeam) {
+    const task = await findOwnedFileTask({
+      organizationId: auth.organization.localOrganizationId,
+      userId: auth.user.localUserId,
+      jobId,
+    });
+    if (task && task.projectId === normalizeProjectId(projectId)) {
+      return (
+        <TaskJobContentEditor
+          aiSuggestionAllowed={isAiActionAllowed(auth.membership.role)}
+          organizationSlug={organizationSlug}
+          projectId={task.projectId}
+          jobId={jobId}
+          targetLocale={targetLocale ?? null}
+          initialSegmentKey={segment ?? null}
+          initialQueueFilter={
+            parseJobContentEditorQueueFilterParam(queueFilter) ??
+            resolveDefaultJobContentEditorQueueFilter({
+              kind: "proofread",
+              status: "waiting_for_review",
+            })
+          }
+          initialQueueSort={parseCatWorkspaceQueueSortParam(queueSort) ?? "file_order"}
+          initialSearch={parseCatWorkspaceSearchParam(search)}
+          adaptiveWorkspaceEnabled={await isReleaseCatAdaptiveWorkspaceEnabled(auth)}
+        />
+      );
+    }
+    if (isVendor) {
+      redirect(vendorHomePath(organizationSlug));
+    }
+  }
   const target = await resolveProjectResourceTarget(auth, projectId);
   const [contentEditorAllFilesEnabled, adaptiveWorkspaceEnabled] = await Promise.all([
     isReleaseContentEditorAllFilesEnabled(contentEditorAllFilesProviderKindFromTarget(target)),

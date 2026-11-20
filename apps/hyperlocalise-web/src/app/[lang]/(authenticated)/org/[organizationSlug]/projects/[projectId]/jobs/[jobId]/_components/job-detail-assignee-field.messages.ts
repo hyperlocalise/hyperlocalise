@@ -20,6 +20,11 @@ export const jobDetailAssigneeFieldMessages = defineMessages({
     id: "5PG+VBWgIw",
     description: "Error when job assignee member list fails to load",
   },
+  loadFailed: {
+    defaultMessage: "Could not load who this job can be given to.",
+    id: "iPnvlRKTDf",
+    description: "Error when the list of people a job can be given to fails to load",
+  },
   saveFailed: {
     defaultMessage: "Couldn't update assignees",
     id: "R6n/KCAp4a",

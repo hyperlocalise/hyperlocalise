@@ -25,7 +25,8 @@ type OrganizationSelectRouteProps = {
 export async function GET(request: Request, { params }: OrganizationSelectRouteProps) {
   const requestUrl = new URL(request.url);
   const { organizationSlug } = await params;
-  const auth = await requireAppAuthContext({ organizationSlug });
+  // Choosing a workspace is allowed for a vendor; the page it leads to decides the rest.
+  const auth = await requireAppAuthContext({ organizationSlug, allowVendor: true });
 
   if (!auth.activeOrganization.slug) {
     return NextResponse.redirect(

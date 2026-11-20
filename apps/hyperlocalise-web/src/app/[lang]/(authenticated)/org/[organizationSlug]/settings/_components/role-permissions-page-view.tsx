@@ -194,6 +194,10 @@ export function RolePermissionsPageView({ organizationSlug }: { organizationSlug
           </Fragment>
         ))}
       </Rows>
+
+      <p className="text-sm text-muted-foreground">
+        <FormattedMessage {...messages.vendorNote} />
+      </p>
     </WorkspacePageShell>
   );
 }

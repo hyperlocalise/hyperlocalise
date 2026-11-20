@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -242,6 +243,8 @@ type jobRecord struct {
 	KeyCount *int `json:"keyCount,omitempty"`
 	// The job a task comes after; while that job is unfinished the task waits as queued.
 	AfterJobID *string `json:"afterJobId"`
+	// Set on a job's own page: the file the job is on, as the editor names it.
+	TaskFile *jobTaskFile `json:"taskFile,omitempty"`
 	jobSourceFileDisplay
 }
 
@@ -569,8 +572,15 @@ func (api *projectAPI) orgJobsListHandler(r *http.Request, actor projectActor) (
 	}
 	var args []any
 	var conditions []string
-	switch query.relationship {
-	case "assigned":
+	switch {
+	case actor.isVendor() && query.relationship != "assigned":
+		// A vendor has only the Assigned list.
+		return map[string]any{"jobs": []jobWithProjectRecord{}}, http.StatusOK, nil
+	case actor.isVendor():
+		// Their open and waiting tasks: never a job matched by a provider account's name.
+		args = []any{actor.organizationID, actor.userID}
+		conditions = []string{ownedFileTaskSQL(1, 2, true)}
+	case query.relationship == "assigned":
 		args = []any{actor.organizationID}
 		var assigned string
 		assigned, args, err = api.jobAssignedCondition(r.Context(), actor, args)
@@ -578,7 +588,7 @@ func (api *projectAPI) orgJobsListHandler(r *http.Request, actor projectActor) (
 			return nil, 0, err
 		}
 		conditions = []string{"j.organization_id = $1", assigned}
-	case "created":
+	case query.relationship == "created":
 		args = []any{actor.organizationID, actor.canReadAllTeams(), actor.userID}
 		conditions = []string{overviewJobsVisibleSQL(), "j.created_by_user_id = $3"}
 	default:
@@ -593,13 +603,18 @@ func (api *projectAPI) orgJobsListHandler(r *http.Request, actor projectActor) (
 	if err != nil {
 		return nil, 0, err
 	}
+	if actor.isVendor() {
+		for i := range jobs {
+			redactJobForVendor(&jobs[i])
+		}
+	}
 	return map[string]any{"jobs": jobs}, http.StatusOK, nil
 }
 
 func (api *projectAPI) orgJobDetailHandler(r *http.Request, actor projectActor) (any, int, error) {
 	// Encoded provider ids on GET /jobs/{id} stay native (404 for postgres
 	// mirrors) unless a mint client is configured to read live Crowdin.
-	if api.tms != nil {
+	if api.tms != nil && !actor.isVendor() {
 		if job, ok := parseLiveJobID(r.PathValue("jobId")); ok {
 			return api.liveJobDetail(r, actor, job.liveProjectID, job.externalJobID)
 		}
@@ -608,12 +623,18 @@ func (api *projectAPI) orgJobDetailHandler(r *http.Request, actor projectActor) 
 	if !ok {
 		return nil, 0, projectJobNotFound()
 	}
+	// The team rule, or the person's own open or waiting task whatever the project's team.
+	// A vendor has only the second: a team they were left in gives them nothing.
+	visible := "(" + overviewJobsVisibleSQL() + " or " + ownedFileTaskSQL(1, 3, true) + ") and j.id = $4"
+	args := []any{actor.organizationID, actor.canReadAllTeams(), actor.userID, jobID}
+	if actor.isVendor() {
+		visible = ownedFileTaskSQL(1, 2, true) + " and j.id = $3"
+		args = []any{actor.organizationID, actor.userID, jobID}
+	}
 	job, err := scanJobRecord(api.pool.QueryRow(r.Context(), "select "+jobRecordColumnsSQL+"\n        "+jobRecordFromSQL+`
-        where `+overviewJobsVisibleSQL()+`
-            and j.id = $4
+        where `+visible+`
             and e.job_id is null
-        limit 1`,
-		actor.organizationID, actor.canReadAllTeams(), actor.userID, jobID))
+        limit 1`, args...))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, projectJobNotFound()
 	}
@@ -624,5 +645,97 @@ func (api *projectAPI) orgJobDetailHandler(r *http.Request, actor projectActor) 
 	if err := api.attachJobSourceFiles(r.Context(), jobs); err != nil {
 		return nil, 0, err
 	}
+	if jobs[0].TaskFile, err = loadJobTaskFile(r.Context(), api.pool, actor.organizationID, jobID); err != nil {
+		return nil, 0, err
+	}
+	if actor.isVendor() {
+		redactJobForVendor(&jobs[0])
+	}
 	return map[string]jobWithProjectRecord{"job": jobs[0]}, http.StatusOK, nil
+}
+
+// orgJobAssignableOwnersHandler lists who a job can be given to. An open or waiting post-edit or
+// proofread task on a file can go to a vendor, and to any active member whose role works on
+// jobs, whatever team the project is in: its owner reaches it through the task itself
+// (vendor-access.go). Anyone who can open the project can be given any job, as before, and no
+// other job is ever given to a vendor. Keep in step with job-owner.ts in the web app, which
+// checks the choice when it is saved.
+func (api *projectAPI) orgJobAssignableOwnersHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if !actor.canWriteJobs() {
+		return nil, 0, projectForbidden()
+	}
+	jobID, ok := jobIDParam(r.PathValue("jobId"))
+	if !ok {
+		return nil, 0, projectJobNotFound()
+	}
+	var projectID *string
+	var fileTask bool
+	err := api.pool.QueryRow(r.Context(), `
+        select j.project_id,
+            (j.kind = 'proofread' and e.job_id is null and coalesce(j.input_payload->>'sourceFileId', '') <> ''
+                and (j.status = 'waiting_for_review' or (j.status = 'queued' and j.after_job_id is not null)))
+        from jobs j
+        left join external_job_details e on e.job_id = j.id
+        where `+overviewJobsVisibleSQL()+` and j.id = $4
+        limit 1`,
+		actor.organizationID, actor.canReadAllTeams(), actor.userID, jobID,
+	).Scan(&projectID, &fileTask)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && projectID == nil) {
+		return nil, 0, projectJobNotFound()
+	}
+	if err != nil {
+		return nil, 0, fmt.Errorf("get job for assignable owners: %w", err)
+	}
+	rows, err := api.pool.Query(r.Context(), `
+        select u.id, u.workos_user_id, u.email, u.first_name, u.last_name, u.avatar_url
+        from organization_memberships m
+        join users u on u.id = m.user_id
+        join projects p on p.id = $2 and p.organization_id = $1
+        where m.organization_id = $1
+          and `+activeOrgMembershipSQL+`
+          and (
+            ($3 and m.role::text in ('admin', 'localization_manager', 'developer', 'reviewer', 'translator'))
+            or (not `+publicauth.VendorTeamMemberSQLFor("m.user_id", "$1")+` and (
+                m.role::text in ('admin', 'localization_manager')
+                or exists (
+                    select 1
+                    from team_memberships tm
+                    join teams t on t.id = tm.team_id
+                    where tm.user_id = m.user_id
+                      and t.organization_id = $1
+                      and (t.id = p.team_id or (p.team_id is null and t.slug = 'default'))
+                )
+            ))
+          )
+        order by u.email asc`, actor.organizationID, *projectID, fileTask)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list assignable owners: %w", err)
+	}
+	defer rows.Close()
+	members := []map[string]any{}
+	for rows.Next() {
+		var userID, workosUserID, email string
+		var firstName, lastName, avatarURL *string
+		if err := rows.Scan(&userID, &workosUserID, &email, &firstName, &lastName, &avatarURL); err != nil {
+			return nil, 0, fmt.Errorf("scan assignable owner: %w", err)
+		}
+		display := strings.TrimSpace(stringFromPtr(firstName) + " " + stringFromPtr(lastName))
+		if display == "" {
+			display = email
+		}
+		members = append(members, map[string]any{
+			"userId":        userID,
+			"workosUserId":  workosUserID,
+			"email":         email,
+			"firstName":     firstName,
+			"lastName":      lastName,
+			"displayName":   display,
+			"avatarUrl":     avatarURL,
+			"isCurrentUser": userID == actor.userID,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate assignable owners: %w", err)
+	}
+	return map[string]any{"members": members}, http.StatusOK, nil
 }

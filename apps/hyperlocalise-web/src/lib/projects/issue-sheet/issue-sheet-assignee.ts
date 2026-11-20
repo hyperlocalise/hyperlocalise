@@ -19,6 +19,7 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { backfillOrganizationProjectTeams } from "@/lib/teams/default-workspace-team";
 import { isActiveOrganizationMembership } from "@/lib/workos/constants";
+import { vendorTeamMemberSql } from "@/lib/workos/vendor-membership";
 
 export type IssueAssigneeNotAssignableError = {
   code: "assignee_not_assignable";
@@ -77,9 +78,14 @@ async function ensureProjectTeamBackfilled(
 
 function membershipHasProjectAccess(
   role: OrganizationMembershipRole,
+  inVendorTeam: boolean,
   projectTeamId: string | null,
   memberTeamIds: Set<string>,
 ) {
+  // A vendor reaches only tasks on files (`job-owner.ts`), whatever their role.
+  if (inVendorTeam) {
+    return false;
+  }
   if (hasCapability(role, "teams:write")) {
     return true;
   }
@@ -115,6 +121,10 @@ export async function assertAssignableIssueAssignee(input: {
       userId: schema.organizationMemberships.userId,
       role: schema.organizationMemberships.role,
       workosMembershipId: schema.organizationMemberships.workosMembershipId,
+      inVendorTeam: vendorTeamMemberSql(
+        schema.organizationMemberships.userId,
+        schema.organizationMemberships.organizationId,
+      ),
     })
     .from(schema.organizationMemberships)
     .where(
@@ -125,7 +135,11 @@ export async function assertAssignableIssueAssignee(input: {
     )
     .limit(1);
 
-  if (!membership || !isActiveOrganizationMembership(membership.workosMembershipId)) {
+  if (
+    !membership ||
+    !isActiveOrganizationMembership(membership.workosMembershipId) ||
+    membership.inVendorTeam
+  ) {
     return err({ code: "assignee_not_assignable" });
   }
 
@@ -197,6 +211,10 @@ export async function listAssignableIssueMembers(input: {
       avatarUrl: schema.users.avatarUrl,
       role: schema.organizationMemberships.role,
       workosMembershipId: schema.organizationMemberships.workosMembershipId,
+      inVendorTeam: vendorTeamMemberSql(
+        schema.users.id,
+        schema.organizationMemberships.organizationId,
+      ),
     })
     .from(schema.organizationMemberships)
     .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
@@ -238,6 +256,7 @@ export async function listAssignableIssueMembers(input: {
     .filter((row) =>
       membershipHasProjectAccess(
         row.role,
+        row.inVendorTeam,
         project.teamId,
         memberTeamIdsByUser.get(row.userId) ?? new Set(),
       ),

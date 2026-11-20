@@ -25,7 +25,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -64,6 +71,7 @@ export function TeamDialog({
   const [slugTouched, setSlugTouched] = useState(false);
   const nameId = useId();
   const slugId = useId();
+  const vendorId = useId();
 
   useEffect(() => {
     if (open) {
@@ -114,6 +122,7 @@ export function TeamDialog({
               onChange={(event) => {
                 const name = event.target.value;
                 setValues((current) => ({
+                  ...current,
                   name,
                   slug: mode === "create" && !slugTouched ? suggestTeamSlug(name) : current.slug,
                 }));
@@ -147,6 +156,27 @@ export function TeamDialog({
             </FieldDescription>
             <FieldError errors={errors.slug ? [{ message: errors.slug }] : undefined} />
           </Field>
+
+          {mode === "create" ? (
+            <Field orientation="horizontal">
+              <Checkbox
+                id={vendorId}
+                checked={values.isVendor === true}
+                disabled={isSaving}
+                onCheckedChange={(checked) =>
+                  setValues((current) => ({ ...current, isVendor: checked === true }))
+                }
+              />
+              <FieldContent>
+                <FieldLabel htmlFor={vendorId}>
+                  <FormattedMessage {...teamDialogMessages.vendorLabel} />
+                </FieldLabel>
+                <FieldDescription>
+                  <FormattedMessage {...teamDialogMessages.vendorDescription} />
+                </FieldDescription>
+              </FieldContent>
+            </Field>
+          ) : null}
 
           <DialogFooter>
             <Button

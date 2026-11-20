@@ -38,6 +38,7 @@ import { Text } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
+import { useContentEditorTaskScope } from "@/components/content-editor/shared/content-editor-task-scope-context";
 import { ContentEditorSegmentActivityTab } from "@/components/content-editor/activity-log/content-editor-segment-activity-tab";
 import { ContentEditorEditorCommentsSection } from "@/components/content-editor/editor/content-editor-editor-comments-section";
 import { ContentEditorEditorFormatChecksSection } from "@/components/content-editor/editor/content-editor-editor-format-checks-section";
@@ -149,6 +150,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
     projectId?: string;
     onTmSegmentMutated?: () => void;
   }) {
+    const { taskScoped } = useContentEditorTaskScope();
     const intl = useIntl();
     const workspace = useContentEditorWorkspace();
     const fileContext = workspace.fileContext;
@@ -267,7 +269,9 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         workspace.segmentComments.get(segment.id)?.length ?? segment.comments?.length ?? 0;
       const showUnicodeTab = !isContentEditorAssetContentKind(segment.contentKind);
       const activitySourcePath = segment.sourcePath ?? fileContext.sourcePath;
+      // The file's activity log is closed to someone here through a task.
       const showActivityTab = Boolean(
+        !taskScoped &&
         organizationSlug &&
         projectId &&
         activitySourcePath &&
