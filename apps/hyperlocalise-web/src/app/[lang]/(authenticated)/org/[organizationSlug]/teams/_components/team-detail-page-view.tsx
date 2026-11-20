@@ -438,11 +438,14 @@ export function TeamDetailPageView({
             <MembersTableHeader showActions={pageState.canManageMembers} />
             {pageState.members.map((member) => {
               const isCurrentUser = member.workosUserId === currentUserWorkosId;
-              const canUpdateRole = canUpdateTeamMemberRole({
-                member,
-                members: pageState.members,
-                canManageMembers: pageState.canManageMembers,
-              });
+              // A vendor team's people are all members: its manager has no part yet.
+              const canUpdateRole =
+                team?.isVendor !== true &&
+                canUpdateTeamMemberRole({
+                  member,
+                  members: pageState.members,
+                  canManageMembers: pageState.canManageMembers,
+                });
               const canRemove = canRemoveTeamMember({
                 member,
                 members: pageState.members,
