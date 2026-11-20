@@ -28,14 +28,14 @@ export function getLocalisationAuditPageCopy(locale: string) {
 
   return {
     headline: intl.formatMessage({
-      defaultMessage: "See how your brand travels.",
-      id: "+6k/AAnIp9",
+      defaultMessage: "Free website localisation audit.",
+      id: "+f9xakXZu4",
       description: "Primary headline on the public localisation audit landing page",
     }),
     subcopy: intl.formatMessage({
       defaultMessage:
-        "Enter a URL. We'll read a few public pages and tell you how the site feels in other languages.",
-      id: "tIYDgjN4kT",
+        "See how your brand travels. Enter a URL. We'll read a few public pages and tell you how the site feels in other languages.",
+      id: "TQ1LwBljtq",
       description: "Supporting copy under the localisation audit landing headline",
     }),
     urlLabel: intl.formatMessage({
@@ -208,6 +208,11 @@ export function getLocalisationAuditPageCopy(locale: string) {
         },
         values,
       ),
+    leaderboardShowMore: intl.formatMessage({
+      defaultMessage: "Show more",
+      id: "XglUqbyapo",
+      description: "Button that reveals the next page of localisation audit leaderboard scores",
+    }),
     heroEyebrow: intl.formatMessage({
       defaultMessage: "Free localisation audit",
       id: "q6qq+eJm6l",
@@ -1033,6 +1038,46 @@ export function getLocalisationAuditResultCopy(locale: string) {
             "Sampled {count} pages across technical, linguistic, contextual, and visual localisation credits.",
           id: "RQHyujQ0I4",
           description: "Summary of how many pages a localisation audit sampled",
+        },
+        values,
+      ),
+    relatedHeading: intl.formatMessage({
+      defaultMessage: "Related scores",
+      id: "kl2EbTmfas",
+      description: "Heading for related localisation audit scores on a result page",
+    }),
+    relatedSubcopy: intl.formatMessage({
+      defaultMessage: "See how similar sites compare.",
+      id: "ChJXFKl9zT",
+      description: "Supporting copy for related localisation audit scores on a result page",
+    }),
+    relatedHubLink: intl.formatMessage({
+      defaultMessage: "See all public scores",
+      id: "YERN0OVymW",
+      description: "Link from a localisation audit result to the public leaderboard",
+    }),
+    relatedScoreLink: (values: { name: string; score: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "{name}, score {score} out of 100",
+          id: "UqnycL+GOr",
+          description: "Accessible label for a related localisation audit score link",
+        },
+        values,
+      ),
+    auditYoursHeading: intl.formatMessage({
+      defaultMessage: "Audit your site",
+      id: "WSFk5OnR7q",
+      description: "Heading for the run-your-own-audit form on a localisation audit result",
+    }),
+    auditYoursBody: (values: { domain: string }) =>
+      intl.formatMessage(
+        {
+          defaultMessage:
+            "This report is for {domain}. Enter your URL to get the same localisation score.",
+          id: "ohf+Fpdb2e",
+          description:
+            "Supporting copy for the run-your-own-audit form on a localisation audit result",
         },
         values,
       ),

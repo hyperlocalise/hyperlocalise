@@ -281,7 +281,7 @@ function LiveFeed({
           <dl className="mt-4 grid grid-cols-2 gap-3">
             <div className="rounded-lg bg-background p-3">
               <dt className="sr-only">{copy.overviewPages}</dt>
-              <dd className="font-serif text-3xl tracking-tight">
+              <dd className="font-sans text-3xl font-semibold tracking-tight">
                 <TweenNumber value={snapshot.pagesCrawled} />
               </dd>
               <dd className="text-xs text-muted-foreground">
@@ -290,7 +290,7 @@ function LiveFeed({
             </div>
             <div className="rounded-lg bg-background p-3">
               <dt className="sr-only">{copy.overviewLanguages}</dt>
-              <dd className="font-serif text-3xl tracking-tight">
+              <dd className="font-sans text-3xl font-semibold tracking-tight">
                 <TweenNumber value={snapshot.locales.length} />
               </dd>
               <dd className="text-xs text-muted-foreground">

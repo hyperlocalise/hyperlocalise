@@ -23,20 +23,19 @@ import {
 } from "./daily-quota";
 
 import { hashLocalisationAuditReportToken, mintLocalisationAuditReportToken } from "./email-unlock";
-import type {
-  LocalisationAuditCompanyProfile,
-  LocalisationAuditLeadDeliveryStatus,
-  LocalisationAuditProgressSnapshot,
-  LocalisationAuditProgressStage,
-  LocalisationAuditReport,
-  LocalisationAuditRunSource,
-  LocalisationAuditStatus,
-  LocalisationAuditTeaser,
-} from "./types";
 import {
   LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS,
+  LOCALISATION_AUDIT_LEADERBOARD_LIMIT,
   LOCALISATION_AUDIT_RERUN_MS,
   LOCALISATION_AUDIT_STALE_MS,
+  type LocalisationAuditCompanyProfile,
+  type LocalisationAuditLeadDeliveryStatus,
+  type LocalisationAuditProgressSnapshot,
+  type LocalisationAuditProgressStage,
+  type LocalisationAuditReport,
+  type LocalisationAuditRunSource,
+  type LocalisationAuditStatus,
+  type LocalisationAuditTeaser,
 } from "./types";
 
 export type LocalisationAuditRow = typeof schema.localisationAudits.$inferSelect;
@@ -201,7 +200,9 @@ const teaserMethodologyVersion = sql<number>`coalesce((${schema.localisationAudi
  * Methodology version is stored but does not affect rank.
  * Only exposes domain identity, logo, and score — never emails or full reports.
  */
-export async function listLocalisationAuditLeaderboard(limit = 25) {
+export async function listLocalisationAuditLeaderboard(
+  limit = LOCALISATION_AUDIT_LEADERBOARD_LIMIT,
+) {
   const rows = await db
     .select({
       domainKey: schema.localisationAudits.domainKey,

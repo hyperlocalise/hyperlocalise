@@ -168,7 +168,7 @@ export function LocalisationAuditScoreBreakdown({
           <span
             className={cn(
               "col-start-2 row-start-1 text-end tabular-nums sm:col-start-auto sm:row-start-auto",
-              row.emphasis ? "font-serif text-2xl" : "text-sm font-medium",
+              row.emphasis ? "font-sans text-2xl font-semibold" : "text-sm font-medium",
             )}
           >
             {row.value}

@@ -15,14 +15,14 @@ import type { IntlShape } from "@formatjs/intl";
 export function getLocalisationAuditRouteMetadata(intl: IntlShape) {
   return {
     title: intl.formatMessage({
-      defaultMessage: "Localisation audit | Hyperlocalise",
-      id: "NdDEnysUFB",
+      defaultMessage: "Free localisation audit (0–100) | Hyperlocalise",
+      id: "rEsQotUfrf",
       description: "Meta title for the public localisation audit landing page",
     }),
     description: intl.formatMessage({
       defaultMessage:
-        "Enter a URL to see how your site feels in other languages. A clear score, then the full report by email.",
-      id: "M/3YJiyMT3",
+        "Run a free localisation audit on any public website. Get a 0–100 localization score for hreflang, translations, and layout, then the full report.",
+      id: "W8LPAvbHSr",
       description: "Meta description for the public localisation audit landing page",
     }),
   };
@@ -30,18 +30,34 @@ export function getLocalisationAuditRouteMetadata(intl: IntlShape) {
 
 export function getLocalisationAuditResultRouteMetadata(
   intl: IntlShape,
-  domainKey: string,
-  score: number | null,
+  input: {
+    domainKey: string;
+    companyName?: string | null;
+    score: number | null;
+  },
 ) {
+  const company = input.companyName?.trim() || input.domainKey;
+  const { domainKey, score } = input;
+
   return {
-    title: intl.formatMessage(
-      {
-        defaultMessage: "Localisation audit for {domain} | Hyperlocalise",
-        id: "YhCxIj8rLK",
-        description: "Meta title for a public localisation audit result page",
-      },
-      { domain: domainKey },
-    ),
+    title:
+      score == null
+        ? intl.formatMessage(
+            {
+              defaultMessage: "{company} localisation audit | Hyperlocalise",
+              id: "+uLgIho1rV",
+              description: "Meta title for an in-progress localisation audit result page",
+            },
+            { company },
+          )
+        : intl.formatMessage(
+            {
+              defaultMessage: "{company} localisation score {score}/100 | Hyperlocalise",
+              id: "rZilDJjoet",
+              description: "Meta title for a completed localisation audit result page",
+            },
+            { company, score },
+          ),
     description:
       score == null
         ? intl.formatMessage(
@@ -55,11 +71,11 @@ export function getLocalisationAuditResultRouteMetadata(
         : intl.formatMessage(
             {
               defaultMessage:
-                "Localisation score {score}/100 for {domain}. Technical and linguistic findings from Hyperlocalise.",
-              id: "QoSDgiiNvY",
+                "{company} scored {score}/100 on a free localisation audit of {domain}. Hreflang, translation, and layout findings from Hyperlocalise.",
+              id: "7ydPKQUcQA",
               description: "Meta description for a completed localisation audit result page",
             },
-            { domain: domainKey, score },
+            { company, domain: domainKey, score },
           ),
   };
 }
