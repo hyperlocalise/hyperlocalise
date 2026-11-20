@@ -152,11 +152,6 @@ func (api *memberAPI) ensureTeamAccessForInvitedMember(ctx context.Context, db d
 	if authz.HasCapability(role, "teams:write") && teamID == "" {
 		return nil, nil
 	}
-	// A vendor joins no team: team membership would open whole projects to other code paths,
-	// and gives a vendor nothing.
-	if role == organizationRoleVendor {
-		return nil, nil
-	}
 	if teamID != "" {
 		var found string
 		err := db.QueryRow(ctx, `select id from teams where id=$1 and organization_id=$2`, teamID, organizationID).Scan(&found)
@@ -164,6 +159,9 @@ func (api *memberAPI) ensureTeamAccessForInvitedMember(ctx context.Context, db d
 			return nil, memberFailure(404, "team_not_found", "Team not found")
 		}
 		if err != nil {
+			return nil, err
+		}
+		if err := api.applyInviteJoinRules(ctx, db, organizationID, found, userID); err != nil {
 			return nil, err
 		}
 		created, err := api.ensureTeamMembership(ctx, db, found, userID)
@@ -175,7 +173,15 @@ func (api *memberAPI) ensureTeamAccessForInvitedMember(ctx context.Context, db d
 		}
 		return nil, nil
 	}
-	teamID, created, err := api.ensureDefaultWorkspaceTeamMembership(ctx, db, organizationID, userID)
+	teamID, err := api.ensureDefaultWorkspaceTeam(ctx, db, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	// The default team too: a pending invitee already in a vendor team must not join it.
+	if err := api.applyInviteJoinRules(ctx, db, organizationID, teamID, userID); err != nil {
+		return nil, err
+	}
+	created, err := api.ensureTeamMembership(ctx, db, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +189,21 @@ func (api *memberAPI) ensureTeamAccessForInvitedMember(ctx context.Context, db d
 		return &createdTeamMembership{teamID: teamID, userID: userID}, nil
 	}
 	return nil, nil
+}
+
+// applyInviteJoinRules runs the vendor team rules for an invite. The invite has already checked
+// that the inviter may give the person their role.
+func (api *memberAPI) applyInviteJoinRules(ctx context.Context, db dictionaryDB, organizationID, teamID, userID string) error {
+	switch err := applyVendorTeamJoinRules(ctx, db, organizationID, teamID, userID, actorRoleCheckedByCaller, api.workos != nil); {
+	case errors.Is(err, errVendorInOtherTeam):
+		return memberFailure(409, "vendor_in_other_team", "Someone in a vendor team cannot join another team")
+	case errors.Is(err, errLastAdminToVendorTeam):
+		return memberFailure(409, "last_admin_protected", "The workspace needs an admin outside vendor teams")
+	case errors.Is(err, errJoinMemberGone):
+		return memberFailure(404, "organization_member_not_found", "Organization member not found")
+	default:
+		return err
+	}
 }
 
 func (api *memberAPI) ensureTeamMembership(ctx context.Context, db dictionaryDB, teamID, userID string) (bool, error) {
@@ -199,18 +220,6 @@ func (api *memberAPI) ensureTeamMembership(ctx context.Context, db dictionaryDB,
 		return false, err
 	}
 	return true, nil
-}
-
-func (api *memberAPI) ensureDefaultWorkspaceTeamMembership(ctx context.Context, db dictionaryDB, organizationID, userID string) (string, bool, error) {
-	teamID, err := api.ensureDefaultWorkspaceTeam(ctx, db, organizationID)
-	if err != nil {
-		return "", false, err
-	}
-	created, err := api.ensureTeamMembership(ctx, db, teamID, userID)
-	if err != nil {
-		return "", false, err
-	}
-	return teamID, created, nil
 }
 
 func (api *memberAPI) ensureDefaultWorkspaceTeam(ctx context.Context, db dictionaryDB, organizationID string) (string, error) {

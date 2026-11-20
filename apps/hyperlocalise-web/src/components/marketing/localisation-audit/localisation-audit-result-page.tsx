@@ -12,6 +12,7 @@
  */
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
+import type { LocalisationAuditRelatedScore } from "@/lib/localisation-audit/related-scores";
 import type { LocalisationAuditStanding } from "@/lib/localisation-audit/store";
 import type {
   LocalisationAuditProgressSnapshot,
@@ -27,6 +28,7 @@ type LocalisationAuditResultPageProps = {
   locale: string;
   domainSlug: string;
   standing: LocalisationAuditStanding | null;
+  relatedScores?: LocalisationAuditRelatedScore[];
   audit: {
     id: string;
     domainKey: string;
@@ -53,6 +55,7 @@ export function LocalisationAuditResultPage({
   locale,
   domainSlug,
   standing,
+  relatedScores = [],
   audit,
 }: LocalisationAuditResultPageProps) {
   return (
@@ -67,6 +70,7 @@ export function LocalisationAuditResultPage({
             domainSlug={domainSlug}
             initialAudit={audit}
             standing={standing}
+            relatedScores={relatedScores}
           />
         </LocalisationAuditResultErrorBoundary>
         <MarketingFooter columns={footerColumns} />

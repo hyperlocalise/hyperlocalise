@@ -27,14 +27,17 @@ type teamRecord struct {
 	OrganizationID string `json:"organizationId"`
 	Slug           string `json:"slug"`
 	Name           string `json:"name"`
-	CreatedAt      string `json:"createdAt"`
-	UpdatedAt      string `json:"updatedAt"`
+	// IsVendor marks an outside vendor's team (vendor-access.go). Set when the team is made.
+	IsVendor  bool   `json:"isVendor"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
 }
 
 type teamSummary struct {
 	ID              string  `json:"id"`
 	Slug            string  `json:"slug"`
 	Name            string  `json:"name"`
+	IsVendor        bool    `json:"isVendor"`
 	CreatedAt       string  `json:"createdAt"`
 	UpdatedAt       string  `json:"updatedAt"`
 	MemberCount     int     `json:"memberCount"`
@@ -103,8 +106,8 @@ func (api *teamAPI) visibleTeamIDs(ctx context.Context, actor teamActor) ([]stri
 func (api *teamAPI) accessibleTeam(ctx context.Context, actor teamActor, teamID string) (teamRecord, error) {
 	var record teamRecord
 	var created, updated time.Time
-	err := api.pool.QueryRow(ctx, `select id, organization_id, slug, name, created_at, updated_at from teams where id=$1 and organization_id=$2`,
-		teamID, actor.organizationID).Scan(&record.ID, &record.OrganizationID, &record.Slug, &record.Name, &created, &updated)
+	err := api.pool.QueryRow(ctx, `select id, organization_id, slug, name, is_vendor, created_at, updated_at from teams where id=$1 and organization_id=$2`,
+		teamID, actor.organizationID).Scan(&record.ID, &record.OrganizationID, &record.Slug, &record.Name, &record.IsVendor, &created, &updated)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return record, teamFailure(404, "team_not_found")
 	}
@@ -151,13 +154,13 @@ func (api *teamAPI) listTeams(ctx context.Context, actor teamActor) (any, int, e
 		return map[string]any{"teams": []teamSummary{}}, 200, nil
 	}
 	rows, err := api.pool.Query(ctx, `
-        select t.id, t.slug, t.name, t.created_at, t.updated_at,
+        select t.id, t.slug, t.name, t.is_vendor, t.created_at, t.updated_at,
                count(tm.id) as member_count, cum.role
         from teams t
         left join team_memberships tm on tm.team_id=t.id
         left join team_memberships cum on cum.team_id=t.id and cum.user_id=$1
         where t.organization_id=$2 and t.id = any($3)
-        group by t.id, t.slug, t.name, t.created_at, t.updated_at, cum.role
+        group by t.id, t.slug, t.name, t.is_vendor, t.created_at, t.updated_at, cum.role
         order by t.created_at desc`, actor.userID, actor.organizationID, ids)
 	if err != nil {
 		return nil, 0, err
@@ -168,7 +171,7 @@ func (api *teamAPI) listTeams(ctx context.Context, actor teamActor) (any, int, e
 		var summary teamSummary
 		var created, updated time.Time
 		var currentRole *string
-		if err := rows.Scan(&summary.ID, &summary.Slug, &summary.Name, &created, &updated, &summary.MemberCount, &currentRole); err != nil {
+		if err := rows.Scan(&summary.ID, &summary.Slug, &summary.Name, &summary.IsVendor, &created, &updated, &summary.MemberCount, &currentRole); err != nil {
 			return nil, 0, err
 		}
 		summary.CreatedAt = formatTeamTime(created)
@@ -208,8 +211,9 @@ func (api *teamAPI) listMemberDirectory(ctx context.Context, actor teamActor) (a
 }
 
 type createTeamBody struct {
-	Name *string `json:"name"`
-	Slug *string `json:"slug"`
+	Name     *string `json:"name"`
+	Slug     *string `json:"slug"`
+	IsVendor bool    `json:"isVendor"`
 }
 
 func parseCreateTeamBody(r *http.Request) (createTeamBody, error) {
@@ -262,6 +266,10 @@ func (api *teamAPI) createTeam(ctx context.Context, actor teamActor, r *http.Req
 			return nil, 0, teamFailure(400, "invalid_team_payload")
 		}
 	}
+	// The default team takes projects that name no team, which a vendor team never does.
+	if body.IsVendor && slug == defaultWorkspaceTeamSlug {
+		return nil, 0, teamFailure(409, "team_slug_already_exists")
+	}
 	tx, err := api.pool.Begin(ctx)
 	if err != nil {
 		return nil, 0, err
@@ -269,18 +277,22 @@ func (api *teamAPI) createTeam(ctx context.Context, actor teamActor, r *http.Req
 	defer func() { _ = tx.Rollback(ctx) }()
 	var record teamRecord
 	var created, updated time.Time
-	err = tx.QueryRow(ctx, `insert into teams (organization_id, name, slug) values ($1,$2,$3)
-        returning id, organization_id, slug, name, created_at, updated_at`,
-		actor.organizationID, name, slug).Scan(&record.ID, &record.OrganizationID, &record.Slug, &record.Name, &created, &updated)
+	err = tx.QueryRow(ctx, `insert into teams (organization_id, name, slug, is_vendor) values ($1,$2,$3,$4)
+        returning id, organization_id, slug, name, is_vendor, created_at, updated_at`,
+		actor.organizationID, name, slug, body.IsVendor).Scan(&record.ID, &record.OrganizationID, &record.Slug, &record.Name, &record.IsVendor, &created, &updated)
 	if err != nil {
 		if isTeamUniqueViolation(err) {
 			return nil, 0, teamFailure(409, "team_slug_already_exists")
 		}
 		return nil, 0, err
 	}
-	_, err = tx.Exec(ctx, `insert into team_memberships (team_id, user_id, role) values ($1,$2,'manager')`, record.ID, actor.userID)
-	if err != nil {
-		return nil, 0, err
+	// The maker manages the team, except a vendor team: joining it would shut them out of the
+	// workspace (vendor-access.go). Admins and localization managers manage it without joining.
+	if !body.IsVendor {
+		_, err = tx.Exec(ctx, `insert into team_memberships (team_id, user_id, role) values ($1,$2,'manager')`, record.ID, actor.userID)
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		if isTeamUniqueViolation(err) {
@@ -323,6 +335,7 @@ func (api *teamAPI) getTeam(ctx context.Context, actor teamActor, teamID string)
 		"organizationId": record.OrganizationID,
 		"slug":           record.Slug,
 		"name":           record.Name,
+		"isVendor":       record.IsVendor,
 		"createdAt":      record.CreatedAt,
 		"updatedAt":      record.UpdatedAt,
 		"members":        members,
@@ -357,7 +370,7 @@ func (api *teamAPI) updateTeam(ctx context.Context, actor teamActor, teamID stri
 	if err != nil {
 		return nil, 0, err
 	}
-	_, err = api.accessibleTeam(ctx, actor, teamID)
+	existing, err := api.accessibleTeam(ctx, actor, teamID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -381,6 +394,10 @@ func (api *teamAPI) updateTeam(ctx context.Context, actor teamActor, teamID stri
 		slug = validated
 		setSlug = true
 	}
+	// The default team takes projects that name no team, which a vendor team never does.
+	if existing.IsVendor && setSlug && slug == defaultWorkspaceTeamSlug {
+		return nil, 0, teamFailure(409, "team_slug_already_exists")
+	}
 	var record teamRecord
 	var created, updated time.Time
 	err = api.pool.QueryRow(ctx, `
@@ -389,9 +406,9 @@ func (api *teamAPI) updateTeam(ctx context.Context, actor teamActor, teamID stri
             slug = case when $5 then $6 else slug end,
             updated_at = now()
         where id=$1 and organization_id=$2
-        returning id, organization_id, slug, name, created_at, updated_at`,
+        returning id, organization_id, slug, name, is_vendor, created_at, updated_at`,
 		teamID, actor.organizationID, setName, name, setSlug, slug).
-		Scan(&record.ID, &record.OrganizationID, &record.Slug, &record.Name, &created, &updated)
+		Scan(&record.ID, &record.OrganizationID, &record.Slug, &record.Name, &record.IsVendor, &created, &updated)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, teamFailure(404, "team_not_found")
 	}
@@ -505,21 +522,21 @@ func (api *teamAPI) addTeamMember(ctx context.Context, actor teamActor, teamID s
 	if err != nil {
 		return nil, 0, err
 	}
-	var userID, workosUserID, email, memberRole string
+	var userID, workosUserID, email string
 	if body.WorkosUserID != nil {
 		err = api.pool.QueryRow(ctx, `
-            select u.id, u.workos_user_id, u.email, m.role::text
+            select u.id, u.workos_user_id, u.email
             from users u
             inner join organization_memberships m on m.user_id=u.id
             where u.workos_user_id=$1 and m.organization_id=$2`, *body.WorkosUserID, actor.organizationID).
-			Scan(&userID, &workosUserID, &email, &memberRole)
+			Scan(&userID, &workosUserID, &email)
 	} else {
 		err = api.pool.QueryRow(ctx, `
-            select u.id, u.workos_user_id, u.email, m.role::text
+            select u.id, u.workos_user_id, u.email
             from users u
             inner join organization_memberships m on m.user_id=u.id
             where u.email=$1 and m.organization_id=$2`, *body.Email, actor.organizationID).
-			Scan(&userID, &workosUserID, &email, &memberRole)
+			Scan(&userID, &workosUserID, &email)
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, teamFailure(404, "organization_member_not_found")
@@ -527,26 +544,42 @@ func (api *teamAPI) addTeamMember(ctx context.Context, actor teamActor, teamID s
 	if err != nil {
 		return nil, 0, err
 	}
-	// A vendor is in no team (vendor-access.go).
-	if memberRole == organizationRoleVendor {
-		return nil, 0, teamFailure(400, "vendor_cannot_join_team")
+	tx, err := api.pool.Begin(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	switch err := applyVendorTeamJoinRules(ctx, tx, actor.organizationID, teamID, userID, actor.role, api.workosSynced); {
+	case errors.Is(err, errVendorInOtherTeam):
+		return nil, 0, teamFailureWithMessage(409, "vendor_in_other_team", "Someone in a vendor team cannot join another team. Remove them from their vendor team first.")
+	case errors.Is(err, errLastAdminToVendorTeam):
+		return nil, 0, teamFailureWithMessage(409, "last_admin_protected", "The workspace needs an admin outside vendor teams, so this admin cannot join one.")
+	case errors.Is(err, errJoinMemberGone):
+		return nil, 0, teamFailure(404, "organization_member_not_found")
+	case errors.Is(err, errCannotMoveToVendorTeam):
+		return nil, 0, teamFailureWithMessage(403, "forbidden", "You cannot put this member in a vendor team, because you cannot manage their role.")
+	case err != nil:
+		return nil, 0, err
 	}
 	var role string
 	if body.Role == nil {
-		err = api.pool.QueryRow(ctx, `
+		err = tx.QueryRow(ctx, `
             insert into team_memberships (team_id, user_id, role) values ($1,$2,'member')
             on conflict (team_id, user_id) do nothing
             returning role`, teamID, userID).Scan(&role)
 		if errors.Is(err, pgx.ErrNoRows) {
-			err = api.pool.QueryRow(ctx, `select role from team_memberships where team_id=$1 and user_id=$2`, teamID, userID).Scan(&role)
+			err = tx.QueryRow(ctx, `select role from team_memberships where team_id=$1 and user_id=$2`, teamID, userID).Scan(&role)
 		}
 	} else {
-		err = api.pool.QueryRow(ctx, `
+		err = tx.QueryRow(ctx, `
             insert into team_memberships (team_id, user_id, role) values ($1,$2,$3)
             on conflict (team_id, user_id) do update set role=excluded.role
             returning role`, teamID, userID, *body.Role).Scan(&role)
 	}
 	if err != nil {
+		return nil, 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return nil, 0, err
 	}
 	return map[string]any{"member": teamMember{WorkosUserID: workosUserID, Email: email, Role: role}}, 201, nil

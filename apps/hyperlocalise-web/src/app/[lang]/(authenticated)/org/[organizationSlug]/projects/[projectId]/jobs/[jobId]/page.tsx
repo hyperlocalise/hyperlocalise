@@ -14,7 +14,7 @@ import { redirect } from "next/navigation";
 
 import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { canAccessProject } from "@/api/auth/team-access";
-import { isVendorRole, vendorHomePath } from "@/api/auth/vendor-access";
+import { isInVendorTeam, vendorHomePath } from "@/api/auth/vendor-access";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { findOwnedFileTask } from "@/lib/projects/jobs/task-access";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
@@ -44,7 +44,7 @@ async function ProjectJobDetailPageLoader({
   const projectId = normalizeProjectId(rawProjectId);
   // Open to vendors (`vendor-access.ts`), for an open or waiting task they own.
   const auth = await requireAppAuthContext({ organizationSlug, allowVendor: true });
-  const isVendor = isVendorRole(auth.membership.role);
+  const isVendor = isInVendorTeam(auth);
   // A person is here through the project's team, as before, or only through a task they own:
   // a vendor always, anyone else when the project is outside their teams. A task owner gets
   // the task's details, Open Editor and Mark done, and none of the page's other controls,
@@ -68,7 +68,8 @@ async function ProjectJobDetailPageLoader({
   }
   const mayWorkOnJobs = hasCapability(auth.membership.role, "jobs:write");
   const canEditJobFields = mayWorkOnJobs && !taskOwnerOnly;
-  const canMarkAnyTaskDone = hasCapability(auth.membership.role, "reviews:approve");
+  // A vendor finishes only their own tasks, whatever their role.
+  const canMarkAnyTaskDone = !isVendor && hasCapability(auth.membership.role, "reviews:approve");
   const canEditSharedCredentialProviderJobFields = isWorkspaceOperatorRole(auth.membership.role);
 
   return (
@@ -79,7 +80,7 @@ async function ProjectJobDetailPageLoader({
       canEditJobFields={canEditJobFields}
       canMarkAnyTaskDone={canMarkAnyTaskDone}
       taskOwnerOnly={taskOwnerOnly}
-      canMarkOwnTaskDone={isVendor || mayWorkOnJobs}
+      canMarkOwnTaskDone={mayWorkOnJobs}
       currentUserId={auth.user.localUserId}
       canEditSharedCredentialProviderJobFields={canEditSharedCredentialProviderJobFields}
     />

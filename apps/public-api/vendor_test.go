@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +21,19 @@ func (f dbFixture) memberWithRole(t *testing.T, role string) (id, email string) 
 	return id, email
 }
 
-// The API never acts for a vendor: a token is refused while WorkOS reports its owner as one.
+// joinVendorTeam puts the person in a new vendor team of the fixture's workspace and returns a
+// function that takes them out again.
+func (f dbFixture) joinVendorTeam(t *testing.T, userID string) (leave func()) {
+	t.Helper()
+	teamID := uuid.NewString()
+	f.exec(t, `INSERT INTO teams (id, organization_id, slug, name, is_vendor) VALUES ($1, $2, $3, 'Vendor', true)`,
+		teamID, f.actor.OrganizationID, "vendor-"+teamID)
+	f.exec(t, `INSERT INTO team_memberships (team_id, user_id, role) VALUES ($1, $2, 'member')`, teamID, userID)
+	t.Cleanup(func() { _, _ = f.pool.Exec(t.Context(), `DELETE FROM teams WHERE id = $1`, teamID) })
+	return func() { f.exec(t, `DELETE FROM team_memberships WHERE team_id = $1`, teamID) }
+}
+
+// The API never acts for a vendor: a token is refused while its owner is in a vendor team.
 func TestVendorTokenIsRefused(t *testing.T) {
 	f := newDBFixture(t)
 	ctx := t.Context()
@@ -37,11 +48,11 @@ func TestVendorTokenIsRefused(t *testing.T) {
 	_, err := auth.authenticate(ctx, token)
 	require.NoError(t, err)
 
-	role = authz.RoleVendor
+	leave := f.joinVendorTeam(t, f.actor.UserID)
 	_, err = auth.authenticate(ctx, token)
 	requireAuthFailure(t, err, http.StatusForbidden, "forbidden")
 
-	role = "translator"
+	leave()
 	_, err = auth.authenticate(ctx, token)
 	require.NoError(t, err)
 }
@@ -51,7 +62,8 @@ func TestVendorTokenIsRefused(t *testing.T) {
 func TestJobOwnerRule(t *testing.T) {
 	f := newDBFixture(t)
 	ctx := t.Context()
-	_, vendorEmail := f.memberWithRole(t, "vendor")
+	vendorID, vendorEmail := f.memberWithRole(t, "reviewer")
+	f.joinVendorTeam(t, vendorID)
 	_, offTeamEmail := f.memberWithRole(t, "translator")
 	pendingID, pendingEmail := f.memberWithRole(t, "translator")
 	f.exec(t, `UPDATE organization_memberships SET workos_membership_id = NULL WHERE user_id = $1`, pendingID)

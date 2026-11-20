@@ -39,15 +39,18 @@ type projectAPI struct {
 
 type projectActor struct {
 	userID, organizationID, role string
+	// vendor is set for a person in a vendor team, who reaches only their own tasks
+	// (vendor-access.go). Only the routes opened to vendors see it set.
+	vendor bool
 }
 
-// isVendor is true for an outside person who reaches only their own tasks (vendor-access.go).
 func (a projectActor) isVendor() bool {
-	return a.role == organizationRoleVendor
+	return a.vendor
 }
 
 func (a projectActor) canReadAllTeams() bool {
-	return a.role == "admin" || a.role == "localization_manager"
+	// A vendor never has the whole workspace, whatever their role (vendor-access.go).
+	return !a.vendor && (a.role == "admin" || a.role == "localization_manager")
 }
 
 func (a projectActor) canCreateProjects() bool {
@@ -184,15 +187,11 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 }
 
 func (api *projectAPI) actorFor(ctx context.Context, claims AuthClaims, slug string, allowVendor bool) (projectActor, error) {
-	resolve := resolveOrganizationActor
-	if allowVendor {
-		resolve = resolveOrganizationActorAllowingVendor
-	}
-	resolved, err := resolve(ctx, api.pool, api.membership, claims, slug)
+	resolved, vendor, err := resolveOrganizationActorAllowingVendorIf(ctx, api.pool, api.membership, claims, slug, allowVendor)
 	if err != nil {
 		return projectActor{}, mapOrganizationAccessError(err, projectFailure)
 	}
-	return projectActor(resolved), nil
+	return projectActor{userID: resolved.userID, organizationID: resolved.organizationID, role: resolved.role, vendor: vendor}, nil
 }
 
 func (api *projectAPI) handle(fn func(*http.Request, projectActor) (any, int, error)) http.Handler {

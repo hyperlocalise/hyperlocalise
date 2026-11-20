@@ -22,8 +22,8 @@ import { app } from "@/api/app";
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 import {
   isVendorApiRoute,
+  isInVendorTeam,
   isVendorPagePath,
-  isVendorRole,
   refuseVendorUnlessAllowed,
   VENDOR_API_ROUTES,
   VendorAccessDeniedError,
@@ -53,7 +53,7 @@ const organization = {
   slug: "vendor-gate",
   membership: {
     workosMembershipId: "om_vendor_gate",
-    role: "vendor" as const,
+    role: "admin" as const,
     accessSource: "workos_authoritative" as const,
   },
 };
@@ -67,7 +67,8 @@ const vendorAuth: ApiAuthContext = enrichAuthContextWithCapabilities({
   organizations: [organization],
   organization,
   activeOrganization: organization,
-  membership: organization.membership,
+  // In a vendor team, so refused whatever the role: an admin, the role with the most rights.
+  membership: { ...organization.membership, inVendorTeam: true },
   activeTeam: null,
 });
 
@@ -92,23 +93,13 @@ describe("the vendor refusal", () => {
     expect(() => refuseVendorUnlessAllowed(vendorAuth, true)).not.toThrow();
   });
 
-  it("never refuses another role", () => {
-    for (const role of [
-      "admin",
-      "localization_manager",
-      "developer",
-      "reviewer",
-      "translator",
-      "member",
-    ]) {
-      expect(isVendorRole(role)).toBe(false);
-      expect(() =>
-        refuseVendorUnlessAllowed(
-          { membership: { role }, activeOrganization: { slug: "acme" } },
-          undefined,
-        ),
-      ).not.toThrow();
+  it("never refuses someone outside vendor teams", () => {
+    for (const inVendorTeam of [false, undefined]) {
+      const auth = { membership: { inVendorTeam }, activeOrganization: { slug: "acme" } };
+      expect(isInVendorTeam(auth)).toBe(false);
+      expect(() => refuseVendorUnlessAllowed(auth, undefined)).not.toThrow();
     }
+    expect(isInVendorTeam(vendorAuth)).toBe(true);
   });
 
   it("carries the workspace so a page can send the vendor to My jobs", () => {
@@ -286,6 +277,7 @@ describe("the API routes a vendor may call", () => {
       "GET /api/orgs/:organizationSlug/projects/:projectId/files/translations/download",
       "POST /api/orgs/:organizationSlug/jobs/:jobId/mark-done",
       "POST /api/orgs/:organizationSlug/projects/:projectId/files/detail/cat/concordance",
+      "POST /api/orgs/:organizationSlug/projects/:projectId/files/detail/cat/recommendation",
     ]);
   });
 });

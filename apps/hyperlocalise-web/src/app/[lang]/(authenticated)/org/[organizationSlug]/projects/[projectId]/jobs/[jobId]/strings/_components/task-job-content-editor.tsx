@@ -69,6 +69,7 @@ export function TaskJobContentEditor({
   initialQueueFilter = "all",
   initialQueueSort = "file_order",
   initialSearch = "",
+  aiSuggestionAllowed,
   adaptiveWorkspaceEnabled = false,
 }: {
   organizationSlug: string;
@@ -80,6 +81,8 @@ export function TaskJobContentEditor({
   initialQueueSort?: ContentEditorQueueSort;
   initialSearch?: string;
   adaptiveWorkspaceEnabled?: boolean;
+  /** Whether the person's role runs AI actions, which decides whether the AI suggestion shows. */
+  aiSuggestionAllowed: boolean;
 }) {
   const intl = useIntl();
   const router = useRouter();
@@ -229,6 +232,7 @@ export function TaskJobContentEditor({
         pageNavigationGuardRef={pageNavigationGuardRef}
         adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
         taskScoped
+        taskAiSuggestionAllowed={aiSuggestionAllowed}
       />
     </ContentEditorPageRoot>
   );

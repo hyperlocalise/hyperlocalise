@@ -14,6 +14,11 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { createDefaultConfig } from "../catalog/node-catalog";
 import type { VisualCatalogType, VisualWorkflowV3Definition } from "../schema/types";
+import {
+  compileVisualWorkflowV3Definition,
+  toVisualWorkflowExecutionDefinition,
+} from "./compile-workflow-v3";
+import { validateVisualWorkflowDefinition } from "./validate-workflow";
 import { validateVisualWorkflowV3Definition } from "./validate-workflow-v3";
 
 type Edge = VisualWorkflowV3Definition["edges"][number];
@@ -134,5 +139,45 @@ describe("validateVisualWorkflowV3Definition data wires", () => {
         ],
       ),
     ).toEqual([expect.objectContaining({ code: "invalid_binding", nodeId: "slack" })]);
+  });
+});
+
+describe("validateVisualWorkflowV3Definition references a run cannot read", () => {
+  const definition = (message: string): VisualWorkflowV3Definition => ({
+    schemaVersion: 3,
+    name: "Loop",
+    nodes: [
+      step("trigger", "trigger.manual"),
+      {
+        id: "for_each",
+        type: "logic.for_each",
+        config: { kind: "logic.for_each", collection: "{{ trigger.items }}" },
+      },
+      { ...slack(), config: { kind: "action.notify_slack", channelId: "C123", message } },
+    ],
+    edges: [runs("trigger", "for_each"), runs("for_each", "slack", "each")],
+    editor: { positions: {} },
+  });
+
+  it("names the setting that reads a loop's item without the Loop step", () => {
+    expect(validateVisualWorkflowV3Definition(definition("Review {{ item.path }}"))).toEqual([
+      {
+        code: "invalid_binding",
+        nodeId: "slack",
+        field: "message",
+        reason: "unreadable_reference",
+      },
+    ]);
+    expect(
+      validateVisualWorkflowV3Definition(definition("Review {{ nodes.for_each.item.path }}")),
+    ).toEqual([]);
+  });
+
+  it("leaves the check a run makes before it starts as it was", () => {
+    const compiled = compileVisualWorkflowV3Definition(definition("Review {{ item.path }}"));
+
+    expect(validateVisualWorkflowDefinition(toVisualWorkflowExecutionDefinition(compiled))).toEqual(
+      [],
+    );
   });
 });

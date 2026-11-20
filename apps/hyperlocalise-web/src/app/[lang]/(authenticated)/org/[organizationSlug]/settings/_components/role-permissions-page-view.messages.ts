@@ -162,9 +162,10 @@ export const rolePermissionsPageViewMessages = defineMessages({
   },
   vendorNote: {
     defaultMessage:
-      "A vendor has none of these rights. They see only the tasks given to them, each with its file, its languages, and the memory and glossary matches the editor shows for it.",
-    id: "r+cHwvN5Aj",
-    description: "Note under the role permissions table explaining what the Vendor role can reach",
+      "People in a vendor team use none of these rights in the workspace. They see only the tasks given to them, and in each task's file and languages their role decides what they can do.",
+    id: "RqHBJPG4cc",
+    description:
+      "Note under the role permissions table explaining what people in a vendor team can reach",
   },
   notAllowed: {
     defaultMessage: "Not allowed",

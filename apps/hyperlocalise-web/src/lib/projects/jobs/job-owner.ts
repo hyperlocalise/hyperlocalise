@@ -13,17 +13,17 @@
 import { and, eq } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
-import { isVendorRole } from "@/api/auth/vendor-access";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import { isActiveOrganizationMembership } from "@/lib/workos/constants";
+import { vendorTeamMemberSql } from "@/lib/workos/vendor-membership";
 
 /**
  * Who a job can be given to.
  *
- * An open or waiting post-edit or proofread task on a file can be given to a vendor, and to any
- * active member whose role works on jobs, whatever team the project is in: its owner reaches it
- * through the task itself (`task-access.ts`). Anyone who can open the project can be given any
+ * An open or waiting post-edit or proofread task on a file can be given to any active member
+ * whose role works on jobs, a vendor included, whatever team the project is in: its owner reaches
+ * it through the task itself (`task-access.ts`). Anyone who can open the project can be given any
  * job, as before. No other job is ever given to a vendor, because nothing would let a vendor
  * open or finish it.
  *
@@ -75,6 +75,10 @@ async function findWorkspaceMembership(input: {
     .select({
       role: schema.organizationMemberships.role,
       workosMembershipId: schema.organizationMemberships.workosMembershipId,
+      inVendorTeam: vendorTeamMemberSql(
+        schema.organizationMemberships.userId,
+        schema.organizationMemberships.organizationId,
+      ),
     })
     .from(schema.organizationMemberships)
     .where(
@@ -89,7 +93,7 @@ async function findWorkspaceMembership(input: {
 
 /**
  * Whether the person can be given a task on a file whatever team its project is in: an active
- * member (not a pending invitation) who is a vendor or whose role works on jobs. A role that
+ * member (not a pending invitation) whose role works on jobs, a vendor included. A role that
  * only reads could neither save nor mark the task done.
  */
 export async function canOwnFileTaskOutsideTeam(input: {
@@ -101,7 +105,7 @@ export async function canOwnFileTaskOutsideTeam(input: {
   return Boolean(
     membership &&
     isActiveOrganizationMembership(membership.workosMembershipId) &&
-    (isVendorRole(membership.role) || hasCapability(membership.role, "jobs:write")),
+    hasCapability(membership.role, "jobs:write"),
   );
 }
 
@@ -120,7 +124,7 @@ export async function refuseVendorOwnerUnlessFileTask(input: {
     userId: input.ownerUserId,
     database: input.database ?? db,
   });
-  if (membership && isVendorRole(membership.role)) {
+  if (membership?.inVendorTeam) {
     return err({ code: "vendor_owner_not_allowed", message: VENDOR_OWNER_NOT_ALLOWED_MESSAGE });
   }
   return ok(undefined);

@@ -26,18 +26,18 @@ import {
 } from "@/lib/workos/onboarding-state";
 
 /**
- * Onboarding is about the person (creating a workspace of their own), so a vendor passes
- * here; the pages it leads to refuse them. The request is made as for anyone else first, so
- * nothing changes for the other roles.
+ * A workspace where the person is a vendor is not theirs to set up: its onboarding steps change
+ * the workspace (its AI provider key), and their role there decides nothing outside their tasks.
+ * Onboarding treats them as someone with no workspace, so they can still create one of their own.
  */
-async function resolveAllowingVendor(
+async function resolveOutsideVendorWorkspaces(
   options: NonNullable<Parameters<typeof resolveApiAuthContextFromSession>[0]>,
 ) {
   try {
     return await resolveApiAuthContextFromSession(options);
   } catch (error) {
     if (error instanceof VendorAccessDeniedError) {
-      return resolveApiAuthContextFromSession({ ...options, allowVendor: true });
+      return null;
     }
     throw error;
   }
@@ -49,7 +49,7 @@ export async function loadOnboardingContext() {
   let auth;
 
   try {
-    auth = await resolveAllowingVendor({
+    auth = await resolveOutsideVendorWorkspaces({
       session,
       organizationSlug: onboardingState?.organizationSlug,
     });
@@ -63,7 +63,7 @@ export async function loadOnboardingContext() {
       onboardingState = updatedOnboardingState;
 
       try {
-        auth = await resolveAllowingVendor({
+        auth = await resolveOutsideVendorWorkspaces({
           session,
           organizationSlug: error.currentSlug,
         });
@@ -87,7 +87,7 @@ export async function loadOnboardingContext() {
     } else if (error instanceof OrganizationSlugUnresolvableError) {
       await clearStoredOnboardingState();
       onboardingState = null;
-      auth = await resolveAllowingVendor({ session });
+      auth = await resolveOutsideVendorWorkspaces({ session });
     } else if (
       error instanceof Error &&
       (error.message === "organization_access_denied" ||

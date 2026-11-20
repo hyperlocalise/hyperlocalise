@@ -34,6 +34,39 @@ export type VendorTaskFixture = {
 };
 
 /**
+ * Puts the person in a new vendor team of their workspace, which shuts them out of everything but
+ * their own tasks. The person must have signed in once, so their local rows exist.
+ */
+export async function joinVendorTeam(identity: EmulatorIdentity) {
+  const [organization] = await db
+    .select({ id: schema.organizations.id })
+    .from(schema.organizations)
+    .where(eq(schema.organizations.slug, identity.organizationSlug))
+    .limit(1);
+  const [user] = await db
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(eq(schema.users.workosUserId, identity.workosUserId))
+    .limit(1);
+  if (!organization || !user) {
+    throw new Error(`E2E workspace or user not found for ${identity.organizationSlug}`);
+  }
+  const [team] = await db
+    .insert(schema.teams)
+    .values({
+      organizationId: organization.id,
+      slug: `vendor-${randomUUID().slice(0, 8)}`,
+      name: "Vendor E2E",
+      isVendor: true,
+    })
+    .returning({ id: schema.teams.id });
+  await db.delete(schema.teamMemberships).where(eq(schema.teamMemberships.userId, user.id));
+  await db
+    .insert(schema.teamMemberships)
+    .values({ teamId: team!.id, userId: user.id, role: "member" });
+}
+
+/**
  * Seeds a project with two files and gives the signed-in person an open post-edit task on the
  * first one, in French. The person must have signed in once, so their local rows exist.
  */

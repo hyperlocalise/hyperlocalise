@@ -53,7 +53,6 @@ const roleLabelMessages = {
   reviewer: membersSettingsViewModelMessages.roleReviewer,
   translator: membersSettingsViewModelMessages.roleTranslator,
   member: membersSettingsViewModelMessages.roleMember,
-  vendor: membersSettingsViewModelMessages.roleVendor,
 } as const;
 
 const roleDescriptionMessages = {
@@ -63,7 +62,6 @@ const roleDescriptionMessages = {
   reviewer: membersSettingsViewModelMessages.roleReviewerDescription,
   translator: membersSettingsViewModelMessages.roleTranslatorDescription,
   member: membersSettingsViewModelMessages.roleMemberDescription,
-  vendor: membersSettingsViewModelMessages.roleVendorDescription,
 } as const;
 
 export function getRoleLabel(role: OrganizationMembershipRole, intl?: MembersSettingsIntl) {

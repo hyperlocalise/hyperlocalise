@@ -1,5 +1,5 @@
 {
-  "id": "a1ad5232-f559-4b8c-b067-a9c13c191763",
+  "id": "6cca62e1-5fb5-4e99-9859-5e2efd319da2",
   "prevId": "c070a563-e2bb-4399-9a22-96b1fec976b1",
   "version": "7",
   "dialect": "postgresql",
@@ -5385,6 +5385,12 @@
         },
         "lemma": {
           "name": "lemma",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pronunciation": {
+          "name": "pronunciation",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -41843,8 +41849,7 @@
         "developer",
         "reviewer",
         "translator",
-        "member",
-        "vendor"
+        "member"
       ]
     },
     "public.ota_distribution_format": {

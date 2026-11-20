@@ -14,7 +14,7 @@ import { and, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { canAccessProject } from "@/api/auth/team-access";
-import { isVendorRole } from "@/api/auth/vendor-access";
+import { isInVendorTeam } from "@/api/auth/vendor-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 
@@ -134,7 +134,7 @@ export async function resolveTaskRouteProjectAccess(
   auth: ApiAuthContext,
   projectId: string,
 ): Promise<TaskRouteProjectAccess | null> {
-  if (!isVendorRole(auth.membership.role) && (await canAccessProject(auth, projectId))) {
+  if (!isInVendorTeam(auth) && (await canAccessProject(auth, projectId))) {
     return { kind: "team" };
   }
 

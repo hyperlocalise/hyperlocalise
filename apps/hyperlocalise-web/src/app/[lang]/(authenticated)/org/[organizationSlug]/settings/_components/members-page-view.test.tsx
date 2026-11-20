@@ -75,6 +75,7 @@ function renderMembersPage(overrides: Partial<Parameters<typeof MembersPageView>
         id: "team-default",
         slug: "default",
         name: "Default team",
+        isVendor: false,
         memberCount: 1,
         currentUserRole: "manager",
         createdAt: "2026-01-01T00:00:00.000Z",

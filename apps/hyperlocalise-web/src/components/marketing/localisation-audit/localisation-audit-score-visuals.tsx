@@ -144,7 +144,7 @@ export function ScoreRing({
         )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center" aria-hidden>
-        <span className="font-serif text-5xl tracking-tight sm:text-6xl">
+        <span className="font-sans text-5xl font-semibold tracking-tight sm:text-6xl">
           {score == null ? "—" : <AnimatedNumber value={score} duration={1.2} />}
         </span>
         <span className="text-sm text-muted-foreground">/100</span>

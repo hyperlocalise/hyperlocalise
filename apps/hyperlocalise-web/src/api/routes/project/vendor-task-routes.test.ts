@@ -45,6 +45,18 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 vi.mock("@/lib/reporting/capture", () => ({ captureJobStatus: vi.fn(async () => undefined) }));
+// The AI suggestion's own plan check and model call: only who may ask is under test here.
+vi.mock("@/api/billing/ai-features-response", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/api/billing/ai-features-response")>()),
+  rejectIfAiFeaturesUnavailable: vi.fn(async () => null),
+}));
+vi.mock("@/lib/translation/content-editor-core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/translation/content-editor-core")>()),
+  generateContentEditorAiRecommendation: vi.fn(async () => ({
+    ok: true,
+    value: { text: "Bonjour" },
+  })),
+}));
 
 const fixture = createProjectTestFixture();
 
@@ -71,17 +83,24 @@ function useTestSessions() {
 
 /**
  * A project in the default team, owned by an admin, with two files. `person` is a second member
- * with the given role who is in no team unless a test adds them.
+ * with the given role who is in no team unless a test adds them. "vendor" is a reviewer in a
+ * vendor team; `vendorRole` gives them another role.
  */
-async function setUp(role: OrganizationMembershipRole) {
+async function setUp(
+  role: OrganizationMembershipRole | "vendor",
+  vendorRole: OrganizationMembershipRole = "reviewer",
+) {
   useTestSessions();
   const { identity: admin, organization, project } = await fixture.createStoredProjectFixture();
   const personIdentity: WorkosAuthIdentity = fixture.createWorkosIdentityForOrganization(
     admin.organization,
-    role,
+    role === "vendor" ? vendorRole : role,
   );
   const headers = await fixture.authHeadersFor(personIdentity);
   const personId = await fixture.getLocalUserId(personIdentity.user.workosUserId);
+  if (role === "vendor") {
+    await fixture.joinVendorTeam(personIdentity);
+  }
   const adminId = await fixture.getLocalUserId(admin.user.workosUserId);
   const slug = admin.organization.slug ?? "missing-slug";
 
@@ -186,6 +205,15 @@ async function setUp(role: OrganizationMembershipRole) {
     addFile,
     addTask,
     markDone: (jobId: string) => request("POST", `/jobs/${jobId}/mark-done`),
+    suggest: (targetLocale: string, sourceText = "Hello") =>
+      request("POST", `/projects/${project.id}/files/detail/cat/recommendation`, {
+        sourcePath: "locales/app.json",
+        sourceLocale: "en-US",
+        targetLocale,
+        key: "greeting",
+        sourceText,
+        targetText: "",
+      }),
     lookUp: (targetLocale: string, projectId = project.id, sourceText = "Hello") =>
       request("POST", `/projects/${projectId}/files/detail/cat/concordance`, {
         sourceLocale: "en-US",
@@ -621,5 +649,26 @@ describe("access through a task", () => {
     // Queued without an earlier job is AI work that has not started, not a waiting task.
     expect(await findOwnedFileTask({ ...ids, jobId: queued, includeWaiting: true })).toBeNull();
     expect(await findOwnedFileTask({ ...ids, userId: s.adminId, jobId: proofread })).toBeNull();
+  });
+});
+
+describe("the AI suggestion through a task", () => {
+  it("is given for a string of an open task they own, in its languages only", async () => {
+    const s = await setUp("vendor");
+    const task = await s.addTask();
+
+    expect((await s.suggest("fr-FR")).status).toBe(200);
+    expect((await s.suggest("de-DE")).status).toBe(404);
+    expect((await s.suggest("fr-FR", "Only in the other file")).status).toBe(404);
+
+    await db.update(schema.jobs).set({ status: "succeeded" }).where(eq(schema.jobs.id, task));
+    expect((await s.suggest("fr-FR")).status).toBe(404);
+  });
+
+  it("follows the person's role: refused to a vendor whose role runs no AI actions", async () => {
+    const s = await setUp("vendor", "member");
+    await s.addTask();
+
+    expect((await s.suggest("fr-FR")).status).toBe(403);
   });
 });

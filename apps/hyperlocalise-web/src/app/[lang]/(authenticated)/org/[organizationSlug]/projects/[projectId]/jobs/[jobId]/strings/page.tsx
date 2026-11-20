@@ -14,7 +14,8 @@ import { redirect } from "next/navigation";
 
 import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { canAccessProject } from "@/api/auth/team-access";
-import { isVendorRole, vendorHomePath } from "@/api/auth/vendor-access";
+import { isAiActionAllowed } from "@/api/auth/capability-guards";
+import { isInVendorTeam, vendorHomePath } from "@/api/auth/vendor-access";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { findOwnedFileTask } from "@/lib/projects/jobs/task-access";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
@@ -101,7 +102,7 @@ async function ProjectJobStringsPageLoader({
   } = await searchParams;
   // Open to vendors (`vendor-access.ts`), who reach the editor only through an open task.
   const auth = await requireAppAuthContext({ organizationSlug, allowVendor: true });
-  const isVendor = isVendorRole(auth.membership.role);
+  const isVendor = isInVendorTeam(auth);
   // Through the project's team, as before; otherwise through an open task the person owns,
   // which shows that task's file and languages and nothing else of the project.
   // A provider project is not asked about: only native projects have such tasks, and asking
@@ -119,6 +120,7 @@ async function ProjectJobStringsPageLoader({
     if (task && task.projectId === normalizeProjectId(projectId)) {
       return (
         <TaskJobContentEditor
+          aiSuggestionAllowed={isAiActionAllowed(auth.membership.role)}
           organizationSlug={organizationSlug}
           projectId={task.projectId}
           jobId={jobId}

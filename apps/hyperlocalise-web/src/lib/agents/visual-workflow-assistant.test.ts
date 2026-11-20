@@ -750,6 +750,24 @@ describe("editVisualWorkflow", () => {
     ]);
   });
 
+  it("lists a loop's item written without the Loop step, and says how it is written", () => {
+    const { output } = editVisualWorkflow(context(), {
+      operations: [
+        {
+          op: "add_node",
+          id: "notify_slack",
+          type: "action.notify_slack",
+          after: { nodeId: "set", handle: null },
+          config: { message: "Review {{ item.path }}" },
+        },
+      ],
+    });
+
+    expect(output.applied && output.result.brokenReferences).toEqual([
+      "{{ item.path }} on node [notify_slack] starts with neither trigger. nor nodes., so a run cannot read it. A field of an earlier step is written {{ nodes.<step id>.<field> }}, and a Loop's current item {{ nodes.<loop id>.item.<field> }}",
+    ]);
+  });
+
   it("says when no page is open", () => {
     expect(
       editVisualWorkflow(null, { operations: [{ op: "rename_workflow", name: "x" }] }).output,

@@ -29,12 +29,12 @@ import {
   isMembershipReconcileFresh,
   reconcileWorkosMembershipsForUser,
 } from "@/api/auth/workos-membership-reconcile";
-import { isVendorRole } from "@/api/auth/vendor-access";
 import { db, schema } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { env } from "@/lib/env";
 import { excludeReplacingWorkosMembershipSql } from "@/lib/workos/constants";
 import { isCompactJwt } from "@/lib/workos/agent-access-token";
+import { vendorTeamMemberSql } from "@/lib/workos/vendor-membership";
 
 export type McpAuthVariables = EvlogVariables["Variables"] & {
   mcpAuth: {
@@ -360,6 +360,10 @@ export async function resolveAuthoritativeMcpSessionAuth(
     .select({
       workosMembershipId: schema.organizationMemberships.workosMembershipId,
       role: schema.organizationMemberships.role,
+      inVendorTeam: vendorTeamMemberSql(
+        schema.organizationMemberships.userId,
+        schema.organizationMemberships.organizationId,
+      ),
     })
     .from(schema.organizationMemberships)
     .where(
@@ -377,8 +381,8 @@ export async function resolveAuthoritativeMcpSessionAuth(
     return { status: "unauthorized" };
   }
 
-  // MCP never acts for a vendor. The session is kept: it works again if the role changes.
-  if (isVendorRole(membership.role)) {
+  // MCP never acts for a vendor. The session is kept: it works again once they leave the team.
+  if (membership.inVendorTeam) {
     return { status: "unauthorized" };
   }
 

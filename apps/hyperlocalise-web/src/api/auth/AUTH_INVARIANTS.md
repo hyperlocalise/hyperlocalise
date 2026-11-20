@@ -93,25 +93,29 @@ full WorkOS identity model.
 
 ## Vendors (`vendor-access.ts`)
 
-A vendor is an outside person who may reach only the open tasks they own.
-Regression coverage lives in `vendor-access.test.ts`, `vendor-session.test.ts`,
-`vendor-task-routes.test.ts`, and go-svc `vendor-access_test.go`.
+A vendor is a person in a vendor team (`teams.is_vendor`), whatever their
+role, and may reach only the open tasks they own. Regression coverage lives in
+`vendor-access.test.ts`, `vendor-session.test.ts`, `vendor-task-routes.test.ts`,
+and go-svc `vendor-access_test.go`.
 
-18a. **Closed by default.** A session whose active membership is `vendor` is
-refused by `resolveApiAuthContextFromSession` unless the caller passes
-`allowVendor`. Only routes in `VENDOR_API_ROUTES` and pages that opt in do.
-go-svc refuses the role in `resolveOrganizationActor` the same way.
+18a. **Closed by default.** A session whose person is in a vendor team of the
+active workspace is refused by `resolveApiAuthContextFromSession` unless the
+caller passes `allowVendor`. Only routes in `VENDOR_API_ROUTES` and pages that
+opt in do. go-svc refuses them in `resolveOrganizationActor` the same way.
 18b. **A route opened to vendors limits them itself.** Passing `allowVendor`
 only lets the request in. The handler must hold a vendor to an open task
 they own, and to that task's file and languages.
-18c. **Never the team rule, and in no team.** `getVisibleTeamIds` returns
-nothing for a vendor, and a vendor holds no team membership: the role change
-removes them and adding one to a team is refused.
-18d. **No tokens, agents, MCP or plugins.** `resolveApiKeyTeamAccessContext`
-and the MCP session check fail closed for a vendor; a credential made
-before the person became a vendor works again only if the role changes. Code
-that looks a member up without the web session must add
-`membershipIsNotVendor` (`lib/workos/vendor-membership.ts`).
+18c. **Never the team rule, and in no other team.** `getVisibleTeamIds`
+returns nothing for a vendor. Joining a vendor team removes the person from
+their other teams, a vendor cannot join another team, and a vendor team holds
+no projects.
+18d. **No tokens, agents, MCP or plugins.** `resolveApiKeyTeamAccessContext`,
+the MCP session check and `publicauth.ResolveActorByID` fail closed for a
+vendor; a credential made before the person joined a vendor team works again
+once they leave it. Code that looks a member up without the web session must
+add `membershipIsNotVendor` (`lib/workos/vendor-membership.ts`).
+18e. **An admin outside vendor teams.** The last-admin rule counts only admins
+outside vendor teams, and refuses adding the last such admin to one.
 
 ## Personal access tokens (`api-key.ts`)
 

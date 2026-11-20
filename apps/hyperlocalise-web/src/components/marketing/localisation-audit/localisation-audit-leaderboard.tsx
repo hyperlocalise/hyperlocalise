@@ -1,3 +1,5 @@
+"use client";
+
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -11,14 +13,25 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
+import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 import { leaderboardScoreTone } from "@/lib/localisation-audit/score-tone";
-import type { LocalisationAuditLeaderboardEntry } from "@/lib/localisation-audit/store";
+import { LOCALISATION_AUDIT_LEADERBOARD_PAGE_SIZE } from "@/lib/localisation-audit/types";
 import { cn } from "@/lib/primitives/cn";
 
 import { getLocalisationAuditPageCopy } from "./localisation-audit-page-content";
 import { LocalisationAuditSiteMark } from "./localisation-audit-site-mark";
+
+type LocalisationAuditLeaderboardEntry = {
+  rank: number;
+  domainKey: string;
+  domainSlug: string;
+  score: number;
+  companyName: string | null;
+  logoUrl: string | null;
+};
 
 type LocalisationAuditLeaderboardProps = {
   locale: string;
@@ -53,6 +66,9 @@ export function LocalisationAuditLeaderboard({
   entries,
 }: LocalisationAuditLeaderboardProps) {
   const copy = getLocalisationAuditPageCopy(locale);
+  const [visibleCount, setVisibleCount] = useState(LOCALISATION_AUDIT_LEADERBOARD_PAGE_SIZE);
+  const visibleEntries = entries.slice(0, visibleCount);
+  const hasMore = entries.length > visibleCount;
 
   if (entries.length === 0) {
     return (
@@ -90,7 +106,7 @@ export function LocalisationAuditLeaderboard({
         </div>
 
         <ol className="divide-y divide-border">
-          {entries.map((entry) => (
+          {visibleEntries.map((entry) => (
             <li key={entry.domainSlug}>
               <Link
                 href={`/${locale}/localisation-audit/${entry.domainSlug}`}
@@ -155,6 +171,20 @@ export function LocalisationAuditLeaderboard({
             ))}
           </div>
         </div>
+
+        {hasMore ? (
+          <div className="mt-6 flex justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                setVisibleCount((count) => count + LOCALISATION_AUDIT_LEADERBOARD_PAGE_SIZE)
+              }
+            >
+              {copy.leaderboardShowMore}
+            </Button>
+          </div>
+        ) : null}
       </div>
     </section>
   );

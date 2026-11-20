@@ -15,7 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
-	"github.com/hyperlocalise/hyperlocalise/internal/authz"
+	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
 	"github.com/stretchr/testify/require"
 	"github.com/workos/workos-go/v10"
 )
@@ -33,47 +33,69 @@ func vendorLookup(scope *testenv.Scope, role string) organizationMembershipLooku
 	}
 }
 
+// vendorRole stands for a person in a vendor team in these tests. They are seeded as a reviewer,
+// the role that may approve, so a refusal shows the vendor rule and not the role.
+const vendorRole = "vendor"
+
+// mustVendorTeam makes a vendor team in the scope's workspace with the given people in it.
+func mustVendorTeam(t *testing.T, scope *testenv.Scope, userIDs ...string) string {
+	t.Helper()
+	var teamID string
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `
+        insert into teams (organization_id, slug, name, is_vendor) values ($1, $2, 'Vendor', true)
+        returning id`, scope.OrganizationID, "vendor-"+uuid.NewString()).Scan(&teamID))
+	for _, userID := range userIDs {
+		_, err := scope.Pool.Exec(t.Context(), `insert into team_memberships (team_id, user_id, role) values ($1, $2, 'member')`, teamID, userID)
+		require.NoError(t, err)
+	}
+	return teamID
+}
+
+// leaveVendorTeams takes the scope's person out of their vendor teams, so the same person can be
+// asked about as someone else.
+func leaveVendorTeams(t *testing.T, scope *testenv.Scope) {
+	t.Helper()
+	_, err := scope.Pool.Exec(t.Context(), `
+        delete from team_memberships tm using teams t
+        where t.id = tm.team_id and t.is_vendor and tm.user_id = $1`, scope.UserID)
+	require.NoError(t, err)
+}
+
 func TestResolveOrganizationActorVendor(t *testing.T) {
-	scope := testenv.Seed(t, testenv.Options{Role: organizationRoleVendor})
+	scope := testenv.Seed(t, testenv.Options{Role: "reviewer"})
+	mustVendorTeam(t, scope, scope.UserID)
 	claims := AuthClaims{UserID: scope.WorkOSUserID}
-	lookup := vendorLookup(scope, organizationRoleVendor)
+	lookup := vendorLookup(scope, "reviewer")
 
 	t.Run("refused by default", func(t *testing.T) {
 		_, err := resolveOrganizationActor(t.Context(), scope.Pool, lookup, claims, scope.Slug)
 		require.EqualError(t, err, "organization_access_denied")
 	})
 
-	t.Run("refused by id", func(t *testing.T) {
+	t.Run("refused by id, as tokens and agents are", func(t *testing.T) {
 		_, err := resolveOrganizationActorByID(t.Context(), scope.Pool, lookup, scope.UserID, scope.OrganizationID)
 		require.EqualError(t, err, "organization_access_denied")
 	})
 
-	t.Run("accepted where the handler allows vendors", func(t *testing.T) {
-		actor, err := resolveOrganizationActorAllowingVendor(t.Context(), scope.Pool, lookup, claims, scope.Slug)
+	t.Run("accepted where the handler allows vendors, with their role", func(t *testing.T) {
+		actor, vendor, err := resolveOrganizationActorAllowingVendorIf(t.Context(), scope.Pool, lookup, claims, scope.Slug, true)
 		require.NoError(t, err)
-		require.Equal(t, organizationActor{userID: scope.UserID, organizationID: scope.OrganizationID, role: organizationRoleVendor}, actor)
+		require.True(t, vendor)
+		require.Equal(t, organizationActor{userID: scope.UserID, organizationID: scope.OrganizationID, role: "reviewer"}, actor)
 	})
 
 	t.Run("allowing vendors still refuses an unknown role", func(t *testing.T) {
-		_, err := resolveOrganizationActorAllowingVendor(t.Context(), scope.Pool, vendorLookup(scope, "owner"), claims, scope.Slug)
+		_, _, err := resolveOrganizationActorAllowingVendorIf(t.Context(), scope.Pool, vendorLookup(scope, "owner"), claims, scope.Slug, true)
 		require.EqualError(t, err, "organization_access_denied")
 	})
 
-	t.Run("allowing vendors still accepts the other roles", func(t *testing.T) {
-		actor, err := resolveOrganizationActorAllowingVendor(t.Context(), scope.Pool, vendorLookup(scope, "translator"), claims, scope.Slug)
+	t.Run("someone in no vendor team is no vendor", func(t *testing.T) {
+		other := testenv.Seed(t, testenv.Options{Role: "translator"})
+		actor, vendor, err := resolveOrganizationActorAllowingVendorIf(t.Context(), other.Pool, vendorLookup(other, "translator"), AuthClaims{UserID: other.WorkOSUserID}, other.Slug, true)
 		require.NoError(t, err)
+		require.False(t, vendor)
 		require.Equal(t, "translator", actor.role)
 	})
-}
-
-func TestVendorRoleIsAssignableAndRefusedByDefault(t *testing.T) {
-	require.False(t, authz.IsKnownRole(organizationRoleVendor), "every route must refuse a vendor by default")
-	require.True(t, isKnownMemberRole(organizationRoleVendor), "a member can be given the Vendor role")
-	require.Contains(t, assignableRolesForActor("admin"), organizationRoleVendor)
-	require.Contains(t, assignableRolesForActor("localization_manager"), organizationRoleVendor)
-	for _, role := range []string{"developer", "reviewer", "translator", "member", organizationRoleVendor} {
-		require.Empty(t, assignableRolesForActor(role), role)
-	}
 }
 
 // taskFixture is a project with two files, and one person who is in no team.
@@ -91,11 +113,18 @@ type taskFixture struct {
 
 func newTaskFixture(t *testing.T, role string) taskFixture {
 	t.Helper()
-	scope := testenv.Seed(t, testenv.Options{Role: role, WithProject: true})
+	seeded := role
+	if role == vendorRole {
+		seeded = "reviewer"
+	}
+	scope := testenv.Seed(t, testenv.Options{Role: seeded, WithProject: true})
+	if role == vendorRole {
+		mustVendorTeam(t, scope, scope.UserID)
+	}
 	f := taskFixture{
 		scope:     scope,
-		editor:    &editorCatAPI{pool: scope.Pool, membership: scope.Membership(role)},
-		jobs:      &projectAPI{pool: scope.Pool, membership: scope.Membership(role)},
+		editor:    &editorCatAPI{pool: scope.Pool, membership: scope.Membership(seeded)},
+		jobs:      &projectAPI{pool: scope.Pool, membership: scope.Membership(seeded)},
 		path:      "locales/app.json",
 		otherPath: "locales/other.json",
 		versions:  map[string]string{},
@@ -243,7 +272,7 @@ func (f taskFixture) jobDetailCode(jobID string) int {
 }
 
 func TestVendorJobListAndTaskPage(t *testing.T) {
-	f := newTaskFixture(t, organizationRoleVendor)
+	f := newTaskFixture(t, vendorRole)
 	other := f.mustOtherMember(t)
 	open := f.mustTask(t, taskSeed{step: "edit"})
 	waitingFor := f.mustTask(t, taskSeed{owner: &other})
@@ -297,7 +326,7 @@ func TestVendorJobListAndTaskPage(t *testing.T) {
 }
 
 func TestVendorClosedProjectRoutes(t *testing.T) {
-	f := newTaskFixture(t, organizationRoleVendor)
+	f := newTaskFixture(t, vendorRole)
 	task := f.mustTask(t, taskSeed{})
 	for _, suffix := range []string{
 		"/projects", "/projects/" + f.scope.ProjectID, "/projects/" + f.scope.ProjectID + "/files",
@@ -313,7 +342,7 @@ func TestVendorClosedProjectRoutes(t *testing.T) {
 }
 
 func TestVendorEditorIsHeldToTheTask(t *testing.T) {
-	f := newTaskFixture(t, organizationRoleVendor)
+	f := newTaskFixture(t, vendorRole)
 	f.mustTask(t, taskSeed{step: "edit"})
 
 	t.Run("the task's file in the task's language", func(t *testing.T) {
@@ -321,17 +350,14 @@ func TestVendorEditorIsHeldToTheTask(t *testing.T) {
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 		var body struct {
 			Queue struct {
-				CanEditTranslations    bool               `json:"canEditTranslations"`
-				CanApproveTranslations *bool              `json:"canApproveTranslations"`
-				TeamGlossaries         []json.RawMessage  `json:"teamGlossaries"`
-				ContributorTeams       []json.RawMessage  `json:"contributorTeams"`
-				Segments               []editorCatSegment `json:"segments"`
+				CanEditTranslations bool               `json:"canEditTranslations"`
+				TeamGlossaries      []json.RawMessage  `json:"teamGlossaries"`
+				ContributorTeams    []json.RawMessage  `json:"contributorTeams"`
+				Segments            []editorCatSegment `json:"segments"`
 			} `json:"contentEditorQueue"`
 		}
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 		require.True(t, body.Queue.CanEditTranslations)
-		require.NotNil(t, body.Queue.CanApproveTranslations)
-		require.False(t, *body.Queue.CanApproveTranslations)
 		require.Empty(t, body.Queue.TeamGlossaries)
 		require.Empty(t, body.Queue.ContributorTeams)
 		require.Len(t, body.Queue.Segments, 1)
@@ -432,34 +458,19 @@ func TestVendorEditorIsHeldToTheTask(t *testing.T) {
 	})
 }
 
-func TestVendorMayApproveOnlyOnAProofreadTask(t *testing.T) {
-	t.Run("post-edit task", func(t *testing.T) {
-		f := newTaskFixture(t, organizationRoleVendor)
+// What a vendor may do inside a task follows their role, as for anyone: a reviewer approves on
+// either step.
+func TestVendorRoleDecidesApproving(t *testing.T) {
+	t.Run("a reviewer approves on a post-edit task", func(t *testing.T) {
+		f := newTaskFixture(t, vendorRole)
 		f.mustTask(t, taskSeed{step: "edit"})
 		rec := f.save(f.path, "fr", f.keyID, true)
-		require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
-		require.Equal(t, http.StatusOK, f.save(f.path, "fr", f.keyID, false).Code)
-	})
-
-	t.Run("proofread task", func(t *testing.T) {
-		f := newTaskFixture(t, organizationRoleVendor)
-		f.mustTask(t, taskSeed{})
-		rec := f.save(f.path, "fr", f.keyID, true)
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-		queue := f.queue(f.path, "fr", "")
-		require.NotContains(t, queue.Body.String(), "canApproveTranslations")
+		require.NotContains(t, f.queue(f.path, "fr", "").Body.String(), "canApproveTranslations")
 	})
 
-	t.Run("each language follows its own task", func(t *testing.T) {
-		f := newTaskFixture(t, organizationRoleVendor)
-		f.mustTask(t, taskSeed{step: "edit", locales: `["fr"]`})
-		f.mustTask(t, taskSeed{locales: `["de"]`})
-		require.Equal(t, http.StatusForbidden, f.save(f.path, "fr", f.keyID, true).Code)
-		require.Equal(t, http.StatusOK, f.save(f.path, "de", f.keyID, true).Code)
-	})
-
-	t.Run("restoring an approved version on a post-edit task", func(t *testing.T) {
-		f := newTaskFixture(t, organizationRoleVendor)
+	t.Run("a reviewer restores an approved version on a post-edit task", func(t *testing.T) {
+		f := newTaskFixture(t, vendorRole)
 		f.mustTask(t, taskSeed{step: "edit"})
 		translationID := mustEditorCatTranslation(t, f.scope, f.keyID, "fr", "Salut", "draft")
 		var revisionID string
@@ -468,7 +479,7 @@ func TestVendorMayApproveOnlyOnAProofreadTask(t *testing.T) {
             values ($1, $2, $3, $4, 'fr', 'Bonjour', 'approved', 'manual', 'human', 'user') returning id`,
 			f.scope.OrganizationID, f.scope.ProjectID, translationID, f.keyID).Scan(&revisionID))
 		rec := f.cat(http.MethodPost, "/segments/"+f.keyID+"/revisions/"+revisionID+"/restore", `{"sourcePath":"`+f.path+`","targetLocale":"fr"}`)
-		require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	})
 }
 
@@ -479,7 +490,7 @@ func TestVendorEditorClosesWhenTheTaskIsNotOpen(t *testing.T) {
 		"waiting":   {status: "queued"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			f := newTaskFixture(t, organizationRoleVendor)
+			f := newTaskFixture(t, vendorRole)
 			if name == "waiting" {
 				earlier := f.mustTask(t, taskSeed{status: "succeeded"})
 				seed.after = &earlier
@@ -491,7 +502,7 @@ func TestVendorEditorClosesWhenTheTaskIsNotOpen(t *testing.T) {
 	}
 
 	t.Run("given to someone else", func(t *testing.T) {
-		f := newTaskFixture(t, organizationRoleVendor)
+		f := newTaskFixture(t, vendorRole)
 		task := f.mustTask(t, taskSeed{})
 		require.Equal(t, http.StatusOK, f.queue(f.path, "fr", "").Code)
 		other := f.mustOtherMember(t)
@@ -501,12 +512,12 @@ func TestVendorEditorClosesWhenTheTaskIsNotOpen(t *testing.T) {
 	})
 
 	t.Run("no task at all", func(t *testing.T) {
-		f := newTaskFixture(t, organizationRoleVendor)
+		f := newTaskFixture(t, vendorRole)
 		require.Equal(t, http.StatusNotFound, f.queue(f.path, "fr", "").Code)
 	})
 
 	t.Run("a team they were left in opens nothing more", func(t *testing.T) {
-		f := newTaskFixture(t, organizationRoleVendor)
+		f := newTaskFixture(t, vendorRole)
 		f.scope.MustTeam(t, "default", "Default", "member")
 		require.Equal(t, http.StatusNotFound, f.queue(f.path, "fr", "").Code)
 		f.mustTask(t, taskSeed{})
@@ -515,7 +526,7 @@ func TestVendorEditorClosesWhenTheTaskIsNotOpen(t *testing.T) {
 	})
 
 	t.Run("another workspace's task opens nothing", func(t *testing.T) {
-		f := newTaskFixture(t, organizationRoleVendor)
+		f := newTaskFixture(t, vendorRole)
 		elsewhere := newTaskFixture(t, "admin")
 		elsewhere.mustTask(t, taskSeed{owner: &f.scope.UserID})
 		require.Equal(t, http.StatusNotFound, f.queue(f.path, "fr", "").Code)
@@ -574,14 +585,13 @@ func TestJobAssignableOwners(t *testing.T) {
 	f := newTaskFixture(t, "admin")
 	vendor := f.mustOtherMember(t)
 	offTeam := f.mustOtherMember(t)
-	_, err := f.scope.Pool.Exec(t.Context(), `update organization_memberships set role='vendor' where user_id=$1`, vendor)
-	require.NoError(t, err)
+	mustVendorTeam(t, f.scope, vendor)
 	fileTask := f.mustTask(t, taskSeed{})
 	otherJob := mustProjectJob(t, f.scope, projectJobSeed{})
 
 	// A reader cannot save or mark done, so a task is not offered to one outside the team.
 	reader := f.mustOtherMember(t)
-	_, err = f.scope.Pool.Exec(t.Context(), `update organization_memberships set role='member' where user_id=$1`, reader)
+	_, err := f.scope.Pool.Exec(t.Context(), `update organization_memberships set role='member' where user_id=$1`, reader)
 	require.NoError(t, err)
 
 	all := emails(projectRequest(f.jobs, f.scope, f.scope.OrgPath("/jobs/"+fileTask+"/assignable-owners")))
@@ -633,9 +643,8 @@ func TestVendorIsAcceptedOnlyWhereListed(t *testing.T) {
 			if strings.Contains(code, "resolveOrganizationActorAllowingVendor") {
 				callers[file] = true
 			}
-			// The role by its constant, or as a literal in SQL. (iris-generation.go uses the word
-			// "vendor" for a model provider, which is unrelated.)
-			if strings.Contains(code, "organizationRoleVendor") || strings.Contains(code, `'vendor'`) {
+			// Vendor-team membership, by the shared check or the column.
+			if strings.Contains(code, "VendorTeamMemberSQL") || strings.Contains(code, "is_vendor") {
 				naming[file] = true
 			}
 			if match := openRoute.FindStringSubmatch(code); match != nil {
@@ -655,10 +664,10 @@ func TestVendorIsAcceptedOnlyWhereListed(t *testing.T) {
 	require.Equal(t, []string{"editor-cat.go", "member.go", "organization-actor.go", "project.go"}, keys(callers),
 		"only these resolve an actor that may be a vendor; each must then limit a vendor to their own tasks")
 	require.Equal(t, []string{
-		"editor-cat.go", "issue-org-bulk.go", "issue-org-notify.go", "issue-sheet-access.go",
-		"issue-sheet-issues.go", "member-authz.go", "member-handlers.go", "member-invite.go",
-		"organization-actor.go", "project-jobs.go", "project.go", "team-handlers.go",
-	}, keys(naming), "the Vendor role is named only where it is refused, assigned, or held to a task")
+		"issue-org-bulk.go", "issue-org-notify.go", "issue-sheet-access.go", "issue-sheet-issues.go",
+		"member-handlers.go", "organization-actor.go", "project-jobs.go", "team-handlers.go",
+		"vendor-access.go",
+	}, keys(naming), "vendor teams are read only where a vendor is refused or held to a task, and by the team rules")
 	// The two helpers above are the only ways a route is opened: nothing else may ask a wrapper
 	// to accept a vendor.
 	var accepting []string
@@ -713,7 +722,7 @@ func TestVendorIsAcceptedOnlyWhereListed(t *testing.T) {
 // A task is on one file on one branch: the upload it was made for. Creating a branch copies the
 // file's upload record with the same stored file, which must not open that branch.
 func TestTaskScopeIsOneBranchOfTheFile(t *testing.T) {
-	f := newTaskFixture(t, organizationRoleVendor)
+	f := newTaskFixture(t, vendorRole)
 	f.mustTask(t, taskSeed{})
 	// The same path on a branch, sharing the stored file, as creating a branch leaves it.
 	var branchFileID string
@@ -749,7 +758,7 @@ func TestTaskScopeIsOneBranchOfTheFile(t *testing.T) {
 	require.Equal(t, "Bonjour release", branchText)
 
 	// A task made on the branch opens that branch and not the default one.
-	onBranch := newTaskFixture(t, organizationRoleVendor)
+	onBranch := newTaskFixture(t, vendorRole)
 	var releaseFile string
 	require.NoError(t, onBranch.scope.Pool.QueryRow(t.Context(), `
         insert into repository_source_files (organization_id, project_id, source_path, branch_name)
@@ -769,7 +778,7 @@ func TestTaskScopeIsOneBranchOfTheFile(t *testing.T) {
 }
 
 func TestTaskWithNoUploadRecordOpensNoFile(t *testing.T) {
-	f := newTaskFixture(t, organizationRoleVendor)
+	f := newTaskFixture(t, vendorRole)
 	delete(f.versions, f.storedFileID)
 	task := f.mustTask(t, taskSeed{})
 	require.Equal(t, http.StatusOK, f.jobDetailCode(task))
@@ -777,7 +786,7 @@ func TestTaskWithNoUploadRecordOpensNoFile(t *testing.T) {
 }
 
 func TestVendorSeesOnlyWhatTheTaskPageShows(t *testing.T) {
-	f := newTaskFixture(t, organizationRoleVendor)
+	f := newTaskFixture(t, vendorRole)
 	other := f.mustOtherMember(t)
 	task := f.mustTask(t, taskSeed{step: "edit"})
 	_, err := f.scope.Pool.Exec(t.Context(), `
@@ -806,7 +815,7 @@ func TestVendorSeesOnlyWhatTheTaskPageShows(t *testing.T) {
 }
 
 func TestTaskScopedQueueCarriesNoTeamsButTheQaRules(t *testing.T) {
-	f := newTaskFixture(t, organizationRoleVendor)
+	f := newTaskFixture(t, vendorRole)
 	f.mustTask(t, taskSeed{})
 	teamID := f.scope.MustTeam(t, "default", "Default team name", "")
 	_, err := f.scope.Pool.Exec(t.Context(), `update projects set team_id = $2, qa_check_policy = '{"not_localized":{"enabled":true,"severity":"error"},"guideline":{"enabled":true,"severity":"error"}}'::jsonb where id = $1`, f.scope.ProjectID, teamID)
@@ -824,6 +833,7 @@ func TestTaskScopedQueueCarriesNoTeamsButTheQaRules(t *testing.T) {
 	require.Contains(t, body, `"guideline":{"enabled":false,"severity":"error"}`)
 
 	// The same project for an admin still carries its team and glossaries, and no QA rules here.
+	leaveVendorTeams(t, f.scope)
 	admin := &editorCatAPI{pool: f.scope.Pool, membership: f.scope.Membership("admin")}
 	adminBody := editorCatRequestScope(admin, f.scope, http.MethodGet, editorCatPathFor(f.scope, "/files/detail/cat/queue?sourcePath="+url.QueryEscape(f.path)+"&targetLocale=fr"), "").Body.String()
 	for _, teamField := range []string{"Default team name", "projectTeamId", "projectTeamSlug", "canContributeTeamGlossary"} {
@@ -833,7 +843,7 @@ func TestTaskScopedQueueCarriesNoTeamsButTheQaRules(t *testing.T) {
 }
 
 func TestTaskScopedCommentsNameAuthorsWithoutEmail(t *testing.T) {
-	f := newTaskFixture(t, organizationRoleVendor)
+	f := newTaskFixture(t, vendorRole)
 	f.mustTask(t, taskSeed{})
 	other := f.mustOtherMember(t)
 	_, err := f.scope.Pool.Exec(t.Context(), `
@@ -848,33 +858,14 @@ func TestTaskScopedCommentsNameAuthorsWithoutEmail(t *testing.T) {
 	require.NotContains(t, body, other+"@example.test")
 
 	f.scope.MustTeam(t, "default", "Default", "")
+	leaveVendorTeams(t, f.scope)
 	admin := &editorCatAPI{pool: f.scope.Pool, membership: f.scope.Membership("admin")}
 	adminBody := editorCatRequestScope(admin, f.scope, http.MethodGet, editorCatPathFor(f.scope, "/files/detail/cat"+path), "").Body.String()
 	require.Contains(t, adminBody, other+"@example.test")
 }
 
-func TestPostEditVendorCannotRestoreAReviewDecision(t *testing.T) {
-	f := newTaskFixture(t, organizationRoleVendor)
-	f.mustTask(t, taskSeed{step: "edit"})
-	translationID := mustEditorCatTranslation(t, f.scope, f.keyID, "fr", "Salut", "draft")
-	revision := func(status string) string {
-		var id string
-		require.NoError(t, f.scope.Pool.QueryRow(t.Context(), `
-            insert into project_translation_revisions (organization_id, project_id, translation_id, translation_key_id, target_locale, text, status, provenance, origin, actor_kind)
-            values ($1, $2, $3, $4, 'fr', $5, $6::project_translation_status, 'manual', 'human', 'user') returning id`,
-			f.scope.OrganizationID, f.scope.ProjectID, translationID, f.keyID, "Text "+status, status).Scan(&id))
-		return id
-	}
-	restore := func(revisionID string) int {
-		return f.cat(http.MethodPost, "/segments/"+f.keyID+"/revisions/"+revisionID+"/restore", `{"sourcePath":"`+f.path+`","targetLocale":"fr"}`).Code
-	}
-	require.Equal(t, http.StatusForbidden, restore(revision("rejected")))
-	require.Equal(t, http.StatusForbidden, restore(revision("approved")))
-	require.Equal(t, http.StatusOK, restore(revision("draft")))
-}
-
 func TestVendorIsToldWhenTheTaskIsNoLongerTheirs(t *testing.T) {
-	f := newTaskFixture(t, organizationRoleVendor)
+	f := newTaskFixture(t, vendorRole)
 	task := f.mustTask(t, taskSeed{})
 	_, err := f.scope.Pool.Exec(t.Context(), `update jobs set status='succeeded' where id=$1`, task)
 	require.NoError(t, err)
@@ -887,72 +878,153 @@ func TestVendorIsToldWhenTheTaskIsNoLongerTheirs(t *testing.T) {
 	require.Contains(t, other.queue(other.path, "fr", "").Body.String(), "project_not_found")
 }
 
-// A vendor is in no team, so no check that asks "is this person on the project's team" can
-// take them for someone who may open the project.
-func TestVendorIsInNoTeam(t *testing.T) {
-	t.Run("an invite as Vendor joins no team, even when one is named", func(t *testing.T) {
-		scope := testenv.Seed(t, testenv.Options{Role: "admin"})
-		teamID := scope.MustTeam(t, "default", "Default", "")
-		invited := mustOrgTeammate(t, scope, "invited_"+uuid.NewString(), uniqueTestEmail("vendor"), organizationRoleVendor)
-		api := &memberAPI{pool: scope.Pool}
-		for _, team := range []string{"", teamID} {
-			created, err := api.ensureTeamAccessForInvitedMember(t.Context(), scope.Pool, scope.OrganizationID, invited, organizationRoleVendor, team)
-			require.NoError(t, err)
-			require.Nil(t, created)
-		}
-		var teams int
-		require.NoError(t, scope.Pool.QueryRow(t.Context(), `select count(*) from team_memberships where user_id=$1`, invited).Scan(&teams))
-		require.Zero(t, teams)
-
-		// Any other role still joins the default team, as before.
-		translator := mustOrgTeammate(t, scope, "invited_"+uuid.NewString(), uniqueTestEmail("translator"), "translator")
-		created, err := api.ensureTeamAccessForInvitedMember(t.Context(), scope.Pool, scope.OrganizationID, translator, "translator", "")
+// A vendor is in their vendor team only, and a vendor team has no projects, so no check that
+// asks "is this person on the project's team" can take them for someone who may open it.
+func TestVendorTeamRules(t *testing.T) {
+	teamsOf := func(t *testing.T, scope *testenv.Scope, userID string) []string {
+		t.Helper()
+		rows, err := scope.Pool.Query(t.Context(), `select team_id::text from team_memberships where user_id=$1 order by team_id`, userID)
 		require.NoError(t, err)
-		require.NotNil(t, created)
-	})
-
-	t.Run("changing a member to Vendor removes them from their teams", func(t *testing.T) {
-		scope := testenv.Seed(t, testenv.Options{Role: "admin"})
-		teamID := scope.MustTeam(t, "default", "Default", "")
-		workosUserID := "member_" + uuid.NewString()
-		memberID := mustOrgTeammate(t, scope, workosUserID, uniqueTestEmail("member"), "translator")
-		stays := mustOrgTeammate(t, scope, "member_"+uuid.NewString(), uniqueTestEmail("stays"), "translator")
-		_, err := scope.Pool.Exec(t.Context(), `insert into team_memberships (team_id, user_id, role) values ($1, $2, 'member'), ($1, $3, 'member')`, teamID, memberID, stays)
-		require.NoError(t, err)
-		actor := memberActor{userID: scope.UserID, organizationID: scope.OrganizationID, workosOrganizationID: scope.WorkOSOrganizationID, role: "admin", workosUserID: scope.WorkOSUserID}
-
-		_, _, err = (&memberAPI{pool: scope.Pool}).updateMember(t.Context(), actor, workosUserID, memberUnitRequest(`{"role":"vendor"}`))
-		require.NoError(t, err)
-
-		var left []string
-		rows, err := scope.Pool.Query(t.Context(), `select user_id::text from team_memberships where team_id=$1`, teamID)
-		require.NoError(t, err)
+		defer rows.Close()
+		var ids []string
 		for rows.Next() {
 			var id string
 			require.NoError(t, rows.Scan(&id))
-			left = append(left, id)
+			ids = append(ids, id)
 		}
 		require.NoError(t, rows.Err())
-		require.Equal(t, []string{stays}, left)
+		return ids
+	}
+
+	t.Run("joining a vendor team leaves the other teams", func(t *testing.T) {
+		api, scope := teamTestAPI(t, "admin")
+		other := scope.MustTeam(t, "platform", "Platform", "")
+		vendorTeam := mustVendorTeam(t, scope)
+		workosUserID := "member_" + uuid.NewString()
+		personID := mustOrgTeammate(t, scope, workosUserID, uniqueTestEmail("person"), "translator")
+		stays := mustOrgTeammate(t, scope, "member_"+uuid.NewString(), uniqueTestEmail("stays"), "translator")
+		_, err := scope.Pool.Exec(t.Context(), `insert into team_memberships (team_id, user_id, role) values ($1, $2, 'member'), ($1, $3, 'member')`, other, personID, stays)
+		require.NoError(t, err)
+
+		rec := teamRequest(api, scope, http.MethodPost, scope.OrgPath("/teams/"+vendorTeam+"/members"), `{"workosUserId":"`+workosUserID+`"}`)
+		require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+		require.Equal(t, []string{vendorTeam}, teamsOf(t, scope, personID))
+		require.Equal(t, []string{other}, teamsOf(t, scope, stays))
 	})
 
-	t.Run("a vendor cannot be added to a team", func(t *testing.T) {
+	t.Run("a vendor cannot join another team", func(t *testing.T) {
 		api, scope := teamTestAPI(t, "admin")
-		id := scope.MustTeam(t, "platform", "Platform", "manager")
+		other := scope.MustTeam(t, "platform", "Platform", "")
 		workosUserID := "vendor_" + uuid.NewString()
-		vendorID := mustOrgTeammate(t, scope, workosUserID, uniqueTestEmail("vendor"), organizationRoleVendor)
-		rec := teamRequest(api, scope, http.MethodPost, scope.OrgPath("/teams/"+id+"/members"), `{"workosUserId":"`+workosUserID+`","role":"member"}`)
-		require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
-		require.Contains(t, rec.Body.String(), "vendor_cannot_join_team")
-		var teams int
-		require.NoError(t, scope.Pool.QueryRow(t.Context(), `select count(*) from team_memberships where user_id=$1`, vendorID).Scan(&teams))
-		require.Zero(t, teams)
+		vendorID := mustOrgTeammate(t, scope, workosUserID, uniqueTestEmail("vendor"), "reviewer")
+		vendorTeam := mustVendorTeam(t, scope, vendorID)
+
+		for _, team := range []string{other, mustVendorTeam(t, scope)} {
+			rec := teamRequest(api, scope, http.MethodPost, scope.OrgPath("/teams/"+team+"/members"), `{"workosUserId":"`+workosUserID+`"}`)
+			require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+			require.Contains(t, rec.Body.String(), "vendor_in_other_team")
+		}
+		require.Equal(t, []string{vendorTeam}, teamsOf(t, scope, vendorID))
+	})
+
+	t.Run("an invite into a vendor team leaves the other teams", func(t *testing.T) {
+		scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+		defaultTeam := scope.MustTeam(t, "default", "Default", "")
+		vendorTeam := mustVendorTeam(t, scope)
+		invited := mustOrgTeammate(t, scope, "invited_"+uuid.NewString(), uniqueTestEmail("invited"), "translator")
+		_, err := scope.Pool.Exec(t.Context(), `insert into team_memberships (team_id, user_id, role) values ($1, $2, 'member')`, defaultTeam, invited)
+		require.NoError(t, err)
+
+		created, err := (&memberAPI{pool: scope.Pool}).ensureTeamAccessForInvitedMember(t.Context(), scope.Pool, scope.OrganizationID, invited, "translator", vendorTeam)
+		require.NoError(t, err)
+		require.NotNil(t, created)
+		require.Equal(t, []string{vendorTeam}, teamsOf(t, scope, invited))
+	})
+
+	t.Run("the workspace keeps an admin outside vendor teams", func(t *testing.T) {
+		api, scope := teamTestAPI(t, "admin")
+		vendorTeam := mustVendorTeam(t, scope)
+		join := func(workosUserID string) *httptest.ResponseRecorder {
+			return teamRequest(api, scope, http.MethodPost, scope.OrgPath("/teams/"+vendorTeam+"/members"), `{"workosUserId":"`+workosUserID+`"}`)
+		}
+
+		rec := join(scope.WorkOSUserID)
+		require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), "last_admin_protected")
+		require.Empty(t, teamsOf(t, scope, scope.UserID))
+
+		// With another admin outside vendor teams, an admin may join one, and then no longer
+		// counts towards the rule.
+		otherAdmin := mustOrgTeammate(t, scope, "admin_"+uuid.NewString(), uniqueTestEmail("admin"), "admin")
+		require.Equal(t, http.StatusCreated, join(scope.WorkOSUserID).Code)
+		others, err := countOtherAcceptedAdmins(t.Context(), scope.Pool, scope.OrganizationID, otherAdmin, true)
+		require.NoError(t, err)
+		require.Zero(t, others, "an admin in a vendor team cannot run the workspace")
+	})
+
+	t.Run("only someone who may manage the person can put them in a vendor team", func(t *testing.T) {
+		api, scope := teamTestAPI(t, "localization_manager")
+		vendorTeam := mustVendorTeam(t, scope)
+		workosUserID := "admin_" + uuid.NewString()
+		adminID := mustOrgTeammate(t, scope, workosUserID, uniqueTestEmail("admin"), "admin")
+		mustOrgTeammate(t, scope, "admin_"+uuid.NewString(), uniqueTestEmail("other-admin"), "admin")
+
+		rec := teamRequest(api, scope, http.MethodPost, scope.OrgPath("/teams/"+vendorTeam+"/members"), `{"workosUserId":"`+workosUserID+`"}`)
+		require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), "cannot manage their role")
+		require.Empty(t, teamsOf(t, scope, adminID))
+	})
+
+	t.Run("a vendor team cannot take the default team's slug by editing", func(t *testing.T) {
+		api, scope := teamTestAPI(t, "admin")
+		vendorTeam := mustVendorTeam(t, scope)
+		rec := teamRequest(api, scope, http.MethodPatch, scope.OrgPath("/teams/"+vendorTeam), `{"slug":"default"}`)
+		require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	})
+
+	t.Run("an invite with no team does not put a vendor in the default team", func(t *testing.T) {
+		scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+		scope.MustTeam(t, "default", "Default", "")
+		invited := mustOrgTeammate(t, scope, "invited_"+uuid.NewString(), uniqueTestEmail("invited"), "translator")
+		vendorTeam := mustVendorTeam(t, scope, invited)
+
+		_, err := (&memberAPI{pool: scope.Pool}).ensureTeamAccessForInvitedMember(t.Context(), scope.Pool, scope.OrganizationID, invited, "translator", "")
+		requireMemberFailure(t, err, http.StatusConflict, "vendor_in_other_team")
+		require.Equal(t, []string{vendorTeam}, teamsOf(t, scope, invited))
+	})
+
+	t.Run("a new vendor team has no members and is never a default", func(t *testing.T) {
+		api, scope := teamTestAPI(t, "admin")
+		rec := teamRequest(api, scope, http.MethodPost, scope.OrgPath("/teams"), `{"name":"Acme Agency","isVendor":true}`)
+		require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+		var body struct {
+			Team teamRecord `json:"team"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		require.True(t, body.Team.IsVendor)
+		require.Empty(t, teamsOf(t, scope, scope.UserID), "the maker does not join it")
+
+		rec = teamRequest(api, scope, http.MethodPost, scope.OrgPath("/teams"), `{"name":"Default","slug":"default","isVendor":true}`)
+		require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	})
+
+	t.Run("a vendor team has no projects", func(t *testing.T) {
+		scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+		vendorTeam := mustVendorTeam(t, scope)
+		actor := nativeproject.Actor{OrganizationID: scope.OrganizationID, UserID: scope.UserID, CanReadAllTeams: true}
+
+		_, err := nativeproject.ResolveTeam(t.Context(), scope.Pool, actor, &vendorTeam)
+		require.ErrorIs(t, err, nativeproject.ErrTeamNotFound)
+		chosen, err := nativeproject.ResolveTeam(t.Context(), scope.Pool, actor, nil)
+		require.NoError(t, err)
+		require.NotEqual(t, vendorTeam, chosen)
 	})
 
 	t.Run("issue checks refuse a vendor even if a team membership slips through", func(t *testing.T) {
 		scope := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
 		teamID := scope.MustTeam(t, "default", "Default", "")
-		vendorID := mustOrgTeammate(t, scope, "vendor_"+uuid.NewString(), uniqueTestEmail("vendor"), organizationRoleVendor)
+		vendorID := mustOrgTeammate(t, scope, "vendor_"+uuid.NewString(), uniqueTestEmail("vendor"), "reviewer")
+		mustVendorTeam(t, scope, vendorID)
 		translatorID := mustOrgTeammate(t, scope, "translator_"+uuid.NewString(), uniqueTestEmail("translator"), "translator")
 		_, err := scope.Pool.Exec(t.Context(), `insert into team_memberships (team_id, user_id, role) values ($1, $2, 'member'), ($1, $3, 'member')`, teamID, vendorID, translatorID)
 		require.NoError(t, err)
@@ -974,4 +1046,25 @@ func TestVendorIsInNoTeam(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, notified)
 	})
+}
+
+// Services that confirm the person themselves go through the shared check, which refuses a vendor
+// whatever their role.
+func TestVendorRefusedByEveryActorCheck(t *testing.T) {
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	mustVendorTeam(t, scope, scope.UserID)
+	claims := AuthClaims{UserID: scope.WorkOSUserID}
+	lookup := scope.Membership("admin")
+
+	_, err := (&issueSheetAPI{pool: scope.Pool, membership: lookup}).actor(t.Context(), claims, scope.Slug)
+	require.Error(t, err, "issue sheets")
+	_, err = (&qaReportAPI{pool: scope.Pool, membership: lookup}).actor(t.Context(), claims, scope.Slug)
+	require.Error(t, err, "QA reports")
+	_, err = (&activityLogAPI{pool: scope.Pool, membership: lookup}).actor(t.Context(), claims, scope.Slug)
+	require.Error(t, err, "activity log")
+
+	leaveVendorTeams(t, scope)
+	actor, err := (&activityLogAPI{pool: scope.Pool, membership: lookup}).actor(t.Context(), claims, scope.Slug)
+	require.NoError(t, err)
+	require.Equal(t, "admin", actor.role)
 }

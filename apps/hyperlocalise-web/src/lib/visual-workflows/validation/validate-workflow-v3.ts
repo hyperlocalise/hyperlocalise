@@ -16,6 +16,7 @@ import {
   toVisualWorkflowExecutionDefinition,
   type VisualWorkflowV3CompilationIssue,
 } from "./compile-workflow-v3";
+import { listUnreadableReferenceIssues } from "./unreadable-references";
 import { validateVisualWorkflowDefinition } from "./validate-workflow";
 
 export type VisualWorkflowV3ValidationIssue =
@@ -26,9 +27,11 @@ export function validateVisualWorkflowV3Definition(
   definition: VisualWorkflowV3Definition,
 ): VisualWorkflowV3ValidationIssue[] {
   const compiled = compileVisualWorkflowV3Definition(definition);
+  const execution = toVisualWorkflowExecutionDefinition(compiled);
 
   return [
     ...compiled.issues,
-    ...validateVisualWorkflowDefinition(toVisualWorkflowExecutionDefinition(compiled)),
+    ...validateVisualWorkflowDefinition(execution),
+    ...listUnreadableReferenceIssues(execution),
   ];
 }

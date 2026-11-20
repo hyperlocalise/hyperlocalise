@@ -15,42 +15,46 @@ reconcile, webhooks, and member mutations.
 | `reviewer`             | Contribute to jobs, run AI actions, push draft translations; approve reviews and write-back. No org administration.            |
 | `translator`           | Contribute to assigned jobs, run AI actions, and push draft translations. No approvals or org administration.                  |
 | `member`               | Read workspace, project, team, glossary, memory, dictionary, and job surfaces only.                                            |
-| `vendor`               | Outside linguist with **no** capability. Reaches only the open tasks they own. See "Vendor" below.                             |
 
 Unknown WorkOS slugs map to `null` during reconcile and receive **no**
 capabilities (default deny).
 
-## Vendor
+## Vendors
 
-`vendor` holds no capability, so every `hasCapability` check refuses it. That is
-not enough on its own: many routes and pages ask only for a signed-in member.
-So a vendor is refused at one gate per service and let through route by route:
+A vendor is a person in a vendor team (`teams.is_vendor`): an outside agency's
+people, or a freelancer alone. They keep an ordinary role, which decides what
+they may do inside a task, but they reach nothing in the workspace except the
+open tasks they own. Membership of a vendor team is read where each service
+already looks the person up, and refuses them unless a route was opened on
+purpose:
 
-- **Web app.** `resolveApiAuthContextFromSession` throws
-  `VendorAccessDeniedError` unless the caller passes `allowVendor`. The API
-  middleware passes it only for the routes in `VENDOR_API_ROUTES`, and a page
-  only when it opts in (`vendor-access.ts`). A route or page added later is
-  closed to vendors without anyone thinking about it.
-- **go-svc and the public API.** Both confirm a membership through
-  `internal/publicauth`, which accepts only the roles `internal/authz` knows.
-  Vendor is named there (`authz.RoleVendor`) but left out of that list, so both
-  services refuse it. go-svc's `resolveOrganizationActorAllowingVendor` accepts
-  it and is called only by the handlers opened to vendors (`vendor-access.go`).
-- **Tokens, agents, MCP and plugins** refuse a vendor outright
-  (`api-key-access.ts`, `mcp.ts`, and the shared check above for the public API).
+- **Web app.** `resolveApiAuthContextFromSession` reads it with the membership
+  (`membership.inVendorTeam`) and throws `VendorAccessDeniedError` unless the
+  caller passes `allowVendor`. The API middleware passes it only for the routes
+  in `VENDOR_API_ROUTES`, and a page only when it opts in (`vendor-access.ts`).
+  A route or page added later is closed to vendors without anyone thinking
+  about it.
+- **go-svc and the public API.** Both confirm a person through
+  `internal/publicauth`. `ResolveActorByID`, which every token, agent and
+  plugin sign-in goes through, refuses a vendor. go-svc's
+  `resolveOrganizationActor` refuses one; `resolveOrganizationActorAllowingVendorIf`
+  accepts one only for the handlers opened to vendors (`vendor-access.go`).
 - **Lookups that never read the web session** (plugin sign-ins, the Slack and
-  email assistants, a Human approval reviewer) refuse the role where the member
+  email assistants, a Human approval reviewer) refuse a vendor where the member
   is looked up (`lib/workos/vendor-membership.ts`).
-- **A vendor is in no team.** An invite joins none, the role change removes
-  them (go-svc, and `workos-sync.ts` for a role that arrives from WorkOS), and
-  adding one to a team is refused.
+- **A vendor is in no other team, and a vendor team holds no projects.**
+  Joining a vendor team removes the person from their other teams, a vendor
+  cannot join another team, and a vendor team is never a project's team. So
+  queries that ask who is on a project's team never find a vendor.
+- **The workspace keeps an admin outside vendor teams.** The last-admin rule
+  counts only admins outside vendor teams.
 
 Inside an opened route a vendor never goes through the team rule. Their access
 is always "an open post-edit or proofread task on a file that I own"
 (`task-access.ts`, `vendor-access.go`), limited to that task's file and
 languages. The same rule lets any other member whose role works on jobs open a
 task they own outside their teams. Design:
-[`docs/adr/2026-11-18-vendor-role-design.md`](../../../../../docs/adr/2026-11-18-vendor-role-design.md).
+[`docs/adr/2026-11-20-vendor-teams-design.md`](../../../../../docs/adr/2026-11-20-vendor-teams-design.md).
 
 Legacy workspaces that only use WorkOS `admin` and `member` continue to work:
 `member` stays read-only; `admin` retains full capability.

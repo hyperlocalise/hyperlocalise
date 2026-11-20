@@ -85,12 +85,22 @@ async function load(page: (props: never) => ReactElement, props: object): Promis
   return shell.type(shell.props);
 }
 
-async function setUp(role: OrganizationMembershipRole, options: { onTeam?: boolean } = {}) {
+/** "vendor" is a reviewer in a vendor team. */
+async function setUp(
+  role: OrganizationMembershipRole | "vendor",
+  options: { onTeam?: boolean } = {},
+) {
   const { identity: admin, organization, project } = await fixture.createStoredProjectFixture();
-  const person = fixture.createWorkosIdentityForOrganization(admin.organization, role);
+  const person = fixture.createWorkosIdentityForOrganization(
+    admin.organization,
+    role === "vendor" ? "reviewer" : role,
+  );
   // The page reads the signed-in person from here.
   await fixture.authHeadersFor(person);
   const personId = await fixture.getLocalUserId(person.user.workosUserId);
+  if (role === "vendor") {
+    await fixture.joinVendorTeam(person);
+  }
   if (options.onTeam) {
     await ensureTeamMembership({ teamId: project.teamId!, userId: personId, role: "member" });
   }

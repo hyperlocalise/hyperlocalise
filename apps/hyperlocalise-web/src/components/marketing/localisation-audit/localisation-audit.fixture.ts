@@ -387,9 +387,17 @@ export function localisationAuditStanding(score: number): LocalisationAuditStand
   };
 }
 
-export function localisationAuditLeaderboardEntries(): LocalisationAuditLeaderboardEntry[] {
+export function localisationAuditRelatedScores() {
+  return localisationAuditLeaderboardEntries()
+    .filter((entry) => entry.domainSlug !== localisationAuditDomainSlug)
+    .slice(0, 3);
+}
+
+export function localisationAuditLeaderboardEntries(
+  count = 5,
+): LocalisationAuditLeaderboardEntry[] {
   const completedAt = new Date(localisationAuditCompletedAt);
-  return [
+  const entries: LocalisationAuditLeaderboardEntry[] = [
     {
       rank: 1,
       domainKey: "northstar.example",
@@ -441,6 +449,25 @@ export function localisationAuditLeaderboardEntries(): LocalisationAuditLeaderbo
       methodologyVersion: 2,
     },
   ];
+
+  if (count <= entries.length) {
+    return entries.slice(0, count);
+  }
+
+  for (let rank = entries.length + 1; rank <= count; rank += 1) {
+    entries.push({
+      rank,
+      domainKey: `site-${rank}.example`,
+      domainSlug: `site-${rank}-example`,
+      score: Math.max(1, 50 - rank),
+      completedAt,
+      companyName: `Site ${rank}`,
+      logoUrl: null,
+      methodologyVersion: 2,
+    });
+  }
+
+  return entries;
 }
 
 export function createSucceededAudit({

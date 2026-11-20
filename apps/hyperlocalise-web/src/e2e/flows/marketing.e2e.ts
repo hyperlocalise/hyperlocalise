@@ -20,7 +20,7 @@ const MARKETING_PAGES = [
   { path: "/iris", heading: "Iris, the AI localisation engine for multilingual assets" },
   { path: "/company", heading: "Built by people who believe localisation connects the world" },
   { path: "/startups", heading: "New markets. 100x momentum." },
-  { path: "/localisation-audit", heading: "See how your brand travels." },
+  { path: "/localisation-audit", heading: "Free website localisation audit." },
 ];
 
 const FRENCH_HOMEPAGE_HEADING = "Le partenaire IA de votre croissance internationale.";

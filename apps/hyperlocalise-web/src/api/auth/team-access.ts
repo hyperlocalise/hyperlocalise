@@ -13,7 +13,7 @@
 import { and, eq, exists, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
-import { isVendorRole } from "@/api/auth/vendor-access";
+import { isInVendorTeam } from "@/api/auth/vendor-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database/client";
 import { providerAssignedUsersMatch } from "@/lib/providers/jobs/tms-provider-assignee-match";
@@ -27,14 +27,15 @@ import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { backfillOrganizationProjectTeams } from "@/lib/teams/default-workspace-team";
 
 export function hasOrganizationWideProjectAccess(auth: ApiAuthContext) {
-  return hasCapability(auth.membership.role, "teams:write");
+  // A vendor never has the whole workspace, whatever their role (`vendor-access.ts`).
+  return !isInVendorTeam(auth) && hasCapability(auth.membership.role, "teams:write");
 }
 
 export async function getVisibleTeamIds(auth: ApiAuthContext) {
   const organizationId = auth.activeOrganization.localOrganizationId;
 
   // A vendor never passes the team rule: a team they were left in gives them nothing.
-  if (isVendorRole(auth.membership.role)) {
+  if (isInVendorTeam(auth)) {
     return [];
   }
 

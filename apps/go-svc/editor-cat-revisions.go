@@ -342,10 +342,6 @@ func (api *editorCatAPI) restoreSegmentRevision(r *http.Request, actor editorCat
 	if err != nil {
 		return nil, 0, err
 	}
-	// Restoring an approved or rejected version makes that review decision again.
-	if (target.status == "approved" || target.status == "rejected") && !actor.mayApprove(sourcePath, targetLocale) {
-		return nil, 0, editorCatFailure(403, "forbidden", "Approving and rejecting are for the proofread step")
-	}
 	if body.ExpectedCurrentRevisionID != nil {
 		latest, err := latestEditorCatRevision(r.Context(), tx, before.id)
 		if err != nil {

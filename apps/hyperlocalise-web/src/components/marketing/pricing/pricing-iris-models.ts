@@ -60,6 +60,7 @@ export type PricingIrisCopyGroup =
   | "video"
   | "video-tool"
   | "voice"
+  | "voice-tool"
   | "dubbing"
   | "sound"
   | "listen";
@@ -81,6 +82,7 @@ const groupJobs: Record<PricingIrisCopyGroup, PricingIrisJob> = {
   video: "video",
   "video-tool": "video",
   voice: "speak",
+  "voice-tool": "speak",
   dubbing: "speak",
   sound: "sound",
   listen: "listen",
@@ -131,6 +133,12 @@ export const PRICING_IRIS_MODELS: readonly PricingIrisModel[] = [
   model("universal-3.5-pro", "Universal 3.5 Pro", "google", "listen"),
   model("fish-audio-transcribe-1", "Fish Audio Transcribe 1", "fish-audio", "listen"),
   model("qwen3.8-omni-flash", "Qwen 3.8 Omni Flash", "alibaba", "listen"),
+  model("elevenlabs-voice-isolator", "ElevenLabs Voice Isolator", "elevenlabs", "voice-tool"),
+  model("elevenlabs-voice-changer", "ElevenLabs Voice Changer", "elevenlabs", "voice-tool"),
+  model("elevenlabs-dialogue", "ElevenLabs Dialogue", "elevenlabs", "voice"),
+  model("elevenlabs-voice-design", "ElevenLabs Voice Design", "elevenlabs", "voice"),
+  model("elevenlabs-scribe", "ElevenLabs Scribe", "elevenlabs", "listen"),
+  model("elevenlabs-forced-alignment", "ElevenLabs Forced Alignment", "elevenlabs", "listen"),
   model("elevenlabs-dubbing", "ElevenLabs Dubbing", "elevenlabs", "dubbing"),
   model("sync-lipsync-2", "Sync Lipsync 2", "sync", "video-tool"),
   model("image-localise", "Image Localise", "hyperlocalise", "image-localise"),

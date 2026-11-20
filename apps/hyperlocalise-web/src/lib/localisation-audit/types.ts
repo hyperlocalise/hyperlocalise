@@ -263,6 +263,10 @@ export type LocalisationAuditRunSource = "user" | "scheduled";
 export const LOCALISATION_AUDIT_DAILY_RUN_LIMIT = 20;
 export const LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS = 60 * 1000;
 export const LOCALISATION_AUDIT_REPORT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+/** How many public leaderboard rows render before "Show more". */
+export const LOCALISATION_AUDIT_LEADERBOARD_PAGE_SIZE = 25;
+/** Upper bound for the public leaderboard query (same cap as the sitemap). */
+export const LOCALISATION_AUDIT_LEADERBOARD_LIMIT = 200;
 
 export const EMPTY_SITEMAP_SIGNAL: LocalisationAuditSitemapSignal = {
   robotsFound: false,

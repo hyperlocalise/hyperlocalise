@@ -607,3 +607,170 @@ func TestGenerateElevenLabsMusicUsesNativeClient(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("song"), outputs[0].Bytes)
 }
+
+func TestGenerateElevenLabsVoiceTools(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, r.ParseMultipartForm(1<<20))
+		_, _, err := r.FormFile("audio")
+		require.NoError(t, err)
+		w.Header().Set("Content-Type", "audio/mpeg")
+		switch r.URL.Path {
+		case "/v1/audio-isolation":
+			_, _ = w.Write([]byte("speech"))
+		case "/v1/speech-to-speech/21m00Tcm4TlvDq8ikWAM":
+			require.Equal(t, "eleven_multilingual_sts_v2", r.FormValue("model_id"))
+			require.Equal(t, "true", r.FormValue("remove_background_noise"))
+			_, _ = w.Write([]byte("revoiced"))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+	client, err := elevenlabs.NewClientWithHTTPClient(elevenlabs.Config{APIKey: "k", BaseURL: server.URL}, server.Client())
+	require.NoError(t, err)
+	media := []irisProviderInput{{Role: "media", Bytes: []byte("clip"), ContentType: "video/mp4"}}
+
+	isolator, ok := irisModelByID("elevenlabs-voice-isolator")
+	require.True(t, ok)
+	outputs, err := generateElevenLabs(t.Context(), client, irisProviderRequest{Model: isolator, Inputs: media})
+	require.NoError(t, err)
+	require.Equal(t, []byte("speech"), outputs[0].Bytes)
+	require.Equal(t, "voice.mp3", outputs[0].Filename)
+
+	changer, ok := irisModelByID("elevenlabs-voice-changer")
+	require.True(t, ok)
+	outputs, err = generateElevenLabs(t.Context(), client, irisProviderRequest{
+		Model:  changer,
+		Inputs: media,
+		Voice:  "21m00Tcm4TlvDq8ikWAM",
+		Fields: irisGenerateRequest{"removeBackgroundNoise": true},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []byte("revoiced"), outputs[0].Bytes)
+	require.Equal(t, "revoiced.mp3", outputs[0].Filename)
+}
+
+func TestGenerateElevenLabsSpeechUsesGlossaryPronunciations(t *testing.T) {
+	var dictionaries int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/pronunciation-dictionaries/add-from-rules":
+			dictionaries++
+			_, _ = w.Write([]byte(`{"id":"dict-1","version_id":"v-1"}`))
+		case "/v1/text-to-dialogue":
+			var body map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			require.Equal(t, []any{map[string]any{"pronunciation_dictionary_id": "dict-1", "version_id": "v-1"}}, body["pronunciation_dictionary_locators"])
+			require.Len(t, body["inputs"], 2)
+			w.Header().Set("Content-Type", "audio/mpeg")
+			_, _ = w.Write([]byte("dialogue"))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+	client, err := elevenlabs.NewClientWithHTTPClient(elevenlabs.Config{APIKey: "k", BaseURL: server.URL}, server.Client())
+	require.NoError(t, err)
+	model, ok := irisModelByID("elevenlabs-dialogue")
+	require.True(t, ok)
+	outputs, err := generateElevenLabs(t.Context(), client, irisProviderRequest{
+		Model: model,
+		Fields: irisGenerateRequest{"lines": []any{
+			map[string]any{"text": "Try Iris", "voice": "21m00Tcm4TlvDq8ikWAM"},
+			map[string]any{"text": "I will", "voice": "AZnzlk1XvdvUeBnXmlld"},
+		}},
+		Pronunciations: []irisPronunciation{{Term: "Iris", Alias: "eye-ris"}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []byte("dialogue"), outputs[0].Bytes)
+	require.Equal(t, 1, dictionaries)
+}
+
+func TestGenerateElevenLabsTranscripts(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, r.ParseMultipartForm(1<<20))
+		switch r.URL.Path {
+		case "/v1/speech-to-text":
+			require.Equal(t, []string{"Hyperlocalise", "Iris"}, r.MultipartForm.Value["keyterms"])
+			_, _ = w.Write([]byte(`{"language_code":"en","text":"Hi there. Iris here","words":[
+				{"text":"Hi","type":"word","start":0,"end":0.2,"speaker_id":"speaker_0"},
+				{"text":"there.","type":"word","start":0.3,"end":0.6,"speaker_id":"speaker_0"},
+				{"text":"Iris","type":"word","start":0.7,"end":0.9,"speaker_id":"speaker_1"},
+				{"text":"here","type":"word","start":3,"end":3.2,"speaker_id":"speaker_1"}
+			]}`))
+		case "/v1/forced-alignment":
+			require.Equal(t, "Bonjour Iris", r.FormValue("text"))
+			_, _ = w.Write([]byte(`{"words":[{"text":"Bonjour","start":0,"end":0.4,"loss":0},{"text":"Iris","start":0.4,"end":0.9,"loss":0}],"loss":0}`))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+	client, err := elevenlabs.NewClientWithHTTPClient(elevenlabs.Config{APIKey: "k", BaseURL: server.URL}, server.Client())
+	require.NoError(t, err)
+	audio := []irisProviderInput{{Role: "audio", Bytes: []byte("wav"), ContentType: "audio/wav"}}
+
+	scribe, ok := irisModelByID("elevenlabs-scribe")
+	require.True(t, ok)
+	outputs, err := generateElevenLabs(t.Context(), client, irisProviderRequest{
+		Model:    scribe,
+		Inputs:   audio,
+		Fields:   irisGenerateRequest{"diarize": true, "keyterms": []any{"Hyperlocalise"}},
+		Keyterms: []string{"Iris"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "transcript.json", outputs[0].Filename)
+	var segments []struct {
+		Text    string `json:"text"`
+		Speaker string `json:"speaker"`
+		Words   []struct {
+			Text  string  `json:"text"`
+			Start float64 `json:"start"`
+		} `json:"words"`
+	}
+	require.NoError(t, json.Unmarshal(outputs[0].Bytes, &segments))
+	// A sentence end, a new speaker and a long pause each start a segment.
+	require.Len(t, segments, 3)
+	require.Equal(t, "Hi there.", segments[0].Text)
+	require.Equal(t, "speaker_0", segments[0].Speaker)
+	require.Equal(t, "Iris", segments[1].Text)
+	require.Equal(t, "here", segments[2].Text)
+
+	alignment, ok := irisModelByID("elevenlabs-forced-alignment")
+	require.True(t, ok)
+	outputs, err = generateElevenLabs(t.Context(), client, irisProviderRequest{Model: alignment, Inputs: audio, Fields: irisGenerateRequest{"text": "Bonjour Iris"}})
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(outputs[0].Bytes, &segments))
+	require.Len(t, segments, 1)
+	require.Equal(t, "Bonjour Iris", segments[0].Text)
+	require.Len(t, segments[0].Words, 2)
+}
+
+func TestGenerateElevenLabsVoiceDesign(t *testing.T) {
+	preview := base64.StdEncoding.EncodeToString([]byte("preview"))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/text-to-voice/design":
+			_, _ = w.Write([]byte(`{"previews":[{"audio_base_64":"` + preview + `","generated_voice_id":"gen-1","media_type":"audio/mpeg","duration_secs":3,"language":"en"},{"audio_base_64":"` + preview + `","generated_voice_id":"gen-2","media_type":"audio/mpeg","duration_secs":3,"language":"en"}],"text":"Hello"}`))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+	client, err := elevenlabs.NewClientWithHTTPClient(elevenlabs.Config{APIKey: "k", BaseURL: server.URL}, server.Client())
+	require.NoError(t, err)
+	model, ok := irisModelByID("elevenlabs-voice-design")
+	require.True(t, ok)
+
+	outputs, err := generateElevenLabs(t.Context(), client, irisProviderRequest{Model: model, Prompt: "A warm narrator"})
+	require.NoError(t, err)
+	require.Len(t, outputs, 3)
+	require.Equal(t, "voice-preview-1.mp3", outputs[0].Filename)
+	require.Equal(t, "voices.json", outputs[2].Filename)
+	require.Contains(t, string(outputs[2].Bytes), `"generatedVoiceId":"gen-2"`)
+}
+
+func TestIrisJoinWordsKeepsUnspacedScripts(t *testing.T) {
+	require.Equal(t, "Hi there", irisJoinWords([]string{"Hi", "there"}))
+	require.Equal(t, "こんにちは世界", irisJoinWords([]string{"こんにちは", "世界"}))
+}

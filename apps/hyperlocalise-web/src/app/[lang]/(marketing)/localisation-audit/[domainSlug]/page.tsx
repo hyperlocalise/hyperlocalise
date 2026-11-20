@@ -17,12 +17,14 @@ import { LocalisationAuditResultPage } from "@/components/marketing/localisation
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
+import { pickRelatedLocalisationAuditScores } from "@/lib/localisation-audit/related-scores";
 import { asPublishedLocalisationAudit } from "@/lib/localisation-audit/report-coverage";
 import {
   findLocalisationAuditBySlug,
   getLocalisationAuditStanding,
   isLocalisationAuditRetryable,
   isLocalisationAuditRerunnable,
+  listLocalisationAuditLeaderboard,
   localisationAuditRerunAvailableAt,
 } from "@/lib/localisation-audit/store";
 import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
@@ -49,7 +51,11 @@ export async function generateMetadata({
 
   const audit = asPublishedLocalisationAudit(found);
   const intl = getIntlShape(locale);
-  const metadata = getLocalisationAuditResultRouteMetadata(intl, audit.domainKey, audit.score);
+  const metadata = getLocalisationAuditResultRouteMetadata(intl, {
+    domainKey: audit.domainKey,
+    companyName: audit.teaser?.companyProfile?.name ?? audit.report?.companyProfile?.name ?? null,
+    score: audit.score,
+  });
   const robots =
     audit.status === "succeeded" ? { index: true, follow: true } : { index: false, follow: false };
 
@@ -85,20 +91,34 @@ export default async function LocalisationAuditResultRoutePage({
 
   const audit = asPublishedLocalisationAudit(found);
   const publicReport = audit.status === "succeeded";
-  const standing =
+  const standingPromise =
     audit.status === "succeeded" && audit.score != null
-      ? await getLocalisationAuditStanding({
+      ? getLocalisationAuditStanding({
           domainSlug: audit.domainSlug,
           score: audit.score,
           methodologyVersion: audit.teaser?.methodologyVersion ?? 1,
         }).catch(() => null)
-      : null;
+      : Promise.resolve(null);
+  const leaderboardPromise = publicReport
+    ? listLocalisationAuditLeaderboard().catch(() => [])
+    : Promise.resolve([]);
+  const [standing, leaderboard] = await Promise.all([standingPromise, leaderboardPromise]);
+  const relatedScores =
+    publicReport && audit.score != null
+      ? pickRelatedLocalisationAuditScores({
+          domainKey: audit.domainKey,
+          domainSlug: audit.domainSlug,
+          score: audit.score,
+          entries: leaderboard,
+        })
+      : [];
 
   return (
     <LocalisationAuditResultPage
       locale={locale}
       domainSlug={domainSlug}
       standing={standing}
+      relatedScores={relatedScores}
       audit={{
         id: audit.id,
         domainKey: audit.domainKey,

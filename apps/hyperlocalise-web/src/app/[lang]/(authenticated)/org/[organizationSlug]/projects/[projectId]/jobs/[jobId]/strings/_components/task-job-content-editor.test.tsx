@@ -73,6 +73,7 @@ function renderEditor(targetLocale: string | null) {
     <QueryClientProvider client={queryClient}>
       <IntlProvider locale="en" messages={{}}>
         <TaskJobContentEditor
+          aiSuggestionAllowed={false}
           organizationSlug="acme"
           projectId="project_1"
           jobId="job_1"

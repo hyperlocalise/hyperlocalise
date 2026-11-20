@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/hyperlocalise/hyperlocalise/internal/authz"
 	"github.com/stretchr/testify/require"
 	"github.com/workos/workos-go/v10"
 )
@@ -114,30 +113,4 @@ func TestVerifyLiveMembership(t *testing.T) {
 	}
 	_, err = VerifyLiveMembership(t.Context(), down, "om_1", "user_1", "org_1")
 	require.Equal(t, MembershipLookupFailed(), err)
-}
-
-// A vendor is refused wherever the caller did not ask for the role by name.
-func TestVerifyLiveMembershipVendor(t *testing.T) {
-	withRole := func(role string) MembershipLookup {
-		return func(context.Context, string) (*workos.UserOrganizationMembership, error) {
-			return &workos.UserOrganizationMembership{
-				ID: "om_1", UserID: "user_1", OrganizationID: "org_1", Status: "active",
-				Role: &workos.SlimRole{Slug: role},
-			}, nil
-		}
-	}
-
-	_, err := VerifyLiveMembership(t.Context(), withRole(authz.RoleVendor), "om_1", "user_1", "org_1")
-	require.Equal(t, AccessDenied(), err)
-
-	role, err := VerifyLiveMembershipAllowingVendor(t.Context(), withRole(authz.RoleVendor), "om_1", "user_1", "org_1")
-	require.NoError(t, err)
-	require.Equal(t, authz.RoleVendor, role)
-
-	role, err = VerifyLiveMembershipAllowingVendor(t.Context(), withRole("translator"), "om_1", "user_1", "org_1")
-	require.NoError(t, err)
-	require.Equal(t, "translator", role)
-
-	_, err = VerifyLiveMembershipAllowingVendor(t.Context(), withRole("owner"), "om_1", "user_1", "org_1")
-	require.Equal(t, AccessDenied(), err)
 }

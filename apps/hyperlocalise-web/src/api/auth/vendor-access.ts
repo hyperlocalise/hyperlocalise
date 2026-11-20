@@ -11,15 +11,17 @@
  * Version 2.0 or later.
  */
 /**
- * A vendor is an outside person with no rights in the workspace. Every signed-in request and
- * page goes through `resolveApiAuthContextFromSession`, which refuses a vendor unless the
- * caller passes `allowVendor`. Only the routes listed here and the pages that opt in do, and
- * each of them then limits a vendor to their own open tasks (`lib/projects/jobs/task-access.ts`).
+ * A vendor is a person in a vendor team of the workspace (`teams.is_vendor`): an outside
+ * agency's people, or a freelancer alone. Whatever their role, they reach nothing in the
+ * workspace but the open tasks they own. Every signed-in request and page goes through
+ * `resolveApiAuthContextFromSession`, which refuses a vendor unless the caller passes
+ * `allowVendor`. Only the routes listed here and the pages that opt in do, and each of them then
+ * limits a vendor to their own open tasks (`lib/projects/jobs/task-access.ts`).
  *
  * The Go service keeps the same rule in `apps/go-svc/vendor-access.go`.
  */
-export function isVendorRole(role: string | null | undefined) {
-  return role === "vendor";
+export function isInVendorTeam(auth: { membership: { inVendorTeam?: boolean } }) {
+  return auth.membership.inVendorTeam === true;
 }
 
 /** Thrown where a vendor reaches a route or page that was not opened to vendors. */
@@ -34,10 +36,10 @@ export class VendorAccessDeniedError extends Error {
  * and page; tests that stand in for that function call it too, so they refuse as it does.
  */
 export function refuseVendorUnlessAllowed(
-  auth: { membership: { role: string }; activeOrganization: { slug?: string | null } },
+  auth: { membership: { inVendorTeam?: boolean }; activeOrganization: { slug?: string | null } },
   allowVendor: boolean | undefined,
 ) {
-  if (isVendorRole(auth.membership.role) && !allowVendor) {
+  if (isInVendorTeam(auth) && !allowVendor) {
     throw new VendorAccessDeniedError(auth.activeOrganization.slug ?? null);
   }
 }
@@ -57,6 +59,8 @@ export const VENDOR_API_ROUTES: ReadonlySet<string> = new Set([
   "POST /api/orgs/:organizationSlug/jobs/:jobId/mark-done",
   // The editor's memory and glossary lookup, for the languages of an open task they own.
   "POST /api/orgs/:organizationSlug/projects/:projectId/files/detail/cat/concordance",
+  // The editor's AI suggestion, for a string of an open task they own, if their role runs AI.
+  "POST /api/orgs/:organizationSlug/projects/:projectId/files/detail/cat/recommendation",
   // The file of an open task they own: as uploaded, and its translation in a task language.
   "GET /api/orgs/:organizationSlug/projects/:projectId/assets/:fileId",
   "GET /api/orgs/:organizationSlug/projects/:projectId/files/translations/download",

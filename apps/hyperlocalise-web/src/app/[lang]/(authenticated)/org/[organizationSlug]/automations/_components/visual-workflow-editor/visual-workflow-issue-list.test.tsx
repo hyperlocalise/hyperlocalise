@@ -95,6 +95,26 @@ describe("VisualWorkflowIssueList", () => {
     expect(screen.queryByText("Add a trigger to start the workflow.")).not.toBeInTheDocument();
   });
 
+  it("says which setting holds a reference a run cannot read", () => {
+    renderList({
+      issues: [
+        {
+          code: "invalid_binding",
+          nodeId: "notify",
+          field: "message",
+          reason: "unreadable_reference",
+        },
+      ],
+      nodes: NODES,
+    });
+
+    expect(
+      screen.getByText(
+        "message reads a value that a run cannot find. Choose it from the fields of earlier steps instead.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("moves with the arrows, around the ends, and selects the step it lands on", async () => {
     const user = userEvent.setup();
     const onSelectNode = vi.fn();

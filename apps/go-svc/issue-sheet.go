@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
-	"github.com/jackc/pgx/v5"
 	"github.com/workos/workos-go/v10"
 )
 
@@ -166,44 +165,12 @@ func (api *issueSheetAPI) register(mux *http.ServeMux, verifier SessionVerifier)
 }
 
 func (api *issueSheetAPI) actor(ctx context.Context, claims AuthClaims, slug string) (issueSheetActor, error) {
-	var actor issueSheetActor
-	var membershipID, workosOrg string
-	if strings.HasPrefix(claims.UserID, "invited_user_") {
-		return actor, issueSheetFailure(403, "organization_access_denied", "Organization access denied")
-	}
-	err := api.pool.QueryRow(ctx, `select u.id, o.id, o.slug, m.workos_membership_id, o.workos_organization_id
-        from users u join organization_memberships m on m.user_id=u.id join organizations o on o.id=m.organization_id
-        where u.workos_user_id=$1 and o.slug=$2 and o.lifecycle_status='active'
-        and m.workos_membership_id is not null and m.workos_membership_id not in ('', 'replacing')
-        and m.workos_membership_id not like 'replacing:%'`,
-		claims.UserID, slug).Scan(&actor.userID, &actor.organizationID, &actor.organizationSlug, &membershipID, &workosOrg)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return actor, issueSheetFailure(403, "organization_access_denied", "Organization access denied")
-	}
+	// The shared check, which also refuses a vendor (vendor-access.go).
+	resolved, err := resolveOrganizationActor(ctx, api.pool, api.membership, claims, slug)
 	if err != nil {
-		return actor, err
+		return issueSheetActor{}, mapOrganizationAccessError(err, issueSheetFailure)
 	}
-	if api.membership == nil {
-		return actor, issueSheetFailure(503, "workos_membership_lookup_failed", "Organization membership could not be verified")
-	}
-	member, err := api.membership(ctx, membershipID)
-	if err != nil {
-		var apiErr *workos.APIError
-		if errors.As(err, &apiErr) && apiErr.StatusCode == 404 {
-			return actor, issueSheetFailure(403, "organization_access_denied", "Organization access denied")
-		}
-		return actor, issueSheetFailure(503, "workos_membership_lookup_failed", "Organization membership could not be verified")
-	}
-	if member == nil || member.ID != membershipID || member.UserID != claims.UserID || member.OrganizationID != workosOrg || member.Status != "active" || member.Role == nil {
-		return actor, issueSheetFailure(403, "organization_access_denied", "Organization access denied")
-	}
-	switch member.Role.Slug {
-	case "admin", "localization_manager", "member", "developer", "translator", "reviewer":
-		actor.role = member.Role.Slug
-	default:
-		return actor, issueSheetFailure(403, "organization_access_denied", "Organization access denied")
-	}
-	return actor, nil
+	return issueSheetActor{userID: resolved.userID, organizationID: resolved.organizationID, organizationSlug: slug, role: resolved.role}, nil
 }
 
 func localAutumnFeaturesEnabled() bool {

@@ -581,7 +581,7 @@ func FromProject(ctx context.Context, db DB, organizationID, projectID, name str
 func checkResources(ctx context.Context, db DB, organizationID string, f Fields) error {
 	if f.TeamID != nil {
 		var found string
-		err := db.QueryRow(ctx, `select id from teams where id=$1 and organization_id=$2`, *f.TeamID, organizationID).Scan(&found)
+		err := db.QueryRow(ctx, `select id from teams where id=$1 and organization_id=$2 and not is_vendor`, *f.TeamID, organizationID).Scan(&found)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("%w: %s", nativeproject.ErrTeamNotFound, *f.TeamID)
 		}

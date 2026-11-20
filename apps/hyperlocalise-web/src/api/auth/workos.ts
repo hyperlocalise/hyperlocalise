@@ -92,6 +92,11 @@ export type ApiAuthContext = {
     workosMembershipId?: string | null;
     role: OrganizationMembershipRole;
     accessSource: OrganizationMembershipAccessSource;
+    /**
+     * In a vendor team of the workspace: reaches only the open tasks they own
+     * (`vendor-access.ts`). Set from the web session; other ways in refuse vendors themselves.
+     */
+    inVendorTeam?: boolean;
   };
   activeTeam: {
     id: string;

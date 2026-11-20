@@ -192,6 +192,7 @@ export type GlossaryTerm = {
   termType: string | null;
   url?: string | null;
   lemma?: string | null;
+  pronunciation?: string | null;
   status: string;
   caseSensitive: boolean;
   forbidden: boolean;
@@ -454,6 +455,8 @@ export type TeamRecord = {
   organizationId: string;
   slug: string;
   name: string;
+  /** An outside vendor's team: its people reach only the tasks they own. */
+  isVendor: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -475,8 +478,7 @@ export type MemberRole =
   | "developer"
   | "reviewer"
   | "translator"
-  | "member"
-  | "vendor";
+  | "member";
 
 export type MemberRecord = {
   userId: string;

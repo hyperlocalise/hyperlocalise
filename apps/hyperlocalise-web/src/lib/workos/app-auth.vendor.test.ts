@@ -36,13 +36,16 @@ vi.mock("@/lib/workos/active-organization", () => ({
 }));
 
 /** A session function that refuses a vendor as the real one does. */
-function signInAs(role: string) {
+function signInAs(person: "vendor" | "translator") {
   withAuthMock.mockResolvedValue({
     user: { id: "user_1", email: "person@example.com", emailVerified: true },
     organizationId: null,
   });
   sessionMock.mockImplementation(async (options: { allowVendor?: boolean }) => {
-    const auth = { membership: { role }, activeOrganization: { slug: "acme" } };
+    const auth = {
+      membership: { role: "translator", inVendorTeam: person === "vendor" },
+      activeOrganization: { slug: "acme" },
+    };
     refuseVendorUnlessAllowed(auth, options.allowVendor);
     return auth;
   });
@@ -62,7 +65,7 @@ describe("a page opened by a vendor", () => {
     );
 
     const opened = await requireAppAuthContext({ organizationSlug: "acme", allowVendor: true });
-    expect(opened.membership.role).toBe("vendor");
+    expect(opened.membership.inVendorTeam).toBe(true);
   });
 
   it("changes nothing for another role", async () => {
@@ -79,6 +82,6 @@ describe("a page opened by a vendor", () => {
     const { getAppAuthContextAllowingNoWorkspace } = await import("./app-auth");
 
     const result = await getAppAuthContextAllowingNoWorkspace({});
-    expect(result.auth?.membership.role).toBe("vendor");
+    expect(result.auth?.membership.inVendorTeam).toBe(true);
   });
 });
