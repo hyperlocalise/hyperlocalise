@@ -678,7 +678,12 @@ export type VisualWorkflowValidationIssue = {
 };
 
 /** What is wrong with a step, where the issue's code alone does not say. */
-export type VisualWorkflowIssueReason = "required" | "invalid" | "literal_credential";
+export type VisualWorkflowIssueReason =
+  | "required"
+  | "invalid"
+  | "literal_credential"
+  /** The setting's text holds a `{{ }}` reference that starts with neither trigger nor nodes. */
+  | "unreadable_reference";
 
 /** @deprecated Use VisualWorkflowValidationIssue */
 export type MockValidationIssue = VisualWorkflowValidationIssue;

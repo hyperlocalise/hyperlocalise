@@ -2083,6 +2083,13 @@ export const visualWorkflowEditorMessages = defineMessages({
     description:
       "Validation message when a setting or input of a step has a value that cannot be used. {field} is the setting's key, such as timezone",
   },
+  issueFieldUnreadableReference: {
+    defaultMessage:
+      "{field} reads a value that a run cannot find. Choose it from the fields of earlier steps instead.",
+    id: "G66FBcR/Y7",
+    description:
+      "Validation message when a setting of a workflow step holds a reference in double curly brackets that does not point at the trigger or an earlier step. {field} is the setting's key, such as projectId",
+  },
   issuePosition: {
     defaultMessage: "Issue {current} of {total}",
     id: "2fPK5TW6va",

@@ -131,6 +131,9 @@ function explainIssue(definition: VisualWorkflowV3Definition, issue: Issue): str
       }
       return `${step}'s settings are not valid.`;
     case "invalid_binding":
+      if (setting && issue.reason === "unreadable_reference") {
+        return `${setting} holds a {{ }} reference that a run cannot read, which brokenReferences names.`;
+      }
       return `${setting ?? step} reads a value that may not be there when it runs: from a step that is not in the workflow or does not always run before it, a step outside the loop it collects from, or a value of the wrong type.`;
     case "invalid_loop":
     case "invalid_retry":

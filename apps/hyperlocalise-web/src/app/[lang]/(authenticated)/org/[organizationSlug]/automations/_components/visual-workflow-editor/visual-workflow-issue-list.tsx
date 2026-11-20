@@ -64,6 +64,9 @@ function issueText(intl: IntlShape, issue: VisualWorkflowIssue) {
   if (issue.field && issue.reason === "required") {
     return intl.formatMessage(messages.issueFieldRequired, { field: issue.field });
   }
+  if (issue.field && issue.reason === "unreadable_reference") {
+    return intl.formatMessage(messages.issueFieldUnreadableReference, { field: issue.field });
+  }
   if (issue.field && issue.reason === "invalid") {
     return intl.formatMessage(messages.issueFieldInvalid, { field: issue.field });
   }
