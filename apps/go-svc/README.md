@@ -114,7 +114,7 @@ and reads the result. Neither package exposes an HTTP route.
 
 | Variable | Description |
 |----------|-------------|
-| `ELEVENLABS_API_KEY` | ElevenLabs API key sent as `xi-api-key`. Required for native `elevenlabs-*` Iris models, including `elevenlabs-dubbing`. |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key sent as `xi-api-key`. Required for native `elevenlabs-*` Iris models, including `elevenlabs-dubbing`, `elevenlabs-voice-isolator` and `elevenlabs-voice-changer`. |
 | `ELEVENLABS_BASE_URL` | Optional. Defaults to `https://api.elevenlabs.io`. |
 | `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Seedance, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, ByteDance upscaler, and Sync lipsync Iris models. |
 | `FAL_QUEUE_URL` | Optional. Defaults to `https://queue.fal.run`. |
@@ -164,6 +164,11 @@ Transcription (`universal-3.5-pro`, `fish-audio-transcribe-1`,
 JSON endpoint, derived from `AI_GATEWAY_BASE_URL` by replacing `/v1` with
 `/v4/ai`. The gateway does not implement OpenAI-compatible
 `/v1/audio/transcriptions`. Direct OpenAI still uses that multipart route.
+
+Voice tools (`elevenlabs-voice-isolator`: `media`; `elevenlabs-voice-changer`:
+`media`, `voice`, optional `removeBackgroundNoise`) call ElevenLabs audio
+isolation and speech-to-speech and return an MP3 as long as the input. Both
+need `ELEVENLABS_API_KEY` and bill on `AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID`.
 
 ### Iris localisation
 

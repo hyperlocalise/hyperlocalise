@@ -9,6 +9,7 @@ go_library(
         "doc.go",
         "dubbing.go",
         "errors.go",
+        "voice.go",
         "voices.go",
     ],
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/elevenlabs",
@@ -20,6 +21,7 @@ go_test(
     srcs = [
         "client_test.go",
         "dubbing_test.go",
+        "voice_test.go",
     ],
     embed = [":elevenlabs"],
     deps = ["@com_github_stretchr_testify//require"],

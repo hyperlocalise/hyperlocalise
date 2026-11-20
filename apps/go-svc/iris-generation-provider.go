@@ -335,6 +335,8 @@ func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest)
 		return p.imageText(ctx, req)
 	case "elevenlabs-dubbing":
 		return nil, fmt.Errorf("dubbing needs ELEVENLABS_API_KEY")
+	case "elevenlabs-voice-isolator", "elevenlabs-voice-changer":
+		return nil, fmt.Errorf("%s needs ELEVENLABS_API_KEY", req.Model.ID)
 	case "sync-lipsync-2":
 		return nil, fmt.Errorf("lip-sync needs FAL_KEY")
 	default:

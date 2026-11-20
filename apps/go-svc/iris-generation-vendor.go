@@ -106,6 +106,8 @@ func generateElevenLabs(ctx context.Context, client *elevenlabs.Client, req iris
 	switch req.Model.ID {
 	case "elevenlabs-dubbing":
 		return generateDub(ctx, client, req)
+	case "elevenlabs-voice-isolator", "elevenlabs-voice-changer":
+		return generateVoiceTool(ctx, client, req)
 	case "elevenlabs-music":
 		audio, err = client.ComposeMusic(ctx, elevenlabs.MusicRequest{
 			Prompt:          req.Prompt,
@@ -361,5 +363,46 @@ func generateDub(ctx context.Context, client *elevenlabs.Client, req irisProvide
 		Bytes:       dub.Bytes,
 		Filename:    "dub-" + language + "." + ext,
 		ContentType: dub.ContentType,
+	}}, nil
+}
+
+// generateVoiceTool isolates the speech of the media, or re-voices it.
+func generateVoiceTool(ctx context.Context, client *elevenlabs.Client, req irisProviderRequest) ([]irisProviderOutput, error) {
+	media, ok := firstInput(req.Inputs, "media", "video", "audio")
+	if !ok {
+		return nil, fmt.Errorf("media input is required")
+	}
+	var (
+		audio elevenlabs.Audio
+		stem  string
+		err   error
+	)
+	if req.Model.ID == "elevenlabs-voice-isolator" {
+		stem = "voice"
+		audio, err = client.IsolateVoice(ctx, elevenlabs.IsolationRequest{
+			Media:       media.Bytes,
+			ContentType: media.ContentType,
+		})
+	} else {
+		stem = "revoiced"
+		audio, err = client.ChangeVoice(ctx, elevenlabs.VoiceChangeRequest{
+			Media:                 media.Bytes,
+			ContentType:           media.ContentType,
+			Voice:                 req.Voice,
+			ModelID:               req.Model.NativeID,
+			RemoveBackgroundNoise: req.Fields.boolField("removeBackgroundNoise"),
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+	ext := "mp3"
+	if strings.Contains(audio.ContentType, "wav") {
+		ext = "wav"
+	}
+	return []irisProviderOutput{{
+		Bytes:       audio.Bytes,
+		Filename:    stem + "." + ext,
+		ContentType: defaultType(audio.ContentType, "audio/mpeg"),
 	}}, nil
 }

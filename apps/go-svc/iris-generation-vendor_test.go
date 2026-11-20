@@ -607,3 +607,45 @@ func TestGenerateElevenLabsMusicUsesNativeClient(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("song"), outputs[0].Bytes)
 }
+
+func TestGenerateElevenLabsVoiceTools(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, r.ParseMultipartForm(1<<20))
+		_, _, err := r.FormFile("audio")
+		require.NoError(t, err)
+		w.Header().Set("Content-Type", "audio/mpeg")
+		switch r.URL.Path {
+		case "/v1/audio-isolation":
+			_, _ = w.Write([]byte("speech"))
+		case "/v1/speech-to-speech/21m00Tcm4TlvDq8ikWAM":
+			require.Equal(t, "eleven_multilingual_sts_v2", r.FormValue("model_id"))
+			require.Equal(t, "true", r.FormValue("remove_background_noise"))
+			_, _ = w.Write([]byte("revoiced"))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+	client, err := elevenlabs.NewClientWithHTTPClient(elevenlabs.Config{APIKey: "k", BaseURL: server.URL}, server.Client())
+	require.NoError(t, err)
+	media := []irisProviderInput{{Role: "media", Bytes: []byte("clip"), ContentType: "video/mp4"}}
+
+	isolator, ok := irisModelByID("elevenlabs-voice-isolator")
+	require.True(t, ok)
+	outputs, err := generateElevenLabs(t.Context(), client, irisProviderRequest{Model: isolator, Inputs: media})
+	require.NoError(t, err)
+	require.Equal(t, []byte("speech"), outputs[0].Bytes)
+	require.Equal(t, "voice.mp3", outputs[0].Filename)
+
+	changer, ok := irisModelByID("elevenlabs-voice-changer")
+	require.True(t, ok)
+	outputs, err = generateElevenLabs(t.Context(), client, irisProviderRequest{
+		Model:  changer,
+		Inputs: media,
+		Voice:  "21m00Tcm4TlvDq8ikWAM",
+		Fields: irisGenerateRequest{"removeBackgroundNoise": true},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []byte("revoiced"), outputs[0].Bytes)
+	require.Equal(t, "revoiced.mp3", outputs[0].Filename)
+}
