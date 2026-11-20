@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"math"
 	"net/url"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/elevenlabs"
 	"github.com/hyperlocalise/hyperlocalise/internal/fal"
@@ -108,6 +110,22 @@ func generateElevenLabs(ctx context.Context, client *elevenlabs.Client, req iris
 		return generateDub(ctx, client, req)
 	case "elevenlabs-voice-isolator", "elevenlabs-voice-changer":
 		return generateVoiceTool(ctx, client, req)
+	case "elevenlabs-voice-design":
+		return generateVoiceDesign(ctx, client, req)
+	case "elevenlabs-scribe", "elevenlabs-forced-alignment":
+		return generateElevenLabsTranscript(ctx, client, req)
+	case "elevenlabs-dialogue":
+		lines := req.Fields.dialogueLines()
+		dialogue := make([]elevenlabs.DialogueLine, 0, len(lines))
+		for _, line := range lines {
+			dialogue = append(dialogue, elevenlabs.DialogueLine{Text: line.Text, Voice: line.Voice})
+		}
+		audio, err = client.CreateDialogue(ctx, elevenlabs.DialogueRequest{
+			Lines:          dialogue,
+			ModelID:        req.Model.NativeID,
+			LanguageCode:   req.Language,
+			Pronunciations: irisPronunciationLocators(ctx, client, req),
+		})
 	case "elevenlabs-music":
 		audio, err = client.ComposeMusic(ctx, elevenlabs.MusicRequest{
 			Prompt:          req.Prompt,
@@ -122,10 +140,11 @@ func generateElevenLabs(ctx context.Context, client *elevenlabs.Client, req iris
 		})
 	default:
 		audio, err = client.CreateSpeech(ctx, elevenlabs.SpeechRequest{
-			Text:         req.Prompt,
-			Voice:        req.Voice,
-			ModelID:      req.Model.NativeID,
-			LanguageCode: req.Language,
+			Text:           req.Prompt,
+			Voice:          req.Voice,
+			ModelID:        req.Model.NativeID,
+			LanguageCode:   req.Language,
+			Pronunciations: irisPronunciationLocators(ctx, client, req),
 		})
 	}
 	if err != nil {
@@ -405,4 +424,159 @@ func generateVoiceTool(ctx context.Context, client *elevenlabs.Client, req irisP
 		Filename:    stem + "." + ext,
 		ContentType: defaultType(audio.ContentType, "audio/mpeg"),
 	}}, nil
+}
+
+// irisPronunciationLocators turns the job's glossary pronunciations into a
+// dictionary the speech uses. A dictionary ElevenLabs will not make leaves
+// the speech as it would have been without one.
+func irisPronunciationLocators(ctx context.Context, client *elevenlabs.Client, req irisProviderRequest) []elevenlabs.PronunciationLocator {
+	if len(req.Pronunciations) == 0 {
+		return nil
+	}
+	rules := make([]elevenlabs.PronunciationRule, 0, len(req.Pronunciations))
+	for _, rule := range req.Pronunciations {
+		rules = append(rules, elevenlabs.PronunciationRule{Term: rule.Term, Alias: rule.Alias, CaseSensitive: rule.CaseSensitive})
+	}
+	locator, ok, err := client.PronunciationDictionary(ctx, rules)
+	if err != nil {
+		slog.WarnContext(ctx, "iris_generation_pronunciation_dictionary_failed", "model", req.Model.ID, "rules", len(rules), "error", err)
+		return nil
+	}
+	if !ok {
+		return nil
+	}
+	return []elevenlabs.PronunciationLocator{locator}
+}
+
+// generateVoiceDesign makes previews of a described voice: audio files and
+// voices.json, which names each preview's generatedVoiceId. Previews are not
+// kept as voices (see validateIrisGenerateRequest).
+func generateVoiceDesign(ctx context.Context, client *elevenlabs.Client, req irisProviderRequest) ([]irisProviderOutput, error) {
+	previews, text, err := client.DesignVoice(ctx, elevenlabs.VoiceDesignRequest{
+		Description: req.Prompt,
+		Text:        req.Fields.stringField("text"),
+		ModelID:     req.Model.NativeID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	outputs := make([]irisProviderOutput, 0, len(previews)+1)
+	index := make([]map[string]any, 0, len(previews))
+	for i, preview := range previews {
+		filename := fmt.Sprintf("voice-preview-%d.mp3", i+1)
+		outputs = append(outputs, irisProviderOutput{
+			Bytes:       preview.Audio.Bytes,
+			Filename:    filename,
+			ContentType: defaultType(preview.Audio.ContentType, "audio/mpeg"),
+		})
+		index = append(index, map[string]any{
+			"file":             filename,
+			"generatedVoiceId": preview.GeneratedVoiceID,
+			"durationSeconds":  preview.DurationSeconds,
+			"language":         preview.Language,
+		})
+	}
+	outputs = append(outputs, irisProviderOutput{
+		Bytes:       mustJSON(map[string]any{"text": text, "previews": index}),
+		Filename:    "voices.json",
+		ContentType: "application/json",
+	})
+	return outputs, nil
+}
+
+// generateElevenLabsTranscript transcribes the audio with Scribe, or times
+// a known script against it, as the segment array the other transcription
+// models return.
+func generateElevenLabsTranscript(ctx context.Context, client *elevenlabs.Client, req irisProviderRequest) ([]irisProviderOutput, error) {
+	audio, ok := firstInput(req.Inputs, "audio", "media")
+	if !ok {
+		return nil, fmt.Errorf("audio input is required")
+	}
+	var (
+		transcript elevenlabs.Transcript
+		err        error
+	)
+	if req.Model.ID == "elevenlabs-forced-alignment" {
+		transcript, err = client.Align(ctx, elevenlabs.AlignmentRequest{
+			Media:       audio.Bytes,
+			ContentType: irisAudioMediaType(audio),
+			Text:        req.Fields.stringField("text"),
+		})
+	} else {
+		transcript, err = client.Transcribe(ctx, elevenlabs.TranscriptionRequest{
+			Media:        audio.Bytes,
+			ContentType:  irisAudioMediaType(audio),
+			ModelID:      req.Model.NativeID,
+			LanguageCode: req.Language,
+			Diarize:      req.Fields.boolField("diarize"),
+			Speakers:     req.Fields.intField("speakers"),
+			Keyterms:     append(req.Fields.stringList("keyterms"), req.Keyterms...),
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+	return []irisProviderOutput{{Bytes: mustJSON(irisTranscriptSegments(transcript)), Filename: "transcript.json", ContentType: "application/json"}}, nil
+}
+
+// irisTranscriptGap is the pause, in seconds, that starts a new segment.
+const irisTranscriptGap = 1.0
+
+// irisTranscriptSegments splits timed words into segments where the speaker
+// changes, the speech pauses, or a sentence ends — the cues captions show.
+func irisTranscriptSegments(transcript elevenlabs.Transcript) []map[string]any {
+	segments := []map[string]any{}
+	var words []map[string]any
+	var texts []string
+	speaker := ""
+	flush := func() {
+		if len(words) == 0 {
+			return
+		}
+		segment := map[string]any{"text": irisJoinWords(texts), "words": words}
+		if speaker != "" {
+			segment["speaker"] = speaker
+		}
+		segments = append(segments, segment)
+		words, texts = nil, nil
+	}
+	var lastEnd float64
+	for i, word := range transcript.Words {
+		if i > 0 && (word.Speaker != speaker || word.Start-lastEnd > irisTranscriptGap) {
+			flush()
+		}
+		speaker = word.Speaker
+		timed := map[string]any{"text": word.Text, "start": word.Start, "end": word.End}
+		if word.Speaker != "" {
+			timed["speaker"] = word.Speaker
+		}
+		words = append(words, timed)
+		texts = append(texts, word.Text)
+		lastEnd = word.End
+		if last, _ := utf8.DecodeLastRuneInString(word.Text); strings.ContainsRune(".?!。？！", last) {
+			flush()
+		}
+	}
+	flush()
+	if len(segments) == 0 {
+		return []map[string]any{{"text": transcript.Text, "words": []any{}}}
+	}
+	return segments
+}
+
+// irisJoinWords puts spaces between words, except where the script does not
+// separate them (Japanese, Chinese, Thai).
+func irisJoinWords(words []string) string {
+	var b strings.Builder
+	for i, word := range words {
+		if i > 0 {
+			prev, _ := utf8.DecodeLastRuneInString(words[i-1])
+			next, _ := utf8.DecodeRuneInString(word)
+			if !unspacedScript(prev) && !unspacedScript(next) {
+				b.WriteByte(' ')
+			}
+		}
+		b.WriteString(word)
+	}
+	return b.String()
 }

@@ -56,9 +56,9 @@ func (c *Client) ChangeVoice(ctx context.Context, req VoiceChangeRequest) (Audio
 	if err != nil {
 		return Audio{}, err
 	}
-	fields := map[string]string{
-		"model_id":                firstNonEmpty(req.ModelID, defaultSpeechToSpeechID),
-		"remove_background_noise": strconv.FormatBool(req.RemoveBackgroundNoise),
+	fields := url.Values{
+		"model_id":                {firstNonEmpty(req.ModelID, defaultSpeechToSpeechID)},
+		"remove_background_noise": {strconv.FormatBool(req.RemoveBackgroundNoise)},
 	}
 	query := url.Values{}
 	query.Set("output_format", firstNonEmpty(req.OutputFormat, defaultOutputFormat))

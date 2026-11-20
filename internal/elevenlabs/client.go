@@ -20,6 +20,9 @@ type Client struct {
 
 	voicesMu sync.Mutex
 	voices   map[string]string
+
+	dictionariesMu sync.Mutex
+	dictionaries   map[string]PronunciationLocator
 }
 
 // NewClient constructs an ElevenLabs API client.
@@ -28,10 +31,11 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		baseURL:    cfg.baseURL(),
-		apiKey:     strings.TrimSpace(cfg.APIKey),
-		httpClient: cfg.httpClient(),
-		voices:     map[string]string{},
+		baseURL:      cfg.baseURL(),
+		apiKey:       strings.TrimSpace(cfg.APIKey),
+		httpClient:   cfg.httpClient(),
+		voices:       map[string]string{},
+		dictionaries: map[string]PronunciationLocator{},
 	}, nil
 }
 

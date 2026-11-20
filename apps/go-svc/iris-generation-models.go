@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
+	"github.com/hyperlocalise/hyperlocalise/internal/elevenlabs"
 )
 
 type irisModelKind string
@@ -114,6 +115,13 @@ func irisModels() []irisModelInfo {
 		// in another voice. Each returns audio as long as the input.
 		{ID: "elevenlabs-voice-isolator", Name: "ElevenLabs Voice Isolator", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "audio-isolation", ETASeconds: 30, RequiresRef: true},
 		{ID: "elevenlabs-voice-changer", Name: "ElevenLabs Voice Changer", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "eleven_multilingual_sts_v2", ETASeconds: 30, RequiresRef: true},
+		// Several speakers in one take, a voice made from a description (or a
+		// designed preview kept as a voice), and transcripts: Scribe hears the
+		// speech, forced alignment times a script already written.
+		{ID: "elevenlabs-dialogue", Name: "ElevenLabs Dialogue", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "eleven_v3", ETASeconds: 30},
+		{ID: "elevenlabs-voice-design", Name: "ElevenLabs Voice Design", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "eleven_ttv_v3", ETASeconds: 30},
+		{ID: "elevenlabs-scribe", Name: "ElevenLabs Scribe", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "scribe_v2", ETASeconds: 25, RequiresRef: true},
+		{ID: "elevenlabs-forced-alignment", Name: "ElevenLabs Forced Alignment", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "forced-alignment", ETASeconds: 20, RequiresRef: true},
 		// Localisation: dubbing in the speakers' own voices, lip-sync to new
 		// audio, and reading and rewriting the copy baked into an image.
 		{ID: "elevenlabs-dubbing", Name: "ElevenLabs Dubbing", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "dubbing", ETASeconds: 240, RequiresRef: true},
@@ -346,6 +354,74 @@ func isIrisLocale(value string) bool {
 	return true
 }
 
+const (
+	irisMaxDialogueLines    = 100
+	irisMaxVoiceDescription = 1000
+	irisMaxKeyterms         = 1000
+	irisMaxAlignmentText    = 100_000
+)
+
+// irisDialogueLine is one turn of a dialogue: what is said, in which voice.
+type irisDialogueLine struct {
+	Text  string
+	Voice string
+}
+
+func (req irisGenerateRequest) dialogueLines() []irisDialogueLine {
+	raw, ok := req["lines"].([]any)
+	if !ok {
+		return nil
+	}
+	lines := make([]irisDialogueLine, 0, len(raw))
+	for _, item := range raw {
+		entry, _ := item.(map[string]any)
+		lines = append(lines, irisDialogueLine{
+			Text:  strings.TrimSpace(stringFrom(entry["text"])),
+			Voice: strings.TrimSpace(stringFrom(entry["voice"])),
+		})
+	}
+	return lines
+}
+
+func validateIrisDialogue(lines []irisDialogueLine) error {
+	if len(lines) == 0 {
+		return fmt.Errorf("lines is required: [{ text, voice }, …]")
+	}
+	if len(lines) > irisMaxDialogueLines {
+		return fmt.Errorf("lines takes at most %d turns", irisMaxDialogueLines)
+	}
+	voices := map[string]bool{}
+	runes := 0
+	for i, line := range lines {
+		if line.Text == "" || line.Voice == "" {
+			return fmt.Errorf("lines[%d] needs text and voice", i)
+		}
+		voices[strings.ToLower(line.Voice)] = true
+		runes += len([]rune(line.Text))
+	}
+	if len(voices) > elevenlabs.MaxDialogueVoices {
+		return fmt.Errorf("a dialogue takes at most %d voices", elevenlabs.MaxDialogueVoices)
+	}
+	if runes > elevenlabs.MaxDialogueRunes {
+		return fmt.Errorf("a dialogue takes at most %d characters across its lines", elevenlabs.MaxDialogueRunes)
+	}
+	return nil
+}
+
+func (req irisGenerateRequest) stringList(name string) []string {
+	raw, ok := req[name].([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(raw))
+	for _, item := range raw {
+		if text := strings.TrimSpace(stringFrom(item)); text != "" {
+			out = append(out, text)
+		}
+	}
+	return out
+}
+
 func (req irisGenerateRequest) boolField(name string) bool {
 	value, _ := req[name].(bool)
 	return value
@@ -458,6 +534,60 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 			if _, ok := value.(bool); !ok {
 				return model, fmt.Errorf("removeBackgroundNoise must be true or false")
 			}
+		}
+	case "elevenlabs-dialogue":
+		if err := validateIrisDialogue(req.dialogueLines()); err != nil {
+			return model, err
+		}
+		if code := req.languageCode(); code != "" && !isIrisLocale(code) {
+			return model, fmt.Errorf("languageCode must be a language or locale")
+		}
+	case "elevenlabs-voice-design":
+		// Saved voices would live in the one ElevenLabs account every
+		// workspace shares, so designing stops at the previews for now.
+		if req.stringField("generatedVoiceId") != "" {
+			return model, fmt.Errorf("keeping a designed voice is not available yet; use the previews to pick a voice from the ElevenLabs library")
+		}
+		prompt := req.prompt()
+		if prompt == "" {
+			return model, fmt.Errorf("prompt is required: describe the voice")
+		}
+		if len([]rune(prompt)) > irisMaxVoiceDescription {
+			return model, fmt.Errorf("prompt is too long")
+		}
+		if text := req.stringField("text"); text != "" {
+			if n := len([]rune(text)); n < 100 || n > 1000 {
+				return model, fmt.Errorf("text takes 100 to 1,000 characters")
+			}
+		}
+	case "elevenlabs-scribe":
+		if _, ok := req.asset("audio"); !ok {
+			return model, fmt.Errorf("audio is required")
+		}
+		if code := req.languageCode(); code != "" && !isIrisLocale(code) {
+			return model, fmt.Errorf("languageCode must be a language or locale")
+		}
+		if value, ok := req["diarize"]; ok {
+			if _, ok := value.(bool); !ok {
+				return model, fmt.Errorf("diarize must be true or false")
+			}
+		}
+		if speakers := req.intField("speakers"); speakers < 0 || speakers > 32 {
+			return model, fmt.Errorf("speakers takes 1 to 32")
+		}
+		if len(req.stringList("keyterms")) > irisMaxKeyterms {
+			return model, fmt.Errorf("keyterms takes at most %d terms", irisMaxKeyterms)
+		}
+	case "elevenlabs-forced-alignment":
+		if _, ok := req.asset("audio"); !ok {
+			return model, fmt.Errorf("audio is required")
+		}
+		text := req.stringField("text")
+		if text == "" {
+			return model, fmt.Errorf("text is required: the script the audio says")
+		}
+		if len([]rune(text)) > irisMaxAlignmentText {
+			return model, fmt.Errorf("text is too long")
 		}
 	case "elevenlabs-dubbing":
 		if _, ok := req.asset("media"); !ok {

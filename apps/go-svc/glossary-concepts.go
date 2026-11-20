@@ -32,6 +32,7 @@ type glossaryConceptTermInput struct {
 	TermType      *string `json:"termType"`
 	URL           *string `json:"url"`
 	Lemma         *string `json:"lemma"`
+	Pronunciation *string `json:"pronunciation"`
 	Status        *string `json:"status"`
 	Description   *string `json:"description"`
 	CaseSensitive *bool   `json:"caseSensitive"`
@@ -39,19 +40,21 @@ type glossaryConceptTermInput struct {
 }
 
 type glossaryConceptTermRecord struct {
-	ID            string  `json:"id"`
-	GlossaryID    string  `json:"glossaryId"`
-	ConceptID     string  `json:"conceptId"`
-	Locale        string  `json:"locale"`
-	Term          string  `json:"term"`
-	IsPrimary     bool    `json:"isPrimary"`
-	Description   string  `json:"description"`
-	Note          string  `json:"note"`
-	PartOfSpeech  string  `json:"partOfSpeech"`
-	Gender        *string `json:"gender"`
-	TermType      *string `json:"termType"`
-	URL           *string `json:"url,omitempty"`
-	Lemma         *string `json:"lemma,omitempty"`
+	ID           string  `json:"id"`
+	GlossaryID   string  `json:"glossaryId"`
+	ConceptID    string  `json:"conceptId"`
+	Locale       string  `json:"locale"`
+	Term         string  `json:"term"`
+	IsPrimary    bool    `json:"isPrimary"`
+	Description  string  `json:"description"`
+	Note         string  `json:"note"`
+	PartOfSpeech string  `json:"partOfSpeech"`
+	Gender       *string `json:"gender"`
+	TermType     *string `json:"termType"`
+	URL          *string `json:"url,omitempty"`
+	Lemma        *string `json:"lemma,omitempty"`
+	// Pronunciation spells the term out the way speech should say it.
+	Pronunciation *string `json:"pronunciation,omitempty"`
 	Status        string  `json:"status"`
 	CaseSensitive bool    `json:"caseSensitive"`
 	Forbidden     bool    `json:"forbidden"`
@@ -78,7 +81,7 @@ type glossaryConceptRecord struct {
 
 const (
 	glossaryConceptColumns = `c.id, c.glossary_id, c.primary_term, c.subject, c.definition, c.translatable, c.note, c.url, c.figure, c.created_at, c.updated_at`
-	glossaryTermColumns    = `t.id, t.glossary_id, t.concept_id, coalesce(t.locale,''), coalesce(t.term,''), t.description, t.note, t.part_of_speech, t.gender, t.term_type, t.url, t.lemma, t.status, t.case_sensitive, t.forbidden, t.provenance, t.review_status, t.created_at, t.updated_at`
+	glossaryTermColumns    = `t.id, t.glossary_id, t.concept_id, coalesce(t.locale,''), coalesce(t.term,''), t.description, t.note, t.part_of_speech, t.gender, t.term_type, t.url, t.lemma, t.pronunciation, t.status, t.case_sensitive, t.forbidden, t.provenance, t.review_status, t.created_at, t.updated_at`
 )
 
 func scanGlossaryConcept(row pgx.Row) (glossaryConceptRecord, error) {
@@ -94,7 +97,7 @@ func scanGlossaryConcept(row pgx.Row) (glossaryConceptRecord, error) {
 func scanGlossaryTerm(row pgx.Row, sourceLocale string) (glossaryConceptTermRecord, error) {
 	var t glossaryConceptTermRecord
 	var created, updated time.Time
-	err := row.Scan(&t.ID, &t.GlossaryID, &t.ConceptID, &t.Locale, &t.Term, &t.Description, &t.Note, &t.PartOfSpeech, &t.Gender, &t.TermType, &t.URL, &t.Lemma, &t.Status, &t.CaseSensitive, &t.Forbidden, &t.Provenance, &t.ReviewStatus, &created, &updated)
+	err := row.Scan(&t.ID, &t.GlossaryID, &t.ConceptID, &t.Locale, &t.Term, &t.Description, &t.Note, &t.PartOfSpeech, &t.Gender, &t.TermType, &t.URL, &t.Lemma, &t.Pronunciation, &t.Status, &t.CaseSensitive, &t.Forbidden, &t.Provenance, &t.ReviewStatus, &created, &updated)
 	t.IsPrimary = t.Locale == sourceLocale
 	t.CreatedAt = formatGlossaryTime(created)
 	t.UpdatedAt = formatGlossaryTime(updated)
@@ -198,7 +201,7 @@ func (api *glossaryAPI) createConceptTermHandler(r *http.Request, actor glossary
 		return nil, 0, err
 	}
 	var payload glossaryConceptTermInput
-	if err := readGlossaryBody(r, []string{"locale", "term", "partOfSpeech", "note", "gender", "termType", "url", "lemma", "status", "description", "caseSensitive", "forbidden"}, &payload); err != nil {
+	if err := readGlossaryBody(r, []string{"locale", "term", "partOfSpeech", "note", "gender", "termType", "url", "lemma", "pronunciation", "status", "description", "caseSensitive", "forbidden"}, &payload); err != nil {
 		return nil, 0, err
 	}
 	term, err := insertGlossaryTerm(r.Context(), api.pool, g, conceptID, actor.userID, payload)
@@ -395,6 +398,22 @@ func (api *glossaryAPI) createConcept(r *http.Request, actor glossaryActor, g gl
 	return value, 201, err
 }
 
+// glossaryMaxPronunciation bounds a term's pronunciation, in UTF-16 units.
+const glossaryMaxPronunciation = 200
+
+// glossaryPronunciationInput trims a pronunciation. Nil leaves the stored
+// one as it is; an empty string clears it.
+func glossaryPronunciationInput(value *string) (*string, error) {
+	if value == nil {
+		return nil, nil
+	}
+	trimmed := trimGlossaryInput(*value)
+	if utf16Length(trimmed) > glossaryMaxPronunciation {
+		return nil, invalidGlossary()
+	}
+	return &trimmed, nil
+}
+
 func emptyToNil(value *string) *string {
 	if value == nil {
 		return nil
@@ -432,7 +451,11 @@ func insertGlossaryTerm(ctx context.Context, db dictionaryDB, g glossaryRecord, 
 	if term.Forbidden != nil {
 		forbidden = *term.Forbidden
 	}
-	return scanGlossaryTerm(db.QueryRow(ctx, `insert into glossary_terms as t (glossary_id, concept_id, locale, term, source_term, target_term, description, note, part_of_speech, gender, term_type, url, lemma, status, case_sensitive, forbidden, provenance, created_by_user_id, modified_by_user_id) values ($1,$2,$3,$4,$4,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'manual',$15,$15) returning `+glossaryTermColumns, g.ID, conceptID, locale, text, description, note, pos, term.Gender, term.TermType, emptyToNil(term.URL), emptyToNil(term.Lemma), status, caseSensitive, forbidden, userID), g.SourceLocale)
+	pronunciation, err := glossaryPronunciationInput(term.Pronunciation)
+	if err != nil {
+		return glossaryConceptTermRecord{}, err
+	}
+	return scanGlossaryTerm(db.QueryRow(ctx, `insert into glossary_terms as t (glossary_id, concept_id, locale, term, source_term, target_term, description, note, part_of_speech, gender, term_type, url, lemma, pronunciation, status, case_sensitive, forbidden, provenance, created_by_user_id, modified_by_user_id) values ($1,$2,$3,$4,$4,$4,$5,$6,$7,$8,$9,$10,$11,$16,$12,$13,$14,'manual',$15,$15) returning `+glossaryTermColumns, g.ID, conceptID, locale, text, description, note, pos, term.Gender, term.TermType, emptyToNil(term.URL), emptyToNil(term.Lemma), status, caseSensitive, forbidden, userID, emptyToNil(pronunciation)), g.SourceLocale)
 }
 
 func (api *glossaryAPI) patchConcept(r *http.Request, actor glossaryActor, g glossaryRecord, conceptID string) (any, int, error) {
@@ -490,7 +513,11 @@ func (api *glossaryAPI) patchTerm(r *http.Request, actor glossaryActor, g glossa
 		return nil, 0, err
 	}
 	var payload glossaryConceptTermInput
-	if err := readGlossaryBody(r, []string{"locale", "term", "partOfSpeech", "note", "gender", "termType", "url", "lemma", "status", "description", "caseSensitive", "forbidden"}, &payload); err != nil {
+	if err := readGlossaryBody(r, []string{"locale", "term", "partOfSpeech", "note", "gender", "termType", "url", "lemma", "pronunciation", "status", "description", "caseSensitive", "forbidden"}, &payload); err != nil {
+		return nil, 0, err
+	}
+	pronunciation, err := glossaryPronunciationInput(payload.Pronunciation)
+	if err != nil {
 		return nil, 0, err
 	}
 	var locale, text *string
@@ -505,7 +532,7 @@ func (api *glossaryAPI) patchTerm(r *http.Request, actor glossaryActor, g glossa
 		}
 		text = &value
 	}
-	term, err := scanGlossaryTerm(api.pool.QueryRow(r.Context(), `update glossary_terms as t set locale=coalesce($4,locale), term=coalesce($5,term), source_term=coalesce($5,source_term), target_term=coalesce($5,target_term), description=coalesce($6,description), note=coalesce($7,note), part_of_speech=coalesce($8,part_of_speech), gender=coalesce($9,gender), term_type=coalesce($10,term_type), url=coalesce($11,url), lemma=coalesce($12,lemma), status=coalesce($13,status), case_sensitive=coalesce($14,case_sensitive), forbidden=coalesce($15,forbidden), modified_by_user_id=$16, version=version+1, updated_at=now() where id=$1 and concept_id=$2 and glossary_id=$3 and archived_at is null returning `+glossaryTermColumns, termID, conceptID, g.ID, locale, text, payload.Description, payload.Note, payload.PartOfSpeech, payload.Gender, payload.TermType, emptyToNil(payload.URL), emptyToNil(payload.Lemma), payload.Status, payload.CaseSensitive, payload.Forbidden, actor.userID), g.SourceLocale)
+	term, err := scanGlossaryTerm(api.pool.QueryRow(r.Context(), `update glossary_terms as t set locale=coalesce($4,locale), term=coalesce($5,term), source_term=coalesce($5,source_term), target_term=coalesce($5,target_term), description=coalesce($6,description), note=coalesce($7,note), part_of_speech=coalesce($8,part_of_speech), gender=coalesce($9,gender), term_type=coalesce($10,term_type), url=coalesce($11,url), lemma=coalesce($12,lemma), pronunciation=case when $17::text is null then pronunciation else nullif($17::text, '') end, status=coalesce($13,status), case_sensitive=coalesce($14,case_sensitive), forbidden=coalesce($15,forbidden), modified_by_user_id=$16, version=version+1, updated_at=now() where id=$1 and concept_id=$2 and glossary_id=$3 and archived_at is null returning `+glossaryTermColumns, termID, conceptID, g.ID, locale, text, payload.Description, payload.Note, payload.PartOfSpeech, payload.Gender, payload.TermType, emptyToNil(payload.URL), emptyToNil(payload.Lemma), payload.Status, payload.CaseSensitive, payload.Forbidden, actor.userID, pronunciation), g.SourceLocale)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, missingGlossary()
 	}
