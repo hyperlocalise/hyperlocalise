@@ -105,8 +105,6 @@ func (c *Client) CreateDub(ctx context.Context, req DubRequest) (Dub, error) {
 }
 
 func (c *Client) startDub(ctx context.Context, req DubRequest, target string) (string, error) {
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
 	source := DubbingLanguage(req.SourceLanguage)
 	if source == "" {
 		source = defaultDubSourceLang
@@ -123,39 +121,9 @@ func (c *Client) startDub(ctx context.Context, req DubRequest, target string) (s
 		}
 		fields["num_speakers"] = strconv.Itoa(speakers)
 	}
-	for key, value := range fields {
-		if err := writer.WriteField(key, value); err != nil {
-			return "", fmt.Errorf("elevenlabs: build dubbing request: %w", err)
-		}
-	}
-	part, err := writer.CreatePart(mediaPartHeader(req.ContentType))
-	if err != nil {
-		return "", fmt.Errorf("elevenlabs: build dubbing request: %w", err)
-	}
-	if _, err := part.Write(req.Media); err != nil {
-		return "", fmt.Errorf("elevenlabs: build dubbing request: %w", err)
-	}
-	if err := writer.Close(); err != nil {
-		return "", fmt.Errorf("elevenlabs: build dubbing request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+dubbingPath, &buf)
-	if err != nil {
-		return "", fmt.Errorf("elevenlabs: build request: %w", err)
-	}
-	httpReq.Header.Set("xi-api-key", c.apiKey)
-	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
-	resp, err := c.httpClient.Do(httpReq)
+	body, _, err := c.doMultipart(ctx, dubbingPath, nil, fields, "file", req.Media, req.ContentType)
 	if err != nil {
 		return "", err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", httpError(resp.StatusCode, dubbingPath, string(body))
 	}
 	var created dubCreateResponse
 	if err := json.Unmarshal(body, &created); err != nil || strings.TrimSpace(created.DubbingID) == "" {
@@ -191,13 +159,67 @@ func (c *Client) waitForDub(ctx context.Context, id string, interval time.Durati
 	}
 }
 
-func mediaPartHeader(contentType string) map[string][]string {
+// doMultipart posts `fields` and `media`, as the form part `fileField`, to
+// `path`, answering with the response body and its content type.
+func (c *Client) doMultipart(
+	ctx context.Context,
+	path string,
+	query url.Values,
+	fields map[string]string,
+	fileField string,
+	media []byte,
+	contentType string,
+) ([]byte, string, error) {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	for key, value := range fields {
+		if err := writer.WriteField(key, value); err != nil {
+			return nil, "", fmt.Errorf("elevenlabs: build multipart request: %w", err)
+		}
+	}
+	part, err := writer.CreatePart(mediaPartHeader(fileField, contentType))
+	if err != nil {
+		return nil, "", fmt.Errorf("elevenlabs: build multipart request: %w", err)
+	}
+	if _, err := part.Write(media); err != nil {
+		return nil, "", fmt.Errorf("elevenlabs: build multipart request: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return nil, "", fmt.Errorf("elevenlabs: build multipart request: %w", err)
+	}
+
+	endpoint := c.baseURL + path
+	if encoded := query.Encode(); encoded != "" {
+		endpoint += "?" + encoded
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &buf)
+	if err != nil {
+		return nil, "", fmt.Errorf("elevenlabs: build request: %w", err)
+	}
+	httpReq.Header.Set("xi-api-key", c.apiKey)
+	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, "", err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, "", httpError(resp.StatusCode, path, string(body))
+	}
+	return body, resp.Header.Get("Content-Type"), nil
+}
+
+func mediaPartHeader(field, contentType string) map[string][]string {
 	contentType = strings.TrimSpace(contentType)
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
 	return map[string][]string{
-		"Content-Disposition": {fmt.Sprintf(`form-data; name="file"; filename="%s%s"`, defaultDubbingMediaName, mediaExtension(contentType))},
+		"Content-Disposition": {fmt.Sprintf(`form-data; name=%q; filename="%s%s"`, field, defaultDubbingMediaName, mediaExtension(contentType))},
 		"Content-Type":        {contentType},
 	}
 }

@@ -110,6 +110,10 @@ func irisModels() []irisModelInfo {
 		{ID: "universal-3.5-pro", Name: "Universal 3.5 Pro", Kind: irisKindTool, GatewayID: "google/gemini-3.5-transcribe", ETASeconds: 25, RequiresRef: true},
 		{ID: "fish-audio-transcribe-1", Name: "Fish Audio Transcribe 1", Kind: irisKindTool, GatewayID: "fish-audio/transcribe-1", ETASeconds: 25, RequiresRef: true},
 		{ID: "qwen3.8-omni-flash", Name: "Qwen 3.8 Omni Flash", Kind: irisKindTool, GatewayID: "alibaba/qwen3.8-omni-flash", ETASeconds: 20, RequiresRef: true},
+		// Sound out of a video or audio file: the speech alone, or the speech
+		// in another voice. Each returns audio as long as the input.
+		{ID: "elevenlabs-voice-isolator", Name: "ElevenLabs Voice Isolator", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "audio-isolation", ETASeconds: 30, RequiresRef: true},
+		{ID: "elevenlabs-voice-changer", Name: "ElevenLabs Voice Changer", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "eleven_multilingual_sts_v2", ETASeconds: 30, RequiresRef: true},
 		// Localisation: dubbing in the speakers' own voices, lip-sync to new
 		// audio, and reading and rewriting the copy baked into an image.
 		{ID: "elevenlabs-dubbing", Name: "ElevenLabs Dubbing", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "dubbing", ETASeconds: 240, RequiresRef: true},
@@ -342,6 +346,11 @@ func isIrisLocale(value string) bool {
 	return true
 }
 
+func (req irisGenerateRequest) boolField(name string) bool {
+	value, _ := req[name].(bool)
+	return value
+}
+
 func (req irisGenerateRequest) stringField(name string) string {
 	value, _ := req[name].(string)
 	return strings.TrimSpace(value)
@@ -433,6 +442,22 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 	case "qwen3.8-omni-flash":
 		if _, ok := req.asset("media"); !ok {
 			return model, fmt.Errorf("media is required")
+		}
+	case "elevenlabs-voice-isolator":
+		if _, ok := req.asset("media"); !ok {
+			return model, fmt.Errorf("media is required")
+		}
+	case "elevenlabs-voice-changer":
+		if _, ok := req.asset("media"); !ok {
+			return model, fmt.Errorf("media is required")
+		}
+		if req.voice() == "" {
+			return model, fmt.Errorf("voice is required")
+		}
+		if value, ok := req["removeBackgroundNoise"]; ok {
+			if _, ok := value.(bool); !ok {
+				return model, fmt.Errorf("removeBackgroundNoise must be true or false")
+			}
 		}
 	case "elevenlabs-dubbing":
 		if _, ok := req.asset("media"); !ok {
