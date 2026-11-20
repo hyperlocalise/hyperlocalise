@@ -1380,6 +1380,13 @@
       "when": 1795145384681,
       "tag": "0196_team_is_vendor",
       "breakpoints": true
+    },
+    {
+      "idx": 197,
+      "version": "7",
+      "when": 1795147429812,
+      "tag": "0197_job_owner_team",
+      "breakpoints": true
     }
   ]
 }
