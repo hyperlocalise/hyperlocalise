@@ -143,6 +143,12 @@ describe("pricing page content", () => {
     expect(irisModels).toHaveLength(PRICING_IRIS_MODELS.length);
     expect(irisModels.every((model) => model.access === "included")).toBe(true);
     expect(irisModels.every((model) => model.summary.length > 0)).toBe(true);
+    expect(catalog.find((model) => model.modelId === "elevenlabs-voice-isolator")?.job).toBe(
+      "speak",
+    );
+    expect(catalog.find((model) => model.modelId === "elevenlabs-voice-changer")?.job).toBe(
+      "speak",
+    );
     expect(catalog.find((model) => model.modelId === "elevenlabs-dubbing")?.job).toBe("speak");
     expect(catalog.find((model) => model.modelId === "elevenlabs-music")?.job).toBe("sound");
     expect(catalog.find((model) => model.modelId === "universal-3.5-pro")?.job).toBe("listen");
