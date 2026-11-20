@@ -40,6 +40,18 @@ export const jobDetailAssigneeFieldMessages = defineMessages({
     id: "FlKUTB/6A0",
     description: "Label when a native job has no owner",
   },
+  notHandedOut: {
+    defaultMessage: "Not handed out",
+    id: "f24Kokxqli",
+    description:
+      "A vendor team manager's option that gives a team task back to the team, with no person",
+  },
+  outsideTeam: {
+    defaultMessage: "Someone not in the team's list",
+    id: "/t9gruUZ70",
+    description:
+      "Owner shown to a vendor team manager when the task's owner has left the team or can no longer be handed tasks",
+  },
   agent: {
     defaultMessage: "Agent",
     id: "Qgi/HinJwQ",

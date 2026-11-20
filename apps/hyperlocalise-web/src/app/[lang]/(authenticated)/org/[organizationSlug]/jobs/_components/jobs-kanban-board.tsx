@@ -30,6 +30,7 @@ import {
 } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { useOptionalAppShellSession } from "@/components/app-shell/store/app-shell-session-context";
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -158,6 +159,22 @@ type CardSharedProps = {
   renderJobLink: JobsLinkRenderer;
 };
 
+/**
+ * The editor link for a job, if any. A vendor team's manager also lists the team's tasks given to
+ * others, whose editor only their owner opens.
+ */
+function useJobContentEditorHref(
+  organizationSlug: string,
+  projectId: string | null | undefined,
+  job: JobRow,
+) {
+  const session = useOptionalAppShellSession();
+  if (session?.isVendor && job.ownerUserId !== session.vendorUserId) {
+    return null;
+  }
+  return buildJobContentEditorHref(organizationSlug, projectId, job);
+}
+
 export function JobRowActions({
   buildJobDetailHref: buildDetailHref = buildJobDetailHref,
   job,
@@ -174,7 +191,7 @@ export function JobRowActions({
   const intl = useIntl();
   const resolvedProjectId = projectId ?? job.projectId;
   const detailHref = buildDetailHref(organizationSlug, resolvedProjectId, job.id);
-  const contentEditorHref = buildJobContentEditorHref(organizationSlug, resolvedProjectId, job);
+  const contentEditorHref = useJobContentEditorHref(organizationSlug, resolvedProjectId, job);
   const detailsLabel = intl.formatMessage(jobsKanbanBoardMessages.details);
   const openEditorLabel = intl.formatMessage(jobsKanbanBoardMessages.openEditor);
 
@@ -315,7 +332,7 @@ function JobBoardCard({
   const intl = useIntl();
   const resolvedProjectId = projectId ?? job.projectId;
   const detailHref = buildDetailHref(organizationSlug, resolvedProjectId, job.id);
-  const contentEditorHref = buildJobContentEditorHref(organizationSlug, resolvedProjectId, job);
+  const contentEditorHref = useJobContentEditorHref(organizationSlug, resolvedProjectId, job);
   const name = getJobName(job, intl);
   const providerName = getTmsProviderBranding(job.externalProviderKind).name;
   const openEditorLabel = intl.formatMessage(jobsKanbanBoardMessages.openEditor);

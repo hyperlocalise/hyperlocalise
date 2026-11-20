@@ -55,7 +55,7 @@ function renderShell() {
           <VendorShellClient
             activeOrganization={{ name: "Acme Localization", slug: "acme" }}
             isOnlyWorkspace
-            user={{ name: "Vera Vendor", email: "vera@example.com" }}
+            user={{ id: "user_vera", name: "Vera Vendor", email: "vera@example.com" }}
           >
             <p>Page content</p>
           </VendorShellClient>

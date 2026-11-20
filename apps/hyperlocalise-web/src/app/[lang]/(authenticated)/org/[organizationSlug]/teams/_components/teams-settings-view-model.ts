@@ -41,8 +41,21 @@ export function getTeamRoleLabel(role: TeamRole, intl?: TeamsSettingsIntl) {
   return resolveMessage(intl, teamRoleLabelMessages[role]);
 }
 
-export function getTeamRoleDescription(role: TeamRole, intl?: TeamsSettingsIntl) {
-  return resolveMessage(intl, teamRoleDescriptionMessages[role]);
+const vendorTeamRoleDescriptionMessages = {
+  manager: teamsSettingsViewModelMessages.vendorRoleManagerDescription,
+  member: teamsSettingsViewModelMessages.vendorRoleMemberDescription,
+} as const;
+
+/** On a vendor team the role decides only who hands out the team's tasks. */
+export function getTeamRoleDescription(
+  role: TeamRole,
+  intl?: TeamsSettingsIntl,
+  isVendorTeam = false,
+) {
+  return resolveMessage(
+    intl,
+    (isVendorTeam ? vendorTeamRoleDescriptionMessages : teamRoleDescriptionMessages)[role],
+  );
 }
 
 export function resolveTeamsListPageState(input: {
@@ -88,12 +101,14 @@ export function canRemoveTeamMember(input: {
   member: TeamMemberRow;
   members: TeamMemberRow[];
   canManageMembers: boolean;
+  /** A vendor team's manager only hands out its tasks; admins manage the team itself. */
+  isVendorTeam?: boolean;
 }) {
   if (!input.canManageMembers) {
     return false;
   }
 
-  if (input.member.role !== "manager") {
+  if (input.member.role !== "manager" || input.isVendorTeam) {
     return true;
   }
 
@@ -104,12 +119,14 @@ export function canUpdateTeamMemberRole(input: {
   member: TeamMemberRow;
   members: TeamMemberRow[];
   canManageMembers: boolean;
+  /** A vendor team's manager only hands out its tasks; admins manage the team itself. */
+  isVendorTeam?: boolean;
 }) {
   if (!input.canManageMembers) {
     return false;
   }
 
-  if (input.member.role !== "manager") {
+  if (input.member.role !== "manager" || input.isVendorTeam) {
     return true;
   }
 

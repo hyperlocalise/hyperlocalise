@@ -68,8 +68,8 @@ export const teamDialogMessages = defineMessages({
   },
   vendorDescription: {
     defaultMessage:
-      "For an outside agency or freelancer. Its people see only the tasks given to them, and leave their other teams when they join. It cannot be changed later.",
-    id: "bix49dzOFz",
+      "For an outside agency or freelancer. Its people see only the tasks given to them, and its Manager the team's tasks too. They leave their other teams when they join. It cannot be changed later.",
+    id: "KpItEVAT5b",
     description: "Explains what making a team a vendor team does",
   },
 });

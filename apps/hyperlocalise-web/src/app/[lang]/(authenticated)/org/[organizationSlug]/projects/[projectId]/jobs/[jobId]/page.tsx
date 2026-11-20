@@ -17,6 +17,7 @@ import { canAccessProject } from "@/api/auth/team-access";
 import { isInVendorTeam, vendorHomePath } from "@/api/auth/vendor-access";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { findOwnedFileTask } from "@/lib/projects/jobs/task-access";
+import { findManagedTeamTask } from "@/lib/projects/jobs/team-task";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
@@ -42,7 +43,8 @@ async function ProjectJobDetailPageLoader({
 }) {
   const { organizationSlug, projectId: rawProjectId, jobId } = await params;
   const projectId = normalizeProjectId(rawProjectId);
-  // Open to vendors (`vendor-access.ts`), for an open or waiting task they own.
+  // Open to vendors (`vendor-access.ts`), for an open or waiting task they own, or one given to a
+  // vendor team they manage.
   const auth = await requireAppAuthContext({ organizationSlug, allowVendor: true });
   const isVendor = isInVendorTeam(auth);
   // A person is here through the project's team, as before, or only through a task they own:
@@ -51,6 +53,8 @@ async function ProjectJobDetailPageLoader({
   // which all go through the team. (A provider project is not asked about: only native
   // projects have such tasks, and asking would call the provider on every page load.)
   let taskOwnerOnly = false;
+  // A vendor team's manager hands the team's tasks out from here (`team-task.ts`).
+  let canHandOutTask = false;
   if (
     isVendor ||
     (!parseProviderProjectId(projectId) && !(await canAccessProject(auth, projectId)))
@@ -61,7 +65,15 @@ async function ProjectJobDetailPageLoader({
       jobId,
       includeWaiting: true,
     });
-    taskOwnerOnly = Boolean(task && task.projectId === projectId);
+    const teamTask = isVendor
+      ? await findManagedTeamTask({
+          organizationId: auth.organization.localOrganizationId,
+          userId: auth.user.localUserId,
+          jobId,
+        })
+      : null;
+    canHandOutTask = Boolean(teamTask && teamTask.projectId === projectId);
+    taskOwnerOnly = Boolean(task && task.projectId === projectId) || canHandOutTask;
     if (isVendor && !taskOwnerOnly) {
       redirect(vendorHomePath(organizationSlug));
     }
@@ -80,6 +92,7 @@ async function ProjectJobDetailPageLoader({
       canEditJobFields={canEditJobFields}
       canMarkAnyTaskDone={canMarkAnyTaskDone}
       taskOwnerOnly={taskOwnerOnly}
+      canHandOutTask={canHandOutTask && mayWorkOnJobs}
       canMarkOwnTaskDone={mayWorkOnJobs}
       currentUserId={auth.user.localUserId}
       canEditSharedCredentialProviderJobFields={canEditSharedCredentialProviderJobFields}

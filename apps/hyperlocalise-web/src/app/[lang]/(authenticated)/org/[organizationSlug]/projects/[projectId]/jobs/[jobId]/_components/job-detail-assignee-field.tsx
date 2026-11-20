@@ -45,10 +45,17 @@ function toggleValue(values: string[], value: string) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
 
+type AssignableOwners = {
+  members: AssignableIssueMember[];
+  /** Vendor teams an open or waiting task on a file can be given to. */
+  teams?: { id: string; name: string }[];
+};
+
 export function NativeJobOwnerField({
   organizationSlug,
   jobId,
   ownerUserId,
+  ownerTeamId = null,
   assigneeType,
   queryKey,
   disabled = false,
@@ -57,6 +64,8 @@ export function NativeJobOwnerField({
   projectId: string;
   jobId: string;
   ownerUserId: string | null;
+  /** The vendor team the task was given to, if any. */
+  ownerTeamId?: string | null;
   assigneeType?: "user" | "agent" | null;
   queryKey: readonly unknown[];
   disabled?: boolean;
@@ -71,10 +80,10 @@ export function NativeJobOwnerField({
     queryKey: ["job-assignable-owners", organizationSlug, jobId] as const,
     queryFn: async () => {
       try {
-        return await goSvcClient.job.assignableOwners<AssignableIssueMember>(
+        return (await goSvcClient.job.assignableOwners<AssignableIssueMember>(
           organizationSlug,
           jobId,
-        );
+        )) as AssignableOwners;
       } catch (error) {
         throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadFailed)), {
           cause: error,
@@ -83,9 +92,21 @@ export function NativeJobOwnerField({
     },
   });
   const members = membersQuery.data?.members ?? [];
+  const teams = membersQuery.data?.teams ?? [];
 
   const saveOwner = useMutation({
-    mutationFn: async (nextOwnerUserId: string | null) => {
+    mutationFn: async (next: { ownerUserId: string | null } | { ownerTeamId: string }) => {
+      if ("ownerTeamId" in next) {
+        const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$patch({
+          param: { organizationSlug, jobId },
+          json: { ownerTeamId: next.ownerTeamId },
+        });
+        if (response.status !== 200) {
+          throw new Error(await readApiError(response, intl.formatMessage(messages.saveFailed)));
+        }
+        return (await response.json()).job;
+      }
+      const nextOwnerUserId = next.ownerUserId;
       const member =
         nextOwnerUserId == null
           ? null
@@ -113,6 +134,7 @@ export function NativeJobOwnerField({
         return {
           ...current,
           ownerUserId: job.ownerUserId,
+          ownerTeamId: job.ownerTeamId,
           assigneeType: job.assigneeType,
         };
       });
@@ -128,7 +150,14 @@ export function NativeJobOwnerField({
     <IssueAssigneePicker
       value={assigneeType === "agent" ? "agent" : ownerUserId}
       members={members}
-      onChange={(next) => saveOwner.mutate(next)}
+      onChange={(next) => saveOwner.mutate({ ownerUserId: next })}
+      teams={teams}
+      selectedTeamId={ownerTeamId}
+      // The team's name comes with the list; until then a task the team holds is not unassigned.
+      unassignedLabel={
+        ownerTeamId && membersQuery.isLoading ? intl.formatMessage(messages.loading) : undefined
+      }
+      onSelectTeam={(teamId) => saveOwner.mutate({ ownerTeamId: teamId })}
       disabled={disabled || saveOwner.isPending}
       isLoading={membersQuery.isLoading}
       size="ghost"
@@ -137,6 +166,86 @@ export function NativeJobOwnerField({
           ? intl.formatMessage(messages.agent)
           : intl.formatMessage(messages.unassigned)
       }
+    />
+  );
+}
+
+/**
+ * A vendor team manager's owner field on a task given to their team: they hand it to a person in
+ * the team or back to the team (`team-task.ts`). The people listed are the team's.
+ */
+export function TeamTaskHandOutField({
+  organizationSlug,
+  jobId,
+  ownerUserId,
+  queryKey,
+  disabled = false,
+}: {
+  organizationSlug: string;
+  jobId: string;
+  ownerUserId: string | null;
+  queryKey: readonly unknown[];
+  disabled?: boolean;
+}) {
+  const intl = useIntl();
+  const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
+  const membersQuery = useQuery({
+    queryKey: ["job-assignable-owners", organizationSlug, jobId] as const,
+    queryFn: async () => {
+      try {
+        return await goSvcClient.job.assignableOwners<AssignableIssueMember>(
+          organizationSlug,
+          jobId,
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadFailed)), {
+          cause: error,
+        });
+      }
+    },
+  });
+
+  const handOut = useMutation({
+    mutationFn: async (nextOwnerUserId: string | null) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+        "hand-out"
+      ].$post({
+        param: { organizationSlug, jobId },
+        json: { ownerUserId: nextOwnerUserId },
+      });
+      if (response.status !== 200) {
+        throw new Error(await readApiError(response, intl.formatMessage(messages.saveFailed)));
+      }
+    },
+    onSuccess: async () => {
+      // Owning the task, or no longer owning it, changes what the page offers.
+      await queryClient.invalidateQueries({ queryKey });
+      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
+      toast.success(intl.formatMessage(messages.saveSuccess));
+    },
+    onError: async (error) => {
+      toast.error(error instanceof Error ? error.message : intl.formatMessage(messages.saveFailed));
+      // The task may have been finished or taken from the team, or the person may have left it.
+      await queryClient.invalidateQueries({ queryKey });
+      await queryClient.invalidateQueries({
+        queryKey: ["job-assignable-owners", organizationSlug, jobId],
+      });
+    },
+  });
+
+  return (
+    <IssueAssigneePicker
+      value={ownerUserId}
+      members={membersQuery.data?.members ?? []}
+      onChange={(next) => handOut.mutate(next)}
+      disabled={disabled || handOut.isPending}
+      isLoading={membersQuery.isLoading}
+      size="ghost"
+      unassignedLabel={intl.formatMessage(messages.notHandedOut)}
+      currentLabel={intl.formatMessage(
+        membersQuery.isLoading ? messages.loading : messages.outsideTeam,
+      )}
     />
   );
 }

@@ -22,6 +22,8 @@ import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 
 const mocks = vi.hoisted(() => ({
   getJob: vi.fn(),
+  assignableOwners: vi.fn(),
+  handOut: vi.fn(),
   markDone: vi.fn(),
   replace: vi.fn(),
   toastInfo: vi.fn(),
@@ -29,7 +31,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
   useGoSvcClient: () => ({
-    client: { job: { get: mocks.getJob, assignableOwners: vi.fn(async () => ({ members: [] })) } },
+    client: { job: { get: mocks.getJob, assignableOwners: mocks.assignableOwners } },
     loading: false,
   }),
 }));
@@ -37,7 +39,14 @@ vi.mock("@/lib/api-client-instance", () => ({
   apiClient: {
     api: {
       orgs: {
-        ":organizationSlug": { jobs: { ":jobId": { "mark-done": { $post: mocks.markDone } } } },
+        ":organizationSlug": {
+          jobs: {
+            ":jobId": {
+              "mark-done": { $post: mocks.markDone },
+              "hand-out": { $post: mocks.handOut },
+            },
+          },
+        },
       },
     },
   },
@@ -100,6 +109,52 @@ function renderPage(props: Partial<ComponentProps<typeof NativeJobDetailContent>
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+});
+
+describe("the task page for a vendor team's manager", () => {
+  const teammate = {
+    userId: "user_2",
+    workosUserId: "wos_2",
+    email: "rita@agency.test",
+    displayName: "Rita Lopez",
+    avatarUrl: null,
+    isCurrentUser: false,
+  };
+
+  it("hands a task of the team on, and offers neither the editor nor Mark done until it is theirs", async () => {
+    mocks.getJob.mockResolvedValue({
+      job: { ...task, ownerUserId: "user_2", ownerTeamId: "team_1" },
+    });
+    mocks.assignableOwners.mockResolvedValue({ members: [teammate] });
+    mocks.handOut.mockResolvedValue({ status: 200, json: async () => ({ job: {} }) });
+
+    renderPage({ taskOwnerOnly: true, canHandOutTask: true, canMarkOwnTaskDone: true });
+
+    const picker = await screen.findByRole("button", { name: "Select assignee" });
+    await waitFor(() => expect(picker.textContent).toContain("Rita Lopez"));
+    expect(screen.queryByRole("button", { name: "Mark done" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Open Editor" })).toBeNull();
+
+    fireEvent.click(picker);
+    fireEvent.click(await screen.findByText("Not handed out"));
+    await waitFor(() =>
+      expect(mocks.handOut).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme", jobId: "job_1" },
+        json: { ownerUserId: null },
+      }),
+    );
+  });
+
+  it("offers the editor and Mark done once the manager has the task", async () => {
+    mocks.getJob.mockResolvedValue({ job: { ...task, ownerTeamId: "team_1" } });
+    mocks.assignableOwners.mockResolvedValue({ members: [] });
+
+    renderPage({ taskOwnerOnly: true, canHandOutTask: true, canMarkOwnTaskDone: true });
+
+    expect(await screen.findByRole("button", { name: "Mark done" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open Editor" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Select assignee" })).toBeTruthy();
+  });
 });
 
 describe("the task page for someone here through a task they own", () => {

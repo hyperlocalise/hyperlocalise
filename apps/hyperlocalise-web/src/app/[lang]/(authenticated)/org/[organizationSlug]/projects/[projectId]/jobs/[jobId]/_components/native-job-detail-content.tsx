@@ -68,7 +68,7 @@ import {
   JOB_ACTIVITY_POLL_INTERVAL_MS,
   JobActivitySection,
 } from "./job-activity-section";
-import { NativeJobOwnerField } from "./job-detail-assignee-field";
+import { NativeJobOwnerField, TeamTaskHandOutField } from "./job-detail-assignee-field";
 import { JobDetailEditableTitle } from "./job-detail-editable-title";
 import {
   getInputPayloadMetadataDescription,
@@ -121,6 +121,7 @@ export function NativeJobDetailContent({
   canEditJobFields = false,
   canMarkAnyTaskDone = false,
   taskOwnerOnly = false,
+  canHandOutTask = false,
   canMarkOwnTaskDone = false,
   currentUserId,
 }: {
@@ -136,6 +137,11 @@ export function NativeJobDetailContent({
    * done. The page's other controls all go through the team, so they are not offered.
    */
   taskOwnerOnly?: boolean;
+  /**
+   * A manager of the vendor team the task was given to: they see its page and hand it to a
+   * person in the team, and open the editor or mark it done only once it is theirs.
+   */
+  canHandOutTask?: boolean;
   /** Whether a task owner may finish their own task: a vendor, or a role that works on jobs. */
   canMarkOwnTaskDone?: boolean;
   currentUserId?: string;
@@ -354,7 +360,11 @@ export function NativeJobDetailContent({
   const contentEditorHref = job
     ? buildJobContentEditorHref(organizationSlug, projectId, job)
     : null;
-  const showCatAction = job ? canOpenJobContentEditor(job) : false;
+  // Through a task, the editor is the owner's: a team's manager opens it once the task is theirs.
+  const showCatAction =
+    job && !(taskOwnerOnly && job.ownerUserId !== currentUserId)
+      ? canOpenJobContentEditor(job)
+      : false;
   const isProviderBacked = Boolean(job && isProviderBackedJob(job));
   const isNativeEditable = Boolean(job && canEditJobFields && !isProviderBacked);
   const description = job
@@ -385,6 +395,20 @@ export function NativeJobDetailContent({
 
   const propertyEditDisabled = jobActionPending || saveTitle.isPending;
   const editableProperties = (layout?.properties ?? []).map((property) => {
+    if (canHandOutTask && property.id === "assignees" && job) {
+      return {
+        ...property,
+        value: (
+          <TeamTaskHandOutField
+            organizationSlug={organizationSlug}
+            jobId={jobId}
+            ownerUserId={job.ownerUserId}
+            queryKey={jobQueryKey}
+            disabled={propertyEditDisabled}
+          />
+        ),
+      };
+    }
     // A task owner cannot read the member list, and the task is their own.
     if (
       taskOwnerOnly &&
@@ -422,6 +446,7 @@ export function NativeJobDetailContent({
           projectId={projectId}
           jobId={jobId}
           ownerUserId={job.ownerUserId}
+          ownerTeamId={job.ownerTeamId ?? null}
           assigneeType={job.assigneeType}
           queryKey={jobQueryKey}
           disabled={propertyEditDisabled}
@@ -607,7 +632,9 @@ export function NativeJobDetailContent({
                   projectId={projectId}
                   job={job}
                   // A task owner's editor opens with the task, not while it waits.
-                  canOpenEditor={!(taskOwnerOnly && isWaitingTask(job))}
+                  canOpenEditor={
+                    !(taskOwnerOnly && (isWaitingTask(job) || job.ownerUserId !== currentUserId))
+                  }
                 />
               )
             : undefined

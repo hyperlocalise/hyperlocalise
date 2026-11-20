@@ -37,6 +37,7 @@ export function JobDetailPageContent({
   canEditJobFields,
   canMarkAnyTaskDone = false,
   taskOwnerOnly = false,
+  canHandOutTask = false,
   canMarkOwnTaskDone = false,
   currentUserId,
   canEditSharedCredentialProviderJobFields = false,
@@ -48,6 +49,8 @@ export function JobDetailPageContent({
   canMarkAnyTaskDone?: boolean;
   /** Here only through a task they own, not the project's team (`task-access.ts`). */
   taskOwnerOnly?: boolean;
+  /** A manager of the vendor team the task was given to (`team-task.ts`). */
+  canHandOutTask?: boolean;
   canMarkOwnTaskDone?: boolean;
   currentUserId?: string;
   canEditSharedCredentialProviderJobFields?: boolean;
@@ -130,6 +133,7 @@ export function JobDetailPageContent({
       canEditJobFields={canEditJobFields}
       canMarkAnyTaskDone={canMarkAnyTaskDone}
       taskOwnerOnly={taskOwnerOnly}
+      canHandOutTask={canHandOutTask}
       canMarkOwnTaskDone={canMarkOwnTaskDone}
       currentUserId={currentUserId}
     />

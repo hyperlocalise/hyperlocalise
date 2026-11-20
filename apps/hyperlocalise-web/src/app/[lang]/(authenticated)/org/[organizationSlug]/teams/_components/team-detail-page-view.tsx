@@ -172,10 +172,12 @@ function MemberRowActions({
 function ChangeTeamMemberRoleDialog({
   member,
   isSaving,
+  isVendorTeam,
   onOpenChange,
   onSubmit,
 }: {
   member: TeamMemberRow | null;
+  isVendorTeam: boolean;
   isSaving: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: { workosUserId: string; role: TeamRole }) => void;
@@ -247,7 +249,7 @@ function ChangeTeamMemberRoleDialog({
                 ))}
               </SelectContent>
             </Select>
-            <FieldDescription>{getTeamRoleDescription(role, intl)}</FieldDescription>
+            <FieldDescription>{getTeamRoleDescription(role, intl, isVendorTeam)}</FieldDescription>
           </Field>
           <DialogFooter>
             <Button
@@ -438,18 +440,17 @@ export function TeamDetailPageView({
             <MembersTableHeader showActions={pageState.canManageMembers} />
             {pageState.members.map((member) => {
               const isCurrentUser = member.workosUserId === currentUserWorkosId;
-              // A vendor team's people are all members: its manager has no part yet.
-              const canUpdateRole =
-                team?.isVendor !== true &&
-                canUpdateTeamMemberRole({
-                  member,
-                  members: pageState.members,
-                  canManageMembers: pageState.canManageMembers,
-                });
+              const canUpdateRole = canUpdateTeamMemberRole({
+                member,
+                members: pageState.members,
+                canManageMembers: pageState.canManageMembers,
+                isVendorTeam: team?.isVendor === true,
+              });
               const canRemove = canRemoveTeamMember({
                 member,
                 members: pageState.members,
                 canManageMembers: pageState.canManageMembers,
+                isVendorTeam: team?.isVendor === true,
               });
 
               return (
@@ -496,7 +497,7 @@ export function TeamDetailPageView({
                           }
                         />
                         <TooltipContent side="bottom" align="start" className="max-w-xs">
-                          {getTeamRoleDescription(member.role, intl)}
+                          {getTeamRoleDescription(member.role, intl, team?.isVendor === true)}
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -546,6 +547,7 @@ export function TeamDetailPageView({
       <ChangeTeamMemberRoleDialog
         member={editingMember}
         isSaving={isUpdatingMemberRole}
+        isVendorTeam={team?.isVendor === true}
         onOpenChange={(open) => {
           if (!open) {
             onEditingMemberChange(null);
