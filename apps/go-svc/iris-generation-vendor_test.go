@@ -752,8 +752,6 @@ func TestGenerateElevenLabsVoiceDesign(t *testing.T) {
 		switch r.URL.Path {
 		case "/v1/text-to-voice/design":
 			_, _ = w.Write([]byte(`{"previews":[{"audio_base_64":"` + preview + `","generated_voice_id":"gen-1","media_type":"audio/mpeg","duration_secs":3,"language":"en"},{"audio_base_64":"` + preview + `","generated_voice_id":"gen-2","media_type":"audio/mpeg","duration_secs":3,"language":"en"}],"text":"Hello"}`))
-		case "/v1/text-to-voice":
-			_, _ = w.Write([]byte(`{"voice_id":"voice-1"}`))
 		default:
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
@@ -770,14 +768,6 @@ func TestGenerateElevenLabsVoiceDesign(t *testing.T) {
 	require.Equal(t, "voice-preview-1.mp3", outputs[0].Filename)
 	require.Equal(t, "voices.json", outputs[2].Filename)
 	require.Contains(t, string(outputs[2].Bytes), `"generatedVoiceId":"gen-2"`)
-
-	outputs, err = generateElevenLabs(t.Context(), client, irisProviderRequest{Model: model, Fields: irisGenerateRequest{"generatedVoiceId": "gen-1", "name": "Narrator"}})
-	require.NoError(t, err)
-	require.Equal(t, "voice.json", outputs[0].Filename)
-	require.JSONEq(t, `{"voiceId":"voice-1","name":"Narrator"}`, string(outputs[0].Bytes))
-
-	_, billed := irisSyntheticCredit(irisJobRecord{ID: "j", OrgID: "o", Model: "elevenlabs-voice-design", Request: irisGenerateRequest{"generatedVoiceId": "gen-1"}}, irisCreditConfig{ElevenLabsMinuteModelID: "m"})
-	require.False(t, billed)
 }
 
 func TestIrisJoinWordsKeepsUnspacedScripts(t *testing.T) {

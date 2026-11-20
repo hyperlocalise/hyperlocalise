@@ -268,10 +268,6 @@ func irisSyntheticCredit(job irisJobRecord, credits irisCreditConfig) (autumn.Tr
 	if !ok {
 		return autumn.TrackTokensRequest{}, false
 	}
-	// Keeping a designed preview as a voice costs ElevenLabs nothing.
-	if model.ID == "elevenlabs-voice-design" && job.Request.stringField("generatedVoiceId") != "" {
-		return autumn.TrackTokensRequest{}, false
-	}
 	vendor := irisCreditVendor(model)
 	req := autumn.TrackTokensRequest{
 		CustomerID: job.OrgID,

@@ -178,9 +178,10 @@ More ElevenLabs models, all on `ELEVENLABS_API_KEY` and
   2,000 characters.
 - `elevenlabs-voice-design` (`prompt` describing the voice, optional `text`
   of 100–1,000 characters) returns `voice-preview-N.mp3` and `voices.json`
-  with each preview's `generatedVoiceId`. Sent again with `generatedVoiceId`
-  and `name`, it keeps that preview as a voice and returns `voice.json` with
-  the `voiceId` speech and dialogue take. Keeping a voice is not billed.
+  with each preview's `generatedVoiceId`. Keeping a preview as a voice is
+  turned off: saved voices would sit in the one ElevenLabs account every
+  workspace shares, where any of them could resolve another's voice by name.
+  A request with `generatedVoiceId` is rejected.
 - `elevenlabs-scribe` (`audio`, optional `languageCode`, `diarize`,
   `speakers`, `keyterms`) and `elevenlabs-forced-alignment` (`audio`, `text`)
   return `transcript.json` as the same segment array as the other

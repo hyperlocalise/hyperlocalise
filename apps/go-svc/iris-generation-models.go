@@ -543,18 +543,14 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 			return model, fmt.Errorf("languageCode must be a language or locale")
 		}
 	case "elevenlabs-voice-design":
-		if id := req.stringField("generatedVoiceId"); id != "" {
-			if req.stringField("name") == "" {
-				return model, fmt.Errorf("name is required to save a designed voice")
-			}
-			if len([]rune(req.stringField("name"))) > 100 {
-				return model, fmt.Errorf("name takes at most 100 characters")
-			}
-			break
+		// Saved voices would live in the one ElevenLabs account every
+		// workspace shares, so designing stops at the previews for now.
+		if req.stringField("generatedVoiceId") != "" {
+			return model, fmt.Errorf("keeping a designed voice is not available yet; use the previews to pick a voice from the ElevenLabs library")
 		}
 		prompt := req.prompt()
 		if prompt == "" {
-			return model, fmt.Errorf("prompt is required: describe the voice, or pass generatedVoiceId and name to keep a preview")
+			return model, fmt.Errorf("prompt is required: describe the voice")
 		}
 		if len([]rune(prompt)) > irisMaxVoiceDescription {
 			return model, fmt.Errorf("prompt is too long")

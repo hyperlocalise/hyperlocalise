@@ -448,28 +448,10 @@ func irisPronunciationLocators(ctx context.Context, client *elevenlabs.Client, r
 	return []elevenlabs.PronunciationLocator{locator}
 }
 
-// generateVoiceDesign makes previews of a described voice, or keeps one
-// preview as a voice. Previews come back as audio files and voices.json,
-// which names each preview's generatedVoiceId; keeping one returns
-// voice.json with the voiceId speech and dialogue take.
+// generateVoiceDesign makes previews of a described voice: audio files and
+// voices.json, which names each preview's generatedVoiceId. Previews are not
+// kept as voices (see validateIrisGenerateRequest).
 func generateVoiceDesign(ctx context.Context, client *elevenlabs.Client, req irisProviderRequest) ([]irisProviderOutput, error) {
-	if generated := req.Fields.stringField("generatedVoiceId"); generated != "" {
-		name := req.Fields.stringField("name")
-		voiceID, err := client.SaveVoice(ctx, elevenlabs.SaveVoiceRequest{
-			GeneratedVoiceID: generated,
-			Name:             name,
-			Description:      req.Prompt,
-			Labels:           map[string]string{"source": "hyperlocalise-iris"},
-		})
-		if err != nil {
-			return nil, err
-		}
-		return []irisProviderOutput{{
-			Bytes:       mustJSON(map[string]string{"voiceId": voiceID, "name": name}),
-			Filename:    "voice.json",
-			ContentType: "application/json",
-		}}, nil
-	}
 	previews, text, err := client.DesignVoice(ctx, elevenlabs.VoiceDesignRequest{
 		Description: req.Prompt,
 		Text:        req.Fields.stringField("text"),
