@@ -57,6 +57,7 @@ export class StaleOrganizationSlugError extends Error {
   constructor(
     readonly requestedSlug: string,
     readonly currentSlug: string,
+    readonly inVendorTeam = false,
   ) {
     super("stale_organization_slug");
   }
@@ -350,11 +351,24 @@ export async function resolveApiAuthContextFromSession(
     return null;
   }
 
-  const activeOrganization = await selectActiveOrganization(organizations, {
-    organizationSlug: options.organizationSlug,
-    workosOrganizationId: session.organizationId,
-    workosUserId: session.user.id,
-  });
+  let activeOrganization;
+  try {
+    activeOrganization = await selectActiveOrganization(organizations, {
+      organizationSlug: options.organizationSlug,
+      workosOrganizationId: session.organizationId,
+      workosUserId: session.user.id,
+    });
+  } catch (error) {
+    if (error instanceof StaleOrganizationSlugError) {
+      const current = memberships.find((item) => item.organizationSlug === error.currentSlug);
+      throw new StaleOrganizationSlugError(
+        error.requestedSlug,
+        error.currentSlug,
+        current?.inVendorTeam === true,
+      );
+    }
+    throw error;
+  }
 
   if (!activeOrganization) {
     return null;

@@ -225,6 +225,27 @@ describe("requireAppAuthContext", () => {
     expect(redirectMock).toHaveBeenCalledWith("/org/new-slug/dashboard?error=oauth_callback");
   });
 
+  it("sends a vendor to My jobs when the workspace slug changed", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com" },
+      organizationId: null,
+    };
+    const { StaleOrganizationSlugError } = await import("@/api/auth/workos-session");
+
+    withAuthMock.mockResolvedValue(session);
+    getStoredActiveOrganizationSlugMock.mockResolvedValue("old-slug");
+    resolveApiAuthContextFromSessionMock.mockRejectedValue(
+      new StaleOrganizationSlugError("old-slug", "new-slug", true),
+    );
+
+    const { requireAppAuthContext } = await import("./app-auth");
+
+    await expect(requireAppAuthContext({ organizationSlug: "old-slug" })).rejects.toThrow(
+      "redirect:/org/new-slug/my-jobs",
+    );
+    expect(setStoredActiveOrganizationSlugMock).toHaveBeenCalledWith("new-slug");
+  });
+
   it("offers the invitation instead of another workspace for an invited, unjoined workspace", async () => {
     const session = {
       user: { id: "user_123", email: "person@example.com", emailVerified: true },

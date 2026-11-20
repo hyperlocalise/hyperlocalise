@@ -90,9 +90,10 @@ func (s *postgresStore) createJob(ctx context.Context, actor principal, input jo
 	}
 
 	isKeyJob := input.Type == "keys"
+	isPersonTask := isKeyJob || (input.File != nil && input.File.Step != nil)
 	result := createdJobResult{ID: "job_" + uuid.NewString(), Type: input.Type, Status: "queued"}
 	kind := "translation"
-	if isKeyJob || (input.File != nil && input.File.Step != nil) {
+	if isPersonTask {
 		result.Status, kind = "waiting_for_review", "proofread"
 	}
 	var afterJobID *string
@@ -101,7 +102,7 @@ func (s *postgresStore) createJob(ctx context.Context, actor principal, input jo
 	}
 	errIdempotencyTaken := errors.New("idempotency key taken")
 	err = s.inTx(ctx, func(tx pgx.Tx) error {
-		if err := checkJobBudget(ctx, tx, actor.OrganizationID, isKeyJob); err != nil {
+		if err := checkJobBudget(ctx, tx, actor.OrganizationID, isPersonTask); err != nil {
 			return err
 		}
 		var versionID *string
@@ -458,9 +459,19 @@ func ensureSourceFileVersion(ctx context.Context, tx pgx.Tx, organizationID, pro
 	return &id, nil
 }
 
+// jobBudgetPersonTaskSQL is the web app's personTaskWhere (organization-operation-budget.ts): a
+// task for people starts no AI call and no sandbox while open, so it takes none of the open job
+// slots. That is a proofread or post-edit task, on a file or on chosen strings, and a translate
+// task a person holds, which only passes while it waits for review because any caller can set
+// its step. A job given to an agent or mirrored from a provider is not one. Keep the two in step.
+const jobBudgetPersonTaskSQL = `(j.assignee_type IS DISTINCT FROM 'agent'
+		AND NOT EXISTS (SELECT 1 FROM external_job_details x WHERE x.job_id = j.id)
+		AND (j.kind = 'proofread' OR (j.kind = 'translation' AND j.status = 'waiting_for_review'
+			AND COALESCE(j.input_payload->'metadata'->>'workflowTaskStep', '') = 'translate')))`
+
 // checkJobBudget ports assertOrganizationCanEnqueueTranslationJobInTransaction: at most 50 open
-// jobs (key jobs for people aside) and 120 new jobs an hour per workspace.
-func checkJobBudget(ctx context.Context, tx pgx.Tx, organizationID string, isKeyJob bool) error {
+// jobs (tasks for people aside) and 120 new jobs an hour per workspace.
+func checkJobBudget(ctx context.Context, tx pgx.Tx, organizationID string, isPersonTask bool) error {
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
 		"organization_job_budget:"+organizationID); err != nil {
 		return fmt.Errorf("lock job budget: %w", err)
@@ -469,13 +480,12 @@ func checkJobBudget(ctx context.Context, tx pgx.Tx, organizationID string, isKey
 	if err := tx.QueryRow(ctx, `SELECT
 			(SELECT count(*) FROM jobs j
 				WHERE j.organization_id = $1 AND j.status IN ('queued', 'running', 'waiting_for_review')
-					AND NOT EXISTS (SELECT 1 FROM translation_job_details d
-						WHERE d.job_id = j.id AND d.type = 'keys' AND j.kind = 'proofread')),
+					AND NOT `+jobBudgetPersonTaskSQL+`),
 			(SELECT count(*) FROM jobs WHERE organization_id = $1 AND created_at >= now() - interval '1 hour')`,
 		organizationID).Scan(&open, &recent); err != nil {
 		return fmt.Errorf("count job budget: %w", err)
 	}
-	if !isKeyJob && open >= maxOpenJobsPerOrganization {
+	if !isPersonTask && open >= maxOpenJobsPerOrganization {
 		return jobBudgetError{fmt.Sprintf("Organization has %d open jobs. Wait for jobs to finish before creating more.", open)}
 	}
 	if recent >= maxJobsCreatedPerHour {

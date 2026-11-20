@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { APP_LOCALE_HEADER_NAME } from "@/lib/app-i18n/locales";
+import { APP_LOCALE_COOKIE_NAME, APP_LOCALE_HEADER_NAME } from "@/lib/app-i18n/locales";
 import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
 import proxy, { config, ensureRequestUrlHeader, isUnsupportedLocalePath } from "./proxy";
 
@@ -143,6 +143,27 @@ describe("proxy", () => {
     expect(response?.headers.get("x-middleware-override-headers")?.split(",")).toContain(
       APP_LOCALE_HEADER_NAME,
     );
+  });
+
+  it("sets the locale cookie on localized responses and keeps AuthKit's cookies", async () => {
+    authkitProxyMock.mockReset();
+    // AuthKit forwards request headers and appends its refreshed session cookie afterwards.
+    const authkitResponse = NextResponse.next({ request: { headers: new Headers() } });
+    authkitResponse.headers.append("set-cookie", "wos-session=sealed; Path=/; HttpOnly");
+    authkitProxyMock.mockResolvedValueOnce(authkitResponse);
+
+    const request = createRequest("/de-DE/org/acme/projects/proj_1");
+    // Already set: the cookie is written again to renew it.
+    request.cookies.set(APP_LOCALE_COOKIE_NAME, "de-DE");
+    const response = await proxy(request, {} as never);
+
+    const setCookies = response?.headers.getSetCookie() ?? [];
+    expect(setCookies).toContain("wos-session=sealed; Path=/; HttpOnly");
+    expect(setCookies.find((cookie) => cookie.startsWith(`${APP_LOCALE_COOKIE_NAME}=`))).toBe(
+      `${APP_LOCALE_COOKIE_NAME}=de-DE; Path=/; Max-Age=31536000; SameSite=Lax`,
+    );
+    // Cookies passed this way would mark a server action response as changed data.
+    expect(response?.headers.get("x-middleware-set-cookie")).toBeNull();
   });
 
   it("redirects localized marketing paths without a locale prefix", async () => {

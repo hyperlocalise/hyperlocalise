@@ -15,7 +15,11 @@ import type { EvlogVariables } from "evlog/hono";
 
 import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from "@/api/response.schema";
 import { type OrganizationCapability } from "@/api/auth/policy";
-import { isVendorApiRoute, VendorAccessDeniedError } from "@/api/auth/vendor-access";
+import {
+  isVendorApiRoute,
+  VendorAccessDeniedError,
+  workspaceHomePath,
+} from "@/api/auth/vendor-access";
 import type { OrganizationMembershipRole, TeamMembershipRole } from "@/lib/database/types";
 import type { OrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 import {
@@ -174,7 +178,7 @@ export function createWorkosAuthMiddleware() {
         return apiErrorResponse(c, 403, "stale_organization_slug", "Organization slug changed", {
           requestedSlug: error.requestedSlug,
           currentSlug: error.currentSlug,
-          redirectTo: `/org/${error.currentSlug}/dashboard`,
+          redirectTo: workspaceHomePath(error.currentSlug, error.inVendorTeam),
         });
       }
 

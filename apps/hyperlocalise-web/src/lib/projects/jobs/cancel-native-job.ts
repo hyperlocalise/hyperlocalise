@@ -20,8 +20,8 @@ import { err, ok, type Result } from "@/lib/primitives/result/results";
 import { captureJobStatus } from "@/lib/reporting/capture";
 
 // waiting_for_review is included so native proofread jobs (and review-gated
-// translation jobs) can be cancelled — they count toward the open-job budget
-// and otherwise have no completion path.
+// translation jobs) can be cancelled. Those that are not tasks for people
+// count toward the open-job budget while they wait.
 export const CANCELLABLE_JOB_STATUSES = ["queued", "running", "waiting_for_review"] as const;
 
 export type CancelNativeJobError = { code: "job_not_found" } | { code: "job_action_unavailable" };

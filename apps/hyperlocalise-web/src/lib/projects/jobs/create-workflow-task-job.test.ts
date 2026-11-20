@@ -19,6 +19,7 @@ import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { insertStoredSourceFile } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { db, schema } from "@/lib/database/client";
 import { isErr, isOk } from "@/lib/primitives/result/results";
+import { assertOrganizationCanEnqueueTranslationJobInTransaction } from "@/lib/security/organization-operation-budget";
 
 import { createWorkflowTaskJob } from "./create-workflow-task-job";
 
@@ -149,5 +150,51 @@ describe("createWorkflowTaskJob", () => {
       const refused = await create("proofread", afterJobId);
       expect(isErr(refused) && refused.error.code).toBe("after_job_not_found");
     }
+  });
+
+  it("creates a task while 50 AI jobs are open, and the tasks leave room for AI jobs", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    const file = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+      sourceKind: "repository_file",
+      metadata: { sourcePath: "locales/messages.json" },
+    });
+    const aiJobIds = Array.from({ length: 50 }, () => `job_${crypto.randomUUID()}`);
+    await db.insert(schema.jobs).values(
+      aiJobIds.map((id) => ({
+        id,
+        organizationId: organization.id,
+        projectId: project.id,
+        kind: "translation" as const,
+        status: "queued" as const,
+        inputPayload: {},
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      })),
+    );
+
+    for (const step of ["translate", "edit", "proofread"] as const) {
+      const task = await createWorkflowTaskJob({
+        organizationId: organization.id,
+        projectId: project.id,
+        sourceFileId: file.id,
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+        step,
+      });
+      expect(isOk(task)).toBe(true);
+    }
+
+    // With one AI job finished, the three open tasks do not take its place.
+    await db
+      .update(schema.jobs)
+      .set({ status: "succeeded" })
+      .where(eq(schema.jobs.id, aiJobIds[0]!));
+    const budget = await db.transaction((tx) =>
+      assertOrganizationCanEnqueueTranslationJobInTransaction(tx, organization.id),
+    );
+    expect(isOk(budget)).toBe(true);
   });
 });
