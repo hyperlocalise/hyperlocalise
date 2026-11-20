@@ -16,7 +16,8 @@
  * workspace but the open tasks they own. Every signed-in request and page goes through
  * `resolveApiAuthContextFromSession`, which refuses a vendor unless the caller passes
  * `allowVendor`. Only the routes listed here and the pages that opt in do, and each of them then
- * limits a vendor to their own open tasks (`lib/projects/jobs/task-access.ts`).
+ * limits a vendor to their own open tasks (`lib/projects/jobs/task-access.ts`), or for a
+ * vendor team's manager to the tasks given to that team (`lib/projects/jobs/team-task.ts`).
  *
  * The Go service keeps the same rule in `apps/go-svc/vendor-access.go`.
  */
@@ -55,6 +56,8 @@ export function vendorHomePath(organizationSlug: string) {
  * thinking about it.
  */
 export const VENDOR_API_ROUTES: ReadonlySet<string> = new Set([
+  // A vendor team's manager hands a task of the team to a person in it, or back to the team.
+  "POST /api/orgs/:organizationSlug/jobs/:jobId/hand-out",
   // Mark done, on an open task the vendor owns.
   "POST /api/orgs/:organizationSlug/jobs/:jobId/mark-done",
   // The editor's memory and glossary lookup, for the languages of an open task they own.

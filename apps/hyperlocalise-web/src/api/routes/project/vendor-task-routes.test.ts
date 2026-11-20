@@ -672,3 +672,172 @@ describe("the AI suggestion through a task", () => {
     expect((await s.suggest("fr-FR")).status).toBe(403);
   });
 });
+
+describe("a task given to a vendor team", () => {
+  async function ownerOf(jobId: string) {
+    const [job] = await db
+      .select({ ownerUserId: schema.jobs.ownerUserId, ownerTeamId: schema.jobs.ownerTeamId })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, jobId));
+    return job;
+  }
+
+  async function giveToTeam(jobId: string, teamId: string) {
+    await db
+      .update(schema.jobs)
+      .set({ ownerTeamId: teamId, ownerUserId: null, assigneeType: null })
+      .where(eq(schema.jobs.id, jobId));
+  }
+
+  /** A vendor team, with the given person as its manager if any. */
+  async function addVendorTeam(organizationId: string, managerUserId?: string) {
+    const [team] = await db
+      .insert(schema.teams)
+      .values({ organizationId, slug: `agency-${randomUUID()}`, name: "Agency", isVendor: true })
+      .returning({ id: schema.teams.id });
+    if (managerUserId) {
+      await db
+        .insert(schema.teamMemberships)
+        .values({ teamId: team!.id, userId: managerUserId, role: "manager" });
+    }
+    return team!.id;
+  }
+
+  /** The vendor is their vendor team's manager, with a translator beside them in the team. */
+  async function setUpManager(teamRole: "manager" | "member" = "manager") {
+    const s = await setUp("vendor");
+    const [membership] = await db
+      .update(schema.teamMemberships)
+      .set({ role: teamRole })
+      .where(eq(schema.teamMemberships.userId, s.personId))
+      .returning({ teamId: schema.teamMemberships.teamId });
+    const teammateIdentity = fixture.createWorkosIdentityForOrganization(
+      s.admin.organization,
+      "translator",
+    );
+    await fixture.authHeadersFor(teammateIdentity);
+    const teammateId = await fixture.getLocalUserId(teammateIdentity.user.workosUserId);
+    await db
+      .insert(schema.teamMemberships)
+      .values({ teamId: membership!.teamId, userId: teammateId, role: "member" });
+    const task = await s.addTask({ ownerUserId: s.adminId });
+    await giveToTeam(task, membership!.teamId);
+    const handOut = (jobId: string, ownerUserId: string | null) =>
+      s.request("POST", `/jobs/${jobId}/hand-out`, { ownerUserId });
+    return { ...s, teamId: membership!.teamId, teammateId, task, handOut };
+  }
+
+  it("is handed by the team's manager to a person in the team, and back to the team", async () => {
+    const s = await setUpManager();
+
+    expect((await s.handOut(s.task, s.teammateId)).status).toBe(200);
+    expect(await ownerOf(s.task)).toEqual({ ownerUserId: s.teammateId, ownerTeamId: s.teamId });
+
+    expect((await s.handOut(s.task, s.personId)).status).toBe(200);
+    expect(await ownerOf(s.task)).toEqual({ ownerUserId: s.personId, ownerTeamId: s.teamId });
+
+    expect((await s.handOut(s.task, null)).status).toBe(200);
+    expect(await ownerOf(s.task)).toEqual({ ownerUserId: null, ownerTeamId: s.teamId });
+  });
+
+  it("is not handed to anyone outside the team, and seeing it does not finish it", async () => {
+    const s = await setUpManager();
+    const response = await s.handOut(s.task, s.adminId);
+    expect(response.status).toBe(400);
+    expect(await s.errorCode(response)).toBe("assignee_not_assignable");
+    // Nor to someone in the team whose role only reads.
+    await db
+      .update(schema.organizationMemberships)
+      .set({ role: "member" })
+      .where(eq(schema.organizationMemberships.userId, s.teammateId));
+    expect(await s.errorCode(await s.handOut(s.task, s.teammateId))).toBe(
+      "assignee_not_assignable",
+    );
+    expect((await s.markDone(s.task)).status).toBe(404);
+    expect(await ownerOf(s.task)).toEqual({ ownerUserId: null, ownerTeamId: s.teamId });
+  });
+
+  it("is handed out by no one but the team's manager, and only while open or waiting", async () => {
+    const member = await setUpManager("member");
+    expect((await member.handOut(member.task, member.personId)).status).toBe(404);
+    expect(await ownerOf(member.task)).toEqual({ ownerUserId: null, ownerTeamId: member.teamId });
+
+    const s = await setUpManager();
+    const otherTeamsTask = await s.addTask({ ownerUserId: s.adminId });
+    await giveToTeam(otherTeamsTask, await addVendorTeam(s.organization.id));
+    const finished = await s.addTask({ ownerUserId: s.adminId, status: "succeeded" });
+    await giveToTeam(finished, s.teamId);
+    const notTheTeams = await s.addTask({ ownerUserId: s.teammateId });
+    for (const [name, jobId] of [
+      ["another team's task", otherTeamsTask],
+      ["a finished task", finished],
+      ["a task given to a person in the team", notTheTeams],
+    ] as const) {
+      expect((await s.handOut(jobId, s.personId)).status, name).toBe(404);
+    }
+  });
+
+  it("is given to a vendor team from the owner picker, and taken back by choosing a person", async () => {
+    const s = await setUp("admin");
+    const managerIdentity = fixture.createWorkosIdentityForOrganization(
+      s.admin.organization,
+      "translator",
+    );
+    await fixture.authHeadersFor(managerIdentity);
+    const teamId = await addVendorTeam(
+      s.organization.id,
+      await fixture.getLocalUserId(managerIdentity.user.workosUserId),
+    );
+    const task = await s.addTask({ ownerUserId: s.adminId });
+    const patch = (body: unknown) => s.request("PATCH", `/jobs/${task}`, body);
+
+    expect((await patch({ ownerTeamId: teamId })).status).toBe(200);
+    expect(await ownerOf(task)).toEqual({ ownerUserId: null, ownerTeamId: teamId });
+
+    expect((await patch({ ownerWorkosUserId: s.personIdentity.user.workosUserId })).status).toBe(
+      200,
+    );
+    expect(await ownerOf(task)).toEqual({ ownerUserId: s.personId, ownerTeamId: null });
+
+    // Naming the person who already has it keeps the task the team's.
+    await db.update(schema.jobs).set({ ownerTeamId: teamId }).where(eq(schema.jobs.id, task));
+    expect((await patch({ ownerWorkosUserId: s.personIdentity.user.workosUserId })).status).toBe(
+      200,
+    );
+    expect(await ownerOf(task)).toEqual({ ownerUserId: s.personId, ownerTeamId: teamId });
+    // Choosing the team it is with takes it back from the person, for the managers to hand out.
+    expect((await patch({ ownerTeamId: teamId })).status).toBe(200);
+    expect(await ownerOf(task)).toEqual({ ownerUserId: null, ownerTeamId: teamId });
+
+    // Only an open or waiting task on a file, and only a vendor team.
+    const translate = await s.addTask({ kind: "translation", step: "translate" });
+    const translateResponse = await s.request("PATCH", `/jobs/${translate}`, {
+      ownerTeamId: teamId,
+    });
+    expect(await s.errorCode(translateResponse)).toBe("team_not_assignable");
+    const finished = await s.addTask({ ownerUserId: s.adminId, status: "succeeded" });
+    const finishedResponse = await s.request("PATCH", `/jobs/${finished}`, {
+      ownerTeamId: teamId,
+    });
+    expect(await s.errorCode(finishedResponse)).toBe("team_not_assignable");
+
+    // A vendor team with no manager, or whose manager's role only reads, would hold it unseen.
+    const unmanaged = await addVendorTeam(s.organization.id);
+    expect(await s.errorCode(await patch({ ownerTeamId: unmanaged }))).toBe("team_not_assignable");
+    await db
+      .update(schema.organizationMemberships)
+      .set({ role: "member" })
+      .where(
+        eq(
+          schema.organizationMemberships.userId,
+          await fixture.getLocalUserId(managerIdentity.user.workosUserId),
+        ),
+      );
+    expect(await s.errorCode(await patch({ ownerTeamId: teamId }))).toBe("team_not_assignable");
+    const response = await patch({ ownerTeamId: s.project.teamId });
+    expect(await s.errorCode(response)).toBe("team_not_assignable");
+    const both = await patch({ ownerTeamId: teamId, ownerWorkosUserId: null });
+    expect(both.status).toBe(400);
+    expect(await ownerOf(task)).toEqual({ ownerUserId: null, ownerTeamId: teamId });
+  });
+});

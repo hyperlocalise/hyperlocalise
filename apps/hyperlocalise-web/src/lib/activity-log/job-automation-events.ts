@@ -103,12 +103,13 @@ export function jobUpdatedFields(body: {
   description?: unknown;
   dueAt?: unknown;
   ownerWorkosUserId?: unknown;
+  ownerTeamId?: unknown;
 }): JobUpdatedField[] {
   const fields: JobUpdatedField[] = [];
   if (body.title !== undefined) fields.push("title");
   if (body.description !== undefined) fields.push("description");
   if (body.dueAt !== undefined) fields.push("dueAt");
-  if (body.ownerWorkosUserId !== undefined) fields.push("owner");
+  if (body.ownerWorkosUserId !== undefined || body.ownerTeamId !== undefined) fields.push("owner");
   return fields;
 }
 

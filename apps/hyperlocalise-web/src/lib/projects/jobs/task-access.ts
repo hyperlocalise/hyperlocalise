@@ -39,10 +39,20 @@ export function ownedFileTaskWhere(input: {
   /** Also match a task that has not opened yet. */
   includeWaiting?: boolean;
 }): SQL {
-  const open = eq(schema.jobs.status, "waiting_for_review");
   return and(
     eq(schema.jobs.organizationId, input.organizationId),
     eq(schema.jobs.ownerUserId, input.userId),
+    fileTaskWhere(input.includeWaiting ?? false),
+  )!;
+}
+
+/**
+ * A post-edit or proofread task on one file that is open or, with `includeWaiting`, still
+ * waiting for an earlier job. Whose task it is, is for the caller to add.
+ */
+export function fileTaskWhere(includeWaiting: boolean): SQL {
+  const open = eq(schema.jobs.status, "waiting_for_review");
+  return and(
     // Post-edit and proofread tasks are both stored as proofread jobs.
     eq(schema.jobs.kind, "proofread"),
     or(isNull(schema.jobs.assigneeType), ne(schema.jobs.assigneeType, "agent")),
@@ -53,7 +63,7 @@ export function ownedFileTaskWhere(input: {
         .from(schema.externalJobDetails)
         .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
     ),
-    input.includeWaiting
+    includeWaiting
       ? or(open, and(eq(schema.jobs.status, "queued"), isNotNull(schema.jobs.afterJobId)))
       : open,
   )!;
