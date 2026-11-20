@@ -40,7 +40,7 @@ Other platforms handle vendors in three ways: a linked organization of the vendo
 | **Mark done** | On their own open task. | As for everyone else. |
 | Their account | Sign out, theme and language, choosing another workspace they belong to, leaving the workspace. | From the account menu. The settings pages stay closed. |
 
-By role, inside a task: a Translator saves translations, comments and asks for an AI suggestion; a Reviewer may also approve and reject. The task's step does not change this. Source text, tags, design links, string limits, hiding or locking strings, memory entries and screenshots stay closed whatever the role, because those routes are not opened.
+Inside a task their role decides, exactly as it does in the editor for anyone: saving, commenting, approving and asking for an AI suggestion follow the role's rights there, and the task's step does not change them. (The editor lets a Translator approve a string when saving it, as it does on main; whether a vendor Translator should is an open question.) Source text, tags, design links, string limits, hiding or locking strings, memory entries and screenshots stay closed whatever the role, because those routes are not opened.
 
 Vendor people see the names of the people who wrote comments or earlier versions in their file. They see no other names.
 
@@ -115,7 +115,7 @@ This changes the access rules of live features, so an existing test that fails i
 
 - Each gate: the default refuses vendor people; the opted-in path accepts them. For the web app, a test walks every route the app registers and expects a refusal for vendor people on all but the listed ones, so a new route is covered the day it is added.
 - Every opened path, as vendor people: allowed on their own open task; refused on a waiting task (editor, Mark done), a finished task, a task given to someone else, another person's task, another file of the same project, another language of the same file, "all files", and another workspace.
-- Rights by role: saving and the AI suggestion as a Translator and a Reviewer; approving and rejecting refused for a Translator and allowed for a Reviewer, on both steps; each closed action refused.
+- Rights by role: saving, approving and the AI suggestion as a Reviewer on both steps; the AI suggestion refused for a role without AI actions; Mark done refused for a role that does not work on jobs; each closed action refused.
 - Memory and glossary lookup allowed for the task's languages and the text of the task's strings, and refused for other languages and other text; lists and edits refused.
 - Ways in that never read the web session: the Slack and email assistants, plugin sign-ins, MCP, the **Human approval** step, tokens and agents.
 - Representative closed paths in each service, named in "What stays closed", including the member directory, project templates, dictionaries, Reports, token creation, the public API with an older token, and MCP.
