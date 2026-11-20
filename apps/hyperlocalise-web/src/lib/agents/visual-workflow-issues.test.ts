@@ -104,6 +104,23 @@ describe("describeVisualWorkflowIssues", () => {
     ]);
   });
 
+  it("names the setting whose reference a run cannot read, and passes the full form", () => {
+    const loop = [
+      node("manual", "trigger.manual"),
+      node("for_each", "logic.for_each", { collection: "{{ trigger.items }}" }),
+    ];
+    const edges = [next("manual", "for_each"), next("for_each", "notify_slack", "each")];
+    const message = (text: string) =>
+      node("notify_slack", "action.notify_slack", { channelId: "C1", message: text });
+
+    expect(issuesOf([...loop, message("Review {{ item.path }}")], edges)).toEqual([
+      "message on Notify Slack [notify_slack] holds a {{ }} reference that a run cannot read, which brokenReferences names.",
+    ]);
+    expect(issuesOf([...loop, message("Review {{ nodes.for_each.item.path }}")], edges)).toEqual(
+      [],
+    );
+  });
+
   it("names a setting that is empty, and a connection into a Loop's steps from outside", () => {
     expect(
       issuesOf(

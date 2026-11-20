@@ -26,7 +26,8 @@ describe("localisation audit page content", () => {
   it("returns English landing copy for the source locale", () => {
     const copy = getLocalisationAuditPageCopy("en");
 
-    expect(copy.headline).toBe("See how your brand travels.");
+    expect(copy.headline).toBe("Free website localisation audit.");
+    expect(copy.subcopy).toContain("See how your brand travels.");
     expect(copy.submit).toBe("See my score");
     expect(copy.crawlAccessNoteBody).toContain("ordinary browser traffic");
     expect(copy.crawlAccessNoteUserAgent).toBe("User agent");
@@ -41,6 +42,7 @@ describe("localisation audit page content", () => {
     expect(copy.leaderboardSiteColumn).toBe("Site");
     expect(copy.leaderboardScoreColumn).toBe("Score");
     expect(copy.leaderboardScoreLabel({ score: 86 })).toBe("Score 86 out of 100");
+    expect(copy.leaderboardShowMore).toBe("Show more");
     expect(copy.startError).toContain("Check the URL");
     expect(copy.onePerDomain({ limit: LOCALISATION_AUDIT_DAILY_RUN_LIMIT })).toBe(
       `One free look per site. ${LOCALISATION_AUDIT_DAILY_RUN_LIMIT} a day across all sites.`,
@@ -55,6 +57,16 @@ describe("localisation audit page content", () => {
     expect(copy.progressStepOf({ current: 2, total: 5 })).toBe("Step 2 of 5");
     expect(copy.criteriaSummary({ passed: 8, watch: 2, failed: 3, na: 1 })).toBe(
       "8 passed · 2 to watch · 3 to fix · 1 not applicable",
+    );
+    expect(copy.relatedHeading).toBe("Related scores");
+    expect(copy.relatedSubcopy).toBe("See how similar sites compare.");
+    expect(copy.relatedHubLink).toBe("See all public scores");
+    expect(copy.relatedScoreLink({ name: "Northstar", score: 91 })).toBe(
+      "Northstar, score 91 out of 100",
+    );
+    expect(copy.auditYoursHeading).toBe("Audit your site");
+    expect(copy.auditYoursBody({ domain: "acme.example" })).toBe(
+      "This report is for acme.example. Enter your URL to get the same localisation score.",
     );
     expect(copy.runningHeading({ domain: "acme.com" })).toBe("Auditing acme.com");
     expect(copy.fixFirstGain({ points: "4.2" })).toBe("+4.2 pts");

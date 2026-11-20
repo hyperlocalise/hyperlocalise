@@ -98,9 +98,33 @@ describe("findVisualWorkflowReferenceProblems", () => {
     ]);
   });
 
-  it("leaves expressions it does not know alone", () => {
-    const nodes = [node("notify_slack", "action.notify_slack", { message: "{{ item.name }}" })];
+  it("names a loop's item written without the Loop step, which a run cannot read", () => {
+    const nodes = [
+      node("trigger", "trigger.manual"),
+      node("for_each", "logic.for_each", { collection: "{{ trigger.items }}" }),
+      node("create_task", "action.create_task", {
+        projectId: "{{ item.projectId }}",
+        sourceFileId: "{{ nodes.for_each.item.sourceFileId }}",
+        title: "Proofread: {{ item.path }}",
+      }),
+    ];
+    const edges = [edge("trigger", "for_each"), edge("for_each", "create_task")];
 
-    expect(findVisualWorkflowReferenceProblems({ nodes, edges: [] })).toEqual([]);
+    expect(findVisualWorkflowReferenceProblems({ nodes, edges })).toEqual([
+      { nodeId: "create_task", reference: "{{ item.projectId }}", reason: "unknown_root" },
+      { nodeId: "create_task", reference: "{{ item.path }}", reason: "unknown_root" },
+    ]);
+  });
+
+  it("leaves text a run does not fill in: a wired setting and a Text template's placeholders", () => {
+    const nodes = [
+      node("trigger", "trigger.manual"),
+      node("ai", "ai.agent"),
+      node("notify_slack", "action.notify_slack", { message: "{{ item.name }}" }),
+      node("text", "logic.text_template", { template: "Hello {{ name }}" }),
+    ];
+    const edges = [edge("trigger", "ai"), edge("ai", "notify_slack", "data")];
+
+    expect(findVisualWorkflowReferenceProblems({ nodes, edges })).toEqual([]);
   });
 });

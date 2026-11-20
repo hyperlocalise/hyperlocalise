@@ -1370,8 +1370,15 @@
     {
       "idx": 195,
       "version": "7",
-      "when": 1795141678677,
-      "tag": "0195_team_is_vendor",
+      "when": 1795138220188,
+      "tag": "0195_glossary_term_pronunciation",
+      "breakpoints": true
+    },
+    {
+      "idx": 196,
+      "version": "7",
+      "when": 1795145384681,
+      "tag": "0196_team_is_vendor",
       "breakpoints": true
     }
   ]

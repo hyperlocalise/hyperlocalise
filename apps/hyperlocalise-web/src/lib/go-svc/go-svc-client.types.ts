@@ -192,6 +192,7 @@ export type GlossaryTerm = {
   termType: string | null;
   url?: string | null;
   lemma?: string | null;
+  pronunciation?: string | null;
   status: string;
   caseSensitive: boolean;
   forbidden: boolean;

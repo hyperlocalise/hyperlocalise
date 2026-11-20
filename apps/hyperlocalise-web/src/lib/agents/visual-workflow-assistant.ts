@@ -943,6 +943,8 @@ const REFERENCE_PROBLEMS: Record<VisualWorkflowReferenceProblem["reason"], strin
   unknown_step: "reads a step that is not in the workflow",
   not_earlier: "reads a step that does not run before it",
   no_trigger: "reads the trigger, and the workflow has none",
+  unknown_root:
+    "starts with neither trigger. nor nodes., so a run cannot read it. A field of an earlier step is written {{ nodes.<step id>.<field> }}, and a Loop's current item {{ nodes.<loop id>.item.<field> }}",
 };
 
 function describeReferenceProblems(state: VisualWorkflowEditorState): string[] {

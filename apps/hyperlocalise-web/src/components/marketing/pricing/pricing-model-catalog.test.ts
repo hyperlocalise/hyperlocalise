@@ -319,6 +319,30 @@ describe("pricing model catalog", () => {
           "Qwen 3.8 Omni Flash",
         ],
         [
+          "elevenlabs-voice-isolator",
+          "ElevenLabs Voice Isolator",
+        ],
+        [
+          "elevenlabs-voice-changer",
+          "ElevenLabs Voice Changer",
+        ],
+        [
+          "elevenlabs-dialogue",
+          "ElevenLabs Dialogue",
+        ],
+        [
+          "elevenlabs-voice-design",
+          "ElevenLabs Voice Design",
+        ],
+        [
+          "elevenlabs-scribe",
+          "ElevenLabs Scribe",
+        ],
+        [
+          "elevenlabs-forced-alignment",
+          "ElevenLabs Forced Alignment",
+        ],
+        [
           "image-edit",
           "Image Edit",
         ],

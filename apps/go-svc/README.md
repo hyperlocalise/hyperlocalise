@@ -114,7 +114,7 @@ and reads the result. Neither package exposes an HTTP route.
 
 | Variable | Description |
 |----------|-------------|
-| `ELEVENLABS_API_KEY` | ElevenLabs API key sent as `xi-api-key`. Required for native `elevenlabs-*` Iris models, including `elevenlabs-dubbing`. |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key sent as `xi-api-key`. Required for native `elevenlabs-*` Iris models, including `elevenlabs-dubbing`, `elevenlabs-voice-isolator` and `elevenlabs-voice-changer`. |
 | `ELEVENLABS_BASE_URL` | Optional. Defaults to `https://api.elevenlabs.io`. |
 | `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Seedance, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, ByteDance upscaler, and Sync lipsync Iris models. |
 | `FAL_QUEUE_URL` | Optional. Defaults to `https://queue.fal.run`. |
@@ -164,6 +164,38 @@ Transcription (`universal-3.5-pro`, `fish-audio-transcribe-1`,
 JSON endpoint, derived from `AI_GATEWAY_BASE_URL` by replacing `/v1` with
 `/v4/ai`. The gateway does not implement OpenAI-compatible
 `/v1/audio/transcriptions`. Direct OpenAI still uses that multipart route.
+
+Voice tools (`elevenlabs-voice-isolator`: `media`; `elevenlabs-voice-changer`:
+`media`, `voice`, optional `removeBackgroundNoise`) call ElevenLabs audio
+isolation and speech-to-speech and return an MP3 as long as the input. Both
+need `ELEVENLABS_API_KEY` and bill on `AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID`.
+
+More ElevenLabs models, all on `ELEVENLABS_API_KEY` and
+`AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID`:
+
+- `elevenlabs-dialogue` (`lines: [{ text, voice }]`, optional `languageCode`)
+  voices several speakers in one take with Eleven v3, up to 10 voices and
+  2,000 characters.
+- `elevenlabs-voice-design` (`prompt` describing the voice, optional `text`
+  of 100–1,000 characters) returns `voice-preview-N.mp3` and `voices.json`
+  with each preview's `generatedVoiceId`. Keeping a preview as a voice is
+  turned off: saved voices would sit in the one ElevenLabs account every
+  workspace shares, where any of them could resolve another's voice by name.
+  A request with `generatedVoiceId` is rejected.
+- `elevenlabs-scribe` (`audio`, optional `languageCode`, `diarize`,
+  `speakers`, `keyterms`) and `elevenlabs-forced-alignment` (`audio`, `text`)
+  return `transcript.json` as the same segment array as the other
+  transcription models. Segments split on a speaker change, a pause or a
+  sentence end, and carry `speaker` when diarized.
+
+Glossaries reach these audio models when the job is created. For
+`elevenlabs-v3`, `elevenlabs-v4` and `elevenlabs-dialogue`, the
+`pronunciation` of each glossary term the script contains (in the request's
+`languageCode` when one is set) becomes an alias rule in an ElevenLabs
+pronunciation dictionary. Each set of rules is made once per process and
+reused. For `elevenlabs-scribe`, the glossary's allowed terms in the language
+(or the glossaries' source terms) are sent as `keyterms`, alongside any the
+request names. A glossary that cannot be read leaves the job as it was.
 
 ### Iris localisation
 

@@ -1,5 +1,5 @@
 {
-  "id": "43443de4-bd6d-498d-a335-9cf83832a7e7",
+  "id": "6cca62e1-5fb5-4e99-9859-5e2efd319da2",
   "prevId": "c070a563-e2bb-4399-9a22-96b1fec976b1",
   "version": "7",
   "dialect": "postgresql",
@@ -401,13 +401,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "is_vendor": {
-          "name": "is_vendor",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "created_at": {
           "name": "created_at",
@@ -5392,6 +5385,12 @@
         },
         "lemma": {
           "name": "lemma",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pronunciation": {
+          "name": "pronunciation",
           "type": "text",
           "primaryKey": false,
           "notNull": false

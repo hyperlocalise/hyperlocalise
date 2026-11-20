@@ -26,11 +26,17 @@ import { getLocalisationAuditPageCopy } from "./localisation-audit-page-content"
 
 const MAX_FOCUS_LOCALES = 2;
 
+const DEFAULT_ID_PREFIX = "localisation-audit";
+
 type LocalisationAuditFormProps = {
   locale: string;
+  idPrefix?: string;
 };
 
-export function LocalisationAuditForm({ locale }: LocalisationAuditFormProps) {
+export function LocalisationAuditForm({
+  locale,
+  idPrefix = DEFAULT_ID_PREFIX,
+}: LocalisationAuditFormProps) {
   const copy = getLocalisationAuditPageCopy(locale);
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -83,12 +89,12 @@ export function LocalisationAuditForm({ locale }: LocalisationAuditFormProps) {
 
   return (
     <form onSubmit={onSubmit} className="w-full max-w-xl">
-      <Label htmlFor="localisation-audit-url" className="sr-only">
+      <Label htmlFor={`${idPrefix}-url`} className="sr-only">
         {copy.urlLabel}
       </Label>
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-background p-2 shadow-sm transition-shadow focus-within:shadow-md focus-within:ring-2 focus-within:ring-ring/30 sm:flex-row">
         <Input
-          id="localisation-audit-url"
+          id={`${idPrefix}-url`}
           name="url"
           type="url"
           inputMode="url"
@@ -131,18 +137,18 @@ export function LocalisationAuditForm({ locale }: LocalisationAuditFormProps) {
             className="overflow-hidden"
           >
             <div className="space-y-2 pt-4">
-              <Label htmlFor="localisation-audit-focus">{copy.focusLabel}</Label>
+              <Label htmlFor={`${idPrefix}-focus`}>{copy.focusLabel}</Label>
               <Input
-                id="localisation-audit-focus"
+                id={`${idPrefix}-focus`}
                 name="focusLocales"
                 placeholder={copy.focusPlaceholder}
                 value={focusLocales}
-                aria-describedby="localisation-audit-focus-hint"
+                aria-describedby={`${idPrefix}-focus-hint`}
                 onChange={(event) => setFocusLocales(event.target.value)}
                 className="h-11"
                 autoFocus
               />
-              <p id="localisation-audit-focus-hint" className="text-sm text-muted-foreground">
+              <p id={`${idPrefix}-focus-hint`} className="text-sm text-muted-foreground">
                 {copy.focusHint}
               </p>
             </div>

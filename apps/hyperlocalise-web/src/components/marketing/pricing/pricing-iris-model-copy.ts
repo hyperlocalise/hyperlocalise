@@ -100,6 +100,20 @@ export function getPricingIrisGroupCopy(
         description: "Situation for Iris voice models on the pricing page",
       }),
     },
+    "voice-tool": {
+      story: intl.formatMessage({
+        defaultMessage:
+          "Pull speech out of a mixed track, or recast it in another voice, without leaving the Iris timeline.",
+        id: "ibV/CKuQ9K",
+        description:
+          "Story for Iris voice tools (voice isolation, voice changer) on the pricing page",
+      }),
+      useWhen: intl.formatMessage({
+        defaultMessage: "A clip has the right words but the wrong mix or the wrong voice.",
+        id: "AuEwPzJu/g",
+        description: "Situation for Iris voice tools on the pricing page",
+      }),
+    },
     dubbing: {
       story: intl.formatMessage({
         defaultMessage:
@@ -315,6 +329,36 @@ export function getPricingIrisModelSummaries(intl: IntlShape): Record<PricingIri
       defaultMessage: "Describe and search footage",
       id: "07nyefIF8a",
       description: "Card summary for the Qwen 3.8 Omni Flash media model on the pricing page",
+    }),
+    "elevenlabs-voice-isolator": intl.formatMessage({
+      defaultMessage: "Pull speech out of mixed audio",
+      id: "Z3DwRJesqT",
+      description: "Card summary for the ElevenLabs Voice Isolator model on the pricing page",
+    }),
+    "elevenlabs-voice-changer": intl.formatMessage({
+      defaultMessage: "Recast speech in another voice",
+      id: "o/WNblFvuF",
+      description: "Card summary for the ElevenLabs Voice Changer model on the pricing page",
+    }),
+    "elevenlabs-dialogue": intl.formatMessage({
+      defaultMessage: "Several speakers in one natural take",
+      id: "yb/kMUJ7+w",
+      description: "Card summary for the ElevenLabs Dialogue model on the pricing page",
+    }),
+    "elevenlabs-voice-design": intl.formatMessage({
+      defaultMessage: "Design a new voice from a description",
+      id: "tMtsgNjZc9",
+      description: "Card summary for the ElevenLabs Voice Design model on the pricing page",
+    }),
+    "elevenlabs-scribe": intl.formatMessage({
+      defaultMessage: "Transcripts that tell speakers apart",
+      id: "KcY7LHAt0z",
+      description: "Card summary for the ElevenLabs Scribe transcription model on the pricing page",
+    }),
+    "elevenlabs-forced-alignment": intl.formatMessage({
+      defaultMessage: "Time a written script to its voice-over",
+      id: "NVepseo0De",
+      description: "Card summary for the ElevenLabs Forced Alignment model on the pricing page",
     }),
     "elevenlabs-dubbing": intl.formatMessage({
       defaultMessage: "Dub video in the speakers' own voices",

@@ -133,6 +133,7 @@ describe("glossaryRoutes", () => {
             {
               locale: "vi-VN",
               term: "Thanh toán",
+              pronunciation: "tahn twahn",
               status: "draft",
               caseSensitive: false,
               forbidden: false,
@@ -163,7 +164,12 @@ describe("glossaryRoutes", () => {
       expect.arrayContaining([
         expect.objectContaining({ locale: "en", term: "Checkout", status: "preferred" }),
         expect.objectContaining({ locale: "en", term: "Payment", status: "draft" }),
-        expect.objectContaining({ locale: "vi-VN", term: "Thanh toán", status: "draft" }),
+        expect.objectContaining({
+          locale: "vi-VN",
+          term: "Thanh toán",
+          status: "draft",
+          pronunciation: "tahn twahn",
+        }),
         expect.objectContaining({ locale: "en-US", term: "Check-out", status: "draft" }),
       ]),
     );

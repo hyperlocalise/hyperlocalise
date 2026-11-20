@@ -72,4 +72,22 @@ describe("PricingModelsBrowser", () => {
     expect(screen.getByRole("button", { name: /GPT-5.4 Nano/ })).toBeVisible();
     expect(screen.getByText("1 model")).toBeVisible();
   });
+
+  it("shows ElevenLabs voice tools on the full Voice list", async () => {
+    const user = userEvent.setup();
+    renderBrowser();
+
+    await user.click(screen.getByRole("switch", { name: "Choose how many models to show" }));
+    const jobs = screen.getByRole("group", { name: "Filter by job" });
+    await user.click(within(jobs).getByRole("button", { name: "Voice" }));
+    await user.click(screen.getByRole("button", { name: /^ElevenLabs Voice Isolator/ }));
+
+    expect(screen.getByRole("button", { name: /^ElevenLabs Voice Isolator/ })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /^ElevenLabs Voice Changer/ })).toBeVisible();
+    expect(screen.getByText(/pull speech out of a mixed track/i)).toBeVisible();
+    expect(screen.getByText(/wrong mix or the wrong voice/i)).toBeVisible();
+  });
 });

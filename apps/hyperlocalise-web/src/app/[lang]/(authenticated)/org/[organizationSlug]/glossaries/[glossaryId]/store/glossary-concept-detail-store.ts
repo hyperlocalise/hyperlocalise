@@ -43,6 +43,7 @@ export type TermDraft = {
   description: string;
   note: string;
   url: string;
+  pronunciation: string;
 };
 
 export type CreatingTermDraft = TermDraft & { id: string; locale: string };
@@ -65,6 +66,7 @@ export const EMPTY_TERM_DRAFT: TermDraft = {
   description: "",
   note: "",
   url: "",
+  pronunciation: "",
 };
 
 export function emptyConceptDraft(): ConceptDraft {
@@ -100,6 +102,7 @@ export function termDraftFromRecord(term: GlossaryConceptTermRecord): TermDraft 
     description: term.description,
     note: term.note,
     url: term.url ?? "",
+    pronunciation: term.pronunciation ?? "",
   };
 }
 
@@ -118,7 +121,8 @@ export function areTermDraftsEqual(left: TermDraft, right: TermDraft) {
     left.status === right.status &&
     left.description === right.description &&
     left.note === right.note &&
-    left.url === right.url
+    left.url === right.url &&
+    left.pronunciation === right.pronunciation
   );
 }
 
@@ -520,6 +524,7 @@ export class GlossaryConceptDetailStore {
           description: termDraft.description,
           note: termDraft.note,
           url: termDraft.url,
+          pronunciation: termDraft.pronunciation,
           caseSensitive: term.caseSensitive,
           forbidden: term.forbidden,
         };
@@ -535,6 +540,7 @@ export class GlossaryConceptDetailStore {
         description: this.newTermDraft.description,
         note: this.newTermDraft.note,
         url: this.newTermDraft.url,
+        pronunciation: this.newTermDraft.pronunciation,
         caseSensitive: false,
         forbidden: false,
       });

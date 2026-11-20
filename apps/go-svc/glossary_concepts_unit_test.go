@@ -41,6 +41,7 @@ func TestGlossaryEmptyToNilAndListConcepts(t *testing.T) {
 func TestScanGlossaryConceptAndTerm(t *testing.T) {
 	now := time.Now().UTC()
 	url := "https://example.com"
+	pronunciation := "check out"
 	concept, err := scanGlossaryConcept(scriptScanRow{values: []any{
 		uuid.NewString(), "g1", "Checkout", "Commerce", "Payment", true, "note", &url, nil, now, now,
 	}})
@@ -49,8 +50,9 @@ func TestScanGlossaryConceptAndTerm(t *testing.T) {
 	require.Empty(t, concept.Terms)
 
 	term, err := scanGlossaryTerm(scriptScanRow{values: []any{
-		uuid.NewString(), "g1", concept.ID, "en-US", "Checkout", "desc", "note", "noun", nil, nil, nil, nil, "preferred", false, false, "manual", "approved", now, now,
+		uuid.NewString(), "g1", concept.ID, "en-US", "Checkout", "desc", "note", "noun", nil, nil, nil, nil, &pronunciation, "preferred", false, false, "manual", "approved", now, now,
 	}}, "en-US")
 	require.NoError(t, err)
 	require.True(t, term.IsPrimary)
+	require.Equal(t, "check out", *term.Pronunciation)
 }

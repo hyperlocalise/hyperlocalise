@@ -27,6 +27,7 @@ import { describeLocalisationAuditScoringModel } from "@/lib/localisation-audit/
 import { scoreTone } from "@/lib/localisation-audit/score-tone";
 import { LOCALISATION_AUDIT_USER_AGENT } from "@/lib/localisation-audit/user-agent";
 
+import { getLocalisationAuditFaqItems } from "./localisation-audit-faq-content";
 import { LocalisationAuditForm } from "./localisation-audit-form";
 import { LocalisationAuditLeaderboard } from "./localisation-audit-leaderboard";
 import {
@@ -91,38 +92,42 @@ function ExampleReportCard({ copy }: { copy: LocalisationAuditPageCopy }) {
 
 export function LocalisationAuditPage({ locale, leaderboard }: LocalisationAuditPageProps) {
   const copy = getLocalisationAuditPageCopy(locale);
+  const faqItems = getLocalisationAuditFaqItems(locale);
   const model = describeLocalisationAuditScoringModel();
   const facts = [
     copy.heroFactSpeed,
     copy.heroFactScope,
     copy.heroFactChecks({ checks: model.totalChecks }),
   ];
-  const faqs = [
-    { question: copy.faqScopeQuestion, answer: <p>{copy.scopeNote}</p> },
-    { question: copy.faqPublicQuestion, answer: <p>{copy.disclosure}</p> },
-    {
-      question: copy.faqBlockedQuestion,
-      answer: (
-        <>
-          <p>{copy.crawlAccessNoteBody}</p>
-          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span>{copy.crawlAccessNoteUserAgent}:</span>
-            <code className="break-all rounded bg-muted px-1.5 py-0.5 text-xs text-foreground">
-              {LOCALISATION_AUDIT_USER_AGENT}
-            </code>
+  const faqs = faqItems.map((item) => {
+    if (item.question === copy.faqBlockedQuestion) {
+      return {
+        question: item.question,
+        answer: (
+          <>
+            <p>{copy.crawlAccessNoteBody}</p>
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span>{copy.crawlAccessNoteUserAgent}:</span>
+              <code className="break-all rounded bg-muted px-1.5 py-0.5 text-xs text-foreground">
+                {LOCALISATION_AUDIT_USER_AGENT}
+              </code>
+            </p>
+          </>
+        ),
+      };
+    }
+    if (item.question === copy.faqFindingQuestion) {
+      return {
+        question: item.question,
+        answer: (
+          <p className="rounded-lg border-s-2 border-border bg-muted/40 p-3 text-foreground">
+            {item.answer}
           </p>
-        </>
-      ),
-    },
-    {
-      question: copy.faqFindingQuestion,
-      answer: (
-        <p className="rounded-lg border-s-2 border-border bg-muted/40 p-3 text-foreground">
-          {copy.sampleFindingBody}
-        </p>
-      ),
-    },
-  ];
+        ),
+      };
+    }
+    return { question: item.question, answer: <p>{item.answer}</p> };
+  });
 
   return (
     <div className="min-h-screen bg-background text-foreground">
