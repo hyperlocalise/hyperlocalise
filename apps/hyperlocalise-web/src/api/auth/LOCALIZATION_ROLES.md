@@ -50,7 +50,7 @@ is always "an open post-edit or proofread task on a file that I own"
 (`task-access.ts`, `vendor-access.go`), limited to that task's file and
 languages. The same rule lets any other member whose role works on jobs open a
 task they own outside their teams. Design:
-[`docs/adr/2026-11-18-vendor-role-design.md`](../../../../../docs/adr/2026-11-18-vendor-role-design.md).
+[`docs/adr/2026-11-20-vendor-teams-design.md`](../../../../../docs/adr/2026-11-18-vendor-role-design.md).
 
 Legacy workspaces that only use WorkOS `admin` and `member` continue to work:
 `member` stays read-only; `admin` retains full capability.
