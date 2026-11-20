@@ -270,6 +270,17 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "LSAb8ph9tQ",
     description: "Catalog description for the list source files node",
   },
+  nodeListReviewWork: {
+    defaultMessage: "List work to review",
+    id: "x6+CVCpXnQ",
+    description: "Catalog title for the step that lists files and languages with review work",
+  },
+  nodeListReviewWorkHint: {
+    defaultMessage:
+      "Find each file and language with translations waiting for review that nobody has a task for.",
+    id: "zdITXRNL2Q",
+    description: "Catalog description for the step that lists files and languages with review work",
+  },
   nodeFileRead: {
     defaultMessage: "Read file",
     id: "4+YLajE++n",
@@ -2688,8 +2699,8 @@ export const visualWorkflowEditorMessages = defineMessages({
   },
   taskDueAtHint: {
     defaultMessage:
-      "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty for no due date.",
-    id: "SQUPAVRD+K",
+      "A date such as 2026-05-01T17:00Z, a period from when the step runs such as +3d or +12h, or a value from an earlier step. Leave empty for no due date.",
+    id: "r//PBG5Cpu",
     description:
       "Help text for the due date setting of the Assign task and Crowdin task workflow steps",
   },
@@ -2702,6 +2713,12 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "For example locales/en/. Up to 100 files are listed.",
     id: "ijFxeRDSFN",
     description: "Help text under the path setting of the list source files step",
+  },
+  listReviewWorkPathPrefixHint: {
+    defaultMessage:
+      "For example locales/en/. Up to 100 files and languages are listed; the rest come at the next run.",
+    id: "wlp63zuJYJ",
+    description: "Help text under the path setting of the list work to review step",
   },
   updateJobJobId: {
     defaultMessage: "Job ID",
@@ -2725,8 +2742,8 @@ export const visualWorkflowEditorMessages = defineMessages({
   },
   updateJobDueAtHint: {
     defaultMessage:
-      "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty to keep the current due date.",
-    id: "Yn8fBlm1d2",
+      "A date such as 2026-05-01T17:00Z, a period from when the step runs such as +3d or +12h, or a value from an earlier step. Leave empty to keep the current due date.",
+    id: "9x6oc8jVLH",
     description: "Help text for the due date setting of the Update job workflow step",
   },
   updateJobHint: {

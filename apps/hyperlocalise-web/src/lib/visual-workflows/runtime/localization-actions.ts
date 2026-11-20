@@ -34,7 +34,10 @@ function failure(code: string, message: string): VisualWorkflowNodeExecutionResu
 }
 
 function invalidDueDate(): VisualWorkflowNodeExecutionResult {
-  return failure("invalid_due_date", "The due date is not a date, such as 2026-05-01T17:00Z.");
+  return failure(
+    "invalid_due_date",
+    "The due date is not a date, such as 2026-05-01T17:00Z, or a period, such as +3d.",
+  );
 }
 
 /**
@@ -68,10 +71,29 @@ export function parseWorkflowList(value: unknown): string[] {
   ].filter(Boolean);
 }
 
-/** A due date setting: null when it is empty, undefined when it is not a date. */
-export function parseWorkflowDueAt(value: string | undefined): Date | null | undefined {
+/** A period counted from now: `+3d` or `+12h`. A recurring workflow has no fixed date to give. */
+const DUE_IN_PERIOD = /^\+\s*(\d{1,4})\s*([dh])$/i;
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * A due date setting: null when it is empty, undefined when it is neither a date nor a period.
+ * A period is counted from `now`, the moment the step runs.
+ */
+export function parseWorkflowDueAt(
+  value: string | undefined,
+  now: Date = new Date(),
+): Date | null | undefined {
   const trimmed = value?.trim();
   if (!trimmed) return null;
+  const period = DUE_IN_PERIOD.exec(trimmed);
+  if (period) {
+    const amount = Number(period[1]);
+    if (amount === 0) return undefined;
+    const hours = period[2]!.toLowerCase() === "d" ? amount * 24 : amount;
+    return new Date(now.getTime() + hours * HOUR_MS);
+  }
+  // A value that starts like a period is only ever a period: left to Date, "+3" is the year 2001.
+  if (trimmed.startsWith("+")) return undefined;
   const dueAt = new Date(trimmed);
   return Number.isNaN(dueAt.getTime()) ? undefined : dueAt;
 }
