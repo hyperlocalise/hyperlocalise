@@ -734,8 +734,19 @@ func TestTaskScopeIsOneBranchOfTheFile(t *testing.T) {
 
 	// Naming the other branch's string while on the task's branch returns nothing of it.
 	targets := f.cat(http.MethodPost, "/targets", `{"segments":[{"externalStringId":"`+branchKey+`","sourcePath":"`+f.path+`"}],"targetLocales":["fr"]}`)
-	require.Equal(t, http.StatusOK, targets.Code, targets.Body.String())
+	require.Equal(t, http.StatusNotFound, targets.Code, targets.Body.String())
 	require.NotContains(t, targets.Body.String(), "Bonjour release")
+
+	// Nor is it saved by its id from the task's branch: a save finds a string by its file's path,
+	// which both branches share.
+	fromTaskBranch := f.cat(http.MethodPost, "/translations", save)
+	require.Equal(t, http.StatusBadRequest, fromTaskBranch.Code, fromTaskBranch.Body.String())
+	require.Contains(t, fromTaskBranch.Body.String(), "translation_key_not_found")
+	var branchText string
+	require.NoError(t, f.scope.Pool.QueryRow(t.Context(),
+		`select text from project_translations where translation_key_id=$1 and target_locale='fr'`,
+		branchKey).Scan(&branchText))
+	require.Equal(t, "Bonjour release", branchText)
 
 	// A task made on the branch opens that branch and not the default one.
 	onBranch := newTaskFixture(t, organizationRoleVendor)
