@@ -133,7 +133,7 @@ describe("DictionaryDetailPageContent", () => {
     });
     expect(screen.getByRole("link", { name: "Dictionaries" })).toHaveAttribute(
       "href",
-      "/org/acme/dictionaries",
+      "/en/org/acme/dictionaries",
     );
     expect(screen.getByText("Accepted tokens")).toBeInTheDocument();
     expect(screen.getByText("Used in")).toBeInTheDocument();
