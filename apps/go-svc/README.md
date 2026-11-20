@@ -80,6 +80,29 @@ client, err := dataforseo.NewClient(dataforseo.Config{
 
 Do **not** set separate `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` env vars. Pass the single base64 API key.
 
+### Exa (live market context)
+
+`internal/exa` is a typed client for the [Exa Search API](https://exa.ai/docs/reference/search). It pulls live, local context for a target market: local competitors, cultural references, trending terms, and advertising rules. The package is a library client and does not expose an HTTP route.
+
+`MarketContext` calls `POST /search` with `userLocation`, highlights, and a structured `outputSchema`. The same client also exposes `Search`, `GetContents`, and `Answer`. See the [Search](https://exa.ai/docs/reference/search), [Contents](https://exa.ai/docs/reference/get-contents), and [Answer](https://exa.ai/docs/reference/answer) references.
+
+| Variable | Description |
+|----------|-------------|
+| `EXA_API_KEY` | Exa API key sent as `x-api-key`. Create keys at [Exa API keys](https://dashboard.exa.ai/api-keys). |
+| `EXA_BASE_URL` | Optional. Defaults to `https://api.exa.ai`. |
+
+Example Go usage:
+
+```go
+client, err := exa.NewClient(exa.Config{
+    APIKey: os.Getenv("EXA_API_KEY"),
+})
+brief, err := client.MarketContext(ctx, exa.MarketContextRequest{
+    Locale: "ja-JP",
+    Topic:  "athleisure",
+})
+```
+
 ### Google Search Console
 
 Used by `internal/gsc` for search performance and URL inspection. GSC is OAuth-based — there is no API key env var for go-svc. Users connect Search Console through the WorkOS `google-search-console` pipe on the Integrations page; go-svc receives a minted access token (or `oauth2.TokenSource`) per request.
