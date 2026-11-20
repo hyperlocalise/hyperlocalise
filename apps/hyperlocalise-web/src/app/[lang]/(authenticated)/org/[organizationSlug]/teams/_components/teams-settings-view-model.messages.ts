@@ -30,6 +30,16 @@ export const teamsSettingsViewModelMessages = defineMessages({
     id: "AHcGbeiVhJ",
     description: "Tooltip describing the team manager role",
   },
+  vendorRoleManagerDescription: {
+    defaultMessage: "Sees all of the team's tasks and hands each one to a person in the team.",
+    id: "OK0mqQVghA",
+    description: "Tooltip describing the manager role on a vendor team",
+  },
+  vendorRoleMemberDescription: {
+    defaultMessage: "Sees only the tasks given to them.",
+    id: "T9bH+pMAZ1",
+    description: "Tooltip describing the member role on a vendor team",
+  },
   roleMemberDescription: {
     defaultMessage: "Can access projects and work assigned to this team.",
     id: "Z91mmC1MhD",

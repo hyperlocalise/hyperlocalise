@@ -32,11 +32,17 @@ export function JobComesAfterField({
   projectId,
   afterJobId,
   waiting,
+  linkOnlyWhenReadable = false,
 }: {
   organizationSlug: string;
   projectId: string;
   afterJobId: string;
   waiting: boolean;
+  /**
+   * For someone here only through a task they own: the earlier task is linked only when they
+   * can open it too, which is when it loads.
+   */
+  linkOnlyWhenReadable?: boolean;
 }) {
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
@@ -49,7 +55,10 @@ export function JobComesAfterField({
   const title = earlierJob.data
     ? jobDetailTaskLayoutFromRecord(earlierJob.data, intl).title
     : intl.formatMessage(messages.earlierTask);
-  const href = buildJobDetailHref(organizationSlug, projectId, afterJobId);
+  const href =
+    linkOnlyWhenReadable && !earlierJob.data
+      ? null
+      : buildJobDetailHref(organizationSlug, projectId, afterJobId);
 
   return (
     <span className="flex min-w-0 flex-col gap-1">

@@ -46,12 +46,15 @@ export function AddTeamMemberDialog({
   open,
   assignableMembers,
   isSaving,
+  isVendorTeam = false,
   onOpenChange,
   onSubmit,
 }: {
   open: boolean;
   assignableMembers: OrganizationMemberDirectoryEntry[];
   isSaving: boolean;
+  /** A vendor team: the person will see only their tasks and leave their other teams. */
+  isVendorTeam?: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: { workosUserId: string; role: TeamRole }) => void;
 }) {
@@ -97,7 +100,11 @@ export function AddTeamMemberDialog({
               <FormattedMessage {...addTeamMemberDialogMessages.title} />
             </DialogTitle>
             <DialogDescription>
-              <FormattedMessage {...addTeamMemberDialogMessages.description} />
+              <FormattedMessage
+                {...(isVendorTeam
+                  ? addTeamMemberDialogMessages.vendorDescription
+                  : addTeamMemberDialogMessages.description)}
+              />
             </DialogDescription>
           </DialogHeader>
 
@@ -167,7 +174,9 @@ export function AddTeamMemberDialog({
                     ))}
                   </SelectContent>
                 </Select>
-                <FieldDescription>{getTeamRoleDescription(role, intl)}</FieldDescription>
+                <FieldDescription>
+                  {getTeamRoleDescription(role, intl, isVendorTeam)}
+                </FieldDescription>
               </Field>
             </>
           )}

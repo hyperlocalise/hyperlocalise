@@ -19,6 +19,43 @@ reconcile, webhooks, and member mutations.
 Unknown WorkOS slugs map to `null` during reconcile and receive **no**
 capabilities (default deny).
 
+## Vendors
+
+A vendor is a person in a vendor team (`teams.is_vendor`): an outside agency's
+people, or a freelancer alone. They keep an ordinary role, which decides what
+they may do inside a task, but they reach nothing in the workspace except the
+open tasks they own. Membership of a vendor team is read where each service
+already looks the person up, and refuses them unless a route was opened on
+purpose:
+
+- **Web app.** `resolveApiAuthContextFromSession` reads it with the membership
+  (`membership.inVendorTeam`) and throws `VendorAccessDeniedError` unless the
+  caller passes `allowVendor`. The API middleware passes it only for the routes
+  in `VENDOR_API_ROUTES`, and a page only when it opts in (`vendor-access.ts`).
+  A route or page added later is closed to vendors without anyone thinking
+  about it.
+- **go-svc and the public API.** Both confirm a person through
+  `internal/publicauth`. `ResolveActorByID`, which every token, agent and
+  plugin sign-in goes through, refuses a vendor. go-svc's
+  `resolveOrganizationActor` refuses one; `resolveOrganizationActorAllowingVendorIf`
+  accepts one only for the handlers opened to vendors (`vendor-access.go`).
+- **Lookups that never read the web session** (plugin sign-ins, the Slack and
+  email assistants, a Human approval reviewer) refuse a vendor where the member
+  is looked up (`lib/workos/vendor-membership.ts`).
+- **A vendor is in no other team, and a vendor team holds no projects.**
+  Joining a vendor team removes the person from their other teams, a vendor
+  cannot join another team, and a vendor team is never a project's team. So
+  queries that ask who is on a project's team never find a vendor.
+- **The workspace keeps an admin outside vendor teams.** The last-admin rule
+  counts only admins outside vendor teams.
+
+Inside an opened route a vendor never goes through the team rule. Their access
+is always "an open post-edit or proofread task on a file that I own"
+(`task-access.ts`, `vendor-access.go`), limited to that task's file and
+languages. The same rule lets any other member whose role works on jobs open a
+task they own outside their teams. Design:
+[`docs/adr/2026-11-20-vendor-teams-design.md`](../../../../../docs/adr/2026-11-20-vendor-teams-design.md).
+
 Legacy workspaces that only use WorkOS `admin` and `member` continue to work:
 `member` stays read-only; `admin` retains full capability.
 

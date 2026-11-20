@@ -100,4 +100,12 @@ describe("teams-settings-view-model", () => {
       }),
     ).toBe(false);
   });
+
+  it("lets an admin remove or demote a vendor team's only manager", () => {
+    const members = [createTeamMember({ workosUserId: "user_manager", role: "manager" })];
+    const input = { member: members[0]!, members, canManageMembers: true, isVendorTeam: true };
+
+    expect(canRemoveTeamMember(input)).toBe(true);
+    expect(canUpdateTeamMemberRole(input)).toBe(true);
+  });
 });

@@ -1133,6 +1133,10 @@ export const projectFileCatResponseSchema = z.object({
     provider: projectFileRecordSchema.shape.provider,
     targetLocale: z.string(),
     canEditTranslations: z.boolean(),
+    // The project's QA check policy, sent only to a person who is here through a task.
+    qaChecks: z
+      .record(z.string(), z.object({ enabled: z.boolean(), severity: z.string() }))
+      .optional(),
     truncated: z.boolean(),
     teamGlossaries: z
       .array(

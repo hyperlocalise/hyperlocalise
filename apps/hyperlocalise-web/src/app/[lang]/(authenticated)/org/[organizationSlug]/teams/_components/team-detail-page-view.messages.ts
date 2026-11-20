@@ -171,4 +171,16 @@ export const teamDetailPageViewMessages = defineMessages({
     id: "N/k3pDV14E",
     description: "Confirm button to remove a team member",
   },
+  vendorMembersDescription: {
+    defaultMessage:
+      "This is a vendor team. Its people see only the tasks given to them, and its Manager hands out the tasks given to the team. Joining it removes them from their other teams. Need someone new in the workspace? <invite>Invite a member</invite>.",
+    id: "lEKf0oF5z/",
+    description: "Description under the members heading of a vendor team, with an invite link",
+  },
+  removeVendorMemberDescription: {
+    defaultMessage:
+      "{email} will no longer be limited to their tasks: they get back what their role allows in the workspace, in no team.",
+    id: "C2LMJrTr1L",
+    description: "Confirmation when removing someone from a vendor team",
+  },
 });

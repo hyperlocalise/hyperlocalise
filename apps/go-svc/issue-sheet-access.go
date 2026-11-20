@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -43,6 +44,7 @@ func (api *issueSheetAPI) assertAssignableAssignee(
             where m.organization_id = $1
               and m.user_id = $2
               and `+activeOrgMembershipSQL+`
+              and not `+publicauth.VendorTeamMemberSQLFor("m.user_id", "$1")+`
               and (
                 m.role in ('admin', 'localization_manager')
                 or exists (

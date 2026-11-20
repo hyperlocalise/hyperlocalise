@@ -24,9 +24,13 @@ import { db, schema } from "@/lib/database/client";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
+import {
+  resolveTaskRouteProjectAccess,
+  taskRouteAccessCovers,
+} from "@/lib/projects/jobs/task-access";
 
 import { fileNotFoundResponse } from "../file/file.shared";
-import { getOwnedProject, projectNotFoundResponse } from "./project.shared";
+import { projectNotFoundResponse } from "./project.shared";
 
 const projectAssetParamsSchema = z.object({
   projectId: projectIdSchema,
@@ -53,8 +57,10 @@ export function createProjectAssetRoutes(options: CreateProjectAssetRoutesOption
       const params = c.req.valid("param");
       const organizationId = c.var.auth.organization.localOrganizationId;
 
-      const project = await getOwnedProject(c.var.auth, params.projectId);
-      if (!project) {
+      // Open to the owner of an open task in the project, a vendor included
+      // (`vendor-access.ts`): the task's own source file only.
+      const access = await resolveTaskRouteProjectAccess(c.var.auth, params.projectId);
+      if (!access || !taskRouteAccessCovers(access, { sourceFileId: params.fileId })) {
         return projectNotFoundResponse(c);
       }
 
@@ -80,11 +86,12 @@ export function createProjectAssetRoutes(options: CreateProjectAssetRoutesOption
       if (
         !file ||
         (file.projectId !== null && file.projectId !== params.projectId) ||
-        !(await canAccessStoredFile(c.var.auth, {
-          organizationId: file.organizationId,
-          projectId: file.projectId ?? params.projectId,
-          createdByUserId: file.createdByUserId,
-        }))
+        (access.kind === "team" &&
+          !(await canAccessStoredFile(c.var.auth, {
+            organizationId: file.organizationId,
+            projectId: file.projectId ?? params.projectId,
+            createdByUserId: file.createdByUserId,
+          })))
       ) {
         return fileNotFoundResponse(c);
       }

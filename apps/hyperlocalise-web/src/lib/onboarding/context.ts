@@ -17,6 +17,7 @@ import {
   resolveApiAuthContextFromSession,
   StaleOrganizationSlugError,
 } from "@/api/auth/workos-session";
+import { VendorAccessDeniedError } from "@/api/auth/vendor-access";
 import { setStoredActiveOrganizationSlug } from "@/lib/workos/active-organization";
 import {
   clearStoredOnboardingState,
@@ -24,13 +25,31 @@ import {
   setStoredOnboardingState,
 } from "@/lib/workos/onboarding-state";
 
+/**
+ * A workspace where the person is a vendor is not theirs to set up: its onboarding steps change
+ * the workspace (its AI provider key), and their role there decides nothing outside their tasks.
+ * Onboarding treats them as someone with no workspace, so they can still create one of their own.
+ */
+async function resolveOutsideVendorWorkspaces(
+  options: NonNullable<Parameters<typeof resolveApiAuthContextFromSession>[0]>,
+) {
+  try {
+    return await resolveApiAuthContextFromSession(options);
+  } catch (error) {
+    if (error instanceof VendorAccessDeniedError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export async function loadOnboardingContext() {
   const session = await withAuth({ ensureSignedIn: true });
   let onboardingState = await getStoredOnboardingState();
   let auth;
 
   try {
-    auth = await resolveApiAuthContextFromSession({
+    auth = await resolveOutsideVendorWorkspaces({
       session,
       organizationSlug: onboardingState?.organizationSlug,
     });
@@ -44,7 +63,7 @@ export async function loadOnboardingContext() {
       onboardingState = updatedOnboardingState;
 
       try {
-        auth = await resolveApiAuthContextFromSession({
+        auth = await resolveOutsideVendorWorkspaces({
           session,
           organizationSlug: error.currentSlug,
         });
@@ -68,7 +87,7 @@ export async function loadOnboardingContext() {
     } else if (error instanceof OrganizationSlugUnresolvableError) {
       await clearStoredOnboardingState();
       onboardingState = null;
-      auth = await resolveApiAuthContextFromSession({ session });
+      auth = await resolveOutsideVendorWorkspaces({ session });
     } else if (
       error instanceof Error &&
       (error.message === "organization_access_denied" ||

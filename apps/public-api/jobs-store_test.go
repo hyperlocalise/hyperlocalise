@@ -119,6 +119,40 @@ func TestJobStoreDatabase(t *testing.T) {
 	require.Len(t, f.activities(t, "job_updated"), 3)
 }
 
+// A task given to a vendor team leaves the team when someone else is chosen, and stays the
+// team's when the person who already has it is named.
+func TestJobOwnerAndVendorTeam(t *testing.T) {
+	f := newDBFixture(t)
+	ctx := t.Context()
+	jobID := "job_" + uuid.NewString()
+	f.exec(t, `INSERT INTO jobs (id, organization_id, project_id, kind, status, input_payload)
+		VALUES ($1, $2, $3, 'proofread', 'waiting_for_review', '{}'::jsonb)`, jobID, f.actor.OrganizationID, f.project)
+	var teamID, email string
+	require.NoError(t, f.pool.QueryRow(ctx, `INSERT INTO teams (organization_id, slug, name, is_vendor)
+		VALUES ($1, $2, 'Agency', true) RETURNING id`, f.actor.OrganizationID, "agency-"+uuid.NewString()).Scan(&teamID))
+	require.NoError(t, f.pool.QueryRow(ctx, `SELECT email FROM users WHERE id = $1`, f.actor.UserID).Scan(&email))
+	team := func() *string {
+		var id *string
+		require.NoError(t, f.pool.QueryRow(ctx, `SELECT owner_team_id::text FROM jobs WHERE id = $1`, jobID).Scan(&id))
+		return id
+	}
+	setOwner := func(value *string) {
+		_, err := f.store.updateJob(ctx, f.actor, jobID, jobPatch{OwnerEmail: optionalString{Set: true, Value: value}})
+		require.NoError(t, err)
+	}
+
+	f.exec(t, `UPDATE jobs SET owner_team_id = $2 WHERE id = $1`, jobID, teamID)
+	setOwner(&email)
+	require.Nil(t, team(), "a person chosen takes the task from the team")
+
+	f.exec(t, `UPDATE jobs SET owner_team_id = $2 WHERE id = $1`, jobID, teamID)
+	setOwner(&email)
+	require.Equal(t, teamID, *team(), "naming the current owner changes nothing")
+
+	setOwner(nil)
+	require.Nil(t, team(), "no one takes the task from the team")
+}
+
 func TestJobStoreSourceFile(t *testing.T) {
 	f := newDBFixture(t)
 	const path = "docs/zh/guide.docx"

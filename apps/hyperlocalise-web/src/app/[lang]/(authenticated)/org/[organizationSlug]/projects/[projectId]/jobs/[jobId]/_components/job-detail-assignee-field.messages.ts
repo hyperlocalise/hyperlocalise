@@ -20,6 +20,11 @@ export const jobDetailAssigneeFieldMessages = defineMessages({
     id: "5PG+VBWgIw",
     description: "Error when job assignee member list fails to load",
   },
+  loadFailed: {
+    defaultMessage: "Could not load who this job can be given to.",
+    id: "iPnvlRKTDf",
+    description: "Error when the list of people a job can be given to fails to load",
+  },
   saveFailed: {
     defaultMessage: "Couldn't update assignees",
     id: "R6n/KCAp4a",
@@ -34,6 +39,18 @@ export const jobDetailAssigneeFieldMessages = defineMessages({
     defaultMessage: "Unassigned",
     id: "FlKUTB/6A0",
     description: "Label when a native job has no owner",
+  },
+  notHandedOut: {
+    defaultMessage: "Not handed out",
+    id: "f24Kokxqli",
+    description:
+      "A vendor team manager's option that gives a team task back to the team, with no person",
+  },
+  outsideTeam: {
+    defaultMessage: "Someone not in the team's list",
+    id: "/t9gruUZ70",
+    description:
+      "Owner shown to a vendor team manager when the task's owner has left the team or can no longer be handed tasks",
   },
   agent: {
     defaultMessage: "Agent",

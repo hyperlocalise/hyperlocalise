@@ -135,6 +135,9 @@ func TestEnsureTeamAccessForInvitedMemberScripted(t *testing.T) {
 	t.Run("selected team already joined", func(t *testing.T) {
 		pool := &scriptPool{steps: []dbStep{
 			{op: opQueryRow, scan: []any{teamID}},
+			// The vendor team rules: the person's lock, then nothing for them to hold.
+			{op: opExec},
+			{op: opQueryRow, err: pgx.ErrNoRows},
 			{op: opQueryRow, scan: []any{"team_membership_1"}},
 		}}
 		created, err := api.ensureTeamAccessForInvitedMember(ctx, pool, "org_1", "user_1", "admin", teamID)
@@ -146,6 +149,9 @@ func TestEnsureTeamAccessForInvitedMemberScripted(t *testing.T) {
 	t.Run("selected team joined", func(t *testing.T) {
 		pool := &scriptPool{steps: []dbStep{
 			{op: opQueryRow, scan: []any{teamID}},
+			// The vendor team rules: the person's lock, then nothing for them to hold.
+			{op: opExec},
+			{op: opQueryRow, err: pgx.ErrNoRows},
 			{op: opQueryRow, err: pgx.ErrNoRows},
 			{op: opExec},
 		}}
@@ -158,6 +164,9 @@ func TestEnsureTeamAccessForInvitedMemberScripted(t *testing.T) {
 	t.Run("selected team membership insert fails", func(t *testing.T) {
 		pool := &scriptPool{steps: []dbStep{
 			{op: opQueryRow, scan: []any{teamID}},
+			// The vendor team rules: the person's lock, then nothing for them to hold.
+			{op: opExec},
+			{op: opQueryRow, err: pgx.ErrNoRows},
 			{op: opQueryRow, err: pgx.ErrNoRows},
 			{op: opExec, err: boom},
 		}}
@@ -170,6 +179,9 @@ func TestEnsureTeamAccessForInvitedMemberScripted(t *testing.T) {
 			{op: opQueryRow, err: pgx.ErrNoRows},
 			{op: opQueryRow, err: pgx.ErrNoRows},
 			{op: opQueryRow, scan: []any{"team_default"}},
+			// The vendor team rules: the person's lock, then nothing for them to hold.
+			{op: opExec},
+			{op: opQueryRow, err: pgx.ErrNoRows},
 			{op: opQueryRow, err: pgx.ErrNoRows},
 			{op: opExec},
 		}}
@@ -183,6 +195,9 @@ func TestEnsureTeamAccessForInvitedMemberScripted(t *testing.T) {
 		pool := &scriptPool{steps: []dbStep{
 			{op: opQueryRow, err: pgx.ErrNoRows},
 			{op: opQueryRow, scan: []any{"team_default"}},
+			// The vendor team rules: the person's lock, then nothing for them to hold.
+			{op: opExec},
+			{op: opQueryRow, err: pgx.ErrNoRows},
 			{op: opQueryRow, scan: []any{"team_membership_1"}},
 		}}
 		created, err := api.ensureTeamAccessForInvitedMember(ctx, pool, "org_1", "user_1", "translator", "")
@@ -195,7 +210,7 @@ func TestEnsureTeamAccessForInvitedMemberScripted(t *testing.T) {
 		"default team lookup":      {{op: opQueryRow, err: boom}},
 		"default team insert":      {{op: opQueryRow, err: pgx.ErrNoRows}, {op: opQueryRow, err: boom}},
 		"default team reread":      {{op: opQueryRow, err: pgx.ErrNoRows}, {op: opQueryRow, err: pgx.ErrNoRows}, {op: opQueryRow, err: boom}},
-		"default membership check": {{op: opQueryRow, scan: []any{"team_default"}}, {op: opQueryRow, err: boom}},
+		"default membership check": {{op: opQueryRow, scan: []any{"team_default"}}, {op: opExec}, {op: opQueryRow, err: pgx.ErrNoRows}, {op: opQueryRow, err: boom}},
 	} {
 		t.Run(name+" fails", func(t *testing.T) {
 			_, err := api.ensureTeamAccessForInvitedMember(ctx, &scriptPool{steps: steps}, "org_1", "user_1", "member", "")

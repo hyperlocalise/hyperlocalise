@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { IntlProvider } from "react-intl";
@@ -85,6 +85,32 @@ describe("TeamDetailPageView", () => {
     await user.click(await screen.findByText("Change role..."));
 
     expect(props.onEditingMemberChange).toHaveBeenCalledWith(member);
+  });
+
+  it("offers the team role on a vendor team, saying what a manager does there", async () => {
+    const user = userEvent.setup();
+    const { props } = renderTeamDetail({
+      team: { ...createTeamDetail(), isVendor: true },
+      isAddMemberOpen: true,
+    });
+
+    const dialog = screen.getByRole("dialog", { name: "Add team member" });
+    expect(within(dialog).getByText("Role")).toBeInTheDocument();
+    expect(within(dialog).getByText("Sees only the tasks given to them.")).toBeInTheDocument();
+    await user.click(within(dialog).getAllByRole("combobox").at(-1)!);
+    await user.click(await screen.findByRole("option", { name: "Manager" }));
+    expect(
+      within(dialog).getByText(
+        "Sees all of the team's tasks and hands each one to a person in the team.",
+      ),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Add member" }));
+    expect(props.onAddMember).toHaveBeenCalledWith(expect.objectContaining({ role: "manager" }));
+    cleanup();
+
+    renderTeamDetail({ team: { ...createTeamDetail(), isVendor: true } });
+    await user.click(screen.getByRole("button", { name: "Actions for otto@example.com" }));
+    expect(await screen.findByText("Change role...")).toBeInTheDocument();
   });
 
   it("updates the team role only after confirming in the dialog", async () => {

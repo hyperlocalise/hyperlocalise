@@ -15,6 +15,7 @@ import { randomBytes } from "node:crypto";
 import { and, eq, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { membershipIsNotVendor } from "@/lib/workos/vendor-membership";
 
 const inboundEmailDomain = "inbox.hyperlocalise.com";
 
@@ -126,6 +127,8 @@ export async function resolveInboundEmailOrganization(input: {
         eq(schema.connectors.kind, "email"),
         eq(schema.connectors.enabled, true),
         eq(schema.organizationMemberships.userId, input.senderUserId),
+        // The assistant never acts for a vendor, who is treated as someone outside the workspace.
+        membershipIsNotVendor,
         or(
           ...aliases.map(
             (alias) => sql`${schema.connectors.config}->>'inboundEmailAlias' = ${alias}`,

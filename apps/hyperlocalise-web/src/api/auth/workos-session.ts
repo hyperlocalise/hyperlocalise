@@ -15,6 +15,8 @@ import { withAuth } from "@/lib/workos/server-auth";
 
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
+import { refuseVendorUnlessAllowed } from "@/api/auth/vendor-access";
+import { vendorTeamMemberSql } from "@/lib/workos/vendor-membership";
 import {
   assertWorkosMembershipReconcileAllowsAccess,
   reconcileWorkosMembershipsForUser,
@@ -31,6 +33,11 @@ type ResolveApiAuthContextOptions = {
   organizationSlug?: string;
   teamSlug?: string;
   session?: Awaited<ReturnType<typeof withAuth>>;
+  /**
+   * Only the routes and pages opened to vendors pass true (`vendor-access.ts`). Everywhere
+   * else a vendor is refused here with `VendorAccessDeniedError`.
+   */
+  allowVendor?: boolean;
 };
 
 type OrganizationMembershipRecord = {
@@ -43,6 +50,7 @@ type OrganizationMembershipRecord = {
   organizationSlug: string | null;
   workosMembershipId: string | null;
   role: ApiAuthContext["membership"]["role"];
+  inVendorTeam: boolean;
 };
 
 export class StaleOrganizationSlugError extends Error {
@@ -181,6 +189,8 @@ async function resolveActiveTeam(
   const teamConditions = [
     eq(schema.teams.organizationId, organizationId),
     inArray(schema.teams.id, visibleTeamIds),
+    // A vendor team is never anyone's working team: it holds no projects.
+    eq(schema.teams.isVendor, false),
   ];
 
   if (teamSlug) {
@@ -288,6 +298,7 @@ export async function resolveApiAuthContextFromSession(
       organizationSlug: schema.organizations.slug,
       workosMembershipId: schema.organizationMemberships.workosMembershipId,
       role: schema.organizationMemberships.role,
+      inVendorTeam: vendorTeamMemberSql(schema.users.id, schema.organizations.id),
     })
     .from(schema.organizationMemberships)
     .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
@@ -357,6 +368,11 @@ export async function resolveApiAuthContextFromSession(
     return null;
   }
 
+  refuseVendorUnlessAllowed(
+    { membership: { inVendorTeam: membership.inVendorTeam }, activeOrganization },
+    options.allowVendor,
+  );
+
   const authBase = {
     user: {
       workosUserId: membership.workosUserId,
@@ -370,6 +386,7 @@ export async function resolveApiAuthContextFromSession(
       workosMembershipId: activeOrganization.membership.workosMembershipId,
       role: activeOrganization.membership.role,
       accessSource: activeOrganization.membership.accessSource,
+      inVendorTeam: membership.inVendorTeam,
     },
   };
 

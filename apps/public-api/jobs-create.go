@@ -587,6 +587,8 @@ func writeJobCreateError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "unsupported_source_file_format", "Unsupported source file format")
 	case errors.Is(err, errJobOwnerNotFound):
 		writeError(w, http.StatusBadRequest, "owner_not_found", "Owner must be a member of this workspace")
+	case errors.Is(err, errJobOwnerVendor):
+		writeError(w, http.StatusBadRequest, "vendor_owner_not_allowed", vendorOwnerNotAllowedMessage)
 	case errors.Is(err, errIdempotencyKeyReused):
 		writeError(w, http.StatusUnprocessableEntity, "idempotency_key_reused", "Idempotency-Key was already used with a different request")
 	case errors.Is(err, errAfterJobNotFound):

@@ -19,6 +19,8 @@ export type JobDetailRecord = {
   projectName: string | null;
   createdByUserId: string | null;
   ownerUserId: string | null;
+  /** The vendor team the task was given to, if any; its managers hand it on. */
+  ownerTeamId?: string | null;
   assigneeType?: "user" | "agent" | null;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | "keys" | null;
@@ -56,6 +58,8 @@ export type JobDetailRecord = {
   linkedJobId: string | null;
   /** The job a task comes after; while that job is unfinished the task waits as queued. */
   afterJobId?: string | null;
+  /** On a job's own page: the file the job is on, as the editor names it, on its branch. */
+  taskFile?: { sourcePath: string; branch: string } | null;
   providerSourceFiles?: Array<{
     id: string;
     displayName: string;

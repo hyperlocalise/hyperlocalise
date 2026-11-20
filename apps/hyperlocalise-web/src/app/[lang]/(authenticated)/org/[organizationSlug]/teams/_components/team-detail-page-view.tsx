@@ -172,10 +172,12 @@ function MemberRowActions({
 function ChangeTeamMemberRoleDialog({
   member,
   isSaving,
+  isVendorTeam,
   onOpenChange,
   onSubmit,
 }: {
   member: TeamMemberRow | null;
+  isVendorTeam: boolean;
   isSaving: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: { workosUserId: string; role: TeamRole }) => void;
@@ -247,7 +249,7 @@ function ChangeTeamMemberRoleDialog({
                 ))}
               </SelectContent>
             </Select>
-            <FieldDescription>{getTeamRoleDescription(role, intl)}</FieldDescription>
+            <FieldDescription>{getTeamRoleDescription(role, intl, isVendorTeam)}</FieldDescription>
           </Field>
           <DialogFooter>
             <Button
@@ -380,7 +382,9 @@ export function TeamDetailPageView({
             </TypographyP>
             <TypographyP className="mt-1" size="small" tone="subtle">
               <FormattedMessage
-                {...teamDetailPageViewMessages.membersDescription}
+                {...(team?.isVendor
+                  ? teamDetailPageViewMessages.vendorMembersDescription
+                  : teamDetailPageViewMessages.membersDescription)}
                 values={{
                   invite: (chunks) => (
                     <OrgNavLink
@@ -440,11 +444,13 @@ export function TeamDetailPageView({
                 member,
                 members: pageState.members,
                 canManageMembers: pageState.canManageMembers,
+                isVendorTeam: team?.isVendor === true,
               });
               const canRemove = canRemoveTeamMember({
                 member,
                 members: pageState.members,
                 canManageMembers: pageState.canManageMembers,
+                isVendorTeam: team?.isVendor === true,
               });
 
               return (
@@ -491,7 +497,7 @@ export function TeamDetailPageView({
                           }
                         />
                         <TooltipContent side="bottom" align="start" className="max-w-xs">
-                          {getTeamRoleDescription(member.role, intl)}
+                          {getTeamRoleDescription(member.role, intl, team?.isVendor === true)}
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -533,6 +539,7 @@ export function TeamDetailPageView({
         open={isAddMemberOpen}
         assignableMembers={assignableMembers}
         isSaving={isAddingMember}
+        isVendorTeam={team?.isVendor === true}
         onOpenChange={onAddMemberOpenChange}
         onSubmit={onAddMember}
       />
@@ -540,6 +547,7 @@ export function TeamDetailPageView({
       <ChangeTeamMemberRoleDialog
         member={editingMember}
         isSaving={isUpdatingMemberRole}
+        isVendorTeam={team?.isVendor === true}
         onOpenChange={(open) => {
           if (!open) {
             onEditingMemberChange(null);
@@ -559,9 +567,14 @@ export function TeamDetailPageView({
             </DialogTitle>
             <DialogDescription>
               {removingMember
-                ? intl.formatMessage(teamDetailPageViewMessages.removeMemberDescription, {
-                    email: removingMember.email,
-                  })
+                ? intl.formatMessage(
+                    team?.isVendor
+                      ? teamDetailPageViewMessages.removeVendorMemberDescription
+                      : teamDetailPageViewMessages.removeMemberDescription,
+                    {
+                      email: removingMember.email,
+                    },
+                  )
                 : ""}
             </DialogDescription>
           </DialogHeader>

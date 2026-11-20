@@ -15,6 +15,7 @@ import { createHash, randomBytes, scryptSync, timingSafeEqual, webcrypto } from 
 import { and, eq, exists, gt, isNull } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { membershipIsNotVendor } from "@/lib/workos/vendor-membership";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { env } from "@/lib/env";
 
@@ -318,6 +319,7 @@ async function lockLiveOrganizationMembership(
       and(
         eq(schema.organizationMemberships.userId, userId),
         eq(schema.organizationMemberships.organizationId, organizationId),
+        membershipIsNotVendor,
       ),
     )
     .limit(1)
@@ -334,6 +336,7 @@ function liveOrganizationMembershipExists(userId: string, organizationId: string
         and(
           eq(schema.organizationMemberships.userId, userId),
           eq(schema.organizationMemberships.organizationId, organizationId),
+          membershipIsNotVendor,
         ),
       ),
   );
@@ -411,6 +414,7 @@ export async function refreshSanityOauthTokens(refreshToken: string) {
       and(
         eq(schema.organizationMemberships.userId, row.userId),
         eq(schema.organizationMemberships.organizationId, row.organizationId),
+        membershipIsNotVendor,
       ),
     )
     .limit(1);
@@ -506,6 +510,7 @@ export async function getSanityConnectionByOauthAccessToken(
       and(
         eq(schema.organizationMemberships.userId, schema.sanityOauthTokens.userId),
         eq(schema.organizationMemberships.organizationId, schema.sanityOauthTokens.organizationId),
+        membershipIsNotVendor,
       ),
     )
     .where(
@@ -676,7 +681,7 @@ export async function listSanityOauthConsentConnections(
       schema.sanityConnections,
       eq(schema.sanityConnections.organizationId, schema.organizations.id),
     )
-    .where(eq(schema.organizationMemberships.userId, userId));
+    .where(and(eq(schema.organizationMemberships.userId, userId), membershipIsNotVendor));
 
   return rows;
 }
@@ -696,7 +701,7 @@ export async function listSanityOauthConsentOrganizations(
       schema.organizations,
       eq(schema.organizationMemberships.organizationId, schema.organizations.id),
     )
-    .where(eq(schema.organizationMemberships.userId, userId));
+    .where(and(eq(schema.organizationMemberships.userId, userId), membershipIsNotVendor));
 
   return rows;
 }

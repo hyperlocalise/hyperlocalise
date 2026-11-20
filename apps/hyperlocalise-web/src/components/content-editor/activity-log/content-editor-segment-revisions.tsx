@@ -11,6 +11,7 @@
  * use of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useContentEditorTaskScope } from "@/components/content-editor/shared/content-editor-task-scope-context";
 import { useState } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
@@ -90,6 +91,8 @@ export function SegmentRevisions({
   sourcePath: string;
   targetLocale: string;
 }) {
+  // Undoing a whole operation reaches other strings and files, so a task owner has no Undo.
+  const { taskScoped } = useContentEditorTaskScope();
   const intl = useIntl();
   const queryClient = useQueryClient();
   const [pendingUndo, setPendingUndo] = useState<string | null>(null);
@@ -243,7 +246,7 @@ export function SegmentRevisions({
                       )}
                     </Button>
                   ) : null}
-                  {revision.operationId ? (
+                  {revision.operationId && !taskScoped ? (
                     <Button
                       size="sm"
                       variant="ghost"

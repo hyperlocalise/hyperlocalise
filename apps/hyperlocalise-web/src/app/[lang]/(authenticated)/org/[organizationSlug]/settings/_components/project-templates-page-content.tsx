@@ -87,7 +87,10 @@ export function ProjectTemplatesPageContent({
         client.glossary.list(organizationSlug, { limit: RESOURCE_PAGE_SIZE }),
       ]);
       return {
-        teams: teams.teams.map((team) => ({ id: team.id, name: team.name })),
+        // A vendor team holds no projects, so a template cannot name one.
+        teams: teams.teams
+          .filter((team) => !team.isVendor)
+          .map((team) => ({ id: team.id, name: team.name })),
         memories: memories.memories.map((memory) => ({ id: memory.id, name: memory.name })),
         glossaries: glossaries.glossaries.map((glossary) => ({
           id: glossary.id,

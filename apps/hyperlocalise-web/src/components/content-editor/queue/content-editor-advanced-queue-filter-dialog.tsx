@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useContentEditorTaskScope } from "@/components/content-editor/shared/content-editor-task-scope-context";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useQuery } from "@tanstack/react-query";
@@ -243,6 +244,7 @@ export function ContentEditorAdvancedQueueFilterDialog({
   organizationSlug?: string;
   projectId?: string;
 }) {
+  const { taskScoped } = useContentEditorTaskScope();
   const intl = useIntl();
   const [draft, setDraft] = useState<ContentEditorAdvancedQueueFilter>(
     value ?? EMPTY_ADVANCED_QUEUE_FILTER,
@@ -259,7 +261,7 @@ export function ContentEditorAdvancedQueueFilterDialog({
         projectId: projectId!,
         intl,
       }),
-    enabled: open && showLabels && Boolean(organizationSlug && projectId),
+    enabled: open && showLabels && !taskScoped && Boolean(organizationSlug && projectId),
     staleTime: 60_000,
   });
   const labels = labelsQuery.data ?? [];

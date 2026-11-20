@@ -284,7 +284,7 @@ func TestProjectJobReadsShape(t *testing.T) {
 		require.NoError(t, err)
 	}
 	record := `"id":"` + jobID + `","organizationId":"` + f.scope.OrganizationID + `","projectId":"` + f.scope.ProjectID + `",
-        "createdByUserId":"` + f.scope.UserID + `","ownerUserId":"` + f.scope.UserID + `","assigneeType":"user",
+        "createdByUserId":"` + f.scope.UserID + `","ownerUserId":"` + f.scope.UserID + `","ownerTeamId":null,"assigneeType":"user",
         "kind":"translation","type":"string","status":"failed","inputPayload":{"sourceText":"Hi","targetLocales":["fr"]},
         "outcomeKind":"error","outcomePayload":{"error":"x"},"lastError":"boom","workflowRunId":"wrun_1","interactionId":null,
         "contextSnapshot":{"k":[1,2]},"reviewCriteria":"tone","reviewTargetLocale":"fr","reviewConfig":{"strict":true},
@@ -586,7 +586,7 @@ func TestOrgJobReadsShape(t *testing.T) {
 	require.Nil(t, detail.Job["dueAt"])
 	require.Contains(t, detail.Job, "afterJobId")
 	require.Nil(t, detail.Job["afterJobId"])
-	require.Len(t, detail.Job, 45)
+	require.Len(t, detail.Job, 46)
 
 	requireProjectJobsError(t, f.get(t, "/jobs/"+url.PathEscape(mirrorID)), http.StatusNotFound, "job_not_found", "Job not found")
 }

@@ -13,6 +13,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { membershipIsNotVendor } from "@/lib/workos/vendor-membership";
 
 export async function findSlackConnector(teamId: string, options: { enabledOnly?: boolean } = {}) {
   const conditions = [
@@ -102,6 +103,8 @@ export async function lookupMembership(input: { email: string; organizationId: s
       and(
         eq(schema.organizationMemberships.organizationId, input.organizationId),
         eq(sql`lower(${schema.users.email})`, input.email.toLowerCase()),
+        // The assistant never acts for a vendor, who is treated as someone outside the workspace.
+        membershipIsNotVendor,
       ),
     )
     .limit(1);

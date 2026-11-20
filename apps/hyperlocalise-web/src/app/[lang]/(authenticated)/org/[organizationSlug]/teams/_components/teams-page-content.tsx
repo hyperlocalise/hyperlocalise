@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { createTeamsApi, type TeamsApi, type TeamSummaryRow } from "./teams-api";
-import { toCreateTeamPayload, toUpdateTeamPayload } from "./team-form";
+import { toCreateTeamPayload, toUpdateTeamPayload, type TeamFormValues } from "./team-form";
 import { TeamsPageView } from "./teams-page-view";
 import { teamsPageContentMessages } from "./teams-page-content.messages";
 
@@ -68,7 +68,7 @@ export function TeamsPageContent({
   };
 
   const createTeam = useMutation({
-    mutationFn: (values: { name: string; slug: string }) =>
+    mutationFn: (values: TeamFormValues) =>
       activeTeamsApi.createTeam(organizationSlug, toCreateTeamPayload(values)),
     onSuccess: async (team) => {
       setIsCreateOpen(false);

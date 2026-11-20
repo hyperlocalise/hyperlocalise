@@ -19,3 +19,6 @@ roles:
   - slug: member
     name: Member
     permissions: []
+  - slug: vendor
+    name: Vendor
+    permissions: []

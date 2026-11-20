@@ -45,6 +45,11 @@ export const issueAssigneePickerMessages = defineMessages({
     id: "pKzlTiRlHt",
     description: "Group label for assignable workspace members",
   },
+  vendorTeamsGroup: {
+    defaultMessage: "Vendor teams",
+    id: "jQdEMjrp0Z",
+    description: "Group label for the vendor teams a task can be given to",
+  },
   triggerAria: {
     defaultMessage: "Select assignee",
     id: "YspwpitZs7",

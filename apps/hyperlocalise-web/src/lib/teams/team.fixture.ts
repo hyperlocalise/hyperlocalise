@@ -50,6 +50,7 @@ export function createTeamTestFixture() {
       organizationId: team.organizationId,
       slug: team.slug,
       name: team.name,
+      isVendor: team.isVendor,
       createdAt: team.createdAt.toISOString(),
       updatedAt: team.updatedAt.toISOString(),
     };

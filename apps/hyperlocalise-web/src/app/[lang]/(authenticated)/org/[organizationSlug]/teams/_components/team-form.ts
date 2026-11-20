@@ -24,6 +24,8 @@ import { teamFormMessages } from "./team-form.messages";
 export type TeamFormValues = {
   name: string;
   slug: string;
+  /** Chosen when the team is made only. */
+  isVendor?: boolean;
 };
 
 export type TeamFormErrors = Partial<Record<keyof TeamFormValues, string>>;
@@ -88,6 +90,7 @@ export function toCreateTeamPayload(values: TeamFormValues): CreateTeamBody {
   return {
     name,
     ...(slug ? { slug } : {}),
+    ...(values.isVendor ? { isVendor: true } : {}),
   };
 }
 

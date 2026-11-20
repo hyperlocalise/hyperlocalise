@@ -129,6 +129,13 @@ export type IssueAssigneePickerProps = {
   triggerClassName?: string;
   align?: "start" | "center" | "end";
   size?: "default" | "sm" | "ghost";
+  /** Replaces "Unassigned" for the option that clears the person. */
+  unassignedLabel?: string;
+  /** Vendor teams a task can be given to instead of a person. */
+  teams?: { id: string; name: string }[];
+  /** The team the task is with, whether or not a person in it has it. */
+  selectedTeamId?: string | null;
+  onSelectTeam?: (teamId: string) => void;
 };
 
 export function IssueAssigneePicker({
@@ -142,6 +149,10 @@ export function IssueAssigneePicker({
   triggerClassName,
   align = "start",
   size = "default",
+  unassignedLabel,
+  teams = [],
+  selectedTeamId = null,
+  onSelectTeam,
 }: IssueAssigneePickerProps) {
   const intl = useIntl();
   const [open, setOpen] = useState(false);
@@ -156,22 +167,26 @@ export function IssueAssigneePicker({
     [members],
   );
 
+  const selectedTeam =
+    value == null ? (teams.find((team) => team.id === selectedTeamId) ?? null) : null;
+  const unassignedText = unassignedLabel ?? intl.formatMessage(messages.unassigned);
   const triggerLabel = selectedMember
     ? memberPrimaryLabel(selectedMember)
     : value
-      ? (currentLabel ?? intl.formatMessage(messages.unassigned))
-      : intl.formatMessage(messages.unassigned);
+      ? (currentLabel ?? unassignedText)
+      : (selectedTeam?.name ?? unassignedText);
 
-  const triggerAvatar =
-    value == null ? (
-      <UnassignedAvatar />
-    ) : (
-      <AssigneeAvatar
-        label={triggerLabel}
-        avatarUrl={selectedMember?.avatarUrl}
-        seed={selectedMember?.userId ?? value}
-      />
-    );
+  const triggerAvatar = selectedTeam ? (
+    <AssigneeAvatar label={selectedTeam.name} seed={selectedTeam.id} />
+  ) : value == null ? (
+    <UnassignedAvatar />
+  ) : (
+    <AssigneeAvatar
+      label={triggerLabel}
+      avatarUrl={selectedMember?.avatarUrl}
+      seed={selectedMember?.userId ?? value}
+    />
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -224,15 +239,15 @@ export function IssueAssigneePicker({
             </CommandEmpty>
             <CommandGroup>
               <CommandItem
-                value={`${UNASSIGNED_VALUE} unassigned`}
-                data-checked={value == null || undefined}
+                value={`${UNASSIGNED_VALUE} ${unassignedText}`}
+                data-checked={(value == null && !selectedTeam) || undefined}
                 onSelect={() => {
                   onChange(null);
                   setOpen(false);
                 }}
               >
                 <UnassignedAvatar />
-                <FormattedMessage {...messages.unassigned} />
+                {unassignedText}
               </CommandItem>
               {currentUser ? (
                 <CommandItem
@@ -283,6 +298,27 @@ export function IssueAssigneePicker({
                 );
               })}
             </CommandGroup>
+            {teams.length > 0 && onSelectTeam ? (
+              <>
+                <CommandSeparator />
+                <CommandGroup heading={intl.formatMessage(messages.vendorTeamsGroup)}>
+                  {teams.map((team) => (
+                    <CommandItem
+                      key={team.id}
+                      value={`team ${team.id} ${team.name}`}
+                      data-checked={selectedTeamId === team.id || undefined}
+                      onSelect={() => {
+                        onSelectTeam(team.id);
+                        setOpen(false);
+                      }}
+                    >
+                      <AssigneeAvatar label={team.name} seed={team.id} />
+                      <span className="min-w-0 flex-1 truncate">{team.name}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+            ) : null}
           </CommandList>
         </Command>
       </PopoverContent>

@@ -61,4 +61,15 @@ export const teamDialogMessages = defineMessages({
     id: "+HZaUMLm0i",
     description: "Submit button to save team edits",
   },
+  vendorLabel: {
+    defaultMessage: "Vendor team",
+    id: "bPNs2bH81K",
+    description: "Label of the checkbox that makes a new team an outside vendor's team",
+  },
+  vendorDescription: {
+    defaultMessage:
+      "For an outside agency or freelancer. Its people see only the tasks given to them, and its Manager the team's tasks too. They leave their other teams when they join. It cannot be changed later.",
+    id: "KpItEVAT5b",
+    description: "Explains what making a team a vendor team does",
+  },
 });
