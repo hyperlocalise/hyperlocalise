@@ -28,6 +28,7 @@ import {
   VENDOR_API_ROUTES,
   VendorAccessDeniedError,
   vendorHomePath,
+  workspaceHomePath,
 } from "@/api/auth/vendor-access";
 import { createMcpAuthorizationRequest, MCP_AUTH_REQUEST_COOKIE } from "@/api/auth/mcp";
 import { workosAuthMiddleware, type ApiAuthContext } from "@/api/auth/workos";
@@ -111,6 +112,8 @@ describe("the vendor refusal", () => {
       expect((error as VendorAccessDeniedError).organizationSlug).toBe("vendor-gate");
     }
     expect(vendorHomePath("vendor-gate")).toBe("/org/vendor-gate/my-jobs");
+    expect(workspaceHomePath("vendor-gate")).toBe("/org/vendor-gate/dashboard");
+    expect(workspaceHomePath("vendor-gate", true)).toBe("/org/vendor-gate/my-jobs");
   });
 });
 

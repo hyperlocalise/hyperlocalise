@@ -49,6 +49,11 @@ export function vendorHomePath(organizationSlug: string) {
   return `/org/${organizationSlug}/my-jobs`;
 }
 
+/** Dashboard for everyone else; My jobs for a vendor, including after a workspace rename. */
+export function workspaceHomePath(organizationSlug: string, inVendorTeam = false) {
+  return inVendorTeam ? vendorHomePath(organizationSlug) : `/org/${organizationSlug}/dashboard`;
+}
+
 /**
  * The API routes a vendor may call, as `METHOD route-pattern`. A route that is not listed
  * refuses a vendor before its handler runs, so a route added later is closed without anyone
