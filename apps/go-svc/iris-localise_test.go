@@ -47,15 +47,19 @@ func TestValidateIrisLocaliseModels(t *testing.T) {
 		{"dialogue needs lines", irisGenerateRequest{"model": "elevenlabs-dialogue"}, "lines is required"},
 		{"dialogue line needs voice", irisGenerateRequest{"model": "elevenlabs-dialogue", "lines": []any{map[string]any{"text": "Hi"}}}, "lines[0] needs text and voice"},
 		{"dialogue too long", irisGenerateRequest{"model": "elevenlabs-dialogue", "lines": []any{map[string]any{"text": strings.Repeat("a", 2001), "voice": "Roger"}}}, "2000 characters"},
+		{"dialogue language", irisGenerateRequest{"model": "elevenlabs-dialogue", "lines": []any{map[string]any{"text": "Hi", "voice": "Roger"}}, "languageCode": "english!"}, "languageCode"},
 		{"voice design ok", irisGenerateRequest{"model": "elevenlabs-voice-design", "prompt": "A warm narrator"}, ""},
 		{"voice design needs prompt", irisGenerateRequest{"model": "elevenlabs-voice-design"}, "prompt is required"},
 		{"voice design text length", irisGenerateRequest{"model": "elevenlabs-voice-design", "prompt": "A warm narrator", "text": "short"}, "100 to 1,000"},
+		{"voice design prompt length", irisGenerateRequest{"model": "elevenlabs-voice-design", "prompt": strings.Repeat("a", 1001)}, "prompt is too long"},
 		{"voice save disabled", irisGenerateRequest{"model": "elevenlabs-voice-design", "generatedVoiceId": "gen-1", "name": "Narrator"}, "not available yet"},
 		{"scribe ok", irisGenerateRequest{"model": "elevenlabs-scribe", "audio": assetField(), "diarize": true, "speakers": float64(2), "keyterms": []any{"Iris"}}, ""},
 		{"scribe needs audio", irisGenerateRequest{"model": "elevenlabs-scribe"}, "audio is required"},
 		{"scribe diarize flag", irisGenerateRequest{"model": "elevenlabs-scribe", "audio": assetField(), "diarize": "yes"}, "diarize"},
+		{"scribe speakers", irisGenerateRequest{"model": "elevenlabs-scribe", "audio": assetField(), "speakers": float64(33)}, "speakers takes 1 to 32"},
 		{"alignment ok", irisGenerateRequest{"model": "elevenlabs-forced-alignment", "audio": assetField(), "text": "Bonjour"}, ""},
 		{"alignment needs text", irisGenerateRequest{"model": "elevenlabs-forced-alignment", "audio": assetField()}, "text is required"},
+		{"alignment text length", irisGenerateRequest{"model": "elevenlabs-forced-alignment", "audio": assetField(), "text": strings.Repeat("a", 100_001)}, "text is too long"},
 		{"lipsync ok", irisGenerateRequest{"model": "sync-lipsync-2", "video": assetField(), "audio": assetField(), "syncMode": "loop"}, ""},
 		{"lipsync needs audio", irisGenerateRequest{"model": "sync-lipsync-2", "video": assetField()}, "audio is required"},
 		{"lipsync mode", irisGenerateRequest{"model": "sync-lipsync-2", "video": assetField(), "audio": assetField(), "syncMode": "stretch"}, "syncMode"},
@@ -213,6 +217,29 @@ func TestSamePlaceholders(t *testing.T) {
 	require.True(t, samePlaceholders("No args", "Pas d'arguments"))
 }
 
+func TestValidateIrisDialogueVoiceCap(t *testing.T) {
+	voices := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"}
+	lines := make([]any, len(voices))
+	for i, voice := range voices {
+		lines[i] = map[string]any{"text": "Hi", "voice": voice}
+	}
+	_, err := validateIrisGenerateRequest(irisGenerateRequest{"model": "elevenlabs-dialogue", "lines": lines})
+	require.ErrorContains(t, err, "at most 10 voices")
+}
+
+func TestValidateIrisScribeKeytermCap(t *testing.T) {
+	keyterms := make([]any, 1001)
+	for i := range keyterms {
+		keyterms[i] = "term"
+	}
+	_, err := validateIrisGenerateRequest(irisGenerateRequest{
+		"model":    "elevenlabs-scribe",
+		"audio":    assetField(),
+		"keyterms": keyterms,
+	})
+	require.ErrorContains(t, err, "keyterms takes at most")
+}
+
 func TestContainsTerm(t *testing.T) {
 	require.True(t, containsTerm("Start the art show", "art", false))
 	require.False(t, containsTerm("Start the show", "art", false))
@@ -333,6 +360,27 @@ func TestIrisGlossaryHitsExcludesArchivedGlossaries(t *testing.T) {
 	onlyArchived, err := api.glossaryHits(t.Context(), irisScope, "en-US", "fr-FR", []string{"SecretTerm"})
 	require.NoError(t, err)
 	require.Empty(t, onlyArchived)
+}
+
+func TestIrisGlossaryHitsIncludePronunciation(t *testing.T) {
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	api := &irisGenerationAPI{pool: scope.Pool}
+	irisScope := irisOrgScope{OrganizationID: scope.OrganizationID, UserID: scope.UserID, Role: "admin"}
+
+	glossaryID := scope.MustGlossary(t, "", "Spoken Brand", "en-US")
+	concept := mustGlossaryConcept(t, scope, glossaryID, "Checkout", "", "")
+	mustGlossaryTerm(t, scope, glossaryID, concept, "en-US", "Checkout")
+	french := mustGlossaryTerm(t, scope, glossaryID, concept, "fr-FR", "Paiement")
+	mustSetPronunciation(t, scope, french, "pay-MAHN")
+
+	hits, err := api.glossaryHits(t.Context(), irisScope, "en-US", "fr-FR", []string{"Checkout"})
+	require.NoError(t, err)
+	require.Equal(t, []irisGlossaryHit{{
+		Term:          "Checkout",
+		Translation:   ptr("Paiement"),
+		Pronunciation: "pay-MAHN",
+		Glossary:      "Spoken Brand",
+	}}, hits)
 }
 
 func TestIrisLocaliseEndpointsValidateBeforeTouchingData(t *testing.T) {
