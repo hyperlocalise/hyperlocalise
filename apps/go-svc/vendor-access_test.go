@@ -333,12 +333,133 @@ func TestVendorClosedProjectRoutes(t *testing.T) {
 		"/projects/" + f.scope.ProjectID + "/jobs", "/projects/" + f.scope.ProjectID + "/jobs/" + task,
 		"/projects/" + f.scope.ProjectID + "/members", "/projects/" + f.scope.ProjectID + "/content-editor-behavior",
 		"/workspace-files", "/jobs/" + task + "/events", "/jobs/" + task + "/files", "/jobs/" + task + "/comments",
-		"/jobs/" + task + "/assignable-owners", "/project-templates",
+		"/project-templates",
 	} {
 		rec := projectRequest(f.jobs, f.scope, f.scope.OrgPath(suffix))
 		require.Equal(t, http.StatusForbidden, rec.Code, suffix+": "+rec.Body.String())
 		require.Contains(t, rec.Body.String(), "organization_access_denied", suffix)
 	}
+	// Opened for a vendor team's manager only; anyone else in a vendor team finds nothing.
+	rec := projectRequest(f.jobs, f.scope, f.scope.OrgPath("/jobs/"+task+"/assignable-owners"))
+	require.Equal(t, http.StatusNotFound, rec.Code, rec.Body.String())
+}
+
+// teamTaskFixture is a vendor team whose manager is the fixture's person, with one other person
+// in it, and a task given to the team.
+type teamTaskFixture struct {
+	taskFixture
+	teamID, teammate, task string
+}
+
+func newTeamTaskFixture(t *testing.T) teamTaskFixture {
+	t.Helper()
+	f := teamTaskFixture{taskFixture: newTaskFixture(t, vendorRole)}
+	require.NoError(t, f.scope.Pool.QueryRow(t.Context(), `
+        update team_memberships tm set role = 'manager' from teams t
+        where t.id = tm.team_id and t.is_vendor and tm.user_id = $1
+        returning tm.team_id`, f.scope.UserID).Scan(&f.teamID))
+	// The seed stores a stand-in role; the stored role decides who can be handed a task.
+	_, err := f.scope.Pool.Exec(t.Context(), `update organization_memberships set role='reviewer' where user_id=$1`, f.scope.UserID)
+	require.NoError(t, err)
+	f.teammate = f.mustOtherMember(t)
+	f.join(t, f.teamID, f.teammate, "member")
+	f.task = f.mustTask(t, taskSeed{})
+	f.giveToTeam(t, f.task, f.teamID, nil)
+	return f
+}
+
+func (f teamTaskFixture) join(t *testing.T, teamID, userID, role string) {
+	t.Helper()
+	_, err := f.scope.Pool.Exec(t.Context(), `insert into team_memberships (team_id, user_id, role) values ($1, $2, $3::team_membership_role)`, teamID, userID, role)
+	require.NoError(t, err)
+}
+
+// giveToTeam gives the task to the team, held by owner or by no one.
+func (f teamTaskFixture) giveToTeam(t *testing.T, jobID, teamID string, owner *string) {
+	t.Helper()
+	_, err := f.scope.Pool.Exec(t.Context(), `
+        update jobs set owner_team_id = $2, owner_user_id = $3,
+            assignee_type = case when $3::uuid is null then null else 'user'::job_assignee_type end
+        where id = $1`, jobID, teamID, owner)
+	require.NoError(t, err)
+}
+
+func (f teamTaskFixture) ownerEmails(t *testing.T, jobID string) (int, []string) {
+	t.Helper()
+	rec := projectRequest(f.jobs, f.scope, f.scope.OrgPath("/jobs/"+jobID+"/assignable-owners"))
+	var body struct {
+		Members []struct {
+			UserID string `json:"userId"`
+		} `json:"members"`
+		Teams []any `json:"teams"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	require.Empty(t, body.Teams, "a manager hands out to people, not to teams")
+	ids := []string{}
+	for _, member := range body.Members {
+		ids = append(ids, member.UserID)
+	}
+	return rec.Code, ids
+}
+
+func TestVendorTeamManagerSeesTheTeamsTasks(t *testing.T) {
+	f := newTeamTaskFixture(t)
+	outsider := f.mustOtherMember(t)
+	// A person in the team whose role only reads cannot be handed a task.
+	reader := f.mustOtherMember(t)
+	_, err := f.scope.Pool.Exec(t.Context(), `update organization_memberships set role='member' where user_id=$1`, reader)
+	require.NoError(t, err)
+	f.join(t, f.teamID, reader, "member")
+	handedOut := f.mustTask(t, taskSeed{})
+	f.giveToTeam(t, handedOut, f.teamID, &f.teammate)
+	waitingFor := f.mustTask(t, taskSeed{owner: &outsider})
+	waiting := f.mustTask(t, taskSeed{status: "queued", after: &waitingFor})
+	f.giveToTeam(t, waiting, f.teamID, nil)
+	finished := f.mustTask(t, taskSeed{status: "succeeded"})
+	f.giveToTeam(t, finished, f.teamID, nil)
+	// The teammate's own task, given to them and not to the team, is not the team's.
+	direct := f.mustTask(t, taskSeed{owner: &f.teammate})
+	otherTeam := mustVendorTeam(t, f.scope)
+	elsewhere := f.mustTask(t, taskSeed{owner: &outsider})
+	f.giveToTeam(t, elsewhere, otherTeam, nil)
+
+	t.Run("the manager's list and task pages hold the team's open and waiting tasks", func(t *testing.T) {
+		require.ElementsMatch(t, []string{f.task, handedOut, waiting}, f.jobList("?relationship=assigned&limit=100"))
+		for _, id := range []string{f.task, handedOut, waiting} {
+			require.Equal(t, http.StatusOK, f.jobDetailCode(id))
+		}
+		for name, hidden := range map[string]string{
+			"finished": finished, "given to a person in the team": direct, "another team's": elsewhere,
+		} {
+			require.Equal(t, http.StatusNotFound, f.jobDetailCode(hidden), name)
+		}
+	})
+
+	t.Run("the manager hands a task to the team's people who work on jobs", func(t *testing.T) {
+		code, ids := f.ownerEmails(t, f.task)
+		require.Equal(t, http.StatusOK, code)
+		require.ElementsMatch(t, []string{f.scope.UserID, f.teammate}, ids)
+		code, _ = f.ownerEmails(t, elsewhere)
+		require.Equal(t, http.StatusNotFound, code)
+		code, _ = f.ownerEmails(t, finished)
+		require.Equal(t, http.StatusNotFound, code)
+	})
+
+	t.Run("seeing a team task does not open its editor", func(t *testing.T) {
+		require.NotEqual(t, http.StatusOK, f.queue(f.path, "fr", "").Code)
+		f.giveToTeam(t, f.task, f.teamID, &f.scope.UserID)
+		require.Equal(t, http.StatusOK, f.queue(f.path, "fr", "").Code)
+		f.giveToTeam(t, f.task, f.teamID, nil)
+	})
+
+	t.Run("a member of the team sees none of it", func(t *testing.T) {
+		_, err := f.scope.Pool.Exec(t.Context(), `update team_memberships set role='member' where team_id=$1 and user_id=$2`, f.teamID, f.scope.UserID)
+		require.NoError(t, err)
+		require.Empty(t, f.jobList("?relationship=assigned"))
+		require.Equal(t, http.StatusNotFound, f.jobDetailCode(f.task))
+		code, _ := f.ownerEmails(t, f.task)
+		require.Equal(t, http.StatusNotFound, code)
+	})
 }
 
 func TestVendorEditorIsHeldToTheTask(t *testing.T) {
@@ -617,6 +738,36 @@ func TestJobAssignableOwners(t *testing.T) {
 	rest = emails(projectRequest(f.jobs, f.scope, f.scope.OrgPath("/jobs/"+otherJob+"/assignable-owners")))
 	require.NotContains(t, rest, vendor+"@example.test")
 	require.Contains(t, rest, offTeam+"@example.test")
+
+	// A task on a file can also be given to a vendor team; no other job can.
+	teams := func(jobID string) []string {
+		var body struct {
+			Teams []struct {
+				ID string `json:"id"`
+			} `json:"teams"`
+		}
+		rec := projectRequest(f.jobs, f.scope, f.scope.OrgPath("/jobs/"+jobID+"/assignable-owners"))
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		ids := []string{}
+		for _, team := range body.Teams {
+			ids = append(ids, team.ID)
+		}
+		return ids
+	}
+	var vendorTeamID string
+	require.NoError(t, f.scope.Pool.QueryRow(t.Context(), `select tm.team_id from team_memberships tm join teams t on t.id = tm.team_id where tm.user_id=$1 and t.is_vendor`, vendor).Scan(&vendorTeamID))
+	// Only a team with a manager who works on jobs: no one would see a task given to any other.
+	require.Empty(t, teams(fileTask), "a vendor team with no manager")
+	_, err = f.scope.Pool.Exec(t.Context(), `update team_memberships set role='manager' where team_id=$1 and user_id=$2`, vendorTeamID, vendor)
+	require.NoError(t, err)
+	require.Equal(t, []string{vendorTeamID}, teams(fileTask))
+	_, err = f.scope.Pool.Exec(t.Context(), `update organization_memberships set role='member' where user_id=$1`, vendor)
+	require.NoError(t, err)
+	require.Empty(t, teams(fileTask), "a manager whose role only reads")
+	_, err = f.scope.Pool.Exec(t.Context(), `update organization_memberships set role='translator' where user_id=$1`, vendor)
+	require.NoError(t, err)
+	require.Empty(t, teams(otherJob))
+	require.Empty(t, teams(finished))
 }
 
 // The Go service is closed to vendors by default: a route accepts one only when its handler asks
@@ -710,6 +861,8 @@ func TestVendorIsAcceptedOnlyWhereListed(t *testing.T) {
 		// The job list and a task's page, for the person's own open and waiting tasks.
 		"GET orgRoutePrefix/jobs",
 		"GET orgRoutePrefix/jobs/{jobId}",
+		// Who a vendor team's manager can hand a task of the team to.
+		"GET orgRoutePrefix/jobs/{jobId}/assignable-owners",
 		"POST cat/comments",
 		"POST cat/segments/{externalStringId}/revisions/{revisionId}/restore",
 		"POST cat/targets",

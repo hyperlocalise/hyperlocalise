@@ -171,7 +171,8 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+project+"/jobs/{jobId}/files", bindActor(api, (*projectAPI).projectJobFilesHandler))
 	route("GET "+project+"/jobs/{jobId}/comments", bindActor(api, (*projectAPI).projectJobCommentsHandler))
 	route("GET "+orgRoutePrefix+"/workspace-files", bindActor(api, (*projectAPI).workspaceFilesHandler))
-	// The only project routes a vendor may call. Both limit a vendor to their own tasks.
+	// The only project routes a vendor may call. Each limits a vendor to their own tasks and
+	// those of a vendor team they manage.
 	routeAllowingVendor := func(pattern string, fn func(*http.Request, projectActor) (any, int, error)) {
 		registerAuthenticated(mux, verifier, pattern, api.handleFor(fn, true))
 	}
@@ -183,7 +184,8 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+orgRoutePrefix+"/jobs/{jobId}/files", bindActor(api, (*projectAPI).orgJobFilesHandler))
 	route("GET "+orgRoutePrefix+"/jobs/{jobId}/comments", bindActor(api, (*projectAPI).orgJobCommentsHandler))
 	route("GET "+orgRoutePrefix+"/jobs/{jobId}/events", bindActor(api, (*projectAPI).orgJobEventsHandler))
-	route("GET "+orgRoutePrefix+"/jobs/{jobId}/assignable-owners", bindActor(api, (*projectAPI).orgJobAssignableOwnersHandler))
+	// Open to vendors for a vendor team's manager, who hands the team's tasks out.
+	routeAllowingVendor("GET "+orgRoutePrefix+"/jobs/{jobId}/assignable-owners", bindActor(api, (*projectAPI).orgJobAssignableOwnersHandler))
 }
 
 func (api *projectAPI) actorFor(ctx context.Context, claims AuthClaims, slug string, allowVendor bool) (projectActor, error) {

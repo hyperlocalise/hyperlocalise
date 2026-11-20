@@ -21,6 +21,9 @@ import (
 // the job list and the task's page for open and waiting tasks, the editor for open tasks only,
 // in the task's file and languages. Within those, their role decides what they may do.
 //
+// A vendor team's manager also sees the tasks given to that team, and hands each one to a person
+// in the team (managedTeamTaskSQL).
+//
 // The same rule lets the owner of such a task reach it when they are not on the project's
 // team, whatever their role.
 //
@@ -28,20 +31,45 @@ import (
 // src/lib/projects/jobs/task-access.ts. Keep them in step.
 
 // ownedFileTaskSQL matches a post-edit or proofread task on one file that the person owns and
-// that is open or, with includeWaiting, still waiting for an earlier job. Both steps are stored
-// as proofread jobs. The jobs row is aliased j; the arguments are the positions of the
-// organization id and the person's user id.
+// that is open or, with includeWaiting, still waiting for an earlier job. The jobs row is aliased
+// j; the arguments are the positions of the organization id and the person's user id.
 func ownedFileTaskSQL(organizationArg, userArg int, includeWaiting bool) string {
+	return fmt.Sprintf(`(j.organization_id = $%d and j.owner_user_id = $%d and %s)`,
+		organizationArg, userArg, fileTaskSQL(includeWaiting))
+}
+
+// managedTeamTaskSQL matches an open or waiting post-edit or proofread task on one file that was
+// given to a vendor team the person manages (team role manager). A manager sees such a task and
+// hands it to a person in the team or back to the team; they open its editor or mark it done
+// only once they own it. The arguments are as for ownedFileTaskSQL.
+//
+// The web app keeps the same rule in src/lib/projects/jobs/team-task.ts. Keep them in step.
+func managedTeamTaskSQL(organizationArg, userArg int) string {
+	return fmt.Sprintf(`(j.organization_id = $%[1]d and j.owner_team_id in (
+                select mtm.team_id from team_memberships mtm join teams mt on mt.id = mtm.team_id
+                where mtm.user_id = $%[2]d and mtm.role = 'manager' and mt.is_vendor
+                  and mt.organization_id = $%[1]d)
+            and %[3]s)`, organizationArg, userArg, fileTaskSQL(true))
+}
+
+// vendorJobSQL is every job a vendor may see in the job list and on the task's page: their own
+// open or waiting tasks, and those given to a vendor team they manage.
+func vendorJobSQL(organizationArg, userArg int) string {
+	return "(" + ownedFileTaskSQL(organizationArg, userArg, true) + " or " + managedTeamTaskSQL(organizationArg, userArg) + ")"
+}
+
+// fileTaskSQL matches a post-edit or proofread task on one file (aliased j) that is open or, with
+// includeWaiting, still waiting for an earlier job. Both steps are stored as proofread jobs.
+func fileTaskSQL(includeWaiting bool) string {
 	status := "j.status = 'waiting_for_review'"
 	if includeWaiting {
 		status = "(j.status = 'waiting_for_review' or (j.status = 'queued' and j.after_job_id is not null))"
 	}
-	return fmt.Sprintf(`(j.organization_id = $%d and j.owner_user_id = $%d
-            and j.kind = 'proofread'
+	return `j.kind = 'proofread'
             and (j.assignee_type is null or j.assignee_type <> 'agent')
             and coalesce(j.input_payload->>'sourceFileId', '') <> ''
             and not exists (select 1 from external_job_details vx where vx.job_id = j.id)
-            and %s)`, organizationArg, userArg, status)
+            and ` + status
 }
 
 // taskFileJoinSQL joins a job (aliased j) to the one file it is on: the file, on its branch, of
