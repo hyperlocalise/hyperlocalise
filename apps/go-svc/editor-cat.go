@@ -94,7 +94,8 @@ func (a editorCatActor) canManageGlossaries() bool {
 }
 
 func (a editorCatActor) canWriteProjectTeam() bool {
-	return a.role == "admin" || a.role == "localization_manager"
+	// A vendor never has the whole workspace, whatever their role (vendor-access.go).
+	return !a.vendor && (a.role == "admin" || a.role == "localization_manager")
 }
 
 type editorCatProject struct {

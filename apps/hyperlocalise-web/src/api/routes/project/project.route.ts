@@ -2053,6 +2053,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const params = c.req.valid("param");
         const body = c.req.valid("json");
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        // A vendor's tasks are on native projects; nothing about providers is theirs to learn.
+        if (target.kind !== "native" && isInVendorTeam(c.var.auth)) {
+          return projectNotFoundResponse(c);
+        }
         if (target.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, target);
         }
@@ -2075,8 +2079,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           ) {
             return projectNotFoundResponse(c);
           }
-        } else if (isInVendorTeam(c.var.auth)) {
-          return projectNotFoundResponse(c);
         } else {
           const ensured = await ensureOrganizationProjectRecord({
             organizationId: c.var.auth.organization.localOrganizationId,

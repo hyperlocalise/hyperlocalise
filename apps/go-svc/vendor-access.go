@@ -361,7 +361,12 @@ func applyVendorTeamJoinRules(ctx context.Context, db dictionaryDB, organization
 	if _, err := db.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, organizationAdminsLockKey(organizationID)); err != nil {
 		return err
 	}
-	if err := readRules(); err != nil {
+	err = readRules()
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && role == nil) {
+		// The team or the person went while this waited for the lock: the join finds nothing.
+		return nil
+	}
+	if err != nil {
 		return fmt.Errorf("read team join rules: %w", err)
 	}
 	if actorRole != actorRoleCheckedByCaller && !canActorManageTarget(actorRole, *role, nil) {

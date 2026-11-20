@@ -49,7 +49,8 @@ func (a projectActor) isVendor() bool {
 }
 
 func (a projectActor) canReadAllTeams() bool {
-	return a.role == "admin" || a.role == "localization_manager"
+	// A vendor never has the whole workspace, whatever their role (vendor-access.go).
+	return !a.vendor && (a.role == "admin" || a.role == "localization_manager")
 }
 
 func (a projectActor) canCreateProjects() bool {

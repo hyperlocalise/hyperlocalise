@@ -508,7 +508,7 @@ func requireAnotherAcceptedAdmin(ctx context.Context, tx pgx.Tx, organizationID,
 		return err
 	}
 	if count < 1 {
-		return memberFailure(409, "last_admin_protected", "The workspace needs another admin outside vendor teams who has accepted their invitation")
+		return memberFailure(409, "last_admin_protected", "The workspace needs another admin who has accepted their invitation")
 	}
 	return nil
 }

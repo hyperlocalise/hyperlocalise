@@ -67,8 +67,8 @@ export const leaveWorkspaceDialogMessages = defineMessages({
   },
   lastAdmin: {
     defaultMessage:
-      "You are the only admin of this workspace outside vendor teams. Make another member an admin before you leave.",
-    id: "yvLX3wRD5R",
+      "You are the only admin of this workspace. Make another member an admin before you leave.",
+    id: "rXMDxSDgo4",
     description: "Why the only admin of a workspace cannot leave it",
   },
 
