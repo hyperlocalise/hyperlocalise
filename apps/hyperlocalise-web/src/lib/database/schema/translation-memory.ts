@@ -283,6 +283,8 @@ export const glossaryTerms = pgTable(
     url: text("url"),
     // Optional provider-native lemma.
     lemma: text("lemma"),
+    // Optional spoken form: the term spelled out the way speech should say it.
+    pronunciation: text("pronunciation"),
     // Native concept term status.
     status: text("status").notNull().default("preferred"),
     // Whether source term matching should preserve case sensitivity.

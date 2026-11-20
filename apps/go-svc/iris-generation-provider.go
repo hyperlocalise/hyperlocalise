@@ -39,6 +39,10 @@ type irisProviderRequest struct {
 	// Fields is the request as the client sent it, for the fields only one
 	// model reads (a dub's target language, an image's translations).
 	Fields irisGenerateRequest
+	// Pronunciations say the glossary's terms in the script the way the
+	// glossary spells them out; Keyterms are its terms for a transcript.
+	Pronunciations []irisPronunciation
+	Keyterms       []string
 }
 
 type irisProviderInput struct {
@@ -335,7 +339,7 @@ func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest)
 		return p.imageText(ctx, req)
 	case "elevenlabs-dubbing":
 		return nil, fmt.Errorf("dubbing needs ELEVENLABS_API_KEY")
-	case "elevenlabs-voice-isolator", "elevenlabs-voice-changer":
+	case "elevenlabs-voice-isolator", "elevenlabs-voice-changer", "elevenlabs-dialogue", "elevenlabs-voice-design", "elevenlabs-forced-alignment", "elevenlabs-scribe":
 		return nil, fmt.Errorf("%s needs ELEVENLABS_API_KEY", req.Model.ID)
 	case "sync-lipsync-2":
 		return nil, fmt.Errorf("lip-sync needs FAL_KEY")

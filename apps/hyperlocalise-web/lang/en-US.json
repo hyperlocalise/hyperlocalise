@@ -1855,6 +1855,10 @@
     "defaultMessage": "Shared with {teamName}.",
     "description": "Helper note that CAT glossary concepts are shared with the project team"
   },
+  "0PdGbrcVsw": {
+    "defaultMessage": "Pronunciation",
+    "description": "Label for the field that spells out how speech should say a glossary term"
+  },
   "0PhWie0NMV": {
     "defaultMessage": "Queries",
     "description": "Workspace Queries page title"
@@ -1894,6 +1898,10 @@
   "0S1pdjIx4Z": {
     "defaultMessage": "Email the Hyperlocalise team about localisation, pricing, or support.",
     "description": "Meta description for the marketing contact page"
+  },
+  "0SPPiMxTcf": {
+    "defaultMessage": "Pull clean speech out of noisy audio",
+    "description": "Card summary for the ElevenLabs Voice Isolator tool on the pricing page"
   },
   "0So/h7Alas": {
     "defaultMessage": "Set it up in minutes. The same commands run on your machine and in CI.",
@@ -16731,6 +16739,10 @@
     "defaultMessage": "MDX code, kept as written",
     "description": "Document editor: label for MDX source that cannot be edited in the page view"
   },
+  "KcY7LHAt0z": {
+    "defaultMessage": "Transcripts that tell speakers apart",
+    "description": "Card summary for the ElevenLabs Scribe transcription model on the pricing page"
+  },
   "Kd7SldmcN9": {
     "defaultMessage": "Search expands live keyword ideas for the selected market. Save ideas you want to keep, or send them to rank tracking.",
     "description": "Keyword research screen: live discovery disclosure"
@@ -18854,6 +18866,10 @@
   "NVCqz7i9kK": {
     "defaultMessage": "Add output",
     "description": "Add a Sequence execution output"
+  },
+  "NVepseo0De": {
+    "defaultMessage": "Time a written script to its voice-over",
+    "description": "Card summary for the ElevenLabs Forced Alignment model on the pricing page"
   },
   "NW1SDAit+W": {
     "defaultMessage": "Checks",
@@ -29778,6 +29794,10 @@
   "cVStyh2pK7": {
     "defaultMessage": "Pause walkthrough",
     "description": "Accessible label to pause the autoplaying guide"
+  },
+  "cXM/74jMXc": {
+    "defaultMessage": "How voice-overs say it, e.g. hyper-LOW-ka-lize",
+    "description": "Placeholder for a glossary term's pronunciation, used by text-to-speech and dubbing"
   },
   "cXcTyAvqBj": {
     "defaultMessage": "Import batch",
@@ -41843,6 +41863,10 @@
     "defaultMessage": "Heading 1",
     "description": "Slash menu item for a level-1 heading"
   },
+  "sRHP0bOxJ7": {
+    "defaultMessage": "Re-voice a recording, keeping its timing",
+    "description": "Card summary for the ElevenLabs Voice Changer tool on the pricing page"
+  },
   "sSzIe3av3r": {
     "defaultMessage": "Deadline",
     "description": "Human Approval deadline field"
@@ -42502,6 +42526,10 @@
   "tMUuz8k4Pc": {
     "defaultMessage": "Progress",
     "description": "Task report card: the share of the task's units finished in the chosen step"
+  },
+  "tMtsgNjZc9": {
+    "defaultMessage": "Design a new voice from a description",
+    "description": "Card summary for the ElevenLabs Voice Design model on the pricing page"
   },
   "tOAFgS8YTm": {
     "defaultMessage": "Choose a TBX, XLSX, or CSV file",
@@ -46438,6 +46466,10 @@
   "yaoAnC75sk": {
     "defaultMessage": "Only visitors in that market see the change. Results update as traffic comes in.",
     "description": "market-experimentation use case page: guide › steps › #3 › body"
+  },
+  "yb/kMUJ7+w": {
+    "defaultMessage": "Several speakers in one natural take",
+    "description": "Card summary for the ElevenLabs Dialogue model on the pricing page"
   },
   "ybeD8Dwr0/": {
     "defaultMessage": "You edited the setup · {count, plural, one {# change} other {# changes}}",

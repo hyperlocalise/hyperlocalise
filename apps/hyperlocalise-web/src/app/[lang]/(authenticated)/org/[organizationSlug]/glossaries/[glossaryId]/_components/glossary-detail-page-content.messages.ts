@@ -597,6 +597,17 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "HKQdop1A9u",
     description: "Placeholder for a term-level editor note",
   },
+  pronunciationLabel: {
+    defaultMessage: "Pronunciation",
+    id: "0PdGbrcVsw",
+    description: "Label for the field that spells out how speech should say a glossary term",
+  },
+  termPronunciationPlaceholder: {
+    defaultMessage: "How voice-overs say it, e.g. hyper-LOW-ka-lize",
+    id: "cXM/74jMXc",
+    description:
+      "Placeholder for a glossary term's pronunciation, used by text-to-speech and dubbing",
+  },
   openTermUrl: {
     defaultMessage: "Open term URL",
     id: "/2Rg3XAZX2",

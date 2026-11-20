@@ -109,17 +109,17 @@ func (c *Client) startDub(ctx context.Context, req DubRequest, target string) (s
 	if source == "" {
 		source = defaultDubSourceLang
 	}
-	fields := map[string]string{
-		"target_lang": target,
-		"source_lang": source,
-		"watermark":   "false",
+	fields := url.Values{
+		"target_lang": {target},
+		"source_lang": {source},
+		"watermark":   {"false"},
 	}
 	if req.Speakers > 0 {
 		speakers := req.Speakers
 		if speakers > maxDubSpeakers {
 			speakers = maxDubSpeakers
 		}
-		fields["num_speakers"] = strconv.Itoa(speakers)
+		fields.Set("num_speakers", strconv.Itoa(speakers))
 	}
 	body, _, err := c.doMultipart(ctx, dubbingPath, nil, fields, "file", req.Media, req.ContentType)
 	if err != nil {
@@ -160,21 +160,24 @@ func (c *Client) waitForDub(ctx context.Context, id string, interval time.Durati
 }
 
 // doMultipart posts `fields` and `media`, as the form part `fileField`, to
-// `path`, answering with the response body and its content type.
+// `path`, answering with the response body and its content type. A field
+// with several values is sent once per value, as list fields are.
 func (c *Client) doMultipart(
 	ctx context.Context,
 	path string,
 	query url.Values,
-	fields map[string]string,
+	fields url.Values,
 	fileField string,
 	media []byte,
 	contentType string,
 ) ([]byte, string, error) {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-	for key, value := range fields {
-		if err := writer.WriteField(key, value); err != nil {
-			return nil, "", fmt.Errorf("elevenlabs: build multipart request: %w", err)
+	for key, values := range fields {
+		for _, value := range values {
+			if err := writer.WriteField(key, value); err != nil {
+				return nil, "", fmt.Errorf("elevenlabs: build multipart request: %w", err)
+			}
 		}
 	}
 	part, err := writer.CreatePart(mediaPartHeader(fileField, contentType))

@@ -105,7 +105,11 @@ describe("GlossaryConceptDetailStore", () => {
     store.updateCreatingTermDraft(store.creatingTermDrafts[0]!.id, { term: "checkout" });
     store.updateConceptDraft({ subject: "Payments", definition: "Pay flow" });
     store.addCreatingTerm("fr-FR", "new-fr");
-    store.updateCreatingTermDraft("new-fr", { term: "paiement", partOfSpeech: "noun" });
+    store.updateCreatingTermDraft("new-fr", {
+      term: "paiement",
+      partOfSpeech: "noun",
+      pronunciation: "pay-MAHN",
+    });
 
     expect(store.buildCreateBody()).toEqual({
       primaryTerm: "checkout",
@@ -125,6 +129,7 @@ describe("GlossaryConceptDetailStore", () => {
           description: "",
           note: "",
           url: "",
+          pronunciation: "",
           caseSensitive: false,
           forbidden: false,
         },
@@ -138,6 +143,7 @@ describe("GlossaryConceptDetailStore", () => {
           description: "",
           note: "",
           url: "",
+          pronunciation: "pay-MAHN",
           caseSensitive: false,
           forbidden: false,
         },
@@ -231,7 +237,11 @@ describe("GlossaryConceptDetailStore", () => {
     });
     store.setSourceLocale("en-US");
     store.hydrateFromServer(createConcept({ terms: [kept, removed] }));
-    store.updateTermDraft(kept.id, { term: "Checkout", partOfSpeech: "noun" });
+    store.updateTermDraft(kept.id, {
+      term: "Checkout",
+      partOfSpeech: "noun",
+      pronunciation: "CHECK-out",
+    });
     store.markTermForDeletion(removed.id);
     store.startNewTerm("de-DE");
     store.updateNewTermDraft({ term: "Kasse", status: "preferred" });
@@ -257,6 +267,7 @@ describe("GlossaryConceptDetailStore", () => {
           description: "",
           note: "",
           url: "",
+          pronunciation: "CHECK-out",
           caseSensitive: false,
           forbidden: false,
         },
@@ -270,6 +281,7 @@ describe("GlossaryConceptDetailStore", () => {
           description: "",
           note: "",
           url: "",
+          pronunciation: "",
           caseSensitive: false,
           forbidden: false,
         },

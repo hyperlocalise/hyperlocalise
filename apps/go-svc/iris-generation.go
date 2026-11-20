@@ -268,6 +268,10 @@ func irisSyntheticCredit(job irisJobRecord, credits irisCreditConfig) (autumn.Tr
 	if !ok {
 		return autumn.TrackTokensRequest{}, false
 	}
+	// Keeping a designed preview as a voice costs ElevenLabs nothing.
+	if model.ID == "elevenlabs-voice-design" && job.Request.stringField("generatedVoiceId") != "" {
+		return autumn.TrackTokensRequest{}, false
+	}
 	vendor := irisCreditVendor(model)
 	req := autumn.TrackTokensRequest{
 		CustomerID: job.OrgID,
@@ -517,6 +521,7 @@ func (api *irisGenerationAPI) generate(w http.ResponseWriter, r *http.Request) {
 		UserID:     scope.UserID,
 		OrgID:      scope.OrganizationID,
 	}
+	api.attachGlossaryAudio(r.Context(), scope, &job)
 	remaining := estimate.ETASeconds
 	job.ETARemainingSeconds = &remaining
 	if err := api.saveJob(r.Context(), job); err != nil {
@@ -719,16 +724,18 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 		return
 	}
 	outputs, err := api.provider.Generate(ctx, irisProviderRequest{
-		Model:       model,
-		Prompt:      job.Request.prompt(),
-		Voice:       job.Request.voice(),
-		Duration:    job.Request.duration(),
-		AspectRatio: job.Request.stringField("aspectRatio"),
-		Resolution:  job.Request.stringField("resolution"),
-		Count:       job.Request.count(),
-		Language:    job.Request.languageCode(),
-		Inputs:      inputs,
-		Fields:      job.Request,
+		Model:          model,
+		Prompt:         job.Request.prompt(),
+		Voice:          job.Request.voice(),
+		Duration:       job.Request.duration(),
+		AspectRatio:    job.Request.stringField("aspectRatio"),
+		Resolution:     job.Request.stringField("resolution"),
+		Count:          job.Request.count(),
+		Language:       job.Request.languageCode(),
+		Inputs:         inputs,
+		Fields:         job.Request,
+		Pronunciations: job.Pronunciations,
+		Keyterms:       job.Keyterms,
 	})
 	if err != nil {
 		api.failJob(ctx, job, "PROVIDER_ERROR", err.Error())

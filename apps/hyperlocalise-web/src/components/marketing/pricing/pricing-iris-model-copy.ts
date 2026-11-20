@@ -316,6 +316,36 @@ export function getPricingIrisModelSummaries(intl: IntlShape): Record<PricingIri
       id: "07nyefIF8a",
       description: "Card summary for the Qwen 3.8 Omni Flash media model on the pricing page",
     }),
+    "elevenlabs-voice-isolator": intl.formatMessage({
+      defaultMessage: "Pull clean speech out of noisy audio",
+      id: "0SPPiMxTcf",
+      description: "Card summary for the ElevenLabs Voice Isolator tool on the pricing page",
+    }),
+    "elevenlabs-voice-changer": intl.formatMessage({
+      defaultMessage: "Re-voice a recording, keeping its timing",
+      id: "sRHP0bOxJ7",
+      description: "Card summary for the ElevenLabs Voice Changer tool on the pricing page",
+    }),
+    "elevenlabs-dialogue": intl.formatMessage({
+      defaultMessage: "Several speakers in one natural take",
+      id: "yb/kMUJ7+w",
+      description: "Card summary for the ElevenLabs Dialogue model on the pricing page",
+    }),
+    "elevenlabs-voice-design": intl.formatMessage({
+      defaultMessage: "Design a new voice from a description",
+      id: "tMtsgNjZc9",
+      description: "Card summary for the ElevenLabs Voice Design model on the pricing page",
+    }),
+    "elevenlabs-scribe": intl.formatMessage({
+      defaultMessage: "Transcripts that tell speakers apart",
+      id: "KcY7LHAt0z",
+      description: "Card summary for the ElevenLabs Scribe transcription model on the pricing page",
+    }),
+    "elevenlabs-forced-alignment": intl.formatMessage({
+      defaultMessage: "Time a written script to its voice-over",
+      id: "NVepseo0De",
+      description: "Card summary for the ElevenLabs Forced Alignment model on the pricing page",
+    }),
     "elevenlabs-dubbing": intl.formatMessage({
       defaultMessage: "Dub video in the speakers' own voices",
       id: "rQQ1b1ARBO",
