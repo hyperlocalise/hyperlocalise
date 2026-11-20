@@ -378,6 +378,76 @@ func TestEditorCatUngroupedSaveKeepsValidationAdvisory(t *testing.T) {
 	require.Equal(t, 1, count)
 }
 
+func TestEditorCatGroupedSaveStaysOnTheRepresentativeBranch(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	mainFile := mustEditorCatSourceFile(t, scope, "a.json")
+	mainFirst := mustEditorCatKey(t, scope, mainFile, "member.a", "Member")
+	mainSecond := mustEditorCatKey(t, scope, mainFile, "member.b", "Member")
+	mustEditorCatTranslation(t, scope, mainFirst, "fr", "Membre", "approved")
+	mustEditorCatTranslation(t, scope, mainSecond, "fr", "Membre", "approved")
+
+	featureFile := mustEditorCatSourceFileOnBranch(t, scope, "a.json", "feature-checkout")
+	featureFirst := mustEditorCatBranchKey(t, scope, featureFile, "feature-checkout", "member.a", "Member")
+	featureSecond := mustEditorCatBranchKey(t, scope, featureFile, "feature-checkout", "member.b", "Member")
+
+	body := `{"sourcePath":"a.json","targetLocale":"fr","externalStringId":"` + featureFirst + `","text":"Adhérent","group":{"sourcePath":"a.json"}}`
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/translations"), body)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	translated := func(id string) string {
+		var text string
+		err := scope.Pool.QueryRow(t.Context(), `select coalesce((select text from project_translations where translation_key_id=$1 and target_locale='fr'), '')`, id).Scan(&text)
+		require.NoError(t, err)
+		return text
+	}
+	require.Equal(t, "Adhérent", translated(featureFirst))
+	require.Equal(t, "Adhérent", translated(featureSecond))
+	require.Equal(t, "Membre", translated(mainFirst), "grouped save must not write the parent branch")
+	require.Equal(t, "Membre", translated(mainSecond), "grouped save must not write the parent branch")
+
+	path := editorCatPathFor(scope, "/files/detail/cat/segments/"+featureFirst+"/variants?targetLocale=fr&sourcePath=a.json&groupSourcePath=a.json")
+	rec = editorCatRequestScope(api, scope, http.MethodGet, path, "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var variants struct {
+		Variants []editorCatGroupVariant `json:"variants"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &variants))
+	require.Len(t, variants.Variants, 1)
+	require.Equal(t, "Adhérent", variants.Variants[0].Text)
+	ids := make([]string, 0, 2)
+	for _, occurrence := range variants.Variants[0].Occurrences {
+		ids = append(ids, occurrence.ID)
+	}
+	require.ElementsMatch(t, []string{featureFirst, featureSecond}, ids)
+}
+
+func TestEditorCatSaveFindsVersionBranchKeysWithoutBranchQuery(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	mustEditorCatSourceFile(t, scope, "a.json")
+	featureFile := mustEditorCatSourceFileOnBranch(t, scope, "a.json", "feature-checkout")
+	featureKey := mustEditorCatBranchKey(t, scope, featureFile, "feature-checkout", "hello", "Hello")
+
+	body := `{"sourcePath":"a.json","targetLocale":"fr","externalStringId":"` + featureKey + `","text":"Bonjour"}`
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/translations"), body)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var count int
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select count(*) from project_translations where translation_key_id=$1 and text='Bonjour'`, featureKey).Scan(&count))
+	require.Equal(t, 1, count)
+}
+
+func TestEditorCatHideUpdatesVersionBranchKeysWithoutBranchQuery(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	mustEditorCatSourceFile(t, scope, "a.json")
+	featureFile := mustEditorCatSourceFileOnBranch(t, scope, "a.json", "feature-checkout")
+	featureKey := mustEditorCatBranchKey(t, scope, featureFile, "feature-checkout", "hello", "Hello")
+
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/hidden"), `{"sourcePath":"a.json","externalStringIds":["`+featureKey+`"],"isHidden":true}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var hidden bool
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select is_hidden from project_translation_keys where id=$1`, featureKey).Scan(&hidden))
+	require.True(t, hidden)
+}
+
 func TestEditorCatGroupedSaveDropsKeysThatLeftTheGroup(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	file := mustEditorCatSourceFile(t, scope, "a.json")

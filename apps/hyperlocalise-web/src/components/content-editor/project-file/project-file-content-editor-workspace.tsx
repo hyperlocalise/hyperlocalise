@@ -60,6 +60,7 @@ import {
 import { contentEditorSourceTextEditorMessages } from "@/components/content-editor/segment/content-editor-source-text-editor.messages";
 import { buildAvailablePlansHref } from "@/lib/billing/plan-usage";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
+import { withCatBranch } from "@/lib/go-svc/go-svc-cat-api";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { useProjectLocaleProgressQuery } from "@/lib/projects/use-project-locale-progress";
 import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
@@ -568,6 +569,7 @@ export function ProjectFileContentEditorWorkspace({
     retainedSegmentIdentityRef,
     invalidateQueue,
     goSvcClient: catGoSvcClient,
+    branch,
     groupScope: isGrouped
       ? {
           sourcePath,
@@ -918,11 +920,16 @@ export function ProjectFileContentEditorWorkspace({
         );
         if (isNativeProject) {
           try {
-            await goSvcClient.cat.updateImageStatus(organizationSlug, projectId, {
-              sourcePath,
-              targetLocale,
-              status: "approved",
-            });
+            await goSvcClient.cat.updateImageStatus(
+              organizationSlug,
+              projectId,
+              {
+                sourcePath,
+                targetLocale,
+                status: "approved",
+              },
+              withCatBranch(branch),
+            );
             invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
             invalidateContentEditorSanityPushQueries(queryClient, organizationSlug, projectId);
             invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
@@ -978,22 +985,21 @@ export function ProjectFileContentEditorWorkspace({
       return "needs_review";
     },
     [
+      assertQaSaveAllowed,
+      assertSingleTargetSaveAllowed,
+      branch,
       contentEditorFile?.canEditTranslations,
       contentEditorFile?.documentView,
       contentEditorFile?.segments,
+      goSvcClient,
       intl,
       isNativeProject,
       organizationSlug,
       projectId,
+      queryClient,
       saveTranslation,
       sourcePath,
       targetLocale,
-      goSvcClient,
-      assertQaSaveAllowed,
-      assertSingleTargetSaveAllowed,
-      queryClient,
-      organizationSlug,
-      projectId,
     ],
   );
 
@@ -1016,11 +1022,16 @@ export function ProjectFileContentEditorWorkspace({
       const content = await file.text();
       const result = await saveDocumentParseBackDrafts({
         parse: () =>
-          goSvcClient.cat.parseBackDocument(organizationSlug, projectId, {
-            sourcePath,
-            targetLocale,
-            content,
-          }),
+          goSvcClient.cat.parseBackDocument(
+            organizationSlug,
+            projectId,
+            {
+              sourcePath,
+              targetLocale,
+              content,
+            },
+            withCatBranch(branch),
+          ),
         saveDraft: (externalStringId, targetText) =>
           handleSaveDraft(externalStringId, targetText, { allowQaOverride: false }),
       });
@@ -1368,10 +1379,15 @@ export function ProjectFileContentEditorWorkspace({
     async (segment: ContentEditorSegment) => {
       if (!contentEditorFile?.provider?.kind || contentEditorFile.provider.kind === "native") {
         try {
-          const body = await goSvcClient.cat.visualContext(organizationSlug, projectId, {
-            sourcePath,
-            externalStringId: segment.id,
-          });
+          const body = await goSvcClient.cat.visualContext(
+            organizationSlug,
+            projectId,
+            {
+              sourcePath,
+              externalStringId: segment.id,
+            },
+            withCatBranch(branch),
+          );
           return body.visualContext;
         } catch (error) {
           throw new Error(
@@ -1405,7 +1421,15 @@ export function ProjectFileContentEditorWorkspace({
       const body = await response.json();
       return body.visualContext;
     },
-    [contentEditorFile?.provider?.kind, goSvcClient, intl, organizationSlug, projectId, sourcePath],
+    [
+      branch,
+      contentEditorFile?.provider?.kind,
+      goSvcClient,
+      intl,
+      organizationSlug,
+      projectId,
+      sourcePath,
+    ],
   );
 
   const generateAiRecommendation = useCallback(
@@ -1660,11 +1684,13 @@ export function ProjectFileContentEditorWorkspace({
             projectId,
             sourcePath,
             ...(sourcePathsFilter ? { sourcePaths: sourcePathsFilter } : {}),
+            branch,
             canEdit: canEditTranslations,
             saveVariant: saveGroupVariant,
           }
         : null,
     [
+      branch,
       canEditTranslations,
       goSvcClient,
       groupingMode.changeView,

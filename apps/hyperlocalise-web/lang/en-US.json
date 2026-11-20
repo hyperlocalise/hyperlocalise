@@ -7347,10 +7347,6 @@
     "defaultMessage": "Failed to create translation job",
     "description": "Fallback error when a native translation job fails to create"
   },
-  "7qPJACmQFj": {
-    "defaultMessage": "Project ID",
-    "description": "Project setting on the translation, task, progress, and QA steps"
-  },
   "7qX3gQkmz8": {
     "defaultMessage": "View workspace",
     "description": "Permission row for reading the workspace"
@@ -14842,6 +14838,10 @@
   "Hv8dudDiIO": {
     "defaultMessage": "Chat, translation, and coding",
     "description": "Summary for an included OpenAI writing model on the pricing page"
+  },
+  "HvCdgmY78G": {
+    "defaultMessage": "Could not explain this finding. Please retry.",
+    "description": "QA finding card error when on-demand guideline reasoning fails"
   },
   "HvVXRZQQIf": {
     "defaultMessage": "This report does not exist, or you do not have access to it.",
@@ -25423,6 +25423,10 @@
     "defaultMessage": "Unique words that arrived, translation step",
     "description": "Detail under the source words card"
   },
+  "WaSnm7wizj": {
+    "defaultMessage": "Guideline checks stopped before every translation was reviewed. Findings from this scan are incomplete, and older guideline findings stay open.",
+    "description": "QA run notice when guideline checks halted mid-scan"
+  },
   "Wahdi1u7Ql": {
     "defaultMessage": "One platform for everyone who takes you global",
     "description": "Title for the persona section on use case pages"
@@ -30891,10 +30895,6 @@
     "defaultMessage": "Edit audience",
     "description": "Link to edit the selected audience"
   },
-  "dxHRYcypd0": {
-    "defaultMessage": "Checked in the editor while you translate. A warning does not affect saving. An error asks the translator to confirm before saving when the editor has already reported it. Project scans do not run this check.",
-    "description": "Help for the editor-only guideline QA check"
-  },
   "dy2mVzOtSq": {
     "defaultMessage": "Target is missing {tokens} from the source string.",
     "description": "CAT format check message listing placeholders missing from the target"
@@ -32362,6 +32362,10 @@
   "fr8STrS4dG": {
     "defaultMessage": "75–84%",
     "description": "Match band: fuzzy translation memory matches"
+  },
+  "frAXBd97L5": {
+    "defaultMessage": "Project",
+    "description": "Project setting on the translation, task, progress, and QA steps"
   },
   "frCipQZwRu": {
     "defaultMessage": "Pending",
@@ -34510,6 +34514,10 @@
   "ig9OfxzEp9": {
     "defaultMessage": "Not translated",
     "description": "Run card locale row for a locale that failed before any progress"
+  },
+  "igEEUV9KY8": {
+    "defaultMessage": "Guidelines",
+    "description": "QA review: guideline check that runs in the editor and in project scans"
   },
   "igKhQOsrv+": {
     "defaultMessage": "Translated",
@@ -40531,6 +40539,10 @@
     "defaultMessage": "{count, plural, =0 {No languages} one {# language} other {# languages}}",
     "description": "Number of languages in the coverage factor table on the localisation audit landing page"
   },
+  "qkcs2YRJiN": {
+    "defaultMessage": "Checked in the editor while you translate and in project QA scans when enabled. Warnings do not block saving. An error asks the translator to confirm before saving when the editor has already reported it. Each check counts toward your weekly guideline allowance; a cache hit is not billed. A flagged row stays a short warning until you choose Explain, which spends AI credit. If a scan hits the allowance, skips a translation that is too long to check, or the checker stops, it keeps findings it already saved, leaves older guideline findings open, and notes that guideline checks were incomplete.",
+    "description": "Help for the guideline QA check in the editor and scans"
+  },
   "qkzeYEZkME": {
     "defaultMessage": "{name} (default)",
     "description": "Picker entry for the GitLab connection chat and automations use; name is the connection's label"
@@ -42679,6 +42691,10 @@
     "defaultMessage": "Loading endpoints…",
     "description": "Shown while webhook endpoints load"
   },
+  "tkvPfaR9Sq": {
+    "defaultMessage": "Scans and the editor use the same format, placeholder, ICU, length, spelling, glossary and guideline checks. Warnings flag an issue; errors also block saving and approving in the editor.",
+    "description": "QA review: coverageHelp"
+  },
   "tlMl5v6nnm": {
     "defaultMessage": "Enter {providerLabel} API key",
     "description": "Placeholder for the provider API key input"
@@ -43550,10 +43566,6 @@
   "uxjK9vur1B": {
     "defaultMessage": "Remove {filename}",
     "description": "Accessible label to remove a pending image attachment"
-  },
-  "uxlgIxjFm4": {
-    "defaultMessage": "Guidelines",
-    "description": "QA review: guideline check that runs in the editor"
   },
   "uyA3TF6irL": {
     "defaultMessage": "Token starting with {prefix}",

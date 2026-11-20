@@ -14,6 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
+import { withCatBranch } from "@/lib/go-svc/go-svc-cat-api";
+
 import { useContentEditorGrouping } from "./content-editor-grouping-context";
 
 type GroupedSegment = { occurrenceCount?: number; divergentLocales?: string[] };
@@ -47,6 +49,7 @@ export function useContentEditorGroupVariants(input: {
       ...catGroupVariantsQueryKeyRoot(grouping?.organizationSlug ?? "", grouping?.projectId ?? ""),
       grouping?.sourcePath ?? "",
       grouping?.sourcePaths ?? null,
+      grouping?.branch ?? null,
       input.locale,
       input.segment.id,
     ],
@@ -61,7 +64,7 @@ export function useContentEditorGroupVariants(input: {
           groupSourcePath: grouping!.sourcePath,
           ...(grouping!.sourcePaths ? { groupSourcePaths: grouping!.sourcePaths } : {}),
         },
-        { signal },
+        withCatBranch(grouping!.branch, { signal }),
       );
       return body.variants;
     },

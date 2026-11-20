@@ -133,6 +133,7 @@ function renderCatMutations(
   contentEditorFile = createCatFileResponse().contentEditorFile,
   goSvcClient?: GoSvcClient,
   queryClient?: QueryClient,
+  branch?: string | null,
 ) {
   return renderHook(
     () =>
@@ -142,6 +143,7 @@ function renderCatMutations(
         invalidateQueue,
         onTranslationSaved,
         goSvcClient,
+        branch,
       }),
     {
       wrapper: ({ children }) => (
@@ -270,6 +272,7 @@ describe("useContentEditorMutations", () => {
         text: "Bonjour",
         approve: true,
       }),
+      {},
     );
     expect(contentEditorTranslationsReportingCapturePostMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -281,6 +284,35 @@ describe("useContentEditorMutations", () => {
       }),
     );
     expect(contentEditorTranslationsPostMock).not.toHaveBeenCalled();
+  });
+
+  it("sends the open version branch on native translation saves", async () => {
+    const translation = createCatTranslation();
+    const saveTranslation = vi.fn().mockResolvedValue({ translation });
+    const goSvcClient = { cat: { saveTranslation } } as unknown as GoSvcClient;
+    const { result } = renderCatMutations(
+      createCatFileResponse({ provider: undefined }).contentEditorFile,
+      goSvcClient,
+      undefined,
+      "feature-checkout",
+    );
+
+    await act(async () => {
+      await result.current.saveTranslation({
+        externalStringId: "segment-1",
+        text: "Bonjour",
+      });
+    });
+
+    expect(saveTranslation).toHaveBeenCalledWith(
+      "acme",
+      "project_1",
+      expect.objectContaining({
+        externalStringId: "segment-1",
+        text: "Bonjour",
+      }),
+      { query: { branch: "feature-checkout" } },
+    );
   });
 
   it("coalesces rapid inline saves into one queue refresh", async () => {
@@ -589,6 +621,7 @@ describe("useContentEditorMutations", () => {
       contentEditorApiTestContext.organizationSlug,
       contentEditorApiTestContext.projectId,
       expect.objectContaining({ externalStringIds: ["segment-1"], addTags: ["brand-new"] }),
+      {},
     );
     expect(queryClient.getQueryState(tagFilterQueueKey)?.isInvalidated).toBe(true);
     expect(invalidateQueries).toHaveBeenCalledWith({
