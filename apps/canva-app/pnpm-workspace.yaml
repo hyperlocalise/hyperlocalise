@@ -16,7 +16,7 @@ overrides:
   "svgo@^3.0.0": "3.3.5"
   fast-uri: "3.1.9"
   qs: "6.17.1"
-  browserslist: "4.29.5"
+  browserslist: "4.29.6"
   vite@*: "catalog:"
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@8.3.8000
