@@ -141,6 +141,7 @@ export type NativeGlossaryTermInput = {
   note?: string;
   url?: string;
   lemma?: string;
+  pronunciation?: string;
   forbidden?: boolean;
 };
 
@@ -218,6 +219,7 @@ export type GlossaryConceptRequestTerm = {
   gender?: string | null;
   url?: string | null;
   lemma?: string | null;
+  pronunciation?: string | null;
   forbidden?: boolean;
 };
 

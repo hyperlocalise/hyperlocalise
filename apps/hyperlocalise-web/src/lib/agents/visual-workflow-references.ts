@@ -19,6 +19,7 @@ import type {
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
 } from "@/lib/visual-workflows/schema/types";
+import { listUnreadableWorkflowReferences } from "@/lib/visual-workflows/validation/unreadable-references";
 
 /** A field reference in a step's settings that the run cannot read when the step runs. */
 export type VisualWorkflowReferenceProblem = {
@@ -26,7 +27,7 @@ export type VisualWorkflowReferenceProblem = {
   nodeId: string;
   /** The reference as written, such as `{{ nodes.http.status }}`. */
   reference: string;
-  reason: "unknown_step" | "not_earlier" | "no_trigger";
+  reason: "unknown_step" | "not_earlier" | "no_trigger" | "unknown_root";
 };
 
 const MAX_DEPTH = 6;
@@ -44,9 +45,9 @@ function collectStrings(value: unknown, into: string[], depth: number) {
 
 /**
  * Every `{{ nodes.<id>.<path> }}` in a step's settings that reads a step that is not there or
- * does not run before it, and every `{{ trigger.<path> }}` in a workflow with no trigger. Each
- * would stop the run at that step. Expressions the editor does not know, such as a loop's
- * current item, are left alone.
+ * does not run before it, every `{{ trigger.<path> }}` in a workflow with no trigger, and every
+ * reference that starts with neither, such as a loop's current item written as `{{ item.x }}`,
+ * in a setting a run fills in. Each would stop the run at that step.
  */
 export function findVisualWorkflowReferenceProblems({
   nodes,
@@ -66,6 +67,25 @@ export function findVisualWorkflowReferenceProblems({
     );
     if (references.length === 0) continue;
     const upstream = upstreamNodeIds(node.id, edges);
+    const wired = edges.flatMap((edge) =>
+      edge.data?.kind === "data" && edge.target === node.id && edge.targetHandle
+        ? [edge.targetHandle]
+        : [],
+    );
+    const unreadable = listUnreadableWorkflowReferences(
+      {
+        id: node.id,
+        type: node.data.catalogType,
+        config: node.data.config,
+        inputs: node.data.inputs,
+      },
+      wired,
+    );
+    for (const { reference } of unreadable) {
+      if (!problems.some((entry) => entry.nodeId === node.id && entry.reference === reference)) {
+        problems.push({ nodeId: node.id, reference, reason: "unknown_root" });
+      }
+    }
     for (const segment of references) {
       const reason = segment.trigger
         ? hasTrigger

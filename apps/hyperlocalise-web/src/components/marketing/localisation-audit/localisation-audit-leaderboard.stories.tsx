@@ -56,3 +56,16 @@ export const Empty: Story = {
     await expect(canvas.queryByRole("meter")).not.toBeInTheDocument();
   },
 };
+
+export const ShowMore: Story = {
+  args: {
+    entries: localisationAuditLeaderboardEntries(28),
+  },
+  play: async ({ canvas, userEvent }) => {
+    await expect(canvas.getByRole("link", { name: /Northstar/ })).toBeInTheDocument();
+    await expect(canvas.queryByText("Site 26")).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Show more" }));
+    await expect(canvas.getByText("Site 26")).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Show more" })).not.toBeInTheDocument();
+  },
+};

@@ -31,6 +31,7 @@ import {
   fromVisualWorkflowV3Definition,
 } from "./schema/serializers";
 import type { VisualWorkflowDefinition, VisualWorkflowV3Definition } from "./schema/types";
+import { listUnreadableReferenceIssues } from "./validation/unreadable-references";
 import { validateVisualWorkflowDefinition } from "./validation/validate-workflow";
 import { stampEmailNodePipesUsersOnDefinition } from "./stamp-email-node-pipes-users";
 import type { VisualWorkflowTestSetup } from "./editor/visual-workflow-test-data";
@@ -128,6 +129,7 @@ function validateVisualWorkflowPayload(input: {
   }
 
   const compiled = compileVisualWorkflowV3Definition(normalized);
+  const execution = toVisualWorkflowExecutionDefinition(compiled);
 
   const issues = [
     ...compiled.issues,
@@ -146,7 +148,10 @@ function validateVisualWorkflowPayload(input: {
             code: "invalid_node_config",
             nodeId: node.id,
           }))
-      : validateVisualWorkflowDefinition(toVisualWorkflowExecutionDefinition(compiled))),
+      : [
+          ...validateVisualWorkflowDefinition(execution),
+          ...listUnreadableReferenceIssues(execution),
+        ]),
   ];
 
   if (issues.length > 0) {

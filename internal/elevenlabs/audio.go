@@ -31,6 +31,8 @@ type SpeechRequest struct {
 	ModelID      string
 	LanguageCode string
 	OutputFormat string
+	// Pronunciations are dictionaries applied in order; at most three.
+	Pronunciations []PronunciationLocator
 }
 
 // MusicRequest composes a song from a prompt.
@@ -65,6 +67,9 @@ func (c *Client) CreateSpeech(ctx context.Context, req SpeechRequest) (Audio, er
 	}
 	if language := strings.TrimSpace(req.LanguageCode); language != "" {
 		payload["language_code"] = language
+	}
+	if locators := pronunciationLocators(req.Pronunciations); len(locators) > 0 {
+		payload["pronunciation_dictionary_locators"] = locators
 	}
 	query := url.Values{}
 	query.Set("output_format", firstNonEmpty(req.OutputFormat, defaultOutputFormat))

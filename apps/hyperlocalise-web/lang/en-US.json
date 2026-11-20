@@ -139,10 +139,6 @@
     "defaultMessage": "Turn your content into a live webpage.",
     "description": "Headline for the Content Studio web publishing section"
   },
-  "+6k/AAnIp9": {
-    "defaultMessage": "See how your brand travels.",
-    "description": "Primary headline on the public localisation audit landing page"
-  },
   "+7Ium7kICt": {
     "defaultMessage": "Zernio connection saved.",
     "description": "Toast when Zernio connection is saved"
@@ -539,6 +535,10 @@
     "defaultMessage": "This file can’t be opened in the Content Editor.",
     "description": "Toast when a selected file cannot open in the Content Editor"
   },
+  "+f9xakXZu4": {
+    "defaultMessage": "Free website localisation audit.",
+    "description": "Primary headline on the public localisation audit landing page"
+  },
   "+fCf0CPa76": {
     "defaultMessage": "Review asynchronous glossary imports and exports.",
     "description": "Glossary import and export history description"
@@ -714,6 +714,10 @@
   "+uLF/HX2Vk": {
     "defaultMessage": "Import filters",
     "description": "Title of the per-file import filter dialog"
+  },
+  "+uLgIho1rV": {
+    "defaultMessage": "{company} localisation audit | Hyperlocalise",
+    "description": "Meta title for an in-progress localisation audit result page"
   },
   "+ufsbqnrz9": {
     "defaultMessage": "Agent Activity",
@@ -1850,6 +1854,10 @@
   "0P74I0pkYn": {
     "defaultMessage": "Shared with {teamName}.",
     "description": "Helper note that CAT glossary concepts are shared with the project team"
+  },
+  "0PdGbrcVsw": {
+    "defaultMessage": "Pronunciation",
+    "description": "Label for the field that spells out how speech should say a glossary term"
   },
   "0PhWie0NMV": {
     "defaultMessage": "Queries",
@@ -7447,6 +7455,10 @@
     "defaultMessage": "Locale",
     "description": "Label for the workspace files locale filter"
   },
+  "7ydPKQUcQA": {
+    "defaultMessage": "{company} scored {score}/100 on a free localisation audit of {domain}. Hreflang, translation, and layout findings from Hyperlocalise.",
+    "description": "Meta description for a completed localisation audit result page"
+  },
   "7yn7HMfua7": {
     "defaultMessage": "Push source, pull translations, and validation checks.",
     "description": "GitHub tool description"
@@ -11022,6 +11034,10 @@
   "CgwxKh13Qu": {
     "defaultMessage": "Ask your agent to translate new strings, and it handles the round trip.",
     "description": "localisation-for-ai-coding-agents use case page: shift › after › #1"
+  },
+  "ChJXFKl9zT": {
+    "defaultMessage": "See how similar sites compare.",
+    "description": "Supporting copy for related localisation audit scores on a result page"
   },
   "ChVj6uqZAF": {
     "defaultMessage": "Hyperlocalise",
@@ -16719,6 +16735,10 @@
     "defaultMessage": "MDX code, kept as written",
     "description": "Document editor: label for MDX source that cannot be edited in the page view"
   },
+  "KcY7LHAt0z": {
+    "defaultMessage": "Transcripts that tell speakers apart",
+    "description": "Card summary for the ElevenLabs Scribe transcription model on the pricing page"
+  },
   "Kd7SldmcN9": {
     "defaultMessage": "Search expands live keyword ideas for the selected market. Save ideas you want to keep, or send them to rank tracking.",
     "description": "Keyword research screen: live discovery disclosure"
@@ -17666,10 +17686,6 @@
   "M+N6SmzTI9": {
     "defaultMessage": "Loading progress…",
     "description": "Metric and property value while locale readiness is loading"
-  },
-  "M/3YJiyMT3": {
-    "defaultMessage": "Enter a URL to see how your site feels in other languages. A clear score, then the full report by email.",
-    "description": "Meta description for the public localisation audit landing page"
   },
   "M/CX9tMhmy": {
     "defaultMessage": "25%",
@@ -18847,6 +18863,10 @@
     "defaultMessage": "Add output",
     "description": "Add a Sequence execution output"
   },
+  "NVepseo0De": {
+    "defaultMessage": "Time a written script to its voice-over",
+    "description": "Card summary for the ElevenLabs Forced Alignment model on the pricing page"
+  },
   "NW1SDAit+W": {
     "defaultMessage": "Checks",
     "description": "Checks label on the daily compliance audit mock card"
@@ -18946,10 +18966,6 @@
   "NczS6RXjPB": {
     "defaultMessage": "Newest first",
     "description": "Descending sort direction for translation memory entries"
-  },
-  "NdDEnysUFB": {
-    "defaultMessage": "Localisation audit | Hyperlocalise",
-    "description": "Meta title for the public localisation audit landing page"
   },
   "NeNEhY4v24": {
     "defaultMessage": "Approved",
@@ -21207,10 +21223,6 @@
     "defaultMessage": "Guidelines",
     "description": "Pricing matrix section title for Guidelines"
   },
-  "QoSDgiiNvY": {
-    "defaultMessage": "Localisation score {score}/100 for {domain}. Technical and linguistic findings from Hyperlocalise.",
-    "description": "Meta description for a completed localisation audit result page"
-  },
   "QpVjJkSa/W": {
     "defaultMessage": "revoked a member invitation",
     "description": "Action for a revoked member invitation activity"
@@ -23099,6 +23111,10 @@
     "defaultMessage": "Files",
     "description": "Tab label for the job source files panel"
   },
+  "TQ1LwBljtq": {
+    "defaultMessage": "See how your brand travels. Enter a URL. We'll read a few public pages and tell you how the site feels in other languages.",
+    "description": "Supporting copy under the localisation audit landing headline"
+  },
   "TQPbZg8LsO": {
     "defaultMessage": "Timezone",
     "description": "Label for schedule timezone field"
@@ -24191,6 +24207,10 @@
     "defaultMessage": "See where your domain already has search signals worth building on.",
     "description": "market-entry use case page: capabilities › items › #2 › body"
   },
+  "UqnycL+GOr": {
+    "defaultMessage": "{name}, score {score} out of 100",
+    "description": "Accessible label for a related localisation audit score link"
+  },
   "UsLxkyzDYE": {
     "defaultMessage": "The automation goes back to how it was last saved. Your unsaved changes will be lost.",
     "description": "Body of the dialog that confirms throwing away unsaved automation changes"
@@ -25139,6 +25159,10 @@
     "defaultMessage": "Retry with possible duplicates",
     "description": "Confirm workflow retry despite duplicate risk"
   },
+  "W8LPAvbHSr": {
+    "defaultMessage": "Run a free localisation audit on any public website. Get a 0–100 localization score for hreflang, translations, and layout, then the full report.",
+    "description": "Meta description for the public localisation audit landing page"
+  },
   "W8ahbI8++r": {
     "defaultMessage": "CSV",
     "description": "Translation memory export format option for CSV"
@@ -25346,6 +25370,10 @@
   "WRpKPr9aNJ": {
     "defaultMessage": "Approved product name used",
     "description": "marketing-localisation use case page: hero › visual › floating › items › #2 › label"
+  },
+  "WSFk5OnR7q": {
+    "defaultMessage": "Audit your site",
+    "description": "Heading for the run-your-own-audit form on a localisation audit result"
   },
   "WSkNEsSC15": {
     "defaultMessage": "Language pattern",
@@ -26223,6 +26251,10 @@
     "defaultMessage": "Log time",
     "description": "Button that saves the logged time"
   },
+  "XglUqbyapo": {
+    "defaultMessage": "Show more",
+    "description": "Button that reveals the next page of localisation audit leaderboard scores"
+  },
   "XgwWkCr4oC": {
     "defaultMessage": "\\[\\[\\w+\\]\\]",
     "description": "Example regular expression shown in the empty custom placeholder patterns field; matches [[name]]"
@@ -26663,6 +26695,10 @@
     "defaultMessage": "AI Engine",
     "description": "AI Engine page heading"
   },
+  "YERN0OVymW": {
+    "defaultMessage": "See all public scores",
+    "description": "Link from a localisation audit result to the public leaderboard"
+  },
   "YEpKGG3Nzw": {
     "defaultMessage": "Hyperlocalise logo",
     "description": "Alt text for the Hyperlocalise logo in the app shell sidebar"
@@ -26962,10 +26998,6 @@
   "Ygi+pnLdm5": {
     "defaultMessage": "Select {key}",
     "description": "Accessible label for selecting a CAT queue segment for bulk actions"
-  },
-  "YhCxIj8rLK": {
-    "defaultMessage": "Localisation audit for {domain} | Hyperlocalise",
-    "description": "Meta title for a public localisation audit result page"
   },
   "YhT90BZluB": {
     "defaultMessage": "Delete concept",
@@ -29758,6 +29790,10 @@
   "cVStyh2pK7": {
     "defaultMessage": "Pause walkthrough",
     "description": "Accessible label to pause the autoplaying guide"
+  },
+  "cXM/74jMXc": {
+    "defaultMessage": "How voice-overs say it, e.g. hyper-LOW-ka-lize",
+    "description": "Placeholder for a glossary term's pronunciation, used by text-to-speech and dubbing"
   },
   "cXcTyAvqBj": {
     "defaultMessage": "Import batch",
@@ -35999,6 +36035,10 @@
     "defaultMessage": "A note from the founders",
     "description": "Heading for the founders note section on the company page"
   },
+  "kl2EbTmfas": {
+    "defaultMessage": "Related scores",
+    "description": "Heading for related localisation audit scores on a result page"
+  },
   "klDfkrFdL9": {
     "defaultMessage": "Invitations",
     "description": "Heading above the workspaces the person has been invited to on the workspace picker"
@@ -38919,6 +38959,10 @@
     "defaultMessage": "Stringify JSON",
     "description": "Catalog title for the JSON stringify node"
   },
+  "ohf+Fpdb2e": {
+    "defaultMessage": "This report is for {domain}. Enter your URL to get the same localisation score.",
+    "description": "Supporting copy for the run-your-own-audit form on a localisation audit result"
+  },
   "oiG3aMmCJB": {
     "defaultMessage": "Before writing labels, the agent reads the glossary and uses the approved terms.",
     "description": "localisation-for-ai-coding-agents use case page: scenario › events › #2 › body"
@@ -40935,6 +40979,10 @@
     "defaultMessage": "Save and move down",
     "description": "Multilingual table shortcut: Enter saves and moves to the row below"
   },
+  "rEsQotUfrf": {
+    "defaultMessage": "Free localisation audit (0–100) | Hyperlocalise",
+    "description": "Meta title for the public localisation audit landing page"
+  },
   "rGLAOwkIrN": {
     "defaultMessage": "Unsaved changes",
     "description": "Document has unsaved edits"
@@ -41166,6 +41214,10 @@
   "rZcCh1J3Qx": {
     "defaultMessage": "Back to glossary",
     "description": "Back link from a concept detail page to its glossary"
+  },
+  "rZilDJjoet": {
+    "defaultMessage": "{company} localisation score {score}/100 | Hyperlocalise",
+    "description": "Meta title for a completed localisation audit result page"
   },
   "rZuJRFmTxw": {
     "defaultMessage": "{count} left",
@@ -42403,10 +42455,6 @@
     "defaultMessage": "12 high-intent gaps found in DE",
     "description": "SEO blog mock step 3"
   },
-  "tIYDgjN4kT": {
-    "defaultMessage": "Enter a URL. We'll read a few public pages and tell you how the site feels in other languages.",
-    "description": "Supporting copy under the localisation audit landing headline"
-  },
   "tIgpOrubbi": {
     "defaultMessage": "Hyperlocalise reads these files and uses them for guideline checks.",
     "description": "Explanation shown above the guideline documents list"
@@ -42470,6 +42518,10 @@
   "tMUuz8k4Pc": {
     "defaultMessage": "Progress",
     "description": "Task report card: the share of the task's units finished in the chosen step"
+  },
+  "tMtsgNjZc9": {
+    "defaultMessage": "Design a new voice from a description",
+    "description": "Card summary for the ElevenLabs Voice Design model on the pricing page"
   },
   "tOAFgS8YTm": {
     "defaultMessage": "Choose a TBX, XLSX, or CSV file",
@@ -46406,6 +46458,10 @@
   "yaoAnC75sk": {
     "defaultMessage": "Only visitors in that market see the change. Results update as traffic comes in.",
     "description": "market-experimentation use case page: guide › steps › #3 › body"
+  },
+  "yb/kMUJ7+w": {
+    "defaultMessage": "Several speakers in one natural take",
+    "description": "Card summary for the ElevenLabs Dialogue model on the pricing page"
   },
   "ybeD8Dwr0/": {
     "defaultMessage": "You edited the setup · {count, plural, one {# change} other {# changes}}",

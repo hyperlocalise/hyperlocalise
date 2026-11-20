@@ -7,7 +7,7 @@ replace github.com/crowdin/crowdin-api-client-go => ./third_party/crowdin-api-cl
 require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.1.1
-	charm.land/lipgloss/v2 v2.1.0
+	charm.land/lipgloss/v2 v2.1.1
 	charm.land/log/v2 v2.0.1
 	github.com/DataDog/dd-trace-go/contrib/aws/aws-sdk-go-v2/v2 v2.12.0
 	github.com/DataDog/dd-trace-go/contrib/jackc/pgx.v5/v2 v2.12.0
@@ -21,8 +21,8 @@ require (
 	github.com/antihax/optional v1.0.0
 	github.com/aws/aws-lambda-go v1.55.1
 	github.com/aws/aws-sdk-go-v2 v1.48.0
-	github.com/aws/aws-sdk-go-v2/config v1.33.18
-	github.com/aws/aws-sdk-go-v2/credentials v1.21.0
+	github.com/aws/aws-sdk-go-v2/config v1.33.19
+	github.com/aws/aws-sdk-go-v2/credentials v1.21.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.10
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.51.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.53.0
@@ -38,7 +38,7 @@ require (
 	github.com/klippa-app/go-pdfium v1.21.4
 	github.com/lokalise/go-lokalise-api/v5 v5.1.1
 	github.com/mattn/go-isatty v0.0.24
-	github.com/openai/openai-go/v3 v3.99.0
+	github.com/openai/openai-go/v3 v3.100.0
 	github.com/phrase/phrase-go/v4 v4.38.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
@@ -46,7 +46,7 @@ require (
 	github.com/tetratelabs/wazero v1.12.0
 	github.com/tidwall/jsonc v0.3.4
 	github.com/turbopuffer/turbopuffer-go/v2 v2.10.0
-	github.com/valkey-io/valkey-go v1.0.79
+	github.com/valkey-io/valkey-go v1.0.80
 	github.com/workos/workos-go/v10 v10.8.0
 	github.com/xuri/excelize/v2 v2.11.1
 	github.com/yuin/goldmark/v2 v2.1.16
@@ -377,7 +377,7 @@ require (
 	go.uber.org/mock v0.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.5 // indirect
+	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e // indirect
 	golang.org/x/exp/typeparams v0.0.0-20260811152304-ee035b5b010f // indirect

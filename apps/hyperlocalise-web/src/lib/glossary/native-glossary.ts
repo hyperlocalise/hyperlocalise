@@ -82,6 +82,7 @@ const TERM_HISTORY_FIELDS = [
   "termType",
   "url",
   "lemma",
+  "pronunciation",
   "status",
   "caseSensitive",
   "forbidden",
@@ -342,6 +343,7 @@ function toNativeConceptInput(input: GlossaryConceptInput, sourceLocale: string)
           gender: term.gender ?? undefined,
           url: term.url || undefined,
           lemma: term.lemma ?? undefined,
+          pronunciation: term.pronunciation ?? undefined,
           forbidden: term.forbidden,
         };
       }
@@ -720,6 +722,7 @@ export class NativeGlossary extends Glossary {
         note: term.note,
         url: term.url ?? undefined,
         lemma: term.lemma ?? undefined,
+        pronunciation: term.pronunciation ?? undefined,
         forbidden: term.forbidden,
         createdAt: term.createdAt.toISOString(),
         updatedAt: term.updatedAt.toISOString(),
@@ -740,6 +743,7 @@ export class NativeGlossary extends Glossary {
       note: term.note,
       url: term.url ?? undefined,
       lemma: term.lemma ?? undefined,
+      pronunciation: term.pronunciation ?? undefined,
       forbidden: term.forbidden,
       createdAt: term.createdAt.toISOString(),
       updatedAt: term.updatedAt.toISOString(),
@@ -861,6 +865,7 @@ export class NativeGlossary extends Glossary {
                 termType: term.type ?? null,
                 url: term.url ?? null,
                 lemma: term.lemma ?? null,
+                pronunciation: term.pronunciation ?? null,
                 status: term.status ?? "draft",
                 forbidden: term.forbidden ?? false,
                 provenance: "manual" as const,
@@ -980,6 +985,7 @@ export class NativeGlossary extends Glossary {
           termType: term.type ?? null,
           url: term.url ?? null,
           lemma: term.lemma ?? null,
+          pronunciation: term.pronunciation ?? null,
           status: term.status ?? "draft",
           forbidden: term.forbidden ?? existing?.forbidden ?? false,
         };
@@ -1459,6 +1465,7 @@ export class NativeGlossary extends Glossary {
           termType: normalizedInput.type ?? null,
           url: normalizedInput.url ?? null,
           lemma: normalizedInput.lemma ?? null,
+          pronunciation: normalizedInput.pronunciation ?? null,
           status: normalizedInput.status ?? "draft",
           forbidden: normalizedInput.forbidden ?? false,
           provenance: "manual" as const,
@@ -1516,6 +1523,7 @@ export class NativeGlossary extends Glossary {
         termType: normalizedInput.type ?? null,
         url: normalizedInput.url ?? null,
         lemma: normalizedInput.lemma ?? null,
+        pronunciation: normalizedInput.pronunciation ?? null,
         status: normalizedInput.status ?? "draft",
         ...(normalizedInput.forbidden === undefined
           ? {}

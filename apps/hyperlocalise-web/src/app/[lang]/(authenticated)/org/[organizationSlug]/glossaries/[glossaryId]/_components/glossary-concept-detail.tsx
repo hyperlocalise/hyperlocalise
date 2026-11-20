@@ -810,6 +810,24 @@ const GlossaryConceptDetailView = observer(function GlossaryConceptDetailView({
                                               </div>
                                               <Field className="gap-1.5">
                                                 <FieldLabel>
+                                                  <FormattedMessage
+                                                    {...messages.pronunciationLabel}
+                                                  />
+                                                </FieldLabel>
+                                                <Input
+                                                  placeholder={intl.formatMessage(
+                                                    messages.termPronunciationPlaceholder,
+                                                  )}
+                                                  value={term.pronunciation}
+                                                  onChange={(event) =>
+                                                    store.updateCreatingTermDraft(term.id, {
+                                                      pronunciation: event.target.value,
+                                                    })
+                                                  }
+                                                />
+                                              </Field>
+                                              <Field className="gap-1.5">
+                                                <FieldLabel>
                                                   <FormattedMessage {...messages.noteLabel} />
                                                 </FieldLabel>
                                                 <Textarea
@@ -1102,6 +1120,23 @@ const GlossaryConceptDetailView = observer(function GlossaryConceptDetailView({
                                           </div>
                                           <Field className="gap-1.5">
                                             <FieldLabel>
+                                              <FormattedMessage {...messages.pronunciationLabel} />
+                                            </FieldLabel>
+                                            <Input
+                                              placeholder={intl.formatMessage(
+                                                messages.termPronunciationPlaceholder,
+                                              )}
+                                              value={draft.pronunciation}
+                                              disabled={!canContribute}
+                                              onChange={(event) =>
+                                                store.updateTermDraft(term.id, {
+                                                  pronunciation: event.target.value,
+                                                })
+                                              }
+                                            />
+                                          </Field>
+                                          <Field className="gap-1.5">
+                                            <FieldLabel>
                                               <FormattedMessage {...messages.noteLabel} />
                                             </FieldLabel>
                                             <Textarea
@@ -1292,6 +1327,22 @@ const GlossaryConceptDetailView = observer(function GlossaryConceptDetailView({
                                           </div>
                                         </Field>
                                       </div>
+                                      <Field className="gap-1.5">
+                                        <FieldLabel>
+                                          <FormattedMessage {...messages.pronunciationLabel} />
+                                        </FieldLabel>
+                                        <Input
+                                          placeholder={intl.formatMessage(
+                                            messages.termPronunciationPlaceholder,
+                                          )}
+                                          value={store.newTermDraft.pronunciation}
+                                          onChange={(event) =>
+                                            store.updateNewTermDraft({
+                                              pronunciation: event.target.value,
+                                            })
+                                          }
+                                        />
+                                      </Field>
                                       <Field className="gap-1.5">
                                         <FieldLabel>
                                           <FormattedMessage {...messages.noteLabel} />

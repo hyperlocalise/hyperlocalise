@@ -100,6 +100,7 @@ function toCrowdinTermRecord(
     gender?: string | null;
     url?: string | null;
     lemma?: string | null;
+    pronunciation?: string | null;
     userId?: number | null;
     caseSensitive?: boolean;
     forbidden?: boolean;
@@ -125,6 +126,7 @@ function toCrowdinTermRecord(
     termType: term.type ?? null,
     url: term.url ?? null,
     lemma: term.lemma ?? null,
+    pronunciation: term.pronunciation ?? null,
     status: localStatus(term.status),
     caseSensitive: term.caseSensitive ?? false,
     forbidden: term.forbidden ?? false,
@@ -174,6 +176,7 @@ function toCrowdinConceptRecord(
       gender?: string | null;
       url?: string | null;
       lemma?: string | null;
+      pronunciation?: string | null;
       userId?: number | null;
       createdAt?: string | null;
       updatedAt?: string | null;
@@ -401,6 +404,7 @@ export function createGlossaryConceptRoutes() {
                 reviewStatus: term.reviewStatus,
                 url: term.url,
                 lemma: term.lemma,
+                pronunciation: term.pronunciation,
                 createdAt: term.createdAt.toISOString(),
                 updatedAt: term.updatedAt.toISOString(),
               }),
@@ -521,6 +525,10 @@ export function createGlossaryConceptRoutes() {
                       term.gender !== undefined ? (term.gender ?? undefined) : existing?.gender,
                     url: term.url !== undefined ? (term.url ?? undefined) : existing?.url,
                     lemma: term.lemma !== undefined ? (term.lemma ?? undefined) : existing?.lemma,
+                    pronunciation:
+                      term.pronunciation !== undefined
+                        ? (term.pronunciation ?? undefined)
+                        : existing?.pronunciation,
                     forbidden: term.forbidden ?? existing?.forbidden ?? false,
                   };
                 }),

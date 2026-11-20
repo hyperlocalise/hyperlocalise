@@ -50,13 +50,19 @@ type irisJobRecord struct {
 	OutputKeys          []string            `json:"-"`
 	UserID              string              `json:"-"`
 	OrgID               string              `json:"-"`
+	// Pronunciations and Keyterms come from the workspace's glossaries when
+	// the job is made, so the run needs no access check of its own.
+	Pronunciations []irisPronunciation `json:"-"`
+	Keyterms       []string            `json:"-"`
 }
 
 type irisStoredJob struct {
 	irisJobRecord
-	OutputKeys []string `json:"outputKeys"`
-	UserID     string   `json:"userId"`
-	OrgID      string   `json:"organizationId"`
+	OutputKeys     []string            `json:"outputKeys"`
+	UserID         string              `json:"userId"`
+	OrgID          string              `json:"organizationId"`
+	Pronunciations []irisPronunciation `json:"pronunciations,omitempty"`
+	Keyterms       []string            `json:"keyterms,omitempty"`
 }
 
 type irisJobAsset struct {
@@ -254,7 +260,7 @@ func (api *irisGenerationAPI) getBytes(ctx context.Context, key string) ([]byte,
 }
 
 func (api *irisGenerationAPI) saveJob(ctx context.Context, job irisJobRecord) error {
-	stored := irisStoredJob{irisJobRecord: job, OutputKeys: job.OutputKeys, UserID: job.UserID, OrgID: job.OrgID}
+	stored := irisStoredJob{irisJobRecord: job, OutputKeys: job.OutputKeys, UserID: job.UserID, OrgID: job.OrgID, Pronunciations: job.Pronunciations, Keyterms: job.Keyterms}
 	return api.putJSON(ctx, irisJobKey(job.OrgID, job.ID), stored)
 }
 
@@ -267,6 +273,8 @@ func (api *irisGenerationAPI) loadJob(ctx context.Context, orgID, jobID string) 
 	job.OutputKeys = stored.OutputKeys
 	job.UserID = stored.UserID
 	job.OrgID = stored.OrgID
+	job.Pronunciations = stored.Pronunciations
+	job.Keyterms = stored.Keyterms
 	if job.OrgID == "" {
 		job.OrgID = orgID
 	}

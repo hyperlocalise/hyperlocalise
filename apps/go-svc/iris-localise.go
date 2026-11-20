@@ -42,7 +42,9 @@ type irisGlossaryHit struct {
 	Forbidden     bool    `json:"forbidden"`
 	CaseSensitive bool    `json:"caseSensitive"`
 	Note          string  `json:"note,omitempty"`
-	Glossary      string  `json:"glossary"`
+	// Pronunciation is how speech should say the translation.
+	Pronunciation string `json:"pronunciation,omitempty"`
+	Glossary      string `json:"glossary"`
 }
 
 type irisMemoryMatch struct {
@@ -343,12 +345,12 @@ func (api *irisGenerationAPI) glossaryHits(ctx context.Context, scope irisOrgSco
 	joined := strings.Join(texts, "\n")
 	actor := glossaryActor{userID: scope.UserID, organizationID: scope.OrganizationID, role: scope.Role}
 	rows, err := api.pool.Query(ctx, `select st.term, tt.term, coalesce(tt.forbidden, false), coalesce(st.case_sensitive, false),
-       coalesce(nullif(tt.note, ''), nullif(st.note, ''), nullif(c.definition, ''), ''), g.name
+       coalesce(nullif(tt.note, ''), nullif(st.note, ''), nullif(c.definition, ''), ''), coalesce(tt.pronunciation, ''), g.name
 from glossary_terms st
 join glossary_concepts c on c.id = st.concept_id and c.archived_at is null
 join glossaries g on g.id = st.glossary_id
 left join lateral (
-    select t.term, t.forbidden, t.note from glossary_terms t
+    select t.term, t.forbidden, t.note, t.pronunciation from glossary_terms t
     where t.concept_id = st.concept_id and t.archived_at is null
       and lower(replace(t.locale, '_', '-')) in (lower($6), lower($7))
     order by (lower(replace(t.locale, '_', '-')) = lower($6)) desc, coalesce(t.forbidden, false) asc
@@ -372,7 +374,7 @@ limit $9`,
 	for rows.Next() {
 		var hit irisGlossaryHit
 		var translation *string
-		if err := rows.Scan(&hit.Term, &translation, &hit.Forbidden, &hit.CaseSensitive, &hit.Note, &hit.Glossary); err != nil {
+		if err := rows.Scan(&hit.Term, &translation, &hit.Forbidden, &hit.CaseSensitive, &hit.Note, &hit.Pronunciation, &hit.Glossary); err != nil {
 			return nil, err
 		}
 		if translation != nil && strings.TrimSpace(*translation) != "" {

@@ -22,6 +22,7 @@ import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 import { isLocalisationAuditSignInCtaEnabled } from "@/lib/flags/localisation-audit-sign-in-ctas";
+import type { LocalisationAuditRelatedScore } from "@/lib/localisation-audit/related-scores";
 import type { LocalisationAuditStanding } from "@/lib/localisation-audit/store";
 import type {
   LocalisationAuditProgressSnapshot,
@@ -69,6 +70,7 @@ type LocalisationAuditResultProps = {
   domainSlug: string;
   initialAudit: AuditPayload;
   standing: LocalisationAuditStanding | null;
+  relatedScores?: LocalisationAuditRelatedScore[];
   /** Workspace embeds hide marketing unlock/share/claim chrome. */
   variant?: "public" | "workspace";
 };
@@ -82,6 +84,7 @@ export function LocalisationAuditResult({
   domainSlug,
   initialAudit,
   standing,
+  relatedScores = [],
   variant = "public",
 }: LocalisationAuditResultProps) {
   const copy = getLocalisationAuditResultCopy(locale);
@@ -281,6 +284,7 @@ export function LocalisationAuditResult({
     <LocalisationAuditReportView
       audit={audit}
       standing={standing}
+      relatedScores={relatedScores}
       copy={copy}
       locale={locale}
       appLocale={appLocale}

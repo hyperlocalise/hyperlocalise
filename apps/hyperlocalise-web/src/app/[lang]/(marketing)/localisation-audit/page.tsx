@@ -12,7 +12,12 @@
  */
 import type { Metadata } from "next";
 
+import {
+  buildLocalisationAuditFaqJsonLd,
+  getLocalisationAuditFaqItems,
+} from "@/components/marketing/localisation-audit/localisation-audit-faq-content";
 import { LocalisationAuditPage } from "@/components/marketing/localisation-audit/localisation-audit-page";
+import { JsonLd } from "@/components/seo/json-ld";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { listLocalisationAuditLeaderboard } from "@/lib/localisation-audit/store";
@@ -47,9 +52,15 @@ export default async function LocalisationAuditRoutePage({ params }: Localisatio
   const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
   let leaderboard: Awaited<ReturnType<typeof listLocalisationAuditLeaderboard>> = [];
   try {
-    leaderboard = await listLocalisationAuditLeaderboard(25);
+    leaderboard = await listLocalisationAuditLeaderboard();
   } catch {
     leaderboard = [];
   }
-  return <LocalisationAuditPage locale={locale} leaderboard={leaderboard} />;
+  const faqItems = getLocalisationAuditFaqItems(locale);
+  return (
+    <>
+      <JsonLd data={buildLocalisationAuditFaqJsonLd(locale, faqItems)} />
+      <LocalisationAuditPage locale={locale} leaderboard={leaderboard} />
+    </>
+  );
 }
