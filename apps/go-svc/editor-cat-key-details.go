@@ -55,12 +55,8 @@ func (api *editorCatAPI) setTags(r *http.Request, actor editorCatActor, project 
         where organization_id=$1 and project_id=$2 and id = any($3::uuid[]) and tags is distinct from ` + tags
 	args := []any{actor.organizationID, project.ID, ids, body.AddTags, body.RemoveTags}
 	if !isEditorCatAllFiles(body.SourcePath) {
-		sourceFileID, err := api.sourceFileID(r, actor, project, trimEditorCat(body.SourcePath))
-		if err != nil {
-			return nil, 0, err
-		}
-		sql += ` and repository_source_file_id=$6`
-		args = append(args, sourceFileID)
+		args = append(args, trimEditorCat(body.SourcePath))
+		sql += editorCatSourcePathScopeSQL("project_translation_keys", 6)
 	}
 	tag, err := api.pool.Exec(r.Context(), sql, args...)
 	if err != nil {

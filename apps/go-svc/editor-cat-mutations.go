@@ -153,15 +153,19 @@ func (api *editorCatAPI) requireTranslationKey(r *http.Request, actor editorCatA
         where k.id=$1 and k.organization_id=$2 and k.project_id=$3`
 	args := []any{keyID, actor.organizationID, project.ID}
 	if !isEditorCatAllFiles(sourcePath) {
-		sourceFileID, err := api.sourceFileID(r, actor, project, sourcePath)
-		if err != nil {
-			if catErr, ok := err.(*editorCatError); ok && catErr.code == "source_file_not_found" {
-				return "", editorCatFailure(404, "cat_segment_not_found", "CAT segment not found")
-			}
-			return "", err
+		// Match the key's own file path. Resolving a single file id from ?branch=
+		// (default main) 404s version-branch keys when the client omits the query.
+		sql = `select k.id from project_translation_keys k
+            join repository_source_files f on f.id = k.repository_source_file_id
+                and f.organization_id = k.organization_id and f.project_id = k.project_id
+            where k.id=$1 and k.organization_id=$2 and k.project_id=$3 and f.source_path=$4`
+		args = append(args, trimEditorCat(sourcePath))
+		if actor.taskScope != nil {
+			// A person here through a task is held to the task's branch of the file, which the
+			// path alone does not name.
+			sql += ` and f.branch_name=$5`
+			args = append(args, actor.branch)
 		}
-		sql += ` and k.repository_source_file_id=$4`
-		args = append(args, sourceFileID)
 	}
 	var found string
 	err = api.pool.QueryRow(r.Context(), sql, args...).Scan(&found)
@@ -731,12 +735,8 @@ func (api *editorCatAPI) setHidden(r *http.Request, actor editorCatActor, projec
         where organization_id=$1 and project_id=$2 and id = any($3::uuid[])`
 	args := []any{actor.organizationID, project.ID, ids, body.IsHidden}
 	if !isEditorCatAllFiles(body.SourcePath) {
-		sourceFileID, err := api.sourceFileID(r, actor, project, trimEditorCat(body.SourcePath))
-		if err != nil {
-			return nil, 0, err
-		}
-		sql += ` and repository_source_file_id=$5`
-		args = append(args, sourceFileID)
+		args = append(args, trimEditorCat(body.SourcePath))
+		sql += editorCatSourcePathScopeSQL("project_translation_keys", 5)
 	}
 	tag, err := api.pool.Exec(r.Context(), sql, args...)
 	if err != nil {

@@ -1,0 +1,66 @@
+---
+title: "Native version branches"
+sidebarTitle: "Version branches"
+description: "Work on a release line in a native project, then sync and merge strings back to main."
+---
+
+Native projects get **version branches** so you can translate a release without blocking `main`. Each branch has its own files, strings, translations, jobs, and activity. Connected TMS projects keep the provider's branch behavior instead.
+
+## When to use branches
+
+| Situation | Use |
+| --- | --- |
+| Upcoming release copy that must not change `main` yet | Create a branch from `main`, upload or translate there |
+| `main` moved forward while you translate | **Sync** on the branch to copy parent changes in |
+| Branch work is ready to ship | **Merge** into the parent branch |
+| Lock a line from new uploads | Turn on **Protect** for that branch |
+
+Creating a project also creates its default branch, `main`. `main` is not protected until you turn protection on.
+
+## Create a branch
+
+1. Open a **native** project → **Branches**.
+2. Enter a **Name** and optional **Title**.
+3. Choose **Copy from** (the parent branch to clone).
+4. Select **Create branch**.
+
+Creation copies files, latest file versions, keys, and translations from the parent. Stored file blobs are shared; you do not duplicate upload storage.
+
+Branch names use letters, numbers, dots, underscores, hyphens, and single slashes. They cannot contain `//`, and must start and end with a letter, number, dot, or underscore.
+
+## Work on a branch
+
+Use the branch picker on **Files**, **Content Editor**, and job views. Native projects list one branch at a time. There is no **All branches** view; an empty branch selection means `main`.
+
+Uploads, translation jobs, QA scans, and comments stay on the branch you are viewing. Merge does not copy jobs, comments, or activity to the parent.
+
+## Sync from the parent
+
+When the parent branch changes, open **Branches**, choose the child branch, and select **Sync**. Sync copies the parent's current files and strings into the branch. Use it before you merge long-running work so you see the latest parent state.
+
+## Merge into the parent
+
+1. Open **Branches** and select **Merge** on the branch you are finishing.
+2. Review the counts for added, changed, and conflicted keys.
+3. Pick a conflict strategy:
+   - **Keep this branch on conflicts** — prefer the branch translation when the same key's source text disagrees.
+   - **Keep the parent on conflicts** — prefer the parent.
+4. Select **Merge branch**.
+
+Merge copies added and changed keys into the parent. Deleted keys are not removed from the parent in the current release. After a successful merge, the branch is marked **Merged**.
+
+## Protect a branch
+
+Turn on **Protect** on a branch to block new uploads and other writes to that branch's files. Use it on `main` when releases should only land through merge from a working branch.
+
+**Use translation as source…** and the [send API](/platform/api#use-a-translation-as-another-projects-source) still read and write the default branch, `main`, only. Files on other branches are untouched.
+
+## Delete a branch
+
+You can delete a branch that is not the default and has no active child branches. Deleting removes branch metadata and branch-scoped content. You cannot delete `main`.
+
+## CDN and API
+
+[CDN distributions](/platform/developers/cdn-distributions) snapshot a chosen **version branch**. Create or update a distribution when you need mobile or web clients to read a release line.
+
+When you [upload a source file](/platform/api#upload-a-source-file) or [create a job](/platform/api#create-a-job) through the API, optional `branch` targets a native version branch. Omit it or leave it empty to use `main`.
