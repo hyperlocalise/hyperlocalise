@@ -95,15 +95,31 @@ export async function createHumanApprovalRequest(
     }
 
     // A vendor answers nothing but their own tasks: they have no inbox to approve from, so the
-    // step would wait until its deadline.
-    if (
-      input.reviewerType === "user" &&
-      (await isVendorMember({
-        organizationId: input.organizationId,
-        userIdOrWorkosUserId: input.reviewerId,
-      }))
-    ) {
-      return err({ code: "vendor_cannot_approve" });
+    // step would wait until its deadline. The same is true of a vendor team: every member is a
+    // vendor, and none of them can open Inbox.
+    if (input.reviewerType === "user") {
+      if (
+        await isVendorMember({
+          organizationId: input.organizationId,
+          userIdOrWorkosUserId: input.reviewerId,
+        })
+      ) {
+        return err({ code: "vendor_cannot_approve" });
+      }
+    } else {
+      const [team] = await tx
+        .select({ isVendor: schema.teams.isVendor })
+        .from(schema.teams)
+        .where(
+          and(
+            eq(schema.teams.id, input.reviewerId),
+            eq(schema.teams.organizationId, input.organizationId),
+          ),
+        )
+        .limit(1);
+      if (team?.isVendor === true) {
+        return err({ code: "vendor_cannot_approve" });
+      }
     }
 
     const [created] = await tx

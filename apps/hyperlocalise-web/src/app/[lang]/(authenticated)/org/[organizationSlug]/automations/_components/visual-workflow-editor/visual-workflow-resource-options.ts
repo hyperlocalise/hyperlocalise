@@ -97,7 +97,11 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     enabled: enabled && !accessTokenLoading,
     queryFn: async (): Promise<VisualWorkflowTeamOption[]> => {
       const body = await goSvcClient.team.list(organizationSlug!);
-      return body.teams.map((team) => ({ id: team.id, label: team.name }));
+      // A vendor team cannot approve: its people have no inbox, and the run would wait until
+      // the deadline (`human-approval-requests.ts`). This list is only the Human Approval picker.
+      return body.teams
+        .filter((team) => !team.isVendor)
+        .map((team) => ({ id: team.id, label: team.name }));
     },
   });
 
