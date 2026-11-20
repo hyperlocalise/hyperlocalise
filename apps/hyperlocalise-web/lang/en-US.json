@@ -1899,10 +1899,6 @@
     "defaultMessage": "Email the Hyperlocalise team about localisation, pricing, or support.",
     "description": "Meta description for the marketing contact page"
   },
-  "0SPPiMxTcf": {
-    "defaultMessage": "Pull clean speech out of noisy audio",
-    "description": "Card summary for the ElevenLabs Voice Isolator tool on the pricing page"
-  },
   "0So/h7Alas": {
     "defaultMessage": "Set it up in minutes. The same commands run on your machine and in CI.",
     "description": "localisation-cli-and-api use case page: guide › body"
@@ -41862,10 +41858,6 @@
   "sQepOjPr4u": {
     "defaultMessage": "Heading 1",
     "description": "Slash menu item for a level-1 heading"
-  },
-  "sRHP0bOxJ7": {
-    "defaultMessage": "Re-voice a recording, keeping its timing",
-    "description": "Card summary for the ElevenLabs Voice Changer tool on the pricing page"
   },
   "sSzIe3av3r": {
     "defaultMessage": "Deadline",
