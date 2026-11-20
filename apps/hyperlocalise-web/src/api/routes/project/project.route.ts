@@ -4628,6 +4628,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const parsed = projectFileTranslationImportBodySchema.safeParse({
           sourcePath: asString(body.sourcePath),
           locale: asString(body.locale),
+          branch: asString(body.branch),
         });
         if (!parsed.success) {
           return invalidProjectPayloadResponse(c);
@@ -4652,6 +4653,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             sourcePath: parsed.data.sourcePath,
+            branchName: parsed.data.branch,
           });
           if (!sourceFile) {
             return notFoundResponse(c, "source_file_not_found", "Source file not found");
@@ -4714,6 +4716,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             targetLocale: parsed.data.locale,
             rows,
             actorUserId: c.var.auth.user.localUserId,
+            branchName: parsed.data.branch,
           });
           return c.json({ import: result }, 200);
         } catch (error) {

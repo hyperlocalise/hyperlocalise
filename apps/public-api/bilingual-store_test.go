@@ -94,3 +94,71 @@ func TestBilingualRoundTripDatabase(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errSourceFileNotFound)
 }
+
+func TestBilingualImportStaysOnNamedBranch(t *testing.T) {
+	f := newDBFixture(t)
+	ctx := t.Context()
+	f.sourceFile(t, "en.json")
+	main := f.createString(t, "en.json", "home.title", "Home", nil)
+
+	var cloneFile string
+	require.NoError(t, f.pool.QueryRow(ctx, `INSERT INTO repository_source_files
+		(organization_id, project_id, source_path, branch_name)
+		VALUES ($1, $2, 'en.json', 'feature-checkout') RETURNING id`,
+		f.actor.OrganizationID, f.project).Scan(&cloneFile))
+	var clone string
+	require.NoError(t, f.pool.QueryRow(ctx, `INSERT INTO project_translation_keys
+		(organization_id, project_id, repository_source_file_id, key, source_text, normalized_source_text, branch_name, imported_source_text)
+		SELECT organization_id, project_id, $1, key, source_text, normalized_source_text, 'feature-checkout', imported_source_text
+		FROM project_translation_keys WHERE id = $2
+		RETURNING id`, cloneFile, main.ID).Scan(&clone))
+
+	rows, err := f.store.exportBilingualRows(ctx, f.actor, f.project, bilingualExportQuery{Locale: "fr"})
+	require.NoError(t, err)
+	require.Equal(t, []editor_export.Row{
+		{Key: "home.title", SourceText: "Home", SourceLocale: "en", TargetLocale: "fr", SourcePath: "en.json"},
+	}, rows)
+
+	rows, err = f.store.exportBilingualRows(ctx, f.actor, f.project, bilingualExportQuery{Locale: "fr", Branch: "feature-checkout"})
+	require.NoError(t, err)
+	require.Equal(t, []editor_export.Row{
+		{Key: "home.title", SourceText: "Home", SourceLocale: "en", TargetLocale: "fr", SourcePath: "en.json"},
+	}, rows)
+
+	counts, err := f.store.importBilingualRows(ctx, f.actor, f.project, bilingualImportInput{
+		Locale: "fr",
+		Branch: "feature-checkout",
+		Rows:   []editor_export.Row{{Key: "home.title", TargetText: "Accueil", SourcePath: "en.json"}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, bilingualImportCounts{Matched: 1, Imported: 1, Files: 1}, counts)
+
+	saved, err := f.store.getStringTranslation(ctx, f.actor, f.project, clone, "fr")
+	require.NoError(t, err)
+	require.Equal(t, "Accueil", saved.Text)
+	_, err = f.store.getStringTranslation(ctx, f.actor, f.project, main.ID, "fr")
+	require.ErrorIs(t, err, errTranslationNotFound)
+
+	counts, err = f.store.importBilingualRows(ctx, f.actor, f.project, bilingualImportInput{
+		Locale:   "fr",
+		FilePath: ptr("en.json"),
+		Rows:     []editor_export.Row{{Key: "home.title", TargetText: "Maison"}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, bilingualImportCounts{Matched: 1, Imported: 1, Files: 1}, counts)
+
+	saved, err = f.store.getStringTranslation(ctx, f.actor, f.project, main.ID, "fr")
+	require.NoError(t, err)
+	require.Equal(t, "Maison", saved.Text)
+	saved, err = f.store.getStringTranslation(ctx, f.actor, f.project, clone, "fr")
+	require.NoError(t, err)
+	require.Equal(t, "Accueil", saved.Text)
+
+	_, err = f.store.importBilingualRows(ctx, f.actor, f.project, bilingualImportInput{
+		Locale:   "fr",
+		FilePath: ptr("en.json"),
+		Branch:   "missing-branch",
+		Rows:     []editor_export.Row{{Key: "home.title", TargetText: "Accueil"}},
+	})
+	require.ErrorIs(t, err, errSourceFileNotFound)
+}

@@ -86,11 +86,15 @@ async function postBilingualImport(input: {
   locale: string;
   file: File;
   headers: Record<string, string>;
+  branch?: string;
 }) {
   const form = new FormData();
   form.set("sourcePath", input.sourcePath);
   form.set("locale", input.locale);
   form.set("file", input.file);
+  if (input.branch) {
+    form.set("branch", input.branch);
+  }
   return app.request(
     `/api/orgs/${encodeURIComponent(input.slug)}/projects/${encodeURIComponent(input.projectId)}/files/bilingual/import`,
     { method: "POST", body: form, headers: input.headers },
@@ -154,8 +158,80 @@ describe("project file bilingual import route", () => {
         projectId,
         sourcePath: "locales/en.json",
         targetLocale: "fr",
+        branchName: undefined,
       }),
     );
+  });
+
+  it("imports onto the named version branch instead of main", async () => {
+    const { admin, headers, organizationId, projectId } = await createNativeProject(["fr"]);
+    await db.insert(schema.repositorySourceFiles).values({
+      organizationId,
+      projectId,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+    parseFilteredMock.mockResolvedValue({
+      rows: [
+        {
+          key: "greeting",
+          sourceText: "Hello",
+          targetText: "Bonjour",
+          sourceLocale: "en",
+          targetLocale: "fr",
+          sourcePath: "locales/en.json",
+        },
+      ],
+    });
+    importCatBilingualRowsMock.mockResolvedValue({
+      matched: 1,
+      imported: 1,
+      skipped: 0,
+      files: 1,
+    });
+
+    const response = await postBilingualImport({
+      slug: admin.organization.slug ?? "missing-slug",
+      projectId,
+      sourcePath: "locales/en.json",
+      locale: "fr",
+      file: new File(["<xliff/>"], "queue-fr.xliff", { type: "application/xliff+xml" }),
+      headers,
+      branch: "feature-checkout",
+    });
+
+    expect(response.status).toBe(200);
+    expect(importCatBilingualRowsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId,
+        sourcePath: "locales/en.json",
+        targetLocale: "fr",
+        branchName: "feature-checkout",
+      }),
+    );
+  });
+
+  it("does not import a version-branch file by looking up main", async () => {
+    const { admin, headers, organizationId, projectId } = await createNativeProject(["fr"]);
+    await db.insert(schema.repositorySourceFiles).values({
+      organizationId,
+      projectId,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const response = await postBilingualImport({
+      slug: admin.organization.slug ?? "missing-slug",
+      projectId,
+      sourcePath: "locales/en.json",
+      locale: "fr",
+      file: new File(["<xliff/>"], "queue-fr.xliff", { type: "application/xliff+xml" }),
+      headers,
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: "source_file_not_found" });
+    expect(importCatBilingualRowsMock).not.toHaveBeenCalled();
   });
 
   it("rejects an unsupported bilingual format", async () => {

@@ -31,6 +31,8 @@ export async function importCatBilingualRows(input: {
   targetLocale: string;
   rows: readonly ContentEditorFilteredExportRow[];
   actorUserId?: string | null;
+  /** Native version branch; the default branch when omitted. */
+  branchName?: string | null;
 }): Promise<CatBilingualImportCounts> {
   if (input.rows.length > maxCatFilteredExportSegments) {
     throw new Error("too many rows");
@@ -54,6 +56,7 @@ export async function importCatBilingualRows(input: {
       targetLocale: input.targetLocale,
       entries,
       actorUserId: input.actorUserId ?? null,
+      branchName: input.branchName,
     });
     matched += result.matched;
     imported += result.imported;
