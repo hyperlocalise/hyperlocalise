@@ -30,6 +30,7 @@ minimumReleaseAgeExclude:
   - mermaid@12.1.0
   - msw@3.0.2
   - "@ai-sdk/workflow@2.0.59"
+  - "@vercel/sandbox@4.1.0"
 packageExtensions:
   # autumn-js@1.5.60+ imports fzstd without declaring it.
   autumn-js:

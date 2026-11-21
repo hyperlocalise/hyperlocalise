@@ -211,7 +211,7 @@ export function ContentOpsFlowPanel({
             edges={edges}
             elementsSelectable
             fitView
-            fitViewOptions={{ padding: 0.2, minZoom: 0.55, maxZoom: 1.05 }}
+            fitViewOptions={{ padding: "20%", minZoom: 0.55, maxZoom: 1.05 }}
             maxZoom={1.25}
             minZoom={0.5}
             nodeTypes={VISUAL_WORKFLOW_NODE_TYPES}
@@ -220,7 +220,7 @@ export function ContentOpsFlowPanel({
             nodesDraggable
             onEdgesChange={onEdgesChange as OnEdgesChange}
             onInit={(reactFlow) => {
-              void reactFlow.fitView({ padding: 0.2 });
+              void reactFlow.fitView({ padding: "20%" });
             }}
             onNodesChange={onNodesChange as OnNodesChange}
             panOnDrag

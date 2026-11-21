@@ -13,10 +13,11 @@
  * Version 2.0 or later.
  */
 import {
+  EdgeChangeset,
   MarkerType,
   type Connection,
   type EdgeChange,
-  type NodeChange,
+  type NodeChangeset,
   type OnSelectionChangeParams,
   type ReactFlowInstance,
   type XYPosition,
@@ -243,8 +244,8 @@ export function VisualWorkflowCanvas({
   nodes: VisualWorkflowRfNode[];
   edges: VisualWorkflowRfEdge[];
   isRunning: boolean;
-  onNodesChange: (changes: NodeChange<VisualWorkflowRfNode>[]) => void;
-  onEdgesChange: (changes: EdgeChange<VisualWorkflowRfEdge>[]) => void;
+  onNodesChange: (changes: NodeChangeset<VisualWorkflowRfNode>) => void;
+  onEdgesChange: (changes: EdgeChangeset<VisualWorkflowRfEdge>) => void;
   /** Runs before a keyboard deletion; returning false leaves the deletion to the editor. */
   onBeforeDelete?: (elements: {
     nodes: VisualWorkflowRfNode[];
@@ -299,7 +300,7 @@ export function VisualWorkflowCanvas({
       return;
     }
     fitViewRef.current = () => {
-      void reactFlowRef.current?.fitView({ padding: 0.2 });
+      void reactFlowRef.current?.fitView({ padding: "20%" });
     };
     return () => {
       fitViewRef.current = null;
@@ -377,9 +378,13 @@ export function VisualWorkflowCanvas({
         // Reference lines cannot be selected or deleted; only stored edges reach the editor.
         onEdgesChange={(changes) =>
           onEdgesChange(
-            changes.filter(
-              (change) => !("id" in change) || !referenceLineIds.has(change.id),
-            ) as EdgeChange<VisualWorkflowRfEdge>[],
+            new EdgeChangeset(
+              changes
+                .toArray()
+                .filter(
+                  (change) => !referenceLineIds.has(change.id),
+                ) as EdgeChange<VisualWorkflowRfEdge>[],
+            ),
           )
         }
         onBeforeDelete={
@@ -483,7 +488,7 @@ export function VisualWorkflowCanvas({
         connectOnClick={false}
         onInit={(reactFlow) => {
           reactFlowRef.current = reactFlow;
-          void reactFlow.fitView({ padding: 0.2 });
+          void reactFlow.fitView({ padding: "20%" });
         }}
         proOptions={{ hideAttribution: true }}
       >
