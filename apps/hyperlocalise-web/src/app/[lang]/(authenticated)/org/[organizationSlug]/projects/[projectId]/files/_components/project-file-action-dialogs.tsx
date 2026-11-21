@@ -52,6 +52,7 @@ export function ProjectFileActionDialogs({
         projectId={actions.projectId}
         sourcePath={file.sourcePath}
         targetLocales={actions.targetLocales}
+        branch={actions.branch}
       />
       <DownloadTranslationsDialog
         open={actions.downloadDialogOpen}
