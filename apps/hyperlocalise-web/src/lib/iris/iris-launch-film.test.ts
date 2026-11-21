@@ -15,17 +15,11 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   IRIS_LAUNCH_YOUTUBE_ID,
   IRIS_LAUNCH_YOUTUBE_WATCH_URL,
-  IRIS_WAITLIST_FORM_ID,
-  IRIS_WAITLIST_URL,
   irisLaunchEmbedSrc,
   irisLaunchPosterSrc,
-} from "./iris-waitlist";
+} from "./iris-launch-film";
 
-describe("iris waitlist links", () => {
-  it("points the waitlist at the Tally form", () => {
-    expect(IRIS_WAITLIST_URL).toBe(`https://tally.so/r/${IRIS_WAITLIST_FORM_ID}`);
-  });
-
+describe("iris launch film links", () => {
   it("points the launch film at the public YouTube watch page", () => {
     expect(IRIS_LAUNCH_YOUTUBE_WATCH_URL).toBe(
       `https://www.youtube.com/watch?v=${IRIS_LAUNCH_YOUTUBE_ID}`,

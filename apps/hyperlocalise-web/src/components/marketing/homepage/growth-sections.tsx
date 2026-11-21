@@ -19,7 +19,7 @@ import Link from "next/link";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
-import { irisLaunchPosterSrc } from "@/lib/iris/iris-waitlist";
+import { irisLaunchPosterSrc } from "@/lib/iris/iris-launch-film";
 import { cn } from "@/lib/primitives/cn";
 import {
   BLUSH_MESH_GRADIENT_SRC,
@@ -30,7 +30,7 @@ import {
 } from "../hero-frame-mesh-stage";
 import { IrisVideoBackground } from "../iris/iris-video-background";
 import { irisPageMessages } from "../iris/iris-page.messages";
-import { IrisWaitlistCta } from "../iris/iris-waitlist-cta";
+import { IrisDownloadCta } from "../iris/iris-download-cta";
 import { CompliancePanel } from "../product/guideline-mock-ui";
 import { HyperlabExperimentsPanel } from "../product/hyperlab-mock-ui";
 import type { IntegrationIconKey } from "@/lib/integrations/integration-catalog.types";
@@ -598,7 +598,7 @@ export function CultureSection() {
                 onDark
               >
                 <div className="mt-2 flex flex-wrap items-center gap-5 text-foreground">
-                  <IrisWaitlistCta />
+                  <IrisDownloadCta source="homepage_culture" />
                   <span className="text-white">
                     <SectionLink href="/iris" label={m.cultureLink} />
                   </span>

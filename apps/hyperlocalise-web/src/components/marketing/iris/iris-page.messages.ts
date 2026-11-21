@@ -17,13 +17,8 @@ import { defineMessages } from "react-intl";
 export const irisPageMessages = defineMessages({
   pageHeading: {
     defaultMessage: "Iris, the AI localisation engine for multilingual assets",
-    id: "hEEAW/iMSI",
-    description: "Visually hidden heading for the Iris waitlist page",
-  },
-  joinWaitlist: {
-    defaultMessage: "Join the waitlist",
-    id: "tm2wgAMGK3",
-    description: "Primary button that opens the Iris Tally waitlist form",
+    id: "GtlOKbCrFv",
+    description: "Visually hidden heading for the Iris product page",
   },
   downloadForMac: {
     defaultMessage: "Download for Mac",

@@ -13,7 +13,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent } from "storybook/test";
 
-import { IRIS_LAUNCH_YOUTUBE_WATCH_URL } from "@/lib/iris/iris-waitlist";
+import { IRIS_LAUNCH_YOUTUBE_WATCH_URL } from "@/lib/iris/iris-launch-film";
 
 import { appShellStoryUser } from "../app-shell.stories.fixture";
 import { UpdateAnnouncer } from "./update-announcer";

@@ -25,19 +25,19 @@ export function getIrisRouteMetadata(intl: IntlShape) {
   return {
     title: intl.formatMessage({
       defaultMessage: "Iris | AI Localisation Engine for Multilingual Assets | Hyperlocalise",
-      id: "AQZXVFsnl+",
-      description: "Page title for the Iris waitlist page",
+      id: "QjdO7c1BCr",
+      description: "Page title for the Iris product page",
     }),
     description: intl.formatMessage({
       defaultMessage:
-        "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Join the waitlist.",
-      id: "QZjNY0zpti",
-      description: "Meta description for the Iris waitlist page",
+        "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Download Iris for Mac.",
+      id: "UWS4Z91lmP",
+      description: "Meta description for the Iris product page",
     }),
     ogHeading: intl.formatMessage({
       defaultMessage: "Iris, the AI localisation engine",
-      id: "GZPe87SKjx",
-      description: "Open Graph heading for the Iris waitlist page",
+      id: "yJtUqiy1Lo",
+      description: "Open Graph heading for the Iris product page",
     }),
     keywords: irisRouteKeywords,
   };

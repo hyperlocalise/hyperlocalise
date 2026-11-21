@@ -23,6 +23,8 @@ import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 import { cn } from "@/lib/primitives/cn";
 import { REQUEST_DEMO_URL } from "../request-demo";
+import { DownloadIrisButton, IrisAvailabilityNote } from "../iris/download-iris-button";
+import { trackMarketingCtaClick } from "@/lib/analytics/marketing-cta";
 import { heroSectionMessages } from "../hero-section.messages";
 import { TRUSTED_BY_LOGOS } from "../trusted-by-logos";
 import { ContentOpsMockStage } from "../content-ops/content-ops-mock-stage";
@@ -86,25 +88,61 @@ function SectionHeading({
   );
 }
 
-function DemoCta() {
+function PrimaryCta({ source }: { source: string }) {
   const { user, loading } = useAuth();
   const locale = useAppLocale();
   if (loading) return <Skeleton className="h-11 w-40" />;
+  if (user) {
+    return (
+      <Button
+        size="lg"
+        nativeButton={false}
+        render={<Link href={rewriteAppLocalePath("/dashboard", locale)} />}
+      >
+        <FormattedMessage {...heroSectionMessages.goToDashboard} />
+      </Button>
+    );
+  }
+  return <DownloadIrisButton size="lg" source={source} />;
+}
+
+function SignedOutOnly({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading || user) return null;
+  return children;
+}
+
+function IrisLaunchPill() {
+  const locale = useAppLocale();
+  return (
+    <Link
+      href={rewriteAppLocalePath("/iris", locale)}
+      className="group inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 py-1 ps-1 pe-3 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-4"
+    >
+      <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[var(--home-ink)]">
+        <FormattedMessage {...m.heroIrisPillTag} />
+      </span>
+      <FormattedMessage {...m.heroIrisPillLabel} />
+      <span
+        aria-hidden
+        className="transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+      >
+        →
+      </span>
+    </Link>
+  );
+}
+
+function BookDemoLink() {
   return (
     <Button
       size="lg"
+      variant="outline"
       nativeButton={false}
-      render={
-        user ? (
-          <Link href={rewriteAppLocalePath("/dashboard", locale)} />
-        ) : (
-          <a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />
-        )
-      }
+      render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+      onClick={() => trackMarketingCtaClick("request_demo", "homepage_final_cta")}
     >
-      <FormattedMessage
-        {...(user ? heroSectionMessages.goToDashboard : heroSectionMessages.joinWaitlist)}
-      />
+      <FormattedMessage {...heroSectionMessages.bookDemo} />
     </Button>
   );
 }
@@ -410,9 +448,7 @@ export function PlatformHomepage({
               !hasPreviewVideo && "min-h-0 flex-1 justify-center",
             )}
           >
-            <p className="text-xs font-semibold tracking-[0.18em] text-white/75 uppercase">
-              <FormattedMessage {...m.heroEyebrow} />
-            </p>
+            <IrisLaunchPill />
             <h1 className="font-heading text-[clamp(2.5rem,5vw,4.25rem)] leading-[1.05] text-balance">
               <FormattedMessage {...m.heroHeadline} />
             </h1>
@@ -421,7 +457,7 @@ export function PlatformHomepage({
             </p>
             <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
               <div className="text-foreground">
-                <DemoCta />
+                <PrimaryCta source="homepage_hero" />
               </div>
               <a
                 href="#stack"
@@ -430,6 +466,9 @@ export function PlatformHomepage({
                 <FormattedMessage {...m.explore} /> <span aria-hidden>↓</span>
               </a>
             </div>
+            <SignedOutOnly>
+              <IrisAvailabilityNote className="-mt-2 text-white" />
+            </SignedOutOnly>
           </div>
           <div className={hasPreviewVideo ? "mt-12 sm:mt-16" : "shrink-0 pb-2 pt-10 sm:pt-12"}>
             <CustomerLogos onDark />
@@ -498,7 +537,13 @@ export function HomepageFinalCta() {
           <p className="max-w-xl text-base leading-7 text-pretty text-muted-foreground">
             <FormattedMessage {...m.finalBody} />
           </p>
-          <DemoCta />
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <PrimaryCta source="homepage_final_cta" />
+            <BookDemoLink />
+          </div>
+          <SignedOutOnly>
+            <IrisAvailabilityNote className="text-muted-foreground" />
+          </SignedOutOnly>
         </div>
       </div>
     </section>
