@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -315,7 +316,7 @@ func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest)
 	switch req.Model.ID {
 	case "universal-3.5-pro", "fish-audio-transcribe-1":
 		return p.transcribe(ctx, req)
-	case "qwen3.8-omni-flash":
+	case "listen":
 		return p.listenChat(ctx, req)
 	case "bytedance-upscaler":
 		req.Prompt = irisFirstNonEmpty(req.Prompt, "Upscale this video. Preserve subject, motion, and audio.")
@@ -442,52 +443,58 @@ func (p *irisGatewayProvider) transcribeOpenAI(ctx context.Context, req irisProv
 	return []irisProviderOutput{{Bytes: normalizeTranscript(body), Filename: "transcript.json", ContentType: "application/json"}}, nil
 }
 
-const irisListenSystem = `You transcribe speech and describe what happens in audio and video.
-Return JSON only: {"text":"<full transcript or description>","segments":[{"text":"<line>","start":<seconds>,"end":<seconds>}]}.
-Transcribe speech exactly. If there is no speech, put the description in text and leave segments empty.
-Timestamps are seconds from the start of the media.`
+const irisListenSystem = `You listen to audio and video and answer the user's question in Markdown.
+Include timestamps as MM:SS for salient moments.
+Quote speech when they ask what was said. If there is no speech, describe the sound.`
 
-// listenChat sends audio or video to a language model. Qwen Omni Flash is
-// typed as language on AI Gateway, so /transcription-model returns
-// ModelTypeMismatchError; chat completions accept a file part instead.
+// listenChat sends audio or video to a language model as a chat file part
+// and returns the answer as analysis.md. Gemini 3.8 Flash first, then
+// MiMo V2.6 Pro if that Gateway call fails.
 func (p *irisGatewayProvider) listenChat(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	media, ok := firstInput(req.Inputs, "media", "audio", "video")
 	if !ok {
 		return nil, fmt.Errorf("media input is required")
 	}
-	user := irisFirstNonEmpty(req.Prompt, "Transcribe the speech in this media. If there is no speech, describe what happens.")
+	user := irisFirstNonEmpty(req.Prompt, "Describe this audio. Include timestamps for salient moments.")
 	if req.Language != "" {
 		user += " The speech is in " + req.Language + "."
 	}
-	reply, err := p.Complete(ctx, irisChatRequest{
-		Model:  req.Model.GatewayID,
-		System: irisListenSystem,
-		User:   user,
-		Files:  []irisProviderInput{media},
-		JSON:   true,
-	})
-	if err != nil {
-		return nil, err
+	ids := irisListenGatewayIDs(req.Model.GatewayID)
+	var lastErr error
+	for i, modelID := range ids {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		reply, err := p.Complete(ctx, irisChatRequest{
+			Model:  modelID,
+			System: irisListenSystem,
+			User:   user,
+			Files:  []irisProviderInput{media},
+		})
+		if err == nil {
+			return []irisProviderOutput{{
+				Bytes:       []byte(strings.TrimSpace(reply.Text)),
+				Filename:    "analysis.md",
+				ContentType: "text/markdown",
+			}}, nil
+		}
+		lastErr = err
+		if i+1 < len(ids) {
+			slog.WarnContext(ctx, "iris_listen_fallback", "from", modelID, "to", ids[i+1], "error", err)
+		}
 	}
-	return []irisProviderOutput{{
-		Bytes:       normalizeTranscript([]byte(irisChatJSONText(reply.Text))),
-		Filename:    "transcript.json",
-		ContentType: "application/json",
-	}}, nil
+	return nil, lastErr
 }
 
-func irisChatJSONText(text string) string {
-	text = strings.TrimSpace(text)
-	if !strings.HasPrefix(text, "```") {
-		return text
+func irisListenGatewayIDs(primary string) []string {
+	primary = strings.TrimSpace(primary)
+	if primary == "" {
+		primary = defaultIrisListenModel
 	}
-	text = strings.TrimPrefix(text, "```json")
-	text = strings.TrimPrefix(text, "```JSON")
-	text = strings.TrimPrefix(text, "```")
-	if i := strings.LastIndex(text, "```"); i >= 0 {
-		text = text[:i]
+	if primary == defaultIrisListenBackupModel {
+		return []string{primary}
 	}
-	return strings.TrimSpace(text)
+	return []string{primary, defaultIrisListenBackupModel}
 }
 
 func (p *irisGatewayProvider) transcriptionModelURL() string {

@@ -9,6 +9,13 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/elevenlabs"
 )
 
+const (
+	// defaultIrisListenModel is the documented Gemini audio file-part path.
+	defaultIrisListenModel = "google/gemini-3.8-flash"
+	// defaultIrisListenBackupModel is tagged audio-input on AI Gateway.
+	defaultIrisListenBackupModel = "xiaomi/mimo-v2.6-pro"
+)
+
 type irisModelKind string
 
 const (
@@ -110,10 +117,9 @@ func irisModels() []irisModelInfo {
 		{ID: "bytedance-upscaler", Name: "ByteDance Upscaler", Kind: irisKindTool, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "fal-ai/bytedance-upscaler/upscale/video", ETASeconds: 60, RequiresRef: true},
 		{ID: "universal-3.5-pro", Name: "Universal 3.5 Pro", Kind: irisKindTool, GatewayID: "google/gemini-3.5-transcribe", ETASeconds: 25, RequiresRef: true},
 		{ID: "fish-audio-transcribe-1", Name: "Fish Audio Transcribe 1", Kind: irisKindTool, GatewayID: "fish-audio/transcribe-1", ETASeconds: 25, RequiresRef: true},
-		// Qwen Omni Flash is a language model on AI Gateway. /transcription-model
-		// rejects it with ModelTypeMismatchError; listen uses chat completions
-		// with a file part for the audio or video.
-		{ID: "qwen3.8-omni-flash", Name: "Qwen 3.8 Omni Flash", Kind: irisKindTool, GatewayID: "alibaba/qwen3.8-omni-flash", ETASeconds: 20, RequiresRef: true},
+		// Listen: Gemini 3.8 Flash, then MiMo V2.6 Pro. Chat completions with
+		// a file part; the answer is analysis.md, not a transcript.
+		{ID: "listen", Name: "Listen", Kind: irisKindTool, GatewayID: defaultIrisListenModel, ETASeconds: 20, RequiresRef: true},
 		// Sound out of a video or audio file: the speech alone, or the speech
 		// in another voice. Each returns audio as long as the input.
 		{ID: "elevenlabs-voice-isolator", Name: "ElevenLabs Voice Isolator", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "audio-isolation", ETASeconds: 30, RequiresRef: true},
@@ -141,6 +147,7 @@ var irisModelAliases = map[string]string{
 	"fish-audio/s2.1-pro":     "fish-audio-s2.1-pro",
 	"fish-audio/drama-3":      "fish-audio-drama-3",
 	"fish-audio/transcribe-1": "fish-audio-transcribe-1",
+	"qwen3.8-omni-flash":      "listen",
 }
 
 func irisModelByID(id string) (irisModelInfo, bool) {
@@ -518,7 +525,7 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 			}
 			return model, fmt.Errorf("audio is required")
 		}
-	case "qwen3.8-omni-flash":
+	case "listen":
 		if _, ok := req.asset("media"); !ok {
 			return model, fmt.Errorf("media is required")
 		}

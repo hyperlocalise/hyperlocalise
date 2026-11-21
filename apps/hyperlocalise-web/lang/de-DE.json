@@ -1502,9 +1502,6 @@
   "07hLkJhLSW": {
     "defaultMessage": "Sehen Sie, welche Version sich in jedem Markt durchsetzt und um wie viel."
   },
-  "07nyefIF8a": {
-    "defaultMessage": "Filmmaterial beschreiben und durchsuchen"
-  },
   "07pTu6Ro98": {
     "defaultMessage": "Unbegrenzt"
   },
@@ -25591,6 +25588,9 @@
   },
   "ZTE3uMf+sC": {
     "defaultMessage": "Genehmigung erforderlich"
+  },
+  "ZTPtuGZQJE": {
+    "defaultMessage": "Filmmaterial beschreiben und durchsuchen"
   },
   "ZTpZqdYE6W": {
     "defaultMessage": "Details"

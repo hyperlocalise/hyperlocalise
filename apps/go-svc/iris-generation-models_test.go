@@ -224,10 +224,10 @@ func TestValidateIrisGenerateRequest(t *testing.T) {
 			wantID:  "universal-3.5-pro",
 		},
 		{
-			name:    "omni requires media",
-			req:     irisGenerateRequest{"model": "qwen3.8-omni-flash"},
+			name:    "listen requires media",
+			req:     irisGenerateRequest{"model": "listen"},
 			wantErr: "media is required",
-			wantID:  "qwen3.8-omni-flash",
+			wantID:  "listen",
 		},
 		{
 			name:   "valid image",
@@ -266,8 +266,8 @@ func TestValidateIrisGenerateRequest(t *testing.T) {
 		},
 		{
 			name:   "valid tool with uploaded media",
-			req:    irisGenerateRequest{"model": "qwen3.8-omni-flash", "media": asset},
-			wantID: "qwen3.8-omni-flash",
+			req:    irisGenerateRequest{"model": "listen", "media": asset},
+			wantID: "listen",
 		},
 		{
 			name:   "seedance takes references",

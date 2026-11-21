@@ -256,7 +256,7 @@ func irisGatewayAudioMinuteModel(model irisModelInfo) bool {
 		return true
 	}
 	switch model.ID {
-	case "universal-3.5-pro", "fish-audio-transcribe-1", "qwen3.8-omni-flash":
+	case "universal-3.5-pro", "fish-audio-transcribe-1", "listen":
 		return true
 	default:
 		return false

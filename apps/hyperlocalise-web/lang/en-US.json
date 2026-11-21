@@ -1615,10 +1615,6 @@
     "defaultMessage": "See which version wins in each market, and by how much.",
     "description": "market-experimentation use case page: capabilities › items › #5 › body"
   },
-  "07nyefIF8a": {
-    "defaultMessage": "Describe and search footage",
-    "description": "Card summary for the Qwen 3.8 Omni Flash media model on the pricing page"
-  },
   "07pTu6Ro98": {
     "defaultMessage": "Unlimited",
     "description": "Shown when a billing feature has unlimited usage"
@@ -27542,6 +27538,10 @@
   "ZT3mGAyTVi": {
     "defaultMessage": "Authorize Hyperlocalise to access Sanity on your behalf through WorkOS Pipes.",
     "description": "Intro when connecting Sanity with OAuth"
+  },
+  "ZTPtuGZQJE": {
+    "defaultMessage": "Describe and search footage",
+    "description": "Card summary for the Listen model on the pricing page"
   },
   "ZTpZqdYE6W": {
     "defaultMessage": "Details",
