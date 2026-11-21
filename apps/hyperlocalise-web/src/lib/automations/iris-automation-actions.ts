@@ -27,7 +27,10 @@ import {
   getVisualWorkflowRunById,
 } from "@/lib/visual-workflows/visual-workflow-runs";
 import type { VisualWorkflowValidationError } from "@/lib/visual-workflows/visual-workflow-types";
-import { getVisualWorkflowById, publishVisualWorkflow } from "@/lib/visual-workflows/visual-workflows";
+import {
+  getVisualWorkflowById,
+  publishVisualWorkflow,
+} from "@/lib/visual-workflows/visual-workflows";
 import { createVisualWorkflowExecutionQueue } from "@/workflows/adapters";
 
 import {
