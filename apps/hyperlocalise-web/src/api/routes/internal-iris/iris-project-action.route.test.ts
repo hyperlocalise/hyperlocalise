@@ -27,11 +27,16 @@ import {
 } from "@/lib/go-svc/go-svc-service-token";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
-import type { TranslationJobEventData, TranslationQaScanQueue } from "@/lib/workflow/types";
+import type {
+  TranslationFileImportEventData,
+  TranslationJobEventData,
+  TranslationQaScanQueue,
+} from "@/lib/workflow/types";
 
 const fixture = createAuthTestFixture();
 const enqueueJob = vi.fn(async (event: TranslationJobEventData) => ({ ids: [event.jobId] }));
 const enqueueQa = vi.fn(async () => ({ ids: ["qa_run"] }));
+const enqueuedImports: TranslationFileImportEventData[] = [];
 
 function serviceHeaders() {
   const password = env.WORKOS_COOKIE_PASSWORD;
@@ -47,6 +52,12 @@ function serviceHeaders() {
 const app = createApp({
   jobQueue: { enqueue: enqueueJob },
   translationQaScanQueue: { enqueue: enqueueQa } as TranslationQaScanQueue,
+  translationFileImportQueue: {
+    async enqueue(event: TranslationFileImportEventData) {
+      enqueuedImports.push(event);
+      return { ids: [`run_${enqueuedImports.length}`] };
+    },
+  },
 });
 
 async function postAction(
@@ -145,6 +156,7 @@ describe("internal iris project-action route", () => {
 
   afterEach(async () => {
     vi.clearAllMocks();
+    enqueuedImports.length = 0;
     await fixture.cleanup();
   });
 
@@ -645,5 +657,27 @@ describe("internal iris project-action route", () => {
       .from(schema.jobs)
       .where(eq(schema.jobs.id, running.id));
     expect(runningRow?.status).toBe("running");
+  });
+
+  it("enqueues translation imports onto the named version branch", async () => {
+    const { organization, user, project } = await seedNativeProject();
+    const response = await postAction("import_translations", {
+      organizationId: organization.id,
+      userId: user.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      locale: "fr-FR",
+      branch: "feature-checkout",
+      contentBase64: Buffer.from('{"greeting":"Salut"}').toString("base64"),
+    });
+    expect(response.status).toBe(201);
+    expect(enqueuedImports).toHaveLength(1);
+    expect(enqueuedImports[0]).toMatchObject({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      targetLocale: "fr-FR",
+      branchName: "feature-checkout",
+    });
   });
 });

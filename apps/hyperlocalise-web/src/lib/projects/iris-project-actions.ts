@@ -325,6 +325,7 @@ async function importTranslations(
 ): Promise<ActionResult> {
   const sourcePath = asString(payload.sourcePath);
   const locale = asString(payload.locale);
+  const branchName = asString(payload.branch).trim() || undefined;
   const bytes = bytesOf(payload.contentBase64);
   if (!sourcePath || !locale || !bytes) {
     return fail(400, "invalid_request_body", "File, source path, and locale are required");
@@ -338,7 +339,7 @@ async function importTranslations(
     filename: asString(payload.filename) || sourcePath,
     contentType: "application/octet-stream",
     content: bytes,
-    metadata: { sourcePath, targetLocale: locale, uploadSurface: "iris" },
+    metadata: { sourcePath, targetLocale: locale, uploadSurface: "iris", branch: branchName },
     adapter: getFileStorageAdapter(),
   });
   await deps.importQueue.enqueue({
@@ -348,6 +349,7 @@ async function importTranslations(
     sourcePath,
     targetLocale: locale,
     actorUserId: userId,
+    branchName,
   });
   return ok({ imported: true, sourcePath, locale }, 201);
 }

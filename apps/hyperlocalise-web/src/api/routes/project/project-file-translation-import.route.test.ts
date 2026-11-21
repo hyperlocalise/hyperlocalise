@@ -22,6 +22,8 @@ import { db, schema } from "@/lib/database/client";
 import type { TranslationFileImportEventData } from "@/lib/workflow/types";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
+
 import { createProjectTestFixture } from "./project.fixture";
 import { createMemoryFileStorageAdapter } from "../public-files/public-files.fixture";
 
@@ -84,7 +86,7 @@ async function createNativeProject(targetLocales: string[]) {
     targetLocales,
   });
 
-  return { admin, headers, organizationId, projectId };
+  return { admin, headers, organizationId, projectId, userId };
 }
 
 async function postImport(input: {
@@ -94,11 +96,15 @@ async function postImport(input: {
   locale: string;
   file: File;
   headers: Record<string, string>;
+  branch?: string;
 }) {
   const form = new FormData();
   form.set("sourcePath", input.sourcePath);
   form.set("locale", input.locale);
   form.set("file", input.file);
+  if (input.branch) {
+    form.set("branch", input.branch);
+  }
 
   return app.request(
     `/api/orgs/${encodeURIComponent(input.slug)}/projects/${encodeURIComponent(input.projectId)}/files/translations/import`,
@@ -145,6 +151,7 @@ describe("project file translation import route", () => {
       projectId,
       sourcePath: "locales/en.json",
       targetLocale: "fr",
+      branchName: "main",
     });
     expect(enqueueFileTranslationsImportedActivityMock).not.toHaveBeenCalled();
 
@@ -213,6 +220,104 @@ describe("project file translation import route", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ error: "invalid_target_locale" });
+    expect(enqueuedImports).toHaveLength(0);
+  });
+
+  it("enqueues an import onto the named version branch instead of main", async () => {
+    const { admin, headers, organizationId, projectId, userId } = await createNativeProject(["fr"]);
+    await projectBranchService.ensureDefaultBranch({
+      organizationId,
+      projectId,
+      createdByUserId: userId,
+    });
+    const created = await projectBranchService.create({
+      organizationId,
+      projectId,
+      createdByUserId: userId,
+      name: "feature-checkout",
+    });
+    expect(created.ok).toBe(true);
+    await db.insert(schema.repositorySourceFiles).values({
+      organizationId,
+      projectId,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const response = await postImport({
+      slug: admin.organization.slug ?? "missing-slug",
+      projectId,
+      sourcePath: "locales/en.json",
+      locale: "fr",
+      file: new File(['{"greeting":"Salut"}'], "en.json", { type: "application/json" }),
+      headers,
+      branch: "feature-checkout",
+    });
+
+    expect(response.status).toBe(200);
+    expect(enqueuedImports).toHaveLength(1);
+    expect(enqueuedImports[0]).toMatchObject({
+      organizationId,
+      projectId,
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      branchName: "feature-checkout",
+    });
+  });
+
+  it("does not import a version-branch file by looking up main", async () => {
+    const { admin, headers, organizationId, projectId } = await createNativeProject(["fr"]);
+    await db.insert(schema.repositorySourceFiles).values({
+      organizationId,
+      projectId,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const response = await postImport({
+      slug: admin.organization.slug ?? "missing-slug",
+      projectId,
+      sourcePath: "locales/en.json",
+      locale: "fr",
+      file: new File(['{"greeting":"Salut"}'], "en.json", { type: "application/json" }),
+      headers,
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: "source_file_not_found" });
+    expect(enqueuedImports).toHaveLength(0);
+  });
+
+  it("rejects imports onto a protected branch", async () => {
+    const { admin, headers, organizationId, projectId, userId } = await createNativeProject(["fr"]);
+    await projectBranchService.ensureDefaultBranch({
+      organizationId,
+      projectId,
+      createdByUserId: userId,
+    });
+    const protectedBranch = await projectBranchService.update({
+      projectId,
+      name: "main",
+      isProtected: true,
+    });
+    expect(protectedBranch.ok).toBe(true);
+    await db.insert(schema.repositorySourceFiles).values({
+      organizationId,
+      projectId,
+      sourcePath: "locales/en.json",
+    });
+
+    const response = await postImport({
+      slug: admin.organization.slug ?? "missing-slug",
+      projectId,
+      sourcePath: "locales/en.json",
+      locale: "fr",
+      file: new File(['{"greeting":"Bonjour"}'], "en.json", { type: "application/json" }),
+      headers,
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "protected_branch" });
     expect(enqueuedImports).toHaveLength(0);
   });
 });

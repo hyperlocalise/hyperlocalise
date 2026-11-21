@@ -4511,6 +4511,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const parsed = projectFileTranslationImportBodySchema.safeParse({
           sourcePath: asString(body.sourcePath),
           locale: asString(body.locale),
+          branch: asString(body.branch),
         });
 
         if (!parsed.success) {
@@ -4537,10 +4538,28 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
         }
 
+        await projectBranchService.ensureDefaultBranch({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          createdByUserId: c.var.auth.user.localUserId,
+        });
+        const writableBranch = await projectBranchService.assertWritable({
+          projectId: params.projectId,
+          branchName: parsed.data.branch,
+        });
+        if (!writableBranch.ok) {
+          if (writableBranch.error === "protected_branch") {
+            return conflictResponse(c, "protected_branch", "This branch is protected.");
+          }
+          return notFoundResponse(c, "branch_not_found", "Branch not found.");
+        }
+        const importBranchName = writableBranch.value;
+
         const sourceFile = await getRepositorySourceFileByPath({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: parsed.data.sourcePath,
+          branchName: importBranchName,
         });
         if (!sourceFile) {
           return notFoundResponse(c, "source_file_not_found", "Source file not found");
@@ -4572,6 +4591,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             sourcePath: parsed.data.sourcePath,
             targetLocale: parsed.data.locale,
             actorUserId: c.var.auth.user.localUserId,
+            branchName: importBranchName,
           });
         } catch (error) {
           await db
