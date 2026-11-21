@@ -29,7 +29,7 @@ describe("automation shortcut keys", () => {
   it("lists canvas-only shortcuts on the visual workflow surface", () => {
     expect(listAutomationShortcuts("automation")).not.toContain("addNode");
     expect(listAutomationShortcuts("visual_workflow")).toEqual(
-      expect.arrayContaining(["addNode", "fitView", "primary"]),
+      expect.arrayContaining(["addNode", "duplicate", "fitView", "primary"]),
     );
     expect(listAutomationShortcuts("visual_workflow")).not.toContain("assistant");
     expect(listAutomationShortcuts("visual_workflow", { assistant: true })).toContain("assistant");

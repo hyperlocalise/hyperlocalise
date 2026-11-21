@@ -40,12 +40,18 @@ export function useAutomationPowerShortcuts({
   onPrimary,
   onAddNode,
   onFitView,
+  onDuplicate,
+  onCopySelection,
+  onPasteSelection,
 }: {
   enabled?: boolean;
   onSave?: () => void;
   onPrimary?: () => void;
   onAddNode?: () => void;
   onFitView?: () => void;
+  onDuplicate?: () => void;
+  onCopySelection?: () => void;
+  onPasteSelection?: () => void;
 }): {
   shortcutsOpen: boolean;
   setShortcutsOpen: (open: boolean) => void;
@@ -55,6 +61,9 @@ export function useAutomationPowerShortcuts({
   const primary = useEffectEvent(() => onPrimary?.());
   const addNode = useEffectEvent(() => onAddNode?.());
   const fitView = useEffectEvent(() => onFitView?.());
+  const duplicate = useEffectEvent(() => onDuplicate?.());
+  const copySelection = useEffectEvent(() => onCopySelection?.());
+  const pasteSelection = useEffectEvent(() => onPasteSelection?.());
 
   useHotkeys(
     "mod+s",
@@ -93,6 +102,42 @@ export function useAutomationPowerShortcuts({
       ignoreEventWhen: ignoreWhenTypingOrModal,
     },
     [enabled, onAddNode],
+  );
+
+  useHotkeys(
+    "mod+d",
+    () => duplicate(),
+    {
+      enabled: enabled && Boolean(onDuplicate),
+      enableOnFormTags: false,
+      preventDefault: true,
+      ignoreEventWhen: ignoreWhenTypingOrModal,
+    },
+    [enabled, onDuplicate],
+  );
+
+  useHotkeys(
+    "mod+c",
+    () => copySelection(),
+    {
+      enabled: enabled && Boolean(onCopySelection),
+      enableOnFormTags: false,
+      preventDefault: true,
+      ignoreEventWhen: ignoreWhenTypingOrModal,
+    },
+    [enabled, onCopySelection],
+  );
+
+  useHotkeys(
+    "mod+v",
+    () => pasteSelection(),
+    {
+      enabled: enabled && Boolean(onPasteSelection),
+      enableOnFormTags: false,
+      preventDefault: true,
+      ignoreEventWhen: ignoreWhenTypingOrModal,
+    },
+    [enabled, onPasteSelection],
   );
 
   useHotkeys(
