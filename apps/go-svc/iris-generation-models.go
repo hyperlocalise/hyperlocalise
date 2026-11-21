@@ -110,6 +110,9 @@ func irisModels() []irisModelInfo {
 		{ID: "bytedance-upscaler", Name: "ByteDance Upscaler", Kind: irisKindTool, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "fal-ai/bytedance-upscaler/upscale/video", ETASeconds: 60, RequiresRef: true},
 		{ID: "universal-3.5-pro", Name: "Universal 3.5 Pro", Kind: irisKindTool, GatewayID: "google/gemini-3.5-transcribe", ETASeconds: 25, RequiresRef: true},
 		{ID: "fish-audio-transcribe-1", Name: "Fish Audio Transcribe 1", Kind: irisKindTool, GatewayID: "fish-audio/transcribe-1", ETASeconds: 25, RequiresRef: true},
+		// Qwen Omni Flash is a language model on AI Gateway. /transcription-model
+		// rejects it with ModelTypeMismatchError; listen uses chat completions
+		// with a file part for the audio or video.
 		{ID: "qwen3.8-omni-flash", Name: "Qwen 3.8 Omni Flash", Kind: irisKindTool, GatewayID: "alibaba/qwen3.8-omni-flash", ETASeconds: 20, RequiresRef: true},
 		// Sound out of a video or audio file: the speech alone, or the speech
 		// in another voice. Each returns audio as long as the input.

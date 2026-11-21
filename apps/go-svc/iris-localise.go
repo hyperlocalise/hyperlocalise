@@ -116,6 +116,7 @@ type irisChatRequest struct {
 	System string
 	User   string
 	Images []irisProviderInput
+	Files  []irisProviderInput
 	JSON   bool
 }
 
@@ -773,6 +774,16 @@ func (p *irisGatewayProvider) Complete(ctx context.Context, req irisChatRequest)
 			"image_url": map[string]string{"url": "data:" + defaultType(image.ContentType, "image/png") + ";base64," + base64.StdEncoding.EncodeToString(image.Bytes)},
 		})
 	}
+	for _, file := range req.Files {
+		mediaType := irisAudioMediaType(file)
+		content = append(content, map[string]any{
+			"type": "file",
+			"file": map[string]string{
+				"filename":  irisMediaFilename(mediaType),
+				"file_data": "data:" + mediaType + ";base64," + base64.StdEncoding.EncodeToString(file.Bytes),
+			},
+		})
+	}
 	payload := map[string]any{
 		"model": p.modelID(req.Model),
 		"messages": []map[string]any{
@@ -795,7 +806,7 @@ func (p *irisGatewayProvider) Complete(ctx context.Context, req irisChatRequest)
 	var parsed struct {
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content json.RawMessage `json:"content"`
 			} `json:"message"`
 		} `json:"choices"`
 		Usage struct {
@@ -807,11 +818,35 @@ func (p *irisGatewayProvider) Complete(ctx context.Context, req irisChatRequest)
 		return irisChatReply{}, err
 	}
 	reply := irisChatReply{Model: req.Model, InputTokens: parsed.Usage.PromptTokens, OutputTokens: parsed.Usage.CompletionTokens}
-	if len(parsed.Choices) == 0 || strings.TrimSpace(parsed.Choices[0].Message.Content) == "" {
+	if len(parsed.Choices) == 0 {
 		return reply, fmt.Errorf("gateway chat returned no reply")
 	}
-	reply.Text = parsed.Choices[0].Message.Content
+	reply.Text = irisChatContentText(parsed.Choices[0].Message.Content)
+	if reply.Text == "" {
+		return reply, fmt.Errorf("gateway chat returned no reply")
+	}
 	return reply, nil
+}
+
+func irisChatContentText(raw json.RawMessage) string {
+	if len(raw) == 0 || string(raw) == "null" {
+		return ""
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err == nil {
+		return strings.TrimSpace(text)
+	}
+	var parts []struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(raw, &parts); err == nil {
+		var b strings.Builder
+		for _, part := range parts {
+			b.WriteString(part.Text)
+		}
+		return strings.TrimSpace(b.String())
+	}
+	return ""
 }
 
 // newIrisTextModel prefers the AI Gateway, then a direct OpenAI key.

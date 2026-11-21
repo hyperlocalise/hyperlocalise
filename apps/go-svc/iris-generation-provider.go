@@ -313,8 +313,10 @@ func (p *irisGatewayProvider) video(ctx context.Context, req irisProviderRequest
 
 func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	switch req.Model.ID {
-	case "universal-3.5-pro", "fish-audio-transcribe-1", "qwen3.8-omni-flash":
+	case "universal-3.5-pro", "fish-audio-transcribe-1":
 		return p.transcribe(ctx, req)
+	case "qwen3.8-omni-flash":
+		return p.listenChat(ctx, req)
 	case "bytedance-upscaler":
 		req.Prompt = irisFirstNonEmpty(req.Prompt, "Upscale this video. Preserve subject, motion, and audio.")
 		return p.video(ctx, req)
@@ -431,6 +433,54 @@ func (p *irisGatewayProvider) transcribeOpenAI(ctx context.Context, req irisProv
 		return nil, err
 	}
 	return []irisProviderOutput{{Bytes: normalizeTranscript(body), Filename: "transcript.json", ContentType: "application/json"}}, nil
+}
+
+const irisListenSystem = `You transcribe speech and describe what happens in audio and video.
+Return JSON only: {"text":"<full transcript or description>","segments":[{"text":"<line>","start":<seconds>,"end":<seconds>}]}.
+Transcribe speech exactly. If there is no speech, put the description in text and leave segments empty.
+Timestamps are seconds from the start of the media.`
+
+// listenChat sends audio or video to a language model. Qwen Omni Flash is
+// typed as language on AI Gateway, so /transcription-model returns
+// ModelTypeMismatchError; chat completions accept a file part instead.
+func (p *irisGatewayProvider) listenChat(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
+	media, ok := firstInput(req.Inputs, "media", "audio", "video")
+	if !ok {
+		return nil, fmt.Errorf("media input is required")
+	}
+	user := irisFirstNonEmpty(req.Prompt, "Transcribe the speech in this media. If there is no speech, describe what happens.")
+	if req.Language != "" {
+		user += " The speech is in " + req.Language + "."
+	}
+	reply, err := p.Complete(ctx, irisChatRequest{
+		Model:  req.Model.GatewayID,
+		System: irisListenSystem,
+		User:   user,
+		Files:  []irisProviderInput{media},
+		JSON:   true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return []irisProviderOutput{{
+		Bytes:       normalizeTranscript([]byte(irisChatJSONText(reply.Text))),
+		Filename:    "transcript.json",
+		ContentType: "application/json",
+	}}, nil
+}
+
+func irisChatJSONText(text string) string {
+	text = strings.TrimSpace(text)
+	if !strings.HasPrefix(text, "```") {
+		return text
+	}
+	text = strings.TrimPrefix(text, "```json")
+	text = strings.TrimPrefix(text, "```JSON")
+	text = strings.TrimPrefix(text, "```")
+	if i := strings.LastIndex(text, "```"); i >= 0 {
+		text = text[:i]
+	}
+	return strings.TrimSpace(text)
 }
 
 func (p *irisGatewayProvider) transcriptionModelURL() string {
@@ -751,6 +801,19 @@ func irisAudioFilename(mediaType string) string {
 		return "audio.mp4"
 	default:
 		return "audio.wav"
+	}
+}
+
+func irisMediaFilename(mediaType string) string {
+	switch mediaType {
+	case "video/mp4":
+		return "media.mp4"
+	case "video/webm":
+		return "media.webm"
+	case "video/quicktime":
+		return "media.mov"
+	default:
+		return irisAudioFilename(mediaType)
 	}
 }
 

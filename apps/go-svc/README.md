@@ -182,11 +182,16 @@ AI Gateway `/audio/speech`. S2.1 Pro is the production TTS; Drama 3 is the
 current performance model. Gateway has no Fish Audio music or SFX ids; those
 stay on ElevenLabs. Previous S2 Pro and deprecated S1 are not catalogued.
 
-Transcription (`universal-3.5-pro`, `fish-audio-transcribe-1`,
-`qwen3.8-omni-flash`) posts to AI Gateway's native `/v4/ai/transcription-model`
-JSON endpoint, derived from `AI_GATEWAY_BASE_URL` by replacing `/v1` with
-`/v4/ai`. The gateway does not implement OpenAI-compatible
-`/v1/audio/transcriptions`. Direct OpenAI still uses that multipart route.
+Transcription (`universal-3.5-pro`, `fish-audio-transcribe-1`) posts to AI
+Gateway's native `/v4/ai/transcription-model` JSON endpoint, derived from
+`AI_GATEWAY_BASE_URL` by replacing `/v1` with `/v4/ai`. The gateway does not
+implement OpenAI-compatible `/v1/audio/transcriptions`. Direct OpenAI still
+uses that multipart route.
+
+Listen (`qwen3.8-omni-flash`) is a language model on AI Gateway, not a
+transcription model. `/transcription-model` rejects it with
+`ModelTypeMismatchError`. It posts to `/chat/completions` with a `file` part
+for the audio or video and returns `transcript.json`.
 
 Voice tools (`elevenlabs-voice-isolator`: `media`; `elevenlabs-voice-changer`:
 `media`, `voice`, optional `removeBackgroundNoise`) call ElevenLabs audio
