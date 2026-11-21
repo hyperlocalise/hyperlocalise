@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -590,4 +591,166 @@ func TestWorkspaceAutomationPatchRequiresInstructionsOrSkill(t *testing.T) {
 	cleared := f.request(http.MethodPatch, path+"/"+created.Automation.ID, `{"instructions":""}`)
 	require.Equal(t, http.StatusBadRequest, cleared.Code, cleared.Body.String())
 	require.Contains(t, cleared.Body.String(), `"instructions_or_skill_required"`)
+}
+
+func TestWorkspaceAutomationListsAndForwardsRuns(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	path := f.scope.OrgPath("/automations")
+	create := f.request(http.MethodPost, path, `{
+        "name": "Manual review",
+        "instructions": "Review localisation.",
+        "status": "active",
+        "triggerConfig": {"mode": "manual"}
+    }`)
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+	var created struct {
+		Automation workspaceAutomationRecord `json:"automation"`
+	}
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+
+	empty := f.request(http.MethodGet, path+"/"+created.Automation.ID+"/runs", "")
+	require.Equal(t, http.StatusOK, empty.Code, empty.Body.String())
+	var listed struct {
+		AutomationRuns []workspaceAutomationRunRecord `json:"automationRuns"`
+	}
+	require.NoError(t, json.Unmarshal(empty.Body.Bytes(), &listed))
+	require.Empty(t, listed.AutomationRuns)
+
+	_, err := f.scope.Pool.Exec(t.Context(), `
+        insert into workspace_automation_runs (
+            automation_id, organization_id, trigger_source, status, created_at
+        ) values
+            ($1, $2, 'manual', 'queued', '2026-06-01T12:00:00Z'),
+            ($1, $2, 'scheduled', 'succeeded', '2026-06-01T11:00:00Z')`,
+		created.Automation.ID, f.scope.OrganizationID)
+	require.NoError(t, err)
+
+	runs := f.request(http.MethodGet, path+"/"+created.Automation.ID+"/runs?limit=1", "")
+	require.Equal(t, http.StatusOK, runs.Code, runs.Body.String())
+	require.NoError(t, json.Unmarshal(runs.Body.Bytes(), &listed))
+	require.Len(t, listed.AutomationRuns, 1)
+	require.Equal(t, "manual", listed.AutomationRuns[0].TriggerSource)
+
+	missing := f.request(http.MethodPost, path+"/"+uuid.NewString()+"/runs", `{"idempotencyKey":"run-1"}`)
+	require.Equal(t, http.StatusNotFound, missing.Code, missing.Body.String())
+	require.Contains(t, missing.Body.String(), `"workspace_automation_not_found"`)
+
+	t.Setenv("HYPERLOCALISE_WEB_INTERNAL_URL", "")
+	t.Setenv("HYPERLOCALISE_PUBLIC_APP_URL", "")
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie")
+	unconfigured := f.request(http.MethodPost, path+"/"+created.Automation.ID+"/runs", `{"idempotencyKey":"run-1"}`)
+	require.Equal(t, http.StatusServiceUnavailable, unconfigured.Code, unconfigured.Body.String())
+	require.Contains(t, unconfigured.Body.String(), `"automations_workflow_unconfigured"`)
+
+	var gotAction string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var decoded map[string]any
+		require.NoError(t, json.Unmarshal(body, &decoded))
+		gotAction, _ = decoded["action"].(string)
+		payload, _ := decoded["payload"].(map[string]any)
+		require.Equal(t, created.Automation.ID, payload["automationId"])
+		require.Equal(t, f.scope.UserID, payload["userId"])
+		require.Equal(t, "run-1", payload["idempotencyKey"])
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"result":{"automationRun":{"id":"run-1","status":"queued"},"dispatch":{"runId":"run-1","outcome":"enqueued"}}}`))
+	}))
+	defer server.Close()
+	t.Setenv("HYPERLOCALISE_WEB_INTERNAL_URL", server.URL)
+	queued := f.request(http.MethodPost, path+"/"+created.Automation.ID+"/runs", `{"idempotencyKey":"run-1"}`)
+	require.Equal(t, http.StatusAccepted, queued.Code, queued.Body.String())
+	require.Equal(t, "run_workspace_automation", gotAction)
+	require.Contains(t, queued.Body.String(), `"run-1"`)
+}
+
+func TestVisualWorkflowPublishTestAndRuns(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	path := f.scope.OrgPath("/visual-workflows")
+	create := f.request(http.MethodPost, path, `{"name":"Publish flow"}`)
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+	var created struct {
+		VisualWorkflow visualWorkflowRecord `json:"visualWorkflow"`
+	}
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+
+	empty := f.request(http.MethodGet, path+"/"+created.VisualWorkflow.ID+"/runs", "")
+	require.Equal(t, http.StatusOK, empty.Code, empty.Body.String())
+	var listed struct {
+		Runs []visualWorkflowRunRecord `json:"runs"`
+	}
+	require.NoError(t, json.Unmarshal(empty.Body.Bytes(), &listed))
+	require.Empty(t, listed.Runs)
+
+	runID := uuid.NewString()
+	_, err := f.scope.Pool.Exec(t.Context(), `
+        insert into visual_workflow_runs (
+            id, organization_id, visual_workflow_id, trigger_source, mode, status
+        ) values ($1, $2, $3, 'manual', 'live', 'queued')`,
+		runID, f.scope.OrganizationID, created.VisualWorkflow.ID)
+	require.NoError(t, err)
+
+	runs := f.request(http.MethodGet, path+"/"+created.VisualWorkflow.ID+"/runs", "")
+	require.Equal(t, http.StatusOK, runs.Code, runs.Body.String())
+	require.NoError(t, json.Unmarshal(runs.Body.Bytes(), &listed))
+	require.Len(t, listed.Runs, 1)
+	require.Equal(t, runID, listed.Runs[0].ID)
+	require.Equal(t, "live", listed.Runs[0].Mode)
+
+	detail := f.request(http.MethodGet, path+"/"+created.VisualWorkflow.ID+"/runs/"+runID, "")
+	require.Equal(t, http.StatusOK, detail.Code, detail.Body.String())
+	var got struct {
+		Run visualWorkflowRunRecord `json:"run"`
+	}
+	require.NoError(t, json.Unmarshal(detail.Body.Bytes(), &got))
+	require.Equal(t, runID, got.Run.ID)
+
+	missingRun := f.request(http.MethodGet, path+"/"+created.VisualWorkflow.ID+"/runs/"+uuid.NewString(), "")
+	require.Equal(t, http.StatusNotFound, missingRun.Code, missingRun.Body.String())
+	require.Contains(t, missingRun.Body.String(), `"visual_workflow_run_not_found"`)
+
+	t.Setenv("HYPERLOCALISE_WEB_INTERNAL_URL", "")
+	t.Setenv("HYPERLOCALISE_PUBLIC_APP_URL", "")
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie")
+	unconfigured := f.request(http.MethodPost, path+"/"+created.VisualWorkflow.ID+"/publish", `{"expectedRevision":1}`)
+	require.Equal(t, http.StatusServiceUnavailable, unconfigured.Code, unconfigured.Body.String())
+
+	var gotAction string
+	var gotPayload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var decoded map[string]any
+		require.NoError(t, json.Unmarshal(body, &decoded))
+		gotAction, _ = decoded["action"].(string)
+		gotPayload, _ = decoded["payload"].(map[string]any)
+		w.Header().Set("Content-Type", "application/json")
+		if gotAction == "publish_visual_workflow" {
+			_, _ = w.Write([]byte(`{"result":{"visualWorkflow":{"id":"` + created.VisualWorkflow.ID + `","status":"active","revision":2}}}`))
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"result":{"run":{"id":"run-2","status":"queued"},"dispatch":{"runId":"run-2","enqueued":true}}}`))
+	}))
+	defer server.Close()
+	t.Setenv("HYPERLOCALISE_WEB_INTERNAL_URL", server.URL)
+
+	publish := f.request(http.MethodPost, path+"/"+created.VisualWorkflow.ID+"/publish", `{"expectedRevision":1}`)
+	require.Equal(t, http.StatusOK, publish.Code, publish.Body.String())
+	require.Equal(t, "publish_visual_workflow", gotAction)
+	require.Equal(t, float64(1), gotPayload["expectedRevision"])
+
+	testRun := f.request(http.MethodPost, path+"/"+created.VisualWorkflow.ID+"/test", `{
+        "idempotencyKey":"test-1",
+        "definition":{"schemaVersion":3,"name":"Publish flow","nodes":[],"edges":[],"editor":{"positions":{}}},
+        "mode":"live"
+    }`)
+	require.Equal(t, http.StatusAccepted, testRun.Code, testRun.Body.String())
+	require.Equal(t, "test_visual_workflow", gotAction)
+	require.Equal(t, "live", gotPayload["mode"])
+
+	live := f.request(http.MethodPost, path+"/"+created.VisualWorkflow.ID+"/runs", `{"idempotencyKey":"live-1"}`)
+	require.Equal(t, http.StatusAccepted, live.Code, live.Body.String())
+	require.Equal(t, "run_visual_workflow", gotAction)
 }
