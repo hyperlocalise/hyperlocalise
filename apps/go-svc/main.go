@@ -114,6 +114,7 @@ func main() {
 		analytics: newGAProductUsageTrackerFromEnv(),
 	}
 	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
+	h.sampleWorkspace = &sampleWorkspaceAPI{}
 	h.sessionOrganizations = &sessionOrganizationsAPI{}
 	h.sessionAccount = &sessionAccountAPI{}
 	h.sessionOnboarding = &sessionOnboardingAPI{}
@@ -203,6 +204,7 @@ func main() {
 		h.teams.pool = traced
 		h.members.pool = traced
 		h.workspaceSettings.pool = traced
+		h.sampleWorkspace.pool = traced
 		h.sessionOrganizations.pool = traced
 		h.sessionAccount.pool = traced
 		h.sessionOnboarding.pool = traced
@@ -235,6 +237,7 @@ func main() {
 	h.glossaries.objects = h.objects
 	h.memories.objects = h.objects
 	h.contentEditor.objects = h.objects
+	h.sampleWorkspace.objects = h.objects
 	if h.irisGeneration != nil {
 		h.irisGeneration.objects = h.objects
 		if h.objects != nil {
@@ -310,6 +313,7 @@ func main() {
 	h.teams.membership = membershipLookup
 	h.members.membership = membershipLookup
 	h.workspaceSettings.membership = membershipLookup
+	h.sampleWorkspace.membership = membershipLookup
 	h.apiKeys.membership = membershipLookup
 	h.issueSheets.membership = membershipLookup
 	h.notifications.membership = membershipLookup

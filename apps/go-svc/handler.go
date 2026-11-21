@@ -72,6 +72,7 @@ type handler struct {
 	teams                *teamAPI
 	members              *memberAPI
 	workspaceSettings    *workspaceSettingsAPI
+	sampleWorkspace      *sampleWorkspaceAPI
 	sessionOrganizations *sessionOrganizationsAPI
 	sessionAccount       *sessionAccountAPI
 	sessionOnboarding    *sessionOnboardingAPI
@@ -141,6 +142,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.workspaceSettings != nil {
 		h.workspaceSettings.register(mux, verifier)
+	}
+	if h.sampleWorkspace != nil {
+		h.sampleWorkspace.register(mux, verifier)
 	}
 	if h.sessionOrganizations != nil {
 		h.sessionOrganizations.register(mux, verifier)
