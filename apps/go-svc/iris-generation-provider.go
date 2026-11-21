@@ -381,6 +381,13 @@ func (p *irisGatewayProvider) transcribeGateway(ctx context.Context, req irisPro
 		"audio":     base64.StdEncoding.EncodeToString(audio.Bytes),
 		"mediaType": irisAudioMediaType(audio),
 	}
+	// Gemini returns the spoken text without word times unless asked;
+	// the Iris transcribe tool cuts and captions on those times.
+	if req.Model.ID == "universal-3.5-pro" {
+		payload["providerOptions"] = map[string]any{
+			"google": map[string]any{"wordTimestamp": true},
+		}
+	}
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.transcriptionModelURL(), bytes.NewReader(mustJSON(payload)))
 	if err != nil {
 		return nil, err
