@@ -179,7 +179,7 @@ overrides:
   qs: 6.17.1
   ip-address@^10.0.0: 10.7.6
   hono: 4.13.19
-  '@hono/node-server': 2.1.8
+  '@hono/node-server': 2.1.9
 
 importers:
 
@@ -383,8 +383,8 @@ packages:
       '@modelcontextprotocol/sdk':
         optional: true
 
-  '@hono/node-server@2.1.8':
-    resolution: {integrity: sha512-jdf7FHh6A1lzjpHHQUgxsg2GeER2vMetnAOfeActzcoli6jamlK+NAwL6Dsr5Fl3BS3tYUQzCdtZjU8Qxv7bEA==}
+  '@hono/node-server@2.1.9':
+    resolution: {integrity: sha512-Sk4NQd3GFY0WZWCzndwFMPwJhtD0y9qjsQ+pjID0/03nK9pxyBCUoUHCho8QYBLBVhi0ssL8UkNPHqbgSOFPIQ==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: 4.13.19
@@ -1770,7 +1770,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@hono/node-server@2.1.8(hono@4.13.19)':
+  '@hono/node-server@2.1.9(hono@4.13.19)':
     dependencies:
       hono: 4.13.19
 
@@ -1782,7 +1782,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.32.1(zod@4.1.11)':
     dependencies:
-      '@hono/node-server': 2.1.8(hono@4.13.19)
+      '@hono/node-server': 2.1.9(hono@4.13.19)
       ajv: 8.20.0
       ajv-formats: 3.0.1
       content-type: 1.0.5

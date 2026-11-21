@@ -12,9 +12,9 @@ allowBuilds:
   sharp: false
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@1.6.0
-  vite-plus: 1.6.0
-  vitest: 5.1.0
-  '@vitest/browser-playwright': 5.1.0
+  vite-plus: 1.7.0
+  vitest: 5.1.1
+  '@vitest/browser-playwright': 5.1.1
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
@@ -42,13 +42,13 @@ overrides:
   "undici@^8.0.0": "8.12.4"
   devalue: "6.0.3"
   qs: "6.17.1"
-  "@anthropic-ai/sdk": "1.9.0"
+  "@anthropic-ai/sdk": "1.10.0"
   postcss: "8.5.33"
   postcss-selector-parser: "7.2.1"
   esbuild: "0.28.2"
   "ip-address": "10.7.6"
   hono: "4.13.19"
-  "@hono/node-server": "2.1.8"
+  "@hono/node-server": "2.1.9"
   form-data: "4.0.6"
   "axios@^1.0.0": "1.21.1"
   fast-uri: "3.1.9"
