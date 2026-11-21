@@ -165,14 +165,18 @@ function bytesOf(value: unknown): Uint8Array | null {
   return Uint8Array.from(Buffer.from(value, "base64"));
 }
 
+function asString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 export async function runIrisProjectAction(
   action: string,
   payload: Record<string, unknown>,
   deps: IrisProjectActionDeps,
 ): Promise<ActionResult> {
-  const organizationId = String(payload.organizationId ?? "");
-  const userId = String(payload.userId ?? "");
-  const projectId = String(payload.projectId ?? "");
+  const organizationId = asString(payload.organizationId);
+  const userId = asString(payload.userId);
+  const projectId = asString(payload.projectId);
   if (!organizationId || !userId || !projectId) {
     return fail(400, "invalid_request_body", "organization, user, and project are required");
   }
@@ -233,14 +237,14 @@ async function upload(
   payload: Record<string, unknown>,
 ): Promise<ActionResult> {
   const bytes = bytesOf(payload.contentBase64);
-  const sourcePath = String(payload.sourcePath ?? "");
+  const sourcePath = asString(payload.sourcePath);
   if (!bytes || !sourcePath)
     return fail(400, "invalid_request_body", "File and source path are required");
   const uploaded = await uploadSourceFile({
     organizationId,
     project,
     file: {
-      filename: String(payload.filename ?? sourcePath),
+      filename: asString(payload.filename) || sourcePath,
       contentType: "application/octet-stream",
       content: bytes,
     },
@@ -259,8 +263,8 @@ async function download(
   projectId: string,
   payload: Record<string, unknown>,
 ): Promise<ActionResult> {
-  const sourcePath = String(payload.sourcePath ?? "");
-  const locale = String(payload.locale ?? "");
+  const sourcePath = asString(payload.sourcePath);
+  const locale = asString(payload.locale);
   if (!sourcePath || !locale)
     return fail(400, "invalid_request_body", "source path and locale are required");
   const office = await loadProjectOfficeTranslationDownload({
@@ -319,8 +323,8 @@ async function importTranslations(
   payload: Record<string, unknown>,
   deps: IrisProjectActionDeps,
 ): Promise<ActionResult> {
-  const sourcePath = String(payload.sourcePath ?? "");
-  const locale = String(payload.locale ?? "");
+  const sourcePath = asString(payload.sourcePath);
+  const locale = asString(payload.locale);
   const bytes = bytesOf(payload.contentBase64);
   if (!sourcePath || !locale || !bytes) {
     return fail(400, "invalid_request_body", "File, source path, and locale are required");
@@ -331,7 +335,7 @@ async function importTranslations(
     createdByUserId: userId,
     role: "reference",
     sourceKind: "tms_file",
-    filename: String(payload.filename ?? sourcePath),
+    filename: asString(payload.filename) || sourcePath,
     contentType: "application/octet-stream",
     content: bytes,
     metadata: { sourcePath, targetLocale: locale, uploadSurface: "iris" },
@@ -357,7 +361,7 @@ async function translateFile(
 ): Promise<ActionResult> {
   const sourceLocale = sourceLocaleOf(project);
   if (!sourceLocale) return fail(400, "invalid_request_body", "Project has no source language");
-  const sourcePath = String(payload.sourcePath ?? "");
+  const sourcePath = asString(payload.sourcePath);
   const locales = Array.isArray(payload.locales) ? payload.locales.map(String) : [];
   const fileId = await storedFileIdForPath(organizationId, project.id, sourcePath);
   if (!fileId) return fail(404, "source_file_not_found", "Source file not found");
@@ -382,8 +386,8 @@ async function fileSettings(
   payload: Record<string, unknown>,
   write: boolean,
 ): Promise<ActionResult> {
-  const sourcePath = String(payload.sourcePath ?? "");
-  const kind = String(payload.kind ?? "");
+  const sourcePath = asString(payload.sourcePath);
+  const kind = asString(payload.kind);
   const scope = { organizationId, projectId, sourcePath };
   if (kind === "segmentation") {
     if (!write) {
@@ -442,21 +446,21 @@ async function useTranslation(
   const destination = await loadAccessibleNativeProject(
     organizationId,
     userId,
-    String(payload.destinationProjectId ?? ""),
+    asString(payload.destinationProjectId),
   );
   if (!destination) return fail(404, "project_not_found", "Project not found");
   const sent = await sendTranslationAsSource({
     organizationId,
     sourceProject: source,
     destinationProject: destination.project,
-    sourcePath: String(payload.sourcePath ?? ""),
-    locale: String(payload.locale ?? ""),
+    sourcePath: asString(payload.sourcePath),
+    locale: asString(payload.locale),
     actorUserId: userId,
     replaceVersionId:
       typeof payload.replaceVersionId === "string" ? payload.replaceVersionId : undefined,
   });
   if (isErr(sent)) return fail(400, sent.error.code, "Could not send the translation as source");
-  return ok({ sent: true, sourcePath: String(payload.sourcePath ?? "") });
+  return ok({ sent: true, sourcePath: asString(payload.sourcePath) });
 }
 
 async function createJob(
@@ -470,7 +474,7 @@ async function createJob(
   if (!sourceLocale) return fail(400, "invalid_request_body", "Project has no source language");
   const files = Array.isArray(payload.fileIds) ? payload.fileIds.map(String) : [];
   const locales = Array.isArray(payload.targetLocales) ? payload.targetLocales.map(String) : [];
-  const title = String(payload.title ?? "");
+  const title = asString(payload.title);
   const description = typeof payload.description === "string" ? payload.description : undefined;
   const assigneeIds = Array.isArray(payload.assigneeUserIds)
     ? payload.assigneeUserIds.map(String)
@@ -536,8 +540,8 @@ async function jobAction(
   payload: Record<string, unknown>,
   deps: IrisProjectActionDeps,
 ): Promise<ActionResult> {
-  const jobId = String(payload.jobId ?? "");
-  const action = String(payload.action ?? "");
+  const jobId = asString(payload.jobId);
+  const action = asString(payload.action);
   const accessWhere = jobAccessWhere(organizationId, projectId);
   if (action === "cancel") {
     const cancelled = await cancelNativeJob({
@@ -567,7 +571,7 @@ async function jobAction(
       body: {
         ...(ownerWorkosUserId !== undefined ? { ownerWorkosUserId } : {}),
         ...(action === "due"
-          ? { dueAt: payload.dueAt === null ? null : String(payload.dueAt ?? "") }
+          ? { dueAt: payload.dueAt === null ? null : asString(payload.dueAt) }
           : {}),
       },
     });
@@ -687,7 +691,7 @@ async function importQueries(
     projectId,
     actorUserId: userId,
     body: {
-      content: String(payload.content ?? ""),
+      content: asString(payload.content),
       dryRun: payload.dryRun === true,
       mapping: payload.mapping as ImportBody["mapping"],
     },
