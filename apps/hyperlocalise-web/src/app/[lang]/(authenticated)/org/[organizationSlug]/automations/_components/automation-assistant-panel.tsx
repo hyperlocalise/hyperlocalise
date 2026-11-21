@@ -17,7 +17,7 @@ import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
 import type { UIMessage } from "ai";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { defaultComponents, type Components } from "streamdown";
+import type { Components } from "@pierre/words/react";
 
 import { MessageResponse } from "@/components/ai-elements/message";
 import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
@@ -90,6 +90,29 @@ function toBlocks(parts: UIMessage["parts"]): Block[] {
 
 const FIELD_REFERENCE = /`?(\{\{[^{}]*\}\})`?/g;
 const WHOLE_REFERENCE = /^\{\{[^{}]*\}\}$/;
+const FIELD_PILL_CLASS =
+  "inline-flex h-5.5 items-center rounded-md border border-primary/25 bg-primary/10 px-1.5 align-baseline text-xs font-medium text-primary";
+
+const HTML_ENTITIES: Record<string, string> = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+};
+
+function decodeHtml(html: string): string {
+  return html.replace(/&(?:amp|lt|gt|quot|#39);/g, (entity) => HTML_ENTITIES[entity] ?? entity);
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 /**
  * Reply text and how to draw it on a page that reads fields as `{{ }}` references: each reference
@@ -104,23 +127,16 @@ function useFieldReferencePills(referenceLabel: ((reference: string) => string |
     if (!referenceLabel) {
       return { prepare: (text: string) => text, components: undefined };
     }
-    const DefaultCode = defaultComponents.code;
     return {
       prepare: (text: string) => text.replace(FIELD_REFERENCE, "`$1`"),
       components: {
-        inlineCode: (props) => {
-          const text = typeof props.children === "string" ? props.children.trim() : "";
+        // Hooks take and return HTML, so the reference is read from the escaped code element.
+        inlineCode: (html) => {
+          const text = decodeHtml(html.replace(/^<code[^>]*>|<\/code>$/g, "")).trim();
           const label = WHOLE_REFERENCE.test(text) ? referenceLabel(text) : null;
-          return label ? (
-            <span
-              data-slot="field-pill"
-              className="inline-flex h-5.5 items-center rounded-md border border-primary/25 bg-primary/10 px-1.5 align-baseline text-xs font-medium text-primary"
-            >
-              {label}
-            </span>
-          ) : (
-            <DefaultCode {...props} />
-          );
+          return label
+            ? `<span data-slot="field-pill" class="${FIELD_PILL_CLASS}">${escapeHtml(label)}</span>`
+            : html;
         },
       },
     };
@@ -148,6 +164,7 @@ function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean
             key={index}
             className="[&_ol]:ps-5 [&_ul]:ps-5 [&>p:has(+ol)]:mb-1.5 [&>p:has(+ul)]:mb-1.5"
             components={pills.components}
+            isAnimating={pending && index === blocks.length - 1}
           >
             {pills.prepare(block.text)}
           </MessageResponse>

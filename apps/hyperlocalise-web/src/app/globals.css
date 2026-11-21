@@ -13,6 +13,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/* Layered so Tailwind utilities on a <Markdown> container override its defaults. */
+@import "@pierre/words/styles.css" layer(components);
 
 @custom-variant dark (&:is(.dark *));
 
