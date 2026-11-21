@@ -327,7 +327,7 @@ export function getPricingIrisModelSummaries(intl: IntlShape): Record<PricingIri
     }),
     listen: intl.formatMessage({
       defaultMessage: "Describe and search footage",
-      id: "07nyefIF8a",
+      id: "ZTPtuGZQJE",
       description: "Card summary for the Listen model on the pricing page",
     }),
     "elevenlabs-voice-isolator": intl.formatMessage({

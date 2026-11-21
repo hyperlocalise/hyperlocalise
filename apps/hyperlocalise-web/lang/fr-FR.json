@@ -1502,9 +1502,6 @@
   "07hLkJhLSW": {
     "defaultMessage": "Découvrez quelle version l’emporte sur chaque marché, et de combien."
   },
-  "07nyefIF8a": {
-    "defaultMessage": "Décrivez et recherchez des séquences vidéo."
-  },
   "07pTu6Ro98": {
     "defaultMessage": "Unlimited"
   },
@@ -25591,6 +25588,9 @@
   },
   "ZTE3uMf+sC": {
     "defaultMessage": "En attente d’approbation"
+  },
+  "ZTPtuGZQJE": {
+    "defaultMessage": "Décrivez et recherchez des séquences vidéo."
   },
   "ZTpZqdYE6W": {
     "defaultMessage": "Détails"
