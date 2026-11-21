@@ -1239,6 +1239,86 @@ func TestIrisGatewayProviderFishAudioTranscribeUsesGatewayID(t *testing.T) {
 	require.JSONEq(t, `[{"text":"fish transcript","words":[{"text":"fish transcript","start":0,"end":1}]}]`, string(outputs[0].Bytes))
 }
 
+func TestIrisGatewayProviderQwenOmniUsesChatCompletions(t *testing.T) {
+	video := []byte("ftypisom")
+	var gotPath string
+	var payload map[string]any
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"text\":\"hello from the clip\",\"segments\":[{\"text\":\"hello from the clip\",\"start\":0.1,\"end\":1.4}]}"}}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("qwen3.8-omni-flash")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:    model,
+		Prompt:   "what is said?",
+		Language: "en",
+		Inputs: []irisProviderInput{{
+			Role:        "media",
+			Bytes:       video,
+			ContentType: "video/mp4",
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "/chat/completions", gotPath)
+	require.NotContains(t, gotPath, "transcription-model")
+	require.Equal(t, "alibaba/qwen3.8-omni-flash", payload["model"])
+	require.Equal(t, map[string]any{"type": "json_object"}, payload["response_format"])
+	messages, _ := payload["messages"].([]any)
+	require.Len(t, messages, 2)
+	user, _ := messages[1].(map[string]any)
+	parts, _ := user["content"].([]any)
+	require.Len(t, parts, 2)
+	text, _ := parts[0].(map[string]any)
+	require.Equal(t, "what is said? The speech is in en.", text["text"])
+	filePart, _ := parts[1].(map[string]any)
+	require.Equal(t, "file", filePart["type"])
+	file, _ := filePart["file"].(map[string]any)
+	require.Equal(t, "media.mp4", file["filename"])
+	require.Equal(t, "data:video/mp4;base64,"+base64.StdEncoding.EncodeToString(video), file["file_data"])
+	require.Equal(t, "transcript.json", outputs[0].Filename)
+	require.JSONEq(t, `[{"text":"hello from the clip","words":[{"text":"hello from the clip","start":0.1,"end":1.4}]}]`, string(outputs[0].Bytes))
+}
+
+func TestIrisGatewayProviderQwenOmniRequiresMedia(t *testing.T) {
+	provider := &irisGatewayProvider{baseURL: "https://example.invalid", apiKey: "test-key"}
+	model, ok := irisModelByID("qwen3.8-omni-flash")
+	require.True(t, ok)
+	_, err := provider.Generate(t.Context(), irisProviderRequest{Model: model})
+	require.EqualError(t, err, "media input is required")
+}
+
+func TestIrisGatewayProviderQwenOmniReadsArrayContent(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":[{"type":"text","text":"{\"text\":\"array reply\",\"segments\":[]}"}]}}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("qwen3.8-omni-flash")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model: model,
+		Inputs: []irisProviderInput{{
+			Role:        "media",
+			Bytes:       []byte("RIFF"),
+			ContentType: "audio/wav",
+		}},
+	})
+	require.NoError(t, err)
+	require.JSONEq(t, `[{"text":"array reply","words":[]}]`, string(outputs[0].Bytes))
+}
+
 func TestIrisGatewayProviderTranscribeOpenAIUsesMultipart(t *testing.T) {
 	audio := []byte("id3-mp3")
 	var gotPath, gotModel, gotFileType, gotFilename string
@@ -1344,4 +1424,19 @@ func TestIrisAudioMediaType(t *testing.T) {
 	require.Equal(t, "audio/wav", irisAudioMediaType(irisProviderInput{ContentType: "application/octet-stream"}))
 	require.Equal(t, "audio.mp3", irisAudioFilename("audio/mpeg"))
 	require.Equal(t, "audio.wav", irisAudioFilename("audio/wav"))
+	require.Equal(t, "media.mp4", irisMediaFilename("video/mp4"))
+	require.Equal(t, "audio.mp3", irisMediaFilename("audio/mpeg"))
+}
+
+func TestIrisChatJSONText(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, `{"text":"hi"}`, irisChatJSONText("```json\n{\"text\":\"hi\"}\n```"))
+	require.Equal(t, `{"text":"hi"}`, irisChatJSONText(`{"text":"hi"}`))
+}
+
+func TestIrisChatContentText(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "hello", irisChatContentText(json.RawMessage(`"hello"`)))
+	require.Equal(t, "hello there", irisChatContentText(json.RawMessage(`[{"type":"text","text":"hello "},{"type":"text","text":"there"}]`)))
+	require.Equal(t, "", irisChatContentText(json.RawMessage(`null`)))
 }
