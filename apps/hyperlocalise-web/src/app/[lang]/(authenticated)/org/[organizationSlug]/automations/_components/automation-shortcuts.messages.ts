@@ -70,6 +70,11 @@ export const automationShortcutsMessages = defineMessages({
     id: "ZxA3yFVMTz",
     description: "Shortcut label for opening the visual workflow step picker",
   },
+  duplicate: {
+    defaultMessage: "Duplicate selected steps",
+    id: "MUDO3AYEIq",
+    description: "Shortcut label for duplicating the selected visual workflow steps",
+  },
   fitView: {
     defaultMessage: "Fit the canvas",
     id: "88+aLtXaNa",

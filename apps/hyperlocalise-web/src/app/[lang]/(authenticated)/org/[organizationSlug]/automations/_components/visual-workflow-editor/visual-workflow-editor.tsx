@@ -44,6 +44,16 @@ import {
   nextVisualWorkflowNodeId,
   reservedVisualWorkflowNodeIds,
 } from "@/lib/visual-workflows/editor/visual-workflow-node-id";
+import type { VisualWorkflowAddIntent } from "@/lib/visual-workflows/editor/visual-workflow-add-from";
+import {
+  connectNewVisualWorkflowNode,
+  duplicateVisualWorkflowSelection,
+  pasteVisualWorkflowClipboard,
+} from "@/lib/visual-workflows/editor/visual-workflow-add-node";
+import {
+  listCompatibleVisualWorkflowNodeTypes,
+  listSpliceCompatibleVisualWorkflowNodeTypes,
+} from "@/lib/visual-workflows/editor/visual-workflow-compatible-nodes";
 import { placeNewVisualWorkflowNode } from "@/lib/visual-workflows/editor/visual-workflow-node-placement";
 import {
   isVisualWorkflowGraphEqual,
@@ -115,6 +125,10 @@ import {
   type RealTestStep,
 } from "./visual-workflow-real-test-dialog";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
+import {
+  VisualWorkflowContextPicker,
+  type VisualWorkflowContextPickerState,
+} from "./visual-workflow-context-picker";
 import { VisualWorkflowNodePicker } from "./visual-workflow-node-picker";
 import {
   useVisualWorkflowUndoNotice,
@@ -229,6 +243,11 @@ export function VisualWorkflowEditor({
   const [focusNode, setFocusNode] = useState<{ nodeId: string } | null>(null);
   const [panelMode, setPanelMode] = useState<"picker" | "config">("picker");
   const [addFrom, setAddFrom] = useState<VisualWorkflowAddFrom | null>(null);
+  const [contextPicker, setContextPicker] = useState<VisualWorkflowContextPickerState | null>(null);
+  const subgraphClipboardRef = useRef<{
+    nodes: VisualWorkflowRfNode[];
+    edges: VisualWorkflowRfEdge[];
+  } | null>(null);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
@@ -695,9 +714,11 @@ export function VisualWorkflowEditor({
   }, [nodes, edges, testSetup]);
 
   const addNode = useCallback(
-    (type: VisualCatalogType) => {
+    (type: VisualCatalogType, intent?: VisualWorkflowAddIntent | null) => {
       const current = graphRef.current;
       const { nodes: currentNodes, edges: currentEdges } = current;
+      const resolved: VisualWorkflowAddIntent | null =
+        intent ?? (addFrom ? { from: addFrom } : null);
       const id = nextVisualWorkflowNodeId(
         type,
         currentNodes,
@@ -708,13 +729,16 @@ export function VisualWorkflowEditor({
           seenNodeIds: seenNodeIdsRef.current,
         }),
       );
-      const source = addFrom ? currentNodes.find((node) => node.id === addFrom.nodeId) : undefined;
+      const source = resolved?.from
+        ? currentNodes.find((node) => node.id === resolved.from?.nodeId)
+        : undefined;
       const config = createDefaultConfig(type);
       const size = getVisualNodeDimensions(type, config);
       const position = placeNewVisualWorkflowNode({
         nodes: currentNodes,
-        source,
-        handleId: addFrom?.handleId,
+        source: resolved?.position ? undefined : source,
+        handleId: resolved?.from?.handleId,
+        position: resolved?.position,
         viewCenter: viewCenterRef.current?.() ?? null,
         size,
       });
@@ -738,27 +762,133 @@ export function VisualWorkflowEditor({
       const otherEdges = currentEdges.map((edge) =>
         edge.selected ? { ...edge, selected: false } : edge,
       );
+      const nextNodes = [...otherNodes, nextNode];
+      const shouldConnect =
+        Boolean(resolved?.from || resolved?.spliceEdgeId) && !isTriggerType(type);
 
-      if (source && !isTriggerType(type)) {
-        commit({
-          ...current,
-          ...applyVisualWorkflowGraphConnection([...otherNodes, nextNode], otherEdges, {
-            source: source.id,
-            target: id,
-            sourceHandle: addFrom?.handleId ?? null,
-            targetHandle: null,
-          }),
-        });
-      } else {
-        commit({ ...current, nodes: [...otherNodes, nextNode], edges: otherEdges });
-      }
+      commit({
+        ...current,
+        ...(shouldConnect && resolved
+          ? connectNewVisualWorkflowNode(nextNodes, otherEdges, id, resolved)
+          : { nodes: nextNodes, edges: otherEdges }),
+      });
       setAddFrom(null);
+      setContextPicker(null);
       setSelectedNodeId(id);
       setPanelMode("config");
       setMobilePanelOpen(true);
     },
     [addFrom, commit],
   );
+
+  const openContextPicker = useCallback(
+    (input: { intent: VisualWorkflowAddIntent; client: { x: number; y: number } }) => {
+      const graph = graphRef.current;
+      const allowedTypes = input.intent.spliceEdgeId
+        ? listSpliceCompatibleVisualWorkflowNodeTypes()
+        : input.intent.from
+          ? listCompatibleVisualWorkflowNodeTypes({
+              nodes: graph.nodes,
+              edges: graph.edges,
+              from: input.intent.from,
+            })
+          : undefined;
+      setAddFrom(null);
+      setContextPicker({ ...input, allowedTypes });
+    },
+    [],
+  );
+
+  const pasteSubgraph = useCallback(
+    (clipboard: { nodes: VisualWorkflowRfNode[]; edges: VisualWorkflowRfEdge[] }) => {
+      const current = graphRef.current;
+      const result = pasteVisualWorkflowClipboard({
+        nodes: current.nodes,
+        edges: current.edges,
+        clipboard,
+        nextId: (type, taken) =>
+          nextVisualWorkflowNodeId(
+            type,
+            taken,
+            reservedVisualWorkflowNodeIds({
+              nodes: current.nodes,
+              edges: current.edges,
+              setup: testSetupRef.current,
+              seenNodeIds: seenNodeIdsRef.current,
+            }),
+          ),
+      });
+      commit({ ...current, nodes: result.nodes, edges: result.edges });
+      const lastId = result.pastedIds.at(-1);
+      if (lastId) {
+        setSelectedNodeId(lastId);
+        setPanelMode("config");
+      }
+    },
+    [commit],
+  );
+
+  const duplicateSelection = useCallback(() => {
+    const current = graphRef.current;
+    const selectedIds = new Set(
+      current.nodes.filter((node) => node.selected).map((node) => node.id),
+    );
+    if (selectedIds.size === 0 && selectedNodeId) {
+      selectedIds.add(selectedNodeId);
+    }
+    if (selectedIds.size === 0) {
+      return;
+    }
+    const result = duplicateVisualWorkflowSelection({
+      nodes: current.nodes,
+      edges: current.edges,
+      selectedIds,
+      nextId: (type, taken) =>
+        nextVisualWorkflowNodeId(
+          type,
+          taken,
+          reservedVisualWorkflowNodeIds({
+            nodes: current.nodes,
+            edges: current.edges,
+            setup: testSetupRef.current,
+            seenNodeIds: seenNodeIdsRef.current,
+          }),
+        ),
+    });
+    commit({ ...current, nodes: result.nodes, edges: result.edges });
+    const lastId = result.pastedIds.at(-1);
+    if (lastId) {
+      setSelectedNodeId(lastId);
+      setPanelMode("config");
+    }
+  }, [commit, selectedNodeId]);
+
+  const copySelection = useCallback(() => {
+    const current = graphRef.current;
+    const selectedIds = new Set(
+      current.nodes.filter((node) => node.selected).map((node) => node.id),
+    );
+    if (selectedIds.size === 0 && selectedNodeId) {
+      selectedIds.add(selectedNodeId);
+    }
+    if (selectedIds.size === 0) {
+      return;
+    }
+    subgraphClipboardRef.current = {
+      nodes: current.nodes.filter((node) => selectedIds.has(node.id)),
+      edges: current.edges.filter(
+        (edge) => selectedIds.has(edge.source) && selectedIds.has(edge.target),
+      ),
+    };
+  }, [selectedNodeId]);
+
+  const pasteSelection = useCallback(() => {
+    const clipboard = subgraphClipboardRef.current;
+    if (!clipboard) {
+      return;
+    }
+    pasteSubgraph(clipboard);
+  }, [pasteSubgraph]);
 
   const onChangeConfig = useCallback(
     (config: VisualNodeConfig) => {
@@ -1151,6 +1281,9 @@ export function VisualWorkflowEditor({
       activeTab === "editor" && !isRunning && nodes.length > 0 ? onTestWorkflowClick : undefined,
     onAddNode: activeTab === "editor" ? () => openPicker(null) : undefined,
     onFitView: activeTab === "editor" ? () => fitViewRef.current?.() : undefined,
+    onDuplicate: activeTab === "editor" ? duplicateSelection : undefined,
+    onCopySelection: activeTab === "editor" ? copySelection : undefined,
+    onPasteSelection: activeTab === "editor" ? pasteSelection : undefined,
   });
 
   const handleStatusChange = useCallback(
@@ -1237,6 +1370,12 @@ export function VisualWorkflowEditor({
           <div className="relative flex min-h-0 min-w-0 flex-1">
             <VisualWorkflowCanvasActionsProvider
               onAddFromNode={openPicker}
+              onInsertOnEdge={({ edgeId, client, position }) =>
+                openContextPicker({
+                  client,
+                  intent: { spliceEdgeId: edgeId, position },
+                })
+              }
               issueNodeIds={issueNodeIds}
               freshNodeIds={freshNodeIds}
               pointedNodeId={pointedNodeId}
@@ -1256,6 +1395,9 @@ export function VisualWorkflowEditor({
                 viewCenterRef={viewCenterRef}
                 fitViewRef={fitViewRef}
                 onAddFirstStep={() => openPicker(null)}
+                onDropCreate={openContextPicker}
+                onPaneAdd={openContextPicker}
+                onDropNodeType={(type, position) => addNode(type, { position })}
                 onLoadSample={() => {
                   const draft = sampleDraft ?? visualWorkflowDemoDraft;
                   load({ name: draft.name, nodes: draft.nodes, edges: draft.edges });
@@ -1402,6 +1544,14 @@ export function VisualWorkflowEditor({
             <AutomationAssistantSidePanel minRowWidth={ASSISTANT_SIDE_BY_SIDE_MIN_WIDTH_PX} />
           </div>
         )}
+        {contextPicker ? (
+          <VisualWorkflowContextPicker
+            state={contextPicker}
+            hasTrigger={hasTrigger}
+            onPick={addNode}
+            onClose={() => setContextPicker(null)}
+          />
+        ) : null}
         <AutomationShortcutsDialog
           open={shortcutsOpen}
           onOpenChange={setShortcutsOpen}
