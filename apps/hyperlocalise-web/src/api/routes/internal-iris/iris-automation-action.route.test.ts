@@ -36,7 +36,11 @@ function serviceHeaders() {
 
 const app = createApp();
 
-async function postAction(action: string, payload: Record<string, unknown>, headers = serviceHeaders()) {
+async function postAction(
+  action: string,
+  payload: Record<string, unknown>,
+  headers = serviceHeaders(),
+) {
   return app.request("/api/internal/iris/automation-action", {
     method: "POST",
     headers,
