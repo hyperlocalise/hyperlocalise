@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -159,13 +160,17 @@ func TestClientMapsHTTPErrors(t *testing.T) {
 		tag        string
 	}{
 		{status: http.StatusUnauthorized, body: `{"requestId":"r1","error":"invalid key","tag":"INVALID_API_KEY"}`, code: ErrorCodeAuthFailed, tag: "INVALID_API_KEY"},
+		{status: http.StatusForbidden, body: `{"error":"forbidden","tag":"FORBIDDEN"}`, code: ErrorCodeAuthFailed, tag: "FORBIDDEN"},
 		{status: http.StatusPaymentRequired, body: `{"requestId":"r2","error":"no credits","tag":"NO_MORE_CREDITS"}`, code: ErrorCodePaymentRequired, tag: "NO_MORE_CREDITS"},
 		{status: http.StatusTooManyRequests, body: `{"error":"slow down","tag":"RATE_LIMIT_EXCEEDED"}`, retryAfter: "7", code: ErrorCodeRateLimited, tag: "RATE_LIMIT_EXCEEDED"},
 		{status: http.StatusBadRequest, body: `{"error":"bad schema","tag":"INVALID_JSON_SCHEMA"}`, code: ErrorCodeValidation, tag: "INVALID_JSON_SCHEMA"},
+		{status: http.StatusUnprocessableEntity, body: `{"error":"unusable schema","tag":"UNPROCESSABLE"}`, code: ErrorCodeValidation, tag: "UNPROCESSABLE"},
+		{status: http.StatusNotFound, body: `{"error":"missing","tag":"NOT_FOUND"}`, code: ErrorCodeUpstream, tag: "NOT_FOUND"},
 		{status: http.StatusServiceUnavailable, body: `{"error":"over capacity","tag":"SERVICE_OVERLOADED"}`, code: ErrorCodeUpstreamUnavailable, tag: "SERVICE_OVERLOADED"},
+		{status: http.StatusBadGateway, body: "", code: ErrorCodeUpstreamUnavailable, tag: ""},
 	}
 	for _, tc := range cases {
-		t.Run(string(tc.code), func(t *testing.T) {
+		t.Run(string(tc.code)+"_"+strconv.Itoa(tc.status), func(t *testing.T) {
 			t.Parallel()
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if tc.retryAfter != "" {

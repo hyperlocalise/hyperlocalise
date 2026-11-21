@@ -754,3 +754,74 @@ func TestVisualWorkflowPublishTestAndRuns(t *testing.T) {
 	require.Equal(t, http.StatusAccepted, live.Code, live.Body.String())
 	require.Equal(t, "run_visual_workflow", gotAction)
 }
+
+func TestVisualWorkflowRunsRejectInvalidQueryAndArchived(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	path := f.scope.OrgPath("/visual-workflows")
+	create := f.request(http.MethodPost, path, `{"name":"Archived flow"}`)
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+	var created struct {
+		VisualWorkflow visualWorkflowRecord `json:"visualWorkflow"`
+	}
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+
+	invalidID := f.request(http.MethodGet, path+"/not-a-uuid/runs", "")
+	require.Equal(t, http.StatusNotFound, invalidID.Code, invalidID.Body.String())
+	require.Contains(t, invalidID.Body.String(), `"visual_workflow_not_found"`)
+
+	for _, query := range []string{"?limit=0", "?limit=101", "?limit=1&limit=2", "?offset=-1"} {
+		rec := f.request(http.MethodGet, path+"/"+created.VisualWorkflow.ID+"/runs"+query, "")
+		require.Equal(t, http.StatusBadRequest, rec.Code, query+" "+rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"invalid_query_params"`)
+	}
+
+	del := f.request(http.MethodDelete, path+"/"+created.VisualWorkflow.ID, "")
+	require.Equal(t, http.StatusNoContent, del.Code, del.Body.String())
+
+	archivedTest := f.request(http.MethodPost, path+"/"+created.VisualWorkflow.ID+"/test", `{
+        "idempotencyKey":"test-archived",
+        "definition":{"schemaVersion":3,"name":"Archived flow","nodes":[],"edges":[],"editor":{"positions":{}}},
+        "mode":"live"
+    }`)
+	require.Equal(t, http.StatusNotFound, archivedTest.Code, archivedTest.Body.String())
+	require.Contains(t, archivedTest.Body.String(), `"visual_workflow_not_found"`)
+
+	archivedRun := f.request(http.MethodPost, path+"/"+created.VisualWorkflow.ID+"/runs", `{"idempotencyKey":"live-archived"}`)
+	require.Equal(t, http.StatusNotFound, archivedRun.Code, archivedRun.Body.String())
+	require.Contains(t, archivedRun.Body.String(), `"visual_workflow_not_found"`)
+
+	other := testenv.Seed(t, testenv.Options{Role: "admin"})
+	foreign := f.request(http.MethodGet, other.OrgPath("/visual-workflows")+"/"+created.VisualWorkflow.ID+"/runs", "")
+	require.Equal(t, http.StatusForbidden, foreign.Code, foreign.Body.String())
+}
+
+func TestWorkspaceAutomationRunsRejectInvalidQueryAndForeignID(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	path := f.scope.OrgPath("/automations")
+	create := f.request(http.MethodPost, path, `{
+        "name": "Run history",
+        "instructions": "Keep a log.",
+        "triggerConfig": {"mode": "manual"}
+    }`)
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+	var created struct {
+		Automation workspaceAutomationRecord `json:"automation"`
+	}
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+
+	invalidID := f.request(http.MethodGet, path+"/not-a-uuid/runs", "")
+	require.Equal(t, http.StatusNotFound, invalidID.Code, invalidID.Body.String())
+	require.Contains(t, invalidID.Body.String(), `"workspace_automation_not_found"`)
+
+	for _, query := range []string{"?limit=0", "?offset=-1"} {
+		rec := f.request(http.MethodGet, path+"/"+created.Automation.ID+"/runs"+query, "")
+		require.Equal(t, http.StatusBadRequest, rec.Code, query+" "+rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"invalid_query_params"`)
+	}
+
+	other := testenv.Seed(t, testenv.Options{Role: "admin"})
+	foreign := f.request(http.MethodGet, other.OrgPath("/automations")+"/"+created.Automation.ID+"/runs", "")
+	require.Equal(t, http.StatusForbidden, foreign.Code, foreign.Body.String())
+}

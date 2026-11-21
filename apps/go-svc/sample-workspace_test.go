@@ -121,6 +121,10 @@ func TestSampleWorkspaceSeedGetAndRemove(t *testing.T) {
 	require.Equal(t, http.StatusOK, empty.Code, empty.Body.String())
 	require.JSONEq(t, `{"sampleWorkspace":{"loaded":false,"projects":[]}}`, empty.Body.String())
 
+	emptyDelete := f.do(http.MethodDelete, "")
+	require.Equal(t, http.StatusNoContent, emptyDelete.Code, emptyDelete.Body.String())
+	require.Empty(t, emptyDelete.Body.Bytes())
+
 	created := f.do(http.MethodPost, "")
 	require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
 	var seeded struct {

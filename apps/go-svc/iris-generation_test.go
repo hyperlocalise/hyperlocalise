@@ -1368,6 +1368,37 @@ func TestIrisListenGatewayIDs(t *testing.T) {
 	require.Equal(t, []string{defaultIrisListenBackupModel}, irisListenGatewayIDs(defaultIrisListenBackupModel))
 }
 
+func TestIrisGatewayProviderListenFailsWhenBothModelsFail(t *testing.T) {
+	var models []string
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		model, _ := payload["model"].(string)
+		models = append(models, model)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"message":"file parts are not supported"}}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("listen")
+	require.True(t, ok)
+	_, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model: model,
+		Inputs: []irisProviderInput{{
+			Role:        "media",
+			Bytes:       []byte("RIFF"),
+			ContentType: "audio/wav",
+		}},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "gateway request failed")
+	require.Equal(t, []string{defaultIrisListenModel, defaultIrisListenBackupModel}, models)
+}
+
 func TestIrisGatewayProviderTranscribeOpenAIUsesMultipart(t *testing.T) {
 	audio := []byte("id3-mp3")
 	var gotPath, gotModel, gotFileType, gotFilename string
