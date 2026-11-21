@@ -13,7 +13,7 @@
 import type { ComponentType } from "react";
 import type { MessageDescriptor } from "react-intl";
 
-import { IRIS_LAUNCH_YOUTUBE_WATCH_URL } from "@/lib/iris/iris-waitlist";
+import { IRIS_LAUNCH_YOUTUBE_WATCH_URL } from "@/lib/iris/iris-launch-film";
 
 import { GUIDELINE_LAUNCH_YOUTUBE_WATCH_URL, GuidelinesPreview } from "./guidelines-preview";
 import { IrisPreview } from "./iris-preview";

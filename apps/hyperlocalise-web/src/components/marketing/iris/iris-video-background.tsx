@@ -21,7 +21,7 @@ import {
   IRIS_LAUNCH_YOUTUBE_ID,
   irisLaunchEmbedSrc,
   irisLaunchPosterSrc,
-} from "@/lib/iris/iris-waitlist";
+} from "@/lib/iris/iris-launch-film";
 
 export type IrisYoutubePlayerHandle = {
   setMuted: (muted: boolean) => void;

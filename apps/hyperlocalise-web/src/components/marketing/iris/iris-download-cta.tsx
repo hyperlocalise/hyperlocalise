@@ -24,12 +24,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { irisMacDownloadUrl } from "@/lib/iris/iris-download";
+import { useIrisDownloadStartedNotice } from "./download-iris-button";
+import { trackMarketingCtaClick } from "@/lib/analytics/marketing-cta";
+import { irisMacDownloadUrl, type IrisMacArch } from "@/lib/iris/iris-download";
 
 // Browsers report Apple Silicon Macs as Intel, so the main button serves the
 // Apple Silicon build and the menu beside it offers both builds.
-export function IrisDownloadCta() {
+export function IrisDownloadCta({ source }: { source: string }) {
   const intl = useIntl();
+  const notifyDownloadStarted = useIrisDownloadStartedNotice();
+  const handleDownload = (arch: IrisMacArch) => () => {
+    trackMarketingCtaClick(`download_iris_${arch}`, source);
+    notifyDownloadStarted();
+  };
 
   return (
     <ButtonGroup>
@@ -38,7 +45,7 @@ export function IrisDownloadCta() {
         nativeButton={false}
         render={<a download href={irisMacDownloadUrl("arm64")} />}
         size="lg"
-        variant="secondary"
+        onClick={handleDownload("arm64")}
       >
         <AppleLogoIcon data-icon="inline-start" weight="fill" />
         <FormattedMessage {...irisPageMessages.downloadForMac} />
@@ -48,19 +55,24 @@ export function IrisDownloadCta() {
           render={
             <Button
               aria-label={intl.formatMessage(irisPageMessages.moreMacDownloads)}
-              className="h-12 w-11 border-s border-border/60"
+              className="h-12 w-11 border-s border-primary-foreground/20"
               size="icon-lg"
-              variant="secondary"
             />
           }
         >
           <CaretDownIcon weight="bold" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem render={<a download href={irisMacDownloadUrl("arm64")} />}>
+          <DropdownMenuItem
+            render={<a download href={irisMacDownloadUrl("arm64")} />}
+            onClick={handleDownload("arm64")}
+          >
             <FormattedMessage {...irisPageMessages.downloadForAppleSiliconMac} />
           </DropdownMenuItem>
-          <DropdownMenuItem render={<a download href={irisMacDownloadUrl("x64")} />}>
+          <DropdownMenuItem
+            render={<a download href={irisMacDownloadUrl("x64")} />}
+            onClick={handleDownload("x64")}
+          >
             <FormattedMessage {...irisPageMessages.downloadForIntelMac} />
           </DropdownMenuItem>
         </DropdownMenuContent>

@@ -17,7 +17,7 @@ import { renderToString } from "react-dom/server";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { irisLaunchEmbedSrc } from "@/lib/iris/iris-waitlist";
+import { irisLaunchEmbedSrc } from "@/lib/iris/iris-launch-film";
 
 import { GUIDELINE_LAUNCH_YOUTUBE_ID, GuidelinesPreview } from "./guidelines-preview";
 
