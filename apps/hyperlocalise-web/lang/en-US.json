@@ -11,6 +11,10 @@
     "defaultMessage": "No description",
     "description": "Empty state message when a markdown description preview has no content"
   },
+  "++MP4qRhvG": {
+    "defaultMessage": "Download the Iris file, open it from your Downloads folder, then drag Iris into Applications. Iris updates itself when a new version ships.",
+    "description": "Iris page FAQ answer about installing the Mac app"
+  },
   "++VvL4EEbo": {
     "defaultMessage": "Copied",
     "description": "Copy button label after the API key was copied"
@@ -1315,6 +1319,10 @@
     "defaultMessage": "Remove email notifications",
     "description": "Accessible label to remove email notifications"
   },
+  "/gZRu7p4LI": {
+    "defaultMessage": "Open the Iris file in your Downloads folder, then drag Iris into Applications.",
+    "description": "Toast body telling a visitor how to install the Iris Mac app they just downloaded"
+  },
   "/ga0PCFNu5": {
     "defaultMessage": "No linked domains yet",
     "description": "Empty state title when the workspace has no claimed domains"
@@ -2519,6 +2527,10 @@
     "defaultMessage": "Heading 3",
     "description": "Slash menu item for a level-3 heading"
   },
+  "1KpaEZEK6R": {
+    "defaultMessage": "Video and subtitles",
+    "description": "Iris page capability title for localising video"
+  },
   "1Kqhhea0Ee": {
     "defaultMessage": "Changes to files and strings in this project.",
     "description": "Description for the All Files activity dialog"
@@ -2586,6 +2598,10 @@
   "1QYMtpg2la": {
     "defaultMessage": "Every string this save, job or import changed goes back to its earlier version. Strings edited or locked since are left as they are.",
     "description": "Body of the dialog confirming an undo of a whole operation"
+  },
+  "1RKEAnbFH/": {
+    "defaultMessage": "Not yet. Iris is Mac only for now. You can still localise text, websites and apps in the Hyperlocalise web app from any browser.",
+    "description": "Iris page FAQ answer about Windows and Linux support"
   },
   "1RfCN9F8ux": {
     "defaultMessage": "—",
@@ -3310,6 +3326,10 @@
   "2J9DBNioHN": {
     "defaultMessage": "Unlink string",
     "description": "Button to unlink the translation string from an issue"
+  },
+  "2JKySNAhyO": {
+    "defaultMessage": "How do I install Iris?",
+    "description": "Iris page FAQ question about installing the Mac app"
   },
   "2JTdlEzKQS": {
     "defaultMessage": "No translation yet",
@@ -4058,6 +4078,10 @@
   "3QmQFMO6jX": {
     "defaultMessage": "Languages",
     "description": "Multilingual table languages label"
+  },
+  "3RDf6ipqz/": {
+    "defaultMessage": "Rewrite the copy inside banners, social ads and product shots so each variant reads as if it was made locally.",
+    "description": "Iris page capability body for localising images, banners and social ads"
   },
   "3RQjQSebWm": {
     "defaultMessage": "Members failed to load.",
@@ -4843,6 +4867,10 @@
     "defaultMessage": "New version",
     "description": "Label when the visitor sees the treatment page"
   },
+  "4Oq3UwFiGw": {
+    "defaultMessage": "Dub voiceovers and generate audio in the language of every audience.",
+    "description": "Iris page capability body for voiceover and dubbing"
+  },
   "4Ot6qB+D/E": {
     "defaultMessage": "Connected. {repoSummary}",
     "description": "GitHub integration description when connected without a known account login"
@@ -4974,6 +5002,10 @@
   "4cYBnVImbP": {
     "defaultMessage": "Dispatch execution paths in a configured order.",
     "description": "Sequence node picker hint"
+  },
+  "4ccYexoxn/": {
+    "defaultMessage": "Try Iris on your next campaign.",
+    "description": "Closing call-to-action heading at the bottom of the Iris page"
   },
   "4ciFI7Zk4c": {
     "defaultMessage": "Translated {done} of {total, plural, one {# locale} other {# locales}}.",
@@ -5323,6 +5355,10 @@
     "defaultMessage": "No issues for \"{source}\"",
     "description": "Empty-state title naming the CAT source text when the segment has no linked issues"
   },
+  "57tEfCkZq/": {
+    "defaultMessage": "Subtitle and adapt product videos and video ads for each market without going back to the edit suite.",
+    "description": "Iris page capability body for localising video"
+  },
   "57vdPa03Kj": {
     "defaultMessage": "Could not import the bilingual file.",
     "description": "Toast when bilingual import fails"
@@ -5546,6 +5582,10 @@
   "5Ol0Sy99An": {
     "defaultMessage": "https://…",
     "description": "Placeholder for the link URL input"
+  },
+  "5OqquqGiMa": {
+    "defaultMessage": "Download Iris",
+    "description": "Primary marketing call-to-action that downloads the Iris desktop app on a Mac, or opens the Iris page elsewhere"
   },
   "5Oy8VIf/qh": {
     "defaultMessage": "Side by side",
@@ -5850,10 +5890,6 @@
   "5lYRzKwAYq": {
     "defaultMessage": "New rate card",
     "description": "Button that starts a new rate card"
-  },
-  "5lnOyXIzKl": {
-    "defaultMessage": "Request a Demo",
-    "description": "Primary call-to-action button on the marketing homepage hero"
   },
   "5lw2B8GGrH": {
     "defaultMessage": "started a visual workflow run",
@@ -7771,6 +7807,10 @@
     "defaultMessage": "the last change",
     "description": "What an undo step did, after 'Undo' or 'Redo', when it changed several things at once"
   },
+  "8N7H9E36x3": {
+    "defaultMessage": "Iris questions",
+    "description": "Heading of the FAQ section on the Iris page"
+  },
   "8O4l4wC1UK": {
     "defaultMessage": "Sanity through WorkOS Pipes is not enabled for this environment yet. An admin can enable the Sanity data integration in WorkOS.",
     "description": "Integration row description when Sanity Pipes is unavailable"
@@ -9343,10 +9383,6 @@
     "defaultMessage": "of any content type",
     "description": "Prose after the Contentful trigger name when every content type starts a run"
   },
-  "AQZXVFsnl+": {
-    "defaultMessage": "Iris | AI Localisation Engine for Multilingual Assets | Hyperlocalise",
-    "description": "Page title for the Iris waitlist page"
-  },
   "AQrXctSpNJ": {
     "defaultMessage": "Format",
     "description": "Import format field label"
@@ -10179,6 +10215,10 @@
     "defaultMessage": "Failed to update proposal review",
     "description": "Toast and error fallback when saving proposal review fails"
   },
+  "BaPLthDtqY": {
+    "defaultMessage": "Iris for Mac",
+    "description": "Eyebrow above the Iris page introduction, under the launch film"
+  },
   "BavpDSRiE2": {
     "defaultMessage": "Delete team",
     "description": "Title of the delete team confirmation dialog"
@@ -10967,6 +11007,10 @@
     "defaultMessage": "Succeeded",
     "description": "Status label for a succeeded job on project overview"
   },
+  "CbqHZiFcRJ": {
+    "defaultMessage": "Which AI models does Iris use?",
+    "description": "Iris page FAQ question about the AI models behind Iris"
+  },
   "CbuvPB6HCw": {
     "defaultMessage": "Approved",
     "description": "Progress table row label for approved work"
@@ -11430,6 +11474,10 @@
   "DBp1QKDYgw": {
     "defaultMessage": "A scheduled job runs hl sync pull and opens a pull request with the updated locale files.",
     "description": "localisation-cli-and-api use case page: scenario › events › #3 › body"
+  },
+  "DBpkRRnvyH": {
+    "defaultMessage": "Free",
+    "description": "Small badge inside the Download Iris button saying Iris is free to start using"
   },
   "DBygjYGTST": {
     "defaultMessage": "Target keeps the required placeholders and ICU structure.",
@@ -13887,10 +13935,6 @@
     "defaultMessage": "{count, plural, one {# task} other {# tasks}}",
     "description": "How many tasks an estimate covers"
   },
-  "GZPe87SKjx": {
-    "defaultMessage": "Iris, the AI localisation engine",
-    "description": "Open Graph heading for the Iris waitlist page"
-  },
   "GZgOkkX0hj": {
     "defaultMessage": "Japanese (Japan)",
     "description": "Display name for BCP-47 locale ja-JP"
@@ -14127,6 +14171,10 @@
     "defaultMessage": "Connect GitHub in <link>Integrations</link> to comment on pull requests.",
     "description": "Description for GitHub comment notifications when GitHub is not connected"
   },
+  "GtlOKbCrFv": {
+    "defaultMessage": "Iris, the AI localisation engine for multilingual assets",
+    "description": "Visually hidden heading for the Iris product page"
+  },
   "GuEU+qQCHt": {
     "defaultMessage": "Overwrite targets",
     "description": "Toggle label for overwriting Contentful target locales"
@@ -14267,6 +14315,10 @@
     "defaultMessage": "Pricing",
     "description": "Marketing navbar link to the pricing page"
   },
+  "H09UjvD6L5": {
+    "defaultMessage": "Catch truncated text and broken layouts before a long German headline breaks your banner.",
+    "description": "Iris page capability body for catching broken layouts in translated assets"
+  },
   "H0IVjRDKWW": {
     "defaultMessage": "Spring release",
     "description": "localisation-operations use case page: guide › steps › #3 › visual › title"
@@ -14390,6 +14442,10 @@
   "HB9qoFZK03": {
     "defaultMessage": "Onboarding emails",
     "description": "localisation-operations use case page: hero › visual › primary › items › #4 › label"
+  },
+  "HCPJpu/Mvc": {
+    "defaultMessage": "Is Iris free?",
+    "description": "Iris page FAQ question about price"
   },
   "HCZzZ6mMQr": {
     "defaultMessage": "AI Context",
@@ -14986,6 +15042,10 @@
   "I4SX9RyzOi": {
     "defaultMessage": "Supported formats: .pdf, .docx, .md, .txt. Up to 25 MB, 1 file per upload.",
     "description": "Supported formats and file limit for knowledge upload"
+  },
+  "I4W/7/gfOu": {
+    "defaultMessage": "Add a step",
+    "description": "Heading of the menu that appears when adding a step on the canvas"
   },
   "I4iH2T3OLx": {
     "defaultMessage": "Google Drive",
@@ -16199,10 +16259,6 @@
     "defaultMessage": "ICU sub-filter",
     "description": "Label for treating matching strings as ICU MessageFormat"
   },
-  "JpPN4GGwvP": {
-    "defaultMessage": "Agentic localisation platform",
-    "description": "Marketing homepage hero eyebrow naming the product category"
-  },
   "JpmYHdvmx/": {
     "defaultMessage": "Connect your agent",
     "description": "localisation-for-ai-coding-agents use case page: guide › steps › #1 › title"
@@ -16834,6 +16890,10 @@
   "KnQWJg+k9n": {
     "defaultMessage": "Job ID (optional)",
     "description": "Job setting on the check progress step"
+  },
+  "KoC1pGxUBj": {
+    "defaultMessage": "Free to download",
+    "description": "Iris page detail title saying the Iris app costs nothing to download"
   },
   "KoWP5ExqQO": {
     "defaultMessage": "Page {page} of {totalPages}",
@@ -17671,6 +17731,10 @@
     "defaultMessage": "Queued and completed imports and exports will appear here.",
     "description": "Empty import and export history description"
   },
+  "LzY4RMClnF": {
+    "defaultMessage": "Generating images, video and audio draws on AI credit. Paid plans include monthly credit, starting at $20 a month.",
+    "description": "Iris page detail body explaining that generating assets uses AI credit"
+  },
   "Lzjyu+8nDt": {
     "defaultMessage": "No locales available",
     "description": "Empty state when the locale selection list has no items"
@@ -18110,6 +18174,10 @@
   "MU0OTjSMs5": {
     "defaultMessage": "Cut the background out",
     "description": "Tooltip for the remove background image edit action"
+  },
+  "MUDO3AYEIq": {
+    "defaultMessage": "Duplicate selected steps",
+    "description": "Shortcut label for duplicating the selected visual workflow steps"
   },
   "MUU0MB1WKf": {
     "defaultMessage": "Translation jobs",
@@ -18635,6 +18703,10 @@
     "defaultMessage": "Artifact reference (optional)",
     "description": "Human Approval protected artifact reference field"
   },
+  "ND/zOXuanC": {
+    "defaultMessage": "Book a demo",
+    "description": "Secondary call-to-action on the marketing homepage closing section that opens the demo booking calendar"
+  },
   "NDXmA1pbVL": {
     "defaultMessage": "We'll email a short summary — score, top fixes, and a link back to this report — so it's easy to forward.",
     "description": "Body for the email-summary form on a localisation audit result"
@@ -18806,6 +18878,10 @@
   "NPxj2A77E6": {
     "defaultMessage": "No guidelines for this project",
     "description": "Title when a project view has no applicable guideline documents"
+  },
+  "NPzSWXmSze": {
+    "defaultMessage": "Iris is downloading",
+    "description": "Toast title shown after a visitor starts downloading the Iris Mac app"
   },
   "NQI5GeXhlu": {
     "defaultMessage": "Do we have to use your translation engine?",
@@ -21023,10 +21099,6 @@
     "defaultMessage": "Team deleted",
     "description": "Toast after a team is deleted successfully"
   },
-  "QZjNY0zpti": {
-    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Join the waitlist.",
-    "description": "Meta description for the Iris waitlist page"
-  },
   "Qa2OXtJ4Ug": {
     "defaultMessage": "HTML",
     "description": "Load HTML SRX template"
@@ -21158,6 +21230,10 @@
   "QjMQ0YNYXB": {
     "defaultMessage": "Last 7 days",
     "description": "Activity filter option that shows changes from the last 7 days"
+  },
+  "QjdO7c1BCr": {
+    "defaultMessage": "Iris | AI Localisation Engine for Multilingual Assets | Hyperlocalise",
+    "description": "Page title for the Iris product page"
   },
   "Qk1QL2BxcT": {
     "defaultMessage": "AI-reviewed",
@@ -23179,6 +23255,10 @@
     "defaultMessage": "Projects",
     "description": "Label for the project scope picker on the upload page"
   },
+  "TVKMlRSdJ5": {
+    "defaultMessage": "Iris has builds for Apple Silicon Macs (M1 and later) and Intel Macs. The main download button gives you the Apple Silicon build. Use the menu beside it for the Intel build.",
+    "description": "Iris page FAQ answer about supported Macs"
+  },
   "TViRJtMGI6": {
     "defaultMessage": "Up to date",
     "description": "help-center-localisation use case page: hero › visual › primary › locales › #1 › note"
@@ -23966,6 +24046,10 @@
   "UWEiDJaeSZ": {
     "defaultMessage": "No tasks with Reports data match.",
     "description": "Shown when the task search finds nothing"
+  },
+  "UWS4Z91lmP": {
+    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Download Iris for Mac.",
+    "description": "Meta description for the Iris product page"
   },
   "UWZ1G1FSvB": {
     "defaultMessage": "Untranslated first",
@@ -24951,6 +25035,10 @@
     "defaultMessage": "Failed to load project",
     "description": "Fallback API error when project settings fail to load for file details"
   },
+  "Vq3nULSNz4": {
+    "defaultMessage": "Iris for Mac is here",
+    "description": "Homepage hero announcement pill that links to the Iris page, announcing the Iris Mac app launch"
+  },
   "VqCMClnRVk": {
     "defaultMessage": "Copy verification file contents",
     "description": "Copy button label"
@@ -25791,6 +25879,10 @@
     "defaultMessage": "Skipped",
     "description": "Import skipped count"
   },
+  "X33IduJXlN": {
+    "defaultMessage": "Layout checks",
+    "description": "Iris page capability title for catching broken layouts in translated assets"
+  },
   "X3WC1ONHHK": {
     "defaultMessage": "This language already has an approved image. Editing replaces it and sends it back to review.",
     "description": "Explanation that editing an approved gallery image overwrites it"
@@ -26083,6 +26175,10 @@
     "defaultMessage": "Testing what each market prefers.",
     "description": "FAQ subheading on the market-experimentation use case page"
   },
+  "XS4uGbZzzL": {
+    "defaultMessage": "What you need to get started",
+    "description": "Iris page heading above the platform, price and AI credit details"
+  },
   "XTQH6Cl2jC": {
     "defaultMessage": "GPT-6 Luna (Fast)",
     "description": "Label for the OpenAI GPT-6 Luna fast automation model"
@@ -26326,6 +26422,10 @@
   "Xo2+rtWc3U": {
     "defaultMessage": "Newest first",
     "description": "Crowdin glossary ordering option for newest glossaries"
+  },
+  "Xop9+UWzYg": {
+    "defaultMessage": "See plans and model rates",
+    "description": "Iris page link to the pricing page from the AI credit detail"
   },
   "XosmLLsDOK": {
     "defaultMessage": "Filter by type",
@@ -28359,6 +28459,10 @@
     "defaultMessage": "Billing is not available for this workspace.",
     "description": "Error when the billing customer is unavailable"
   },
+  "aYIs6jAO+Z": {
+    "defaultMessage": "Free to download. Mac only for now.",
+    "description": "Short note under an Iris download button saying the app costs nothing to download and only runs on macOS today"
+  },
   "aYK9Ws6gX4": {
     "defaultMessage": "Keep editing",
     "description": "Button that closes the discard changes dialog and keeps the unsaved changes"
@@ -28926,6 +29030,10 @@
   "bHXY88TkOe": {
     "defaultMessage": "View findings",
     "description": "Workspace QA action to filter findings to one project"
+  },
+  "bHij4EA705": {
+    "defaultMessage": "Voice and dubbing",
+    "description": "Iris page capability title for voiceover and dubbing"
   },
   "bHnFWGWqed": {
     "defaultMessage": "No files are linked to this task.",
@@ -31235,6 +31343,10 @@
     "defaultMessage": "Comments",
     "description": "Tab in the CAT details panel listing comments on the focused string"
   },
+  "eI7Cqkjjq4": {
+    "defaultMessage": "Images and ads",
+    "description": "Iris page capability title for localising images, banners and social ads"
+  },
   "eI8CB+a2hA": {
     "defaultMessage": "Translation mistake",
     "description": "Issue type filter option for a translation mistake"
@@ -31519,6 +31631,10 @@
     "defaultMessage": "Save and run",
     "description": "Button that saves the unsaved automation changes and then queues a run"
   },
+  "efIxAXxmtW": {
+    "defaultMessage": "Make every asset feel local.",
+    "description": "Iris page introduction heading under the launch film"
+  },
   "eg1vE4iGCz": {
     "defaultMessage": "Search templates",
     "description": "Placeholder for filtering mapped Braze templates"
@@ -31546,6 +31662,10 @@
   "ehiNyfW7wC": {
     "defaultMessage": "Add competitors",
     "description": "Open add competitors dialog"
+  },
+  "ei/+JUw/aJ": {
+    "defaultMessage": "AI credit for generation",
+    "description": "Iris page detail title explaining that generating assets uses AI credit"
   },
   "ej+FsoZqXe": {
     "defaultMessage": "Failed to load provider translation memories ({status})",
@@ -33478,10 +33598,6 @@
   "hE2eacuTWG": {
     "defaultMessage": "Query actions",
     "description": "Aria label for the query detail overflow menu"
-  },
-  "hEEAW/iMSI": {
-    "defaultMessage": "Iris, the AI localisation engine for multilingual assets",
-    "description": "Visually hidden heading for the Iris waitlist page"
   },
   "hEZ5a5ZO9w": {
     "defaultMessage": "Use translation memory match 1–3",
@@ -35643,9 +35759,17 @@
     "defaultMessage": "another issue",
     "description": "Fallback name for a related issue when its title isn't available (cross-project)"
   },
+  "kBVwXjVr0i": {
+    "defaultMessage": "Iris is the AI localisation engine for multilingual assets. Create and adapt images, video, voice and audio for every language and market, right from your Mac.",
+    "description": "Iris page introduction body explaining what the Iris desktop app does"
+  },
   "kBjfpWlIHs": {
     "defaultMessage": "Running",
     "description": "Tool status badge when the tool is running"
+  },
+  "kBpQcdptW3": {
+    "defaultMessage": "Iris runs image, video, voice and audio models from several AI vendors. The pricing page lists every model Iris can run and what each one costs.",
+    "description": "Iris page FAQ answer about the AI models behind Iris"
   },
   "kC1soSUZq7": {
     "defaultMessage": "The event this trigger passes on when you test the workflow. Real runs use the real event.",
@@ -37379,6 +37503,10 @@
     "defaultMessage": "Unchanged",
     "description": "Tab for deep audit findings also present in the previous run"
   },
+  "mUAsBEj5Ug": {
+    "defaultMessage": "Builds for Apple Silicon and Intel Macs. Iris is Mac only for now, so Windows and Linux are not supported yet.",
+    "description": "Iris page detail body about which computers can run Iris"
+  },
   "mUSeeXuwsP": {
     "defaultMessage": "Failed to load dictionaries.",
     "description": "Error when the dictionaries list cannot be loaded"
@@ -39103,6 +39231,10 @@
     "defaultMessage": "Suggested: “{suggestion}”",
     "description": "Inline suggested replacement for the first QA issue"
   },
+  "opXOXg+I3A": {
+    "defaultMessage": "Insert a step on this wire",
+    "description": "Accessible label for the plus control in the middle of a workflow wire"
+  },
   "oppq51uTAm": {
     "defaultMessage": "Size",
     "description": "Pick assignee input: how big the work is"
@@ -40702,6 +40834,10 @@
   "qtTx0ZhgLU": {
     "defaultMessage": "Polish (Poland)",
     "description": "Display name for BCP-47 locale pl-PL"
+  },
+  "quTg02JT7U": {
+    "defaultMessage": "See pricing",
+    "description": "Link after the Iris availability note that opens the pricing page"
   },
   "quhhKaWY+z": {
     "defaultMessage": "Manage integrations",
@@ -42735,6 +42871,10 @@
     "defaultMessage": "Import translation memory",
     "description": "Marketing homepage guideTmTitle"
   },
+  "tgqxU3MqpJ": {
+    "defaultMessage": "Which Macs can run Iris?",
+    "description": "Iris page FAQ question about supported Macs"
+  },
   "thEFPkPaJE": {
     "defaultMessage": "Remove sample data",
     "description": "Button that deletes the sample projects and resources"
@@ -42778,10 +42918,6 @@
   "tlhF4FQ2PT": {
     "defaultMessage": "Choose a file, or write the guideline.",
     "description": "Footer hint on the guideline upload page before a file is selected"
-  },
-  "tm2wgAMGK3": {
-    "defaultMessage": "Join the waitlist",
-    "description": "Primary button that opens the Iris Tally waitlist form"
   },
   "tmfZmWyVtO": {
     "defaultMessage": "Source files",
@@ -43799,6 +43935,10 @@
     "defaultMessage": "Every locale is live",
     "description": "help-center-localisation use case page: scenario › events › #4 › title"
   },
+  "v8/Eb3C3P6": {
+    "defaultMessage": "Iris is free to download and install. Generating images, video and audio uses AI credit, which paid plans include from $20 a month. The pricing page lists the rate for every model.",
+    "description": "Iris page FAQ answer about price"
+  },
   "v8HmqsxSuZ": {
     "defaultMessage": "Ranks",
     "description": "App shell breadcrumb title for domain rank tracking"
@@ -44539,10 +44679,6 @@
     "defaultMessage": "Filtered by tags",
     "description": "Accessible name of the row of tag filters beside the search box"
   },
-  "w7U8I+r5dS": {
-    "defaultMessage": "Request a Demo",
-    "description": "Marketing navbar call-to-action to request a demo"
-  },
   "w7sk9jcVLD": {
     "defaultMessage": "asset management",
     "description": "Job kind label for asset management jobs"
@@ -45087,6 +45223,10 @@
     "defaultMessage": "Back to teams",
     "description": "Link back to the workspace teams list"
   },
+  "wtwB9wYEeh": {
+    "defaultMessage": "Runs on Mac",
+    "description": "Iris page detail title about which computers can run Iris"
+  },
   "wtxoYMaNGy": {
     "defaultMessage": "Space ID",
     "description": "Label for the Contentful space ID field"
@@ -45138,6 +45278,10 @@
   "wwKiGsumAM": {
     "defaultMessage": "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents check drafts against the brand and compliance files your team already maintains.",
     "description": "Meta description for the Guidelines product page"
+  },
+  "wwVFm2ECvN": {
+    "defaultMessage": "The Iris app costs nothing to download and install.",
+    "description": "Iris page detail body saying the Iris app costs nothing to download"
   },
   "wwl2e+kYrU": {
     "defaultMessage": "Usage meter copy shown in billing and review dashboards.",
@@ -45623,6 +45767,10 @@
     "defaultMessage": "We created the workspace, but could not prepare its URL. Please retry.",
     "description": "Error when workspace was created without a usable slug"
   },
+  "xXdEvsjNEO": {
+    "defaultMessage": "Is there a Windows or Linux version?",
+    "description": "Iris page FAQ question about Windows and Linux support"
+  },
   "xXi7rFWRDl": {
     "defaultMessage": "Quality scores by locale, vendor, and content type, tracked over time.",
     "description": "localisation-quality-monitoring use case page: shift › after › #3"
@@ -45630,6 +45778,10 @@
   "xXvQeFYygi": {
     "defaultMessage": "Ready for the next market?",
     "description": "Final CTA heading on the startups page"
+  },
+  "xXxJgL1vao": {
+    "defaultMessage": "New",
+    "description": "Small tag inside the homepage hero announcement pill for the Iris launch"
   },
   "xYZMz3piZI": {
     "defaultMessage": "Could not lock this string. Try again.",
@@ -45726,6 +45878,10 @@
   "xdQ4upYwW8": {
     "defaultMessage": "Loading…",
     "description": "Button label while more issue comments are loading"
+  },
+  "xdd2UBxiby": {
+    "defaultMessage": "Duplicate",
+    "description": "Shortcut label for duplicating the selected workflow steps"
   },
   "xePdJUPla7": {
     "defaultMessage": "Add other target locale",
@@ -46302,6 +46458,10 @@
   "yJtQmL9RYq": {
     "defaultMessage": "Used by {count, plural, one {# project sync} other {# project syncs}}.",
     "description": "How many project syncs run with a GitLab connection"
+  },
+  "yJtUqiy1Lo": {
+    "defaultMessage": "Iris, the AI localisation engine",
+    "description": "Open Graph heading for the Iris product page"
   },
   "yKFLGCc18p": {
     "defaultMessage": "Style guide",

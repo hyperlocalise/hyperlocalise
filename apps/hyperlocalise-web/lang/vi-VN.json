@@ -1502,6 +1502,9 @@
   "07hLkJhLSW": {
     "defaultMessage": "Xem phiên bản nào chiến thắng ở từng thị trường và với cách biệt bao nhiêu."
   },
+  "07nyefIF8a": {
+    "defaultMessage": "Mô tả và tìm kiếm video tư liệu"
+  },
   "07pTu6Ro98": {
     "defaultMessage": "Không giới hạn"
   },
@@ -13919,6 +13922,9 @@
   "I4SX9RyzOi": {
     "defaultMessage": "Định dạng được hỗ trợ: .pdf, .docx, .md, .txt. Tối đa 25 MB, 1 tệp mỗi lần tải lên."
   },
+  "I4W/7/gfOu": {
+    "defaultMessage": "Thêm bước"
+  },
   "I4iH2T3OLx": {
     "defaultMessage": "Google Drive"
   },
@@ -16780,6 +16786,9 @@
   },
   "MU0OTjSMs5": {
     "defaultMessage": "Xóa nền đi"
+  },
+  "MUDO3AYEIq": {
+    "defaultMessage": "Nhân bản các bước đã chọn"
   },
   "MUU0MB1WKf": {
     "defaultMessage": "Công việc dịch thuật"
@@ -24417,7 +24426,7 @@
     "defaultMessage": "Tạo các trường đối tượng"
   },
   "XmHitYF7Or": {
-    "defaultMessage": "{filter}: {value}"
+    "defaultMessage": "{filter} : {value}"
   },
   "XmcWHG0JFP": {
     "defaultMessage": "Translation"
@@ -36431,6 +36440,9 @@
   "opXLqo3spW": {
     "defaultMessage": "Được xây dựng cho chất lượng ở quy mô lớn"
   },
+  "opXOXg+I3A": {
+    "defaultMessage": "Chèn một bước vào đường nối này"
+  },
   "oppq51uTAm": {
     "defaultMessage": "Quy mô"
   },
@@ -42598,6 +42610,9 @@
   },
   "xdbeUj+7xL": {
     "defaultMessage": "Xem trước bản nhập"
+  },
+  "xdd2UBxiby": {
+    "defaultMessage": "Sao chép nhân đôi"
   },
   "xdxiFYu6GL": {
     "defaultMessage": "Đã cập nhật {count, number}"

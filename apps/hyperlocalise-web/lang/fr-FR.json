@@ -1502,6 +1502,9 @@
   "07hLkJhLSW": {
     "defaultMessage": "Découvrez quelle version l’emporte sur chaque marché, et de combien."
   },
+  "07nyefIF8a": {
+    "defaultMessage": "Décrivez et recherchez des séquences vidéo."
+  },
   "07pTu6Ro98": {
     "defaultMessage": "Unlimited"
   },
@@ -13919,6 +13922,9 @@
   "I4SX9RyzOi": {
     "defaultMessage": "Formats pris en charge : .pdf, .docx, .md, .txt. Jusqu’à 25 Mo, 1 fichier par téléversement."
   },
+  "I4W/7/gfOu": {
+    "defaultMessage": "Ajouter une étape"
+  },
   "I4iH2T3OLx": {
     "defaultMessage": "Google Drive"
   },
@@ -16780,6 +16786,9 @@
   },
   "MU0OTjSMs5": {
     "defaultMessage": "Supprimer l’arrière-plan"
+  },
+  "MUDO3AYEIq": {
+    "defaultMessage": "Dupliquer les étapes sélectionnées"
   },
   "MUU0MB1WKf": {
     "defaultMessage": "Tâches de traduction"
@@ -36431,6 +36440,9 @@
   "opXLqo3spW": {
     "defaultMessage": "Conçu pour la qualité à grande échelle"
   },
+  "opXOXg+I3A": {
+    "defaultMessage": "Insérer une étape sur cette connexion"
+  },
   "oppq51uTAm": {
     "defaultMessage": "Taille"
   },
@@ -42598,6 +42610,9 @@
   },
   "xdbeUj+7xL": {
     "defaultMessage": "Aperçu de l’importation"
+  },
+  "xdd2UBxiby": {
+    "defaultMessage": "Dupliquer"
   },
   "xdxiFYu6GL": {
     "defaultMessage": "Mis à jour : {count, number}"

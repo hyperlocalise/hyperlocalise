@@ -1502,6 +1502,9 @@
   "07hLkJhLSW": {
     "defaultMessage": "Sehen Sie, welche Version sich in jedem Markt durchsetzt und um wie viel."
   },
+  "07nyefIF8a": {
+    "defaultMessage": "Filmmaterial beschreiben und durchsuchen"
+  },
   "07pTu6Ro98": {
     "defaultMessage": "Unbegrenzt"
   },
@@ -3930,7 +3933,7 @@
     "defaultMessage": "Integrationen"
   },
   "3aG6RMsKle": {
-    "defaultMessage": "{date}: {count}"
+    "defaultMessage": "{date} : {count}"
   },
   "3aTLgL6EAQ": {
     "defaultMessage": "Hero-Titel · Max. 2 Zeilen auf dem Tablet"
@@ -13919,6 +13922,9 @@
   "I4SX9RyzOi": {
     "defaultMessage": "Unterstützte Formate: .pdf, .docx, .md, .txt. Bis zu 25 MB, 1 Datei pro Upload."
   },
+  "I4W/7/gfOu": {
+    "defaultMessage": "Schritt hinzufügen"
+  },
   "I4iH2T3OLx": {
     "defaultMessage": "Google Drive"
   },
@@ -16780,6 +16786,9 @@
   },
   "MU0OTjSMs5": {
     "defaultMessage": "Hintergrund entfernen"
+  },
+  "MUDO3AYEIq": {
+    "defaultMessage": "Ausgewählte Schritte duplizieren"
   },
   "MUU0MB1WKf": {
     "defaultMessage": "Übersetzungsaufträge"
@@ -36431,6 +36440,9 @@
   "opXLqo3spW": {
     "defaultMessage": "Für Qualität im großen Maßstab entwickelt"
   },
+  "opXOXg+I3A": {
+    "defaultMessage": "Schritt in diese Verbindung einfügen"
+  },
   "oppq51uTAm": {
     "defaultMessage": "Größe"
   },
@@ -42598,6 +42610,9 @@
   },
   "xdbeUj+7xL": {
     "defaultMessage": "Importvorschau"
+  },
+  "xdd2UBxiby": {
+    "defaultMessage": "Duplizieren"
   },
   "xdxiFYu6GL": {
     "defaultMessage": "Aktualisiert: {count, number}"

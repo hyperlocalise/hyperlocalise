@@ -1502,6 +1502,9 @@
   "07hLkJhLSW": {
     "defaultMessage": "查看每个市场中哪个版本效果更好，以及差距有多大。"
   },
+  "07nyefIF8a": {
+    "defaultMessage": "描述并搜索视频素材"
+  },
   "07pTu6Ro98": {
     "defaultMessage": "Unlimited"
   },
@@ -13919,6 +13922,9 @@
   "I4SX9RyzOi": {
     "defaultMessage": "支持的格式：.pdf、.docx、.md、.txt。每次上传最多 25 MB，限 1 个文件。"
   },
+  "I4W/7/gfOu": {
+    "defaultMessage": "添加步骤"
+  },
   "I4iH2T3OLx": {
     "defaultMessage": "Google 云端硬盘"
   },
@@ -16780,6 +16786,9 @@
   },
   "MU0OTjSMs5": {
     "defaultMessage": "移除背景"
+  },
+  "MUDO3AYEIq": {
+    "defaultMessage": "复制所选步骤"
   },
   "MUU0MB1WKf": {
     "defaultMessage": "翻译任务"
@@ -36431,6 +36440,9 @@
   "opXLqo3spW": {
     "defaultMessage": "面向规模化质量构建"
   },
+  "opXOXg+I3A": {
+    "defaultMessage": "在此连线上插入一个步骤"
+  },
   "oppq51uTAm": {
     "defaultMessage": "工作量"
   },
@@ -42598,6 +42610,9 @@
   },
   "xdbeUj+7xL": {
     "defaultMessage": "导入预览"
+  },
+  "xdd2UBxiby": {
+    "defaultMessage": "复制"
   },
   "xdxiFYu6GL": {
     "defaultMessage": "已更新 {count, number}"
