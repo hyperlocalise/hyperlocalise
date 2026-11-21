@@ -188,10 +188,10 @@ Gateway's native `/v4/ai/transcription-model` JSON endpoint, derived from
 implement OpenAI-compatible `/v1/audio/transcriptions`. Direct OpenAI still
 uses that multipart route.
 
-Listen (`qwen3.8-omni-flash`) is a language model on AI Gateway, not a
-transcription model. `/transcription-model` rejects it with
-`ModelTypeMismatchError`. It posts to `/chat/completions` with a `file` part
-for the audio or video and returns `transcript.json`.
+Listen (`listen`) posts to `/chat/completions` with a `file` part for the
+audio or video and returns `analysis.md`. Jobs go to
+`google/gemini-3.8-flash` and fall back to `xiaomi/mimo-v2.6-pro`. The old
+Iris id `qwen3.8-omni-flash` still resolves to this model.
 
 Voice tools (`elevenlabs-voice-isolator`: `media`; `elevenlabs-voice-changer`:
 `media`, `voice`, optional `removeBackgroundNoise`) call ElevenLabs audio

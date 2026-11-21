@@ -315,8 +315,8 @@ describe("pricing model catalog", () => {
           "Fish Audio Transcribe 1",
         ],
         [
-          "qwen3.8-omni-flash",
-          "Qwen 3.8 Omni Flash",
+          "listen",
+          "Listen",
         ],
         [
           "elevenlabs-voice-isolator",

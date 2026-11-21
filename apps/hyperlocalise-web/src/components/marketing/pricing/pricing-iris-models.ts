@@ -132,7 +132,7 @@ export const PRICING_IRIS_MODELS: readonly PricingIrisModel[] = [
   model("bytedance-upscaler", "ByteDance Upscaler", "bytedance", "video-tool"),
   model("universal-3.5-pro", "Universal 3.5 Pro", "google", "listen"),
   model("fish-audio-transcribe-1", "Fish Audio Transcribe 1", "fish-audio", "listen"),
-  model("qwen3.8-omni-flash", "Qwen 3.8 Omni Flash", "alibaba", "listen"),
+  model("listen", "Listen", "google", "listen"),
   model("elevenlabs-voice-isolator", "ElevenLabs Voice Isolator", "elevenlabs", "voice-tool"),
   model("elevenlabs-voice-changer", "ElevenLabs Voice Changer", "elevenlabs", "voice-tool"),
   model("elevenlabs-dialogue", "ElevenLabs Dialogue", "elevenlabs", "voice"),

@@ -88,7 +88,7 @@ func TestIrisGatewayOnlyModelIDs(t *testing.T) {
 		"grok-imagine-image-2.0": "spacexai/grok-imagine-image-2.0",
 		"grok-imagine-video-1.5": "spacexai/grok-imagine-video-1.5",
 		"gemini-3.8-flash-tts":   "google/gemini-3.8-flash-tts",
-		"qwen3.8-omni-flash":     "alibaba/qwen3.8-omni-flash",
+		"listen":                 "google/gemini-3.8-flash",
 		"gpt-image-2.6-sunburst": "openai/gpt-image-2.6-sunburst",
 	}
 	for id, gatewayID := range want {

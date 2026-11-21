@@ -325,10 +325,10 @@ export function getPricingIrisModelSummaries(intl: IntlShape): Record<PricingIri
       id: "MLfqzCqul0",
       description: "Card summary for the Fish Audio Transcribe 1 model on the pricing page",
     }),
-    "qwen3.8-omni-flash": intl.formatMessage({
+    listen: intl.formatMessage({
       defaultMessage: "Describe and search footage",
       id: "07nyefIF8a",
-      description: "Card summary for the Qwen 3.8 Omni Flash media model on the pricing page",
+      description: "Card summary for the Listen model on the pricing page",
     }),
     "elevenlabs-voice-isolator": intl.formatMessage({
       defaultMessage: "Pull speech out of mixed audio",
