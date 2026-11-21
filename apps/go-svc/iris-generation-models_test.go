@@ -230,6 +230,12 @@ func TestValidateIrisGenerateRequest(t *testing.T) {
 			wantID:  "listen",
 		},
 		{
+			name:    "qwen listen alias requires media",
+			req:     irisGenerateRequest{"model": "qwen3.8-omni-flash"},
+			wantErr: "media is required",
+			wantID:  "listen",
+		},
+		{
 			name:   "valid image",
 			req:    irisGenerateRequest{"model": "flux-2-pro", "prompt": "a cat"},
 			wantID: "flux-2-pro",
@@ -267,6 +273,11 @@ func TestValidateIrisGenerateRequest(t *testing.T) {
 		{
 			name:   "valid tool with uploaded media",
 			req:    irisGenerateRequest{"model": "listen", "media": asset},
+			wantID: "listen",
+		},
+		{
+			name:   "qwen listen alias with uploaded media",
+			req:    irisGenerateRequest{"model": "qwen3.8-omni-flash", "media": asset},
 			wantID: "listen",
 		},
 		{
