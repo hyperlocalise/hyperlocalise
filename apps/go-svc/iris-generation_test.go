@@ -1207,6 +1207,7 @@ func TestIrisGatewayProviderTranscribeUsesV4Endpoint(t *testing.T) {
 	require.Equal(t, "api-key", gotAuthMethod)
 	require.Equal(t, "audio/wav", payload["mediaType"])
 	require.Equal(t, base64.StdEncoding.EncodeToString(audio), payload["audio"])
+	require.Equal(t, map[string]any{"google": map[string]any{"wordTimestamp": true}}, payload["providerOptions"])
 	require.JSONEq(t, `[{"text":"hello from vo","words":[{"text":"hello from vo","start":0.1,"end":1.2}]}]`, string(outputs[0].Bytes))
 }
 
