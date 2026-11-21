@@ -13,7 +13,7 @@
 import { gateway, isStepCount, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
 
-import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
+import { defineAgentTool, type AgentToolExecuteOptions } from "@/agents/_runtime/define-agent-tool";
 import {
   SUBAGENT_NO_QUESTIONS_RULES,
   SUBAGENT_RESPONSE_FORMAT,
@@ -86,7 +86,7 @@ export function createUseWebSearchTool(session: WorkspaceOrchestratorSession) {
     description:
       "Search the live web through Vercel AI Gateway. Supports Auto (Perplexity or Exa), Perplexity, or Exa.",
     inputSchema: useWebSearchInputSchema,
-    execute: async ({ objective }, { toolCallId } = {}) => {
+    execute: async ({ objective }, { toolCallId }: AgentToolExecuteOptions = {}) => {
       const webSearch = session.automation.toolConfig.webSearch;
       if (!webSearch?.enabled) {
         throw new Error("web_search_not_configured");

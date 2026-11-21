@@ -1035,12 +1035,8 @@ export async function runImportHubspotContent(input: {
 
 export function readHubspotDocumentJson(content: string): { [key: string]: HubspotJson } | null {
   const parsed = safeJsonParse(content);
-  if (!parsed.ok) {
+  if (!parsed.ok || !isHubspotJsonObject(parsed.value)) {
     return null;
   }
-  const value: HubspotJson = parsed.value;
-  if (!isHubspotJsonObject(value)) {
-    return null;
-  }
-  return value;
+  return parsed.value;
 }

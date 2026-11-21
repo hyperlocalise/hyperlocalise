@@ -13,7 +13,7 @@
 import { isStepCount, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
 
-import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
+import { defineAgentTool, type AgentToolExecuteOptions } from "@/agents/_runtime/define-agent-tool";
 import {
   SUBAGENT_NO_QUESTIONS_RULES,
   SUBAGENT_RESPONSE_FORMAT,
@@ -48,7 +48,7 @@ export function createUseZernioTool(session: WorkspaceOrchestratorSession) {
     description:
       "Create and manage paid ads through the connected Zernio API. List accounts, inspect the ads tree, and create ads or campaigns on Meta, Google, TikTok, LinkedIn, Pinterest, X, or OpenAI Ads.",
     inputSchema: useZernioInputSchema,
-    execute: async ({ objective }, { toolCallId } = {}) => {
+    execute: async ({ objective }, { toolCallId }: AgentToolExecuteOptions = {}) => {
       const zernio = session.automation.toolConfig.zernio;
       if (!zernio?.enabled || !zernio.connectionId) {
         throw new Error("zernio_not_configured");
