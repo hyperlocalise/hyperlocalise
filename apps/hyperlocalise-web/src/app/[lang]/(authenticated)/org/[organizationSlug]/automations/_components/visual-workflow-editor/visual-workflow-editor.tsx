@@ -13,11 +13,9 @@
  * Version 2.0 or later.
  */
 import {
-  applyNodeChanges,
-  applyEdgeChanges,
+  EdgeChangeset,
+  NodeChangeset,
   type Connection,
-  type EdgeChange,
-  type NodeChange,
   type OnSelectionChangeParams,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -478,23 +476,20 @@ export function VisualWorkflowEditor({
   const isActive = workflowStatus === "active";
 
   const onNodesChange = useCallback(
-    (changes: NodeChange<VisualWorkflowRfNode>[]) => {
+    (changes: NodeChangeset<VisualWorkflowRfNode>) => {
       const current = graphRef.current;
       // A removed node takes its edges with it, in the same step.
       let graph = current;
-      for (const change of changes) {
-        if (change.type === "remove") {
-          graph = { ...graph, ...removeVisualWorkflowNode(graph.nodes, graph.edges, change.id) };
-        }
+      for (const change of changes.getByType("remove")) {
+        graph = { ...graph, ...removeVisualWorkflowNode(graph.nodes, graph.edges, change.id) };
       }
       const next = {
         ...graph,
-        nodes: applyNodeChanges(
-          changes.filter((change) => change.type !== "remove"),
-          graph.nodes,
-        ),
+        nodes: new NodeChangeset(
+          changes.toArray().filter((change) => change.type !== "remove"),
+        ).applyTo(graph.nodes),
       };
-      const positions = changes.filter((change) => change.type === "position");
+      const positions = changes.getByType("position");
       if (positions.some((change) => change.dragging)) {
         dragStartRef.current ??= current;
         place(next);
@@ -526,10 +521,10 @@ export function VisualWorkflowEditor({
   );
 
   const onEdgesChange = useCallback(
-    (changes: EdgeChange<VisualWorkflowRfEdge>[]) => {
+    (changes: EdgeChangeset<VisualWorkflowRfEdge>) => {
       const current = graphRef.current;
-      const nextEdges = applyEdgeChanges(changes, current.edges);
-      if (!changes.some((change) => change.type === "remove")) {
+      const nextEdges = changes.applyTo(current.edges);
+      if (changes.getByType("remove").length === 0) {
         place({ ...current, edges: nextEdges });
         return;
       }
