@@ -18,6 +18,8 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
+import { resolvedProjectBranchName } from "@/lib/projects/branches/project-branch-name";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
 import {
@@ -212,9 +214,9 @@ export async function runIrisProjectAction(
     case "translate_file":
       return translateFile(organizationId, userId, project, payload, deps);
     case "file_settings_get":
-      return fileSettings(organizationId, projectId, payload, false);
+      return fileSettings(organizationId, userId, projectId, payload, false);
     case "file_settings_patch":
-      return fileSettings(organizationId, projectId, payload, true);
+      return fileSettings(organizationId, userId, projectId, payload, true);
     case "use_translation_as_source":
       return useTranslation(organizationId, userId, project, payload);
     case "create_job":
@@ -384,13 +386,33 @@ async function translateFile(
 
 async function fileSettings(
   organizationId: string,
+  userId: string,
   projectId: string,
   payload: Record<string, unknown>,
   write: boolean,
 ): Promise<ActionResult> {
   const sourcePath = asString(payload.sourcePath);
   const kind = asString(payload.kind);
-  const scope = { organizationId, projectId, sourcePath };
+  let branchName = resolvedProjectBranchName(asString(payload.branch));
+  if (write) {
+    await projectBranchService.ensureDefaultBranch({
+      organizationId,
+      projectId,
+      createdByUserId: userId,
+    });
+    const writable = await projectBranchService.assertWritable({
+      projectId,
+      branchName: asString(payload.branch),
+    });
+    if (!writable.ok) {
+      if (writable.error === "protected_branch") {
+        return fail(409, "protected_branch", "This branch is protected");
+      }
+      return fail(404, "branch_not_found", "Branch not found");
+    }
+    branchName = writable.value;
+  }
+  const scope = { organizationId, projectId, sourcePath, branchName };
   if (kind === "segmentation") {
     if (!write) {
       const record = await getRepositorySourceFileSegmentation(scope);

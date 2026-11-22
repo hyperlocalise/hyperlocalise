@@ -97,12 +97,14 @@ export function ProjectFileMessageFormatDialog({
   organizationSlug,
   projectId,
   sourcePath,
+  branch,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  branch?: string | null;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -111,7 +113,7 @@ export function ProjectFileMessageFormatDialog({
   const [sampleText, setSampleText] = useState("");
   const patternsFieldId = useId();
   const sampleFieldId = useId();
-  const queryKey = ["project-file-message-format", organizationSlug, projectId, sourcePath];
+  const queryKey = ["project-file-message-format", organizationSlug, projectId, sourcePath, branch];
 
   const settingsQuery = useQuery({
     queryKey,
@@ -121,7 +123,7 @@ export function ProjectFileMessageFormatDialog({
       try {
         const response = await messageFormatApi().$get({
           param: { organizationSlug, projectId },
-          query: { sourcePath },
+          query: { sourcePath, ...(branch?.trim() ? { branch: branch.trim() } : {}) },
         });
         if (response.status !== 200) {
           throw await readApiResponseError(response, fallback);
@@ -173,6 +175,7 @@ export function ProjectFileMessageFormatDialog({
           sourcePath,
           messageFormat: value.messageFormat,
           placeholderPatterns: value.placeholderPatterns,
+          ...(branch?.trim() ? { branch: branch.trim() } : {}),
         },
       });
       if (response.status !== 200) {

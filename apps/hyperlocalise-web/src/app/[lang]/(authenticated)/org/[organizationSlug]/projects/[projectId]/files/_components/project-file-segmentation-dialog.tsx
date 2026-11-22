@@ -75,8 +75,16 @@ function resolveCustomSrxModel(xml: string | null | undefined): {
   };
 }
 
-function segmentationApiPath(organizationSlug: string, projectId: string, sourcePath: string) {
+function segmentationApiPath(
+  organizationSlug: string,
+  projectId: string,
+  sourcePath: string,
+  branch?: string | null,
+) {
   const params = new URLSearchParams({ sourcePath });
+  if (branch?.trim()) {
+    params.set("branch", branch.trim());
+  }
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files/segmentation?${params}`;
 }
 
@@ -90,22 +98,26 @@ export function ProjectFileSegmentationDialog({
   organizationSlug,
   projectId,
   sourcePath,
+  branch,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  branch?: string | null;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<SegmentationState | null>(null);
 
   const settingsQuery = useQuery({
-    queryKey: ["project-file-segmentation", organizationSlug, projectId, sourcePath],
+    queryKey: ["project-file-segmentation", organizationSlug, projectId, sourcePath, branch],
     enabled: open,
     queryFn: async () => {
-      const response = await fetch(segmentationApiPath(organizationSlug, projectId, sourcePath));
+      const response = await fetch(
+        segmentationApiPath(organizationSlug, projectId, sourcePath, branch),
+      );
       if (!response.ok) {
         throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
       }
@@ -161,7 +173,11 @@ export function ProjectFileSegmentationDialog({
       const response = await fetch(patchSegmentationPath(organizationSlug, projectId), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourcePath, segmentation }),
+        body: JSON.stringify({
+          sourcePath,
+          segmentation,
+          ...(branch?.trim() ? { branch: branch.trim() } : {}),
+        }),
       });
       if (!response.ok) {
         throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
@@ -175,7 +191,7 @@ export function ProjectFileSegmentationDialog({
           queryKey: ["project-file-detail", organizationSlug, projectId, sourcePath],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["project-file-segmentation", organizationSlug, projectId, sourcePath],
+          queryKey: ["project-file-segmentation", organizationSlug, projectId, sourcePath, branch],
         }),
       ]);
       onOpenChange(false);

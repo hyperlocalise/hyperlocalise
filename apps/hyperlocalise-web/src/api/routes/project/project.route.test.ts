@@ -25,12 +25,14 @@ import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers
 import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import {
   ensureRepositorySourceFile,
   ensureRepositorySourceFileVersionForStoredFile,
 } from "@/lib/file-storage/records";
+import { defaultRepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings-schema";
 
 import { insertStoredSourceFile } from "../public-jobs/public-jobs.fixture";
 import { createProjectTestFixture } from "./project.fixture";
@@ -1077,6 +1079,231 @@ describe("project file import settings", () => {
       },
     );
     expect(invalidResponse.status).toBe(400);
+  });
+
+  it("writes import settings onto the named version branch and leaves main alone", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const userId = globalThis.__testApiAuthContext!.user.localUserId;
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: userId,
+    });
+    const created = await projectBranchService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: userId,
+      name: "feature-checkout",
+    });
+    expect(created.ok).toBe(true);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const importSettingsApi =
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files["import-settings"];
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+    const cloneSettings = {
+      ...defaultRepositorySourceFileImportSettings(),
+      json: {
+        ...defaultRepositorySourceFileImportSettings().json,
+        keyPaths: ["*.text"],
+      },
+    };
+
+    const cloneResponse = await importSettingsApi.$patch(
+      {
+        param,
+        json: {
+          sourcePath: "locales/en.json",
+          branch: "feature-checkout",
+          importSettings: cloneSettings,
+        },
+      },
+      { headers },
+    );
+    expect(cloneResponse.status).toBe(200);
+
+    const rows = await db
+      .select({
+        branchName: schema.repositorySourceFiles.branchName,
+        importSettings: schema.repositorySourceFiles.importSettings,
+      })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    const byBranch = Object.fromEntries(rows.map((row) => [row.branchName, row.importSettings]));
+    expect(byBranch["feature-checkout"]?.json?.keyPaths).toEqual(["*.text"]);
+    expect(byBranch.main?.json?.keyPaths ?? []).toEqual([]);
+
+    const mainResponse = await importSettingsApi.$patch(
+      {
+        param,
+        json: {
+          sourcePath: "locales/en.json",
+          importSettings: {
+            ...defaultRepositorySourceFileImportSettings(),
+            json: {
+              ...defaultRepositorySourceFileImportSettings().json,
+              keyPaths: ["*.main"],
+            },
+          },
+        },
+      },
+      { headers },
+    );
+    expect(mainResponse.status).toBe(200);
+
+    const afterMain = await db
+      .select({
+        branchName: schema.repositorySourceFiles.branchName,
+        importSettings: schema.repositorySourceFiles.importSettings,
+      })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    const afterByBranch = Object.fromEntries(
+      afterMain.map((row) => [row.branchName, row.importSettings]),
+    );
+    expect(afterByBranch.main?.json?.keyPaths).toEqual(["*.main"]);
+    expect(afterByBranch["feature-checkout"]?.json?.keyPaths).toEqual(["*.text"]);
+  });
+
+  it("rejects import settings writes on a protected branch", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const userId = globalThis.__testApiAuthContext!.user.localUserId;
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: userId,
+    });
+    const protectedBranch = await projectBranchService.update({
+      projectId: project.id,
+      name: "main",
+      isProtected: true,
+    });
+    expect(protectedBranch.ok).toBe(true);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files[
+      "import-settings"
+    ].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath: "locales/en.json",
+          importSettings: {
+            ...defaultRepositorySourceFileImportSettings(),
+            json: {
+              ...defaultRepositorySourceFileImportSettings().json,
+              keyPaths: ["*.text"],
+            },
+          },
+        },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "protected_branch" });
+  });
+});
+
+describe("project file message format branches", () => {
+  it("does not copy a message format change onto a clone of the same path", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const userId = globalThis.__testApiAuthContext!.user.localUserId;
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: userId,
+    });
+    const created = await projectBranchService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: userId,
+      name: "feature-checkout",
+    });
+    expect(created.ok).toBe(true);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const messageFormatApi =
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files["message-format"];
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+
+    const response = await messageFormatApi.$patch(
+      { param, json: { sourcePath: "locales/en.json", messageFormat: "icu" } },
+      { headers },
+    );
+    expect(response.status).toBe(200);
+
+    const rows = await db
+      .select({
+        branchName: schema.repositorySourceFiles.branchName,
+        messageFormat: schema.repositorySourceFiles.messageFormat,
+      })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    const byBranch = Object.fromEntries(rows.map((row) => [row.branchName, row.messageFormat]));
+    expect(byBranch.main).toBe("icu");
+    expect(byBranch["feature-checkout"]).toBe("auto");
+
+    const cloneResponse = await messageFormatApi.$patch(
+      {
+        param,
+        json: {
+          sourcePath: "locales/en.json",
+          branch: "feature-checkout",
+          messageFormat: "i18next",
+        },
+      },
+      { headers },
+    );
+    expect(cloneResponse.status).toBe(200);
+
+    const afterClone = await db
+      .select({
+        branchName: schema.repositorySourceFiles.branchName,
+        messageFormat: schema.repositorySourceFiles.messageFormat,
+      })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    const afterByBranch = Object.fromEntries(
+      afterClone.map((row) => [row.branchName, row.messageFormat]),
+    );
+    expect(afterByBranch.main).toBe("icu");
+    expect(afterByBranch["feature-checkout"]).toBe("i18next");
   });
 });
 

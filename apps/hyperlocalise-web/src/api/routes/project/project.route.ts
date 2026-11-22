@@ -13,7 +13,7 @@
 import path from "node:path";
 
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
@@ -1166,6 +1166,35 @@ async function contentEditorSegmentLockedResponse(
   }
 
   return conflictResponse(c, "translation_locked", "This string is locked. Unlock it to edit.");
+}
+
+async function writableProjectFileBranch(
+  c: Context<{ Variables: AuthVariables }>,
+  projectId: string,
+  branch?: string,
+) {
+  await projectBranchService.ensureDefaultBranch({
+    organizationId: c.var.auth.organization.localOrganizationId,
+    projectId,
+    createdByUserId: c.var.auth.user.localUserId,
+  });
+  const writableBranch = await projectBranchService.assertWritable({
+    projectId,
+    branchName: branch,
+  });
+  if (!writableBranch.ok) {
+    if (writableBranch.error === "protected_branch") {
+      return {
+        ok: false as const,
+        response: conflictResponse(c, "protected_branch", "This branch is protected."),
+      };
+    }
+    return {
+      ok: false as const,
+      response: notFoundResponse(c, "branch_not_found", "Branch not found."),
+    };
+  }
+  return { ok: true as const, branchName: writableBranch.value };
 }
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
@@ -3592,6 +3621,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: query.sourcePath,
+          branchName: query.branch,
         });
         if (!record) {
           return notFoundResponse(c, "source_file_not_found");
@@ -3635,10 +3665,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
+        const writableBranch = await writableProjectFileBranch(c, params.projectId, body.branch);
+        if (!writableBranch.ok) {
+          return writableBranch.response;
+        }
+
         const result = await updateRepositorySourceFileSegmentation({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: body.sourcePath,
+          branchName: writableBranch.branchName,
           settings: body.segmentation,
         });
 
@@ -3692,6 +3728,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: query.sourcePath,
+          branchName: query.branch,
         });
         if (!settings) {
           return notFoundResponse(c, "source_file_not_found");
@@ -3731,10 +3768,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
+        const writableBranch = await writableProjectFileBranch(c, params.projectId, body.branch);
+        if (!writableBranch.ok) {
+          return writableBranch.response;
+        }
+
         const settings = await updateRepositorySourceFilePlaceholderSettings({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: body.sourcePath,
+          branchName: writableBranch.branchName,
           messageFormat: body.messageFormat,
           placeholderPatterns: body.placeholderPatterns,
         });
@@ -3776,6 +3819,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: query.sourcePath,
+          branchName: query.branch,
         });
         if (!record) {
           return notFoundResponse(c, "source_file_not_found");
@@ -3815,10 +3859,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
+        const writableBranch = await writableProjectFileBranch(c, params.projectId, body.branch);
+        if (!writableBranch.ok) {
+          return writableBranch.response;
+        }
+
         const result = await updateRepositorySourceFileImportSettings({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: body.sourcePath,
+          branchName: writableBranch.branchName,
           settings: body.importSettings,
         });
         if (!result.ok) {
