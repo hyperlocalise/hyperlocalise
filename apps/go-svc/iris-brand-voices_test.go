@@ -143,17 +143,20 @@ func TestResolveBrandVoicesSkipsWithoutDatabaseOrElevenLabs(t *testing.T) {
 func TestBrandVoicesRequireManagerToChange(t *testing.T) {
 	api := newIrisGenerationFixture(t, &stubIrisProvider{})
 	api.voices = &fakeVoiceLibrary{}
-	api.resolve = func(context.Context, AuthClaims, string) (irisOrgScope, error) {
-		return irisOrgScope{OrganizationID: "org", UserID: "user", Role: "translator"}, nil
-	}
-	for _, call := range []struct{ method, path string }{
-		{http.MethodPost, irisTestPath + "/brand/voices/clone"},
-		{http.MethodPost, irisTestPath + "/brand/voices/designed"},
-		{http.MethodPatch, irisTestPath + "/brand/voices/abc"},
-		{http.MethodDelete, irisTestPath + "/brand/voices/abc"},
-	} {
-		rec := irisRequest(api, call.method, call.path, map[string]any{})
-		require.Equal(t, http.StatusForbidden, rec.Code, call.path)
+	for _, role := range []string{"translator", "developer", "member", "reviewer"} {
+		api.resolve = func(context.Context, AuthClaims, string) (irisOrgScope, error) {
+			return irisOrgScope{OrganizationID: "org", UserID: "user", Role: role}, nil
+		}
+		for _, call := range []struct{ method, path string }{
+			{http.MethodPost, irisTestPath + "/brand/voices/clone"},
+			{http.MethodPost, irisTestPath + "/brand/voices/designed"},
+			{http.MethodPatch, irisTestPath + "/brand/voices/abc"},
+			{http.MethodDelete, irisTestPath + "/brand/voices/abc"},
+		} {
+			rec := irisRequest(api, call.method, call.path, map[string]any{})
+			require.Equal(t, http.StatusForbidden, rec.Code, role+" "+call.path)
+			require.Contains(t, rec.Body.String(), `"forbidden"`)
+		}
 	}
 }
 
@@ -168,6 +171,24 @@ func TestBrandVoiceCloneLifecycle(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 		require.Contains(t, rec.Body.String(), `"consent_required"`)
 		require.Contains(t, rec.Body.String(), irisVoiceConsentVersion)
+		require.Empty(t, library.clones)
+	})
+
+	t.Run("refuses a stale consent version", func(t *testing.T) {
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/brand/voices/clone", map[string]any{
+			"name": "Acme CEO", "samples": []irisAssetRef{sample}, "consentVersion": "2026-01-01",
+		})
+		require.Equal(t, http.StatusBadRequest, rec.Code)
+		require.Contains(t, rec.Body.String(), `"consent_required"`)
+		require.Empty(t, library.clones)
+	})
+
+	t.Run("refuses a clone with no samples", func(t *testing.T) {
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/brand/voices/clone", map[string]any{
+			"name": "Acme CEO", "samples": []irisAssetRef{}, "consentVersion": irisVoiceConsentVersion,
+		})
+		require.Equal(t, http.StatusBadRequest, rec.Code)
+		require.Contains(t, rec.Body.String(), "samples takes 1 to")
 		require.Empty(t, library.clones)
 	})
 
@@ -373,4 +394,42 @@ values ($1, 'Rival CEO', 'rivalceo', 'elevenlabs', 'g78kUX8pkfYO2kHyqfFy', 'desi
 		require.Equal(t, http.StatusOK, generate(t, "own-id", irisGenerateRequest{"model": "elevenlabs-v3", "prompt": "Hello", "voice": "c38kUX8pkfYO2kHyqfFy"}))
 		require.Equal(t, "c38kUX8pkfYO2kHyqfFy", provider.last.Voice)
 	})
+}
+
+func TestBrandVoiceMembersCanListAndCannotTouchAnotherWorkspace(t *testing.T) {
+	api, scope, _, _ := brandVoiceFixture(t, "translator")
+	other := testenv.Seed(t, testenv.Options{Role: "admin"})
+
+	var ownID, foreignID string
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `insert into brand_voices (organization_id, name, name_key, provider, provider_voice_id, source)
+values ($1, 'Acme CEO', 'acmeceo', 'elevenlabs', 'c38kUX8pkfYO2kHyqfFy', 'design') returning id::text`, scope.OrganizationID).Scan(&ownID))
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `insert into brand_voices (organization_id, name, name_key, provider, provider_voice_id, source)
+values ($1, 'Rival CEO', 'rivalceo', 'elevenlabs', 'g78kUX8pkfYO2kHyqfFy', 'design') returning id::text`, other.OrganizationID).Scan(&foreignID))
+
+	listed := irisRequest(api, http.MethodGet, irisTestPath+"/brand/voices", nil)
+	require.Equal(t, http.StatusOK, listed.Code, listed.Body.String())
+	require.Contains(t, listed.Body.String(), ownID)
+	require.NotContains(t, listed.Body.String(), foreignID)
+	require.NotContains(t, listed.Body.String(), "g78kUX8pkfYO2kHyqfFy")
+
+	patched := irisRequest(api, http.MethodPatch, irisTestPath+"/brand/voices/"+foreignID, map[string]any{"name": "Stolen"})
+	require.Equal(t, http.StatusForbidden, patched.Code)
+
+	manager, _, library, provider := brandVoiceFixture(t, "admin")
+	patched = irisRequest(manager, http.MethodPatch, irisTestPath+"/brand/voices/"+foreignID, map[string]any{"name": "Stolen"})
+	require.Equal(t, http.StatusNotFound, patched.Code, patched.Body.String())
+	require.Contains(t, patched.Body.String(), "voice_not_found")
+
+	deleted := irisRequest(manager, http.MethodDelete, irisTestPath+"/brand/voices/"+foreignID, nil)
+	require.Equal(t, http.StatusNotFound, deleted.Code)
+	require.Empty(t, library.deleted)
+
+	calls := provider.calls
+	generated := irisRequest(manager, http.MethodPost, irisTestPath+"/generate", map[string]any{
+		"request":        irisGenerateRequest{"model": "elevenlabs-v3", "prompt": "Hello", "voice": foreignID},
+		"idempotencyKey": "foreign-uuid",
+	})
+	require.Equal(t, http.StatusOK, generated.Code, generated.Body.String())
+	require.Equal(t, calls+1, provider.calls)
+	require.Equal(t, foreignID, provider.last.Voice, "another workspace's brand-voice id is not mapped to its ElevenLabs id")
 }

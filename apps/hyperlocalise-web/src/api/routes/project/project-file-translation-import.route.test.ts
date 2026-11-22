@@ -320,4 +320,32 @@ describe("project file translation import route", () => {
     await expect(response.json()).resolves.toMatchObject({ error: "protected_branch" });
     expect(enqueuedImports).toHaveLength(0);
   });
+
+  it("rejects an import onto a branch that is not there", async () => {
+    const { admin, headers, organizationId, projectId, userId } = await createNativeProject(["fr"]);
+    await projectBranchService.ensureDefaultBranch({
+      organizationId,
+      projectId,
+      createdByUserId: userId,
+    });
+    await db.insert(schema.repositorySourceFiles).values({
+      organizationId,
+      projectId,
+      sourcePath: "locales/en.json",
+    });
+
+    const response = await postImport({
+      slug: admin.organization.slug ?? "missing-slug",
+      projectId,
+      sourcePath: "locales/en.json",
+      locale: "fr",
+      file: new File(['{"greeting":"Salut"}'], "en.json", { type: "application/json" }),
+      headers,
+      branch: "feature-checkout",
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: "branch_not_found" });
+    expect(enqueuedImports).toHaveLength(0);
+  });
 });
