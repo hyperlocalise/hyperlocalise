@@ -66,12 +66,15 @@ type irisGenerationAPI struct {
 	credits    irisCreditConfig
 	pool       dictionaryPool
 	membership organizationMembershipLookup
-	resolve    func(context.Context, AuthClaims, string) (irisOrgScope, error)
-	now        func() time.Time
-	run        func(func())
-	timeout    time.Duration
-	queueMu    sync.Mutex
-	inflight   sync.Map
+	// voices keeps brand voices on the provider account; nil without
+	// ELEVENLABS_API_KEY.
+	voices   irisVoiceLibrary
+	resolve  func(context.Context, AuthClaims, string) (irisOrgScope, error)
+	now      func() time.Time
+	run      func(func())
+	timeout  time.Duration
+	queueMu  sync.Mutex
+	inflight sync.Map
 }
 
 type irisUploadResponse struct {
@@ -92,6 +95,7 @@ func (api *irisGenerationAPI) register(mux *http.ServeMux, verifier SessionVerif
 	registerAuthenticated(mux, verifier, "GET "+irisGenerationPath+"/models", http.HandlerFunc(api.listModels))
 	registerAuthenticated(mux, verifier, "GET "+irisGenerationPath+"/jobs/{jobId}", http.HandlerFunc(api.getJob))
 	registerAuthenticated(mux, verifier, "POST "+irisGenerationPath+"/jobs/{jobId}/cancel", http.HandlerFunc(api.cancelJob))
+	api.registerBrandVoices(mux, verifier)
 	api.registerLocalise(mux, verifier)
 	api.registerChat(mux, verifier)
 }
@@ -489,6 +493,17 @@ func (api *irisGenerationAPI) generate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_input", "message": err.Error()})
 		return
 	}
+	voices, err := api.resolveBrandVoices(r.Context(), scope.OrganizationID, model, body.Request)
+	if err != nil {
+		var voiceErr *irisVoiceError
+		if errors.As(err, &voiceErr) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_input", "message": voiceErr.Error()})
+			return
+		}
+		logRequestFailure(r, "iris_generation_brand_voices_failed", "generate", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "service_unavailable", "message": "Could not check the workspace's voices"})
+		return
+	}
 	if status, code, message, ok := api.ensureAIAllowed(r.Context(), scope.OrganizationID); !ok {
 		writeJSON(w, status, map[string]string{"error": code, "message": message})
 		return
@@ -516,6 +531,7 @@ func (api *irisGenerationAPI) generate(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:  now.Format(time.RFC3339),
 		UserID:     scope.UserID,
 		OrgID:      scope.OrganizationID,
+		Voices:     voices,
 	}
 	api.attachGlossaryAudio(r.Context(), scope, &job)
 	remaining := estimate.ETASeconds
@@ -722,7 +738,7 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 	outputs, err := api.provider.Generate(ctx, irisProviderRequest{
 		Model:          model,
 		Prompt:         job.Request.prompt(),
-		Voice:          job.Request.voice(),
+		Voice:          irisProviderVoice(job.Voices, job.Request.voice()),
 		Duration:       job.Request.duration(),
 		AspectRatio:    job.Request.stringField("aspectRatio"),
 		Resolution:     job.Request.stringField("resolution"),
@@ -732,6 +748,7 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 		Fields:         job.Request,
 		Pronunciations: job.Pronunciations,
 		Keyterms:       job.Keyterms,
+		Voices:         job.Voices,
 	})
 	if err != nil {
 		api.failJob(ctx, job, "PROVIDER_ERROR", err.Error())

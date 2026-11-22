@@ -51,7 +51,7 @@ func TestIrisCompositeProviderUsesElevenLabs(t *testing.T) {
 		require.Equal(t, "xi-test", r.Header.Get("xi-api-key"))
 		switch r.URL.Path {
 		case "/v1/voices":
-			_, _ = w.Write([]byte(`{"voices":[{"voice_id":"21m00Tcm4TlvDq8ikWAM","name":"Roger"}]}`))
+			_, _ = w.Write([]byte(`{"voices":[{"voice_id":"21m00Tcm4TlvDq8ikWAM","name":"Roger","category":"premade"}]}`))
 		case "/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM":
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
 			w.Header().Set("Content-Type", "audio/mpeg")
@@ -75,6 +75,46 @@ func TestIrisCompositeProviderUsesElevenLabs(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("native-mp3"), outputs[0].Bytes)
 	require.Equal(t, "eleven_v4", payload["model_id"])
+}
+
+func TestIrisCompositeProviderSendsBrandVoicesInDialogue(t *testing.T) {
+	var payload struct {
+		Inputs []struct {
+			Text    string `json:"text"`
+			VoiceID string `json:"voice_id"`
+		} `json:"inputs"`
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/voices":
+			_, _ = w.Write([]byte(`{"voices":[{"voice_id":"21m00Tcm4TlvDq8ikWAM","name":"Roger","category":"premade"}]}`))
+		case "/v1/text-to-dialogue":
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			w.Header().Set("Content-Type", "audio/mpeg")
+			_, _ = w.Write([]byte("dialogue-mp3"))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := elevenlabs.NewClientWithHTTPClient(elevenlabs.Config{APIKey: "xi-test", BaseURL: server.URL}, server.Client())
+	require.NoError(t, err)
+	provider := &irisCompositeProvider{elevenlabs: client}
+	model, ok := irisModelByID("elevenlabs-dialogue")
+	require.True(t, ok)
+	_, err = provider.Generate(t.Context(), irisProviderRequest{
+		Model: model,
+		Fields: irisGenerateRequest{"lines": []any{
+			map[string]any{"text": "Hi", "voice": "Acme CEO"},
+			map[string]any{"text": "Hey", "voice": "Roger"},
+		}},
+		Voices: map[string]string{"Acme CEO": "c38kUX8pkfYO2kHyqfFy"},
+	})
+	require.NoError(t, err)
+	require.Len(t, payload.Inputs, 2)
+	require.Equal(t, "c38kUX8pkfYO2kHyqfFy", payload.Inputs[0].VoiceID)
+	require.Equal(t, "21m00Tcm4TlvDq8ikWAM", payload.Inputs[1].VoiceID)
 }
 
 func TestIrisCompositeProviderUsesFal(t *testing.T) {

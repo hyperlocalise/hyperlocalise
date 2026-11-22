@@ -44,6 +44,9 @@ type irisProviderRequest struct {
 	// glossary spells them out; Keyterms are its terms for a transcript.
 	Pronunciations []irisPronunciation
 	Keyterms       []string
+	// Voices maps brand voices named in Fields (a dialogue's lines) to their
+	// provider voice ids; Voice is already resolved.
+	Voices map[string]string
 }
 
 type irisProviderInput struct {

@@ -1373,6 +1373,13 @@
       "when": 1795138220188,
       "tag": "0195_glossary_term_pronunciation",
       "breakpoints": true
+    },
+    {
+      "idx": 196,
+      "version": "7",
+      "when": 1795334049692,
+      "tag": "0196_acoustic_starhawk",
+      "breakpoints": true
     }
   ]
 }

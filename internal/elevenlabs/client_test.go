@@ -22,7 +22,7 @@ func TestCreateSpeechResolvesVoiceName(t *testing.T) {
 		switch r.URL.Path {
 		case "/v1/voices":
 			require.Equal(t, http.MethodGet, r.Method)
-			_, _ = w.Write([]byte(`{"voices":[{"voice_id":"21m00Tcm4TlvDq8ikWAM","name":"Roger"}]}`))
+			_, _ = w.Write([]byte(`{"voices":[{"voice_id":"21m00Tcm4TlvDq8ikWAM","name":"Roger","category":"premade"}]}`))
 		case "/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM":
 			require.Equal(t, http.MethodPost, r.Method)
 			require.Equal(t, "mp3_44100_128", r.URL.Query().Get("output_format"))
