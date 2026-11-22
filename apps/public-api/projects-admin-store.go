@@ -190,6 +190,10 @@ var errStringSourceTextRequired = errors.New("sourceText is required to create a
 func (s *postgresStore) upsertStrings(ctx context.Context, actor principal, projectID string, items []stringUpsert) (stringBatchResult, error) {
 	result := stringBatchResult{Strings: make([]translationString, 0, len(items))}
 	err := s.withNativeProject(ctx, actor, projectID, func(tx pgx.Tx, scope projectScope) error {
+		// Every item is created or matched on the default branch.
+		if err := rejectProtectedBranch(ctx, tx, scope, defaultBranchName); err != nil {
+			return err
+		}
 		fileIDs := map[string]*string{}
 		for i, item := range items {
 			saved, created, err := upsertString(ctx, tx, actor, scope, item, fileIDs)
@@ -223,15 +227,9 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 	if item.FilePath != nil {
 		cached, ok := fileIDs[*item.FilePath]
 		if !ok {
-			var id string
-			err := tx.QueryRow(ctx, `SELECT f.id FROM repository_source_files f
-				WHERE f.organization_id = $1 AND f.project_id = $2 AND f.source_path = $3`,
-				actor.OrganizationID, scope.ID, *item.FilePath).Scan(&id)
-			if errors.Is(err, pgx.ErrNoRows) {
-				return translationString{}, false, errSourceFileNotFound
-			}
+			id, err := loadDefaultBranchSourceFileID(ctx, tx, actor, scope, *item.FilePath)
 			if err != nil {
-				return translationString{}, false, fmt.Errorf("load source file: %w", err)
+				return translationString{}, false, err
 			}
 			cached = &id
 			fileIDs[*item.FilePath] = cached
@@ -245,7 +243,8 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 	var existingID string
 	err := tx.QueryRow(ctx, `SELECT id FROM project_translation_keys
 		WHERE project_id = $1 AND key = $2 AND repository_source_file_id IS NOT DISTINCT FROM $3::uuid
-		ORDER BY id LIMIT 1`, scope.ID, item.Key, fileID).Scan(&existingID)
+			AND branch_name = $4
+		ORDER BY id LIMIT 1`, scope.ID, item.Key, fileID, defaultBranchName).Scan(&existingID)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		if item.SourceText == nil {

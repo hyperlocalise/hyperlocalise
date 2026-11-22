@@ -32,6 +32,7 @@ var (
 	errSourceTextInvalid     = errors.New("source text holds a control character")
 	errSourceTextForbidden   = errors.New("source text of strings in files is edited by admins, localization managers and developers")
 	errTranslationTooLong    = errors.New("translation exceeds the string max length")
+	errProtectedBranch       = errors.New("branch is protected")
 )
 
 type translationString struct {
@@ -364,20 +365,72 @@ func (s *postgresStore) withNativeProject(ctx context.Context, actor principal, 
 	return tx.Commit(ctx)
 }
 
+// defaultBranchName is the branch strings created through the API land on; the API has no branch
+// parameter for string writes.
+const defaultBranchName = "main"
+
+// rejectProtectedBranch fails when the branch is protected. Protected branches change only through
+// merge, as in the Content Editor and go-svc. A project without branch rows has nothing protected.
+func rejectProtectedBranch(ctx context.Context, tx pgx.Tx, scope projectScope, branch string) error {
+	var protected bool
+	if err := tx.QueryRow(ctx, `SELECT COALESCE((SELECT is_protected FROM project_branches
+		WHERE project_id = $1 AND name = $2 AND status = 'active'), false)`,
+		scope.ID, branch).Scan(&protected); err != nil {
+		return fmt.Errorf("check branch protection: %w", err)
+	}
+	if protected {
+		return errProtectedBranch
+	}
+	return nil
+}
+
+// rejectProtectedStrings fails when any of the strings is on a protected branch.
+func rejectProtectedStrings(ctx context.Context, tx pgx.Tx, scope projectScope, keyIDs []string) error {
+	if len(keyIDs) == 0 {
+		return nil
+	}
+	var protected bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (
+		SELECT 1 FROM project_translation_keys k
+		JOIN project_branches b ON b.project_id = k.project_id AND b.name = k.branch_name
+			AND b.status = 'active' AND b.is_protected
+		WHERE k.project_id = $1 AND k.id = ANY($2::uuid[]))`,
+		scope.ID, keyIDs).Scan(&protected); err != nil {
+		return fmt.Errorf("check branch protection: %w", err)
+	}
+	if protected {
+		return errProtectedBranch
+	}
+	return nil
+}
+
+// loadDefaultBranchSourceFileID resolves a file path to its default-branch copy. Each version
+// branch holds its own row for the same path, so a path alone is ambiguous.
+func loadDefaultBranchSourceFileID(ctx context.Context, tx pgx.Tx, actor principal, scope projectScope, filePath string) (string, error) {
+	var id string
+	err := tx.QueryRow(ctx, `SELECT f.id FROM repository_source_files f
+		WHERE f.organization_id = $1 AND f.project_id = $2 AND f.source_path = $3 AND f.branch_name = $4`,
+		actor.OrganizationID, scope.ID, filePath, defaultBranchName).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", errSourceFileNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("load source file: %w", err)
+	}
+	return id, nil
+}
+
 func (s *postgresStore) createString(ctx context.Context, actor principal, projectID string, input stringCreate) (translationString, error) {
 	var created translationString
 	err := s.withNativeProject(ctx, actor, projectID, func(tx pgx.Tx, scope projectScope) error {
+		if err := rejectProtectedBranch(ctx, tx, scope, defaultBranchName); err != nil {
+			return err
+		}
 		var fileID *string
 		if input.FilePath != nil {
-			var id string
-			err := tx.QueryRow(ctx, `SELECT f.id FROM repository_source_files f
-				WHERE f.organization_id = $1 AND f.project_id = $2 AND f.source_path = $3`,
-				actor.OrganizationID, scope.ID, *input.FilePath).Scan(&id)
-			if errors.Is(err, pgx.ErrNoRows) {
-				return errSourceFileNotFound
-			}
+			id, err := loadDefaultBranchSourceFileID(ctx, tx, actor, scope, *input.FilePath)
 			if err != nil {
-				return fmt.Errorf("load source file: %w", err)
+				return err
 			}
 			fileID = &id
 		}
@@ -390,7 +443,8 @@ func (s *postgresStore) createString(ctx context.Context, actor principal, proje
 		if err := tx.QueryRow(ctx, `SELECT EXISTS (
 				SELECT 1 FROM project_translation_keys
 				WHERE project_id = $1 AND key = $2 AND repository_source_file_id IS NOT DISTINCT FROM $3::uuid
-			)`, scope.ID, input.Key, fileID).Scan(&exists); err != nil {
+					AND branch_name = $4
+			)`, scope.ID, input.Key, fileID, defaultBranchName).Scan(&exists); err != nil {
 			return fmt.Errorf("check string key: %w", err)
 		}
 		if exists {
@@ -429,6 +483,9 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 	var updated translationString
 	err := s.withNativeProject(ctx, actor, projectID, func(tx pgx.Tx, scope projectScope) error {
 		if _, err := lockString(ctx, tx, actor, scope, stringID); err != nil {
+			return err
+		}
+		if err := rejectProtectedStrings(ctx, tx, scope, []string{stringID}); err != nil {
 			return err
 		}
 		sourceChanged := false
@@ -512,6 +569,9 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 func (s *postgresStore) deleteString(ctx context.Context, actor principal, projectID, stringID string) error {
 	return s.withNativeProject(ctx, actor, projectID, func(tx pgx.Tx, scope projectScope) error {
 		if _, err := lockString(ctx, tx, actor, scope, stringID); err != nil {
+			return err
+		}
+		if err := rejectProtectedStrings(ctx, tx, scope, []string{stringID}); err != nil {
 			return err
 		}
 		if err := rejectIfStringLocked(ctx, tx, actor, scope, stringID, ""); err != nil {
@@ -647,6 +707,9 @@ func (s *postgresStore) putTranslation(ctx context.Context, actor principal, pro
 		}
 		maxLength, err := lockString(ctx, tx, actor, scope, stringID)
 		if err != nil {
+			return err
+		}
+		if err := rejectProtectedStrings(ctx, tx, scope, []string{stringID}); err != nil {
 			return err
 		}
 		if maxLength != nil && *maxLength > 0 && utf8.RuneCountInString(input.Text) > *maxLength {

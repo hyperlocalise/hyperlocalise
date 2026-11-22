@@ -14,10 +14,12 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database/client";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { createProjectTestFixture } from "./project.fixture";
@@ -76,7 +78,7 @@ async function createNativeProject(targetLocales: string[]) {
     targetLocales,
   });
 
-  return { admin, headers, organizationId, projectId };
+  return { admin, headers, organizationId, projectId, userId };
 }
 
 async function postBilingualImport(input: {
@@ -164,7 +166,19 @@ describe("project file bilingual import route", () => {
   });
 
   it("imports onto the named version branch instead of main", async () => {
-    const { admin, headers, organizationId, projectId } = await createNativeProject(["fr"]);
+    const { admin, headers, organizationId, projectId, userId } = await createNativeProject(["fr"]);
+    await projectBranchService.ensureDefaultBranch({
+      organizationId,
+      projectId,
+      createdByUserId: userId,
+    });
+    const created = await projectBranchService.create({
+      organizationId,
+      projectId,
+      createdByUserId: userId,
+      name: "feature-checkout",
+    });
+    expect(created.ok).toBe(true);
     await db.insert(schema.repositorySourceFiles).values({
       organizationId,
       projectId,
@@ -278,6 +292,59 @@ describe("project file bilingual import route", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ error: "empty_bilingual_file" });
+    expect(importCatBilingualRowsMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a translator's import onto a protected branch", async () => {
+    const { admin, organizationId, projectId, userId } = await createNativeProject(["fr"]);
+    await projectBranchService.ensureDefaultBranch({
+      organizationId,
+      projectId,
+      createdByUserId: userId,
+    });
+    const protectedBranch = await projectBranchService.update({
+      projectId,
+      name: "main",
+      isProtected: true,
+    });
+    expect(protectedBranch.ok).toBe(true);
+    await db.insert(schema.repositorySourceFiles).values({
+      organizationId,
+      projectId,
+      sourcePath: "locales/en.json",
+    });
+    const translator = projectFixture.createWorkosIdentityForOrganization(
+      admin.organization,
+      "translator",
+    );
+    const headers = await projectFixture.authHeadersFor(translator);
+    const translatorUserId = globalThis.__testApiAuthContext!.user.localUserId;
+    const [team] = await db
+      .insert(schema.teams)
+      .values({ organizationId, name: "Translators", slug: `translators-${randomUUID()}` })
+      .returning();
+    await db.insert(schema.teamMemberships).values({
+      teamId: team.id,
+      userId: translatorUserId,
+      role: "member",
+    });
+    await db
+      .update(schema.projects)
+      .set({ teamId: team.id })
+      .where(eq(schema.projects.id, projectId));
+
+    const response = await postBilingualImport({
+      slug: admin.organization.slug ?? "missing-slug",
+      projectId,
+      sourcePath: "locales/en.json",
+      locale: "fr",
+      file: new File(["<xliff/>"], "queue-fr.xliff", { type: "application/xliff+xml" }),
+      headers,
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "protected_branch" });
+    expect(parseFilteredMock).not.toHaveBeenCalled();
     expect(importCatBilingualRowsMock).not.toHaveBeenCalled();
   });
 

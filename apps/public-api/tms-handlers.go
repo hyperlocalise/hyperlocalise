@@ -47,6 +47,7 @@ var storeErrorResponses = []storeErrorResponse{
 	{errSourceTextInvalid, http.StatusBadRequest, "invalid_source_text", "sourceText may not hold control characters U+001E or U+0000"},
 	{errSourceTextForbidden, http.StatusForbidden, "source_text_forbidden", "Only admins, localization managers and developers can change the source text of strings in files"},
 	{errTranslationTooLong, http.StatusUnprocessableEntity, "translation_too_long", "Translation exceeds the string max length"},
+	{errProtectedBranch, http.StatusConflict, "protected_branch", "This branch is protected"},
 	{errTooManyCustomMetadata, http.StatusBadRequest, "invalid_custom_metadata", "A string can hold at most 50 customMetadata keys"},
 }
 

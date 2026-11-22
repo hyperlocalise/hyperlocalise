@@ -250,3 +250,38 @@ func TestLocaleIn(t *testing.T) {
 	_, ok = localeIn(locales, "de")
 	require.False(t, ok)
 }
+
+func TestTranslationWritesRejectProtectedBranch(t *testing.T) {
+	f := newDBFixture(t)
+	ctx := t.Context()
+	a := f.createString(t, "", "a", "A", nil)
+	f.translation(t, a.ID, "fr", "Un", "needs_review")
+	var branchKey string
+	require.NoError(t, f.pool.QueryRow(ctx, `INSERT INTO project_translation_keys
+		(organization_id, project_id, key, source_text, normalized_source_text, branch_name, imported_source_text)
+		VALUES ($1, $2, 'b', 'B', 'b', 'feature-checkout', 'B') RETURNING id`,
+		f.actor.OrganizationID, f.project).Scan(&branchKey))
+	f.translation(t, branchKey, "fr", "Bé", "needs_review")
+	f.exec(t, `UPDATE project_branches SET is_protected = true WHERE project_id = $1 AND name = 'main'`, f.project)
+
+	_, err := f.store.putTranslation(ctx, f.actor, f.project, a.ID, "fr", translationWrite{Text: "Une", Status: "approved"})
+	require.ErrorIs(t, err, errProtectedBranch)
+	_, err = f.store.reviewTranslations(ctx, f.actor, f.project, stringSelector{Keys: []string{"a"}}, nil, reviewApprove)
+	require.ErrorIs(t, err, errProtectedBranch)
+	// One protected string in the selection refuses the whole batch.
+	_, err = f.store.reviewTranslations(ctx, f.actor, f.project, stringSelector{StringIDs: []string{a.ID, branchKey}}, nil, reviewApprove)
+	require.ErrorIs(t, err, errProtectedBranch)
+	saved, err := f.store.getStringTranslation(ctx, f.actor, f.project, a.ID, "fr")
+	require.NoError(t, err)
+	require.Equal(t, "Un", saved.Text)
+	require.Equal(t, "needs_review", saved.Status)
+	require.Equal(t, "needs_review", f.status(t, branchKey, "fr"))
+
+	// Strings on an unprotected branch stay writable.
+	approved, err := f.store.reviewTranslations(ctx, f.actor, f.project, stringSelector{StringIDs: []string{branchKey}}, nil, reviewApprove)
+	require.NoError(t, err)
+	require.Equal(t, 1, approved)
+	put, err := f.store.putTranslation(ctx, f.actor, f.project, branchKey, "fr", translationWrite{Text: "Bée", Status: "approved"})
+	require.NoError(t, err)
+	require.Equal(t, "Bée", put.Text)
+}
