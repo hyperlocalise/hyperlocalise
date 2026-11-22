@@ -30,6 +30,8 @@ const (
 	// A unit-priced charge (images, seconds, minutes) under this much a unit means Autumn
 	// priced the units as language-model tokens, which bills almost nothing.
 	irisMinUnitChargeUSD = 0.001
+	// A dollar charge Autumn takes at less than this share of the cost is mispriced.
+	irisMinCostShare = 0.99
 	// Characters per token when a turn's usage has to be estimated.
 	irisCharsPerToken = 4
 
@@ -47,6 +49,14 @@ type irisCharge struct {
 	Track        autumn.TrackTokensRequest
 	// Units is set when OutputTokens counts images, seconds or minutes rather than tokens.
 	Units bool
+	// CostUSD is set when the charge is a dollar amount (OutputTokens are micro-dollars of
+	// the USD model), with CostSource saying where it came from: what Gateway charged, or
+	// Gateway's published prices.
+	CostUSD    float64
+	CostSource string
+	// LedgerModel is the model the ledger row names when it differs from the one Autumn
+	// prices, such as the Gateway model behind a dollar charge.
+	LedgerModel string
 	// Dimensions are extra details for the ledger row, beside the thread and token counts.
 	Dimensions map[string]any
 }
@@ -112,6 +122,12 @@ func (api *irisGenerationAPI) charge(ctx context.Context, scope irisOrgScope, ch
 		slog.WarnContext(chargeCtx, "iris_usage_unit_charge_low",
 			append(logArgs, "units", charge.Track.OutputTokens, "charged_usd", res.Value)...)
 	}
+	// Markup only adds to the cost, so less means the USD model is not priced at $1 per
+	// million output tokens.
+	if charge.CostSource != "" && trackErr == nil && res.Value < charge.CostUSD*irisMinCostShare {
+		slog.WarnContext(chargeCtx, "iris_usage_charge_below_cost",
+			append(logArgs, "cost_usd", charge.CostUSD, "charged_usd", res.Value)...)
+	}
 	if err == nil {
 		if err := api.settleCharge(chargeCtx, charge.OperationKey, res.Value, trackErr); err != nil {
 			slog.WarnContext(chargeCtx, "iris_usage_settle_failed", append(logArgs, "error", err)...)
@@ -130,9 +146,15 @@ func (api *irisGenerationAPI) recordCharge(ctx context.Context, scope irisOrgSco
 		dimensions[key] = value
 	}
 	quantity := 0
-	if charge.Units {
+	var estimated *float64
+	switch {
+	case charge.CostSource != "":
+		dimensions["cost_usd"] = charge.CostUSD
+		dimensions["cost_source"] = charge.CostSource
+		estimated = &charge.CostUSD
+	case charge.Units:
 		dimensions["units"] = charge.Track.OutputTokens
-	} else {
+	default:
 		dimensions["input_tokens"] = charge.Track.InputTokens
 		dimensions["output_tokens"] = charge.Track.OutputTokens
 		quantity = charge.Track.InputTokens + charge.Track.OutputTokens
@@ -146,12 +168,12 @@ func (api *irisGenerationAPI) recordCharge(ctx context.Context, scope irisOrgSco
 	var id string
 	err := api.pool.QueryRow(ctx, `
         insert into usage_events (organization_id, feature_id, status, operation_key, quantity, model_id,
-            credential_source, dimensions, source, actor_user_id)
-        values ($1, 'ai_tokens', 'tracking_pending', $2, $3, $4, 'gateway', $5::jsonb, $6, nullif($7, '')::uuid)
+            credential_source, dimensions, source, actor_user_id, estimated_amount_usd)
+        values ($1, 'ai_tokens', 'tracking_pending', $2, $3, $4, 'gateway', $5::jsonb, $6, nullif($7, '')::uuid, $8)
         on conflict (operation_key) do nothing
         returning id::text`,
-		scope.OrganizationID, charge.OperationKey, quantity, charge.Track.ModelID, string(mustJSON(dimensions)),
-		charge.Source, scope.UserID).Scan(&id)
+		scope.OrganizationID, charge.OperationKey, quantity, irisFirstNonEmpty(charge.LedgerModel, charge.Track.ModelID),
+		string(mustJSON(dimensions)), charge.Source, scope.UserID, estimated).Scan(&id)
 	if isNoRows(err) {
 		return false, nil
 	}

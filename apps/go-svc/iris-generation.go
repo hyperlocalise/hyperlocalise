@@ -49,6 +49,9 @@ type irisCreditConfig struct {
 	ElevenLabsSecondModelID  string
 	ElevenLabsMinuteModelID  string
 	ElevenLabsDubbingModelID string
+	// USDModelID is the custom model priced at $1 per million output tokens
+	// that carries a dollar amount to Autumn as micro-dollars.
+	USDModelID string
 }
 
 type irisOrgScope struct {
@@ -69,6 +72,11 @@ type irisGenerationAPI struct {
 	text       irisTextModel
 	meter      irisUsageMeter
 	credits    irisCreditConfig
+	// gatewayCosts reads what AI Gateway charged for a job and its published
+	// prices; nil without AI_GATEWAY_API_KEY.
+	gatewayCosts irisGatewayCosts
+	// sleep waits between Gateway cost lookups; nil waits on a timer.
+	sleep func(context.Context, time.Duration) error
 	pool       dictionaryPool
 	membership organizationMembershipLookup
 	// voices keeps brand voices on the provider account; nil without
@@ -213,6 +221,7 @@ func (api *irisGenerationAPI) creditModels() irisCreditConfig {
 	cfg.FalAudioModelID = irisFirstNonEmpty(cfg.FalAudioModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_FAL_AUDIO_MODEL_ID")), defaultIrisElevenLabsSecondCreditModel)
 	cfg.ElevenLabsSecondModelID = irisFirstNonEmpty(cfg.ElevenLabsSecondModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_ELEVENLABS_SECOND_MODEL_ID")), defaultIrisElevenLabsSecondCreditModel)
 	cfg.ElevenLabsMinuteModelID = irisFirstNonEmpty(cfg.ElevenLabsMinuteModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID")), defaultIrisElevenLabsMinuteCreditModel)
+	cfg.USDModelID = irisFirstNonEmpty(cfg.USDModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_USD_MODEL_ID")), defaultIrisUSDCreditModel)
 	cfg.ElevenLabsDubbingModelID = irisFirstNonEmpty(cfg.ElevenLabsDubbingModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_ELEVENLABS_DUBBING_MODEL_ID")), defaultIrisElevenLabsDubbingCreditModel)
 	return cfg
 }
@@ -233,8 +242,50 @@ func (api *irisGenerationAPI) trackUsage(ctx context.Context, job irisJobRecord)
 		slog.WarnContext(trackCtx, "iris_generation_usage_track_failed", "organization_id", job.OrgID, "job_id", job.ID, "error", err)
 	}
 	scope := irisOrgScope{OrganizationID: job.OrgID, UserID: job.UserID, ThreadID: job.ThreadID, ThreadTitle: job.ThreadTitle}
-	for _, charge := range irisJobCharges(job, api.creditModels()) {
+	for _, charge := range api.jobCharges(ctx, job) {
 		api.charge(ctx, scope, charge)
+	}
+}
+
+// jobCharges bills a Gateway job what Gateway charged for it, else the tokens
+// its models reported, else what Gateway's published prices say it cost.
+// Anything else, and every Fal and ElevenLabs job, is billed on its units.
+func (api *irisGenerationAPI) jobCharges(ctx context.Context, job irisJobRecord) []irisCharge {
+	model, ok := irisModelByID(job.Model)
+	if !ok {
+		return nil
+	}
+	credits := api.creditModels()
+	if irisCreditVendor(model) == irisCreditVendorGateway {
+		if cost, ok := api.gatewayJobCost(ctx, job); ok {
+			return []irisCharge{irisCostCharge(job, model, credits, cost, irisCostSourceGateway)}
+		}
+		if len(job.TokenUsage) == 0 {
+			if cost, ok := api.priceTableCost(ctx, job, model); ok {
+				return []irisCharge{irisCostCharge(job, model, credits, cost, irisCostSourcePriceTable)}
+			}
+		}
+	}
+	return irisJobCharges(job, credits)
+}
+
+// irisCostCharge bills a dollar amount through the $1-per-million custom
+// model, recorded in the ledger under the Gateway model that ran.
+func irisCostCharge(job irisJobRecord, model irisModelInfo, credits irisCreditConfig, cost float64, source string) irisCharge {
+	properties := irisJobProperties(job, model)
+	properties["cost_source"] = source
+	return irisCharge{
+		OperationKey: "iris-generation:" + job.ID + ":ai_tokens",
+		Source:       irisGenerationSource(model),
+		Track: autumn.TrackTokensRequest{
+			ModelID:      credits.USDModelID,
+			OutputTokens: irisMicroDollars(cost),
+			Properties:   properties,
+		},
+		LedgerModel: model.GatewayID,
+		CostUSD:     cost,
+		CostSource:  source,
+		Dimensions:  irisJobDimensions(job, model),
 	}
 }
 
@@ -850,6 +901,7 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 		}
 		assets = append(assets, asset)
 		job.TokenUsage = append(job.TokenUsage, output.Usage...)
+		job.GatewayGenerations = append(job.GatewayGenerations, output.GenerationIDs...)
 	}
 	completed := api.clock().Format(time.RFC3339)
 	job.Status = "succeeded"

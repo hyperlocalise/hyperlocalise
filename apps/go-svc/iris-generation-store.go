@@ -64,6 +64,9 @@ type irisJobRecord struct {
 	// TokenUsage is what the gateway models behind the job used, when they
 	// reported it; the job is then billed on those tokens.
 	TokenUsage []irisTokenUsage `json:"-"`
+	// GatewayGenerations are the AI Gateway generations behind the job; the
+	// job is billed what Gateway reports they cost.
+	GatewayGenerations []string `json:"-"`
 }
 
 type irisStoredJob struct {
@@ -77,6 +80,8 @@ type irisStoredJob struct {
 	ThreadID       string              `json:"threadId,omitempty"`
 	ThreadTitle    string              `json:"threadTitle,omitempty"`
 	TokenUsage     []irisTokenUsage    `json:"tokenUsage,omitempty"`
+	// GatewayGenerations is kept with the job so a resumed charge can look it up.
+	GatewayGenerations []string `json:"gatewayGenerations,omitempty"`
 }
 
 type irisJobAsset struct {
@@ -274,7 +279,7 @@ func (api *irisGenerationAPI) getBytes(ctx context.Context, key string) ([]byte,
 }
 
 func (api *irisGenerationAPI) saveJob(ctx context.Context, job irisJobRecord) error {
-	stored := irisStoredJob{irisJobRecord: job, OutputKeys: job.OutputKeys, UserID: job.UserID, OrgID: job.OrgID, Pronunciations: job.Pronunciations, Keyterms: job.Keyterms, Voices: job.Voices, ThreadID: job.ThreadID, ThreadTitle: job.ThreadTitle, TokenUsage: job.TokenUsage}
+	stored := irisStoredJob{irisJobRecord: job, OutputKeys: job.OutputKeys, UserID: job.UserID, OrgID: job.OrgID, Pronunciations: job.Pronunciations, Keyterms: job.Keyterms, Voices: job.Voices, ThreadID: job.ThreadID, ThreadTitle: job.ThreadTitle, TokenUsage: job.TokenUsage, GatewayGenerations: job.GatewayGenerations}
 	return api.putJSON(ctx, irisJobKey(job.OrgID, job.ID), stored)
 }
 
@@ -293,6 +298,7 @@ func (api *irisGenerationAPI) loadJob(ctx context.Context, orgID, jobID string) 
 	job.ThreadID = stored.ThreadID
 	job.ThreadTitle = stored.ThreadTitle
 	job.TokenUsage = stored.TokenUsage
+	job.GatewayGenerations = stored.GatewayGenerations
 	if job.OrgID == "" {
 		job.OrgID = orgID
 	}

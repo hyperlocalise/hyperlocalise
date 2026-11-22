@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -62,6 +63,9 @@ type irisProviderOutput struct {
 	// Usage is what the gateway language-model calls behind this output used,
 	// so the job is billed on real tokens rather than a unit count.
 	Usage []irisTokenUsage
+	// GenerationIDs are the AI Gateway generations behind this output, whose
+	// cost Gateway reports, so the job is billed what Gateway charged.
+	GenerationIDs []string
 }
 
 // irisTokenUsage is one gateway model's token count for a job.
@@ -111,6 +115,10 @@ type irisGenerationProvider interface {
 }
 
 type irisGatewayProvider struct {
+	// prices caches Gateway's published model prices for billing.
+	pricesMu sync.Mutex
+	prices   map[string]irisGatewayPricing
+	pricesAt time.Time
 	baseURL    string
 	apiKey     string
 	httpClient *http.Client
@@ -146,7 +154,18 @@ func newIrisOpenAIProvider() *irisGatewayProvider {
 	}
 }
 
+// Generate runs the job and puts the ids of the Gateway generations it made
+// on its first output, for billing.
 func (p *irisGatewayProvider) Generate(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
+	collector := &irisGenerationCollector{}
+	outputs, err := p.generate(context.WithValue(ctx, irisGenerationCollectorKey{}, collector), req)
+	if err == nil && len(outputs) > 0 {
+		outputs[0].GenerationIDs = append(outputs[0].GenerationIDs, collector.list()...)
+	}
+	return outputs, err
+}
+
+func (p *irisGatewayProvider) generate(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	switch req.Model.Kind {
 	case irisKindVoice, irisKindAudio:
 		return p.speech(ctx, req)
@@ -297,6 +316,7 @@ func (p *irisGatewayProvider) speech(ctx context.Context, req irisProviderReques
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("gateway speech failed: %s", truncate(string(body), 400))
 	}
+	collectIrisGenerationIDs(ctx, resp.Header, nil)
 	contentType := resp.Header.Get("Content-Type")
 	if contentType == "" || strings.Contains(contentType, "json") {
 		contentType = "audio/mpeg"
@@ -596,6 +616,7 @@ func (p *irisGatewayProvider) do(req *http.Request) ([]byte, error) {
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("gateway request failed: %s", truncate(string(body), 400))
 	}
+	collectIrisGenerationIDs(req.Context(), resp.Header, body)
 	return body, nil
 }
 
