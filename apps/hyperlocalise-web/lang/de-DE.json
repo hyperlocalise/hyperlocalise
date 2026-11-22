@@ -8,6 +8,9 @@
   "++FVhiWhMw": {
     "defaultMessage": "Keine Beschreibung"
   },
+  "++MP4qRhvG": {
+    "defaultMessage": "Laden Sie die Iris-Datei herunter, öffnen Sie sie im Ordner „Downloads“ und ziehen Sie Iris anschließend in den Ordner „Programme“. Iris aktualisiert sich automatisch, sobald eine neue Version verfügbar ist."
+  },
   "++VvL4EEbo": {
     "defaultMessage": "Kopiert"
   },
@@ -1199,6 +1202,9 @@
   "/fmhRd2i7v": {
     "defaultMessage": "E-Mail-Benachrichtigungen entfernen"
   },
+  "/gZRu7p4LI": {
+    "defaultMessage": "Öffnen Sie die Iris-Datei in Ihrem Downloads-Ordner und ziehen Sie Iris anschließend in den Ordner „Programme“."
+  },
   "/ga0PCFNu5": {
     "defaultMessage": "Noch keine verknüpften Domains"
   },
@@ -2375,6 +2381,9 @@
   "1KXz+b/LeX": {
     "defaultMessage": "Überschrift 3"
   },
+  "1KpaEZEK6R": {
+    "defaultMessage": "Video und Untertitel"
+  },
   "1Kqhhea0Ee": {
     "defaultMessage": "Änderungen an Dateien und Zeichenfolgen in diesem Projekt."
   },
@@ -2443,6 +2452,9 @@
   },
   "1QeX69p2Dj": {
     "defaultMessage": "Arbeitsbereich"
+  },
+  "1RKEAnbFH/": {
+    "defaultMessage": "Noch nicht. Iris ist vorerst nur für Mac verfügbar. Sie können Texte, Websites und Apps aber weiterhin in der Hyperlocalise-Web-App in jedem Browser lokalisieren."
   },
   "1RW3XeR+vN": {
     "defaultMessage": "Agents bereiten die Arbeit vor, aber Prüfer entscheiden immer noch, was gut genug ist, um ausgeliefert zu werden."
@@ -3085,6 +3097,9 @@
   },
   "2J9DBNioHN": {
     "defaultMessage": "String-Verknüpfung aufheben"
+  },
+  "2JKySNAhyO": {
+    "defaultMessage": "Wie installiere ich Iris?"
   },
   "2JTdlEzKQS": {
     "defaultMessage": "Noch keine Übersetzung"
@@ -3836,6 +3851,9 @@
   "3R2FH9E6p2": {
     "defaultMessage": "Herunterladen"
   },
+  "3RDf6ipqz/": {
+    "defaultMessage": "Schreiben Sie die Texte in Bannern, Social-Media-Anzeigen und Produktbildern so um, dass jede Variante wirkt, als wäre sie lokal erstellt worden."
+  },
   "3RQjQSebWm": {
     "defaultMessage": "Mitglieder konnten nicht geladen werden."
   },
@@ -4547,6 +4565,9 @@
   "4OZk1mqF44": {
     "defaultMessage": "Etwas Neues. Etwas, das sich nach dir anfühlt."
   },
+  "4Oq3UwFiGw": {
+    "defaultMessage": "Erstellen Sie Synchronfassungen und generieren Sie Audio in der Sprache jeder Zielgruppe."
+  },
   "4Ot6qB+D/E": {
     "defaultMessage": "Verbunden. {repoSummary}"
   },
@@ -4672,6 +4693,9 @@
   },
   "4cYBnVImbP": {
     "defaultMessage": "Ausführungspfade in der festgelegten Reihenfolge ausführen."
+  },
+  "4ccYexoxn/": {
+    "defaultMessage": "Probieren Sie Iris bei Ihrer nächsten Kampagne aus."
   },
   "4ciFI7Zk4c": {
     "defaultMessage": "{done} von {total, plural, one {# Gebietsschema} other {# Gebietsschemata}} übersetzt."
@@ -5009,6 +5033,9 @@
   "57UDNEMoCB": {
     "defaultMessage": "Hinweis"
   },
+  "57tEfCkZq/": {
+    "defaultMessage": "Untertiteln Sie Produktvideos und Videoanzeigen und passen Sie sie an jeden Markt an – ohne erneut ins Videoschnittprogramm wechseln zu müssen."
+  },
   "57vdPa03Kj": {
     "defaultMessage": "Die zweisprachige Datei konnte nicht importiert werden."
   },
@@ -5194,6 +5221,9 @@
   },
   "5Ol0Sy99An": {
     "defaultMessage": "https://…"
+  },
+  "5OqquqGiMa": {
+    "defaultMessage": "Iris herunterladen"
   },
   "5Oy8VIf/qh": {
     "defaultMessage": "Nebeneinander"
@@ -7189,6 +7219,9 @@
   },
   "8MmPpIGj4f": {
     "defaultMessage": "Noch keine Aufträge im Workspace."
+  },
+  "8N7H9E36x3": {
+    "defaultMessage": "Fragen zu Iris"
   },
   "8O4l4wC1UK": {
     "defaultMessage": "Sanity über WorkOS Pipes ist für diese Umgebung noch nicht aktiviert. Ein Administrator kann die Sanity-Datenintegration in WorkOS aktivieren."
@@ -9383,6 +9416,9 @@
   "Ba3w87XTBS": {
     "defaultMessage": "Die Angebotsprüfung konnte nicht aktualisiert werden."
   },
+  "BaPLthDtqY": {
+    "defaultMessage": "Iris für Mac"
+  },
   "Baldv9loXT": {
     "defaultMessage": "Beginne mit einer Anfrage"
   },
@@ -10106,6 +10142,9 @@
   "CbiqfTdoAd": {
     "defaultMessage": "Erfolgreich"
   },
+  "CbqHZiFcRJ": {
+    "defaultMessage": "Welche KI-Modelle verwendet Iris?"
+  },
   "CbuvPB6HCw": {
     "defaultMessage": "Genehmigt"
   },
@@ -10567,6 +10606,9 @@
   },
   "DBp1QKDYgw": {
     "defaultMessage": "Ein geplanter Job führt `hl sync pull` aus und erstellt einen Pull Request mit den aktualisierten Gebietsschemadateien."
+  },
+  "DBpkRRnvyH": {
+    "defaultMessage": "Kostenlos"
   },
   "DBygjYGTST": {
     "defaultMessage": "Das Ziel behält die erforderlichen Platzhalter und die ICU-Struktur bei."
@@ -13070,6 +13112,9 @@
   "Gsz+RNFKoM": {
     "defaultMessage": "Verbinde GitHub unter <link>Integrationen</link>, um Pull Requests zu kommentieren."
   },
+  "GtlOKbCrFv": {
+    "defaultMessage": "Iris, die KI-Lokalisierungs-Engine für mehrsprachige Inhalte"
+  },
   "GuBuwlp/SU": {
     "defaultMessage": "Hören Sie auf, dasselbe Lokalisierungsfeedback zu wiederholen"
   },
@@ -13205,6 +13250,9 @@
   "H08tJMqbiW": {
     "defaultMessage": "An regionale Nuancen anpassen, nicht wortwörtlich übersetzen"
   },
+  "H09UjvD6L5": {
+    "defaultMessage": "Erkennen Sie abgeschnittenen Text und fehlerhafte Layouts, bevor eine lange deutsche Überschrift Ihr Bannerlayout zerstört."
+  },
   "H0IVjRDKWW": {
     "defaultMessage": "Frühjahrsveröffentlichung"
   },
@@ -13327,6 +13375,9 @@
   },
   "HCHtNgw+mH": {
     "defaultMessage": "—"
+  },
+  "HCPJpu/Mvc": {
+    "defaultMessage": "Ist Iris kostenlos?"
   },
   "HCZzZ6mMQr": {
     "defaultMessage": "KI-Kontext"
@@ -15641,6 +15692,9 @@
   "KnQWJg+k9n": {
     "defaultMessage": "Job-ID (optional)"
   },
+  "KoC1pGxUBj": {
+    "defaultMessage": "Kostenloser Download"
+  },
   "KoWP5ExqQO": {
     "defaultMessage": "Seite {page} von {totalPages}"
   },
@@ -16387,6 +16441,9 @@
   },
   "LyPYie6GUZ": {
     "defaultMessage": "Hier werden ausstehende und abgeschlossene Importe und Exporte angezeigt."
+  },
+  "LzY4RMClnF": {
+    "defaultMessage": "Das Generieren von Bildern, Videos und Audio verbraucht KI-Guthaben. Kostenpflichtige Tarife enthalten monatliches Guthaben und beginnen bei 20 $ pro Monat."
   },
   "LzbIVm9zfG": {
     "defaultMessage": "2.000 KI-Token pro Monat"
@@ -17273,6 +17330,9 @@
   "NCfwtZnJJa": {
     "defaultMessage": "Lokalisieren Sie Marketing-E-Mails, Landingpages und CRM-Nachrichten in HubSpot."
   },
+  "ND/zOXuanC": {
+    "defaultMessage": "Demo buchen"
+  },
   "NDXmA1pbVL": {
     "defaultMessage": "Wir senden dir eine kurze Zusammenfassung per E-Mail – mit Bewertung, den wichtigsten Korrekturen und einem Link zu diesem Bericht –, damit du sie leicht weiterleiten kannst."
   },
@@ -17416,6 +17476,9 @@
   },
   "NPxj2A77E6": {
     "defaultMessage": "Keine Richtlinien für dieses Projekt."
+  },
+  "NPzSWXmSze": {
+    "defaultMessage": "Iris wird heruntergeladen"
   },
   "NQI5GeXhlu": {
     "defaultMessage": "Müssen wir Ihre Übersetzungs-Engine verwenden?"
@@ -19631,6 +19694,9 @@
   "QjMQ0YNYXB": {
     "defaultMessage": "Letzte 7 Tage"
   },
+  "QjdO7c1BCr": {
+    "defaultMessage": "Iris | KI-Lokalisierungs-Engine für mehrsprachige Assets | Hyperlocalise"
+  },
   "Qk1QL2BxcT": {
     "defaultMessage": "Von der KI geprüft"
   },
@@ -21473,6 +21539,9 @@
   "TVH49oxDSg": {
     "defaultMessage": "Projekte"
   },
+  "TVKMlRSdJ5": {
+    "defaultMessage": "Iris ist für Macs mit Apple Silicon (M1 und neuer) sowie für Intel-Macs verfügbar. Über die Hauptschaltfläche zum Herunterladen erhalten Sie die Version für Apple Silicon. Für die Intel-Version verwenden Sie das Menü daneben."
+  },
   "TViRJtMGI6": {
     "defaultMessage": "Aktuell"
   },
@@ -22213,6 +22282,9 @@
   },
   "UWEiDJaeSZ": {
     "defaultMessage": "Keine Aufgaben mit passenden Berichtsdaten gefunden."
+  },
+  "UWS4Z91lmP": {
+    "defaultMessage": "Iris ist die KI-Lokalisierungsengine von Hyperlocalise für mehrsprachige Inhalte. Erstellen und adaptieren Sie Bilder, Videos, Animationen und Audio für jede Sprache. Laden Sie Iris für Mac herunter."
   },
   "UWZ1G1FSvB": {
     "defaultMessage": "Nicht übersetzte zuerst"
@@ -23117,6 +23189,9 @@
   "Vq0Rk5ZFcw": {
     "defaultMessage": "Projekt konnte nicht geladen werden"
   },
+  "Vq3nULSNz4": {
+    "defaultMessage": "Iris für Mac ist da."
+  },
   "VqCMClnRVk": {
     "defaultMessage": "Inhalt der Verifizierungsdatei kopieren"
   },
@@ -23918,6 +23993,9 @@
   "X2g46WENkC": {
     "defaultMessage": "Übersprungen"
   },
+  "X33IduJXlN": {
+    "defaultMessage": "Layout-Prüfungen"
+  },
   "X3WC1ONHHK": {
     "defaultMessage": "Für diese Sprache gibt es bereits ein freigegebenes Bild. Wenn du es bearbeitest, wird es ersetzt und erneut zur Prüfung eingereicht."
   },
@@ -24212,6 +24290,9 @@
   "XRtOopRA+P": {
     "defaultMessage": "Testen, was die einzelnen Märkte bevorzugen."
   },
+  "XS4uGbZzzL": {
+    "defaultMessage": "Was Sie für den Einstieg benötigen"
+  },
   "XTQH6Cl2jC": {
     "defaultMessage": "GPT-6 Luna (Schnell)"
   },
@@ -24426,7 +24507,7 @@
     "defaultMessage": "Objektfelder erstellen"
   },
   "XmHitYF7Or": {
-    "defaultMessage": "{filter}: {value}"
+    "defaultMessage": "{filter} : {value}"
   },
   "XmcWHG0JFP": {
     "defaultMessage": "Übersetzung"
@@ -24439,6 +24520,9 @@
   },
   "Xo7ebfPP+O": {
     "defaultMessage": "Zweiwöchige Drift-Überwachung"
+  },
+  "Xop9+UWzYg": {
+    "defaultMessage": "Tarife und Modellpreise ansehen"
   },
   "XosmLLsDOK": {
     "defaultMessage": "Nach Typ filtern"
@@ -25599,7 +25683,7 @@
     "defaultMessage": "Genehmigung erforderlich"
   },
   "ZTPtuGZQJE": {
-    "defaultMessage": "Filmmaterial beschreiben und durchsuchen"
+    "defaultMessage": "Beschreiben und nach Filmmaterial suchen"
   },
   "ZTpZqdYE6W": {
     "defaultMessage": "Details"
@@ -26390,6 +26474,9 @@
   "aY0sGkAXN1": {
     "defaultMessage": "Wird bearbeitet …"
   },
+  "aYIs6jAO+Z": {
+    "defaultMessage": "Kostenloser Download. Vorerst nur für Mac."
+  },
   "aYK9Ws6gX4": {
     "defaultMessage": "Weiter bearbeiten"
   },
@@ -26899,6 +26986,9 @@
   },
   "bHXY88TkOe": {
     "defaultMessage": "Ergebnisse anzeigen"
+  },
+  "bHij4EA705": {
+    "defaultMessage": "Voice-over und Synchronisation"
   },
   "bHnFWGWqed": {
     "defaultMessage": "Keine Dateien sind mit dieser Aufgabe verknüpft."
@@ -29036,6 +29126,9 @@
   "eHtPlX55/J": {
     "defaultMessage": "Kommentare"
   },
+  "eI7Cqkjjq4": {
+    "defaultMessage": "Bilder und Anzeigen"
+  },
   "eI8CB+a2hA": {
     "defaultMessage": "Übersetzungsfehler"
   },
@@ -29288,6 +29381,9 @@
   "efAi5lrO4s": {
     "defaultMessage": "Speichern und ausführen"
   },
+  "efIxAXxmtW": {
+    "defaultMessage": "Lass jedes Asset lokal wirken."
+  },
   "eg1vE4iGCz": {
     "defaultMessage": "Vorlagen suchen"
   },
@@ -29308,6 +29404,9 @@
   },
   "ehiNyfW7wC": {
     "defaultMessage": "Konkurrenten hinzufügen"
+  },
+  "ei/+JUw/aJ": {
+    "defaultMessage": "KI-Guthaben für die Generierung"
   },
   "ej+FsoZqXe": {
     "defaultMessage": "Fehler beim Laden der Übersetzungsspeicher des Anbieters ({status})"
@@ -33197,11 +33296,17 @@
   "kBSyk8lLco": {
     "defaultMessage": "Bewertung"
   },
+  "kBVwXjVr0i": {
+    "defaultMessage": "Iris ist die KI-gestützte Lokalisierungs-Engine für mehrsprachige Medieninhalte. Erstellen und bearbeiten Sie Bilder, Videos, Sprachaufnahmen und Audiodateien für jede Sprache und jeden Markt – direkt auf Ihrem Mac."
+  },
   "kBixxU3NdD": {
     "defaultMessage": "Scan auswählen"
   },
   "kBjfpWlIHs": {
     "defaultMessage": "Läuft"
+  },
+  "kBpQcdptW3": {
+    "defaultMessage": "Iris verwendet Bild-, Video-, Sprach- und Audiomodelle verschiedener KI-Anbieter. Auf der Preisseite sind alle Modelle aufgeführt, die Iris verwenden kann, und die jeweiligen Kosten."
   },
   "kC1soSUZq7": {
     "defaultMessage": "Das Ereignis, das dieser Trigger beim Testen des Workflows weitergibt. Bei echten Ausführungen wird das tatsächliche Ereignis verwendet."
@@ -34825,6 +34930,9 @@
   },
   "mTsK/KrTgC": {
     "defaultMessage": "Fehler anzeigen"
+  },
+  "mUAsBEj5Ug": {
+    "defaultMessage": "Versionen für Macs mit Apple Silicon und Intel-Prozessoren. Iris ist vorerst nur für Mac verfügbar. Windows und Linux werden daher noch nicht unterstützt."
   },
   "mUSeeXuwsP": {
     "defaultMessage": "Wörterbücher konnten nicht geladen werden."
@@ -37910,6 +38018,9 @@
   "qtmhT9t6TF": {
     "defaultMessage": "Beispiele beschreiben beobachtete Daten. Unbekannte Felder werden zur Laufzeit überprüft."
   },
+  "quTg02JT7U": {
+    "defaultMessage": "Preise ansehen"
+  },
   "qufyTH4w5s": {
     "defaultMessage": "Fehlergrund"
   },
@@ -39848,6 +39959,9 @@
   "tgQz/g+KA0": {
     "defaultMessage": "Memory.md"
   },
+  "tgqxU3MqpJ": {
+    "defaultMessage": "Auf welchen Macs läuft Iris?"
+  },
   "thAleOBSL6": {
     "defaultMessage": "Anbieterlink"
   },
@@ -40825,6 +40939,9 @@
   },
   "v70Y2kTioa": {
     "defaultMessage": "Alle Sprachversionen sind live."
+  },
+  "v8/Eb3C3P6": {
+    "defaultMessage": "Iris kann kostenlos heruntergeladen und installiert werden. Für die Erstellung von Bildern, Videos und Audioinhalten werden KI-Credits benötigt, die in kostenpflichtigen Tarifen ab 20 $ pro Monat enthalten sind. Auf der Preisseite ist der Preis für jedes Modell aufgeführt."
   },
   "v8HmqsxSuZ": {
     "defaultMessage": "Rankings"
@@ -42032,6 +42149,9 @@
   "wtUAi5KCmb": {
     "defaultMessage": "Zurück zu den Teams"
   },
+  "wtwB9wYEeh": {
+    "defaultMessage": "Läuft auf dem Mac"
+  },
   "wtxoYMaNGy": {
     "defaultMessage": "Space-ID"
   },
@@ -42076,6 +42196,9 @@
   },
   "wwKiGsumAM": {
     "defaultMessage": "Verbinden Sie Google Drive, Notion und SharePoint oder geben Sie Richtlinien direkt ein. Agents prüfen Entwürfe anhand der Marken- und Compliance-Dateien, die Ihr Team bereits verwaltet."
+  },
+  "wwVFm2ECvN": {
+    "defaultMessage": "Das Herunterladen und Installieren der Iris-App ist kostenlos."
   },
   "wwl2e+kYrU": {
     "defaultMessage": "Text der Nutzungsanzeige in Abrechnungs- und Überprüfungs-Dashboards."
@@ -42527,11 +42650,17 @@
   "xXB6cmih1q": {
     "defaultMessage": "Strings werden geladen"
   },
+  "xXdEvsjNEO": {
+    "defaultMessage": "Gibt es eine Version für Windows oder Linux?"
+  },
   "xXi7rFWRDl": {
     "defaultMessage": "Qualitätsbewertungen nach Gebietsschema, Anbieter und Inhaltstyp, im Zeitverlauf erfasst."
   },
   "xXvQeFYygi": {
     "defaultMessage": "Bereit für den nächsten Markt?"
+  },
+  "xXxJgL1vao": {
+    "defaultMessage": "Neu"
   },
   "xYD9jPAzEY": {
     "defaultMessage": "Der Importverlauf ist nicht verfügbar"
@@ -42807,7 +42936,7 @@
     "defaultMessage": "Keine passenden Posteingangselemente auf dieser Seite."
   },
   "xuKFsgkvM/": {
-    "defaultMessage": "{dimension}: {value}"
+    "defaultMessage": "{dimension} : {value}"
   },
   "xunumski1w": {
     "defaultMessage": "Projekt"
@@ -43138,6 +43267,9 @@
   },
   "yJtQmL9RYq": {
     "defaultMessage": "Verwendet von {count, plural, one {# Projektsynchronisierung} other {# Projektsynchronisierungen}}."
+  },
+  "yJtUqiy1Lo": {
+    "defaultMessage": "Iris, die KI-Lokalisierungs-Engine"
   },
   "yK06fjIU98": {
     "defaultMessage": "Übereinstimmung"

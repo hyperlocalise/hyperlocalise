@@ -8,6 +8,9 @@
   "++FVhiWhMw": {
     "defaultMessage": "Không có mô tả"
   },
+  "++MP4qRhvG": {
+    "defaultMessage": "Tải tệp Iris xuống, mở tệp trong thư mục Tải về, rồi kéo Iris vào thư mục Ứng dụng. Iris tự cập nhật khi có phiên bản mới."
+  },
   "++VvL4EEbo": {
     "defaultMessage": "Copied"
   },
@@ -1199,6 +1202,9 @@
   "/fmhRd2i7v": {
     "defaultMessage": "Xóa thông báo qua email"
   },
+  "/gZRu7p4LI": {
+    "defaultMessage": "Mở tệp Iris trong thư mục Tải xuống, rồi kéo Iris vào thư mục Ứng dụng."
+  },
   "/ga0PCFNu5": {
     "defaultMessage": "Chưa có miền nào được liên kết"
   },
@@ -2375,6 +2381,9 @@
   "1KXz+b/LeX": {
     "defaultMessage": "Tiêu đề 3"
   },
+  "1KpaEZEK6R": {
+    "defaultMessage": "Video và phụ đề"
+  },
   "1Kqhhea0Ee": {
     "defaultMessage": "Các thay đổi đối với tệp và chuỗi trong dự án này."
   },
@@ -2443,6 +2452,9 @@
   },
   "1QeX69p2Dj": {
     "defaultMessage": "Không gian làm việc"
+  },
+  "1RKEAnbFH/": {
+    "defaultMessage": "Chưa. Hiện tại, Iris chỉ hỗ trợ Mac. Bạn vẫn có thể bản địa hóa văn bản, trang web và ứng dụng trong ứng dụng web Hyperlocalise bằng bất kỳ trình duyệt nào."
   },
   "1RW3XeR+vN": {
     "defaultMessage": "Các tác nhân chuẩn bị công việc, nhưng người đánh giá vẫn quyết định điều gì đủ tốt để phát hành."
@@ -3085,6 +3097,9 @@
   },
   "2J9DBNioHN": {
     "defaultMessage": "Bỏ liên kết chuỗi"
+  },
+  "2JKySNAhyO": {
+    "defaultMessage": "Tôi cài đặt Iris bằng cách nào?"
   },
   "2JTdlEzKQS": {
     "defaultMessage": "Chưa có bản dịch"
@@ -3836,6 +3851,9 @@
   "3R2FH9E6p2": {
     "defaultMessage": "Tải xuống"
   },
+  "3RDf6ipqz/": {
+    "defaultMessage": "Viết lại nội dung trên banner, quảng cáo mạng xã hội và hình ảnh sản phẩm để mỗi phiên bản trông như được tạo riêng cho thị trường địa phương."
+  },
   "3RQjQSebWm": {
     "defaultMessage": "Không thể tải danh sách thành viên."
   },
@@ -4547,6 +4565,9 @@
   "4OZk1mqF44": {
     "defaultMessage": "Điều gì đó mới mẻ. Điều gì đó mang đậm dấu ấn của bạn."
   },
+  "4Oq3UwFiGw": {
+    "defaultMessage": "Lồng tiếng và tạo âm thanh bằng ngôn ngữ của từng nhóm khán giả."
+  },
   "4Ot6qB+D/E": {
     "defaultMessage": "Đã kết nối. {repoSummary}"
   },
@@ -4672,6 +4693,9 @@
   },
   "4cYBnVImbP": {
     "defaultMessage": "Thực thi các đường dẫn điều phối theo thứ tự đã định cấu hình."
+  },
+  "4ccYexoxn/": {
+    "defaultMessage": "Hãy thử Iris trong chiến dịch tiếp theo của bạn."
   },
   "4ciFI7Zk4c": {
     "defaultMessage": "Đã dịch {done} trên tổng số {total, plural, one {# ngôn ngữ} other {# ngôn ngữ}}."
@@ -5009,6 +5033,9 @@
   "57UDNEMoCB": {
     "defaultMessage": "Note"
   },
+  "57tEfCkZq/": {
+    "defaultMessage": "Thêm phụ đề và bản địa hóa video sản phẩm cũng như quảng cáo video cho từng thị trường mà không cần quay lại phòng dựng."
+  },
   "57vdPa03Kj": {
     "defaultMessage": "Không thể nhập tệp song ngữ."
   },
@@ -5194,6 +5221,9 @@
   },
   "5Ol0Sy99An": {
     "defaultMessage": "https://…"
+  },
+  "5OqquqGiMa": {
+    "defaultMessage": "Tải Iris"
   },
   "5Oy8VIf/qh": {
     "defaultMessage": "Cạnh nhau"
@@ -7189,6 +7219,9 @@
   },
   "8MmPpIGj4f": {
     "defaultMessage": "Chưa có công việc nào trong không gian làm việc."
+  },
+  "8N7H9E36x3": {
+    "defaultMessage": "Câu hỏi về Iris"
   },
   "8O4l4wC1UK": {
     "defaultMessage": "Sanity thông qua WorkOS Pipes chưa được bật cho môi trường này. Quản trị viên có thể bật tích hợp dữ liệu Sanity trong WorkOS."
@@ -9383,6 +9416,9 @@
   "Ba3w87XTBS": {
     "defaultMessage": "Không thể cập nhật đánh giá đề xuất"
   },
+  "BaPLthDtqY": {
+    "defaultMessage": "Iris dành cho Mac"
+  },
   "Baldv9loXT": {
     "defaultMessage": "Bắt đầu với một yêu cầu"
   },
@@ -10106,6 +10142,9 @@
   "CbiqfTdoAd": {
     "defaultMessage": "Succeeded"
   },
+  "CbqHZiFcRJ": {
+    "defaultMessage": "Iris sử dụng những mô hình AI nào?"
+  },
   "CbuvPB6HCw": {
     "defaultMessage": "Đã phê duyệt"
   },
@@ -10567,6 +10606,9 @@
   },
   "DBp1QKDYgw": {
     "defaultMessage": "Một tác vụ được lên lịch chạy `hl sync pull` và mở một pull request chứa các tệp ngôn ngữ đã cập nhật."
+  },
+  "DBpkRRnvyH": {
+    "defaultMessage": "Miễn phí"
   },
   "DBygjYGTST": {
     "defaultMessage": "Bản dịch đích giữ nguyên các trình giữ chỗ bắt buộc và cấu trúc ICU."
@@ -13070,6 +13112,9 @@
   "Gsz+RNFKoM": {
     "defaultMessage": "Kết nối GitHub trong <link>Tích hợp</link> để bình luận về các yêu cầu kéo."
   },
+  "GtlOKbCrFv": {
+    "defaultMessage": "Iris, công cụ bản địa hóa bằng AI cho nội dung đa ngôn ngữ"
+  },
   "GuBuwlp/SU": {
     "defaultMessage": "Đừng lặp lại cùng một phản hồi bản địa hóa nữa"
   },
@@ -13205,6 +13250,9 @@
   "H08tJMqbiW": {
     "defaultMessage": "Điều chỉnh theo sắc thái vùng miền, không phải dịch từng từ một"
   },
+  "H09UjvD6L5": {
+    "defaultMessage": "Phát hiện văn bản bị cắt cụt và bố cục bị lỗi trước khi tiêu đề tiếng Đức quá dài làm hỏng banner của bạn."
+  },
   "H0IVjRDKWW": {
     "defaultMessage": "Bản phát hành mùa xuân"
   },
@@ -13327,6 +13375,9 @@
   },
   "HCHtNgw+mH": {
     "defaultMessage": "—"
+  },
+  "HCPJpu/Mvc": {
+    "defaultMessage": "Iris có miễn phí không?"
   },
   "HCZzZ6mMQr": {
     "defaultMessage": "Ngữ cảnh AI"
@@ -15641,6 +15692,9 @@
   "KnQWJg+k9n": {
     "defaultMessage": "Mã công việc (không bắt buộc)"
   },
+  "KoC1pGxUBj": {
+    "defaultMessage": "Tải xuống miễn phí"
+  },
   "KoWP5ExqQO": {
     "defaultMessage": "Trang {page} trên {totalPages}"
   },
@@ -16387,6 +16441,9 @@
   },
   "LyPYie6GUZ": {
     "defaultMessage": "Các lượt nhập và xuất đang chờ xử lý hoặc đã hoàn tất sẽ xuất hiện tại đây."
+  },
+  "LzY4RMClnF": {
+    "defaultMessage": "Việc tạo hình ảnh, video và âm thanh sẽ sử dụng tín dụng AI. Các gói trả phí bao gồm tín dụng hằng tháng, với giá từ 20 USD/tháng."
   },
   "LzbIVm9zfG": {
     "defaultMessage": "2.000 token AI mỗi tháng"
@@ -17273,6 +17330,9 @@
   "NCfwtZnJJa": {
     "defaultMessage": "Bản địa hóa email tiếp thị, trang đích và tin nhắn CRM trong HubSpot."
   },
+  "ND/zOXuanC": {
+    "defaultMessage": "Đặt lịch demo"
+  },
   "NDXmA1pbVL": {
     "defaultMessage": "Chúng tôi sẽ gửi email bản tóm tắt ngắn — gồm điểm số, các lỗi cần khắc phục hàng đầu và liên kết đến báo cáo này — để bạn dễ dàng chuyển tiếp."
   },
@@ -17416,6 +17476,9 @@
   },
   "NPxj2A77E6": {
     "defaultMessage": "Không có hướng dẫn nào cho dự án này."
+  },
+  "NPzSWXmSze": {
+    "defaultMessage": "Đang tải Iris"
   },
   "NQI5GeXhlu": {
     "defaultMessage": "Chúng tôi có bắt buộc phải sử dụng công cụ dịch của bạn không?"
@@ -19631,6 +19694,9 @@
   "QjMQ0YNYXB": {
     "defaultMessage": "7 ngày qua"
   },
+  "QjdO7c1BCr": {
+    "defaultMessage": "Iris | Công cụ bản địa hóa bằng AI cho nội dung đa ngôn ngữ | Hyperlocalise"
+  },
   "Qk1QL2BxcT": {
     "defaultMessage": "Đã được AI đánh giá"
   },
@@ -21473,6 +21539,9 @@
   "TVH49oxDSg": {
     "defaultMessage": "Dự án"
   },
+  "TVKMlRSdJ5": {
+    "defaultMessage": "Iris có bản dành cho máy Mac dùng Apple Silicon (M1 trở lên) và máy Mac dùng Intel. Nút tải xuống chính cung cấp bản Apple Silicon. Hãy dùng menu bên cạnh nút đó để tải bản Intel."
+  },
   "TViRJtMGI6": {
     "defaultMessage": "Đã cập nhật 彩票天天乐"
   },
@@ -22213,6 +22282,9 @@
   },
   "UWEiDJaeSZ": {
     "defaultMessage": "Không có nhiệm vụ nào có dữ liệu Báo cáo phù hợp."
+  },
+  "UWS4Z91lmP": {
+    "defaultMessage": "Iris là công cụ bản địa hóa bằng AI của Hyperlocalise dành cho nội dung đa ngôn ngữ. Tạo và điều chỉnh hình ảnh, video, đồ họa chuyển động và âm thanh cho mọi ngôn ngữ. Tải Iris cho Mac."
   },
   "UWZ1G1FSvB": {
     "defaultMessage": "Chưa dịch trước"
@@ -23117,6 +23189,9 @@
   "Vq0Rk5ZFcw": {
     "defaultMessage": "Không thể tải dự án"
   },
+  "Vq3nULSNz4": {
+    "defaultMessage": "Iris cho Mac đã ra mắt"
+  },
   "VqCMClnRVk": {
     "defaultMessage": "Sao chép nội dung tệp xác minh"
   },
@@ -23918,6 +23993,9 @@
   "X2g46WENkC": {
     "defaultMessage": "Đã bỏ qua"
   },
+  "X33IduJXlN": {
+    "defaultMessage": "Kiểm tra bố cục"
+  },
   "X3WC1ONHHK": {
     "defaultMessage": "Ngôn ngữ này đã có hình ảnh được phê duyệt. Chỉnh sửa sẽ thay thế hình ảnh đó và gửi lại để xét duyệt."
   },
@@ -24212,6 +24290,9 @@
   "XRtOopRA+P": {
     "defaultMessage": "Thử nghiệm để biết từng thị trường ưa chuộng điều gì."
   },
+  "XS4uGbZzzL": {
+    "defaultMessage": "Những gì bạn cần để bắt đầu"
+  },
   "XTQH6Cl2jC": {
     "defaultMessage": "GPT-6 Luna (Nhanh)"
   },
@@ -24439,6 +24520,9 @@
   },
   "Xo7ebfPP+O": {
     "defaultMessage": "Theo dõi độ lệch trong hai tuần"
+  },
+  "Xop9+UWzYg": {
+    "defaultMessage": "Xem các gói và mức giá theo mô hình"
   },
   "XosmLLsDOK": {
     "defaultMessage": "Lọc theo loại"
@@ -25599,7 +25683,7 @@
     "defaultMessage": "Cần được phê duyệt"
   },
   "ZTPtuGZQJE": {
-    "defaultMessage": "Mô tả và tìm kiếm video tư liệu"
+    "defaultMessage": "Mô tả và tìm kiếm tư liệu video"
   },
   "ZTpZqdYE6W": {
     "defaultMessage": "Details"
@@ -26390,6 +26474,9 @@
   "aY0sGkAXN1": {
     "defaultMessage": "Đang xử lý…"
   },
+  "aYIs6jAO+Z": {
+    "defaultMessage": "Tải xuống miễn phí. Hiện chỉ dành cho Mac."
+  },
   "aYK9Ws6gX4": {
     "defaultMessage": "Tiếp tục chỉnh sửa"
   },
@@ -26899,6 +26986,9 @@
   },
   "bHXY88TkOe": {
     "defaultMessage": "Xem các phát hiện"
+  },
+  "bHij4EA705": {
+    "defaultMessage": "Giọng nói và lồng tiếng"
   },
   "bHnFWGWqed": {
     "defaultMessage": "Không có tệp nào được liên kết với tác vụ này."
@@ -29036,6 +29126,9 @@
   "eHtPlX55/J": {
     "defaultMessage": "Bình luận"
   },
+  "eI7Cqkjjq4": {
+    "defaultMessage": "Hình ảnh và quảng cáo"
+  },
   "eI8CB+a2hA": {
     "defaultMessage": "Lỗi dịch thuật"
   },
@@ -29288,6 +29381,9 @@
   "efAi5lrO4s": {
     "defaultMessage": "Lưu và chạy"
   },
+  "efIxAXxmtW": {
+    "defaultMessage": "Bản địa hóa mọi nội dung."
+  },
   "eg1vE4iGCz": {
     "defaultMessage": "Tìm kiếm mẫu шаб"
   },
@@ -29308,6 +29404,9 @@
   },
   "ehiNyfW7wC": {
     "defaultMessage": "Thêm đối thủ cạnh tranh"
+  },
+  "ei/+JUw/aJ": {
+    "defaultMessage": "Tín dụng AI để tạo tài nguyên"
   },
   "ej+FsoZqXe": {
     "defaultMessage": "Không thể tải các bộ nhớ dịch của nhà cung cấp ({status})"
@@ -33197,11 +33296,17 @@
   "kBSyk8lLco": {
     "defaultMessage": "Review"
   },
+  "kBVwXjVr0i": {
+    "defaultMessage": "Iris là công cụ bản địa hóa AI dành cho các nội dung đa ngôn ngữ. Tạo và điều chỉnh hình ảnh, video, giọng nói và âm thanh cho mọi ngôn ngữ và thị trường, ngay trên máy Mac của bạn."
+  },
   "kBixxU3NdD": {
     "defaultMessage": "Chọn một lần quét"
   },
   "kBjfpWlIHs": {
     "defaultMessage": "Đang chạy"
+  },
+  "kBpQcdptW3": {
+    "defaultMessage": "Iris chạy các mô hình hình ảnh, video, giọng nói và âm thanh từ nhiều nhà cung cấp AI. Trang giá liệt kê tất cả các mô hình Iris có thể chạy và chi phí của từng mô hình."
   },
   "kC1soSUZq7": {
     "defaultMessage": "Sự kiện mà trình kích hoạt này truyền đi khi bạn kiểm thử quy trình làm việc. Các lần chạy thực tế sẽ sử dụng sự kiện thực."
@@ -34825,6 +34930,9 @@
   },
   "mTsK/KrTgC": {
     "defaultMessage": "Xem lỗi thất bại"
+  },
+  "mUAsBEj5Ug": {
+    "defaultMessage": "Các phiên bản dành cho máy Mac dùng Apple Silicon và Intel. Hiện tại, Iris chỉ dành cho máy Mac nên chưa hỗ trợ Windows và Linux."
   },
   "mUSeeXuwsP": {
     "defaultMessage": "Không thể tải danh sách từ điển."
@@ -37910,6 +38018,9 @@
   "qtmhT9t6TF": {
     "defaultMessage": "Các mẫu mô tả dữ liệu đã quan sát. Các trường không xác định được kiểm tra trong thời gian chạy."
   },
+  "quTg02JT7U": {
+    "defaultMessage": "Xem giá cả"
+  },
   "qufyTH4w5s": {
     "defaultMessage": "Lý do thất bại"
   },
@@ -39848,6 +39959,9 @@
   "tgQz/g+KA0": {
     "defaultMessage": "Memory.md"
   },
+  "tgqxU3MqpJ": {
+    "defaultMessage": "Những máy Mac nào có thể chạy Iris?"
+  },
   "thAleOBSL6": {
     "defaultMessage": "Liên kết nhà cung cấp"
   },
@@ -40825,6 +40939,9 @@
   },
   "v70Y2kTioa": {
     "defaultMessage": "Tất cả các ngôn ngữ đều đang hoạt động."
+  },
+  "v8/Eb3C3P6": {
+    "defaultMessage": "Iris miễn phí tải xuống và cài đặt. Việc tạo hình ảnh, video và âm thanh sẽ dùng tín dụng AI, được bao gồm trong các gói trả phí với giá từ $20 mỗi tháng. Trang giá liệt kê mức phí cho từng mô hình."
   },
   "v8HmqsxSuZ": {
     "defaultMessage": "Thứ hạng"
@@ -42032,6 +42149,9 @@
   "wtUAi5KCmb": {
     "defaultMessage": "Quay lại danh sách nhóm"
   },
+  "wtwB9wYEeh": {
+    "defaultMessage": "Chạy trên Mac"
+  },
   "wtxoYMaNGy": {
     "defaultMessage": "ID không gian"
   },
@@ -42076,6 +42196,9 @@
   },
   "wwKiGsumAM": {
     "defaultMessage": "Kết nối Google Drive, Notion và SharePoint hoặc nhập các hướng dẫn trực tiếp. Các tác nhân sẽ kiểm tra bản nháp dựa trên các tệp về thương hiệu và tuân thủ mà nhóm của bạn đang quản lý."
+  },
+  "wwVFm2ECvN": {
+    "defaultMessage": "Ứng dụng Iris miễn phí tải xuống và cài đặt."
   },
   "wwl2e+kYrU": {
     "defaultMessage": "Nội dung bộ đo mức sử dụng hiển thị trên các trang tổng quan về thanh toán và đánh giá."
@@ -42527,11 +42650,17 @@
   "xXB6cmih1q": {
     "defaultMessage": "Đang tải các chuỗi"
   },
+  "xXdEvsjNEO": {
+    "defaultMessage": "Có phiên bản dành cho Windows hoặc Linux không?"
+  },
   "xXi7rFWRDl": {
     "defaultMessage": "Điểm chất lượng theo ngôn ngữ, nhà cung cấp và loại nội dung, được theo dõi theo thời gian."
   },
   "xXvQeFYygi": {
     "defaultMessage": "Sẵn sàng cho thị trường tiếp theo?"
+  },
+  "xXxJgL1vao": {
+    "defaultMessage": "New"
   },
   "xYD9jPAzEY": {
     "defaultMessage": "Lịch sử nhập không khả dụng"
@@ -43138,6 +43267,9 @@
   },
   "yJtQmL9RYq": {
     "defaultMessage": "Được sử dụng bởi {count, plural, one {# lần đồng bộ dự án} other {# lần đồng bộ dự án}}."
+  },
+  "yJtUqiy1Lo": {
+    "defaultMessage": "Iris, công cụ bản địa hóa AI"
   },
   "yK06fjIU98": {
     "defaultMessage": "Khớp"

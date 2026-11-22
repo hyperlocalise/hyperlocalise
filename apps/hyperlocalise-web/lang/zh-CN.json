@@ -8,6 +8,9 @@
   "++FVhiWhMw": {
     "defaultMessage": "暂无描述"
   },
+  "++MP4qRhvG": {
+    "defaultMessage": "下载 Iris 文件，从“下载”文件夹中打开，然后将 Iris 拖到“应用程序”中。新版本发布后，Iris 会自动更新。"
+  },
   "++VvL4EEbo": {
     "defaultMessage": "已复制"
   },
@@ -1199,6 +1202,9 @@
   "/fmhRd2i7v": {
     "defaultMessage": "移除电子邮件通知"
   },
+  "/gZRu7p4LI": {
+    "defaultMessage": "打开“下载”文件夹中的 Iris 文件，然后将 Iris 拖到“应用程序”中。"
+  },
   "/ga0PCFNu5": {
     "defaultMessage": "尚未关联任何域名"
   },
@@ -2375,6 +2381,9 @@
   "1KXz+b/LeX": {
     "defaultMessage": "三级标题"
   },
+  "1KpaEZEK6R": {
+    "defaultMessage": "视频和字幕"
+  },
   "1Kqhhea0Ee": {
     "defaultMessage": "此项目中的文件和字符串变更。"
   },
@@ -2443,6 +2452,9 @@
   },
   "1QeX69p2Dj": {
     "defaultMessage": "工作区"
+  },
+  "1RKEAnbFH/": {
+    "defaultMessage": "暂时还不支持。Iris 目前仅支持 Mac。您仍可通过任意浏览器，在 Hyperlocalise 网页应用中本地化文本、网站和应用。"
   },
   "1RW3XeR+vN": {
     "defaultMessage": "智能体负责准备工作，但审阅者仍然决定什么样的内容足够好，可以发布。"
@@ -3085,6 +3097,9 @@
   },
   "2J9DBNioHN": {
     "defaultMessage": "取消关联字符串"
+  },
+  "2JKySNAhyO": {
+    "defaultMessage": "如何安装 Iris？"
   },
   "2JTdlEzKQS": {
     "defaultMessage": "尚无翻译"
@@ -3836,6 +3851,9 @@
   "3R2FH9E6p2": {
     "defaultMessage": "Download"
   },
+  "3RDf6ipqz/": {
+    "defaultMessage": "重写横幅、社交广告和产品展示图中的文案，让每个版本都像是为当地受众量身打造的。"
+  },
   "3RQjQSebWm": {
     "defaultMessage": "成员加载失败。"
   },
@@ -4547,6 +4565,9 @@
   "4OZk1mqF44": {
     "defaultMessage": "全新的事物。感觉就像是为你而生。"
   },
+  "4Oq3UwFiGw": {
+    "defaultMessage": "为不同受众配音，并生成对应语言的音频。"
+  },
   "4Ot6qB+D/E": {
     "defaultMessage": "已连接。{repoSummary}"
   },
@@ -4672,6 +4693,9 @@
   },
   "4cYBnVImbP": {
     "defaultMessage": "按配置的顺序分派执行路径。"
+  },
+  "4ccYexoxn/": {
+    "defaultMessage": "在您的下一次营销活动中试试 Iris。"
   },
   "4ciFI7Zk4c": {
     "defaultMessage": "已翻译 {done} 个语言区域，共 {total, plural, one {# 个语言区域} other {# 个语言区域}}。"
@@ -5009,6 +5033,9 @@
   "57UDNEMoCB": {
     "defaultMessage": "Note"
   },
+  "57tEfCkZq/": {
+    "defaultMessage": "无需返回剪辑工作室，即可为各个市场的产品视频和视频广告添加字幕并进行本地化调整。"
+  },
   "57vdPa03Kj": {
     "defaultMessage": "无法导入双语文件。"
   },
@@ -5194,6 +5221,9 @@
   },
   "5Ol0Sy99An": {
     "defaultMessage": "https://…"
+  },
+  "5OqquqGiMa": {
+    "defaultMessage": "下载 Iris"
   },
   "5Oy8VIf/qh": {
     "defaultMessage": "并排"
@@ -7189,6 +7219,9 @@
   },
   "8MmPpIGj4f": {
     "defaultMessage": "工作区中尚无任务。"
+  },
+  "8N7H9E36x3": {
+    "defaultMessage": "Iris 常见问题"
   },
   "8O4l4wC1UK": {
     "defaultMessage": "此环境尚未启用通过 WorkOS Pipes 集成 Sanity。管理员可以在 WorkOS 中启用 Sanity 数据集成。"
@@ -9383,6 +9416,9 @@
   "Ba3w87XTBS": {
     "defaultMessage": "更新提案审核失败"
   },
+  "BaPLthDtqY": {
+    "defaultMessage": "Mac 版 Iris"
+  },
   "Baldv9loXT": {
     "defaultMessage": "从一个请求开始"
   },
@@ -10106,6 +10142,9 @@
   "CbiqfTdoAd": {
     "defaultMessage": "Succeeded"
   },
+  "CbqHZiFcRJ": {
+    "defaultMessage": "Iris 使用哪些 AI 模型？"
+  },
   "CbuvPB6HCw": {
     "defaultMessage": "已批准"
   },
@@ -10567,6 +10606,9 @@
   },
   "DBp1QKDYgw": {
     "defaultMessage": "计划任务会运行 hl sync pull，并创建一个包含更新后本地化文件的拉取请求。"
+  },
+  "DBpkRRnvyH": {
+    "defaultMessage": "免费"
   },
   "DBygjYGTST": {
     "defaultMessage": "目标保留所需的占位符和 ICU 结构。"
@@ -13070,6 +13112,9 @@
   "Gsz+RNFKoM": {
     "defaultMessage": "在 <link>集成</link> 中连接 GitHub，以便对拉取请求发表评论。"
   },
+  "GtlOKbCrFv": {
+    "defaultMessage": "Iris，多语言素材的 AI 本地化引擎"
+  },
   "GuBuwlp/SU": {
     "defaultMessage": "停止重复相同的本地化反馈"
   },
@@ -13205,6 +13250,9 @@
   "H08tJMqbiW": {
     "defaultMessage": "适应地区细微差别，而不是逐字翻译"
   },
+  "H09UjvD6L5": {
+    "defaultMessage": "在冗长的德语标题撑坏横幅之前，及时发现文本截断和布局错乱。"
+  },
   "H0IVjRDKWW": {
     "defaultMessage": "春季发布"
   },
@@ -13327,6 +13375,9 @@
   },
   "HCHtNgw+mH": {
     "defaultMessage": "—"
+  },
+  "HCPJpu/Mvc": {
+    "defaultMessage": "Iris 是免费的吗？"
   },
   "HCZzZ6mMQr": {
     "defaultMessage": "AI 上下文"
@@ -15641,6 +15692,9 @@
   "KnQWJg+k9n": {
     "defaultMessage": "任务 ID（可选）"
   },
+  "KoC1pGxUBj": {
+    "defaultMessage": "免费下载"
+  },
   "KoWP5ExqQO": {
     "defaultMessage": "第 {page} 页，共 {totalPages} 页"
   },
@@ -16387,6 +16441,9 @@
   },
   "LyPYie6GUZ": {
     "defaultMessage": "已排队和已完成的导入与导出将显示在此处。"
+  },
+  "LzY4RMClnF": {
+    "defaultMessage": "生成图像、视频和音频会消耗 AI 点数。付费套餐包含每月点数，起价为每月 20 美元。"
   },
   "LzbIVm9zfG": {
     "defaultMessage": "每月 2,000 个 AI 令牌"
@@ -17273,6 +17330,9 @@
   "NCfwtZnJJa": {
     "defaultMessage": "在 HubSpot 中本地化营销电子邮件、着陆页和 CRM 消息。"
   },
+  "ND/zOXuanC": {
+    "defaultMessage": "预约演示"
+  },
   "NDXmA1pbVL": {
     "defaultMessage": "我们会通过电子邮件发送一份简短摘要，包含评分、最重要的改进项以及返回此报告的链接，方便您转发。"
   },
@@ -17416,6 +17476,9 @@
   },
   "NPxj2A77E6": {
     "defaultMessage": "此项目没有指南。"
+  },
+  "NPzSWXmSze": {
+    "defaultMessage": "正在下载 Iris"
   },
   "NQI5GeXhlu": {
     "defaultMessage": "我们必须使用你们的翻译引擎吗？"
@@ -19631,6 +19694,9 @@
   "QjMQ0YNYXB": {
     "defaultMessage": "过去 7 天"
   },
+  "QjdO7c1BCr": {
+    "defaultMessage": "Iris | 多语言内容 AI 本地化引擎 | Hyperlocalise"
+  },
   "Qk1QL2BxcT": {
     "defaultMessage": "AI审核"
   },
@@ -21473,6 +21539,9 @@
   "TVH49oxDSg": {
     "defaultMessage": "项目"
   },
+  "TVKMlRSdJ5": {
+    "defaultMessage": "Iris 提供适用于 Apple 芯片 Mac（M1 及更新机型）和 Intel Mac 的版本。主下载按钮提供 Apple 芯片版本。要下载 Intel 版本，请使用旁边的菜单。"
+  },
   "TViRJtMGI6": {
     "defaultMessage": "最新久久久久久"
   },
@@ -22213,6 +22282,9 @@
   },
   "UWEiDJaeSZ": {
     "defaultMessage": "没有符合条件的任务包含 Reports 数据。"
+  },
+  "UWS4Z91lmP": {
+    "defaultMessage": "Iris 是 Hyperlocalise 的 AI 本地化引擎，适用于多语言素材。为每种语言创建和改编图片、视频、动画和音频。下载适用于 Mac 的 Iris。"
   },
   "UWZ1G1FSvB": {
     "defaultMessage": "未翻译优先"
@@ -23117,6 +23189,9 @@
   "Vq0Rk5ZFcw": {
     "defaultMessage": "加载项目失败"
   },
+  "Vq3nULSNz4": {
+    "defaultMessage": "Iris for Mac 现已推出"
+  },
   "VqCMClnRVk": {
     "defaultMessage": "复制验证文件内容"
   },
@@ -23918,6 +23993,9 @@
   "X2g46WENkC": {
     "defaultMessage": "已跳过"
   },
+  "X33IduJXlN": {
+    "defaultMessage": "布局检查"
+  },
   "X3WC1ONHHK": {
     "defaultMessage": "此语言已有一张已批准的图片。编辑后会替换该图片，并将其重新提交审核。"
   },
@@ -24212,6 +24290,9 @@
   "XRtOopRA+P": {
     "defaultMessage": "测试每个市场偏好的内容。"
   },
+  "XS4uGbZzzL": {
+    "defaultMessage": "开始使用前需要了解的内容"
+  },
   "XTQH6Cl2jC": {
     "defaultMessage": "GPT-6 Luna（快速）"
   },
@@ -24439,6 +24520,9 @@
   },
   "Xo7ebfPP+O": {
     "defaultMessage": "两周偏移监控"
+  },
+  "Xop9+UWzYg": {
+    "defaultMessage": "查看套餐和模型费率"
   },
   "XosmLLsDOK": {
     "defaultMessage": "按类型筛选"
@@ -26390,6 +26474,9 @@
   "aY0sGkAXN1": {
     "defaultMessage": "正在处理…"
   },
+  "aYIs6jAO+Z": {
+    "defaultMessage": "免费下载。目前仅支持 Mac。"
+  },
   "aYK9Ws6gX4": {
     "defaultMessage": "继续编辑"
   },
@@ -26899,6 +26986,9 @@
   },
   "bHXY88TkOe": {
     "defaultMessage": "查看问题"
+  },
+  "bHij4EA705": {
+    "defaultMessage": "旁白与配音"
   },
   "bHnFWGWqed": {
     "defaultMessage": "此任务未关联任何文件。"
@@ -29036,6 +29126,9 @@
   "eHtPlX55/J": {
     "defaultMessage": "评论"
   },
+  "eI7Cqkjjq4": {
+    "defaultMessage": "图片和广告"
+  },
   "eI8CB+a2hA": {
     "defaultMessage": "翻译错误"
   },
@@ -29288,6 +29381,9 @@
   "efAi5lrO4s": {
     "defaultMessage": "保存并运行"
   },
+  "efIxAXxmtW": {
+    "defaultMessage": "让每项素材都充满本地特色。"
+  },
   "eg1vE4iGCz": {
     "defaultMessage": "搜索模板"
   },
@@ -29308,6 +29404,9 @@
   },
   "ehiNyfW7wC": {
     "defaultMessage": "添加竞争对手"
+  },
+  "ei/+JUw/aJ": {
+    "defaultMessage": "生成所需的 AI 积分"
   },
   "ej+FsoZqXe": {
     "defaultMessage": "加载提供商翻译记忆失败（{status}）"
@@ -33197,11 +33296,17 @@
   "kBSyk8lLco": {
     "defaultMessage": "Review"
   },
+  "kBVwXjVr0i": {
+    "defaultMessage": "Iris 是面向多语言素材的 AI 本地化引擎。您可以直接在 Mac 上为每种语言和市场创建并调整图像、视频、语音和音频内容。"
+  },
   "kBixxU3NdD": {
     "defaultMessage": "选择一次扫描"
   },
   "kBjfpWlIHs": {
     "defaultMessage": "运行中"
+  },
+  "kBpQcdptW3": {
+    "defaultMessage": "Iris 运行来自多家 AI 供应商的图像、视频、语音和音频模型。定价页面列出了 Iris 可运行的所有模型及其价格。"
   },
   "kC1soSUZq7": {
     "defaultMessage": "测试工作流时，此触发器传递的事件。实际运行时使用真实事件。"
@@ -34825,6 +34930,9 @@
   },
   "mTsK/KrTgC": {
     "defaultMessage": "查看失败信息"
+  },
+  "mUAsBEj5Ug": {
+    "defaultMessage": "适用于 Apple 芯片和 Intel Mac。目前 Iris 仅支持 Mac，暂不支持 Windows 和 Linux。"
   },
   "mUSeeXuwsP": {
     "defaultMessage": "加载词典失败。"
@@ -37910,6 +38018,9 @@
   "qtmhT9t6TF": {
     "defaultMessage": "示例描述观测到的数据。未知字段会在运行时进行检查。"
   },
+  "quTg02JT7U": {
+    "defaultMessage": "查看定价"
+  },
   "qufyTH4w5s": {
     "defaultMessage": "失败原因"
   },
@@ -39848,6 +39959,9 @@
   "tgQz/g+KA0": {
     "defaultMessage": "Memory.md"
   },
+  "tgqxU3MqpJ": {
+    "defaultMessage": "哪些 Mac 可以运行 Iris？"
+  },
   "thAleOBSL6": {
     "defaultMessage": "提供商链接"
   },
@@ -40825,6 +40939,9 @@
   },
   "v70Y2kTioa": {
     "defaultMessage": "所有地区版本均已上线。"
+  },
+  "v8/Eb3C3P6": {
+    "defaultMessage": "Iris 可免费下载和安装。生成图像、视频和音频会消耗 AI 点数，付费套餐每月 20 美元起，并包含 AI 点数。定价页面列出了每个模型的费率。"
   },
   "v8HmqsxSuZ": {
     "defaultMessage": "排名"
@@ -42032,6 +42149,9 @@
   "wtUAi5KCmb": {
     "defaultMessage": "返回团队列表"
   },
+  "wtwB9wYEeh": {
+    "defaultMessage": "可在 Mac 上运行"
+  },
   "wtxoYMaNGy": {
     "defaultMessage": "空间 ID"
   },
@@ -42076,6 +42196,9 @@
   },
   "wwKiGsumAM": {
     "defaultMessage": "连接 Google Drive、Notion 和 SharePoint，或直接输入指南内容。代理会根据团队已有的品牌和合规文件检查草稿。"
+  },
+  "wwVFm2ECvN": {
+    "defaultMessage": "Iris 应用可免费下载和安装。"
   },
   "wwl2e+kYrU": {
     "defaultMessage": "账单和审核仪表板中显示的使用量计量器文案。"
@@ -42527,11 +42650,17 @@
   "xXB6cmih1q": {
     "defaultMessage": "正在加载字符串"
   },
+  "xXdEvsjNEO": {
+    "defaultMessage": "有 Windows 或 Linux 版本吗？"
+  },
   "xXi7rFWRDl": {
     "defaultMessage": "按语言区域、供应商和内容类型划分的质量评分，并随时间跟踪。"
   },
   "xXvQeFYygi": {
     "defaultMessage": "准备好进军下一个市场了吗？"
+  },
+  "xXxJgL1vao": {
+    "defaultMessage": "New"
   },
   "xYD9jPAzEY": {
     "defaultMessage": "导入历史记录不可用"
@@ -43138,6 +43267,9 @@
   },
   "yJtQmL9RYq": {
     "defaultMessage": "用于 {count, plural, one {# 个项目同步} other {# 个项目同步}}。"
+  },
+  "yJtUqiy1Lo": {
+    "defaultMessage": "Iris，AI 本地化引擎"
   },
   "yK06fjIU98": {
     "defaultMessage": "匹配"
