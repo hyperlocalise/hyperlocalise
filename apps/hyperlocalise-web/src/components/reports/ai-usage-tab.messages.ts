@@ -75,6 +75,11 @@ export const aiUsageTabMessages = defineMessages({
     defaultMessage: "API",
     description: "AI channel: the public API",
   },
+  channel_iris: {
+    id: "UeADOH2IXX",
+    defaultMessage: "Iris",
+    description: "AI channel: Iris, the Hyperlocalise desktop app for creatives",
+  },
   channel_slack: {
     id: "UiXOndyUc4",
     defaultMessage: "Slack",
@@ -165,6 +170,17 @@ export const aiUsageTabMessages = defineMessages({
     id: "Vz+Pht0RPH",
     defaultMessage: "Automation",
     description: "AI usage detail: the automation that ran",
+  },
+  ai_dimension_member: {
+    id: "F2yszBCIk9",
+    defaultMessage: "Member",
+    description: "AI usage detail: the workspace member whose request used the AI",
+  },
+  ai_dimension_thread: {
+    id: "8DEJWgut39",
+    defaultMessage: "Iris thread",
+    description:
+      "AI usage detail: the Iris desktop app thread (one task with its agent) that used the AI",
   },
   key_our_ai: {
     id: "ECeu9B3gSM",
@@ -263,6 +279,16 @@ export const aiUsageTabMessages = defineMessages({
     id: "CTzO+JUWTM",
     defaultMessage: "No automation",
     description: "AI usage group: calls made by no automation",
+  },
+  noMember: {
+    id: "L8o2cpm67y",
+    defaultMessage: "No member",
+    description: "AI usage group: calls no member asked for, such as automations",
+  },
+  noThread: {
+    id: "dZiSVEw/Vx",
+    defaultMessage: "No Iris thread",
+    description: "AI usage group: calls made outside an Iris desktop app thread",
   },
   tableTitle: {
     id: "pXVDdwBd+I",
@@ -546,6 +572,32 @@ export const aiUsageTabMessages = defineMessages({
     id: "oRDtAL/tPw",
     defaultMessage: "Videos from links",
     description: "AI feature: videos found at a link in a string",
+  },
+  feature_iris_chat_turn: {
+    id: "vFIbVLco1O",
+    defaultMessage: "Iris agent",
+    description: "AI feature: a turn of the agent in Iris, the desktop app",
+  },
+  feature_iris_localise_translate: {
+    id: "NqVJWK9Xsc",
+    defaultMessage: "Iris translations",
+    description: "AI feature: translating a creative's copy in Iris, the desktop app",
+  },
+  feature_iris_image_generation: {
+    id: "kzRKNukaB3",
+    defaultMessage: "Iris images",
+    description: "AI feature: images generated or edited in Iris, the desktop app",
+  },
+  feature_iris_video_generation: {
+    id: "wHdnjWrvAW",
+    defaultMessage: "Iris videos",
+    description: "AI feature: videos generated in Iris, the desktop app",
+  },
+  feature_iris_generation: {
+    id: "k3doPysMk7",
+    defaultMessage: "Iris audio and media tools",
+    description:
+      "AI feature: speech, music, transcripts, media analysis and other tools run in Iris, the desktop app",
   },
   featureUnknown: {
     id: "uq9xFpQ4IJ",

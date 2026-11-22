@@ -159,6 +159,17 @@ Fal and ElevenLabs are not on Gateway, so they use custom Autumn ids. `inputCost
 
 Do not set `AI_CREDIT_AUDIO_MODEL_ID`. That mixed ElevenLabs seconds and minutes on one id.
 
+Gateway jobs are billed in this order:
+
+1. **What Gateway charged.** Each Gateway response's generation id (`gen_…`, from the body's `id` or a generation header) is kept on the job and looked up at `GET /v1/generation?id=…` for `total_cost`, waiting up to 2 minutes while Gateway ingests it.
+2. **Reported tokens**, when there is no cost: Nano Banana and GPT Image responses, `image-text` and `listen` are billed on their tokens under the model that ran. `listen` also bills a failed first attempt that returned usage.
+3. **Gateway's published prices** (`GET /v1/models`, cached for an hour): video by second at the requested resolution and audio (the model's first listed resolution and audio on when the request leaves them out), speech by input character or output second, transcription by second, images by size.
+4. **Units**, for anything still unpriced.
+
+A dollar amount (1 or 3) reaches Autumn through `AI_CREDIT_USD_MODEL_ID` (default `custom/hyperlocalise-usd`): a custom Autumn model with `inputCost` `0` and `outputCost` `1`, so one output token is one micro-dollar and the credit system's markup still applies. **Create it in Autumn before deploying.** A charge Autumn takes below 99% of the cost logs `iris_usage_charge_below_cost`.
+
+Every Iris charge (chat turns, generations, translations) is written to `usage_events` (`feature_id = 'ai_tokens'`, `credential_source = 'gateway'`) before Autumn is called, then settled with Autumn's charged `value` as `amount_usd` or left `tracking_failed` with the error. Sources are `iris_chat_turn`, `iris_localise_translate`, `iris_image_generation`, `iris_video_generation` and `iris_generation`; `actor_user_id` is the member and `model_id` is the model that ran, `estimated_amount_usd` the vendor cost of a dollar charge with `dimensions.cost_source` `gateway` or `price_table`, and `dimensions` carry `iris_thread_id` / `iris_thread_title` from the desktop app's `X-Iris-Thread-Id` / `X-Iris-Thread-Title` headers. Reports' AI usage groups them by channel `iris`, member and thread. The operation key keeps a resumed job from being charged twice. A chat turn stopped or failed after the Gateway accepted it is charged on an estimate (4 characters a token) and marked `usage_estimated`. A unit charge under $0.001 a unit logs `iris_usage_unit_charge_low`: Autumn priced those units as tokens.
+
 Example Go usage:
 
 ```go

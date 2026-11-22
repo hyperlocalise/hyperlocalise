@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -59,6 +60,54 @@ type irisProviderOutput struct {
 	Bytes       []byte
 	Filename    string
 	ContentType string
+	// Usage is what the gateway language-model calls behind this output used,
+	// so the job is billed on real tokens rather than a unit count.
+	Usage []irisTokenUsage
+	// GenerationIDs are the AI Gateway generations behind this output, whose
+	// cost Gateway reports, so the job is billed what Gateway charged.
+	GenerationIDs []string
+}
+
+// irisTokenUsage is one gateway model's token count for a job.
+type irisTokenUsage struct {
+	Model        string `json:"model"`
+	InputTokens  int    `json:"inputTokens"`
+	OutputTokens int    `json:"outputTokens"`
+}
+
+// irisResponseUsage reads the token usage off a gateway response: chat
+// completions report prompt and completion tokens, the images API input and
+// output tokens. Nothing when the response has none.
+func irisResponseUsage(body []byte, model string) []irisTokenUsage {
+	var parsed struct {
+		Usage struct {
+			PromptTokens     int `json:"prompt_tokens"`
+			CompletionTokens int `json:"completion_tokens"`
+			InputTokens      int `json:"input_tokens"`
+			OutputTokens     int `json:"output_tokens"`
+		} `json:"usage"`
+	}
+	if json.Unmarshal(body, &parsed) != nil {
+		return nil
+	}
+	usage := irisTokenUsage{
+		Model:        strings.TrimSpace(model),
+		InputTokens:  max(parsed.Usage.PromptTokens, parsed.Usage.InputTokens),
+		OutputTokens: max(parsed.Usage.CompletionTokens, parsed.Usage.OutputTokens),
+	}
+	if usage.Model == "" || usage.InputTokens+usage.OutputTokens == 0 {
+		return nil
+	}
+	return []irisTokenUsage{usage}
+}
+
+// withIrisUsage puts a call's token usage on the first output.
+func withIrisUsage(outputs []irisProviderOutput, err error, usage []irisTokenUsage) ([]irisProviderOutput, error) {
+	if err != nil || len(outputs) == 0 || len(usage) == 0 {
+		return outputs, err
+	}
+	outputs[0].Usage = append(outputs[0].Usage, usage...)
+	return outputs, nil
 }
 
 type irisGenerationProvider interface {
@@ -66,6 +115,10 @@ type irisGenerationProvider interface {
 }
 
 type irisGatewayProvider struct {
+	// prices caches Gateway's published model prices for billing.
+	pricesMu   sync.Mutex
+	prices     map[string]irisGatewayPricing
+	pricesAt   time.Time
 	baseURL    string
 	apiKey     string
 	httpClient *http.Client
@@ -101,7 +154,18 @@ func newIrisOpenAIProvider() *irisGatewayProvider {
 	}
 }
 
+// Generate runs the job and puts the ids of the Gateway generations it made
+// on its first output, for billing.
 func (p *irisGatewayProvider) Generate(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
+	collector := &irisGenerationCollector{}
+	outputs, err := p.generate(context.WithValue(ctx, irisGenerationCollectorKey{}, collector), req)
+	if err == nil && len(outputs) > 0 {
+		outputs[0].GenerationIDs = append(outputs[0].GenerationIDs, collector.list()...)
+	}
+	return outputs, err
+}
+
+func (p *irisGatewayProvider) generate(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	switch req.Model.Kind {
 	case irisKindVoice, irisKindAudio:
 		return p.speech(ctx, req)
@@ -147,7 +211,8 @@ func (p *irisGatewayProvider) image(ctx context.Context, req irisProviderRequest
 	if err != nil {
 		return nil, err
 	}
-	return decodeImageOutputs(ctx, body, "image", "png")
+	outputs, err := decodeImageOutputs(ctx, body, "image", "png")
+	return withIrisUsage(outputs, err, irisResponseUsage(body, req.Model.GatewayID))
 }
 
 func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderRequest, images []irisProviderInput, count int) ([]irisProviderOutput, error) {
@@ -186,7 +251,8 @@ func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderReq
 	if err != nil {
 		return nil, err
 	}
-	return decodeImageOutputs(ctx, body, "image", "png")
+	outputs, err := decodeImageOutputs(ctx, body, "image", "png")
+	return withIrisUsage(outputs, err, irisResponseUsage(body, req.Model.GatewayID))
 }
 
 // imageChat generates or edits images through /chat/completions. AI Gateway
@@ -219,7 +285,8 @@ func (p *irisGatewayProvider) imageChat(ctx context.Context, req irisProviderReq
 	if err != nil {
 		return nil, err
 	}
-	return decodeChatImageOutputs(ctx, body)
+	outputs, err := decodeChatImageOutputs(ctx, body)
+	return withIrisUsage(outputs, err, irisResponseUsage(body, req.Model.GatewayID))
 }
 
 func (p *irisGatewayProvider) speech(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
@@ -249,6 +316,7 @@ func (p *irisGatewayProvider) speech(ctx context.Context, req irisProviderReques
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("gateway speech failed: %s", truncate(string(body), 400))
 	}
+	collectIrisGenerationIDs(ctx, resp.Header, nil)
 	contentType := resp.Header.Get("Content-Type")
 	if contentType == "" || strings.Contains(contentType, "json") {
 		contentType = "audio/mpeg"
@@ -464,6 +532,9 @@ func (p *irisGatewayProvider) listenChat(ctx context.Context, req irisProviderRe
 	}
 	ids := irisListenGatewayIDs(req.Model.GatewayID)
 	var lastErr error
+	// A failed attempt that still returned usage was paid for, so it is
+	// billed with the attempt that succeeds.
+	var usage []irisTokenUsage
 	for i, modelID := range ids {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -474,11 +545,13 @@ func (p *irisGatewayProvider) listenChat(ctx context.Context, req irisProviderRe
 			User:   user,
 			Files:  []irisProviderInput{media},
 		})
+		usage = append(usage, reply.tokenUsage()...)
 		if err == nil {
 			return []irisProviderOutput{{
 				Bytes:       []byte(strings.TrimSpace(reply.Text)),
 				Filename:    "analysis.md",
 				ContentType: "text/markdown",
+				Usage:       usage,
 			}}, nil
 		}
 		lastErr = err
@@ -543,6 +616,7 @@ func (p *irisGatewayProvider) do(req *http.Request) ([]byte, error) {
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("gateway request failed: %s", truncate(string(body), 400))
 	}
+	collectIrisGenerationIDs(req.Context(), resp.Header, body)
 	return body, nil
 }
 

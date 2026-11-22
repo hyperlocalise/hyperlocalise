@@ -7679,6 +7679,10 @@
     "defaultMessage": "Text",
     "description": "Issue column type label for text"
   },
+  "8DEJWgut39": {
+    "defaultMessage": "Iris thread",
+    "description": "AI usage detail: the Iris desktop app thread (one task with its agent) that used the AI"
+  },
   "8DTgncaRKl": {
     "defaultMessage": "Add to a task…",
     "description": "Bulk action that puts the selected strings into a new or open task for people"
@@ -12839,6 +12843,10 @@
     "defaultMessage": "Create and adapt text, documents, slides, images, and video in one shared multilingual workspace—so every format in a campaign stays together.",
     "description": "Content Studio FAQ answer about supported formats"
   },
+  "F2yszBCIk9": {
+    "defaultMessage": "Member",
+    "description": "AI usage detail: the workspace member whose request used the AI"
+  },
   "F3LRM6/D0t": {
     "defaultMessage": "Die Welt in einem neuen Licht sehen.",
     "description": "German sample article title in the Domains live preview"
@@ -17095,6 +17103,10 @@
     "defaultMessage": "Unable to load task files",
     "description": "Fallback error when task files fail to load without an Error message"
   },
+  "L8o2cpm67y": {
+    "defaultMessage": "No member",
+    "description": "AI usage group: calls no member asked for, such as automations"
+  },
   "L8xTOJqX0d": {
     "defaultMessage": "Search: {value}",
     "description": "Active jobs filter chip showing the current search query"
@@ -19206,6 +19218,10 @@
   "NqAGQvs7qB": {
     "defaultMessage": "English (Australia)",
     "description": "Display name for BCP-47 locale en-AU"
+  },
+  "NqVJWK9Xsc": {
+    "defaultMessage": "Iris translations",
+    "description": "AI feature: translating a creative's copy in Iris, the desktop app"
   },
   "NrJMjFZ+Df": {
     "defaultMessage": "Romanian (Romania)",
@@ -24130,6 +24146,10 @@
   "UdxBZORXpe": {
     "defaultMessage": "All",
     "description": "Integration category filter tab showing every category"
+  },
+  "UeADOH2IXX": {
+    "defaultMessage": "Iris",
+    "description": "AI channel: Iris, the Hyperlocalise desktop app for creatives"
   },
   "UeIGZOrfgq": {
     "defaultMessage": "This Sanity authorization request is missing or expired. Start again from Sanity.",
@@ -30751,6 +30771,10 @@
     "defaultMessage": "Numbered list",
     "description": "Tooltip and accessible label for the numbered list toolbar button"
   },
+  "dZiSVEw/Vx": {
+    "defaultMessage": "No Iris thread",
+    "description": "AI usage group: calls made outside an Iris desktop app thread"
+  },
   "dZjmTiak7a": {
     "defaultMessage": "Search team glossaries...",
     "description": "Search placeholder in the CAT team glossary picker"
@@ -35655,6 +35679,10 @@
     "defaultMessage": "Jobs created and tracked in this workspace.",
     "description": "Description under the native jobs section title"
   },
+  "k3doPysMk7": {
+    "defaultMessage": "Iris audio and media tools",
+    "description": "AI feature: speech, music, transcripts, media analysis and other tools run in Iris, the desktop app"
+  },
   "k3eu1T7STw": {
     "defaultMessage": "Start a new audit",
     "description": "Button to start a fresh localisation audit after a domain block"
@@ -36334,6 +36362,10 @@
   "kzMTx+wIMg": {
     "defaultMessage": "Powered by DataForSEO Labs’ Google Domain Rank Overview API.",
     "description": "Market data attribution"
+  },
+  "kzRKNukaB3": {
+    "defaultMessage": "Iris images",
+    "description": "AI feature: images generated or edited in Iris, the desktop app"
   },
   "kzjEnGFmtM": {
     "defaultMessage": "{skipped, plural, one {Skipped # unmatched or empty row.} other {Skipped # unmatched or empty rows.}}",
@@ -44007,6 +44039,10 @@
     "defaultMessage": "Upscale a video",
     "description": "Card summary for the ByteDance video upscaler on the pricing page"
   },
+  "vFIbVLco1O": {
+    "defaultMessage": "Iris agent",
+    "description": "AI feature: a turn of the agent in Iris, the desktop app"
+  },
   "vFXL8WUX2+": {
     "defaultMessage": "Review and quality checks",
     "description": "Marketing homepage languageDetailReviewTitle"
@@ -44802,6 +44838,10 @@
   "wHFmp4/+wj": {
     "defaultMessage": "Source file",
     "description": "Inbox issue detail source label in content ops mock"
+  },
+  "wHdnjWrvAW": {
+    "defaultMessage": "Iris videos",
+    "description": "AI feature: videos generated in Iris, the desktop app"
   },
   "wI7t6e90fP": {
     "defaultMessage": "Project",

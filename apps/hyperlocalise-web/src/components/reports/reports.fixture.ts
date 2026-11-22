@@ -235,6 +235,8 @@ export const reportsAiUsage: AiUsage = {
     })),
   },
   automationName: null,
+  memberName: null,
+  threadTitle: null,
 };
 
 /** The volume chart's series by project and week: two projects, nothing past the fifth. */

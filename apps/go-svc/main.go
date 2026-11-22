@@ -120,6 +120,9 @@ func main() {
 	h.sessionOnboarding = &sessionOnboardingAPI{}
 	irisProvider := newIrisGenerationProvider()
 	h.irisGeneration = &irisGenerationAPI{provider: irisProvider, voices: irisVoiceLibraryFrom(irisProvider), text: newIrisTextModel()}
+	if gateway := newIrisGatewayProvider(); gateway != nil {
+		h.irisGeneration.gatewayCosts = gateway
+	}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}

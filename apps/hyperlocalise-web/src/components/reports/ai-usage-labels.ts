@@ -63,6 +63,8 @@ export function aiGroupLabel(intl: Intl, dimension: AiUsageDimension, group: Gro
     if (dimension === "project") return intl.formatMessage(messages.outsideProjects);
     if (dimension === "task") return intl.formatMessage(messages.noTask);
     if (dimension === "automation") return intl.formatMessage(messages.noAutomation);
+    if (dimension === "member") return intl.formatMessage(messages.noMember);
+    if (dimension === "thread") return intl.formatMessage(messages.noThread);
     return intl.formatMessage(messages.noneGroup);
   }
   switch (dimension) {
