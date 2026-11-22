@@ -118,7 +118,8 @@ func main() {
 	h.sessionOrganizations = &sessionOrganizationsAPI{}
 	h.sessionAccount = &sessionAccountAPI{}
 	h.sessionOnboarding = &sessionOnboardingAPI{}
-	h.irisGeneration = &irisGenerationAPI{provider: newIrisGenerationProvider(), text: newIrisTextModel()}
+	irisProvider := newIrisGenerationProvider()
+	h.irisGeneration = &irisGenerationAPI{provider: irisProvider, voices: irisVoiceLibraryFrom(irisProvider), text: newIrisTextModel()}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
