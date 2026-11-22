@@ -148,8 +148,10 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        "200": { description: File exists. }
-        "404": { description: Hash, locale, or path is unknown. }
+        "200":
+          description: File exists.
+        "404":
+          description: Hash, locale, or path is unknown.
   /ofrep/v1/evaluate/flags:
     post:
       operationId: evaluateOfrepFlags
