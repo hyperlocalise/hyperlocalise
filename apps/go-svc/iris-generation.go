@@ -67,16 +67,16 @@ type irisOrgScope struct {
 }
 
 type irisGenerationAPI struct {
-	objects    *objectstore.Registry
-	provider   irisGenerationProvider
-	text       irisTextModel
-	meter      irisUsageMeter
-	credits    irisCreditConfig
+	objects  *objectstore.Registry
+	provider irisGenerationProvider
+	text     irisTextModel
+	meter    irisUsageMeter
+	credits  irisCreditConfig
 	// gatewayCosts reads what AI Gateway charged for a job and its published
 	// prices; nil without AI_GATEWAY_API_KEY.
 	gatewayCosts irisGatewayCosts
 	// sleep waits between Gateway cost lookups; nil waits on a timer.
-	sleep func(context.Context, time.Duration) error
+	sleep      func(context.Context, time.Duration) error
 	pool       dictionaryPool
 	membership organizationMembershipLookup
 	// voices keeps brand voices on the provider account; nil without

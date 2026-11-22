@@ -116,9 +116,9 @@ type irisGenerationProvider interface {
 
 type irisGatewayProvider struct {
 	// prices caches Gateway's published model prices for billing.
-	pricesMu sync.Mutex
-	prices   map[string]irisGatewayPricing
-	pricesAt time.Time
+	pricesMu   sync.Mutex
+	prices     map[string]irisGatewayPricing
+	pricesAt   time.Time
 	baseURL    string
 	apiKey     string
 	httpClient *http.Client
