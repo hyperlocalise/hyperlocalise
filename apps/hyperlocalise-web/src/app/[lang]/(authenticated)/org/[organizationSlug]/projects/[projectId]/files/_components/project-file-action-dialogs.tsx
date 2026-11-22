@@ -70,6 +70,7 @@ export function ProjectFileActionDialogs({
           organizationSlug={actions.organizationSlug}
           projectId={actions.projectId}
           sourcePath={file.sourcePath}
+          branch={actions.branch}
         />
       ) : null}
       {actions.messageFormatDialogOpen ? (
@@ -79,6 +80,7 @@ export function ProjectFileActionDialogs({
           organizationSlug={actions.organizationSlug}
           projectId={actions.projectId}
           sourcePath={file.sourcePath}
+          branch={actions.branch}
         />
       ) : null}
       {actions.importSettingsDialogOpen ? (
@@ -88,6 +90,7 @@ export function ProjectFileActionDialogs({
           organizationSlug={actions.organizationSlug}
           projectId={actions.projectId}
           sourcePath={file.sourcePath}
+          branch={actions.branch}
         />
       ) : null}
     </>

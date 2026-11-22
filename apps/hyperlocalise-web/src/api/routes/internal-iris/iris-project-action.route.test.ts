@@ -26,6 +26,8 @@ import {
   mintGoSvcServiceToken,
 } from "@/lib/go-svc/go-svc-service-token";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
+import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import type {
   TranslationFileImportEventData,
@@ -679,5 +681,54 @@ describe("internal iris project-action route", () => {
       targetLocale: "fr-FR",
       branchName: "feature-checkout",
     });
+  });
+
+  it("patches file settings onto the named version branch and leaves main alone", async () => {
+    const { organization, user, project } = await seedNativeProject();
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+    const created = await projectBranchService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      name: "feature-checkout",
+    });
+    expect(created.ok).toBe(true);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const response = await postAction("file_settings_patch", {
+      organizationId: organization.id,
+      userId: user.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      branch: "feature-checkout",
+      kind: "placeholder",
+      settings: { messageFormat: "icu" },
+    });
+    expect(response.status).toBe(200);
+
+    const rows = await db
+      .select({
+        branchName: schema.repositorySourceFiles.branchName,
+        messageFormat: schema.repositorySourceFiles.messageFormat,
+      })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    const byBranch = Object.fromEntries(rows.map((row) => [row.branchName, row.messageFormat]));
+    expect(byBranch.main).toBe("auto");
+    expect(byBranch["feature-checkout"]).toBe("icu");
   });
 });

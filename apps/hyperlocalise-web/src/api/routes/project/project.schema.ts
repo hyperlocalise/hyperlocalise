@@ -659,10 +659,12 @@ export {
 
 export const projectFileSegmentationQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
+  branch: z.string().trim().min(1).max(128).optional(),
 });
 
 export const updateProjectFileSegmentationBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
+  branch: z.string().trim().min(1).max(128).optional(),
   segmentation: repositorySourceFileSegmentationSettingsSchema,
 });
 
@@ -670,6 +672,7 @@ export const projectFileMessageFormatQuerySchema = projectFileSegmentationQueryS
 
 export const updateProjectFileMessageFormatBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
+  branch: z.string().trim().min(1).max(128).optional(),
   messageFormat: messageFormatSchema,
   placeholderPatterns: placeholderPatternsSchema.optional(),
 });
@@ -678,6 +681,7 @@ export const projectFileImportSettingsQuerySchema = projectFileSegmentationQuery
 
 export const updateProjectFileImportSettingsBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
+  branch: z.string().trim().min(1).max(128).optional(),
   importSettings: repositorySourceFileImportSettingsSchema,
 });
 

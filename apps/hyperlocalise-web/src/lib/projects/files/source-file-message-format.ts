@@ -16,17 +16,24 @@ import { db, schema } from "@/lib/database/client";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { type MessageFormat, normalizeMessageFormat } from "@/lib/i18n/message-format";
 import { normalizePlaceholderPatterns } from "@/lib/i18n/placeholder-patterns";
+import { resolvedProjectBranchName } from "@/lib/projects/branches/project-branch-name";
 
 export interface RepositorySourceFilePlaceholderSettings {
   messageFormat: MessageFormat;
   placeholderPatterns: string[];
 }
 
-function sourceFileWhere(input: { organizationId: string; projectId: string; sourcePath: string }) {
+function sourceFileWhere(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  branchName?: string | null;
+}) {
   return and(
     eq(schema.repositorySourceFiles.organizationId, input.organizationId),
     eq(schema.repositorySourceFiles.projectId, input.projectId),
     eq(schema.repositorySourceFiles.sourcePath, normalizeSourcePath(input.sourcePath)),
+    eq(schema.repositorySourceFiles.branchName, resolvedProjectBranchName(input.branchName)),
   );
 }
 
@@ -34,6 +41,8 @@ export async function getRepositorySourceFileMessageFormat(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  /** The file's branch; the default branch when left out. */
+  branchName?: string | null;
 }): Promise<MessageFormat | null> {
   const [row] = await db
     .select({ messageFormat: schema.repositorySourceFiles.messageFormat })
@@ -48,6 +57,8 @@ export async function getRepositorySourceFilePlaceholderSettings(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  /** The file's branch; the default branch when left out. */
+  branchName?: string | null;
 }): Promise<RepositorySourceFilePlaceholderSettings | null> {
   const [row] = await db
     .select({
@@ -76,7 +87,18 @@ export async function updateRepositorySourceFilePlaceholderSettings(input: {
   sourcePath: string;
   messageFormat: MessageFormat;
   placeholderPatterns?: string[];
+  /** The file's branch; the default branch when left out. */
+  branchName?: string | null;
 }): Promise<RepositorySourceFilePlaceholderSettings | null> {
+  const [file] = await db
+    .select({ id: schema.repositorySourceFiles.id })
+    .from(schema.repositorySourceFiles)
+    .where(sourceFileWhere(input))
+    .limit(1);
+  if (!file) {
+    return null;
+  }
+
   const [row] = await db
     .update(schema.repositorySourceFiles)
     .set({
@@ -85,7 +107,7 @@ export async function updateRepositorySourceFilePlaceholderSettings(input: {
         ? { placeholderPatterns: normalizePlaceholderPatterns(input.placeholderPatterns) }
         : {}),
     })
-    .where(sourceFileWhere(input))
+    .where(eq(schema.repositorySourceFiles.id, file.id))
     .returning({
       messageFormat: schema.repositorySourceFiles.messageFormat,
       placeholderPatterns: schema.repositorySourceFiles.placeholderPatterns,
