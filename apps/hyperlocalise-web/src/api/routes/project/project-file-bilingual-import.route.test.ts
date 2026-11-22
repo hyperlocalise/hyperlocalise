@@ -348,6 +348,35 @@ describe("project file bilingual import route", () => {
     expect(importCatBilingualRowsMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a bilingual import onto a branch that is not there", async () => {
+    const { admin, headers, organizationId, projectId, userId } = await createNativeProject(["fr"]);
+    await projectBranchService.ensureDefaultBranch({
+      organizationId,
+      projectId,
+      createdByUserId: userId,
+    });
+    await db.insert(schema.repositorySourceFiles).values({
+      organizationId,
+      projectId,
+      sourcePath: "locales/en.json",
+    });
+
+    const response = await postBilingualImport({
+      slug: admin.organization.slug ?? "missing-slug",
+      projectId,
+      sourcePath: "locales/en.json",
+      locale: "fr",
+      file: new File(["<xliff/>"], "queue-fr.xliff", { type: "application/xliff+xml" }),
+      headers,
+      branch: "feature-checkout",
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: "branch_not_found" });
+    expect(parseFilteredMock).not.toHaveBeenCalled();
+    expect(importCatBilingualRowsMock).not.toHaveBeenCalled();
+  });
+
   it("rejects bilingual import without write-back permission", async () => {
     const { admin, projectId } = await createNativeProject(["fr"]);
     const member = projectFixture.createWorkosIdentityForOrganization(admin.organization, "member");

@@ -1217,9 +1217,11 @@ func TestIrisGatewayProviderTranscribeUsesV4Endpoint(t *testing.T) {
 func TestIrisGatewayProviderFishAudioTranscribeUsesGatewayID(t *testing.T) {
 	audio := []byte("RIFF....WAVEfmt ")
 	var gotModel string
+	var payload map[string]any
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotModel = r.Header.Get("ai-model-id")
 		require.Equal(t, "/v4/ai/transcription-model", r.URL.Path)
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
 		_, _ = w.Write([]byte(`{"text":"fish transcript","segments":[{"text":"fish transcript","startSecond":0,"endSecond":1}]}`))
 	}))
 	t.Cleanup(server.Close)
@@ -1240,6 +1242,8 @@ func TestIrisGatewayProviderFishAudioTranscribeUsesGatewayID(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "fish-audio/transcribe-1", gotModel)
+	require.Equal(t, "audio/wav", payload["mediaType"])
+	require.NotContains(t, payload, "providerOptions", "Gemini word timestamps are only for universal-3.5-pro")
 	require.JSONEq(t, `[{"text":"fish transcript","words":[{"text":"fish transcript","start":0,"end":1}]}]`, string(outputs[0].Bytes))
 }
 

@@ -43,14 +43,21 @@ describe("Reports URL state", () => {
       per: "month" as const,
       page: 3,
       rateCard: "Standard 2026",
-      aiGroup: "model" as const,
-      aiThen: "task" as const,
+      aiGroup: "thread" as const,
+      aiThen: "member" as const,
       aiMeasure: "charge" as const,
-      aiFilters: { area: "translation", key: "own_key", automation: "auto_1" },
+      aiFilters: {
+        area: "translation",
+        key: "own_key",
+        automation: "auto_1",
+        channel: "iris",
+        member: "user_1",
+        thread: "thread_launch",
+      },
     };
     const href = buildReportsHref("/org/acme/reports", state);
     expect(href).toBe(
-      "/org/acme/reports?tab=estimate&range=custom&from=2026-07-01&to=2026-07-31&project=project_1&tasks=job_a%2Cjob_b&language=ja-JP&step=review&unit=characters&mode=finished&group=task_step&split=band&per=month&page=3&card=Standard+2026&ai=model&ai2=task&measure=charge&area=translation&key=own_key&automation=auto_1",
+      "/org/acme/reports?tab=estimate&range=custom&from=2026-07-01&to=2026-07-31&project=project_1&tasks=job_a%2Cjob_b&language=ja-JP&step=review&unit=characters&mode=finished&group=task_step&split=band&per=month&page=3&card=Standard+2026&ai=thread&ai2=member&measure=charge&area=translation&channel=iris&key=own_key&automation=auto_1&member=user_1&thread=thread_launch",
     );
     expect(parseReportsSearchParams(new URLSearchParams(href.split("?")[1]))).toEqual(state);
   });
