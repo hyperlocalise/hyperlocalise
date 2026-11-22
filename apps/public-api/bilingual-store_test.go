@@ -162,3 +162,19 @@ func TestBilingualImportStaysOnNamedBranch(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errSourceFileNotFound)
 }
+
+func TestBilingualImportRejectsProtectedBranch(t *testing.T) {
+	f := newDBFixture(t)
+	ctx := t.Context()
+	f.sourceFile(t, "en.json")
+	title := f.createString(t, "en.json", "home.title", "Home", nil)
+	f.exec(t, `UPDATE project_branches SET is_protected = true WHERE project_id = $1 AND name = 'main'`, f.project)
+
+	_, err := f.store.importBilingualRows(ctx, f.actor, f.project, bilingualImportInput{
+		Locale: "fr",
+		Rows:   []editor_export.Row{{Key: "home.title", TargetText: "Accueil", SourcePath: "en.json"}},
+	})
+	require.ErrorIs(t, err, errProtectedBranch)
+	_, err = f.store.getStringTranslation(ctx, f.actor, f.project, title.ID, "fr")
+	require.ErrorIs(t, err, errTranslationNotFound)
+}

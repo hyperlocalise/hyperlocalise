@@ -4667,6 +4667,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
         }
 
+        await projectBranchService.ensureDefaultBranch({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          createdByUserId: c.var.auth.user.localUserId,
+        });
+        const writableBranch = await projectBranchService.assertWritable({
+          projectId: params.projectId,
+          branchName: parsed.data.branch,
+        });
+        if (!writableBranch.ok) {
+          if (writableBranch.error === "protected_branch") {
+            return conflictResponse(c, "protected_branch", "This branch is protected.");
+          }
+          return notFoundResponse(c, "branch_not_found", "Branch not found.");
+        }
+
         const isAllFiles = isContentEditorAllFilesSourcePath(parsed.data.sourcePath);
         if (!isAllFiles) {
           const sourceFile = await getRepositorySourceFileByPath({

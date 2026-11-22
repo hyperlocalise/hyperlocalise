@@ -190,6 +190,14 @@ func TestBilingualImportRoute(t *testing.T) {
 		require.Equal(t, http.StatusConflict, w.Code)
 		require.Contains(t, w.Body.String(), "project_not_native")
 	})
+
+	t.Run("rejects protected branches", func(t *testing.T) {
+		store := &fakeResourceStore{}
+		store.bilingualErr = errProtectedBranch
+		w := sendBilingualForm(t, resourcePrincipal(approveScopes...), store, map[string]string{"locale": "fr"}, "fixed.csv", csv)
+		require.Equal(t, http.StatusConflict, w.Code)
+		require.Contains(t, w.Body.String(), "protected_branch")
+	})
 }
 
 func TestGroupBilingualImportRows(t *testing.T) {

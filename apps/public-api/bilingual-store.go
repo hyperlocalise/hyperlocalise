@@ -171,6 +171,9 @@ func (s *postgresStore) importBilingualRows(ctx context.Context, actor principal
 			return errLocaleNotInProject
 		}
 		branch := bilingualBranchName(input.Branch)
+		if err := rejectProtectedBranch(ctx, tx, scope, branch); err != nil {
+			return err
+		}
 		if input.FilePath != nil {
 			var exists bool
 			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM repository_source_files
