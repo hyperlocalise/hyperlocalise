@@ -32,6 +32,7 @@ export type AiOrigin = (typeof AI_ORIGINS)[number];
 export const AI_CHANNELS = [
   "app",
   "api",
+  "iris",
   "slack",
   "email",
   "web_chat",
@@ -61,6 +62,8 @@ export const AI_USAGE_DIMENSIONS = [
   "project",
   "task",
   "automation",
+  "member",
+  "thread",
 ] as const;
 export type AiUsageDimension = (typeof AI_USAGE_DIMENSIONS)[number];
 
@@ -74,8 +77,13 @@ const AI_IMAGE_SOURCES = [
   "slack_image_localization",
   "email_image_localization",
   "contentful_image_localization",
+  "iris_image_generation",
 ] as const;
-const AI_VIDEO_SOURCES = ["project_video_variant", "project_video_url_translation"] as const;
+const AI_VIDEO_SOURCES = [
+  "project_video_variant",
+  "project_video_url_translation",
+  "iris_video_generation",
+] as const;
 
 const MEDIA_SOURCES = new Set<string>([...AI_IMAGE_SOURCES, ...AI_VIDEO_SOURCES]);
 
@@ -100,6 +108,11 @@ const ORIGIN_BY_SOURCE: Record<string, AiOrigin> = {
   github_pull_request_review: "review_and_qa",
   // Reading the text in an image or a video frame: a call with tokens, not an image made.
   image_text_extraction: "images_and_video",
+  // Iris, the desktop app: its agent, translations of a creative's copy, and generations other
+  // than images and videos (speech, music, transcripts, analysis).
+  iris_chat_turn: "assistants_and_chat",
+  iris_localise_translate: "translation",
+  iris_generation: "images_and_video",
 };
 
 /**

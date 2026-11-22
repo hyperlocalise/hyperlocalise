@@ -159,6 +159,10 @@ Fal and ElevenLabs are not on Gateway, so they use custom Autumn ids. `inputCost
 
 Do not set `AI_CREDIT_AUDIO_MODEL_ID`. That mixed ElevenLabs seconds and minutes on one id.
 
+When a Gateway model reports token usage (Nano Banana and GPT Image responses, `image-text`, `listen`), the job is billed on those tokens under that model's id instead of on its unit count. `listen` also bills a failed first attempt that returned usage. Gateway video and speech still bill units.
+
+Every Iris charge (chat turns, generations, translations) is written to `usage_events` (`feature_id = 'ai_tokens'`, `credential_source = 'gateway'`) before Autumn is called, then settled with Autumn's charged `value` as `amount_usd` or left `tracking_failed` with the error. Sources are `iris_chat_turn`, `iris_localise_translate`, `iris_image_generation`, `iris_video_generation` and `iris_generation`; `actor_user_id` is the member and `dimensions` carry `iris_thread_id` / `iris_thread_title` from the desktop app's `X-Iris-Thread-Id` / `X-Iris-Thread-Title` headers. Reports' AI usage groups them by channel `iris`, member and thread. The operation key keeps a resumed job from being charged twice. A chat turn stopped or failed after the Gateway accepted it is charged on an estimate (4 characters a token) and marked `usage_estimated`. A unit charge under $0.001 a unit logs `iris_usage_unit_charge_low`: Autumn priced those units as tokens.
+
 Example Go usage:
 
 ```go

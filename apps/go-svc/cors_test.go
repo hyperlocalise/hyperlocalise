@@ -87,6 +87,8 @@ func TestCORSMiddleware(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, preflightRec.Code)
 	require.Equal(t, "https://hyperlocalise.com", preflightRec.Header().Get("Access-Control-Allow-Origin"))
 	require.Contains(t, preflightRec.Header().Get("Access-Control-Allow-Headers"), "Authorization")
+	require.Contains(t, preflightRec.Header().Get("Access-Control-Allow-Headers"), "X-Iris-Thread-Id")
+	require.Contains(t, preflightRec.Header().Get("Access-Control-Allow-Headers"), "X-Iris-Thread-Title")
 	require.Equal(t, "Origin", preflightRec.Header().Get("Vary"))
 
 	denied := httptest.NewRequest(http.MethodOptions, "http://api.hyperlocalise.com/v1/orgs/acme/teams", nil)

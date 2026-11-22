@@ -21,7 +21,7 @@ func reportingAttributedUsageSQL(organizationParam, where string) string {
 	const uuidPattern = `'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'`
 	return `
         select u.id, u.feature_id, u.model_id, u.credential_source, u.amount_usd, u.quantity,
-            u.dimensions,
+            u.dimensions, u.actor_user_id::text as actor_user_id,
             u.created_at, coalesce(p.source, u.source) as source, ar.kind as agent_run_kind,
             a.id::text as automation_id,
             t.id as job_id, t.api_key_id is not null as via_api_key,

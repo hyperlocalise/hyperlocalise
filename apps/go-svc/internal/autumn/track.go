@@ -55,7 +55,21 @@ type trackTokensBody struct {
 	Properties        map[string]any `json:"properties,omitempty"`
 }
 
+// TrackTokensResponse is what Autumn charged for a balances.track_tokens call.
+type TrackTokensResponse struct {
+	// Value is the USD Autumn deducted from the credit system.
+	Value float64 `json:"value"`
+}
+
 // TrackTokens calls POST /v1/balances.track_tokens with API version 2.3.0.
 func (c *Client) TrackTokens(ctx context.Context, req TrackTokensRequest) error {
-	return c.post(ctx, "/v1/balances.track_tokens", tokensAPIVersion, trackTokensBody(req), nil)
+	_, err := c.TrackTokensCharged(ctx, req)
+	return err
+}
+
+// TrackTokensCharged is TrackTokens that also returns what Autumn charged.
+func (c *Client) TrackTokensCharged(ctx context.Context, req TrackTokensRequest) (TrackTokensResponse, error) {
+	var out TrackTokensResponse
+	err := c.post(ctx, "/v1/balances.track_tokens", tokensAPIVersion, trackTokensBody(req), &out)
+	return out, err
 }

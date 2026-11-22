@@ -26,17 +26,18 @@ const (
 
 var (
 	reportingAiOrigins    = []string{"translation", "review_and_qa", "images_and_video", "assistants_and_chat", "building_automations", "running_automations", "other"}
-	reportingAiChannels   = []string{"app", "api", "slack", "email", "web_chat", "github", "gitlab", "contentful", "connected_tms", "automation"}
+	reportingAiChannels   = []string{"app", "api", "iris", "slack", "email", "web_chat", "github", "gitlab", "contentful", "connected_tms", "automation"}
 	reportingAiKeyTypes   = []string{"our_ai", "own_key", "not_recorded"}
-	reportingAiDimensions = []string{"area", "feature", "model", "provider", "channel", "key", "project", "task", "automation"}
+	reportingAiDimensions = []string{"area", "feature", "model", "provider", "channel", "key", "project", "task", "automation", "member", "thread"}
 	reportingAiMeasures   = []string{"tokens", "calls", "charge"}
 	// Sources of billing rows that each stand for one image or one video made.
-	reportingAiImageSources = []string{"project_image_variant", "project_image_url_translation", "slack_image_localization", "email_image_localization", "contentful_image_localization"}
-	reportingAiVideoSources = []string{"project_video_variant", "project_video_url_translation"}
+	reportingAiImageSources = []string{"project_image_variant", "project_image_url_translation", "slack_image_localization", "email_image_localization", "contentful_image_localization", "iris_image_generation"}
+	reportingAiVideoSources = []string{"project_video_variant", "project_video_url_translation", "iris_video_generation"}
 	// The column of the usage rows holding each detail.
 	reportingAiColumns = map[string]string{
 		"area": "area", "feature": "feature", "model": "model", "provider": "provider", "channel": "channel",
 		"key": "key_type", "project": "project", "task": "task", "automation": "automation",
+		"member": "member", "thread": "thread",
 	}
 )
 
@@ -67,6 +68,11 @@ var reportingAiOriginRules = []reportingSourceRule{
 	{exact: "github_repository_commit_review", result: "review_and_qa"},
 	{exact: "github_pull_request_review", result: "review_and_qa"},
 	{exact: "image_text_extraction", result: "images_and_video"},
+	// Iris, the desktop app: its agent's chat turns, translations of a creative's copy, and
+	// generations other than images and videos (speech, music, transcripts, analysis).
+	{exact: "iris_chat_turn", result: "assistants_and_chat"},
+	{exact: "iris_localise_translate", result: "translation"},
+	{exact: "iris_generation", result: "images_and_video"},
 	{prefix: "workspace_", result: "running_automations"},
 }
 
@@ -82,6 +88,7 @@ var reportingAiAgentRunKinds = []reportingSourceRule{
 // reportingAiChannelRules say how a call reached us; a source no rule names came through the app
 // or the API.
 var reportingAiChannelRules = []reportingSourceRule{
+	{prefix: "iris_", result: "iris"},
 	{prefix: "slack_", result: "slack"},
 	{prefix: "email_", result: "email"},
 	{prefix: "contentful_", result: "contentful"},
@@ -184,6 +191,7 @@ func reportingAiUsageRowsSQL(args *reportingArgs, q reportingAiQuery, from strin
                 %s as channel,
                 case u.credential_source when 'gateway' then 'our_ai' when 'byok' then 'own_key' else 'not_recorded' end as key_type,
                 u.project_id as project, u.job_id as task, u.automation_id as automation,
+                u.actor_user_id as member, nullif(u.dimensions ->> 'iris_thread_id', '') as thread,
                 u.source, u.source in (%s) as media, u.credential_source, u.amount_usd, u.created_at,
                 %s as input_tokens,
                 %s as output_tokens,
@@ -245,6 +253,17 @@ func reportingAiLabelSQL(dimension, key, organizationParam string) string {
 		return fmt.Sprintf("(select %s from jobs lj where lj.organization_id = %s and lj.id = %s)", reportingTaskTitleSQL("lj"), organizationParam, key)
 	case "automation":
 		return fmt.Sprintf("(select la.name from workspace_automations la where la.organization_id = %s and la.id::text = %s)", organizationParam, key)
+	case "member":
+		// By name, else email, as the contributors report names people.
+		return fmt.Sprintf(`(select coalesce(nullif(trim(concat_ws(' ', lu.first_name, lu.last_name)), ''), lu.email)
+            from users lu join organization_memberships lm on lm.user_id = lu.id and lm.organization_id = %s
+            where lu.id::text = %s)`, organizationParam, key)
+	case "thread":
+		// The thread's latest title, which Iris sends with each request.
+		return fmt.Sprintf(`(select lt.dimensions ->> 'iris_thread_title' from usage_events lt
+            where lt.organization_id = %s and lt.feature_id = 'ai_tokens' and lt.dimensions ->> 'iris_thread_id' = %s
+                and coalesce(lt.dimensions ->> 'iris_thread_title', '') <> ''
+            order by lt.created_at desc limit 1)`, organizationParam, key)
 	default:
 		return "null::text"
 	}
@@ -325,6 +344,9 @@ type reportingAiUsage struct {
 	Series      reportingAiSeries `json:"series"`
 	// The name of the automation the usage is narrowed to, if any.
 	AutomationName *string `json:"automationName"`
+	// The name of the member, and the title of the Iris thread, the usage is narrowed to, if any.
+	MemberName  *string `json:"memberName"`
+	ThreadTitle *string `json:"threadTitle"`
 }
 
 // queryReportingAiTotals reads the headline totals for the period and the one before it.
@@ -619,6 +641,15 @@ func queryReportingAiUsage(ctx context.Context, db DB, q reportingAiQuery) (repo
 			usage.AutomationName = &name
 		}
 	}
+	for dimension, target := range map[string]**string{"member": &usage.MemberName, "thread": &usage.ThreadTitle} {
+		key, ok := q.filters[dimension]
+		if !ok {
+			continue
+		}
+		if err := db.QueryRow(ctx, "select "+reportingAiLabelSQL(dimension, "$2", "$1::uuid"), q.scope.organizationID, key).Scan(target); err != nil {
+			return usage, fmt.Errorf("read %s name: %w", dimension, err)
+		}
+	}
 	return usage, nil
 }
 
@@ -640,7 +671,7 @@ func parseReportingAiQuery(r *http.Request) (reportingAiRouteQuery, error) {
 	query.thenBy = q.choice("thenBy", "", reportingAiDimensions...)
 	query.rankBy = q.choice("rankBy", "tokens", reportingAiMeasures...)
 	query.filters = map[string]string{}
-	for key, dimension := range map[string]string{"feature": "feature", "model": "model", "provider": "provider", "jobId": "task", "automationId": "automation"} {
+	for key, dimension := range map[string]string{"feature": "feature", "model": "model", "provider": "provider", "jobId": "task", "automationId": "automation", "memberId": "member", "threadId": "thread"} {
 		if _, given := q.raw(key); given {
 			query.filters[dimension] = q.id(key)
 		}
@@ -698,6 +729,7 @@ func (api *API) AIUsage(r *http.Request, actor Actor) (any, int, error) {
 var reportingAiDimensionColumns = map[string][]string{
 	"area": {"area"}, "feature": {"feature"}, "model": {"model"}, "provider": {"provider"}, "channel": {"channel"},
 	"key": {"keyType"}, "project": {"projectId", "projectName"}, "task": {"jobId", "jobTitle"}, "automation": {"automationId", "automationName"},
+	"member": {"memberId", "memberName"}, "thread": {"threadId", "threadTitle"},
 }
 
 // reportingAiUsageCSV writes a line per group, or per group of the second detail when there is one.

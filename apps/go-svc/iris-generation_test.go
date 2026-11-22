@@ -43,6 +43,9 @@ type stubIrisMeter struct {
 	checkErr    error
 	tracks      []autumn.TrackRequest
 	tokenTracks []autumn.TrackTokensRequest
+	// charged is what each token track reports Autumn charged.
+	charged  float64
+	trackErr error
 }
 
 func (s *stubIrisMeter) Check(_ context.Context, req autumn.CheckRequest) (autumn.CheckResponse, error) {
@@ -65,9 +68,9 @@ func (s *stubIrisMeter) Track(_ context.Context, req autumn.TrackRequest) error 
 	return nil
 }
 
-func (s *stubIrisMeter) TrackTokens(_ context.Context, req autumn.TrackTokensRequest) error {
+func (s *stubIrisMeter) TrackTokensCharged(_ context.Context, req autumn.TrackTokensRequest) (autumn.TrackTokensResponse, error) {
 	s.tokenTracks = append(s.tokenTracks, req)
-	return nil
+	return autumn.TrackTokensResponse{Value: s.charged}, s.trackErr
 }
 
 type presigningMemory struct {

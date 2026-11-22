@@ -82,6 +82,8 @@ export const REPORT_QUERY_SCHEMAS = {
       key: z.enum(AI_KEY_TYPES).optional(),
       jobId: id.optional(),
       automationId: id.optional(),
+      memberId: id.optional(),
+      threadId: id.optional(),
       page,
       format,
     })

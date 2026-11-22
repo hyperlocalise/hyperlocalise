@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -21,10 +22,11 @@ func (f reportingMoneyFixture) usage(featureID, source, operationKey string, col
 		}
 		return fallback
 	}
-	f.exec(`insert into usage_events (organization_id, feature_id, status, operation_key, source, job_id, model_id, credential_source, amount_usd, quantity, dimensions, created_at)
-        values ($1, $2::usage_feature_id, $3::usage_event_status, $4, $5, $6, $7, $8, $9::numeric, $10, $11::jsonb, $12::timestamptz)`,
+	f.exec(`insert into usage_events (organization_id, feature_id, status, operation_key, source, job_id, model_id, credential_source, amount_usd, quantity, dimensions, created_at, actor_user_id)
+        values ($1, $2::usage_feature_id, $3::usage_event_status, $4, $5, $6, $7, $8, $9::numeric, $10, $11::jsonb, $12::timestamptz, $13::uuid)`,
 		f.scope.OrganizationID, featureID, get("status", "tracking_succeeded"), operationKey, source, get("jobId", nil), get("modelId", nil),
-		get("credentialSource", nil), get("amountUsd", nil), get("quantity", 1), get("dimensions", "{}"), get("createdAt", "2026-06-10T12:00:00Z"))
+		get("credentialSource", nil), get("amountUsd", nil), get("quantity", 1), get("dimensions", "{}"), get("createdAt", "2026-06-10T12:00:00Z"),
+		get("actorUserId", nil))
 	return operationKey
 }
 
@@ -367,6 +369,11 @@ func TestReportingAiUsagePlacesEachSourceInItsAreaAndChannel(t *testing.T) {
 		{"contentful_image_localization", "", "images_and_video"},
 		{"project_image_variant", "", "images_and_video"},
 		{"image_text_extraction", "", "images_and_video"},
+		{"iris_image_generation", "", "images_and_video"},
+		{"iris_video_generation", "", "images_and_video"},
+		{"iris_generation", "", "images_and_video"},
+		{"iris_chat_turn", "", "assistants_and_chat"},
+		{"iris_localise_translate", "", "translation"},
 		{"slack_agent_turn", "", "assistants_and_chat"},
 		{"chat_agent_turn", "", "assistants_and_chat"},
 		{"web_chat_agent_turn", "", "assistants_and_chat"},
@@ -408,9 +415,65 @@ func TestReportingAiUsagePlacesEachSourceInItsAreaAndChannel(t *testing.T) {
 		{"visual_workflow_ai_step", false, "automation"},
 		{"contentful_field_translation", false, "contentful"},
 		{"contentful_agent", false, "contentful"},
+		{"iris_chat_turn", false, "iris"},
+		{"iris_image_generation", false, "iris"},
 		// A named channel wins over the API.
 		{"slack_agent_turn", true, "slack"},
 	} {
 		require.Equal(t, c.want, channel(c.source, c.api), c.source)
 	}
+}
+
+func TestReportingAiUsageGroupsIrisChargesByThreadAndMember(t *testing.T) {
+	f := seedReportingMoney(t)
+	iris := func(source, thread, title string, amount string, columns map[string]any) {
+		dimensions := map[string]any{"input_tokens": 1000, "output_tokens": 100}
+		if source == "iris_image_generation" {
+			dimensions = map[string]any{"units": 1}
+		}
+		if thread != "" {
+			dimensions["iris_thread_id"] = thread
+			dimensions["iris_thread_title"] = title
+		}
+		raw, err := json.Marshal(dimensions)
+		require.NoError(t, err)
+		merged := map[string]any{
+			"modelId": "anthropic/claude-opus-4.5", "credentialSource": "gateway", "amountUsd": amount,
+			"dimensions": string(raw), "actorUserId": f.scope.UserID,
+		}
+		for key, value := range columns {
+			merged[key] = value
+		}
+		f.usage("ai_tokens", source, "", merged)
+	}
+	iris("iris_chat_turn", "thread_launch", "Launch", "0.75", map[string]any{"createdAt": "2026-06-10T10:00:00Z"})
+	// The thread was renamed; its latest title names it.
+	iris("iris_chat_turn", "thread_launch", "Launch film", "0.5", map[string]any{"createdAt": "2026-06-10T11:00:00Z"})
+	iris("iris_image_generation", "thread_launch", "Launch film", "0.03", map[string]any{"modelId": "custom/hyperlocalise-fal-image", "quantity": 0})
+	iris("iris_localise_translate", "", "", "0.01", map[string]any{"actorUserId": nil})
+
+	byThread := aiUsage(t, f, "groupBy=thread&channel=iris")
+	require.Equal(t, [][]any{
+		{"thread_launch", "Launch film", float64(2), float64(1), "1.28000000"},
+		{nil, nil, float64(1), float64(0), "0.01000000"},
+	}, aiRows(byThread, "key", "label", "calls", "images", "chargeUsd"))
+	totals := byThread["totals"].(map[string]any)
+	// An image's units are not tokens.
+	require.Equal(t, float64(3000), totals["inputTokens"])
+	require.Equal(t, float64(0), totals["cacheAndReasoningTokens"])
+
+	byMember := aiUsage(t, f, "groupBy=member&threadId=thread_launch")
+	rows := aiRows(byMember, "key", "chargeUsd")
+	require.Equal(t, [][]any{{f.scope.UserID, "1.28000000"}}, rows)
+	label := byMember["rows"].([]any)[0].(map[string]any)["label"]
+	require.NotEmpty(t, label)
+	require.Equal(t, "Launch film", byMember["threadTitle"])
+	require.Nil(t, byMember["memberName"])
+
+	byArea := aiUsage(t, f, "groupBy=area&memberId="+f.scope.UserID)
+	require.Equal(t, label, byArea["memberName"])
+	require.Equal(t, [][]any{
+		{"assistants_and_chat", "1.25000000"},
+		{"images_and_video", "0.03000000"},
+	}, aiRows(byArea, "key", "chargeUsd"))
 }

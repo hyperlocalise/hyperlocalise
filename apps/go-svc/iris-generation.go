@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"math"
 	"net/http"
@@ -38,7 +39,7 @@ const (
 type irisUsageMeter interface {
 	Check(context.Context, autumn.CheckRequest) (autumn.CheckResponse, error)
 	Track(context.Context, autumn.TrackRequest) error
-	TrackTokens(context.Context, autumn.TrackTokensRequest) error
+	TrackTokensCharged(context.Context, autumn.TrackTokensRequest) (autumn.TrackTokensResponse, error)
 }
 
 type irisCreditConfig struct {
@@ -56,6 +57,10 @@ type irisOrgScope struct {
 	// Role is the member's workspace role; it decides what of the glossaries
 	// and translation memories the localisation endpoints may read and write.
 	Role string
+	// ThreadID and ThreadTitle name the Iris thread the request came from, so
+	// its AI charges can be added up as one task. Empty outside a thread.
+	ThreadID    string
+	ThreadTitle string
 }
 
 type irisGenerationAPI struct {
@@ -116,12 +121,14 @@ func (api *irisGenerationAPI) scope(w http.ResponseWriter, r *http.Request) (iri
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_input", "message": "organization slug is required"})
 		return irisOrgScope{}, false
 	}
+	threadID, threadTitle := irisThreadFromRequest(r)
 	if api.resolve != nil {
 		scope, err := api.resolve(r.Context(), claims, slug)
 		if err != nil {
 			writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_access_denied", "message": "Organization access denied"})
 			return irisOrgScope{}, false
 		}
+		scope.ThreadID, scope.ThreadTitle = threadID, threadTitle
 		return scope, true
 	}
 	if api.pool == nil {
@@ -138,7 +145,7 @@ func (api *irisGenerationAPI) scope(w http.ResponseWriter, r *http.Request) (iri
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal_error", "message": "Could not resolve the workspace"})
 		return irisOrgScope{}, false
 	}
-	return irisOrgScope{OrganizationID: actor.organizationID, UserID: actor.userID, Role: actor.role}, true
+	return irisOrgScope{OrganizationID: actor.organizationID, UserID: actor.userID, Role: actor.role, ThreadID: threadID, ThreadTitle: threadTitle}, true
 }
 
 func (api *irisGenerationAPI) autumnEstimate(ctx context.Context, orgID string, estimate irisEstimate) irisEstimate {
@@ -225,12 +232,79 @@ func (api *irisGenerationAPI) trackUsage(ctx context.Context, job irisJobRecord)
 	}); err != nil {
 		slog.WarnContext(trackCtx, "iris_generation_usage_track_failed", "organization_id", job.OrgID, "job_id", job.ID, "error", err)
 	}
-	tokens, ok := irisSyntheticCredit(job, api.creditModels())
-	if !ok {
-		return
+	scope := irisOrgScope{OrganizationID: job.OrgID, UserID: job.UserID, ThreadID: job.ThreadID, ThreadTitle: job.ThreadTitle}
+	for _, charge := range irisJobCharges(job, api.creditModels()) {
+		api.charge(ctx, scope, charge)
 	}
-	if err := api.meter.TrackTokens(trackCtx, tokens); err != nil {
-		slog.WarnContext(trackCtx, "iris_generation_ai_credit_track_failed", "organization_id", job.OrgID, "job_id", job.ID, "error", err)
+}
+
+// irisJobCharges are a finished job's charges: one per gateway model on the
+// tokens it really used when the provider reported them, otherwise one on
+// the job's units (images, seconds or minutes) at the model's unit price.
+func irisJobCharges(job irisJobRecord, credits irisCreditConfig) []irisCharge {
+	model, ok := irisModelByID(job.Model)
+	if !ok {
+		return nil
+	}
+	source := irisGenerationSource(model)
+	if len(job.TokenUsage) > 0 {
+		charges := make([]irisCharge, 0, len(job.TokenUsage))
+		for i, usage := range job.TokenUsage {
+			charges = append(charges, irisCharge{
+				OperationKey: fmt.Sprintf("iris-generation:%s:ai_tokens:%d", job.ID, i),
+				Source:       source,
+				Track: autumn.TrackTokensRequest{
+					ModelID:      usage.Model,
+					InputTokens:  usage.InputTokens,
+					OutputTokens: usage.OutputTokens,
+					Properties:   irisJobProperties(job, model),
+				},
+				Dimensions: irisJobDimensions(job, model),
+			})
+		}
+		return charges
+	}
+	tokens, ok := irisSyntheticCredit(job, credits)
+	if !ok {
+		return nil
+	}
+	return []irisCharge{{
+		OperationKey: "iris-generation:" + job.ID + ":ai_tokens",
+		Source:       source,
+		Track:        tokens,
+		Units:        true,
+		Dimensions:   irisJobDimensions(job, model),
+	}}
+}
+
+// irisGenerationSource is the ledger source of a generation: images and
+// videos are counted as such in Reports, everything else as a call.
+func irisGenerationSource(model irisModelInfo) string {
+	switch model.Kind {
+	case irisKindVideo:
+		return irisSourceVideo
+	case irisKindImage:
+		return irisSourceImage
+	default:
+		return irisSourceGeneration
+	}
+}
+
+func irisJobProperties(job irisJobRecord, model irisModelInfo) map[string]any {
+	return map[string]any{
+		"job_id": job.ID,
+		"model":  job.Model,
+		"kind":   string(model.Kind),
+		"vendor": irisCreditVendor(model),
+	}
+}
+
+func irisJobDimensions(job irisJobRecord, model irisModelInfo) map[string]any {
+	return map[string]any{
+		"iris_job_id": job.ID,
+		"iris_model":  job.Model,
+		"kind":        string(model.Kind),
+		"vendor":      irisCreditVendor(model),
 	}
 }
 
@@ -272,16 +346,10 @@ func irisSyntheticCredit(job irisJobRecord, credits irisCreditConfig) (autumn.Tr
 	if !ok {
 		return autumn.TrackTokensRequest{}, false
 	}
-	vendor := irisCreditVendor(model)
 	req := autumn.TrackTokensRequest{
 		CustomerID: job.OrgID,
 		FeatureID:  autumn.AITokens,
-		Properties: map[string]any{
-			"job_id": job.ID,
-			"model":  job.Model,
-			"kind":   string(model.Kind),
-			"vendor": vendor,
-		},
+		Properties: irisJobProperties(job, model),
 	}
 	switch {
 	case irisFalVideoModel(model):
@@ -521,17 +589,19 @@ func (api *irisGenerationAPI) generate(w http.ResponseWriter, r *http.Request) {
 	}
 	now := api.clock()
 	job := irisJobRecord{
-		ID:         jobID,
-		Model:      model.ID,
-		Request:    body.Request,
-		Status:     "queued",
-		Credits:    0,
-		ETASeconds: estimate.ETASeconds,
-		Assets:     []irisJobAsset{},
-		CreatedAt:  now.Format(time.RFC3339),
-		UserID:     scope.UserID,
-		OrgID:      scope.OrganizationID,
-		Voices:     voices,
+		ID:          jobID,
+		Model:       model.ID,
+		Request:     body.Request,
+		Status:      "queued",
+		Credits:     0,
+		ETASeconds:  estimate.ETASeconds,
+		Assets:      []irisJobAsset{},
+		CreatedAt:   now.Format(time.RFC3339),
+		UserID:      scope.UserID,
+		OrgID:       scope.OrganizationID,
+		Voices:      voices,
+		ThreadID:    scope.ThreadID,
+		ThreadTitle: scope.ThreadTitle,
 	}
 	api.attachGlossaryAudio(r.Context(), scope, &job)
 	remaining := estimate.ETASeconds
@@ -779,6 +849,7 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 			}
 		}
 		assets = append(assets, asset)
+		job.TokenUsage = append(job.TokenUsage, output.Usage...)
 	}
 	completed := api.clock().Format(time.RFC3339)
 	job.Status = "succeeded"

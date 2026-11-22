@@ -6,12 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -109,6 +107,14 @@ type irisChatReply struct {
 	Model        string
 	InputTokens  int
 	OutputTokens int
+}
+
+// tokenUsage is the reply's usage for billing; nothing when it used none.
+func (r irisChatReply) tokenUsage() []irisTokenUsage {
+	if strings.TrimSpace(r.Model) == "" || r.InputTokens+r.OutputTokens == 0 {
+		return nil
+	}
+	return []irisTokenUsage{{Model: r.Model, InputTokens: r.InputTokens, OutputTokens: r.OutputTokens}}
 }
 
 type irisChatRequest struct {
@@ -440,21 +446,16 @@ limit 500`,
 // trackTranslation bills a translation's model tokens to the workspace's AI
 // credit, the way the other LLM features are billed.
 func (api *irisGenerationAPI) trackTranslation(ctx context.Context, scope irisOrgScope, usage irisChatReply) {
-	if api.meter == nil || usage.Model == "" || usage.InputTokens+usage.OutputTokens == 0 {
-		return
-	}
-	trackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-	defer cancel()
-	if err := api.meter.TrackTokens(trackCtx, autumn.TrackTokensRequest{
-		CustomerID:   scope.OrganizationID,
-		FeatureID:    autumn.AITokens,
-		ModelID:      usage.Model,
-		InputTokens:  usage.InputTokens,
-		OutputTokens: usage.OutputTokens,
-		Properties:   map[string]any{"feature": "iris_translate", "user_id": scope.UserID},
-	}); err != nil {
-		slog.WarnContext(trackCtx, "iris_localise_track_failed", "organization_id", scope.OrganizationID, "error", err)
-	}
+	api.charge(ctx, scope, irisCharge{
+		OperationKey: irisOperationKey("iris-localise"),
+		Source:       irisSourceTranslate,
+		Track: autumn.TrackTokensRequest{
+			ModelID:      usage.Model,
+			InputTokens:  usage.InputTokens,
+			OutputTokens: usage.OutputTokens,
+			Properties:   map[string]any{"feature": "iris_translate", "user_id": scope.UserID},
+		},
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -762,7 +763,7 @@ func (p *irisGatewayProvider) imageText(ctx context.Context, req irisProviderReq
 	if parsed.Regions == nil {
 		parsed.Regions = []irisImageTextEntry{}
 	}
-	return []irisProviderOutput{{Bytes: mustJSON(parsed), Filename: "text.json", ContentType: "application/json"}}, nil
+	return []irisProviderOutput{{Bytes: mustJSON(parsed), Filename: "text.json", ContentType: "application/json", Usage: reply.tokenUsage()}}, nil
 }
 
 // Complete runs a chat completion on the gateway and returns the reply text.
