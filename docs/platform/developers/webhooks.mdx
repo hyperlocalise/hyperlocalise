@@ -32,7 +32,7 @@ curl --fail-with-body -X POST "https://public-api.hyperlocalise.com/v1/webhook-e
   -d '{"url":"https://hooks.example.com/hyperlocalise","eventTypes":["job.status_changed"]}'
 ```
 
-The JSON response includes `secret` once. Store it. Rotate it with `POST /v1/webhook-endpoints/{endpointId}/rotate-secret`. List endpoints with `GET /v1/webhook-endpoints` (`jobs:read`). See the [OpenAPI document](https://public-api.hyperlocalise.com/openapi.yaml) for update, delete, and recent deliveries.
+The JSON response includes `secret` once. Store it. Use the [API reference](/api) to rotate the secret, list endpoints (`jobs:read`), update or delete an endpoint, and read recent deliveries.
 
 Send a test event from **Settings** → **Webhooks**.
 

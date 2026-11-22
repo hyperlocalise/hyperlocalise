@@ -1,0 +1,13 @@
+overlay: 1.1.0
+info:
+  title: Hide operational Public API routes from Mintlify
+  version: 1.0.0
+actions:
+  - target: $.paths['/health']
+    remove: true
+  - target: $.paths['/outbound-ip']
+    remove: true
+  # Mintlify's OpenAPI parser rejects the production HEAD 404 description
+  # (`Hash, locale, or path is unknown`) until that YAML is quoted.
+  - target: $['paths']['/ota/{hash}/content/{locale}/{exportPath}']['head']
+    remove: true
