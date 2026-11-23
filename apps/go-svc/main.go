@@ -175,6 +175,7 @@ func main() {
 	}
 	h.reports = newReportingAPI()
 	h.pipes = &pipesAPI{}
+	h.workspaceIntegrations = &workspaceIntegrationsAPI{}
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
 		h.workspace.pipes = workosPipeTokens{client: workosClient}
@@ -228,6 +229,7 @@ func main() {
 		h.publicTranslations.auth.pool = traced
 		h.workspace.pool = traced
 		h.pipes.pool = traced
+		h.workspaceIntegrations.pool = traced
 		store := experiment.NewPGStoreFromPool(traced)
 		h.ofrep = experiment.NewOFREPHandler(store)
 		h.ota = ota.NewHandler(ota.NewPGLookup(traced))
@@ -333,6 +335,7 @@ func main() {
 	h.publicTranslations.auth.membership = membershipLookup
 	h.workspace.membership = membershipLookup
 	h.pipes.membership = membershipLookup
+	h.workspaceIntegrations.membership = membershipLookup
 
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, verifier)
