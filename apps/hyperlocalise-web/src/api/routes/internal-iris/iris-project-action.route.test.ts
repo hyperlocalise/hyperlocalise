@@ -731,4 +731,55 @@ describe("internal iris project-action route", () => {
     expect(byBranch.main).toBe("auto");
     expect(byBranch["feature-checkout"]).toBe("icu");
   });
+
+  it("patches segmentation onto the named version branch and leaves main alone", async () => {
+    const { organization, user, project } = await seedNativeProject();
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+    const created = await projectBranchService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      name: "feature-checkout",
+    });
+    expect(created.ok).toBe(true);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const response = await postAction("file_settings_patch", {
+      organizationId: organization.id,
+      userId: user.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      branch: "feature-checkout",
+      kind: "segmentation",
+      settings: { enabled: true, template: "markdown", customSrxXml: null },
+    });
+    expect(response.status).toBe(200);
+
+    const rows = await db
+      .select({
+        branchName: schema.repositorySourceFiles.branchName,
+        segmentationSettings: schema.repositorySourceFiles.segmentationSettings,
+      })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    const byBranch = Object.fromEntries(
+      rows.map((row) => [row.branchName, row.segmentationSettings]),
+    );
+    expect(byBranch.main?.enabled ?? false).toBe(false);
+    expect(byBranch["feature-checkout"]).toMatchObject({ enabled: true, template: "markdown" });
+  });
 });

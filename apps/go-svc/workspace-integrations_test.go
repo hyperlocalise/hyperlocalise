@@ -105,6 +105,48 @@ func TestWorkspaceIntegrationsForbiddenForMember(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
 }
 
+func TestWorkspaceIntegrationsIsolateOrganizations(t *testing.T) {
+	testenv.Require(t)
+	owner := newWorkspaceIntegrationsFixture(t, "admin")
+	owner.seedGithub(t)
+	_, err := owner.scope.Pool.Exec(t.Context(), `insert into connectors (organization_id, kind, enabled, config)
+        values ($1, 'slack', true, '{"teamId":"T-OWNER","teamName":"Owner Corp"}')`, owner.scope.OrganizationID)
+	require.NoError(t, err)
+
+	outsider := newWorkspaceIntegrationsFixture(t, "admin")
+
+	installation := outsider.request(outsider.scope.OrgPath("/github-installation"))
+	require.Equal(t, http.StatusOK, installation.Code, installation.Body.String())
+	require.JSONEq(t, `{"installation":null}`, strings.TrimSpace(installation.Body.String()))
+
+	repos := outsider.request(outsider.scope.OrgPath("/github-installation/repositories"))
+	require.Equal(t, http.StatusOK, repos.Code, repos.Body.String())
+	require.JSONEq(t, `{"repositories":[]}`, strings.TrimSpace(repos.Body.String()))
+
+	slack := outsider.request(outsider.scope.OrgPath("/agent-slack"))
+	require.Equal(t, http.StatusOK, slack.Code, slack.Body.String())
+	require.NotContains(t, slack.Body.String(), "T-OWNER")
+	require.NotContains(t, slack.Body.String(), "Owner Corp")
+
+	cross := outsider.request(owner.scope.OrgPath("/github-installation"))
+	require.Equal(t, http.StatusForbidden, cross.Code, cross.Body.String())
+	require.Contains(t, cross.Body.String(), "organization_access_denied")
+	require.NotContains(t, cross.Body.String(), "acme-org")
+	require.NotContains(t, cross.Body.String(), "424242")
+}
+
+func TestWorkspaceIntegrationsUnavailableWithoutPool(t *testing.T) {
+	mux := http.NewServeMux()
+	api := &workspaceIntegrationsAPI{}
+	api.register(mux, stubSessionVerifier{claims: AuthClaims{UserID: "user_live"}})
+	req := httptest.NewRequest(http.MethodGet, "/v1/orgs/acme/github-installation", nil)
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "session"})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	require.Contains(t, rec.Body.String(), "integrations_unavailable")
+}
+
 func TestSlackAgentFromConnector(t *testing.T) {
 	testenv.Require(t)
 	f := newWorkspaceIntegrationsFixture(t, "admin")

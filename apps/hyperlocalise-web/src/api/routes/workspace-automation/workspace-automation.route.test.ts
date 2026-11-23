@@ -168,6 +168,93 @@ describe("workspace automation routes", () => {
     await expect(response.json()).resolves.toMatchObject({ error: "feature_unavailable" });
   });
 
+  it("blocks automation writes and runs when the Automations plan feature is disabled", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
+    const createBody = {
+      name: "Daily localization check",
+      instructions: "Check localization health.",
+      triggerConfig: { mode: "manual" as const },
+      repositoryTarget: { kind: "none" as const },
+      toolConfig: {},
+    };
+
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(false);
+    const createDenied = await client.api.orgs[":organizationSlug"].automations.$post(
+      { param: { organizationSlug }, json: createBody },
+      { headers },
+    );
+    expect(createDenied.status).toBe(403);
+    await expect(createDenied.json()).resolves.toMatchObject({ error: "feature_unavailable" });
+    expect(enqueueAutomationCreatedActivityMock).not.toHaveBeenCalled();
+    await expect(
+      db
+        .select({ id: schema.workspaceAutomations.id })
+        .from(schema.workspaceAutomations)
+        .where(eq(schema.workspaceAutomations.organizationId, organizationId)),
+    ).resolves.toEqual([]);
+
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(true);
+    const createdResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      { param: { organizationSlug }, json: createBody },
+      { headers },
+    );
+    expect(createdResponse.status).toBe(201);
+    const created = (await createdResponse.json()) as { automation: { id: string } };
+
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(false);
+    enqueueAutomationCreatedActivityMock.mockClear();
+    const patchDenied = await client.api.orgs[":organizationSlug"].automations[
+      ":automationId"
+    ].$patch(
+      {
+        param: { organizationSlug, automationId: created.automation.id },
+        json: { instructions: "Should not persist." },
+      },
+      { headers },
+    );
+    expect(patchDenied.status).toBe(403);
+    await expect(patchDenied.json()).resolves.toMatchObject({ error: "feature_unavailable" });
+
+    const deleteDenied = await client.api.orgs[":organizationSlug"].automations[
+      ":automationId"
+    ].$delete({ param: { organizationSlug, automationId: created.automation.id } }, { headers });
+    expect(deleteDenied.status).toBe(403);
+    await expect(deleteDenied.json()).resolves.toMatchObject({ error: "feature_unavailable" });
+    expect(enqueueAutomationDeletedActivityMock).not.toHaveBeenCalled();
+
+    const runDenied = await client.api.orgs[":organizationSlug"].automations[
+      ":automationId"
+    ].runs.$post(
+      {
+        param: { organizationSlug, automationId: created.automation.id },
+        json: {
+          idempotencyKey: `manual:${created.automation.id}:denied`,
+          inputSnapshot: { reason: "operator_test" },
+        },
+      },
+      { headers },
+    );
+    expect(runDenied.status).toBe(403);
+    await expect(runDenied.json()).resolves.toMatchObject({ error: "feature_unavailable" });
+    expect(workspaceAutomationExecutionEnqueueMock).not.toHaveBeenCalled();
+
+    const [row] = await db
+      .select({
+        status: schema.workspaceAutomations.status,
+        instructions: schema.workspaceAutomations.instructions,
+      })
+      .from(schema.workspaceAutomations)
+      .where(eq(schema.workspaceAutomations.id, created.automation.id))
+      .limit(1);
+    expect(row).toMatchObject({
+      status: "active",
+      instructions: "Check localization health.",
+    });
+  });
+
   it("records automation disable and enable transitions with the user actor", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
