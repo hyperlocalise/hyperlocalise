@@ -16,7 +16,10 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
+import {
+  renderWithContentEditorProviders,
+  typeIntoActiveContentEditorTarget,
+} from "@/components/content-editor/shared/content-editor-test-utils";
 
 import { recoverMarkdownMarkupTokens } from "@/components/content-editor/message-format/content-editor-markdown-markup";
 
@@ -174,16 +177,16 @@ describe("ContentEditorTargetEditor markdown display", () => {
     expect(screen.queryByText(/OX#/)).not.toBeInTheDocument();
     expect(screen.queryByText("Required tokens")).not.toBeInTheDocument();
 
-    const editor = document.querySelector(".tiptap") as HTMLElement;
-    const user = userEvent.setup();
-    await user.click(editor);
-    await user.type(editor, "!");
+    await waitFor(() => {
+      expect(document.querySelector(".tiptap")).toBeTruthy();
+    });
+    typeIntoActiveContentEditorTarget("!");
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
     });
     const lastValue = onChange.mock.calls.at(-1)?.[0] as string;
-    expect(lastValue).toBe(`${open}4人分${close}8人!`);
+    expect(lastValue).toBe(`${open}!4人分${close}8人`);
   });
 
   it("keeps ICU required tokens while hiding markdown link tokens", async () => {
@@ -213,15 +216,10 @@ describe("ContentEditorTargetEditor markdown display", () => {
       />,
     );
 
-    const editor = await waitFor(() => {
-      const node = document.querySelector(".tiptap");
-      expect(node).toBeTruthy();
-      return node as HTMLElement;
+    await waitFor(() => {
+      expect(document.querySelector(".tiptap")).toBeTruthy();
     });
-
-    const user = userEvent.setup();
-    await user.click(editor);
-    await user.type(editor, "!");
+    typeIntoActiveContentEditorTarget("!");
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
