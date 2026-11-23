@@ -10,13 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, notExists, or, type SQL } from "drizzle-orm";
+import { and, eq, notExists, or, type SQL } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
 import { db, schema } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
-import { createStoredFile } from "@/lib/file-storage/records";
+import { createStoredFile, getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { resolvedProjectBranchName } from "@/lib/projects/branches/project-branch-name";
 import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
@@ -146,19 +146,18 @@ async function loadAccessibleNativeProject(
   return { project, role: membership.role };
 }
 
-async function storedFileIdForPath(organizationId: string, projectId: string, sourcePath: string) {
-  const [version] = await db
-    .select({ storedFileId: schema.repositorySourceFileVersions.storedFileId })
-    .from(schema.repositorySourceFileVersions)
-    .where(
-      and(
-        eq(schema.repositorySourceFileVersions.organizationId, organizationId),
-        eq(schema.repositorySourceFileVersions.projectId, projectId),
-        eq(schema.repositorySourceFileVersions.sourcePath, sourcePath),
-      ),
-    )
-    .orderBy(desc(schema.repositorySourceFileVersions.createdAt))
-    .limit(1);
+async function storedFileIdForPath(
+  organizationId: string,
+  projectId: string,
+  sourcePath: string,
+  branchName?: string | null,
+) {
+  const version = await getLatestRepositorySourceFileVersion({
+    organizationId,
+    projectId,
+    sourcePath,
+    branchName,
+  });
   return version?.storedFileId ?? null;
 }
 
@@ -367,7 +366,8 @@ async function translateFile(
   if (!sourceLocale) return fail(400, "invalid_request_body", "Project has no source language");
   const sourcePath = asString(payload.sourcePath);
   const locales = Array.isArray(payload.locales) ? payload.locales.map(String) : [];
-  const fileId = await storedFileIdForPath(organizationId, project.id, sourcePath);
+  const branchName = asString(payload.branch).trim() || undefined;
+  const fileId = await storedFileIdForPath(organizationId, project.id, sourcePath, branchName);
   if (!fileId) return fail(404, "source_file_not_found", "Source file not found");
   const created = await enqueueFileTranslationJob({
     organizationId,
@@ -379,6 +379,7 @@ async function translateFile(
     assigneeType: "agent",
     jobQueue: deps.jobQueue,
     metadata: payload.forceEmpty === true ? { forceEmpty: "true" } : undefined,
+    branchName,
   });
   if (!created.ok) return fail(400, created.code, created.message);
   return ok({ jobId: created.jobId, sourcePath }, 201);
@@ -503,13 +504,14 @@ async function createJob(
   const assigneeIds = Array.isArray(payload.assigneeUserIds)
     ? payload.assigneeUserIds.map(String)
     : [];
+  const branchName = asString(payload.branch).trim() || undefined;
   const metadata: Record<string, string> = { title };
   if (description) metadata.description = description;
   const jobs: { id: string; title: string }[] = [];
   for (const sourcePath of files) {
     const fileId =
       sourcePath.includes("/") || sourcePath.includes(".")
-        ? await storedFileIdForPath(organizationId, project.id, sourcePath)
+        ? await storedFileIdForPath(organizationId, project.id, sourcePath, branchName)
         : sourcePath;
     if (!fileId) return fail(404, "source_file_not_found", "Source file not found");
     if (payload.kind === "proofread") {
@@ -524,6 +526,7 @@ async function createJob(
         title,
         ...(assigneeWorkosUserId ? { assigneeWorkosUserId } : {}),
         metadata,
+        branchName,
       });
       if (isErr(created)) return fail(400, created.error.code, created.error.message);
       jobs.push({ id: created.value.jobId, title });
@@ -540,6 +543,7 @@ async function createJob(
       ...(assigneeIds[0] ? { ownerUserId: assigneeIds[0] } : {}),
       metadata,
       jobQueue: deps.jobQueue,
+      branchName,
     });
     if (!created.ok) return fail(400, created.code, created.message);
     jobs.push({ id: created.jobId, title });

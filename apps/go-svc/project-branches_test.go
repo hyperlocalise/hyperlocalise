@@ -173,6 +173,20 @@ func TestProjectBranchesCreateSyncMergeAndDelete(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, importedMissing.Code, importedMissing.Body.String())
 	require.Contains(t, importedMissing.Body.String(), "branch_not_found")
 
+	translated := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/files/translate"), map[string]any{
+		"sourcePath": "lang/en.json",
+		"locales":    []string{"fr"},
+	})
+	require.Equal(t, http.StatusConflict, translated.Code, translated.Body.String())
+	require.Contains(t, translated.Body.String(), "protected_branch")
+	createdJob := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/jobs"), map[string]any{
+		"fileIds":       []string{"lang/en.json"},
+		"targetLocales": []string{"fr"},
+		"title":         "Translate app",
+	})
+	require.Equal(t, http.StatusConflict, createdJob.Code, createdJob.Body.String())
+	require.Contains(t, createdJob.Body.String(), "protected_branch")
+
 	settings := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/files/settings"), map[string]any{
 		"sourcePath": "lang/en.json",
 		"kind":       "import",
