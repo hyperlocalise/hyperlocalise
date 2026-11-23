@@ -78,10 +78,10 @@ func (api *editorCatAPI) regenerateImage(r *http.Request, actor editorCatActor, 
 		return nil, 0, err
 	}
 	kind := editorCatSourceKind(sourcePath)
-	switch {
-	case kind == editorCatKindImage:
+	switch kind {
+	case editorCatKindImage:
 		return api.regenerateFileBackedImageVariant(r, actor, project, sourcePath, targetLocale, sourceFileID, body.Instructions, force)
-	case kind == editorCatKindVideo, kind == editorCatKindOffice, kind == editorCatKindDocument:
+	case editorCatKindVideo, editorCatKindOffice, editorCatKindDocument:
 		return nil, 0, editorCatFailure(400, "localization_failed", "File regeneration is not supported in go-svc for this file type")
 	}
 	if externalID == "" {
