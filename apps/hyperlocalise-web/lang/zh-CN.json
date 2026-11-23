@@ -2480,6 +2480,9 @@
   "1ToGNDd6TO": {
     "defaultMessage": "Files"
   },
+  "1TvpM4j9NP": {
+    "defaultMessage": "Gemini 4 Argon"
+  },
   "1U++3URWS4": {
     "defaultMessage": "存储库文件夹"
   },
@@ -4355,6 +4358,9 @@
   "46WEusZVEg": {
     "defaultMessage": "上下文审计"
   },
+  "46YLTYWLk2": {
+    "defaultMessage": "无法删除词典"
+  },
   "46mxXNVZOE": {
     "defaultMessage": "个人访问令牌"
   },
@@ -5774,6 +5780,9 @@
   "6Cs/mEyRBM": {
     "defaultMessage": "从较早的版本恢复"
   },
+  "6DGt+KEg8z": {
+    "defaultMessage": "较短的对话可使用 Haiku。付费方案包含此模型，使用量会从您的每月 AI 额度中扣除。如果您希望由 Anthropic 直接向您收取此模型的费用，可以连接自己的 Anthropic 密钥。"
+  },
   "6Dbk+444Cr": {
     "defaultMessage": "项目报告"
   },
@@ -5953,6 +5962,9 @@
   },
   "6Tx/kR6Gl+": {
     "defaultMessage": "按区域设置、供应商和内容类型跟踪分数随时间的变化。"
+  },
+  "6TxlE4k/RL": {
+    "defaultMessage": "较长的草稿和审核意见请使用 Sonnet。付费套餐包含此功能，使用量将从您的每月 AI 额度中扣除。如果您希望由 Anthropic 向您收取此模型的费用，可以连接自己的 Anthropic 密钥。"
   },
   "6V7dDBU2jk": {
     "defaultMessage": "概念已保存"
@@ -7096,6 +7108,9 @@
   },
   "8CUaNB5YrW": {
     "defaultMessage": "文本"
+  },
+  "8DEJWgut39": {
+    "defaultMessage": "Iris 对话"
   },
   "8DTgncaRKl": {
     "defaultMessage": "添加到任务…"
@@ -11885,6 +11900,9 @@
   "F2Mfo5rtgk": {
     "defaultMessage": "在一个共享的多语言工作区中创建和调整文本、文档、幻灯片、图像和视频，让活动中的所有格式集中在一起。"
   },
+  "F2yszBCIk9": {
+    "defaultMessage": "Member"
+  },
   "F3LRM6/D0t": {
     "defaultMessage": "以全新的视角看世界。"
   },
@@ -13127,6 +13145,9 @@
   "GuYiT4dWiy": {
     "defaultMessage": "已跳过 {count} 个重复项"
   },
+  "GutPXDHoRd": {
+    "defaultMessage": "确定删除此词典？"
+  },
   "GvUbPf6mr6": {
     "defaultMessage": "添加域名"
   },
@@ -14228,6 +14249,9 @@
   "IWQH2bHvzr": {
     "defaultMessage": "尚未连接任何 MCP 服务器。"
   },
+  "IWTpyHvJes": {
+    "defaultMessage": "需要特别斟酌措辞时，请使用 Opus。付费套餐已包含此功能，使用量会从您的月度 AI 额度中扣除。如果您希望由 Anthropic 直接向您收取此模型的费用，可以关联自己的 Anthropic 密钥。"
+  },
   "IY3g7G42ej": {
     "defaultMessage": "在一个市场中尝试不同的标题、结账流程或优惠。保留人们喜欢的版本。"
   },
@@ -14974,6 +14998,9 @@
   },
   "JcGQchl/ia": {
     "defaultMessage": "Slack 工作区"
+  },
+  "JdbyW4qn3s": {
+    "defaultMessage": "Gemini 4 Neon"
   },
   "JdmZOy+P6b": {
     "defaultMessage": "切换 AI 模型或供应商意味着需要重新构建工作流。"
@@ -15886,6 +15913,9 @@
   },
   "L80pAvj6yJ": {
     "defaultMessage": "无法加载任务文件"
+  },
+  "L8o2cpm67y": {
+    "defaultMessage": "没有成员"
   },
   "L8xTOJqX0d": {
     "defaultMessage": "搜索：{value}"
@@ -17660,6 +17690,9 @@
   "NfaH4ei+PF": {
     "defaultMessage": "回复 {name}…"
   },
+  "Nfgyq1HnJz": {
+    "defaultMessage": "字典已删除。"
+  },
   "NflNg4/F7g": {
     "defaultMessage": "术语表已删除"
   },
@@ -17761,6 +17794,9 @@
   },
   "NqAGQvs7qB": {
     "defaultMessage": "英语（澳大利亚）"
+  },
+  "NqVJWK9Xsc": {
+    "defaultMessage": "Iris 翻译"
   },
   "NrJMjFZ+Df": {
     "defaultMessage": "罗马尼亚语（罗马尼亚）"
@@ -18178,6 +18214,9 @@
   },
   "OTJurdDbQ3": {
     "defaultMessage": "将已批准的工作推送到您的平台"
+  },
+  "OTXAzDlTy5": {
+    "defaultMessage": "使用 Flash 快速处理大量字符串。付费套餐包含此功能，使用量将从您的每月 AI 额度中扣除。如果希望 Google 直接向您收取此模型的费用，请连接您自己的 Gemini 密钥。"
   },
   "OU5qhClfKo": {
     "defaultMessage": "发布多语言博客"
@@ -20321,6 +20360,9 @@
   "RhmMBU70/7": {
     "defaultMessage": "启动营销活动电子邮件"
   },
+  "RhmlCVOrxz": {
+    "defaultMessage": "更多操作"
+  },
   "Rhnh/znHl6": {
     "defaultMessage": "验证后决定将 {domain} 附加到何处。"
   },
@@ -22360,6 +22402,9 @@
   },
   "UdxBZORXpe": {
     "defaultMessage": "全部"
+  },
+  "UeADOH2IXX": {
+    "defaultMessage": "艾瑞丝"
   },
   "UeIGZOrfgq": {
     "defaultMessage": "此 Sanity 授权请求缺失或已过期。请从 Sanity 重新开始。"
@@ -26909,6 +26954,9 @@
   "bAOcwldO3V": {
     "defaultMessage": "Hyperlocalise"
   },
+  "bAcsTcwDMg": {
+    "defaultMessage": "取消"
+  },
   "bAkdHjBiWF": {
     "defaultMessage": "技术详细信息"
   },
@@ -28580,6 +28628,9 @@
   "dZcHfTdmF2": {
     "defaultMessage": "编号列表"
   },
+  "dZiSVEw/Vx": {
+    "defaultMessage": "没有 Iris 线程"
+  },
   "dZjmTiak7a": {
     "defaultMessage": "搜索团队术语库……"
   },
@@ -29998,6 +30049,9 @@
   },
   "fVOROtw+GW": {
     "defaultMessage": "问题"
+  },
+  "fVhXAnrH/m": {
+    "defaultMessage": "Gemini 4 Carbon"
   },
   "fVkQmhbtrN": {
     "defaultMessage": "Minutes"
@@ -31925,6 +31979,9 @@
   "iDUmWNeRZ7": {
     "defaultMessage": "搜索概念"
   },
+  "iDirbS65Em": {
+    "defaultMessage": "删除词典"
+  },
   "iE2A3xoRIH": {
     "defaultMessage": "完成"
   },
@@ -33188,6 +33245,9 @@
   "k3TrZpmKkB": {
     "defaultMessage": "在此工作区创建和跟踪的作业。"
   },
+  "k3doPysMk7": {
+    "defaultMessage": "Iris 音频和媒体工具"
+  },
   "k3eu1T7STw": {
     "defaultMessage": "开始新的审核"
   },
@@ -33617,6 +33677,9 @@
   "ke25Z8UYMw": {
     "defaultMessage": "Members"
   },
+  "keB6ISfBZ6": {
+    "defaultMessage": "此操作将永久删除 {dictionaryName} 及其中所有已接受的词条。此操作无法撤销。"
+  },
   "keLfuoYZXy": {
     "defaultMessage": "实时跟踪每个区域设置"
   },
@@ -33859,6 +33922,9 @@
   },
   "kzMTx+wIMg": {
     "defaultMessage": "由 DataForSEO Labs 的 Google Domain Rank Overview API 提供支持。"
+  },
+  "kzRKNukaB3": {
+    "defaultMessage": "Iris 图像"
   },
   "kzjEnGFmtM": {
     "defaultMessage": "{skipped, plural, one {已跳过 # 行未匹配或为空的记录。} other {已跳过 # 行未匹配或为空的记录。}}"
@@ -36899,6 +36965,9 @@
   "pMxqNDgaiR": {
     "defaultMessage": "源文件"
   },
+  "pN22I6+aJc": {
+    "defaultMessage": "Gemini 4 Hydrogen"
+  },
   "pNA+bX2Ulk": {
     "defaultMessage": "内容编辑器 / 审核队列"
   },
@@ -39590,6 +39659,9 @@
   "t7yeS7VAje": {
     "defaultMessage": "Ahrefs connection saved."
   },
+  "t8nxKUE6u+": {
+    "defaultMessage": "处理较难的草稿时使用 Pro。付费套餐包含此功能，使用量将从您的月度 AI 额度中扣除。如果您希望由 Google 直接向您收取此模型的费用，可以连接自己的 Gemini 密钥。"
+  },
   "t8uH650RAY": {
     "defaultMessage": "Crowdin 项目 ID"
   },
@@ -41009,6 +41081,9 @@
   "vF01WtRXQ8": {
     "defaultMessage": "提升视频分辨率"
   },
+  "vFIbVLco1O": {
+    "defaultMessage": "Iris 智能体"
+  },
   "vFJiS8I8Kx": {
     "defaultMessage": "专为大规模本地化运营而打造"
   },
@@ -41782,6 +41857,9 @@
   },
   "wHFmp4/+wj": {
     "defaultMessage": "源文件"
+  },
+  "wHdnjWrvAW": {
+    "defaultMessage": "Iris 视频"
   },
   "wI7t6e90fP": {
     "defaultMessage": "项目"

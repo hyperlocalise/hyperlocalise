@@ -2480,6 +2480,9 @@
   "1ToGNDd6TO": {
     "defaultMessage": "Files"
   },
+  "1TvpM4j9NP": {
+    "defaultMessage": "Gemini 4 Argon"
+  },
   "1U++3URWS4": {
     "defaultMessage": "Thư mục kho lưu trữ"
   },
@@ -4355,6 +4358,9 @@
   "46WEusZVEg": {
     "defaultMessage": "Kiểm tra theo ngữ cảnh"
   },
+  "46YLTYWLk2": {
+    "defaultMessage": "Không thể xóa từ điển"
+  },
   "46mxXNVZOE": {
     "defaultMessage": "Mã thông báo truy cập cá nhân"
   },
@@ -5774,6 +5780,9 @@
   "6Cs/mEyRBM": {
     "defaultMessage": "Đã khôi phục từ phiên bản trước đó"
   },
+  "6DGt+KEg8z": {
+    "defaultMessage": "Dùng Haiku cho các lượt trò chuyện ngắn hơn. Haiku được bao gồm trong các gói trả phí và mức sử dụng sẽ được trừ vào tín dụng AI hằng tháng của bạn. Kết nối khóa Anthropic của riêng bạn nếu bạn muốn Anthropic tính phí cho mô hình này."
+  },
   "6Dbk+444Cr": {
     "defaultMessage": "Báo cáo chương trình"
   },
@@ -5953,6 +5962,9 @@
   },
   "6Tx/kR6Gl+": {
     "defaultMessage": "Theo dõi điểm số theo ngôn ngữ, nhà cung cấp và loại nội dung theo thời gian."
+  },
+  "6TxlE4k/RL": {
+    "defaultMessage": "Dùng Sonnet cho các bản nháp dài hơn và ghi chú đánh giá. Tính năng này có trong các gói trả phí, và mức sử dụng sẽ được trừ vào hạn mức AI hằng tháng của bạn. Kết nối khóa Anthropic của riêng bạn nếu bạn muốn Anthropic tính phí riêng cho việc sử dụng mô hình này."
   },
   "6V7dDBU2jk": {
     "defaultMessage": "Đã lưu khái niệm"
@@ -7096,6 +7108,9 @@
   },
   "8CUaNB5YrW": {
     "defaultMessage": "Văn bản"
+  },
+  "8DEJWgut39": {
+    "defaultMessage": "Cuộc trò chuyện Iris"
   },
   "8DTgncaRKl": {
     "defaultMessage": "Thêm vào tác vụ…"
@@ -11885,6 +11900,9 @@
   "F2Mfo5rtgk": {
     "defaultMessage": "Tạo và điều chỉnh văn bản, tài liệu, slide, hình ảnh và video trong một không gian làm việc đa ngôn ngữ dùng chung—để mọi định dạng trong một chiến dịch luôn được tập hợp cùng nhau."
   },
+  "F2yszBCIk9": {
+    "defaultMessage": "Thành viên"
+  },
   "F3LRM6/D0t": {
     "defaultMessage": "Nhìn thế giới dưới một ánh sáng mới."
   },
@@ -13127,6 +13145,9 @@
   "GuYiT4dWiy": {
     "defaultMessage": "Đã bỏ qua {count} mục trùng lặp"
   },
+  "GutPXDHoRd": {
+    "defaultMessage": "Xóa từ điển này?"
+  },
   "GvUbPf6mr6": {
     "defaultMessage": "Thêm miền"
   },
@@ -14228,6 +14249,9 @@
   "IWQH2bHvzr": {
     "defaultMessage": "Chưa kết nối máy chủ MCP nào."
   },
+  "IWTpyHvJes": {
+    "defaultMessage": "Dùng Opus khi câu chữ cần được chăm chút hơn. Có trong các gói trả phí và mức sử dụng sẽ được trừ vào tín dụng AI hàng tháng của bạn. Kết nối khóa Anthropic của riêng bạn nếu bạn muốn Anthropic tính phí mô hình này thay vì vậy."
+  },
   "IY3g7G42ej": {
     "defaultMessage": "Thử một tiêu đề, quy trình thanh toán hoặc ưu đãi khác ở một thị trường. Giữ lại phiên bản được mọi người yêu thích."
   },
@@ -14974,6 +14998,9 @@
   },
   "JcGQchl/ia": {
     "defaultMessage": "Không gian làm việc Slack"
+  },
+  "JdbyW4qn3s": {
+    "defaultMessage": "Gemini 4 Neon"
   },
   "JdmZOy+P6b": {
     "defaultMessage": "Chuyển đổi mô hình AI hoặc nhà cung cấp đồng nghĩa với việc phải xây dựng lại quy trình làm việc."
@@ -15886,6 +15913,9 @@
   },
   "L80pAvj6yJ": {
     "defaultMessage": "Không thể tải các tệp tác vụ"
+  },
+  "L8o2cpm67y": {
+    "defaultMessage": "Không có thành viên"
   },
   "L8xTOJqX0d": {
     "defaultMessage": "Tìm kiếm: {value}"
@@ -17660,6 +17690,9 @@
   "NfaH4ei+PF": {
     "defaultMessage": "Trả lời {name}…"
   },
+  "Nfgyq1HnJz": {
+    "defaultMessage": "Đã xóa từ điển."
+  },
   "NflNg4/F7g": {
     "defaultMessage": "Đã xóa bảng thuật ngữ"
   },
@@ -17761,6 +17794,9 @@
   },
   "NqAGQvs7qB": {
     "defaultMessage": "Tiếng Anh (Úc)"
+  },
+  "NqVJWK9Xsc": {
+    "defaultMessage": "Bản dịch Iris"
   },
   "NrJMjFZ+Df": {
     "defaultMessage": "Tiếng Romania (Romania)"
@@ -18178,6 +18214,9 @@
   },
   "OTJurdDbQ3": {
     "defaultMessage": "Đẩy công việc đã được phê duyệt lên nền tảng của bạn"
+  },
+  "OTXAzDlTy5": {
+    "defaultMessage": "Dùng Flash để xử lý nhanh danh sách dài các chuỗi. Tính năng này có trong các gói trả phí và mức sử dụng sẽ được trừ vào hạn mức AI hàng tháng của bạn. Nếu muốn Google tính phí trực tiếp cho mô hình này, hãy kết nối khóa Gemini của riêng bạn."
   },
   "OU5qhClfKo": {
     "defaultMessage": "Xuất bản blog đa ngôn ngữ"
@@ -20321,6 +20360,9 @@
   "RhmMBU70/7": {
     "defaultMessage": "Email chiến dịch ra mắt"
   },
+  "RhmlCVOrxz": {
+    "defaultMessage": "Thêm thao tác"
+  },
   "Rhnh/znHl6": {
     "defaultMessage": "Quyết định nơi {domain} sẽ được gắn sau khi xác minh."
   },
@@ -22360,6 +22402,9 @@
   },
   "UdxBZORXpe": {
     "defaultMessage": "Tất cả"
+  },
+  "UeADOH2IXX": {
+    "defaultMessage": "Iris"
   },
   "UeIGZOrfgq": {
     "defaultMessage": "Yêu cầu cấp quyền Sanity này bị thiếu hoặc đã hết hạn. Hãy bắt đầu lại từ Sanity."
@@ -26909,6 +26954,9 @@
   "bAOcwldO3V": {
     "defaultMessage": "Hyperlocalise"
   },
+  "bAcsTcwDMg": {
+    "defaultMessage": "Hủy"
+  },
   "bAkdHjBiWF": {
     "defaultMessage": "Chi tiết kỹ thuật"
   },
@@ -28580,6 +28628,9 @@
   "dZcHfTdmF2": {
     "defaultMessage": "Danh sách đánh số"
   },
+  "dZiSVEw/Vx": {
+    "defaultMessage": "Không có luồng Iris"
+  },
   "dZjmTiak7a": {
     "defaultMessage": "Tìm kiếm bảng thuật ngữ của nhóm..."
   },
@@ -29998,6 +30049,9 @@
   },
   "fVOROtw+GW": {
     "defaultMessage": "Vấn đề"
+  },
+  "fVhXAnrH/m": {
+    "defaultMessage": "Gemini 4 Carbon"
   },
   "fVkQmhbtrN": {
     "defaultMessage": "Minutes"
@@ -31925,6 +31979,9 @@
   "iDUmWNeRZ7": {
     "defaultMessage": "Tìm kiếm khái niệm"
   },
+  "iDirbS65Em": {
+    "defaultMessage": "Xóa từ điển"
+  },
   "iE2A3xoRIH": {
     "defaultMessage": "Xong"
   },
@@ -32523,7 +32580,7 @@
     "defaultMessage": "CMS"
   },
   "j1pOSgEa8H": {
-    "defaultMessage": "Vi Nguyen"
+    "defaultMessage": "Vi Nguyễn"
   },
   "j1zSpi+EHj": {
     "defaultMessage": "Status"
@@ -33188,6 +33245,9 @@
   "k3TrZpmKkB": {
     "defaultMessage": "Các công việc được tạo và theo dõi trong không gian làm việc này."
   },
+  "k3doPysMk7": {
+    "defaultMessage": "Các công cụ âm thanh và đa phương tiện của Iris"
+  },
   "k3eu1T7STw": {
     "defaultMessage": "Bắt đầu một đợt kiểm tra mới"
   },
@@ -33617,6 +33677,9 @@
   "ke25Z8UYMw": {
     "defaultMessage": "Members"
   },
+  "keB6ISfBZ6": {
+    "defaultMessage": "Thao tác này sẽ xóa vĩnh viễn {dictionaryName} và tất cả các từ đã chấp nhận trong từ điển. Bạn không thể hoàn tác thao tác này."
+  },
   "keLfuoYZXy": {
     "defaultMessage": "Theo dõi mọi ngôn ngữ theo thời gian thực"
   },
@@ -33859,6 +33922,9 @@
   },
   "kzMTx+wIMg": {
     "defaultMessage": "Được cung cấp bởi API Google Domain Rank Overview của DataForSEO Labs."
+  },
+  "kzRKNukaB3": {
+    "defaultMessage": "Ảnh Iris"
   },
   "kzjEnGFmtM": {
     "defaultMessage": "{skipped, plural, one {Đã bỏ qua # hàng không khớp hoặc trống.} other {Đã bỏ qua # hàng không khớp hoặc trống.}}"
@@ -36899,6 +36965,9 @@
   "pMxqNDgaiR": {
     "defaultMessage": "Tệp nguồn"
   },
+  "pN22I6+aJc": {
+    "defaultMessage": "Gemini 4 Hydrogen"
+  },
   "pNA+bX2Ulk": {
     "defaultMessage": "Trình chỉnh sửa nội dung / Hàng đợi đánh giá"
   },
@@ -39590,6 +39659,9 @@
   "t7yeS7VAje": {
     "defaultMessage": "Ahrefs connection saved."
   },
+  "t8nxKUE6u+": {
+    "defaultMessage": "Dùng Pro cho các bản nháp khó hơn. Tính năng này có trong các gói trả phí và mức sử dụng sẽ trừ vào hạn mức AI hằng tháng của bạn. Kết nối khóa Gemini của riêng bạn nếu bạn muốn Google tính phí cho mô hình này."
+  },
   "t8uH650RAY": {
     "defaultMessage": "ID dự án Crowdin"
   },
@@ -41009,6 +41081,9 @@
   "vF01WtRXQ8": {
     "defaultMessage": "Nâng cấp độ phân giải video"
   },
+  "vFIbVLco1O": {
+    "defaultMessage": "Tác nhân Iris"
+  },
   "vFJiS8I8Kx": {
     "defaultMessage": "Được xây dựng cho các hoạt động bản địa hóa ở quy mô lớn"
   },
@@ -41782,6 +41857,9 @@
   },
   "wHFmp4/+wj": {
     "defaultMessage": "Tệp nguồn"
+  },
+  "wHdnjWrvAW": {
+    "defaultMessage": "Video trên Iris"
   },
   "wI7t6e90fP": {
     "defaultMessage": "Dự án"

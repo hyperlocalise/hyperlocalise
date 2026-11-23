@@ -2480,6 +2480,9 @@
   "1ToGNDd6TO": {
     "defaultMessage": "Fichiers"
   },
+  "1TvpM4j9NP": {
+    "defaultMessage": "Gemini 4 Argon"
+  },
   "1U++3URWS4": {
     "defaultMessage": "Dossier du dépôt"
   },
@@ -4355,6 +4358,9 @@
   "46WEusZVEg": {
     "defaultMessage": "Audit contextuel"
   },
+  "46YLTYWLk2": {
+    "defaultMessage": "Impossible de supprimer le dictionnaire."
+  },
   "46mxXNVZOE": {
     "defaultMessage": "Jetons d’accès personnels"
   },
@@ -5774,6 +5780,9 @@
   "6Cs/mEyRBM": {
     "defaultMessage": "Restauré à partir d’une version antérieure"
   },
+  "6DGt+KEg8z": {
+    "defaultMessage": "Utilisez Haiku pour les échanges plus courts. Inclus dans les forfaits payants, son utilisation est déduite de votre crédit IA mensuel. Connectez votre propre clé Anthropic si vous souhaitez qu’Anthropic vous facture ce modèle à la place."
+  },
   "6Dbk+444Cr": {
     "defaultMessage": "Rapports de programme"
   },
@@ -5953,6 +5962,9 @@
   },
   "6Tx/kR6Gl+": {
     "defaultMessage": "Suivez les scores par locale, fournisseur et type de contenu au fil du temps."
+  },
+  "6TxlE4k/RL": {
+    "defaultMessage": "Utilisez Sonnet pour les brouillons plus longs et les notes de révision. Inclus dans les forfaits payants, son utilisation est déduite de votre crédit IA mensuel. Connectez votre propre clé Anthropic si vous préférez qu’Anthropic facture directement l’utilisation de ce modèle."
   },
   "6V7dDBU2jk": {
     "defaultMessage": "Concept enregistré"
@@ -7096,6 +7108,9 @@
   },
   "8CUaNB5YrW": {
     "defaultMessage": "Texte"
+  },
+  "8DEJWgut39": {
+    "defaultMessage": "Fil de discussion Iris"
   },
   "8DTgncaRKl": {
     "defaultMessage": "Ajouter à une tâche…"
@@ -11885,6 +11900,9 @@
   "F2Mfo5rtgk": {
     "defaultMessage": "Créez et adaptez des textes, des documents, des diapositives, des images et des vidéos dans un espace de travail multilingue partagé, afin que tous les formats d’une campagne restent réunis."
   },
+  "F2yszBCIk9": {
+    "defaultMessage": "Member"
+  },
   "F3LRM6/D0t": {
     "defaultMessage": "Voir le monde sous un nouveau jour."
   },
@@ -13127,6 +13145,9 @@
   "GuYiT4dWiy": {
     "defaultMessage": "{count} doublons ignorés"
   },
+  "GutPXDHoRd": {
+    "defaultMessage": "Supprimer ce dictionnaire ?"
+  },
   "GvUbPf6mr6": {
     "defaultMessage": "Ajouter un domaine"
   },
@@ -14228,6 +14249,9 @@
   "IWQH2bHvzr": {
     "defaultMessage": "Aucun serveur MCP n’est encore connecté."
   },
+  "IWTpyHvJes": {
+    "defaultMessage": "Utilisez Opus lorsque le texte nécessite une attention particulière. Inclus dans les forfaits payants ; l’utilisation est déduite de votre crédit IA mensuel. Connectez votre propre clé Anthropic si vous préférez qu’Anthropic facture directement l’utilisation de ce modèle."
+  },
   "IY3g7G42ej": {
     "defaultMessage": "Essayez un autre titre, processus de paiement ou offre sur un marché. Conservez la version que les gens préfèrent."
   },
@@ -14974,6 +14998,9 @@
   },
   "JcGQchl/ia": {
     "defaultMessage": "Espace de travail Slack"
+  },
+  "JdbyW4qn3s": {
+    "defaultMessage": "Gemini 4 Neon"
   },
   "JdmZOy+P6b": {
     "defaultMessage": "Changer de modèle d’IA ou de fournisseur signifie qu’il faut reconstruire le flux de travail."
@@ -15886,6 +15913,9 @@
   },
   "L80pAvj6yJ": {
     "defaultMessage": "Impossible de charger les fichiers de tâche"
+  },
+  "L8o2cpm67y": {
+    "defaultMessage": "Aucun membre"
   },
   "L8xTOJqX0d": {
     "defaultMessage": "Rechercher : {value}"
@@ -17660,6 +17690,9 @@
   "NfaH4ei+PF": {
     "defaultMessage": "Répondre à {name}…"
   },
+  "Nfgyq1HnJz": {
+    "defaultMessage": "Dictionnaire supprimé"
+  },
   "NflNg4/F7g": {
     "defaultMessage": "Glossaire supprimé"
   },
@@ -17761,6 +17794,9 @@
   },
   "NqAGQvs7qB": {
     "defaultMessage": "anglais (Australie)"
+  },
+  "NqVJWK9Xsc": {
+    "defaultMessage": "Traductions Iris"
   },
   "NrJMjFZ+Df": {
     "defaultMessage": "Roumain (Roumanie)"
@@ -18178,6 +18214,9 @@
   },
   "OTJurdDbQ3": {
     "defaultMessage": "Poussez le travail approuvé vers votre plateforme"
+  },
+  "OTXAzDlTy5": {
+    "defaultMessage": "Utilisez Flash pour parcourir rapidement une longue liste de chaînes de texte. Inclus dans les offres payantes, son utilisation est déduite de votre crédit IA mensuel. Connectez votre propre clé Gemini si vous préférez que Google vous facture directement l’utilisation de ce modèle."
   },
   "OU5qhClfKo": {
     "defaultMessage": "Publier un blog multilingue"
@@ -20321,6 +20360,9 @@
   "RhmMBU70/7": {
     "defaultMessage": "E-mail de campagne de lancement"
   },
+  "RhmlCVOrxz": {
+    "defaultMessage": "Plus d’actions"
+  },
   "Rhnh/znHl6": {
     "defaultMessage": "Décidez où {domain} doit être attaché après vérification."
   },
@@ -22360,6 +22402,9 @@
   },
   "UdxBZORXpe": {
     "defaultMessage": "Tous"
+  },
+  "UeADOH2IXX": {
+    "defaultMessage": "Iris"
   },
   "UeIGZOrfgq": {
     "defaultMessage": "Cette demande d’autorisation Sanity est absente ou a expiré. Recommencez depuis Sanity."
@@ -26909,6 +26954,9 @@
   "bAOcwldO3V": {
     "defaultMessage": "Hyperlocalise"
   },
+  "bAcsTcwDMg": {
+    "defaultMessage": "Annuler"
+  },
   "bAkdHjBiWF": {
     "defaultMessage": "Détails techniques"
   },
@@ -28580,6 +28628,9 @@
   "dZcHfTdmF2": {
     "defaultMessage": "Liste numérotée"
   },
+  "dZiSVEw/Vx": {
+    "defaultMessage": "Aucun fil Iris"
+  },
   "dZjmTiak7a": {
     "defaultMessage": "Rechercher dans les glossaires d’équipe…"
   },
@@ -29998,6 +30049,9 @@
   },
   "fVOROtw+GW": {
     "defaultMessage": "Problèmes"
+  },
+  "fVhXAnrH/m": {
+    "defaultMessage": "Gemini 4 Carbon"
   },
   "fVkQmhbtrN": {
     "defaultMessage": "Minutes"
@@ -31925,6 +31979,9 @@
   "iDUmWNeRZ7": {
     "defaultMessage": "Rechercher des concepts"
   },
+  "iDirbS65Em": {
+    "defaultMessage": "Supprimer le dictionnaire"
+  },
   "iE2A3xoRIH": {
     "defaultMessage": "Terminé"
   },
@@ -33188,6 +33245,9 @@
   "k3TrZpmKkB": {
     "defaultMessage": "Emplois créés et suivis dans cet espace de travail."
   },
+  "k3doPysMk7": {
+    "defaultMessage": "Outils audio et multimédia d’Iris"
+  },
   "k3eu1T7STw": {
     "defaultMessage": "Démarrer un nouvel audit"
   },
@@ -33617,6 +33677,9 @@
   "ke25Z8UYMw": {
     "defaultMessage": "Members"
   },
+  "keB6ISfBZ6": {
+    "defaultMessage": "Cette action supprime définitivement {dictionaryName} et tous les mots acceptés qu’il contient. Elle est irréversible."
+  },
   "keLfuoYZXy": {
     "defaultMessage": "Suivez chaque locale en temps réel."
   },
@@ -33859,6 +33922,9 @@
   },
   "kzMTx+wIMg": {
     "defaultMessage": "Propulsé par l’API Google Domain Rank Overview de DataForSEO Labs."
+  },
+  "kzRKNukaB3": {
+    "defaultMessage": "Images Iris"
   },
   "kzjEnGFmtM": {
     "defaultMessage": "{skipped, plural, one {# ligne non correspondante ou vide ignorée.} other {# lignes non correspondantes ou vides ignorées.}}"
@@ -36899,6 +36965,9 @@
   "pMxqNDgaiR": {
     "defaultMessage": "Fichier source"
   },
+  "pN22I6+aJc": {
+    "defaultMessage": "Gemini 4 Hydrogen"
+  },
   "pNA+bX2Ulk": {
     "defaultMessage": "Éditeur de contenu / File de révision"
   },
@@ -39590,6 +39659,9 @@
   "t7yeS7VAje": {
     "defaultMessage": "Ahrefs connection saved."
   },
+  "t8nxKUE6u+": {
+    "defaultMessage": "Utilisez Pro pour les brouillons plus complexes. Inclus dans les forfaits payants, son utilisation est déduite de votre crédit IA mensuel. Connectez votre propre clé Gemini si vous souhaitez que Google vous facture directement l’utilisation de ce modèle."
+  },
   "t8uH650RAY": {
     "defaultMessage": "ID du projet Crowdin"
   },
@@ -41009,6 +41081,9 @@
   "vF01WtRXQ8": {
     "defaultMessage": "Améliorez la résolution d’une vidéo"
   },
+  "vFIbVLco1O": {
+    "defaultMessage": "Agent Iris"
+  },
   "vFJiS8I8Kx": {
     "defaultMessage": "Conçu pour les opérations de localisation à grande échelle"
   },
@@ -41782,6 +41857,9 @@
   },
   "wHFmp4/+wj": {
     "defaultMessage": "Fichier source"
+  },
+  "wHdnjWrvAW": {
+    "defaultMessage": "Vidéos Iris"
   },
   "wI7t6e90fP": {
     "defaultMessage": "Projet"
