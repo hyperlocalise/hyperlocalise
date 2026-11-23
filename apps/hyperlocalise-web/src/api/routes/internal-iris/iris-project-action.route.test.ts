@@ -18,16 +18,20 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
+import { insertStoredSourceFile } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import {
+  createRepositorySourceFileVersion,
+  ensureRepositorySourceFile,
+} from "@/lib/file-storage/records";
+import {
   GO_SVC_SERVICE_TOKEN_HEADER,
   mintGoSvcServiceToken,
 } from "@/lib/go-svc/go-svc-service-token";
-import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
-import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import type {
   TranslationFileImportEventData,
@@ -681,6 +685,135 @@ describe("internal iris project-action route", () => {
       targetLocale: "fr-FR",
       branchName: "feature-checkout",
     });
+  });
+
+  it("translates the named version branch instead of the newest upload of the same path", async () => {
+    const { organization, user, project } = await seedNativeProject();
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+    const created = await projectBranchService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      name: "feature-checkout",
+      clone: false,
+    });
+    expect(created.ok).toBe(true);
+
+    const cloneStored = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "en.json",
+      contentType: "application/json",
+      sourceKind: "repository_file",
+      metadata: { sourcePath: "locales/en.json" },
+    });
+    await createRepositorySourceFileVersion({
+      storedFile: cloneStored,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const identity = {
+      organizationId: organization.id,
+      userId: user.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      locales: ["fr-FR"],
+    };
+
+    const onMain = await postAction("translate_file", identity);
+    expect(onMain.status).toBe(404);
+    await expect(onMain.json()).resolves.toMatchObject({ error: "source_file_not_found" });
+
+    const onClone = await postAction("translate_file", {
+      ...identity,
+      branch: "feature-checkout",
+    });
+    expect(onClone.status).toBe(201);
+    const body = (await onClone.json()) as { result: { jobId?: string } };
+    expect(body.result.jobId).toEqual(expect.stringMatching(/^job_/));
+    const jobs = await db
+      .select({ id: schema.jobs.id, inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, project.id));
+    expect(jobs).toEqual([
+      expect.objectContaining({
+        id: body.result.jobId,
+        inputPayload: expect.objectContaining({
+          sourceFileId: cloneStored.id,
+          branch: "feature-checkout",
+        }),
+      }),
+    ]);
+  });
+
+  it("creates jobs from file paths on the named version branch", async () => {
+    const { organization, user, project } = await seedNativeProject();
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+    const created = await projectBranchService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      name: "feature-checkout",
+      clone: false,
+    });
+    expect(created.ok).toBe(true);
+
+    const cloneStored = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "en.json",
+      contentType: "application/json",
+      sourceKind: "repository_file",
+      metadata: { sourcePath: "locales/en.json" },
+    });
+    await createRepositorySourceFileVersion({
+      storedFile: cloneStored,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const identity = {
+      organizationId: organization.id,
+      userId: user.id,
+      projectId: project.id,
+      fileIds: ["locales/en.json"],
+      targetLocales: ["fr-FR"],
+      title: "Translate app",
+    };
+
+    const onMain = await postAction("create_job", identity);
+    expect(onMain.status).toBe(404);
+    await expect(onMain.json()).resolves.toMatchObject({ error: "source_file_not_found" });
+
+    const onClone = await postAction("create_job", {
+      ...identity,
+      branch: "feature-checkout",
+    });
+    expect(onClone.status).toBe(201);
+    const body = (await onClone.json()) as { result: { jobs?: { id: string }[] } };
+    expect(body.result.jobs?.[0]?.id).toEqual(expect.stringMatching(/^job_/));
+    const jobs = await db
+      .select({ id: schema.jobs.id, inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, project.id));
+    expect(jobs).toEqual([
+      expect.objectContaining({
+        id: body.result.jobs?.[0]?.id,
+        inputPayload: expect.objectContaining({
+          sourceFileId: cloneStored.id,
+          branch: "feature-checkout",
+        }),
+      }),
+    ]);
   });
 
   it("patches file settings onto the named version branch and leaves main alone", async () => {
