@@ -28,11 +28,11 @@ const (
 )
 
 type editorCatImageRegenerateBody struct {
-	SourcePath         string  `json:"sourcePath"`
-	TargetLocale       string  `json:"targetLocale"`
-	ExternalStringID   *string `json:"externalStringId"`
-	Instructions       *string `json:"instructions"`
-	Force              *bool   `json:"force"`
+	SourcePath       string  `json:"sourcePath"`
+	TargetLocale     string  `json:"targetLocale"`
+	ExternalStringID *string `json:"externalStringId"`
+	Instructions     *string `json:"instructions"`
+	Force            *bool   `json:"force"`
 }
 
 func fileBackedCatSegmentIDs(sourceFileID, sourcePath string) []string {
@@ -133,7 +133,7 @@ func (api *editorCatAPI) uploadImage(r *http.Request, actor editorCatActor, proj
 	}
 	filename := fileHeaders[0].Filename
 	contentType := fileHeaders[0].Header.Get("Content-Type")
-	if contentType == "" {
+	if contentType == "" || !strings.HasPrefix(contentType, "image/") {
 		contentType = editorCatImageContentType(filename, sourcePath)
 	}
 	if !strings.HasPrefix(contentType, "image/") {
@@ -190,9 +190,9 @@ func (api *editorCatAPI) editImage(r *http.Request, actor editorCatActor, projec
 		return nil, 0, err
 	}
 	request := editorCatImageEditRequest{
-		Kind:        trimEditorCat(editorCatFormValue(form.Value, "kind")),
-		Instruction: strings.TrimSpace(editorCatFormValue(form.Value, "instruction")),
-		Notes:       editorCatFormStrings(form.Value["notes"]),
+		Kind:           trimEditorCat(editorCatFormValue(form.Value, "kind")),
+		Instruction:    strings.TrimSpace(editorCatFormValue(form.Value, "instruction")),
+		Notes:          editorCatFormStrings(form.Value["notes"]),
 		NoteReferences: editorCatFormInts(form.Value["noteReferences"]),
 	}
 	if err := validateEditorCatImageEditRequest(request); err != nil {
@@ -318,7 +318,7 @@ func editorCatReadImageUpload(header *multipart.FileHeader) ([]byte, string, err
 		return nil, "", editorCatFailure(413, "file_upload_too_large", "File upload is too large")
 	}
 	contentType := header.Header.Get("Content-Type")
-	if contentType == "" {
+	if contentType == "" || !strings.HasPrefix(contentType, "image/") {
 		contentType = editorCatImageContentType(header.Filename, "")
 	}
 	if !strings.HasPrefix(contentType, "image/") {
@@ -443,12 +443,12 @@ func (api *editorCatAPI) regenerateImageUrlTranslation(
 	}
 	return map[string]any{
 		"translation": map[string]any{
-			"text":                    assetURL,
+			"text":                  assetURL,
 			"externalTranslationId": translationID,
-			"isApproved":              status == "approved",
-			"contentKind":             "image_url",
-			"targetAssetUrl":          assetURL,
-			"status":                  status,
+			"isApproved":            status == "approved",
+			"contentKind":           "image_url",
+			"targetAssetUrl":        assetURL,
+			"status":                status,
 		},
 	}, http.StatusOK, nil
 }
@@ -537,12 +537,12 @@ func (api *editorCatAPI) replaceImageUrlTranslationBytes(
 	}
 	return map[string]any{
 		"translation": map[string]any{
-			"text":                    assetURL,
+			"text":                  assetURL,
 			"externalTranslationId": translationID,
-			"isApproved":              status == "approved",
-			"contentKind":             "image_url",
-			"targetAssetUrl":          assetURL,
-			"status":                  status,
+			"isApproved":            status == "approved",
+			"contentKind":           "image_url",
+			"targetAssetUrl":        assetURL,
+			"status":                status,
 		},
 	}, http.StatusOK, nil
 }

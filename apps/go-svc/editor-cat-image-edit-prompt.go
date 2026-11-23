@@ -6,14 +6,14 @@ import (
 )
 
 const (
-	editorCatImageEditMarkColor       = "#ff2d55"
-	editorCatMaxImageEditInstruction  = 2000
-	editorCatMaxImageEditNotes        = 20
-	editorCatMaxImageEditReferences   = 8
-	editorCatImageEditKindMarkup      = "markup"
-	editorCatImageEditKindComment     = "comment"
-	editorCatImageEditKindErase       = "erase"
-	editorCatImageEditKindRemoveBG    = "removeBackground"
+	editorCatImageEditMarkColor      = "#ff2d55"
+	editorCatMaxImageEditInstruction = 2000
+	editorCatMaxImageEditNotes       = 20
+	editorCatMaxImageEditReferences  = 8
+	editorCatImageEditKindMarkup     = "markup"
+	editorCatImageEditKindComment    = "comment"
+	editorCatImageEditKindErase      = "erase"
+	editorCatImageEditKindRemoveBG   = "removeBackground"
 )
 
 type editorCatImageEditRequest struct {

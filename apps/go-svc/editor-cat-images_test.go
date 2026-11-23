@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -135,11 +135,13 @@ func TestEditorCatImageEditMarkup(t *testing.T) {
 	api.ai = &irisGenerationAPI{provider: provider, meter: &stubIrisMeter{features: true, tokens: true}}
 	api.objects = visualContextObjectRegistry(t)
 	fileID := mustEditorCatSourceFile(t, scope, "hero.png")
+	existingPNG := mustVisualContextPNG(t, 6, 6)
+	existingStoredID := mustEditorCatRepositoryImage(t, api, scope, fileID, "hero.png", existingPNG)
 	_, err := scope.Pool.Exec(t.Context(), `
         insert into project_image_variants (
             organization_id, project_id, repository_source_file_id, source_path, target_locale, status, stored_file_id
         ) values ($1,$2,$3,'hero.png','fr-FR','draft',$4)`,
-		scope.OrganizationID, scope.ProjectID, fileID, "file_existing_variant")
+		scope.OrganizationID, scope.ProjectID, fileID, existingStoredID)
 	require.NoError(t, err)
 	image := mustVisualContextPNG(t, 6, 6)
 
