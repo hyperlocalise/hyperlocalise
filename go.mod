@@ -421,4 +421,4 @@ exclude (
 	google.golang.org/genproto v0.0.0-20260427160629-7cedc36a6bc4
 )
 
-replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20261110000943-09e21b237f2c
+replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20261118221215-c8830f628b3f
