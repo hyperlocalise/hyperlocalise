@@ -172,7 +172,7 @@
     "tailwind-merge": "3.7.1",
     "tokenlens": "^1.3.1",
     "turndown": "^7.2.4",
-    "undici": "8.12.4",
+    "undici": "8.13.0",
     "unpdf": "^2.0.0",
     "use-stick-to-bottom": "^1.1.6",
     "workflow": "5.7.0",
@@ -183,7 +183,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@storybook/addon-a11y": "10.6.7",
+    "@storybook/addon-a11y": "10.6.8",
     "@storybook/addon-docs": "^10.6.3",
     "@storybook/addon-mcp": "^10.6.3",
     "@storybook/addon-vitest": "^10.6.3",
