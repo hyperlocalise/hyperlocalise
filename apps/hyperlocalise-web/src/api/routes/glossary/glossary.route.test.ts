@@ -979,9 +979,10 @@ describe("glossaryRoutes", () => {
       role: "member",
     });
 
+    const externalProjectId = uniqueTestProjectIdentifier();
     const projectId = encodeProviderProjectId({
       providerKind: "crowdin",
-      externalProjectId: "902807",
+      externalProjectId,
     });
     await db.insert(schema.projects).values({
       id: projectId,
@@ -993,7 +994,7 @@ describe("glossaryRoutes", () => {
       name: "Materialized Crowdin Project",
       source: "external_tms",
       externalProviderKind: "crowdin",
-      externalProjectId: "902807",
+      externalProjectId,
       sourceLocale: "en-US",
       targetLocales: ["es-ES"],
       isActive: true,
