@@ -4651,6 +4651,10 @@
     "defaultMessage": "Contextual Audit",
     "description": "Label for the contextual dimension on a localisation audit result"
   },
+  "46YLTYWLk2": {
+    "defaultMessage": "Unable to delete dictionary",
+    "description": "Fallback error when deleting a dictionary fails"
+  },
   "477uPaXfz1": {
     "defaultMessage": "Block on failure",
     "description": "Label for blocking automation when localization check fails"
@@ -14199,6 +14203,10 @@
     "defaultMessage": "{count} duplicates skipped",
     "description": "Badge showing how many duplicate rows will be skipped"
   },
+  "GutPXDHoRd": {
+    "defaultMessage": "Delete this dictionary?",
+    "description": "Title of the dictionary deletion confirmation dialog"
+  },
   "GvUbPf6mr6": {
     "defaultMessage": "Add a domain",
     "description": "Dialog title"
@@ -19095,6 +19103,10 @@
     "defaultMessage": "Reply to {name}…",
     "description": "Placeholder when replying to a specific comment author"
   },
+  "Nfgyq1HnJz": {
+    "defaultMessage": "Dictionary deleted",
+    "description": "Toast after a dictionary is deleted successfully"
+  },
   "NflNg4/F7g": {
     "defaultMessage": "Glossary deleted",
     "description": "Toast after a glossary is deleted successfully"
@@ -21950,6 +21962,10 @@
   "RhmMBU70/7": {
     "defaultMessage": "Launch campaign email",
     "description": "TM match context for a launch campaign string in the CAT mock"
+  },
+  "RhmlCVOrxz": {
+    "defaultMessage": "More actions",
+    "description": "Accessible label for the dictionary detail overflow menu"
   },
   "Rhnh/znHl6": {
     "defaultMessage": "Decide where {domain} should be attached after verification.",
@@ -28979,6 +28995,10 @@
     "defaultMessage": "Hyperlocalise",
     "description": "Product name shown next to the logo in the app shell sidebar"
   },
+  "bAcsTcwDMg": {
+    "defaultMessage": "Cancel",
+    "description": "Button to dismiss the dictionary deletion confirmation dialog"
+  },
   "bAkdHjBiWF": {
     "defaultMessage": "Technical details",
     "description": "QA failure diagnostic disclosure"
@@ -34367,6 +34387,10 @@
     "defaultMessage": "Search concepts",
     "description": "Accessible label for the concept search input"
   },
+  "iDirbS65Em": {
+    "defaultMessage": "Delete dictionary",
+    "description": "Button to delete the current dictionary"
+  },
   "iE2A3xoRIH": {
     "defaultMessage": "Done",
     "description": "Bulk action bar button that exits selection mode"
@@ -36146,6 +36170,10 @@
   "ke25Z8UYMw": {
     "defaultMessage": "Members",
     "description": "Heading above the team members list"
+  },
+  "keB6ISfBZ6": {
+    "defaultMessage": "This permanently deletes {dictionaryName} and all of its accepted words. This action cannot be undone.",
+    "description": "Description of the dictionary deletion confirmation dialog"
   },
   "keLfuoYZXy": {
     "defaultMessage": "Track every locale live",
