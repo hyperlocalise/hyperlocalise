@@ -2480,6 +2480,9 @@
   "1ToGNDd6TO": {
     "defaultMessage": "Dateien"
   },
+  "1TvpM4j9NP": {
+    "defaultMessage": "Gemini 4 Argon"
+  },
   "1U++3URWS4": {
     "defaultMessage": "Repositoryordner"
   },
@@ -4355,6 +4358,9 @@
   "46WEusZVEg": {
     "defaultMessage": "Kontextbezogene Prüfung"
   },
+  "46YLTYWLk2": {
+    "defaultMessage": "Wörterbuch konnte nicht gelöscht werden."
+  },
   "46mxXNVZOE": {
     "defaultMessage": "Persönliche Zugriffstokens"
   },
@@ -5774,6 +5780,9 @@
   "6Cs/mEyRBM": {
     "defaultMessage": "Aus einer früheren Version wiederhergestellt"
   },
+  "6DGt+KEg8z": {
+    "defaultMessage": "Verwenden Sie Haiku für kürzere Gesprächsrunden. In kostenpflichtigen Tarifen enthalten; die Nutzung wird auf Ihr monatliches KI-Guthaben angerechnet. Verbinden Sie Ihren eigenen Anthropic-API-Schlüssel, wenn Anthropic dieses Modell stattdessen abrechnen soll."
+  },
   "6Dbk+444Cr": {
     "defaultMessage": "Programmberichterstattung"
   },
@@ -5953,6 +5962,9 @@
   },
   "6Tx/kR6Gl+": {
     "defaultMessage": "Verfolgen Sie Scores im Zeitverlauf nach Locale, Anbieter und Inhaltstyp."
+  },
+  "6TxlE4k/RL": {
+    "defaultMessage": "Nutzen Sie Sonnet für längere Entwürfe und Überarbeitungsnotizen. In kostenpflichtigen Tarifen enthalten; die Nutzung wird von Ihrem monatlichen KI-Guthaben abgezogen. Verbinden Sie Ihren eigenen Anthropic-Schlüssel, wenn Anthropic dieses Modell stattdessen abrechnen soll."
   },
   "6V7dDBU2jk": {
     "defaultMessage": "Konzept gespeichert"
@@ -7096,6 +7108,9 @@
   },
   "8CUaNB5YrW": {
     "defaultMessage": "Text"
+  },
+  "8DEJWgut39": {
+    "defaultMessage": "Iris-Thread"
   },
   "8DTgncaRKl": {
     "defaultMessage": "Zu einer Aufgabe hinzufügen…"
@@ -11885,6 +11900,9 @@
   "F2Mfo5rtgk": {
     "defaultMessage": "Erstellen und bearbeiten Sie Texte, Dokumente, Präsentationen, Bilder und Videos in einem gemeinsamen mehrsprachigen Arbeitsbereich – so bleibt jedes Format einer Kampagne zusammen."
   },
+  "F2yszBCIk9": {
+    "defaultMessage": "Mitglied"
+  },
   "F3LRM6/D0t": {
     "defaultMessage": "Die Welt in einem neuen Licht sehen."
   },
@@ -13127,6 +13145,9 @@
   "GuYiT4dWiy": {
     "defaultMessage": "{count} Duplikate übersprungen"
   },
+  "GutPXDHoRd": {
+    "defaultMessage": "Dieses Wörterbuch löschen?"
+  },
   "GvUbPf6mr6": {
     "defaultMessage": "Eine Domain hinzufügen"
   },
@@ -14228,6 +14249,9 @@
   "IWQH2bHvzr": {
     "defaultMessage": "Noch keine MCP-Server verbunden."
   },
+  "IWTpyHvJes": {
+    "defaultMessage": "Verwenden Sie Opus, wenn Formulierungen besondere Aufmerksamkeit erfordern. In kostenpflichtigen Tarifen enthalten; die Nutzung wird von Ihrem monatlichen KI-Guthaben abgezogen. Verbinden Sie Ihren eigenen Anthropic-API-Schlüssel, wenn Anthropic dieses Modell stattdessen abrechnen soll."
+  },
   "IY3g7G42ej": {
     "defaultMessage": "Teste in einem Markt eine andere Überschrift, einen anderen Checkout oder ein anderes Angebot. Behalte die Version, die den Menschen gefällt."
   },
@@ -14974,6 +14998,9 @@
   },
   "JcGQchl/ia": {
     "defaultMessage": "Slack-Arbeitsbereich"
+  },
+  "JdbyW4qn3s": {
+    "defaultMessage": "Gemini 4 Neon"
   },
   "JdmZOy+P6b": {
     "defaultMessage": "Der Wechsel zu einem KI-Modell oder Anbieter bedeutet, den Workflow neu aufzubauen."
@@ -15886,6 +15913,9 @@
   },
   "L80pAvj6yJ": {
     "defaultMessage": "Aufgabendateien konnten nicht geladen werden"
+  },
+  "L8o2cpm67y": {
+    "defaultMessage": "Kein Mitglied"
   },
   "L8xTOJqX0d": {
     "defaultMessage": "Suchen: {value}"
@@ -17660,6 +17690,9 @@
   "NfaH4ei+PF": {
     "defaultMessage": "Auf {name} antworten …"
   },
+  "Nfgyq1HnJz": {
+    "defaultMessage": "Wörterbuch gelöscht"
+  },
   "NflNg4/F7g": {
     "defaultMessage": "Glossar gelöscht"
   },
@@ -17761,6 +17794,9 @@
   },
   "NqAGQvs7qB": {
     "defaultMessage": "Englisch (Australien)"
+  },
+  "NqVJWK9Xsc": {
+    "defaultMessage": "Iris-Übersetzungen"
   },
   "NrJMjFZ+Df": {
     "defaultMessage": "Rumänisch (Rumänien)"
@@ -18178,6 +18214,9 @@
   },
   "OTJurdDbQ3": {
     "defaultMessage": "Genehmigte Arbeiten auf Ihre Plattform übertragen"
+  },
+  "OTXAzDlTy5": {
+    "defaultMessage": "Mit Flash kannst du lange Listen von Strings schnell durchgehen. In kostenpflichtigen Tarifen enthalten; die Nutzung wird von deinem monatlichen KI-Guthaben abgezogen. Verbinde deinen eigenen Gemini-Schlüssel, wenn Google dieses Modell stattdessen direkt abrechnen soll."
   },
   "OU5qhClfKo": {
     "defaultMessage": "Mehrsprachigen Blog veröffentlichen"
@@ -20321,6 +20360,9 @@
   "RhmMBU70/7": {
     "defaultMessage": "E-Mail zur Einführungskampagne"
   },
+  "RhmlCVOrxz": {
+    "defaultMessage": "Weitere Aktionen"
+  },
   "Rhnh/znHl6": {
     "defaultMessage": "Entscheide, wo {domain} nach der Überprüfung angehängt werden soll."
   },
@@ -22360,6 +22402,9 @@
   },
   "UdxBZORXpe": {
     "defaultMessage": "Alle"
+  },
+  "UeADOH2IXX": {
+    "defaultMessage": "Iris"
   },
   "UeIGZOrfgq": {
     "defaultMessage": "Diese Sanity-Autorisierungsanfrage fehlt oder ist abgelaufen. Beginne erneut bei Sanity."
@@ -26909,6 +26954,9 @@
   "bAOcwldO3V": {
     "defaultMessage": "Hyperlocalise"
   },
+  "bAcsTcwDMg": {
+    "defaultMessage": "Abbrechen"
+  },
   "bAkdHjBiWF": {
     "defaultMessage": "Technische Details"
   },
@@ -28580,6 +28628,9 @@
   "dZcHfTdmF2": {
     "defaultMessage": "Nummerierte Liste"
   },
+  "dZiSVEw/Vx": {
+    "defaultMessage": "Kein Iris-Thread."
+  },
   "dZjmTiak7a": {
     "defaultMessage": "Teamglossare durchsuchen ..."
   },
@@ -29998,6 +30049,9 @@
   },
   "fVOROtw+GW": {
     "defaultMessage": "Probleme"
+  },
+  "fVhXAnrH/m": {
+    "defaultMessage": "Gemini 4 Carbon"
   },
   "fVkQmhbtrN": {
     "defaultMessage": "Minuten"
@@ -31925,6 +31979,9 @@
   "iDUmWNeRZ7": {
     "defaultMessage": "Konzepte suchen"
   },
+  "iDirbS65Em": {
+    "defaultMessage": "Wörterbuch löschen"
+  },
   "iE2A3xoRIH": {
     "defaultMessage": "Fertig"
   },
@@ -33188,6 +33245,9 @@
   "k3TrZpmKkB": {
     "defaultMessage": "In diesem Arbeitsbereich erstellte und nachverfolgte Jobs."
   },
+  "k3doPysMk7": {
+    "defaultMessage": "Iris-Audio- und Medientools"
+  },
   "k3eu1T7STw": {
     "defaultMessage": "Neue Prüfung starten"
   },
@@ -33617,6 +33677,9 @@
   "ke25Z8UYMw": {
     "defaultMessage": "Mitglieder"
   },
+  "keB6ISfBZ6": {
+    "defaultMessage": "Dadurch werden {dictionaryName} und alle akzeptierten Wörter dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
+  },
   "keLfuoYZXy": {
     "defaultMessage": "Verfolge jedes Gebietsschema live."
   },
@@ -33859,6 +33922,9 @@
   },
   "kzMTx+wIMg": {
     "defaultMessage": "Bereitgestellt von der Google Domain Rank Overview API von DataForSEO Labs."
+  },
+  "kzRKNukaB3": {
+    "defaultMessage": "Iris-Bilder"
   },
   "kzjEnGFmtM": {
     "defaultMessage": "{skipped, plural, one {# nicht zugeordnete oder leere Zeile übersprungen.} other {# nicht zugeordnete oder leere Zeilen übersprungen.}}"
@@ -36899,6 +36965,9 @@
   "pMxqNDgaiR": {
     "defaultMessage": "Quelldatei"
   },
+  "pN22I6+aJc": {
+    "defaultMessage": "Gemini 4 Hydrogen"
+  },
   "pNA+bX2Ulk": {
     "defaultMessage": "Content Editor / Überprüfungswarteschlange"
   },
@@ -39590,6 +39659,9 @@
   "t7yeS7VAje": {
     "defaultMessage": "Ahrefs connection saved."
   },
+  "t8nxKUE6u+": {
+    "defaultMessage": "Nutzen Sie Pro für anspruchsvollere Entwürfe. In kostenpflichtigen Tarifen enthalten; die Nutzung wird auf Ihr monatliches KI-Guthaben angerechnet. Verbinden Sie Ihren eigenen Gemini-Schlüssel, wenn Google Ihnen dieses Modell stattdessen in Rechnung stellen soll."
+  },
   "t8uH650RAY": {
     "defaultMessage": "Crowdin-Projekt-ID"
   },
@@ -41009,6 +41081,9 @@
   "vF01WtRXQ8": {
     "defaultMessage": "Ein Video hochskalieren"
   },
+  "vFIbVLco1O": {
+    "defaultMessage": "Iris-Agent"
+  },
   "vFJiS8I8Kx": {
     "defaultMessage": "Für Lokalisierungsoperationen in großem Maßstab entwickelt"
   },
@@ -41783,6 +41858,9 @@
   "wHFmp4/+wj": {
     "defaultMessage": "Quelldatei"
   },
+  "wHdnjWrvAW": {
+    "defaultMessage": "Iris-Videos"
+  },
   "wI7t6e90fP": {
     "defaultMessage": "Projekt"
   },
@@ -41880,7 +41958,7 @@
     "defaultMessage": "Nach Land, Sprache oder beidem – mit Regeln, die dein Team lesen kann. Du kannst mit einem Markt starten und weitere hinzufügen, sobald Ergebnisse vorliegen."
   },
   "wRNSisg87G": {
-    "defaultMessage": "{title}: {values}"
+    "defaultMessage": "{title} : {values}"
   },
   "wRbiydtdN8": {
     "defaultMessage": "Übersetzungsmemory erstellt"

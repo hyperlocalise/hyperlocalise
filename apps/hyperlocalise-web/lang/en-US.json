@@ -3935,10 +3935,6 @@
     "defaultMessage": "Market features",
     "description": "market-experimentation use case page: capabilities › items › #1 › title"
   },
-  "3BtQulEZ6Y": {
-    "defaultMessage": "Connect a Gemini key and use Flash to move through a long list of strings. Google bills this usage. It does not draw down your monthly AI credit.",
-    "description": "Story for Gemini Flash on the pricing page"
-  },
   "3CTikplBoF": {
     "defaultMessage": "Select a run to inspect node-level status.",
     "description": "Prompt when no run is selected in the executions tab"
@@ -6207,6 +6203,10 @@
     "defaultMessage": "Restored from an earlier version",
     "description": "Note on a version that put back an earlier version"
   },
+  "6DGt+KEg8z": {
+    "defaultMessage": "Use Haiku for shorter turns. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Anthropic key if you want Anthropic to bill this model instead.",
+    "description": "Story for Claude Haiku on the pricing page"
+  },
   "6Dbk+444Cr": {
     "defaultMessage": "Programme reporting",
     "description": "localisation-operations use case page: capabilities › items › #6 › title"
@@ -6410,6 +6410,10 @@
   "6Tx/kR6Gl+": {
     "defaultMessage": "Track scores by locale, vendor, and content type over time.",
     "description": "localisation-quality-monitoring use case page: capabilities › items › #6 › body"
+  },
+  "6TxlE4k/RL": {
+    "defaultMessage": "Use Sonnet for longer drafts and review notes. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Anthropic key if you want Anthropic to bill this model instead.",
+    "description": "Story for Claude Sonnet on the pricing page"
   },
   "6V7dDBU2jk": {
     "defaultMessage": "Concept saved",
@@ -13659,10 +13663,6 @@
     "defaultMessage": "Update workspace settings",
     "description": "Permission row for updating workspace settings"
   },
-  "G715x+6MXV": {
-    "defaultMessage": "Connect an Anthropic key and use Haiku for shorter turns. Anthropic bills this usage. It does not draw down your monthly AI credit.",
-    "description": "Story for Claude Haiku on the pricing page"
-  },
   "G73Dfp2P/t": {
     "defaultMessage": "Copy run ID",
     "description": "QA copy run ID action"
@@ -15331,6 +15331,10 @@
     "defaultMessage": "No MCP servers connected yet.",
     "description": "Empty state when no MCP server connections exist"
   },
+  "IWTpyHvJes": {
+    "defaultMessage": "Use Opus when the wording needs extra attention. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Anthropic key if you want Anthropic to bill this model instead.",
+    "description": "Story for Claude Opus on the pricing page"
+  },
   "IZNNOIJHQD": {
     "defaultMessage": "Search tasks",
     "description": "Placeholder of the task search box"
@@ -16066,10 +16070,6 @@
   "JTOY/bF8Zd": {
     "defaultMessage": "Of this task's strings sent for review",
     "description": "Detail under the approved card"
-  },
-  "JTdejUyr0G": {
-    "defaultMessage": "Connect an Anthropic key and use Opus when the wording needs extra attention. Anthropic bills this usage. It does not draw down your monthly AI credit.",
-    "description": "Story for Claude Opus on the pricing page"
   },
   "JU7dBsiFsd": {
     "defaultMessage": "Save",
@@ -19682,6 +19682,10 @@
   "OT92Awvsrm": {
     "defaultMessage": "Merge strings: translate duplicates once",
     "description": "Title of the product update announcement for the Merge strings feature"
+  },
+  "OTXAzDlTy5": {
+    "defaultMessage": "Use Flash to move through a long list of strings. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Gemini key if you want Google to bill this model instead.",
+    "description": "Story for Gemini Flash on the pricing page"
   },
   "OU5qhClfKo": {
     "defaultMessage": "Publish Multilingual Blog",
@@ -33811,10 +33815,6 @@
     "defaultMessage": "Fix the QA errors before saving: {checks}",
     "description": "Error shown when a translator declines to save past failing QA Error checks, or a bulk save hits them"
   },
-  "hRiPxjtqBZ": {
-    "defaultMessage": "Connect a Gemini key and use Pro for harder drafts. Google bills this usage. It does not draw down your monthly AI credit.",
-    "description": "Story for Gemini Pro on the pricing page"
-  },
   "hSHhxI/mnH": {
     "defaultMessage": "Try it now",
     "description": "Opens the feature described in the product update announcement card"
@@ -42579,6 +42579,10 @@
     "defaultMessage": "Failed to load members",
     "description": "Fallback error when organization members fail to load"
   },
+  "t8nxKUE6u+": {
+    "defaultMessage": "Use Pro for harder drafts. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Gemini key if you want Google to bill this model instead.",
+    "description": "Story for Gemini Pro on the pricing page"
+  },
   "t8uH650RAY": {
     "defaultMessage": "Crowdin project ID",
     "description": "Numeric Crowdin project setting on the Crowdin steps"
@@ -42594,10 +42598,6 @@
   "t9u0C/3PvD": {
     "defaultMessage": "Book a demo. We'll confirm eligibility and show you startup pricing at 80% off Growth.",
     "description": "Final CTA supporting copy on the startups page"
-  },
-  "t9wxr1NNC0": {
-    "defaultMessage": "Connect an Anthropic key and use Sonnet for longer drafts and review notes. Anthropic bills this usage. It does not draw down your monthly AI credit.",
-    "description": "Story for Claude Sonnet on the pricing page"
   },
   "tAIkYXyE7a": {
     "defaultMessage": "A lab connected to the bigger picture.",
