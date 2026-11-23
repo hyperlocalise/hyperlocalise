@@ -660,6 +660,7 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | POST | `/files/detail/cat/comments` | Add a comment |
 | PATCH | `/files/detail/cat/comments/{id}/resolve` | Resolve a legacy native issue comment |
 | POST | `/files/detail/cat/concordance` | Native glossary + TM lookup |
+| POST | `/files/detail/cat/recommendation` | AI translation suggestion + reasoning for one string |
 | POST | `/files/detail/cat/visual-context` | Native screenshots bound to a string |
 | POST | `/files/detail/cat/visual-context/screenshots` | Presign a screenshot upload, optionally bind a string |
 | POST | `/files/detail/cat/visual-context/screenshots/{id}/finalize` | Persist an uploaded screenshot as stored visual context; optional `match` queues OCR binding |
@@ -684,7 +685,6 @@ These return `501` with a stable error code. Browser clients keep calling Hono.
 |--------|------|-------|----------------------|
 | POST | `/files/detail/cat/images/regenerate` | `image_regenerate_deferred` | Vercel Workflow + Blob-backed stored files |
 | POST | `/files/detail/cat/images/upload` | `image_upload_deferred` | Vercel Blob file adapter |
-| POST | `/files/detail/cat/recommendation` | `ai_recommendation_deferred` | Vercel AI Gateway / AI SDK |
 | POST | `/files/detail/cat/visual-context` on TMS projects | `visual_context_deferred` | Live TMS screenshot adapters |
 | POST | `/files/string-context` without `cachedOnly` | `string_context_deferred` | Vercel Workflow repository agent |
 | * | Provider/TMS CAT (`projects.source != native`) | `provider_cat_deferred` | TypeScript TMS provider adapters |

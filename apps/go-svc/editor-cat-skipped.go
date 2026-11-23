@@ -15,13 +15,6 @@ func projectFileStringSourceTextHash(text string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (api *editorCatAPI) skipRecommendation(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
-	return nil, 0, editorCatVercelDeferred(
-		"ai_recommendation_deferred",
-		"AI recommendation stays on the Hono route; it uses the Vercel AI Gateway / AI SDK",
-	)
-}
-
 func (api *editorCatAPI) skipImageRegenerate(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
 	return nil, 0, editorCatVercelDeferred(
 		"image_regenerate_deferred",

@@ -32,6 +32,9 @@ type editorCatAPI struct {
 	pool       dictionaryPool
 	membership func(context.Context, string) (*workos.UserOrganizationMembership, error)
 	objects    *objectstore.Registry
+	// ai serves the text model, AI feature gating, and usage metering for the
+	// native recommendation route. Nil in tests that do not touch it.
+	ai *irisGenerationAPI
 	// matchPublisher is nil when automatic visual-context matching is not configured.
 	matchPublisher visualContextMatchPublisher
 }
@@ -185,7 +188,7 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route("POST "+cat+"/visual-context/screenshots/{screenshotId}/bindings", api.bindVisualContextScreenshot)
 	route("DELETE "+cat+"/visual-context/screenshots/{screenshotId}/bindings/{bindingId}", api.unbindVisualContextScreenshot)
 	route("DELETE "+cat+"/visual-context/screenshots/{screenshotId}", api.deleteVisualContextScreenshot)
-	route("POST "+cat+"/recommendation", api.skipRecommendation)
+	route("POST "+cat+"/recommendation", api.recommendTranslation)
 	route("POST "+cat+"/strings/hidden", api.setHidden)
 	route("POST "+cat+"/strings/locked", api.setLocked)
 	route("POST "+cat+"/segments/{externalStringId}/max-length", api.setMaxLength)

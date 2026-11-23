@@ -241,6 +241,7 @@ func main() {
 	h.glossaries.objects = h.objects
 	h.memories.objects = h.objects
 	h.contentEditor.objects = h.objects
+	h.contentEditor.ai = h.irisGeneration
 	h.sampleWorkspace.objects = h.objects
 	if h.irisGeneration != nil {
 		h.irisGeneration.objects = h.objects
