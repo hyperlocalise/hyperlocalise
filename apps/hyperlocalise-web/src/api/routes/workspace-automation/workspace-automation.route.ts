@@ -16,7 +16,9 @@ import { validator } from "hono/validator";
 
 import { isWorkspaceOperatorRole } from "@/api/auth/roles";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { createAutumnBooleanFeatureMiddleware } from "@/api/middleware/autumn-boolean-feature";
 import { createRequestBodyLimitMiddleware } from "@/api/middleware/request-body-limit";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import {
   badRequestResponse,
   conflictResponse,
@@ -493,6 +495,11 @@ export function createWorkspaceAutomationRoutes(
     fileStorageAdapter?: FileStorageAdapter;
   } = {},
 ) {
+  const requireAutomations = createAutumnBooleanFeatureMiddleware(
+    autumnFeatureIds.automations,
+    "Automations are not included in your current plan.",
+  );
+
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .use("*", async (c, next) => {
@@ -501,6 +508,7 @@ export function createWorkspaceAutomationRoutes(
       }
       return next();
     })
+    .use("*", requireAutomations)
     .get("/github-auto-review", async (c) => {
       const autoReview = await getGithubAutoReviewSettings(
         c.var.auth.organization.localOrganizationId,

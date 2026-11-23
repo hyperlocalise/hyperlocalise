@@ -85,4 +85,21 @@ describe("isAutumnBooleanFeatureEnabled", () => {
       featureId: autumnFeatureIds.automationWorkflow,
     });
   });
+
+  it("gates Automations on the Autumn automations plan feature", async () => {
+    checkMock.mockResolvedValue({ allowed: true });
+
+    await expect(
+      isAutumnBooleanFeatureEnabled({
+        organizationId: "org_1",
+        featureId: autumnFeatureIds.automations,
+        autumnApiKey: "am_sk_test",
+      }),
+    ).resolves.toBe(true);
+
+    expect(checkMock).toHaveBeenCalledWith({
+      customerId: "org_1",
+      featureId: autumnFeatureIds.automations,
+    });
+  });
 });
