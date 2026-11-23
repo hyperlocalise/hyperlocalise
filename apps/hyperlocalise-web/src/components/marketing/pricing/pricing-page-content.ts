@@ -1064,8 +1064,8 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
       }),
       story: intl.formatMessage({
         defaultMessage:
-          "Connect an Anthropic key and use Sonnet for longer drafts and review notes. Anthropic bills this usage. It does not draw down your monthly AI credit.",
-        id: "t9wxr1NNC0",
+          "Use Sonnet for longer drafts and review notes. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Anthropic key if you want Anthropic to bill this model instead.",
+        id: "6TxlE4k/RL",
         description: "Story for Claude Sonnet on the pricing page",
       }),
       useWhen: intl.formatMessage({
@@ -1082,8 +1082,8 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
       }),
       story: intl.formatMessage({
         defaultMessage:
-          "Connect an Anthropic key and use Opus when the wording needs extra attention. Anthropic bills this usage. It does not draw down your monthly AI credit.",
-        id: "JTdejUyr0G",
+          "Use Opus when the wording needs extra attention. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Anthropic key if you want Anthropic to bill this model instead.",
+        id: "IWTpyHvJes",
         description: "Story for Claude Opus on the pricing page",
       }),
       useWhen: intl.formatMessage({
@@ -1100,8 +1100,8 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
       }),
       story: intl.formatMessage({
         defaultMessage:
-          "Connect an Anthropic key and use Haiku for shorter turns. Anthropic bills this usage. It does not draw down your monthly AI credit.",
-        id: "G715x+6MXV",
+          "Use Haiku for shorter turns. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Anthropic key if you want Anthropic to bill this model instead.",
+        id: "6DGt+KEg8z",
         description: "Story for Claude Haiku on the pricing page",
       }),
       useWhen: intl.formatMessage({
@@ -1118,8 +1118,8 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
       }),
       story: intl.formatMessage({
         defaultMessage:
-          "Connect a Gemini key and use Flash to move through a long list of strings. Google bills this usage. It does not draw down your monthly AI credit.",
-        id: "3BtQulEZ6Y",
+          "Use Flash to move through a long list of strings. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Gemini key if you want Google to bill this model instead.",
+        id: "OTXAzDlTy5",
         description: "Story for Gemini Flash on the pricing page",
       }),
       useWhen: intl.formatMessage({
@@ -1136,8 +1136,8 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
       }),
       story: intl.formatMessage({
         defaultMessage:
-          "Connect a Gemini key and use Pro for harder drafts. Google bills this usage. It does not draw down your monthly AI credit.",
-        id: "hRiPxjtqBZ",
+          "Use Pro for harder drafts. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Gemini key if you want Google to bill this model instead.",
+        id: "t8nxKUE6u+",
         description: "Story for Gemini Pro on the pricing page",
       }),
       useWhen: intl.formatMessage({

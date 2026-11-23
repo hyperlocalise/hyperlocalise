@@ -160,6 +160,14 @@ describe("workspace automation view model", () => {
   });
 
   it("resolves Google Gemini gateway models with Vercel AI Gateway ids", () => {
+    expect(resolveWorkspaceAutomationModel("google/gemini-4-neon")).toBe("google/gemini-4-neon");
+    expect(resolveWorkspaceAutomationModel("google/gemini-4-carbon")).toBe(
+      "google/gemini-4-carbon",
+    );
+    expect(resolveWorkspaceAutomationModel("google/gemini-4-argon")).toBe("google/gemini-4-argon");
+    expect(resolveWorkspaceAutomationModel("google/gemini-4-hydrogen")).toBe(
+      "google/gemini-4-hydrogen",
+    );
     expect(resolveWorkspaceAutomationModel("google/gemini-3.8-flash")).toBe(
       "google/gemini-3.8-flash",
     );

@@ -15,7 +15,11 @@ import { describe, expect, it } from "vite-plus/test";
 import { buildPricingFaqJsonLd, getPricingFaqItems } from "./pricing-faq-content";
 import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import { llmProviderContentEditoralog } from "@/lib/providers/shared/catalog";
-import { curatedOpenAiNativeModels } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
+import {
+  curatedAnthropicGatewayWriterModelIds,
+  curatedGeminiGatewayWriterModelIds,
+} from "@/lib/providers/shared/vercel-ai-gateway-managed-writer-models";
+import { pricingManagedAgentGatewayModelIds } from "./pricing-supported-models";
 
 import { PRICING_IRIS_MODELS } from "./pricing-iris-models";
 import {
@@ -128,13 +132,11 @@ describe("pricing page content", () => {
     expect(catalog[0]?.highlight).toBe("Workspace default");
     expect(catalog[0]?.story).toContain("monthly AI credit");
 
-    const includedOpenAi = catalog
-      .filter((model) => model.providerId === "openai" && model.job === "write")
+    const includedWriters = catalog
+      .filter((model) => model.access === "included" && model.job === "write")
       .map((model) => model.modelId);
-    expect(new Set(includedOpenAi)).toEqual(
-      new Set(curatedOpenAiNativeModels.map((slug) => `openai/${slug}`)),
-    );
-    expect(includedOpenAi).toContain(`openai/${hyperlocaliseAgentModelId}`);
+    expect(new Set(includedWriters)).toEqual(new Set(pricingManagedAgentGatewayModelIds));
+    expect(includedWriters).toContain(`openai/${hyperlocaliseAgentModelId}`);
 
     const irisModels = catalog.filter((model) => model.surface === "iris");
     expect(irisModels.map((model) => model.modelId)).toEqual(
@@ -159,9 +161,25 @@ describe("pricing page content", () => {
     expect(section.jobs.map((job) => job.id)).toContain("sound");
     expect(
       new Set(
-        catalog.filter((model) => model.providerId === "anthropic").map((model) => model.modelId),
+        catalog
+          .filter((model) => model.providerId === "anthropic" && model.access === "included")
+          .map((model) => model.modelId),
+      ),
+    ).toEqual(new Set(curatedAnthropicGatewayWriterModelIds));
+    expect(
+      new Set(
+        catalog
+          .filter((model) => model.providerId === "anthropic" && model.access === "byok")
+          .map((model) => model.modelId),
       ),
     ).toEqual(new Set(llmProviderContentEditoralog.anthropic.models));
+    expect(
+      new Set(
+        catalog
+          .filter((model) => model.providerId === "gemini" && model.access === "included")
+          .map((model) => model.modelId),
+      ),
+    ).toEqual(new Set(curatedGeminiGatewayWriterModelIds));
     expect(
       new Set(
         catalog
@@ -169,6 +187,9 @@ describe("pricing page content", () => {
           .map((model) => model.modelId),
       ),
     ).toEqual(new Set(llmProviderContentEditoralog.gemini.models));
+    expect(
+      catalog.find((model) => model.modelId === "anthropic/claude-sonnet-5")?.billingLabel,
+    ).toBe("Included");
     expect(catalog.find((model) => model.modelId === "claude-sonnet-5")?.billingLabel).toBe(
       "Your account",
     );

@@ -41,6 +41,10 @@ describe("llmProviderContentEditoralog", () => {
 
   it("uses Gemini native model IDs for BYOK validation", () => {
     expect(llmProviderContentEditoralog.gemini.models).toEqual([
+      "gemini-4-neon",
+      "gemini-4-carbon",
+      "gemini-4-argon",
+      "gemini-4-hydrogen",
       "gemini-3.8-flash",
       "gemini-3.7-flash",
       "gemini-3.6-flash",

@@ -2623,6 +2623,10 @@
     "defaultMessage": "Files",
     "description": "Label for the files selection list"
   },
+  "1TvpM4j9NP": {
+    "defaultMessage": "Gemini 4 Argon",
+    "description": "Label for the Google Gemini 4 Argon automation model"
+  },
   "1U++3URWS4": {
     "defaultMessage": "Repository folder",
     "description": "Label for the repository folder field in the project Sync panel"
@@ -16134,6 +16138,10 @@
   "JcGQchl/ia": {
     "defaultMessage": "Slack workspace",
     "description": "Fallback workspace name in Slack status when team name is missing"
+  },
+  "JdbyW4qn3s": {
+    "defaultMessage": "Gemini 4 Neon",
+    "description": "Label for the Google Gemini 4 Neon automation model"
   },
   "JdmZOy+P6b": {
     "defaultMessage": "Switching an AI model or vendor means rebuilding the workflow.",
@@ -32303,6 +32311,10 @@
     "defaultMessage": "Verify {domain}",
     "description": "Verification heading"
   },
+  "fVhXAnrH/m": {
+    "defaultMessage": "Gemini 4 Carbon",
+    "description": "Label for the Google Gemini 4 Carbon automation model"
+  },
   "fVpiXJn1r7": {
     "defaultMessage": "translate, post-edit or proofread.",
     "description": "Help text under the pick assignee job type input; the values are typed as shown"
@@ -39666,6 +39678,10 @@
   "pMxqNDgaiR": {
     "defaultMessage": "Source file",
     "description": "Glossary import source file label"
+  },
+  "pN22I6+aJc": {
+    "defaultMessage": "Gemini 4 Hydrogen",
+    "description": "Label for the Google Gemini 4 Hydrogen automation model"
   },
   "pNA+bX2Ulk": {
     "defaultMessage": "Content Editor / Review queue",

@@ -242,6 +242,10 @@ export const CreateModelOptions: Story = {
     await expect(body.getByRole("menuitem", { name: "Claude Sonnet 5" })).toBeInTheDocument();
     await expect(body.getByRole("menuitem", { name: "Claude Opus 5.5" })).toBeInTheDocument();
     await expect(body.getByRole("menuitem", { name: "Claude Opus 5" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Gemini 4 Neon" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Gemini 4 Carbon" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Gemini 4 Argon" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Gemini 4 Hydrogen" })).toBeInTheDocument();
     await expect(body.getByRole("menuitem", { name: "Gemini 3.8 Flash" })).toBeInTheDocument();
     await expect(body.getByRole("menuitem", { name: "Gemini 3.7 Flash" })).toBeInTheDocument();
     await expect(body.getByRole("menuitem", { name: "Gemini 3.6 Flash" })).toBeInTheDocument();
