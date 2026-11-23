@@ -12,6 +12,10 @@
  */
 import type { LlmProvider } from "@/lib/database/types";
 import { llmProviderContentEditoralog } from "@/lib/providers/shared/catalog";
+import {
+  curatedAnthropicGatewayWriterModelIds,
+  curatedGeminiGatewayWriterModelIds,
+} from "@/lib/providers/shared/vercel-ai-gateway-managed-writer-models";
 import { curatedOpenAiNativeModels } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
 
 /** BYOK providers surfaced on the marketing pricing page. */
@@ -24,9 +28,11 @@ export const pricingByokProviderIds = [
 export type PricingByokProviderId = (typeof pricingByokProviderIds)[number];
 
 /** Managed agent LLM ids on Vercel AI Gateway (draws down monthly AI credit). */
-export const pricingManagedAgentGatewayModelIds = curatedOpenAiNativeModels.map(
-  (slug) => `openai/${slug}`,
-);
+export const pricingManagedAgentGatewayModelIds = [
+  ...curatedOpenAiNativeModels.map((slug) => `openai/${slug}`),
+  ...curatedAnthropicGatewayWriterModelIds,
+  ...curatedGeminiGatewayWriterModelIds,
+] as const;
 
 export function getPricingByokProviderModelIds(provider: PricingByokProviderId): readonly string[] {
   return llmProviderContentEditoralog[provider].models;
