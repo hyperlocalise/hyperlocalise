@@ -673,6 +673,9 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | POST | `/files/detail/cat/strings/locked` | Lock or unlock segments |
 | POST | `/files/detail/cat/segments/{id}/max-length` | Set key max length |
 | PATCH | `/files/detail/cat/images/status` | Update image/video variant status |
+| POST | `/files/detail/cat/images/regenerate` | AI-regenerate a file-backed image variant or a URL-backed image translation (`image-localise`) |
+| POST | `/files/detail/cat/images/upload` | Replace a localized image variant with uploaded bytes (multipart, up to 32 MB) |
+| POST | `/files/detail/cat/images/edit` | Targeted AI image edit on a file-backed variant (`image-edit`, multipart) |
 | POST | `/files/detail/cat/segments/{id}/treat-as-image` | Toggle image-URL content kind |
 | POST | `/files/detail/cat/segments/{id}/treat-as-video` | Toggle video-URL content kind |
 | POST | `/files/string-context` | Cached repository context only (`cachedOnly: true`) |
@@ -683,8 +686,6 @@ These return `501` with a stable error code. Browser clients keep calling Hono.
 
 | Method | Path | Error | Why it stays on Hono |
 |--------|------|-------|----------------------|
-| POST | `/files/detail/cat/images/regenerate` | `image_regenerate_deferred` | Vercel Workflow + Blob-backed stored files |
-| POST | `/files/detail/cat/images/upload` | `image_upload_deferred` | Vercel Blob file adapter |
 | POST | `/files/detail/cat/visual-context` on TMS projects | `visual_context_deferred` | Live TMS screenshot adapters |
 | POST | `/files/string-context` without `cachedOnly` | `string_context_deferred` | Vercel Workflow repository agent |
 | * | Provider/TMS CAT (`projects.source != native`) | `provider_cat_deferred` | TypeScript TMS provider adapters |
