@@ -20,12 +20,14 @@ const {
   enqueueAutomationCreatedActivityMock,
   enqueueAutomationDeletedActivityMock,
   enqueueAutomationStatusActivityMock,
+  isAutumnBooleanFeatureEnabledMock,
   resolveApiAuthContextFromSessionMock,
   workspaceAutomationExecutionEnqueueMock,
 } = vi.hoisted(() => ({
   enqueueAutomationCreatedActivityMock: vi.fn(),
   enqueueAutomationDeletedActivityMock: vi.fn(),
   enqueueAutomationStatusActivityMock: vi.fn(),
+  isAutumnBooleanFeatureEnabledMock: vi.fn(async () => true),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -40,6 +42,10 @@ vi.mock("@/lib/activity-log/job-automation-events", () => ({
   enqueueAutomationDeletedActivity: enqueueAutomationDeletedActivityMock,
   enqueueAutomationRunStartedActivity: vi.fn(),
   enqueueAutomationStatusActivity: enqueueAutomationStatusActivityMock,
+}));
+
+vi.mock("@/lib/billing/autumn-boolean-feature-access", () => ({
+  isAutumnBooleanFeatureEnabled: isAutumnBooleanFeatureEnabledMock,
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -77,6 +83,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
+  isAutumnBooleanFeatureEnabledMock.mockResolvedValue(true);
   await fixture.cleanup();
 });
 
@@ -146,6 +153,21 @@ async function seedGithubRepository(input: { organizationId: string }) {
 }
 
 describe("workspace automation routes", () => {
+  it("returns forbidden when the Automations plan feature is disabled", async () => {
+    isAutumnBooleanFeatureEnabledMock.mockResolvedValue(false);
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"].automations.$get(
+      { param: { organizationSlug }, query: { status: "active", limit: "50", offset: "0" } },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: "feature_unavailable" });
+  });
+
   it("records automation disable and enable transitions with the user actor", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

@@ -146,6 +146,7 @@ func main() {
 		} else {
 			h.autumn = client
 			h.issueSheets.autumn = autumnClientChecker{client: client}
+			h.overview.autumn = autumnClientChecker{client: client}
 			h.members.seats = autumnMemberSeats{client: client}
 			h.projects.autumn = client
 			h.billing.autumn = client
@@ -328,7 +329,6 @@ func main() {
 	h.conversations.membership = membershipLookup
 	h.automations.membership = membershipLookup
 	h.overview.membership = membershipLookup
-	h.overview.flags = h.workspace.flags
 	h.reports.membership = membershipLookup
 	h.publicTranslations.auth.membership = membershipLookup
 	h.workspace.membership = membershipLookup

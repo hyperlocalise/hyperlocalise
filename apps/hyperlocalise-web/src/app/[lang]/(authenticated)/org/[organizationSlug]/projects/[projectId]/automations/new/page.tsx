@@ -17,10 +17,10 @@ import {
   createWorkspaceAutomationFormStateFromTemplate,
 } from "@/lib/agents/workspace-automation-view-model";
 import { getMergedWorkspaceAutomationTemplates } from "@/lib/agents/workspace-automation-templates.server";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import {
   evaluateWorkspaceFeatureFlags,
-  getWorkspaceFeatureFlagEnabled,
-  workspaceAutomationsFlag,
+  getAutumnWorkspaceBooleanFeatureEnabled,
 } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
@@ -51,7 +51,10 @@ async function ProjectNewAutomationPageLoader({
   const { organizationSlug, projectId } = await params;
   const { template } = await searchParams;
   const auth = await requireAppAuthContext({ organizationSlug });
-  const automationsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceAutomationsFlag, auth);
+  const automationsEnabled = await getAutumnWorkspaceBooleanFeatureEnabled(
+    autumnFeatureIds.automations,
+    auth,
+  );
 
   if (!automationsEnabled) {
     return <FeatureTeaserPage feature="automations" scope="project" />;
