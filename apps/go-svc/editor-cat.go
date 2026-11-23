@@ -160,6 +160,9 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route := func(pattern string, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) {
 		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
 	}
+	routeMultipart := func(pattern string, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, api.handleWithBodyLimit(editorCatImageBodyLimit, fn))
+	}
 	route("GET "+cat+"/queue", api.getQueue)
 	route("POST "+cat+"/targets", api.getSegmentTargets)
 	route("GET "+cat+"/activity-logs", api.listActivityLogs)
@@ -195,8 +198,9 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route("POST "+cat+"/strings/tags", api.setTags)
 	route("POST "+cat+"/segments/{externalStringId}/design-url", api.setDesignURL)
 	route("POST "+cat+"/segments/{externalStringId}/source-text", api.setSourceText)
-	route("POST "+cat+"/images/regenerate", api.skipImageRegenerate)
-	route("POST "+cat+"/images/upload", api.skipImageUpload)
+	route("POST "+cat+"/images/regenerate", api.regenerateImage)
+	routeMultipart("POST "+cat+"/images/upload", api.uploadImage)
+	routeMultipart("POST "+cat+"/images/edit", api.editImage)
 	route("PATCH "+cat+"/images/status", api.updateImageStatus)
 	route("POST "+cat+"/segments/{externalStringId}/treat-as-image", api.treatAsImage)
 	route("POST "+cat+"/segments/{externalStringId}/treat-as-video", api.treatAsVideo)
@@ -246,7 +250,7 @@ func requireNativeEditorCat(project editorCatProject) error {
 	return nil
 }
 
-func (api *editorCatAPI) handle(fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) http.Handler {
+func (api *editorCatAPI) handleWithBodyLimit(limit int64, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if denyBrowserMutation(r) {
@@ -281,7 +285,7 @@ func (api *editorCatAPI) handle(fn func(*http.Request, editorCatActor, editorCat
 			return
 		}
 		noteRequest(r, "project_source", project.Source)
-		r.Body = http.MaxBytesReader(w, r.Body, editorCatBodyLimit)
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		value, status, err := fn(r, actor, project)
 		if err != nil {
 			writeEditorCatError(w, r, "handle", err)
@@ -289,6 +293,10 @@ func (api *editorCatAPI) handle(fn func(*http.Request, editorCatActor, editorCat
 		}
 		editorJSON(ctx, w, status, value)
 	})
+}
+
+func (api *editorCatAPI) handle(fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) http.Handler {
+	return api.handleWithBodyLimit(editorCatBodyLimit, fn)
 }
 
 func readEditorCatJSON(r *http.Request, dest any) error {

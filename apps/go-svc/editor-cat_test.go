@@ -122,23 +122,6 @@ func mustEditorCatComment(t *testing.T, scope *testenv.Scope, keyID, locale, com
 	return id
 }
 
-func TestEditorCatSkipsVercelRoutes(t *testing.T) {
-	routes := []struct {
-		method, suffix, code string
-	}{
-		{http.MethodPost, "/files/detail/cat/images/regenerate", "image_regenerate_deferred"},
-		{http.MethodPost, "/files/detail/cat/images/upload", "image_upload_deferred"},
-	}
-	for _, route := range routes {
-		t.Run(route.code, func(t *testing.T) {
-			api, scope := editorCatTestAPI(t, "admin")
-			rec := editorCatRequestScope(api, scope, route.method, editorCatPathFor(scope, route.suffix), `{"sourcePath":"a.json","targetLocale":"fr","sourceText":"Hello","key":"k"}`)
-			require.Equal(t, http.StatusNotImplemented, rec.Code)
-			require.Contains(t, rec.Body.String(), route.code)
-		})
-	}
-}
-
 func TestEditorCatProviderProjectDeferred(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "admin")
 	_, err := scope.Pool.Exec(t.Context(), `update projects set source='external_tms' where id=$1`, scope.ProjectID)
