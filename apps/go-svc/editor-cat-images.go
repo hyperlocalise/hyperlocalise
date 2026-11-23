@@ -284,6 +284,9 @@ func editorCatFormTruthy(raw string) bool {
 }
 
 func editorCatFormStrings(values []string) []string {
+	if len(values) > editorCatMaxImageEditNotes {
+		values = values[:editorCatMaxImageEditNotes]
+	}
 	out := make([]string, 0, len(values))
 	for _, value := range values {
 		if trimmed := strings.TrimSpace(value); trimmed != "" {
@@ -294,11 +297,14 @@ func editorCatFormStrings(values []string) []string {
 }
 
 func editorCatFormInts(values []string) []int {
+	if len(values) > editorCatMaxImageEditNotes {
+		values = values[:editorCatMaxImageEditNotes]
+	}
 	out := make([]int, 0, len(values))
 	for _, value := range values {
 		var parsed int
-		if _, err := fmt.Sscanf(strings.TrimSpace(value), "%d", &parsed); err == nil && parsed >= 0 {
-			out = append(out, parsed)
+		if _, err := fmt.Sscanf(strings.TrimSpace(value), "%d", &parsed); err == nil {
+			out = append(out, editorCatClampInt(parsed, 0, editorCatMaxImageEditReferences))
 		}
 	}
 	return out

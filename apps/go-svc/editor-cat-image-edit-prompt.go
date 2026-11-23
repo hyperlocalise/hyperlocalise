@@ -31,6 +31,23 @@ func editorCatImageEditReferenceCount(request editorCatImageEditRequest) int {
 	return sum
 }
 
+func editorCatClampInt(value, min, max int) int {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
+
+func editorCatImageEditNoteReferenceCountAt(request editorCatImageEditRequest, index int) int {
+	if index >= len(request.NoteReferences) {
+		return 0
+	}
+	return editorCatClampInt(request.NoteReferences[index], 0, editorCatMaxImageEditReferences)
+}
+
 func editorCatImageEditUsesMask(kind string) bool {
 	return kind == editorCatImageEditKindErase
 }
@@ -47,12 +64,9 @@ func editorCatImageEditCommentNotes(request editorCatImageEditRequest) []struct 
 		images []int
 	}
 	for index, note := range request.Notes {
-		count := 0
-		if index < len(request.NoteReferences) {
-			count = request.NoteReferences[index]
-		}
+		count := editorCatImageEditNoteReferenceCountAt(request, index)
 		images := make([]int, 0, count)
-		for range count {
+		for i := 0; i < count; i++ {
 			images = append(images, next)
 			next++
 		}
@@ -132,13 +146,10 @@ func validateEditorCatImageEditRequest(request editorCatImageEditRequest) error 
 	default:
 		return editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
-	if request.Kind == editorCatImageEditKindMarkup && strings.TrimSpace(request.Instruction) == "" {
-		return editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
-	}
-	if request.Kind == editorCatImageEditKindComment && len(editorCatImageEditCommentNotes(request)) == 0 {
-		return editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
-	}
 	if len([]rune(request.Instruction)) > editorCatMaxImageEditInstruction {
+		return editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
+	}
+	if len(request.Notes) > editorCatMaxImageEditNotes {
 		return editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
 	for _, note := range request.Notes {
@@ -146,8 +157,13 @@ func validateEditorCatImageEditRequest(request editorCatImageEditRequest) error 
 			return editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 		}
 	}
-	if len(request.Notes) > editorCatMaxImageEditNotes {
+	if len(request.NoteReferences) > len(request.Notes) {
 		return editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
+	}
+	for _, count := range request.NoteReferences {
+		if count < 0 || count > editorCatMaxImageEditReferences {
+			return editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
+		}
 	}
 	if editorCatImageEditReferenceCount(request) > editorCatMaxImageEditReferences {
 		return editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
@@ -155,7 +171,10 @@ func validateEditorCatImageEditRequest(request editorCatImageEditRequest) error 
 	if editorCatImageEditReferenceCount(request) > 0 && request.Kind != editorCatImageEditKindComment {
 		return editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
-	if len(request.NoteReferences) > len(request.Notes) {
+	if request.Kind == editorCatImageEditKindMarkup && strings.TrimSpace(request.Instruction) == "" {
+		return editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
+	}
+	if request.Kind == editorCatImageEditKindComment && len(editorCatImageEditCommentNotes(request)) == 0 {
 		return editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
 	return nil
