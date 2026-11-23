@@ -1226,6 +1226,143 @@ describe("project file import settings", () => {
   });
 });
 
+describe("project file segmentation branches", () => {
+  it("writes segmentation onto the named version branch and leaves main alone", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const userId = globalThis.__testApiAuthContext!.user.localUserId;
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: userId,
+    });
+    const created = await projectBranchService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: userId,
+      name: "feature-checkout",
+    });
+    expect(created.ok).toBe(true);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const segmentationApi =
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files.segmentation;
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+    const cloneSettings = {
+      enabled: true,
+      template: "markdown" as const,
+      customSrxXml: null,
+    };
+
+    const cloneResponse = await segmentationApi.$patch(
+      {
+        param,
+        json: {
+          sourcePath: "locales/en.json",
+          branch: "feature-checkout",
+          segmentation: cloneSettings,
+        },
+      },
+      { headers },
+    );
+    expect(cloneResponse.status).toBe(200);
+
+    const rows = await db
+      .select({
+        branchName: schema.repositorySourceFiles.branchName,
+        segmentationSettings: schema.repositorySourceFiles.segmentationSettings,
+      })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    const byBranch = Object.fromEntries(
+      rows.map((row) => [row.branchName, row.segmentationSettings]),
+    );
+    expect(byBranch["feature-checkout"]).toMatchObject({ enabled: true, template: "markdown" });
+    expect(byBranch.main?.enabled ?? false).toBe(false);
+
+    const mainResponse = await segmentationApi.$patch(
+      {
+        param,
+        json: {
+          sourcePath: "locales/en.json",
+          segmentation: { enabled: true, template: "html", customSrxXml: null },
+        },
+      },
+      { headers },
+    );
+    expect(mainResponse.status).toBe(200);
+
+    const afterMain = await db
+      .select({
+        branchName: schema.repositorySourceFiles.branchName,
+        segmentationSettings: schema.repositorySourceFiles.segmentationSettings,
+      })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    const afterByBranch = Object.fromEntries(
+      afterMain.map((row) => [row.branchName, row.segmentationSettings]),
+    );
+    expect(afterByBranch.main).toMatchObject({ enabled: true, template: "html" });
+    expect(afterByBranch["feature-checkout"]).toMatchObject({
+      enabled: true,
+      template: "markdown",
+    });
+  });
+
+  it("rejects segmentation writes on a protected branch", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const userId = globalThis.__testApiAuthContext!.user.localUserId;
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: userId,
+    });
+    const protectedBranch = await projectBranchService.update({
+      projectId: project.id,
+      name: "main",
+      isProtected: true,
+    });
+    expect(protectedBranch.ok).toBe(true);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.segmentation.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath: "locales/en.json",
+          segmentation: { enabled: true, template: "html", customSrxXml: null },
+        },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "protected_branch" });
+  });
+});
+
 describe("project file message format branches", () => {
   it("does not copy a message format change onto a clone of the same path", async () => {
     const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
