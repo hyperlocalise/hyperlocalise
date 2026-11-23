@@ -22,7 +22,10 @@ import {
   createContentEditorWorkspaceState,
   mockValidateFormat,
 } from "@/components/content-editor/shared/content-editor.fixture";
-import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
+import {
+  renderWithContentEditorProviders,
+  typeIntoActiveContentEditorTarget,
+} from "@/components/content-editor/shared/content-editor-test-utils";
 
 import { ContentEditorWorkspaceContainer } from "./content-editor-workspace-container";
 import {
@@ -186,9 +189,8 @@ describe("ContentEditorWorkspaceContainer queue navigation", () => {
       />,
     );
 
-    const targetEditor = (await waitForTargetEditor()) as HTMLElement;
-    await user.click(targetEditor);
-    await user.keyboard(" unsaved");
+    await waitForTargetEditor();
+    typeIntoActiveContentEditorTarget(" unsaved");
 
     await user.click(getQueueSegmentButton("Reviews awaiting approval"));
 
@@ -207,9 +209,8 @@ describe("ContentEditorWorkspaceContainer queue navigation", () => {
       />,
     );
 
-    const targetEditor = (await waitForTargetEditor()) as HTMLElement;
-    await user.click(targetEditor);
-    await user.keyboard(" unsaved");
+    await waitForTargetEditor();
+    typeIntoActiveContentEditorTarget(" unsaved");
     await user.click(await screen.findByRole("button", { name: "Filter queue" }));
     await user.click(await screen.findByRole("menuitem", { name: "Approved" }));
 
@@ -253,9 +254,8 @@ describe("ContentEditorWorkspaceContainer side-by-side approve", () => {
       />,
     );
 
-    const targetEditor = (await waitForTargetEditor()) as HTMLElement;
-    await user.click(targetEditor);
-    await user.keyboard(" unsaved");
+    await waitForTargetEditor();
+    typeIntoActiveContentEditorTarget(" unsaved");
 
     const approveButton = await screen.findByRole("button", { name: /Approve/i });
     await waitFor(() => expect(approveButton).not.toBeDisabled());

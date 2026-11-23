@@ -15,6 +15,9 @@ import { render, type RenderOptions } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { IntlProvider } from "react-intl";
+import { expect } from "vite-plus/test";
+
+import { insertTextIntoActiveContentEditorTarget } from "@/components/content-editor/editor/content-editor-target-insert";
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -59,4 +62,8 @@ export function renderWithContentEditorProviders(
     ),
     ...renderOptions,
   });
+}
+
+export function typeIntoActiveContentEditorTarget(text: string) {
+  expect(insertTextIntoActiveContentEditorTarget(text)).toBe(true);
 }
