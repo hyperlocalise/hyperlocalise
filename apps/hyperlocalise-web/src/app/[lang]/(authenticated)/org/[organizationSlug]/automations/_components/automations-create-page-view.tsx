@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useMemo, useState, type ReactNode } from "react";
-import { LightningIcon, LockSimpleIcon, TranslateIcon } from "@phosphor-icons/react";
+import { LightningIcon, LockSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
@@ -28,10 +28,7 @@ import {
   type WorkspaceAutomationTemplateCategory,
 } from "@/lib/agents/workspace-automation-templates";
 import { cn } from "@/lib/primitives/cn";
-import {
-  VISUAL_WORKFLOW_TEMPLATE_IDS,
-  type VisualWorkflowTemplateId,
-} from "@/lib/visual-workflows/templates/visual-workflow-templates";
+import type { VisualWorkflowTemplateId } from "@/lib/visual-workflows/templates/visual-workflow-templates";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { AutomationAssistantPrompt } from "./automation-assistant-prompt";
@@ -42,6 +39,7 @@ import {
   type AutomationsLinkRenderer,
 } from "./automation-template-card";
 import { automationsCreatePageViewMessages as messages } from "./automations-create-page-view.messages";
+import { FeaturedLocalisationWorkflows } from "./featured-localisation-workflows";
 import { AUTOMATION_TYPE_ICONS, type AutomationsPageAssistant } from "./automations-page-view";
 import { automationsPageViewMessages } from "./automations-page-view.messages";
 import {
@@ -181,86 +179,10 @@ function WorkflowCard({
   );
 }
 
-const WORKFLOW_TEMPLATE_MESSAGES = {
-  "ai-translate-on-upload": {
-    title: messages.workflowTemplateAiTranslateTitle,
-    description: messages.workflowTemplateAiTranslateDescription,
-  },
-  "mtpe-on-upload": {
-    title: messages.workflowTemplateMtpeTitle,
-    description: messages.workflowTemplateMtpeDescription,
-  },
-  "tep-on-upload": {
-    title: messages.workflowTemplateTepTitle,
-    description: messages.workflowTemplateTepDescription,
-  },
-  "review-done-qa": {
-    title: messages.workflowTemplateReviewDoneTitle,
-    description: messages.workflowTemplateReviewDoneDescription,
-  },
-} as const satisfies Record<VisualWorkflowTemplateId, unknown>;
-
-function WorkflowTemplateSection({
-  creatingTemplateId,
-  disabled,
-  onCreate,
-}: {
-  creatingTemplateId: VisualWorkflowTemplateId | null;
-  disabled: boolean;
-  onCreate: (templateId: VisualWorkflowTemplateId) => void;
-}) {
-  return (
-    <section aria-labelledby="workflow-templates-title" className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2
-          id="workflow-templates-title"
-          className="font-sans text-base font-medium text-balance text-foreground"
-        >
-          <FormattedMessage {...messages.workflowTemplatesTitle} />
-        </h2>
-        <TypographyP tone="subtle">
-          <FormattedMessage {...messages.workflowTemplatesDescription} />
-        </TypographyP>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        {VISUAL_WORKFLOW_TEMPLATE_IDS.map((templateId) => {
-          const creating = creatingTemplateId === templateId;
-          return (
-            <button
-              key={templateId}
-              type="button"
-              className={cn(BUILD_CARD_CLASS, BUILD_CARD_INTERACTIVE_CLASS, "disabled:opacity-60")}
-              disabled={disabled}
-              aria-busy={creating}
-              onClick={() => onCreate(templateId)}
-            >
-              <div className="flex items-center gap-3">
-                <AutomationIconTile tone="builtIn" className="size-9 rounded-lg">
-                  <TranslateIcon className="size-5" />
-                </AutomationIconTile>
-                <span className="font-sans text-base font-medium text-foreground">
-                  <FormattedMessage {...WORKFLOW_TEMPLATE_MESSAGES[templateId].title} />
-                </span>
-              </div>
-              <p className="text-sm text-pretty text-muted-foreground">
-                <FormattedMessage {...WORKFLOW_TEMPLATE_MESSAGES[templateId].description} />
-              </p>
-              {creating ? (
-                <span className="mt-auto pt-1 text-xs text-muted-foreground">
-                  <FormattedMessage {...messages.workflowCreating} />
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 /**
- * Where a new automation starts: describe it to the assistant, choose to build an agent or a
- * workflow yourself, or begin from a template.
+ * Where a new automation starts. The common localisation workflows come first; below them, every
+ * other way to start: describe it to the assistant, build an agent or a workflow yourself, or begin
+ * from an agent template.
  */
 export function AutomationsCreatePageView({
   organizationSlug,
@@ -320,15 +242,36 @@ export function AutomationsCreatePageView({
       />
 
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-10">
+        {workflowAccess === "hidden" ? null : (
+          <FeaturedLocalisationWorkflows
+            access={workflowAccess}
+            organizationSlug={organizationSlug}
+            creatingTemplateId={creatingWorkflow ? creatingTemplateId : null}
+            disabled={creatingWorkflow}
+            onCreate={onCreateWorkflow}
+          />
+        )}
+
+        {workflowAccess === "hidden" ? null : (
+          <div className="flex flex-col gap-1 border-t border-border pt-8">
+            <h2 className="font-sans text-lg font-medium text-balance text-foreground">
+              <FormattedMessage {...messages.otherAutomationsTitle} />
+            </h2>
+            <TypographyP tone="subtle">
+              <FormattedMessage {...messages.otherAutomationsDescription} />
+            </TypographyP>
+          </div>
+        )}
+
         {assistant ? (
           <section aria-labelledby="describe-automation-title" className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <h2
+              <h3
                 id="describe-automation-title"
-                className="font-sans text-lg font-medium text-balance text-foreground"
+                className="font-sans text-base font-medium text-balance text-foreground"
               >
                 <FormattedMessage {...messages.describeTitle} />
-              </h2>
+              </h3>
               {assistant.aiFeaturesStatus === "denied" ? null : (
                 <TypographyP tone="subtle">
                   <FormattedMessage {...messages.describeDescription} />
@@ -345,12 +288,12 @@ export function AutomationsCreatePageView({
         ) : null}
 
         <section aria-labelledby="build-automation-title" className="flex flex-col gap-4">
-          <h2
+          <h3
             id="build-automation-title"
             className="font-sans text-base font-medium text-balance text-foreground"
           >
             <FormattedMessage {...(assistant ? messages.buildTitle : messages.buildTitleAlone)} />
-          </h2>
+          </h3>
           <div className="grid gap-4 sm:grid-cols-2">
             {renderAutomationLink({
               href: `${automationsBasePath}/new`,
@@ -381,23 +324,15 @@ export function AutomationsCreatePageView({
           </div>
         </section>
 
-        {workflowAccess === "available" ? (
-          <WorkflowTemplateSection
-            creatingTemplateId={creatingWorkflow ? creatingTemplateId : null}
-            disabled={creatingWorkflow}
-            onCreate={onCreateWorkflow}
-          />
-        ) : null}
-
         {usableTemplates.length > 0 ? (
           <section aria-labelledby="automation-templates-title" className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <h2
+              <h3
                 id="automation-templates-title"
                 className="font-sans text-base font-medium text-balance text-foreground"
               >
                 <FormattedMessage {...messages.templatesTitle} />
-              </h2>
+              </h3>
               <TypographyP tone="subtle">
                 <FormattedMessage {...messages.templatesDescription} />
               </TypographyP>

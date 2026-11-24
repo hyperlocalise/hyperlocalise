@@ -1871,6 +1871,10 @@
     "defaultMessage": "Queries",
     "description": "Workspace Queries page title"
   },
+  "0Pk9BNF6+x": {
+    "defaultMessage": "Slack",
+    "description": "Step in a featured workflow's flow: a Slack message is sent"
+  },
   "0PkHdvb57G": {
     "defaultMessage": "Show text regions",
     "description": "Image viewer: showLayers"
@@ -3046,6 +3050,10 @@
   "2+NyPbgMUJ": {
     "defaultMessage": "Assign it where it applies",
     "description": "Title of the third point in the empty glossaries explainer"
+  },
+  "2+VVMEY5/3": {
+    "defaultMessage": "Upload",
+    "description": "Step in a featured workflow's flow: a source file is uploaded"
   },
   "2+cYRmg3ua": {
     "defaultMessage": "Your developer will tell you the shape. Paste the value they need.",
@@ -11271,6 +11279,10 @@
     "defaultMessage": "Send a transactional email through Resend or SendGrid.",
     "description": "Catalog description for the notify email action node"
   },
+  "CsN4Lwf+Xq": {
+    "defaultMessage": "Proofread",
+    "description": "Step in a featured workflow's flow: a person proofreads"
+  },
   "CtXpaStJTy": {
     "defaultMessage": "Marketing site launch",
     "description": "Placeholder for the project name field"
@@ -11458,6 +11470,10 @@
   "D6N0QoCpN1": {
     "defaultMessage": "Reasoning failed to render",
     "description": "Error boundary title when reasoning UI crashes"
+  },
+  "D6nGaFfAXq": {
+    "defaultMessage": "Other automations",
+    "description": "Heading above every other way to start an automation, after the featured localisation workflows"
   },
   "D6oB7iB5pO": {
     "defaultMessage": "Separate tags with commas. A tag is up to 64 letters, digits, _ or -. Tags apply in every language.",
@@ -14939,6 +14955,10 @@
     "defaultMessage": "Connect your OpenAI account",
     "description": "OpenAI BYOK provider description on the AI Engine page"
   },
+  "Hr/JQvzLiZ": {
+    "defaultMessage": "AI translate",
+    "description": "Step in a featured workflow's flow: the file is translated with AI"
+  },
   "HrB9mIwARt": {
     "defaultMessage": "Edit",
     "description": "Compact CAT workspace tab for the translation editor"
@@ -17555,6 +17575,10 @@
     "defaultMessage": "We only read public pages. We never sign in or fill in forms.",
     "description": "Scope note on the localisation audit landing page"
   },
+  "Le+9bhU9g1": {
+    "defaultMessage": "The setups most teams start with. Each opens on the canvas with its steps connected; pick the project, the Slack channels and who does the work, then publish.",
+    "description": "Text under the heading of the workflow templates section"
+  },
   "LeIm9531Cr": {
     "defaultMessage": "Literal text",
     "description": "Concatenate literal segment kind"
@@ -18839,6 +18863,10 @@
     "defaultMessage": "Zoom in",
     "description": "Accessible label for zooming in within the image lightbox"
   },
+  "NEU7c1Ouub": {
+    "defaultMessage": "Translate",
+    "description": "Step in a featured workflow's flow: a person translates"
+  },
   "NEzvK9axzr": {
     "defaultMessage": "Query deleted",
     "description": "Toast after a query is deleted"
@@ -19991,6 +20019,10 @@
     "defaultMessage": "External project {projectId}",
     "description": "Label for an external project id when no Hyperlocalise project is linked"
   },
+  "Oo96L4uY2q": {
+    "defaultMessage": "Fix or ship",
+    "description": "Step in a featured workflow's flow: failing work goes back, passing work ships"
+  },
   "OoB/oKq2Hs": {
     "defaultMessage": "Open in Cursor",
     "description": "Menu item to open the prompt in Cursor"
@@ -20050,6 +20082,10 @@
   "OuhJgSgMVm": {
     "defaultMessage": "Choose the project: Use translation as source would otherwise send finished tasks from every project. To mean that, tick Send tasks from any project on each Use translation as source step.",
     "description": "Validation issue on a Job changed trigger with no project in a workflow that has a Use translation as source step"
+  },
+  "Ouz6Q2dQze": {
+    "defaultMessage": "Edit",
+    "description": "Step in a featured workflow's flow: a person edits the translation"
   },
   "OvonIo9cAp": {
     "defaultMessage": "Sample data",
@@ -21270,6 +21306,10 @@
   "QeTm6cGbAa": {
     "defaultMessage": "Save the workflow to get its webhook URL.",
     "description": "Shown instead of the webhook URL before the workflow is saved"
+  },
+  "Qes9AxeWPG": {
+    "defaultMessage": "Agent templates",
+    "description": "Heading of the templates section on the new automation page"
   },
   "QfEwz9eSDW": {
     "defaultMessage": "Slack assistant",
@@ -23723,6 +23763,10 @@
     "defaultMessage": "Could not send your queued message. It is still in the queue.",
     "description": "Error when sending a message that was queued while the agent answered fails"
   },
+  "TuCqNYsw9D": {
+    "defaultMessage": "Post-edit",
+    "description": "Step in a featured workflow's flow: a person post-edits the AI translation"
+  },
   "TuGOT1kPBK": {
     "defaultMessage": "Connect an MCP server in Integrations before using this tool.",
     "description": "Description when no MCP server connection is available"
@@ -23750,6 +23794,10 @@
   "TxLzteAQOy": {
     "defaultMessage": "Translated and checked",
     "description": "github-release-localisation use case page: guide › steps › #3 › visual › rows › #3 › label"
+  },
+  "TxoIMy6Uz0": {
+    "defaultMessage": "Describe what you need, build an agent or a workflow from scratch, or start from an agent template.",
+    "description": "Text under the Other automations heading"
   },
   "Tyhk/abQFS": {
     "defaultMessage": "What is the Hyperlocalise Startup Program?",
@@ -23850,6 +23898,10 @@
   "U76tWGMJVU": {
     "defaultMessage": "started an automation run",
     "description": "Action for starting an automation run"
+  },
+  "U7BlJqdUmg": {
+    "defaultMessage": "Use this workflow",
+    "description": "Call to action on a featured localisation workflow card"
   },
   "U7L1HEq5cv": {
     "defaultMessage": "characters",
@@ -30735,6 +30787,10 @@
     "defaultMessage": "Note",
     "description": "Label for an audience description field"
   },
+  "dMiZxsgrm/": {
+    "defaultMessage": "Localisation workflows",
+    "description": "Heading of the section with ready-made workflow templates on the new automation page"
+  },
   "dMlTGb8y8K": {
     "defaultMessage": "See quality and guidelines",
     "description": "Link from an integration detail page to a related use case"
@@ -33999,10 +34055,6 @@
     "defaultMessage": "Pending",
     "description": "Tool status badge when tool input is still streaming"
   },
-  "hXWQPTAV5J": {
-    "defaultMessage": "Start from a template",
-    "description": "Heading of the templates section on the new automation page"
-  },
   "hXea3UMGXu": {
     "defaultMessage": "With the noise gone, reviewers only see the words that need fixing.",
     "description": "Description of the second point in the empty dictionaries explainer"
@@ -35478,6 +35530,10 @@
   "jYMeyODyPY": {
     "defaultMessage": "Drag the divider to compare. Use arrow keys when focused.",
     "description": "Image viewer: dividerHint"
+  },
+  "jYP7V6VeVA": {
+    "defaultMessage": "QA",
+    "description": "Step in a featured workflow's flow: QA checks run"
   },
   "jZ//cDcZ51": {
     "defaultMessage": "Conversation messages will appear here.",
@@ -38762,6 +38818,10 @@
   "nuXi9Hvr5G": {
     "defaultMessage": "Invite and manage members",
     "description": "Link to the workspace members page from the sidebar workspace switcher, shown to users who can invite members"
+  },
+  "nvJIFxM8Ts": {
+    "defaultMessage": "Task done",
+    "description": "Step in a featured workflow's flow: a review task is marked done"
   },
   "nwEXrsmZmr": {
     "defaultMessage": "Enable this repository before configuring automation.",
