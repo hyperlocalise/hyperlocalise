@@ -267,4 +267,61 @@ export const qaProjectMessages = defineMessages({
     id: "ym+SefNrfo",
     description: "Project QA check settings dialog save button",
   },
+  qualityScore: {
+    defaultMessage: "Quality score",
+    id: "y2u7doaXXd",
+    description: "Project QA settings: switch that turns on MQM quality scoring",
+  },
+  qualityScoreHelp: {
+    defaultMessage:
+      "Score each scan out of 100. Every finding costs points per source word: minor 1, major 5, critical 25. A language passes when it reaches the threshold and has no critical finding. Run QA steps in workflows pass or fail on this score.",
+    id: "MC7M/wi3wt",
+    description: "Project QA settings: help text for MQM quality scoring",
+  },
+  passThreshold: {
+    defaultMessage: "Pass threshold",
+    id: "PSdpb4ZhsU",
+    description: "Project QA settings: lowest passing quality score",
+  },
+  passThresholdHelp: {
+    defaultMessage: "Lowest passing score, from 0 to 100.",
+    id: "ba52MnbtYg",
+    description: "Project QA settings: help text for the pass threshold",
+  },
+  penaltyLabel: {
+    defaultMessage: "Penalty for {check}",
+    id: "4P8Gr7Fd41",
+    description: "Project QA settings: accessible label for a check's MQM penalty control",
+  },
+  penaltyMinor: {
+    defaultMessage: "Minor",
+    id: "QLTuspeSzC",
+    description: "MQM penalty level: minor, 1 point",
+  },
+  penaltyMajor: {
+    defaultMessage: "Major",
+    id: "0oefDgMMaG",
+    description: "MQM penalty level: major, 5 points",
+  },
+  penaltyCritical: {
+    defaultMessage: "Critical",
+    id: "uXu5iikA3V",
+    description: "MQM penalty level: critical, 25 points; any critical finding fails the language",
+  },
+  qualityMetric: {
+    defaultMessage: "Quality score",
+    id: "34a9MdnGLI",
+    description: "Project QA overview: metric card label for the scan's MQM score",
+  },
+  qualityPassedDetail: {
+    defaultMessage: "Passed · threshold {threshold}",
+    id: "bukf9DJ0yp",
+    description: "Project QA overview: every language reached the pass threshold",
+  },
+  qualityFailedDetail: {
+    defaultMessage:
+      "{count, plural, one {# language} other {# languages}} below threshold {threshold}",
+    id: "qodhPbECWl",
+    description: "Project QA overview: languages that did not pass the quality threshold",
+  },
 });

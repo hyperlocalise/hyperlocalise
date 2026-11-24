@@ -65,10 +65,14 @@ export function QaProjectOverview({
       ? undefined
       : reports.slice(selectedIndex + 1).find((row) => row.status === "succeeded");
   const selectedScan = intl.formatMessage(messages.selectedScanDetail);
+  const quality = report.summary.quality;
+  const failingLocales = quality
+    ? Object.values(quality.byLocale).filter((locale) => !locale.passed).length
+    : 0;
 
   return (
     <QaOverviewTray
-      needsAction={report.errorCount > 0}
+      needsAction={quality ? !quality.passed : report.errorCount > 0}
       hint={
         locales.length || checks.length || trend.length > 1
           ? intl.formatMessage(messages.chartHint)
@@ -90,11 +94,29 @@ export function QaProjectOverview({
             emphasis={report.warningCount > 0 ? "watch" : undefined}
             change={previous ? report.warningCount - previous.warningCount : undefined}
           />
-          <QaMetricCard
-            label={intl.formatMessage(overviewMessages.segmentsMetric)}
-            value={intl.formatNumber(report.segmentCount)}
-            detail={selectedScan}
-          />
+          {quality ? (
+            <QaMetricCard
+              label={intl.formatMessage(messages.qualityMetric)}
+              value={intl.formatNumber(quality.score, { maximumFractionDigits: 1 })}
+              detail={
+                quality.passed
+                  ? intl.formatMessage(messages.qualityPassedDetail, {
+                      threshold: intl.formatNumber(quality.threshold),
+                    })
+                  : intl.formatMessage(messages.qualityFailedDetail, {
+                      count: failingLocales,
+                      threshold: intl.formatNumber(quality.threshold),
+                    })
+              }
+              emphasis={quality.passed ? undefined : "risk"}
+            />
+          ) : (
+            <QaMetricCard
+              label={intl.formatMessage(overviewMessages.segmentsMetric)}
+              value={intl.formatNumber(report.segmentCount)}
+              detail={selectedScan}
+            />
+          )}
           <QaMetricCard
             label={intl.formatMessage(messages.lastCheckedMetric)}
             value={intl.formatDate(report.completedAt ?? report.createdAt, {

@@ -93,6 +93,8 @@ export type TranslationQaSummary = {
   guidelineChecksIncomplete?: boolean;
   /** Knowledge was off or the entitlement read failed, so the checker was not called. */
   guidelineKnowledgeSkipped?: boolean;
+  /** MQM score; present when the project scores translations. */
+  quality?: import("./qa-scoring").TranslationQaQuality;
   /**
    * Set when the scan checks part of the project, such as one workflow step's file and
    * languages. Findings outside it are left as they were.

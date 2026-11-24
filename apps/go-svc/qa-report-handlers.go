@@ -72,6 +72,8 @@ type qaSummary struct {
 	GuidelineCheckHaltCode    string              `json:"guidelineCheckHaltCode,omitempty"`
 	GuidelineChecksIncomplete bool                `json:"guidelineChecksIncomplete,omitempty"`
 	GuidelineKnowledgeSkipped bool                `json:"guidelineKnowledgeSkipped,omitempty"`
+	// Quality is the MQM score the web app writes when the project scores translations.
+	Quality json.RawMessage `json:"quality,omitempty"`
 }
 
 func emptyQaSummary() qaSummary {

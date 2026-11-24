@@ -232,6 +232,9 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     outputs: [
       output("runId"),
       output("passed", "boolean"),
+      output("qualityScore", "number", true),
+      output("qualityThreshold", "number", true),
+      output("qualityByLocale", "object", true),
       output("errorCount", "number"),
       output("warningCount", "number"),
       output("findingCount", "number"),
@@ -240,6 +243,9 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     mock: {
       runId: "qa_mock",
       passed: true,
+      qualityScore: 98.5,
+      qualityThreshold: 95,
+      qualityByLocale: { "fr-FR": { score: 98.5, passed: true } },
       errorCount: 0,
       warningCount: 2,
       findingCount: 2,

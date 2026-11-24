@@ -30,8 +30,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { DEFAULT_QA_POLICY, resolveQaPolicy, type QaCheckPolicy } from "@/lib/qa/qa-policy";
+import type { ProjectQaSettingsUpdate } from "@/lib/qa/qa-report-client";
+import {
+  defaultMqmSeverity,
+  QA_SCORE_THRESHOLD_MAX,
+  QA_SCORE_THRESHOLD_MIN,
+  resolveQaScoringPolicy,
+  type MqmSeverity,
+  type QaScoringPolicy,
+} from "@/lib/qa/qa-scoring";
 import { translationQaCheckTypes } from "@/lib/qa/types";
 
 import { qaProjectMessages as messages } from "../qa-project.messages";
@@ -43,10 +53,12 @@ const CHECK_LEVEL_OFF = "off";
 export type QaProjectSettings = {
   cadence: QaCadence;
   checks: QaCheckPolicy;
+  /** Missing until go-svc returns scoring; read as scoring off. */
+  scoring?: QaScoringPolicy;
   canManageSchedule: boolean;
 };
 
-/** Schedule and per-check rules, saved together so nothing applies half-way. */
+/** Schedule, per-check rules and quality scoring, saved together so nothing applies half-way. */
 export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog({
   settings,
   isSaving,
@@ -56,7 +68,7 @@ export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog
   settings: QaProjectSettings | undefined;
   isSaving: boolean;
   isError: boolean;
-  onSave: (json: { cadence?: QaCadence; checks?: QaCheckPolicy }) => void;
+  onSave: (json: ProjectQaSettingsUpdate) => void;
 }) {
   const intl = useIntl();
   const store = useQaProjectUiStore();
@@ -65,6 +77,7 @@ export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog
   const savedPolicy = settings?.checks ?? DEFAULT_QA_POLICY;
   const policy = resolveQaPolicy(store.draftPolicy ?? savedPolicy);
   const cadence = store.draftCadence ?? settings?.cadence ?? "off";
+  const scoring = resolveQaScoringPolicy(store.draftScoring ?? settings?.scoring);
   const canManage = Boolean(settings?.canManageSchedule);
   const disabled = !canManage || isSaving;
   const visibleCheckTypes = knowledgeEnabled
@@ -74,6 +87,11 @@ export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog
     { value: CHECK_LEVEL_OFF, label: intl.formatMessage(m.checkOff) },
     { value: "warning", label: intl.formatMessage(m.warning) },
     { value: "error", label: intl.formatMessage(m.error) },
+  ];
+  const penaltyOptions: { value: MqmSeverity; label: string }[] = [
+    { value: "minor", label: intl.formatMessage(messages.penaltyMinor) },
+    { value: "major", label: intl.formatMessage(messages.penaltyMajor) },
+    { value: "critical", label: intl.formatMessage(messages.penaltyCritical) },
   ];
 
   return (
@@ -105,6 +123,55 @@ export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog
             />
           </Field>
           <div className="flex flex-col gap-3">
+            <Field orientation="horizontal">
+              <FieldContent>
+                <FieldLabel htmlFor="qa-scoring">
+                  {intl.formatMessage(messages.qualityScore)}
+                </FieldLabel>
+                <FieldDescription>{intl.formatMessage(messages.qualityScoreHelp)}</FieldDescription>
+              </FieldContent>
+              <Switch
+                id="qa-scoring"
+                checked={scoring.enabled}
+                disabled={disabled}
+                onCheckedChange={(checked) => store.updateScoring(scoring, { enabled: checked })}
+              />
+            </Field>
+            {scoring.enabled ? (
+              <Field orientation="horizontal">
+                <FieldContent>
+                  <FieldLabel htmlFor="qa-pass-threshold">
+                    {intl.formatMessage(messages.passThreshold)}
+                  </FieldLabel>
+                  <FieldDescription>
+                    {intl.formatMessage(messages.passThresholdHelp)}
+                  </FieldDescription>
+                </FieldContent>
+                <Input
+                  id="qa-pass-threshold"
+                  type="number"
+                  inputMode="decimal"
+                  className="w-24"
+                  min={QA_SCORE_THRESHOLD_MIN}
+                  max={QA_SCORE_THRESHOLD_MAX}
+                  step={0.5}
+                  disabled={disabled}
+                  value={scoring.passThreshold}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    if (!Number.isFinite(value)) return;
+                    store.updateScoring(scoring, {
+                      passThreshold: Math.min(
+                        QA_SCORE_THRESHOLD_MAX,
+                        Math.max(QA_SCORE_THRESHOLD_MIN, value),
+                      ),
+                    });
+                  }}
+                />
+              </Field>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <h3 className="text-sm font-medium">{intl.formatMessage(m.coverage)}</h3>
               <p className="text-xs text-muted-foreground">{intl.formatMessage(m.coverageHelp)}</p>
@@ -116,6 +183,8 @@ export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog
             <div className="flex flex-col divide-y divide-border">
               {visibleCheckTypes.map((check) => {
                 const label = qaCheckLabel(check, intl);
+                const defaultPenalty = defaultMqmSeverity(policy[check].severity);
+                const penalty = scoring.penalties[check] ?? defaultPenalty;
                 return (
                   <div
                     key={check}
@@ -129,22 +198,40 @@ export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog
                         </p>
                       ) : null}
                     </div>
-                    <QaSegmentedControl
-                      label={label}
-                      hideLabel
-                      disabled={disabled}
-                      value={policy[check].enabled ? policy[check].severity : CHECK_LEVEL_OFF}
-                      options={levelOptions}
-                      onChange={(level) =>
-                        store.updateRule(
-                          policy,
-                          check,
-                          level === CHECK_LEVEL_OFF
-                            ? { enabled: false }
-                            : { enabled: true, severity: level as "error" | "warning" },
-                        )
-                      }
-                    />
+                    <div className="flex flex-col items-end gap-2">
+                      <QaSegmentedControl
+                        label={label}
+                        hideLabel
+                        disabled={disabled}
+                        value={policy[check].enabled ? policy[check].severity : CHECK_LEVEL_OFF}
+                        options={levelOptions}
+                        onChange={(level) =>
+                          store.updateRule(
+                            policy,
+                            check,
+                            level === CHECK_LEVEL_OFF
+                              ? { enabled: false }
+                              : { enabled: true, severity: level as "error" | "warning" },
+                          )
+                        }
+                      />
+                      {scoring.enabled && policy[check].enabled ? (
+                        <QaSegmentedControl
+                          label={intl.formatMessage(messages.penaltyLabel, { check: label })}
+                          hideLabel
+                          disabled={disabled}
+                          value={penalty}
+                          options={penaltyOptions}
+                          onChange={(value) =>
+                            store.updatePenalty(
+                              scoring,
+                              check,
+                              value === defaultPenalty ? null : (value as MqmSeverity),
+                            )
+                          }
+                        />
+                      ) : null}
+                    </div>
                   </div>
                 );
               })}
@@ -163,6 +250,7 @@ export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog
                 onSave({
                   cadence: store.draftCadence ?? undefined,
                   checks: store.draftPolicy ? policy : undefined,
+                  scoring: store.draftScoring ? scoring : undefined,
                 })
               }
             >

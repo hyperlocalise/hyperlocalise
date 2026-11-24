@@ -13,6 +13,7 @@
 import { apiClient } from "@/lib/api-client-instance";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import type { QaCheckPolicy } from "./qa-policy";
+import type { QaScoringPolicy, TranslationQaQuality } from "./qa-scoring";
 
 type OrgParams = { organizationSlug: string };
 type ProjectParams = OrgParams & { projectId: string };
@@ -95,6 +96,21 @@ export type WorkspaceQaFinding = {
   needsRecheck?: boolean;
 };
 
+export type ProjectQaSettings = {
+  cadence: "off" | "daily";
+  checks: QaCheckPolicy;
+  scoring: QaScoringPolicy;
+  lastRunAt: string | null;
+  canRun: boolean;
+  canManageSchedule: boolean;
+};
+
+export type ProjectQaSettingsUpdate = {
+  cadence?: "off" | "daily";
+  checks?: QaCheckPolicy;
+  scoring?: QaScoringPolicy;
+};
+
 export type ProjectQaReport = {
   id: string;
   projectId: string;
@@ -113,6 +129,7 @@ export type ProjectQaReport = {
     guidelineCheckHaltCode?: string;
     guidelineChecksIncomplete?: boolean;
     guidelineKnowledgeSkipped?: boolean;
+    quality?: TranslationQaQuality;
   };
   errorCode: string | null;
   errorMessage: string | null;
@@ -149,13 +166,7 @@ export function createProjectQaReportClient(goSvcClient: GoSvcClient) {
     listReports: ({ param }: { param: ProjectParams }) =>
       goSvcClient.qaReport.project.list(param.organizationSlug, param.projectId) as Promise<{
         reports: ProjectQaReport[];
-        settings: {
-          cadence: "off" | "daily";
-          checks: QaCheckPolicy;
-          lastRunAt: string | null;
-          canRun: boolean;
-          canManageSchedule: boolean;
-        };
+        settings: ProjectQaSettings;
       }>,
 
     getLastSuccessful: ({ param, beforeRunId }: { param: ProjectParams; beforeRunId: string }) =>
@@ -168,25 +179,13 @@ export function createProjectQaReportClient(goSvcClient: GoSvcClient) {
         param,
       }) as Promise<QaReportResponse<{ report: ProjectQaReport }>>,
 
-    updateSettings: ({
-      param,
-      json,
-    }: {
-      param: ProjectParams;
-      json: { cadence?: "off" | "daily"; checks?: QaCheckPolicy };
-    }) =>
+    updateSettings: ({ param, json }: { param: ProjectParams; json: ProjectQaSettingsUpdate }) =>
       goSvcClient.qaReport.project.updateSettings(
         param.organizationSlug,
         param.projectId,
         json,
       ) as Promise<{
-        settings: {
-          cadence: "off" | "daily";
-          checks: QaCheckPolicy;
-          lastRunAt: string | null;
-          canRun: boolean;
-          canManageSchedule: boolean;
-        };
+        settings: ProjectQaSettings;
       }>,
 
     getRun: ({

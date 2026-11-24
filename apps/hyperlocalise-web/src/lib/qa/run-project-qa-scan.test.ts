@@ -454,6 +454,146 @@ describe("run-project-qa-scan claim and reclaim", () => {
     ).resolves.toEqual({ ok: true, alreadyCompleted: true });
   });
 
+  it("scores the run with MQM penalties when the project scores translations", async () => {
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+    await db
+      .update(schema.projects)
+      .set({
+        targetLocales: ["de-DE", "fr-FR"],
+        qaScoringPolicy: {
+          enabled: true,
+          passThreshold: 90,
+          penalties: { placeholder_mismatch: "critical" },
+        },
+      })
+      .where(eq(schema.projects.id, project.id));
+
+    const [key] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "cta",
+        // 20 source words per locale.
+        sourceText:
+          "Start your free trial today and see how quickly your team can ship every release in every market you serve",
+        normalizedSourceText: "start your free trial",
+      })
+      .returning({ id: schema.projectTranslationKeys.id });
+
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+    });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+
+    const finding = {
+      runId: claimed.runId,
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: key!.id,
+      key: "cta",
+      category: "qa",
+      relatedTokens: [],
+      sourceText: "Start",
+      targetText: "Start",
+    };
+    await db.insert(schema.translationQaFindings).values([
+      // de-DE: one minor finding → 1 point over 20 words = 95.
+      {
+        ...finding,
+        targetLocale: "de-DE",
+        checkType: "glossary_violation",
+        severity: "warning",
+        message: "Glossary",
+      },
+      // fr-FR: a critical placeholder finding fails the locale.
+      {
+        ...finding,
+        targetLocale: "fr-FR",
+        checkType: "placeholder_mismatch",
+        severity: "error",
+        message: "Placeholder",
+      },
+      // An ignored finding costs nothing.
+      {
+        ...finding,
+        targetLocale: "de-DE",
+        checkType: "length",
+        severity: "error",
+        message: "Too long",
+        status: "ignored" as const,
+      },
+    ]);
+
+    await completeTranslationQaScan({
+      runId: claimed.runId,
+      organizationId: organization.id,
+      projectId: project.id,
+    });
+
+    const [completed] = await db
+      .select({ summary: schema.translationQaRuns.summary })
+      .from(schema.translationQaRuns)
+      .where(eq(schema.translationQaRuns.id, claimed.runId));
+
+    expect(completed?.summary.quality).toMatchObject({
+      model: "mqm",
+      threshold: 90,
+      wordCount: 40,
+      penaltyPoints: 26,
+      criticalCount: 1,
+      score: 35,
+      passed: false,
+      byLocale: {
+        "de-DE": { score: 95, passed: true, wordCount: 20, penaltyPoints: 1 },
+        "fr-FR": { score: 0, passed: false, wordCount: 20, penaltyPoints: 25, criticalCount: 1 },
+      },
+      penaltyByDimension: { terminology: 1, design_and_markup: 25 },
+    });
+  });
+
+  it("leaves the score out when the project does not score translations", async () => {
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+    });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+    await completeTranslationQaScan({
+      runId: claimed.runId,
+      organizationId: organization.id,
+      projectId: project.id,
+    });
+    const [completed] = await db
+      .select({ summary: schema.translationQaRuns.summary })
+      .from(schema.translationQaRuns)
+      .where(eq(schema.translationQaRuns.id, claimed.runId));
+    expect(completed?.summary.quality).toBeUndefined();
+  });
+
   it("completes a running scan with zero findings and zero keys", async () => {
     const { organization, user } = await authFixture.createLocalWorkosIdentity();
     const team = await ensureDefaultWorkspaceTeam(organization.id);

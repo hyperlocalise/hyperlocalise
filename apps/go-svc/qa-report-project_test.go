@@ -194,3 +194,63 @@ func TestProjectQaReportFindsLastSuccessBeyondHistoryLimit(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
 	require.Equal(t, succeededID, response.ID)
 }
+
+func TestValidQaScoringRejectsUnknownChecksAndSeverities(t *testing.T) {
+	require.True(t, validQaScoring(&qaScoringSetting{Enabled: true, PassThreshold: 98}))
+	require.True(t, validQaScoring(&qaScoringSetting{PassThreshold: 0, Penalties: map[string]string{"placeholder_mismatch": "critical"}}))
+	require.False(t, validQaScoring(&qaScoringSetting{PassThreshold: 101}))
+	require.False(t, validQaScoring(&qaScoringSetting{PassThreshold: -1}))
+	require.False(t, validQaScoring(&qaScoringSetting{PassThreshold: 95, Penalties: map[string]string{"made_up": "minor"}}))
+	require.False(t, validQaScoring(&qaScoringSetting{PassThreshold: 95, Penalties: map[string]string{"spelling": "error"}}))
+}
+
+func TestResolveQaScoringSettingDropsInvalidStoredValues(t *testing.T) {
+	setting := resolveQaScoringSetting([]byte(`{"enabled":true,"passThreshold":250,"penalties":{"spelling":"critical","made_up":"minor","length":"huge"}}`))
+	require.True(t, setting.Enabled)
+	require.Equal(t, float64(defaultQaScoreThreshold), setting.PassThreshold)
+	require.Equal(t, map[string]string{"spelling": "critical"}, setting.Penalties)
+
+	require.Equal(t, qaScoringSetting{PassThreshold: defaultQaScoreThreshold, Penalties: map[string]string{}}, resolveQaScoringSetting(nil))
+}
+
+func TestProjectQaReportSettingsSaveScoring(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	path := scope.OrgPath("/projects/" + scope.ProjectID + "/qa-reports/settings")
+
+	rec := qaReportRequest(api, scope, http.MethodPatch, path, `{"scoring":{"enabled":true,"passThreshold":97.5,"penalties":{"placeholder_mismatch":"critical"}}}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var response struct {
+		Settings struct {
+			Scoring qaScoringSetting `json:"scoring"`
+		} `json:"settings"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	require.Equal(t, qaScoringSetting{Enabled: true, PassThreshold: 97.5, Penalties: map[string]string{"placeholder_mismatch": "critical"}}, response.Settings.Scoring)
+
+	rec = qaReportRequest(api, scope, http.MethodPatch, path, `{"scoring":{"enabled":true,"passThreshold":120}}`)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestProjectQaReportPassesQualityThrough(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	runID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 1, 0)
+	_, err := scope.Pool.Exec(t.Context(), `update translation_qa_runs set summary = summary || '{"quality":{"model":"mqm","score":97.5,"passed":true}}'::jsonb where id=$1`, runID)
+	require.NoError(t, err)
+
+	rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var response struct {
+		Reports []struct {
+			Summary struct {
+				Quality struct {
+					Score  float64 `json:"score"`
+					Passed bool    `json:"passed"`
+				} `json:"quality"`
+			} `json:"summary"`
+		} `json:"reports"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	require.NotEmpty(t, response.Reports)
+	require.Equal(t, 97.5, response.Reports[0].Summary.Quality.Score)
+	require.True(t, response.Reports[0].Summary.Quality.Passed)
+}

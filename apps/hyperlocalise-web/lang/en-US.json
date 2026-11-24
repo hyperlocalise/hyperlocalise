@@ -2195,6 +2195,10 @@
     "defaultMessage": "02 Adapt",
     "description": "Content Studio workflow step 2"
   },
+  "0oefDgMMaG": {
+    "defaultMessage": "Major",
+    "description": "MQM penalty level: major, 5 points"
+  },
   "0pg6zXLFtI": {
     "defaultMessage": "Role permissions",
     "description": "Role permissions page heading"
@@ -3847,6 +3851,10 @@
     "defaultMessage": "Finished by people",
     "description": "Contributors card: units people finished in the dates"
   },
+  "34a9MdnGLI": {
+    "defaultMessage": "Quality score",
+    "description": "Project QA overview: metric card label for the scan's MQM score"
+  },
   "34gyyDcFUG": {
     "defaultMessage": "Provider",
     "description": "Label for the workspace files provider filter"
@@ -4894,6 +4902,10 @@
   "4OtY5abyua": {
     "defaultMessage": "hreflang",
     "description": "Detected-locale source: found in hreflang link tags"
+  },
+  "4P8Gr7Fd41": {
+    "defaultMessage": "Penalty for {check}",
+    "description": "Project QA settings: accessible label for a check's MQM penalty control"
   },
   "4Pn2dw7D0g": {
     "defaultMessage": "Fix grammar",
@@ -18039,6 +18051,10 @@
     "defaultMessage": "Select all loaded",
     "description": "Bulk action to select every issue in the current loaded list"
   },
+  "MC7M/wi3wt": {
+    "defaultMessage": "Score each scan out of 100. Every finding costs points per source word: minor 1, major 5, critical 25. A language passes when it reaches the threshold and has no critical finding. Run QA steps in workflows pass or fail on this score.",
+    "description": "Project QA settings: help text for MQM quality scoring"
+  },
   "MCViSbp0Sq": {
     "defaultMessage": "Run a scheduled compliance check on medical device labelling and IFU translations. Compare locales against approved terminology, flag missing translations for regulated markets, check unit and warning phrase consistency, then report blockers for review. Do not publish.",
     "description": "Sample agent instructions in the marketing automation editor mock"
@@ -20507,6 +20523,10 @@
     "defaultMessage": "Fix with context",
     "description": "localisation-quality-monitoring use case page: guide › steps › #3 › title"
   },
+  "PSdpb4ZhsU": {
+    "defaultMessage": "Pass threshold",
+    "description": "Project QA settings: lowest passing quality score"
+  },
   "PSqr8lzpHo": {
     "defaultMessage": "Turkish (Türkiye)",
     "description": "Display name for BCP-47 locale tr-TR"
@@ -21102,6 +21122,10 @@
   "QL/gA8x5xr": {
     "defaultMessage": "Add at least one supported tool to activate this automation.",
     "description": "Hint when the automation cannot be activated without a tool"
+  },
+  "QLTuspeSzC": {
+    "defaultMessage": "Minor",
+    "description": "MQM penalty level: minor, 1 point"
   },
   "QMh6yY0nNA": {
     "defaultMessage": "Match UI labels and product terms so instructions line up with the app.",
@@ -29451,6 +29475,10 @@
     "defaultMessage": "Push source",
     "description": "Push source toggle label"
   },
+  "ba52MnbtYg": {
+    "defaultMessage": "Lowest passing score, from 0 to 100.",
+    "description": "Project QA settings: help text for the pass threshold"
+  },
   "baC+vfP5oL": {
     "defaultMessage": "Disabled after repeated failures",
     "description": "Badge for a webhook endpoint switched off after failing many times in a row"
@@ -29682,6 +29710,10 @@
   "bubst9Dzg+": {
     "defaultMessage": "Refresh repo list",
     "description": "Refresh repository list button label"
+  },
+  "bukf9DJ0yp": {
+    "defaultMessage": "Passed · threshold {threshold}",
+    "description": "Project QA overview: every language reached the pass threshold"
   },
   "bvPNfnGgVD": {
     "defaultMessage": "/auth.md",
@@ -41047,6 +41079,10 @@
     "defaultMessage": "Last {days} days",
     "description": "Ready-made date range: the last N days, today included"
   },
+  "qodhPbECWl": {
+    "defaultMessage": "{count, plural, one {# language} other {# languages}} below threshold {threshold}",
+    "description": "Project QA overview: languages that did not pass the quality threshold"
+  },
   "qpxWkOMxRR": {
     "defaultMessage": "Name",
     "description": "Label for the dictionary name field"
@@ -43746,6 +43782,10 @@
   "uXkk9nvslN": {
     "defaultMessage": "Technical",
     "description": "Deep audit dimension: technical localisation checks"
+  },
+  "uXu5iikA3V": {
+    "defaultMessage": "Critical",
+    "description": "MQM penalty level: critical, 25 points; any critical finding fails the language"
   },
   "uXvES3jNQD": {
     "defaultMessage": "Scheduled",
@@ -46530,6 +46570,10 @@
   "y2WmLzVX+A": {
     "defaultMessage": "See how each market searches for what you sell, where you rank, and how AI answers talk about you. Then create the localised content that captures that demand.",
     "description": "market-entry use case page: hero › body"
+  },
+  "y2u7doaXXd": {
+    "defaultMessage": "Quality score",
+    "description": "Project QA settings: switch that turns on MQM quality scoring"
   },
   "y301nYXIIx": {
     "defaultMessage": "Enabled",
