@@ -1,0 +1,27 @@
+---
+title: "Connect Linear"
+description: "Connect a Linear workspace through WorkOS Pipes so Hyperlocalise can read your teams and create issues for translation blockers."
+---
+
+Connect Linear once in workspace **Integrations**. Hyperlocalise uses the connection to read your Linear teams and to create issues for localisation work, such as translation blockers. It does not change or delete existing issues.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Workspace admin | Only workspace admins can connect or disconnect Linear. |
+| Linear account | Connect with OAuth through WorkOS Pipes (provider slug `linear`). Hyperlocalise does not store the access token. WorkOS keeps it and refreshes it. |
+
+## Connect Linear
+
+1. Open **Integrations**. Linear is listed under **Collaboration**.
+2. Choose **Connect** on **Linear**.
+3. Sign in to Linear in the window that opens, pick the Linear workspace, and approve access.
+
+The row then shows **Connected**. Each Hyperlocalise user connects their own Linear account. Issues are created as the user whose connection is used.
+
+If Linear revokes access or the grant expires, the row shows **Reconnect**. Choose it and approve access again.
+
+## Disconnect Linear
+
+Open **Integrations** and choose **Disconnect** on **Linear**. Hyperlocalise stops using the connection immediately. To revoke the grant in Linear too, remove the application under **Settings → Account → Security & access** in Linear.

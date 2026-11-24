@@ -876,7 +876,7 @@ export const integrationCatalogCopy = {
     overview: [
       {
         defaultMessage:
-          "Linear support will help teams turn translation blockers into tracked issues without losing product context.",
+          "Connect Linear through WorkOS Pipes so teams can turn translation blockers into tracked issues without losing product context.",
         id: "intLinearOverview0",
         description: "Linear integration marketing overview paragraph",
       },
@@ -904,7 +904,7 @@ export const integrationCatalogCopy = {
     },
     metadataDescription: {
       defaultMessage:
-        "Coming soon: turn translation blockers into Linear issues so launch work stays beside the rest of your product pipeline.",
+        "Turn translation blockers into Linear issues so launch work stays beside the rest of your product pipeline.",
       id: "intLinearMetaDescription",
       description: "Linear integration marketing page meta description",
     },
