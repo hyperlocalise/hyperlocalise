@@ -504,7 +504,7 @@ func TestIrisGenerationAutumnGate(t *testing.T) {
 		api.credits = testIrisCredits()
 		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "99999999-9999-9999-9999-999999999998",
-			"request":        map[string]any{"model": "seedance-2.5", "prompt": "a clip", "duration": 8},
+			"request":        map[string]any{"model": "kling-3-pro", "prompt": "a clip", "duration": 8},
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.Len(t, meter.tokenTracks, 1)
@@ -590,14 +590,14 @@ func TestIrisSyntheticCredit(t *testing.T) {
 		},
 		{
 			name:   "fal video seconds",
-			job:    irisJobRecord{ID: "job_vid", OrgID: "org_local", Model: "seedance-2.5", Request: irisGenerateRequest{"duration": float64(8)}},
+			job:    irisJobRecord{ID: "job_vid", OrgID: "org_local", Model: "kling-3-pro", Request: irisGenerateRequest{"duration": float64(8)}},
 			model:  "custom/fal-video",
 			vendor: "fal",
 			output: 8,
 		},
 		{
 			name:   "fal video default seconds",
-			job:    irisJobRecord{ID: "job_vid_default", OrgID: "org_local", Model: "seedance-2.5"},
+			job:    irisJobRecord{ID: "job_vid_default", OrgID: "org_local", Model: "kling-3-pro"},
 			model:  "custom/fal-video",
 			vendor: "fal",
 			output: 6,
@@ -891,13 +891,13 @@ func TestIrisPublicHTTPSURL(t *testing.T) {
 func TestIrisGatewayProviderUpscalerIncludesVideo(t *testing.T) {
 	var payload map[string]any
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/videos", r.URL.Path)
+		require.Equal(t, "/v4/ai/video-model", r.URL.Path)
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
-		_, _ = w.Write([]byte(`{"video":{"b64_json":"dmlkZW8="}}`))
+		_, _ = w.Write([]byte("data: {\"type\":\"result\",\"videos\":[{\"type\":\"base64\",\"data\":\"dmlkZW8=\",\"mediaType\":\"video/mp4\"}]}\n\n"))
 	}))
 	t.Cleanup(server.Close)
 	provider := &irisGatewayProvider{
-		baseURL:    server.URL,
+		baseURL:    server.URL + "/v1",
 		apiKey:     "test-key",
 		httpClient: server.Client(),
 	}
@@ -913,9 +913,96 @@ func TestIrisGatewayProviderUpscalerIncludesVideo(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []byte("video"), outputs[0].Bytes)
-	ref, _ := payload["input_reference"].(string)
-	require.Contains(t, ref, "video/mp4")
-	require.Contains(t, ref, "Y2xpcA==")
+	refs, _ := payload["inputReferences"].([]any)
+	require.Len(t, refs, 1)
+	ref, _ := refs[0].(map[string]any)
+	require.Equal(t, "video/mp4", ref["mediaType"])
+	require.Equal(t, "Y2xpcA==", ref["data"])
+}
+
+func TestIrisGatewayProviderSeedanceSendsReferences(t *testing.T) {
+	var payload map[string]any
+	var headers http.Header
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/v4/ai/video-model", r.URL.Path)
+		headers = r.Header.Clone()
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"type\":\"result\",\"videos\":[{\"type\":\"base64\",\"data\":\"dmlkZW8=\",\"mediaType\":\"video/mp4\"}]}\n\n"))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{baseURL: server.URL + "/v1", apiKey: "test-key", httpClient: server.Client()}
+	model, ok := irisModelByID("seedance-2.5")
+	require.True(t, ok)
+	require.Equal(t, irisProviderGateway, model.Provider)
+
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:       model,
+		Prompt:      "@Image1 hands @Image2 a shirt",
+		Duration:    10.4,
+		AspectRatio: "16:9",
+		Inputs: []irisProviderInput{
+			{Role: "image", Bytes: []byte("founder"), ContentType: "image/png"},
+			{Role: "image", Bytes: []byte("shirt"), ContentType: "image/jpeg"},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []byte("video"), outputs[0].Bytes)
+	require.Equal(t, "bytedance/seedance-2.5", headers.Get("ai-model-id"))
+	require.Equal(t, "4", headers.Get("ai-video-model-specification-version"))
+	require.Equal(t, "Bearer test-key", headers.Get("Authorization"))
+	require.Equal(t, "[Image 1] hands [Image 2] a shirt", payload["prompt"])
+	require.Equal(t, float64(10), payload["duration"])
+	require.Equal(t, "16:9", payload["aspectRatio"])
+	require.Equal(t, true, payload["generateAudio"])
+	refs, _ := payload["inputReferences"].([]any)
+	require.Len(t, refs, 2)
+	second, _ := refs[1].(map[string]any)
+	require.Equal(t, "file", second["type"])
+	require.Equal(t, "image/jpeg", second["mediaType"])
+	require.Equal(t, base64.StdEncoding.EncodeToString([]byte("shirt")), second["data"])
+	_, hasFrames := payload["frameImages"]
+	require.False(t, hasFrames)
+}
+
+func TestIrisGatewayProviderSeedanceFramesAndErrors(t *testing.T) {
+	var payload map[string]any
+	fail := false
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		if fail {
+			_, _ = w.Write([]byte("data: {\"type\":\"error\",\"message\":\"content rejected\",\"errorType\":\"invalid_request\",\"statusCode\":400,\"param\":null}\n\n"))
+			return
+		}
+		_, _ = w.Write([]byte("data: {\"type\":\"result\",\"videos\":[{\"type\":\"base64\",\"data\":\"dmlkZW8=\",\"mediaType\":\"video/mp4\"}]}\n\n"))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{baseURL: server.URL + "/v1", apiKey: "test-key", httpClient: server.Client()}
+	model, ok := irisModelByID("seedance-2.5")
+	require.True(t, ok)
+	req := irisProviderRequest{
+		Model:  model,
+		Prompt: "walk in",
+		Inputs: []irisProviderInput{
+			{Role: "start", Bytes: []byte("start"), ContentType: "image/png"},
+			{Role: "end", Bytes: []byte("end"), ContentType: "image/png"},
+		},
+	}
+
+	_, err := provider.Generate(t.Context(), req)
+	require.NoError(t, err)
+	frames, _ := payload["frameImages"].([]any)
+	require.Len(t, frames, 2)
+	first, _ := frames[0].(map[string]any)
+	last, _ := frames[1].(map[string]any)
+	require.Equal(t, "first_frame", first["frameType"])
+	require.Equal(t, "last_frame", last["frameType"])
+	_, hasRefs := payload["inputReferences"]
+	require.False(t, hasRefs)
+
+	fail = true
+	_, err = provider.Generate(t.Context(), req)
+	require.ErrorContains(t, err, "content rejected")
 }
 
 func TestIrisGatewayProviderImageEditForwardsAllReferences(t *testing.T) {

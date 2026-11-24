@@ -282,22 +282,9 @@ func TestFalInputSendsVideoReferences(t *testing.T) {
 		{Role: "image", Bytes: []byte("bedroom"), ContentType: "image/png"},
 	}
 
-	seedance, ok := irisModelByID("seedance-2.5")
-	require.True(t, ok)
-	req := irisProviderRequest{Model: seedance, Prompt: "@Image1 in @Image2", Duration: 10, AspectRatio: "16:9", Inputs: inputs}
-	require.Equal(t, "bytedance/seedance-2.5/reference-to-video", falEndpoint(req))
-	input := falInput(req)
-	require.Equal(t, []string{uri("founder"), uri("bedroom")}, input["image_urls"])
-	require.Equal(t, "10", input["duration"])
-	require.Equal(t, "16:9", input["aspect_ratio"])
-	for _, key := range []string{"image_url", "start_image_url", "end_image_url"} {
-		_, has := input[key]
-		require.False(t, has, key)
-	}
-
 	omni, ok := irisModelByID("kling-o3-pro")
 	require.True(t, ok)
-	input = falInput(irisProviderRequest{Model: omni, Prompt: "@Image1 wakes", Inputs: inputs})
+	input := falInput(irisProviderRequest{Model: omni, Prompt: "@Image1 wakes", Inputs: inputs})
 	require.Equal(t, []string{uri("founder"), uri("bedroom")}, input["image_urls"])
 	require.Equal(t, uri("keyframe"), input["start_image_url"])
 	_, hasImageURL := input["image_url"]
@@ -370,11 +357,6 @@ func TestFalDurationSerializesPerEndpoint(t *testing.T) {
 	require.True(t, ok)
 	input = falInput(irisProviderRequest{Model: omni, Prompt: "walk", Duration: 10.4})
 	require.Equal(t, "10", input["duration"])
-
-	seedance, ok := irisModelByID("seedance-2.5")
-	require.True(t, ok)
-	input = falInput(irisProviderRequest{Model: seedance, Prompt: "walk", Duration: 12})
-	require.Equal(t, "12", input["duration"])
 
 	wan, ok := irisModelByID("wan-3.0")
 	require.True(t, ok)
