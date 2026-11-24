@@ -25,6 +25,7 @@ export const PIPES_PROVIDER_SLUGS = [
   "hubspot",
   "intercom",
   "iterable",
+  "linear",
   "loops",
   "mailchimp",
   "notion",
@@ -56,6 +57,7 @@ export const PIPES_PROVIDER_CATEGORIES = {
   "google-drive": "guidelines",
   notion: "guidelines",
   atlassian: "collaboration",
+  linear: "collaboration",
 } as const satisfies Record<PipesProviderSlug, IntegrationCategory>;
 
 export function isPipesProviderSlug(value: string): value is PipesProviderSlug {

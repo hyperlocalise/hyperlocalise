@@ -21,7 +21,7 @@ import type { IterablePipesConnectionStatus, IterablePipesError } from "./types"
 
 const PIPES_UNAVAILABLE: IterablePipesError = {
   code: "iterable_pipes_unavailable",
-  message: "WorkOS is not configured, so Iterable cannot connect through Pipes.",
+  message: "Iterable isn't available right now. Contact support if this continues.",
 };
 
 const NOT_CONNECTED: IterablePipesError = {
@@ -41,8 +41,7 @@ const NEEDS_REAUTHORIZATION: IterablePipesError = {
 
 const PIPES_PROVIDER_MISSING: IterablePipesError = {
   code: "iterable_pipes_provider_missing",
-  message:
-    "WorkOS Pipes does not have the Iterable provider yet. Enable it in the WorkOS Dashboard, then save again.",
+  message: "Iterable isn't available yet. Contact support to turn it on.",
 };
 
 function mapPipesError(code: string): IterablePipesError {

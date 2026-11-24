@@ -404,7 +404,7 @@
     "description": "Import warning or error line with a CSV row number"
   },
   "+Ve/t+/sO9": {
-    "defaultMessage": "Ask your organization admin to confirm your WorkOS membership, choose another organization, or sign out and retry with another account.",
+    "defaultMessage": "Ask your organization admin to confirm your membership, choose another organization, or sign out and retry with another account.",
     "description": "Default access denied page guidance"
   },
   "+WCxVTeO3+": {
@@ -7108,7 +7108,7 @@
     "description": "Error when the live TMS provider job request fails"
   },
   "7MaLlZw62e": {
-    "defaultMessage": "Your account is signed in, but we could not reach WorkOS to confirm your organization membership.",
+    "defaultMessage": "Your account is signed in, but we could not confirm your organization membership. Try again in a moment.",
     "description": "Access denied page summary when WorkOS membership lookup fails"
   },
   "7Mb6b+z2q1": {
@@ -7340,7 +7340,7 @@
     "description": "Toast when creating a new workflow from the new automation page fails"
   },
   "7itDAFKmls": {
-    "defaultMessage": "Workspace creation requires WorkOS organization management to be configured.",
+    "defaultMessage": "Workspace creation isn't available right now. Contact support if this continues.",
     "description": "Error when WorkOS organization management is not configured"
   },
   "7j13INCpbH": {
@@ -7864,7 +7864,7 @@
     "description": "Button that adds an empty path pattern to the Source upload filter"
   },
   "8O4l4wC1UK": {
-    "defaultMessage": "Sanity through WorkOS Pipes is not enabled for this environment yet. An admin can enable the Sanity data integration in WorkOS.",
+    "defaultMessage": "Sanity isn't available in this workspace yet. Contact support to turn it on.",
     "description": "Integration row description when Sanity Pipes is unavailable"
   },
   "8OHSn5eQCa": {
@@ -14340,7 +14340,7 @@
     "description": "Label of the row that holds the link to the design (such as a Figma frame) where the string appears"
   },
   "GzYGhS8+WR": {
-    "defaultMessage": "Your name is stored on your Hyperlocalise account. Email comes from WorkOS.",
+    "defaultMessage": "Your name is stored on your Hyperlocalise account. Email comes from your sign-in account.",
     "description": "Helper text under the profile section on account settings"
   },
   "GzdUfM35EF": {
@@ -15180,7 +15180,7 @@
     "description": "Access denied page guidance when the organization slug is missing"
   },
   "IATCAL7GZ3": {
-    "defaultMessage": "WorkOS is not configured, so Search Console cannot connect through Pipes.",
+    "defaultMessage": "Search Console isn't available right now. Contact support if this continues.",
     "description": "Empty state description when WorkOS Pipes is unavailable"
   },
   "IBYpVWNrJA": {
@@ -27840,7 +27840,7 @@
     "description": "Shown when the webhook URL fails to load"
   },
   "ZT3mGAyTVi": {
-    "defaultMessage": "Authorize Hyperlocalise to access Sanity on your behalf through WorkOS Pipes.",
+    "defaultMessage": "Authorize Hyperlocalise to access Sanity on your behalf.",
     "description": "Intro when connecting Sanity with OAuth"
   },
   "ZTPtuGZQJE": {

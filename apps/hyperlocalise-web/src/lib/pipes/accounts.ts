@@ -22,7 +22,7 @@ import type { PipesConnectionStatus, PipesCredentialError, PipesStatusError } fr
 
 const PIPES_UNAVAILABLE: PipesStatusError = {
   code: "pipes_unavailable",
-  message: "WorkOS is not configured, so this provider cannot connect through Pipes.",
+  message: "this provider isn't available right now. Contact support if this continues.",
 };
 
 const PIPES_NOT_CONNECTED: PipesCredentialError = {

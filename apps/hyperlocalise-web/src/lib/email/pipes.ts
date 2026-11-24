@@ -21,7 +21,7 @@ import type { EmailPipesConnectionStatus, EmailPipesError } from "./types";
 
 const PIPES_UNAVAILABLE: EmailPipesError = {
   code: "email_pipes_unavailable",
-  message: "WorkOS is not configured, so email providers cannot connect through Pipes.",
+  message: "email providers isn't available right now. Contact support if this continues.",
 };
 
 const PROVIDER_NOT_CONNECTED: EmailPipesError = {

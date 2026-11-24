@@ -21,7 +21,7 @@ import type { WebflowPipesConnectionStatus, WebflowPipesError } from "./types";
 
 const PIPES_UNAVAILABLE: WebflowPipesError = {
   code: "webflow_pipes_unavailable",
-  message: "WorkOS is not configured, so Webflow cannot connect through Pipes.",
+  message: "Webflow isn't available right now. Contact support if this continues.",
 };
 
 const WEBFLOW_NOT_CONNECTED: WebflowPipesError = {

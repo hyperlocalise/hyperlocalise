@@ -831,7 +831,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "gitlab_pipes_unavailable";
-      message: "WorkOS is not configured, so GitLab cannot connect through Pipes.";
+      message: "GitLab isn't available right now. Contact support if this continues.";
     }
   | {
       code: "intercom_not_connected";
@@ -843,7 +843,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "intercom_pipes_unavailable";
-      message: "WorkOS is not configured, so Intercom cannot connect through Pipes.";
+      message: "Intercom isn't available right now. Contact support if this continues.";
     }
   | {
       code: "intercom_help_center_required";
@@ -871,7 +871,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "google_drive_pipes_unavailable";
-      message: "WorkOS is not configured, so Google Drive cannot connect through Pipes.";
+      message: "Google Drive isn't available right now. Contact support if this continues.";
     }
   | {
       code: "google_drive_folders_required";
@@ -895,7 +895,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "sanity_pipes_unavailable";
-      message: "WorkOS is not configured, so Sanity cannot connect through Pipes.";
+      message: "Sanity isn't available right now. Contact support if this continues.";
     }
   | {
       code: "sanity_project_required";
@@ -943,7 +943,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "braze_pipes_unavailable";
-      message: "WorkOS is not configured, so Braze cannot connect through Pipes.";
+      message: "Braze isn't available right now. Contact support if this continues.";
     }
   | {
       code: "braze_endpoint_missing";
@@ -967,7 +967,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "customer_io_pipes_unavailable";
-      message: "WorkOS is not configured, so Customer.io cannot connect through Pipes.";
+      message: "Customer.io isn't available right now. Contact support if this continues.";
     }
   | {
       code: "loops_not_connected";
@@ -979,7 +979,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "loops_pipes_unavailable";
-      message: "WorkOS is not configured, so Loops cannot connect through Pipes.";
+      message: "Loops isn't available right now. Contact support if this continues.";
     }
   | {
       code: "hubspot_not_connected";
@@ -991,7 +991,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "hubspot_pipes_unavailable";
-      message: "WorkOS is not configured, so HubSpot cannot connect through Pipes.";
+      message: "HubSpot isn't available right now. Contact support if this continues.";
     }
   | {
       code: "mailchimp_not_connected";
@@ -1003,7 +1003,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "mailchimp_pipes_unavailable";
-      message: "WorkOS is not configured, so Mailchimp cannot connect through Pipes.";
+      message: "Mailchimp isn't available right now. Contact support if this continues.";
     }
   | {
       code: "iterable_not_connected";
@@ -1015,7 +1015,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "iterable_pipes_unavailable";
-      message: "WorkOS is not configured, so Iterable cannot connect through Pipes.";
+      message: "Iterable isn't available right now. Contact support if this continues.";
     }
   | {
       code: "cms_translation_skills_exclusive";
@@ -1099,7 +1099,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "email_pipes_unavailable";
-      message: "WorkOS is not configured, so email providers cannot connect through Pipes.";
+      message: "email providers isn't available right now. Contact support if this continues.";
     }
   | {
       code: "email_from_required";
@@ -1167,7 +1167,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "ahrefs_pipes_unavailable";
-      message: "WorkOS is not configured, so Ahrefs cannot connect through Pipes.";
+      message: "Ahrefs isn't available right now. Contact support if this continues.";
     }
   | {
       code: "crowdin_project_required";
