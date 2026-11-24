@@ -332,64 +332,6 @@ func (p *irisGatewayProvider) speech(ctx context.Context, req irisProviderReques
 	return []irisProviderOutput{{Bytes: body, Filename: "speech." + ext, ContentType: contentType}}, nil
 }
 
-func (p *irisGatewayProvider) video(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
-	if irisGatewayUsesVideoModel(req.Model.GatewayID) {
-		return p.videoModel(ctx, req)
-	}
-	duration := req.Duration
-	if duration <= 0 {
-		duration = 6
-	}
-	payload := map[string]any{
-		"model":        p.modelID(req.Model.GatewayID),
-		"prompt":       req.Prompt,
-		"duration":     duration,
-		"aspect_ratio": req.AspectRatio,
-	}
-	if start, ok := firstInput(req.Inputs, "start", "video"); ok {
-		fallback := "image/png"
-		if start.Role == "video" {
-			fallback = "video/mp4"
-		}
-		payload["input_reference"] = "data:" + defaultType(start.ContentType, fallback) + ";base64," + base64.StdEncoding.EncodeToString(start.Bytes)
-	}
-	body, err := p.json(ctx, http.MethodPost, "/videos", payload)
-	if err != nil {
-		return nil, err
-	}
-	var parsed struct {
-		Data []struct {
-			B64JSON string `json:"b64_json"`
-			URL     string `json:"url"`
-		} `json:"data"`
-		Video struct {
-			B64JSON string `json:"b64_json"`
-			URL     string `json:"url"`
-		} `json:"video"`
-	}
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return nil, err
-	}
-	if len(parsed.Data) > 0 {
-		return decodeImageOutputs(ctx, body, "video", "mp4")
-	}
-	if parsed.Video.B64JSON != "" {
-		raw, err := base64.StdEncoding.DecodeString(parsed.Video.B64JSON)
-		if err != nil {
-			return nil, err
-		}
-		return []irisProviderOutput{{Bytes: raw, Filename: "video.mp4", ContentType: "video/mp4"}}, nil
-	}
-	if parsed.Video.URL != "" {
-		raw, contentType, err := fetchHTTPS(ctx, parsed.Video.URL)
-		if err != nil {
-			return nil, err
-		}
-		return []irisProviderOutput{{Bytes: raw, Filename: "video.mp4", ContentType: defaultType(contentType, "video/mp4")}}, nil
-	}
-	return nil, fmt.Errorf("gateway video response had no asset")
-}
-
 func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	switch req.Model.ID {
 	case "universal-3.5-pro", "fish-audio-transcribe-1":
@@ -580,11 +522,16 @@ func irisListenGatewayIDs(primary string) []string {
 	return []string{primary, defaultIrisListenBackupModel}
 }
 
-// irisGatewayUsesVideoModel: Seedance runs on AI Gateway's native video
-// protocol (`/v4/ai/video-model`, as the AI SDK's generateVideo calls it),
-// which carries reference images and first/last frames.
-func irisGatewayUsesVideoModel(gatewayID string) bool {
+// irisGatewayIsSeedance: Seedance takes provider options and `[Image N]`
+// prompt references the other Gateway video models do not.
+func irisGatewayIsSeedance(gatewayID string) bool {
 	return strings.HasPrefix(strings.TrimSpace(gatewayID), "bytedance/seedance")
+}
+
+// irisGatewayVideoAudio: models known to take `generateAudio`. FLUX video
+// is left to the provider default.
+func irisGatewayVideoAudio(gatewayID string) bool {
+	return !strings.HasPrefix(strings.TrimSpace(gatewayID), "bfl/")
 }
 
 // irisPromptImageRef matches the `@Image1` references Iris prompts use.
@@ -604,14 +551,23 @@ func irisGatewayVideoFile(input irisProviderInput, fallback string) map[string]a
 	}
 }
 
-func (p *irisGatewayProvider) videoModel(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
-	payload := map[string]any{
-		"prompt":        irisGatewayVideoPrompt(req.Prompt),
-		"n":             1,
-		"generateAudio": true,
-		"providerOptions": map[string]any{
+// video runs every Gateway video model on AI Gateway's native video protocol
+// (`/v4/ai/video-model`, the only one the AI SDK's generateVideo calls), which
+// carries first/last frames and reference images.
+func (p *irisGatewayProvider) video(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
+	seedance := irisGatewayIsSeedance(req.Model.GatewayID)
+	prompt := strings.TrimSpace(req.Prompt)
+	if seedance {
+		prompt = irisGatewayVideoPrompt(prompt)
+	}
+	payload := map[string]any{"prompt": prompt, "n": 1}
+	if irisGatewayVideoAudio(req.Model.GatewayID) {
+		payload["generateAudio"] = true
+	}
+	if seedance {
+		payload["providerOptions"] = map[string]any{
 			"bytedance": map[string]any{"pollTimeoutMs": irisGatewayVideoPollTimeout.Milliseconds()},
-		},
+		}
 	}
 	if req.Duration > 0 {
 		payload["duration"] = int(math.Round(req.Duration))
@@ -627,14 +583,17 @@ func (p *irisGatewayProvider) videoModel(ctx context.Context, req irisProviderRe
 		frames = append(frames, map[string]any{"image": irisGatewayVideoFile(end, "image/png"), "frameType": "last_frame"})
 	}
 	var references []map[string]any
-	for _, image := range inputsByRole(req.Inputs, "image") {
-		references = append(references, irisGatewayVideoFile(image, "image/png"))
+	// Reference images go only to models the catalog lets take them.
+	if req.Model.MaxReferences > 0 {
+		for _, image := range inputsByRole(req.Inputs, "image") {
+			references = append(references, irisGatewayVideoFile(image, "image/png"))
+		}
 	}
 	if video, ok := firstInput(req.Inputs, "video"); ok {
 		references = append(references, irisGatewayVideoFile(video, "video/mp4"))
 	}
 	// Gateway drops inputReferences when frameImages are set; the catalog
-	// already rejects images with frames for Seedance.
+	// rejects images with frames on ReferencesReplaceFrames models.
 	if len(frames) > 0 {
 		payload["frameImages"] = frames
 	} else if len(references) > 0 {
