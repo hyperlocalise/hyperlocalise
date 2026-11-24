@@ -8,6 +8,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/google/uuid"
@@ -491,18 +493,21 @@ func TestEditorCatImageUrlTranslationRegenerateFetchAndApprovedLock(t *testing.T
 func TestEditorCatFetchImageURL(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
+	// httptest servers listen on loopback, which the production client refuses,
+	// so response-handling cases use a plain client.
+	client := &http.Client{}
 
-	_, _, _, err := editorCatFetchImageURL(ctx, "not-a-url")
+	_, _, _, err := editorCatFetchImageURLWithClient(ctx, client, "not-a-url")
 	require.ErrorContains(t, err, "fetch_failed")
 
-	_, _, _, err = editorCatFetchImageURL(ctx, "https://example.com/readme.txt")
+	_, _, _, err = editorCatFetchImageURLWithClient(ctx, client, "https://example.com/readme.txt")
 	require.ErrorContains(t, err, "fetch_failed")
 
 	missing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	t.Cleanup(missing.Close)
-	_, _, _, err = editorCatFetchImageURL(ctx, missing.URL+"/hero.png")
+	_, _, _, err = editorCatFetchImageURLWithClient(ctx, client, missing.URL+"/hero.png")
 	require.ErrorContains(t, err, "fetch_failed")
 
 	plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -510,14 +515,14 @@ func TestEditorCatFetchImageURL(t *testing.T) {
 		_, _ = w.Write([]byte("nope"))
 	}))
 	t.Cleanup(plain.Close)
-	_, _, _, err = editorCatFetchImageURL(ctx, plain.URL+"/hero.png")
+	_, _, _, err = editorCatFetchImageURLWithClient(ctx, client, plain.URL+"/hero.png")
 	require.ErrorContains(t, err, "unsupported_image_response")
 
 	empty := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
 	}))
 	t.Cleanup(empty.Close)
-	_, _, _, err = editorCatFetchImageURL(ctx, empty.URL+"/hero.png")
+	_, _, _, err = editorCatFetchImageURLWithClient(ctx, client, empty.URL+"/hero.png")
 	require.ErrorContains(t, err, "unsupported_image_response")
 
 	ok := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -525,11 +530,88 @@ func TestEditorCatFetchImageURL(t *testing.T) {
 		_, _ = io.WriteString(w, "png-bytes")
 	}))
 	t.Cleanup(ok.Close)
-	raw, contentType, filename, err := editorCatFetchImageURL(ctx, ok.URL+"/folder/hero.png")
+	raw, contentType, filename, err := editorCatFetchImageURLWithClient(ctx, client, ok.URL+"/folder/hero.png")
 	require.NoError(t, err)
 	require.Equal(t, []byte("png-bytes"), raw)
 	require.Equal(t, "image/png", contentType)
 	require.Equal(t, "hero.png", filename)
+}
+
+func TestEditorCatFetchImageURLRefusesNonPublicTargets(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	var hits atomic.Int32
+	internal := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = io.WriteString(w, "internal-bytes")
+	}))
+	t.Cleanup(internal.Close)
+	port := internal.URL[strings.LastIndex(internal.URL, ":")+1:]
+
+	for _, target := range []string{
+		internal.URL + "/hero.png",
+		"http://127.0.0.1:" + port + "/hero.png",
+		"http://localhost:" + port + "/hero.png",
+		"http://[::1]:" + port + "/hero.png",
+		"http://169.254.169.254/latest/meta-data/hero.png",
+		"http://10.0.0.1/hero.png",
+	} {
+		_, _, _, err := editorCatFetchImageURL(ctx, target)
+		require.ErrorContains(t, err, "fetch_failed", target)
+	}
+	require.Zero(t, hits.Load(), "loopback server must never be reached")
+}
+
+func TestEditorCatFetchImageURLRefusesRedirectToNonPublicTargets(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	var internalHits atomic.Int32
+	internal := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		internalHits.Add(1)
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = io.WriteString(w, "internal-bytes")
+	}))
+	t.Cleanup(internal.Close)
+
+	for _, location := range []string{
+		"http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+		internal.URL + "/hero.png",
+		"file:///etc/passwd",
+	} {
+		redirector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, location, http.StatusFound)
+		}))
+		t.Cleanup(redirector.Close)
+
+		// Keep the production redirect policy but allow dialing the loopback
+		// redirector, standing in for a public host that 302s internally.
+		client := editorCatPublicImageFetchClient()
+		client.Transport = &http.Transport{}
+		_, _, _, err := editorCatFetchImageURLWithClient(ctx, client, redirector.URL+"/hero.png")
+		require.ErrorContains(t, err, "fetch_failed", location)
+	}
+	require.Zero(t, internalHits.Load(), "redirect target must never be reached")
+}
+
+func TestEditorCatPublicImageFetchClientRedirectPolicy(t *testing.T) {
+	t.Parallel()
+	client := editorCatPublicImageFetchClient()
+	mustReq := func(raw string) *http.Request {
+		req, err := http.NewRequest(http.MethodGet, raw, nil)
+		require.NoError(t, err)
+		return req
+	}
+	require.NoError(t, client.CheckRedirect(mustReq("https://cdn.example.com/hero.png"), nil))
+	require.NoError(t, client.CheckRedirect(mustReq("http://cdn.example.com/hero.png"), nil))
+	require.Error(t, client.CheckRedirect(mustReq("http://169.254.169.254/latest/meta-data/"), nil))
+	require.Error(t, client.CheckRedirect(mustReq("http://127.0.0.1/hero.png"), nil))
+	require.Error(t, client.CheckRedirect(mustReq("http://localhost/hero.png"), nil))
+	require.Error(t, client.CheckRedirect(mustReq("http://user:pass@cdn.example.com/hero.png"), nil))
+	via := []*http.Request{{}, {}, {}}
+	require.Error(t, client.CheckRedirect(mustReq("https://cdn.example.com/hero.png"), via))
 }
 
 func TestEditorCatLocalizedImageFilename(t *testing.T) {

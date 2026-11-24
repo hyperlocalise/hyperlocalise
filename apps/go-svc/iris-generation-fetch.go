@@ -35,12 +35,29 @@ func irisPublicHTTPClient() *http.Client {
 }
 
 func validatePublicHTTPSURL(target *url.URL) error {
-	if target == nil || target.Scheme != "https" || target.Host == "" || target.User != nil {
+	if target == nil || target.Scheme != "https" {
 		return fmt.Errorf("refusing non-https url")
+	}
+	return validatePublicURLHost(target)
+}
+
+// validatePublicHTTPURL accepts http or https URLs whose host is a public
+// hostname or a routable IP literal. Pair it with dialPublicAddress so DNS
+// answers are re-checked at connect time.
+func validatePublicHTTPURL(target *url.URL) error {
+	if target == nil || (target.Scheme != "https" && target.Scheme != "http") {
+		return fmt.Errorf("refusing non-http url")
+	}
+	return validatePublicURLHost(target)
+}
+
+func validatePublicURLHost(target *url.URL) error {
+	if target.Host == "" || target.User != nil {
+		return fmt.Errorf("refusing invalid url")
 	}
 	host := target.Hostname()
 	if host == "" {
-		return fmt.Errorf("refusing non-https url")
+		return fmt.Errorf("refusing invalid url")
 	}
 	if ip, err := netip.ParseAddr(host); err == nil {
 		if !isRoutableLinkedDomainIP(ip) {
