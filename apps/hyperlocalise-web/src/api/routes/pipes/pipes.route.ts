@@ -72,7 +72,7 @@ export function createPipesRoutes() {
         return serviceUnavailableResponse(
           c,
           "pipes_oauth_unavailable",
-          "This integration only supports API key authentication in WorkOS Pipes.",
+          "This integration connects with an API key, not by signing in.",
         );
       }
 

@@ -577,7 +577,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       }
       return err({
         code: "email_pipes_unavailable",
-        message: "WorkOS is not configured, so email providers cannot connect through Pipes.",
+        message: "email providers isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -744,7 +744,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "ahrefs_pipes_unavailable",
-        message: "WorkOS is not configured, so Ahrefs cannot connect through Pipes.",
+        message: "Ahrefs isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -782,7 +782,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "gitlab_pipes_unavailable",
-        message: "WorkOS is not configured, so GitLab cannot connect through Pipes.",
+        message: "GitLab isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -818,7 +818,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "intercom_pipes_unavailable",
-        message: "WorkOS is not configured, so Intercom cannot connect through Pipes.",
+        message: "Intercom isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -919,7 +919,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "google_drive_pipes_unavailable",
-        message: "WorkOS is not configured, so Google Drive cannot connect through Pipes.",
+        message: "Google Drive isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1018,7 +1018,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "sanity_pipes_unavailable",
-        message: "WorkOS is not configured, so Sanity cannot connect through Pipes.",
+        message: "Sanity isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1243,7 +1243,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "braze_pipes_unavailable",
-        message: "WorkOS is not configured, so Braze cannot connect through Pipes.",
+        message: "Braze isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1321,7 +1321,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "braze_pipes_unavailable",
-        message: "WorkOS is not configured, so Braze cannot connect through Pipes.",
+        message: "Braze isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1399,7 +1399,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "customer_io_pipes_unavailable",
-        message: "WorkOS is not configured, so Customer.io cannot connect through Pipes.",
+        message: "Customer.io isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1435,7 +1435,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "loops_pipes_unavailable",
-        message: "WorkOS is not configured, so Loops cannot connect through Pipes.",
+        message: "Loops isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1481,7 +1481,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "hubspot_pipes_unavailable",
-        message: "WorkOS is not configured, so HubSpot cannot connect through Pipes.",
+        message: "HubSpot isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1517,7 +1517,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "mailchimp_pipes_unavailable",
-        message: "WorkOS is not configured, so Mailchimp cannot connect through Pipes.",
+        message: "Mailchimp isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1569,7 +1569,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       }
       return err({
         code: "iterable_pipes_unavailable",
-        message: "WorkOS is not configured, so Iterable cannot connect through Pipes.",
+        message: "Iterable isn't available right now. Contact support if this continues.",
       });
     }
 

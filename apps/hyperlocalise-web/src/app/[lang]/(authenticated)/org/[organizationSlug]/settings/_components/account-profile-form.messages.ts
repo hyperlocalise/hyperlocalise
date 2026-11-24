@@ -21,8 +21,9 @@ export const accountProfileFormMessages = defineMessages({
     description: "Section heading for the signed-in user profile on account settings",
   },
   sectionDescription: {
-    defaultMessage: "Your name is stored on your Hyperlocalise account. Email comes from WorkOS.",
-    id: "GzYGhS8+WR",
+    defaultMessage:
+      "Your name is stored on your Hyperlocalise account. Email comes from your sign-in account.",
+    id: "nen31+8GMz",
     description: "Helper text under the profile section on account settings",
   },
   firstName: {

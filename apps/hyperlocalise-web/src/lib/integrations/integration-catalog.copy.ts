@@ -94,7 +94,7 @@ export const integrationCatalogCopy = {
       },
       {
         defaultMessage:
-          "Connect GitLab.com through WorkOS Pipes so Hyperlocalise can list membership projects and clone them.",
+          "Connect GitLab.com so Hyperlocalise can list your projects and clone them.",
         id: "intGitLabOverview1",
         description: "GitLab integration marketing overview paragraph",
       },
@@ -1246,7 +1246,7 @@ export const integrationCatalogCopy = {
     },
     tagline: {
       defaultMessage:
-        "Connect Search Console through Pipes to import clicks, impressions, and queries for claimed domains.",
+        "Connect Search Console to import clicks, impressions, and queries for claimed domains.",
       id: "intGoogleSearchConsoleTagline",
       description: "Google Search Console integration description on the integrations page",
     },

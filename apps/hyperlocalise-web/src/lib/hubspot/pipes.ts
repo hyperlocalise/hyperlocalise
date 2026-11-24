@@ -21,7 +21,7 @@ import type { HubspotPipesConnectionStatus, HubspotPipesError } from "./types";
 
 const PIPES_UNAVAILABLE: HubspotPipesError = {
   code: "hubspot_pipes_unavailable",
-  message: "WorkOS is not configured, so HubSpot cannot connect through Pipes.",
+  message: "HubSpot isn't available right now. Contact support if this continues.",
 };
 
 const HUBSPOT_NOT_CONNECTED: HubspotPipesError = {

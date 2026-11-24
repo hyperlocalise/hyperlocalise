@@ -39,8 +39,8 @@ function getAccessDeniedCopy(reason: AccessDeniedReason | undefined, intl: IntlS
         }),
         description: intl.formatMessage({
           defaultMessage:
-            "Your account is signed in, but we could not reach WorkOS to confirm your organization membership.",
-          id: "7MaLlZw62e",
+            "Your account is signed in, but we could not confirm your organization membership. Try again in a moment.",
+          id: "t6vvaCuOOb",
           description: "Access denied page summary when WorkOS membership lookup fails",
         }),
         body: intl.formatMessage({
@@ -160,8 +160,8 @@ function getAccessDeniedCopy(reason: AccessDeniedReason | undefined, intl: IntlS
         }),
         body: intl.formatMessage({
           defaultMessage:
-            "Ask your organization admin to confirm your WorkOS membership, choose another organization, or sign out and retry with another account.",
-          id: "+Ve/t+/sO9",
+            "Ask your organization admin to confirm your membership, choose another organization, or sign out and retry with another account.",
+          id: "e1M80dhMEi",
           description: "Default access denied page guidance",
         }),
       };

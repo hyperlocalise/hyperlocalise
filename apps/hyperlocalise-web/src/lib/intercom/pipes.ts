@@ -21,7 +21,7 @@ import type { IntercomPipesConnectionStatus, IntercomPipesError } from "./types"
 
 const PIPES_UNAVAILABLE: IntercomPipesError = {
   code: "intercom_pipes_unavailable",
-  message: "WorkOS is not configured, so Intercom cannot connect through Pipes.",
+  message: "Intercom isn't available right now. Contact support if this continues.",
 };
 
 const INTERCOM_NOT_CONNECTED: IntercomPipesError = {

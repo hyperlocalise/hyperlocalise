@@ -21,7 +21,7 @@ import type { LinearPipesConnectionStatus, LinearPipesError } from "./types";
 
 const PIPES_UNAVAILABLE: LinearPipesError = {
   code: "linear_pipes_unavailable",
-  message: "WorkOS is not configured, so Linear cannot connect through Pipes.",
+  message: "Linear isn't available right now. Contact support if this continues.",
 };
 
 const LINEAR_NOT_CONNECTED: LinearPipesError = {

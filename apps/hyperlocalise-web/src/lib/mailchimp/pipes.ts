@@ -21,7 +21,7 @@ import type { MailchimpPipesConnectionStatus, MailchimpPipesError } from "./type
 
 const PIPES_UNAVAILABLE: MailchimpPipesError = {
   code: "mailchimp_pipes_unavailable",
-  message: "WorkOS is not configured, so Mailchimp cannot connect through Pipes.",
+  message: "Mailchimp isn't available right now. Contact support if this continues.",
 };
 
 const MAILCHIMP_NOT_CONNECTED: MailchimpPipesError = {
