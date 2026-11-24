@@ -91,6 +91,10 @@ function buildDefinition(
   };
 }
 
+const POST_EDIT_DUE_IN_HOURS = 48;
+const TEP_STEP_DUE_IN_HOURS = 72;
+const QA_FIX_DUE_IN_HOURS = 24;
+
 function sourceUploadTrigger(options: VisualWorkflowTemplateOptions): TemplateNode {
   return {
     id: "trigger",
@@ -100,31 +104,22 @@ function sourceUploadTrigger(options: VisualWorkflowTemplateOptions): TemplateNo
   };
 }
 
-/**
- * The end of a QA check. Slack and email steps cannot be saved until the person picks where the
- * message goes, so a template ends here and the person adds a message step where they want one.
- */
-function qaOutcomeNodes(column: number): TemplateNode[] {
-  return [
-    {
-      id: "stop",
-      type: "flow.stop",
-      config: { outcome: "completed", reason: "Translations passed QA." },
-      at: [column, 0],
-    },
-    {
-      id: "fail_qa",
-      type: "flow.fail",
-      config: {
-        errorCode: "QA_FAILED",
-        message: "QA found errors. Review them on the project's QA tab before shipping.",
-      },
-      at: [column, 1],
-    },
-  ];
+function notifySlack(id: string, message: string, at: TemplateNode["at"]): TemplateNode {
+  // The channel is the person's to pick; publish lists it until they do.
+  return { id, type: "action.notify_slack", config: { channelId: "", message }, at };
 }
 
-/** Translate each new source file with AI, wait for it, run QA and report the result. */
+/** Run QA on the file and languages of one job, the work this run produced or reviewed. */
+function runQaForJob(jobId: string, at: TemplateNode["at"]): TemplateNode {
+  return {
+    id: "run_qa",
+    type: "action.run_qa",
+    config: { projectId: "{{ trigger.projectId }}", jobId },
+    at,
+  };
+}
+
+/** Translate each new source file with AI, wait for it, run QA on it and report the result. */
 function aiTranslateOnUpload(options: VisualWorkflowTemplateOptions) {
   return buildDefinition(
     "AI translation on upload",
@@ -162,38 +157,38 @@ function aiTranslateOnUpload(options: VisualWorkflowTemplateOptions) {
         },
         at: [3, 0],
       },
-      {
-        id: "run_qa",
-        type: "action.run_qa",
-        config: { projectId: "{{ trigger.projectId }}" },
-        at: [4, 0],
-      },
+      runQaForJob("{{ nodes.machine_translate.jobId }}", [4, 0]),
       {
         id: "if",
         type: "logic.if",
         config: { condition: "{{ nodes.run_qa.passed }}" },
         at: [5, 0],
       },
-      ...qaOutcomeNodes(6),
-      {
-        id: "fail",
-        type: "flow.fail",
-        config: {
-          errorCode: "TRANSLATION_NOT_FINISHED",
-          message: "The AI translation did not finish in time.",
-        },
-        at: [4, 1],
-      },
+      notifySlack(
+        "notify_slack",
+        "{{ trigger.sourcePath }} is translated with AI and passed QA ({{ nodes.run_qa.warningCount }} warnings).",
+        [6, 0],
+      ),
+      notifySlack(
+        "notify_slack_2",
+        "{{ trigger.sourcePath }} is translated with AI, but QA found {{ nodes.run_qa.errorCount }} errors. Review them on the project's QA tab.",
+        [6, 1],
+      ),
+      notifySlack(
+        "notify_slack_3",
+        "The AI translation of {{ trigger.sourcePath }} did not finish within 90 minutes.",
+        [4, 2],
+      ),
     ],
     [
       ["trigger", "machine_translate"],
       ["machine_translate", "check_progress"],
       ["check_progress", "wait"],
       ["wait", "run_qa", "completed"],
-      ["wait", "fail", "timed_out"],
+      ["wait", "notify_slack_3", "timed_out"],
       ["run_qa", "if"],
-      ["if", "stop", "true"],
-      ["if", "fail_qa", "false"],
+      ["if", "notify_slack", "true"],
+      ["if", "notify_slack_2", "false"],
     ],
   );
 }
@@ -240,45 +235,54 @@ function mtpeOnUpload(options: VisualWorkflowTemplateOptions) {
           targetLocales: "{{ nodes.for_each.item }}",
           step: "edit",
           assigneeWorkosUserId: "{{ nodes.pick_assignee.assigneeId }}",
+          title: "Post-edit {{ trigger.fileName }} ({{ nodes.for_each.item }})",
           afterJobId: "{{ nodes.machine_translate.jobId }}",
+          dueInHours: POST_EDIT_DUE_IN_HOURS,
         },
         at: [4, 1],
       },
-      {
-        id: "stop",
-        type: "flow.stop",
-        config: { outcome: "completed", reason: "Post-edit tasks are assigned." },
-        at: [3, 0],
-      },
+      notifySlack(
+        "notify_slack",
+        "{{ trigger.sourcePath }} is being translated with AI. {{ nodes.for_each.count }} post-edit tasks are assigned and open when it is done.",
+        [3, 0],
+      ),
     ],
     [
       ["trigger", "machine_translate"],
       ["machine_translate", "for_each"],
       ["for_each", "pick_assignee", "each"],
       ["pick_assignee", "create_task"],
-      ["for_each", "stop", "done"],
+      ["for_each", "notify_slack", "done"],
     ],
   );
 }
 
-/** Translate, edit and proofread each new file with people, one task after another. */
+/** For each language of each new file, translate, edit and proofread it with people. */
 function tepOnUpload(options: VisualWorkflowTemplateOptions) {
   const steps = [
-    { suffix: "", step: "translate" },
-    { suffix: "_2", step: "edit" },
-    { suffix: "_3", step: "proofread" },
+    { suffix: "", step: "translate", label: "Translate" },
+    { suffix: "_2", step: "edit", label: "Edit" },
+    { suffix: "_3", step: "proofread", label: "Proofread" },
   ] as const;
+  const body = steps.flatMap(({ suffix }) => [`pick_assignee${suffix}`, `create_task${suffix}`]);
 
   return buildDefinition(
     "TEP: translate, edit, proofread",
     [
       sourceUploadTrigger(options),
-      ...steps.flatMap(({ suffix, step }, index): TemplateNode[] => [
+      {
+        id: "for_each",
+        type: "logic.for_each",
+        config: { collection: "{{ trigger.targetLocales }}" },
+        bodyNodeIds: body,
+        at: [1, 0],
+      },
+      ...steps.flatMap(({ suffix, step, label }, index): TemplateNode[] => [
         {
           id: `pick_assignee${suffix}`,
           type: "action.pick_assignee",
-          config: { jobType: step },
-          at: [1 + index * 2, 0],
+          config: { locale: "{{ nodes.for_each.item }}", jobType: step },
+          at: [2 + index * 2, 1],
         },
         {
           id: `create_task${suffix}`,
@@ -286,31 +290,44 @@ function tepOnUpload(options: VisualWorkflowTemplateOptions) {
           config: {
             projectId: "{{ trigger.projectId }}",
             sourceFileId: "{{ trigger.sourceFileId }}",
-            targetLocales: "",
+            targetLocales: "{{ nodes.for_each.item }}",
             step,
             assigneeWorkosUserId: `{{ nodes.pick_assignee${suffix}.assigneeId }}`,
+            title: `${label} {{ trigger.fileName }} ({{ nodes.for_each.item }})`,
             afterJobId:
               index === 0 ? "" : `{{ nodes.create_task${steps[index - 1]!.suffix}.jobId }}`,
+            dueInHours: TEP_STEP_DUE_IN_HOURS,
           },
-          at: [2 + index * 2, 0],
+          at: [3 + index * 2, 1],
         },
       ]),
+      notifySlack(
+        "notify_slack",
+        "{{ trigger.sourcePath }} is ready for translation. Translate, edit and proofread tasks are assigned for {{ nodes.for_each.count }} languages.",
+        [2, 0],
+      ),
     ],
     [
-      ["trigger", "pick_assignee"],
+      ["trigger", "for_each"],
+      ["for_each", "pick_assignee", "each"],
       ["pick_assignee", "create_task"],
       ["create_task", "pick_assignee_2"],
       ["pick_assignee_2", "create_task_2"],
       ["create_task_2", "pick_assignee_3"],
       ["pick_assignee_3", "create_task_3"],
+      ["for_each", "notify_slack", "done"],
     ],
   );
 }
 
-/** When a post-edit or proofread task is marked done, run QA and report the result. */
-function reviewDoneQaNotify(options: VisualWorkflowTemplateOptions) {
+/**
+ * When a post-edit or proofread task is marked done, run QA on its file and languages. Passing
+ * work is announced. Failing work goes back to the same person as a new post-edit task; when they
+ * mark it done, this workflow runs again, until QA passes.
+ */
+function reviewDoneQa(options: VisualWorkflowTemplateOptions) {
   return buildDefinition(
-    "Review done: run QA",
+    "Review done: QA, then fix or deliver",
     [
       {
         id: "trigger",
@@ -323,25 +340,44 @@ function reviewDoneQaNotify(options: VisualWorkflowTemplateOptions) {
         },
         at: [0, 0],
       },
-      {
-        id: "run_qa",
-        type: "action.run_qa",
-        config: { projectId: "{{ trigger.projectId }}" },
-        at: [1, 0],
-      },
+      runQaForJob("{{ trigger.jobId }}", [1, 0]),
       {
         id: "if",
         type: "logic.if",
         config: { condition: "{{ nodes.run_qa.passed }}" },
         at: [2, 0],
       },
-      ...qaOutcomeNodes(3),
+      notifySlack(
+        "notify_slack",
+        "A review task is done and its translations passed QA ({{ nodes.run_qa.warningCount }} warnings). They are ready to ship.",
+        [3, 0],
+      ),
+      {
+        id: "create_task",
+        type: "action.create_task",
+        config: {
+          projectId: "{{ trigger.projectId }}",
+          sourceFileId: "{{ trigger.sourceFileId }}",
+          targetLocales: "{{ trigger.targetLocales }}",
+          step: "edit",
+          assigneeWorkosUserId: "{{ trigger.assigneeId }}",
+          title: "Fix {{ nodes.run_qa.errorCount }} QA errors",
+          dueInHours: QA_FIX_DUE_IN_HOURS,
+        },
+        at: [3, 1],
+      },
+      notifySlack(
+        "notify_slack_2",
+        "QA found {{ nodes.run_qa.errorCount }} errors in a finished review task. It went back to the reviewer to fix.",
+        [4, 1],
+      ),
     ],
     [
       ["trigger", "run_qa"],
       ["run_qa", "if"],
-      ["if", "stop", "true"],
-      ["if", "fail_qa", "false"],
+      ["if", "notify_slack", "true"],
+      ["if", "create_task", "false"],
+      ["create_task", "notify_slack_2"],
     ],
   );
 }
@@ -353,7 +389,7 @@ const TEMPLATE_BUILDERS: Record<
   "ai-translate-on-upload": aiTranslateOnUpload,
   "mtpe-on-upload": mtpeOnUpload,
   "tep-on-upload": tepOnUpload,
-  "review-done-qa": reviewDoneQaNotify,
+  "review-done-qa": reviewDoneQa,
 };
 
 export function buildVisualWorkflowTemplate(

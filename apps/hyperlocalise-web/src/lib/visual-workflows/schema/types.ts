@@ -13,6 +13,8 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { EmailProviderSlug } from "@/lib/email/constants";
+
+import type { SourcePathMatchSyntax } from "../dispatch/source-path-filter";
 import {
   JOB_KINDS,
   type JobChangeEventType,
@@ -178,6 +180,21 @@ export type VisualWorkflowScheduleCadence = "hourly" | "daily" | "weekly";
 
 export type VisualWorkflowGithubTriggerEvent = "push" | "pull_request";
 
+/** Which uploads start a Source upload workflow. */
+export type VisualSourceUploadScope = "new" | "new_and_updated";
+
+export type VisualWorkflowSourceUploadTriggerConfig = {
+  kind: "trigger.source_upload";
+  /** Only uploads to this project; every project when unset. */
+  projectId?: string;
+  /** Every new version of a file (the default), or only files uploaded for the first time. */
+  uploads?: VisualSourceUploadScope;
+  /** How `pathPatterns` are read; glob when unset. */
+  pathSyntax?: SourcePathMatchSyntax;
+  /** Only files whose path matches one of these; every file when unset or empty. */
+  pathPatterns?: string[];
+};
+
 export type VisualWorkflowJobChangedTriggerConfig = {
   kind: "trigger.job_changed";
   /** Only jobs in this project; every project when unset. */
@@ -233,7 +250,7 @@ export type VisualNodeConfig =
       branches: string[];
       events?: VisualWorkflowGithubTriggerEvent[];
     }
-  | { kind: "trigger.source_upload"; projectId?: string }
+  | VisualWorkflowSourceUploadTriggerConfig
   | {
       kind: "trigger.webhook";
       /** Part of the signed webhook token; raising it invalidates every URL handed out before. */
@@ -311,6 +328,8 @@ export type VisualNodeConfig =
       dueAt?: string;
       /** A job id or a template; the task waits until that job is marked done or cancelled. */
       afterJobId?: string;
+      /** Due this many hours after the step runs, when `dueAt` is empty. */
+      dueInHours?: number;
       onError?: VisualNodeErrorBehavior;
     }
   | {
@@ -327,6 +346,12 @@ export type VisualNodeConfig =
   | {
       kind: "action.run_qa";
       projectId: string;
+      /** Checks only the strings of this source file; empty checks the whole project. */
+      sourceFileId?: string;
+      /** Comma-separated locales; empty checks every target locale of the project. */
+      targetLocales?: string;
+      /** Checks the file and languages of this job, unless the settings above narrow them. */
+      jobId?: string;
       onError?: VisualNodeErrorBehavior;
     }
   | {
@@ -376,6 +401,8 @@ export type VisualNodeConfig =
       title: string;
       /** Empty leaves the due date unchanged. */
       dueAt?: string;
+      /** Due this many hours after the step runs, when `dueAt` is empty. */
+      dueInHours?: number;
       onError?: VisualNodeErrorBehavior;
     }
   | {

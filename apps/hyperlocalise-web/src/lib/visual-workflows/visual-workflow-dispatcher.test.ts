@@ -12,6 +12,8 @@
  */
 import "dotenv/config";
 
+import { randomUUID } from "node:crypto";
+
 import { eq, inArray } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -37,7 +39,11 @@ import {
   buildVisualWorkflowGithubIdempotencyKey,
   buildVisualWorkflowSourceUploadIdempotencyKey,
 } from "./dispatch/idempotency";
-import type { VisualWorkflowDefinition, VisualWorkflowGithubTriggerEvent } from "./schema/types";
+import type {
+  VisualNodeConfig,
+  VisualWorkflowDefinition,
+  VisualWorkflowGithubTriggerEvent,
+} from "./schema/types";
 import { createVisualWorkflowWebhookToken } from "./dispatch/webhook-token";
 import {
   dispatchDueScheduledVisualWorkflows,
@@ -585,6 +591,145 @@ describe("visual workflow dispatcher", () => {
       projectId: scope.projectId,
       sourceFileId: "source-file-1",
     });
+  });
+
+  it("starts source upload workflows only for matching paths and, when asked, new files", async () => {
+    const scope = await seedOrgScope();
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: "en-US", targetLocales: ["fr-FR", "de-DE"] })
+      .where(eq(schema.projects.id, scope.projectId));
+    const withTrigger = (
+      name: string,
+      config: Partial<Extract<VisualNodeConfig, { kind: "trigger.source_upload" }>>,
+    ): VisualWorkflowDefinition => ({
+      ...sourceUploadDefinition(scope.projectId, name),
+      nodes: [
+        {
+          id: "t",
+          type: "trigger.source_upload",
+          config: { kind: "trigger.source_upload", projectId: scope.projectId, ...config },
+        },
+      ],
+    });
+    const jsonOnly = await createActiveWorkflow({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "JSON only",
+      definition: withTrigger("JSON only", { pathPatterns: ["locales/en/**/*.json"] }),
+      projectId: scope.projectId,
+    });
+    const newOnly = await createActiveWorkflow({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "New files only",
+      definition: withTrigger("New files only", { uploads: "new" }),
+      projectId: scope.projectId,
+    });
+
+    const [sourceFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({
+        organizationId: scope.organizationId,
+        projectId: scope.projectId,
+        sourcePath: "locales/en/app.json",
+      })
+      .returning({ id: schema.repositorySourceFiles.id });
+    const upload = async (createdAt: Date) => {
+      const storedFileId = `file_${randomUUID()}`;
+      await db.insert(schema.storedFiles).values({
+        id: storedFileId,
+        organizationId: scope.organizationId,
+        projectId: scope.projectId,
+        role: "source",
+        sourceKind: "repository_file",
+        storageProvider: "vercel_blob",
+        storageKey: `sources/${storedFileId}/app.json`,
+        storageUrl: `https://example.com/${storedFileId}/app.json`,
+        downloadUrl: `https://example.com/${storedFileId}/app.json?download=1`,
+        filename: "app.json",
+        contentType: "application/json",
+        byteSize: 2,
+        sha256: "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        metadata: {},
+      });
+      const [version] = await db
+        .insert(schema.repositorySourceFileVersions)
+        .values({
+          repositorySourceFileId: sourceFile!.id,
+          organizationId: scope.organizationId,
+          projectId: scope.projectId,
+          sourcePath: "locales/en/app.json",
+          storedFileId,
+          createdAt,
+        })
+        .returning({ id: schema.repositorySourceFileVersions.id });
+      return { storedFileId, versionId: version!.id };
+    };
+
+    const { queue } = trackingQueue();
+    const first = await upload(new Date("2026-06-01T09:00:00.000Z"));
+    const firstResults = await dispatchVisualWorkflowsForSourceUpload({
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+      sourceFileId: first.storedFileId,
+      sourceFileVersionId: first.versionId,
+      sourcePath: "locales/en/app.json",
+      queue,
+    });
+    expect(firstResults).toHaveLength(2);
+
+    const second = await upload(new Date("2026-06-02T09:00:00.000Z"));
+    const updateResults = await dispatchVisualWorkflowsForSourceUpload({
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+      sourceFileId: second.storedFileId,
+      sourceFileVersionId: second.versionId,
+      sourcePath: "locales/en/app.json",
+      queue,
+    });
+    // The update starts the JSON workflow again, but not the one for new files only.
+    expect(updateResults).toHaveLength(1);
+
+    const otherPath = await dispatchVisualWorkflowsForSourceUpload({
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+      sourceFileId: "source-file-docs",
+      sourcePath: "docs/readme.md",
+      queue,
+    });
+    expect(otherPath).toHaveLength(1);
+
+    const jsonRuns = await listVisualWorkflowRuns({
+      organizationId: scope.organizationId,
+      visualWorkflowId: jsonOnly.id,
+      limit: 10,
+    });
+    expect(jsonRuns).toHaveLength(2);
+    expect(jsonRuns.map((run) => run.inputSnapshot)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceFileId: first.storedFileId,
+          sourcePath: "locales/en/app.json",
+          fileName: "app.json",
+          fileExtension: "json",
+          branchName: "main",
+          isNewFile: true,
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR", "de-DE"],
+        }),
+        expect.objectContaining({ sourceFileId: second.storedFileId, isNewFile: false }),
+      ]),
+    );
+    const newRuns = await listVisualWorkflowRuns({
+      organizationId: scope.organizationId,
+      visualWorkflowId: newOnly.id,
+      limit: 10,
+    });
+    expect(newRuns.map((run) => run.inputSnapshot.sourceFileId)).toEqual(
+      expect.arrayContaining([first.storedFileId, "source-file-docs"]),
+    );
+    expect(newRuns).toHaveLength(2);
   });
 
   it("isolates per-workflow enqueue failures during GitHub push dispatch", async () => {

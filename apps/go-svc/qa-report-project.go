@@ -164,7 +164,7 @@ func (api *qaReportAPI) lastSuccessfulProjectQaRun(ctx context.Context, organiza
         select id, project_id, trigger, status, segment_count, finding_count, error_count, warning_count,
                summary, error_code, error_message, started_at, completed_at, created_at
         from translation_qa_runs
-        where organization_id = $1 and project_id = $2 and status = 'succeeded'
+        where organization_id = $1 and project_id = $2 and status = 'succeeded' and `+qaProjectWideRunSQL+`
           and created_at <= (select created_at from translation_qa_runs where organization_id = $1 and project_id = $2 and id = $3)
         order by created_at desc
         limit 1`, organizationID, projectID, beforeRunID).Scan(
@@ -506,7 +506,7 @@ func (api *qaReportAPI) listProjectLatestFindings(ctx context.Context, actor qaR
 	var runID uuid.UUID
 	err = api.pool.QueryRow(ctx, `
         select id from translation_qa_runs
-        where organization_id = $1 and project_id = $2 and status = 'succeeded'
+        where organization_id = $1 and project_id = $2 and status = 'succeeded' and `+qaProjectWideRunSQL+`
         order by completed_at desc nulls last, created_at desc
         limit 1`, actor.organizationID, projectID).Scan(&runID)
 	if errors.Is(err, pgx.ErrNoRows) {

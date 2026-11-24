@@ -3358,4 +3358,32 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "r/zdhHnzwh",
     description: "Mark beside a step in a test run's step list: the step called out for real",
   },
+  runQaScopeHint: {
+    defaultMessage:
+      "Leave the file, languages and job empty to check the whole project. Narrow it to check only the work this run produced.",
+    id: "DHnnbTgHql",
+    description: "Hint above the Run QA step's optional scope settings",
+  },
+  runQaJobId: {
+    defaultMessage: "Job (optional)",
+    id: "ef9NaZ7SyI",
+    description: "Label of the Run QA setting that checks only one job's file and languages",
+  },
+  runQaJobHint: {
+    defaultMessage:
+      "Checks this job's file and languages, such as the task that was just marked done. A file or languages set above take precedence.",
+    id: "M7UxdPJ+uA",
+    description: "Hint under the Run QA step's job setting",
+  },
+  taskDueInHours: {
+    defaultMessage: "Due in (hours)",
+    id: "XaxUxOrSQ7",
+    description:
+      "Label of the setting that sets a task's due date a number of hours after the step runs",
+  },
+  taskDueInHoursHint: {
+    defaultMessage: "Used when the due date above is empty, for example 48 for two days.",
+    id: "6cEvqd8zKN",
+    description: "Hint under the Due in (hours) setting",
+  },
 });

@@ -130,8 +130,8 @@ export const automationsCreatePageViewMessages = defineMessages({
   },
   workflowTemplatesDescription: {
     defaultMessage:
-      "Each one opens on the canvas with its steps connected. Choose the project and who does the work, add a Slack or email step where you want a message, then publish.",
-    id: "mqcFT+iDFZ",
+      "Each one opens on the canvas with its steps connected. Pick the project, the Slack channels and who does the work, then publish.",
+    id: "N9vIFtIFpK",
     description: "Text under the heading of the workflow templates section",
   },
   workflowTemplateAiTranslateTitle: {
@@ -141,8 +141,8 @@ export const automationsCreatePageViewMessages = defineMessages({
   },
   workflowTemplateAiTranslateDescription: {
     defaultMessage:
-      "Translates each new source file with AI, waits for it to finish, then runs QA checks.",
-    id: "EfnDGW7eFH",
+      "Translates each uploaded source file with AI, waits for it, runs QA on that file and posts the result to Slack.",
+    id: "rfkzkk/MO+",
     description: "What the AI translation on upload workflow template does",
   },
   workflowTemplateMtpeTitle: {
@@ -153,8 +153,8 @@ export const automationsCreatePageViewMessages = defineMessages({
   },
   workflowTemplateMtpeDescription: {
     defaultMessage:
-      "Translates each new file with AI, then assigns a post-edit task per language that opens when the translation is done.",
-    id: "/VHWku0EXG",
+      "Translates each uploaded file with AI, then assigns a post-edit task per language, due in two days, that opens when the translation is done.",
+    id: "aSP+9zPRje",
     description: "What the MTPE workflow template does",
   },
   workflowTemplateTepTitle: {
@@ -165,20 +165,20 @@ export const automationsCreatePageViewMessages = defineMessages({
   },
   workflowTemplateTepDescription: {
     defaultMessage:
-      "Assigns translate, edit and proofread tasks for each new file. Each task opens when the one before it is done.",
-    id: "E0fFM34x6J",
+      "For each language of an uploaded file, assigns translate, edit and proofread tasks. Each opens when the one before it is done.",
+    id: "sLaKcboN5o",
     description: "What the TEP workflow template does",
   },
   workflowTemplateReviewDoneTitle: {
-    defaultMessage: "Review done: run QA",
-    id: "FRI2KkpAjS",
+    defaultMessage: "Review done: QA, then fix or deliver",
+    id: "M5yyhs+NHe",
     description:
       "Title of the workflow template that runs QA when a post-edit or proofread task is finished",
   },
   workflowTemplateReviewDoneDescription: {
     defaultMessage:
-      "When a post-edit or proofread task is marked done, runs QA checks on its project. Pair it with MTPE or TEP.",
-    id: "Oitii+p+38",
+      "When a post-edit or proofread task is done, runs QA on its work. Passing work is announced; failing work goes back to the same person to fix.",
+    id: "gCwQoMqA0C",
     description: "What the review done workflow template does",
   },
 });

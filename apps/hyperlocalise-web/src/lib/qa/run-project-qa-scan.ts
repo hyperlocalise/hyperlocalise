@@ -23,6 +23,7 @@ import {
   translationQaCheckTypes,
   type TranslationQaCheckType,
   type TranslationQaRunTrigger,
+  type TranslationQaScanScope,
   type TranslationQaSeverity,
 } from "./types";
 import { QA_CHECK_VERSION, validateScanSegment } from "./scan-segment-validation";
@@ -134,6 +135,8 @@ export async function runProjectTranslationQaScan(input: {
   projectId: string;
   trigger: TranslationQaRunTrigger;
   createdByUserId?: string | null;
+  /** Checks only part of the project; the whole project when unset. */
+  scope?: TranslationQaScanScope;
 }): Promise<TranslationQaScanResult> {
   const project = await loadNativeQaProject(input);
   if (!project.ok) {
@@ -291,7 +294,8 @@ export async function scanTranslationQaPage(input: {
     throw new Error(project.code);
   }
 
-  const locales = uniqueSortedLocales(project.targetLocales);
+  const scope = run.summary.scope;
+  const locales = scopedLocales(project.targetLocales, scope);
   const keys: QaScanKeyRow[] = await db
     .select({
       translationKeyId: schema.projectTranslationKeys.id,
@@ -312,6 +316,7 @@ export async function scanTranslationQaPage(input: {
         eq(schema.projectTranslationKeys.organizationId, input.organizationId),
         eq(schema.projectTranslationKeys.projectId, input.projectId),
         eq(schema.projectTranslationKeys.isHidden, false),
+        scopedKeyFilter(scope),
         input.afterKeyId ? gt(schema.projectTranslationKeys.id, input.afterKeyId) : undefined,
       ),
     )
@@ -637,7 +642,8 @@ export async function completeTranslationQaScan(input: {
     throw new Error(project.code);
   }
 
-  const locales = uniqueSortedLocales(project.targetLocales);
+  const scope = run.summary.scope;
+  const locales = scopedLocales(project.targetLocales, scope);
   const [keyCountRow] = await db
     .select({ value: count() })
     .from(schema.projectTranslationKeys)
@@ -646,6 +652,7 @@ export async function completeTranslationQaScan(input: {
         eq(schema.projectTranslationKeys.organizationId, input.organizationId),
         eq(schema.projectTranslationKeys.projectId, input.projectId),
         eq(schema.projectTranslationKeys.isHidden, false),
+        scopedKeyFilter(scope),
       ),
     );
 
@@ -707,6 +714,7 @@ export async function completeTranslationQaScan(input: {
         guidelineCheckHaltCode: run.summary.guidelineCheckHaltCode,
         guidelineChecksIncomplete: run.summary.guidelineChecksIncomplete,
         guidelineKnowledgeSkipped: run.summary.guidelineKnowledgeSkipped,
+        ...(scope ? { scope } : {}),
       },
       completedAt,
     })
@@ -739,9 +747,19 @@ export async function completeTranslationQaScan(input: {
       and not (${JSON.stringify(disabledCheckTypes)}::jsonb ? old.check_type)
       and not (old.check_type = 'spelling' and ${JSON.stringify(run.summary.skippedChecksByLocale ?? {})}::jsonb ? old.target_locale)
       and not (old.check_type = 'guideline' and ${guidelineUnchecked})
+      and ${scopedFindingFilter(scope)}
       and not exists (select 1 from translation_qa_findings current
           where current.run_id = ${input.runId} and current.translation_key_id = old.translation_key_id
           and current.target_locale = old.target_locale and current.check_type = old.check_type)`);
+  // A narrowed scan is a workflow's check of its own work, not the project's scheduled scan: it
+  // neither resets the schedule nor alerts QA managers.
+  if (scope) {
+    logger.info(
+      { runId: input.runId, projectId: input.projectId, findingCount: findingRows.length },
+      "scoped translation qa scan completed",
+    );
+    return { ok: true as const, alreadyCompleted: false as const };
+  }
   await db
     .update(schema.projects)
     .set({ qaScanLastRunAt: completedAt })
@@ -834,6 +852,7 @@ export async function claimTranslationQaRun(input: {
   projectId: string;
   trigger: TranslationQaRunTrigger;
   createdByUserId?: string | null;
+  scope?: TranslationQaScanScope;
 }): Promise<TranslationQaScanResult> {
   await reclaimStaleTranslationQaRuns({
     organizationId: input.organizationId,
@@ -860,7 +879,10 @@ export async function claimTranslationQaRun(input: {
         checkPolicy: projectPolicy?.policy ?? DEFAULT_QA_POLICY,
         status: "running",
         createdByUserId: input.createdByUserId ?? null,
-        summary: emptyTranslationQaSummary(),
+        summary: {
+          ...emptyTranslationQaSummary(),
+          ...(input.scope ? { scope: input.scope } : {}),
+        },
         startedAt: new Date(),
       })
       .returning({ id: schema.translationQaRuns.id });
@@ -935,6 +957,44 @@ async function touchTranslationQaRun(runId: string) {
     .where(
       and(eq(schema.translationQaRuns.id, runId), eq(schema.translationQaRuns.status, "running")),
     );
+}
+
+/** The project's target locales a scan checks: all of them, or those its scope names. */
+function scopedLocales(
+  projectLocales: readonly string[],
+  scope: TranslationQaScanScope | undefined,
+) {
+  const locales = uniqueSortedLocales(projectLocales);
+  if (!scope?.targetLocales || scope.targetLocales.length === 0) return locales;
+  const wanted = new Set(scope.targetLocales);
+  return locales.filter((locale) => wanted.has(locale));
+}
+
+function scopedKeyFilter(scope: TranslationQaScanScope | undefined) {
+  return scope?.repositorySourceFileId
+    ? eq(schema.projectTranslationKeys.repositorySourceFileId, scope.repositorySourceFileId)
+    : undefined;
+}
+
+/**
+ * Keeps a scoped scan from resolving findings it did not recheck: those of other files or
+ * languages stay open. Reads the `old` alias of the resolve query in `completeTranslationQaScan`.
+ */
+function scopedFindingFilter(scope: TranslationQaScanScope | undefined) {
+  const conditions = [sql`true`];
+  if (scope?.targetLocales && scope.targetLocales.length > 0) {
+    conditions.push(
+      sql`old.target_locale in (${sql.join(
+        scope.targetLocales.map((locale) => sql`${locale}`),
+        sql`, `,
+      )})`,
+    );
+  }
+  if (scope?.repositorySourceFileId) {
+    conditions.push(sql`old.translation_key_id in (select k.id from project_translation_keys k
+        where k.repository_source_file_id = ${scope.repositorySourceFileId})`);
+  }
+  return sql.join(conditions, sql` and `);
 }
 
 function uniqueSortedLocales(locales: readonly string[]) {
