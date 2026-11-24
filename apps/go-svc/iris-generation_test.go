@@ -1005,6 +1005,71 @@ func TestIrisGatewayProviderSeedanceFramesAndErrors(t *testing.T) {
 	require.ErrorContains(t, err, "content rejected")
 }
 
+func TestIrisGatewayProviderVideoModelsUseVideoModelProtocol(t *testing.T) {
+	cases := []struct {
+		modelID   string
+		gatewayID string
+		audio     bool
+	}{
+		{modelID: "veo-3.1", gatewayID: "google/veo-3.1-generate-001", audio: true},
+		{modelID: "veo-3.1-fast", gatewayID: "google/veo-3.1-fast-generate-001", audio: true},
+		{modelID: "grok-imagine-video-1.5", gatewayID: "spacexai/grok-imagine-video-1.5", audio: true},
+		{modelID: "flux-3-video", gatewayID: "bfl/flux-3-video", audio: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.modelID, func(t *testing.T) {
+			var payload map[string]any
+			var headers http.Header
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, "/v4/ai/video-model", r.URL.Path)
+				headers = r.Header.Clone()
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+				_, _ = w.Write([]byte("data: {\"type\":\"result\",\"videos\":[{\"type\":\"base64\",\"data\":\"dmlkZW8=\",\"mediaType\":\"video/mp4\"}]}\n\n"))
+			}))
+			t.Cleanup(server.Close)
+			provider := &irisGatewayProvider{baseURL: server.URL + "/v1", apiKey: "test-key", httpClient: server.Client()}
+			model, ok := irisModelByID(tc.modelID)
+			require.True(t, ok)
+			require.Equal(t, irisProviderGateway, model.Provider)
+
+			outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+				Model:       model,
+				Prompt:      "@Image1 walks in",
+				Duration:    8,
+				AspectRatio: "9:16",
+				Inputs: []irisProviderInput{
+					{Role: "start", Bytes: []byte("start"), ContentType: "image/png"},
+					{Role: "end", Bytes: []byte("end"), ContentType: "image/jpeg"},
+					{Role: "image", Bytes: []byte("ignored"), ContentType: "image/png"},
+				},
+			})
+			require.NoError(t, err)
+			require.Equal(t, []byte("video"), outputs[0].Bytes)
+			require.Equal(t, tc.gatewayID, headers.Get("ai-model-id"))
+			require.Equal(t, "4", headers.Get("ai-video-model-specification-version"))
+			require.Equal(t, "@Image1 walks in", payload["prompt"])
+			require.Equal(t, float64(8), payload["duration"])
+			require.Equal(t, "9:16", payload["aspectRatio"])
+			_, hasOptions := payload["providerOptions"]
+			require.False(t, hasOptions)
+			_, hasRefs := payload["inputReferences"]
+			require.False(t, hasRefs)
+			if tc.audio {
+				require.Equal(t, true, payload["generateAudio"])
+			} else {
+				_, hasAudio := payload["generateAudio"]
+				require.False(t, hasAudio)
+			}
+			frames, _ := payload["frameImages"].([]any)
+			require.Len(t, frames, 2)
+			last, _ := frames[1].(map[string]any)
+			require.Equal(t, "last_frame", last["frameType"])
+			image, _ := last["image"].(map[string]any)
+			require.Equal(t, "image/jpeg", image["mediaType"])
+		})
+	}
+}
+
 func TestIrisGatewayProviderImageEditForwardsAllReferences(t *testing.T) {
 	var names []string
 	var payloads [][]byte
