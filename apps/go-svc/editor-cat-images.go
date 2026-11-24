@@ -937,7 +937,38 @@ func (api *editorCatAPI) upsertImageUrlTranslation(
 	return translationID, status, err
 }
 
+const (
+	editorCatImageFetchTimeout      = 30 * time.Second
+	editorCatImageFetchMaxRedirects = 3
+)
+
+// editorCatImageFetchClient fetches user-supplied image URLs. Source strings are
+// editable by org members, so every hop must resolve to a public address:
+// CheckRedirect re-validates each redirect target and dialPublicAddress pins the
+// connection to a routable IP (blocks loopback, link-local metadata, and VPC).
+var editorCatImageFetchClient = editorCatPublicImageFetchClient()
+
+func editorCatPublicImageFetchClient() *http.Client {
+	return &http.Client{
+		Timeout: editorCatImageFetchTimeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= editorCatImageFetchMaxRedirects {
+				return fmt.Errorf("too many redirects")
+			}
+			return validatePublicHTTPURL(req.URL)
+		},
+		Transport: &http.Transport{
+			Proxy:       nil,
+			DialContext: dialPublicAddress,
+		},
+	}
+}
+
 func editorCatFetchImageURL(ctx context.Context, raw string) ([]byte, string, string, error) {
+	return editorCatFetchImageURLWithClient(ctx, editorCatImageFetchClient, raw)
+}
+
+func editorCatFetchImageURLWithClient(ctx context.Context, client *http.Client, raw string) ([]byte, string, string, error) {
 	raw = strings.TrimSpace(raw)
 	if !looksLikeEditorCatImageURL(raw) {
 		return nil, "", "", editorCatFailure(400, "fetch_failed", "image fetch failed")
@@ -946,7 +977,6 @@ func editorCatFetchImageURL(ctx context.Context, raw string) ([]byte, string, st
 	if err != nil {
 		return nil, "", "", editorCatFailure(400, "fetch_failed", "image fetch failed")
 	}
-	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", "", editorCatFailure(400, "fetch_failed", "image fetch failed")
