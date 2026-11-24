@@ -22,6 +22,7 @@ import {
   type QaFindingFocus,
 } from "@/components/qa/qa-filters-store";
 import type { QaCheckPolicy } from "@/lib/qa/qa-policy";
+import type { MqmSeverity, QaScoringPolicy } from "@/lib/qa/qa-scoring";
 import type { TranslationQaCheckType } from "@/lib/qa/types";
 
 export type QaCadence = "off" | "daily";
@@ -37,6 +38,7 @@ export class QaProjectUiStore {
   settingsOpen = false;
   draftCadence: QaCadence | null = null;
   draftPolicy: QaCheckPolicy | null = null;
+  draftScoring: QaScoringPolicy | null = null;
 
   constructor(organizationSlug: string, projectId: string) {
     this.organizationSlug = organizationSlug;
@@ -49,7 +51,7 @@ export class QaProjectUiStore {
   }
 
   get hasSettingsDraft() {
-    return this.draftCadence !== null || this.draftPolicy !== null;
+    return this.draftCadence !== null || this.draftPolicy !== null || this.draftScoring !== null;
   }
 
   setFilter(key: keyof QaFindingFilterState, value: string) {
@@ -122,8 +124,28 @@ export class QaProjectUiStore {
     };
   }
 
+  updateScoring(currentScoring: QaScoringPolicy, change: Partial<QaScoringPolicy>) {
+    this.draftScoring = { ...currentScoring, ...change };
+  }
+
+  /** `null` puts the check back on its QA severity (warning → minor, error → major). */
+  updatePenalty(
+    currentScoring: QaScoringPolicy,
+    check: TranslationQaCheckType,
+    penalty: MqmSeverity | null,
+  ) {
+    const penalties = { ...currentScoring.penalties };
+    if (penalty) {
+      penalties[check] = penalty;
+    } else {
+      delete penalties[check];
+    }
+    this.draftScoring = { ...currentScoring, penalties };
+  }
+
   clearSettingsDraft() {
     this.draftCadence = null;
     this.draftPolicy = null;
+    this.draftScoring = null;
   }
 }

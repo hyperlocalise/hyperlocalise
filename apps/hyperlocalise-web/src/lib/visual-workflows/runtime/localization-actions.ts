@@ -15,6 +15,7 @@ import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import { getRepositorySourceFileVersionForStoredFile } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
+import type { TranslationQaQuality } from "@/lib/qa/qa-scoring";
 import type { TranslationQaScanScope } from "@/lib/qa/types";
 import type { VisualTaskStep } from "../schema/types";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
@@ -559,6 +560,27 @@ export const qaBusyWait = {
   sleep: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
 };
 
+/**
+ * Whether a Run QA step passes. With quality scoring on, the score decides: every checked
+ * language reaches the threshold and has no critical error. Without it, any error fails.
+ */
+export function qaRunOutcome(input: { errorCount: number; quality?: TranslationQaQuality }) {
+  const { quality } = input;
+  return {
+    passed: quality ? quality.passed : input.errorCount === 0,
+    qualityScore: quality ? quality.score : null,
+    qualityThreshold: quality ? quality.threshold : null,
+    qualityByLocale: quality
+      ? Object.fromEntries(
+          Object.entries(quality.byLocale).map(([locale, row]) => [
+            locale,
+            { score: row.score, passed: row.passed },
+          ]),
+        )
+      : null,
+  };
+}
+
 export async function runQaChecksAction(
   input: ActionInput & {
     projectId: string;
@@ -613,6 +635,7 @@ export async function runQaChecksAction(
       errorCount: schema.translationQaRuns.errorCount,
       warningCount: schema.translationQaRuns.warningCount,
       findingCount: schema.translationQaRuns.findingCount,
+      summary: schema.translationQaRuns.summary,
     })
     .from(schema.translationQaRuns)
     .where(eq(schema.translationQaRuns.id, scan.runId))
@@ -623,7 +646,7 @@ export async function runQaChecksAction(
     ok: true,
     output: {
       runId: scan.runId,
-      passed: errorCount === 0,
+      ...qaRunOutcome({ errorCount, quality: run?.summary.quality }),
       errorCount,
       warningCount: run?.warningCount ?? 0,
       findingCount: run?.findingCount ?? 0,

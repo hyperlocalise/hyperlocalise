@@ -32,6 +32,12 @@ import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normaliz
 import { DEFAULT_QA_POLICY, resolveQaPolicy, type QaCheckPolicy } from "./qa-policy";
 import { notifyQaScanFailed, notifyQaScanSucceeded } from "./qa-scan-notifications";
 import {
+  computeQaQuality,
+  resolveQaScoringPolicy,
+  type QaScoringFinding,
+  type TranslationQaQuality,
+} from "./qa-scoring";
+import {
   GUIDELINE_BATCHES_PER_STEP,
   planScanGuidelineBatches,
   runScanGuidelineChecks,
@@ -656,14 +662,37 @@ export async function completeTranslationQaScan(input: {
       ),
     );
 
+  // Carry exceptions only for the exact text, rule version and diagnostic. A changed
+  // translation or rule automatically returns to the review queue. This runs before the
+  // counts so the quality score leaves out findings a reviewer already ignored.
+  await db.execute(sql`update translation_qa_findings f set status = 'ignored',
+      ignore_reason = previous.ignore_reason, reviewed_at = previous.reviewed_at,
+      reviewed_by_user_id = previous.reviewed_by_user_id
+      from translation_qa_findings previous
+      where f.run_id = ${input.runId} and previous.run_id <> f.run_id
+      and previous.organization_id = f.organization_id and previous.project_id = f.project_id
+      and previous.translation_key_id = f.translation_key_id and previous.target_locale = f.target_locale
+      and previous.check_type = f.check_type and previous.message = f.message
+      and previous.source_text = f.source_text and previous.target_text = f.target_text
+      and previous.rule_version = f.rule_version and previous.status = 'ignored'`);
+
   const findingRows = await db
     .select({
       checkType: schema.translationQaFindings.checkType,
       severity: schema.translationQaFindings.severity,
       targetLocale: schema.translationQaFindings.targetLocale,
+      status: schema.translationQaFindings.status,
     })
     .from(schema.translationQaFindings)
     .where(eq(schema.translationQaFindings.runId, input.runId));
+
+  const quality = await scoreTranslationQaRun({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    scope,
+    locales,
+    findings: findingRows.filter((row) => row.status !== "ignored"),
+  });
 
   const byCheckType: Partial<Record<TranslationQaCheckType, number>> = {};
   const bySeverity: Partial<Record<TranslationQaSeverity, number>> = {};
@@ -684,18 +713,6 @@ export async function completeTranslationQaScan(input: {
     }
   }
 
-  // Carry exceptions only for the exact text, rule version and diagnostic. A changed
-  // translation or rule automatically returns to the review queue.
-  await db.execute(sql`update translation_qa_findings f set status = 'ignored',
-      ignore_reason = previous.ignore_reason, reviewed_at = previous.reviewed_at,
-      reviewed_by_user_id = previous.reviewed_by_user_id
-      from translation_qa_findings previous
-      where f.run_id = ${input.runId} and previous.run_id <> f.run_id
-      and previous.organization_id = f.organization_id and previous.project_id = f.project_id
-      and previous.translation_key_id = f.translation_key_id and previous.target_locale = f.target_locale
-      and previous.check_type = f.check_type and previous.message = f.message
-      and previous.source_text = f.source_text and previous.target_text = f.target_text
-      and previous.rule_version = f.rule_version and previous.status = 'ignored'`);
   const completedAt = new Date();
   const updated = await db
     .update(schema.translationQaRuns)
@@ -714,6 +731,7 @@ export async function completeTranslationQaScan(input: {
         guidelineCheckHaltCode: run.summary.guidelineCheckHaltCode,
         guidelineChecksIncomplete: run.summary.guidelineChecksIncomplete,
         guidelineKnowledgeSkipped: run.summary.guidelineKnowledgeSkipped,
+        ...(quality ? { quality } : {}),
         ...(scope ? { scope } : {}),
       },
       completedAt,
@@ -968,6 +986,51 @@ function scopedLocales(
   if (!scope?.targetLocales || scope.targetLocales.length === 0) return locales;
   const wanted = new Set(scope.targetLocales);
   return locales.filter((locale) => wanted.has(locale));
+}
+
+/**
+ * MQM score for a finished run, or undefined when the project does not score translations.
+ * Source words of the checked, visible keys count once per checked locale.
+ */
+async function scoreTranslationQaRun(input: {
+  organizationId: string;
+  projectId: string;
+  scope: TranslationQaScanScope | undefined;
+  locales: readonly string[];
+  findings: readonly QaScoringFinding[];
+}): Promise<TranslationQaQuality | undefined> {
+  const [projectRow] = await db
+    .select({ policy: schema.projects.qaScoringPolicy })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.organizationId, input.organizationId),
+        eq(schema.projects.id, input.projectId),
+      ),
+    )
+    .limit(1);
+  const policy = resolveQaScoringPolicy(projectRow?.policy);
+  if (!policy.enabled) return undefined;
+
+  const [wordRow] = await db
+    .select({
+      value: sql<number>`coalesce(sum(coalesce(array_length(regexp_split_to_array(btrim(${schema.projectTranslationKeys.sourceText}), '\\s+'), 1), 0)) filter (where btrim(${schema.projectTranslationKeys.sourceText}) <> ''), 0)::int`,
+    })
+    .from(schema.projectTranslationKeys)
+    .where(
+      and(
+        eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+        eq(schema.projectTranslationKeys.projectId, input.projectId),
+        eq(schema.projectTranslationKeys.isHidden, false),
+        scopedKeyFilter(input.scope),
+      ),
+    );
+  const sourceWords = Number(wordRow?.value ?? 0);
+  return computeQaQuality({
+    findings: input.findings,
+    wordCountByLocale: Object.fromEntries(input.locales.map((locale) => [locale, sourceWords])),
+    policy,
+  });
 }
 
 function scopedKeyFilter(scope: TranslationQaScanScope | undefined) {
