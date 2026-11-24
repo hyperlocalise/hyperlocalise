@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useMemo, useState, type ReactNode } from "react";
-import { LightningIcon, LockSimpleIcon } from "@phosphor-icons/react";
+import { LightningIcon, LockSimpleIcon, TranslateIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
@@ -28,6 +28,10 @@ import {
   type WorkspaceAutomationTemplateCategory,
 } from "@/lib/agents/workspace-automation-templates";
 import { cn } from "@/lib/primitives/cn";
+import {
+  VISUAL_WORKFLOW_TEMPLATE_IDS,
+  type VisualWorkflowTemplateId,
+} from "@/lib/visual-workflows/templates/visual-workflow-templates";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { AutomationAssistantPrompt } from "./automation-assistant-prompt";
@@ -105,11 +109,14 @@ function WorkflowCard({
   access,
   organizationSlug,
   creating,
+  disabled,
   onCreate,
 }: {
   access: Exclude<AutomationWorkflowAccess, "hidden">;
   organizationSlug: string;
   creating: boolean;
+  /** Another workflow, such as one from a template, is being created. */
+  disabled: boolean;
   onCreate: () => void;
 }) {
   const body = {
@@ -124,9 +131,9 @@ function WorkflowCard({
       <button
         type="button"
         className={cn(BUILD_CARD_CLASS, BUILD_CARD_INTERACTIVE_CLASS, "disabled:opacity-60")}
-        disabled={creating}
+        disabled={disabled}
         aria-busy={creating}
-        onClick={onCreate}
+        onClick={() => onCreate()}
       >
         <BuildCardBody
           {...body}
@@ -174,6 +181,83 @@ function WorkflowCard({
   );
 }
 
+const WORKFLOW_TEMPLATE_MESSAGES = {
+  "ai-translate-on-upload": {
+    title: messages.workflowTemplateAiTranslateTitle,
+    description: messages.workflowTemplateAiTranslateDescription,
+  },
+  "mtpe-on-upload": {
+    title: messages.workflowTemplateMtpeTitle,
+    description: messages.workflowTemplateMtpeDescription,
+  },
+  "tep-on-upload": {
+    title: messages.workflowTemplateTepTitle,
+    description: messages.workflowTemplateTepDescription,
+  },
+  "review-done-qa": {
+    title: messages.workflowTemplateReviewDoneTitle,
+    description: messages.workflowTemplateReviewDoneDescription,
+  },
+} as const satisfies Record<VisualWorkflowTemplateId, unknown>;
+
+function WorkflowTemplateSection({
+  creatingTemplateId,
+  disabled,
+  onCreate,
+}: {
+  creatingTemplateId: VisualWorkflowTemplateId | null;
+  disabled: boolean;
+  onCreate: (templateId: VisualWorkflowTemplateId) => void;
+}) {
+  return (
+    <section aria-labelledby="workflow-templates-title" className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <h2
+          id="workflow-templates-title"
+          className="font-sans text-base font-medium text-balance text-foreground"
+        >
+          <FormattedMessage {...messages.workflowTemplatesTitle} />
+        </h2>
+        <TypographyP tone="subtle">
+          <FormattedMessage {...messages.workflowTemplatesDescription} />
+        </TypographyP>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {VISUAL_WORKFLOW_TEMPLATE_IDS.map((templateId) => {
+          const creating = creatingTemplateId === templateId;
+          return (
+            <button
+              key={templateId}
+              type="button"
+              className={cn(BUILD_CARD_CLASS, BUILD_CARD_INTERACTIVE_CLASS, "disabled:opacity-60")}
+              disabled={disabled}
+              aria-busy={creating}
+              onClick={() => onCreate(templateId)}
+            >
+              <div className="flex items-center gap-3">
+                <AutomationIconTile tone="builtIn" className="size-9 rounded-lg">
+                  <TranslateIcon className="size-5" />
+                </AutomationIconTile>
+                <span className="font-sans text-base font-medium text-foreground">
+                  <FormattedMessage {...WORKFLOW_TEMPLATE_MESSAGES[templateId].title} />
+                </span>
+              </div>
+              <p className="text-sm text-pretty text-muted-foreground">
+                <FormattedMessage {...WORKFLOW_TEMPLATE_MESSAGES[templateId].description} />
+              </p>
+              {creating ? (
+                <span className="mt-auto pt-1 text-xs text-muted-foreground">
+                  <FormattedMessage {...messages.workflowCreating} />
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 /**
  * Where a new automation starts: describe it to the assistant, choose to build an agent or a
  * workflow yourself, or begin from a template.
@@ -185,6 +269,7 @@ export function AutomationsCreatePageView({
   assistant,
   workflowAccess,
   creatingWorkflow = false,
+  creatingTemplateId = null,
   onCreateWorkflow,
   renderAutomationLink = defaultRenderAutomationLink,
 }: {
@@ -194,7 +279,10 @@ export function AutomationsCreatePageView({
   assistant?: AutomationsPageAssistant;
   workflowAccess: AutomationWorkflowAccess;
   creatingWorkflow?: boolean;
-  onCreateWorkflow: () => void;
+  /** The template a workflow is being created from, while it is. */
+  creatingTemplateId?: VisualWorkflowTemplateId | null;
+  /** Starts a blank workflow, or one from a template. */
+  onCreateWorkflow: (templateId?: VisualWorkflowTemplateId) => void;
   renderAutomationLink?: AutomationsLinkRenderer;
 }) {
   const intl = useIntl();
@@ -285,12 +373,21 @@ export function AutomationsCreatePageView({
               <WorkflowCard
                 access={workflowAccess}
                 organizationSlug={organizationSlug}
-                creating={creatingWorkflow}
+                creating={creatingWorkflow && creatingTemplateId === null}
+                disabled={creatingWorkflow}
                 onCreate={onCreateWorkflow}
               />
             )}
           </div>
         </section>
+
+        {workflowAccess === "available" ? (
+          <WorkflowTemplateSection
+            creatingTemplateId={creatingWorkflow ? creatingTemplateId : null}
+            disabled={creatingWorkflow}
+            onCreate={onCreateWorkflow}
+          />
+        ) : null}
 
         {usableTemplates.length > 0 ? (
           <section aria-labelledby="automation-templates-title" className="flex flex-col gap-4">

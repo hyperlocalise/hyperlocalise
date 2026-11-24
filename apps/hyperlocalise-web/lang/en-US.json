@@ -1203,6 +1203,10 @@
     "defaultMessage": "Save",
     "description": "Save button for issue column edit dialogs"
   },
+  "/VHWku0EXG": {
+    "defaultMessage": "Translates each new file with AI, then assigns a post-edit task per language that opens when the translation is done.",
+    "description": "What the MTPE workflow template does"
+  },
   "/Vytq8laTc": {
     "defaultMessage": "SOURCE · ENGLISH",
     "description": "Source-language label in the image format mock"
@@ -12103,6 +12107,10 @@
     "defaultMessage": "Back to glossary",
     "description": "Back navigation from glossary interchange history"
   },
+  "E0fFM34x6J": {
+    "defaultMessage": "Assigns translate, edit and proofread tasks for each new file. Each task opens when the one before it is done.",
+    "description": "What the TEP workflow template does"
+  },
   "E0iZCqdGpv": {
     "defaultMessage": "Member Role Changed",
     "description": "Activity log event type label for member role changes"
@@ -12614,6 +12622,10 @@
   "EfYrVZH3dW": {
     "defaultMessage": "Send email",
     "description": "Catalog title for the notify email action node"
+  },
+  "EfnDGW7eFH": {
+    "defaultMessage": "Translates each new source file with AI, waits for it to finish, then runs QA checks.",
+    "description": "What the AI translation on upload workflow template does"
   },
   "EfvdjZ/lNf": {
     "defaultMessage": "Change",
@@ -13186,6 +13198,10 @@
   "FRI1iIuOU/": {
     "defaultMessage": "{group}:",
     "description": "Read before a row within a group, for screen readers; group is the group's name"
+  },
+  "FRI2KkpAjS": {
+    "defaultMessage": "Review done: run QA",
+    "description": "Title of the workflow template that runs QA when a post-edit or proofread task is finished"
   },
   "FRRCcGcc6B": {
     "defaultMessage": "Use template",
@@ -14490,6 +14506,10 @@
   "HDUb3fboOf": {
     "defaultMessage": "Hyperlocalise drafts the two edited sections in twelve locales using the product glossary.",
     "description": "help-center-localisation use case page: scenario › events › #2 › body"
+  },
+  "HEkzIiwa50": {
+    "defaultMessage": "TEP: translate, edit, proofread",
+    "description": "Title of the workflow template for human translation, editing and proofreading (TEP)"
   },
   "HEmDtrKdrX": {
     "defaultMessage": "Suggested source correction",
@@ -17655,6 +17675,10 @@
     "defaultMessage": "See who matches",
     "description": "Button to reveal the audience evaluate mock"
   },
+  "LooXSON0yB": {
+    "defaultMessage": "Start a localisation workflow",
+    "description": "Heading of the section with ready-made workflow templates on the new automation page"
+  },
   "LosBi/bCTX": {
     "defaultMessage": "Markup",
     "description": "Gallery action that lets the user draw on the image, then describe the change"
@@ -19870,6 +19894,10 @@
   "Oipi2K2qqU": {
     "defaultMessage": "Remove {locale}",
     "description": "Accessible label for removing a selected target locale chip"
+  },
+  "Oitii+p+38": {
+    "defaultMessage": "When a post-edit or proofread task is marked done, runs QA checks on its project. Pair it with MTPE or TEP.",
+    "description": "What the review done workflow template does"
   },
   "OiwlgVlbmX": {
     "defaultMessage": "Refresh",
@@ -22770,6 +22798,10 @@
   "SpUDjYg0OG": {
     "defaultMessage": "Select a text element to jump to its reference frame.",
     "description": "Video refinement workspace: timelineHint"
+  },
+  "SpbuxYK8Fb": {
+    "defaultMessage": "MTPE: AI translation, then post-edit",
+    "description": "Title of the workflow template for machine translation followed by human post-editing (MTPE)"
   },
   "Sq+eRlJZgQ": {
     "defaultMessage": "Loading articles",
@@ -32103,6 +32135,10 @@
     "defaultMessage": "Use Add files above to upload JSON, YAML, XLIFF, PO, Qt TS, images, Office files, and other supported formats.",
     "description": "Empty-state description for native projects with no uploaded files"
   },
+  "fBYBrbL0G6": {
+    "defaultMessage": "AI translation on upload",
+    "description": "Title of the workflow template that translates each new source file with AI"
+  },
   "fC01ZiLItd": {
     "defaultMessage": "Allow ordinary browser traffic through your firewall, CDN, bot protection, or login wall, then start a new audit.",
     "description": "Guidance for a site owner whose domain blocked the localisation audit crawler"
@@ -37874,6 +37910,10 @@
   "mqYq/LYRBZ": {
     "defaultMessage": "Show",
     "description": "Action of the missing test values toast that opens the step's Test tab"
+  },
+  "mqcFT+iDFZ": {
+    "defaultMessage": "Each one opens on the canvas with its steps connected. Choose the project and who does the work, add a Slack or email step where you want a message, then publish.",
+    "description": "Text under the heading of the workflow templates section"
   },
   "mqq6dTwRZM": {
     "defaultMessage": "Outputs",

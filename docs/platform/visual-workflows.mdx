@@ -5,6 +5,23 @@ description: "Connect typed data between workflow nodes, test drafts safely, and
 
 Visual workflows compose fixed automation steps on a canvas. Open **Automations → Visual workflows** to create or inspect a workflow. If it is unavailable, ask your administrator or [support](/platform/help/contact-support) about workspace access.
 
+## Start from a template
+
+On **Automations → New automation**, **Start a localisation workflow** offers ready-made workflows. Each one opens on the canvas as a draft with its steps connected.
+
+| Template | What it does |
+| --- | --- |
+| **AI translation on upload** | **Source upload** → **Machine translate** → **Check progress** and **Wait** until the job finishes → **Run QA**. Passing QA ends the run with **Stop**. QA errors end it with **Fail** (`QA_FAILED`). If the translation does not finish within 90 minutes, the run fails with `TRANSLATION_NOT_FINISHED`. |
+| **MTPE: AI translation, then post-edit** | **Source upload** → **Machine translate** → **For each** target language: **Pick assignee** → **Assign task** (post-edit). Each task waits for the machine translation through **Comes after**. |
+| **TEP: translate, edit, proofread** | **Source upload** → **Pick assignee** and **Assign task** for translate, edit and proofread. Each task waits for the one before it. |
+| **Review done: run QA** | **Job changed** on finished **Post-edit** or **Proofread** tasks → **Run QA**. Use it alongside MTPE or TEP to check the work once people finish it. |
+
+Before you publish:
+
+1. On the trigger, choose the project. Leave it empty to run for uploads in every project.
+2. On each **Pick assignee**, add the people who do that kind of work.
+3. Add **Notify Slack** or **Send email** where you want a message, for example after **If** on the QA result. Templates leave these steps out because they cannot be saved until you choose where the message goes.
+
 ## Build and connect data
 
 1. Choose a manual, scheduled, GitHub, source-upload, **Webhook**, or [**Job changed**](/platform/developers/webhooks#start-automations-on-job-changes) trigger.
