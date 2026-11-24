@@ -876,7 +876,7 @@ export const integrationCatalogCopy = {
     overview: [
       {
         defaultMessage:
-          "Connect Linear through WorkOS Pipes so teams can turn translation blockers into tracked issues without losing product context.",
+          "Connect Linear so teams can turn translation blockers into tracked issues without losing product context.",
         id: "intLinearOverview0",
         description: "Linear integration marketing overview paragraph",
       },
