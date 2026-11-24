@@ -35,6 +35,16 @@ type editorCatImageRegenerateBody struct {
 	Force            *bool   `json:"force"`
 }
 
+func editorCatVariantBoundToOtherSourceFile(boundFileID, requestedFileID string) bool {
+	bound := strings.TrimSpace(boundFileID)
+	requested := strings.TrimSpace(requestedFileID)
+	return bound != "" && requested != "" && bound != requested
+}
+
+func editorCatVariantBranchConflict() error {
+	return editorCatFailure(http.StatusConflict, "variant_branch_conflict", "This localized file belongs to another version branch.")
+}
+
 func fileBackedCatSegmentIDs(sourceFileID, sourcePath string) []string {
 	ids := []string{"binary:" + sourcePath, "image:" + sourcePath, "video:" + sourcePath}
 	if sourceFileID != "" {
@@ -230,12 +240,15 @@ func (api *editorCatAPI) editImage(r *http.Request, actor editorCatActor, projec
 		references = append(references, refBytes)
 	}
 	_ = externalID
-	variantStatus, storedFileID, err := api.editorCatImageVariantState(r, actor, project, sourcePath, targetLocale)
+	variantStatus, storedFileID, boundFileID, err := api.editorCatImageVariantState(r, actor, project, sourcePath, targetLocale)
 	if err != nil {
 		return nil, 0, err
 	}
 	if storedFileID == "" {
 		return nil, 0, editorCatFailure(400, "variant_not_found", "File variant not found")
+	}
+	if editorCatVariantBoundToOtherSourceFile(boundFileID, sourceFileID) {
+		return nil, 0, editorCatVariantBranchConflict()
 	}
 	if variantStatus == "approved" && !force {
 		return nil, 0, editorCatFailure(400, "approved_locked", "Approved variants cannot be changed without force")
@@ -361,9 +374,12 @@ func (api *editorCatAPI) regenerateFileBackedImageVariant(
 	if sourceFileID == "" {
 		return nil, 0, editorCatFailure(400, "source_file_not_found", "Source file not found for the given path")
 	}
-	status, _, err := api.editorCatImageVariantState(r, actor, project, sourcePath, targetLocale)
+	status, _, boundFileID, err := api.editorCatImageVariantState(r, actor, project, sourcePath, targetLocale)
 	if err != nil {
 		return nil, 0, err
+	}
+	if editorCatVariantBoundToOtherSourceFile(boundFileID, sourceFileID) {
+		return nil, 0, editorCatVariantBranchConflict()
 	}
 	if status == "approved" && !force {
 		return nil, 0, editorCatFailure(400, "approved_locked", "Approved variants cannot be changed without force")
@@ -471,9 +487,12 @@ func (api *editorCatAPI) replaceImageVariantBytes(
 	if api.objects == nil {
 		return nil, 0, editorCatFailure(503, "object_storage_unavailable", "Object storage is unavailable")
 	}
-	status, _, err := api.editorCatImageVariantState(r, actor, project, sourcePath, targetLocale)
+	status, _, boundFileID, err := api.editorCatImageVariantState(r, actor, project, sourcePath, targetLocale)
 	if err != nil {
 		return nil, 0, err
+	}
+	if editorCatVariantBoundToOtherSourceFile(boundFileID, sourceFileID) {
+		return nil, 0, editorCatVariantBranchConflict()
 	}
 	if status == "approved" && !force {
 		return nil, 0, editorCatFailure(400, "approved_locked", "Approved variants cannot be changed without force")
@@ -489,7 +508,7 @@ func (api *editorCatAPI) replaceImageVariantBytes(
 	if err != nil {
 		return nil, 0, err
 	}
-	return api.updateEditorCatImageVariantStored(r, actor, project, sourcePath, targetLocale, storedID, "needs_review", "manual")
+	return api.updateEditorCatImageVariantStored(r, actor, project, sourcePath, targetLocale, sourceFileID, storedID, "needs_review", "manual")
 }
 
 func (api *editorCatAPI) replaceImageUrlTranslationBytes(
@@ -661,7 +680,7 @@ func (api *editorCatAPI) persistEditorCatImageVariant(
 	if err != nil {
 		return nil, 0, err
 	}
-	return api.updateEditorCatImageVariantStored(r, actor, project, sourcePath, targetLocale, storedID, "needs_review", provenance)
+	return api.updateEditorCatImageVariantStored(r, actor, project, sourcePath, targetLocale, sourceFileID, storedID, "needs_review", provenance)
 }
 
 func (api *editorCatAPI) storeEditorCatImageVariantOutput(
@@ -684,23 +703,27 @@ func (api *editorCatAPI) storeEditorCatImageVariantOutput(
 	if err != nil {
 		return nil, 0, err
 	}
-	_ = sourceFileID
-	return api.updateEditorCatImageVariantStored(r, actor, project, sourcePath, targetLocale, storedID, "needs_review", provenance)
+	return api.updateEditorCatImageVariantStored(r, actor, project, sourcePath, targetLocale, sourceFileID, storedID, "needs_review", provenance)
 }
 
 func (api *editorCatAPI) updateEditorCatImageVariantStored(
 	r *http.Request,
 	actor editorCatActor,
 	project editorCatProject,
-	sourcePath, targetLocale, storedFileID, status, provenance string,
+	sourcePath, targetLocale, sourceFileID, storedFileID, status, provenance string,
 ) (any, int, error) {
 	var id, variantStatus string
 	err := api.pool.QueryRow(r.Context(), `
         update project_image_variants
         set stored_file_id=$5, status=$6, provenance=$7, reviewed_at=null, reviewed_by_user_id=null, updated_at=now()
         where organization_id=$1 and project_id=$2 and source_path=$3 and target_locale=$4
+          and (
+            $8 = ''
+            or repository_source_file_id is null
+            or repository_source_file_id = nullif($8, '')::uuid
+          )
         returning id, status`,
-		actor.organizationID, project.ID, sourcePath, targetLocale, storedFileID, status, provenance,
+		actor.organizationID, project.ID, sourcePath, targetLocale, storedFileID, status, provenance, strings.TrimSpace(sourceFileID),
 	).Scan(&id, &variantStatus)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, editorCatFailure(400, "variant_not_found", "File variant not found")
@@ -728,23 +751,26 @@ func (api *editorCatAPI) editorCatImageVariantState(
 	actor editorCatActor,
 	project editorCatProject,
 	sourcePath, targetLocale string,
-) (status string, storedFileID string, err error) {
-	var stored *string
+) (status string, storedFileID string, boundSourceFileID string, err error) {
+	var stored, bound *string
 	err = api.pool.QueryRow(r.Context(), `
-        select status, stored_file_id from project_image_variants
+        select status, stored_file_id, repository_source_file_id::text from project_image_variants
         where organization_id=$1 and project_id=$2 and source_path=$3 and target_locale=$4`,
 		actor.organizationID, project.ID, sourcePath, targetLocale,
-	).Scan(&status, &stored)
+	).Scan(&status, &stored, &bound)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", nil
+		return "", "", "", nil
 	}
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	if stored != nil {
 		storedFileID = *stored
 	}
-	return status, storedFileID, nil
+	if bound != nil {
+		boundSourceFileID = *bound
+	}
+	return status, storedFileID, boundSourceFileID, nil
 }
 
 func (api *editorCatAPI) ensureEditorCatImageVariant(
@@ -758,7 +784,8 @@ func (api *editorCatAPI) ensureEditorCatImageVariant(
             organization_id, project_id, repository_source_file_id, source_path, target_locale, status, provenance
         ) values ($1,$2,$3,$4,$5,'draft','manual')
         on conflict (project_id, source_path, target_locale) do update
-        set repository_source_file_id=excluded.repository_source_file_id, updated_at=now()`,
+        set repository_source_file_id=coalesce(project_image_variants.repository_source_file_id, excluded.repository_source_file_id),
+            updated_at=now()`,
 		actor.organizationID, project.ID, sourceFileID, sourcePath, targetLocale,
 	)
 	return err

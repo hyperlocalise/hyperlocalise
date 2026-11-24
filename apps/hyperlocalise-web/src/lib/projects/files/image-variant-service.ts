@@ -15,7 +15,7 @@ import path from "node:path";
 import { imageEditPrompt, imageEditUsesMask, type ImageEditRequest } from "./image-edit";
 import { imageTextLayerPrompt, readImageTextLayers } from "./image-text-layers";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { createStoredFile, getStoredFileContent } from "@/lib/file-storage/records";
@@ -43,6 +43,7 @@ export type ImageVariantError =
   | { code: "source_file_not_found" }
   | { code: "source_bytes_missing" }
   | { code: "approved_locked" }
+  | { code: "variant_branch_conflict" }
   | { code: "fetch_failed"; message: string }
   | { code: "unsupported_image_response" }
   | {
@@ -53,6 +54,15 @@ export type ImageVariantError =
   | { code: "ai_credit_unavailable"; message: string }
   | { code: "localization_failed"; message: string }
   | { code: "aborted" };
+
+function variantBoundToOtherSourceFile(
+  existingFileId: string | null | undefined,
+  requestedFileId?: string | null,
+): boolean {
+  const existing = existingFileId?.trim();
+  const requested = requestedFileId?.trim();
+  return Boolean(existing && requested && existing !== requested);
+}
 
 export function projectImageAssetPath(input: {
   organizationSlug: string;
@@ -111,8 +121,10 @@ export async function ensureImageVariantsForSourceFile(input: {
             schema.projectImageVariants.targetLocale,
           ],
           set: {
-            repositorySourceFileId: input.repositorySourceFileId ?? null,
-            externalTmsFileId: input.externalTmsFileId ?? null,
+            // Keep the first bound source file. Rebinding a clone after #3343
+            // would let deleting that clone CASCADE-delete the shared variant.
+            repositorySourceFileId: sql`coalesce(${schema.projectImageVariants.repositorySourceFileId}, excluded.repository_source_file_id)`,
+            externalTmsFileId: sql`coalesce(${schema.projectImageVariants.externalTmsFileId}, excluded.external_tms_file_id)`,
             updatedAt: new Date(),
           },
         })
@@ -154,12 +166,18 @@ export async function updateImageVariantStatus(input: {
   targetLocale: string;
   status: ProjectImageVariantStatus;
   actorUserId?: string | null;
+  repositorySourceFileId?: string | null;
   db?: typeof db;
 }): Promise<Result<typeof schema.projectImageVariants.$inferSelect, ImageVariantError>> {
   const database = input.db ?? db;
   const existing = await getImageVariant(input);
   if (!existing) {
     return err({ code: "variant_not_found" });
+  }
+  if (
+    variantBoundToOtherSourceFile(existing.repositorySourceFileId, input.repositorySourceFileId)
+  ) {
+    return err({ code: "variant_branch_conflict" });
   }
 
   const reviewedAt = input.status === "approved" || input.status === "rejected" ? new Date() : null;
@@ -319,6 +337,12 @@ export async function localizeAndStoreImageVariant(input: {
     targetLocale: input.targetLocale,
   });
 
+  if (
+    variantBoundToOtherSourceFile(existing?.repositorySourceFileId, input.repositorySourceFileId)
+  ) {
+    return err({ code: "variant_branch_conflict" });
+  }
+
   if (existing?.status === "approved" && !input.force) {
     return err({ code: "approved_locked" });
   }
@@ -469,6 +493,11 @@ export async function replaceImageVariantBytes(input: {
   status?: ProjectImageVariantStatus;
 }): Promise<Result<typeof schema.projectImageVariants.$inferSelect, ImageVariantError>> {
   const existing = await getImageVariant(input);
+  if (
+    variantBoundToOtherSourceFile(existing?.repositorySourceFileId, input.repositorySourceFileId)
+  ) {
+    return err({ code: "variant_branch_conflict" });
+  }
   if (existing?.status === "approved" && !input.force) {
     return err({ code: "approved_locked" });
   }
@@ -553,6 +582,11 @@ export async function editAndStoreImageVariant(input: {
   const existing = await getImageVariant(input);
   if (!existing?.storedFileId) {
     return err({ code: "variant_not_found" });
+  }
+  if (
+    variantBoundToOtherSourceFile(existing.repositorySourceFileId, input.repositorySourceFileId)
+  ) {
+    return err({ code: "variant_branch_conflict" });
   }
   if (existing.status === "approved" && !input.force) {
     return err({ code: "approved_locked" });

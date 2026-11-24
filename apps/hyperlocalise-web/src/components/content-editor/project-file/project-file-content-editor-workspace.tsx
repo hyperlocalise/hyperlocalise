@@ -922,6 +922,7 @@ export function ProjectFileContentEditorWorkspace({
           ":projectId"
         ].files.detail.cat.images.status.$patch({
           param: { organizationSlug, projectId },
+          query: withCatBranch(branch).query ?? {},
           json: {
             sourcePath,
             targetLocale,

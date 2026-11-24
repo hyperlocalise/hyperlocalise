@@ -38,6 +38,7 @@ const {
   contentEditorCommentResolvePatchMock,
   contentEditorStringsHiddenPostMock,
   contentEditorStringsLockedPostMock,
+  contentEditorImagesRegeneratePostMock,
   invalidateSegmentTargetMock,
   syncSegmentTargetAfterSaveMock,
   invalidateSegmentCommentsMock,
@@ -49,6 +50,7 @@ const {
   contentEditorCommentResolvePatchMock: vi.fn(),
   contentEditorStringsHiddenPostMock: vi.fn(),
   contentEditorStringsLockedPostMock: vi.fn(),
+  contentEditorImagesRegeneratePostMock: vi.fn(),
   invalidateSegmentTargetMock: vi.fn(),
   syncSegmentTargetAfterSaveMock: vi.fn(),
   invalidateSegmentCommentsMock: vi.fn(),
@@ -77,6 +79,12 @@ vi.mock("@/lib/api-client-instance", () => ({
                       },
                       locked: {
                         $post: (...args: unknown[]) => contentEditorStringsLockedPostMock(...args),
+                      },
+                    },
+                    images: {
+                      regenerate: {
+                        $post: (...args: unknown[]) =>
+                          contentEditorImagesRegeneratePostMock(...args),
                       },
                     },
                     comments: {
@@ -312,6 +320,42 @@ describe("useContentEditorMutations", () => {
         text: "Bonjour",
       }),
       { query: { branch: "feature-checkout" } },
+    );
+  });
+
+  it("sends the open version branch on image regeneration", async () => {
+    contentEditorImagesRegeneratePostMock.mockImplementation(() =>
+      jsonResponse({
+        imageVariant: {
+          id: "variant_1",
+          status: "needs_review",
+          storedFileId: "file_1",
+          targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/file_1",
+        },
+      }),
+    );
+    const { result } = renderCatMutations(
+      createCatFileResponse({ provider: undefined }).contentEditorFile,
+      undefined,
+      undefined,
+      "feature-checkout",
+    );
+
+    await act(async () => {
+      await result.current.regenerateImage({
+        externalStringId: "segment-1",
+      });
+    });
+
+    expect(contentEditorImagesRegeneratePostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: { branch: "feature-checkout" },
+        json: expect.objectContaining({
+          sourcePath: contentEditorApiTestContext.sourcePath,
+          externalStringId: "segment-1",
+        }),
+      }),
+      expect.anything(),
     );
   });
 
