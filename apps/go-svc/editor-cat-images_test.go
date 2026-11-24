@@ -76,6 +76,46 @@ func TestEditorCatImageEditPromptMarkup(t *testing.T) {
 	require.Contains(t, prompt, "Brighten the badge")
 }
 
+func TestEditorCatImageUploadOnCloneDoesNotRebindMainVariant(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	api.objects = visualContextObjectRegistry(t)
+	mainFile := mustEditorCatSourceFile(t, scope, "hero.png")
+	cloneFile := mustEditorCatSourceFileOnBranch(t, scope, "hero.png", "feature-checkout")
+	mainStored := "file_" + uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into stored_files (
+            id, organization_id, project_id, role, source_kind,
+            storage_provider, storage_key, storage_url, filename, content_type, byte_size, sha256
+        ) values ($1,$2,$3,'output','job_output','r2-primary',$4,$4,'hero.fr-FR.png','image/png',4,'deadbeef')`,
+		mainStored, scope.OrganizationID, scope.ProjectID, "editor-cat-test/"+mainStored+".png")
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into project_image_variants (
+            organization_id, project_id, repository_source_file_id, source_path, target_locale, status, stored_file_id
+        ) values ($1,$2,$3,'hero.png','fr-FR','needs_review',$4)`,
+		scope.OrganizationID, scope.ProjectID, mainFile, mainStored)
+	require.NoError(t, err)
+
+	png := mustVisualContextPNG(t, 4, 4)
+	rec := editorCatMultipartScope(t, api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/images/upload")+"?branch=feature-checkout", map[string]string{
+		"sourcePath": "hero.png", "targetLocale": "fr-FR",
+	}, map[string][]byte{"file": png}, map[string]string{"file": "upload.png"})
+	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "variant_branch_conflict")
+
+	var boundFileID, storedFileID, status string
+	err = scope.Pool.QueryRow(t.Context(), `
+        select repository_source_file_id::text, stored_file_id, status
+        from project_image_variants
+        where organization_id=$1 and project_id=$2 and source_path='hero.png' and target_locale='fr-FR'`,
+		scope.OrganizationID, scope.ProjectID).Scan(&boundFileID, &storedFileID, &status)
+	require.NoError(t, err)
+	require.Equal(t, mainFile, boundFileID)
+	require.Equal(t, mainStored, storedFileID)
+	require.Equal(t, "needs_review", status)
+	require.NotEqual(t, mainFile, cloneFile)
+}
+
 func TestEditorCatImageUpload(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	api.objects = visualContextObjectRegistry(t)
