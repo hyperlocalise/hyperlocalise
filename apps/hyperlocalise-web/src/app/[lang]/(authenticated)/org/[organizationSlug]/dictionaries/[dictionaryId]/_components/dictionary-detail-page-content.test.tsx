@@ -30,6 +30,8 @@ const apiMocks = vi.hoisted(() => ({
   listProjects: vi.fn(),
   remove: vi.fn(),
   routerPush: vi.fn(),
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -44,6 +46,13 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/lib/navigation/use-org-router", () => ({
   useOrgRouter: () => ({ push: apiMocks.routerPush, replace: vi.fn() }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: (...args: unknown[]) => apiMocks.toastError(...args),
+    success: (...args: unknown[]) => apiMocks.toastSuccess(...args),
+  },
 }));
 
 vi.mock("@/lib/spellcheck-dictionary/client", () => ({
@@ -94,6 +103,8 @@ describe("DictionaryDetailPageContent", () => {
     apiMocks.listProjects.mockReset();
     apiMocks.remove.mockReset();
     apiMocks.routerPush.mockReset();
+    apiMocks.toastError.mockReset();
+    apiMocks.toastSuccess.mockReset();
 
     apiMocks.getDictionary.mockResolvedValue({
       dictionary: {
@@ -211,5 +222,29 @@ describe("DictionaryDetailPageContent", () => {
       });
     });
     expect(apiMocks.routerPush).toHaveBeenCalledWith("/org/acme/dictionaries");
+    expect(apiMocks.toastSuccess).toHaveBeenCalled();
+  });
+
+  it("keeps the page open and toasts when dictionary delete fails", async () => {
+    const user = userEvent.setup();
+    apiMocks.getWords.mockResolvedValue({ words: [], total: 0 });
+    apiMocks.remove.mockRejectedValue(new Error("Insufficient permissions"));
+
+    renderDetailPage({ canWriteDictionaries: true });
+
+    await user.click(await screen.findByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete dictionary" }));
+
+    const dialog = await screen.findByRole("alertdialog", { name: "Delete this dictionary?" });
+    await user.click(within(dialog).getByRole("button", { name: "Delete dictionary" }));
+
+    await waitFor(() => {
+      expect(apiMocks.toastError).toHaveBeenCalledWith("Insufficient permissions");
+    });
+    expect(apiMocks.routerPush).not.toHaveBeenCalled();
+    expect(apiMocks.toastSuccess).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("alertdialog", { name: "Delete this dictionary?" }),
+    ).toBeInTheDocument();
   });
 });
