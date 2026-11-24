@@ -40,10 +40,10 @@ overrides:
   # Pin each undici major independently (transitive deps use 6/7/8).
   "undici@^6.0.0": "6.29.1"
   "undici@^7.0.0": "7.30.2"
-  "undici@^8.0.0": "8.13.0"
+  "undici@^8.0.0": "8.13.1"
   devalue: "6.0.3"
   qs: "6.17.1"
-  "@anthropic-ai/sdk": "1.11.0"
+  "@anthropic-ai/sdk": "1.12.0"
   postcss: "8.5.33"
   postcss-selector-parser: "7.2.1"
   esbuild: "0.28.2"
