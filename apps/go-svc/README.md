@@ -139,7 +139,7 @@ and reads the result. Neither package exposes an HTTP route.
 |----------|-------------|
 | `ELEVENLABS_API_KEY` | ElevenLabs API key sent as `xi-api-key`. Required for native `elevenlabs-*` Iris models, including `elevenlabs-dubbing`, `elevenlabs-voice-isolator` and `elevenlabs-voice-changer`. |
 | `ELEVENLABS_BASE_URL` | Optional. Defaults to `https://api.elevenlabs.io`. |
-| `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Seedance, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, ByteDance upscaler, and Sync lipsync Iris models. |
+| `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, ByteDance upscaler, and Sync lipsync Iris models. |
 | `FAL_QUEUE_URL` | Optional. Defaults to `https://queue.fal.run`. |
 
 Successful Iris generate jobs consume workspace **AI Credit**: Autumn feature `ai_tokens` (USD) via `trackTokens`, plus one `agent_runs`. Platform `FAL_KEY` and `ELEVENLABS_API_KEY` always debit that wallet. Organization LLM keys do not skip Fal or ElevenLabs billing. `/iris/estimate` returns remaining USD with `unit: "usd"`. The model catalog publishes `id` and `name` only; it does not publish Diffusion credit prices.

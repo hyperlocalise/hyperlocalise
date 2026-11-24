@@ -47,9 +47,10 @@ type irisModelInfo struct {
 	// references (`@Image1`…), keeping the people, set and look they show,
 	// rather than as the frame FalRefID starts on.
 	FalReferencesID string `json:"-"`
-	// MaxReferences bounds `images` on a FalReferencesID model.
+	// MaxReferences bounds `images` on a model that takes reference images,
+	// on fal (FalReferencesID) or AI Gateway (`inputReferences`).
 	MaxReferences int `json:"-"`
-	// ReferencesReplaceFrames: FalReferencesID takes no start or end frame.
+	// ReferencesReplaceFrames: reference images take the place of a start or end frame.
 	ReferencesReplaceFrames bool `json:"-"`
 	ETASeconds              int  `json:"-"`
 	PromptMax               int  `json:"-"`
@@ -92,7 +93,7 @@ func irisModels() []irisModelInfo {
 		{ID: "veo-3.1-fast", Name: "Veo 3.1 Fast", Kind: irisKindVideo, GatewayID: "google/veo-3.1-fast-generate-001", ETASeconds: 60, PromptMax: 4000},
 		{ID: "kling-3-pro", Name: "Kling 3.0", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/v3/pro/text-to-video", FalRefID: "fal-ai/kling-video/v3/pro/image-to-video", ETASeconds: 80, PromptMax: 4000},
 		{ID: "kling-o3-pro", Name: "Kling 3.0 Omni", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/o3/pro/text-to-video", FalRefID: "fal-ai/kling-video/o3/pro/image-to-video", FalVideoID: "fal-ai/kling-video/o3/pro/video-to-video/edit", FalReferencesID: "fal-ai/kling-video/o3/pro/reference-to-video", MaxReferences: 4, ETASeconds: 90, PromptMax: 4000},
-		{ID: "seedance-2.5", Name: "Seedance 2.5", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "bytedance/seedance-2.5/text-to-video", FalRefID: "bytedance/seedance-2.5/image-to-video", FalReferencesID: "bytedance/seedance-2.5/reference-to-video", MaxReferences: 30, ReferencesReplaceFrames: true, ETASeconds: 70, PromptMax: 4000},
+		{ID: "seedance-2.5", Name: "Seedance 2.5", Kind: irisKindVideo, GatewayID: "bytedance/seedance-2.5", MaxReferences: 30, ReferencesReplaceFrames: true, ETASeconds: 70, PromptMax: 4000},
 		{ID: "wan-3.0", Name: "Wan 3.0", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "alibaba/wan-2.6", NativeID: "alibaba/wan-3.0-prime/text-to-video", FalRefID: "alibaba/wan-3.0-prime/reference-to-video", ETASeconds: 75, PromptMax: 4000},
 		{ID: "minimax-h3", Name: "MiniMax H3", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "minimax/hailuo-2.3", NativeID: "minimax/h3/text-to-video", FalRefID: "minimax/h3/image-to-video", ETASeconds: 80, PromptMax: 4000},
 		{ID: "minimax-h3-max", Name: "MiniMax H3 Max", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "minimax/hailuo-2.3", NativeID: "minimax/h3-max/text-to-video", FalRefID: "minimax/h3-max/image-to-video", ETASeconds: 55, PromptMax: 4000},
@@ -495,7 +496,7 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 	if model.Kind == irisKindVoice && req.voice() == "" {
 		return model, fmt.Errorf("voice is required")
 	}
-	if images := len(req.assets("images")); images > 0 && model.FalReferencesID != "" {
+	if images := len(req.assets("images")); images > 0 && model.MaxReferences > 0 {
 		if images > model.MaxReferences {
 			return model, fmt.Errorf("%s takes at most %d reference images", model.ID, model.MaxReferences)
 		}
