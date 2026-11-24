@@ -14,6 +14,7 @@ import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { branchMatchesAutomationPatterns } from "@/lib/agents/github/github-repository-automation-settings";
 
 import { isTriggerType } from "../catalog/node-catalog";
+import { sourcePathMatches } from "./source-path-filter";
 import type {
   CanonicalVisualWorkflowNode,
   VisualJobChangedJobKind,
@@ -135,7 +136,7 @@ export function visualWorkflowShouldDispatchOnGithubPullRequest(
 
 export function visualWorkflowShouldDispatchOnSourceUpload(
   workflow: VisualWorkflowRecord,
-  input: { projectId: string },
+  input: { projectId: string; sourcePath: string; isNewFile: boolean },
 ): boolean {
   if (workflow.status !== "active") {
     return false;
@@ -150,7 +151,14 @@ export function visualWorkflowShouldDispatchOnSourceUpload(
     return false;
   }
 
-  return true;
+  if (!input.isNewFile && trigger.config.uploads === "new") {
+    return false;
+  }
+
+  return sourcePathMatches(input.sourcePath, {
+    syntax: trigger.config.pathSyntax,
+    patterns: trigger.config.pathPatterns,
+  });
 }
 
 function matchesOptionalFilter<T>(filter: readonly T[] | undefined, value: T): boolean {

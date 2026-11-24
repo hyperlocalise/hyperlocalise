@@ -15,6 +15,7 @@ import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import { getRepositorySourceFileVersionForStoredFile } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
+import type { TranslationQaScanScope } from "@/lib/qa/types";
 import type { VisualTaskStep } from "../schema/types";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 
@@ -74,6 +75,23 @@ export function parseWorkflowDueAt(value: string | undefined): Date | null | und
   if (!trimmed) return null;
   const dueAt = new Date(trimmed);
   return Number.isNaN(dueAt.getTime()) ? undefined : dueAt;
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * A step's due date: the date it was given, or else this many hours after the step runs. Null when
+ * it has neither, undefined when the date is not a date.
+ */
+export function resolveWorkflowDueAt(input: {
+  dueAt?: string;
+  dueInHours?: number;
+  now?: Date;
+}): Date | null | undefined {
+  const dueAt = parseWorkflowDueAt(input.dueAt);
+  if (dueAt !== null) return dueAt;
+  if (!input.dueInHours || input.dueInHours <= 0) return null;
+  return new Date((input.now ?? new Date()).getTime() + input.dueInHours * HOUR_MS);
 }
 
 async function loadProjectScope(
@@ -190,6 +208,7 @@ export async function runCreateTaskAction(
     assigneeWorkosUserId: string;
     title: string;
     dueAt?: string;
+    dueInHours?: number;
     afterJobId?: string;
   },
 ): Promise<VisualWorkflowNodeExecutionResult> {
@@ -199,7 +218,7 @@ export async function runCreateTaskAction(
       "Choose a project and a source file before assigning a task.",
     );
   }
-  const dueAt = parseWorkflowDueAt(input.dueAt);
+  const dueAt = resolveWorkflowDueAt(input);
   if (dueAt === undefined) return invalidDueDate();
   const project = await loadProjectScope(input.organizationId, input.projectId);
   if (!project) return failure("project_not_found", "Choose a project in this organization.");
@@ -418,13 +437,14 @@ export async function runUpdateJobAction(
     assigneeWorkosUserId: string;
     title: string;
     dueAt?: string;
+    dueInHours?: number;
   },
 ): Promise<VisualWorkflowNodeExecutionResult> {
   if (!input.jobId) {
     return failure("missing_update_job_config", "Choose the job to update.");
   }
   const title = input.title.trim();
-  const dueAt = parseWorkflowDueAt(input.dueAt);
+  const dueAt = resolveWorkflowDueAt(input);
   if (dueAt === undefined) return invalidDueDate();
   if (!input.assigneeWorkosUserId && !title && !dueAt) {
     return failure(
@@ -463,20 +483,117 @@ export async function runUpdateJobAction(
   };
 }
 
+/**
+ * What a Run QA step checks: the file and languages it names, or else those of its job. Nothing
+ * named checks the whole project.
+ */
+async function resolveQaScope(
+  input: ActionInput & {
+    projectId: string;
+    sourceFileId: string;
+    targetLocales: unknown;
+    jobId: string;
+  },
+): Promise<
+  | { ok: true; scope: TranslationQaScanScope | undefined; targetLocales: string[] }
+  | { ok: false; result: VisualWorkflowNodeExecutionResult }
+> {
+  let sourceFileId = input.sourceFileId;
+  let targetLocales = parseWorkflowList(input.targetLocales);
+  if (input.jobId) {
+    const [job] = await db
+      .select({
+        projectId: schema.jobs.projectId,
+        sourceFileId: sql<string | null>`${schema.jobs.inputPayload} ->> 'sourceFileId'`,
+        targetLocales: sql<unknown>`${schema.jobs.inputPayload} -> 'targetLocales'`,
+      })
+      .from(schema.jobs)
+      .where(
+        and(eq(schema.jobs.organizationId, input.organizationId), eq(schema.jobs.id, input.jobId)),
+      )
+      .limit(1);
+    if (!job || job.projectId !== input.projectId) {
+      return {
+        ok: false,
+        result: failure("job_not_found", "The job to check was not found in this project."),
+      };
+    }
+    sourceFileId ||= job.sourceFileId ?? "";
+    if (targetLocales.length === 0) targetLocales = parseWorkflowList(job.targetLocales);
+  }
+
+  let repositorySourceFileId: string | undefined;
+  if (sourceFileId) {
+    const version = await getRepositorySourceFileVersionForStoredFile({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      fileId: sourceFileId,
+    });
+    if (!version) {
+      return {
+        ok: false,
+        result: failure(
+          "source_file_not_ingested",
+          "The source file has no strings in this project yet.",
+        ),
+      };
+    }
+    repositorySourceFileId = version.repositorySourceFileId;
+  }
+
+  const scope =
+    repositorySourceFileId || targetLocales.length > 0
+      ? {
+          ...(repositorySourceFileId ? { repositorySourceFileId } : {}),
+          ...(targetLocales.length > 0 ? { targetLocales } : {}),
+        }
+      : undefined;
+  return { ok: true, scope, targetLocales };
+}
+
+const QA_BUSY_WAIT_MS = 3 * 60 * 1000;
+const QA_BUSY_POLL_MS = 5000;
+
+/** How Run QA waits for another scan; tests replace it so they do not wait. */
+export const qaBusyWait = {
+  sleep: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+};
+
 export async function runQaChecksAction(
-  input: ActionInput & { projectId: string },
+  input: ActionInput & {
+    projectId: string;
+    sourceFileId?: string;
+    targetLocales?: unknown;
+    jobId?: string;
+  },
 ): Promise<VisualWorkflowNodeExecutionResult> {
   if (!input.projectId) {
     return failure("missing_qa_config", "Choose a project to check.");
   }
+  const resolved = await resolveQaScope({
+    ...input,
+    sourceFileId: input.sourceFileId ?? "",
+    targetLocales: input.targetLocales ?? "",
+    jobId: input.jobId ?? "",
+  });
+  if (!resolved.ok) return resolved.result;
+
   const { runProjectTranslationQaScan } = await import("@/lib/qa/run-project-qa-scan");
   let scan: Awaited<ReturnType<typeof runProjectTranslationQaScan>>;
   try {
-    scan = await runProjectTranslationQaScan({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      trigger: "manual",
-    });
+    // One scan runs per project at a time. Several runs finishing together (a task per language)
+    // would collide, so wait for the other scan instead of failing at once.
+    const busyUntil = Date.now() + QA_BUSY_WAIT_MS;
+    for (;;) {
+      scan = await runProjectTranslationQaScan({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        trigger: "manual",
+        scope: resolved.scope,
+      });
+      if (scan.ok || scan.code !== "scan_in_progress" || Date.now() >= busyUntil) break;
+      await qaBusyWait.sleep(QA_BUSY_POLL_MS);
+    }
   } catch {
     return failure("qa_scan_failed", "The QA checks did not finish.");
   }
@@ -510,6 +627,7 @@ export async function runQaChecksAction(
       errorCount,
       warningCount: run?.warningCount ?? 0,
       findingCount: run?.findingCount ?? 0,
+      targetLocales: resolved.targetLocales,
     },
   };
 }

@@ -95,6 +95,13 @@ describe("getTestDataFields", () => {
     expect(getTestDataFields(node("t", "trigger.source_upload")).map((f) => f.path)).toEqual([
       "projectId",
       "sourceFileId",
+      "sourcePath",
+      "fileName",
+      "fileExtension",
+      "branchName",
+      "sourceLocale",
+      "isNewFile",
+      "targetLocales",
     ]);
   });
 
@@ -470,6 +477,13 @@ describe("exampleTestData", () => {
     expect(exampleTestData(node("t", "trigger.source_upload"))).toEqual({
       projectId: "example projectId",
       sourceFileId: "example sourceFileId",
+      sourcePath: "example sourcePath",
+      fileName: "example fileName",
+      fileExtension: "example fileExtension",
+      branchName: "example branchName",
+      sourceLocale: "example sourceLocale",
+      isNewFile: false,
+      targetLocales: [],
     });
   });
 });

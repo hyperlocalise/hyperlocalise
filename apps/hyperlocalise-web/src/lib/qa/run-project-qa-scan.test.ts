@@ -1327,6 +1327,132 @@ describe("scanTranslationQaPage", () => {
   });
 });
 
+describe("scoped QA scans", () => {
+  it("checks and resolves only the scope's file and languages", async () => {
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+    await db
+      .update(schema.projects)
+      .set({ targetLocales: ["de-DE", "fr-FR"] })
+      .where(eq(schema.projects.id, project.id));
+    const [fileA, fileB] = await db
+      .insert(schema.repositorySourceFiles)
+      .values(
+        ["a.json", "b.json"].map((sourcePath) => ({
+          organizationId: organization.id,
+          projectId: project.id,
+          sourcePath,
+        })),
+      )
+      .returning({ id: schema.repositorySourceFiles.id });
+    const [keyA, keyB] = await db
+      .insert(schema.projectTranslationKeys)
+      .values(
+        [
+          { key: "a", repositorySourceFileId: fileA!.id },
+          { key: "b", repositorySourceFileId: fileB!.id },
+        ].map((row) => ({
+          ...row,
+          organizationId: organization.id,
+          projectId: project.id,
+          sourceText: `Source ${row.key}`,
+          normalizedSourceText: `source ${row.key}`,
+        })),
+      )
+      .returning({ id: schema.projectTranslationKeys.id });
+
+    const [previousRun] = await db
+      .insert(schema.translationQaRuns)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        trigger: "manual",
+        status: "succeeded",
+        createdByUserId: user.id,
+        summary: emptyTranslationQaSummary(),
+        completedAt: new Date(),
+      })
+      .returning({ id: schema.translationQaRuns.id });
+    const earlier = {
+      runId: previousRun!.id,
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceText: "Source",
+      targetText: "Source",
+      severity: "warning" as const,
+      relatedTokens: [] as string[],
+      message: "Earlier finding",
+      checkType: "spelling",
+      category: "spelling",
+    };
+    await db.insert(schema.translationQaFindings).values([
+      { ...earlier, translationKeyId: keyA!.id, key: "a", targetLocale: "de-DE" },
+      { ...earlier, translationKeyId: keyA!.id, key: "a", targetLocale: "fr-FR" },
+      { ...earlier, translationKeyId: keyB!.id, key: "b", targetLocale: "de-DE" },
+    ]);
+
+    const scope = { repositorySourceFileId: fileA!.id, targetLocales: ["de-DE"] };
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+      scope,
+    });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+    const run = { runId: claimed.runId, organizationId: organization.id, projectId: project.id };
+
+    await expect(scanTranslationQaPage({ ...run, afterKeyId: null })).resolves.toEqual({
+      done: true,
+    });
+    const checked = await db
+      .select({
+        translationKeyId: schema.translationQaFindings.translationKeyId,
+        targetLocale: schema.translationQaFindings.targetLocale,
+      })
+      .from(schema.translationQaFindings)
+      .where(eq(schema.translationQaFindings.runId, claimed.runId));
+    expect(checked).toEqual([{ translationKeyId: keyA!.id, targetLocale: "de-DE" }]);
+
+    await completeTranslationQaScan(run);
+
+    const [completed] = await db
+      .select({
+        segmentCount: schema.translationQaRuns.segmentCount,
+        summary: schema.translationQaRuns.summary,
+      })
+      .from(schema.translationQaRuns)
+      .where(eq(schema.translationQaRuns.id, claimed.runId));
+    expect(completed?.segmentCount).toBe(1);
+    expect(completed?.summary.scope).toEqual(scope);
+
+    const earlierFindings = await db
+      .select({
+        translationKeyId: schema.translationQaFindings.translationKeyId,
+        targetLocale: schema.translationQaFindings.targetLocale,
+        status: schema.translationQaFindings.status,
+      })
+      .from(schema.translationQaFindings)
+      .where(eq(schema.translationQaFindings.runId, previousRun!.id));
+    // The scoped run rechecked key a in de-DE only; the rest stays as it was.
+    expect(earlierFindings).toEqual(
+      expect.arrayContaining([
+        { translationKeyId: keyA!.id, targetLocale: "de-DE", status: "resolved" },
+        { translationKeyId: keyA!.id, targetLocale: "fr-FR", status: "open" },
+        { translationKeyId: keyB!.id, targetLocale: "de-DE", status: "open" },
+      ]),
+    );
+  });
+});
+
 describe("run-project-qa-scan notifications", () => {
   async function setupNativeProject() {
     const { organization, user } = await authFixture.createLocalWorkosIdentity();

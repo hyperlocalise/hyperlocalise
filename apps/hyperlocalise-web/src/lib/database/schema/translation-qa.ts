@@ -44,6 +44,8 @@ export type TranslationQaSummary = {
   guidelineChecksIncomplete?: boolean;
   /** Knowledge was off or the entitlement read failed, so the checker was not called. */
   guidelineKnowledgeSkipped?: boolean;
+  /** Part of the project the scan checks; see `TranslationQaScanScope` in `lib/qa/types.ts`. */
+  scope?: { repositorySourceFileId?: string; targetLocales?: string[] };
 };
 
 /**

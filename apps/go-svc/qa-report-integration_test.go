@@ -179,3 +179,45 @@ func TestQaReportPostgresStaleFindingPromote(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Equal(t, "qa_finding_stale", body["error"])
 }
+
+func TestQaReportPostgresIgnoresScopedRunsAsLatest(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	ctx := t.Context()
+
+	projectWideRunID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 1, 0)
+	projectWideFindingID := mustQaFinding(t, scope, projectWideRunID, scope.ProjectID, "project-wide")
+	// A newer run narrowed to one file and language, as a workflow's Run QA step makes.
+	scopedRunID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 0, 0, 0)
+	_, err := scope.Pool.Exec(ctx, `
+        update translation_qa_runs
+        set summary = summary || '{"scope":{"targetLocales":["de-DE"]}}'::jsonb,
+            created_at = now() + interval '1 minute', completed_at = now() + interval '1 minute'
+        where id = $1`, scopedRunID)
+	require.NoError(t, err)
+
+	list := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/qa-reports"), "")
+	require.Equal(t, http.StatusOK, list.Code, list.Body.String())
+	var listBody struct {
+		Reports []struct {
+			Report *struct {
+				ID           string `json:"id"`
+				FindingCount int    `json:"findingCount"`
+			} `json:"report"`
+		} `json:"reports"`
+	}
+	require.NoError(t, json.Unmarshal(list.Body.Bytes(), &listBody))
+	require.Len(t, listBody.Reports, 1)
+	require.Equal(t, projectWideRunID, listBody.Reports[0].Report.ID)
+	require.Equal(t, 1, listBody.Reports[0].Report.FindingCount)
+
+	findings := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/qa-reports/findings?projectId="+scope.ProjectID), "")
+	require.Equal(t, http.StatusOK, findings.Code, findings.Body.String())
+	var findingsBody struct {
+		Findings []struct {
+			ID string `json:"id"`
+		} `json:"findings"`
+	}
+	require.NoError(t, json.Unmarshal(findings.Body.Bytes(), &findingsBody))
+	require.Len(t, findingsBody.Findings, 1)
+	require.Equal(t, projectWideFindingID, findingsBody.Findings[0].ID)
+}

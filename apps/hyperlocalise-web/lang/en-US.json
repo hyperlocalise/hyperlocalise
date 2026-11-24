@@ -1291,6 +1291,10 @@
     "defaultMessage": "Hidden",
     "description": "Badge shown when a TMS source string is hidden from translators"
   },
+  "/d6o8nwZbo": {
+    "defaultMessage": "A repeated group that repeats again, such as (a+)+, can be very slow. Write it without the nested repeat.",
+    "description": "Error under a regular expression with a nested quantifier"
+  },
   "/d8vf0Z+2x": {
     "defaultMessage": "Repositories",
     "description": "Table header for GitHub repository names"
@@ -5015,6 +5019,10 @@
     "defaultMessage": "Translated {done} of {total, plural, one {# locale} other {# locales}}.",
     "description": "Run card summary when the run finished"
   },
+  "4eJBjHNeVu": {
+    "defaultMessage": "New files only",
+    "description": "Source upload trigger option: only files uploaded for the first time"
+  },
   "4ePMzhVeCL": {
     "defaultMessage": "Edit",
     "description": "Button that starts editing a translation memory entry"
@@ -6479,6 +6487,10 @@
     "defaultMessage": "You can re-run this audit once a day. Next run {when}.",
     "description": "Cooldown note when a localisation audit cannot be re-run yet"
   },
+  "6cEvqd8zKN": {
+    "defaultMessage": "Used when the due date above is empty, for example 48 for two days.",
+    "description": "Hint under the Due in (hours) setting"
+  },
   "6chHHa/1bQ": {
     "defaultMessage": "HubSpot",
     "description": "marketing-localisation use case page: guide › steps › #1 › visual › items › #4 › meta"
@@ -7827,6 +7839,10 @@
     "defaultMessage": "Iris questions",
     "description": "Heading of the FAQ section on the Iris page"
   },
+  "8O+tkwHLGv": {
+    "defaultMessage": "Add pattern",
+    "description": "Button that adds an empty path pattern to the Source upload filter"
+  },
   "8O4l4wC1UK": {
     "defaultMessage": "Sanity through WorkOS Pipes is not enabled for this environment yet. An admin can enable the Sanity data integration in WorkOS.",
     "description": "Integration row description when Sanity Pipes is unavailable"
@@ -8430,6 +8446,10 @@
   "99GL6BjW2r": {
     "defaultMessage": "Could not copy link",
     "description": "Toast when copying a link to a string fails"
+  },
+  "9A04YV3x5z": {
+    "defaultMessage": "Type a pattern or remove this row.",
+    "description": "Error under an empty path pattern"
   },
   "9B07etsjy7": {
     "defaultMessage": "Push to Intercom",
@@ -9066,6 +9086,10 @@
   "A+AR8GTHld": {
     "defaultMessage": "Last week",
     "description": "Knowledge mock UI relative timestamp"
+  },
+  "A+CpdMTX/N": {
+    "defaultMessage": "Starts the workflow",
+    "description": "Result when the tried path matches the Source upload filter"
   },
   "A+IsVf0TGL": {
     "defaultMessage": "Contentful Help Center",
@@ -11555,6 +11579,10 @@
     "defaultMessage": "Product glossary",
     "description": "localisation-quality-monitoring use case page: guide › steps › #1 › visual › items › #2 › label"
   },
+  "DHnnbTgHql": {
+    "defaultMessage": "Leave the file, languages and job empty to check the whole project. Narrow it to check only the work this run produced.",
+    "description": "Hint above the Run QA step's optional scope settings"
+  },
   "DHw/85SGxB": {
     "defaultMessage": "After break (regex)",
     "description": "Label for afterbreak pattern"
@@ -12166,6 +12194,10 @@
   "E9pJgVHyhd": {
     "defaultMessage": "Developer",
     "description": "Project settings nav group for CLI and CI integration"
+  },
+  "E9wwHtcU9r": {
+    "defaultMessage": "Only files matching",
+    "description": "Label of the list of path patterns that limit which files start the workflow"
   },
   "EAE54Sl6XL": {
     "defaultMessage": "Column create failed",
@@ -13907,6 +13939,10 @@
     "defaultMessage": "@Hyperlocalise is the Japanese banner ready for review?",
     "description": "marketing-localisation use case page: guide › steps › #3 › visual › messages › #1 › text"
   },
+  "GTuqE3OpBf": {
+    "defaultMessage": "* matches within a folder, ** across folders, and '{a,b}' either one. A pattern without a / matches the file name in any folder.",
+    "description": "How glob patterns work, under the Source upload path filter"
+  },
   "GTw4YEIupV": {
     "defaultMessage": "Check every variant against your brand guide and approved terms.",
     "description": "marketing-localisation use case page: capabilities › items › #4 › body"
@@ -14490,6 +14526,10 @@
   "HDUb3fboOf": {
     "defaultMessage": "Hyperlocalise drafts the two edited sections in twelve locales using the product glossary.",
     "description": "help-center-localisation use case page: scenario › events › #2 › body"
+  },
+  "HEkzIiwa50": {
+    "defaultMessage": "TEP: translate, edit, proofread",
+    "description": "Title of the workflow template for human translation, editing and proofreading (TEP)"
   },
   "HEmDtrKdrX": {
     "defaultMessage": "Suggested source correction",
@@ -16739,6 +16779,10 @@
     "defaultMessage": "revoked a personal access token",
     "description": "Action for a personal access token revocation activity"
   },
+  "KVnvqKVdu/": {
+    "defaultMessage": "Remove pattern {number}",
+    "description": "Accessible label of the button that removes one path pattern"
+  },
   "KW+cTDzjgb": {
     "defaultMessage": "This week's requests",
     "description": "localisation-operations use case page: hero › visual › primary › title"
@@ -16910,6 +16954,10 @@
   "Kn81SOzCXT": {
     "defaultMessage": "Updated translation",
     "description": "Activity action"
+  },
+  "KnE38OJSY5": {
+    "defaultMessage": "Skipped: no pattern matches",
+    "description": "Result when the tried path matches none of the Source upload patterns"
   },
   "KnQWJg+k9n": {
     "defaultMessage": "Job ID (optional)",
@@ -17150,6 +17198,10 @@
   "LAxJwBLxhc": {
     "defaultMessage": "One locale, or several for a job in many locales.",
     "description": "Help text under the pick assignee locale input"
+  },
+  "LC11FQ5Dwr": {
+    "defaultMessage": "Try a path",
+    "description": "Label of the box where a person types a file path to see whether it matches"
   },
   "LC2bgUm6Db": {
     "defaultMessage": "Active",
@@ -17655,6 +17707,10 @@
     "defaultMessage": "See who matches",
     "description": "Button to reveal the audience evaluate mock"
   },
+  "LooXSON0yB": {
+    "defaultMessage": "Start a localisation workflow",
+    "description": "Heading of the section with ready-made workflow templates on the new automation page"
+  },
   "LosBi/bCTX": {
     "defaultMessage": "Markup",
     "description": "Gallery action that lets the user draw on the image, then describe the change"
@@ -17883,6 +17939,10 @@
     "defaultMessage": "Show Germany a new headline. Keep France on the current one. Ship the version people actually use.",
     "description": "Body for the Hyperlab experiments solution panel"
   },
+  "M5yyhs+NHe": {
+    "defaultMessage": "Review done: QA, then fix or deliver",
+    "description": "Title of the workflow template that runs QA when a post-edit or proofread task is finished"
+  },
   "M66Lw6ds7d": {
     "defaultMessage": "Delete glossary",
     "description": "Button to delete the current glossary"
@@ -17894,6 +17954,10 @@
   "M6Srmv7irr": {
     "defaultMessage": "This needs to be valid JSON.",
     "description": "Error when config JSON cannot be parsed"
+  },
+  "M7UxdPJ+uA": {
+    "defaultMessage": "Checks this job's file and languages, such as the task that was just marked done. A file or languages set above take precedence.",
+    "description": "Hint under the Run QA step's job setting"
   },
   "M7YWxB1rFS": {
     "defaultMessage": "Visual Workflow",
@@ -18190,6 +18254,10 @@
   "MT4PmDgA+M": {
     "defaultMessage": "All reviews",
     "description": "All option for the concept review filter"
+  },
+  "MTUXy1sXU0": {
+    "defaultMessage": "New and updated files",
+    "description": "Source upload trigger option: every upload, including a new version of a file"
   },
   "MTdu3wkxG7": {
     "defaultMessage": "Some hourly work has no time estimate and is not in the total.",
@@ -18698,6 +18766,10 @@
   "N9QT573W/v": {
     "defaultMessage": "Earlier task",
     "description": "Link text on a task's page for the task it comes after, shown when that task's title cannot be read"
+  },
+  "N9vIFtIFpK": {
+    "defaultMessage": "Each one opens on the canvas with its steps connected. Pick the project, the Slack channels and who does the work, then publish.",
+    "description": "Text under the heading of the workflow templates section"
   },
   "NA/mPQd8Zc": {
     "defaultMessage": "During the day",
@@ -22771,6 +22843,10 @@
     "defaultMessage": "Select a text element to jump to its reference frame.",
     "description": "Video refinement workspace: timelineHint"
   },
+  "SpbuxYK8Fb": {
+    "defaultMessage": "MTPE: AI translation, then post-edit",
+    "description": "Title of the workflow template for machine translation followed by human post-editing (MTPE)"
+  },
   "Sq+eRlJZgQ": {
     "defaultMessage": "Loading articles",
     "description": "Shown while mapped Intercom articles load"
@@ -24915,6 +24991,10 @@
     "defaultMessage": "Bearer token",
     "description": "HTTP node bearer auth option"
   },
+  "VaITe7E6yo": {
+    "defaultMessage": "This is not a valid pattern.",
+    "description": "Error under a path pattern that cannot be read"
+  },
   "VaRVOa2ruT": {
     "defaultMessage": "Failed to update video mode",
     "description": "Fallback error when toggling treat-as-video mode fails"
@@ -26307,6 +26387,10 @@
     "defaultMessage": "Unable to add member to team.",
     "description": "Error adding a member to a team"
   },
+  "XaxUxOrSQ7": {
+    "defaultMessage": "Due in (hours)",
+    "description": "Label of the setting that sets a task's due date a number of hours after the step runs"
+  },
   "XbLeNEXbTC": {
     "defaultMessage": "Show API key",
     "description": "Aria label for revealing the Loops API key field"
@@ -26378,6 +26462,10 @@
   "XeOh0cpTI1": {
     "defaultMessage": "Status",
     "description": "Column header for membership status"
+  },
+  "XeUhOWspWv": {
+    "defaultMessage": "Pattern syntax",
+    "description": "Accessible label of the glob or regex switch on the path filter"
   },
   "XeXZ1sE3tK": {
     "defaultMessage": "e.g. Keep product names in English and preserve MDX components.",
@@ -28462,6 +28550,10 @@
   "aS+CWaJmSS": {
     "defaultMessage": "detached a glossary from a project",
     "description": "Action for detaching a glossary from a project"
+  },
+  "aSP+9zPRje": {
+    "defaultMessage": "Translates each uploaded file with AI, then assigns a post-edit task per language, due in two days, that opens when the translation is done.",
+    "description": "What the MTPE workflow template does"
   },
   "aSS7NkkPQ7": {
     "defaultMessage": "Keep your TMS as the system of record if you already have one.",
@@ -31683,6 +31775,10 @@
     "defaultMessage": "Video, subtitles and dubbing",
     "description": "Marketing homepage cultureDetailVideoTitle"
   },
+  "ef9NaZ7SyI": {
+    "defaultMessage": "Job (optional)",
+    "description": "Label of the Run QA setting that checks only one job's file and languages"
+  },
   "efAi5lrO4s": {
     "defaultMessage": "Save and run",
     "description": "Button that saves the unsaved automation changes and then queues a run"
@@ -31967,6 +32063,10 @@
     "defaultMessage": "Automation",
     "description": "Activity subtitle for an automation run on the overview"
   },
+  "f0CobpM34f": {
+    "defaultMessage": "Add {pattern}",
+    "description": "Accessible label of an example path pattern button"
+  },
   "f0NJ4uP7Ab": {
     "defaultMessage": "Created",
     "description": "Issue list sort option by created time"
@@ -32102,6 +32202,10 @@
   "fBUXcsxgXO": {
     "defaultMessage": "Use Add files above to upload JSON, YAML, XLIFF, PO, Qt TS, images, Office files, and other supported formats.",
     "description": "Empty-state description for native projects with no uploaded files"
+  },
+  "fBYBrbL0G6": {
+    "defaultMessage": "AI translation on upload",
+    "description": "Title of the workflow template that translates each new source file with AI"
   },
   "fC01ZiLItd": {
     "defaultMessage": "Allow ordinary browser traffic through your firewall, CDN, bot protection, or login wall, then start a new audit.",
@@ -32882,6 +32986,10 @@
   "gCwJ0sQiJR": {
     "defaultMessage": "Send to project",
     "description": "Project picker label for the use translation as source step: the project that takes the file as its source"
+  },
+  "gCwQoMqA0C": {
+    "defaultMessage": "When a post-edit or proofread task is done, runs QA on its work. Passing work is announced; failing work goes back to the same person to fix.",
+    "description": "What the review done workflow template does"
   },
   "gDPRQKf6Ay": {
     "defaultMessage": "Audiences",
@@ -35631,6 +35739,10 @@
     "defaultMessage": "Download conversation",
     "description": "Accessible label and tooltip for the button that downloads the conversation as a file"
   },
+  "jz4GTlYvSI": {
+    "defaultMessage": "Examples",
+    "description": "Label before example path patterns a person can click to add"
+  },
   "jzHn8+99pe": {
     "defaultMessage": "Hide {title}",
     "description": "Button that collapses a guideline document in the editor sheet"
@@ -36163,6 +36275,10 @@
     "defaultMessage": "03 Count what wins",
     "description": "Hyperlab workflow step 3"
   },
+  "kcrePkUiva": {
+    "defaultMessage": "Glob",
+    "description": "Path filter syntax option: glob patterns such as **/*.json"
+  },
   "kdGPpCpall": {
     "defaultMessage": "1 Jul – 30 Sep",
     "description": "Reports mock UI date range label"
@@ -36414,6 +36530,10 @@
   "kzwi13YrTF": {
     "defaultMessage": "Optional. Add anything specific to your team: tone, report format, what to ignore.",
     "description": "Placeholder for the automation instructions textarea when a skill is attached"
+  },
+  "l+ic10z8k+": {
+    "defaultMessage": "Every file starts the workflow. Add a pattern to run only for some files.",
+    "description": "Shown under the path filter while it has no patterns"
   },
   "l+omfB57gF": {
     "defaultMessage": "Guidelines",
@@ -38831,6 +38951,10 @@
     "defaultMessage": "Unable to load language progress.",
     "description": "Error message when locale progress fails to load"
   },
+  "oGG66eAqv0": {
+    "defaultMessage": "Run on",
+    "description": "Label of the choice of which uploads start a Source upload workflow"
+  },
   "oGqbKb18Lb": {
     "defaultMessage": "Close the assistant",
     "description": "Label of the button that closes the assistant panel"
@@ -39979,6 +40103,10 @@
     "defaultMessage": "{step} step",
     "description": "Subtitle of the finished words by language list"
   },
+  "pgWGvAMQcI": {
+    "defaultMessage": "A regular expression tested against the whole path, ignoring case, such as ^locales/en/.*\\.json$.",
+    "description": "How regex patterns work, under the Source upload path filter"
+  },
   "pgj0hoaJ/o": {
     "defaultMessage": "Coverage",
     "description": "URL inspection coverage label"
@@ -40014,6 +40142,10 @@
   "pjTufHJtA+": {
     "defaultMessage": "SSO / SAML",
     "description": "Pricing matrix row label for SSO"
+  },
+  "pjYA9ErMWK": {
+    "defaultMessage": "Keep a pattern under 200 characters.",
+    "description": "Error under a path pattern that is too long"
   },
   "pjmwxFyZ2z": {
     "defaultMessage": "Complete successfully",
@@ -41527,6 +41659,10 @@
     "defaultMessage": "Secret access key",
     "description": "Label for the AWS secret access key"
   },
+  "rfkzkk/MO+": {
+    "defaultMessage": "Translates each uploaded source file with AI, waits for it, runs QA on that file and posts the result to Slack.",
+    "description": "What the AI translation on upload workflow template does"
+  },
   "rfsreH4z0t": {
     "defaultMessage": "Members",
     "description": "Read-only link to the workspace members list from the sidebar workspace switcher"
@@ -42026,6 +42162,10 @@
   "sLTQn6B7e0": {
     "defaultMessage": "Asset management",
     "description": "Job kind option on the job changed trigger"
+  },
+  "sLaKcboN5o": {
+    "defaultMessage": "For each language of an uploaded file, assigns translate, edit and proofread tasks. Each opens when the one before it is done.",
+    "description": "What the TEP workflow template does"
   },
   "sLmZG0yQ3C": {
     "defaultMessage": "{count} ranking keywords",
@@ -43490,6 +43630,10 @@
   "uRizX81sIF": {
     "defaultMessage": "Show secondary task properties",
     "description": "Accessible label when secondary job properties are collapsed"
+  },
+  "uST5+aAtqk": {
+    "defaultMessage": "Pattern {number}",
+    "description": "Accessible label of one path pattern box; number counts from 1"
   },
   "uSTMZ4V2UT": {
     "defaultMessage": "Support · 12 locales · synced",
@@ -46018,6 +46162,10 @@
   "xiDdn1qcaz": {
     "defaultMessage": "9 locales",
     "description": "localisation-cli-and-api use case page: hero › visual › floating › items › #2 › meta"
+  },
+  "xiRC52jGRm": {
+    "defaultMessage": "Regex",
+    "description": "Path filter syntax option: regular expressions"
   },
   "xiUq3JN/5o": {
     "defaultMessage": "Errors",

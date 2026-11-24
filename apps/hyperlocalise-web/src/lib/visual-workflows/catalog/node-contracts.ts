@@ -51,7 +51,28 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
   },
   "trigger.source_upload": {
     ...trigger,
-    outputs: [...trigger.outputs, output("projectId"), output("sourceFileId")],
+    outputs: [
+      ...trigger.outputs,
+      output("projectId"),
+      output("sourceFileId"),
+      // Optional: runs started before these were added carry only the project and file.
+      ...["sourcePath", "fileName", "fileExtension", "branchName", "sourceLocale"].map((name) =>
+        output(name, "string", true),
+      ),
+      output("isNewFile", "boolean", true),
+      output("targetLocales", "array", true),
+    ],
+    mock: {
+      projectId: "proj_mock",
+      sourceFileId: "file_mock",
+      sourcePath: "locales/en/app.json",
+      fileName: "app.json",
+      fileExtension: "json",
+      branchName: "main",
+      isNewFile: true,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR", "de-DE"],
+    },
   },
   "trigger.webhook": {
     ...trigger,
@@ -202,15 +223,28 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     },
   },
   "action.run_qa": {
-    inputs: [field("projectId")],
+    inputs: [
+      field("projectId"),
+      field("sourceFileId", "string", false),
+      field("targetLocales", "unknown", false),
+      field("jobId", "string", false),
+    ],
     outputs: [
       output("runId"),
       output("passed", "boolean"),
       output("errorCount", "number"),
       output("warningCount", "number"),
       output("findingCount", "number"),
+      output("targetLocales", "array"),
     ],
-    mock: { runId: "qa_mock", passed: true, errorCount: 0, warningCount: 2, findingCount: 2 },
+    mock: {
+      runId: "qa_mock",
+      passed: true,
+      errorCount: 0,
+      warningCount: 2,
+      findingCount: 2,
+      targetLocales: ["fr-FR"],
+    },
   },
   "action.list_source_files": {
     inputs: [field("projectId"), field("pathPrefix", "string", false)],

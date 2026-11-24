@@ -93,4 +93,16 @@ export type TranslationQaSummary = {
   guidelineChecksIncomplete?: boolean;
   /** Knowledge was off or the entitlement read failed, so the checker was not called. */
   guidelineKnowledgeSkipped?: boolean;
+  /**
+   * Set when the scan checks part of the project, such as one workflow step's file and
+   * languages. Findings outside it are left as they were.
+   */
+  scope?: TranslationQaScanScope;
+};
+
+export type TranslationQaScanScope = {
+  /** Only the strings of this source file. */
+  repositorySourceFileId?: string;
+  /** Only these target locales, each one of the project's. */
+  targetLocales?: string[];
 };
