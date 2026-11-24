@@ -17731,10 +17731,6 @@
     "defaultMessage": "See who matches",
     "description": "Button to reveal the audience evaluate mock"
   },
-  "LooXSON0yB": {
-    "defaultMessage": "Start a localisation workflow",
-    "description": "Heading of the section with ready-made workflow templates on the new automation page"
-  },
   "LosBi/bCTX": {
     "defaultMessage": "Markup",
     "description": "Gallery action that lets the user draw on the image, then describe the change"
@@ -18790,10 +18786,6 @@
   "N9QT573W/v": {
     "defaultMessage": "Earlier task",
     "description": "Link text on a task's page for the task it comes after, shown when that task's title cannot be read"
-  },
-  "N9vIFtIFpK": {
-    "defaultMessage": "Each one opens on the canvas with its steps connected. Pick the project, the Slack channels and who does the work, then publish.",
-    "description": "Text under the heading of the workflow templates section"
   },
   "NA/mPQd8Zc": {
     "defaultMessage": "During the day",
