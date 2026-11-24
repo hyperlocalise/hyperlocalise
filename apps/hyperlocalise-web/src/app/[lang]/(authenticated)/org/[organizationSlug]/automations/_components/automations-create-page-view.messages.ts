@@ -103,8 +103,8 @@ export const automationsCreatePageViewMessages = defineMessages({
     description: "Note on the workflow card when the person's role cannot create workflows",
   },
   templatesTitle: {
-    defaultMessage: "Start from a template",
-    id: "hXWQPTAV5J",
+    defaultMessage: "Agent templates",
+    id: "Qes9AxeWPG",
     description: "Heading of the templates section on the new automation page",
   },
   templatesDescription: {
@@ -123,15 +123,15 @@ export const automationsCreatePageViewMessages = defineMessages({
     description: "Button that collapses the template grid back to the first few",
   },
   workflowTemplatesTitle: {
-    defaultMessage: "Start a localisation workflow",
-    id: "LooXSON0yB",
+    defaultMessage: "Localisation workflows",
+    id: "dMiZxsgrm/",
     description:
       "Heading of the section with ready-made workflow templates on the new automation page",
   },
   workflowTemplatesDescription: {
     defaultMessage:
-      "Each one opens on the canvas with its steps connected. Pick the project, the Slack channels and who does the work, then publish.",
-    id: "N9vIFtIFpK",
+      "The setups most teams start with. Each opens on the canvas with its steps connected; pick the project, the Slack channels and who does the work, then publish.",
+    id: "Le+9bhU9g1",
     description: "Text under the heading of the workflow templates section",
   },
   workflowTemplateAiTranslateTitle: {
@@ -180,5 +180,72 @@ export const automationsCreatePageViewMessages = defineMessages({
       "When a post-edit or proofread task is done, runs QA on its work. Passing work is announced; failing work goes back to the same person to fix.",
     id: "gCwQoMqA0C",
     description: "What the review done workflow template does",
+  },
+  useTemplate: {
+    defaultMessage: "Use this workflow",
+    id: "U7BlJqdUmg",
+    description: "Call to action on a featured localisation workflow card",
+  },
+  otherAutomationsTitle: {
+    defaultMessage: "Other automations",
+    id: "D6nGaFfAXq",
+    description:
+      "Heading above every other way to start an automation, after the featured localisation workflows",
+  },
+  otherAutomationsDescription: {
+    defaultMessage:
+      "Describe what you need, build an agent or a workflow from scratch, or start from an agent template.",
+    id: "TxoIMy6Uz0",
+    description: "Text under the Other automations heading",
+  },
+  stepUpload: {
+    defaultMessage: "Upload",
+    id: "2+VVMEY5/3",
+    description: "Step in a featured workflow's flow: a source file is uploaded",
+  },
+  stepAiTranslate: {
+    defaultMessage: "AI translate",
+    id: "Hr/JQvzLiZ",
+    description: "Step in a featured workflow's flow: the file is translated with AI",
+  },
+  stepTranslate: {
+    defaultMessage: "Translate",
+    id: "NEU7c1Ouub",
+    description: "Step in a featured workflow's flow: a person translates",
+  },
+  stepPostEdit: {
+    defaultMessage: "Post-edit",
+    id: "TuCqNYsw9D",
+    description: "Step in a featured workflow's flow: a person post-edits the AI translation",
+  },
+  stepEdit: {
+    defaultMessage: "Edit",
+    id: "Ouz6Q2dQze",
+    description: "Step in a featured workflow's flow: a person edits the translation",
+  },
+  stepProofread: {
+    defaultMessage: "Proofread",
+    id: "CsN4Lwf+Xq",
+    description: "Step in a featured workflow's flow: a person proofreads",
+  },
+  stepTaskDone: {
+    defaultMessage: "Task done",
+    id: "nvJIFxM8Ts",
+    description: "Step in a featured workflow's flow: a review task is marked done",
+  },
+  stepQa: {
+    defaultMessage: "QA",
+    id: "jYP7V6VeVA",
+    description: "Step in a featured workflow's flow: QA checks run",
+  },
+  stepFixOrShip: {
+    defaultMessage: "Fix or ship",
+    id: "Oo96L4uY2q",
+    description: "Step in a featured workflow's flow: failing work goes back, passing work ships",
+  },
+  stepSlack: {
+    defaultMessage: "Slack",
+    id: "0Pk9BNF6+x",
+    description: "Step in a featured workflow's flow: a Slack message is sent",
   },
 });
