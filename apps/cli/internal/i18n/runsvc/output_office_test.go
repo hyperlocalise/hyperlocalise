@@ -63,10 +63,10 @@ func TestFlushOutputForTargetDOCXMergesExistingTarget(t *testing.T) {
 		}
 		return append([]byte(nil), content...), nil
 	}
-	svc.writeFile = func(name string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(name string, content []byte) error {
 		files[name] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	flush := func(entries map[string]string) {
 		t.Helper()

@@ -1,5 +1,5 @@
 {
-  "id": "e89a7f0d-1745-49f5-b6c8-c561a77bdf8c",
+  "id": "48f1955f-e80d-41ec-bab5-0d7d0577316f",
   "prevId": "0290be82-67fb-4fe9-80b7-322dfe8e1ec1",
   "version": "7",
   "dialect": "postgresql",
@@ -20696,12 +20696,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "owner_team_id": {
-          "name": "owner_team_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "assignee_type": {
           "name": "assignee_type",
           "type": "job_assignee_type",
@@ -20900,22 +20894,6 @@
           "method": "btree",
           "with": {}
         },
-        "idx_jobs_owner_team_id": {
-          "name": "idx_jobs_owner_team_id",
-          "columns": [
-            {
-              "expression": "owner_team_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"jobs\".\"owner_team_id\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "idx_jobs_assignee_type": {
           "name": "idx_jobs_assignee_type",
           "columns": [
@@ -21075,19 +21053,6 @@
           "tableTo": "users",
           "columnsFrom": [
             "owner_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "jobs_owner_team_id_teams_id_fk": {
-          "name": "jobs_owner_team_id_teams_id_fk",
-          "tableFrom": "jobs",
-          "tableTo": "teams",
-          "columnsFrom": [
-            "owner_team_id"
           ],
           "columnsTo": [
             "id"
@@ -21740,6 +21705,101 @@
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.workflow_translation_job_idempotency_keys": {
+      "name": "workflow_translation_job_idempotency_keys",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_hash": {
+          "name": "request_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_workflow_translation_job_idempotency_job": {
+          "name": "idx_workflow_translation_job_idempotency_job",
+          "columns": [
+            {
+              "expression": "job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "workflow_translation_job_idempotency_keys_organization_id_organizations_id_fk": {
+          "name": "workflow_translation_job_idempotency_keys_organization_id_organizations_id_fk",
+          "tableFrom": "workflow_translation_job_idempotency_keys",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "workflow_translation_job_idempotency_keys_job_id_jobs_id_fk": {
+          "name": "workflow_translation_job_idempotency_keys_job_id_jobs_id_fk",
+          "tableFrom": "workflow_translation_job_idempotency_keys",
+          "tableTo": "jobs",
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "workflow_translation_job_idempotency_keys_organization_id_key_pk": {
+          "name": "workflow_translation_job_idempotency_keys_organization_id_key_pk",
+          "columns": [
+            "organization_id",
+            "key"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},

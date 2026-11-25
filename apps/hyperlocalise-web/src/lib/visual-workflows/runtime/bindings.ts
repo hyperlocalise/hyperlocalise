@@ -99,6 +99,32 @@ export function resolveWorkflowNodeInputs(
         value = resolveVisualWorkflowTemplate(value, context);
     }
     if (
+      node.type === "action.create_translation_job" &&
+      field.name === "targetLocales" &&
+      !bound[field.name] &&
+      typeof value === "string"
+    ) {
+      value = value
+        .split(",")
+        .map((locale) => locale.trim())
+        .filter(Boolean);
+    }
+    if (
+      node.type === "action.create_translation_job" &&
+      field.name === "contextOverrides" &&
+      typeof value === "string"
+    ) {
+      if (!value.trim()) {
+        value = undefined;
+      } else {
+        try {
+          value = JSON.parse(value);
+        } catch {
+          throw new Error("workflow_input_type_mismatch");
+        }
+      }
+    }
+    if (
       field.required &&
       (value === undefined || (!bound[field.name] && (value === null || value === "")))
     )

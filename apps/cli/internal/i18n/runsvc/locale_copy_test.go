@@ -225,10 +225,10 @@ func TestRunCopiesLocaleWithoutTranslating(t *testing.T) {
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	var translateCalls atomic.Int32
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
 		translateCalls.Add(1)
@@ -279,10 +279,10 @@ func TestRunCopyLocaleFromExistingOriginWithoutTranslating(t *testing.T) {
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
 		t.Fatalf("translate should not run for copy-only locale, got target %q", req.TargetLanguage)
 		return "", nil
@@ -319,10 +319,10 @@ func TestRunCopyLocaleFailsWhenOriginMissing(t *testing.T) {
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
 		t.Fatal("translate should not run")
 		return "", nil
@@ -354,10 +354,10 @@ func TestRunCopyLocaleIgnoresMaxTranslations(t *testing.T) {
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	var translateCalls atomic.Int32
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
 		translateCalls.Add(1)
@@ -408,10 +408,10 @@ func TestRunCopyLocaleFromSource(t *testing.T) {
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
 		t.Fatalf("translate should not run when copying from source, got target %q", req.TargetLanguage)
 		return "", nil
@@ -448,10 +448,10 @@ func TestRunCopyLocaleReplacesExistingCatalog(t *testing.T) {
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
 		t.Fatalf("translate should not run for copy-only locale, got target %q", req.TargetLanguage)
 		return "", nil
@@ -500,10 +500,10 @@ func TestRunCopyOnlyPersistsLockEntries(t *testing.T) {
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
 		t.Fatalf("translate should not run for copy-only locale, got target %q", req.TargetLanguage)
 		return "", nil
@@ -560,10 +560,10 @@ func TestRunCopyLocaleConvertsSourceImageFormat(t *testing.T) {
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
 		t.Fatalf("translate should not run for image copy, got target %q", req.TargetLanguage)
 		return "", nil

@@ -185,6 +185,26 @@ export const publicJobIdempotencyKeys = pgTable(
   ],
 );
 
+/** Maps one durable visual-workflow step execution to the single translation job it created. */
+export const workflowTranslationJobIdempotencyKeys = pgTable(
+  "workflow_translation_job_idempotency_keys",
+  {
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.key] }),
+    index("idx_workflow_translation_job_idempotency_job").on(table.jobId),
+  ],
+);
+
 /**
  * Append-only progress log for a job: workflow stages, per-locale progress, and user actions. Drives the job detail activity feed.
  */

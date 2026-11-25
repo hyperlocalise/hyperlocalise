@@ -55,6 +55,11 @@ func snapshotStagedOutputsForPath(staged map[string]stagedOutput, targetPath str
 	if output, ok := staged[targetPath]; ok {
 		outputs = append(outputs, output)
 	}
+	// Only shared-locale workbooks get per-locale keys (see stagedOutputKey). Skipping the
+	// scan for every other path keeps a target flush from walking the whole staged map.
+	if !sharedLocaleTargetPath(targetPath) {
+		return outputs
+	}
 	prefix := targetPath + stagedLocaleSep
 	for key, output := range staged {
 		if !strings.HasPrefix(key, prefix) {
@@ -73,6 +78,9 @@ func snapshotStagedOutputsForPath(staged map[string]stagedOutput, targetPath str
 
 func deleteStagedOutputsForPath(staged map[string]stagedOutput, targetPath string) {
 	delete(staged, targetPath)
+	if !sharedLocaleTargetPath(targetPath) {
+		return
+	}
 	prefix := targetPath + stagedLocaleSep
 	for key := range staged {
 		if strings.HasPrefix(key, prefix) {

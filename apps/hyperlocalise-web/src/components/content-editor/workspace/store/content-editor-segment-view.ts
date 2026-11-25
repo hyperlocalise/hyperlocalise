@@ -84,6 +84,69 @@ export function composeSegmentView(input: {
   };
 }
 
+/**
+ * The same view as {@link composeSegmentView}, but every field that can change
+ * is a getter that reads the store only when an observer touches it. The
+ * object keeps its identity while the user types, so observers that only use
+ * the id, key or source do not re-render on each keystroke.
+ */
+export function composeLazySegmentView(
+  meta: ContentEditorQueueSegment,
+  read: {
+    fileContext: () => ContentEditorFileContext;
+    draft: () => Pick<ContentEditorSegmentDraft, "targetText" | "status"> | undefined;
+    comments: () => ContentEditorSegmentComment[] | undefined;
+    openIssueCount: () => number | undefined;
+    intelligence: () => ContentEditorSegmentIntelligence | undefined;
+  },
+): ContentEditorSegment {
+  const base: Partial<ContentEditorSegment> = meta;
+  const commentFields = (): Partial<ContentEditorSegment> =>
+    lazyCommentFields(read.intelligence()?.segmentType, read.comments(), read.openIssueCount());
+
+  return {
+    ...meta,
+    get messageFormat() {
+      return meta.messageFormat ?? read.fileContext().messageFormat;
+    },
+    get placeholderPatterns() {
+      const patterns = meta.placeholderPatterns ?? read.fileContext().placeholderPatterns;
+      return patterns?.length ? patterns : meta.placeholderPatterns;
+    },
+    get sourceLocale() {
+      return read.fileContext().sourceLocale;
+    },
+    get targetLocale() {
+      return read.fileContext().targetLocale;
+    },
+    get targetText() {
+      return stripLeakedInternalMarkupFromStoredMessage(read.draft()?.targetText ?? "");
+    },
+    get status() {
+      return read.draft()?.status ?? "pending";
+    },
+    get contextLabel() {
+      return read.intelligence()?.productMeaning?.trim() || base.contextLabel;
+    },
+    get maxLength() {
+      const maxLength = read.intelligence()?.maxLength;
+      return maxLength != null && maxLength > 0 ? maxLength : base.maxLength;
+    },
+    get comments() {
+      const fields = commentFields();
+      return "comments" in fields ? fields.comments : base.comments;
+    },
+    get hasOpenIssues() {
+      const fields = commentFields();
+      return "hasOpenIssues" in fields ? fields.hasOpenIssues : base.hasOpenIssues;
+    },
+    get tags() {
+      const fields = commentFields();
+      return "tags" in fields ? fields.tags : base.tags;
+    },
+  };
+}
+
 export function toQueueSegment(
   segment: Pick<
     ContentEditorSegment,

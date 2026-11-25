@@ -391,13 +391,13 @@ func TestRunJoinsSRXSpansToOriginalJSONKeys(t *testing.T) {
 		}
 	}
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %s", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
@@ -438,10 +438,10 @@ func TestRunSRXInputOverrideJoinsOriginalKeys(t *testing.T) {
 		}
 	}
 	var written []byte
-	svc.writeFile = func(_ string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(_ string, content []byte) error {
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1, SRX: "default"})
 	if err != nil {
@@ -594,13 +594,13 @@ func TestFlushOutputForTargetJoinsSRXSpans(t *testing.T) {
 	svc := newTestService()
 	svc.readFile = os.ReadFile
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("write path %s", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.flushOutputForTarget(targetPath, stagedOutput{
 		entries:      map[string]string{"hello#srx.0": "Bonjour."},

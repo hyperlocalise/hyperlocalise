@@ -56,6 +56,39 @@ describe("editor subscription boundaries", () => {
     stopRow();
   });
 
+  it("keeps the selected segment view stable while its translation changes", () => {
+    const store = createCatWorkspace(createContentEditorWorkspaceState());
+    let selectionReads = 0;
+    let textReads = 0;
+    const stopSelection = autorun(() => {
+      void store.selectedSegmentView?.id;
+      void store.intelligenceSegmentView?.key;
+      selectionReads += 1;
+    });
+    const selected = store.selectedSegmentView!;
+    const stopText = autorun(() => {
+      void selected.targetText;
+      textReads += 1;
+    });
+
+    store.setTargetText(selected.id, "Typed translation");
+
+    expect(selectionReads).toBe(1);
+    expect(textReads).toBe(2);
+    expect(store.selectedSegmentView).toBe(selected);
+    expect(selected.targetText).toBe("Typed translation");
+    stopSelection();
+    stopText();
+  });
+
+  it("gives the lazy selected view the same fields as the composed view", () => {
+    const store = createCatWorkspace(createContentEditorWorkspaceState());
+    const selected = store.selectedSegmentView!;
+    store.setTargetText(selected.id, "Typed translation");
+
+    expect({ ...selected }).toEqual(store.getSegmentView(selected.id));
+  });
+
   it("keeps target and comment loading local to the requested segment", () => {
     const store = createCatWorkspace(createContentEditorWorkspaceState());
     const [first, second] = store.queueSegments;

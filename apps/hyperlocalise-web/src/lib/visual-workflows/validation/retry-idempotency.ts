@@ -18,6 +18,7 @@ const EXTERNAL_TYPES: ReadonlySet<VisualCatalogType> = new Set([
   "action.notify_slack",
   "action.notify_email",
   "action.machine_translate",
+  "action.create_translation_job",
   "action.create_task",
   "action.file_read",
   "action.file_write",
@@ -37,6 +38,7 @@ const EXTERNAL_TYPES: ReadonlySet<VisualCatalogType> = new Set([
  */
 const REPEATABLE_ACTION_TYPES: ReadonlySet<VisualCatalogType> = new Set([
   "action.machine_translate",
+  "action.create_translation_job",
   "action.create_task",
   "action.check_progress",
   "action.list_source_files",

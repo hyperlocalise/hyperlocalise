@@ -373,6 +373,7 @@ export function ProjectFileContentEditorWorkspace({
     hasPreviousPage,
     isFetchingPage,
     invalidateQueue,
+    invalidateQueueAfterSave,
   } = useContentEditorSegmentQuery({
     organizationSlug,
     projectId,
@@ -581,6 +582,7 @@ export function ProjectFileContentEditorWorkspace({
     contentEditorFile,
     retainedSegmentIdentityRef,
     invalidateQueue,
+    invalidateQueueAfterSave,
     goSvcClient: catGoSvcClient,
     branch,
     groupScope: isGrouped

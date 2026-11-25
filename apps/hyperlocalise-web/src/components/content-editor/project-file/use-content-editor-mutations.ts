@@ -239,6 +239,11 @@ export function useContentEditorMutations(input: {
   contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
   retainedSegmentIdentityRef?: ContentEditorSegmentFileIdentityLookupRef;
   invalidateQueue: () => Promise<void>;
+  /**
+   * Queue refresh after a single save. Defaults to `invalidateQueue`; the queue
+   * hook skips the refetch when a save cannot move rows.
+   */
+  invalidateQueueAfterSave?: () => Promise<void>;
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
   goSvcClient?: GoSvcClient;
   /** Native version branch of the open queue; omitted on `main`. */
@@ -400,12 +405,13 @@ export function useContentEditorMutations(input: {
       // Reconcile the saved target before releasing the mutation, but never wait for
       // unrelated reads. Bulk operations refresh the queue once when complete.
       await syncSegmentTargetAfterSave(segmentTargetInput, translation);
+      const refreshQueue = input.invalidateQueueAfterSave ?? input.invalidateQueue;
       if (variables.coalesceQueueRefresh) {
-        pendingRefreshes.current.add(input.invalidateQueue);
+        pendingRefreshes.current.add(refreshQueue);
         if (refreshTimer.current) clearTimeout(refreshTimer.current);
         refreshTimer.current = setTimeout(flushQueueRefreshes, INLINE_QUEUE_REFRESH_DELAY_MS);
       } else if (!variables.deferQueueRefresh) {
-        void input.invalidateQueue().catch(() => undefined);
+        void refreshQueue().catch(() => undefined);
       }
     },
   });

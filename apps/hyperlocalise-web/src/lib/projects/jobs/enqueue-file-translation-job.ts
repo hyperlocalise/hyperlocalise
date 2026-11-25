@@ -57,6 +57,8 @@ export type CreateFileTranslationJobInput = {
   targetLocales: string[];
   fileFormat?: SupportedTranslationFileFormat;
   metadata?: Record<string, string>;
+  context?: string;
+  idempotency?: { key: string; requestHash: string };
   ignoreTranslationMemory?: boolean;
   branchName?: string | null;
 };
@@ -236,6 +238,53 @@ async function enqueueFileTranslationJobEvent(input: {
 export async function createFileTranslationJob(
   input: CreateFileTranslationJobInput,
 ): Promise<CreateFileTranslationJobResult> {
+  const findReplay = async () => {
+    if (!input.idempotency) return null;
+    const [row] = await db
+      .select({
+        jobId: schema.jobs.id,
+        projectId: schema.jobs.projectId,
+        sourceFileVersionId: schema.translationJobDetails.sourceFileVersionId,
+        requestHash: schema.workflowTranslationJobIdempotencyKeys.requestHash,
+      })
+      .from(schema.workflowTranslationJobIdempotencyKeys)
+      .innerJoin(
+        schema.jobs,
+        eq(schema.jobs.id, schema.workflowTranslationJobIdempotencyKeys.jobId),
+      )
+      .innerJoin(
+        schema.translationJobDetails,
+        eq(schema.translationJobDetails.jobId, schema.jobs.id),
+      )
+      .where(
+        and(
+          eq(schema.workflowTranslationJobIdempotencyKeys.organizationId, input.organizationId),
+          eq(schema.workflowTranslationJobIdempotencyKeys.key, input.idempotency.key),
+        ),
+      )
+      .limit(1);
+    if (!row) return null;
+    if (row.requestHash !== input.idempotency.requestHash) {
+      return { conflict: true as const };
+    }
+    return { conflict: false as const, ...row };
+  };
+  const replay = await findReplay();
+  if (replay?.conflict) {
+    return {
+      ok: false,
+      code: "translation_job_idempotency_conflict",
+      message: "This workflow step key was already used with different translation inputs.",
+    };
+  }
+  if (replay && !replay.conflict) {
+    return {
+      ok: true,
+      jobId: replay.jobId,
+      projectId: replay.projectId ?? input.projectId,
+      sourceFileVersionId: replay.sourceFileVersionId,
+    };
+  }
   const [project] = await db
     .select({
       id: schema.projects.id,
@@ -324,6 +373,7 @@ export async function createFileTranslationJob(
       ...input.metadata,
     }),
     ...(input.ignoreTranslationMemory ? { ignoreTranslationMemory: true } : {}),
+    ...(input.context ? { context: input.context } : {}),
     ...(branchName ? { branch: branchName } : {}),
   };
 
@@ -372,6 +422,19 @@ export async function createFileTranslationJob(
         type: "file",
         sourceFileVersionId: sourceFileVersion?.id ?? null,
       });
+      if (input.idempotency) {
+        const [claimed] = await tx
+          .insert(schema.workflowTranslationJobIdempotencyKeys)
+          .values({
+            organizationId: input.organizationId,
+            key: input.idempotency.key,
+            requestHash: input.idempotency.requestHash,
+            jobId,
+          })
+          .onConflictDoNothing()
+          .returning({ jobId: schema.workflowTranslationJobIdempotencyKeys.jobId });
+        if (!claimed) throw new WorkflowTranslationJobIdempotencyRaceError();
+      }
 
       const usageEventResult = await reserveUsageEvent({
         db: tx,
@@ -404,6 +467,17 @@ export async function createFileTranslationJob(
 
     return { ok: true, ...created };
   } catch (error) {
+    if (error instanceof WorkflowTranslationJobIdempotencyRaceError) {
+      const concurrent = await findReplay();
+      if (concurrent && !concurrent.conflict) {
+        return {
+          ok: true,
+          jobId: concurrent.jobId,
+          projectId: concurrent.projectId ?? input.projectId,
+          sourceFileVersionId: concurrent.sourceFileVersionId,
+        };
+      }
+    }
     if (error instanceof OrganizationJobBudgetExceededError) {
       return {
         ok: false,
@@ -419,6 +493,8 @@ export async function createFileTranslationJob(
     };
   }
 }
+
+class WorkflowTranslationJobIdempotencyRaceError extends Error {}
 
 export async function enqueueExistingFileTranslationJob(
   input: EnqueueExistingFileTranslationJobInput,

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -163,9 +164,14 @@ func TestRunAccountsForErrors(t *testing.T) {
 // to change to support a new translator provider.
 func TestRunRoutesNewlyRegisteredProviderNameToTranslate(t *testing.T) {
 	svc := newTestService()
-	var gotProvider string
+	var (
+		mu          sync.Mutex
+		gotProvider string
+	)
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		mu.Lock()
 		gotProvider = req.ModelProvider
+		mu.Unlock()
 		return strings.ToUpper(req.Source), nil
 	}
 

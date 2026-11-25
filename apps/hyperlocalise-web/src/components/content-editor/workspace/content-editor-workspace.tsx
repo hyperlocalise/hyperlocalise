@@ -18,7 +18,7 @@ import {
   type ContentEditorMultilingualConfig,
 } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import { ContentEditorMultilingualImageGallery } from "@/components/content-editor/multilingual/content-editor-multilingual-image-gallery";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage } from "react-intl";
 
@@ -40,7 +40,10 @@ import {
   ContentEditorSideBySidePanelSkeleton,
 } from "@/components/content-editor/side-by-side/content-editor-side-by-side-panel";
 import type { ContentEditorWorkspaceViewProps } from "@/components/content-editor/shared/dependencies";
-import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
+import type {
+  ContentEditorFormatCheck,
+  ContentEditorSegment,
+} from "@/components/content-editor/shared/types";
 import { contentEditorWorkspaceMessages } from "@/components/content-editor/shared/content-editor.messages";
 import { isContentEditorAssetContentKind } from "@/components/content-editor/shared/content-editor-content-kind";
 import { isNativeContentEditorProviderKind } from "@/components/content-editor/shared/content-editor-native-project";
@@ -91,6 +94,35 @@ function useIsCompactWorkspace(viewMode: string) {
   }, [element, viewMode]);
   return { isCompact, workspaceRef };
 }
+
+/**
+ * Reads the segment's fields itself, so typing re-renders the glossary guidance
+ * and not the whole workspace view around it.
+ */
+const SegmentGlossaryGuidance = observer(function SegmentGlossaryGuidance({
+  segment,
+  ...props
+}: Omit<
+  ComponentProps<typeof ContentEditorGlossaryGuidance>,
+  | "segmentId"
+  | "sourceText"
+  | "targetText"
+  | "sourceLocale"
+  | "targetLocale"
+  | "isTranslationLocked"
+> & { segment: ContentEditorSegment }) {
+  return (
+    <ContentEditorGlossaryGuidance
+      {...props}
+      segmentId={segment.id}
+      sourceText={segment.sourceText}
+      targetText={segment.targetText}
+      sourceLocale={segment.sourceLocale}
+      targetLocale={segment.targetLocale}
+      isTranslationLocked={Boolean(segment.isLocked)}
+    />
+  );
+});
 
 export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspaceView({
   shell,
@@ -1195,14 +1227,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
         />
       )}
       {glossarySegment ? (
-        <ContentEditorGlossaryGuidance
+        <SegmentGlossaryGuidance
+          segment={glossarySegment}
           intelligence={glossaryIntelligence}
           isLoading={isConcordanceLoading}
-          segmentId={glossarySegment.id}
-          sourceText={glossarySegment.sourceText}
-          targetText={glossarySegment.targetText}
-          sourceLocale={glossarySegment.sourceLocale}
-          targetLocale={glossarySegment.targetLocale}
           organizationSlug={organizationSlug}
           projectId={projectId}
           teamGlossaries={shell.fileContext.teamGlossaries}
@@ -1214,7 +1242,6 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           teamName={shell.fileContext.teamName}
           projectTeamSlug={shell.fileContext.projectTeamSlug}
           canEditTranslations={shell.fileContext.canEditTranslations !== false}
-          isTranslationLocked={Boolean(glossarySegment.isLocked)}
           onGlossaryTermAdded={() => onReloadConcordance?.(glossarySegment.id)}
         />
       ) : null}

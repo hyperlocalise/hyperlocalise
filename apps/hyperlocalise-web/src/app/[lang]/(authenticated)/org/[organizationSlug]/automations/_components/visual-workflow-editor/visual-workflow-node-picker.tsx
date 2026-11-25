@@ -175,6 +175,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeContentSync;
     case "action.machine_translate":
       return messages.nodeMachineTranslate;
+    case "action.create_translation_job":
+      return messages.nodeCreateTranslationJob;
     case "action.create_task":
       return messages.nodeCreateTask;
     case "action.check_progress":
@@ -282,6 +284,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeContentSyncHint;
     case "action.machine_translate":
       return messages.nodeMachineTranslateHint;
+    case "action.create_translation_job":
+      return messages.nodeCreateTranslationJobHint;
     case "action.create_task":
       return messages.nodeCreateTaskHint;
     case "action.check_progress":

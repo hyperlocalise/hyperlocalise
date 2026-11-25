@@ -178,7 +178,7 @@ overrides:
   fast-uri@^3.0.0: 3.1.9
   qs: 6.17.1
   ip-address@^10.0.0: 10.7.6
-  hono: 4.13.19
+  hono: 4.13.20
   '@hono/node-server': 2.1.11
 
 importers:
@@ -387,7 +387,7 @@ packages:
     resolution: {integrity: sha512-KzKz9vl4vvr1vgLHamj+g5uonbrj5NwAdO3yzOS6cd2HjALVeOgTgeZOyAzNxejbkfOOPIcvuf/Tg8l1pEFLog==}
     engines: {node: '>=20'}
     peerDependencies:
-      hono: 4.13.19
+      hono: 4.13.20
 
   '@isaacs/fs-minipass@4.0.1':
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
@@ -880,8 +880,8 @@ packages:
   highlight.js@10.7.3:
     resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
 
-  hono@4.13.19:
-    resolution: {integrity: sha512-KmXvQAXwcAHV+muzbIwoJ23niEB5nMoDVr9WcRkU8mvjUECm/1+7v4Jgp7P7a+H6MLFrh+vXrGonGrGS+RQfkA==}
+  hono@4.13.20:
+    resolution: {integrity: sha512-xo6gecEJQ+CjTtOUUbcLHE8CdRKMeF4qITe+DT+OhFnSUmZR/ZBa9XavAfiGh4HlukmlaHFdaK4dz5tkTYFNmA==}
     engines: {node: '>=16.9.0'}
 
   hosted-git-info@9.0.3:
@@ -1770,9 +1770,9 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@hono/node-server@2.1.11(hono@4.13.19)':
+  '@hono/node-server@2.1.11(hono@4.13.20)':
     dependencies:
-      hono: 4.13.19
+      hono: 4.13.20
 
   '@isaacs/fs-minipass@4.0.1':
     dependencies:
@@ -1782,7 +1782,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.32.1(zod@4.1.11)':
     dependencies:
-      '@hono/node-server': 2.1.11(hono@4.13.19)
+      '@hono/node-server': 2.1.11(hono@4.13.20)
       ajv: 8.20.0
       ajv-formats: 3.0.1
       content-type: 1.0.5
@@ -1792,7 +1792,7 @@ snapshots:
       eventsource-parser: 3.1.1
       express: 5.3.0
       express-rate-limit: 8.7.1(express@5.3.0)
-      hono: 4.13.19
+      hono: 4.13.20
       jose: 6.2.12
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -2293,7 +2293,7 @@ snapshots:
 
   highlight.js@10.7.3: {}
 
-  hono@4.13.19: {}
+  hono@4.13.20: {}
 
   hosted-git-info@9.0.3:
     dependencies:
