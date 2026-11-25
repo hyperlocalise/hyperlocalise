@@ -92,6 +92,9 @@ func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *tim
 	if _, ok := checks["guideline"]; !ok {
 		checks["guideline"] = qaCheckSetting{Enabled: false, Severity: "warning"}
 	}
+	if _, ok := checks["quality_estimate"]; !ok {
+		checks["quality_estimate"] = qaCheckSetting{Enabled: false, Severity: "warning"}
+	}
 	return map[string]any{
 		"cadence":           cadence,
 		"checks":            checks,
@@ -209,23 +212,58 @@ type qaSettingsBody struct {
 
 // qaScoringSetting mirrors QaScoringPolicy in apps/hyperlocalise-web/src/lib/qa/qa-scoring.ts.
 type qaScoringSetting struct {
-	Enabled       bool              `json:"enabled"`
-	PassThreshold float64           `json:"passThreshold"`
-	Penalties     map[string]string `json:"penalties"`
+	Enabled             bool              `json:"enabled"`
+	PassThreshold       float64           `json:"passThreshold"`
+	Penalties           map[string]string `json:"penalties"`
+	EstimationThreshold float64           `json:"estimationThreshold"`
+	Domain              string            `json:"domain"`
 }
 
-const defaultQaScoreThreshold = 95
+// UnmarshalJSON fills a field the JSON leaves out with its default, so a stored policy or
+// request from before the field existed reads as the default rather than zero.
+func (setting *qaScoringSetting) UnmarshalJSON(data []byte) error {
+	type plain qaScoringSetting
+	value := plain{
+		PassThreshold:       defaultQaScoreThreshold,
+		EstimationThreshold: defaultQaEstimationThreshold,
+		Domain:              "general",
+	}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*setting = qaScoringSetting(value)
+	return nil
+}
 
-var qaMqmSeverities = map[string]struct{}{"minor": {}, "major": {}, "critical": {}}
+const (
+	defaultQaScoreThreshold      = 95
+	defaultQaEstimationThreshold = 70
+)
+
+var (
+	qaMqmSeverities = map[string]struct{}{"minor": {}, "major": {}, "critical": {}}
+	// qaDomains mirrors qaDomains in apps/hyperlocalise-web/src/lib/qa/quality-domains.ts.
+	qaDomains = map[string]struct{}{"general": {}, "medical": {}, "legal": {}, "financial": {}}
+)
 
 // resolveQaScoringSetting reads the stored policy, falling back to scoring off.
 func resolveQaScoringSetting(raw []byte) qaScoringSetting {
-	setting := qaScoringSetting{PassThreshold: defaultQaScoreThreshold}
+	setting := qaScoringSetting{
+		PassThreshold:       defaultQaScoreThreshold,
+		EstimationThreshold: defaultQaEstimationThreshold,
+		Domain:              "general",
+	}
 	if len(raw) > 0 {
 		_ = json.Unmarshal(raw, &setting)
 	}
 	if setting.PassThreshold < 0 || setting.PassThreshold > 100 {
 		setting.PassThreshold = defaultQaScoreThreshold
+	}
+	if setting.EstimationThreshold < 0 || setting.EstimationThreshold > 100 {
+		setting.EstimationThreshold = defaultQaEstimationThreshold
+	}
+	if _, ok := qaDomains[setting.Domain]; !ok {
+		setting.Domain = "general"
 	}
 	penalties := map[string]string{}
 	for check, severity := range setting.Penalties {
@@ -241,7 +279,14 @@ func resolveQaScoringSetting(raw []byte) qaScoringSetting {
 }
 
 func validQaScoring(setting *qaScoringSetting) bool {
-	if setting.PassThreshold < 0 || setting.PassThreshold > 100 {
+	if setting.PassThreshold < 0 || setting.PassThreshold > 100 ||
+		setting.EstimationThreshold < 0 || setting.EstimationThreshold > 100 {
+		return false
+	}
+	if setting.Domain == "" {
+		setting.Domain = "general"
+	}
+	if _, ok := qaDomains[setting.Domain]; !ok {
 		return false
 	}
 	if setting.Penalties == nil {
@@ -267,7 +312,7 @@ var qaPolicyCheckTypes = map[string]struct{}{
 	"not_localized": {}, "whitespace_only": {}, "same_as_source": {}, "escaped_char_mismatch": {},
 	"length": {}, "placeholder_mismatch": {}, "glossary_violation": {}, "format": {}, "spelling": {},
 	"numbers_mismatch": {}, "punctuation_mismatch": {}, "character_case_mismatch": {},
-	"unreachable_plural_case": {}, "guideline": {},
+	"unreachable_plural_case": {}, "guideline": {}, "quality_estimate": {},
 }
 
 func validQaPolicy(checks map[string]qaCheckSetting) bool {
@@ -276,6 +321,9 @@ func validQaPolicy(checks map[string]qaCheckSetting) bool {
 	}
 	if _, ok := checks["guideline"]; !ok {
 		checks["guideline"] = qaCheckSetting{Enabled: false, Severity: "warning"}
+	}
+	if _, ok := checks["quality_estimate"]; !ok {
+		checks["quality_estimate"] = qaCheckSetting{Enabled: false, Severity: "warning"}
 	}
 	if len(checks) != len(qaPolicyCheckTypes) {
 		return false

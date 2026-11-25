@@ -46,6 +46,9 @@ export type TranslationQaSummary = {
   guidelineKnowledgeSkipped?: boolean;
   /** MQM score; present when the project scores translations. */
   quality?: import("@/lib/qa/qa-scoring").TranslationQaQuality;
+  estimation?: import("@/lib/qa/types").TranslationQaEstimationSummary;
+  estimationIncomplete?: boolean;
+  qualityDomain?: import("@/lib/qa/quality-domains").QaDomain;
   /** Part of the project the scan checks; see `TranslationQaScanScope` in `lib/qa/types.ts`. */
   scope?: { repositorySourceFileId?: string; targetLocales?: string[] };
 };
@@ -149,5 +152,51 @@ export const translationQaFindings = pgTable(
     index("idx_translation_qa_findings_run").on(table.runId),
     index("idx_translation_qa_findings_run_locale").on(table.runId, table.targetLocale),
     index("idx_translation_qa_findings_run_check").on(table.runId, table.checkType),
+  ],
+);
+
+/**
+ * The latest AI quality estimate of one stored translation. A scan reuses it while the source
+ * text, translation, domain and estimator version are unchanged, so unchanged segments are not
+ * sent to the model again.
+ */
+export const translationQualityEstimates = pgTable(
+  "translation_quality_estimates",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    translationId: uuid("translation_id")
+      .notNull()
+      .references(() => projectTranslations.id, { onDelete: "cascade" }),
+    translationKeyId: uuid("translation_key_id")
+      .notNull()
+      .references(() => projectTranslationKeys.id, { onDelete: "cascade" }),
+    targetLocale: text("target_locale").notNull(),
+    /** 0–100. */
+    score: integer("score").notNull(),
+    reason: text("reason").notNull(),
+    /** md5 of the source text and translation the score is for. */
+    sourceHash: text("source_hash").notNull(),
+    targetHash: text("target_hash").notNull(),
+    domain: text("domain").$type<import("@/lib/qa/quality-domains").QaDomain>().notNull(),
+    estimatorVersion: integer("estimator_version").notNull(),
+    runId: uuid("run_id").references(() => translationQaRuns.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("translation_quality_estimates_translation").on(table.translationId),
+    index("idx_translation_quality_estimates_project_locale").on(
+      table.projectId,
+      table.targetLocale,
+    ),
   ],
 );

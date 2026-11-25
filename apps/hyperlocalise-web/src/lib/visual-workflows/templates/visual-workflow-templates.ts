@@ -30,6 +30,7 @@ export const VISUAL_WORKFLOW_TEMPLATE_IDS = [
   "mtpe-on-upload",
   "tep-on-upload",
   "review-done-qa",
+  "ai-translate-qa-gate",
 ] as const;
 
 export type VisualWorkflowTemplateId = (typeof VISUAL_WORKFLOW_TEMPLATE_IDS)[number];
@@ -94,6 +95,7 @@ function buildDefinition(
 const POST_EDIT_DUE_IN_HOURS = 48;
 const TEP_STEP_DUE_IN_HOURS = 72;
 const QA_FIX_DUE_IN_HOURS = 24;
+const QA_GATE_REVIEW_DUE_IN_HOURS = 48;
 
 function sourceUploadTrigger(options: VisualWorkflowTemplateOptions): TemplateNode {
   return {
@@ -382,6 +384,114 @@ function reviewDoneQa(options: VisualWorkflowTemplateOptions) {
   );
 }
 
+/**
+ * Translate each new file with AI, then let QA decide whether people need to see it. Work that
+ * passes, has no segment the quality estimate flagged, and is not in a domain that always needs
+ * review is announced as ready. Anything else gets a review task per language.
+ */
+function aiTranslateQaGate(options: VisualWorkflowTemplateOptions) {
+  return buildDefinition(
+    "AI translation with a QA gate: review only when needed",
+    [
+      sourceUploadTrigger(options),
+      {
+        id: "machine_translate",
+        type: "action.machine_translate",
+        config: {
+          projectId: "{{ trigger.projectId }}",
+          sourceFileId: "{{ trigger.sourceFileId }}",
+          targetLocales: "",
+          useTranslationMemory: true,
+        },
+        at: [1, 0],
+      },
+      {
+        id: "check_progress",
+        type: "action.check_progress",
+        config: {
+          projectId: "{{ trigger.projectId }}",
+          sourceFileId: "{{ trigger.sourceFileId }}",
+          jobId: "{{ nodes.machine_translate.jobId }}",
+        },
+        at: [2, 0],
+      },
+      {
+        id: "wait",
+        type: "flow.wait",
+        config: {
+          mode: "condition",
+          condition: "{{ nodes.check_progress.jobFinished }}",
+          pollingIntervalMs: WAIT_POLL_INTERVAL_MS,
+          timeoutMs: WAIT_TIMEOUT_MS,
+        },
+        at: [3, 0],
+      },
+      runQaForJob("{{ nodes.machine_translate.jobId }}", [4, 0]),
+      {
+        id: "if",
+        type: "logic.if",
+        config: { condition: "{{ nodes.run_qa.needsHumanReview }}" },
+        at: [5, 0],
+      },
+      notifySlack(
+        "notify_slack",
+        "{{ trigger.sourcePath }} is translated with AI and passed the QA gate. It is ready to ship without review.",
+        [6, 0],
+      ),
+      {
+        id: "for_each",
+        type: "logic.for_each",
+        config: { collection: "{{ nodes.run_qa.targetLocales }}" },
+        bodyNodeIds: ["pick_assignee", "create_task"],
+        at: [6, 1],
+      },
+      {
+        id: "pick_assignee",
+        type: "action.pick_assignee",
+        config: { locale: "{{ nodes.for_each.item }}", jobType: "edit" },
+        at: [7, 2],
+      },
+      {
+        id: "create_task",
+        type: "action.create_task",
+        config: {
+          projectId: "{{ trigger.projectId }}",
+          sourceFileId: "{{ trigger.sourceFileId }}",
+          targetLocales: "{{ nodes.for_each.item }}",
+          step: "edit",
+          assigneeWorkosUserId: "{{ nodes.pick_assignee.assigneeId }}",
+          title: "Review {{ trigger.fileName }} ({{ nodes.for_each.item }})",
+          dueInHours: QA_GATE_REVIEW_DUE_IN_HOURS,
+        },
+        at: [8, 2],
+      },
+      notifySlack(
+        "notify_slack_2",
+        "{{ trigger.sourcePath }} is translated with AI and needs human review ({{ nodes.run_qa.reviewSegmentCount }} segments flagged by the quality estimate, {{ nodes.run_qa.errorCount }} QA errors). Review tasks are assigned for {{ nodes.for_each.count }} languages.",
+        [7, 1],
+      ),
+      notifySlack(
+        "notify_slack_3",
+        "The AI translation of {{ trigger.sourcePath }} did not finish within 90 minutes.",
+        [4, 2],
+      ),
+    ],
+    [
+      ["trigger", "machine_translate"],
+      ["machine_translate", "check_progress"],
+      ["check_progress", "wait"],
+      ["wait", "run_qa", "completed"],
+      ["wait", "notify_slack_3", "timed_out"],
+      ["run_qa", "if"],
+      ["if", "for_each", "true"],
+      ["if", "notify_slack", "false"],
+      ["for_each", "pick_assignee", "each"],
+      ["pick_assignee", "create_task"],
+      ["for_each", "notify_slack_2", "done"],
+    ],
+  );
+}
+
 const TEMPLATE_BUILDERS: Record<
   VisualWorkflowTemplateId,
   (options: VisualWorkflowTemplateOptions) => VisualWorkflowV3Definition
@@ -390,6 +500,7 @@ const TEMPLATE_BUILDERS: Record<
   "mtpe-on-upload": mtpeOnUpload,
   "tep-on-upload": tepOnUpload,
   "review-done-qa": reviewDoneQa,
+  "ai-translate-qa-gate": aiTranslateQaGate,
 };
 
 export function buildVisualWorkflowTemplate(

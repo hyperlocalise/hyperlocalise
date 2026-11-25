@@ -1659,6 +1659,10 @@
     "defaultMessage": "Assignees",
     "description": "Label for multi-assignee selection on Crowdin jobs"
   },
+  "0A/Zs4RAEW": {
+    "defaultMessage": "Medical",
+    "description": "Project QA settings: medical and life-sciences content domain option"
+  },
   "0A0B8c6FRK": {
     "defaultMessage": "Warnings",
     "description": "Project QA warning count label"
@@ -2551,6 +2555,10 @@
     "defaultMessage": "Could not save text layers. Your edits are still here.",
     "description": "Image viewer: saveError"
   },
+  "1LKfOhUAeH": {
+    "defaultMessage": "Estimate threshold",
+    "description": "Project QA settings: label for the quality estimate threshold input"
+  },
   "1LT7IofQ2x": {
     "defaultMessage": "Choose which project should receive the imported Queries rows.",
     "description": "Description of the workspace issues CSV import project picker dialog"
@@ -2778,6 +2786,10 @@
   "1c7WoNl9cJ": {
     "defaultMessage": "Subscription",
     "description": "Subscription card title on billing settings"
+  },
+  "1cO9bQ1Q+8": {
+    "defaultMessage": "Estimated quality",
+    "description": "QA overview: metric card label for the average AI quality estimate of the scan"
   },
   "1cl5eWnQmi": {
     "defaultMessage": "Rotate secret",
@@ -3510,6 +3522,10 @@
   "2bKPj5jMhl": {
     "defaultMessage": "Reference",
     "description": "Label of the field for the quote's reference, such as a purchase order number"
+  },
+  "2bbc7EgHVF": {
+    "defaultMessage": "Estimated quality",
+    "description": "QA review: per-segment AI quality estimate check"
   },
   "2bcqIKg6pj": {
     "defaultMessage": "International growth teams that want each market to get the version that works there, not just a translation of the home market.",
@@ -5347,6 +5363,10 @@
     "defaultMessage": "Rate",
     "description": "Column heading: the rate that prices the row"
   },
+  "52MHdr6Qkq": {
+    "defaultMessage": "Translates each new source file with AI and runs QA. Work that passes ships; work QA or the quality estimate flags, or content in a domain that always needs review, gets a review task per language.",
+    "description": "What the QA gate workflow template does"
+  },
   "52PUHNXgoK": {
     "defaultMessage": "Filter languages...",
     "description": "Filter input for concept editor language groups"
@@ -5966,6 +5986,10 @@
   "5orwY/wNVx": {
     "defaultMessage": "Workspace",
     "description": "Badge for a native workspace glossary"
+  },
+  "5pHCCSXneT": {
+    "defaultMessage": "General",
+    "description": "Project QA settings: general content domain option"
   },
   "5pV4YpFmRv": {
     "defaultMessage": "Automation",
@@ -15003,6 +15027,10 @@
     "defaultMessage": "On error is set to Continue, so the test run goes on past this step.",
     "description": "On a workflow step's Test tab, what a failure does when the step's On error setting is Continue"
   },
+  "HtmL7NfR7y": {
+    "defaultMessage": "Content domain",
+    "description": "Project QA settings: label for the content domain control"
+  },
   "Hv8dudDiIO": {
     "defaultMessage": "Chat, translation, and coding",
     "description": "Summary for an included OpenAI writing model on the pricing page"
@@ -19755,6 +19783,10 @@
     "defaultMessage": "Live research via DataForSEO. Saved keywords and rank snapshots persist per market.",
     "description": "Disclosure for live domain research metrics"
   },
+  "OQGKHGhNJL": {
+    "defaultMessage": "Medical, legal and financial content always asks for human review in workflows, holds the quality estimate to a higher threshold, and tells the estimator which mistakes matter most.",
+    "description": "Project QA settings: help text for the content domain control"
+  },
   "OQRAAutFV6": {
     "defaultMessage": "Awaiting Approval",
     "description": "Tool status badge when approval is requested"
@@ -22447,6 +22479,10 @@
     "defaultMessage": "View jobs",
     "description": "Link from overview activity to the jobs page"
   },
+  "SA0HeX8VjT": {
+    "defaultMessage": "Financial",
+    "description": "Project QA settings: financial content domain option"
+  },
   "SALsrEbsZU": {
     "defaultMessage": "Connected",
     "description": "Status title shown in the Intercom manage panel when connected"
@@ -23134,6 +23170,10 @@
   "TA6Yq+oOXe": {
     "defaultMessage": "Other findings",
     "description": "Heading for localisation audit findings that are not shown under a failing or watched criterion"
+  },
+  "TAFjOxPMm4": {
+    "defaultMessage": "{count, plural, =0 {No segments below {threshold}} one {# segment below {threshold}} other {# segments below {threshold}}}",
+    "description": "QA overview: detail under the estimated quality metric; count is segments scored below the threshold"
   },
   "TBPUwXAr0t": {
     "defaultMessage": "{count} estimated visits",
@@ -25002,6 +25042,10 @@
   "VSw3JkkdYk": {
     "defaultMessage": "Query Deleted",
     "description": "Activity log event type label for deleting a Query"
+  },
+  "VTASz0PXM4": {
+    "defaultMessage": "In project QA scans, AI scores every translated segment from 0 to 100. Segments scored below the project's estimation threshold become findings, so they count toward the quality score and can route work to human review. Unchanged segments reuse their earlier score. If the estimator stops part-way, older estimate findings stay open and the scan notes that estimates were incomplete.",
+    "description": "Help for the quality estimate QA check in project settings"
   },
   "VTNiq0wxG3": {
     "defaultMessage": "Choose a TMS project",
@@ -32091,6 +32135,10 @@
     "defaultMessage": "Choose one or more event types.",
     "description": "Hint for the activity log event type filter"
   },
+  "eyp3u/Dcme": {
+    "defaultMessage": "Quality estimates stopped before every segment was scored. Older estimate findings stay open.",
+    "description": "QA run notice when the per-segment quality estimate did not finish"
+  },
   "eyqY+L+ZXJ": {
     "defaultMessage": "Ask a workspace admin to build a workflow.",
     "description": "Note on the workflow card when the person's role cannot create workflows"
@@ -32118,6 +32166,10 @@
   "f+03CnOQns": {
     "defaultMessage": "Meets the bar. Nothing to do.",
     "description": "Legend explanation for a passed check on the localisation audit landing page"
+  },
+  "f+aTLZyByF": {
+    "defaultMessage": "Legal",
+    "description": "Project QA settings: legal content domain option"
   },
   "f+cpbxZH+C": {
     "defaultMessage": "Sync localized strings and run validation on push.",
@@ -36239,6 +36291,10 @@
     "defaultMessage": "Import Help Center articles into a native project, then push approved translations back as Intercom drafts.",
     "description": "Explanation of what a connected Intercom workspace can do"
   },
+  "kTkTSkxal4": {
+    "defaultMessage": "This content domain uses at least {domainFloor}.",
+    "description": "Project QA settings: note under the estimate threshold when the content domain sets a higher minimum"
+  },
   "kTq8UVI+8c": {
     "defaultMessage": "Languages",
     "description": "Label of the new task's target languages"
@@ -37034,6 +37090,10 @@
   "lYH/c2rk1D": {
     "defaultMessage": "Needs review",
     "description": "Multilingual table highlight option for translations waiting for review"
+  },
+  "lYS3k+allm": {
+    "defaultMessage": "AI translation with a QA gate",
+    "description": "Title of the workflow template that sends AI translations to human review only when QA asks for it"
   },
   "lYqWI3Hv5b": {
     "defaultMessage": "This string is locked. Unlock it to add a concept.",
@@ -43071,6 +43131,10 @@
     "defaultMessage": "English (United Kingdom)",
     "description": "Display name for BCP-47 locale en-GB"
   },
+  "tW1a3BKGZD": {
+    "defaultMessage": "Review if needed",
+    "description": "Step in a featured workflow's flow: people review the work only when QA asks for it"
+  },
   "tWfjSsUysY": {
     "defaultMessage": "Not recommended",
     "description": "Not recommended native glossary term status"
@@ -46762,6 +46826,10 @@
   "yIJ8L6HdUp": {
     "defaultMessage": "Translate with agent",
     "description": "Context menu action to translate a project file with an agent"
+  },
+  "yIlgFUYLPm": {
+    "defaultMessage": "Segments the AI estimate scores below this, from 0 to 100, become findings.",
+    "description": "Project QA settings: help text for the quality estimate threshold"
   },
   "yIwRFz93s7": {
     "defaultMessage": "Italian (Italy)",

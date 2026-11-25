@@ -50,6 +50,7 @@ const STEP = {
   taskDone: { icon: CheckCircleIcon, label: messages.stepTaskDone },
   qa: { icon: SealCheckIcon, label: messages.stepQa },
   fixOrShip: { icon: ArrowsClockwiseIcon, label: messages.stepFixOrShip },
+  reviewIfNeeded: { icon: UserCheckIcon, label: messages.stepReviewIfNeeded },
   slack: { icon: SlackLogoIcon, label: messages.stepSlack },
 } satisfies Record<string, FlowStep>;
 
@@ -76,6 +77,11 @@ const FEATURED_WORKFLOWS: Record<
     title: messages.workflowTemplateReviewDoneTitle,
     description: messages.workflowTemplateReviewDoneDescription,
     steps: [STEP.taskDone, STEP.qa, STEP.fixOrShip],
+  },
+  "ai-translate-qa-gate": {
+    title: messages.workflowTemplateQaGateTitle,
+    description: messages.workflowTemplateQaGateDescription,
+    steps: [STEP.upload, STEP.aiTranslate, STEP.qa, STEP.reviewIfNeeded],
   },
 };
 

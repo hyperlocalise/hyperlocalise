@@ -15,6 +15,7 @@ On **Automations → New automation**, **Start a localisation workflow** offers 
 | **MTPE: AI translation, then post-edit** | **Source upload** → **Machine translate** → **For each** target language: **Pick assignee** → **Assign task** (post-edit, due in 48 hours). Each task waits for the machine translation through **Comes after**. |
 | **TEP: translate, edit, proofread** | **Source upload** → **For each** of the project's target languages: **Pick assignee** and **Assign task** for translate, edit and proofread, each due in 72 hours and waiting for the one before it. |
 | **Review done: QA, then fix or deliver** | **Job changed** on finished **Post-edit** or **Proofread** tasks → **Run QA** on that task's file and languages → **If**. Passing work is announced in Slack. Failing work goes back to the same person as a new post-edit task due in 24 hours. When they mark it done, the workflow runs again, until QA passes. |
+| **AI translation with a QA gate** | **Source upload** → **Machine translate** → **Check progress** and **Wait** → **Run QA** on that job's file and languages → **If** `needsHumanReview`. Work that needs no review is announced in Slack as ready to ship. Otherwise, **For each** language: **Pick assignee** → **Assign task** (post-edit review, due in 48 hours), then Slack says how many segments were flagged. |
 
 Before you publish, the issue list names what is left for you:
 
@@ -157,7 +158,9 @@ Each finished task sends its file once. A translation changed after the send is 
 
 ## Check translations with QA
 
-**Run QA** runs the project's QA checks and outputs `passed`, `errorCount`, `warningCount` and `findingCount`. Leave **Source file ID**, **Target locales** and **Job** empty to check the whole project. To check only what a run produced, set **Job** to the job that made or reviewed it, such as `{{ nodes.machine_translate.jobId }}` or a **Job changed** trigger's `{{ trigger.jobId }}`: QA then checks that job's file and languages. A **Source file ID** or **Target locales** you set take precedence over the job's.
+**Run QA** runs the project's QA checks and outputs `passed`, `errorCount`, `warningCount` and `findingCount`. When the project has a [quality score](/platform/help/quality#quality-score), `passed` follows the score, and `qualityScore`, `qualityThreshold` and `qualityByLocale` hold it. When the [quality estimate](/platform/help/quality#quality-estimate) check is on, `estimatedQualityScore` is the average estimate and `reviewSegmentCount` the number of segments below the estimate threshold.
+
+`needsHumanReview` is `true` when QA did not pass, when the estimate flagged any segment, or when the project's [content domain](/platform/help/quality#content-domain) is medical, legal or financial. `reviewReasons` lists why: `qa_failed`, `low_estimated_quality` or `domain_requires_review`. Branch an **If** on `{{ nodes.run_qa.needsHumanReview }}` to send only that work to people. Leave **Source file ID**, **Target locales** and **Job** empty to check the whole project. To check only what a run produced, set **Job** to the job that made or reviewed it, such as `{{ nodes.machine_translate.jobId }}` or a **Job changed** trigger's `{{ trigger.jobId }}`: QA then checks that job's file and languages. A **Source file ID** or **Target locales** you set take precedence over the job's.
 
 A narrowed check resolves earlier findings only for the file and languages it checked; findings elsewhere in the project stay as they were. One QA check runs per project at a time, so when another is running, the step waits up to three minutes for it to finish before failing with `scan_in_progress`.
 

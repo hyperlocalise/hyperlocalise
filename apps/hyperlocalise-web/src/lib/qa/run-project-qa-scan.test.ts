@@ -46,10 +46,13 @@ import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import type { TranslationQaScanQueue } from "@/lib/workflow/types";
 
 import { DEFAULT_QA_POLICY } from "./qa-policy";
+import { DEFAULT_QA_SCORING_POLICY } from "./qa-scoring";
+import type { QeGenerate } from "./quality-estimation";
 import { emptyTranslationQaSummary } from "./qa-report-store";
 import {
   claimTranslationQaRun,
   completeTranslationQaScan,
+  estimateTranslationQaQualityPage,
   failTranslationQaRun,
   KEY_PAGE_SIZE,
   reclaimStaleTranslationQaRuns,
@@ -468,6 +471,7 @@ describe("run-project-qa-scan claim and reclaim", () => {
       .set({
         targetLocales: ["de-DE", "fr-FR"],
         qaScoringPolicy: {
+          ...DEFAULT_QA_SCORING_POLICY,
           enabled: true,
           passThreshold: 90,
           penalties: { placeholder_mismatch: "critical" },
@@ -1761,5 +1765,276 @@ describe("run-project-qa-scan notifications", () => {
         },
       },
     ]);
+  });
+});
+
+describe("quality estimation", () => {
+  /** Scores each segment in the prompt: a changed number scores 30, anything else 95. */
+  function scoringModel(): QeGenerate {
+    return vi.fn<QeGenerate>(async ({ prompt }) => {
+      const rows = JSON.parse(prompt.slice(prompt.lastIndexOf("\n\n") + 2)) as Array<{
+        id: string;
+        translation: string;
+      }>;
+      return {
+        segments: rows.map((row) => ({
+          id: row.id,
+          score: row.translation.includes("3 Tabletten") ? 30 : 95,
+          reason: row.translation.includes("3 Tabletten") ? "Dosage changed." : "No issues found.",
+        })),
+      };
+    });
+  }
+
+  async function setUpEstimatedProject() {
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+    await db
+      .update(schema.projects)
+      .set({
+        qaCheckPolicy: {
+          ...DEFAULT_QA_POLICY,
+          quality_estimate: { enabled: true, severity: "error" },
+        },
+        qaScoringPolicy: {
+          ...DEFAULT_QA_SCORING_POLICY,
+          enabled: true,
+          estimationThreshold: 70,
+          domain: "legal",
+        },
+      })
+      .where(eq(schema.projects.id, project.id));
+    const keys = await db
+      .insert(schema.projectTranslationKeys)
+      .values(
+        [
+          ["dose", "Take 2 tablets daily"],
+          ["save", "Save"],
+          ["empty", "Cancel"],
+        ].map(([key, sourceText]) => ({
+          organizationId: organization.id,
+          projectId: project.id,
+          key: key!,
+          sourceText: sourceText!,
+          normalizedSourceText: sourceText!.toLowerCase(),
+        })),
+      )
+      .returning({ id: schema.projectTranslationKeys.id, key: schema.projectTranslationKeys.key });
+    const keyId = (name: string) => keys.find((row) => row.key === name)!.id;
+    await db.insert(schema.projectTranslations).values([
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: keyId("dose"),
+        targetLocale: "de-DE",
+        text: "Nehmen Sie täglich 3 Tabletten",
+      },
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: keyId("save"),
+        targetLocale: "de-DE",
+        text: "Speichern",
+      },
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: keyId("empty"),
+        targetLocale: "de-DE",
+        text: "  ",
+      },
+    ]);
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+    });
+    if (!claimed.ok) throw new Error("expected claimed run");
+    return { organization, project, runId: claimed.runId, keyId };
+  }
+
+  it("scores translated segments, flags those below the domain's threshold and summarises them", async () => {
+    const { organization, project, runId, keyId } = await setUpEstimatedProject();
+    const generate = scoringModel();
+    const input = { runId, organizationId: organization.id, projectId: project.id };
+
+    await expect(
+      estimateTranslationQaQualityPage({ ...input, afterTranslationId: null, generate }),
+    ).resolves.toEqual({ done: true });
+    expect(generate).toHaveBeenCalledTimes(1);
+
+    const estimates = await db
+      .select({
+        translationKeyId: schema.translationQualityEstimates.translationKeyId,
+        score: schema.translationQualityEstimates.score,
+        domain: schema.translationQualityEstimates.domain,
+      })
+      .from(schema.translationQualityEstimates)
+      .where(eq(schema.translationQualityEstimates.projectId, project.id));
+    expect(estimates).toHaveLength(2);
+    expect(estimates.find((row) => row.translationKeyId === keyId("dose"))).toMatchObject({
+      score: 30,
+      domain: "legal",
+    });
+
+    const findings = await db
+      .select({
+        translationKeyId: schema.translationQaFindings.translationKeyId,
+        checkType: schema.translationQaFindings.checkType,
+        severity: schema.translationQaFindings.severity,
+        message: schema.translationQaFindings.message,
+      })
+      .from(schema.translationQaFindings)
+      .where(eq(schema.translationQaFindings.runId, runId));
+    expect(findings).toEqual([
+      {
+        translationKeyId: keyId("dose"),
+        checkType: "quality_estimate",
+        severity: "error",
+        message: "Estimated quality 30/100, below the threshold of 85. Dosage changed.",
+      },
+    ]);
+
+    // A retried step reuses stored estimates and does not duplicate findings.
+    const retry = scoringModel();
+    await estimateTranslationQaQualityPage({ ...input, afterTranslationId: null, generate: retry });
+    expect(retry).not.toHaveBeenCalled();
+    const afterRetry = await db
+      .select({ id: schema.translationQaFindings.id })
+      .from(schema.translationQaFindings)
+      .where(eq(schema.translationQaFindings.runId, runId));
+    expect(afterRetry).toHaveLength(1);
+
+    await completeTranslationQaScan(input);
+    const [completed] = await db
+      .select({
+        summary: schema.translationQaRuns.summary,
+        errorCount: schema.translationQaRuns.errorCount,
+      })
+      .from(schema.translationQaRuns)
+      .where(eq(schema.translationQaRuns.id, runId));
+    expect(completed?.errorCount).toBe(1);
+    expect(completed?.summary.qualityDomain).toBe("legal");
+    expect(completed?.summary.estimation).toEqual({
+      threshold: 85,
+      domain: "legal",
+      segmentCount: 2,
+      estimatedCount: 2,
+      averageScore: 62.5,
+      belowThresholdCount: 1,
+      byLocale: {
+        "de-DE": { segmentCount: 2, estimatedCount: 2, averageScore: 62.5, belowThresholdCount: 1 },
+      },
+    });
+    expect(completed?.summary.quality?.byLocale["de-DE"]).toMatchObject({
+      penaltyPoints: 5,
+      passed: false,
+    });
+  });
+
+  it("re-estimates a segment whose translation changed", async () => {
+    const { organization, project, runId, keyId } = await setUpEstimatedProject();
+    const input = { runId, organizationId: organization.id, projectId: project.id };
+    await estimateTranslationQaQualityPage({
+      ...input,
+      afterTranslationId: null,
+      generate: scoringModel(),
+    });
+    await db
+      .update(schema.projectTranslations)
+      .set({ text: "Nehmen Sie täglich 2 Tabletten" })
+      .where(eq(schema.projectTranslations.translationKeyId, keyId("dose")));
+
+    const generate = scoringModel();
+    await estimateTranslationQaQualityPage({ ...input, afterTranslationId: null, generate });
+    expect(generate).toHaveBeenCalledTimes(1);
+    const prompt = vi.mocked(generate).mock.calls[0]![0].prompt;
+    expect(prompt).toContain("2 Tabletten");
+    expect(prompt).not.toContain("Speichern");
+    const findings = await db
+      .select({ id: schema.translationQaFindings.id })
+      .from(schema.translationQaFindings)
+      .where(eq(schema.translationQaFindings.runId, runId));
+    expect(findings).toHaveLength(0);
+  });
+
+  it("marks the run incomplete when the estimator fails, and keeps older estimate findings open", async () => {
+    const { organization, project, runId, keyId } = await setUpEstimatedProject();
+    const input = { runId, organizationId: organization.id, projectId: project.id };
+    const [olderRun] = await db
+      .insert(schema.translationQaRuns)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        trigger: "manual",
+        status: "succeeded",
+        summary: emptyTranslationQaSummary(),
+      })
+      .returning({ id: schema.translationQaRuns.id });
+    const [older] = await db
+      .insert(schema.translationQaFindings)
+      .values({
+        runId: olderRun!.id,
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: keyId("dose"),
+        key: "dose",
+        targetLocale: "de-DE",
+        checkType: "quality_estimate",
+        severity: "error",
+        category: "qa",
+        message: "Estimated quality 30/100, below the threshold of 85. Dosage changed.",
+        sourceText: "Take 2 tablets daily",
+        targetText: "Nehmen Sie täglich 3 Tabletten",
+      })
+      .returning({ id: schema.translationQaFindings.id });
+
+    const failing = vi.fn<QeGenerate>(async () => {
+      throw new Error("model down");
+    });
+    await estimateTranslationQaQualityPage({
+      ...input,
+      afterTranslationId: null,
+      generate: failing,
+    });
+    await completeTranslationQaScan(input);
+
+    const [completed] = await db
+      .select({ summary: schema.translationQaRuns.summary })
+      .from(schema.translationQaRuns)
+      .where(eq(schema.translationQaRuns.id, runId));
+    expect(completed?.summary.estimationIncomplete).toBe(true);
+    expect(completed?.summary.estimation).toMatchObject({ segmentCount: 2, estimatedCount: 0 });
+    const [olderRow] = await db
+      .select({ status: schema.translationQaFindings.status })
+      .from(schema.translationQaFindings)
+      .where(eq(schema.translationQaFindings.id, older!.id));
+    expect(olderRow?.status).toBe("open");
+  });
+
+  it("does nothing when the check is off", async () => {
+    const { organization, project, runId } = await setUpEstimatedProject();
+    await db
+      .update(schema.translationQaRuns)
+      .set({ checkPolicy: DEFAULT_QA_POLICY })
+      .where(eq(schema.translationQaRuns.id, runId));
+    const generate = scoringModel();
+    await expect(
+      estimateTranslationQaQualityPage({
+        runId,
+        organizationId: organization.id,
+        projectId: project.id,
+        afterTranslationId: null,
+        generate,
+      }),
+    ).resolves.toEqual({ done: true });
+    expect(generate).not.toHaveBeenCalled();
   });
 });

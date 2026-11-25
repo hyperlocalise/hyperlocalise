@@ -58,7 +58,7 @@ var (
 		"not_localized": {}, "whitespace_only": {}, "same_as_source": {}, "escaped_char_mismatch": {},
 		"length": {}, "placeholder_mismatch": {}, "glossary_violation": {}, "format": {}, "spelling": {},
 		"numbers_mismatch": {}, "punctuation_mismatch": {}, "character_case_mismatch": {},
-		"unreachable_plural_case": {}, "guideline": {},
+		"unreachable_plural_case": {}, "guideline": {}, "quality_estimate": {},
 	}
 	translationQaSeverities = map[string]struct{}{"error": {}, "warning": {}}
 )
@@ -74,6 +74,10 @@ type qaSummary struct {
 	GuidelineKnowledgeSkipped bool                `json:"guidelineKnowledgeSkipped,omitempty"`
 	// Quality is the MQM score the web app writes when the project scores translations.
 	Quality json.RawMessage `json:"quality,omitempty"`
+	// Estimation is the per-segment AI quality estimate summary the web app writes.
+	Estimation           json.RawMessage `json:"estimation,omitempty"`
+	EstimationIncomplete bool            `json:"estimationIncomplete,omitempty"`
+	QualityDomain        string          `json:"qualityDomain,omitempty"`
 }
 
 func emptyQaSummary() qaSummary {
