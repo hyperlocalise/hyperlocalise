@@ -97,6 +97,12 @@ const PERSON_CHOICES: Record<VisualWorkflowTemplateId, string[]> = {
     "notify_slack.channelId",
   ],
   "review-done-qa": ["notify_slack.channelId", "notify_slack_2.channelId"],
+  "ai-translate-qa-gate": [
+    "notify_slack.channelId",
+    "pick_assignee.rules",
+    "notify_slack_2.channelId",
+    "notify_slack_3.channelId",
+  ],
 };
 
 describe("visual workflow templates", () => {
@@ -270,5 +276,56 @@ describe("visual workflow templates", () => {
       dueInHours: 24,
     });
     expect(executed.map((node) => node.id)).toContain("notify_slack_2");
+  });
+
+  it("QA gate announces work that needs no review", async () => {
+    const { result, ran } = await runTemplate("ai-translate-qa-gate", {
+      triggerInput: sourceUpload,
+      mockOutputs: {
+        machine_translate: { jobId: "job_mt", status: "queued", targetLocales: ["fr-FR"] },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(ran).toContain("notify_slack");
+    expect(ran).not.toContain("create_task");
+  });
+
+  it("QA gate assigns a review task per language when QA asks for review", async () => {
+    const { result, ran, executed } = await runTemplate("ai-translate-qa-gate", {
+      triggerInput: sourceUpload,
+      mockOutputs: {
+        machine_translate: { jobId: "job_mt", status: "queued", targetLocales: ["fr-FR", "de-DE"] },
+        run_qa: {
+          runId: "qa_1",
+          passed: true,
+          errorCount: 0,
+          warningCount: 1,
+          findingCount: 1,
+          reviewSegmentCount: 3,
+          needsHumanReview: true,
+          reviewReasons: ["low_estimated_quality"],
+          targetLocales: ["fr-FR", "de-DE"],
+        },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(executed.find((node) => node.id === "run_qa")?.config).toMatchObject({
+      jobId: "job_mt",
+    });
+    const tasks = executed.filter((node) => node.id === "create_task");
+    expect(tasks.map((task) => task.config.targetLocales)).toEqual(["fr-FR", "de-DE"]);
+    expect(tasks[0]?.config).toMatchObject({
+      step: "edit",
+      assigneeWorkosUserId: "user_mock",
+      title: "Review app.json (fr-FR)",
+      dueInHours: 48,
+    });
+    expect(ran).toContain("notify_slack_2");
+    expect(ran).not.toContain("notify_slack");
+    expect(executed.find((node) => node.id === "notify_slack_2")?.config.message).toContain(
+      "3 segments flagged",
+    );
   });
 });

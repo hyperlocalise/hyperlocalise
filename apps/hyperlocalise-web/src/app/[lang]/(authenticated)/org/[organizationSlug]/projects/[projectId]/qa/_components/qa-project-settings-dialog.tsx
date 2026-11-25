@@ -42,6 +42,7 @@ import {
   type MqmSeverity,
   type QaScoringPolicy,
 } from "@/lib/qa/qa-scoring";
+import { QA_DOMAIN_PROFILES, type QaDomain } from "@/lib/qa/quality-domains";
 import { translationQaCheckTypes } from "@/lib/qa/types";
 
 import { qaProjectMessages as messages } from "../qa-project.messages";
@@ -93,6 +94,13 @@ export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog
     { value: "major", label: intl.formatMessage(messages.penaltyMajor) },
     { value: "critical", label: intl.formatMessage(messages.penaltyCritical) },
   ];
+  const domainOptions: { value: QaDomain; label: string }[] = [
+    { value: "general", label: intl.formatMessage(messages.qualityDomainGeneral) },
+    { value: "medical", label: intl.formatMessage(messages.qualityDomainMedical) },
+    { value: "legal", label: intl.formatMessage(messages.qualityDomainLegal) },
+    { value: "financial", label: intl.formatMessage(messages.qualityDomainFinancial) },
+  ];
+  const domainFloor = QA_DOMAIN_PROFILES[scoring.domain].minEstimationThreshold;
 
   return (
     <Dialog
@@ -170,6 +178,58 @@ export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog
                 />
               </Field>
             ) : null}
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-medium">{intl.formatMessage(messages.qualityDomain)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {intl.formatMessage(messages.qualityDomainHelp)}
+                </p>
+              </div>
+              <QaSegmentedControl
+                label={intl.formatMessage(messages.qualityDomain)}
+                hideLabel
+                disabled={disabled}
+                value={scoring.domain}
+                options={domainOptions}
+                onChange={(value) => store.updateScoring(scoring, { domain: value as QaDomain })}
+              />
+            </div>
+            {policy.quality_estimate.enabled ? (
+              <Field orientation="horizontal">
+                <FieldContent>
+                  <FieldLabel htmlFor="qa-estimation-threshold">
+                    {intl.formatMessage(messages.estimationThreshold)}
+                  </FieldLabel>
+                  <FieldDescription>
+                    {intl.formatMessage(messages.estimationThresholdHelp)}
+                    {domainFloor > 0
+                      ? ` ${intl.formatMessage(messages.estimationThresholdFloor, { domainFloor })}`
+                      : null}
+                  </FieldDescription>
+                </FieldContent>
+                <Input
+                  id="qa-estimation-threshold"
+                  type="number"
+                  inputMode="numeric"
+                  className="w-24"
+                  min={QA_SCORE_THRESHOLD_MIN}
+                  max={QA_SCORE_THRESHOLD_MAX}
+                  step={1}
+                  disabled={disabled}
+                  value={scoring.estimationThreshold}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    if (!Number.isFinite(value)) return;
+                    store.updateScoring(scoring, {
+                      estimationThreshold: Math.min(
+                        QA_SCORE_THRESHOLD_MAX,
+                        Math.max(QA_SCORE_THRESHOLD_MIN, value),
+                      ),
+                    });
+                  }}
+                />
+              </Field>
+            ) : null}
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
@@ -195,6 +255,11 @@ export const QaProjectSettingsDialog = observer(function QaProjectSettingsDialog
                       {check === "guideline" ? (
                         <p className="text-xs text-muted-foreground">
                           {intl.formatMessage(m.guidelineCheckHelp)}
+                        </p>
+                      ) : null}
+                      {check === "quality_estimate" ? (
+                        <p className="text-xs text-muted-foreground">
+                          {intl.formatMessage(m.qualityEstimateHelp)}
                         </p>
                       ) : null}
                     </div>

@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   computeQaQuality,
+  countSourceWords,
   DEFAULT_QA_SCORING_POLICY,
   mqmScore,
   QA_CHECK_DIMENSIONS,
@@ -23,7 +24,7 @@ import {
 } from "./qa-scoring";
 import { translationQaCheckTypes } from "./types";
 
-const policy: QaScoringPolicy = { enabled: true, passThreshold: 95, penalties: {} };
+const policy: QaScoringPolicy = { ...DEFAULT_QA_SCORING_POLICY, enabled: true, passThreshold: 95 };
 
 describe("mqmScore", () => {
   it("normalises penalty points by source words", () => {
@@ -119,7 +120,52 @@ describe("resolveQaScoringPolicy", () => {
         passThreshold: 140,
         penalties: { spelling: "critical", made_up: "minor", length: "huge" },
       }),
-    ).toEqual({ enabled: true, passThreshold: 100, penalties: { spelling: "critical" } });
+    ).toEqual({
+      ...DEFAULT_QA_SCORING_POLICY,
+      enabled: true,
+      passThreshold: 100,
+      penalties: { spelling: "critical" },
+    });
+  });
+
+  it("reads the estimate threshold and domain, falling back on bad values", () => {
+    expect(resolveQaScoringPolicy({ estimationThreshold: 82, domain: "legal" })).toMatchObject({
+      estimationThreshold: 82,
+      domain: "legal",
+    });
+    expect(resolveQaScoringPolicy({ estimationThreshold: -4, domain: "aerospace" })).toMatchObject({
+      estimationThreshold: 0,
+      domain: "general",
+    });
+  });
+});
+
+describe("computeQaQuality penalties snapshot", () => {
+  it("stores the overrides it used so rescoring can repeat the score", () => {
+    const quality = computeQaQuality({
+      policy: { ...policy, penalties: { spelling: "major" } },
+      wordCountByLocale: { "de-DE": 10 },
+      findings: [],
+    });
+    expect(quality.penalties).toEqual({ spelling: "major" });
+  });
+});
+
+describe("countSourceWords", () => {
+  it("counts space-separated tokens in spaced scripts", () => {
+    expect(countSourceWords("  Save {count} files now ", "en-US")).toBe(4);
+    expect(countSourceWords("", "en-US")).toBe(0);
+    expect(countSourceWords("   ", "en-US")).toBe(0);
+  });
+
+  it("segments Chinese, Japanese and Thai into words instead of one token per sentence", () => {
+    expect(countSourceWords("我们今天去公园散步", "zh-CN")).toBeGreaterThan(3);
+    expect(countSourceWords("今日は良い天気ですね", "ja-JP")).toBeGreaterThan(3);
+    expect(countSourceWords("วันนี้อากาศดีมาก", "th-TH")).toBeGreaterThan(2);
+  });
+
+  it("falls back to a root segmenter for an unknown locale", () => {
+    expect(countSourceWords("我们今天去公园散步", "not a locale")).toBeGreaterThan(3);
   });
 });
 

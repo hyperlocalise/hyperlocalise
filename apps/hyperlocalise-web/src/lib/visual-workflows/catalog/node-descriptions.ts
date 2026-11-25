@@ -68,7 +68,7 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   "action.run_qa": {
     title: "Run QA checks",
     purpose:
-      "Run the project's QA checks and report errors and warnings: on the whole project, or only one source file, some languages, or the file and languages of a job.",
+      "Run the project's QA checks and report errors and warnings: on the whole project, or only one source file, some languages, or the file and languages of a job. Reports the quality score when the project scores translations, the AI quality estimate when that check is on, and needsHumanReview: true when QA did not pass, the estimate flagged segments, or the project's content domain always needs review.",
   },
   "action.list_source_files": {
     title: "List source files",

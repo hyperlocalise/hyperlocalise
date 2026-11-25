@@ -288,6 +288,65 @@ export const qaProjectMessages = defineMessages({
     id: "ba52MnbtYg",
     description: "Project QA settings: help text for the pass threshold",
   },
+  estimateMetric: {
+    defaultMessage: "Estimated quality",
+    id: "1cO9bQ1Q+8",
+    description: "QA overview: metric card label for the average AI quality estimate of the scan",
+  },
+  estimateDetail: {
+    defaultMessage:
+      "{count, plural, =0 {No segments below {threshold}} one {# segment below {threshold}} other {# segments below {threshold}}}",
+    id: "TAFjOxPMm4",
+    description:
+      "QA overview: detail under the estimated quality metric; count is segments scored below the threshold",
+  },
+  qualityDomain: {
+    defaultMessage: "Content domain",
+    id: "HtmL7NfR7y",
+    description: "Project QA settings: label for the content domain control",
+  },
+  qualityDomainHelp: {
+    defaultMessage:
+      "Medical, legal and financial content always asks for human review in workflows, holds the quality estimate to a higher threshold, and tells the estimator which mistakes matter most.",
+    id: "OQGKHGhNJL",
+    description: "Project QA settings: help text for the content domain control",
+  },
+  qualityDomainGeneral: {
+    defaultMessage: "General",
+    id: "5pHCCSXneT",
+    description: "Project QA settings: general content domain option",
+  },
+  qualityDomainMedical: {
+    defaultMessage: "Medical",
+    id: "0A/Zs4RAEW",
+    description: "Project QA settings: medical and life-sciences content domain option",
+  },
+  qualityDomainLegal: {
+    defaultMessage: "Legal",
+    id: "f+aTLZyByF",
+    description: "Project QA settings: legal content domain option",
+  },
+  qualityDomainFinancial: {
+    defaultMessage: "Financial",
+    id: "SA0HeX8VjT",
+    description: "Project QA settings: financial content domain option",
+  },
+  estimationThreshold: {
+    defaultMessage: "Estimate threshold",
+    id: "1LKfOhUAeH",
+    description: "Project QA settings: label for the quality estimate threshold input",
+  },
+  estimationThresholdHelp: {
+    defaultMessage: "Segments the AI estimate scores below this, from 0 to 100, become findings.",
+    id: "yIlgFUYLPm",
+    description: "Project QA settings: help text for the quality estimate threshold",
+  },
+  estimationThresholdFloor: {
+    defaultMessage: "This content domain uses at least {domainFloor}.",
+    id: "kTkTSkxal4",
+    description:
+      "Project QA settings: note under the estimate threshold when the content domain sets a higher minimum",
+  },
   penaltyLabel: {
     defaultMessage: "Penalty for {check}",
     id: "4P8Gr7Fd41",

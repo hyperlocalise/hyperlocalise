@@ -66,6 +66,7 @@ export function QaProjectOverview({
       : reports.slice(selectedIndex + 1).find((row) => row.status === "succeeded");
   const selectedScan = intl.formatMessage(messages.selectedScanDetail);
   const quality = report.summary.quality;
+  const estimation = report.summary.estimation;
   const failingLocales = quality
     ? Object.values(quality.byLocale).filter((locale) => !locale.passed).length
     : 0;
@@ -117,16 +118,32 @@ export function QaProjectOverview({
               detail={selectedScan}
             />
           )}
-          <QaMetricCard
-            label={intl.formatMessage(messages.lastCheckedMetric)}
-            value={intl.formatDate(report.completedAt ?? report.createdAt, {
-              month: "short",
-              day: "numeric",
-            })}
-            detail={intl.formatMessage(
-              cadence === "daily" ? messages.scansDaily : messages.scansManual,
-            )}
-          />
+          {estimation ? (
+            <QaMetricCard
+              label={intl.formatMessage(messages.estimateMetric)}
+              value={
+                estimation.averageScore == null
+                  ? "—"
+                  : intl.formatNumber(estimation.averageScore, { maximumFractionDigits: 1 })
+              }
+              detail={intl.formatMessage(messages.estimateDetail, {
+                count: estimation.belowThresholdCount,
+                threshold: intl.formatNumber(estimation.threshold),
+              })}
+              emphasis={estimation.belowThresholdCount > 0 ? "watch" : undefined}
+            />
+          ) : (
+            <QaMetricCard
+              label={intl.formatMessage(messages.lastCheckedMetric)}
+              value={intl.formatDate(report.completedAt ?? report.createdAt, {
+                month: "short",
+                day: "numeric",
+              })}
+              detail={intl.formatMessage(
+                cadence === "daily" ? messages.scansDaily : messages.scansManual,
+              )}
+            />
+          )}
         </>
       }
       charts={

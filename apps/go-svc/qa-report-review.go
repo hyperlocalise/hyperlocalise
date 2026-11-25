@@ -108,7 +108,12 @@ func (api *qaReportAPI) applyQaFindingReview(ctx context.Context, actor qaReport
 	// snapshot — plain = never matches null to null, so ignore/reopen would no-op.
 	// Match key as well: deleted source keys both store null translation_key_id, so
 	// locale + diagnostic alone would apply one review to a different key.
-	_, err = api.pool.Exec(ctx, `update translation_qa_findings f set status = $3,
+	tx, err := api.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	_, err = tx.Exec(ctx, `update translation_qa_findings f set status = $3,
         ignore_reason = nullif($4, ''), reviewed_by_user_id = $5, reviewed_at = now()
         from translation_qa_findings selected
         where selected.id = any($2::uuid[]) and selected.organization_id = $1
@@ -119,7 +124,13 @@ func (api *qaReportAPI) applyQaFindingReview(ctx context.Context, actor qaReport
         and f.check_type = selected.check_type and f.message = selected.message
         and f.source_text = selected.source_text and f.target_text = selected.target_text
         and f.rule_version = selected.rule_version`, actor.organizationID, ids, body.Status, body.Reason, actor.userID)
-	return err
+	if err != nil {
+		return err
+	}
+	if err := rescoreQaRunsForFindings(ctx, tx, actor.organizationID, ids); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (api *qaReportAPI) enrichQaFindings(ctx context.Context, organizationID string, findings []map[string]any) error {

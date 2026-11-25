@@ -22,21 +22,36 @@ import { emptyTranslationQaSummary } from "./qa-report-store";
 import {
   translationQaCheckTypes,
   type TranslationQaCheckType,
+  type TranslationQaEstimationSummary,
   type TranslationQaRunTrigger,
   type TranslationQaScanScope,
   type TranslationQaSeverity,
 } from "./types";
 import { QA_CHECK_VERSION, validateScanSegment } from "./scan-segment-validation";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { isErr } from "@/lib/primitives/result/results";
 import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
 import { DEFAULT_QA_POLICY, resolveQaPolicy, type QaCheckPolicy } from "./qa-policy";
 import { notifyQaScanFailed, notifyQaScanSucceeded } from "./qa-scan-notifications";
 import {
   computeQaQuality,
+  countSourceWords,
   resolveQaScoringPolicy,
   type QaScoringFinding,
   type TranslationQaQuality,
 } from "./qa-scoring";
+import { effectiveEstimationThreshold, type QaDomain } from "./quality-domains";
+import {
+  estimateQualityBatch,
+  isEstimableSegment,
+  planQualityEstimateBatches,
+  QE_CONCURRENCY,
+  QE_SEGMENTS_PER_STEP,
+  QUALITY_ESTIMATOR_VERSION,
+  qualityEstimateFindingMessage,
+  type QeEstimate,
+  type QeGenerate,
+} from "./quality-estimation";
 import {
   GUIDELINE_BATCHES_PER_STEP,
   planScanGuidelineBatches,
@@ -76,6 +91,13 @@ export type TranslationQaScanResult =
 export type TranslationQaScanPageResult =
   | { done: true }
   | { done: false; afterKeyId: string | null; guidelineBatchOffset?: number };
+
+export type TranslationQaEstimatePageResult =
+  | { done: true }
+  | { done: false; afterTranslationId: string };
+
+/** Pages of quality estimates one scan can take; far above any real project. */
+const MAX_ESTIMATE_PAGES = 100_000;
 
 export async function startTranslationQaScan(input: {
   organizationId: string;
@@ -191,6 +213,13 @@ export async function executeTranslationQaScan(input: {
       }
       afterKeyId = result.afterKeyId;
       guidelineBatchOffset = result.guidelineBatchOffset;
+    }
+
+    let afterTranslationId: string | null = null;
+    for (let page = 0; page < MAX_ESTIMATE_PAGES; page += 1) {
+      const result = await estimateTranslationQaQualityPage({ ...input, afterTranslationId });
+      if (result.done) break;
+      afterTranslationId = result.afterTranslationId;
     }
 
     failureCode = "qa_scan_finalization_failed";
@@ -624,6 +653,234 @@ export async function scanTranslationQaPage(input: {
   return advancePastKeyPage(keys);
 }
 
+/**
+ * Estimates the quality of the next page of translated segments when the run's policy enables
+ * `quality_estimate`. Runs after every key page is validated. A segment whose source, translation,
+ * domain and estimator version are unchanged reuses its stored estimate instead of calling the
+ * model. Segments below the threshold become findings, replacing any this run already wrote for
+ * them, so a retried step does not duplicate them.
+ */
+export async function estimateTranslationQaQualityPage(input: {
+  runId: string;
+  organizationId: string;
+  projectId: string;
+  afterTranslationId: string | null;
+  /** Tests replace the model call. */
+  generate?: QeGenerate;
+}): Promise<TranslationQaEstimatePageResult> {
+  const run = await loadRunningQaScan(input.runId);
+  if (!run) return { done: true };
+  const policy = resolveQaPolicy(run.checkPolicy ?? DEFAULT_QA_POLICY);
+  const setting = policy.quality_estimate;
+  if (!setting.enabled) return { done: true };
+
+  const project = await loadNativeQaProject(input);
+  if (!project.ok) throw new Error(project.code);
+  const scoringPolicy = await loadQaScoringPolicy(input);
+  const threshold = effectiveEstimationThreshold(scoringPolicy);
+  const domain = scoringPolicy.domain;
+  const scope = run.summary.scope;
+  const locales = scopedLocales(project.targetLocales, scope);
+  if (locales.length === 0) return { done: true };
+
+  const rows = await db
+    .select({
+      translationId: schema.projectTranslations.id,
+      translationKeyId: schema.projectTranslations.translationKeyId,
+      targetLocale: schema.projectTranslations.targetLocale,
+      targetText: schema.projectTranslations.text,
+      key: schema.projectTranslationKeys.key,
+      sourceText: schema.projectTranslationKeys.sourceText,
+      sourcePath: schema.repositorySourceFiles.sourcePath,
+      sourceHash: sql<string>`md5(${schema.projectTranslationKeys.sourceText})`,
+      targetHash: sql<string>`md5(${schema.projectTranslations.text})`,
+    })
+    .from(schema.projectTranslations)
+    .innerJoin(
+      schema.projectTranslationKeys,
+      eq(schema.projectTranslations.translationKeyId, schema.projectTranslationKeys.id),
+    )
+    .leftJoin(
+      schema.repositorySourceFiles,
+      eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
+    )
+    .where(
+      and(
+        eq(schema.projectTranslations.organizationId, input.organizationId),
+        eq(schema.projectTranslations.projectId, input.projectId),
+        eq(schema.projectTranslationKeys.isHidden, false),
+        inArray(schema.projectTranslations.targetLocale, locales),
+        sql`btrim(${schema.projectTranslations.text}) <> ''`,
+        scopedKeyFilter(scope),
+        input.afterTranslationId
+          ? gt(schema.projectTranslations.id, input.afterTranslationId)
+          : undefined,
+      ),
+    )
+    .orderBy(asc(schema.projectTranslations.id))
+    .limit(QE_SEGMENTS_PER_STEP);
+  if (rows.length === 0) return { done: true };
+
+  const translationIds = rows.map((row) => row.translationId);
+  const stored = await db
+    .select({
+      translationId: schema.translationQualityEstimates.translationId,
+      score: schema.translationQualityEstimates.score,
+      reason: schema.translationQualityEstimates.reason,
+      sourceHash: schema.translationQualityEstimates.sourceHash,
+      targetHash: schema.translationQualityEstimates.targetHash,
+      domain: schema.translationQualityEstimates.domain,
+      estimatorVersion: schema.translationQualityEstimates.estimatorVersion,
+    })
+    .from(schema.translationQualityEstimates)
+    .where(inArray(schema.translationQualityEstimates.translationId, translationIds));
+  const storedById = new Map(stored.map((row) => [row.translationId, row]));
+
+  const estimates = new Map<string, QeEstimate>();
+  const misses: Array<(typeof rows)[number] & { id: string }> = [];
+  let incomplete = false;
+  for (const row of rows) {
+    const previous = storedById.get(row.translationId);
+    if (
+      previous &&
+      previous.sourceHash === row.sourceHash &&
+      previous.targetHash === row.targetHash &&
+      previous.domain === domain &&
+      previous.estimatorVersion === QUALITY_ESTIMATOR_VERSION
+    ) {
+      estimates.set(row.translationId, { score: previous.score, reason: previous.reason });
+    } else if (isEstimableSegment(row)) {
+      misses.push({ ...row, id: row.translationId });
+    }
+  }
+
+  const batches = planQualityEstimateBatches(misses);
+  const fresh = new Map<string, QeEstimate>();
+  await mapWithConcurrency(batches, QE_CONCURRENCY, async (batch) => {
+    const result = await estimateQualityBatch(
+      {
+        sourceLocale: project.sourceLocale,
+        targetLocale: batch[0]!.targetLocale,
+        domain,
+        segments: batch,
+      },
+      { generate: input.generate },
+    );
+    if (isErr(result)) {
+      incomplete = true;
+      return;
+    }
+    for (const segment of batch) {
+      const estimate = result.value.get(segment.id);
+      if (!estimate) {
+        incomplete = true;
+        continue;
+      }
+      fresh.set(segment.id, estimate);
+      estimates.set(segment.id, estimate);
+    }
+  });
+
+  const rowById = new Map(rows.map((row) => [row.translationId, row]));
+  const upserts = [...fresh].map(([translationId, estimate]) => {
+    const row = rowById.get(translationId)!;
+    return {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationId,
+      translationKeyId: row.translationKeyId,
+      targetLocale: row.targetLocale,
+      score: estimate.score,
+      reason: estimate.reason,
+      sourceHash: row.sourceHash,
+      targetHash: row.targetHash,
+      domain,
+      estimatorVersion: QUALITY_ESTIMATOR_VERSION,
+      runId: input.runId,
+    };
+  });
+  if (upserts.length > 0) {
+    await db
+      .insert(schema.translationQualityEstimates)
+      .values(upserts)
+      .onConflictDoUpdate({
+        target: schema.translationQualityEstimates.translationId,
+        set: {
+          score: sql`excluded.score`,
+          reason: sql`excluded.reason`,
+          sourceHash: sql`excluded.source_hash`,
+          targetHash: sql`excluded.target_hash`,
+          domain: sql`excluded.domain`,
+          estimatorVersion: sql`excluded.estimator_version`,
+          runId: sql`excluded.run_id`,
+          updatedAt: new Date(),
+        },
+      });
+  }
+
+  await db
+    .delete(schema.translationQaFindings)
+    .where(
+      and(
+        eq(schema.translationQaFindings.runId, input.runId),
+        eq(schema.translationQaFindings.checkType, "quality_estimate"),
+        inArray(schema.translationQaFindings.translationId, translationIds),
+      ),
+    );
+  const findings: Array<typeof schema.translationQaFindings.$inferInsert> = [];
+  for (const row of rows) {
+    const estimate = estimates.get(row.translationId);
+    if (!estimate || estimate.score >= threshold) continue;
+    findings.push({
+      runId: input.runId,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyId: row.translationKeyId,
+      translationId: row.translationId,
+      sourcePath: row.sourcePath,
+      key: row.key,
+      targetLocale: row.targetLocale,
+      checkType: "quality_estimate",
+      severity: setting.severity,
+      category: "qa",
+      message: qualityEstimateFindingMessage(estimate, threshold),
+      relatedTokens: [],
+      sourceText: row.sourceText,
+      targetText: row.targetText,
+      ruleVersion: QA_CHECK_VERSION,
+    });
+  }
+  for (let index = 0; index < findings.length; index += FINDING_INSERT_CHUNK) {
+    await db
+      .insert(schema.translationQaFindings)
+      .values(findings.slice(index, index + FINDING_INSERT_CHUNK));
+  }
+  if (incomplete) {
+    await db.execute(
+      sql`update translation_qa_runs set summary = coalesce(summary, '{}'::jsonb) || '{"estimationIncomplete":true}'::jsonb
+        where id = ${input.runId}`,
+    );
+  }
+  await touchTranslationQaRun(input.runId);
+  logger.info(
+    {
+      runId: input.runId,
+      projectId: input.projectId,
+      segmentCount: rows.length,
+      cachedCount: rows.length - misses.length,
+      estimatedCount: fresh.size,
+      findingCount: findings.length,
+      incomplete,
+    },
+    "translation qa scan quality estimate page completed",
+  );
+
+  const last = rows[rows.length - 1]!.translationId;
+  return rows.length < QE_SEGMENTS_PER_STEP
+    ? { done: true }
+    : { done: false, afterTranslationId: last };
+}
+
 export async function completeTranslationQaScan(input: {
   runId: string;
   organizationId: string;
@@ -686,13 +943,26 @@ export async function completeTranslationQaScan(input: {
     .from(schema.translationQaFindings)
     .where(eq(schema.translationQaFindings.runId, input.runId));
 
+  const scoringPolicy = await loadQaScoringPolicy(input);
   const quality = await scoreTranslationQaRun({
     organizationId: input.organizationId,
     projectId: input.projectId,
+    sourceLocale: project.sourceLocale,
+    policy: scoringPolicy,
     scope,
     locales,
     findings: findingRows.filter((row) => row.status !== "ignored"),
   });
+  const estimation = resolveQaPolicy(run.checkPolicy ?? DEFAULT_QA_POLICY).quality_estimate.enabled
+    ? await summarizeQualityEstimates({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        scope,
+        locales,
+        domain: scoringPolicy.domain,
+        threshold: effectiveEstimationThreshold(scoringPolicy),
+      })
+    : undefined;
 
   const byCheckType: Partial<Record<TranslationQaCheckType, number>> = {};
   const bySeverity: Partial<Record<TranslationQaSeverity, number>> = {};
@@ -732,6 +1002,9 @@ export async function completeTranslationQaScan(input: {
         guidelineChecksIncomplete: run.summary.guidelineChecksIncomplete,
         guidelineKnowledgeSkipped: run.summary.guidelineKnowledgeSkipped,
         ...(quality ? { quality } : {}),
+        ...(estimation ? { estimation } : {}),
+        ...(run.summary.estimationIncomplete ? { estimationIncomplete: true } : {}),
+        ...(scoringPolicy.domain !== "general" ? { qualityDomain: scoringPolicy.domain } : {}),
         ...(scope ? { scope } : {}),
       },
       completedAt,
@@ -765,6 +1038,7 @@ export async function completeTranslationQaScan(input: {
       and not (${JSON.stringify(disabledCheckTypes)}::jsonb ? old.check_type)
       and not (old.check_type = 'spelling' and ${JSON.stringify(run.summary.skippedChecksByLocale ?? {})}::jsonb ? old.target_locale)
       and not (old.check_type = 'guideline' and ${guidelineUnchecked})
+      and not (old.check_type = 'quality_estimate' and ${Boolean(run.summary.estimationIncomplete)})
       and ${scopedFindingFilter(scope)}
       and not exists (select 1 from translation_qa_findings current
           where current.run_id = ${input.runId} and current.translation_key_id = old.translation_key_id
@@ -988,17 +1262,7 @@ function scopedLocales(
   return locales.filter((locale) => wanted.has(locale));
 }
 
-/**
- * MQM score for a finished run, or undefined when the project does not score translations.
- * Source words of the checked, visible keys count once per checked locale.
- */
-async function scoreTranslationQaRun(input: {
-  organizationId: string;
-  projectId: string;
-  scope: TranslationQaScanScope | undefined;
-  locales: readonly string[];
-  findings: readonly QaScoringFinding[];
-}): Promise<TranslationQaQuality | undefined> {
+async function loadQaScoringPolicy(input: { organizationId: string; projectId: string }) {
   const [projectRow] = await db
     .select({ policy: schema.projects.qaScoringPolicy })
     .from(schema.projects)
@@ -1009,28 +1273,141 @@ async function scoreTranslationQaRun(input: {
       ),
     )
     .limit(1);
-  const policy = resolveQaScoringPolicy(projectRow?.policy);
-  if (!policy.enabled) return undefined;
+  return resolveQaScoringPolicy(projectRow?.policy);
+}
 
-  const [wordRow] = await db
-    .select({
-      value: sql<number>`coalesce(sum(coalesce(array_length(regexp_split_to_array(btrim(${schema.projectTranslationKeys.sourceText}), '\\s+'), 1), 0)) filter (where btrim(${schema.projectTranslationKeys.sourceText}) <> ''), 0)::int`,
-    })
-    .from(schema.projectTranslationKeys)
-    .where(
-      and(
-        eq(schema.projectTranslationKeys.organizationId, input.organizationId),
-        eq(schema.projectTranslationKeys.projectId, input.projectId),
-        eq(schema.projectTranslationKeys.isHidden, false),
-        scopedKeyFilter(input.scope),
-      ),
-    );
-  const sourceWords = Number(wordRow?.value ?? 0);
+/** Keys read per query when counting source words. */
+const WORD_COUNT_PAGE_SIZE = 2_000;
+
+/**
+ * MQM score for a finished run, or undefined when the project does not score translations.
+ * Source words of the checked, visible keys count once per checked locale. Words are counted
+ * with the source locale's rules; see `countSourceWords`.
+ */
+async function scoreTranslationQaRun(input: {
+  organizationId: string;
+  projectId: string;
+  sourceLocale: string;
+  policy: ReturnType<typeof resolveQaScoringPolicy>;
+  scope: TranslationQaScanScope | undefined;
+  locales: readonly string[];
+  findings: readonly QaScoringFinding[];
+}): Promise<TranslationQaQuality | undefined> {
+  if (!input.policy.enabled) return undefined;
+
+  let sourceWords = 0;
+  let afterKeyId: string | null = null;
+  for (;;) {
+    const keys: Array<{ id: string; sourceText: string }> = await db
+      .select({
+        id: schema.projectTranslationKeys.id,
+        sourceText: schema.projectTranslationKeys.sourceText,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+          eq(schema.projectTranslationKeys.isHidden, false),
+          scopedKeyFilter(input.scope),
+          afterKeyId ? gt(schema.projectTranslationKeys.id, afterKeyId) : undefined,
+        ),
+      )
+      .orderBy(asc(schema.projectTranslationKeys.id))
+      .limit(WORD_COUNT_PAGE_SIZE);
+    for (const key of keys) {
+      sourceWords += countSourceWords(key.sourceText, input.sourceLocale || "und");
+    }
+    if (keys.length < WORD_COUNT_PAGE_SIZE) break;
+    afterKeyId = keys[keys.length - 1]!.id;
+  }
   return computeQaQuality({
     findings: input.findings,
     wordCountByLocale: Object.fromEntries(input.locales.map((locale) => [locale, sourceWords])),
-    policy,
+    policy: input.policy,
   });
+}
+
+function roundAverage(value: number | null) {
+  return value == null ? null : Math.round(value * 10) / 10;
+}
+
+/**
+ * Current estimates of the run's translated segments: those whose stored score is for the
+ * same source text, translation, domain and estimator version.
+ */
+async function summarizeQualityEstimates(input: {
+  organizationId: string;
+  projectId: string;
+  scope: TranslationQaScanScope | undefined;
+  locales: readonly string[];
+  domain: QaDomain;
+  threshold: number;
+}): Promise<TranslationQaEstimationSummary> {
+  const t = schema.projectTranslations;
+  const k = schema.projectTranslationKeys;
+  const e = schema.translationQualityEstimates;
+  const rows =
+    input.locales.length === 0
+      ? []
+      : await db
+          .select({
+            locale: t.targetLocale,
+            segmentCount: sql<number>`count(*)::int`,
+            estimatedCount: sql<number>`count(${e.id})::int`,
+            scoreSum: sql<number>`coalesce(sum(${e.score}), 0)::int`,
+            belowThresholdCount: sql<number>`(count(*) filter (where ${e.score} < ${input.threshold}))::int`,
+          })
+          .from(t)
+          .innerJoin(k, eq(t.translationKeyId, k.id))
+          .leftJoin(
+            e,
+            and(
+              eq(e.translationId, t.id),
+              sql`${e.sourceHash} = md5(${k.sourceText})`,
+              sql`${e.targetHash} = md5(${t.text})`,
+              eq(e.domain, input.domain),
+              eq(e.estimatorVersion, QUALITY_ESTIMATOR_VERSION),
+            ),
+          )
+          .where(
+            and(
+              eq(t.organizationId, input.organizationId),
+              eq(t.projectId, input.projectId),
+              eq(k.isHidden, false),
+              inArray(t.targetLocale, [...input.locales]),
+              sql`btrim(${t.text}) <> ''`,
+              scopedKeyFilter(input.scope),
+            ),
+          )
+          .groupBy(t.targetLocale);
+
+  const byLocale: TranslationQaEstimationSummary["byLocale"] = {};
+  let segmentCount = 0;
+  let estimatedCount = 0;
+  let scoreSum = 0;
+  let belowThresholdCount = 0;
+  for (const row of rows.toSorted((a, b) => a.locale.localeCompare(b.locale))) {
+    byLocale[row.locale] = {
+      segmentCount: row.segmentCount,
+      estimatedCount: row.estimatedCount,
+      averageScore: roundAverage(row.estimatedCount ? row.scoreSum / row.estimatedCount : null),
+      belowThresholdCount: row.belowThresholdCount,
+    };
+    segmentCount += row.segmentCount;
+    estimatedCount += row.estimatedCount;
+    scoreSum += row.scoreSum;
+    belowThresholdCount += row.belowThresholdCount;
+  }
+  return {
+    threshold: input.threshold,
+    domain: input.domain,
+    segmentCount,
+    estimatedCount,
+    averageScore: roundAverage(estimatedCount ? scoreSum / estimatedCount : null),
+    belowThresholdCount,
+    byLocale,
+  };
 }
 
 function scopedKeyFilter(scope: TranslationQaScanScope | undefined) {

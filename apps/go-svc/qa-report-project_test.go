@@ -53,6 +53,7 @@ func TestProjectQaReportSettingsFillMissingUnreachablePlural(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
 	require.Equal(t, qaCheckSetting{Enabled: true, Severity: "warning"}, response.Settings.Checks["unreachable_plural_case"])
 	require.Equal(t, qaCheckSetting{Enabled: false, Severity: "warning"}, response.Settings.Checks["guideline"])
+	require.Equal(t, qaCheckSetting{Enabled: false, Severity: "warning"}, response.Settings.Checks["quality_estimate"])
 	require.Equal(t, qaCheckSetting{Enabled: true, Severity: "error"}, response.Settings.Checks["not_localized"])
 }
 
@@ -210,7 +211,27 @@ func TestResolveQaScoringSettingDropsInvalidStoredValues(t *testing.T) {
 	require.Equal(t, float64(defaultQaScoreThreshold), setting.PassThreshold)
 	require.Equal(t, map[string]string{"spelling": "critical"}, setting.Penalties)
 
-	require.Equal(t, qaScoringSetting{PassThreshold: defaultQaScoreThreshold, Penalties: map[string]string{}}, resolveQaScoringSetting(nil))
+	require.Equal(t, qaScoringSetting{
+		PassThreshold:       defaultQaScoreThreshold,
+		Penalties:           map[string]string{},
+		EstimationThreshold: defaultQaEstimationThreshold,
+		Domain:              "general",
+	}, resolveQaScoringSetting(nil))
+
+	stored := resolveQaScoringSetting([]byte(`{"enabled":true,"passThreshold":90,"estimationThreshold":140,"domain":"aerospace"}`))
+	require.Equal(t, float64(defaultQaEstimationThreshold), stored.EstimationThreshold)
+	require.Equal(t, "general", stored.Domain)
+	require.Equal(t, "legal", resolveQaScoringSetting([]byte(`{"domain":"legal","estimationThreshold":80}`)).Domain)
+}
+
+func TestValidQaScoringChecksEstimateThresholdAndDomain(t *testing.T) {
+	setting := qaScoringSetting{PassThreshold: 95, EstimationThreshold: 80}
+	require.True(t, validQaScoring(&setting))
+	require.Equal(t, "general", setting.Domain)
+	require.True(t, validQaScoring(&qaScoringSetting{PassThreshold: 95, EstimationThreshold: 90, Domain: "medical"}))
+	require.False(t, validQaScoring(&qaScoringSetting{PassThreshold: 95, EstimationThreshold: 101}))
+	require.False(t, validQaScoring(&qaScoringSetting{PassThreshold: 95, EstimationThreshold: 70, Domain: "aerospace"}))
+	require.True(t, validQaScoring(&qaScoringSetting{PassThreshold: 95, Penalties: map[string]string{"quality_estimate": "critical"}}))
 }
 
 func TestProjectQaReportSettingsSaveScoring(t *testing.T) {
@@ -225,7 +246,22 @@ func TestProjectQaReportSettingsSaveScoring(t *testing.T) {
 		} `json:"settings"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
-	require.Equal(t, qaScoringSetting{Enabled: true, PassThreshold: 97.5, Penalties: map[string]string{"placeholder_mismatch": "critical"}}, response.Settings.Scoring)
+	require.Equal(t, qaScoringSetting{
+		Enabled:             true,
+		PassThreshold:       97.5,
+		Penalties:           map[string]string{"placeholder_mismatch": "critical"},
+		EstimationThreshold: defaultQaEstimationThreshold,
+		Domain:              "general",
+	}, response.Settings.Scoring)
+
+	rec = qaReportRequest(api, scope, http.MethodPatch, path, `{"scoring":{"enabled":false,"passThreshold":95,"estimationThreshold":82,"domain":"legal"}}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	require.Equal(t, 82.0, response.Settings.Scoring.EstimationThreshold)
+	require.Equal(t, "legal", response.Settings.Scoring.Domain)
+
+	rec = qaReportRequest(api, scope, http.MethodPatch, path, `{"scoring":{"enabled":true,"passThreshold":95,"domain":"aerospace"}}`)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
 
 	rec = qaReportRequest(api, scope, http.MethodPatch, path, `{"scoring":{"enabled":true,"passThreshold":120}}`)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
@@ -234,7 +270,7 @@ func TestProjectQaReportSettingsSaveScoring(t *testing.T) {
 func TestProjectQaReportPassesQualityThrough(t *testing.T) {
 	api, scope := qaReportTestAPI(t, "admin")
 	runID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 1, 0)
-	_, err := scope.Pool.Exec(t.Context(), `update translation_qa_runs set summary = summary || '{"quality":{"model":"mqm","score":97.5,"passed":true}}'::jsonb where id=$1`, runID)
+	_, err := scope.Pool.Exec(t.Context(), `update translation_qa_runs set summary = summary || '{"quality":{"model":"mqm","score":97.5,"passed":true},"estimation":{"averageScore":88.5,"belowThresholdCount":2},"estimationIncomplete":true,"qualityDomain":"legal"}'::jsonb where id=$1`, runID)
 	require.NoError(t, err)
 
 	rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports"), "")
@@ -246,6 +282,12 @@ func TestProjectQaReportPassesQualityThrough(t *testing.T) {
 					Score  float64 `json:"score"`
 					Passed bool    `json:"passed"`
 				} `json:"quality"`
+				Estimation struct {
+					AverageScore        float64 `json:"averageScore"`
+					BelowThresholdCount int     `json:"belowThresholdCount"`
+				} `json:"estimation"`
+				EstimationIncomplete bool   `json:"estimationIncomplete"`
+				QualityDomain        string `json:"qualityDomain"`
 			} `json:"summary"`
 		} `json:"reports"`
 	}
@@ -253,4 +295,8 @@ func TestProjectQaReportPassesQualityThrough(t *testing.T) {
 	require.NotEmpty(t, response.Reports)
 	require.Equal(t, 97.5, response.Reports[0].Summary.Quality.Score)
 	require.True(t, response.Reports[0].Summary.Quality.Passed)
+	require.Equal(t, 88.5, response.Reports[0].Summary.Estimation.AverageScore)
+	require.Equal(t, 2, response.Reports[0].Summary.Estimation.BelowThresholdCount)
+	require.True(t, response.Reports[0].Summary.EstimationIncomplete)
+	require.Equal(t, "legal", response.Reports[0].Summary.QualityDomain)
 }

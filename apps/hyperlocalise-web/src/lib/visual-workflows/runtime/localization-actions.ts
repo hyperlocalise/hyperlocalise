@@ -16,7 +16,8 @@ import { db, schema } from "@/lib/database/client";
 import { getRepositorySourceFileVersionForStoredFile } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
 import type { TranslationQaQuality } from "@/lib/qa/qa-scoring";
-import type { TranslationQaScanScope } from "@/lib/qa/types";
+import { QA_DOMAIN_PROFILES, type QaDomain } from "@/lib/qa/quality-domains";
+import type { TranslationQaEstimationSummary, TranslationQaScanScope } from "@/lib/qa/types";
 import type { VisualTaskStep } from "../schema/types";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 
@@ -560,14 +561,35 @@ export const qaBusyWait = {
   sleep: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
 };
 
+/** Why a Run QA step asks for human review, in the order they are reported. */
+export type QaReviewReason = "domain_requires_review" | "qa_failed" | "low_estimated_quality";
+
 /**
- * Whether a Run QA step passes. With quality scoring on, the score decides: every checked
- * language reaches the threshold and has no critical error. Without it, any error fails.
+ * Whether a Run QA step passes, and whether its work needs a person before it ships. With
+ * quality scoring on, the score decides `passed`: every checked language reaches the threshold
+ * and has no critical error. Without it, any error fails.
+ *
+ * `needsHumanReview` is true when QA did not pass, when the quality estimate flagged segments,
+ * or when the project's content domain (medical, legal, financial) always requires review.
  */
-export function qaRunOutcome(input: { errorCount: number; quality?: TranslationQaQuality }) {
-  const { quality } = input;
+export function qaRunOutcome(input: {
+  errorCount: number;
+  quality?: TranslationQaQuality;
+  estimation?: TranslationQaEstimationSummary;
+  domain?: QaDomain;
+}) {
+  const { quality, estimation } = input;
+  const passed = quality ? quality.passed : input.errorCount === 0;
+  const reviewReasons: QaReviewReason[] = [];
+  if (input.domain && QA_DOMAIN_PROFILES[input.domain].requiresHumanReview) {
+    reviewReasons.push("domain_requires_review");
+  }
+  if (!passed) reviewReasons.push("qa_failed");
+  if (estimation && estimation.belowThresholdCount > 0) {
+    reviewReasons.push("low_estimated_quality");
+  }
   return {
-    passed: quality ? quality.passed : input.errorCount === 0,
+    passed,
     qualityScore: quality ? quality.score : null,
     qualityThreshold: quality ? quality.threshold : null,
     qualityByLocale: quality
@@ -578,6 +600,10 @@ export function qaRunOutcome(input: { errorCount: number; quality?: TranslationQ
           ]),
         )
       : null,
+    estimatedQualityScore: estimation ? estimation.averageScore : null,
+    reviewSegmentCount: estimation ? estimation.belowThresholdCount : 0,
+    needsHumanReview: reviewReasons.length > 0,
+    reviewReasons,
   };
 }
 
@@ -646,7 +672,12 @@ export async function runQaChecksAction(
     ok: true,
     output: {
       runId: scan.runId,
-      ...qaRunOutcome({ errorCount, quality: run?.summary.quality }),
+      ...qaRunOutcome({
+        errorCount,
+        quality: run?.summary.quality,
+        estimation: run?.summary.estimation,
+        domain: run?.summary.qualityDomain,
+      }),
       errorCount,
       warningCount: run?.warningCount ?? 0,
       findingCount: run?.findingCount ?? 0,

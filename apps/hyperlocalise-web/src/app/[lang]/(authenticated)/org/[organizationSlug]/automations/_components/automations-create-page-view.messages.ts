@@ -238,6 +238,24 @@ export const automationsCreatePageViewMessages = defineMessages({
     id: "jYP7V6VeVA",
     description: "Step in a featured workflow's flow: QA checks run",
   },
+  workflowTemplateQaGateTitle: {
+    defaultMessage: "AI translation with a QA gate",
+    id: "lYS3k+allm",
+    description:
+      "Title of the workflow template that sends AI translations to human review only when QA asks for it",
+  },
+  workflowTemplateQaGateDescription: {
+    defaultMessage:
+      "Translates each new source file with AI and runs QA. Work that passes ships; work QA or the quality estimate flags, or content in a domain that always needs review, gets a review task per language.",
+    id: "52MHdr6Qkq",
+    description: "What the QA gate workflow template does",
+  },
+  stepReviewIfNeeded: {
+    defaultMessage: "Review if needed",
+    id: "tW1a3BKGZD",
+    description:
+      "Step in a featured workflow's flow: people review the work only when QA asks for it",
+  },
   stepFixOrShip: {
     defaultMessage: "Fix or ship",
     id: "Oo96L4uY2q",

@@ -261,6 +261,9 @@ export function QaRunStatus({
       {report.summary.guidelineCheckHaltCode || report.summary.guidelineChecksIncomplete ? (
         <QaNotice message={intl.formatMessage(m.guidelineCheckHalted)} />
       ) : null}
+      {report.summary.estimationIncomplete ? (
+        <QaNotice message={intl.formatMessage(m.qualityEstimateIncomplete)} />
+      ) : null}
       {!report.summary.checkVersion ? <QaNotice message={intl.formatMessage(m.legacy)} /> : null}
     </div>
   );

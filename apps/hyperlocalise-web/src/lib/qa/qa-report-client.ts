@@ -14,6 +14,8 @@ import { apiClient } from "@/lib/api-client-instance";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import type { QaCheckPolicy } from "./qa-policy";
 import type { QaScoringPolicy, TranslationQaQuality } from "./qa-scoring";
+import type { QaDomain } from "./quality-domains";
+import type { TranslationQaEstimationSummary } from "./types";
 
 type OrgParams = { organizationSlug: string };
 type ProjectParams = OrgParams & { projectId: string };
@@ -130,6 +132,9 @@ export type ProjectQaReport = {
     guidelineChecksIncomplete?: boolean;
     guidelineKnowledgeSkipped?: boolean;
     quality?: TranslationQaQuality;
+    estimation?: TranslationQaEstimationSummary;
+    estimationIncomplete?: boolean;
+    qualityDomain?: QaDomain;
   };
   errorCode: string | null;
   errorMessage: string | null;
