@@ -14,6 +14,11 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { getWorkosAuthkitIssuerUrl } from "@/lib/workos/config";
 
+import { integrationSlugs } from "@/components/marketing/integrations/integrations-page-content";
+import { productSlugs } from "@/components/marketing/product/product-page-content";
+import { useCaseSlugs } from "@/components/marketing/use-case/use-case-page-content";
+import { getAllPosts } from "@/lib/blog/blog-post";
+
 import { GET } from "./route";
 
 vi.mock("@/lib/workos/config", async (importOriginal) => {
@@ -38,49 +43,43 @@ describe("llms.txt route", () => {
     expect(body).toContain(
       "> Hyperlocalise is the best agentic localisation platform — an AI workforce that helps teams launch globally in days, built so localisation managers can thrive.",
     );
-    expect(body).toContain(
-      "The product experience is designed for localisation managers who need control without busywork",
-    );
     expect(body).toContain("## Product");
-    expect(body).toContain(
-      "[Agent Automation](https://www.hyperlocalise.com/en/product/agents-automation): The workflow for multilingual content operations.",
-    );
-    expect(body).not.toContain("content operations..");
-    expect(body).toContain(
-      "[Multilingual Content Studio](https://www.hyperlocalise.com/en/product/multilingual-content-studio): Create and adapt every content format in one multilingual workspace.",
-    );
-    expect(body).toContain(
-      "[Guidelines](https://www.hyperlocalise.com/en/product/guidelines): Connect Google Drive, Notion, and SharePoint, or type guidelines in, so agents can check drafts against your files.",
-    );
-    expect(body).toContain(
-      "[Domains](https://www.hyperlocalise.com/en/product/domains): Publish once. Get found everywhere.",
-    );
-    expect(body).toContain(
-      "[Hyperlab](https://www.hyperlocalise.com/en/product/hyperlab): Try it in one market. Keep what works.",
-    );
-    expect(body).toContain("https://www.hyperlocalise.com/en/use-cases/");
+    expect(body).toContain("## Use cases");
     expect(body).toContain("## Integrations");
-    expect(body).toContain(
-      "[GitHub](https://www.hyperlocalise.com/en/integrations/github): Catch missing translations before a GitHub pull request merges.",
-    );
+    expect(body).toContain("## Blog");
     expect(body).toContain("https://hyperlocalise.dev");
     expect(body).toContain("## Agents");
     expect(body).toContain("[Agent registration](https://www.hyperlocalise.com/auth.md)");
-    expect(body).toContain("register a coding agent with AuthKit");
-    expect(body).toContain(
-      "[Pricing](https://www.hyperlocalise.com/en/pricing): Compare Free, Starter, Growth, and Enterprise plans for Hyperlocalise — agentic localisation for teams shipping global product content.",
-    );
-    expect(body).toContain(
-      "[Company](https://www.hyperlocalise.com/en/company): Meet the Hyperlocalise founders and our mission: an AI workforce that acts like your team of local experts.",
-    );
-    expect(body).toContain(
-      "[Contact](https://www.hyperlocalise.com/en/contact): Reach the Hyperlocalise team.",
-    );
-    expect(body).toContain(
-      "[Iris](https://www.hyperlocalise.com/en/iris): Iris is Hyperlocalise's AI localisation engine for multilingual assets. It creates and localises images, video, motion, and audio for every language.",
-    );
+    expect(body).toContain("https://www.hyperlocalise.com/llms-full.txt");
+    expect(body).not.toContain("..");
+    expect(body).not.toContain("| Hyperlocalise");
     expect(body).not.toContain("github.com/hyperlocalise");
-    expect(body).not.toContain("mailto:minh@hyperlocalise.com");
+    expect(body).not.toContain("mailto:");
+  });
+
+  it("links every product, use case, integration, and English blog post", async () => {
+    const body = await GET().text();
+
+    for (const slug of productSlugs) {
+      expect(body).toContain(`(https://www.hyperlocalise.com/en/product/${slug})`);
+    }
+    for (const slug of useCaseSlugs) {
+      expect(body).toContain(`(https://www.hyperlocalise.com/en/use-cases/${slug})`);
+    }
+    for (const slug of integrationSlugs) {
+      expect(body).toContain(`(https://www.hyperlocalise.com/en/integrations/${slug})`);
+    }
+    for (const post of getAllPosts("en")) {
+      expect(body).toContain(`(https://www.hyperlocalise.com/en/blog/${post.slug}.md)`);
+    }
+  });
+
+  it("uses short product names as link text", async () => {
+    const body = await GET().text();
+
+    expect(body).toContain(
+      "[Agent Automation](https://www.hyperlocalise.com/en/product/agents-automation)",
+    );
   });
 
   it("omits AuthKit registration when the AuthKit domain is unset", async () => {

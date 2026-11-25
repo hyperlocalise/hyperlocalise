@@ -99,4 +99,26 @@ describe("sitemap", () => {
       expect(audit?.alternates?.languages?.["x-default"]).toBe(`${SITE_URL}/en/localisation-audit`);
     }
   });
+
+  it("lists every URL once", async () => {
+    const entries = await sitemap();
+    const urls = entries.map((entry) => entry.url);
+
+    expect(new Set(urls).size).toBe(urls.length);
+  });
+
+  it("uses content dates for lastModified instead of the build time", async () => {
+    const first = await sitemap();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const second = await sitemap();
+
+    expect(second.map((entry) => String(entry.lastModified))).toEqual(
+      first.map((entry) => String(entry.lastModified)),
+    );
+
+    for (const entry of first) {
+      expect(entry.lastModified).toBeInstanceOf(Date);
+      expect(Number.isNaN((entry.lastModified as Date).getTime())).toBe(false);
+    }
+  });
 });

@@ -22,6 +22,10 @@ export interface Post {
   slug: string;
   title: string;
   date: string;
+  /** ISO date of the last meaningful edit. Falls back to `date` when unset. */
+  updated?: string;
+  /** Key into `BLOG_AUTHORS`. Posts without one are credited to Hyperlocalise. */
+  author?: string;
   excerpt: string;
   category: string;
   coverImage?: string;
@@ -65,6 +69,8 @@ function normalizePost(slug: string, data: Record<string, unknown>, content: str
     slug,
     title: frontmatterString(data.title),
     date: frontmatterDate(data.date),
+    updated: data.updated == null ? undefined : frontmatterDate(data.updated) || undefined,
+    author: typeof data.author === "string" && data.author.trim() ? data.author.trim() : undefined,
     excerpt: frontmatterString(data.excerpt),
     category: frontmatterString(data.category, DEFAULT_CATEGORY),
     coverImage: typeof data.coverImage === "string" ? data.coverImage : undefined,
@@ -98,6 +104,11 @@ export function parseBlogPostDate(date: string): Date | null {
   }
 
   return new Date(timestamp);
+}
+
+/** Last meaningful edit, falling back to the publish date. */
+export function getBlogPostLastModified(post: Pick<Post, "date" | "updated">): Date | null {
+  return parseBlogPostDate(post.updated ?? "") ?? parseBlogPostDate(post.date);
 }
 
 export function getPostSlugs(locale: string) {

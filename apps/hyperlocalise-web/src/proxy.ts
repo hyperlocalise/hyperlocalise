@@ -252,12 +252,12 @@ export const config = {
   matcher: [
     // Exclude opaque UUID roots (BotID challenge scripts) so locale proxy does not 404 them.
     // Exclude /auth.md so the AuthKit agent skill is not wrapped in a session proxy.
-    // Exclude /llms.txt so coding agents can read the public index without locale 404s.
+    // Exclude /llms.txt and /llms-full.txt so coding agents can read them without locale 404s.
     // Exclude /api and /mcp from the locale matcher; re-include them below so AuthKit
     // still runs. /mcp/callback and /mcp/consent call withAuth() and throw if skipped.
     // favicon.ico skips AuthKit; serve it from public/favicon.ico so the request never
     // falls through to /[lang] and root layout withAuth() (AuthKit "not covered" error).
-    "/((?!_next/static|_next/image|favicon.ico|images|api|mcp|auth\\.md|llms\\.txt|\\.well-known|install|sitemap\\.xml|robots\\.txt|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}).*)",
+    "/((?!_next/static|_next/image|favicon.ico|images|api|mcp|auth\\.md|llms\\.txt|llms-full\\.txt|\\.well-known|install|sitemap\\.xml|robots\\.txt|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}).*)",
     "/api/:path*",
     "/mcp/:path*",
   ],

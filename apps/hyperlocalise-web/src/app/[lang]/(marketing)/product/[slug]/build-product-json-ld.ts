@@ -16,6 +16,7 @@ import type { SoftwareApplication, WithContext } from "schema-dts";
 import type { ProductPageSlug } from "@/components/marketing/product/product-page-content";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import type { AppLocale } from "@/lib/app-i18n/locales";
+import { ORGANIZATION_JSON_LD_ID } from "@/components/seo/organization-json-ld";
 import { jsonLdInLanguage } from "@/lib/seo/json-ld-in-language";
 import { SITE_URL } from "@/lib/seo/site-url";
 
@@ -183,10 +184,6 @@ export function buildProductJsonLd(
     url: `${SITE_URL}/${locale}/product/${slug}`,
     applicationCategory: "BusinessApplication",
     operatingSystem: "Cloud",
-    provider: {
-      "@type": "Organization",
-      name: "Hyperlocalise",
-      url: SITE_URL,
-    },
+    provider: { "@id": ORGANIZATION_JSON_LD_ID },
   };
 }

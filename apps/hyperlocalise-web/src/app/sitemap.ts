@@ -16,13 +16,18 @@ import { productSlugs } from "@/components/marketing/product/product-page-conten
 import { integrationSlugs } from "@/components/marketing/integrations/integrations-page-content";
 import { useCaseSlugs } from "@/components/marketing/use-case/use-case-page-content";
 import { SUPPORTED_APP_LOCALES, type AppLocale } from "@/lib/app-i18n/locales";
-import { getAllPosts, getPostBySlug, parseBlogPostDate } from "@/lib/blog/blog-post";
+import { getAllPosts, getBlogPostLastModified, getPostBySlug } from "@/lib/blog/blog-post";
 import { getBlogPostPath } from "@/lib/blog/blog-post-path";
 import { listCompletedLocalisationAuditSlugs } from "@/lib/localisation-audit/store";
 import {
   getLocalizedAbsoluteUrl,
   getSitemapLanguageAlternates,
 } from "@/lib/seo/localized-alternates";
+import {
+  getMarketingPageLastModified,
+  getMarketingSectionLastModified,
+  type MarketingPagePath,
+} from "@/lib/seo/marketing-last-modified";
 import { SITE_URL } from "@/lib/seo/site-url";
 
 function localizedSitemapEntry({
@@ -52,23 +57,32 @@ function localizedSitemapEntry({
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
-  const localizedStaticPaths = [
-    { path: "/", changeFrequency: "weekly" as const, priority: 1 },
-    { path: "/pricing", changeFrequency: "weekly" as const, priority: 0.9 },
-    { path: "/company", changeFrequency: "monthly" as const, priority: 0.8 },
-    { path: "/contact", changeFrequency: "monthly" as const, priority: 0.6 },
-    { path: "/startups", changeFrequency: "monthly" as const, priority: 0.8 },
-    { path: "/iris", changeFrequency: "weekly" as const, priority: 0.85 },
-    { path: "/localisation-audit", changeFrequency: "weekly" as const, priority: 0.85 },
-    { path: "/integrations", changeFrequency: "monthly" as const, priority: 0.8 },
-    { path: "/terms", changeFrequency: "monthly" as const, priority: 0.5 },
-    { path: "/privacy", changeFrequency: "monthly" as const, priority: 0.5 },
+  const localizedStaticPaths: {
+    path: MarketingPagePath;
+    changeFrequency: NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]>;
+    priority: number;
+  }[] = [
+    { path: "/", changeFrequency: "weekly", priority: 1 },
+    { path: "/pricing", changeFrequency: "weekly", priority: 0.9 },
+    { path: "/company", changeFrequency: "monthly", priority: 0.8 },
+    { path: "/contact", changeFrequency: "monthly", priority: 0.6 },
+    { path: "/startups", changeFrequency: "monthly", priority: 0.8 },
+    { path: "/iris", changeFrequency: "weekly", priority: 0.85 },
+    { path: "/localisation-audit", changeFrequency: "weekly", priority: 0.85 },
+    { path: "/integrations", changeFrequency: "monthly", priority: 0.8 },
+    { path: "/terms", changeFrequency: "monthly", priority: 0.5 },
+    { path: "/privacy", changeFrequency: "monthly", priority: 0.5 },
   ];
 
   const localizedStaticEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.flatMap((locale) =>
     localizedStaticPaths.map(({ path, changeFrequency, priority }) =>
-      localizedSitemapEntry({ locale, path, lastModified: now, changeFrequency, priority }),
+      localizedSitemapEntry({
+        locale,
+        path,
+        lastModified: getMarketingPageLastModified(path),
+        changeFrequency,
+        priority,
+      }),
     ),
   );
 
@@ -77,7 +91,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       localizedSitemapEntry({
         locale,
         path: `/product/${slug}`,
-        lastModified: now,
+        lastModified: getMarketingSectionLastModified("product", slug),
         changeFrequency: "monthly",
         priority: 0.8,
       }),
@@ -89,7 +103,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       localizedSitemapEntry({
         locale,
         path: `/use-cases/${slug}`,
-        lastModified: now,
+        lastModified: getMarketingSectionLastModified("useCase", slug),
         changeFrequency: "monthly",
         priority: 0.8,
       }),
@@ -101,32 +115,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       localizedSitemapEntry({
         locale,
         path: `/integrations/${slug}`,
-        lastModified: now,
+        lastModified: getMarketingSectionLastModified("integration", slug),
         changeFrequency: "monthly",
         priority: 0.75,
       }),
     ),
   );
 
-  const integrationsIndexEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.map((locale) =>
-    localizedSitemapEntry({
-      locale,
-      path: "/integrations",
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    }),
-  );
+  const blogIndexEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.flatMap((locale) => {
+    const newestPost = getAllPosts(locale)
+      .map((post) => getBlogPostLastModified(post))
+      .filter((date): date is Date => date != null)
+      .sort((a, b) => b.getTime() - a.getTime())[0];
 
-  const blogIndexEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.map((locale) =>
-    localizedSitemapEntry({
-      locale,
-      path: "/blog",
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.7,
-    }),
-  );
+    if (!newestPost) {
+      return [];
+    }
+
+    return [
+      localizedSitemapEntry({
+        locale,
+        path: "/blog",
+        lastModified: newestPost,
+        changeFrequency: "weekly",
+        priority: 0.7,
+      }),
+    ];
+  });
 
   const blogPostEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.flatMap((locale) =>
     getAllPosts(locale).flatMap((post) => {
@@ -135,7 +150,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         return [];
       }
 
-      const lastModified = parseBlogPostDate(post.date);
+      const lastModified = getBlogPostLastModified(post);
       if (!lastModified) {
         return [];
       }
@@ -165,7 +180,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         localizedSitemapEntry({
           locale,
           path: `/localisation-audit/${audit.domainSlug}`,
-          lastModified: audit.completedAt ?? now,
+          lastModified: audit.completedAt ?? getMarketingPageLastModified("/localisation-audit"),
           changeFrequency: "monthly",
           priority: 0.6,
         }),
@@ -179,13 +194,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...localizedStaticEntries,
     {
       url: `${SITE_URL}/install`,
-      lastModified: now,
+      lastModified: getMarketingPageLastModified("/install"),
       changeFrequency: "weekly",
       priority: 0.8,
     },
     ...productEntries,
     ...useCaseEntries,
-    ...integrationsIndexEntries,
     ...integrationEntries,
     ...blogIndexEntries,
     ...blogPostEntries,

@@ -37,6 +37,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 import { buildProductJsonLd } from "./build-product-json-ld";
+import { buildProductBreadcrumbJsonLd } from "./build-product-breadcrumb-json-ld";
 import { getProductRouteMetadata } from "./product-route-metadata";
 
 const productJsonLdSlugs = new Set<string>(productSlugs);
@@ -143,10 +144,14 @@ export default async function ProductRoutePage({ params }: ProductRouteProps) {
   const jsonLd = productJsonLdSlugs.has(slug)
     ? buildProductJsonLd(slug as ProductPageSlug, locale)
     : null;
+  const breadcrumbJsonLd = productJsonLdSlugs.has(slug)
+    ? buildProductBreadcrumbJsonLd(slug as ProductPageSlug, locale)
+    : null;
 
   return (
     <>
       {jsonLd ? <JsonLd data={jsonLd} /> : null}
+      {breadcrumbJsonLd ? <JsonLd data={breadcrumbJsonLd} /> : null}
       {page}
     </>
   );

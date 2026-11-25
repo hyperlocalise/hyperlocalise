@@ -13,14 +13,18 @@
 import type { Organization, WithContext } from "schema-dts";
 
 import { brandLogomarkAbsoluteUrl } from "@/lib/brand/brand-assets";
+import { SITE_URL } from "@/lib/seo/site-url";
+
+/** Other JSON-LD nodes point at the Organization with `{ "@id": ORGANIZATION_JSON_LD_ID }`. */
+export const ORGANIZATION_JSON_LD_ID = `${SITE_URL}/#organization`;
 
 export function buildOrganizationJsonLd(): WithContext<Organization> {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "@id": "https://www.hyperlocalise.com/#organization",
+    "@id": ORGANIZATION_JSON_LD_ID,
     name: "Hyperlocalise",
-    url: "https://www.hyperlocalise.com",
+    url: SITE_URL,
     logo: {
       "@type": "ImageObject",
       url: brandLogomarkAbsoluteUrl,

@@ -30,6 +30,8 @@ import {
   normalizeAppLocale,
   SUPPORTED_APP_LOCALES,
 } from "@/lib/app-i18n/locales";
+import { JsonLd } from "@/components/seo/json-ld";
+import { buildBreadcrumbJsonLd, stripBrandTitleSuffix } from "@/lib/seo/breadcrumb-json-ld";
 import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
 import { getUseCaseRouteMetadata } from "./use-case-route-metadata";
@@ -94,13 +96,22 @@ export default async function UseCaseRoutePage({ params }: UseCaseRouteProps) {
   const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
   const faqSlug = slug as UseCaseFaqSlug;
   const faqCopy = getUseCaseFaqSectionCopy(faqSlug, locale);
+  const metadata = getUseCaseRouteMetadata(slug, getIntlShape(locale));
+  const breadcrumbJsonLd = metadata
+    ? buildBreadcrumbJsonLd(locale, [
+        { name: stripBrandTitleSuffix(metadata.title), path: `/use-cases/${slug}` },
+      ])
+    : null;
 
   return (
-    <UseCasePage
-      page={content}
-      faqItems={getUseCaseFaqItems(faqSlug, locale)}
-      faqHeading={faqCopy.heading}
-      faqSubheading={faqCopy.subheading}
-    />
+    <>
+      {breadcrumbJsonLd ? <JsonLd data={breadcrumbJsonLd} /> : null}
+      <UseCasePage
+        page={content}
+        faqItems={getUseCaseFaqItems(faqSlug, locale)}
+        faqHeading={faqCopy.heading}
+        faqSubheading={faqCopy.subheading}
+      />
+    </>
   );
 }

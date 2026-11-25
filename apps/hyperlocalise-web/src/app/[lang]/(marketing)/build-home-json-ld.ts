@@ -14,7 +14,9 @@ import type { WebApplication, WithContext } from "schema-dts";
 
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import type { AppLocale } from "@/lib/app-i18n/locales";
+import { ORGANIZATION_JSON_LD_ID } from "@/components/seo/organization-json-ld";
 import { jsonLdInLanguage } from "@/lib/seo/json-ld-in-language";
+import { getLocalizedAbsoluteUrl } from "@/lib/seo/localized-alternates";
 
 export function buildHomeJsonLd(locale: AppLocale): WithContext<WebApplication> & object {
   const intl = getIntlShape(locale);
@@ -24,7 +26,8 @@ export function buildHomeJsonLd(locale: AppLocale): WithContext<WebApplication> 
     "@type": "WebApplication",
     inLanguage: jsonLdInLanguage(locale),
     name: "Hyperlocalise",
-    applicationCategory: "DeveloperApplication",
+    url: getLocalizedAbsoluteUrl(locale, "/"),
+    applicationCategory: "BusinessApplication",
     operatingSystem: "Cloud",
     offers: {
       "@type": "Offer",
@@ -35,10 +38,6 @@ export function buildHomeJsonLd(locale: AppLocale): WithContext<WebApplication> 
       }),
       availability: "https://schema.org/InStock",
     },
-    provider: {
-      "@type": "Organization",
-      name: "Hyperlocalise",
-      url: "https://hyperlocalise.com",
-    },
+    provider: { "@id": ORGANIZATION_JSON_LD_ID },
   };
 }

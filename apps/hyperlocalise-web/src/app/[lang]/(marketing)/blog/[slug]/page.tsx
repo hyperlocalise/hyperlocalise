@@ -16,6 +16,7 @@ import { notFound } from "next/navigation";
 
 import { BlogPostPage } from "@/components/marketing/blog/blog-post-page";
 import { JsonLd } from "@/components/seo/json-ld";
+import { ORGANIZATION_JSON_LD_ID } from "@/components/seo/organization-json-ld";
 import { brandLogomarkAbsoluteUrl } from "@/lib/brand/brand-assets";
 import { jsonLdInLanguage } from "@/lib/seo/json-ld-in-language";
 import {
@@ -24,7 +25,12 @@ import {
   SUPPORTED_APP_LOCALES,
   type AppLocale,
 } from "@/lib/app-i18n/locales";
+import { getBlogAuthor } from "@/lib/blog/blog-authors";
 import { getPostBySlug, getPostSlugs, getRelevantPosts } from "@/lib/blog/blog-post";
+import { getBlogPostMarkdownUrl } from "@/lib/blog/blog-post-markdown";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+import { buildBreadcrumbJsonLd, stripBrandTitleSuffix } from "@/lib/seo/breadcrumb-json-ld";
+import { getBlogRouteMetadata } from "../blog-route-metadata";
 import { getBlogPostPath } from "@/lib/blog/blog-post-path";
 import { getBlogPostCoverAbsoluteUrl } from "@/lib/blog/get-blog-post-cover-url";
 import { markdownToHtml } from "@/lib/blog/markdown-to-html";
@@ -61,20 +67,26 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
 
   const imageUrl = getBlogPostCoverAbsoluteUrl(post, locale, SITE_URL);
   const availableLocales = getLocalesWithBlogPost(slug);
+  const author = getBlogAuthor(post.author);
 
   return {
     title: `${post.title} | Hyperlocalise`,
     description: post.excerpt,
-    alternates: getLocalizedAlternates({
-      locale,
-      path: `/blog/${post.slug}`,
-      locales: availableLocales,
-    }),
+    alternates: {
+      ...getLocalizedAlternates({
+        locale,
+        path: `/blog/${post.slug}`,
+        locales: availableLocales,
+      }),
+      types: { "text/markdown": getBlogPostMarkdownUrl(locale, post.slug) },
+    },
+    ...(author ? { authors: [{ name: author.name, url: author.profileUrl }] } : {}),
     openGraph: localizedOpenGraph(locale, `/blog/${post.slug}`, {
       title: post.title,
       description: post.excerpt,
       type: "article",
       publishedTime: post.date,
+      ...(post.updated ? { modifiedTime: post.updated } : {}),
       images: [imageUrl],
     }),
     twitter: {
@@ -93,6 +105,7 @@ function buildArticleJsonLd(
   const postPath = getBlogPostPath(locale, post.slug);
   const canonicalUrl = postPath ? `${SITE_URL}${postPath}` : `${SITE_URL}/${locale}/blog`;
   const imageUrl = getBlogPostCoverAbsoluteUrl(post, locale, SITE_URL);
+  const author = getBlogAuthor(post.author);
 
   const articleSchema: WithContext<Article> = {
     "@context": "https://schema.org",
@@ -108,13 +121,25 @@ function buildArticleJsonLd(
     description: post.excerpt,
     image: imageUrl,
     datePublished: post.date,
-    author: {
-      "@type": "Organization",
-      name: "Hyperlocalise",
-      url: SITE_URL,
-    },
+    dateModified: post.updated ?? post.date,
+    author: author
+      ? {
+          "@type": "Person",
+          name: author.name,
+          jobTitle: author.jobTitle,
+          url: author.profileUrl,
+          sameAs: [author.profileUrl],
+          worksFor: { "@id": ORGANIZATION_JSON_LD_ID },
+        }
+      : {
+          "@type": "Organization",
+          "@id": ORGANIZATION_JSON_LD_ID,
+          name: "Hyperlocalise",
+          url: SITE_URL,
+        },
     publisher: {
       "@type": "Organization",
+      "@id": ORGANIZATION_JSON_LD_ID,
       name: "Hyperlocalise",
       logo: {
         "@type": "ImageObject",
@@ -137,11 +162,17 @@ export default async function BlogPostRoute({ params }: BlogPostRouteProps) {
 
   const htmlContent = await markdownToHtml(post.content, { locale });
   const jsonLd = buildArticleJsonLd(post, locale);
+  const blogTitle = stripBrandTitleSuffix(getBlogRouteMetadata(getIntlShape(locale)).title);
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(locale, [
+    { name: blogTitle, path: "/blog" },
+    { name: post.title, path: `/blog/${post.slug}` },
+  ]);
   const relatedPosts = getRelevantPosts(slug, locale);
 
   return (
     <>
       <JsonLd data={jsonLd} />
+      <JsonLd data={breadcrumbJsonLd} />
       <BlogPostPage
         htmlContent={htmlContent}
         lang={locale}
