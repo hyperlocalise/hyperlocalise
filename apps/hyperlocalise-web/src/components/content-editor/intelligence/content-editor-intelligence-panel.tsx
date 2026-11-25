@@ -523,10 +523,8 @@ export function ContentEditorIntelligencePanel({
 
   return (
     <div
-      className={cn(
-        "flex h-full min-h-0 flex-col bg-background",
-        embedded ? "" : "lg:border-l lg:border-border",
-      )}
+      // No left border: the panel sits beside a resize handle that draws the line.
+      className="flex h-full min-h-0 flex-col bg-background"
     >
       <div className={cn("px-4 py-3", embedded ? "pt-3" : "border-b border-border")}>
         <div className="flex items-center gap-2">

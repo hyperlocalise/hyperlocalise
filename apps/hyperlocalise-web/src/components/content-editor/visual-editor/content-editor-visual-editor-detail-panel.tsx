@@ -195,7 +195,7 @@ export function ContentEditorVisualEditorDetailPanel({
           />
         </div>
 
-        <div className="border-t border-border [&>div]:lg:border-l-0">
+        <div className="border-t border-border">
           <ContentEditorIntelligencePanel
             intelligence={intelligence}
             contentKind={segment.contentKind}

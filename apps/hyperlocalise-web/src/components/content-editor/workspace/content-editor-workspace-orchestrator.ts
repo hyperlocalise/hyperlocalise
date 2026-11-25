@@ -53,7 +53,7 @@ import {
   ContentEditorSegmentTargetSync,
   type ContentEditorServerTargetSource,
 } from "./store/content-editor-segment-target-sync";
-import { composeSegmentView } from "./store/content-editor-segment-view";
+import { composeLazySegmentView, composeSegmentView } from "./store/content-editor-segment-view";
 import { ContentEditorWorkspaceUiStore } from "./store/content-editor-workspace-ui-store";
 
 import { ContentEditorGroupVariantsRegistry } from "../groups/content-editor-group-variants-store";
@@ -135,6 +135,8 @@ export class ContentEditorWorkspaceOrchestrator {
   /** Identity of the file and locale the workspace data belongs to. */
   fileScopeKey: string | null = null;
   readonly queueViewCache = new WeakMap<ContentEditorQueueSegment, ContentEditorSegment>();
+  /** Lazy views of the selected and details segments; see {@link getLazySegmentView}. */
+  readonly lazySegmentViewCache = new WeakMap<ContentEditorQueueSegment, ContentEditorSegment>();
   private controllers: WorkspaceControllerLifecycle[] = [];
   private dirtyStateDisposer?: IReactionDisposer;
   private beforeUnloadHandler?: (event: BeforeUnloadEvent) => void;
@@ -170,6 +172,7 @@ export class ContentEditorWorkspaceOrchestrator {
         fileScopedStores: false,
         controllers: false,
         queueViewCache: false,
+        lazySegmentViewCache: false,
         validationSequence: false,
         reviewSequence: false,
         fileScopeGeneration: false,
@@ -529,8 +532,37 @@ export class ContentEditorWorkspaceOrchestrator {
     });
   }
 
+  /**
+   * The same fields as {@link getSegmentView}, read lazily. One object per queue
+   * entry, so typing in the selected string does not hand every observer of the
+   * selection a new object (and re-render the whole workspace) on each keystroke.
+   */
+  getLazySegmentView(segmentId: string): ContentEditorSegment | undefined {
+    const meta = this.segmentMeta.get(segmentId);
+    if (!meta) {
+      return undefined;
+    }
+
+    const cached = this.lazySegmentViewCache.get(meta);
+    if (cached) {
+      return cached;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const workspace = this;
+    const view = composeLazySegmentView(meta, {
+      fileContext: () => workspace.fileContext,
+      draft: () => workspace.targetState(segmentId),
+      comments: () => workspace.segmentComments.get(segmentId),
+      openIssueCount: () => workspace.segments.openIssueCounts.get(segmentId),
+      intelligence: () => workspace.segmentIntelligence[segmentId],
+    });
+    this.lazySegmentViewCache.set(meta, view);
+    return view;
+  }
+
   get selectedSegmentView(): ContentEditorSegment | undefined {
-    return this.getSegmentView(this.resolvedSelectedSegmentId);
+    return this.getLazySegmentView(this.resolvedSelectedSegmentId);
   }
 
   get intelligenceSegmentId() {
@@ -544,7 +576,7 @@ export class ContentEditorWorkspaceOrchestrator {
       return undefined;
     }
 
-    return this.getSegmentView(segmentId);
+    return this.getLazySegmentView(segmentId);
   }
 
   get loadingSegmentIds(): ReadonlySet<string> {
