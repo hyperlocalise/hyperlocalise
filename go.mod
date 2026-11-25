@@ -5,7 +5,7 @@ go 1.27.3
 replace github.com/crowdin/crowdin-api-client-go => ./third_party/crowdin-api-client-go
 
 require (
-	charm.land/bubbles/v2 v2.2.1
+	charm.land/bubbles/v2 v2.2.2
 	charm.land/bubbletea/v2 v2.1.2
 	charm.land/lipgloss/v2 v2.1.1
 	charm.land/log/v2 v2.0.1
@@ -26,8 +26,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.116.0
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.51.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.53.0
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.83.0
-	github.com/aws/aws-sdk-go-v2/service/textract v1.50.0
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.84.0
+	github.com/aws/aws-sdk-go-v2/service/textract v1.51.0
 	github.com/aws/smithy-go v1.28.9
 	github.com/crowdin/crowdin-api-client-go v0.19.0
 	github.com/gobwas/glob v1.1.0
@@ -301,7 +301,7 @@ require (
 	github.com/raeperd/recvcheck v0.3.1 // indirect
 	github.com/richardlehane/mscfb v1.0.9 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
-	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/rivo/uniseg v0.4.8-0.20261110175422-3a370411ca06 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/rs/zerolog v1.35.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
