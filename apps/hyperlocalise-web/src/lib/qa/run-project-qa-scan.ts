@@ -12,9 +12,12 @@
  */
 import { and, asc, count, eq, gt, inArray, lt, ne, sql } from "drizzle-orm";
 
+import { addAiTokenUsage, trackAiCallTokenUsage } from "@/lib/billing/agent-runtime-usage";
+import type { AiTokenUsage } from "@/lib/billing/usage-control";
 import { db, schema } from "@/lib/database/client";
 import type { MessageFormat } from "@/lib/i18n/message-format";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
+import { hyperlocaliseManagedGatewayModelId } from "@/lib/providers/language-model";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
 import type { TranslationQaScanQueue } from "@/lib/workflow/types";
 
@@ -756,6 +759,7 @@ export async function estimateTranslationQaQualityPage(input: {
 
   const batches = planQualityEstimateBatches(misses);
   const fresh = new Map<string, QeEstimate>();
+  let tokenUsage: AiTokenUsage | null = null;
   await mapWithConcurrency(batches, QE_CONCURRENCY, async (batch) => {
     const result = await estimateQualityBatch(
       {
@@ -764,7 +768,12 @@ export async function estimateTranslationQaQualityPage(input: {
         domain,
         segments: batch,
       },
-      { generate: input.generate },
+      {
+        generate: input.generate,
+        onUsage: (usage) => {
+          tokenUsage = addAiTokenUsage(tokenUsage, usage);
+        },
+      },
     );
     if (isErr(result)) {
       incomplete = true;
@@ -779,6 +788,15 @@ export async function estimateTranslationQaQualityPage(input: {
       fresh.set(segment.id, estimate);
       estimates.set(segment.id, estimate);
     }
+  });
+
+  await trackAiCallTokenUsage({
+    organizationId: input.organizationId,
+    source: "translation_qa_quality_estimate",
+    tokenUsage,
+    modelId: hyperlocaliseManagedGatewayModelId,
+    credentialSource: "gateway",
+    projectId: input.projectId,
   });
 
   const rowById = new Map(rows.map((row) => [row.translationId, row]));
