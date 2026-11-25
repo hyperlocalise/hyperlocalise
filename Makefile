@@ -90,13 +90,21 @@ test-go-svc: ## run go-svc tests against live Postgres and Valkey (DATABASE_URL 
 	@test -n "$(VALKEY_URL)" || (echo "VALKEY_URL is required for go-svc integration tests" >&2 && exit 1)
 	GO_SVC_INTEGRATION=1 go test -race ./apps/go-svc/...
 
+.PHONY: test-cli-race
+test-cli-race: ## run CLI tests with the race detector (the run executor is heavily concurrent)
+	go test -race ./apps/cli/...
+
 .PHONY: test
-test: test-workspace ## run workspace-wide tests
+test: test-workspace test-cli-race ## run workspace-wide tests
 
 
 .PHONY: bench-runsvc
 bench-runsvc: ## run focused runsvc benchmarks
-	go test -run '^$$' -bench 'Benchmark(PlanTasksSharedSourceMappings|PlanTasksLarge|RunLargeBatch)' -benchmem -benchtime=20x ./apps/cli/internal/i18n/runsvc
+	go test -run '^$$' -bench 'Benchmark(PlanTasksSharedSourceMappings|PlanTasksLarge|RunLargeBatch|RunManyTargets|RunLockfileWrites|SnapshotStagedOutputsForPath)' -benchmem -benchtime=20x ./apps/cli/internal/i18n/runsvc
+
+.PHONY: bench-lockfile
+bench-lockfile: ## run lockfile save/load benchmarks
+	go test -run '^$$' -bench 'Benchmark(Save|Load)' -benchmem -benchtime=10x ./apps/cli/internal/i18n/lockfile
 
 
 .PHONY: profile-runsvc-mem

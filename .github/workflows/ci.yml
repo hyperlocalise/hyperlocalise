@@ -202,5 +202,8 @@ jobs:
       - name: Workspace tests
         run: make test-workspace
 
+      - name: CLI race tests
+        run: make test-cli-race
+
       - name: Check builds
         run: make check-build

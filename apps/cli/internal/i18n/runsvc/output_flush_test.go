@@ -25,13 +25,13 @@ func TestFlushOutputForTargetReplaceCatalogDropsDestinationOnlyKeys(t *testing.T
 	svc := newTestService()
 	svc.readFile = os.ReadFile
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path: %s", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.flushOutputForTarget(targetPath, stagedOutput{
 		entries:        map[string]string{"hello": "Colour"},
@@ -67,13 +67,13 @@ func TestFlushOutputForTargetPrunesAndMerges(t *testing.T) {
 	svc.readFile = os.ReadFile
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path: %s", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	warnings, err := svc.flushOutputForTarget(targetPath, stagedOutput{
 		entries:      map[string]string{"a": "AA", "c": "CC"},
@@ -113,10 +113,10 @@ func TestFlushOutputsSortedUniqueTargets(t *testing.T) {
 	svc := newTestService()
 	svc.readFile = os.ReadFile
 	order := make([]string, 0, 3)
-	svc.writeFile = func(path string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, _ []byte) error {
 		order = append(order, path)
 		return nil
-	}
+	})
 
 	staged := map[string]stagedOutput{
 		paths[1]: {entries: map[string]string{"k": "vb"}, targetLocale: "fr"},
@@ -152,12 +152,12 @@ func TestFlushOutputsReportsUnwrittenTargetsOnFailure(t *testing.T) {
 
 	svc := newTestService()
 	svc.readFile = os.ReadFile
-	svc.writeFile = func(path string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, _ []byte) error {
 		if path == paths[1] {
 			return errors.New("disk full")
 		}
 		return nil
-	}
+	})
 
 	staged := map[string]stagedOutput{
 		paths[0]: {entries: map[string]string{"k": "va"}, targetLocale: "fr"},
@@ -252,10 +252,10 @@ func TestFlushOutputForTargetMarkdownASTParityNoWrite(t *testing.T) {
 
 	svc := newTestService()
 	svc.readFile = os.ReadFile
-	svc.writeFile = func(path string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, _ []byte) error {
 		t.Fatalf("writeFile should not run on AST mismatch, got path %q", path)
 		return nil
-	}
+	})
 
 	_, err := svc.flushOutputForTarget(targetPath, stagedOutput{
 		entries: map[string]string{
@@ -284,7 +284,7 @@ func TestFlushOutputForTargetWrapsWriteError(t *testing.T) {
 
 	svc := newTestService()
 	svc.readFile = os.ReadFile
-	svc.writeFile = func(_ string, _ []byte) error { return errors.New("disk full") }
+	svc.writeFile = serialWriteFile(func(_ string, _ []byte) error { return errors.New("disk full") })
 
 	_, err := svc.flushOutputForTarget(targetPath, stagedOutput{
 		entries:      map[string]string{"hello": "Salut"},
@@ -312,7 +312,7 @@ func TestFlushOutputsPruneOnlyMissingTargetAfterScan(t *testing.T) {
 		}
 		return nil, errors.New("unexpected path")
 	}
-	svc.writeFile = func(_ string, _ []byte) error { return nil }
+	svc.writeFile = serialWriteFile(func(_ string, _ []byte) error { return nil })
 
 	_, err := svc.flushOutputs(context.Background(), nil, nil, map[string]map[string]struct{}{
 		targetPath: {"hello": {}},
@@ -339,13 +339,13 @@ func TestFlushOutputsPruneOnlyUsesPlannedMetadata(t *testing.T) {
 	svc.readFile = os.ReadFile
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path: %s", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.flushOutputs(context.Background(), nil, nil, map[string]map[string]struct{}{
 		targetPath: {"hello": {}},

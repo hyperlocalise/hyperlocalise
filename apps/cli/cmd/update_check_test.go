@@ -87,14 +87,20 @@ func TestLatestVersionCachesFailuresAndKeepsLastRelease(t *testing.T) {
 
 func TestUpdateCheckFinishSkipsSlowLookup(t *testing.T) {
 	release := make(chan struct{})
-	t.Cleanup(func() { close(release) })
 	stubLatestVersionFetcher(t, func(context.Context) (*semver.Version, error) {
 		<-release
 		return semver.MustParse("2.0.0"), nil
 	})
 
 	errBuffer := &bytes.Buffer{}
-	startUpdateCheck(context.Background(), "v1.0.0").finish(errBuffer, 10*time.Millisecond)
+	check := startUpdateCheck(context.Background(), "v1.0.0")
+	// Let the lookup finish before the stub is restored, so the goroutine never reads the
+	// fetcher while cleanup writes it.
+	t.Cleanup(func() {
+		close(release)
+		<-check.done
+	})
+	check.finish(errBuffer, 10*time.Millisecond)
 	if got := errBuffer.String(); got != "" {
 		t.Fatalf("expected no notice for an unfinished lookup, got %q", got)
 	}

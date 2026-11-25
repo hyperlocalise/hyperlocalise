@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -139,14 +140,50 @@ func Save(path string, f File) error {
 		f.RunCheckpoint = map[string]RunCheckpoint{}
 	}
 
-	content, err := json.MarshalIndent(encodeDiskFile(f), "", "  ")
+	// An active run saves checkpoints many times a second, so it writes compact JSON. The last
+	// save of a run clears ActiveRunID and leaves the indented file that projects commit.
+	var content []byte
+	var err error
+	if f.ActiveRunID != "" {
+		content, err = json.Marshal(encodeDiskFile(f))
+	} else {
+		content, err = json.MarshalIndent(encodeDiskFile(f), "", "  ")
+	}
 	if err != nil {
 		return fmt.Errorf("marshal lockfile: %w", err)
 	}
 	content = append(content, '\n')
 
-	if err := os.WriteFile(path, content, 0o644); err != nil {
+	if err := writeFileAtomic(path, content); err != nil {
 		return fmt.Errorf("write lockfile: %w", err)
+	}
+	return nil
+}
+
+// writeFileAtomic writes to a temp file in the same directory and renames it over path, so an
+// interrupted save leaves the previous lockfile intact instead of a truncated one.
+func writeFileAtomic(path string, content []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	if _, err := tmp.Write(content); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Chmod(tmpPath, 0o644); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
 	}
 	return nil
 }

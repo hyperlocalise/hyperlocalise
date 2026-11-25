@@ -518,10 +518,10 @@ func TestRunMaxTranslationsDefersRemainingAndContinuesWithoutForce(t *testing.T)
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		cloned := lockState
 		if cloned.RunCompleted == nil {
@@ -591,10 +591,10 @@ func TestRunMaxTranslationsWithForceRedoesHeadOfQueue(t *testing.T) {
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		cloned := lockState
 		if cloned.RunCompleted == nil {
@@ -609,9 +609,12 @@ func TestRunMaxTranslationsWithForceRedoesHeadOfQueue(t *testing.T) {
 		lockState = f
 		return nil
 	}
+	var translatedMu sync.Mutex
 	translated := map[string]int{}
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		translatedMu.Lock()
 		translated[req.Source]++
+		translatedMu.Unlock()
 		return strings.ToUpper(req.Source), nil
 	}
 
@@ -713,13 +716,13 @@ func TestRunTranslatesOnlyModifiedKeyForJSONWithLockState(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -787,10 +790,10 @@ func TestRunDryRunSkipsWrites(t *testing.T) {
 	lockSaveCount := 0
 
 	svc := newTestService()
-	svc.writeFile = func(_ string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(_ string, _ []byte) error {
 		writeCount++
 		return nil
-	}
+	})
 	svc.saveLock = func(_ string, _ lockfile.File) error {
 		lockSaveCount++
 		return nil
@@ -1093,13 +1096,13 @@ func TestRunContinueOnErrorReturnsPartialFailureReport(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -1151,10 +1154,10 @@ func TestRunKeepCompletedOnFailureResumesOnlyFailedKey(t *testing.T) {
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		cloned := lockState
 		if cloned.RunCompleted == nil {
@@ -1226,12 +1229,12 @@ func TestRunKeepCompletedOnFailureRollsBackLockWhenFinalizeWriteFails(t *testing
 		}
 		return strings.ToUpper(req.Source), nil
 	}
-	svc.writeFile = func(path string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, _ []byte) error {
 		if path == targetPath {
 			return errors.New("disk full")
 		}
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
 	if err == nil {
@@ -1287,12 +1290,12 @@ func TestRunKeepCompletedOnFailureRollsBackLaterUnwrittenTargets(t *testing.T) {
 		}
 		return strings.ToUpper(req.Source), nil
 	}
-	svc.writeFile = func(path string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, _ []byte) error {
 		if path == targetA {
 			return errors.New("disk full")
 		}
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true, Workers: 1})
 	if err == nil {
@@ -1332,13 +1335,13 @@ func TestRunKeepCompletedOnFailurePreservesPriorLockEntriesWhenFinalizeWriteFail
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if failWrite && path == targetPath {
 			return errors.New("disk full")
 		}
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		cloned := lockState
 		if cloned.RunCompleted == nil {
@@ -1553,6 +1556,67 @@ func TestRunLockWriterFlushesWhenBatchSizeReached(t *testing.T) {
 	}
 }
 
+// A slow target write must not stop the lock writer from taking other completions: the second
+// target's file has to land while the first one is still being written.
+func TestRunLockWriterDoesNotWaitOnTargetWrites(t *testing.T) {
+	svc := newTestService()
+	sources := map[string]string{
+		"/tmp/a.json": `{"a":"A"}`,
+		"/tmp/b.json": `{"b":"B"}`,
+	}
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig("/tmp/a.json", "/tmp/a-out.json")
+		bucket := cfg.Buckets["ui"]
+		bucket.Files = append(bucket.Files, config.BucketFileMapping{From: "/tmp/b.json", To: "/tmp/b-out.json"})
+		cfg.Buckets["ui"] = bucket
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		if content, ok := sources[path]; ok {
+			return []byte(content), nil
+		}
+		if strings.HasSuffix(path, "-out.json") {
+			return []byte(`{}`), nil
+		}
+		return nil, filepath.ErrBadPattern
+	}
+
+	var (
+		mu           sync.Mutex
+		writes       []string
+		secondLanded = make(chan struct{})
+	)
+	svc.writeFile = func(path string, _ []byte) error {
+		mu.Lock()
+		writes = append(writes, path)
+		first := len(writes) == 1
+		mu.Unlock()
+		if !first {
+			close(secondLanded)
+			return nil
+		}
+		select {
+		case <-secondLanded:
+			return nil
+		case <-time.After(5 * time.Second):
+			return errors.New("second target never written while the first write was in progress")
+		}
+	}
+
+	report, err := svc.Run(context.Background(), Input{Workers: 1})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.Succeeded != 2 || report.Failed != 0 {
+		t.Fatalf("unexpected report: %+v", report)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(writes) != 2 {
+		t.Fatalf("expected both targets written, got %v", writes)
+	}
+}
+
 func TestRunLockWriterFlushesOnTickerInterval(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"
@@ -1679,13 +1743,13 @@ func TestRunResumesFromCheckpointAfterInterruptedRun(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
@@ -1748,13 +1812,13 @@ func TestRunSkipsCompletedLocaleBatchAndFlushesFromCheckpoint(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
@@ -1860,13 +1924,13 @@ func TestRunPrefillOnlyPersistsLockfile(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	saveCalls := 0
 	var saved lockfile.File
@@ -2015,10 +2079,10 @@ func TestRunFailsWhenCheckpointStagingConflicts(t *testing.T) {
 	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
 		return "", errors.New("translate should not be called when everything is lock-skipped")
 	}
-	svc.writeFile = func(_ string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(_ string, _ []byte) error {
 		t.Fatalf("write should not be called on checkpoint staging conflict")
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err == nil {
@@ -2052,13 +2116,13 @@ func TestRunWritesMarkdownUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -2115,13 +2179,13 @@ func TestRunMarkdownParityScopeRetryFixesFlush(t *testing.T) {
 		return "FIXED_SEGMENT", nil
 	}
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err = svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
@@ -2160,13 +2224,13 @@ func TestRunReportsMarkdownPlaceholderFallbackWarningsFromEarlyTargetFlush(t *te
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
@@ -2213,13 +2277,13 @@ func TestRunWritesMDXUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -2266,13 +2330,13 @@ func TestRunWritesLiquidUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -2327,13 +2391,13 @@ export const messages: Messages = {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
@@ -2420,10 +2484,10 @@ func TestRunJSTSValidationRejectsMissingPlaceholder(t *testing.T) {
 	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
 		return "Bienvenue", nil
 	}
-	svc.writeFile = func(_ string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(_ string, _ []byte) error {
 		t.Fatal("write should not be called when JS/TS placeholder validation fails")
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
@@ -2472,10 +2536,10 @@ func TestRunWritesRealisticLiquidTemplateForMultipleLocales(t *testing.T) {
 	}
 
 	written := map[string]string{}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		written[filepath.ToSlash(path)] = string(content)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
@@ -2577,10 +2641,10 @@ func TestRunLiquidValidationRejectsMissingPlaceholder(t *testing.T) {
 	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
 		return "Bonjour.", nil
 	}
-	svc.writeFile = func(_ string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(_ string, _ []byte) error {
 		t.Fatal("write should not be called when Liquid placeholder validation fails")
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
@@ -2635,13 +2699,13 @@ func TestRunLiquidExistingTargetFallbackPreservesOldSegmentsAndTranslatesNewOnes
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{
 		Workers: 1,
@@ -2732,13 +2796,13 @@ func TestRunLiquidSkipsCompletedEntriesAndFlushesCheckpointedTemplate(t *testing
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
@@ -2895,13 +2959,13 @@ func TestRunWritesXLIFFWithInsertedUnitWhenExistingTargetPresent(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -2966,13 +3030,13 @@ msgstr "Ancien texte"
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -3045,13 +3109,13 @@ func TestRunWritesMarkdownWithInsertedSectionWhenExistingTargetPresent(t *testin
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err = svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -3132,13 +3196,13 @@ func TestRunMarkdownInsertionSkipsFollowingLegacyTaskHashEntries(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
@@ -3214,13 +3278,13 @@ func TestRunWritesAppleStringsUsingSourceTemplateWhenTargetMissing(t *testing.T)
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -3284,13 +3348,13 @@ return [
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -3347,13 +3411,13 @@ func TestRunWritesAppleStringsWithInsertedKeyWhenExistingTargetPresent(t *testin
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -3419,13 +3483,13 @@ func TestRunWritesAppleStringsdictUsingSourceTemplateWhenTargetMissing(t *testin
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -3494,13 +3558,13 @@ func TestRunWritesAppleStringsdictWithInsertedKeyWhenExistingTargetPresent(t *te
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -3561,13 +3625,13 @@ func TestRunWritesAndroidXMLResourcesUsingSourceTemplate(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -3612,13 +3676,13 @@ func TestRunWritesCSVUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -3666,13 +3730,13 @@ func TestRunWritesCSVPerLocaleLayoutIntoTargetLocaleColumn(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -3720,13 +3784,13 @@ func TestRunReadsTSVSourceLocaleWhenItIsNotTheFirstValueColumn(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -3773,13 +3837,13 @@ func TestRunPreservesExistingCSVTargetLocaleValuesForUnchangedKeys(t *testing.T)
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -3821,10 +3885,10 @@ func TestRunReturnsFatalErrorWhenLockWriteFails(t *testing.T) {
 	}
 
 	writeCount := 0
-	svc.writeFile = func(_ string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(_ string, _ []byte) error {
 		writeCount++
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err == nil || !strings.Contains(err.Error(), "persist lock state") {
@@ -3895,10 +3959,10 @@ func TestRunPruneWithZeroCandidatesAndNoExecutableDoesNotFail(t *testing.T) {
 		t.Fatalf("did not expect translation call with zero executable tasks")
 		return "", nil
 	}
-	svc.writeFile = func(_ string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(_ string, _ []byte) error {
 		t.Fatalf("did not expect writes when no prune candidates exist")
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Prune: true})
 	if err != nil {
@@ -3948,13 +4012,13 @@ func TestRunPruneRemovesStaleKeysForJSONAndNestedKeys(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Prune: true})
 	if err != nil {
@@ -4020,7 +4084,7 @@ func TestRunPruneRemovesStaleLockEntries(t *testing.T) {
 		}
 		return "Titre mis à jour", nil
 	}
-	svc.writeFile = func(_ string, _ []byte) error { return nil }
+	svc.writeFile = serialWriteFile(func(_ string, _ []byte) error { return nil })
 
 	_, err := svc.Run(context.Background(), Input{Prune: true})
 	if err != nil {
@@ -4070,10 +4134,10 @@ func TestRunUnscopedPrunesStaleLockWithoutPruneFlag(t *testing.T) {
 		t.Fatal("did not expect translation when all tasks are lock-skipped")
 		return "", nil
 	}
-	svc.writeFile = func(_ string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(_ string, _ []byte) error {
 		t.Fatal("did not expect writes without --prune")
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -4154,13 +4218,13 @@ func TestRunWarnsWhenJSONTargetIsMalformedAndFallsBack(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -6061,13 +6125,13 @@ msgstr "Supprimer"
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Prune: true})
 	if err != nil {
@@ -6126,13 +6190,13 @@ func TestRunPruneRemovesDeletedXLIFFUnits(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Prune: true})
 	if err != nil {
@@ -6177,12 +6241,12 @@ func TestRunContinuesWhenOneTargetFileFailsToFlush(t *testing.T) {
 
 	writes := map[string][]byte{}
 	var writeMu sync.Mutex
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		writeMu.Lock()
 		writes[path] = append([]byte(nil), content...)
 		writeMu.Unlock()
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
@@ -6239,13 +6303,13 @@ func TestRunWritesFormatJSJSONDefaultMessageOnly(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -6301,13 +6365,13 @@ func TestRunMixedDefaultMessageJSONUsesStandardNestedMode(t *testing.T) {
 	}
 
 	var written []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -6365,13 +6429,13 @@ func TestRunFlushesEachTargetOnceWithMixedTaskOutcomes(t *testing.T) {
 	}
 
 	writes := 0
-	svc.writeFile = func(path string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, _ []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path %q", path)
 		}
 		writes++
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{})
 	if err != nil {
@@ -6996,9 +7060,9 @@ func TestRunHTMLSkipsEntityOnlyCells(t *testing.T) {
 		translated = append(translated, req.Source)
 		return "Bonjour", nil
 	}
-	svc.writeFile = func(path string, data []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, data []byte) error {
 		return os.WriteFile(path, data, 0o644)
-	}
+	})
 	svc.numCPU = func() int { return 1 }
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
@@ -7061,10 +7125,10 @@ func TestRunSmokeMarkdownAndHTMLInOneGroup(t *testing.T) {
 		}
 	}
 	var written []string
-	svc.writeFile = func(path string, _ []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, _ []byte) error {
 		written = append(written, path)
 		return nil
-	}
+	})
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
 		return "FR(" + req.Source + ")", nil
 	}

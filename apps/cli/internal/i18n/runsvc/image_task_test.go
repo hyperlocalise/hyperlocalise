@@ -252,11 +252,11 @@ func TestRunImageEditWritesLocalizedImage(t *testing.T) {
 	}
 	var wrotePath string
 	var wroteContent []byte
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		wrotePath = path
 		wroteContent = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	report, err := svc.Run(context.Background(), Input{Workers: 1})
 	if err != nil {
