@@ -14,6 +14,8 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
+import { extractGenerateResultTokenUsage } from "@/lib/billing/agent-runtime-usage";
+import type { AiTokenUsage } from "@/lib/billing/usage-control";
 import { createLogger } from "@/lib/log";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
@@ -65,21 +67,27 @@ const qeOutputSchema = z.object({
 
 export type QeModelOutput = z.infer<typeof qeOutputSchema>;
 
+/** Receives the tokens of each model call so the caller can bill them. */
+export type QeUsageHandler = (tokenUsage: AiTokenUsage) => void;
+
 /** Calls the model; tests replace it. */
 export type QeGenerate = (input: {
   prompt: string;
   abortSignal?: AbortSignal;
+  onUsage?: QeUsageHandler;
 }) => Promise<QeModelOutput>;
 
-const defaultGenerate: QeGenerate = async ({ prompt, abortSignal }) => {
-  const { output } = await generateText({
+const defaultGenerate: QeGenerate = async ({ prompt, abortSignal, onUsage }) => {
+  const result = await generateText({
     model: getHyperlocaliseAgentModel(),
     output: Output.object({ schema: qeOutputSchema }),
     temperature: 0,
     abortSignal,
     prompt,
   });
-  return output;
+  const tokenUsage = extractGenerateResultTokenUsage(result);
+  if (tokenUsage) onUsage?.(tokenUsage);
+  return result.output;
 };
 
 export function buildQualityEstimatePrompt(input: QeBatchInput) {
@@ -113,7 +121,7 @@ function clampScore(score: number) {
  */
 export async function estimateQualityBatch(
   input: QeBatchInput,
-  options: { generate?: QeGenerate; signal?: AbortSignal } = {},
+  options: { generate?: QeGenerate; signal?: AbortSignal; onUsage?: QeUsageHandler } = {},
 ): Promise<Result<Map<string, QeEstimate>, QeError>> {
   if (input.segments.length === 0) return ok(new Map());
   const generate = options.generate ?? defaultGenerate;
@@ -121,7 +129,11 @@ export async function estimateQualityBatch(
   const wanted = new Set(input.segments.map((segment) => segment.id));
   for (let attempt = 1; attempt <= QE_ATTEMPTS; attempt += 1) {
     try {
-      const output = await generate({ prompt, abortSignal: options.signal });
+      const output = await generate({
+        prompt,
+        abortSignal: options.signal,
+        onUsage: options.onUsage,
+      });
       const estimates = new Map<string, QeEstimate>();
       for (const row of output.segments) {
         if (!wanted.has(row.id) || estimates.has(row.id)) continue;
