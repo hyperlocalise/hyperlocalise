@@ -1264,9 +1264,11 @@ export function getWorkspaceAutomationTemplateFlow(
           ? { id: "source-upload", label: "Source upload" }
           : triggerMode === "web_chat"
             ? { id: "web-chat", label: "Web chat" }
-            : triggerMode === "scheduled"
-              ? { id: "scheduled", label: scheduledTriggerLabel(form) }
-              : { id: "manual", label: "Manual" };
+            : triggerMode === "google_drive"
+              ? { id: "google-drive", label: "Google Drive files change" }
+              : triggerMode === "scheduled"
+                ? { id: "scheduled", label: scheduledTriggerLabel(form) }
+                : { id: "manual", label: "Manual" };
 
   const tools: WorkspaceAutomationTemplateFlowNode[] = [];
 

@@ -19,10 +19,17 @@ Connect Google Drive, choose folders or files on the Integrations page, and use 
 1. Open workspace **Automations** and create or edit an automation with the **Translate Google Drive files** skill (or apply the **Translate Google Drive files** template).
 2. Attach a native project and set source and target locales under [project Settings → Locales](/platform/projects/languages).
 3. Select the connected Google Drive folders and files to import from, then choose **Translation output**.
-4. Use a **manual** trigger or **schedule** for import. Import does not push translations to Drive.
+4. Choose a trigger. **Files change in Google Drive** starts a run when a file in the chosen folders or files is added or edited. You can also import on demand or on a schedule.
 5. Open an imported Drive file in the Content editor. **Ingest** and **Push to Google Drive** appear in the header for that file. **Ingest** queues the same import as Automations **Run now**. Use **Push to Google Drive** to write locale files back.
 
-Google Drive is not a trigger type. Use **Ingest**, **Run now**, or a schedule for import; push is a separate action.
+## Start runs when Drive files change
+
+With the **Files change in Google Drive** trigger, Hyperlocalise checks the automation's folders and files every 15 minutes. When a supported file is added or edited, it starts one run that imports the changes. Files that did not change are skipped.
+
+- Translated copies that **Push to Google Drive** writes, and target-language folders, are never counted as changes, so pushing translations does not start another run.
+- If Hyperlocalise cannot read a folder, for example after access was removed, it waits for the next check instead of starting a run.
+- If a run fails, it is not retried on every check. The next change to the files starts a new run, or use **Run now**.
+- A change can take up to 15 minutes to be picked up. Use **Ingest** or **Run now** when you need it sooner.
 
 ## Supported files
 

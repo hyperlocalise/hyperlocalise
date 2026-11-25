@@ -155,3 +155,20 @@ export function buildWorkspaceIntercomPushAutomationIdempotencyKey(input: {
     input.clientKey.trim(),
   ].join(":");
 }
+
+/**
+ * One run per state of the watched Drive files. The same files at the same versions map to the
+ * same key, so polling an unchanged selection never starts another run.
+ */
+export function buildWorkspaceGoogleDriveChangeAutomationIdempotencyKey(input: {
+  automationId: string;
+  configVersion: number;
+  selectionFingerprint: string;
+}): string {
+  return [
+    "workspace-automation:google-drive-change",
+    input.automationId,
+    String(input.configVersion),
+    input.selectionFingerprint,
+  ].join(":");
+}

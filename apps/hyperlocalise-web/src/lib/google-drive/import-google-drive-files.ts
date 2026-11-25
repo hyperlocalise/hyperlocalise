@@ -20,7 +20,7 @@ import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automatio
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import { isErr } from "@/lib/primitives/result/results";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
 import { waitForSourceFileVersionIngest } from "@/lib/intercom/wait-for-source-file-ingest";
 
@@ -254,60 +254,40 @@ async function loadIngestBuffer(input: {
   };
 }
 
-export async function runImportGoogleDriveFiles(input: {
+function readProjectTargetLocales(project: { targetLocales: unknown }) {
+  return Array.isArray(project.targetLocales)
+    ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
+    : [];
+}
+
+/**
+ * Lists the Drive files an automation's folders and files resolve to, without downloading them.
+ * The importer and the change trigger share it so both see the same selection.
+ */
+async function collectGoogleDriveFiles(input: {
   organizationId: string;
-  automation: WorkspaceAutomationRecord;
-  workflowRunId?: string;
-}): Promise<ImportGoogleDriveFilesResult> {
-  const config = readGoogleDriveConfig(input.automation);
-  const projectId = input.automation.projectId?.trim();
-  if (!projectId) {
-    throw new Error("project_not_found");
-  }
-  const [project] = await db
-    .select()
-    .from(schema.projects)
-    .where(
-      and(
-        eq(schema.projects.id, projectId),
-        eq(schema.projects.organizationId, input.organizationId),
-      ),
-    )
-    .limit(1);
-  if (!project || project.source !== "native") {
-    throw new Error("google_drive_native_project_required");
-  }
-
-  const tokenResult = await loadGoogleDrivePipesAccessToken({
-    localOrganizationId: input.organizationId,
-    workosUserId: config.workosUserId!,
-  });
-  if (isErr(tokenResult)) {
-    throw new Error(tokenResult.error.code);
-  }
-  const accessToken = tokenResult.value;
-
+  accessToken: string;
+  folderIds: readonly string[];
+  fileIds: readonly string[];
+  includeTranslatedFiles: boolean;
+  translationOutput: GoogleDriveTranslationOutput;
+  targetLocales: readonly string[];
+}): Promise<{ files: WalkFile[]; collectionFailures: number; truncated: boolean }> {
+  const { accessToken, includeTranslatedFiles, translationOutput, targetLocales } = input;
   const folders =
-    config.folderIds.length > 0
+    input.folderIds.length > 0
       ? await db
           .select()
           .from(schema.googleDriveFolders)
           .where(
             and(
               eq(schema.googleDriveFolders.organizationId, input.organizationId),
-              inArray(schema.googleDriveFolders.id, config.folderIds),
+              inArray(schema.googleDriveFolders.id, [...input.folderIds]),
             ),
           )
       : [];
 
   const toImport: WalkFile[] = [];
-  const translationOutput = resolveGoogleDriveTranslationOutput(config.translationOutput);
-  const includeTranslatedFiles = config.includeTranslatedFiles ?? false;
-  const explicitFileIds = new Set(config.fileIds ?? []);
-  const projectTargets = Array.isArray(project.targetLocales)
-    ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
-    : [];
-  const targetLocales = resolveGoogleDrivePushTargetLocales(input.automation, projectTargets);
   let collectionFailures = 0;
   const hitImportCap = { value: false };
 
@@ -377,7 +357,7 @@ export async function runImportGoogleDriveFiles(input: {
     });
   }
 
-  for (const fileId of config.fileIds ?? []) {
+  for (const fileId of input.fileIds) {
     await collectDriveItem({
       fileId,
       driveId: null,
@@ -386,8 +366,147 @@ export async function runImportGoogleDriveFiles(input: {
     });
   }
 
-  const truncated = hitImportCap.value ? 1 : 0;
-  const filesToProcess = toImport;
+  return { files: toImport, collectionFailures, truncated: hitImportCap.value };
+}
+
+export type GoogleDriveSelectionFingerprintError = {
+  code:
+    | "google_drive_not_configured"
+    | "google_drive_folders_required"
+    | "project_not_found"
+    | "google_drive_native_project_required"
+    | "google_drive_token_unavailable"
+    | "google_drive_selection_unreadable";
+};
+
+/**
+ * A hash of every file the automation would import, by id, modified time and checksum. It
+ * changes when a file is added, removed, renamed into place or edited. Translation outputs are
+ * always left out, so pushing translations back into the same folders never counts as a change.
+ */
+export async function computeGoogleDriveSelectionFingerprint(input: {
+  organizationId: string;
+  automation: WorkspaceAutomationRecord;
+}): Promise<
+  Result<{ fingerprint: string; fileCount: number }, GoogleDriveSelectionFingerprintError>
+> {
+  const googleDrive = input.automation.toolConfig.googleDrive;
+  if (!googleDrive?.enabled || !googleDrive.workosUserId) {
+    return err({ code: "google_drive_not_configured" });
+  }
+  if (!googleDrive.folderIds?.length && !googleDrive.fileIds?.length) {
+    return err({ code: "google_drive_folders_required" });
+  }
+  const projectId = input.automation.projectId?.trim();
+  if (!projectId) {
+    return err({ code: "project_not_found" });
+  }
+  const [project] = await db
+    .select({ source: schema.projects.source, targetLocales: schema.projects.targetLocales })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.id, projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+  if (!project || project.source !== "native") {
+    return err({ code: "google_drive_native_project_required" });
+  }
+
+  const tokenResult = await loadGoogleDrivePipesAccessToken({
+    localOrganizationId: input.organizationId,
+    workosUserId: googleDrive.workosUserId,
+  });
+  if (isErr(tokenResult)) {
+    return err({ code: "google_drive_token_unavailable" });
+  }
+
+  const collection = await collectGoogleDriveFiles({
+    organizationId: input.organizationId,
+    accessToken: tokenResult.value,
+    folderIds: googleDrive.folderIds,
+    fileIds: googleDrive.fileIds ?? [],
+    includeTranslatedFiles: false,
+    translationOutput: resolveGoogleDriveTranslationOutput(googleDrive.translationOutput),
+    targetLocales: resolveGoogleDrivePushTargetLocales(
+      input.automation,
+      readProjectTargetLocales(project),
+    ),
+  });
+  // A partial listing would look like a change and start a run for files that did not move.
+  if (collection.collectionFailures > 0) {
+    return err({ code: "google_drive_selection_unreadable" });
+  }
+
+  return ok({
+    fingerprint: fingerprintGoogleDriveFiles(collection.files),
+    fileCount: collection.files.length,
+  });
+}
+
+export function fingerprintGoogleDriveFiles(
+  files: readonly Pick<WalkFile, "fileId" | "modifiedTime" | "md5Checksum">[],
+) {
+  const lines = files
+    .map((file) => `${file.fileId}:${file.modifiedTime ?? ""}:${file.md5Checksum ?? ""}`)
+    .sort();
+  return createHash("sha256").update(lines.join("\n")).digest("hex");
+}
+
+export async function runImportGoogleDriveFiles(input: {
+  organizationId: string;
+  automation: WorkspaceAutomationRecord;
+  workflowRunId?: string;
+}): Promise<ImportGoogleDriveFilesResult> {
+  const config = readGoogleDriveConfig(input.automation);
+  const projectId = input.automation.projectId?.trim();
+  if (!projectId) {
+    throw new Error("project_not_found");
+  }
+  const [project] = await db
+    .select()
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.id, projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+  if (!project || project.source !== "native") {
+    throw new Error("google_drive_native_project_required");
+  }
+
+  const tokenResult = await loadGoogleDrivePipesAccessToken({
+    localOrganizationId: input.organizationId,
+    workosUserId: config.workosUserId!,
+  });
+  if (isErr(tokenResult)) {
+    throw new Error(tokenResult.error.code);
+  }
+  const accessToken = tokenResult.value;
+
+  const translationOutput = resolveGoogleDriveTranslationOutput(config.translationOutput);
+  const includeTranslatedFiles = config.includeTranslatedFiles ?? false;
+  const explicitFileIds = new Set(config.fileIds ?? []);
+  const targetLocales = resolveGoogleDrivePushTargetLocales(
+    input.automation,
+    readProjectTargetLocales(project),
+  );
+  const collection = await collectGoogleDriveFiles({
+    organizationId: input.organizationId,
+    accessToken,
+    folderIds: config.folderIds,
+    fileIds: config.fileIds ?? [],
+    includeTranslatedFiles,
+    translationOutput,
+    targetLocales,
+  });
+  const collectionFailures = collection.collectionFailures;
+  const truncated = collection.truncated ? 1 : 0;
+  const filesToProcess = collection.files;
 
   let imported = 0;
   let skipped = 0;

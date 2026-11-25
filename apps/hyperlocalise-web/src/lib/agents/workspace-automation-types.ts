@@ -110,6 +110,7 @@ export const workspaceAutomationRunTriggerSourceSchema = z.enum([
   "contentful",
   "source_upload",
   "web_chat",
+  "google_drive",
 ]);
 
 export const WORKSPACE_AUTOMATION_NAME_MAX_CHARS = 120;
@@ -150,7 +151,15 @@ export function workspaceAutomationGithubEventsInclude(
 export const triggerConfigSchema = z
   .object({
     mode: z
-      .enum(["manual", "scheduled", "github", "contentful", "source_upload", "web_chat"])
+      .enum([
+        "manual",
+        "scheduled",
+        "github",
+        "contentful",
+        "source_upload",
+        "web_chat",
+        "google_drive",
+      ])
       .default("manual"),
     schedule: z
       .object({
@@ -1120,6 +1129,10 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "source_upload_workflow_required";
       message: "Source upload triggers require Create job to be enabled.";
+    }
+  | {
+      code: "google_drive_trigger_requires_files";
+      message: "The Google Drive trigger needs Google Drive folders or files to watch.";
     }
   | {
       code: "mcp_connection_required";

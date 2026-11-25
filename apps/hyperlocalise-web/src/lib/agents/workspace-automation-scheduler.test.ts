@@ -15,6 +15,7 @@ import { describe, expect, it, vi, beforeEach } from "vite-plus/test";
 const listDueWorkspaceAutomations = vi.fn();
 const repairMissingScheduledWorkspaceAutomationNextRuns = vi.fn();
 const dispatchDueContentfulWorkspaceAutomations = vi.fn();
+const dispatchChangedGoogleDriveWorkspaceAutomations = vi.fn();
 const dispatchWorkspaceAutomationForScheduleAndAdvance = vi.fn();
 const buildWorkspaceOrchestratorPlan = vi.fn();
 
@@ -25,6 +26,8 @@ vi.mock("./workspace-automations", () => ({
 }));
 
 vi.mock("./workspace-automation-dispatcher", () => ({
+  dispatchChangedGoogleDriveWorkspaceAutomations: (...args: unknown[]) =>
+    dispatchChangedGoogleDriveWorkspaceAutomations(...args),
   dispatchDueContentfulWorkspaceAutomations: (...args: unknown[]) =>
     dispatchDueContentfulWorkspaceAutomations(...args),
   dispatchWorkspaceAutomationForScheduleAndAdvance: (...args: unknown[]) =>
@@ -50,6 +53,8 @@ describe("runWorkspaceAutomationScheduler", () => {
     repairMissingScheduledWorkspaceAutomationNextRuns.mockReset();
     repairMissingScheduledWorkspaceAutomationNextRuns.mockResolvedValue(0);
     dispatchDueContentfulWorkspaceAutomations.mockReset();
+    dispatchChangedGoogleDriveWorkspaceAutomations.mockReset();
+    dispatchChangedGoogleDriveWorkspaceAutomations.mockResolvedValue([]);
     dispatchWorkspaceAutomationForScheduleAndAdvance.mockReset();
     buildWorkspaceOrchestratorPlan.mockReset();
     buildWorkspaceOrchestratorPlan.mockReturnValue({

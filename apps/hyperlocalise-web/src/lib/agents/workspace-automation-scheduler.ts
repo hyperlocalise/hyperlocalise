@@ -13,6 +13,7 @@
 import { createLogger } from "@/lib/log";
 
 import {
+  dispatchChangedGoogleDriveWorkspaceAutomations,
   dispatchDueContentfulWorkspaceAutomations,
   dispatchWorkspaceAutomationForScheduleAndAdvance,
 } from "./workspace-automation-dispatcher";
@@ -53,6 +54,13 @@ export async function runWorkspaceAutomationScheduler(input?: {
     limit: input?.limit,
     skipAutomationIds: githubDueAutomationIds,
   });
+  const googleDriveResults = await dispatchChangedGoogleDriveWorkspaceAutomations({
+    limit: input?.limit,
+    skipAutomationIds: githubDueAutomationIds,
+  });
+  const googleDriveEnqueued = googleDriveResults.filter(
+    (result) => result.outcome === "enqueued" && result.inserted,
+  ).length;
 
   let enqueued = 0;
   let skipped = 0;
@@ -135,13 +143,18 @@ export async function runWorkspaceAutomationScheduler(input?: {
       duplicates,
       contentfulEnqueued: contentfulResults.filter((result) => result.outcome === "enqueued")
         .length,
+      googleDriveChecked: googleDriveResults.length,
+      googleDriveEnqueued,
     },
     "workspace automation scheduler tick completed",
   );
 
   return {
     processed: dueAutomations.length + contentfulResults.length,
-    enqueued: enqueued + contentfulResults.filter((result) => result.outcome === "enqueued").length,
+    enqueued:
+      enqueued +
+      contentfulResults.filter((result) => result.outcome === "enqueued").length +
+      googleDriveEnqueued,
     skipped: skipped + contentfulResults.filter((result) => result.outcome === "skipped").length,
     duplicates,
   };

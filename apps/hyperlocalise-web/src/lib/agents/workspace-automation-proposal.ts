@@ -37,6 +37,7 @@ export const WORKSPACE_AUTOMATION_PROPOSAL_TRIGGER_MODES = [
   "github",
   "contentful",
   "source_upload",
+  "google_drive",
 ] as const;
 
 export type WorkspaceAutomationProposalTriggerMode =
@@ -55,6 +56,7 @@ export const WORKSPACE_AUTOMATION_TRIGGER_WORK_SKILL_IDS: Partial<
 > = {
   source_upload: "translate-uploaded-source",
   contentful: "translate-contentful-entries",
+  google_drive: "translate-google-drive-files",
 };
 
 /**
@@ -145,6 +147,7 @@ const proposalTriggerSchema = z.discriminatedUnion("mode", [
   }),
   z.object({ mode: z.literal("contentful") }),
   z.object({ mode: z.literal("source_upload") }),
+  z.object({ mode: z.literal("google_drive") }),
 ]);
 
 export type WorkspaceAutomationProposalTrigger = z.infer<typeof proposalTriggerSchema>;
@@ -267,6 +270,7 @@ function normalizeTrigger(
     case "manual":
     case "contentful":
     case "source_upload":
+    case "google_drive":
       return { mode: trigger.mode };
     default:
       return assertNever(trigger.mode);
@@ -319,6 +323,7 @@ function resolveImpliedTrigger(
         return { mode, cadence: null, hour: null, dayOfWeek: null, timeZone: null };
       case "contentful":
       case "source_upload":
+      case "google_drive":
         return { mode };
       // A skill never lists manual first here, and web chat is not offered.
       case "manual":

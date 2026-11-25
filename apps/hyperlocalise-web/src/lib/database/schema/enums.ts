@@ -227,7 +227,7 @@ export const workspaceAutomationKindEnum = pgEnum("workspace_automation_kind", [
  */
 export const workspaceAutomationRunTriggerSourceEnum = pgEnum(
   "workspace_automation_run_trigger_source",
-  ["manual", "scheduled", "github", "contentful", "source_upload", "web_chat"],
+  ["manual", "scheduled", "github", "contentful", "source_upload", "web_chat", "google_drive"],
 );
 /**
  * Tracks persisted workspace automation run execution from queueing through active work and terminal outcomes.

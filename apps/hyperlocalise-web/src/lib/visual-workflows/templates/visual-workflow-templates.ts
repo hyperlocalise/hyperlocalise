@@ -25,15 +25,23 @@ import { VISUAL_WORKFLOW_SCHEMA_V3_VERSION } from "../schema/types";
  * obvious value and leaves what only the person can choose (the project, Slack channel and who
  * does the work) empty, so the editor's issue list walks them through it before they publish.
  */
+/** Listed in the order the new automation page shows them; the recommended template comes first. */
 export const VISUAL_WORKFLOW_TEMPLATE_IDS = [
+  "ai-translate-qa-gate",
   "ai-translate-on-upload",
   "mtpe-on-upload",
   "tep-on-upload",
   "review-done-qa",
-  "ai-translate-qa-gate",
 ] as const;
 
 export type VisualWorkflowTemplateId = (typeof VISUAL_WORKFLOW_TEMPLATE_IDS)[number];
+
+/**
+ * The template teams should start from: AI translation where QA, the quality estimate or a
+ * regulated content domain decides when people review, rather than shipping unreviewed work.
+ */
+export const RECOMMENDED_VISUAL_WORKFLOW_TEMPLATE_ID: VisualWorkflowTemplateId =
+  "ai-translate-qa-gate";
 
 export type VisualWorkflowTemplateOptions = {
   /** Fills the trigger's project when the person starts from a project's page. */

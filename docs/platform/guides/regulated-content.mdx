@@ -1,0 +1,67 @@
+---
+title: "Set up review for regulated content"
+sidebarTitle: "Regulated content"
+description: "Configure quality checks, scoring, and human review for medical, legal, and financial content."
+---
+
+Medical, legal, and financial copy has a higher bar: a changed dosage, a softened claim, or a wrong defined term is a real problem, not a style issue. This guide sets up a project so AI translates, checks catch what matters, and people review everything the rules say they must.
+
+You configure every part of this yourself, per project. You need the admin or localization manager role.
+
+## 1. Mark the project's content domain
+
+On the project's **QA** page, open **Check settings** and set **Content domain** to **Medical**, **Legal**, or **Financial**. The domain:
+
+- Tells the quality estimator which changes are severe, such as a dosage, a defined term, or an amount.
+- Raises the lowest estimate threshold to 85 for medical and legal, and to 80 for financial.
+- Makes every **Run QA** workflow step report that the work needs human review, whatever the score.
+
+See [Content domain](/platform/help/quality#content-domain).
+
+## 2. Write down your rules
+
+Quality checks can only enforce what you write down.
+
+| Rule | Where it goes |
+| --- | --- |
+| Approved and banned terms, such as drug names, claim wording, and regulated phrases | A [glossary](/platform/knowledge). Mark banned alternatives as forbidden. |
+| Tone, claims you may not make, required disclaimers, and the regulator's style rules | A [guideline document](/platform/knowledge/guidelines). Mark critical passages **Always apply**. |
+| Previously approved wording | A [translation memory](/platform/translation-memory-import-export). Import your existing approved translations. |
+| Product names and terms a spellchecker should accept | A spellcheck dictionary in **Knowledge**. |
+
+## 3. Turn on the checks
+
+In **Check settings**:
+
+1. Turn on **Guidelines** and set it to **Error**. Each scan checks translations against your guideline documents, with AI acting as the judge, and cites the passage that was broken.
+2. Turn on **Estimated quality**. AI scores each segment from 0 to 100 for how ready it is to publish without edits. Segments below the threshold become findings.
+3. Turn on **Quality score** and set the **Pass threshold**. Each finding costs points by severity, and a language passes only when it reaches the threshold and has no critical finding. Raise the penalty for checks that matter most to you.
+4. Keep the placeholder, glossary, and length checks on.
+5. Turn on the daily scan, or run a scan after each batch.
+
+See [Project QA](/platform/help/quality#project-qa) for how each check and the score work.
+
+## 4. Send work to people
+
+Create a workflow from the **AI translation with a QA gate** template under **Automations → New**. It translates each new source file with AI, runs QA, and then:
+
+- Announces work that needs no review as ready to ship.
+- Assigns a post-edit review task per language for everything else, due in 48 hours.
+
+Because the content domain is set, every run takes the review path. QA and the estimate still tell the reviewer which segments to look at first.
+
+To add a formal sign-off, such as a medical or legal reviewer approving a release, add a **Human approval** step after the review tasks. The run waits until the named person or team chooses **Approve**, **Reject**, or **Request changes** in **Inbox**. See [Pause for a reviewer](/platform/visual-workflows#pause-for-a-reviewer).
+
+## 5. Limit who can approve
+
+Give translators and agencies the translator role, so they can edit but not approve. Give reviewers the reviewer role, and only for the projects they own. See [Roles and permissions](/platform/workspace/roles).
+
+## 6. Track problems to the end
+
+On the **QA** page, select findings and choose **Create issues** to track them on the project's **Board**, or **Send to Linear** to file them in your team's Linear. Ignoring a finding asks for a reason, which is kept with the finding.
+
+## What this does not cover
+
+- Checks run on text. Review images and video by eye.
+- The domain presets are fixed. Use guidelines and glossary terms for rules specific to your content.
+- QA findings support a reviewer. They do not replace one. Keep a qualified reviewer on regulated content.
