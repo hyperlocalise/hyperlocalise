@@ -59,10 +59,10 @@ func TestSRXMaxTranslationsKeepsSiblingSpansAtomicOnWriteback(t *testing.T) {
 		}
 		return content, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		files[path] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	svc.loadLock = func(string) (*lockfile.File, error) {
 		cloned := lockState
 		if cloned.RunCompleted == nil {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -358,5 +359,162 @@ func TestSaveDefaultPath(t *testing.T) {
 	}
 	if _, err := os.Stat(DefaultPath); err != nil {
 		t.Fatalf("stat default lockfile: %v", err)
+	}
+}
+
+func TestSaveDuringActiveRunWritesCompactJSON(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.lock.json")
+	f := File{
+		ActiveRunID:  "run-1",
+		RunCompleted: map[string]RunCompletion{"locales/fr.json::hello": {SourceHash: "a", TaskHash: "b"}},
+	}
+	if err := Save(path, f); err != nil {
+		t.Fatalf("save lockfile: %v", err)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read saved lockfile: %v", err)
+	}
+	if strings.Count(string(content), "\n") != 1 {
+		t.Fatalf("expected single-line JSON during an active run, got %s", content)
+	}
+
+	f.ActiveRunID = ""
+	if err := Save(path, f); err != nil {
+		t.Fatalf("save lockfile: %v", err)
+	}
+	content, err = os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read saved lockfile: %v", err)
+	}
+	if !strings.Contains(string(content), "\n  \"run_completed\": {\n") {
+		t.Fatalf("expected indented JSON once the run ends, got %s", content)
+	}
+}
+
+func TestSaveReplacesFileAndLeavesNoTempFiles(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.lock.json")
+	if err := os.WriteFile(path, []byte("stale"), 0o600); err != nil {
+		t.Fatalf("seed lockfile: %v", err)
+	}
+	if err := Save(path, File{ProjectID: "p1"}); err != nil {
+		t.Fatalf("save lockfile: %v", err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read dir: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "state.lock.json" {
+		t.Fatalf("expected only the lockfile, got %v", entries)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat lockfile: %v", err)
+	}
+	if info.Mode().Perm() != 0o644 {
+		t.Fatalf("expected mode 0644, got %v", info.Mode().Perm())
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("load lockfile: %v", err)
+	}
+	if got.ProjectID != "p1" {
+		t.Fatalf("unexpected project id %q", got.ProjectID)
+	}
+}
+
+func TestSaveFailureKeepsPreviousLockfile(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.lock.json")
+	if err := Save(path, File{ProjectID: "before"}); err != nil {
+		t.Fatalf("seed lockfile: %v", err)
+	}
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatalf("make dir read-only: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+
+	if err := Save(path, File{ProjectID: "after"}); err == nil {
+		t.Fatal("expected save into a read-only directory to fail")
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("load lockfile after failed save: %v", err)
+	}
+	if got.ProjectID != "before" {
+		t.Fatalf("expected the previous lockfile to survive, got project %q", got.ProjectID)
+	}
+}
+
+func TestSaveIntoMissingDirectoryFails(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing", "state.lock.json")
+	if err := Save(path, File{}); err == nil {
+		t.Fatal("expected save into a missing directory to fail")
+	}
+}
+
+func TestCompactAndIndentedSavesLoadTheSame(t *testing.T) {
+	updated := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	base := File{
+		ProjectID:    "p1",
+		LocaleStates: map[string]LocaleCheckpoint{"fr": {Revision: "r1"}},
+		RunCompleted: map[string]RunCompletion{
+			"locales/fr.json::hello":           {SourceHash: "a", TaskHash: "b"},
+			"locales/fr.json::nested.key":      {SourceHash: "c", TaskHash: "d"},
+			"sheets/all.csv::greeting::es-419": {SourceHash: "e", TaskHash: "f"},
+		},
+		RunCheckpoint: map[string]RunCheckpoint{
+			"locales/fr.json::hello": {
+				RunID: "run-1", TargetPath: "locales/fr.json", SourcePath: "locales/en.json", TargetLocale: "fr",
+				EntryKey: "hello", Value: "Bonjour \"monde\"\n<b>{name}</b> ✓", SourceHash: "a", TaskHash: "b", UpdatedAt: updated,
+			},
+		},
+	}
+	dir := t.TempDir()
+
+	load := func(name string, f File) *File {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := Save(path, f); err != nil {
+			t.Fatalf("save %s: %v", name, err)
+		}
+		got, err := Load(path)
+		if err != nil {
+			t.Fatalf("load %s: %v", name, err)
+		}
+		got.ActiveRunID = ""
+		return got
+	}
+
+	active := base
+	active.ActiveRunID = "run-1"
+	compact := load("compact.json", active)
+	indented := load("indented.json", base)
+	if !reflect.DeepEqual(compact, indented) {
+		t.Fatalf("compact and indented saves differ after load:\ncompact:  %+v\nindented: %+v", compact, indented)
+	}
+	if got := compact.RunCheckpoint["locales/fr.json::hello"].Value; got != base.RunCheckpoint["locales/fr.json::hello"].Value {
+		t.Fatalf("checkpoint value did not round-trip: %q", got)
+	}
+}
+
+func TestSaveWithNilMapsLoadsEmptyMaps(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.lock.json")
+	if err := Save(path, File{ActiveRunID: "run-1"}); err != nil {
+		t.Fatalf("save lockfile: %v", err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("load lockfile: %v", err)
+	}
+	if got.LocaleStates == nil || got.RunCompleted == nil || got.RunCheckpoint == nil {
+		t.Fatalf("expected empty maps, got %+v", got)
+	}
+	if got.ActiveRunID != "run-1" {
+		t.Fatalf("expected active run id to round-trip, got %q", got.ActiveRunID)
 	}
 }

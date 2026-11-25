@@ -40,13 +40,13 @@ func TestRunXLIFFTranslatesSegmentsAndCreatesTargets(t *testing.T) {
 		}
 		return translated, nil
 	}
-	svc.writeFile = func(path string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(path string, content []byte) error {
 		if path != targetPath {
 			t.Fatalf("unexpected write path: %s", path)
 		}
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	lock := &lockfile.File{}
 	svc.loadLock = func(_ string) (*lockfile.File, error) { return lock, nil }
 	svc.saveLock = func(_ string, value lockfile.File) error { lock = &value; return nil }
@@ -90,7 +90,7 @@ func TestXLIFFWritebackWithReorderedAnonymousTarget(t *testing.T) {
 		}
 		var out []byte
 		if partial {
-			svc.writeFile = func(_ string, content []byte) error { out = content; return nil }
+			svc.writeFile = serialWriteFile(func(_ string, content []byte) error { out = content; return nil })
 			_, err := svc.flushOutputForTarget(targetPath, stagedOutput{sourcePath: sourcePath, sourceLocale: "en", targetLocale: "fr", entries: map[string]string{"u#segment-index=1": "Premier"}}, nil)
 			if err != nil {
 				t.Fatal(err)

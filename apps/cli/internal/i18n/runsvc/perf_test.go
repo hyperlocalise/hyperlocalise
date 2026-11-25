@@ -239,7 +239,7 @@ func benchmarkRunService(entryCount, localeCount int) *Service {
 			return nil, filepath.ErrBadPattern
 		}
 	}
-	svc.writeFile = func(_ string, _ []byte) error { return nil }
+	svc.writeFile = serialWriteFile(func(_ string, _ []byte) error { return nil })
 	svc.saveLock = func(_ string, _ lockfile.File) error { return nil }
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
 		if req.TargetLanguage == "en" && strings.Contains(req.SystemPrompt, "translation memory notes") {

@@ -44,10 +44,10 @@ func TestFlushOutputForTargetXLSXKeepsOtherLocaleColumns(t *testing.T) {
 	svc := newTestService()
 	svc.readFile = os.ReadFile
 	var written []byte
-	svc.writeFile = func(_ string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(_ string, content []byte) error {
 		written = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	_, err := svc.flushOutputForTarget(path, stagedOutput{
 		entries:      map[string]string{"greeting": "Bonjour"},
@@ -106,10 +106,10 @@ func TestFlushOutputsSharedWorkbookLocales(t *testing.T) {
 		}
 		return append([]byte(nil), content...), nil
 	}
-	svc.writeFile = func(name string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(name string, content []byte) error {
 		files[name] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 
 	staged := map[string]stagedOutput{
 		stagedOutputKey(path, "fr"): {
@@ -178,12 +178,12 @@ func TestExecutePoolSharedWorkbookLocales(t *testing.T) {
 		}
 		return append([]byte(nil), content...), nil
 	}
-	svc.writeFile = func(name string, content []byte) error {
+	svc.writeFile = serialWriteFile(func(name string, content []byte) error {
 		filesMu.Lock()
 		defer filesMu.Unlock()
 		files[name] = append([]byte(nil), content...)
 		return nil
-	}
+	})
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
 		switch req.TargetLanguage {
 		case "fr":

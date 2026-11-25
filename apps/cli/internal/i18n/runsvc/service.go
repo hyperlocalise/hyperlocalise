@@ -393,8 +393,8 @@ func New() *Service {
 		now:       func() time.Time { return time.Now().UTC() },
 		numCPU:    runtime.NumCPU,
 
-		lockPersistBatchSize:     32,
-		lockPersistFlushInterval: 250 * time.Millisecond,
+		lockPersistBatchSize:     lockPersistBatchSize,
+		lockPersistFlushInterval: lockPersistFlushInterval,
 	}
 }
 

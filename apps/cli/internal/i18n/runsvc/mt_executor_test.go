@@ -57,7 +57,7 @@ func newTestServiceForExecutePool(sources map[string]string) *Service {
 		}
 		return nil, os.ErrNotExist
 	}
-	svc.writeFile = func(string, []byte) error { return nil }
+	svc.writeFile = serialWriteFile(func(string, []byte) error { return nil })
 	return svc
 }
 

@@ -20,6 +20,9 @@ type markdownParityRetryInput struct {
 	group         string
 	targetLocales []string
 	sourcePaths   []string
+	// translateSem is the run's translation budget while the worker pool is running; nil
+	// means no gating.
+	translateSem chan struct{}
 }
 
 func markdownParityFixContext(msgs []string) string {
@@ -64,7 +67,11 @@ func (s *Service) retryMarkdownASTParityScope(ctx context.Context, in *markdownP
 			if strings.TrimSpace(fixCtx) != "" {
 				t.UserPrompt = strings.TrimSpace(t.UserPrompt) + "\n\n" + fixCtx
 			}
+			if err := acquireTranslateSem(ctx, in.translateSem); err != nil {
+				return err
+			}
 			translated, err := s.translateWithRetry(ctx, t)
+			releaseTranslateSem(in.translateSem)
 			if err != nil {
 				return err
 			}

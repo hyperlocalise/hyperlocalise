@@ -16,10 +16,17 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+// Each save rewrites the whole lockfile, so saving every few completions makes big runs
+// quadratic. The interval bounds how much finished work an interrupted run can lose; the batch
+// size only caps it when completions arrive faster than that.
 const (
-	lockPersistBatchSize     = 32
+	lockPersistBatchSize     = 256
 	lockPersistFlushInterval = 250 * time.Millisecond
 )
+
+// minTargetFlushConcurrency keeps a few target writes going even with one worker, so one slow
+// file (or a markdown parity retry) does not hold up every other finished target.
+const minTargetFlushConcurrency = 4
 
 type executionReport struct {
 	Succeeded       int
@@ -84,6 +91,8 @@ type executorState struct {
 
 	// Shared concurrency budget for LLM and MT translation work.
 	translateSem chan struct{}
+	// Bounds target files the lock writer writes in the background.
+	flushSem chan struct{}
 
 	stageMu   sync.Mutex
 	pendingMu sync.Mutex
@@ -212,6 +221,11 @@ func (s *Service) executePool(ctx context.Context, llmTasks []Task, mtTasks []Ta
 		workerCount = 1
 	}
 	state.translateSem = make(chan struct{}, workerCount)
+	state.flushSem = make(chan struct{}, max(workerCount, minTargetFlushConcurrency))
+	if parityRetry != nil {
+		// Markdown parity retries translate again, so they share the translation budget.
+		parityRetry.translateSem = state.translateSem
+	}
 
 	jobs := make(chan Task)
 	completions := make(chan taskCompletion)
@@ -371,25 +385,71 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 		return remaining <= 1
 	}
 
+	// Target files are written off this goroutine, so a slow write or a markdown parity retry
+	// does not hold up every worker waiting to hand over a completion.
+	flushResults := make(chan targetFlushResult)
+	inFlight := 0
+	startFlush := func(flush targetFlush) {
+		inFlight++
+		go func() {
+			state.flushSem <- struct{}{}
+			err := s.writeTargetFlush(flush, state)
+			<-state.flushSem
+			flushResults <- targetFlushResult{targetPath: flush.targetPath, err: err}
+		}()
+	}
+	// handleFlushResult rolls the lock back for a target whose file could not be written.
+	handleFlushResult := func(result targetFlushResult) error {
+		inFlight--
+		if result.err == nil {
+			return nil
+		}
+		recordTaskFailure(&state.report, &state.reportMu, state.total, Task{TargetPath: result.targetPath}, result.err, emitter)
+		removedPersisted, changed := s.rollbackLockForTarget(lockState, result.targetPath, pendingPersisted, state)
+		if !changed {
+			return nil
+		}
+		dirty = true
+		return flushPending(fmt.Sprintf("persist lock rollback for %q", result.targetPath), removedPersisted)
+	}
+	// waitForFlushes lets background writes finish before returning, so none outlive the pool.
+	waitForFlushes := func() {
+		for inFlight > 0 {
+			if err := handleFlushResult(<-flushResults); err != nil {
+				reportFatal(err)
+			}
+		}
+	}
+
 	completionCh := completions
 	failureCh := targetFailures
+	ctxDone := ctx.Done()
 	for {
-		if completionCh == nil && failureCh == nil {
+		if completionCh == nil && failureCh == nil && inFlight == 0 {
 			if err := flushPending("persist lock state", 0); err != nil {
 				reportFatal(err)
 			}
 			return
 		}
 		select {
-		case <-ctx.Done():
-			if err := flushPending("persist lock state", 0); err != nil {
+		case <-ctxDone:
+			// Stop taking new work; senders give up on the cancelled context. Writes already
+			// started still finish and report back below.
+			ctxDone = nil
+			completionCh = nil
+			failureCh = nil
+		case result := <-flushResults:
+			if err := handleFlushResult(result); err != nil {
 				reportFatal(err)
+				cancel()
+				waitForFlushes()
+				return
 			}
-			return
 		case <-ticker.C:
 			if err := flushPending("persist lock state", 0); err != nil {
 				reportFatal(err)
 				cancel()
+				waitForFlushes()
 				return
 			}
 		case completion, ok := <-completionCh:
@@ -424,6 +484,7 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 				if err := flushPending("persist lock state", 0); err != nil {
 					reportFatal(err)
 					cancel()
+					waitForFlushes()
 					return
 				}
 			}
@@ -431,23 +492,13 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 				if err := flushPending("persist lock state", 0); err != nil {
 					reportFatal(err)
 					cancel()
+					waitForFlushes()
 					return
 				}
 			}
 
-			if err := s.flushIfTargetCompleted(completion.targetPath, completion.sourcePath, state); err != nil {
-				recordTaskFailure(&state.report, &state.reportMu, state.total, Task{TargetPath: completion.targetPath}, err, emitter)
-				removedPersisted, changed := s.rollbackLockForTarget(lockState, completion.targetPath, pendingPersisted, state)
-				if !changed {
-					continue
-				}
-				dirty = true
-				if err := flushPending(fmt.Sprintf("persist lock rollback for %q", completion.targetPath), removedPersisted); err != nil {
-					reportFatal(err)
-					cancel()
-					return
-				}
-				continue
+			if flush, ok := claimTargetFlush(completion.targetPath, completion.sourcePath, state); ok {
+				startFlush(flush)
 			}
 		case targetPath, ok := <-failureCh:
 			if !ok {
@@ -465,6 +516,7 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 			if err := flushPending(fmt.Sprintf("persist lock rollback for %q", targetPath), removedPersisted); err != nil {
 				reportFatal(err)
 				cancel()
+				waitForFlushes()
 				return
 			}
 		}
@@ -492,7 +544,30 @@ func (s *Service) runWorker(ctx context.Context, jobs <-chan Task, completions c
 	}
 }
 
+// targetFlush is a finished target whose output is ready to write.
+type targetFlush struct {
+	targetPath           string
+	expectedSourcePath   string
+	expectedSourceLocale string
+	expectedTargetLocale string
+}
+
+type targetFlushResult struct {
+	targetPath string
+	err        error
+}
+
 func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *executorState) error {
+	flush, ok := claimTargetFlush(targetPath, sourcePath, state)
+	if !ok {
+		return nil
+	}
+	return s.writeTargetFlush(flush, state)
+}
+
+// claimTargetFlush counts one task of targetPath as finished. It returns the flush to run when
+// that was the target's last pending task.
+func claimTargetFlush(targetPath, sourcePath string, state *executorState) (targetFlush, bool) {
 	shouldFlush := false
 	expectedSourcePath := sourcePath
 	expectedSourceLocale := ""
@@ -515,8 +590,21 @@ func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *e
 	}
 	state.pendingMu.Unlock()
 	if !shouldFlush {
-		return nil
+		return targetFlush{}, false
 	}
+	return targetFlush{
+		targetPath:           targetPath,
+		expectedSourcePath:   expectedSourcePath,
+		expectedSourceLocale: expectedSourceLocale,
+		expectedTargetLocale: expectedTargetLocale,
+	}, true
+}
+
+func (s *Service) writeTargetFlush(flush targetFlush, state *executorState) error {
+	targetPath := flush.targetPath
+	expectedSourcePath := flush.expectedSourcePath
+	expectedSourceLocale := flush.expectedSourceLocale
+	expectedTargetLocale := flush.expectedTargetLocale
 	// Failed keys still decrement pending so the target can finish. The file
 	// write waits for finalize when any sibling failed, which avoids rewriting
 	// an empty catalog after a validation-only failure.
