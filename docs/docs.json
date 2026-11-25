@@ -264,6 +264,7 @@
                       "platform/developers/mcp-tools",
                       "platform/developers/webhooks",
                       "platform/developers/cdn-distributions",
+                      "platform/developers/ota-javascript-sdk",
                       {
                         "group": "Framework and repository guides",
                         "pages": [
@@ -353,7 +354,8 @@
                   "platform/developers/strings-and-key-jobs",
                   "platform/developers/webhooks",
                   "platform/developers/custom-fields",
-                  "platform/developers/cdn-distributions"
+                  "platform/developers/cdn-distributions",
+                  "platform/developers/ota-javascript-sdk"
                 ],
                 "expanded": false
               },
