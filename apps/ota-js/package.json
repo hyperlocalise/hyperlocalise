@@ -1,0 +1,67 @@
+{
+  "name": "@hyperlocalise/ota",
+  "version": "0.1.0",
+  "description": "Over-the-air translations for JavaScript apps from Hyperlocalise CDN distributions",
+  "keywords": [
+    "hyperlocalise",
+    "i18n",
+    "i18next",
+    "localization",
+    "next-intl",
+    "ota",
+    "over-the-air",
+    "react-intl",
+    "translations",
+    "vue-i18n"
+  ],
+  "homepage": "https://docs.hyperlocalise.com/platform/developers/ota-javascript-sdk",
+  "bugs": {
+    "url": "https://github.com/hyperlocalise/hyperlocalise/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hyperlocalise/hyperlocalise.git",
+    "directory": "apps/ota-js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "vp pack",
+    "check": "vp check",
+    "test": "vp test",
+    "prepublishOnly": "vp pack"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vite-plus": "catalog:"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -40,6 +40,11 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "N0aSJ10JRf",
     description: "Trigger label for a source upload automation in the list",
   },
+  triggerGoogleDrive: {
+    defaultMessage: "Google Drive",
+    id: "P9FnIb5bY/",
+    description: "Automation list trigger label: runs start when Google Drive files change",
+  },
   triggerWebChat: {
     defaultMessage: "Web chat",
     id: "J210+x7u6p",

@@ -150,7 +150,11 @@ export function AiUsageTab({
     <div className="flex flex-col gap-10">
       <AiFilterChips
         state={input.state}
-        automationName={usage.data?.automationName ?? null}
+        names={{
+          automation: usage.data?.automationName ?? null,
+          member: usage.data?.memberName ?? null,
+          thread: usage.data?.threadTitle ?? null,
+        }}
         loading={usage.isFetching}
         onChange={onChange}
       />
@@ -169,21 +173,31 @@ export function AiUsageTab({
   );
 }
 
+/** The filters whose name comes with the usage rather than being the filter's value. */
+const NAMED_FILTERS = ["automation", "member", "thread"] as const;
+type NamedFilter = (typeof NAMED_FILTERS)[number];
+
+function isNamedFilter(dimension: string): dimension is NamedFilter {
+  return (NAMED_FILTERS as readonly string[]).includes(dimension);
+}
+
 /** The details chosen from a row, which the filter bar has no field for, each removable. */
 function AiFilterChips({
   state,
-  automationName,
+  names,
   loading,
   onChange,
 }: {
   state: ReportsUrlState;
-  automationName: string | null;
-  /** The automation's name comes with the usage, so a new choice has none until it loads. */
+  names: Record<NamedFilter, string | null>;
+  /** A name comes with the usage, so a new choice has none until it loads. */
   loading: boolean;
   onChange: (change: Partial<ReportsUrlState>) => void;
 }) {
   const intl = useIntl();
-  const chosen = (["feature", "model", "provider", "automation"] as const).flatMap((dimension) => {
+  const chosen = (
+    ["feature", "model", "provider", "automation", "member", "thread"] as const
+  ).flatMap((dimension) => {
     const key = state.aiFilters[dimension];
     return key ? [{ dimension, key }] : [];
   });
@@ -201,11 +215,11 @@ function AiFilterChips({
             {intl.formatMessage(messages.narrowedTo, {
               dimension: label,
               value:
-                dimension === "automation" && !automationName && loading
+                isNamedFilter(dimension) && !names[dimension] && loading
                   ? "…"
                   : aiGroupLabel(intl, dimension, {
                       key,
-                      label: dimension === "automation" ? automationName : null,
+                      label: isNamedFilter(dimension) ? names[dimension] : null,
                     }),
             })}
             <button

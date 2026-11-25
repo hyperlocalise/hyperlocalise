@@ -311,7 +311,7 @@ describe("describeAutomationSetupCatalogue", () => {
         "  name: Post results to Slack",
         "  does: Post the outcome of each run to a Slack channel.",
         "  can touch: Posts messages to the Slack channel you choose.",
-        "  runs on triggers: manual, scheduled, github, contentful, source_upload",
+        "  runs on triggers: manual, scheduled, github, contentful, source_upload, google_drive",
         "  needs connected: Slack",
         "  the person chooses on the page: the Slack channel",
         "  only sends results out: it needs a skill that produces something, or instructions",

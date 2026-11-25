@@ -27,6 +27,7 @@ export class DictionariesPageStore {
   createDialogOpen = false;
   createForm: DictionaryCreateForm = emptyDictionaryCreateForm();
   createErrors: { name?: string; submit?: string } = {};
+  deleteDictionaryDialogOpen = false;
   detailLocale = "en-US";
   detailWord = "";
 
@@ -58,6 +59,10 @@ export class DictionariesPageStore {
     this.createDialogOpen = false;
     this.createForm = emptyDictionaryCreateForm();
     this.createErrors = {};
+  }
+
+  setDeleteDictionaryDialogOpen(open: boolean) {
+    this.deleteDictionaryDialogOpen = open;
   }
 
   setDetailLocale(locale: string) {

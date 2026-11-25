@@ -28,7 +28,7 @@ import {
 import type { PipesProviderSlug } from "@/lib/pipes/providers";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 
-export const workspaceComingSoonCollaborationSlugs = ["microsoft-teams", "jira", "linear"] as const;
+export const workspaceComingSoonCollaborationSlugs = ["microsoft-teams", "jira"] as const;
 
 export const workspaceComingSoonGuidelineSlugs = ["sharepoint"] as const;
 
@@ -42,6 +42,7 @@ export const workspacePipesSourceControlSlugs = [
 
 export const workspacePipesCollaborationSlugs = [
   "atlassian",
+  "linear",
 ] as const satisfies readonly PipesProviderSlug[];
 
 export const workspacePipesGuidelineSlugs = [

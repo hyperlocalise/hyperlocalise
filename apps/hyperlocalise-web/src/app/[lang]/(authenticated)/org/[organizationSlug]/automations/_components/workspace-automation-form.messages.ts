@@ -1204,6 +1204,26 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "ksdV9RsBoH",
     description: "Label for the Anthropic Claude Opus 5.5 automation model",
   },
+  modelGemini4Neon: {
+    defaultMessage: "Gemini 4 Neon",
+    id: "JdbyW4qn3s",
+    description: "Label for the Google Gemini 4 Neon automation model",
+  },
+  modelGemini4Carbon: {
+    defaultMessage: "Gemini 4 Carbon",
+    id: "fVhXAnrH/m",
+    description: "Label for the Google Gemini 4 Carbon automation model",
+  },
+  modelGemini4Argon: {
+    defaultMessage: "Gemini 4 Argon",
+    id: "1TvpM4j9NP",
+    description: "Label for the Google Gemini 4 Argon automation model",
+  },
+  modelGemini4Hydrogen: {
+    defaultMessage: "Gemini 4 Hydrogen",
+    id: "pN22I6+aJc",
+    description: "Label for the Google Gemini 4 Hydrogen automation model",
+  },
   modelGemini38Flash: {
     defaultMessage: "Gemini 3.8 Flash",
     id: "EE7waUBBeR",

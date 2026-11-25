@@ -10,12 +10,12 @@ Connect Mailchimp once in workspace **Integrations**, then run the **Translate M
 | Requirement | Description |
 | --- | --- |
 | Native project | A [native project](/platform/projects/create-project). Mailchimp campaigns and templates have no locale, so import and jobs use the **project source locale**. Add a project target locale for each language you will push back. |
-| Mailchimp account | Connect Mailchimp from **Integrations** with OAuth through WorkOS Pipes (slug `mailchimp`). The access token is not stored in Hyperlocalise. |
+| Mailchimp account | Connect Mailchimp from **Integrations** by signing in to your Mailchimp account. Hyperlocalise never sees your Mailchimp password. |
 | Campaign audience | Push creates draft locale **campaigns** and needs a list plus reply-to. Hyperlocalise uses the source campaign's audience when set, otherwise the account's first audience and its **campaign defaults** (from email / from name). If neither works, push skips campaign locales until Mailchimp has an audience with defaults or the source campaign has list and reply-to. |
 
 ## Connect Mailchimp
 
-Open **Integrations** and choose **Connect** on **Mailchimp**. Authorize the Mailchimp account in the window that opens. The connection uses the WorkOS Pipes `mailchimp` provider.
+Open **Integrations** and choose **Connect** on **Mailchimp**. Authorize the Mailchimp account in the window that opens.
 
 Connect Mailchimp before you add the Mailchimp skill. Automations use the same connection.
 

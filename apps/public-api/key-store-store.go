@@ -70,6 +70,9 @@ func (s *postgresStore) bulkUpdateStrings(ctx context.Context, actor principal, 
 		if err != nil {
 			return err
 		}
+		if err := rejectProtectedStrings(ctx, tx, scope, keyIDs); err != nil {
+			return err
+		}
 		matched := len(keyIDs)
 		// Change only the strings counted and locked above, not ones matching the selection since.
 		where = newSQLFilter("k.organization_id = $1 AND k.project_id = $2", actor.OrganizationID, scope.ID)
@@ -141,6 +144,9 @@ func (s *postgresStore) reviewTranslations(ctx context.Context, actor principal,
 		sel.apply(where)
 		keyIDs, err := lockSelectedStrings(ctx, tx, where, maxSelectedStrings)
 		if err != nil {
+			return err
+		}
+		if err := rejectProtectedStrings(ctx, tx, scope, keyIDs); err != nil {
 			return err
 		}
 		if resolved == nil {

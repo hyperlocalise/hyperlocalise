@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+/** Nav key for Automations; enabled from the Autumn `automations` plan feature. */
 export const WORKSPACE_AUTOMATIONS_FLAG = "workspace-automations";
 export const WORKSPACE_KNOWLEDGE_FLAG = "workspace-knowledge";
 export const WORKSPACE_VISUAL_MOCK_FLAG = "workspace-visual-mock";

@@ -5,6 +5,7 @@
 - Run `make bootstrap` before working if dependencies are not installed yet.
 - For web-related work, also check [`apps/hyperlocalise-web/AGENTS.md`](apps/hyperlocalise-web/AGENTS.md).
 - Mailchimp connects with **OAuth only** (WorkOS Pipes slug `mailchimp`); the web app calls Marketing API 3.0 over REST (`fetch`), not the TypeScript SDK. See [`docs/platform/connections/mailchimp.mdx`](docs/platform/connections/mailchimp.mdx) and [Mailchimp developer docs](https://mailchimp.com/developer/llms.txt).
+- Linear connects with **OAuth only** (WorkOS Pipes slug `linear`); the web app calls the Linear GraphQL API (`https://api.linear.app/graphql`) over `fetch` from [`apps/hyperlocalise-web/src/lib/linear/client.ts`](apps/hyperlocalise-web/src/lib/linear/client.ts), not the `@linear/sdk` package. See [`docs/platform/connections/linear.mdx`](docs/platform/connections/linear.mdx).
 
 ## Commit Messages
 

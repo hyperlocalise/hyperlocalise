@@ -25,7 +25,6 @@ import type { AppAuthContext } from "@/lib/workos/app-auth";
 import { createWorkosIdentify } from "./identify-workos-context";
 import { workosAdapter } from "./workos-adapter";
 import {
-  WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_DOMAINS_FLAG,
   WORKSPACE_FEATURE_UNAVAILABLE_REASON,
   WORKSPACE_GLOSSARY_SEARCH_FLAG,
@@ -42,13 +41,6 @@ export {
   filterNavigationItemsByWorkspaceFlags,
   groupPreviewNavigationGroups,
 } from "./workspace-flag-navigation";
-
-export const workspaceAutomationsFlag = flag<boolean, WorkosFlagEntities>({
-  key: WORKSPACE_AUTOMATIONS_FLAG,
-  defaultValue: false,
-  description: "Workspace automations for scheduled and GitHub-triggered workflows.",
-  adapter: workosAdapter(),
-});
 
 export const workspaceVisualMockFlag = flag<boolean, WorkosFlagEntities>({
   key: WORKSPACE_VISUAL_MOCK_FLAG,
@@ -95,7 +87,10 @@ export async function evaluateWorkspaceFeatureFlags(
     visualWorkflows,
     queriesBoard,
   ] = await Promise.all([
-    workspaceAutomationsFlag.run({ identify }),
+    isAutumnBooleanFeatureEnabled({
+      organizationId,
+      featureId: autumnFeatureIds.automations,
+    }),
     isAutumnBooleanFeatureEnabled({
       organizationId,
       featureId: autumnFeatureIds.guidelines,

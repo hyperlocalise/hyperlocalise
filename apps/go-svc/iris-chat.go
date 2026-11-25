@@ -10,12 +10,16 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 )
 
 const (
+	// irisChatEventOpen tells the handler the gateway accepted the turn, so
+	// its input is paid for even if the stream ends early. It is never sent
+	// to the client.
+	irisChatEventOpen = "open"
+
 	irisChatModelID   = "hyperlocalise-ai-iris"
 	irisChatGatewayID = "anthropic/claude-opus-4.5"
 	irisChatMaxMsgs   = 80
@@ -154,19 +158,40 @@ func (api *irisGenerationAPI) chat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	usage := irisChatReply{Model: irisChatGatewayID}
+	opened := false
+	emittedChars := 0
 	record := func(event irisChatStreamEvent) error {
-		if event.Type == "done" && event.Usage != nil {
-			usage.InputTokens = event.Usage.InputTokens
-			usage.OutputTokens = event.Usage.OutputTokens
+		switch event.Type {
+		case irisChatEventOpen:
+			opened = true
+			return nil
+		case "done":
+			if event.Usage != nil {
+				usage.InputTokens = event.Usage.InputTokens
+				usage.OutputTokens = event.Usage.OutputTokens
+			}
+		default:
+			emittedChars += len(event.Text) + len(event.Name) + len(event.Arguments)
 		}
 		return emit(event)
 	}
 
+	tools := irisChatGatewayTools(body.Tools)
 	streamErr := api.streamChat(r.Context(), irisChatStreamRequest{
 		GatewayModel: irisChatGatewayID,
 		Messages:     messages,
-		Tools:        irisChatGatewayTools(body.Tools),
+		Tools:        tools,
 	}, record)
+	// The gateway bills a turn that was stopped or failed after it started,
+	// but reports usage only at the end, so such a turn is charged on an
+	// estimate from what was sent and what came back.
+	estimated := false
+	if usage.InputTokens+usage.OutputTokens == 0 && opened {
+		usage.InputTokens = irisEstimatedTokens(len(mustJSON(messages)) + len(mustJSON(tools)))
+		usage.OutputTokens = irisEstimatedTokens(emittedChars)
+		estimated = true
+	}
+	api.trackChat(r.Context(), scope, usage, estimated)
 	if streamErr != nil {
 		slog.WarnContext(r.Context(), "iris_chat_failed", "organization_id", scope.OrganizationID, "error", streamErr)
 		_ = emit(irisChatStreamEvent{
@@ -174,9 +199,7 @@ func (api *irisGenerationAPI) chat(w http.ResponseWriter, r *http.Request) {
 			Code:    "chat_failed",
 			Message: "Could not complete the turn",
 		})
-		return
 	}
-	api.trackChat(r.Context(), scope, usage)
 }
 
 func (api *irisGenerationAPI) streamChat(ctx context.Context, req irisChatStreamRequest, emit func(irisChatStreamEvent) error) error {
@@ -208,22 +231,22 @@ func (api *irisGenerationAPI) streamChat(ctx context.Context, req irisChatStream
 	})
 }
 
-func (api *irisGenerationAPI) trackChat(ctx context.Context, scope irisOrgScope, usage irisChatReply) {
-	if api.meter == nil || usage.Model == "" || usage.InputTokens+usage.OutputTokens == 0 {
-		return
+func (api *irisGenerationAPI) trackChat(ctx context.Context, scope irisOrgScope, usage irisChatReply, estimated bool) {
+	dimensions := map[string]any{"product_model": irisChatModelID}
+	if estimated {
+		dimensions["usage_estimated"] = true
 	}
-	trackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-	defer cancel()
-	if err := api.meter.TrackTokens(trackCtx, autumn.TrackTokensRequest{
-		CustomerID:   scope.OrganizationID,
-		FeatureID:    autumn.AITokens,
-		ModelID:      usage.Model,
-		InputTokens:  usage.InputTokens,
-		OutputTokens: usage.OutputTokens,
-		Properties:   map[string]any{"feature": "iris_chat", "user_id": scope.UserID, "product_model": irisChatModelID},
-	}); err != nil {
-		slog.WarnContext(trackCtx, "iris_chat_track_failed", "organization_id", scope.OrganizationID, "error", err)
-	}
+	api.charge(ctx, scope, irisCharge{
+		OperationKey: irisOperationKey("iris-chat"),
+		Source:       irisSourceChat,
+		Track: autumn.TrackTokensRequest{
+			ModelID:      usage.Model,
+			InputTokens:  usage.InputTokens,
+			OutputTokens: usage.OutputTokens,
+			Properties:   map[string]any{"feature": "iris_chat", "user_id": scope.UserID, "product_model": irisChatModelID},
+		},
+		Dimensions: dimensions,
+	})
 }
 
 func irisChatGatewayMessages(messages []irisChatMessage) ([]map[string]any, error) {
@@ -350,6 +373,9 @@ func (p *irisGatewayProvider) StreamChat(ctx context.Context, req irisChatStream
 	if resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 400))
 		return fmt.Errorf("gateway chat failed: %s", truncate(string(body), 400))
+	}
+	if err := emit(irisChatStreamEvent{Type: irisChatEventOpen}); err != nil {
+		return err
 	}
 	return readIrisChatGatewayStream(resp.Body, emit)
 }

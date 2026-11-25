@@ -28,6 +28,7 @@ export const translationQaScanCheckTypes = [
   "character_case_mismatch",
   "unreachable_plural_case",
   "guideline",
+  "quality_estimate",
 ] as const;
 
 export const translationQaCheckTypes = [...translationQaScanCheckTypes] as const;
@@ -93,4 +94,40 @@ export type TranslationQaSummary = {
   guidelineChecksIncomplete?: boolean;
   /** Knowledge was off or the entitlement read failed, so the checker was not called. */
   guidelineKnowledgeSkipped?: boolean;
+  /** MQM score; present when the project scores translations. */
+  quality?: import("./qa-scoring").TranslationQaQuality;
+  /** Per-segment AI quality estimate; present when the `quality_estimate` check ran. */
+  estimation?: TranslationQaEstimationSummary;
+  /** The estimator failed or skipped segments, so older estimate findings stay open. */
+  estimationIncomplete?: boolean;
+  /** The project's content domain when it is not general. */
+  qualityDomain?: import("./quality-domains").QaDomain;
+  /**
+   * Set when the scan checks part of the project, such as one workflow step's file and
+   * languages. Findings outside it are left as they were.
+   */
+  scope?: TranslationQaScanScope;
+};
+
+export type TranslationQaEstimationLocale = {
+  /** Translated segments in the scan. */
+  segmentCount: number;
+  /** Segments with a current estimate. */
+  estimatedCount: number;
+  averageScore: number | null;
+  belowThresholdCount: number;
+};
+
+export type TranslationQaEstimationSummary = TranslationQaEstimationLocale & {
+  /** Threshold the scan applied, after the domain's floor. */
+  threshold: number;
+  domain: import("./quality-domains").QaDomain;
+  byLocale: Record<string, TranslationQaEstimationLocale>;
+};
+
+export type TranslationQaScanScope = {
+  /** Only the strings of this source file. */
+  repositorySourceFileId?: string;
+  /** Only these target locales, each one of the project's. */
+  targetLocales?: string[];
 };

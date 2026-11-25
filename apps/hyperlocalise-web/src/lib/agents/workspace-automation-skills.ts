@@ -114,6 +114,7 @@ const ORCHESTRATED_TRIGGERS = [
   "github",
   "contentful",
   "source_upload",
+  "google_drive",
 ] as const;
 
 export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = [
@@ -230,7 +231,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import Webflow CMS collection items into a project, open native translation jobs, and push approved translations on demand.",
     grants:
-      "Reads Webflow CMS items through Pipes, writes JSON source files and native jobs. Push writes staged localized variants when you run Push to Webflow.",
+      "Reads Webflow CMS items, writes JSON source files and native jobs. Push writes staged localized variants when you run Push to Webflow.",
     tools: ["import_webflow_items", "push_webflow_translations"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],
@@ -246,7 +247,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import Sanity documents into a project, open native translation jobs, and push approved translations on demand.",
     grants:
-      "Reads Sanity documents through Pipes, writes JSON source files and native jobs. Push writes Sanity drafts when you run Push to Sanity.",
+      "Reads Sanity documents, writes JSON source files and native jobs. Push writes Sanity drafts when you run Push to Sanity.",
     tools: ["import_sanity_documents", "push_sanity_translations"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],
@@ -262,9 +263,9 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import Google Docs, Sheets, Slides, and other Hyperlocalise source files from connected Drive folders or files into a project and push translations back using the chosen Translation output.",
     grants:
-      "Reads and writes Google Drive files through Pipes for connected folders. Imports source files into the Content editor and writes copies as [vi-VN] overview.docx, overview [vi-VN].docx, overview_vi-VN.docx, or vi-VN/overview.docx.",
+      "Reads and writes Google Drive files for connected folders. Imports source files into the Content editor and writes copies as [vi-VN] overview.docx, overview [vi-VN].docx, overview_vi-VN.docx, or vi-VN/overview.docx.",
     tools: ["import_google_drive_files", "push_google_drive_translations"],
-    triggers: ["manual", "scheduled"],
+    triggers: ["google_drive", "manual", "scheduled"],
     sharedSkills: [],
     keywords: {
       strong: ["google drive", "drive folder", "google docs"],
@@ -278,7 +279,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import Intercom Help Center articles into a project, open native translation jobs, and push approved translations on demand.",
     grants:
-      "Reads Intercom articles through Pipes, writes markdown source files and native jobs. Push writes Intercom drafts when you run Push to Intercom.",
+      "Reads Intercom articles, writes markdown source files and native jobs. Push writes Intercom drafts when you run Push to Intercom.",
     tools: ["import_intercom_articles", "push_intercom_translations"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],
@@ -294,7 +295,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import Braze email templates and Content Blocks into a native project, translate HTML, and push locale-suffixed library copies.",
     grants:
-      "Reads Braze templates through Pipes, writes HTML source files and native jobs. Push creates locale-suffixed copies and never changes the source template.",
+      "Reads Braze templates, writes HTML source files and native jobs. Push creates locale-suffixed copies and never changes the source template.",
     tools: ["import_braze_templates", "push_braze_templates"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],
@@ -310,7 +311,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import tagged draft campaign and Canvas message variations as JSON, then push approved locales through the Braze Translation API.",
     grants:
-      "Reads Braze campaigns and Canvas through Pipes, writes JSON translation maps and native jobs. Push writes approved locales only and never publishes.",
+      "Reads Braze campaigns and Canvas, writes JSON translation maps and native jobs. Push writes approved locales only and never publishes.",
     tools: ["import_braze_campaigns", "push_braze_campaigns"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],
@@ -326,7 +327,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import Iterable email, in-app, push, and SMS templates plus snippets, then push approved locales back to Iterable.",
     grants:
-      "Reads Iterable templates through Pipes, writes source files and native jobs. Push updates template locales or locale-suffixed snippets and never sends campaigns.",
+      "Reads Iterable templates, writes source files and native jobs. Push updates template locales or locale-suffixed snippets and never sends campaigns.",
     tools: ["import_iterable_templates", "push_iterable_templates"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],
@@ -342,7 +343,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import Customer.io campaign, broadcast, newsletter, and transactional message actions as JSON, then push approved locales back to Customer.io.",
     grants:
-      "Reads Customer.io campaigns, broadcasts, newsletters, and transactional messages through Pipes, writes JSON translation maps and native jobs. Push writes approved locales only and never publishes or sends.",
+      "Reads Customer.io campaigns, broadcasts, newsletters, and transactional messages, writes JSON translation maps and native jobs. Push writes approved locales only and never publishes or sends.",
     tools: ["import_customer_io_campaigns", "push_customer_io_campaigns"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],
@@ -358,7 +359,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import Loops transactional, campaign, and workflow emails as HTML, then push approved locales as unpublished locale copies.",
     grants:
-      "Reads Loops emails through Pipes, writes HTML source files and native jobs. Push creates unpublished locale copies and never changes the source email.",
+      "Reads Loops emails, writes HTML source files and native jobs. Push creates unpublished locale copies and never changes the source email.",
     tools: ["import_loops_emails", "push_loops_emails"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],
@@ -374,7 +375,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import Mailchimp campaigns and HTML user templates, then push approved locales as draft copies.",
     grants:
-      "Reads Mailchimp campaigns and importable HTML templates through Pipes, writes HTML source files and native jobs. Drag-and-drop saved templates are skipped (use campaign import). Push creates draft campaigns or HTML templates named with the locale suffix and never sends or schedules.",
+      "Reads Mailchimp campaigns and importable HTML templates, writes HTML source files and native jobs. Drag-and-drop saved templates are skipped (use campaign import). Push creates draft campaigns or HTML templates named with the locale suffix and never sends or schedules.",
     tools: ["import_mailchimp_content", "push_mailchimp_content"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],
@@ -390,7 +391,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import HubSpot marketing emails, forms, blog posts, landing pages, and website pages, then push approved locales as unpublished copies.",
     grants:
-      "Reads HubSpot emails, forms, blog posts, landing pages, and website pages through Pipes, writes source files and native jobs. Push creates locale copies and never changes or publishes the source.",
+      "Reads HubSpot emails, forms, blog posts, landing pages, and website pages, writes source files and native jobs. Push creates locale copies and never changes or publishes the source.",
     tools: ["import_hubspot_content", "push_hubspot_content"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],

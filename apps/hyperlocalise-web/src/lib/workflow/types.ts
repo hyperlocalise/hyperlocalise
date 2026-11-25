@@ -168,6 +168,8 @@ export type TranslationFileImportEventData = {
   sourcePath: string;
   targetLocale: string;
   actorUserId?: string | null;
+  /** Native version branch; persist defaults to main when omitted. */
+  branchName?: string | null;
 };
 
 export type TranslationFileImportQueue = JobQueue<TranslationFileImportEventData>;

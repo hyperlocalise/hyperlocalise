@@ -10,9 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+@layer theme, base, xyflow, components, utilities;
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/* Layered so Tailwind utilities on a <Markdown> container override its defaults. */
+@import "@pierre/words/styles.css" layer(components);
 
 @custom-variant dark (&:is(.dark *));
 

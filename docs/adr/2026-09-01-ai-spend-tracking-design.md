@@ -39,6 +39,17 @@ queue or ElevenLabs native invoice. Autumn cannot look up `fal-ai/flux-2-pro` or
 
 Sources: [Fal FLUX.2 Pro](https://fal.ai/models/fal-ai/flux-2-pro), [Fal Kling 3.0 Pro](https://fal.ai/models/fal-ai/kling-video/v3/pro/text-to-video), [ElevenLabs API pricing](https://elevenlabs.io/pricing/api).
 
+**Gateway jobs with a known dollar cost.** Iris generation jobs on AI Gateway bill what
+Gateway charged (`total_cost` from `GET /v1/generation`), else Gateway's published price
+(`GET /v1/models`), when that is known. Autumn has no raw-dollar field on `trackTokens`, so the
+amount goes through one more custom model, one frozen unit each:
+
+| Autumn `model_id` | Frozen unit | `inputCost` | `outputCost` (USD × 1e6) |
+|-------------------|-------------|-------------|--------------------------|
+| `custom/hyperlocalise-usd` | 1 micro-dollar of vendor cost | 0 | 1 |
+
+Markup applies to it as to every other model. Never change its unit.
+
 Spread the markup can absorb on one Fal-image / Fal-video ID: Fal schnell $0.003/MP, Seedream v4.5 $0.04/image, Bria RMBG $0.018/image; Seedance 2.5 ~$0.473/s at 720p, MiniMax H3 $0.13/s at 2K, Sync lipsync $3/min ($0.05/s). ElevenLabs SFX is $0.12/min ($0.002/s) vs Music $0.15/min. Split later with new IDs. Never change a custom model's unit after usage exists. `custom/hyperlocalise-elevenlabs-audio` is retired.
 
 Customer markup lives on the AI credit-system configuration, not in go-svc.

@@ -1022,6 +1022,18 @@ func (api *editorCatAPI) updateImageStatus(r *http.Request, actor editorCatActor
 	if editorCatSourceKind(sourcePath) == editorCatKindVideo {
 		table = "project_video_variants"
 	}
+	var boundFileID *string
+	boundErr := api.pool.QueryRow(r.Context(), `
+        select repository_source_file_id::text from `+table+`
+        where organization_id=$1 and project_id=$2 and source_path=$3 and target_locale=$4`,
+		actor.organizationID, project.ID, sourcePath, targetLocale,
+	).Scan(&boundFileID)
+	if boundErr != nil && !errors.Is(boundErr, pgx.ErrNoRows) {
+		return nil, 0, boundErr
+	}
+	if boundFileID != nil && editorCatVariantBoundToOtherSourceFile(*boundFileID, sourceFile) {
+		return nil, 0, editorCatVariantBranchConflict()
+	}
 	var reviewedAt *time.Time
 	var reviewedBy *string
 	if body.Status == "approved" || body.Status == "rejected" {
@@ -1035,8 +1047,13 @@ func (api *editorCatAPI) updateImageStatus(r *http.Request, actor editorCatActor
         update `+table+`
         set status=$5, reviewed_at=$6, reviewed_by_user_id=$7, updated_at=now()
         where organization_id=$1 and project_id=$2 and source_path=$3 and target_locale=$4
+          and (
+            $8 = ''
+            or repository_source_file_id is null
+            or repository_source_file_id = nullif($8, '')::uuid
+          )
         returning id, status, stored_file_id`,
-		actor.organizationID, project.ID, sourcePath, targetLocale, body.Status, reviewedAt, reviewedBy,
+		actor.organizationID, project.ID, sourcePath, targetLocale, body.Status, reviewedAt, reviewedBy, strings.TrimSpace(sourceFile),
 	).Scan(&id, &status, &storedFileID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, editorCatFailure(400, "variant_not_found", "File variant not found")

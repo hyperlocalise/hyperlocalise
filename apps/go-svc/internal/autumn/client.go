@@ -17,6 +17,8 @@ const (
 	// tokensAPIVersion matches apps/hyperlocalise-web managed-ai-credit.ts.
 	tokensAPIVersion = "2.3.0"
 
+	// Automations is the allocated plan quota and the Automations surface gate.
+	Automations = "automations"
 	// QueriesBoard is the Autumn feature ID for issue-sheet / Queries.
 	QueriesBoard = "queries-board"
 	// Guidelines is the boolean plan gate for guideline documents and recall.

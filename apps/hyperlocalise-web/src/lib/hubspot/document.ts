@@ -33,7 +33,7 @@ export type HubspotJson =
   | HubspotJson[]
   | { [key: string]: HubspotJson };
 
-export function isHubspotJsonObject(value: HubspotJson): value is { [key: string]: HubspotJson } {
+export function isHubspotJsonObject(value: unknown): value is { [key: string]: HubspotJson } {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 

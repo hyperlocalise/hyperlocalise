@@ -829,6 +829,46 @@ describe("MCP project manager tools", () => {
     }
   });
 
+  it("forwards Iris member and thread AI filters to go-svc", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    reportsInternalMock.mockReset();
+    reportsInternalMock.mockResolvedValue({
+      kind: "ai",
+      aiUsage: { rows: [], groupBy: "thread" },
+    });
+
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+    if (!auth) {
+      throw new Error("expected admin auth context");
+    }
+    const report = await readToolResult<{ kind?: string }>(
+      await callMcpTool(headers, "get_report", {
+        report: "ai",
+        groupBy: "thread",
+        thenBy: "member",
+        channel: "iris",
+        memberId: auth.user.localUserId,
+        threadId: "thread_launch",
+      }),
+    );
+
+    expect(report.isError).toBe(false);
+    expect(reportsInternalMock).toHaveBeenCalledTimes(1);
+    expect(reportsInternalMock.mock.calls[0][0]).toBe("ai");
+    expect(reportsInternalMock.mock.calls[0][1]).toMatchObject({
+      organizationId: auth.organization.localOrganizationId,
+      userId: auth.user.localUserId,
+      query: {
+        groupBy: "thread",
+        thenBy: "member",
+        channel: "iris",
+        memberId: auth.user.localUserId,
+        threadId: "thread_launch",
+      },
+    });
+  });
+
   it("keeps get_report contributors behind billing access", async () => {
     const stored = await fixture.createStoredProjectFixture();
     const translator = fixture.createWorkosIdentityForOrganization(

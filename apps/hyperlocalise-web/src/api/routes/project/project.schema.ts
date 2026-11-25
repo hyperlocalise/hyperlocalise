@@ -506,6 +506,11 @@ export const projectFileCatMaxLengthResponseSchema = z.object({
   }),
 });
 
+/** Optional `?branch=` on CAT image/video mutation routes. Defaults to `main` at lookup. */
+export const projectFileCatBranchQuerySchema = z.object({
+  branch: z.string().trim().min(1).max(128).optional(),
+});
+
 export const projectFileCatImageRegenerateBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
@@ -549,6 +554,7 @@ export const projectFileUploadBodySchema = z.object({
 export const projectFileTranslationImportBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   locale: z.string().trim().min(1).max(32),
+  branch: z.string().trim().min(1).max(128).optional(),
 });
 
 export const projectSourceStringEntrySchema = z.object({
@@ -658,10 +664,12 @@ export {
 
 export const projectFileSegmentationQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
+  branch: z.string().trim().min(1).max(128).optional(),
 });
 
 export const updateProjectFileSegmentationBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
+  branch: z.string().trim().min(1).max(128).optional(),
   segmentation: repositorySourceFileSegmentationSettingsSchema,
 });
 
@@ -669,6 +677,7 @@ export const projectFileMessageFormatQuerySchema = projectFileSegmentationQueryS
 
 export const updateProjectFileMessageFormatBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
+  branch: z.string().trim().min(1).max(128).optional(),
   messageFormat: messageFormatSchema,
   placeholderPatterns: placeholderPatternsSchema.optional(),
 });
@@ -677,6 +686,7 @@ export const projectFileImportSettingsQuerySchema = projectFileSegmentationQuery
 
 export const updateProjectFileImportSettingsBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
+  branch: z.string().trim().min(1).max(128).optional(),
   importSettings: repositorySourceFileImportSettingsSchema,
 });
 

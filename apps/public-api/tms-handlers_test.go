@@ -393,11 +393,26 @@ func TestTranslationRoutes(t *testing.T) {
 		require.Contains(t, w.Body.String(), "invalid_locale")
 	})
 
+	t.Run("string writes map protected branches", func(t *testing.T) {
+		for _, req := range []struct{ method, path, body string }{
+			{http.MethodPost, "/v1/projects/project-1/strings", `{"key":"a","sourceText":"A"}`},
+			{http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{"hidden":true}`},
+			{http.MethodDelete, "/v1/projects/project-1/strings/string-1", ""},
+		} {
+			store := &fakeResourceStore{}
+			store.tmsErr = errProtectedBranch
+			w := sendResource(t, resourcePrincipal(writeScopes...), store, req.method, req.path, req.body)
+			require.Equal(t, http.StatusConflict, w.Code, req.method)
+			require.Contains(t, w.Body.String(), "protected_branch")
+		}
+	})
+
 	t.Run("put maps store rules", func(t *testing.T) {
 		for err, status := range map[error]int{
 			errSegmentLocked:      http.StatusConflict,
 			errLocaleNotInProject: http.StatusBadRequest,
 			errTranslationTooLong: http.StatusUnprocessableEntity,
+			errProtectedBranch:    http.StatusConflict,
 		} {
 			store := &fakeResourceStore{}
 			store.tmsErr = err

@@ -22,6 +22,7 @@ import {
 import {
   buildWorkspaceContentfulWebhookAutomationIdempotencyKey,
   buildWorkspaceGithubPushAutomationIdempotencyKey,
+  buildWorkspaceGoogleDriveChangeAutomationIdempotencyKey,
   buildWorkspaceIntercomPushAutomationIdempotencyKey,
   buildWorkspaceManualAutomationIdempotencyKey,
   buildWorkspaceScheduledAutomationIdempotencyKey,
@@ -41,6 +42,7 @@ import {
   getWorkspaceAutomationRunByIdempotencyKey,
   listContentSyncAutomations,
   listDueContentfulWorkspaceAutomations,
+  listGoogleDriveTriggerWorkspaceAutomations,
   listSourceUploadWorkspaceAutomations,
   listWorkspaceAutomations,
 } from "./workspace-automations";
@@ -55,6 +57,9 @@ import {
 import type { WorkspaceAutomationExecutionQueue } from "@/lib/workflow/types";
 import { createWorkspaceAutomationExecutionQueue } from "@/workflows/adapters";
 import type { ActivityActorKind } from "@/lib/activity-log/activity-log-contract";
+import { computeGoogleDriveSelectionFingerprint } from "@/lib/google-drive/import-google-drive-files";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { isErr } from "@/lib/primitives/result/results";
 
 const logger = createLogger("workspace-automation-dispatch");
 
@@ -308,7 +313,8 @@ export async function dispatchManualWorkspaceAutomationRun(input: {
   if (
     !isContentSync &&
     input.automation.triggerConfig.mode !== "manual" &&
-    input.automation.triggerConfig.mode !== "scheduled"
+    input.automation.triggerConfig.mode !== "scheduled" &&
+    input.automation.triggerConfig.mode !== "google_drive"
   ) {
     return null;
   }
@@ -728,6 +734,88 @@ export async function dispatchDueContentfulWorkspaceAutomations(input?: {
   }
 
   return results;
+}
+
+const GOOGLE_DRIVE_CHANGE_CHECK_CONCURRENCY = 4;
+
+/**
+ * Starts a run for each Google Drive-triggered automation whose watched files changed since its
+ * last run. Unchanged files resolve to the run that already exists for that state, so a tick
+ * that finds nothing new starts nothing.
+ */
+export async function dispatchChangedGoogleDriveWorkspaceAutomations(input?: {
+  limit?: number;
+  queue?: WorkspaceAutomationExecutionQueue;
+  skipAutomationIds?: ReadonlySet<string>;
+}): Promise<WorkspaceAutomationDispatchResult[]> {
+  const automations = (
+    await listGoogleDriveTriggerWorkspaceAutomations({ limit: input?.limit })
+  ).filter((automation) => !input?.skipAutomationIds?.has(automation.id));
+
+  const results = await mapWithConcurrency(
+    automations,
+    GOOGLE_DRIVE_CHANGE_CHECK_CONCURRENCY,
+    async (automation) => {
+      try {
+        return await dispatchGoogleDriveChangeToAutomation({ automation, queue: input?.queue });
+      } catch (error) {
+        logger.error(
+          {
+            automationId: automation.id,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          "workspace automation google drive change dispatch failed",
+        );
+        return null;
+      }
+    },
+  );
+
+  return results.filter((result): result is WorkspaceAutomationDispatchResult => result !== null);
+}
+
+async function dispatchGoogleDriveChangeToAutomation(input: {
+  automation: WorkspaceAutomationRecord;
+  queue?: WorkspaceAutomationExecutionQueue;
+}): Promise<WorkspaceAutomationDispatchResult | null> {
+  const { automation } = input;
+  if (automation.status !== "active" || automation.triggerConfig.mode !== "google_drive") {
+    return null;
+  }
+
+  const selection = await computeGoogleDriveSelectionFingerprint({
+    organizationId: automation.organizationId,
+    automation,
+  });
+  if (isErr(selection)) {
+    logger.warn(
+      { automationId: automation.id, code: selection.error.code },
+      "workspace automation google drive change check skipped",
+    );
+    return null;
+  }
+  // Nothing to import yet; the first file added starts the first run.
+  if (selection.value.fileCount === 0) {
+    return null;
+  }
+
+  return dispatchWorkspaceAutomationViaOrchestrator({
+    organizationId: automation.organizationId,
+    automation,
+    triggerSource: "google_drive",
+    idempotencyKey: buildWorkspaceGoogleDriveChangeAutomationIdempotencyKey({
+      automationId: automation.id,
+      configVersion: automation.configVersion,
+      selectionFingerprint: selection.value.fingerprint,
+    }),
+    inputSnapshot: {
+      googleDriveSelectionFingerprint: selection.value.fingerprint,
+      googleDriveFileCount: selection.value.fileCount,
+    },
+    // A failed run is not retried every tick; the next change to the files starts a new one.
+    retryFailedRuns: false,
+    queue: input.queue,
+  });
 }
 
 type WorkspaceAutomationSourceUploadInput = {

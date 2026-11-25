@@ -57,52 +57,54 @@ type validateSegmentResponse struct {
 }
 
 type handler struct {
-	validate             func(segmentvalidate.Request) []segmentvalidate.Check
-	spellChecker         SpellChecker
-	ofrep                *experiment.OFREPHandler
-	ota                  *ota.Handler
-	research             researchService
-	gsc                  gscService
-	objects              *objectstore.Registry
-	guidelines           *guidelines.Service
-	dictionaries         *dictionaryAPI
-	glossaries           *glossaryAPI
-	memories             *memoryAPI
-	qaReports            *qaReportAPI
-	teams                *teamAPI
-	members              *memberAPI
-	workspaceSettings    *workspaceSettingsAPI
-	sessionOrganizations *sessionOrganizationsAPI
-	sessionAccount       *sessionAccountAPI
-	sessionOnboarding    *sessionOnboardingAPI
-	irisGeneration       *irisGenerationAPI
-	apiKeys              *apiKeyAPI
-	issueSheets          *issueSheetAPI
-	notifications        *notificationsAPI
-	activityLogs         *activityLogAPI
-	billing              *billingAPI
-	activityLog          activityLogPublisher
-	contentEditor        *editorCatAPI
-	projects             *projectAPI
-	conversations        *conversationAPI
-	automations          *automationAPI
-	overview             *overviewAPI
-	publicTranslations   *publicTranslationsAPI
-	publicJobs           *publicJobsAPI
-	publicMemory         *publicMemoryAPI
-	workspace            *workspaceAPI
-	reports              *reportingAPI
-	autumn               *autumn.Client
-	deepAudits           deepAuditStarter
-	knowledgeMemories    *knowledgeMemoryAPI
-	guidelineDocuments   *guidelineDocumentAPI
-	guidelineCheck       *guidelineCheckAPI
-	guidelineRetrieve    *guidelineRetrieveAPI
-	pipes                *pipesAPI
-	valkey               valkeyHealthClient
-	overviewCache        dictionaryWordsCache
-	researchCache        domainResearchCache
-	postgres             healthPinger
+	validate              func(segmentvalidate.Request) []segmentvalidate.Check
+	spellChecker          SpellChecker
+	ofrep                 *experiment.OFREPHandler
+	ota                   *ota.Handler
+	research              researchService
+	gsc                   gscService
+	objects               *objectstore.Registry
+	guidelines            *guidelines.Service
+	dictionaries          *dictionaryAPI
+	glossaries            *glossaryAPI
+	memories              *memoryAPI
+	qaReports             *qaReportAPI
+	teams                 *teamAPI
+	members               *memberAPI
+	workspaceSettings     *workspaceSettingsAPI
+	sampleWorkspace       *sampleWorkspaceAPI
+	sessionOrganizations  *sessionOrganizationsAPI
+	sessionAccount        *sessionAccountAPI
+	sessionOnboarding     *sessionOnboardingAPI
+	irisGeneration        *irisGenerationAPI
+	apiKeys               *apiKeyAPI
+	issueSheets           *issueSheetAPI
+	notifications         *notificationsAPI
+	activityLogs          *activityLogAPI
+	billing               *billingAPI
+	activityLog           activityLogPublisher
+	contentEditor         *editorCatAPI
+	projects              *projectAPI
+	conversations         *conversationAPI
+	automations           *automationAPI
+	overview              *overviewAPI
+	publicTranslations    *publicTranslationsAPI
+	publicJobs            *publicJobsAPI
+	publicMemory          *publicMemoryAPI
+	workspace             *workspaceAPI
+	reports               *reportingAPI
+	autumn                *autumn.Client
+	deepAudits            deepAuditStarter
+	knowledgeMemories     *knowledgeMemoryAPI
+	guidelineDocuments    *guidelineDocumentAPI
+	guidelineCheck        *guidelineCheckAPI
+	guidelineRetrieve     *guidelineRetrieveAPI
+	pipes                 *pipesAPI
+	workspaceIntegrations *workspaceIntegrationsAPI
+	valkey                valkeyHealthClient
+	overviewCache         dictionaryWordsCache
+	researchCache         domainResearchCache
+	postgres              healthPinger
 }
 
 func newHandler() *handler {
@@ -141,6 +143,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.workspaceSettings != nil {
 		h.workspaceSettings.register(mux, verifier)
+	}
+	if h.sampleWorkspace != nil {
+		h.sampleWorkspace.register(mux, verifier)
 	}
 	if h.sessionOrganizations != nil {
 		h.sessionOrganizations.register(mux, verifier)
@@ -200,6 +205,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.pipes != nil {
 		h.pipes.register(mux, verifier)
+	}
+	if h.workspaceIntegrations != nil {
+		h.workspaceIntegrations.register(mux, verifier)
 	}
 	if h.guidelineDocuments != nil {
 		h.guidelineDocuments.register(mux, verifier)

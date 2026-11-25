@@ -18,7 +18,7 @@ import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { IrisVideoBackground } from "./iris-video-background";
-import { irisLaunchEmbedSrc } from "@/lib/iris/iris-waitlist";
+import { irisLaunchEmbedSrc } from "@/lib/iris/iris-launch-film";
 
 const useReducedMotionMock = vi.hoisted(() => vi.fn(() => false as boolean | null));
 

@@ -21,7 +21,10 @@ import type {
 import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { nativeQueueFilterCondition } from "@/lib/projects/content-editor/native-content-editor-queue-filter";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
-import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
+import {
+  DEFAULT_PROJECT_BRANCH_NAME,
+  resolvedProjectBranchName,
+} from "@/lib/projects/branches/project-branch-name";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
 import type { SourceFileSyncClash } from "@/lib/projects/files/source-file-sync-report";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
@@ -1480,12 +1483,15 @@ export class ProjectTranslationService extends ProjectServiceBase {
     targetLocale: string;
     entries: Record<string, string>;
     actorUserId?: string | null;
+    /** Native version branch; the default branch when omitted. */
+    branchName?: string | null;
   }): Promise<{ matched: number; imported: number; skipped: number }> {
     const entryKeys = Object.keys(input.entries);
     if (entryKeys.length === 0) {
       return { matched: 0, imported: 0, skipped: 0 };
     }
 
+    const branchName = resolvedProjectBranchName(input.branchName);
     const [sourceFile] = await this.database
       .select({ id: schema.repositorySourceFiles.id })
       .from(schema.repositorySourceFiles)
@@ -1494,7 +1500,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           eq(schema.repositorySourceFiles.organizationId, input.organizationId),
           eq(schema.repositorySourceFiles.projectId, input.projectId),
           eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
-          eq(schema.repositorySourceFiles.branchName, "main"),
+          eq(schema.repositorySourceFiles.branchName, branchName),
         ),
       )
       .limit(1);

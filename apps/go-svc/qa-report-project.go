@@ -20,6 +20,7 @@ type nativeQaProject struct {
 	QaScanCadence   string
 	QaScanLastRunAt *time.Time
 	QaCheckPolicy   []byte
+	QaScoringPolicy []byte
 }
 
 type qaRunRow struct {
@@ -64,12 +65,12 @@ func (api *qaReportAPI) ownedNativeProject(ctx context.Context, actor qaReportAc
 	var project nativeQaProject
 	var source string
 	err := api.pool.QueryRow(ctx, `
-        select p.id, p.source, p.qa_scan_cadence, p.qa_scan_last_run_at, p.qa_check_policy
+        select p.id, p.source, p.qa_scan_cadence, p.qa_scan_last_run_at, p.qa_check_policy, p.qa_scoring_policy
         from projects p
         where p.id = $1 and p.organization_id = $2
         and `+formatQaProjectTeamAccessSQL(3, 4, 2),
 		projectID, actor.organizationID, actor.canWriteProjectTeam(), actor.userID,
-	).Scan(&project.ID, &source, &project.QaScanCadence, &project.QaScanLastRunAt, &project.QaCheckPolicy)
+	).Scan(&project.ID, &source, &project.QaScanCadence, &project.QaScanLastRunAt, &project.QaCheckPolicy, &project.QaScoringPolicy)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nativeQaProject{}, missingQaProject()
 	}
@@ -93,14 +94,18 @@ func qaChecksFromPolicy(policy []byte) map[string]qaCheckSetting {
 	if _, ok := checks["guideline"]; !ok {
 		checks["guideline"] = qaCheckSetting{Enabled: false, Severity: "warning"}
 	}
+	if _, ok := checks["quality_estimate"]; !ok {
+		checks["quality_estimate"] = qaCheckSetting{Enabled: false, Severity: "warning"}
+	}
 	return checks
 }
 
-func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *time.Time, policy []byte) map[string]any {
+func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *time.Time, policy, scoring []byte) map[string]any {
 	checks := qaChecksFromPolicy(policy)
 	return map[string]any{
 		"cadence":           cadence,
 		"checks":            checks,
+		"scoring":           resolveQaScoringSetting(scoring),
 		"lastRunAt":         formatQaReportTime(lastRunAt),
 		"canRun":            actor.canJobCreate(),
 		"canManageSchedule": actor.canProjectWrite(),
@@ -161,7 +166,7 @@ func (api *qaReportAPI) listProjectQaReports(ctx context.Context, actor qaReport
 	}
 	return map[string]any{
 		"reports":  reports,
-		"settings": qaReportSettingsPayload(actor, project.QaScanCadence, project.QaScanLastRunAt, project.QaCheckPolicy),
+		"settings": qaReportSettingsPayload(actor, project.QaScanCadence, project.QaScanLastRunAt, project.QaCheckPolicy, project.QaScoringPolicy),
 	}, 200, nil
 }
 
@@ -171,7 +176,7 @@ func (api *qaReportAPI) lastSuccessfulProjectQaRun(ctx context.Context, organiza
         select id, project_id, trigger, status, segment_count, finding_count, error_count, warning_count,
                summary, error_code, error_message, started_at, completed_at, created_at
         from translation_qa_runs
-        where organization_id = $1 and project_id = $2 and status = 'succeeded'
+        where organization_id = $1 and project_id = $2 and status = 'succeeded' and `+qaProjectWideRunSQL+`
           and created_at <= (select created_at from translation_qa_runs where organization_id = $1 and project_id = $2 and id = $3)
         order by created_at desc
         limit 1`, organizationID, projectID, beforeRunID).Scan(
@@ -209,6 +214,100 @@ func (api *qaReportAPI) getTranslationQaRun(ctx context.Context, organizationID,
 type qaSettingsBody struct {
 	Cadence *string                   `json:"cadence"`
 	Checks  map[string]qaCheckSetting `json:"checks"`
+	Scoring *qaScoringSetting         `json:"scoring"`
+}
+
+// qaScoringSetting mirrors QaScoringPolicy in apps/hyperlocalise-web/src/lib/qa/qa-scoring.ts.
+type qaScoringSetting struct {
+	Enabled             bool              `json:"enabled"`
+	PassThreshold       float64           `json:"passThreshold"`
+	Penalties           map[string]string `json:"penalties"`
+	EstimationThreshold float64           `json:"estimationThreshold"`
+	Domain              string            `json:"domain"`
+}
+
+// UnmarshalJSON fills a field the JSON leaves out with its default, so a stored policy or
+// request from before the field existed reads as the default rather than zero.
+func (setting *qaScoringSetting) UnmarshalJSON(data []byte) error {
+	type plain qaScoringSetting
+	value := plain{
+		PassThreshold:       defaultQaScoreThreshold,
+		EstimationThreshold: defaultQaEstimationThreshold,
+		Domain:              "general",
+	}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*setting = qaScoringSetting(value)
+	return nil
+}
+
+const (
+	defaultQaScoreThreshold      = 95
+	defaultQaEstimationThreshold = 70
+)
+
+var (
+	qaMqmSeverities = map[string]struct{}{"minor": {}, "major": {}, "critical": {}}
+	// qaDomains mirrors qaDomains in apps/hyperlocalise-web/src/lib/qa/quality-domains.ts.
+	qaDomains = map[string]struct{}{"general": {}, "medical": {}, "legal": {}, "financial": {}}
+)
+
+// resolveQaScoringSetting reads the stored policy, falling back to scoring off.
+func resolveQaScoringSetting(raw []byte) qaScoringSetting {
+	setting := qaScoringSetting{
+		PassThreshold:       defaultQaScoreThreshold,
+		EstimationThreshold: defaultQaEstimationThreshold,
+		Domain:              "general",
+	}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &setting)
+	}
+	if setting.PassThreshold < 0 || setting.PassThreshold > 100 {
+		setting.PassThreshold = defaultQaScoreThreshold
+	}
+	if setting.EstimationThreshold < 0 || setting.EstimationThreshold > 100 {
+		setting.EstimationThreshold = defaultQaEstimationThreshold
+	}
+	if _, ok := qaDomains[setting.Domain]; !ok {
+		setting.Domain = "general"
+	}
+	penalties := map[string]string{}
+	for check, severity := range setting.Penalties {
+		if _, ok := qaPolicyCheckTypes[check]; !ok {
+			continue
+		}
+		if _, ok := qaMqmSeverities[severity]; ok {
+			penalties[check] = severity
+		}
+	}
+	setting.Penalties = penalties
+	return setting
+}
+
+func validQaScoring(setting *qaScoringSetting) bool {
+	if setting.PassThreshold < 0 || setting.PassThreshold > 100 ||
+		setting.EstimationThreshold < 0 || setting.EstimationThreshold > 100 {
+		return false
+	}
+	if setting.Domain == "" {
+		setting.Domain = "general"
+	}
+	if _, ok := qaDomains[setting.Domain]; !ok {
+		return false
+	}
+	if setting.Penalties == nil {
+		setting.Penalties = map[string]string{}
+	}
+	for check, severity := range setting.Penalties {
+		if _, ok := qaPolicyCheckTypes[check]; !ok {
+			return false
+		}
+		if _, ok := qaMqmSeverities[severity]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 type qaCheckSetting struct {
@@ -220,7 +319,7 @@ var qaPolicyCheckTypes = map[string]struct{}{
 	"not_localized": {}, "whitespace_only": {}, "same_as_source": {}, "escaped_char_mismatch": {},
 	"length": {}, "placeholder_mismatch": {}, "glossary_violation": {}, "format": {}, "spelling": {},
 	"numbers_mismatch": {}, "punctuation_mismatch": {}, "character_case_mismatch": {},
-	"unreachable_plural_case": {}, "guideline": {},
+	"unreachable_plural_case": {}, "guideline": {}, "quality_estimate": {},
 }
 
 func validQaPolicy(checks map[string]qaCheckSetting) bool {
@@ -229,6 +328,9 @@ func validQaPolicy(checks map[string]qaCheckSetting) bool {
 	}
 	if _, ok := checks["guideline"]; !ok {
 		checks["guideline"] = qaCheckSetting{Enabled: false, Severity: "warning"}
+	}
+	if _, ok := checks["quality_estimate"]; !ok {
+		checks["quality_estimate"] = qaCheckSetting{Enabled: false, Severity: "warning"}
 	}
 	if len(checks) != len(qaPolicyCheckTypes) {
 		return false
@@ -250,28 +352,33 @@ func (api *qaReportAPI) patchProjectQaSettings(ctx context.Context, actor qaRepo
 	if body.Cadence != nil {
 		cadence = strings.TrimSpace(*body.Cadence)
 	}
-	if (cadence != "off" && cadence != "daily") || (body.Checks != nil && !validQaPolicy(body.Checks)) {
+	if (cadence != "off" && cadence != "daily") || (body.Checks != nil && !validQaPolicy(body.Checks)) ||
+		(body.Scoring != nil && !validQaScoring(body.Scoring)) {
 		return nil, 0, qaReportFailure(400, "invalid_qa_report_settings", "Invalid QA report settings")
 	}
 	var lastRunAt *time.Time
-	var policy []byte
-	var policyArg any
+	var policy, scoring []byte
+	var policyArg, scoringArg any
 	if body.Checks != nil {
 		policyArg, _ = json.Marshal(body.Checks)
 	}
+	if body.Scoring != nil {
+		scoringArg, _ = json.Marshal(body.Scoring)
+	}
 	err := api.pool.QueryRow(ctx, `
         update projects
-        set qa_scan_cadence = $3, qa_check_policy = coalesce($4::jsonb, qa_check_policy)
+        set qa_scan_cadence = $3, qa_check_policy = coalesce($4::jsonb, qa_check_policy),
+            qa_scoring_policy = coalesce($5::jsonb, qa_scoring_policy)
         where organization_id = $1 and id = $2
-        returning qa_scan_cadence, qa_scan_last_run_at, qa_check_policy`,
-		actor.organizationID, project.ID, cadence, policyArg).Scan(&cadence, &lastRunAt, &policy)
+        returning qa_scan_cadence, qa_scan_last_run_at, qa_check_policy, qa_scoring_policy`,
+		actor.organizationID, project.ID, cadence, policyArg, scoringArg).Scan(&cadence, &lastRunAt, &policy, &scoring)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, missingQaProject()
 	}
 	if err != nil {
 		return nil, 0, err
 	}
-	settings := qaReportSettingsPayload(actor, cadence, lastRunAt, policy)
+	settings := qaReportSettingsPayload(actor, cadence, lastRunAt, policy, scoring)
 	settings["canManageSchedule"] = true
 	return map[string]any{"settings": settings}, 200, nil
 }
@@ -513,7 +620,7 @@ func (api *qaReportAPI) listProjectLatestFindings(ctx context.Context, actor qaR
 	var runID uuid.UUID
 	err = api.pool.QueryRow(ctx, `
         select id from translation_qa_runs
-        where organization_id = $1 and project_id = $2 and status = 'succeeded'
+        where organization_id = $1 and project_id = $2 and status = 'succeeded' and `+qaProjectWideRunSQL+`
         order by completed_at desc nulls last, created_at desc
         limit 1`, actor.organizationID, projectID).Scan(&runID)
 	if errors.Is(err, pgx.ErrNoRows) {

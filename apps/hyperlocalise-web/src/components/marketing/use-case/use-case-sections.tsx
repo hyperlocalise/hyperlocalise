@@ -52,7 +52,7 @@ import {
 } from "@/components/marketing/product/domains-mock-ui";
 import { StyleGuidePanel } from "@/components/marketing/product/guideline-mock-ui";
 import { HyperlabExperimentsPanel } from "@/components/marketing/product/hyperlab-mock-ui";
-import { IRIS_LAUNCH_YOUTUBE_ID } from "@/lib/iris/iris-waitlist";
+import { IRIS_LAUNCH_YOUTUBE_ID } from "@/lib/iris/iris-launch-film";
 import { cn } from "@/lib/primitives/cn";
 
 import { DotGrid, getUseCaseMesh } from "./use-case-backdrops";

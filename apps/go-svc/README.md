@@ -80,6 +80,29 @@ client, err := dataforseo.NewClient(dataforseo.Config{
 
 Do **not** set separate `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` env vars. Pass the single base64 API key.
 
+### Exa (live market context)
+
+`internal/exa` is a typed client for the [Exa Search API](https://exa.ai/docs/reference/search). It pulls live, local context for a target market: local competitors, cultural references, trending terms, and advertising rules. The package is a library client and does not expose an HTTP route.
+
+`MarketContext` calls `POST /search` with `userLocation`, highlights, and a structured `outputSchema`. The same client also exposes `Search`, `GetContents`, and `Answer`. See the [Search](https://exa.ai/docs/reference/search), [Contents](https://exa.ai/docs/reference/get-contents), and [Answer](https://exa.ai/docs/reference/answer) references.
+
+| Variable | Description |
+|----------|-------------|
+| `EXA_API_KEY` | Exa API key sent as `x-api-key`. Create keys at [Exa API keys](https://dashboard.exa.ai/api-keys). |
+| `EXA_BASE_URL` | Optional. Defaults to `https://api.exa.ai`. |
+
+Example Go usage:
+
+```go
+client, err := exa.NewClient(exa.Config{
+    APIKey: os.Getenv("EXA_API_KEY"),
+})
+brief, err := client.MarketContext(ctx, exa.MarketContextRequest{
+    Locale: "ja-JP",
+    Topic:  "athleisure",
+})
+```
+
 ### Google Search Console
 
 Used by `internal/gsc` for search performance and URL inspection. GSC is OAuth-based — there is no API key env var for go-svc. Users connect Search Console through the WorkOS `google-search-console` pipe on the Integrations page; go-svc receives a minted access token (or `oauth2.TokenSource`) per request.
@@ -116,7 +139,7 @@ and reads the result. Neither package exposes an HTTP route.
 |----------|-------------|
 | `ELEVENLABS_API_KEY` | ElevenLabs API key sent as `xi-api-key`. Required for native `elevenlabs-*` Iris models, including `elevenlabs-dubbing`, `elevenlabs-voice-isolator` and `elevenlabs-voice-changer`. |
 | `ELEVENLABS_BASE_URL` | Optional. Defaults to `https://api.elevenlabs.io`. |
-| `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Seedance, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, ByteDance upscaler, and Sync lipsync Iris models. |
+| `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, ByteDance upscaler, and Sync lipsync Iris models. |
 | `FAL_QUEUE_URL` | Optional. Defaults to `https://queue.fal.run`. |
 
 Successful Iris generate jobs consume workspace **AI Credit**: Autumn feature `ai_tokens` (USD) via `trackTokens`, plus one `agent_runs`. Platform `FAL_KEY` and `ELEVENLABS_API_KEY` always debit that wallet. Organization LLM keys do not skip Fal or ElevenLabs billing. `/iris/estimate` returns remaining USD with `unit: "usd"`. The model catalog publishes `id` and `name` only; it does not publish Diffusion credit prices.
@@ -135,6 +158,17 @@ Fal and ElevenLabs are not on Gateway, so they use custom Autumn ids. `inputCost
 | `AI_CREDIT_ELEVENLABS_DUBBING_MODEL_ID` | `custom/hyperlocalise-elevenlabs-dubbing` | 1 ElevenLabs source-minute | $0.50 (Dubbing v1, no watermark) | 500000 |
 
 Do not set `AI_CREDIT_AUDIO_MODEL_ID`. That mixed ElevenLabs seconds and minutes on one id.
+
+Gateway jobs are billed in this order:
+
+1. **What Gateway charged.** Each Gateway response's generation id (`gen_…`, from the body's `id` or a generation header) is kept on the job and looked up at `GET /v1/generation?id=…` for `total_cost`, waiting up to 2 minutes while Gateway ingests it.
+2. **Reported tokens**, when there is no cost: Nano Banana and GPT Image responses, `image-text` and `listen` are billed on their tokens under the model that ran. `listen` also bills a failed first attempt that returned usage.
+3. **Gateway's published prices** (`GET /v1/models`, cached for an hour): video by second at the requested resolution and audio (the model's first listed resolution and audio on when the request leaves them out), speech by input character or output second, transcription by second, images by size.
+4. **Units**, for anything still unpriced.
+
+A dollar amount (1 or 3) reaches Autumn through `AI_CREDIT_USD_MODEL_ID` (default `custom/hyperlocalise-usd`): a custom Autumn model with `inputCost` `0` and `outputCost` `1`, so one output token is one micro-dollar and the credit system's markup still applies. **Create it in Autumn before deploying.** A charge Autumn takes below 99% of the cost logs `iris_usage_charge_below_cost`.
+
+Every Iris charge (chat turns, generations, translations) is written to `usage_events` (`feature_id = 'ai_tokens'`, `credential_source = 'gateway'`) before Autumn is called, then settled with Autumn's charged `value` as `amount_usd` or left `tracking_failed` with the error. Sources are `iris_chat_turn`, `iris_localise_translate`, `iris_image_generation`, `iris_video_generation` and `iris_generation`; `actor_user_id` is the member and `model_id` is the model that ran, `estimated_amount_usd` the vendor cost of a dollar charge with `dimensions.cost_source` `gateway` or `price_table`, and `dimensions` carry `iris_thread_id` / `iris_thread_title` from the desktop app's `X-Iris-Thread-Id` / `X-Iris-Thread-Title` headers. Reports' AI usage groups them by channel `iris`, member and thread. The operation key keeps a resumed job from being charged twice. A chat turn stopped or failed after the Gateway accepted it is charged on an estimate (4 characters a token) and marked `usage_estimated`. A unit charge under $0.001 a unit logs `iris_usage_unit_charge_low`: Autumn priced those units as tokens.
 
 Example Go usage:
 
@@ -159,11 +193,16 @@ AI Gateway `/audio/speech`. S2.1 Pro is the production TTS; Drama 3 is the
 current performance model. Gateway has no Fish Audio music or SFX ids; those
 stay on ElevenLabs. Previous S2 Pro and deprecated S1 are not catalogued.
 
-Transcription (`universal-3.5-pro`, `fish-audio-transcribe-1`,
-`qwen3.8-omni-flash`) posts to AI Gateway's native `/v4/ai/transcription-model`
-JSON endpoint, derived from `AI_GATEWAY_BASE_URL` by replacing `/v1` with
-`/v4/ai`. The gateway does not implement OpenAI-compatible
-`/v1/audio/transcriptions`. Direct OpenAI still uses that multipart route.
+Transcription (`universal-3.5-pro`, `fish-audio-transcribe-1`) posts to AI
+Gateway's native `/v4/ai/transcription-model` JSON endpoint, derived from
+`AI_GATEWAY_BASE_URL` by replacing `/v1` with `/v4/ai`. The gateway does not
+implement OpenAI-compatible `/v1/audio/transcriptions`. Direct OpenAI still
+uses that multipart route.
+
+Listen (`listen`) posts to `/chat/completions` with a `file` part for the
+audio or video and returns `analysis.md`. Jobs go to
+`google/gemini-3.8-flash` and fall back to `xiaomi/mimo-v2.6-pro`. The old
+Iris id `qwen3.8-omni-flash` still resolves to this model.
 
 Voice tools (`elevenlabs-voice-isolator`: `media`; `elevenlabs-voice-changer`:
 `media`, `voice`, optional `removeBackgroundNoise`) call ElevenLabs audio
@@ -621,6 +660,7 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | POST | `/files/detail/cat/comments` | Add a comment |
 | PATCH | `/files/detail/cat/comments/{id}/resolve` | Resolve a legacy native issue comment |
 | POST | `/files/detail/cat/concordance` | Native glossary + TM lookup |
+| POST | `/files/detail/cat/recommendation` | AI translation suggestion + reasoning for one string |
 | POST | `/files/detail/cat/visual-context` | Native screenshots bound to a string |
 | POST | `/files/detail/cat/visual-context/screenshots` | Presign a screenshot upload, optionally bind a string |
 | POST | `/files/detail/cat/visual-context/screenshots/{id}/finalize` | Persist an uploaded screenshot as stored visual context; optional `match` queues OCR binding |
@@ -633,6 +673,9 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | POST | `/files/detail/cat/strings/locked` | Lock or unlock segments |
 | POST | `/files/detail/cat/segments/{id}/max-length` | Set key max length |
 | PATCH | `/files/detail/cat/images/status` | Update image/video variant status |
+| POST | `/files/detail/cat/images/regenerate` | AI-regenerate a file-backed image variant or a URL-backed image translation (`image-localise`) |
+| POST | `/files/detail/cat/images/upload` | Replace a localized image variant with uploaded bytes (multipart, up to 32 MB) |
+| POST | `/files/detail/cat/images/edit` | Targeted AI image edit on a file-backed variant (`image-edit`, multipart) |
 | POST | `/files/detail/cat/segments/{id}/treat-as-image` | Toggle image-URL content kind |
 | POST | `/files/detail/cat/segments/{id}/treat-as-video` | Toggle video-URL content kind |
 | POST | `/files/string-context` | Cached repository context only (`cachedOnly: true`) |
@@ -643,9 +686,6 @@ These return `501` with a stable error code. Browser clients keep calling Hono.
 
 | Method | Path | Error | Why it stays on Hono |
 |--------|------|-------|----------------------|
-| POST | `/files/detail/cat/images/regenerate` | `image_regenerate_deferred` | Vercel Workflow + Blob-backed stored files |
-| POST | `/files/detail/cat/images/upload` | `image_upload_deferred` | Vercel Blob file adapter |
-| POST | `/files/detail/cat/recommendation` | `ai_recommendation_deferred` | Vercel AI Gateway / AI SDK |
 | POST | `/files/detail/cat/visual-context` on TMS projects | `visual_context_deferred` | Live TMS screenshot adapters |
 | POST | `/files/string-context` without `cachedOnly` | `string_context_deferred` | Vercel Workflow repository agent |
 | * | Provider/TMS CAT (`projects.source != native`) | `provider_cat_deferred` | TypeScript TMS provider adapters |

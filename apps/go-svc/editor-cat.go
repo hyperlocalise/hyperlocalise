@@ -34,6 +34,9 @@ type editorCatAPI struct {
 	pool       dictionaryPool
 	membership func(context.Context, string) (*workos.UserOrganizationMembership, error)
 	objects    *objectstore.Registry
+	// ai serves the text model, AI feature gating, and usage metering for the
+	// native recommendation route. Nil in tests that do not touch it.
+	ai *irisGenerationAPI
 	// matchPublisher is nil when automatic visual-context matching is not configured.
 	matchPublisher visualContextMatchPublisher
 }
@@ -186,6 +189,9 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	taskRoute := func(pattern string, rule editorScopeRule, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) {
 		registerAuthenticated(mux, verifier, pattern, api.handle(fn, rule))
 	}
+	routeMultipart := func(pattern string, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, api.handleWithBodyLimit(editorCatImageBodyLimit, fn, editorScopeClosed))
+	}
 	taskRoute("GET "+cat+"/queue", editorScopeQuery, api.getQueue)
 	taskRoute("POST "+cat+"/targets", editorScopeTargets, api.getSegmentTargets)
 	route("GET "+cat+"/activity-logs", api.listActivityLogs)
@@ -214,15 +220,16 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route("POST "+cat+"/visual-context/screenshots/{screenshotId}/bindings", api.bindVisualContextScreenshot)
 	route("DELETE "+cat+"/visual-context/screenshots/{screenshotId}/bindings/{bindingId}", api.unbindVisualContextScreenshot)
 	route("DELETE "+cat+"/visual-context/screenshots/{screenshotId}", api.deleteVisualContextScreenshot)
-	route("POST "+cat+"/recommendation", api.skipRecommendation)
+	route("POST "+cat+"/recommendation", api.recommendTranslation)
 	route("POST "+cat+"/strings/hidden", api.setHidden)
 	route("POST "+cat+"/strings/locked", api.setLocked)
 	route("POST "+cat+"/segments/{externalStringId}/max-length", api.setMaxLength)
 	route("POST "+cat+"/strings/tags", api.setTags)
 	route("POST "+cat+"/segments/{externalStringId}/design-url", api.setDesignURL)
 	route("POST "+cat+"/segments/{externalStringId}/source-text", api.setSourceText)
-	route("POST "+cat+"/images/regenerate", api.skipImageRegenerate)
-	route("POST "+cat+"/images/upload", api.skipImageUpload)
+	route("POST "+cat+"/images/regenerate", api.regenerateImage)
+	routeMultipart("POST "+cat+"/images/upload", api.uploadImage)
+	routeMultipart("POST "+cat+"/images/edit", api.editImage)
 	route("PATCH "+cat+"/images/status", api.updateImageStatus)
 	route("POST "+cat+"/segments/{externalStringId}/treat-as-image", api.treatAsImage)
 	route("POST "+cat+"/segments/{externalStringId}/treat-as-video", api.treatAsVideo)
@@ -305,6 +312,11 @@ func (api *editorCatAPI) taskScopedProject(ctx context.Context, actor editorCatA
 // project's team may call; any other rule also opens it to the owner of an open task there,
 // a vendor included, held to that task's file and languages.
 func (api *editorCatAPI) handle(fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error), scopeRule editorScopeRule) http.Handler {
+	return api.handleWithBodyLimit(editorCatBodyLimit, fn, scopeRule)
+}
+
+// handleWithBodyLimit is handle with its own cap on the request body.
+func (api *editorCatAPI) handleWithBodyLimit(limit int64, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error), scopeRule editorScopeRule) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if denyBrowserMutation(r) {
@@ -329,7 +341,7 @@ func (api *editorCatAPI) handle(fn func(*http.Request, editorCatActor, editorCat
 			return
 		}
 		noteRequest(r, "role", actor.role, "user_id", actor.userID)
-		r.Body = http.MaxBytesReader(w, r.Body, editorCatBodyLimit)
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		// The team rule first. A vendor never passes it: a team they were left in gives nothing.
 		project, err := editorCatProject{}, missingEditorCatProject()
 		if !actor.isVendor() {

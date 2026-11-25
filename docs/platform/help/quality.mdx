@@ -33,6 +33,30 @@ With **Guidelines** on, each scan checks stored translations against your [guide
 
 Each classified segment counts toward your plan's weekly guideline check allowance. A cache hit is not billed. Scans save a short warning for each flagged segment. Choose **Explain** on a row to load the cited passage, reason, and optional replacement; explaining spends AI credit. If the allowance runs out, a translation is too long to check, or a batch cannot be reached, the scan still finishes its other checks, keeps guideline findings it already saved, and leaves older guideline findings in place. The run notes that guideline checks were incomplete, so a clean guideline count is not a full recheck.
 
+### Quality score
+
+A quality score turns a scan's findings into one number per language, so you can set a pass mark instead of reading every finding. In **Check settings**, turn on **Quality score** and set the **Pass threshold** (95 by default).
+
+Each finding costs points by severity: **Minor** 1, **Major** 5, **Critical** 25. A warning counts as minor and an error as major unless you choose a different penalty for that check. A language scores `100 × (1 − points ÷ source words)`, floored at 0, and passes when it reaches the threshold and has no critical finding.
+
+Source words are counted with the project's source language. Chinese, Japanese, Thai, Lao, Khmer and Burmese, written without spaces, are counted by word, not by sentence.
+
+Ignoring or reopening a finding updates the latest scan's score at once. Changing penalties or the threshold applies from the next scan.
+
+### Quality estimate
+
+The **Estimated quality** check has AI score every translated segment from 0 to 100 for how ready it is to publish without edits, with a one-line reason. Turn it on in **Check settings** and set its severity. Segments scored below the **Estimate threshold** (70 by default) become findings, so they count toward the quality score and can send work to review.
+
+A scan only re-scores a segment when its source text, translation or content domain changed; unchanged segments keep their earlier score. Empty translations and very long segments are not scored. If the estimator stops part-way, the scan keeps the estimates it made, leaves older estimate findings open, and notes that estimates were incomplete. The QA overview shows the average estimate and how many segments fell below the threshold.
+
+### Content domain
+
+Set **Content domain** to **Medical**, **Legal** or **Financial** for regulated content. The domain:
+
+- Tells the estimator which changes matter most, such as a dosage, a defined term or an amount, and to score them as severe.
+- Raises the lowest estimate threshold: 85 for medical and legal, 80 for financial.
+- Makes every [Run QA](/platform/visual-workflows#check-translations-with-qa) workflow step report that the work needs human review, whatever the score.
+
 ### Review findings
 
 On the project **QA** page or workspace **QA** overview, open the findings table to work through results from the latest scans.

@@ -21,7 +21,7 @@ import type { AhrefsPipesConnectionStatus, AhrefsPipesError } from "./types";
 
 const PIPES_UNAVAILABLE: AhrefsPipesError = {
   code: "ahrefs_pipes_unavailable",
-  message: "WorkOS is not configured, so Ahrefs cannot connect through Pipes.",
+  message: "Ahrefs isn't available right now. Contact support if this continues.",
 };
 
 const AHREFS_NOT_CONNECTED: AhrefsPipesError = {

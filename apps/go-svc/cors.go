@@ -25,7 +25,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 			header.Set("Access-Control-Allow-Origin", origin)
 			header.Add("Vary", "Origin")
 			header.Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS")
-			header.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, If-None-Match, X-API-Key, X-Go-Svc-Research-Token")
+			header.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, If-None-Match, X-API-Key, X-Go-Svc-Research-Token, "+irisThreadIDHeader+", "+irisThreadTitleHeader)
 			header.Set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type, ETag, X-Export-Extension")
 			header.Set("Access-Control-Max-Age", corsMaxAgeSeconds)
 			if strings.EqualFold(r.Header.Get("Access-Control-Request-Private-Network"), "true") {

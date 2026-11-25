@@ -12,10 +12,8 @@
  */
 import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
-import {
-  getWorkspaceFeatureFlagEnabled,
-  workspaceAutomationsFlag,
-} from "@/lib/flags/workspace-flags";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { getAutumnWorkspaceBooleanFeatureEnabled } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
@@ -40,7 +38,10 @@ async function ProjectAutomationsPageLoader({
 }) {
   const { organizationSlug, projectId } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  const automationsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceAutomationsFlag, auth);
+  const automationsEnabled = await getAutumnWorkspaceBooleanFeatureEnabled(
+    autumnFeatureIds.automations,
+    auth,
+  );
 
   if (!automationsEnabled) {
     return <FeatureTeaserPage feature="automations" scope="project" />;

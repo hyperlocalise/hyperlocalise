@@ -1,0 +1,233 @@
+---
+title: "JavaScript OTA SDK"
+sidebarTitle: "JavaScript OTA SDK"
+description: "Load approved translations from a Hyperlocalise CDN distribution into react-intl, next-intl, i18next, vue-i18n, svelte-i18n, or any i18n library, with offline cache and bundled fallback."
+---
+
+`@hyperlocalise/ota` loads a [CDN distribution](/platform/developers/cdn-distributions) at runtime, so copy changes reach users without a new build. It works with any i18n library: the SDK returns plain message objects, and your library formats them. It has no dependencies and runs in browsers, Node 18+, React Native, Deno, Bun, and edge runtimes.
+
+## Install
+
+```bash
+npm install @hyperlocalise/ota
+```
+
+Create a distribution in the **JSON** format and copy its hash from **Settings** → **CDN**.
+
+## How it works with your library
+
+Every integration follows the same three steps:
+
+1. **Create one client** for the app.
+2. **Load** a locale's messages with `getMessages(locale)` and give them to your library.
+3. **Reload** when a release goes out: `subscribe` to the client and give the library the new messages.
+
+```ts
+// ota.ts
+import { createOtaClient } from "@hyperlocalise/ota";
+import enUS from "./locales/en-US.json";
+import frFR from "./locales/fr-FR.json";
+
+export const ota = createOtaClient({
+  hash: "50fb350641274ba88296f97dc7e3e0c3",
+  fallbackMessages: { "en-US": enUS, "fr-FR": frFR },
+});
+
+ota.startPolling();
+```
+
+`getMessages` returns flat keys, exactly as they are in your source files:
+
+```json
+{ "checkout.title": "Paiement", "checkout.items": "{count, plural, one {# article} other {# articles}}" }
+```
+
+The SDK does not parse or change the text. ICU, `{{name}}`, or any other placeholder syntax reaches your library as written. Libraries that look keys up by path need nested objects. Wrap the result in `unflattenMessages`:
+
+```ts
+import { unflattenMessages } from "@hyperlocalise/ota";
+
+unflattenMessages({ "checkout.title": "Paiement" });
+// { checkout: { title: "Paiement" } }
+```
+
+| Library | Message shape |
+| --- | --- |
+| react-intl / FormatJS | Flat, as returned |
+| i18next | Flat with `keySeparator: false`, or nested |
+| next-intl | Nested |
+| vue-i18n | Nested |
+| svelte-i18n | Nested |
+
+## react-intl
+
+```tsx
+import { useEffect, useState } from "react";
+import { IntlProvider } from "react-intl";
+import { ota } from "./ota";
+
+function useOtaMessages(locale: string) {
+  const [messages, setMessages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let active = true;
+    const load = () =>
+      ota.getMessages(locale).then((next) => active && setMessages(next), console.error);
+    load();
+    const unsubscribe = ota.subscribe(load);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [locale]);
+
+  return messages;
+}
+
+export function App({ locale }: { locale: string }) {
+  const messages = useOtaMessages(locale);
+  return (
+    <IntlProvider locale={locale} defaultLocale="en-US" messages={messages}>
+      <Checkout />
+    </IntlProvider>
+  );
+}
+```
+
+To avoid showing message ids on first render, start the state from your bundled messages, or render a loading state until the first `getMessages` resolves.
+
+## next-intl
+
+Load messages on the server in `i18n/request.ts`. The client lives at module level, so requests share its cache, and it checks for a new release at most every 15 minutes. Don't call `startPolling` on the server.
+
+```ts
+// i18n/request.ts
+import { getRequestConfig } from "next-intl/server";
+import { unflattenMessages } from "@hyperlocalise/ota";
+import { ota } from "../ota";
+
+export default getRequestConfig(async ({ requestLocale }) => {
+  const locale = (await requestLocale) ?? "en-US";
+  return {
+    locale,
+    messages: unflattenMessages(await ota.getMessages(locale)),
+  };
+});
+```
+
+## i18next
+
+Add each namespace as a resource bundle. A namespace is a distributed file's basename: `/checkout.json` is `checkout`.
+
+```ts
+import i18next from "i18next";
+import { ota } from "./ota";
+
+const namespaces = ["messages", "checkout"];
+
+async function loadOta(locale: string) {
+  for (const ns of namespaces) {
+    const messages = await ota.getMessages(locale, { namespace: ns });
+    i18next.addResourceBundle(locale, ns, messages, true, true);
+  }
+}
+
+await i18next.init({ lng: "fr-FR", ns: namespaces, defaultNS: "messages", keySeparator: false });
+await loadOta("fr-FR");
+
+ota.subscribe(async () => {
+  await loadOta(i18next.language);
+  await i18next.changeLanguage(i18next.language); // re-renders react-i18next
+});
+```
+
+To keep i18next's default `keySeparator`, pass `unflattenMessages(messages)` to `addResourceBundle` instead.
+
+## vue-i18n
+
+```ts
+import { createI18n } from "vue-i18n";
+import { unflattenMessages } from "@hyperlocalise/ota";
+import { ota } from "./ota";
+
+export const i18n = createI18n({ legacy: false, locale: "fr-FR", fallbackLocale: "en-US" });
+
+async function loadOta(locale: string) {
+  i18n.global.setLocaleMessage(locale, unflattenMessages(await ota.getMessages(locale)));
+}
+
+await loadOta("fr-FR");
+ota.subscribe(() => loadOta(i18n.global.locale.value));
+```
+
+## svelte-i18n
+
+```ts
+import { addMessages, init, locale } from "svelte-i18n";
+import { get } from "svelte/store";
+import { unflattenMessages } from "@hyperlocalise/ota";
+import { ota } from "./ota";
+
+async function loadOta(code: string) {
+  addMessages(code, unflattenMessages(await ota.getMessages(code)));
+}
+
+await loadOta("fr-FR");
+init({ fallbackLocale: "en-US", initialLocale: "fr-FR" });
+ota.subscribe(() => loadOta(get(locale) ?? "fr-FR"));
+```
+
+## Any other library
+
+Anything that accepts a messages object at runtime works the same way. Load with `getMessages(locale)`, call `unflattenMessages` if the library expects nesting, and pass the result to the library's "set" or "add messages" function. Run that function again in a `subscribe` listener.
+
+Libraries that compile catalogs at build time, such as Lingui, need their runtime compiler to use OTA strings.
+
+## Loading and locales
+
+`getMessages(locale)` merges every file in the distribution for that locale. Pass `{ namespace: "checkout" }` to read only `/checkout.json`. App locales resolve to the closest distribution locale: `fr`, `fr_FR`, and `fr-CA` all find `fr-FR`. `getLocales()` lists the distribution's locales.
+
+Bundled `fallbackMessages` sit under OTA strings, so keys missing from the release still show your shipped copy.
+
+## New releases
+
+The client reuses a manifest for 15 minutes and fetches locale files only when the release `timestamp` changes. `startPolling()` checks on that interval, and `subscribe` listeners run when a new release is found. You can set a longer `pollIntervalMs`, but not a shorter one. `refresh()` checks right away and resolves `true` when there is a new release.
+
+## Offline and revoked hashes
+
+| Situation | What the app gets |
+| --- | --- |
+| First start, CDN reachable | The current release, saved to storage. |
+| Later start, offline | The last saved release. |
+| CDN unreachable and nothing saved | `fallbackMessages`, or an `OtaError` when there are none. |
+| Hash [rotated or revoked](/platform/developers/cdn-distributions#rotate-and-revoke) | The saved release is cleared and `fallbackMessages` are used. |
+
+In browsers the release is saved in `localStorage`. On servers it is kept in memory. In React Native, pass AsyncStorage:
+
+```ts
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const ota = createOtaClient({ hash, storage: AsyncStorage });
+```
+
+Use `onError` to log errors the client recovers from.
+
+## Custom S3 destinations
+
+Pass the destination's public base URL. The SDK requests `{baseUrl}/{hash}/manifest.json`:
+
+```ts
+createOtaClient({ hash, baseUrl: "https://cdn.example.com" });
+```
+
+On the Hyperlocalise CDN, the SDK tries `api.hyperlocalise.com` when `public-api.hyperlocalise.com` is unreachable.
+
+## Other formats
+
+`getMessages` reads the JSON format. For `Android XML` or `iOS strings` distributions, `getContent(locale)` returns each file's path, namespace, and raw body.
+
+## Next
+
+- [CDN distributions](/platform/developers/cdn-distributions)
+- [react-intl and ICU tutorial](/platform/tutorials/react-intl-icu)
+- [next-intl tutorial](/platform/tutorials/next-intl)

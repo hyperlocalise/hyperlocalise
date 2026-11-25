@@ -10,6 +10,7 @@ This directory is the Mintlify documentation site for Hyperlocalise.
 - Pages are MDX files with YAML frontmatter.
 - Site configuration and navigation live in `docs.json`.
 - Platform docs live under `docs/platform/` and `docs/index.mdx`.
+- The Public API reference is generated from `https://public-api.hyperlocalise.com/openapi.yaml`. The landing page is `docs/api/index.mdx`. Do not add hand-written endpoint pages for that spec.
 - CLI docs live under `docs/cli/`.
 - Shared contributor docs live under `docs/contributing/`.
 - Localized docs live under `docs/zh-CN/` and `docs/vi-VN/` with the same product folders.

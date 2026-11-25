@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "qa_scoring_policy" jsonb DEFAULT '{"enabled":false,"passThreshold":95,"penalties":{}}'::jsonb NOT NULL;

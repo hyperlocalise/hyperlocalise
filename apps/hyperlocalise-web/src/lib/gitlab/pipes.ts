@@ -21,7 +21,7 @@ import type { GitLabPipesError } from "./types";
 
 const PIPES_UNAVAILABLE: GitLabPipesError = {
   code: "gitlab_pipes_unavailable",
-  message: "WorkOS is not configured, so GitLab cannot connect through Pipes.",
+  message: "GitLab isn't available right now. Contact support if this continues.",
 };
 
 const GITLAB_NOT_CONNECTED: GitLabPipesError = {

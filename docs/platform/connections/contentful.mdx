@@ -1,0 +1,68 @@
+---
+title: "Localize Contentful"
+description: "Connect a Contentful space, translate entries when they are published, and write locale values back as drafts."
+---
+
+Contentful does not translate. Hyperlocalise does. Connect a Contentful space once, then create an automation that translates an entry each time it is published, or on demand. Translations land in the entry's locale fields as an unpublished draft, so an editor still decides when they go live.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Contentful space | A space and environment (often `master`) with the target locales already added under **Settings → Locales**. |
+| Localized fields | Fields you want translated must have **Enable localization of this field** turned on in the content model. Fields that are not localized are skipped. |
+| Content Management API token | A token from **Settings → API keys → Content management tokens** that can read and update entries and assets, and manage webhooks, in that space. |
+| Native project | A [native project](/platform/projects/create-project) that holds the glossary, guidelines, and translation memory used for this content. |
+| Role | An admin or localization manager connects Contentful. |
+
+## Connect Contentful
+
+1. Open workspace **Integrations** and find **Contentful**.
+2. Enter a **Display name**, the **Space ID**, and the **Environment ID**.
+3. Paste the **Content Management API token**.
+4. Choose the **Content types** whose entries should be translated. Leave them all cleared to accept every type.
+5. Save the connection.
+
+Hyperlocalise registers a webhook in Contentful for entry publish events. The connection shows whether the webhook is registered and when the last delivery arrived. If it shows **Contentful webhook needs attention**, check the webhook under **Settings → Webhooks** in Contentful. To change the token, choose **Replace token**. Saved tokens show only their last characters.
+
+## Create the automation
+
+1. Open **Automations** and apply the **Translate Contentful article** template, or add the **Contentful translate** tool to an automation.
+2. Attach the native project.
+3. Pick the Contentful connection, the source locale, and up to 20 target locales. Target locales must exist in the space.
+4. Choose a trigger:
+   - **A Contentful entry is published** starts a run for each published entry of the selected content types.
+   - **On a schedule** or a manual **Run now** translates the entry in **Entry ID**.
+5. Set the options and save.
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| **Run QA** | On | Checks each translation before it is written: a missing placeholder is an error and a missing link is a warning. A field with an error is not written for that locale. The run records how many values were held back. For full project checks, such as guidelines and quality score, run [project QA](/platform/help/quality#project-qa). |
+| **Write drafts** | On | Writes translations into the entry. Turn it off to translate and check without changing Contentful. |
+| **Overwrite targets** | Off | Replaces locale values that already exist. When off, only empty target locales are filled, so editors' changes are kept. |
+
+## What gets translated
+
+| Field type | Behavior |
+| --- | --- |
+| Short text, long text | Translated as plain text. |
+| Rich text | Translated with its formatting kept. Embedded images are localized too and relinked in the target locale. |
+| Short text list | Each item is translated. |
+| Media (image) | The image is localized for each target locale and the localized asset is linked in that locale. A target that already has its own image is left alone. |
+
+Field mode **Auto** detects these fields from the content model. Translations use the project's glossary, guidelines, and translation memory, like any other job.
+
+## Publishing stays in Contentful
+
+Hyperlocalise saves the entry but never publishes it. Review the draft in Contentful and publish when ready. When you publish an entry that Hyperlocalise just wrote, it recognizes its own change and does not start another run.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Publishing starts no run | The webhook status on the connection, the automation's content types, and that the automation is active. |
+| A field was not translated | The field is localized in the content model, its type is supported, and the target locale was empty (or **Overwrite targets** is on). |
+| A locale was skipped | The locale exists in the space, and the run's QA results show no error for that field. |
+| The run says the connection is disabled | Turn the connection back on in **Integrations**, or replace an expired token. |
+
+See [Automations troubleshooting](/platform/help/automations) for run history and retries.

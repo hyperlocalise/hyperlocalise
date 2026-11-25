@@ -14,7 +14,7 @@
 
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -28,6 +28,10 @@ const apiMocks = vi.hoisted(() => ({
   attachProject: vi.fn(),
   detachProject: vi.fn(),
   listProjects: vi.fn(),
+  remove: vi.fn(),
+  routerPush: vi.fn(),
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -40,6 +44,17 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("@/lib/navigation/use-org-router", () => ({
+  useOrgRouter: () => ({ push: apiMocks.routerPush, replace: vi.fn() }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: (...args: unknown[]) => apiMocks.toastError(...args),
+    success: (...args: unknown[]) => apiMocks.toastSuccess(...args),
+  },
+}));
+
 vi.mock("@/lib/spellcheck-dictionary/client", () => ({
   createDictionaryClient: () => ({
     get: apiMocks.getDictionary,
@@ -47,6 +62,7 @@ vi.mock("@/lib/spellcheck-dictionary/client", () => ({
     projects: apiMocks.getProjects,
     attachProject: apiMocks.attachProject,
     detachProject: apiMocks.detachProject,
+    remove: apiMocks.remove,
   }),
 }));
 
@@ -85,6 +101,10 @@ describe("DictionaryDetailPageContent", () => {
     apiMocks.attachProject.mockReset();
     apiMocks.detachProject.mockReset();
     apiMocks.listProjects.mockReset();
+    apiMocks.remove.mockReset();
+    apiMocks.routerPush.mockReset();
+    apiMocks.toastError.mockReset();
+    apiMocks.toastSuccess.mockReset();
 
     apiMocks.getDictionary.mockResolvedValue({
       dictionary: {
@@ -108,6 +128,7 @@ describe("DictionaryDetailPageContent", () => {
       ],
     });
     apiMocks.attachProject.mockResolvedValue({ projects: [] });
+    apiMocks.remove.mockResolvedValue(undefined);
   });
 
   it("loads later dictionary words when Load more is clicked", async () => {
@@ -139,6 +160,7 @@ describe("DictionaryDetailPageContent", () => {
     expect(screen.getByText("Used in")).toBeInTheDocument();
     expect(screen.getByText("Marketing site")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Assign project" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "More actions" })).not.toBeInTheDocument();
     expect(screen.queryByText("Hyperlocalise")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Load more" }));
@@ -173,5 +195,56 @@ describe("DictionaryDetailPageContent", () => {
         }),
       );
     });
+  });
+
+  it("deletes the dictionary after confirmation and returns to the list", async () => {
+    const user = userEvent.setup();
+    apiMocks.getWords.mockResolvedValue({ words: [], total: 0 });
+
+    renderDetailPage({ canWriteDictionaries: true });
+
+    await user.click(await screen.findByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete dictionary" }));
+
+    const dialog = await screen.findByRole("alertdialog", { name: "Delete this dictionary?" });
+    expect(dialog).toHaveTextContent(
+      "This permanently deletes Brand names and all of its accepted words. This action cannot be undone.",
+    );
+
+    await user.click(within(dialog).getByRole("button", { name: "Delete dictionary" }));
+
+    await waitFor(() => {
+      expect(apiMocks.remove).toHaveBeenCalledWith({
+        param: {
+          organizationSlug: "acme",
+          dictionaryId: "11111111-1111-4111-8111-111111111111",
+        },
+      });
+    });
+    expect(apiMocks.routerPush).toHaveBeenCalledWith("/org/acme/dictionaries");
+    expect(apiMocks.toastSuccess).toHaveBeenCalled();
+  });
+
+  it("keeps the page open and toasts when dictionary delete fails", async () => {
+    const user = userEvent.setup();
+    apiMocks.getWords.mockResolvedValue({ words: [], total: 0 });
+    apiMocks.remove.mockRejectedValue(new Error("Insufficient permissions"));
+
+    renderDetailPage({ canWriteDictionaries: true });
+
+    await user.click(await screen.findByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete dictionary" }));
+
+    const dialog = await screen.findByRole("alertdialog", { name: "Delete this dictionary?" });
+    await user.click(within(dialog).getByRole("button", { name: "Delete dictionary" }));
+
+    await waitFor(() => {
+      expect(apiMocks.toastError).toHaveBeenCalledWith("Insufficient permissions");
+    });
+    expect(apiMocks.routerPush).not.toHaveBeenCalled();
+    expect(apiMocks.toastSuccess).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("alertdialog", { name: "Delete this dictionary?" }),
+    ).toBeInTheDocument();
   });
 });

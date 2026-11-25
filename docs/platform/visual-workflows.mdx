@@ -5,6 +5,39 @@ description: "Connect typed data between workflow nodes, test drafts safely, and
 
 Visual workflows compose fixed automation steps on a canvas. Open **Automations → Visual workflows** to create or inspect a workflow. If it is unavailable, ask your administrator or [support](/platform/help/contact-support) about workspace access.
 
+## Start from a template
+
+On **Automations → New automation**, **Start a localisation workflow** offers ready-made workflows. Each one opens on the canvas as a draft with its steps connected.
+
+| Template | What it does |
+| --- | --- |
+| **AI translation on upload** | **Source upload** → **Machine translate** → **Check progress** and **Wait** until the job finishes → **Run QA** on that job's file and languages → **If** → **Notify Slack** with the result. If the translation does not finish within 90 minutes, a third Slack step says so. |
+| **MTPE: AI translation, then post-edit** | **Source upload** → **Machine translate** → **For each** target language: **Pick assignee** → **Assign task** (post-edit, due in 48 hours). Each task waits for the machine translation through **Comes after**. |
+| **TEP: translate, edit, proofread** | **Source upload** → **For each** of the project's target languages: **Pick assignee** and **Assign task** for translate, edit and proofread, each due in 72 hours and waiting for the one before it. |
+| **Review done: QA, then fix or deliver** | **Job changed** on finished **Post-edit** or **Proofread** tasks → **Run QA** on that task's file and languages → **If**. Passing work is announced in Slack. Failing work goes back to the same person as a new post-edit task due in 24 hours. When they mark it done, the workflow runs again, until QA passes. |
+| **AI translation with a QA gate** | **Source upload** → **Machine translate** → **Check progress** and **Wait** → **Run QA** on that job's file and languages → **If** `needsHumanReview`. Work that needs no review is announced in Slack as ready to ship. Otherwise, **For each** language: **Pick assignee** → **Assign task** (post-edit review, due in 48 hours), then Slack says how many segments were flagged. |
+
+Before you publish, the issue list names what is left for you:
+
+1. On the trigger, choose the project, or leave **Any project**. On **Source upload**, narrow it to some files with [path patterns](#choose-which-uploads-start-a-workflow).
+2. On each **Pick assignee**, add the people who do that kind of work.
+3. On each **Notify Slack**, pick the channel.
+
+Use **Review done** alongside MTPE or TEP. With TEP, remove **Post-edit** from the trigger's **Job kinds** so QA runs once the proofread is done rather than after editing.
+
+## Choose which uploads start a workflow
+
+On a **Source upload** trigger:
+
+- **Run on** starts the workflow for **New and updated files**, or for **New files only**, which skips a new version of a file uploaded before.
+- **Only files matching** limits it to paths that match at least one pattern. Leave it empty to run for every file. Click an example to add it, and type a path in **Try a path** to see whether it would start the workflow.
+  - **Glob** (the default): `*` matches within a folder, `**` across folders, `?` one character, `{md,mdx}` either one, and `[ab]` one of a set. A pattern without a `/`, such as `*.json`, matches the file name in any folder.
+  - **Regex**: a regular expression tested against the whole path, ignoring case, such as `^locales/en/.*\.json$`. A repeated group that repeats again, such as `(a+)+`, is refused because it can be very slow.
+
+A pattern that cannot be used matches no file, and the workflow cannot be published until it is fixed.
+
+Later steps can read the file's `sourcePath`, `fileName`, `fileExtension`, `branchName` and `isNewFile`, and the project's `sourceLocale` and `targetLocales`, for example to loop over the languages with **For each**.
+
 ## Build and connect data
 
 1. Choose a manual, scheduled, GitHub, source-upload, **Webhook**, or [**Job changed**](/platform/developers/webhooks#start-automations-on-job-changes) trigger.
@@ -13,7 +46,7 @@ Visual workflows compose fixed automation steps on a canvas. Open **Automations 
 4. Select a node. Its settings open on the **Configuration** tab. A setting that can take its value from an earlier step shows a port mark beside its name: type a value, insert fields from earlier steps by typing `{{` or with the braces button beside the box, or wire the port on the canvas. An inserted field shows as a pill naming its step and field; a red pill names a step that does not run before this one. Backspace removes a pill whole. On the canvas, each pill draws a thin dashed line from the field it reads to the setting's port; it cannot be selected or moved. Data wires are thin solid lines, and the connections that decide the order steps run in are thicker. A wired setting shows which step feeds it.
 5. Review the **Outputs** tab for expected fields. Test results show actual redacted values.
 
-Direct field bindings preserve objects, arrays, numbers, booleans, and null. Templates produce text, for example `Summary: {{ nodes.summarize.text }}`. A reference in a setting's text starts with `trigger` or `nodes`; any other, such as `{{ item.name }}`, cannot be read by a run, so the step lists it as an issue and the workflow cannot be published until it is fixed. Missing required values stop the action. Fields from a conditional branch need an optional binding or fallback because that branch may be skipped.
+Direct field bindings preserve objects, arrays, numbers, booleans, and null. Templates produce text, for example `Summary: {{ nodes.summarize.text }}`. A reference in a setting's text starts with `trigger` or `nodes`; any other, such as `{{ item.name }}`, cannot be read by a run, so the step lists it as an issue and the workflow cannot be published until it is fixed. Missing required values stop the action. A draft saves with settings still empty, such as a Slack channel or email recipients; **Publish** lists them until you fill them in. Fields from a conditional branch need an optional binding or fallback because that branch may be skipped.
 
 HTTP JSON responses have an unknown shape until you declare output fields such as `json.items` with type `array`. Samples help discover fields but do not guarantee their presence. HTTP bodies can be structured JSON; binding resolution happens before serialization, so quotes and line breaks remain valid JSON. AI nodes can declare structured `json.*` output fields.
 
@@ -123,6 +156,14 @@ When there is nothing to send, the step succeeds with `sent` set to `false`, and
 
 Each finished task sends its file once. A translation changed after the send is not sent again by itself: the file shows **Changed since sent** on **Files**, and **Use translation as source…** sends it again. In the second project, a file the workflow sent reads **Sent here automatically from** the first project.
 
+## Check translations with QA
+
+**Run QA** runs the project's QA checks and outputs `passed`, `errorCount`, `warningCount` and `findingCount`. When the project has a [quality score](/platform/help/quality#quality-score), `passed` follows the score, and `qualityScore`, `qualityThreshold` and `qualityByLocale` hold it. When the [quality estimate](/platform/help/quality#quality-estimate) check is on, `estimatedQualityScore` is the average estimate and `reviewSegmentCount` the number of segments below the estimate threshold.
+
+`needsHumanReview` is `true` when QA did not pass, when the estimate flagged any segment, or when the project's [content domain](/platform/help/quality#content-domain) is medical, legal or financial. `reviewReasons` lists why: `qa_failed`, `low_estimated_quality` or `domain_requires_review`. Branch an **If** on `{{ nodes.run_qa.needsHumanReview }}` to send only that work to people. Leave **Source file ID**, **Target locales** and **Job** empty to check the whole project. To check only what a run produced, set **Job** to the job that made or reviewed it, such as `{{ nodes.machine_translate.jobId }}` or a **Job changed** trigger's `{{ trigger.jobId }}`: QA then checks that job's file and languages. A **Source file ID** or **Target locales** you set take precedence over the job's.
+
+A narrowed check resolves earlier findings only for the file and languages it checked; findings elsewhere in the project stay as they were. One QA check runs per project at a time, so when another is running, the step waits up to three minutes for it to finish before failing with `scan_in_progress`.
+
 ## Pause for a reviewer
 
 **Human approval** pauses the run until an authorized reviewer decides. Configure a reviewer (a person or a team), optional prompt text, and a deadline. A [vendor](/platform/workspace/roles#vendors) cannot be the reviewer: the step fails with `vendor_cannot_approve`. The reviewer opens the request from **Inbox** and chooses **Approve**, **Reject**, or **Request changes**. If nobody decides before the deadline, the request expires and the error branch can continue. Wire the decision into later steps; do not treat a paused run as failed.
@@ -137,6 +178,8 @@ Human steps in MTPE and TEP flows can set owners and deadlines on native jobs an
 | **Assign task** | Create a translate, post-edit, or proofread task on a source file with an optional assignee and **due date**: a date (ISO 8601, for example `2026-05-01T17:00:00Z`) or a period counted from when the step runs (`+3d` for three days, `+12h` for twelve hours). A post-edit or proofread task can go to a [vendor](/platform/workspace/roles#vendors) or to a member outside the project's team, who then work on that task's file only; choose a member whose role can work on jobs, because a read-only member can open the task but not finish it. A translate task cannot go to a vendor. The assignee finishes a post-edit or proofread task with [**Mark done**](/platform/translation/jobs#finish-a-proofread-or-post-edit-task). To make a post-edit or proofread task wait, wire an earlier **Assign task** or **Machine translate** step's `jobId` into **Comes after**: the task opens when that job is marked done, finishes, or is cancelled, so one run can machine translate a file and set up both tasks. To act when a task is finished, start another workflow from **Job changed** with **Job kinds** set to **Post-edit** or **Proofread**. In later steps the trigger's `jobKind` is `proofread` for both; its `taskStep` tells them apart (`edit` for post-edit). |
 | **Update job** | Reassign a native job, rename it, or set or clear its due date (a date, or a period such as `+3d`, counted again if the step is retried). Leave assignee or due date empty to keep the current value. |
 | **Crowdin task** | Create Crowdin translate or proofread tasks with optional assignees and a deadline (a date, or a period such as `+3d`). |
+
+On **Assign task** and **Update job**, **Due in (hours)** sets the due date that many hours after the step runs, for example `48` for two days. It is used when **Due date** is empty.
 
 On **Pick assignee**, rules are checked from top to bottom; the first rule whose conditions all match wins. An empty condition matches anything. A rule that sets **Due within (hours)** only matches work that already has a due date within that window (or overdue). Multi-locale work must match every locale on the rule. **People from** can be workspace members or Crowdin project members (by Crowdin user id). If no rule matches and fallback people are empty, the step fails so an error branch can handle it.
 
@@ -249,7 +292,7 @@ Cancel stops further steps and supported requests. An external action may alread
 
 ## Limits
 
-A workflow supports 200 nodes, 400 connections, 100 loop items, and 1,000 execution steps. HTTP requests time out after 30 seconds, AI requests after 120 seconds, and a run after 15 minutes. HTTP responses must fit the shared security size limit and contain valid JSON when declared as JSON.
+A workflow supports 200 nodes, 400 connections, 100 loop items, and 1,000 execution steps. HTTP requests time out after 30 seconds, AI requests after 10 minutes, and a run after 2 hours. HTTP responses must fit the shared security size limit and contain valid JSON when declared as JSON.
 
 Arbitrary code nodes, nested loops, and nested retry regions are not supported.
 

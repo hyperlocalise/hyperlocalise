@@ -28,7 +28,7 @@ func BenchmarkValidateIrisGenerateRequest(b *testing.B) {
 }
 
 func BenchmarkIrisModelByID(b *testing.B) {
-	ids := []string{"flux-2-pro", "elevenlabs-v4", "qwen3.8-omni-flash", "missing"}
+	ids := []string{"flux-2-pro", "elevenlabs-v4", "listen", "missing"}
 	b.ReportAllocs()
 	for b.Loop() {
 		for _, id := range ids {

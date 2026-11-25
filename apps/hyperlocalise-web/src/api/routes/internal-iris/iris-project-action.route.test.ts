@@ -18,20 +18,31 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
+import { insertStoredSourceFile } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import {
+  createRepositorySourceFileVersion,
+  ensureRepositorySourceFile,
+} from "@/lib/file-storage/records";
+import {
   GO_SVC_SERVICE_TOKEN_HEADER,
   mintGoSvcServiceToken,
 } from "@/lib/go-svc/go-svc-service-token";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
-import type { TranslationJobEventData, TranslationQaScanQueue } from "@/lib/workflow/types";
+import type {
+  TranslationFileImportEventData,
+  TranslationJobEventData,
+  TranslationQaScanQueue,
+} from "@/lib/workflow/types";
 
 const fixture = createAuthTestFixture();
 const enqueueJob = vi.fn(async (event: TranslationJobEventData) => ({ ids: [event.jobId] }));
 const enqueueQa = vi.fn(async () => ({ ids: ["qa_run"] }));
+const enqueuedImports: TranslationFileImportEventData[] = [];
 
 function serviceHeaders() {
   const password = env.WORKOS_COOKIE_PASSWORD;
@@ -47,6 +58,12 @@ function serviceHeaders() {
 const app = createApp({
   jobQueue: { enqueue: enqueueJob },
   translationQaScanQueue: { enqueue: enqueueQa } as TranslationQaScanQueue,
+  translationFileImportQueue: {
+    async enqueue(event: TranslationFileImportEventData) {
+      enqueuedImports.push(event);
+      return { ids: [`run_${enqueuedImports.length}`] };
+    },
+  },
 });
 
 async function postAction(
@@ -145,6 +162,7 @@ describe("internal iris project-action route", () => {
 
   afterEach(async () => {
     vi.clearAllMocks();
+    enqueuedImports.length = 0;
     await fixture.cleanup();
   });
 
@@ -645,5 +663,256 @@ describe("internal iris project-action route", () => {
       .from(schema.jobs)
       .where(eq(schema.jobs.id, running.id));
     expect(runningRow?.status).toBe("running");
+  });
+
+  it("enqueues translation imports onto the named version branch", async () => {
+    const { organization, user, project } = await seedNativeProject();
+    const response = await postAction("import_translations", {
+      organizationId: organization.id,
+      userId: user.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      locale: "fr-FR",
+      branch: "feature-checkout",
+      contentBase64: Buffer.from('{"greeting":"Salut"}').toString("base64"),
+    });
+    expect(response.status).toBe(201);
+    expect(enqueuedImports).toHaveLength(1);
+    expect(enqueuedImports[0]).toMatchObject({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      targetLocale: "fr-FR",
+      branchName: "feature-checkout",
+    });
+  });
+
+  it("translates the named version branch instead of the newest upload of the same path", async () => {
+    const { organization, user, project } = await seedNativeProject();
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+    const created = await projectBranchService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      name: "feature-checkout",
+      clone: false,
+    });
+    expect(created.ok).toBe(true);
+
+    const cloneStored = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "en.json",
+      contentType: "application/json",
+      sourceKind: "repository_file",
+      metadata: { sourcePath: "locales/en.json" },
+    });
+    await createRepositorySourceFileVersion({
+      storedFile: cloneStored,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const identity = {
+      organizationId: organization.id,
+      userId: user.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      locales: ["fr-FR"],
+    };
+
+    const onMain = await postAction("translate_file", identity);
+    expect(onMain.status).toBe(404);
+    await expect(onMain.json()).resolves.toMatchObject({ error: "source_file_not_found" });
+
+    const onClone = await postAction("translate_file", {
+      ...identity,
+      branch: "feature-checkout",
+    });
+    expect(onClone.status).toBe(201);
+    const body = (await onClone.json()) as { result: { jobId?: string } };
+    expect(body.result.jobId).toEqual(expect.stringMatching(/^job_/));
+    const jobs = await db
+      .select({ id: schema.jobs.id, inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, project.id));
+    expect(jobs).toEqual([
+      expect.objectContaining({
+        id: body.result.jobId,
+        inputPayload: expect.objectContaining({
+          sourceFileId: cloneStored.id,
+          branch: "feature-checkout",
+        }),
+      }),
+    ]);
+  });
+
+  it("creates jobs from file paths on the named version branch", async () => {
+    const { organization, user, project } = await seedNativeProject();
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+    const created = await projectBranchService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      name: "feature-checkout",
+      clone: false,
+    });
+    expect(created.ok).toBe(true);
+
+    const cloneStored = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "en.json",
+      contentType: "application/json",
+      sourceKind: "repository_file",
+      metadata: { sourcePath: "locales/en.json" },
+    });
+    await createRepositorySourceFileVersion({
+      storedFile: cloneStored,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const identity = {
+      organizationId: organization.id,
+      userId: user.id,
+      projectId: project.id,
+      fileIds: ["locales/en.json"],
+      targetLocales: ["fr-FR"],
+      title: "Translate app",
+    };
+
+    const onMain = await postAction("create_job", identity);
+    expect(onMain.status).toBe(404);
+    await expect(onMain.json()).resolves.toMatchObject({ error: "source_file_not_found" });
+
+    const onClone = await postAction("create_job", {
+      ...identity,
+      branch: "feature-checkout",
+    });
+    expect(onClone.status).toBe(201);
+    const body = (await onClone.json()) as { result: { jobs?: { id: string }[] } };
+    expect(body.result.jobs?.[0]?.id).toEqual(expect.stringMatching(/^job_/));
+    const jobs = await db
+      .select({ id: schema.jobs.id, inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, project.id));
+    expect(jobs).toEqual([
+      expect.objectContaining({
+        id: body.result.jobs?.[0]?.id,
+        inputPayload: expect.objectContaining({
+          sourceFileId: cloneStored.id,
+          branch: "feature-checkout",
+        }),
+      }),
+    ]);
+  });
+
+  it("patches file settings onto the named version branch and leaves main alone", async () => {
+    const { organization, user, project } = await seedNativeProject();
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+    const created = await projectBranchService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      name: "feature-checkout",
+    });
+    expect(created.ok).toBe(true);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const response = await postAction("file_settings_patch", {
+      organizationId: organization.id,
+      userId: user.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      branch: "feature-checkout",
+      kind: "placeholder",
+      settings: { messageFormat: "icu" },
+    });
+    expect(response.status).toBe(200);
+
+    const rows = await db
+      .select({
+        branchName: schema.repositorySourceFiles.branchName,
+        messageFormat: schema.repositorySourceFiles.messageFormat,
+      })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    const byBranch = Object.fromEntries(rows.map((row) => [row.branchName, row.messageFormat]));
+    expect(byBranch.main).toBe("auto");
+    expect(byBranch["feature-checkout"]).toBe("icu");
+  });
+
+  it("patches segmentation onto the named version branch and leaves main alone", async () => {
+    const { organization, user, project } = await seedNativeProject();
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+    const created = await projectBranchService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      name: "feature-checkout",
+    });
+    expect(created.ok).toBe(true);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+
+    const response = await postAction("file_settings_patch", {
+      organizationId: organization.id,
+      userId: user.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      branch: "feature-checkout",
+      kind: "segmentation",
+      settings: { enabled: true, template: "markdown", customSrxXml: null },
+    });
+    expect(response.status).toBe(200);
+
+    const rows = await db
+      .select({
+        branchName: schema.repositorySourceFiles.branchName,
+        segmentationSettings: schema.repositorySourceFiles.segmentationSettings,
+      })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    const byBranch = Object.fromEntries(
+      rows.map((row) => [row.branchName, row.segmentationSettings]),
+    );
+    expect(byBranch.main?.enabled ?? false).toBe(false);
+    expect(byBranch["feature-checkout"]).toMatchObject({ enabled: true, template: "markdown" });
   });
 });

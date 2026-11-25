@@ -18,7 +18,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { FormattedMessage } from "react-intl";
 
-import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
+import {
+  DownloadIrisButton,
+  DownloadIrisLabel,
+  useDownloadIrisClick,
+  useDownloadIrisLinkElement,
+} from "@/components/marketing/iris/download-iris-button";
 import { trackMarketingCtaClick } from "@/lib/analytics/marketing-cta";
 import type { AppLocale } from "@/lib/app-i18n/locales";
 import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
@@ -70,13 +75,7 @@ export function NavbarDesktopAuthActions({
       >
         <FormattedMessage {...navbarMessages.signIn} />
       </Button>
-      <Button
-        nativeButton={false}
-        render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-        onClick={() => trackMarketingCtaClick("request_demo", "navbar")}
-      >
-        <FormattedMessage {...navbarMessages.joinWaitlist} />
-      </Button>
+      <DownloadIrisButton source="navbar" />
     </>
   );
 }
@@ -104,16 +103,7 @@ export function NavbarMobileAuthCta({
     );
   }
 
-  return (
-    <Button
-      className="px-3.5"
-      nativeButton={false}
-      render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-      onClick={() => trackMarketingCtaClick("request_demo", "navbar")}
-    >
-      <FormattedMessage {...navbarMessages.joinWaitlist} />
-    </Button>
-  );
+  return <DownloadIrisButton className="px-3.5" showBadge={false} source="navbar_mobile" />;
 }
 
 export function NavbarMobileAuthFooter({
@@ -123,6 +113,9 @@ export function NavbarMobileAuthFooter({
   auth: NavbarAuthState;
   locale: AppLocale;
 }) {
+  const downloadIrisLink = useDownloadIrisLinkElement();
+  const handleDownloadIrisClick = useDownloadIrisClick("navbar_mobile_menu");
+
   if (auth.loading) {
     return (
       <div className="flex w-full flex-col gap-2" aria-hidden="true">
@@ -156,13 +149,9 @@ export function NavbarMobileAuthFooter({
           <FormattedMessage {...navbarMessages.signIn} />
         </Button>
       </SheetClose>
-      <SheetClose
-        render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-        className="w-full"
-        onClick={() => trackMarketingCtaClick("request_demo", "navbar")}
-      >
-        <Button size="lg" className="w-full" nativeButton={false} render={<span />}>
-          <FormattedMessage {...navbarMessages.joinWaitlist} />
+      <SheetClose render={downloadIrisLink} className="w-full" onClick={handleDownloadIrisClick}>
+        <Button size="lg" className="w-full gap-2" nativeButton={false} render={<span />}>
+          <DownloadIrisLabel />
         </Button>
       </SheetClose>
     </>

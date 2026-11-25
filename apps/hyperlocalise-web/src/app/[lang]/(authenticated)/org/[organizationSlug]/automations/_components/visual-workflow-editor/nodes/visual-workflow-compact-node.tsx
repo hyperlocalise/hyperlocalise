@@ -337,11 +337,15 @@ function DataPortLabel({
   port,
   direction,
   value,
+  addLabel,
+  onAdd,
 }: {
   port: VisualWorkflowDataPort;
   direction: "input" | "output";
   /** What passed through the pin in the last run, if it ran. */
   value?: unknown;
+  addLabel?: string;
+  onAdd?: (handleId?: string) => void;
 }) {
   const connected = port.connectionCount > 0;
 
@@ -370,16 +374,26 @@ function DataPortLabel({
       <span className="shrink-0 text-muted-foreground">{port.type}</span>
 
       {direction === "output" ? (
-        <DataHandle
-          id={canvasDataHandleId(port.id)}
-          type="source"
-          position={Position.Right}
-          connected={connected}
-          className={cn(DATA_PORT_EDGE_CLASS.output, DATA_TYPE_CLASS[port.type])}
-          aria-label={`Data output: ${port.label}, ${port.type}${
-            port.optional ? ", optional" : ""
-          }`}
-        />
+        <>
+          {onAdd && addLabel ? (
+            <VisualWorkflowQuickAddButton
+              className="pointer-events-auto size-4"
+              handleId={canvasDataHandleId(port.id)}
+              label={addLabel}
+              onAdd={onAdd}
+            />
+          ) : null}
+          <DataHandle
+            id={canvasDataHandleId(port.id)}
+            type="source"
+            position={Position.Right}
+            connected={connected}
+            className={cn(DATA_PORT_EDGE_CLASS.output, DATA_TYPE_CLASS[port.type])}
+            aria-label={`Data output: ${port.label}, ${port.type}${
+              port.optional ? ", optional" : ""
+            }`}
+          />
+        </>
       ) : null}
     </div>
   );
@@ -675,6 +689,12 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
                   port={port}
                   direction="output"
                   value={readWorkflowPath(data.lastOutput, port.id.split("."))}
+                  addLabel={
+                    showAddButtons
+                      ? intl.formatMessage(messages.addNodeFromHandle, { handle: port.label })
+                      : undefined
+                  }
+                  onAdd={showAddButtons ? addFromHandle : undefined}
                 />
               ))}
             </div>

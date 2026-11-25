@@ -8,6 +8,7 @@ site covers Hyperlocalise Platform and the CLI, plus contributor guides.
 - `docs.json`: Mintlify site configuration and navigation
 - `index.mdx`: Platform landing page
 - `platform/`: Platform guides
+- `api/`: Public API reference landing page. Endpoint pages are generated from `https://public-api.hyperlocalise.com/openapi.yaml`.
 - `cli/`: CLI, configuration, commands, providers, and TMS adapters
 - `contributing/`: contributor and maintainer documentation
 - `zh-CN/` and `vi-VN/`: localized documentation with the same folders

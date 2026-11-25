@@ -251,6 +251,7 @@ export async function executeVisualWorkflowNode(input: {
         assigneeWorkosUserId: text(node.config.assigneeWorkosUserId).trim(),
         title: text(node.config.title),
         dueAt: text(node.config.dueAt ?? ""),
+        dueInHours: node.config.dueInHours,
         afterJobId: text(node.config.afterJobId ?? "").trim(),
       });
     case "action.check_progress":
@@ -265,6 +266,9 @@ export async function executeVisualWorkflowNode(input: {
       return runQaChecksAction({
         organizationId: input.organizationId,
         projectId: text(node.config.projectId).trim(),
+        sourceFileId: text(node.config.sourceFileId ?? "").trim(),
+        targetLocales: list(node.config.targetLocales ?? ""),
+        jobId: text(node.config.jobId ?? "").trim(),
       });
     case "action.list_source_files":
       return runListSourceFilesAction({
@@ -295,6 +299,7 @@ export async function executeVisualWorkflowNode(input: {
         assigneeWorkosUserId: text(node.config.assigneeWorkosUserId).trim(),
         title: text(node.config.title),
         dueAt: text(node.config.dueAt ?? ""),
+        dueInHours: node.config.dueInHours,
       });
     case "action.pick_assignee":
       return runPickAssigneeAction({

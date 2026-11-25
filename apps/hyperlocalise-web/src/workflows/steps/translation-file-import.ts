@@ -54,6 +54,7 @@ export async function importTranslationsFromEntriesStep(input: {
   targetLocale: string;
   entries: Record<string, string>;
   actorUserId?: string | null;
+  branchName?: string | null;
 }) {
   "use step";
   const { importApprovedProjectTranslationsFromEntries } =
@@ -65,6 +66,7 @@ export async function importTranslationsFromEntriesStep(input: {
     targetLocale: input.targetLocale,
     entries: input.entries,
     actorUserId: input.actorUserId ?? null,
+    branchName: input.branchName,
   });
 }
 

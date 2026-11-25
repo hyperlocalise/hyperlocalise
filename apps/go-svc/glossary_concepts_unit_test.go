@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,4 +56,25 @@ func TestScanGlossaryConceptAndTerm(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, term.IsPrimary)
 	require.Equal(t, "check out", *term.Pronunciation)
+}
+
+func TestGlossaryPronunciationInput(t *testing.T) {
+	got, err := glossaryPronunciationInput(nil)
+	require.NoError(t, err)
+	require.Nil(t, got)
+
+	empty := "  "
+	got, err = glossaryPronunciationInput(&empty)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Empty(t, *got)
+
+	value := "  eye-ris  "
+	got, err = glossaryPronunciationInput(&value)
+	require.NoError(t, err)
+	require.Equal(t, "eye-ris", *got)
+
+	tooLong := strings.Repeat("a", glossaryMaxPronunciation+1)
+	_, err = glossaryPronunciationInput(&tooLong)
+	require.EqualError(t, err, "invalid_glossary_payload")
 }

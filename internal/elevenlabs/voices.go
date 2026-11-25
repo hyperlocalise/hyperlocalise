@@ -9,7 +9,12 @@ import (
 
 var voiceIDPattern = regexp.MustCompile(`^[A-Za-z0-9]{16,}$`)
 
-// ResolveVoice returns a voice id. Names are resolved against GET /v1/voices.
+const premadeVoiceCategory = "premade"
+
+// ResolveVoice returns a voice id. Names are resolved against the premade
+// voices of GET /v1/voices only: the account also holds the voices that
+// workspaces clone or design, and a name must never reach another
+// workspace's voice. Callers resolve a workspace's own voices themselves.
 func (c *Client) ResolveVoice(ctx context.Context, voice string) (string, error) {
 	trimmed := strings.TrimSpace(voice)
 	if trimmed == "" {
@@ -22,7 +27,7 @@ func (c *Client) ResolveVoice(ctx context.Context, voice string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	if id, ok := voices[normalizeVoiceName(trimmed)]; ok {
+	if id, ok := voices[NormalizeVoiceName(trimmed)]; ok {
 		return id, nil
 	}
 	return "", newError(ErrorCodeValidation, "unknown ElevenLabs voice", "/v1/voices", 0)
@@ -39,11 +44,12 @@ func (c *Client) listVoices(ctx context.Context) (map[string]string, error) {
 
 	var parsed struct {
 		Voices []struct {
-			VoiceID string `json:"voice_id"`
-			Name    string `json:"name"`
+			VoiceID  string `json:"voice_id"`
+			Name     string `json:"name"`
+			Category string `json:"category"`
 		} `json:"voices"`
 	}
-	if err := c.doJSON(ctx, "GET", "/v1/voices", nil, &parsed); err != nil {
+	if err := c.doJSON(ctx, "GET", voicesPath, nil, &parsed); err != nil {
 		return nil, err
 	}
 
@@ -51,10 +57,10 @@ func (c *Client) listVoices(ctx context.Context) (map[string]string, error) {
 	for _, voice := range parsed.Voices {
 		id := strings.TrimSpace(voice.VoiceID)
 		name := strings.TrimSpace(voice.Name)
-		if id == "" || name == "" {
+		if id == "" || name == "" || voice.Category != premadeVoiceCategory {
 			continue
 		}
-		voices[normalizeVoiceName(name)] = id
+		voices[NormalizeVoiceName(name)] = id
 	}
 
 	c.voicesMu.Lock()
@@ -63,7 +69,9 @@ func (c *Client) listVoices(ctx context.Context) (map[string]string, error) {
 	return copyVoiceMap(voices), nil
 }
 
-func normalizeVoiceName(value string) string {
+// NormalizeVoiceName is the key a voice name is matched by: lower case,
+// letters and digits only.
+func NormalizeVoiceName(value string) string {
 	var b strings.Builder
 	for _, r := range strings.ToLower(strings.TrimSpace(value)) {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {

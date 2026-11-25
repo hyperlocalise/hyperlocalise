@@ -57,6 +57,7 @@ import { isErr, isOk } from "@/lib/primitives/result/results";
 import { MAX_PUBLIC_VIDEO_HTTP_RESPONSE_BYTES } from "@/lib/security/public-http-fetch";
 
 import {
+  ensureVideoVariantsForSourceFile,
   fetchVideoBytesFromUrl,
   localizeAndStoreVideoVariant,
   replaceVideoVariantBytes,
@@ -213,6 +214,107 @@ describe("fetchVideoBytesFromUrl", () => {
     expect(result.error).toEqual({
       code: "video_fetch_failed",
       message: `Response too large (exceeds ${MAX_PUBLIC_VIDEO_HTTP_RESPONSE_BYTES} byte limit)`,
+    });
+  });
+});
+
+describe("video variant version-branch isolation", () => {
+  async function insertSourceFile(input: {
+    organizationId: string;
+    projectId: string;
+    sourcePath: string;
+    branchName: string;
+  }) {
+    const [row] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        branchName: input.branchName,
+      })
+      .returning({ id: schema.repositorySourceFiles.id });
+    if (!row) {
+      throw new Error("expected source file");
+    }
+    return row;
+  }
+
+  it("does not rebind or overwrite a main-bound variant from a clone file id", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const mainFile = await insertSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.mp4",
+      branchName: "main",
+    });
+    const cloneFile = await insertSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.mp4",
+      branchName: "feature-checkout",
+    });
+    const [variant] = await db
+      .insert(schema.projectVideoVariants)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: mainFile.id,
+        sourcePath: "assets/hero.mp4",
+        targetLocale: "fr-FR",
+        status: "needs_review",
+        provenance: "agent",
+      })
+      .returning();
+
+    const localized = await localizeAndStoreVideoVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.mp4",
+      targetLocale: "fr-FR",
+      sourceUrl: "https://cdn.example.com/assets/hero.mp4",
+      repositorySourceFileId: cloneFile.id,
+      provenance: "agent",
+    });
+    expect(isErr(localized)).toBe(true);
+    if (isOk(localized)) {
+      throw new Error("expected clone localize to conflict with the main variant");
+    }
+    expect(localized.error).toEqual({ code: "variant_branch_conflict" });
+    expect(regenerateVideoFromAttachment).not.toHaveBeenCalled();
+
+    const replaced = await replaceVideoVariantBytes({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.mp4",
+      targetLocale: "fr-FR",
+      content: Buffer.from("clone-upload"),
+      contentType: "video/mp4",
+      filename: "hero-clone.mp4",
+      repositorySourceFileId: cloneFile.id,
+    });
+    expect(isErr(replaced)).toBe(true);
+    if (isOk(replaced)) {
+      throw new Error("expected clone upload to conflict with the main variant");
+    }
+    expect(replaced.error).toEqual({ code: "variant_branch_conflict" });
+
+    await ensureVideoVariantsForSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.mp4",
+      repositorySourceFileId: cloneFile.id,
+      targetLocales: ["fr-FR"],
+    });
+
+    const [storedVariant] = await db
+      .select()
+      .from(schema.projectVideoVariants)
+      .where(eq(schema.projectVideoVariants.id, variant.id))
+      .limit(1);
+    expect(storedVariant).toMatchObject({
+      repositorySourceFileId: mainFile.id,
+      status: "needs_review",
     });
   });
 });

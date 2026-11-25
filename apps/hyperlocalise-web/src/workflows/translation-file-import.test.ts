@@ -109,7 +109,10 @@ describe("translationFileImportWorkflow workbooks", () => {
       sourceLocale: "en-US",
     });
     expect(importSteps.importTranslationsFromEntriesStep).toHaveBeenCalledWith(
-      expect.objectContaining({ entries: { "home.title": "Accueil" } }),
+      expect.objectContaining({
+        entries: { "home.title": "Accueil" },
+        branchName: undefined,
+      }),
     );
     expect(importSteps.extractOfficeTranslationImportEntriesStep).not.toHaveBeenCalled();
     expect(ingestSteps.stopSourceIngestSandboxStep).toHaveBeenCalledWith("sandbox");
@@ -123,6 +126,23 @@ describe("translationFileImportWorkflow workbooks", () => {
     expect(ingestSteps.getProjectSourceLocaleStep).not.toHaveBeenCalled();
     expect(importSteps.extractTranslationImportEntriesStep).toHaveBeenCalledWith(
       expect.objectContaining({ filePath: "en.json", sourceLocale: null }),
+    );
+  });
+
+  it("persists imported translations onto the named version branch", async () => {
+    cliRelease.parsesOffice = true;
+    ingestSteps.getStoredFileMetadataStep.mockResolvedValue({ filename: "fr.json" });
+
+    await translationFileImportWorkflow({
+      ...event,
+      sourcePath: "locales/en.json",
+      branchName: "feature-checkout",
+    });
+    expect(importSteps.importTranslationsFromEntriesStep).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourcePath: "locales/en.json",
+        branchName: "feature-checkout",
+      }),
     );
   });
 });

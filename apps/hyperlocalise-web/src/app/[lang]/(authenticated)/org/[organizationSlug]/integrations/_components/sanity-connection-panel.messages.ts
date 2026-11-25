@@ -36,9 +36,8 @@ export const sanityConnectionPanelMessages = defineMessages({
     description: "Integration row description when status query fails",
   },
   comingSoonDescription: {
-    defaultMessage:
-      "Sanity through WorkOS Pipes is not enabled for this environment yet. An admin can enable the Sanity data integration in WorkOS.",
-    id: "8O4l4wC1UK",
+    defaultMessage: "Sanity isn't available in this workspace yet. Contact support to turn it on.",
+    id: "8fGCeGPUs8",
     description: "Integration row description when Sanity Pipes is unavailable",
   },
   connectedStatus: {
@@ -104,8 +103,8 @@ export const sanityConnectionPanelMessages = defineMessages({
     description: "Sanity authentication method option for API token",
   },
   oauthConnectIntro: {
-    defaultMessage: "Authorize Hyperlocalise to access Sanity on your behalf through WorkOS Pipes.",
-    id: "ZT3mGAyTVi",
+    defaultMessage: "Authorize Hyperlocalise to access Sanity on your behalf.",
+    id: "ddEDKei4o6",
     description: "Intro when connecting Sanity with OAuth",
   },
   apiTokenConnectIntro: {

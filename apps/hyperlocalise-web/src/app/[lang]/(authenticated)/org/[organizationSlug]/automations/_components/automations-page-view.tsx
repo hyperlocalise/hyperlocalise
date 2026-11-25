@@ -21,6 +21,7 @@ import {
   ClockIcon,
   FlowArrowIcon,
   GithubLogoIcon,
+  GoogleDriveLogoIcon,
   HandTapIcon,
   LightningIcon,
   MagnifyingGlassIcon,
@@ -116,6 +117,7 @@ const TRIGGER_MODE_ICONS: Record<WorkspaceAutomationTriggerConfig["mode"], Icon>
   contentful: WebhooksLogoIcon,
   source_upload: UploadSimpleIcon,
   web_chat: ChatTextIcon,
+  google_drive: GoogleDriveLogoIcon,
 };
 
 const WORKFLOW_TRIGGER_ICONS: Record<VisualWorkflowTriggerKind, Icon> = {

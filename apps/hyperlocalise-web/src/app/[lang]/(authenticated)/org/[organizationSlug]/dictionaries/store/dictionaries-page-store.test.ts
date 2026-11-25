@@ -45,6 +45,16 @@ describe("DictionariesPageStore", () => {
     expect(store.createErrors).toEqual({});
   });
 
+  it("tracks the dictionary delete confirmation dialog", () => {
+    const store = new DictionariesPageStore("acme");
+
+    store.setDeleteDictionaryDialogOpen(true);
+    expect(store.deleteDictionaryDialogOpen).toBe(true);
+
+    store.setDeleteDictionaryDialogOpen(false);
+    expect(store.deleteDictionaryDialogOpen).toBe(false);
+  });
+
   it("tracks dictionary detail locale and word drafts", () => {
     const store = new DictionariesPageStore("acme");
 

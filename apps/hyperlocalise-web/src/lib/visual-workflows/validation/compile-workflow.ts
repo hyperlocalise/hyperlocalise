@@ -18,6 +18,7 @@ import type {
   CanonicalVisualWorkflowNode,
 } from "../schema/types";
 import { isTriggerType } from "../catalog/node-catalog";
+import { sourcePathPatternError } from "../dispatch/source-path-filter";
 import { getAllowedExecutionSourceHandles } from "./execution-handles";
 import { retryBodyRequiresDuplicateAcknowledgement } from "./retry-idempotency";
 import { RETRY_MAX_ATTEMPTS_CAP } from "../schema/retry-policy";
@@ -348,6 +349,24 @@ export function compileWorkflowIssues(
         field: "destinationProjectId",
         reason: "required",
       });
+    // With nobody to pick from, every run would stop at this step.
+    if (
+      node.config.kind === "action.pick_assignee" &&
+      node.config.fallbackAssigneeIds.length === 0 &&
+      !node.config.rules.some((rule) => rule.assigneeIds.length > 0)
+    )
+      add("invalid_node_config", node.id, undefined, { field: "rules", reason: "required" });
+    // A pattern that cannot be used matches no file, so the workflow would never start.
+    if (node.config.kind === "trigger.source_upload") {
+      const syntax = node.config.pathSyntax ?? "glob";
+      if (
+        (node.config.pathPatterns ?? []).some((pattern) => sourcePathPatternError(pattern, syntax))
+      )
+        add("invalid_trigger_config", node.id, undefined, {
+          field: "pathPatterns",
+          reason: "invalid",
+        });
+    }
     // Every finished task of the trigger's project would be sent back into that project.
     if (
       node.config.kind === "action.translation_as_source" &&

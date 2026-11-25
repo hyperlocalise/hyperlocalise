@@ -24,6 +24,10 @@
         "href": "/"
       },
       {
+        "label": "API",
+        "href": "/api"
+      },
+      {
         "label": "CLI",
         "href": "/cli"
       }
@@ -51,6 +55,10 @@
           {
             "label": "Pricing",
             "href": "https://www.hyperlocalise.com/en/pricing"
+          },
+          {
+            "label": "API",
+            "href": "/api"
           },
           {
             "label": "CLI",
@@ -97,7 +105,20 @@
     }
   },
   "search": {
-    "prompt": "Search Platform and CLI docs"
+    "prompt": "Search Platform, CLI, and API docs"
+  },
+  "api": {
+    "playground": {
+      "display": "interactive"
+    },
+    "url": "full",
+    "examples": {
+      "languages": ["curl", "javascript", "python", "go"],
+      "prefill": true
+    }
+  },
+  "contextual": {
+    "options": ["copy", "download-spec"]
   },
   "navigation": {
     "global": {
@@ -172,6 +193,7 @@
                         "pages": [
                           "platform/translation/download",
                           "platform/guides/review-handoff",
+                          "platform/guides/regulated-content",
                           "platform/translation/import"
                         ],
                         "expanded": false
@@ -208,6 +230,8 @@
                       "platform/integrations",
                       "platform/tms",
                       "platform/connections/github",
+                      "platform/connections/contentful",
+                      "integrations/google-drive",
                       "platform/connections/intercom",
                       "platform/connections/sanity",
                       "platform/connections/sanity-studio-plugin",
@@ -218,9 +242,11 @@
                       "platform/connections/loops",
                       "platform/connections/hubspot",
                       "platform/connections/mailchimp",
+                      "platform/connections/linear",
                       "platform/connections/canva",
                       "platform/connections/figma",
-                      "platform/connections/design-tools"
+                      "platform/connections/design-tools",
+                      "platform/guides/connect-other-tools"
                     ],
                     "expanded": false
                   },
@@ -238,6 +264,7 @@
                       "platform/developers/mcp-tools",
                       "platform/developers/webhooks",
                       "platform/developers/cdn-distributions",
+                      "platform/developers/ota-javascript-sdk",
                       {
                         "group": "Framework and repository guides",
                         "pages": [
@@ -303,6 +330,43 @@
                     "expanded": false
                   }
                 ]
+              }
+            ]
+          },
+          {
+            "product": "API",
+            "description": "Public API for projects, strings, jobs, and webhooks.",
+            "icon": "code",
+            "groups": [
+              {
+                "group": "Get started",
+                "pages": [
+                  "api/index",
+                  "platform/developers/api-overview",
+                  "platform/api"
+                ],
+                "expanded": true
+              },
+              {
+                "group": "Guides",
+                "pages": [
+                  "platform/developers/projects-and-queries",
+                  "platform/developers/strings-and-key-jobs",
+                  "platform/developers/webhooks",
+                  "platform/developers/custom-fields",
+                  "platform/developers/cdn-distributions",
+                  "platform/developers/ota-javascript-sdk"
+                ],
+                "expanded": false
+              },
+              {
+                "group": "Reference",
+                "openapi": {
+                  "source": "https://public-api.hyperlocalise.com/openapi.yaml",
+                  "directory": "api-reference",
+                  "slug": "operationId",
+                  "overlays": ["overlays/public-api.yaml"]
+                }
               }
             ]
           },

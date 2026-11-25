@@ -21,7 +21,7 @@ import type { SanityPipesConnectionStatus, SanityPipesError } from "./types";
 
 const PIPES_UNAVAILABLE: SanityPipesError = {
   code: "sanity_pipes_unavailable",
-  message: "WorkOS is not configured, so Sanity cannot connect through Pipes.",
+  message: "Sanity isn't available right now. Contact support if this continues.",
 };
 
 const SANITY_NOT_CONNECTED: SanityPipesError = {

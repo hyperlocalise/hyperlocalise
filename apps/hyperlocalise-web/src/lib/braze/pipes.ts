@@ -21,7 +21,7 @@ import type { BrazePipesConnectionStatus, BrazePipesError } from "./types";
 
 const PIPES_UNAVAILABLE: BrazePipesError = {
   code: "braze_pipes_unavailable",
-  message: "WorkOS is not configured, so Braze cannot connect through Pipes.",
+  message: "Braze isn't available right now. Contact support if this continues.",
 };
 
 const BRAZE_NOT_CONNECTED: BrazePipesError = {

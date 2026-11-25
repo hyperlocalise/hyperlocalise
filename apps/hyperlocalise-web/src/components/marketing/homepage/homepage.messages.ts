@@ -568,10 +568,16 @@ export const homepageMessages = defineMessages({
     description:
       "Number of glossary terms applied in the Translation pipeline illustration on the marketing homepage language section",
   },
-  heroEyebrow: {
-    defaultMessage: "Agentic localisation platform",
-    id: "JpPN4GGwvP",
-    description: "Marketing homepage hero eyebrow naming the product category",
+  heroIrisPillTag: {
+    defaultMessage: "New",
+    id: "xXxJgL1vao",
+    description: "Small tag inside the homepage hero announcement pill for the Iris launch",
+  },
+  heroIrisPillLabel: {
+    defaultMessage: "Iris for Mac is here",
+    id: "Vq3nULSNz4",
+    description:
+      "Homepage hero announcement pill that links to the Iris page, announcing the Iris Mac app launch",
   },
   integrationsLabel: {
     defaultMessage: "Works with the tools you already use",

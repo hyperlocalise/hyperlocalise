@@ -48,6 +48,7 @@ export type CreateWorkflowTaskJobInput = {
   /** The job this task comes after: the task waits until that job is marked done or cancelled. */
   afterJobId?: string;
   metadata?: Record<string, string>;
+  branchName?: string | null;
 };
 
 export type CreateWorkflowTaskJobError = {
@@ -199,11 +200,13 @@ export async function createWorkflowTaskJob(
         throw new OrganizationJobBudgetExceededError(budget.error);
       }
 
+      const branchName = input.branchName?.trim() || undefined;
       const sourceFileVersion = await ensureRepositorySourceFileVersionForStoredFile({
         db: tx,
         organizationId: input.organizationId,
         projectId: input.projectId,
         fileId: input.sourceFileId,
+        branchName,
       });
       repositorySourceFileId = sourceFileVersion?.repositorySourceFileId ?? null;
 
@@ -236,6 +239,7 @@ export async function createWorkflowTaskJob(
             sourceLocale: input.sourceLocale,
             targetLocales: input.targetLocales,
             metadata: { ...metadata, title },
+            ...(branchName ? { branch: branchName } : {}),
           },
         },
       });

@@ -48,12 +48,17 @@ func firstQueryValue(rawQuery, key string) (string, bool) {
 	return "", false
 }
 
+// qaProjectWideRunSQL keeps a QA run narrowed to one file or some languages (a visual
+// workflow's Run QA step) from standing in for a project's latest scan. The web app's
+// projectWideQaRun applies the same filter.
+const qaProjectWideRunSQL = "not (summary ? 'scope')"
+
 var (
 	translationQaCheckTypes = map[string]struct{}{
 		"not_localized": {}, "whitespace_only": {}, "same_as_source": {}, "escaped_char_mismatch": {},
 		"length": {}, "placeholder_mismatch": {}, "glossary_violation": {}, "format": {}, "spelling": {},
 		"numbers_mismatch": {}, "punctuation_mismatch": {}, "character_case_mismatch": {},
-		"unreachable_plural_case": {}, "guideline": {},
+		"unreachable_plural_case": {}, "guideline": {}, "quality_estimate": {},
 	}
 	translationQaSeverities = map[string]struct{}{"error": {}, "warning": {}}
 )
@@ -67,6 +72,12 @@ type qaSummary struct {
 	GuidelineCheckHaltCode    string              `json:"guidelineCheckHaltCode,omitempty"`
 	GuidelineChecksIncomplete bool                `json:"guidelineChecksIncomplete,omitempty"`
 	GuidelineKnowledgeSkipped bool                `json:"guidelineKnowledgeSkipped,omitempty"`
+	// Quality is the MQM score the web app writes when the project scores translations.
+	Quality json.RawMessage `json:"quality,omitempty"`
+	// Estimation is the per-segment AI quality estimate summary the web app writes.
+	Estimation           json.RawMessage `json:"estimation,omitempty"`
+	EstimationIncomplete bool            `json:"estimationIncomplete,omitempty"`
+	QualityDomain        string          `json:"qualityDomain,omitempty"`
 }
 
 func emptyQaSummary() qaSummary {
@@ -174,7 +185,7 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
                 id, project_id, status, trigger, segment_count, finding_count, error_count, warning_count,
                 summary, error_code, started_at, completed_at, created_at
             from translation_qa_runs
-            where organization_id = $1
+            where organization_id = $1 and `+qaProjectWideRunSQL+`
             order by project_id, created_at desc
         )
         select
@@ -188,6 +199,7 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
             select completed_at
             from translation_qa_runs
             where organization_id = $1 and project_id = p.id and status = 'succeeded'
+              and `+qaProjectWideRunSQL+`
             order by completed_at desc nulls last, created_at desc
             limit 1
         ) last_success on true
@@ -195,7 +207,7 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
             select error_count, warning_count
             from translation_qa_runs
             where organization_id = $1 and project_id = p.id and status = 'succeeded'
-              and id <> r.id and created_at < r.created_at
+              and id <> r.id and created_at < r.created_at and `+qaProjectWideRunSQL+`
             order by completed_at desc nulls last, created_at desc
             limit 1
         ) previous_success on true
@@ -350,7 +362,7 @@ func (api *qaReportAPI) listWorkspaceFindings(ctx context.Context, actor qaRepor
         latest_succeeded_qa_run as (
             select distinct on (project_id) id, project_id
             from translation_qa_runs
-            where organization_id = $1 and status = 'succeeded'
+            where organization_id = $1 and status = 'succeeded' and ` + qaProjectWideRunSQL + `
             and ($2::text is null or project_id = $2::text)
             order by project_id, completed_at desc nulls last, created_at desc
         )`

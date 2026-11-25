@@ -1377,8 +1377,36 @@
     {
       "idx": 196,
       "version": "7",
-      "when": 1795145384681,
-      "tag": "0196_team_is_vendor",
+      "when": 1795334049692,
+      "tag": "0196_acoustic_starhawk",
+      "breakpoints": true
+    },
+    {
+      "idx": 197,
+      "version": "7",
+      "when": 1795559557687,
+      "tag": "0197_stale_stardust",
+      "breakpoints": true
+    },
+    {
+      "idx": 198,
+      "version": "7",
+      "when": 1795568943575,
+      "tag": "0198_clear_freak",
+      "breakpoints": true
+    },
+    {
+      "idx": 199,
+      "version": "7",
+      "when": 1795576212808,
+      "tag": "0199_parched_invisible_woman",
+      "breakpoints": true
+    },
+    {
+      "idx": 200,
+      "version": "7",
+      "when": 1795598990360,
+      "tag": "0200_team_is_vendor",
       "breakpoints": true
     }
   ]

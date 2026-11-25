@@ -14,6 +14,7 @@ import { and, desc, eq, inArray, lt, ne, sql } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { projectWideQaRun } from "@/lib/qa/project-wide-qa-run";
 import { listAssignableIssueMembers } from "@/lib/projects/issue-sheet/issue-sheet-assignee";
 import {
   ISSUE_NOTIFICATION_QA_ERRORS_INCREASED,
@@ -61,6 +62,7 @@ async function previousSuccessfulErrorCount(
         eq(schema.translationQaRuns.status, "succeeded"),
         ne(schema.translationQaRuns.id, run.id),
         lt(schema.translationQaRuns.createdAt, run.createdAt),
+        projectWideQaRun,
       ),
     )
     .orderBy(

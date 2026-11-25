@@ -83,6 +83,7 @@ describe("importCatBilingualRows", () => {
       targetLocale: "fr",
       entries: { keep: tagged },
       actorUserId: "user-1",
+      branchName: undefined,
     });
     expect(mocks.importApprovedProjectTranslationsFromEntries).toHaveBeenCalledWith({
       organizationId: "org-1",
@@ -91,8 +92,33 @@ describe("importCatBilingualRows", () => {
       targetLocale: "fr",
       entries: { other: "Autre" },
       actorUserId: "user-1",
+      branchName: undefined,
     });
     expect(mocks.enqueueFileTranslationsImportedActivity).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes the open version branch through to each file import", async () => {
+    await expect(
+      importCatBilingualRows({
+        organizationId: "org-1",
+        projectId: "project-1",
+        sourcePath: "a.json",
+        targetLocale: "fr",
+        actorUserId: "user-1",
+        branchName: "feature-checkout",
+        rows: [row({ key: "keep" })],
+      }),
+    ).resolves.toEqual({ matched: 1, imported: 1, skipped: 0, files: 1 });
+
+    expect(mocks.importApprovedProjectTranslationsFromEntries).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      projectId: "project-1",
+      sourcePath: "a.json",
+      targetLocale: "fr",
+      entries: { keep: "Bonjour" },
+      actorUserId: "user-1",
+      branchName: "feature-checkout",
+    });
   });
 
   it("does not enqueue activity when a file imports nothing", async () => {

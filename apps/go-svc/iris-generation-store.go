@@ -54,6 +54,19 @@ type irisJobRecord struct {
 	// the job is made, so the run needs no access check of its own.
 	Pronunciations []irisPronunciation `json:"-"`
 	Keyterms       []string            `json:"-"`
+	// Voices maps the request's brand voices to their provider voice ids,
+	// resolved for the workspace when the job is made.
+	Voices map[string]string `json:"-"`
+	// ThreadID and ThreadTitle are the Iris thread that asked for the job,
+	// for its charge in the usage ledger.
+	ThreadID    string `json:"-"`
+	ThreadTitle string `json:"-"`
+	// TokenUsage is what the gateway models behind the job used, when they
+	// reported it; the job is then billed on those tokens.
+	TokenUsage []irisTokenUsage `json:"-"`
+	// GatewayGenerations are the AI Gateway generations behind the job; the
+	// job is billed what Gateway reports they cost.
+	GatewayGenerations []string `json:"-"`
 }
 
 type irisStoredJob struct {
@@ -63,6 +76,12 @@ type irisStoredJob struct {
 	OrgID          string              `json:"organizationId"`
 	Pronunciations []irisPronunciation `json:"pronunciations,omitempty"`
 	Keyterms       []string            `json:"keyterms,omitempty"`
+	Voices         map[string]string   `json:"voices,omitempty"`
+	ThreadID       string              `json:"threadId,omitempty"`
+	ThreadTitle    string              `json:"threadTitle,omitempty"`
+	TokenUsage     []irisTokenUsage    `json:"tokenUsage,omitempty"`
+	// GatewayGenerations is kept with the job so a resumed charge can look it up.
+	GatewayGenerations []string `json:"gatewayGenerations,omitempty"`
 }
 
 type irisJobAsset struct {
@@ -260,7 +279,7 @@ func (api *irisGenerationAPI) getBytes(ctx context.Context, key string) ([]byte,
 }
 
 func (api *irisGenerationAPI) saveJob(ctx context.Context, job irisJobRecord) error {
-	stored := irisStoredJob{irisJobRecord: job, OutputKeys: job.OutputKeys, UserID: job.UserID, OrgID: job.OrgID, Pronunciations: job.Pronunciations, Keyterms: job.Keyterms}
+	stored := irisStoredJob{irisJobRecord: job, OutputKeys: job.OutputKeys, UserID: job.UserID, OrgID: job.OrgID, Pronunciations: job.Pronunciations, Keyterms: job.Keyterms, Voices: job.Voices, ThreadID: job.ThreadID, ThreadTitle: job.ThreadTitle, TokenUsage: job.TokenUsage, GatewayGenerations: job.GatewayGenerations}
 	return api.putJSON(ctx, irisJobKey(job.OrgID, job.ID), stored)
 }
 
@@ -275,6 +294,11 @@ func (api *irisGenerationAPI) loadJob(ctx context.Context, orgID, jobID string) 
 	job.OrgID = stored.OrgID
 	job.Pronunciations = stored.Pronunciations
 	job.Keyterms = stored.Keyterms
+	job.Voices = stored.Voices
+	job.ThreadID = stored.ThreadID
+	job.ThreadTitle = stored.ThreadTitle
+	job.TokenUsage = stored.TokenUsage
+	job.GatewayGenerations = stored.GatewayGenerations
 	if job.OrgID == "" {
 		job.OrgID = orgID
 	}

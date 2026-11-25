@@ -2490,6 +2490,7 @@ describe("project file CAT routes", () => {
           organizationSlug: identity.organization.slug ?? "missing-slug",
           projectId: project.id,
         },
+        query: {},
         json: {
           sourcePath,
           targetLocale: "fr-FR",
@@ -2528,6 +2529,7 @@ describe("project file CAT routes", () => {
           organizationSlug: identity.organization.slug ?? "missing-slug",
           projectId: project.id,
         },
+        query: {},
         json: {
           sourcePath,
           targetLocale: "fr-FR",
@@ -2613,6 +2615,7 @@ describe("project file CAT routes", () => {
           organizationSlug: identity.organization.slug ?? "missing-slug",
           projectId: project.id,
         },
+        query: {},
         json: {
           sourcePath,
           targetLocale: "fr-FR",
@@ -2670,6 +2673,7 @@ describe("project file CAT routes", () => {
           organizationSlug: identity.organization.slug ?? "missing-slug",
           projectId: project.id,
         },
+        query: {},
         json: {
           sourcePath,
           targetLocale: "fr-FR",
@@ -2688,6 +2692,7 @@ describe("project file CAT routes", () => {
           organizationSlug: identity.organization.slug ?? "missing-slug",
           projectId: project.id,
         },
+        query: {},
         json: {
           sourcePath,
           targetLocale: "fr-FR",
