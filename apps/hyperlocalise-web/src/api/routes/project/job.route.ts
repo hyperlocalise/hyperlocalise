@@ -1556,16 +1556,18 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           }
         }
 
-        await enqueueJobUpdatedActivity({
-          actorCredentialId: null,
-          actorKind: "user",
-          actorUserId: c.var.auth.user.localUserId,
-          changedFields: ["owner"],
-          jobId: result.value.id,
-          kind: "proofread",
-          organizationId,
-          projectId: result.value.projectId,
-        });
+        if (result.value.changed) {
+          await enqueueJobUpdatedActivity({
+            actorCredentialId: null,
+            actorKind: "user",
+            actorUserId: c.var.auth.user.localUserId,
+            changedFields: ["owner"],
+            jobId: result.value.id,
+            kind: "proofread",
+            organizationId,
+            projectId: result.value.projectId,
+          });
+        }
 
         return c.json({ job: { id: result.value.id, ownerUserId: result.value.ownerUserId } }, 200);
       },

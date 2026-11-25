@@ -134,4 +134,29 @@ describe("TeamDetailPageView", () => {
       role: "manager",
     });
   });
+
+  it("warns before a vendor team loses its only manager", async () => {
+    const user = userEvent.setup();
+    const warning = /only manager/;
+    const team = { ...createTeamDetail(), isVendor: true };
+    const manager = team.members[0]!;
+
+    renderTeamDetail({ team, removingMember: manager });
+    expect(screen.getByRole("dialog")).toHaveTextContent("this team's only manager");
+    cleanup();
+
+    renderTeamDetail({ team, editingMember: manager });
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Member" }));
+    expect(screen.getByText(warning)).toBeInTheDocument();
+    cleanup();
+
+    // Not on another team, nor for someone who is not the only manager.
+    renderTeamDetail({ removingMember: manager });
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+    cleanup();
+    renderTeamDetail({ team, removingMember: team.members[1]! });
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+  });
 });

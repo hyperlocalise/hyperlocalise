@@ -115,6 +115,22 @@ export function canRemoveTeamMember(input: {
   return input.members.filter((member) => member.role === "manager").length > 1;
 }
 
+/**
+ * Whether this person is the only manager of a vendor team. Removing them, or making them a
+ * member, leaves the tasks the team holds with no one in it unseen until it has a manager again.
+ */
+export function isLastVendorTeamManager(input: {
+  member: TeamMemberRow;
+  members: TeamMemberRow[];
+  isVendorTeam: boolean;
+}) {
+  return (
+    input.isVendorTeam &&
+    input.member.role === "manager" &&
+    input.members.filter((member) => member.role === "manager").length === 1
+  );
+}
+
 export function canUpdateTeamMemberRole(input: {
   member: TeamMemberRow;
   members: TeamMemberRow[];

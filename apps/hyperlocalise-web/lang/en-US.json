@@ -42123,6 +42123,10 @@
     "defaultMessage": "Prices, dates and examples for each market",
     "description": "Marketing homepage auditContextualBody"
   },
+  "s08zNUwVe0": {
+    "defaultMessage": "They are this team's only manager. Tasks given to the team that no one in it has yet will wait unseen until the team has a manager again.",
+    "description": "Warning when removing a vendor team's only manager, or making them a member"
+  },
   "s0B+f3G8Yz": {
     "defaultMessage": "Automation runs",
     "description": "AI feature: the main loop of an automation run"

@@ -183,4 +183,10 @@ export const teamDetailPageViewMessages = defineMessages({
     id: "C2LMJrTr1L",
     description: "Confirmation when removing someone from a vendor team",
   },
+  lastVendorManagerWarning: {
+    defaultMessage:
+      "They are this team's only manager. Tasks given to the team that no one in it has yet will wait unseen until the team has a manager again.",
+    id: "s08zNUwVe0",
+    description: "Warning when removing a vendor team's only manager, or making them a member",
+  },
 });

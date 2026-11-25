@@ -131,6 +131,7 @@ export type HandOutTeamTaskError =
 /**
  * A team manager hands a task of their team to a person in the team, whose role must work on
  * jobs, or back to the team (`ownerUserId` null). The task stays the team's either way.
+ * `changed` is false when the task was already where it was handed, and nothing is written.
  */
 export async function handOutTeamTask(input: {
   organizationId: string;
@@ -139,11 +140,19 @@ export async function handOutTeamTask(input: {
   ownerUserId: string | null;
   database?: DatabaseClient;
 }): Promise<
-  Result<{ id: string; projectId: string | null; ownerUserId: string | null }, HandOutTeamTaskError>
+  Result<
+    { id: string; projectId: string | null; ownerUserId: string | null; changed: boolean },
+    HandOutTeamTaskError
+  >
 > {
   return (input.database ?? db).transaction(async (tx) => {
     const [job] = await tx
-      .select({ id: schema.jobs.id, ownerTeamId: schema.jobs.ownerTeamId })
+      .select({
+        id: schema.jobs.id,
+        projectId: schema.jobs.projectId,
+        ownerUserId: schema.jobs.ownerUserId,
+        ownerTeamId: schema.jobs.ownerTeamId,
+      })
       .from(schema.jobs)
       .where(
         and(
@@ -158,6 +167,14 @@ export async function handOutTeamTask(input: {
       .for("update", { of: schema.jobs });
     if (!job?.ownerTeamId) {
       return err({ code: "job_not_found" as const });
+    }
+    if (job.ownerUserId === input.ownerUserId) {
+      return ok({
+        id: job.id,
+        projectId: job.projectId,
+        ownerUserId: job.ownerUserId,
+        changed: false,
+      });
     }
 
     if (input.ownerUserId !== null) {
@@ -202,6 +219,6 @@ export async function handOutTeamTask(input: {
         ownerUserId: schema.jobs.ownerUserId,
       },
     });
-    return updated ? ok(updated) : err({ code: "job_not_found" as const });
+    return updated ? ok({ ...updated, changed: true }) : err({ code: "job_not_found" as const });
   });
 }

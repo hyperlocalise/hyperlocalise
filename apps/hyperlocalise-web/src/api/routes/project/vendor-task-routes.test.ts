@@ -749,6 +749,24 @@ describe("a task given to a vendor team", () => {
     expect(await ownerOf(s.task)).toEqual({ ownerUserId: null, ownerTeamId: s.teamId });
   });
 
+  it("changes nothing when handed to where it already is", async () => {
+    const s = await setUpManager();
+    const updatedAt = async () => {
+      const [row] = await db
+        .select({ updatedAt: schema.jobs.updatedAt })
+        .from(schema.jobs)
+        .where(eq(schema.jobs.id, s.task));
+      return row!.updatedAt.getTime();
+    };
+    expect((await s.handOut(s.task, s.teammateId)).status).toBe(200);
+    const handedAt = await updatedAt();
+
+    const again = await s.handOut(s.task, s.teammateId);
+    expect(again.status).toBe(200);
+    expect(await again.json()).toEqual({ job: { id: s.task, ownerUserId: s.teammateId } });
+    expect(await updatedAt()).toBe(handedAt);
+  });
+
   it("is not handed to anyone outside the team, and seeing it does not finish it", async () => {
     const s = await setUpManager();
     const response = await s.handOut(s.task, s.adminId);
