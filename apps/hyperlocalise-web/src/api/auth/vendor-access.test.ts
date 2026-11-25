@@ -278,6 +278,7 @@ describe("the API routes a vendor may call", () => {
     expect([...VENDOR_API_ROUTES].toSorted()).toEqual([
       "GET /api/orgs/:organizationSlug/projects/:projectId/assets/:fileId",
       "GET /api/orgs/:organizationSlug/projects/:projectId/files/translations/download",
+      "POST /api/orgs/:organizationSlug/jobs/:jobId/hand-out",
       "POST /api/orgs/:organizationSlug/jobs/:jobId/mark-done",
       "POST /api/orgs/:organizationSlug/projects/:projectId/files/detail/cat/concordance",
       "POST /api/orgs/:organizationSlug/projects/:projectId/files/detail/cat/recommendation",

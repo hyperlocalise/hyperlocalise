@@ -67,7 +67,7 @@ type VendorShellClientProps = {
   activeOrganization: { name: string; slug: string };
   /** Whether this is the only workspace the person belongs to. */
   isOnlyWorkspace: boolean;
-  user: { name: string; email: string; avatarUrl?: string };
+  user: { id: string; name: string; email: string; avatarUrl?: string };
 };
 
 /**
@@ -124,7 +124,12 @@ export function VendorShellClient({
   }, [homePath, isAllowedPage, router]);
 
   return (
-    <AppShellSessionProvider canDeleteQueries={false} currentUser={currentUser} isVendor>
+    <AppShellSessionProvider
+      canDeleteQueries={false}
+      currentUser={currentUser}
+      isVendor
+      vendorUserId={user.id}
+    >
       <AppShellStoreProvider defaultNavigationGroups={navigationGroups}>
         <SidebarProvider
           defaultOpen

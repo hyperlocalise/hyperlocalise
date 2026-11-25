@@ -187,7 +187,7 @@ const jobRecordColumnsSQL = `j.id, j.organization_id::text, j.project_id, j.crea
             e.sync_state, e.provider_payload, e.linked_job_id, j.created_at, j.updated_at, j.completed_at, j.due_at, p.name,
             case when t.type = 'keys' then (select count(*)::int from translation_job_keys jk
                 join project_translation_keys jkk on jkk.id = jk.translation_key_id and not jkk.is_hidden
-                where jk.job_id = j.id) end, j.after_job_id`
+                where jk.job_id = j.id) end, j.after_job_id, j.owner_team_id::text`
 
 const jobRecordFromSQL = `from jobs j
         left join translation_job_details t on t.job_id = j.id
@@ -198,11 +198,13 @@ const jobRecordFromSQL = `from jobs j
         left join projects p on p.id = j.project_id and p.organization_id = j.organization_id`
 
 type jobRecord struct {
-	ID                      string          `json:"id"`
-	OrganizationID          string          `json:"organizationId"`
-	ProjectID               *string         `json:"projectId"`
-	CreatedByUserID         *string         `json:"createdByUserId"`
-	OwnerUserID             *string         `json:"ownerUserId"`
+	ID              string  `json:"id"`
+	OrganizationID  string  `json:"organizationId"`
+	ProjectID       *string `json:"projectId"`
+	CreatedByUserID *string `json:"createdByUserId"`
+	OwnerUserID     *string `json:"ownerUserId"`
+	// The vendor team the task was given to; its managers hand it on (vendor-access.go).
+	OwnerTeamID             *string         `json:"ownerTeamId"`
 	AssigneeType            *string         `json:"assigneeType"`
 	Kind                    string          `json:"kind"`
 	Type                    *string         `json:"type"`
@@ -409,7 +411,7 @@ func scanJobRecord(row pgx.Row) (jobWithProjectRecord, error) {
 		&job.AssetType, &job.AssetOperation, &job.AssetConfig, &job.ExternalProviderKind, &job.ExternalJobID, &job.ExternalTaskID,
 		&job.ExternalStatus, &job.ExternalTitle, &dueDate, &job.ExternalTargetLocales, &job.ExternalAssignedUsers, &job.ExternalURL,
 		&job.ExternalSyncState, &job.ExternalProviderPayload, &job.LinkedJobID, &createdAt, &updatedAt, &completedAt, &dueAt, &job.ProjectName, &job.KeyCount,
-		&job.AfterJobID,
+		&job.AfterJobID, &job.OwnerTeamID,
 	)
 	if err != nil {
 		return jobWithProjectRecord{}, err
@@ -577,9 +579,10 @@ func (api *projectAPI) orgJobsListHandler(r *http.Request, actor projectActor) (
 		// A vendor has only the Assigned list.
 		return map[string]any{"jobs": []jobWithProjectRecord{}}, http.StatusOK, nil
 	case actor.isVendor():
-		// Their open and waiting tasks: never a job matched by a provider account's name.
+		// Their open and waiting tasks, and those of a vendor team they manage: never a job
+		// matched by a provider account's name.
 		args = []any{actor.organizationID, actor.userID}
-		conditions = []string{ownedFileTaskSQL(1, 2, true)}
+		conditions = []string{vendorJobSQL(1, 2)}
 	case query.relationship == "assigned":
 		args = []any{actor.organizationID}
 		var assigned string
@@ -624,11 +627,12 @@ func (api *projectAPI) orgJobDetailHandler(r *http.Request, actor projectActor) 
 		return nil, 0, projectJobNotFound()
 	}
 	// The team rule, or the person's own open or waiting task whatever the project's team.
-	// A vendor has only the second: a team they were left in gives them nothing.
+	// A vendor has only the second, and the tasks of a vendor team they manage: a team they were
+	// left in gives them nothing.
 	visible := "(" + overviewJobsVisibleSQL() + " or " + ownedFileTaskSQL(1, 3, true) + ") and j.id = $4"
 	args := []any{actor.organizationID, actor.canReadAllTeams(), actor.userID, jobID}
 	if actor.isVendor() {
-		visible = ownedFileTaskSQL(1, 2, true) + " and j.id = $3"
+		visible = vendorJobSQL(1, 2) + " and j.id = $3"
 		args = []any{actor.organizationID, actor.userID, jobID}
 	}
 	job, err := scanJobRecord(api.pool.QueryRow(r.Context(), "select "+jobRecordColumnsSQL+"\n        "+jobRecordFromSQL+`
@@ -668,6 +672,9 @@ func (api *projectAPI) orgJobAssignableOwnersHandler(r *http.Request, actor proj
 	if !ok {
 		return nil, 0, projectJobNotFound()
 	}
+	if actor.isVendor() {
+		return api.teamTaskAssignableOwners(r, actor, jobID)
+	}
 	var projectID *string
 	var fileTask bool
 	err := api.pool.QueryRow(r.Context(), `
@@ -694,7 +701,7 @@ func (api *projectAPI) orgJobAssignableOwnersHandler(r *http.Request, actor proj
         where m.organization_id = $1
           and `+activeOrgMembershipSQL+`
           and (
-            ($3 and m.role::text in ('admin', 'localization_manager', 'developer', 'reviewer', 'translator'))
+            ($3 and m.role::text in `+jobWorkerRolesSQL+`)
             or (not `+publicauth.VendorTeamMemberSQLFor("m.user_id", "$1")+` and (
                 m.role::text in ('admin', 'localization_manager')
                 or exists (
@@ -711,13 +718,91 @@ func (api *projectAPI) orgJobAssignableOwnersHandler(r *http.Request, actor proj
 	if err != nil {
 		return nil, 0, fmt.Errorf("list assignable owners: %w", err)
 	}
+	members, err := scanAssignableOwners(rows, actor.userID)
+	if err != nil {
+		return nil, 0, err
+	}
+	// Such a task can also be given to a vendor team, whose managers hand it on.
+	teams := []map[string]string{}
+	if fileTask {
+		teamRows, err := api.pool.Query(r.Context(), `
+            select t.id::text, t.name from teams t
+            where t.organization_id = $1 and `+assignableVendorTeamSQL+`
+            order by lower(t.name), t.id`, actor.organizationID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("list assignable vendor teams: %w", err)
+		}
+		defer teamRows.Close()
+		for teamRows.Next() {
+			var id, name string
+			if err := teamRows.Scan(&id, &name); err != nil {
+				return nil, 0, fmt.Errorf("scan assignable vendor team: %w", err)
+			}
+			teams = append(teams, map[string]string{"id": id, "name": name})
+		}
+		if err := teamRows.Err(); err != nil {
+			return nil, 0, fmt.Errorf("iterate assignable vendor teams: %w", err)
+		}
+	}
+	return map[string]any{"members": members, "teams": teams}, http.StatusOK, nil
+}
+
+// jobWorkerRolesSQL lists the roles that work on jobs; the Member role only reads.
+const jobWorkerRolesSQL = `('admin', 'localization_manager', 'developer', 'reviewer', 'translator')`
+
+// assignableVendorTeamSQL matches a vendor team (aliased t, its workspace $1) that a task can be
+// given to: one with a manager who is an active member whose role works on jobs. A team with none
+// would hold the task where no one sees it. Keep in step with isAssignableVendorTeam in
+// team-task.ts.
+const assignableVendorTeamSQL = `t.is_vendor and exists (
+                select 1 from team_memberships atm
+                join organization_memberships m on m.user_id = atm.user_id and m.organization_id = $1
+                where atm.team_id = t.id and atm.role = 'manager'
+                  and ` + activeOrgMembershipSQL + `
+                  and m.role::text in ` + jobWorkerRolesSQL + `)`
+
+// teamTaskAssignableOwners lists who a vendor team's manager can hand a task of the team to: the
+// team's people whose role works on jobs. Any other vendor, and a manager asking about a task not
+// given to their team, gets a not-found. Keep in step with handOutTeamTask in team-task.ts.
+func (api *projectAPI) teamTaskAssignableOwners(r *http.Request, actor projectActor, jobID string) (any, int, error) {
+	var teamID string
+	err := api.pool.QueryRow(r.Context(), `
+        select j.owner_team_id::text from jobs j
+        where `+managedTeamTaskSQL(1, 2)+` and j.id = $3`,
+		actor.organizationID, actor.userID, jobID).Scan(&teamID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, 0, projectJobNotFound()
+	}
+	if err != nil {
+		return nil, 0, fmt.Errorf("get team task for assignable owners: %w", err)
+	}
+	rows, err := api.pool.Query(r.Context(), `
+        select u.id, u.workos_user_id, u.email, u.first_name, u.last_name, u.avatar_url
+        from team_memberships tm
+        join organization_memberships m on m.user_id = tm.user_id and m.organization_id = $1
+        join users u on u.id = m.user_id
+        where tm.team_id = $2
+          and `+activeOrgMembershipSQL+`
+          and m.role::text in `+jobWorkerRolesSQL+`
+        order by u.email asc`, actor.organizationID, teamID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list team task owners: %w", err)
+	}
+	members, err := scanAssignableOwners(rows, actor.userID)
+	if err != nil {
+		return nil, 0, err
+	}
+	return map[string]any{"members": members}, http.StatusOK, nil
+}
+
+func scanAssignableOwners(rows pgx.Rows, actorUserID string) ([]map[string]any, error) {
 	defer rows.Close()
 	members := []map[string]any{}
 	for rows.Next() {
 		var userID, workosUserID, email string
 		var firstName, lastName, avatarURL *string
 		if err := rows.Scan(&userID, &workosUserID, &email, &firstName, &lastName, &avatarURL); err != nil {
-			return nil, 0, fmt.Errorf("scan assignable owner: %w", err)
+			return nil, fmt.Errorf("scan assignable owner: %w", err)
 		}
 		display := strings.TrimSpace(stringFromPtr(firstName) + " " + stringFromPtr(lastName))
 		if display == "" {
@@ -731,11 +816,11 @@ func (api *projectAPI) orgJobAssignableOwnersHandler(r *http.Request, actor proj
 			"lastName":      lastName,
 			"displayName":   display,
 			"avatarUrl":     avatarURL,
-			"isCurrentUser": userID == actor.userID,
+			"isCurrentUser": userID == actorUserID,
 		})
 	}
 	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("iterate assignable owners: %w", err)
+		return nil, fmt.Errorf("iterate assignable owners: %w", err)
 	}
-	return map[string]any{"members": members}, http.StatusOK, nil
+	return members, nil
 }

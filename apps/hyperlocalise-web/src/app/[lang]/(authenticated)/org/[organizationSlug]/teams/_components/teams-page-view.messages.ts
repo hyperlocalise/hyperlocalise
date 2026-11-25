@@ -164,8 +164,8 @@ export const teamsPageViewMessages = defineMessages({
   },
   deleteVendorTeamDescription: {
     defaultMessage:
-      "{teamName} will be removed. Its people will no longer be limited to their tasks: they get back what their role allows in the workspace, in no team.",
-    id: "DeAIWiwQhH",
+      "{teamName} will be removed. Its people will no longer be limited to their tasks: they get back what their role allows in the workspace, in no team. Tasks given to the team that no one in it has yet become unassigned.",
+    id: "dnoEDGww+o",
     description: "Delete team confirmation for a vendor team",
   },
 });

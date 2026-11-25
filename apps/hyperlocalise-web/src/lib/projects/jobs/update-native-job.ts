@@ -23,11 +23,17 @@ import {
   readJobSourceFileId,
   refuseVendorOwnerUnlessFileTask,
 } from "./job-owner";
+import { isAssignableVendorTeam } from "./team-task";
 
 export type UpdateNativeJobInput = {
   title?: string;
   description?: string | null;
   ownerWorkosUserId?: string | null;
+  /**
+   * Gives the task to a vendor team instead of a person; its managers hand it on
+   * (`team-task.ts`). Setting `ownerWorkosUserId` takes it from the team.
+   */
+  ownerTeamId?: string;
   /** An ISO date; null clears the due date. */
   dueAt?: string | null;
 };
@@ -38,6 +44,7 @@ export type UpdateNativeJobError =
   | { code: "owner_not_found"; message: string }
   | { code: "assignee_not_assignable"; message: string }
   | { code: "vendor_owner_not_allowed"; message: string }
+  | { code: "team_not_assignable"; message: string }
   | { code: "project_required"; message: string };
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -136,6 +143,7 @@ export async function updateNativeJob(input: {
     const updates: {
       assigneeType?: "user" | "agent" | null;
       ownerUserId?: string | null;
+      ownerTeamId?: string | null;
       inputPayload?: Record<string, unknown>;
       dueAt?: Date | null;
       updatedAt: Date;
@@ -147,7 +155,36 @@ export async function updateNativeJob(input: {
       updates.dueAt = input.body.dueAt === null ? null : new Date(input.body.dueAt);
     }
 
-    if (ownerChanging) {
+    const fileTask = isFileTaskForPeople({
+      kind: existing.kind,
+      status: existing.status,
+      afterJobId: existing.afterJobId,
+      sourceFileId: readJobSourceFileId(existing.inputPayload),
+    });
+
+    if (input.body.ownerTeamId !== undefined) {
+      const vendorTeam =
+        fileTask &&
+        (await isAssignableVendorTeam({
+          organizationId: input.organizationId,
+          teamId: input.body.ownerTeamId,
+          database: tx,
+        }));
+      if (!vendorTeam) {
+        return err({
+          code: "team_not_assignable" as const,
+          message:
+            "Only an open or waiting post-edit or proofread task on a file can be given to a vendor team, and only to one with a manager who works on jobs",
+        });
+      }
+      // With the team and no one on it yet, for its managers to hand out, even when it was with
+      // the team already: that takes it back from the person it was handed to.
+      updates.ownerTeamId = input.body.ownerTeamId;
+      updates.ownerUserId = null;
+      updates.assigneeType = null;
+    } else if (ownerChanging) {
+      // Choosing anyone but the task's current owner takes it from the team it was given to.
+      updates.ownerTeamId = null;
       if (input.body.ownerWorkosUserId == null) {
         updates.ownerUserId = null;
         updates.assigneeType = null;
@@ -167,12 +204,6 @@ export async function updateNativeJob(input: {
         // An open task on a file can go to a vendor or to any member who works on jobs,
         // whatever the project's team; anyone who can open the project can be given any job,
         // as before; a vendor is given nothing else (`job-owner.ts`).
-        const fileTask = isFileTaskForPeople({
-          kind: existing.kind,
-          status: existing.status,
-          afterJobId: existing.afterJobId,
-          sourceFileId: readJobSourceFileId(existing.inputPayload),
-        });
         const vendorAllowed = await refuseVendorOwnerUnlessFileTask({
           organizationId: input.organizationId,
           ownerUserId: resolvedOwnerId,
@@ -205,6 +236,9 @@ export async function updateNativeJob(input: {
         }
         updates.ownerUserId = resolvedOwnerId;
         updates.assigneeType = "user";
+        if (resolvedOwnerId === existing.ownerUserId) {
+          delete updates.ownerTeamId;
+        }
       }
     }
 

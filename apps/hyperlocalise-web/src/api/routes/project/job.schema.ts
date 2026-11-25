@@ -145,6 +145,8 @@ export const updateJobBodySchema = z
     title: z.string().trim().min(1).max(256).optional(),
     description: z.string().trim().max(2_048).nullable().optional(),
     ownerWorkosUserId: z.string().trim().min(1).max(256).nullable().optional(),
+    /** A vendor team to give a task to, in place of a person. */
+    ownerTeamId: z.string().uuid().optional(),
     dueAt: jobDueAtSchema.nullable().optional(),
   })
   .refine(
@@ -152,9 +154,21 @@ export const updateJobBodySchema = z
       body.title !== undefined ||
       body.description !== undefined ||
       body.ownerWorkosUserId !== undefined ||
+      body.ownerTeamId !== undefined ||
       body.dueAt !== undefined,
-    { message: "At least one of title, description, ownerWorkosUserId, or dueAt is required" },
-  );
+    {
+      message:
+        "At least one of title, description, ownerWorkosUserId, ownerTeamId, or dueAt is required",
+    },
+  )
+  .refine((body) => body.ownerTeamId === undefined || body.ownerWorkosUserId === undefined, {
+    message: "Give a task to a person or to a vendor team, not both",
+  });
+
+/** A vendor team's manager hands a task of the team to a person in it, or back to the team. */
+export const handOutTeamTaskBodySchema = z.object({
+  ownerUserId: z.string().uuid().nullable(),
+});
 
 /** Statuses counted by project `openJobCount` and listed by `open=true`. */
 export const openJobStatusValues = ["queued", "running", "waiting_for_review"] as const;

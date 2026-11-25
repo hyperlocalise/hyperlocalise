@@ -303,13 +303,16 @@ func applyJobPatch(ctx context.Context, tx pgx.Tx, actor principal, jobID string
 		set.add("due_at = ?", patch.DueAt.Value)
 	}
 	if patch.OwnerEmail.Set {
+		// Choosing anyone but the task's current owner takes it from the vendor team it was given
+		// to, as updateNativeJob does in the web app.
 		if patch.OwnerEmail.Value == nil {
-			set.conditions = append(set.conditions, "owner_user_id = NULL", "assignee_type = NULL")
+			set.conditions = append(set.conditions, "owner_team_id = NULL", "owner_user_id = NULL", "assignee_type = NULL")
 		} else {
 			ownerID, err := assignableJobOwner(ctx, tx, actor, *projectID, *patch.OwnerEmail.Value, fileTask)
 			if err != nil {
 				return job{}, err
 			}
+			set.add("owner_team_id = CASE WHEN owner_user_id = ?::uuid THEN owner_team_id END", ownerID)
 			set.add("owner_user_id = ?::uuid", ownerID)
 			set.conditions = append(set.conditions, "assignee_type = 'user'")
 		}

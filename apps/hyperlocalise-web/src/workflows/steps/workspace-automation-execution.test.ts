@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type {
   WorkspaceOrchestratorExecutionSuccess,
@@ -65,10 +65,17 @@ vi.mock("@/lib/agents/content-sync/execute-content-sync", () => ({
   executeContentSyncRun: executeContentSyncRunMock,
 }));
 
-import {
-  completeWorkspaceAutomationStep,
-  prepareWorkspaceAutomationStep,
-} from "./workspace-automation-execution";
+// Files in a worker share one module graph (`isolate: false`). Another file can
+// leave a copy of this module built against the real orchestrator and run store,
+// so load a fresh one once this file's mocks are registered.
+let completeWorkspaceAutomationStep: typeof import("./workspace-automation-execution").completeWorkspaceAutomationStep;
+let prepareWorkspaceAutomationStep: typeof import("./workspace-automation-execution").prepareWorkspaceAutomationStep;
+
+beforeAll(async () => {
+  vi.resetModules();
+  ({ completeWorkspaceAutomationStep, prepareWorkspaceAutomationStep } =
+    await import("./workspace-automation-execution"));
+});
 
 const event = { workspaceAutomationRunId: "run-1", organizationId: "org-1" };
 const emptyState = { stepResults: {}, terminalStatus: null, terminalError: null };

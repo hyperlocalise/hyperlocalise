@@ -41,8 +41,21 @@ export function getTeamRoleLabel(role: TeamRole, intl?: TeamsSettingsIntl) {
   return resolveMessage(intl, teamRoleLabelMessages[role]);
 }
 
-export function getTeamRoleDescription(role: TeamRole, intl?: TeamsSettingsIntl) {
-  return resolveMessage(intl, teamRoleDescriptionMessages[role]);
+const vendorTeamRoleDescriptionMessages = {
+  manager: teamsSettingsViewModelMessages.vendorRoleManagerDescription,
+  member: teamsSettingsViewModelMessages.vendorRoleMemberDescription,
+} as const;
+
+/** On a vendor team the role decides only who hands out the team's tasks. */
+export function getTeamRoleDescription(
+  role: TeamRole,
+  intl?: TeamsSettingsIntl,
+  isVendorTeam = false,
+) {
+  return resolveMessage(
+    intl,
+    (isVendorTeam ? vendorTeamRoleDescriptionMessages : teamRoleDescriptionMessages)[role],
+  );
 }
 
 export function resolveTeamsListPageState(input: {
@@ -88,28 +101,48 @@ export function canRemoveTeamMember(input: {
   member: TeamMemberRow;
   members: TeamMemberRow[];
   canManageMembers: boolean;
+  /** A vendor team's manager only hands out its tasks; admins manage the team itself. */
+  isVendorTeam?: boolean;
 }) {
   if (!input.canManageMembers) {
     return false;
   }
 
-  if (input.member.role !== "manager") {
+  if (input.member.role !== "manager" || input.isVendorTeam) {
     return true;
   }
 
   return input.members.filter((member) => member.role === "manager").length > 1;
 }
 
+/**
+ * Whether this person is the only manager of a vendor team. Removing them, or making them a
+ * member, leaves the tasks the team holds with no one in it unseen until it has a manager again.
+ */
+export function isLastVendorTeamManager(input: {
+  member: TeamMemberRow;
+  members: TeamMemberRow[];
+  isVendorTeam: boolean;
+}) {
+  return (
+    input.isVendorTeam &&
+    input.member.role === "manager" &&
+    input.members.filter((member) => member.role === "manager").length === 1
+  );
+}
+
 export function canUpdateTeamMemberRole(input: {
   member: TeamMemberRow;
   members: TeamMemberRow[];
   canManageMembers: boolean;
+  /** A vendor team's manager only hands out its tasks; admins manage the team itself. */
+  isVendorTeam?: boolean;
 }) {
   if (!input.canManageMembers) {
     return false;
   }
 
-  if (input.member.role !== "manager") {
+  if (input.member.role !== "manager" || input.isVendorTeam) {
     return true;
   }
 

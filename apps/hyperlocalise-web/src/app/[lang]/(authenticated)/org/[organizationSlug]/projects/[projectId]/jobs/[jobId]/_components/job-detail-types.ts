@@ -19,6 +19,8 @@ export type JobDetailRecord = {
   projectName: string | null;
   createdByUserId: string | null;
   ownerUserId: string | null;
+  /** The vendor team the task was given to, if any; its managers hand it on. */
+  ownerTeamId?: string | null;
   assigneeType?: "user" | "agent" | null;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | "keys" | null;

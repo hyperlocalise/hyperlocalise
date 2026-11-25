@@ -79,7 +79,7 @@ export function AddTeamMemberDialog({
       return;
     }
 
-    onSubmit({ workosUserId, role: isVendorTeam ? "member" : role });
+    onSubmit({ workosUserId, role });
   }
 
   return (
@@ -150,35 +150,34 @@ export function AddTeamMemberDialog({
                 </Select>
               </Field>
 
-              {/* A vendor team's people all join as members: its manager has no part yet. */}
-              {isVendorTeam ? null : (
-                <Field>
-                  <FieldLabel>
-                    <FormattedMessage {...addTeamMemberDialogMessages.roleLabel} />
-                  </FieldLabel>
-                  <Select
-                    value={role}
-                    onValueChange={(value) => setRole(value as TeamRole)}
-                    disabled={isSaving}
-                  >
-                    <SelectTrigger className="border-border bg-muted">
-                      <SelectValue>{getTeamRoleLabel(role, intl)}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {teamRoles.map((teamRole) => (
-                        <SelectItem
-                          key={teamRole}
-                          value={teamRole}
-                          label={getTeamRoleLabel(teamRole, intl)}
-                        >
-                          {getTeamRoleLabel(teamRole, intl)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription>{getTeamRoleDescription(role, intl)}</FieldDescription>
-                </Field>
-              )}
+              <Field>
+                <FieldLabel>
+                  <FormattedMessage {...addTeamMemberDialogMessages.roleLabel} />
+                </FieldLabel>
+                <Select
+                  value={role}
+                  onValueChange={(value) => setRole(value as TeamRole)}
+                  disabled={isSaving}
+                >
+                  <SelectTrigger className="border-border bg-muted">
+                    <SelectValue>{getTeamRoleLabel(role, intl)}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teamRoles.map((teamRole) => (
+                      <SelectItem
+                        key={teamRole}
+                        value={teamRole}
+                        label={getTeamRoleLabel(teamRole, intl)}
+                      >
+                        {getTeamRoleLabel(teamRole, intl)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  {getTeamRoleDescription(role, intl, isVendorTeam)}
+                </FieldDescription>
+              </Field>
             </>
           )}
 

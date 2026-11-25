@@ -63,8 +63,8 @@ export const addTeamMemberDialogMessages = defineMessages({
   },
   vendorDescription: {
     defaultMessage:
-      "This is a vendor team. The person will see only the tasks given to them and will be removed from their other teams.",
-    id: "4aImuN5ZRh",
+      "This is a vendor team. The person will see only the tasks given to them, or as its Manager the team's tasks too, and will be removed from their other teams.",
+    id: "P7qMEBwvFk",
     description: "Description of the add team member dialog for a vendor team",
   },
 });

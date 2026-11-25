@@ -63,6 +63,7 @@ import type { OrganizationMemberDirectoryEntry, TeamDetail, TeamMemberRow } from
 import { createTeamFormFromSummary } from "./team-form";
 import {
   canRemoveTeamMember,
+  isLastVendorTeamManager,
   canUpdateTeamMemberRole,
   getTeamRoleDescription,
   getTeamRoleLabel,
@@ -172,10 +173,15 @@ function MemberRowActions({
 function ChangeTeamMemberRoleDialog({
   member,
   isSaving,
+  isVendorTeam,
+  isLastManager,
   onOpenChange,
   onSubmit,
 }: {
   member: TeamMemberRow | null;
+  isVendorTeam: boolean;
+  /** The vendor team's only manager: making them a member leaves its tasks unseen. */
+  isLastManager: boolean;
   isSaving: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: { workosUserId: string; role: TeamRole }) => void;
@@ -247,7 +253,12 @@ function ChangeTeamMemberRoleDialog({
                 ))}
               </SelectContent>
             </Select>
-            <FieldDescription>{getTeamRoleDescription(role, intl)}</FieldDescription>
+            <FieldDescription>{getTeamRoleDescription(role, intl, isVendorTeam)}</FieldDescription>
+            {isLastManager && role !== "manager" ? (
+              <FieldDescription className="text-destructive">
+                <FormattedMessage {...teamDetailPageViewMessages.lastVendorManagerWarning} />
+              </FieldDescription>
+            ) : null}
           </Field>
           <DialogFooter>
             <Button
@@ -438,18 +449,17 @@ export function TeamDetailPageView({
             <MembersTableHeader showActions={pageState.canManageMembers} />
             {pageState.members.map((member) => {
               const isCurrentUser = member.workosUserId === currentUserWorkosId;
-              // A vendor team's people are all members: its manager has no part yet.
-              const canUpdateRole =
-                team?.isVendor !== true &&
-                canUpdateTeamMemberRole({
-                  member,
-                  members: pageState.members,
-                  canManageMembers: pageState.canManageMembers,
-                });
+              const canUpdateRole = canUpdateTeamMemberRole({
+                member,
+                members: pageState.members,
+                canManageMembers: pageState.canManageMembers,
+                isVendorTeam: team?.isVendor === true,
+              });
               const canRemove = canRemoveTeamMember({
                 member,
                 members: pageState.members,
                 canManageMembers: pageState.canManageMembers,
+                isVendorTeam: team?.isVendor === true,
               });
 
               return (
@@ -496,7 +506,7 @@ export function TeamDetailPageView({
                           }
                         />
                         <TooltipContent side="bottom" align="start" className="max-w-xs">
-                          {getTeamRoleDescription(member.role, intl)}
+                          {getTeamRoleDescription(member.role, intl, team?.isVendor === true)}
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -546,6 +556,15 @@ export function TeamDetailPageView({
       <ChangeTeamMemberRoleDialog
         member={editingMember}
         isSaving={isUpdatingMemberRole}
+        isVendorTeam={team?.isVendor === true}
+        isLastManager={
+          editingMember !== null &&
+          isLastVendorTeamManager({
+            member: editingMember,
+            members: pageState.members,
+            isVendorTeam: team?.isVendor === true,
+          })
+        }
         onOpenChange={(open) => {
           if (!open) {
             onEditingMemberChange(null);
@@ -575,6 +594,16 @@ export function TeamDetailPageView({
                   )
                 : ""}
             </DialogDescription>
+            {removingMember &&
+            isLastVendorTeamManager({
+              member: removingMember,
+              members: pageState.members,
+              isVendorTeam: team?.isVendor === true,
+            }) ? (
+              <DialogDescription className="text-destructive">
+                <FormattedMessage {...teamDetailPageViewMessages.lastVendorManagerWarning} />
+              </DialogDescription>
+            ) : null}
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onRemovingMemberChange(null)}>

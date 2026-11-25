@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { createTeamDetail, createTeamMember, createTeamSummary } from "./teams.fixture";
 import {
   canRemoveTeamMember,
+  isLastVendorTeamManager,
   canUpdateTeamMemberRole,
   listAssignableMembers,
   resolveTeamDetailPageState,
@@ -98,6 +99,33 @@ describe("teams-settings-view-model", () => {
         members,
         canManageMembers: true,
       }),
+    ).toBe(false);
+  });
+
+  it("lets an admin remove or demote a vendor team's only manager", () => {
+    const members = [createTeamMember({ workosUserId: "user_manager", role: "manager" })];
+    const input = { member: members[0]!, members, canManageMembers: true, isVendorTeam: true };
+
+    expect(canRemoveTeamMember(input)).toBe(true);
+    expect(canUpdateTeamMemberRole(input)).toBe(true);
+  });
+
+  it("knows a vendor team's only manager, whose tasks would go unseen without them", () => {
+    const manager = createTeamMember({ workosUserId: "user_manager", role: "manager" });
+    const member = createTeamMember({ workosUserId: "user_member", role: "member" });
+    const second = createTeamMember({ workosUserId: "user_second", role: "manager" });
+
+    expect(
+      isLastVendorTeamManager({ member: manager, members: [manager, member], isVendorTeam: true }),
+    ).toBe(true);
+    expect(
+      isLastVendorTeamManager({ member: manager, members: [manager, second], isVendorTeam: true }),
+    ).toBe(false);
+    expect(
+      isLastVendorTeamManager({ member, members: [manager, member], isVendorTeam: true }),
+    ).toBe(false);
+    expect(
+      isLastVendorTeamManager({ member: manager, members: [manager, member], isVendorTeam: false }),
     ).toBe(false);
   });
 });

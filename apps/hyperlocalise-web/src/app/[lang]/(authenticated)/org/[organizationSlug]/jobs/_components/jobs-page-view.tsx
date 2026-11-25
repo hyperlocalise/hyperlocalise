@@ -55,6 +55,7 @@ export type ApiJob = {
   id: string;
   projectId: string | null;
   createdByUserId: string | null;
+  ownerUserId?: string | null;
   assigneeType?: "user" | "agent" | null;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | "keys" | null;

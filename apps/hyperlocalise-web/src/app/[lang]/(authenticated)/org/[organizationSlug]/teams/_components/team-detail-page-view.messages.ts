@@ -173,8 +173,8 @@ export const teamDetailPageViewMessages = defineMessages({
   },
   vendorMembersDescription: {
     defaultMessage:
-      "This is a vendor team. Its people see only the tasks given to them, and joining it removes them from their other teams. Need someone new in the workspace? <invite>Invite a member</invite>.",
-    id: "cbZhbyfK4w",
+      "This is a vendor team. Its people see only the tasks given to them, and its Manager hands out the tasks given to the team. Joining it removes them from their other teams. Need someone new in the workspace? <invite>Invite a member</invite>.",
+    id: "lEKf0oF5z/",
     description: "Description under the members heading of a vendor team, with an invite link",
   },
   removeVendorMemberDescription: {
@@ -182,5 +182,11 @@ export const teamDetailPageViewMessages = defineMessages({
       "{email} will no longer be limited to their tasks: they get back what their role allows in the workspace, in no team.",
     id: "C2LMJrTr1L",
     description: "Confirmation when removing someone from a vendor team",
+  },
+  lastVendorManagerWarning: {
+    defaultMessage:
+      "They are this team's only manager. Tasks given to the team that no one in it has yet will wait unseen until the team has a manager again.",
+    id: "s08zNUwVe0",
+    description: "Warning when removing a vendor team's only manager, or making them a member",
   },
 });

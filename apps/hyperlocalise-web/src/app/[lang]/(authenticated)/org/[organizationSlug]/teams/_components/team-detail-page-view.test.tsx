@@ -87,7 +87,7 @@ describe("TeamDetailPageView", () => {
     expect(props.onEditingMemberChange).toHaveBeenCalledWith(member);
   });
 
-  it("offers no team role on a vendor team: everyone joins as a member", async () => {
+  it("offers the team role on a vendor team, saying what a manager does there", async () => {
     const user = userEvent.setup();
     const { props } = renderTeamDetail({
       team: { ...createTeamDetail(), isVendor: true },
@@ -95,15 +95,22 @@ describe("TeamDetailPageView", () => {
     });
 
     const dialog = screen.getByRole("dialog", { name: "Add team member" });
-    expect(within(dialog).queryByText("Role")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("Role")).toBeInTheDocument();
+    expect(within(dialog).getByText("Sees only the tasks given to them.")).toBeInTheDocument();
+    await user.click(within(dialog).getAllByRole("combobox").at(-1)!);
+    await user.click(await screen.findByRole("option", { name: "Manager" }));
+    expect(
+      within(dialog).getByText(
+        "Sees all of the team's tasks and hands each one to a person in the team.",
+      ),
+    ).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Add member" }));
-    expect(props.onAddMember).toHaveBeenCalledWith(expect.objectContaining({ role: "member" }));
+    expect(props.onAddMember).toHaveBeenCalledWith(expect.objectContaining({ role: "manager" }));
     cleanup();
 
     renderTeamDetail({ team: { ...createTeamDetail(), isVendor: true } });
     await user.click(screen.getByRole("button", { name: "Actions for otto@example.com" }));
-    expect(await screen.findByText("Remove from team...")).toBeInTheDocument();
-    expect(screen.queryByText("Change role...")).not.toBeInTheDocument();
+    expect(await screen.findByText("Change role...")).toBeInTheDocument();
   });
 
   it("updates the team role only after confirming in the dialog", async () => {
@@ -126,5 +133,30 @@ describe("TeamDetailPageView", () => {
       workosUserId: member.workosUserId,
       role: "manager",
     });
+  });
+
+  it("warns before a vendor team loses its only manager", async () => {
+    const user = userEvent.setup();
+    const warning = /only manager/;
+    const team = { ...createTeamDetail(), isVendor: true };
+    const manager = team.members[0]!;
+
+    renderTeamDetail({ team, removingMember: manager });
+    expect(screen.getByRole("dialog")).toHaveTextContent("this team's only manager");
+    cleanup();
+
+    renderTeamDetail({ team, editingMember: manager });
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Member" }));
+    expect(screen.getByText(warning)).toBeInTheDocument();
+    cleanup();
+
+    // Not on another team, nor for someone who is not the only manager.
+    renderTeamDetail({ removingMember: manager });
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+    cleanup();
+    renderTeamDetail({ team, removingMember: team.members[1]! });
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
   });
 });

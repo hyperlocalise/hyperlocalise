@@ -52,6 +52,7 @@ export async function AppShell({
         activeOrganization={{ name: auth.activeOrganization.name, slug: activeOrganizationSlug }}
         isOnlyWorkspace={switchableWorkspaces(auth.organizations).length <= 1}
         user={{
+          id: auth.user.localUserId,
           name: displayName,
           email: auth.sessionUser.email,
           avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,
