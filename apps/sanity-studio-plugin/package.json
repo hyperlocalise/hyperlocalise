@@ -58,7 +58,7 @@
   },
   "devDependencies": {
     "@sanity/document-internationalization": "^6.0.0",
-    "@sanity/pkg-utils": "^13.0.15",
+    "@sanity/pkg-utils": "^14.0.0",
     "@sanity/plugin-kit": "^10.0.14",
     "@types/react": "^19.3.0",
     "oxfmt": "^0.79.0",
