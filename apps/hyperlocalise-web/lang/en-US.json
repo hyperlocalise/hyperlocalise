@@ -403,10 +403,6 @@
     "defaultMessage": "Row {row}: {message}",
     "description": "Import warning or error line with a CSV row number"
   },
-  "+Ve/t+/sO9": {
-    "defaultMessage": "Ask your organization admin to confirm your membership, choose another organization, or sign out and retry with another account.",
-    "description": "Default access denied page guidance"
-  },
   "+WCxVTeO3+": {
     "defaultMessage": "02 Test in one country",
     "description": "Hyperlab workflow step 2"
@@ -1303,6 +1299,10 @@
     "defaultMessage": "Name",
     "description": "Column header for glossary name"
   },
+  "/dc/w9u9zm": {
+    "defaultMessage": "Text",
+    "description": "Text source option on the create translation job step"
+  },
   "/e6ibZCuf5": {
     "defaultMessage": "Create a job with context, files, locales, and assignees.",
     "description": "Create job dialog accessible description"
@@ -1438,6 +1438,10 @@
   "/t0AsVdAjV": {
     "defaultMessage": "Show details",
     "description": "Expands granular audit fields for one activity"
+  },
+  "/t9gruUZ70": {
+    "defaultMessage": "Someone not in the team's list",
+    "description": "Owner shown to a vendor team manager when the task's owner has left the team or can no longer be handed tasks"
   },
   "/u6bFz8Pln": {
     "defaultMessage": "Critical",
@@ -2410,6 +2414,10 @@
   "14fjm7KS5p": {
     "defaultMessage": "No file selected",
     "description": "Placeholder when no bilingual file has been chosen"
+  },
+  "15FkZAAWZn": {
+    "defaultMessage": "Create a durable translation job from text or a stored file.",
+    "description": "Catalog description for the create translation job node"
   },
   "15XdTZEk24": {
     "defaultMessage": "Small brush",
@@ -3475,6 +3483,10 @@
     "defaultMessage": "Loading runs…",
     "description": "Loading state for the visual workflow executions tab"
   },
+  "2VTgmOaEaZ": {
+    "defaultMessage": "View all workspaces",
+    "description": "Account menu link for a vendor to choose another workspace they belong to"
+  },
   "2VWwjqjclF": {
     "defaultMessage": "Assignee",
     "description": "Label for single-assignee selection on native jobs"
@@ -3806,6 +3818,10 @@
   "3+pjmT77Xm": {
     "defaultMessage": "Cancel",
     "description": "Cancel the Braze template picker"
+  },
+  "3+tuLaI0A+": {
+    "defaultMessage": "This task is finished or was given to someone else.",
+    "description": "Notice when someone who reached a task only because they own it opens it after it was finished, cancelled or reassigned"
   },
   "3/ebdpqqmW": {
     "defaultMessage": "Uploading the file and starting the import...",
@@ -4899,6 +4915,10 @@
     "defaultMessage": "Link",
     "description": "Table column header for the issue link"
   },
+  "4NrFt6runw": {
+    "defaultMessage": "Instructions",
+    "description": "Instructions setting on the create translation job step"
+  },
   "4NxMcshAkK": {
     "defaultMessage": "Primary term",
     "description": "Label for the concept primary term when adding from CAT"
@@ -5174,6 +5194,10 @@
   "4oWir+lPBP": {
     "defaultMessage": "Recent syncs",
     "description": "Heading of the list of recent project sync runs"
+  },
+  "4oXz/ocU7M": {
+    "defaultMessage": "Workspace creation isn't available right now. Contact support if this continues.",
+    "description": "Error when WorkOS organization management is not configured"
   },
   "4p/SsmkJuR": {
     "defaultMessage": "Check this German launch line against Brand-claims-policy.pdf: \"Unsere einzigartige KI-Plattform ist klinisch erwiesen.\"",
@@ -7135,10 +7159,6 @@
     "defaultMessage": "Failed to load provider job ({status})",
     "description": "Error when the live TMS provider job request fails"
   },
-  "7MaLlZw62e": {
-    "defaultMessage": "Your account is signed in, but we could not confirm your organization membership. Try again in a moment.",
-    "description": "Access denied page summary when WorkOS membership lookup fails"
-  },
   "7Mb6b+z2q1": {
     "defaultMessage": "If French visitors land on English, or a language is missing, Domains flags it before a customer does.",
     "description": "Body for the Domains localisation solution panel"
@@ -7366,10 +7386,6 @@
   "7hw+ESYrhQ": {
     "defaultMessage": "Could not create a workflow.",
     "description": "Toast when creating a new workflow from the new automation page fails"
-  },
-  "7itDAFKmls": {
-    "defaultMessage": "Workspace creation isn't available right now. Contact support if this continues.",
-    "description": "Error when WorkOS organization management is not configured"
   },
   "7j13INCpbH": {
     "defaultMessage": "Fix the trigger configuration before activating this workflow.",
@@ -7891,10 +7907,6 @@
     "defaultMessage": "Add pattern",
     "description": "Button that adds an empty path pattern to the Source upload filter"
   },
-  "8O4l4wC1UK": {
-    "defaultMessage": "Sanity isn't available in this workspace yet. Contact support to turn it on.",
-    "description": "Integration row description when Sanity Pipes is unavailable"
-  },
   "8OHSn5eQCa": {
     "defaultMessage": "Forbidden glossary term",
     "description": "CAT format check label when a forbidden glossary term appears in the target"
@@ -8130,6 +8142,10 @@
   "8fEAeumr3B": {
     "defaultMessage": "Bring your own models",
     "description": "localisation-operations use case page: capabilities › items › #4 › title"
+  },
+  "8fGCeGPUs8": {
+    "defaultMessage": "Sanity isn't available in this workspace yet. Contact support to turn it on.",
+    "description": "Integration row description when Sanity Pipes is unavailable"
   },
   "8gI8dqfg1a": {
     "defaultMessage": "Failed to look up repository context",
@@ -9082,6 +9098,10 @@
   "9wRo7aY8DU": {
     "defaultMessage": "View Queries",
     "description": "Link from overview Queries to the issues page"
+  },
+  "9x6oc8jVLH": {
+    "defaultMessage": "A date such as 2026-05-01T17:00Z, a period from when the step runs such as +3d or +12h, or a value from an earlier step. Leave empty to keep the current due date.",
+    "description": "Help text for the due date setting of the Update job workflow step"
   },
   "9xLYM1kt9j": {
     "defaultMessage": "Localize the attached image to",
@@ -10686,6 +10706,10 @@
   "C1osco57de": {
     "defaultMessage": "Unsaved changes",
     "description": "Hint that a Hyperlab form has unsaved edits"
+  },
+  "C2LMJrTr1L": {
+    "defaultMessage": "{email} will no longer be limited to their tasks: they get back what their role allows in the workspace, in no team.",
+    "description": "Confirmation when removing someone from a vendor team"
   },
   "C2s1+2PcGk": {
     "defaultMessage": "resent a member invitation",
@@ -14383,13 +14407,13 @@
     "defaultMessage": "Design",
     "description": "Label of the row that holds the link to the design (such as a Figma frame) where the string appears"
   },
-  "GzYGhS8+WR": {
-    "defaultMessage": "Your name is stored on your Hyperlocalise account. Email comes from your sign-in account.",
-    "description": "Helper text under the profile section on account settings"
-  },
   "GzdUfM35EF": {
     "defaultMessage": "Page",
     "description": "Overview page path column"
+  },
+  "GzlzhrsNZ6": {
+    "defaultMessage": "Source locale",
+    "description": "Source locale setting on the create translation job step"
   },
   "H+501fU+xu": {
     "defaultMessage": "Customer.io",
@@ -15230,10 +15254,6 @@
   "I9aLSBsZbT": {
     "defaultMessage": "Choose an organization from your account or contact support if this continues.",
     "description": "Access denied page guidance when the organization slug is missing"
-  },
-  "IATCAL7GZ3": {
-    "defaultMessage": "Search Console isn't available right now. Contact support if this continues.",
-    "description": "Empty state description when WorkOS Pipes is unavailable"
   },
   "IBYpVWNrJA": {
     "defaultMessage": "Document properties",
@@ -17059,6 +17079,10 @@
     "defaultMessage": "Included",
     "description": "Badge for Hyperlocalise-managed inference on the AI Engine page"
   },
+  "KpItEVAT5b": {
+    "defaultMessage": "For an outside agency or freelancer. Its people see only the tasks given to them, and its Manager the team's tasks too. They leave their other teams when they join. It cannot be changed later.",
+    "description": "Explains what making a team a vendor team does"
+  },
   "Kph9F7aQfL": {
     "defaultMessage": "Tool",
     "description": "Fallback tool name when the tool type cannot be derived"
@@ -17810,6 +17834,10 @@
   "LpAm1eoUb6": {
     "defaultMessage": "Workspace overview could not be loaded.",
     "description": "Error when the overview snapshot fails to load"
+  },
+  "LpQRt+NA1h": {
+    "defaultMessage": "Create translation job",
+    "description": "Catalog title for the create translation job node"
   },
   "LpSbNeWQyy": {
     "defaultMessage": "Change part of an image with words",
@@ -19739,6 +19767,10 @@
     "defaultMessage": "Failed to create Crowdin jobs",
     "description": "Fallback error when Crowdin job creation fails without a server message"
   },
+  "OK0mqQVghA": {
+    "defaultMessage": "Sees all of the team's tasks and hands each one to a person in the team.",
+    "description": "Tooltip describing the manager role on a vendor team"
+  },
   "OKElC8KspG": {
     "defaultMessage": "Product, website and docs localisation",
     "description": "Marketing homepage languageDetailContinuousTitle"
@@ -20330,6 +20362,10 @@
   "P7iGJ3MOIk": {
     "defaultMessage": "Nodes inside Each item",
     "description": "Visual workflow editor control"
+  },
+  "P7qMEBwvFk": {
+    "defaultMessage": "This is a vendor team. The person will see only the tasks given to them, or as its Manager the team's tasks too, and will be removed from their other teams.",
+    "description": "Description of the add team member dialog for a vendor team"
   },
   "P83ZEtDAlo": {
     "defaultMessage": "Failed to load GitHub repositories",
@@ -22251,6 +22287,10 @@
     "defaultMessage": "Import and export history could not be loaded",
     "description": "Import and export history error title"
   },
+  "RqHBJPG4cc": {
+    "defaultMessage": "People in a vendor team use none of these rights in the workspace. They see only the tasks given to them, and in each task's file and languages their role decides what they can do.",
+    "description": "Note under the role permissions table explaining what people in a vendor team can reach"
+  },
   "RqHJJ3SEei": {
     "defaultMessage": "{count, plural, one {The ticked string goes} other {The # ticked strings go}} into a task for people to translate and review. Hidden strings are left out.",
     "description": "Explains what the task dialog does with the ticked strings, and how many there are"
@@ -22670,10 +22710,6 @@
   "SQRLgyMjtO": {
     "defaultMessage": "Phrase TMS OAuth uses the scope below when Hyperlocalise requests an authorization code and exchanges it for a user bearer token.",
     "description": "Intro text for Phrase OAuth scope requirements"
-  },
-  "SQUPAVRD+K": {
-    "defaultMessage": "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty for no due date.",
-    "description": "Help text for the due date setting of the Assign task and Crowdin task workflow steps"
   },
   "SQWxPmzi1h": {
     "defaultMessage": "New guideline",
@@ -23194,6 +23230,10 @@
   "T8LFTkce6e": {
     "defaultMessage": "Workspace connection",
     "description": "Label for the Canva connection picker on the OAuth consent page"
+  },
+  "T9bH+pMAZ1": {
+    "defaultMessage": "Sees only the tasks given to them.",
+    "description": "Tooltip describing the member role on a vendor team"
   },
   "T9mYohjPzf": {
     "defaultMessage": "Sent",
@@ -27479,10 +27519,6 @@
     "defaultMessage": "Task step",
     "description": "Column heading: what the work's task is for (translate, post-edit, proofread)"
   },
-  "Yn8fBlm1d2": {
-    "defaultMessage": "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty to keep the current due date.",
-    "description": "Help text for the due date setting of the Update job workflow step"
-  },
   "YnIu9s0qeQ": {
     "defaultMessage": "Use a Content Management API personal access token from Contentful Settings → Content management tokens. Do not use Content Delivery or Preview API keys — those are read-only and cannot write draft translations or register webhooks.",
     "description": "Guidance for choosing a Contentful Management API token"
@@ -27907,6 +27943,10 @@
     "defaultMessage": "Translation task runs",
     "description": "Automated time: translation tasks from start to finish"
   },
+  "ZRezwcaCoI": {
+    "defaultMessage": "Vendor",
+    "description": "Badge beside a team's name in the team list when it is an outside vendor's team"
+  },
   "ZSpIiSP+sp": {
     "defaultMessage": "Try again",
     "description": "Button label to retry rendering a crashed AI element"
@@ -27922,10 +27962,6 @@
   "ZT2jyG9aex": {
     "defaultMessage": "Could not load the webhook URL.",
     "description": "Shown when the webhook URL fails to load"
-  },
-  "ZT3mGAyTVi": {
-    "defaultMessage": "Authorize Hyperlocalise to access Sanity on your behalf.",
-    "description": "Intro when connecting Sanity with OAuth"
   },
   "ZTPtuGZQJE": {
     "defaultMessage": "Describe and search footage",
@@ -28530,6 +28566,10 @@
   "aBdSYSGyjv": {
     "defaultMessage": "Help Google find you.",
     "description": "Title for the Domains SEO solution panel"
+  },
+  "aCFyq1MoYq": {
+    "defaultMessage": "My Jobs",
+    "description": "The only sidebar link a vendor has: the tasks given to them"
   },
   "aCbkq8HVzj": {
     "defaultMessage": "Explore integrations",
@@ -29434,6 +29474,10 @@
   "bOrc6CzqiC": {
     "defaultMessage": "Jobs",
     "description": "Activity log event type group for jobs"
+  },
+  "bPNs2bH81K": {
+    "defaultMessage": "Vendor team",
+    "description": "Label of the checkbox that makes a new team an outside vendor's team"
   },
   "bPblegqbiB": {
     "defaultMessage": "Glossary",
@@ -31099,6 +31143,10 @@
     "defaultMessage": "Updating the workflow…",
     "description": "Line in the assistant's reply while its tool is changing the visual workflow"
   },
+  "ddEDKei4o6": {
+    "defaultMessage": "Authorize Hyperlocalise to access Sanity on your behalf.",
+    "description": "Intro when connecting Sanity with OAuth"
+  },
   "ddPY0So4Vu": {
     "defaultMessage": "Ukrainian (Ukraine)",
     "description": "Display name for BCP-47 locale uk-UA"
@@ -31222,6 +31270,10 @@
   "dnUl0UTxhs": {
     "defaultMessage": "This whole task, whatever its dates. Days use UTC. Counts update about every 15 minutes.",
     "description": "Line at the top of a task's Report tab"
+  },
+  "dnoEDGww+o": {
+    "defaultMessage": "{teamName} will be removed. Its people will no longer be limited to their tasks: they get back what their role allows in the workspace, in no team. Tasks given to the team that no one in it has yet become unassigned.",
+    "description": "Delete team confirmation for a vendor team"
   },
   "dnuXZ5sBJ3": {
     "defaultMessage": "Job Failed",
@@ -31454,6 +31506,10 @@
   "e18M4A0kqC": {
     "defaultMessage": "Pricing",
     "description": "Marketing footer resource link label for the pricing page"
+  },
+  "e1M80dhMEi": {
+    "defaultMessage": "Ask your organization admin to confirm your membership, choose another organization, or sign out and retry with another account.",
+    "description": "Default access denied page guidance"
   },
   "e1VRshKvtz": {
     "defaultMessage": "For select: Backlog, Sprint 24, Blocked",
@@ -32267,6 +32323,10 @@
     "defaultMessage": "Choose a GitHub repository in the source file picker to look up string context.",
     "description": "Banner prompting the user to pick a repository for CAT context lookup"
   },
+  "f24Kokxqli": {
+    "defaultMessage": "Not handed out",
+    "description": "A vendor team manager's option that gives a team task back to the team, with no person"
+  },
   "f28BtwGbZV": {
     "defaultMessage": "Couldn't check this connection just now.",
     "description": "Shown when the live check of a saved GitLab server connection can't run"
@@ -32390,6 +32450,10 @@
   "fC5ypafpDV": {
     "defaultMessage": "or",
     "description": "Separator between two key combinations that trigger the same shortcut"
+  },
+  "fCJqBOlPJw": {
+    "defaultMessage": "Separate one or more target locales with commas.",
+    "description": "Target locale help on the create translation job step"
   },
   "fCirHpiRXz": {
     "defaultMessage": "Upload video",
@@ -33839,6 +33903,10 @@
     "defaultMessage": "Image actions for {language}",
     "description": "Accessible label for the group of edit actions under one gallery image"
   },
+  "h5QP7DKHn0": {
+    "defaultMessage": "Stored file",
+    "description": "Stored file source option on the create translation job step"
+  },
   "h5cYwVNzp2": {
     "defaultMessage": "Since Reports started",
     "description": "Ready-made date range: from the day Reports started for the workspace to today"
@@ -34326,6 +34394,10 @@
   "hkJpZEzllE": {
     "defaultMessage": "Failed to load the Iterable region.",
     "description": "Error when the Iterable region cannot be loaded"
+  },
+  "hkmkj50dwv": {
+    "defaultMessage": "Search Console isn't available right now. Contact support if this continues.",
+    "description": "Empty state description when WorkOS Pipes is unavailable"
   },
   "hm9/43e7py": {
     "defaultMessage": "End time",
@@ -34826,6 +34898,10 @@
   "iPfq81Jihe": {
     "defaultMessage": "Preferences",
     "description": "Settings nav item for appearance preferences"
+  },
+  "iPnvlRKTDf": {
+    "defaultMessage": "Could not load who this job can be given to.",
+    "description": "Error when the list of people a job can be given to fails to load"
   },
   "iQ+Qd5bwId": {
     "defaultMessage": "Showing {shown} of {total}",
@@ -35547,6 +35623,10 @@
     "defaultMessage": "Check locale coverage, terminology, and compliance gates.",
     "description": "Validation tool description in the marketing automation editor mock"
   },
+  "jQdEMjrp0Z": {
+    "defaultMessage": "Vendor teams",
+    "description": "Group label for the vendor teams a task can be given to"
+  },
   "jR18LljICi": {
     "defaultMessage": "Upload style guides and brand docs for the workspace or a single project.",
     "description": "Pricing matrix detail explaining Guidelines"
@@ -36139,6 +36219,10 @@
     "defaultMessage": "Checking translation status means another tab and another login.",
     "description": "localisation-for-ai-coding-agents use case page: shift › before › #3"
   },
+  "kD8yTqsdeD": {
+    "defaultMessage": "You",
+    "description": "Assignee shown on a task's page to the person who owns the task, when they see the page only because they own it"
+  },
   "kDHggb67Dc": {
     "defaultMessage": "Cursor",
     "description": "MCP client tab label for Cursor"
@@ -36459,6 +36543,10 @@
     "defaultMessage": "03 Count what wins",
     "description": "Hyperlab workflow step 3"
   },
+  "kcg9+yrlzC": {
+    "defaultMessage": "Source type",
+    "description": "Source type setting on the create translation job step"
+  },
   "kcrePkUiva": {
     "defaultMessage": "Glob",
     "description": "Path filter syntax option: glob patterns such as **/*.json"
@@ -36542,6 +36630,10 @@
   "kjx+4Dj0jz": {
     "defaultMessage": "A note from the founders",
     "description": "Heading for the founders note section on the company page"
+  },
+  "kk28w+hjbt": {
+    "defaultMessage": "Optional bounded JSON object with translation context overrides.",
+    "description": "Context override help on the create translation job step"
   },
   "kl2EbTmfas": {
     "defaultMessage": "Related scores",
@@ -36898,6 +36990,10 @@
   "lEAnS9LFlv": {
     "defaultMessage": "Jobs by locale",
     "description": "Section heading for jobs grouped by locale in the file detail panel"
+  },
+  "lEKf0oF5z/": {
+    "defaultMessage": "This is a vendor team. Its people see only the tasks given to them, and its Manager hands out the tasks given to the team. Joining it removes them from their other teams. Need someone new in the workspace? <invite>Invite a member</invite>.",
+    "description": "Description under the members heading of a vendor team, with an invite link"
   },
   "lERlTBAMnZ": {
     "defaultMessage": "Chat URL copied",
@@ -38742,6 +38838,10 @@
   "nefEZhjUv2": {
     "defaultMessage": "Project",
     "description": "Project picker label on the content sync action"
+  },
+  "nen31+8GMz": {
+    "defaultMessage": "Your name is stored on your Hyperlocalise account. Email comes from your sign-in account.",
+    "description": "Helper text under the profile section on account settings"
   },
   "nf1dYK5Obp": {
     "defaultMessage": "Diagnostics are no longer available",
@@ -41267,6 +41367,10 @@
     "defaultMessage": "You edited the workflow · {count, plural, one {# change} other {# changes}}",
     "description": "Line above a message of the person's in the assistant panel, which opens to list what they changed on the visual workflow themselves before sending it"
   },
+  "qx3hu9ObBd": {
+    "defaultMessage": "Context overrides",
+    "description": "Context overrides setting on the create translation job step"
+  },
   "qxAtQr1hgC": {
     "defaultMessage": "Schedule",
     "description": "Label for the schedule picker in the project Sync panel"
@@ -41326,6 +41430,10 @@
   "r+yexMeuDZ": {
     "defaultMessage": "This file appears to be damaged.",
     "description": "Reason a guideline document failed: the file is malformed"
+  },
+  "r//PBG5Cpu": {
+    "defaultMessage": "A date such as 2026-05-01T17:00Z, a period from when the step runs such as +3d or +12h, or a value from an earlier step. Leave empty for no due date.",
+    "description": "Help text for the due date setting of the Assign task and Crowdin task workflow steps"
   },
   "r/zdhHnzwh": {
     "defaultMessage": "Ran for real",
@@ -42907,6 +43015,10 @@
     "defaultMessage": "Copy OAuth callback URL",
     "description": "Aria label for the copy OAuth callback URL button"
   },
+  "t6vvaCuOOb": {
+    "defaultMessage": "Your account is signed in, but we could not confirm your organization membership. Try again in a moment.",
+    "description": "Access denied page summary when WorkOS membership lookup fails"
+  },
   "t6xBRSvtG0": {
     "defaultMessage": "Try It in One Market. Keep What Works. | Hyperlocalise",
     "description": "Page title for the Hyperlab product page"
@@ -43050,6 +43162,10 @@
   "tJ8Lpden5r": {
     "defaultMessage": "Hide API token",
     "description": "Aria label to hide Sanity API token field"
+  },
+  "tJVPdFX9O3": {
+    "defaultMessage": "Leave workspace",
+    "description": "Account menu item for a vendor to leave the workspace"
   },
   "tJedwqsl7m": {
     "defaultMessage": "A/B test",
@@ -45591,6 +45707,10 @@
     "defaultMessage": "Connect your Anthropic account",
     "description": "Anthropic BYOK provider description on the AI Engine page"
   },
+  "wlp63zuJYJ": {
+    "defaultMessage": "For example locales/en/. Up to 100 files and languages are listed; the rest come at the next run.",
+    "description": "Help text under the path setting of the list work to review step"
+  },
   "wmX7YgFAaQ": {
     "defaultMessage": "Translation",
     "description": "Reports mock UI translation step label"
@@ -45878,6 +45998,10 @@
   "x5yxBL3DUW": {
     "defaultMessage": "Used in",
     "description": "Label for projects that use this dictionary"
+  },
+  "x6+CVCpXnQ": {
+    "defaultMessage": "List work to review",
+    "description": "Catalog title for the step that lists files and languages with review work"
   },
   "x6CTl1782r": {
     "defaultMessage": "Project attachment",
@@ -47027,6 +47151,10 @@
     "defaultMessage": "Secret ending in {suffix}",
     "description": "Hint that an MCP auth secret is already stored"
   },
+  "yVIbEyWOOq": {
+    "defaultMessage": "Source text",
+    "description": "Source text setting on the create translation job step"
+  },
   "yVKWDzxbjh": {
     "defaultMessage": "Feel local, not translated.",
     "description": "Marketing homepage culture section heading"
@@ -47786,6 +47914,10 @@
   "zdAQY+IIRF": {
     "defaultMessage": "Save the terms people actually search for, then brief translation and content with them so pages match local intent.",
     "description": "market-entry use case page: guide › steps › #3 › body"
+  },
+  "zdITXRNL2Q": {
+    "defaultMessage": "Find each file and language with translations waiting for review that nobody has a task for.",
+    "description": "Catalog description for the step that lists files and languages with review work"
   },
   "zdN3ToHnj1": {
     "defaultMessage": "Unable to load glossary",
