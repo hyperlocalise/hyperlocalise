@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hyperlocalise | Capabilities for Localisation and Business Teams</title>
+  <meta
+    name="description"
+    content="Explore every currently available Hyperlocalise capability for localisation and business teams, with onboarding, standalone vs platform setup, and integration comparisons."
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="site-header" id="siteHeader">
+    <div class="container header-inner">
+      <a href="#top" class="brand-lockup" aria-label="Hyperlocalise home">
+        <img
+          src="./assets/logo/logomark-light-mode.svg"
+          alt=""
+          class="brand-mark brand-asset-light"
+          width="28"
+          height="28"
+        />
+        <img
+          src="./assets/logo/logomark-dark-mode.svg"
+          alt=""
+          class="brand-mark brand-asset-dark"
+          width="28"
+          height="28"
+        />
+        <img
+          src="./assets/logo/logotypo-light-mode.svg"
+          alt="Hyperlocalise"
+          class="brand-wordmark brand-asset-light"
+          height="20"
+        />
+        <img
+          src="./assets/logo/logotypo-dark-mode.svg"
+          alt="Hyperlocalise"
+          class="brand-wordmark brand-asset-dark"
+          height="20"
+        />
+      </a>
+
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#functions">Functions</a>
+        <a href="#compare">Comparisons</a>
+        <a href="#onboarding">Onboarding</a>
+        <a href="#integrations">Integrations</a>
+      </nav>
+
+      <div class="header-actions">
+        <button
+          type="button"
+          class="theme-switch"
+          id="themeToggle"
+          aria-label="Toggle color theme"
+          aria-pressed="false"
+        >
+          <span class="theme-label-light">Dark</span>
+          <span class="theme-label-dark">Light</span>
+        </button>
+        <a href="https://www.hyperlocalise.com" target="_blank" rel="noopener" class="nav-cta">
+          Open Cloud
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero-stage">
+      <div class="hero-backdrop" aria-hidden="true"></div>
+      <div class="container hero-inner">
+        <div class="hero-copy">
+          <h1 class="hero-title">One localisation engine for every team.</h1>
+          <p class="hero-subtitle">
+            Ship reviewed translations from code and TMS, or launch localized campaigns, ads, and SEO from one shared workspace.
+          </p>
+          <a href="#functions" class="btn-primary">Explore functions</a>
+        </div>
+
+        <div class="workbench" aria-label="Interactive capability preview">
+          <div class="workbench-bar">
+            <div class="segmented" role="tablist" aria-label="Team perspective" id="heroTeamTabs">
+              <button
+                type="button"
+                role="tab"
+                class="segmented-item is-active"
+                aria-selected="true"
+                data-hero-team="localisation"
+              >
+                Localisation team
+              </button>
+              <button
+                type="button"
+                role="tab"
+                class="segmented-item"
+                aria-selected="false"
+                data-hero-team="business"
+              >
+                Business team
+              </button>
+            </div>
+            <p class="workbench-caption" id="heroWorkbenchSummary">
+              CAT review, automated QA, local-first CLI, and CI checks.
+            </p>
+          </div>
+
+          <div class="workbench-body">
+            <div class="workbench-tracks" id="heroTrackList" role="listbox" aria-label="Workflow previews"></div>
+            <div class="workbench-preview" id="heroPreviewPane" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="functions">
+      <div class="container">
+        <div class="section-head">
+          <h2>Every function available today</h2>
+          <p class="section-lead">
+            Filter the complete production surface by team, sub-function, or deployment setup.
+          </p>
+        </div>
+
+        <div class="explorer-controls">
+          <div class="segmented" role="tablist" aria-label="Function audience" id="teamFilterTabs">
+            <button type="button" role="tab" class="segmented-item is-active" aria-selected="true" data-team="all">
+              All teams
+            </button>
+            <button type="button" role="tab" class="segmented-item" aria-selected="false" data-team="localisation">
+              Localisation team
+            </button>
+            <button type="button" role="tab" class="segmented-item" aria-selected="false" data-team="business">
+              Business team
+            </button>
+          </div>
+
+          <div class="explorer-inputs">
+            <label class="sr-only" for="subteamSelect">Filter by group</label>
+            <select id="subteamSelect" class="control-select" aria-label="Filter by group">
+              <option value="all">All groups</option>
+              <option value="CAT & Content">CAT and content</option>
+              <option value="Linguistic QA">Linguistic assets and QA</option>
+              <option value="CLI & CI/CD">CLI, API, MCP and CI/CD</option>
+              <option value="Automations">Automations and workflows</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Growth & SEO">Growth and SEO</option>
+              <option value="Compliance">Compliance and governance</option>
+              <option value="Sales">Sales and leadership</option>
+            </select>
+
+            <label class="sr-only" for="setupSelect">Filter by setup</label>
+            <select id="setupSelect" class="control-select" aria-label="Filter by setup">
+              <option value="all">Standalone and Platform</option>
+              <option value="standalone">Standalone available</option>
+              <option value="platform">Platform workspace</option>
+            </select>
+
+            <label class="sr-only" for="functionSearch">Search functions</label>
+            <input
+              type="search"
+              id="functionSearch"
+              class="control-input"
+              placeholder="Search CAT, Canva, Zernio, MCP, CLI..."
+            />
+          </div>
+        </div>
+
+        <p class="results-meta" id="resultsMeta" aria-live="polite"></p>
+
+        <div class="pillar-columns" id="functionGrid"></div>
+      </div>
+    </section>
+
+    <section class="section section-tinted" id="showcase">
+      <div class="container">
+        <div class="editorial-split">
+          <div class="editorial-copy">
+            <h2>Built for engineering precision and global growth</h2>
+            <p>
+              Localisation teams run the MIT-licensed CLI directly in CI or review segments in Cloud CAT with live desktop, tablet, and mobile previews. Business teams connect Canva, Figma, Contentful, Zernio, and SEO tools to ship localized campaigns from the same approved glossaries and compliance rules.
+            </p>
+            <dl class="editorial-facts">
+              <div>
+                <dt>Shared linguistic memory</dt>
+                <dd>Guidelines, forbidden terms, and approved TM segments apply equally across CAT, CLI runs, MCP coding agents, and marketing automations.</dd>
+              </div>
+              <div>
+                <dt>No rip-and-replace required</dt>
+                <dd>Keep Crowdin, Lokalise, Phrase, or Smartling where needed while adopting native Hyperlocalise projects for new repositories and design channels.</dd>
+              </div>
+            </dl>
+          </div>
+          <div class="editorial-media">
+            <figure class="media-frame">
+              <img
+                src="./assets/generated/localisation-studio.jpg"
+                alt="Architectural visual representing layered localisation infrastructure"
+                width="1280"
+                height="720"
+                loading="lazy"
+              />
+            </figure>
+            <figure class="media-frame">
+              <img
+                src="./assets/generated/business-markets.jpg"
+                alt="Minimalist studio composition representing global market expansion"
+                width="1280"
+                height="720"
+                loading="lazy"
+              />
+            </figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="compare">
+      <div class="container">
+        <div class="section-head section-head-row">
+          <div>
+            <h2>Compare onboarding, setup, and integrations</h2>
+            <p class="section-lead">
+              Evaluate how Hyperlocalise fits localisation versus business teams, and standalone tooling versus the full Cloud platform.
+            </p>
+          </div>
+          <div class="segmented" role="tablist" aria-label="Comparison view" id="compareModeTabs">
+            <button type="button" role="tab" class="segmented-item is-active" aria-selected="true" data-compare="teams">
+              Localisation vs Business
+            </button>
+            <button type="button" role="tab" class="segmented-item" aria-selected="false" data-compare="setup">
+              Standalone vs Platform
+            </button>
+          </div>
+        </div>
+
+        <div class="comparison-wrap" id="comparisonContainer" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="section section-tinted" id="onboarding">
+      <div class="container">
+        <div class="section-head">
+          <h2>Interactive onboarding planner</h2>
+          <p class="section-lead">
+            Choose your team and deployment model to inspect exact setup steps, time to first value, and starter configuration.
+          </p>
+        </div>
+
+        <div class="planner-grid">
+          <div class="planner-controls">
+            <fieldset class="planner-fieldset">
+              <legend>Primary team</legend>
+              <div class="radio-stack" id="plannerTeamRadios">
+                <label class="radio-row">
+                  <input type="radio" name="plannerTeam" value="localisation" checked />
+                  <span>
+                    <strong>Localisation engineering and linguists</strong>
+                    <small>Repos, TMS adapters, CAT review, and QA gates</small>
+                  </span>
+                </label>
+                <label class="radio-row">
+                  <input type="radio" name="plannerTeam" value="marketing" />
+                  <span>
+                    <strong>Marketing and creative</strong>
+                    <small>Canva, Figma, CMS publishing, and Zernio paid ads</small>
+                  </span>
+                </label>
+                <label class="radio-row">
+                  <input type="radio" name="plannerTeam" value="growth" />
+                  <span>
+                    <strong>Growth and international SEO</strong>
+                    <small>Verified domains, rank tracking, Ahrefs, and HyperLab</small>
+                  </span>
+                </label>
+                <label class="radio-row">
+                  <input type="radio" name="plannerTeam" value="compliance" />
+                  <span>
+                    <strong>Compliance, sales, and leadership</strong>
+                    <small>Forbidden terms, RBAC, audit logs, and Localisation Audit</small>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="planner-fieldset">
+              <legend>Setup model</legend>
+              <div class="segmented segmented-full" role="tablist" aria-label="Setup model" id="plannerSetupTabs">
+                <button type="button" role="tab" class="segmented-item is-active" aria-selected="true" data-planner-setup="standalone">
+                  Standalone
+                </button>
+                <button type="button" role="tab" class="segmented-item" aria-selected="false" data-planner-setup="platform">
+                  Cloud Platform
+                </button>
+              </div>
+            </fieldset>
+          </div>
+
+          <div class="planner-output" id="plannerOutput" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="integrations">
+      <div class="container">
+        <div class="section-head section-head-row">
+          <div>
+            <h2>Connected ecosystem across code, TMS, and growth</h2>
+            <p class="section-lead">
+              Every live integration currently shipping in the CLI and Cloud workspace, plus inbound and outbound MCP.
+            </p>
+          </div>
+          <div class="segmented" role="tablist" aria-label="Integration category" id="integrationTabs">
+            <button type="button" role="tab" class="segmented-item is-active" aria-selected="true" data-int-cat="all">
+              All live
+            </button>
+            <button type="button" role="tab" class="segmented-item" aria-selected="false" data-int-cat="loc">
+              Localisation
+            </button>
+            <button type="button" role="tab" class="segmented-item" aria-selected="false" data-int-cat="biz">
+              Business
+            </button>
+            <button type="button" role="tab" class="segmented-item" aria-selected="false" data-int-cat="ai">
+              AI models
+            </button>
+          </div>
+        </div>
+
+        <div class="integrations-grid" id="integrationsGrid" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="closing-band">
+      <div class="closing-backdrop" aria-hidden="true"></div>
+      <div class="container closing-inner">
+        <h2>Start in five minutes with the CLI or launch a Cloud workspace</h2>
+        <p>
+          Run local translation checks without an account, or bring localisation, marketing, growth, and compliance into one governed platform.
+        </p>
+        <a href="https://hyperlocalise.dev" target="_blank" rel="noopener" class="btn-primary">
+          Read the documentation
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img
+          src="./assets/logo/logomark-light-mode.svg"
+          alt="Hyperlocalise"
+          class="brand-asset-light"
+          width="22"
+          height="22"
+        />
+        <img
+          src="./assets/logo/logomark-dark-mode.svg"
+          alt="Hyperlocalise"
+          class="brand-asset-dark"
+          width="22"
+          height="22"
+        />
+        <span>Hyperlocalise Pty Ltd. Production capability overview.</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://www.hyperlocalise.com" target="_blank" rel="noopener">hyperlocalise.com</a>
+        <a href="https://hyperlocalise.dev" target="_blank" rel="noopener">Docs</a>
+        <a href="https://www.hyperlocalise.com/localisation-audit" target="_blank" rel="noopener">Localisation Audit</a>
+        <a href="https://github.com/hyperlocalise/hyperlocalise" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>
