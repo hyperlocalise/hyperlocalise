@@ -40,6 +40,7 @@ const REPEATABLE_ACTION_TYPES: ReadonlySet<VisualCatalogType> = new Set([
   "action.create_task",
   "action.check_progress",
   "action.list_source_files",
+  "action.list_review_work",
   // A try with the same key finds its own send; any other try answers already_sent unless the
   // file's translations changed in between.
   "action.translation_as_source",

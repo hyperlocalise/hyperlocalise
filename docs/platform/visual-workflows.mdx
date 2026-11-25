@@ -175,15 +175,32 @@ Human steps in MTPE and TEP flows can set owners and deadlines on native jobs an
 | Step | Use it to |
 | --- | --- |
 | **Pick assignee** | Choose one person from a ordered rule table on locale, job type, size, and due date. Spread work **first listed**, **round-robin**, or to the **least busy** person (fewest open native jobs, or open Crowdin tasks when people come from Crowdin). Wire `assigneeId` into **Assign task** or **Update job**. |
-| **Assign task** | Create a translate, post-edit, or proofread task on a source file with an optional assignee and **due date** (ISO 8601, for example `2026-05-01T17:00:00Z`). A post-edit or proofread task can go to a [vendor](/platform/workspace/roles#vendors) or to a member outside the project's team, who then work on that task's file only; choose a member whose role can work on jobs, because a read-only member can open the task but not finish it. A translate task cannot go to a vendor. The assignee finishes a post-edit or proofread task with [**Mark done**](/platform/translation/jobs#finish-a-proofread-or-post-edit-task). To make a post-edit or proofread task wait, wire an earlier **Assign task** or **Machine translate** step's `jobId` into **Comes after**: the task opens when that job is marked done, finishes, or is cancelled, so one run can machine translate a file and set up both tasks. To act when a task is finished, start another workflow from **Job changed** with **Job kinds** set to **Post-edit** or **Proofread**. In later steps the trigger's `jobKind` is `proofread` for both; its `taskStep` tells them apart (`edit` for post-edit). |
-| **Update job** | Reassign a native job, rename it, or set or clear its due date. Leave assignee or due date empty to keep the current value. |
+| **Assign task** | Create a translate, post-edit, or proofread task on a source file with an optional assignee and **due date**: a date (ISO 8601, for example `2026-05-01T17:00:00Z`) or a period counted from when the step runs (`+3d` for three days, `+12h` for twelve hours). A post-edit or proofread task can go to a [vendor](/platform/workspace/roles#vendors) or to a member outside the project's team, who then work on that task's file only; choose a member whose role can work on jobs, because a read-only member can open the task but not finish it. A translate task cannot go to a vendor. The assignee finishes a post-edit or proofread task with [**Mark done**](/platform/translation/jobs#finish-a-proofread-or-post-edit-task). To make a post-edit or proofread task wait, wire an earlier **Assign task** or **Machine translate** step's `jobId` into **Comes after**: the task opens when that job is marked done, finishes, or is cancelled, so one run can machine translate a file and set up both tasks. To act when a task is finished, start another workflow from **Job changed** with **Job kinds** set to **Post-edit** or **Proofread**. In later steps the trigger's `jobKind` is `proofread` for both; its `taskStep` tells them apart (`edit` for post-edit). |
+| **Update job** | Reassign a native job, rename it, or set or clear its due date (a date, or a period such as `+3d`, counted again if the step is retried). Leave assignee or due date empty to keep the current value. |
+| **Crowdin task** | Create Crowdin translate or proofread tasks with optional assignees and a deadline (a date, or a period such as `+3d`). |
 
 On **Assign task** and **Update job**, **Due in (hours)** sets the due date that many hours after the step runs, for example `48` for two days. It is used when **Due date** is empty.
-| **Crowdin task** | Create Crowdin translate or proofread tasks with optional assignees and a deadline. |
 
 On **Pick assignee**, rules are checked from top to bottom; the first rule whose conditions all match wins. An empty condition matches anything. A rule that sets **Due within (hours)** only matches work that already has a due date within that window (or overdue). Multi-locale work must match every locale on the rule. **People from** can be workspace members or Crowdin project members (by Crowdin user id). If no rule matches and fallback people are empty, the step fails so an error branch can handle it.
 
 Job types accept common aliases such as `post-edit`, `MTPE`, and `review` for translate, edit, and proofread steps.
+
+## Follow up edits on a schedule
+
+Editing a translation or source text in the Content Editor changes its status and starts nothing by itself. To turn those edits into work for people, run a workflow on a schedule that finds what is waiting:
+
+**Schedule** → **List work to review** → **For each** → **Pick assignee** → **Assign task** (set to **Proofread**) → **Send email**
+
+**List work to review** returns each file and language of a project that has translations in **Needs review** or saved as drafts, and that no open or waiting post-edit or proofread task already covers. Each item has `projectId`, `sourceFileId`, `path`, `targetLocale` and `needsReview` (the number of strings). Loop over `items` with **For each**. In **Pick assignee** and **Assign task**, read a field of the current item through the loop step, as `{{ nodes.<loop step id>.item.targetLocale }}` (and the same for `projectId` and `sourceFileId`). A run cannot read `{{ item.targetLocale }}`.
+
+- A file and language stay off the list while a task is open on them. That task's editor already shows whatever needs review in its file, including edits made after it was given, so a second run makes no second task.
+- They come back once every task on them is finished and something still needs review. Set **Assign task** to **Proofread**, or follow a post-edit task with a proofread task that **Comes after** it: a post-editor cannot approve, so a post-edit task alone would be made again at each run.
+- Any open task counts, including one with no assignee, so give every task a person. A task made on chosen strings does not count, and neither does a task waiting for a job that failed: cancel that task, or retry the job, so it does not open later beside a new one.
+- For source text edits to produce review work, set the project's [**When source text changes**](/platform/cat) setting to **Needs review**.
+- Only files on the project's main branch are listed, up to 100 items a run. **Path starts with** keeps to one folder.
+- Give each task a deadline counted from the run, such as `+3d`, in **Assign task**'s **Due date**.
+
+Approved translations leave for your repository with the project's sync, on its own schedule, as one merge request.
 
 ## Call reusable workflows
 

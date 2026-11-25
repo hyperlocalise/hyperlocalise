@@ -185,6 +185,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeTranslationAsSource;
     case "action.list_source_files":
       return messages.nodeListSourceFiles;
+    case "action.list_review_work":
+      return messages.nodeListReviewWork;
     case "action.file_read":
       return messages.nodeFileRead;
     case "action.file_write":
@@ -290,6 +292,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeTranslationAsSourceHint;
     case "action.list_source_files":
       return messages.nodeListSourceFilesHint;
+    case "action.list_review_work":
+      return messages.nodeListReviewWorkHint;
     case "action.file_read":
       return messages.nodeFileReadHint;
     case "action.file_write":

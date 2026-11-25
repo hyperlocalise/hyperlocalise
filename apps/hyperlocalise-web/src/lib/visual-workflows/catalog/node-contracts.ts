@@ -261,6 +261,30 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       targetLocales: ["fr-FR"],
     },
   },
+  "action.list_review_work": {
+    inputs: [field("projectId"), field("pathPrefix", "string", false)],
+    outputs: [output("items", "array"), output("count", "number"), output("truncated", "boolean")],
+    mock: {
+      items: [
+        {
+          projectId: "proj_mock",
+          sourceFileId: "file_mock_1",
+          path: "locales/en/app.json",
+          targetLocale: "de-DE",
+          needsReview: 4,
+        },
+        {
+          projectId: "proj_mock",
+          sourceFileId: "file_mock_1",
+          path: "locales/en/app.json",
+          targetLocale: "fr-FR",
+          needsReview: 2,
+        },
+      ],
+      count: 2,
+      truncated: false,
+    },
+  },
   "action.list_source_files": {
     inputs: [field("projectId"), field("pathPrefix", "string", false)],
     outputs: [

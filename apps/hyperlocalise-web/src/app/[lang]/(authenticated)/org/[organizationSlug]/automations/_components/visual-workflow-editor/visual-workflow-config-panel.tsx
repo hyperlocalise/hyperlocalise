@@ -2838,7 +2838,8 @@ export function VisualWorkflowConfigPanel({
         config.kind === "action.create_task" ||
         config.kind === "action.check_progress" ||
         config.kind === "action.run_qa" ||
-        config.kind === "action.list_source_files" ? (
+        config.kind === "action.list_source_files" ||
+        config.kind === "action.list_review_work" ? (
           <ProjectIdField
             projects={resources.projects}
             value={config.projectId}
@@ -2906,6 +2907,17 @@ export function VisualWorkflowConfigPanel({
             id="vw-list-files-path-prefix"
             label={intl.formatMessage(messages.listFilesPathPrefix)}
             description={intl.formatMessage(messages.listFilesPathPrefixHint)}
+            value={config.pathPrefix}
+            {...connectedInputProps("pathPrefix")}
+            onChange={(value) => onChangeConfig({ ...config, pathPrefix: value })}
+            placeholder="locales/en/"
+          />
+        ) : null}
+        {config.kind === "action.list_review_work" ? (
+          <TextField
+            id="vw-review-work-path-prefix"
+            label={intl.formatMessage(messages.listFilesPathPrefix)}
+            description={intl.formatMessage(messages.listReviewWorkPathPrefixHint)}
             value={config.pathPrefix}
             {...connectedInputProps("pathPrefix")}
             onChange={(value) => onChangeConfig({ ...config, pathPrefix: value })}

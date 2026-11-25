@@ -53,22 +53,27 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   "action.machine_translate": {
     title: "Machine translate",
     purpose:
-      "Pre-translate a source file with translation memory and AI. Drafts land as needing review.",
+      "Pre-translate a source file with translation memory and AI. Drafts land as needing review. The step ends as soon as its job is queued; the translation finishes later.",
   },
   "action.create_task": {
     title: "Assign task",
     purpose:
-      "Give a person a translate, post-edit, or proofread task on a source file, with an optional due date or a number of hours until it is due, for MTPE and TEP steps. A post-edit or proofread task can come after an earlier task: it waits, and opens when that one is marked done or cancelled.",
+      "Give a person a translate, post-edit, or proofread task on a source file, with an optional due date or a number of hours until it is due, for MTPE and TEP steps. A post-edit or proofread task can come after a Machine translate job or an earlier task: it is made at once, waits, and opens by itself when that job finishes, is marked done or is cancelled.",
   },
   "action.check_progress": {
     title: "Check progress",
     purpose:
-      "Count untranslated, needing-review and approved strings, and a job's status. Use it as the condition of a Wait to pause until a step is done.",
+      "Count untranslated, needing-review and approved strings, and read a job's status, at the moment it runs. As the condition of a Wait it holds the workflow until a file is translated or approved, or a job is done, before a step that is not a task, such as a sync, an email or a message. It does not make a task wait: Assign task's Comes after does that.",
   },
   "action.run_qa": {
     title: "Run QA checks",
     purpose:
       "Run the project's QA checks and report errors and warnings: on the whole project, or only one source file, some languages, or the file and languages of a job. Reports the quality score when the project scores translations, the AI quality estimate when that check is on, and needsHumanReview: true when QA did not pass, the estimate flagged segments, or the project's content domain always needs review.",
+  },
+  "action.list_review_work": {
+    title: "List work to review",
+    purpose:
+      "List each file and language of a project that has translations waiting for review and no open post-edit or proofread task, so a For each on a schedule can give each one to a person once. Each item has projectId, sourceFileId, path, targetLocale and needsReview. Edits made in the editor show up here at the next run; nothing starts from an edit itself.",
   },
   "action.list_source_files": {
     title: "List source files",
