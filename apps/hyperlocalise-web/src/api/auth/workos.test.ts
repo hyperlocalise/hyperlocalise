@@ -77,6 +77,26 @@ describe("workosAuthMiddleware", () => {
     });
   });
 
+  it("returns stale_organization_slug with My jobs for a vendor", async () => {
+    resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(
+      new StaleOrganizationSlugError("old-slug", "new-slug", true),
+    );
+
+    const response = await createTestApp().request("http://localhost/orgs/old-slug/projects", {
+      ...sessionHeaders,
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "stale_organization_slug",
+      details: {
+        requestedSlug: "old-slug",
+        currentSlug: "new-slug",
+        redirectTo: "/org/new-slug/my-jobs",
+      },
+    });
+  });
+
   it("returns organization_slug_unresolvable for unknown multi-org slugs", async () => {
     resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(
       new OrganizationSlugUnresolvableError("missing-slug"),

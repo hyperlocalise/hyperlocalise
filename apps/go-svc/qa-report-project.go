@@ -83,7 +83,9 @@ func (api *qaReportAPI) ownedNativeProject(ctx context.Context, actor qaReportAc
 	return project, nil
 }
 
-func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *time.Time, policy, scoring []byte) map[string]any {
+// qaChecksFromPolicy reads a project's saved QA check policy, with the defaults for checks it
+// does not name.
+func qaChecksFromPolicy(policy []byte) map[string]qaCheckSetting {
 	checks := map[string]qaCheckSetting{}
 	_ = json.Unmarshal(policy, &checks)
 	if _, ok := checks["unreachable_plural_case"]; !ok {
@@ -95,6 +97,11 @@ func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *tim
 	if _, ok := checks["quality_estimate"]; !ok {
 		checks["quality_estimate"] = qaCheckSetting{Enabled: false, Severity: "warning"}
 	}
+	return checks
+}
+
+func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *time.Time, policy, scoring []byte) map[string]any {
+	checks := qaChecksFromPolicy(policy)
 	return map[string]any{
 		"cadence":           cadence,
 		"checks":            checks,

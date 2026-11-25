@@ -61,4 +61,10 @@ export const addTeamMemberDialogMessages = defineMessages({
     id: "hiEPeRn6WE",
     description: "Submit button to add a member to the team",
   },
+  vendorDescription: {
+    defaultMessage:
+      "This is a vendor team. The person will see only the tasks given to them and will be removed from their other teams.",
+    id: "4aImuN5ZRh",
+    description: "Description of the add team member dialog for a vendor team",
+  },
 });

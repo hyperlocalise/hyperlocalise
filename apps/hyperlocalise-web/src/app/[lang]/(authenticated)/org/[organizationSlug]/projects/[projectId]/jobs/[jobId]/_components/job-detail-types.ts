@@ -56,6 +56,8 @@ export type JobDetailRecord = {
   linkedJobId: string | null;
   /** The job a task comes after; while that job is unfinished the task waits as queued. */
   afterJobId?: string | null;
+  /** On a job's own page: the file the job is on, as the editor names it, on its branch. */
+  taskFile?: { sourcePath: string; branch: string } | null;
   providerSourceFiles?: Array<{
     id: string;
     displayName: string;

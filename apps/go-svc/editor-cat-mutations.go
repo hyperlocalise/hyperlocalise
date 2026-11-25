@@ -160,6 +160,12 @@ func (api *editorCatAPI) requireTranslationKey(r *http.Request, actor editorCatA
                 and f.organization_id = k.organization_id and f.project_id = k.project_id
             where k.id=$1 and k.organization_id=$2 and k.project_id=$3 and f.source_path=$4`
 		args = append(args, trimEditorCat(sourcePath))
+		if actor.taskScope != nil {
+			// A person here through a task is held to the task's branch of the file, which the
+			// path alone does not name.
+			sql += ` and f.branch_name=$5`
+			args = append(args, actor.branch)
+		}
 	}
 	var found string
 	err = api.pool.QueryRow(r.Context(), sql, args...).Scan(&found)
@@ -233,6 +239,10 @@ func (api *editorCatAPI) listCommentsForKeys(r *http.Request, actor editorCatAct
 		comment.Text = text
 		comment.CreatedAt = &createdAt
 		comment.Locale = &locale
+		if actor.taskScope != nil {
+			// Names only: a member's email address is not for someone here through a task.
+			email = nil
+		}
 		comment.Author = formatEditorCatAuthor(first, last, email)
 		result[keyID] = append(result[keyID], comment)
 	}

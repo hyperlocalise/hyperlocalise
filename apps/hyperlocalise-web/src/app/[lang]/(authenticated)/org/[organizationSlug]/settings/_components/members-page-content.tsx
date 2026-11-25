@@ -36,8 +36,13 @@ import {
 
 const membersQueryKey = (organizationSlug: string) => ["workspace-members", organizationSlug];
 const teamsQueryKey = (organizationSlug: string) => ["workspace-teams", organizationSlug];
-function resolveDefaultTeamId(teams: { id: string; slug: string }[]) {
-  return teams.find((team) => team.slug === DEFAULT_WORKSPACE_TEAM_SLUG)?.id ?? teams[0]?.id ?? "";
+// A vendor team is never offered first: it would shut the invited person out of the workspace.
+function resolveDefaultTeamId(teams: { id: string; slug: string; isVendor?: boolean }[]) {
+  return (
+    teams.find((team) => team.slug === DEFAULT_WORKSPACE_TEAM_SLUG)?.id ??
+    teams.find((team) => !team.isVendor)?.id ??
+    ""
+  );
 }
 
 export function MembersPageContent({

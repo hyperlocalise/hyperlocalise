@@ -46,12 +46,15 @@ export function AddTeamMemberDialog({
   open,
   assignableMembers,
   isSaving,
+  isVendorTeam = false,
   onOpenChange,
   onSubmit,
 }: {
   open: boolean;
   assignableMembers: OrganizationMemberDirectoryEntry[];
   isSaving: boolean;
+  /** A vendor team: the person will see only their tasks and leave their other teams. */
+  isVendorTeam?: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: { workosUserId: string; role: TeamRole }) => void;
 }) {
@@ -76,7 +79,7 @@ export function AddTeamMemberDialog({
       return;
     }
 
-    onSubmit({ workosUserId, role });
+    onSubmit({ workosUserId, role: isVendorTeam ? "member" : role });
   }
 
   return (
@@ -97,7 +100,11 @@ export function AddTeamMemberDialog({
               <FormattedMessage {...addTeamMemberDialogMessages.title} />
             </DialogTitle>
             <DialogDescription>
-              <FormattedMessage {...addTeamMemberDialogMessages.description} />
+              <FormattedMessage
+                {...(isVendorTeam
+                  ? addTeamMemberDialogMessages.vendorDescription
+                  : addTeamMemberDialogMessages.description)}
+              />
             </DialogDescription>
           </DialogHeader>
 
@@ -143,32 +150,35 @@ export function AddTeamMemberDialog({
                 </Select>
               </Field>
 
-              <Field>
-                <FieldLabel>
-                  <FormattedMessage {...addTeamMemberDialogMessages.roleLabel} />
-                </FieldLabel>
-                <Select
-                  value={role}
-                  onValueChange={(value) => setRole(value as TeamRole)}
-                  disabled={isSaving}
-                >
-                  <SelectTrigger className="border-border bg-muted">
-                    <SelectValue>{getTeamRoleLabel(role, intl)}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teamRoles.map((teamRole) => (
-                      <SelectItem
-                        key={teamRole}
-                        value={teamRole}
-                        label={getTeamRoleLabel(teamRole, intl)}
-                      >
-                        {getTeamRoleLabel(teamRole, intl)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldDescription>{getTeamRoleDescription(role, intl)}</FieldDescription>
-              </Field>
+              {/* A vendor team's people all join as members: its manager has no part yet. */}
+              {isVendorTeam ? null : (
+                <Field>
+                  <FieldLabel>
+                    <FormattedMessage {...addTeamMemberDialogMessages.roleLabel} />
+                  </FieldLabel>
+                  <Select
+                    value={role}
+                    onValueChange={(value) => setRole(value as TeamRole)}
+                    disabled={isSaving}
+                  >
+                    <SelectTrigger className="border-border bg-muted">
+                      <SelectValue>{getTeamRoleLabel(role, intl)}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teamRoles.map((teamRole) => (
+                        <SelectItem
+                          key={teamRole}
+                          value={teamRole}
+                          label={getTeamRoleLabel(teamRole, intl)}
+                        >
+                          {getTeamRoleLabel(teamRole, intl)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>{getTeamRoleDescription(role, intl)}</FieldDescription>
+                </Field>
+              )}
             </>
           )}
 

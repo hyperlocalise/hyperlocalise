@@ -84,6 +84,29 @@ describe("loadOnboardingContext", () => {
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
+  it("gives a vendor no workspace, so its onboarding steps cannot change it", async () => {
+    const { VendorAccessDeniedError } = await import("@/api/auth/vendor-access");
+    const session = {
+      user: { id: "user_123", email: "person@example.com" },
+      organizationId: "org_123",
+    };
+    withAuthMock.mockResolvedValue(session);
+    // An onboarding state naming a workspace where the person is in a vendor team.
+    getStoredOnboardingStateMock.mockResolvedValue({
+      organizationSlug: "customer",
+      providerSetupStatus: "pending",
+    });
+    resolveApiAuthContextFromSessionMock.mockRejectedValue(new VendorAccessDeniedError("customer"));
+
+    const { loadOnboardingContext } = await import("./context");
+
+    const context = await loadOnboardingContext();
+    expect(context.auth).toBeNull();
+    expect(resolveApiAuthContextFromSessionMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ allowVendor: true }),
+    );
+  });
+
   it("clears stale onboarding state when the stored org is no longer accessible", async () => {
     const session = {
       user: { id: "user_123", email: "person@example.com" },

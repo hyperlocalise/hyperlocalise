@@ -16,6 +16,7 @@ import { and, eq, gt, inArray, lte } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { isVendorMember } from "@/lib/workos/vendor-membership";
 
 import { decryptWorkflowPayload, encryptWorkflowPayload } from "./workflow-credentials";
 
@@ -52,7 +53,8 @@ type CreateHumanApprovalRequestInput = {
 
 type CreateHumanApprovalRequestError =
   | { code: "workflow_run_not_found" }
-  | { code: "workflow_node_run_not_found" };
+  | { code: "workflow_node_run_not_found" }
+  | { code: "vendor_cannot_approve" };
 
 export async function createHumanApprovalRequest(
   input: CreateHumanApprovalRequestInput,
@@ -90,6 +92,34 @@ export async function createHumanApprovalRequest(
 
     if (!nodeRun || nodeRun.nodeId !== input.nodeId) {
       return err({ code: "workflow_node_run_not_found" });
+    }
+
+    // A vendor answers nothing but their own tasks: they have no inbox to approve from, so the
+    // step would wait until its deadline. The same is true of a vendor team: every member is a
+    // vendor, and none of them can open Inbox.
+    if (input.reviewerType === "user") {
+      if (
+        await isVendorMember({
+          organizationId: input.organizationId,
+          userIdOrWorkosUserId: input.reviewerId,
+        })
+      ) {
+        return err({ code: "vendor_cannot_approve" });
+      }
+    } else {
+      const [team] = await tx
+        .select({ isVendor: schema.teams.isVendor })
+        .from(schema.teams)
+        .where(
+          and(
+            eq(schema.teams.id, input.reviewerId),
+            eq(schema.teams.organizationId, input.organizationId),
+          ),
+        )
+        .limit(1);
+      if (team?.isVendor === true) {
+        return err({ code: "vendor_cannot_approve" });
+      }
     }
 
     const [created] = await tx

@@ -163,6 +163,61 @@ describe("resolveApiAuthContextFromSession", () => {
     });
   });
 
+  it("marks a stale-slug redirect when the current workspace is a vendor membership", async () => {
+    const primaryIdentity = fixture.createWorkosIdentity();
+    const secondaryIdentity = {
+      ...fixture.createWorkosIdentity(),
+      user: primaryIdentity.user,
+      membership: {
+        workosMembershipId: `${primaryIdentity.membership.workosMembershipId}-secondary`,
+        role: "translator",
+      },
+    } satisfies WorkosAuthIdentity;
+
+    await syncWorkosIdentity(db, primaryIdentity);
+    const secondary = await syncWorkosIdentity(db, secondaryIdentity);
+    const [vendorTeam] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: secondary.organization.id,
+        slug: `vendor-stale-${randomUUID()}`,
+        name: "Vendor",
+        isVendor: true,
+      })
+      .returning({ id: schema.teams.id });
+    await db.insert(schema.teamMemberships).values({
+      teamId: vendorTeam!.id,
+      userId: secondary.user.id,
+      role: "member",
+    });
+
+    await db
+      .update(schema.organizations)
+      .set({ lifecycleStatus: "archived", archivedAt: new Date() })
+      .where(
+        eq(
+          schema.organizations.workosOrganizationId,
+          primaryIdentity.organization.workosOrganizationId,
+        ),
+      );
+
+    withAuthMock.mockResolvedValue({
+      user: { id: primaryIdentity.user.workosUserId },
+      organizationId: null,
+    });
+
+    const { resolveApiAuthContextFromSession } = await import("./workos-session");
+    await expect(
+      resolveApiAuthContextFromSession({
+        organizationSlug: primaryIdentity.organization.slug,
+      }),
+    ).rejects.toMatchObject({
+      requestedSlug: primaryIdentity.organization.slug,
+      currentSlug: secondaryIdentity.organization.slug,
+      inVendorTeam: true,
+    });
+  });
+
   it("rejects archived-only workspace slugs with a dedicated error", async () => {
     const identity = fixture.createWorkosIdentity();
     await syncWorkosIdentity(db, identity);

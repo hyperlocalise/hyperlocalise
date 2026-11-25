@@ -167,12 +167,12 @@ func ResolveTeam(ctx context.Context, tx DB, actor Actor, teamID *string) (strin
 		var found string
 		var err error
 		if actor.CanReadAllTeams {
-			err = tx.QueryRow(ctx, `select id from teams where id=$1 and organization_id=$2`,
+			err = tx.QueryRow(ctx, `select id from teams where id=$1 and organization_id=$2 and not is_vendor`,
 				*teamID, actor.OrganizationID).Scan(&found)
 		} else {
 			err = tx.QueryRow(ctx, `
 				select t.id from teams t join team_memberships m on m.team_id=t.id
-				where t.id=$1 and t.organization_id=$2 and m.user_id=$3`,
+				where t.id=$1 and t.organization_id=$2 and m.user_id=$3 and not t.is_vendor`,
 				*teamID, actor.OrganizationID, actor.UserID).Scan(&found)
 		}
 		if isNoRows(err) {
@@ -187,12 +187,12 @@ func ResolveTeam(ctx context.Context, tx DB, actor Actor, teamID *string) (strin
 	var activeTeamID string
 	var err error
 	if actor.CanReadAllTeams {
-		err = tx.QueryRow(ctx, `select id from teams where organization_id=$1 order by slug limit 1`,
+		err = tx.QueryRow(ctx, `select id from teams where organization_id=$1 and not is_vendor order by slug limit 1`,
 			actor.OrganizationID).Scan(&activeTeamID)
 	} else {
 		err = tx.QueryRow(ctx, `
 			select t.id from teams t join team_memberships m on m.team_id=t.id
-			where t.organization_id=$1 and m.user_id=$2
+			where t.organization_id=$1 and m.user_id=$2 and not t.is_vendor
 			order by t.slug limit 1`,
 			actor.OrganizationID, actor.UserID).Scan(&activeTeamID)
 	}

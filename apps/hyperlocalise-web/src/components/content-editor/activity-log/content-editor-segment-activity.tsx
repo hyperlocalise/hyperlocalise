@@ -11,6 +11,7 @@
  * use of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useContentEditorTaskScope } from "@/components/content-editor/shared/content-editor-task-scope-context";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -90,6 +91,8 @@ export function SegmentActivityProvider({ children, ...scope }: Scope & { childr
 
 function ActivityPanel({ scope, selection }: { scope: Scope; selection: Selection }) {
   const intl = useIntl();
+  // Someone here through a task sees a string's versions; the activity log is closed to them.
+  const { taskScoped } = useContentEditorTaskScope();
   const [occurrence, setOccurrence] = useState<{ id: string; sourcePath?: string } | undefined>(
     selection.segmentId ? { id: selection.segmentId, sourcePath: selection.sourcePath } : undefined,
   );
@@ -116,6 +119,7 @@ function ActivityPanel({ scope, selection }: { scope: Scope; selection: Selectio
         { signal },
       ),
     getNextPageParam: (page) => page.nextCursor ?? undefined,
+    enabled: !taskScoped,
   });
   const events = (logs.data?.pages.flatMap((page) => page.activityLogs) ??
     []) as unknown as Activity[];
@@ -209,7 +213,7 @@ function ActivityPanel({ scope, selection }: { scope: Scope; selection: Selectio
             targetLocale={query.targetLocale}
           />
         ) : null}
-        <ActivityFilterBar filters={filters} onChange={setFilters} />
+        {taskScoped ? null : <ActivityFilterBar filters={filters} onChange={setFilters} />}
         {selection.groupId && segmentId ? (
           <Button variant="outline" onClick={() => setOccurrence(undefined)}>
             <FormattedMessage
@@ -219,7 +223,7 @@ function ActivityPanel({ scope, selection }: { scope: Scope; selection: Selectio
             />
           </Button>
         ) : null}
-        {logs.isPending ? (
+        {taskScoped ? null : logs.isPending ? (
           <p role="status">
             <FormattedMessage
               defaultMessage="Loading activity…"

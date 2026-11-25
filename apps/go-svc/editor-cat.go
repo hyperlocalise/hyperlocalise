@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/jackc/pgx/v5"
 	"github.com/workos/workos-go/v10"
@@ -41,9 +43,26 @@ type editorCatAPI struct {
 
 type editorCatActor struct {
 	userID, organizationID, organizationSlug, role string
+	// vendor is set for a person in a vendor team, who reaches the editor only through open tasks
+	// they own (vendor-access.go). Their role decides what they may do there.
+	vendor bool
+	// taskScope is set when the person reaches the project through open tasks they own and not
+	// through the team rule (vendor-access.go). The request was already held to those tasks'
+	// files and languages; branch is the file branch it named.
+	taskScope *editorTaskScope
+	branch    string
+}
+
+func (a editorCatActor) isVendor() bool {
+	return a.vendor
 }
 
 func (a editorCatActor) canRead() bool {
+	// A vendor reaches the editor only through a task: the wrapper lets one in only with a task
+	// scope. Within it their role decides, as for anyone.
+	if a.isVendor() && a.taskScope == nil {
+		return false
+	}
 	switch a.role {
 	case "admin", "localization_manager", "member", "developer", "translator", "reviewer":
 		return true
@@ -53,6 +72,9 @@ func (a editorCatActor) canRead() bool {
 }
 
 func (a editorCatActor) canEdit() bool {
+	if a.isVendor() && a.taskScope == nil {
+		return false
+	}
 	switch a.role {
 	case "admin", "localization_manager", "developer", "translator", "reviewer":
 		return true
@@ -75,7 +97,8 @@ func (a editorCatActor) canManageGlossaries() bool {
 }
 
 func (a editorCatActor) canWriteProjectTeam() bool {
-	return a.role == "admin" || a.role == "localization_manager"
+	// A vendor never has the whole workspace, whatever their role (vendor-access.go).
+	return !a.vendor && (a.role == "admin" || a.role == "localization_manager")
 }
 
 type editorCatProject struct {
@@ -158,32 +181,38 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	p := orgRoutePrefix + "/projects/{projectId}"
 	cat := p + "/files/detail/cat"
 	route := func(pattern string, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) {
-		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
+		registerAuthenticated(mux, verifier, pattern, api.handle(fn, editorScopeClosed))
+	}
+	// Routes opened to a vendor, and to anyone who reaches the project through an open task they
+	// own and not through its team. The rule holds each request to the task's file and languages
+	// before the handler runs (vendor-access.go). Every other route here stays closed to them.
+	taskRoute := func(pattern string, rule editorScopeRule, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) {
+		registerAuthenticated(mux, verifier, pattern, api.handle(fn, rule))
 	}
 	routeMultipart := func(pattern string, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) {
-		registerAuthenticated(mux, verifier, pattern, api.handleWithBodyLimit(editorCatImageBodyLimit, fn))
+		registerAuthenticated(mux, verifier, pattern, api.handleWithBodyLimit(editorCatImageBodyLimit, fn, editorScopeClosed))
 	}
-	route("GET "+cat+"/queue", api.getQueue)
-	route("POST "+cat+"/targets", api.getSegmentTargets)
+	taskRoute("GET "+cat+"/queue", editorScopeQuery, api.getQueue)
+	taskRoute("POST "+cat+"/targets", editorScopeTargets, api.getSegmentTargets)
 	route("GET "+cat+"/activity-logs", api.listActivityLogs)
-	route("GET "+cat, api.getFile)
-	route("GET "+cat+"/segments/{externalStringId}/target", api.getSegmentTarget)
+	taskRoute("GET "+cat, editorScopeQuery, api.getFile)
+	taskRoute("GET "+cat+"/segments/{externalStringId}/target", editorScopeQuery, api.getSegmentTarget)
 	route("GET "+cat+"/segments/{externalStringId}/variants", api.getSegmentGroupVariants)
-	route("GET "+cat+"/segments/{externalStringId}/comments", api.getSegmentComments)
-	route("GET "+cat+"/segments/{externalStringId}/revisions", api.listSegmentRevisions)
-	route("POST "+cat+"/segments/{externalStringId}/revisions/{revisionId}/restore", api.restoreSegmentRevision)
+	taskRoute("GET "+cat+"/segments/{externalStringId}/comments", editorScopeQuery, api.getSegmentComments)
+	taskRoute("GET "+cat+"/segments/{externalStringId}/revisions", editorScopeQuery, api.listSegmentRevisions)
+	taskRoute("POST "+cat+"/segments/{externalStringId}/revisions/{revisionId}/restore", editorScopeBody, api.restoreSegmentRevision)
 	route("POST "+cat+"/operations/{operationId}/undo", api.undoOperation)
-	route("POST "+cat+"/translations", api.saveTranslation)
+	taskRoute("POST "+cat+"/translations", editorScopeBody, api.saveTranslation)
 	route("POST "+cat+"/document/parse-back", api.parseBackDocument)
 	route("PATCH "+cat+"/translations/status", api.updateTranslationStatus)
 	route("POST "+cat+"/translations/status", api.updateTranslationStatus)
-	route("POST "+cat+"/comments", api.saveComment)
+	taskRoute("POST "+cat+"/comments", editorScopeBody, api.saveComment)
 	route("PATCH "+cat+"/comments/{commentId}/resolve", api.resolveComment)
 	route("POST "+cat+"/concordance", api.loadConcordance)
 	route("GET "+cat+"/tm-segments/{entryId}", api.getTmSegment)
 	route("PATCH "+cat+"/tm-segments/{entryId}", api.patchTmSegment)
 	route("DELETE "+cat+"/tm-segments/{entryId}/records/{recordId}", api.deleteTmSegmentRecord)
-	route("POST "+cat+"/visual-context", api.loadVisualContext)
+	taskRoute("POST "+cat+"/visual-context", editorScopeBodyFile, api.loadVisualContext)
 	route("POST "+cat+"/visual-context/screenshots", api.createVisualContextScreenshot)
 	route("POST "+cat+"/visual-context/screenshots/{screenshotId}/finalize", api.finalizeVisualContextScreenshot)
 	route("POST "+cat+"/visual-context/screenshots/{screenshotId}/match", api.matchVisualContextScreenshot)
@@ -207,8 +236,8 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route("POST "+p+"/files/string-context", api.stringContext)
 }
 
-func (api *editorCatAPI) actor(ctx context.Context, claims AuthClaims, slug string) (editorCatActor, error) {
-	resolved, err := resolveOrganizationActor(ctx, api.pool, api.membership, claims, slug)
+func (api *editorCatAPI) actorFor(ctx context.Context, claims AuthClaims, slug string, allowVendor bool) (editorCatActor, error) {
+	resolved, vendor, err := resolveOrganizationActorAllowingVendorIf(ctx, api.pool, api.membership, claims, slug, allowVendor)
 	if err != nil {
 		return editorCatActor{}, mapOrganizationAccessError(err, editorCatFailure)
 	}
@@ -217,6 +246,7 @@ func (api *editorCatAPI) actor(ctx context.Context, claims AuthClaims, slug stri
 		organizationID:   resolved.organizationID,
 		organizationSlug: slug,
 		role:             resolved.role,
+		vendor:           vendor,
 	}, nil
 }
 
@@ -250,7 +280,43 @@ func requireNativeEditorCat(project editorCatProject) error {
 	return nil
 }
 
-func (api *editorCatAPI) handleWithBodyLimit(limit int64, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) http.Handler {
+// taskScopedProject is the project for a person who reaches it through open tasks they own,
+// with those tasks' files and languages. It returns a nil scope when they own none there.
+func (api *editorCatAPI) taskScopedProject(ctx context.Context, actor editorCatActor, rawProjectID string) (editorCatProject, *editorTaskScope, error) {
+	projectID := normalizeDictionaryProjectID(rawProjectID)
+	if projectID == "" {
+		return editorCatProject{}, nil, nil
+	}
+	scope, err := loadEditorTaskScope(ctx, api.pool, actor.organizationID, actor.userID, projectID)
+	if err != nil || scope == nil {
+		return editorCatProject{}, nil, err
+	}
+	// The team's name is not theirs to see, so it is left out.
+	var project editorCatProject
+	err = api.pool.QueryRow(ctx, `
+        select p.id, p.source, coalesce(p.source_locale, '')
+        from projects p
+        where p.id = $1 and p.organization_id = $2`,
+		projectID, actor.organizationID,
+	).Scan(&project.ID, &project.Source, &project.SourceLocale)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return editorCatProject{}, nil, nil
+	}
+	if err != nil {
+		return editorCatProject{}, nil, err
+	}
+	return project, scope, nil
+}
+
+// handle wraps an editor route. scopeRule is editorScopeClosed for a route only people on the
+// project's team may call; any other rule also opens it to the owner of an open task there,
+// a vendor included, held to that task's file and languages.
+func (api *editorCatAPI) handle(fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error), scopeRule editorScopeRule) http.Handler {
+	return api.handleWithBodyLimit(editorCatBodyLimit, fn, scopeRule)
+}
+
+// handleWithBodyLimit is handle with its own cap on the request body.
+func (api *editorCatAPI) handleWithBodyLimit(limit int64, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error), scopeRule editorScopeRule) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if denyBrowserMutation(r) {
@@ -269,23 +335,60 @@ func (api *editorCatAPI) handleWithBodyLimit(limit int64, fn func(*http.Request,
 			writeEditorCatError(w, r, "auth", editorCatFailure(401, "unauthorized", "Authentication required"))
 			return
 		}
-		actor, err := api.actor(ctx, claims, r.PathValue("organizationSlug"))
+		actor, err := api.actorFor(ctx, claims, r.PathValue("organizationSlug"), scopeRule != editorScopeClosed)
 		if err != nil {
 			writeEditorCatError(w, r, "resolve_actor", err)
 			return
 		}
 		noteRequest(r, "role", actor.role, "user_id", actor.userID)
-		if !actor.canRead() {
-			writeEditorCatError(w, r, "role", editorCatFailure(403, "forbidden", "Insufficient permissions"))
-			return
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
+		// The team rule first. A vendor never passes it: a team they were left in gives nothing.
+		project, err := editorCatProject{}, missingEditorCatProject()
+		if !actor.isVendor() {
+			if !actor.canRead() {
+				writeEditorCatError(w, r, "role", editorCatFailure(403, "forbidden", "Insufficient permissions"))
+				return
+			}
+			project, err = api.ownedProject(ctx, actor, r.PathValue("projectId"))
 		}
-		project, err := api.ownedProject(ctx, actor, r.PathValue("projectId"))
+		var missing *editorCatError
+		if errors.As(err, &missing) && missing.code == "project_not_found" && scopeRule != editorScopeClosed {
+			// Not through a team: through an open task they own in this project, if any.
+			scoped, scope, scopeErr := api.taskScopedProject(ctx, actor, r.PathValue("projectId"))
+			if scopeErr != nil {
+				writeEditorCatError(w, r, "resolve_task_scope", scopeErr)
+				return
+			}
+			if scope != nil {
+				var rawBody []byte
+				if r.Method != http.MethodGet {
+					rawBody, scopeErr = io.ReadAll(r.Body)
+					if scopeErr != nil {
+						writeEditorCatError(w, r, "read_body", editorCatFailure(413, "payload_too_large", "request body exceeds maximum allowed size"))
+						return
+					}
+					r.Body = io.NopCloser(bytes.NewReader(rawBody))
+				}
+				if scopeErr = checkEditorTaskScope(r, scopeRule, rawBody, scope); scopeErr != nil {
+					writeEditorCatError(w, r, "task_scope", scopeErr)
+					return
+				}
+				actor.taskScope = scope
+				actor.branch = nativeproject.ResolveBranchName(r.URL.Query().Get("branch"))
+				project, err = scoped, nil
+				noteRequest(r, "task_scoped", true)
+			}
+		}
 		if err != nil {
+			if actor.isVendor() {
+				// Their only way in is an open task of their own. It may also be waiting for an
+				// earlier task, so the message does not claim to know which.
+				err = editorCatFailure(404, "task_not_open", "This task is not open for you. It may be finished, waiting for an earlier task, or given to someone else")
+			}
 			writeEditorCatError(w, r, "resolve_project", err)
 			return
 		}
 		noteRequest(r, "project_source", project.Source)
-		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		value, status, err := fn(r, actor, project)
 		if err != nil {
 			writeEditorCatError(w, r, "handle", err)
@@ -293,10 +396,6 @@ func (api *editorCatAPI) handleWithBodyLimit(limit int64, fn func(*http.Request,
 		}
 		editorJSON(ctx, w, status, value)
 	})
-}
-
-func (api *editorCatAPI) handle(fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) http.Handler {
-	return api.handleWithBodyLimit(editorCatBodyLimit, fn)
 }
 
 func readEditorCatJSON(r *http.Request, dest any) error {

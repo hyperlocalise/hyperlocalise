@@ -17,6 +17,12 @@ import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
+import { isInVendorTeam } from "@/api/auth/vendor-access";
+import {
+  resolveTaskRouteProjectAccess,
+  taskRouteAccessCovers,
+  taskRouteAccessHasSourceText,
+} from "@/lib/projects/jobs/task-access";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import {
@@ -304,6 +310,7 @@ import { createProjectBranchRoutes } from "./project-branches.route";
 import {
   generateContentEditorAiRecommendation,
   loadContentEditorSegmentConcordance,
+  toLookupOnlyConcordance,
   loadContentEditorSegmentVisualContext,
 } from "@/lib/translation/content-editor-core";
 import {
@@ -393,6 +400,8 @@ async function resolveProjectTeamId(auth: ApiAuthContext, requestedTeamId?: stri
         and(
           eq(schema.teams.id, requestedTeamId),
           eq(schema.teams.organizationId, auth.organization.localOrganizationId),
+          // A vendor team owns no projects (`vendor-access.ts`).
+          eq(schema.teams.isVendor, false),
         ),
       )
       .limit(1);
@@ -1854,19 +1863,36 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const params = c.req.valid("param");
         const body = c.req.valid("json");
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native" && isInVendorTeam(c.var.auth)) {
+          return projectNotFoundResponse(c);
+        }
         if (target.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, target);
         }
 
+        // Open to the owner of an open task in the project, a vendor included
+        // (`vendor-access.ts`): lookup only, for the task's languages.
+        let lookupOnly = false;
         if (target.kind === "native") {
-          const project = await getOwnedProject(c.var.auth, params.projectId);
-          if (!project) {
+          const access = await resolveTaskRouteProjectAccess(c.var.auth, params.projectId);
+          if (
+            !access ||
+            !taskRouteAccessCovers(access, { locale: body.targetLocale }) ||
+            // Only for the text of a string in the task's file, so it cannot be used to browse.
+            !(await taskRouteAccessHasSourceText(access, {
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              sourceText: body.sourceText,
+              locale: body.targetLocale,
+            }))
+          ) {
             return projectNotFoundResponse(c);
           }
+          lookupOnly = access.kind === "task";
         }
 
         try {
-          const concordance = await loadContentEditorSegmentConcordance({
+          const found = await loadContentEditorSegmentConcordance({
             organizationId: c.var.auth.organization.localOrganizationId,
             organizationSlug: c.var.auth.organization.slug ?? undefined,
             projectId: params.projectId,
@@ -1876,6 +1902,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             targetLocale: body.targetLocale,
             sourceText: body.sourceText,
           });
+          const concordance = lookupOnly ? toLookupOnlyConcordance(found) : found;
 
           return c.json({ concordance }, 200);
         } catch (error) {
@@ -2077,6 +2104,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const params = c.req.valid("param");
         const body = c.req.valid("json");
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        // A vendor's tasks are on native projects; nothing about providers is theirs to learn.
+        if (target.kind !== "native" && isInVendorTeam(c.var.auth)) {
+          return projectNotFoundResponse(c);
+        }
         if (target.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, target);
         }
@@ -2084,8 +2115,19 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         let recommendationProjectId = params.projectId;
 
         if (target.kind === "native") {
-          const project = await getOwnedProject(c.var.auth, params.projectId);
-          if (!project) {
+          // Open to the owner of an open task in the project, a vendor included
+          // (`vendor-access.ts`): only for the text of a string of the task, in its languages.
+          const access = await resolveTaskRouteProjectAccess(c.var.auth, params.projectId);
+          if (
+            !access ||
+            !taskRouteAccessCovers(access, { locale: body.targetLocale }) ||
+            !(await taskRouteAccessHasSourceText(access, {
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              sourceText: body.sourceText,
+              locale: body.targetLocale,
+            }))
+          ) {
             return projectNotFoundResponse(c);
           }
         } else {
@@ -4058,9 +4100,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const params = c.req.valid("param");
         const query = c.req.valid("query");
         const organizationId = c.var.auth.organization.localOrganizationId;
-        const project = await getOwnedProject(c.var.auth, params.projectId);
-
-        if (!project) {
+        // Open to the owner of an open task in the project, a vendor included
+        // (`vendor-access.ts`): the task's file, in the task's languages.
+        const access = await resolveTaskRouteProjectAccess(c.var.auth, params.projectId);
+        if (
+          !access ||
+          !taskRouteAccessCovers(access, { sourcePath: query.sourcePath, locale: query.locale })
+        ) {
           return projectNotFoundResponse(c);
         }
 

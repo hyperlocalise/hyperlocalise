@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/publicauth"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -513,13 +514,15 @@ func requireAnotherAcceptedAdmin(ctx context.Context, tx pgx.Tx, organizationID,
 }
 
 // countOtherAcceptedAdmins counts admins other than userID who have accepted their
-// invitation. An unaccepted admin invitation cannot run the workspace, so it does not count.
-// Without WorkOS no membership records a WorkOS id, so every admin counts.
+// invitation. An unaccepted admin invitation cannot run the workspace, so it does not count, nor
+// does an admin in a vendor team, who reaches only their own tasks (vendor-access.go). Without
+// WorkOS no membership records a WorkOS id, so every other admin counts.
 func countOtherAcceptedAdmins(ctx context.Context, db dictionaryDB, organizationID, userID string, workosSynced bool) (int, error) {
 	var count int
 	err := db.QueryRow(ctx, `
         select count(*)::int from organization_memberships
         where organization_id=$1 and role='admin' and user_id<>$2
+          and not `+publicauth.VendorTeamMemberSQLFor("organization_memberships.user_id", "organization_memberships.organization_id")+`
           and (not $5 or (
               nullif(btrim(workos_membership_id), '') is not null
               and workos_membership_id<>$3 and workos_membership_id not like $4))`,

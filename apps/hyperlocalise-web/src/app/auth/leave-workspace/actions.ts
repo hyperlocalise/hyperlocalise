@@ -61,7 +61,8 @@ export async function finishLeavingWorkspaceAction(
     Awaited<ReturnType<typeof resolveApiAuthContextFromSession>>
   >["organizations"] = [];
   try {
-    organizations = (await resolveApiAuthContextFromSession({ session }))?.organizations ?? [];
+    organizations =
+      (await resolveApiAuthContextFromSession({ session, allowVendor: true }))?.organizations ?? [];
   } catch (error) {
     // Unknown, not none: the dashboard sorts out where the person belongs. A session
     // issued for the workspace just left would be refused at its next renewal, so it ends now.

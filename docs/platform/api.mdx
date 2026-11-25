@@ -295,7 +295,7 @@ Every job type takes these optional top-level fields:
 | `title` | string, 1–256 | Shown as the job name in the app |
 | `description` | string, up to 2,048 | Shown on the job |
 | `dueAt` | ISO 8601 date-time with offset | For example `2026-11-15T17:00:00Z`. A date without a time zone is rejected |
-| `ownerEmail` | email | Must belong to a member of the workspace. Matched without regard to case. The member becomes the job's owner |
+| `ownerEmail` | email | Must belong to a member of the workspace. Matched without regard to case. The member becomes the job's owner. A [vendor](/platform/workspace/roles#vendors) can own only a task made with `fileInput.step` |
 
 ```json
 {
@@ -338,6 +338,7 @@ curl --fail-with-body "https://hyperlocalise.com/api/v1/jobs" \
 |---|---|---|
 | 400 | `invalid_job_payload` | Body does not match the schema, including a `dueAt` without an offset |
 | 400 | `owner_not_found` | `ownerEmail` is not a workspace member |
+| 400 | `vendor_owner_not_allowed` | `ownerEmail` is a vendor and the job is not a post-edit or proofread task on a file |
 | 400 | `invalid_idempotency_key` | Empty, too long, or not printable ASCII |
 | 422 | `idempotency_key_reused` | Key already used with a different body |
 | 400 | `no_strings_matched` | A key job's selection matches no visible string |

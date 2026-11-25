@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useContentEditorTaskScope } from "@/components/content-editor/shared/content-editor-task-scope-context";
 import { useId, useMemo, useState, type KeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TagIcon, XIcon } from "@phosphor-icons/react";
@@ -80,6 +81,7 @@ export function useContentEditorTagSearch({
   organizationSlug?: string;
   projectId?: string;
 }) {
+  const { taskScoped } = useContentEditorTaskScope();
   const intl = useIntl();
   const listboxId = useId();
   // The unfinished `tag:` word; kept out of the text search so it doesn't search for "tag:re".
@@ -98,7 +100,8 @@ export function useContentEditorTagSearch({
         intl,
       }),
     // Loaded with the editor, so suggestions are ready when `tag:` is typed.
-    enabled: active && Boolean(organizationSlug && projectId),
+    // The project's tags are closed to someone here through a task.
+    enabled: active && !taskScoped && Boolean(organizationSlug && projectId),
     staleTime: 60_000,
   });
 

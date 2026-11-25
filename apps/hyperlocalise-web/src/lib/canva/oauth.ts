@@ -22,6 +22,7 @@ import {
 import { and, eq, exists, gt, isNull } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { membershipIsNotVendor } from "@/lib/workos/vendor-membership";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { env } from "@/lib/env";
 
@@ -267,6 +268,7 @@ async function lockLiveOrganizationMembership(
       and(
         eq(schema.organizationMemberships.userId, userId),
         eq(schema.organizationMemberships.organizationId, organizationId),
+        membershipIsNotVendor,
       ),
     )
     .limit(1)
@@ -416,6 +418,7 @@ export async function refreshCanvaOauthTokens(refreshToken: string) {
       and(
         eq(schema.organizationMemberships.userId, row.userId),
         eq(schema.organizationMemberships.organizationId, row.organizationId),
+        membershipIsNotVendor,
       ),
     )
     .limit(1);
@@ -514,6 +517,7 @@ export async function getCanvaConnectionByOauthAccessToken(
       and(
         eq(schema.organizationMemberships.userId, schema.canvaOauthTokens.userId),
         eq(schema.organizationMemberships.organizationId, schema.canvaOauthTokens.organizationId),
+        membershipIsNotVendor,
       ),
     )
     .where(
@@ -550,6 +554,7 @@ function liveOrganizationMembershipExists(userId: string, organizationId: string
         and(
           eq(schema.organizationMemberships.userId, userId),
           eq(schema.organizationMemberships.organizationId, organizationId),
+          membershipIsNotVendor,
         ),
       ),
   );
@@ -595,7 +600,7 @@ export async function listCanvaOauthConsentConnections(
       eq(schema.canvaConnections.organizationId, schema.organizations.id),
     )
     .leftJoin(schema.projects, eq(schema.canvaConnections.projectId, schema.projects.id))
-    .where(eq(schema.organizationMemberships.userId, userId));
+    .where(and(eq(schema.organizationMemberships.userId, userId), membershipIsNotVendor));
 
   return rows;
 }

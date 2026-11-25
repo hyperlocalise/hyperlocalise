@@ -32,6 +32,7 @@ import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-form
 import type { VisualTaskStep } from "@/lib/visual-workflows/schema/types";
 
 import { mergeNativeFileTranslationJobMetadata } from "./enqueue-file-translation-job";
+import { refuseVendorOwnerUnlessFileTask } from "./job-owner";
 import { statusForTaskAfter } from "./waiting-task";
 
 export type CreateWorkflowTaskJobInput = {
@@ -158,6 +159,15 @@ export async function createWorkflowTaskJob(
         code: "assignee_not_found",
         message: "The assignee must be a member of this organization.",
       });
+    }
+    // A translate task is not one a vendor can open or finish (`job-owner.ts`).
+    const vendorAllowed = await refuseVendorOwnerUnlessFileTask({
+      organizationId: input.organizationId,
+      ownerUserId: owner.id,
+      fileTask: input.step !== "translate",
+    });
+    if (isErr(vendorAllowed)) {
+      return err(vendorAllowed.error);
     }
     ownerUserId = owner.id;
   }

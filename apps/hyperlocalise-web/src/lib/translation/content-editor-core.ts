@@ -82,6 +82,29 @@ export type ContentEditorSegmentConcordance = {
   translationMemoryMatches: ContentEditorTranslationMemoryMatch[];
 };
 
+/**
+ * The same matches for someone who may only look things up: no links into the glossaries, and
+ * no editing or deleting of memory entries.
+ */
+export function toLookupOnlyConcordance(
+  concordance: ContentEditorSegmentConcordance,
+): ContentEditorSegmentConcordance {
+  return {
+    ...concordance,
+    glossaryConcepts: concordance.glossaryConcepts?.map((concept) => ({
+      ...concept,
+      glossaryUrl: undefined,
+      conceptUrl: undefined,
+    })),
+    translationMemoryMatches: concordance.translationMemoryMatches.map((match) => ({
+      ...match,
+      canEdit: false,
+      canDelete: false,
+      segmentRef: undefined,
+    })),
+  };
+}
+
 function toCatGlossaryTerm(match: NormalizedGlossaryMatch): ContentEditorGlossaryTerm {
   return {
     id: match.id,

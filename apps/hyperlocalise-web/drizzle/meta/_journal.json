@@ -1401,6 +1401,13 @@
       "when": 1795576212808,
       "tag": "0199_parched_invisible_woman",
       "breakpoints": true
+    },
+    {
+      "idx": 200,
+      "version": "7",
+      "when": 1795598990360,
+      "tag": "0200_team_is_vendor",
+      "breakpoints": true
     }
   ]
 }

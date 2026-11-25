@@ -231,10 +231,15 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   const isActionBlocked = isApproving || isSavingDraft || isTargetLoading || isImageBusy;
   // Show Approve whenever the focused row has a target to approve — including clean
   // "Needs review" drafts (AI/job-written) that the reviewer has not edited yet.
-  const canTriggerApprove =
-    Boolean(onApprove) && canEdit && hasApprovingTarget && !isActionBlocked && !segment.isLocked;
+  const canTriggerReview = canEdit && hasApprovingTarget && !isActionBlocked && !segment.isLocked;
+  const canTriggerApprove = Boolean(onApprove) && canTriggerReview;
+  // Someone on a post-edit task edits without approving: they get Save draft on its own.
   const showReviewActions =
-    isFocused && canEdit && !segment.isLocked && Boolean(onApprove) && hasApprovingTarget;
+    isFocused &&
+    canEdit &&
+    !segment.isLocked &&
+    Boolean(onApprove || onSaveDraft) &&
+    hasApprovingTarget;
   const showIssueSheetAction =
     isFocused && canEdit && !isAssetSegment && Boolean(onAddToIssueSheet);
   const canEditTarget = canEdit && !isImageBusy && !segment.isLocked;
@@ -411,28 +416,30 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
 
   const primaryActions = showReviewActions ? (
     <>
-      <Button
-        type="button"
-        variant="default"
-        size="sm"
-        onClick={onApprove}
-        disabled={!canTriggerApprove}
-      >
-        {isApproving ? <Spinner className="size-3.5 text-primary-foreground" /> : null}
-        {resolvedPrimaryActionLabel}
-        <ContentEditorEditorShortcutKbd
-          shortcut="approve"
-          isMac={isMac}
-          className="bg-primary-foreground/15 text-primary-foreground"
-        />
-      </Button>
+      {onApprove ? (
+        <Button
+          type="button"
+          variant="default"
+          size="sm"
+          onClick={onApprove}
+          disabled={!canTriggerApprove}
+        >
+          {isApproving ? <Spinner className="size-3.5 text-primary-foreground" /> : null}
+          {resolvedPrimaryActionLabel}
+          <ContentEditorEditorShortcutKbd
+            shortcut="approve"
+            isMac={isMac}
+            className="bg-primary-foreground/15 text-primary-foreground"
+          />
+        </Button>
+      ) : null}
       {onSaveDraft && !isAssetSegment ? (
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={onSaveDraft}
-          disabled={!canTriggerApprove}
+          disabled={!canTriggerReview}
         >
           {isSavingDraft ? <Spinner className="size-3" /> : <FloppyDiskIcon className="size-3.5" />}
           <FormattedMessage {...contentEditorEditorPanelMessages.draftAction} />

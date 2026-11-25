@@ -160,6 +160,13 @@ export const rolePermissionsPageViewMessages = defineMessages({
     id: "LcATF1z/n8",
     description: "Screen-reader label when a role has a permission",
   },
+  vendorNote: {
+    defaultMessage:
+      "People in a vendor team use none of these rights in the workspace. They see only the tasks given to them, and in each task's file and languages their role decides what they can do.",
+    id: "RqHBJPG4cc",
+    description:
+      "Note under the role permissions table explaining what people in a vendor team can reach",
+  },
   notAllowed: {
     defaultMessage: "Not allowed",
     id: "TwAHdkAXq8",

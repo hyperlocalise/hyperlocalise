@@ -303,9 +303,21 @@ export function TeamsPageView({
                           "block min-w-0 rounded-md transition-colors hover:text-foreground",
                         children: (
                           <>
-                            <TypographyP lineClamp={1} size="small" weight="medium" tone="content">
-                              {team.name}
-                            </TypographyP>
+                            <div className="flex min-w-0 items-center gap-2">
+                              <TypographyP
+                                lineClamp={1}
+                                size="small"
+                                weight="medium"
+                                tone="content"
+                              >
+                                {team.name}
+                              </TypographyP>
+                              {team.isVendor ? (
+                                <Badge variant="outline">
+                                  <FormattedMessage {...teamsPageViewMessages.vendorTeam} />
+                                </Badge>
+                              ) : null}
+                            </div>
                             <TypographyP
                               className="mt-0.5 md:hidden"
                               lineClamp={1}
@@ -410,9 +422,14 @@ export function TeamsPageView({
             </DialogTitle>
             <DialogDescription>
               {deletingTeam
-                ? intl.formatMessage(teamsPageViewMessages.deleteTeamDescription, {
-                    teamName: deletingTeam.name,
-                  })
+                ? intl.formatMessage(
+                    deletingTeam.isVendor
+                      ? teamsPageViewMessages.deleteVendorTeamDescription
+                      : teamsPageViewMessages.deleteTeamDescription,
+                    {
+                      teamName: deletingTeam.name,
+                    },
+                  )
                 : ""}
             </DialogDescription>
           </DialogHeader>

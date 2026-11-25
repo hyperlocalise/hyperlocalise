@@ -84,10 +84,13 @@ export function NativeJobSourceFilesSection({
   organizationSlug,
   projectId,
   job,
+  canOpenEditor = true,
 }: {
   organizationSlug: string;
   projectId: string;
   job: JobDetailRecord;
+  /** False when the editor would refuse the person, so the file is listed without a way in. */
+  canOpenEditor?: boolean;
 }) {
   const intl = useIntl();
   const file = useMemo(() => buildNativeJobFileRecord(job), [job]);
@@ -103,7 +106,7 @@ export function NativeJobSourceFilesSection({
     <JobSourceFilesPanel
       organizationSlug={organizationSlug}
       projectId={projectId}
-      encodedJobId={job.id}
+      encodedJobId={canOpenEditor ? job.id : null}
       files={[file]}
       highlightLocale={highlightLocale}
       queueFilter={queueFilter}

@@ -15,6 +15,11 @@ import { withAuth } from "@/lib/workos/server-auth";
 
 import type { OrganizationCapability } from "@/api/auth/policy";
 import { hasCapability } from "@/api/auth/policy";
+import {
+  VendorAccessDeniedError,
+  vendorHomePath,
+  workspaceHomePath,
+} from "@/api/auth/vendor-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import {
   OrganizationSlugUnresolvableError,
@@ -36,6 +41,11 @@ type RequireAppAuthContextOptions = {
   organizationSlug?: string;
   ignoreStoredActiveOrganization?: boolean;
   staleOrganizationRedirectSearch?: string;
+  /**
+   * Only the pages opened to vendors pass true (`vendor-access.ts`). From any other page a
+   * vendor is sent to My jobs.
+   */
+  allowVendor?: boolean;
 };
 
 export async function requireAppAuthContext(
@@ -60,7 +70,8 @@ export async function requireAppAuthContext(
 export async function getAppAuthContextAllowingNoWorkspace(
   options: Omit<RequireAppAuthContextOptions, "organizationSlug"> = {},
 ) {
-  return resolveAppAuthContext(options, true);
+  // These pages are about the person, not a workspace, so a vendor may use them.
+  return resolveAppAuthContext({ ...options, allowVendor: true }, true);
 }
 
 async function resolveAppAuthContext(
@@ -86,6 +97,7 @@ async function resolveAppAuthContext(
     auth = await resolveApiAuthContextFromSession({
       organizationSlug: options.organizationSlug ?? storedOrganizationSlug,
       session,
+      allowVendor: options.allowVendor,
     });
   } catch (error) {
     if (error instanceof StaleOrganizationSlugError) {
@@ -101,12 +113,19 @@ async function resolveAppAuthContext(
 
       await setStoredActiveOrganizationSlug(error.currentSlug);
       redirect(
-        `/org/${error.currentSlug}/dashboard${options.staleOrganizationRedirectSearch ?? ""}`,
+        `${workspaceHomePath(error.currentSlug, error.inVendorTeam)}${options.staleOrganizationRedirectSearch ?? ""}`,
       );
     }
 
     if (error instanceof OrganizationSlugUnresolvableError) {
       redirect("/auth/select-organization");
+    }
+
+    if (error instanceof VendorAccessDeniedError) {
+      if (!error.organizationSlug) {
+        redirect("/auth/access-denied?reason=missing-org-slug");
+      }
+      redirect(vendorHomePath(error.organizationSlug));
     }
 
     if (error instanceof Error && error.message === "archived_organization_access") {

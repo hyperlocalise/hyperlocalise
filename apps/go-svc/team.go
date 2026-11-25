@@ -18,6 +18,8 @@ const (
 type teamAPI struct {
 	pool       dictionaryPool
 	membership organizationMembershipLookup
+	// workosSynced is true when WorkOS holds the memberships, as for memberAPI.workos.
+	workosSynced bool
 }
 
 type teamActor struct {
@@ -29,14 +31,20 @@ func (a teamActor) canManageTeams() bool {
 }
 
 type teamError struct {
-	status int
-	code   string
+	status  int
+	code    string
+	message string
 }
 
 func (e *teamError) Error() string { return e.code }
 
 func teamFailure(status int, code string) error {
-	return &teamError{status, code}
+	return &teamError{status: status, code: code}
+}
+
+// teamFailureWithMessage is a refusal the app shows as written.
+func teamFailureWithMessage(status int, code, message string) error {
+	return &teamError{status: status, code: code, message: message}
 }
 
 func teamJSON(ctx context.Context, w http.ResponseWriter, status int, value any) {
@@ -54,11 +62,15 @@ func writeTeamError(w http.ResponseWriter, r *http.Request, phase string, err er
 	var failure *teamError
 	if !errors.As(err, &failure) {
 		logRequestFailure(r, "team_request_failed", phase, err)
-		failure = &teamError{500, "internal_error"}
+		failure = &teamError{status: 500, code: "internal_error"}
 	} else {
 		logRequestFailure(r, "team_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
-	teamJSON(r.Context(), w, failure.status, map[string]string{"error": failure.code})
+	body := map[string]string{"error": failure.code}
+	if failure.message != "" {
+		body["message"] = failure.message
+	}
+	teamJSON(r.Context(), w, failure.status, body)
 }
 
 func formatTeamTime(t time.Time) string {

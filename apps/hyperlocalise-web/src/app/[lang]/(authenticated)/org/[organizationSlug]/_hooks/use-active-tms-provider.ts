@@ -14,6 +14,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
+import { useOptionalAppShellSession } from "@/components/app-shell/store/app-shell-session-context";
 import { apiClient } from "@/lib/api-client-instance";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 
@@ -53,10 +54,13 @@ export function useActiveTmsProvider(
   organizationSlug: string,
   options?: { initialData?: ActiveTmsProviderConnection | null },
 ) {
+  // Provider connections are closed to a vendor, so nothing is asked for.
+  const isVendor = useOptionalAppShellSession()?.isVendor ?? false;
   return useQuery({
     queryKey: activeTmsProviderQueryKey(organizationSlug),
     queryFn: () => fetchActiveTmsProviderConnection(organizationSlug),
     initialData: options?.initialData,
     staleTime: TMS_PROVIDER_CONNECTION_STALE_TIME_MS,
+    enabled: !isVendor,
   });
 }

@@ -22,6 +22,7 @@ import {
 import { db, schema } from "@/lib/database/client";
 import { excludeReplacingWorkosMembershipSql } from "@/lib/workos/constants";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
+import { vendorTeamMemberSql } from "@/lib/workos/vendor-membership";
 
 /**
  * Rebuild the PAT owner's live organization membership, role, team scope, and
@@ -33,6 +34,8 @@ import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membersh
  * - WorkOS lookup failed and the last reconcile is stale
  * - no authoritative WorkOS membership (pending invite, replacing sentinel,
  *   removed member, or inactive local row)
+ * - the owner is a vendor: tokens, agents and plugin connections never act for a vendor,
+ *   and one made before the person became a vendor stops working while they are one
  *
  * A successful result is the access the owner would have interactively. Token
  * scopes subtract from it in `requireApiKeyPermission`; they never add.
@@ -98,6 +101,7 @@ export async function resolveApiKeyTeamAccessContext(input: {
       organizationSlug: schema.organizations.slug,
       workosMembershipId: schema.organizationMemberships.workosMembershipId,
       role: schema.organizationMemberships.role,
+      inVendorTeam: vendorTeamMemberSql(schema.users.id, schema.organizations.id),
     })
     .from(schema.organizationMemberships)
     .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
@@ -116,7 +120,8 @@ export async function resolveApiKeyTeamAccessContext(input: {
     )
     .limit(1);
 
-  if (!membership) {
+  // A token never acts for a vendor (`vendor-access.ts`).
+  if (!membership || membership.inVendorTeam) {
     return null;
   }
 

@@ -606,6 +606,7 @@ export const JobsPageView = observer(function JobsPageView({
   renderError = ({ error }) => <JobsPageErrorMessage error={error} />,
   renderJobLink = defaultRenderJobLink,
   scope = "all",
+  showCreatedByMe = true,
   searchDraft: controlledSearchDraft,
   statusFilter: controlledStatusFilter,
   tmsError,
@@ -633,6 +634,8 @@ export const JobsPageView = observer(function JobsPageView({
   renderError?: JobsErrorRenderer;
   renderJobLink?: JobsLinkRenderer;
   scope?: JobsScope;
+  /** False for a vendor, who has only the Assigned list. */
+  showCreatedByMe?: boolean;
   searchDraft?: string;
   statusFilter?: JobsStatusFilter;
   tmsError?: unknown;
@@ -814,26 +817,28 @@ export const JobsPageView = observer(function JobsPageView({
               />
             ) : null}
           </div>
-          <div className="space-y-8">
-            <JobsSectionHeader
-              title={intl.formatMessage(jobsPageViewMessages.sectionCreatedByMe)}
-            />
-            <JobsResourceSection
-              activeStatus={activeStatus}
-              buildJobDetailHref={buildDetailHref}
-              emptyLabel={intl.formatMessage(jobsPageViewMessages.emptyCreatedNative)}
-              error={nativeError}
-              isLoading={isNativeLoading}
-              jobs={visibleCreatedNativeJobs}
-              now={now}
-              organizationSlug={organizationSlug}
-              projectId={projectId}
-              renderError={renderError}
-              renderJobLink={renderJobLink}
-              title={nativeJobsTitle}
-              viewMode={listViewMode}
-            />
-          </div>
+          {showCreatedByMe ? (
+            <div className="space-y-8">
+              <JobsSectionHeader
+                title={intl.formatMessage(jobsPageViewMessages.sectionCreatedByMe)}
+              />
+              <JobsResourceSection
+                activeStatus={activeStatus}
+                buildJobDetailHref={buildDetailHref}
+                emptyLabel={intl.formatMessage(jobsPageViewMessages.emptyCreatedNative)}
+                error={nativeError}
+                isLoading={isNativeLoading}
+                jobs={visibleCreatedNativeJobs}
+                now={now}
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                renderError={renderError}
+                renderJobLink={renderJobLink}
+                title={nativeJobsTitle}
+                viewMode={listViewMode}
+              />
+            </div>
+          ) : null}
         </>
       ) : (
         <>

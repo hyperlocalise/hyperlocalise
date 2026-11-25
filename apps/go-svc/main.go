@@ -158,6 +158,7 @@ func main() {
 		workosClient = workos.NewClient(key, workos.WithBaseURL(publicauth.WorkOSAPIBaseURL()))
 		membershipLookup = publicauth.NewWorkOSMembershipLookup(key)
 		h.members.workos = newLiveMemberWorkos(key, publicauth.WorkOSAPIBaseURL())
+		h.teams.workosSynced = h.members.workos != nil
 		if identity := newLiveMemberWorkos(key, publicauth.WorkOSAPIBaseURL()); identity != nil {
 			h.sessionOnboarding.workos = identity
 		}

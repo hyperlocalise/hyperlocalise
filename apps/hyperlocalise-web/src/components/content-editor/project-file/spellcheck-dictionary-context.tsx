@@ -55,6 +55,8 @@ export function useProjectSpellcheckDictionary(input: {
   projectId: string;
   locale: string;
   canWriteDictionaries?: boolean;
+  /** False where the project's dictionaries are closed to the person; nothing is asked for. */
+  enabled?: boolean;
 }): SpellcheckDictionaryContextValue {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -64,7 +66,9 @@ export function useProjectSpellcheckDictionary(input: {
 
   const resolvedQuery = useQuery({
     queryKey: ["project-spellcheck-words", input.organizationSlug, input.projectId, trimmedLocale],
-    enabled: Boolean(input.organizationSlug && input.projectId && trimmedLocale),
+    enabled:
+      input.enabled !== false &&
+      Boolean(input.organizationSlug && input.projectId && trimmedLocale),
     queryFn: async () => {
       try {
         return await dictionaryClient.resolvedWords({
@@ -85,7 +89,7 @@ export function useProjectSpellcheckDictionary(input: {
 
   const attachmentsQuery = useQuery({
     queryKey: ["project-spellcheck-dictionaries", input.organizationSlug, input.projectId],
-    enabled: Boolean(input.organizationSlug && input.projectId),
+    enabled: input.enabled !== false && Boolean(input.organizationSlug && input.projectId),
     queryFn: async () => {
       try {
         const response = await dictionaryClient.projectDictionaries({

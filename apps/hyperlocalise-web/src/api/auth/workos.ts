@@ -15,6 +15,11 @@ import type { EvlogVariables } from "evlog/hono";
 
 import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from "@/api/response.schema";
 import { type OrganizationCapability } from "@/api/auth/policy";
+import {
+  isVendorApiRoute,
+  VendorAccessDeniedError,
+  workspaceHomePath,
+} from "@/api/auth/vendor-access";
 import type { OrganizationMembershipRole, TeamMembershipRole } from "@/lib/database/types";
 import type { OrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 import {
@@ -91,6 +96,11 @@ export type ApiAuthContext = {
     workosMembershipId?: string | null;
     role: OrganizationMembershipRole;
     accessSource: OrganizationMembershipAccessSource;
+    /**
+     * In a vendor team of the workspace: reaches only the open tasks they own
+     * (`vendor-access.ts`). Set from the web session; other ways in refuse vendors themselves.
+     */
+    inVendorTeam?: boolean;
   };
   activeTeam: {
     id: string;
@@ -129,10 +139,21 @@ export function createWorkosAuthMiddleware() {
         throw new Error("missing_auth_context");
       }
 
+      // The routes that can handle the request: every match that is not a middleware. Hono runs
+      // them in the order they were registered, so a vendor is let in only when all of them are
+      // vendor routes; a closed route that also matched the path could otherwise answer first.
+      // Read from the request itself. The `hono/route` helper finds the same list through a
+      // symbol, which is a different one whenever Hono is loaded twice (as the test runner
+      // does), and then every request here would fail.
+      const handlerRoutes = c.req.matchedRoutes.filter((route) => route.method !== "ALL");
+      const allowVendor =
+        handlerRoutes.length > 0 &&
+        handlerRoutes.every((route) => isVendorApiRoute(route.method, route.path));
       const authFromSession = await resolveApiAuthContextFromSession({
         cookie: c.req.header("cookie"),
         organizationSlug,
         teamSlug,
+        allowVendor,
       });
       if (!authFromSession) {
         if (organizationSlug) {
@@ -157,7 +178,7 @@ export function createWorkosAuthMiddleware() {
         return apiErrorResponse(c, 403, "stale_organization_slug", "Organization slug changed", {
           requestedSlug: error.requestedSlug,
           currentSlug: error.currentSlug,
-          redirectTo: `/org/${error.currentSlug}/dashboard`,
+          redirectTo: workspaceHomePath(error.currentSlug, error.inVendorTeam),
         });
       }
 
@@ -167,6 +188,10 @@ export function createWorkosAuthMiddleware() {
           "organization_slug_unresolvable",
           "Organization slug is unavailable; choose another workspace",
         );
+      }
+
+      if (error instanceof VendorAccessDeniedError) {
+        return forbiddenResponse(c, "forbidden", "Insufficient permissions");
       }
 
       const message = error instanceof Error ? error.message : "unauthorized";

@@ -23,6 +23,7 @@ import {
   isReviewApproveAllowed,
 } from "@/api/auth/capability-guards";
 import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
+import { isInVendorTeam } from "@/api/auth/vendor-access";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { validationErrorResponse } from "@/api/errors";
@@ -126,6 +127,8 @@ import {
 } from "./job.schema";
 import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
 import { cancelNativeJob } from "@/lib/projects/jobs/cancel-native-job";
+import { refuseVendorOwnerUnlessFileTask } from "@/lib/projects/jobs/job-owner";
+import { ownedFileTaskWhere } from "@/lib/projects/jobs/task-access";
 import { markTaskDone } from "@/lib/projects/jobs/mark-task-done";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { hasCapability } from "@/api/auth/policy";
@@ -474,6 +477,14 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             "owner_not_found",
             "Assigned owner must be an organization member",
           );
+        }
+        const vendorAllowed = await refuseVendorOwnerUnlessFileTask({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          ownerUserId: owner.id,
+          fileTask: jobKind === "proofread" && payload.type === "file",
+        });
+        if (isErr(vendorAllowed)) {
+          return badRequestResponse(c, vendorAllowed.error.code, vendorAllowed.error.message);
         }
         ownerUserId = owner.id;
       }
@@ -1404,6 +1415,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             return conflictResponse(c, result.error.code, result.error.message);
           case "owner_not_found":
           case "assignee_not_assignable":
+          case "vendor_owner_not_allowed":
           case "project_required":
             return badRequestResponse(c, result.error.code, result.error.message);
           default:
@@ -1498,17 +1510,27 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       return c.json({ job }, 200);
     })
     .post("/:jobId/mark-done", validateWorkspaceJobParams, async (c) => {
+      // Open to vendors (`vendor-access.ts`): a vendor finishes only an open task they own, and
+      // only if their role works on jobs, as for anyone.
+      const isVendor = isInVendorTeam(c.var.auth);
       if (!isJobMutationAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      // The owner of an open task may finish it whatever team its project is in.
+      const ownTask = ownedFileTaskWhere({
+        organizationId,
+        userId: c.var.auth.user.localUserId,
+      });
       const done = await markTaskDone({
-        organizationId: c.var.auth.organization.localOrganizationId,
+        organizationId,
         jobId: params.jobId,
         actorUserId: c.var.auth.user.localUserId,
-        actorMayFinishAnyTask: hasCapability(c.var.auth.membership.role, "reviews:approve"),
-        accessWhere: await buildAccessibleJobsWhere(c.var.auth),
+        actorMayFinishAnyTask:
+          !isVendor && hasCapability(c.var.auth.membership.role, "reviews:approve"),
+        accessWhere: isVendor ? ownTask : or(await buildAccessibleJobsWhere(c.var.auth), ownTask),
       });
 
       if (isErr(done)) {
@@ -1545,8 +1567,33 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             eq(schema.projects.organizationId, schema.jobs.organizationId),
           ),
         )
-        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+        // The update above was the access check; a finished task is no longer its owner's to open.
+        .where(
+          and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
+        )
         .limit(1);
+
+      // A vendor's finished task is no longer theirs: the reply says it is done and leaves out
+      // who made the job, how it ran and what its creator stored with it.
+      if (isVendor && job) {
+        return c.json(
+          {
+            job: {
+              ...job,
+              createdByUserId: null,
+              inputPayload: {},
+              outcomePayload: null,
+              lastError: null,
+              workflowRunId: null,
+              interactionId: null,
+              contextSnapshot: null,
+              reviewCriteria: null,
+              reviewConfig: null,
+            },
+          },
+          200,
+        );
+      }
 
       return c.json({ job }, 200);
     });
