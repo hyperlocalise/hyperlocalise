@@ -55,6 +55,11 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     purpose:
       "Pre-translate a source file with translation memory and AI. Drafts land as needing review. The step ends as soon as its job is queued; the translation finishes later.",
   },
+  "action.create_translation_job": {
+    title: "Create translation job",
+    purpose:
+      "Create a durable translation job from text or a stored file for one or more target locales.",
+  },
   "action.create_task": {
     title: "Assign task",
     purpose:

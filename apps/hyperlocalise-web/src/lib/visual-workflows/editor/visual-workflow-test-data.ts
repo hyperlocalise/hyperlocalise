@@ -89,6 +89,7 @@ const MOCKABLE: Record<VisualCatalogType, boolean> = {
   "action.notify_slack": true,
   "action.notify_email": true,
   "action.machine_translate": true,
+  "action.create_translation_job": true,
   "action.create_task": true,
   "action.check_progress": true,
   "action.run_qa": true,

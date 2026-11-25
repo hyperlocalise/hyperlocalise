@@ -74,6 +74,17 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     useTranslationMemory: messages.machineTranslateUseMemory,
     ...ON_ERROR,
   },
+  "action.create_translation_job": {
+    sourceKind: messages.createTranslationJobSourceKind,
+    projectId: messages.localizationProjectId,
+    sourceText: messages.createTranslationJobSourceText,
+    sourceFileId: messages.localizationSourceFileId,
+    sourceLocale: messages.createTranslationJobSourceLocale,
+    targetLocales: messages.localizationTargetLocales,
+    instructions: messages.createTranslationJobInstructions,
+    contextOverrides: messages.createTranslationJobContextOverrides,
+    ...ON_ERROR,
+  },
   "action.create_task": {
     projectId: messages.localizationProjectId,
     sourceFileId: messages.localizationSourceFileId,

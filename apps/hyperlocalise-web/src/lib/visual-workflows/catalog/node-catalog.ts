@@ -125,6 +125,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: TranslateIcon,
   },
   {
+    type: "action.create_translation_job",
+    category: "localization",
+    enabled: true,
+    icon: TranslateIcon,
+  },
+  {
     type: "action.create_task",
     category: "localization",
     enabled: true,
@@ -442,6 +448,19 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         sourceFileId: "",
         targetLocales: "",
         useTranslationMemory: true,
+        onError: "stop",
+      };
+    case "action.create_translation_job":
+      return {
+        kind: "action.create_translation_job",
+        sourceKind: "string",
+        projectId: "",
+        sourceText: "",
+        sourceFileId: "",
+        sourceLocale: "",
+        targetLocales: "",
+        instructions: "",
+        contextOverrides: "",
         onError: "stop",
       };
     case "action.create_task":
@@ -826,6 +845,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.from ? config.provider : "Email";
     case "action.machine_translate":
       return config.targetLocales.trim() || "All target locales";
+    case "action.create_translation_job":
+      return config.sourceKind === "file" ? "Stored file" : "Text content";
     case "action.create_task":
       return config.step === "translate"
         ? "Translate"

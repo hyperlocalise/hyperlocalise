@@ -230,6 +230,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "AjGg25iGEm",
     description: "Catalog description for the machine translate node",
   },
+  nodeCreateTranslationJob: {
+    defaultMessage: "Create translation job",
+    id: "LpQRt+NA1h",
+    description: "Catalog title for the create translation job node",
+  },
+  nodeCreateTranslationJobHint: {
+    defaultMessage: "Create a durable translation job from text or a stored file.",
+    id: "15FkZAAWZn",
+    description: "Catalog description for the create translation job node",
+  },
   nodeCreateTask: {
     defaultMessage: "Assign task",
     id: "xfQ3fcFvbJ",
@@ -2658,6 +2668,51 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Reuse translation memory matches",
     id: "tfNftmyIRC",
     description: "Checkbox on the machine translate step",
+  },
+  createTranslationJobSourceKind: {
+    defaultMessage: "Source type",
+    id: "kcg9+yrlzC",
+    description: "Source type setting on the create translation job step",
+  },
+  createTranslationJobSourceString: {
+    defaultMessage: "Text",
+    id: "/dc/w9u9zm",
+    description: "Text source option on the create translation job step",
+  },
+  createTranslationJobSourceFile: {
+    defaultMessage: "Stored file",
+    id: "h5QP7DKHn0",
+    description: "Stored file source option on the create translation job step",
+  },
+  createTranslationJobSourceText: {
+    defaultMessage: "Source text",
+    id: "yVIbEyWOOq",
+    description: "Source text setting on the create translation job step",
+  },
+  createTranslationJobSourceLocale: {
+    defaultMessage: "Source locale",
+    id: "GzlzhrsNZ6",
+    description: "Source locale setting on the create translation job step",
+  },
+  createTranslationJobInstructions: {
+    defaultMessage: "Instructions",
+    id: "4NrFt6runw",
+    description: "Instructions setting on the create translation job step",
+  },
+  createTranslationJobTargetLocalesHint: {
+    defaultMessage: "Separate one or more target locales with commas.",
+    id: "fCJqBOlPJw",
+    description: "Target locale help on the create translation job step",
+  },
+  createTranslationJobContextOverrides: {
+    defaultMessage: "Context overrides",
+    id: "qx3hu9ObBd",
+    description: "Context overrides setting on the create translation job step",
+  },
+  createTranslationJobContextOverridesHint: {
+    defaultMessage: "Optional bounded JSON object with translation context overrides.",
+    id: "kk28w+hjbt",
+    description: "Context override help on the create translation job step",
   },
   createTaskStep: {
     defaultMessage: "Task",

@@ -50,6 +50,7 @@ import {
 } from "./crowdin-actions";
 import {
   runCheckProgressAction,
+  runCreateTranslationJobAction,
   runCreateTaskAction,
   runListSourceFilesAction,
   runMachineTranslateAction,
@@ -239,6 +240,20 @@ export async function executeVisualWorkflowNode(input: {
         sourceFileId: text(node.config.sourceFileId).trim(),
         targetLocales: list(node.config.targetLocales),
         useTranslationMemory: node.config.useTranslationMemory !== false,
+      });
+    case "action.create_translation_job":
+      return runCreateTranslationJobAction({
+        organizationId: input.organizationId,
+        idempotencyKey: input.idempotencyKey,
+        sourceKind: node.config.sourceKind,
+        projectId: text(node.config.projectId).trim(),
+        sourceText: text(node.config.sourceText),
+        sourceFileId: text(node.config.sourceFileId).trim(),
+        sourceLocale: text(node.config.sourceLocale).trim(),
+        targetLocales: list(node.config.targetLocales),
+        instructions: text(node.config.instructions),
+        contextOverrides: node.config.contextOverrides,
+        signal: input.signal,
       });
     case "action.create_task":
       return runCreateTaskAction({

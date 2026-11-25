@@ -37,6 +37,7 @@ export type VisualCatalogType =
   | "action.notify_slack"
   | "action.notify_email"
   | "action.machine_translate"
+  | "action.create_translation_job"
   | "action.create_task"
   | "action.check_progress"
   | "action.run_qa"
@@ -314,6 +315,20 @@ export type VisualNodeConfig =
       /** Comma-separated locales; empty means every target locale of the project. */
       targetLocales: string;
       useTranslationMemory?: boolean;
+      onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.create_translation_job";
+      sourceKind: "string" | "file";
+      projectId: string;
+      sourceText: string;
+      sourceFileId: string;
+      sourceLocale: string;
+      /** Comma-separated locales. */
+      targetLocales: string;
+      instructions: string;
+      /** JSON or a template that resolves to structured job context. */
+      contextOverrides: string;
       onError?: VisualNodeErrorBehavior;
     }
   | {
