@@ -333,6 +333,21 @@ function createCatMessageFormatExtension(
   });
 }
 
+/**
+ * ⌘/Ctrl+Enter is the approve shortcut. StarterKit's hard break also binds it,
+ * so without this the editor adds a line break before approve reads the text.
+ * Claiming the key here stops the break; the approve hotkey still sees the event.
+ */
+const approveShortcutKeyboardExtension = Extension.create({
+  name: "contentEditorApproveShortcut",
+  priority: 1000,
+  addKeyboardShortcuts() {
+    return {
+      "Mod-Enter": () => true,
+    };
+  },
+});
+
 const officeRunKeyboardRef = { current: () => false };
 
 const contentEditorTargetEditorExtensions = [
@@ -344,6 +359,7 @@ const contentEditorTargetEditorExtensions = [
     },
   }),
   createOfficeRunKeyboardExtension(() => officeRunKeyboardRef.current()),
+  approveShortcutKeyboardExtension,
 ] as unknown as Extensions;
 
 function tokenLabel(token: ContentEditorMessageToken) {

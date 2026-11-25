@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 // @vitest-environment happy-dom
+import { QueryClient } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -136,5 +137,33 @@ describe("useContentEditorSegmentQuery queue restore", () => {
     });
     expect(result.current.queueFilterQualifier).toBe("general_question");
     expect(result.current.queueAdvanced).toEqual({ stringType: "asset" });
+  });
+});
+
+describe("useContentEditorSegmentQuery queue refresh after a save", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("only marks the queue stale when a save cannot move rows", async () => {
+    const invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+    const { result } = renderQuery();
+
+    await act(() => result.current.invalidateQueueAfterSave());
+
+    expect(invalidate).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: result.current.baseQueryKey, refetchType: "none" }),
+    );
+  });
+
+  it("refetches the queue when a status filter can move the saved row", async () => {
+    const invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+    const { result } = renderQuery({ ...baseInput, initialQueueFilter: "untranslated" });
+
+    await act(() => result.current.invalidateQueueAfterSave());
+
+    expect(invalidate).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: result.current.baseQueryKey, refetchType: "active" }),
+    );
   });
 });

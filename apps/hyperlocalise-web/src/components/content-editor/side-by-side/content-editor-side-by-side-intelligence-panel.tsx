@@ -190,7 +190,8 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         <div
           className={cn(
             "h-full min-h-32 border-border",
-            placement === "right" ? "border-l" : "border-t",
+            // On the right the resize handle already draws the dividing line.
+            placement === "right" ? null : "border-t",
             className,
           )}
         >
@@ -298,10 +299,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
           onValueChange={(value) =>
             setTabState({ tab: value as DetailsTab, revealNonce: qaDetailsRevealNonce })
           }
-          className={cn(
-            "h-full min-h-0 flex-row gap-0 border-l border-border bg-background",
-            className,
-          )}
+          className={cn("h-full min-h-0 flex-row gap-0 bg-background", className)}
         >
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border ps-3 pe-1">

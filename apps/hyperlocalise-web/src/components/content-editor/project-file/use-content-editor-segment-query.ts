@@ -418,6 +418,24 @@ export function useContentEditorSegmentQuery(input: {
     await queryClient.invalidateQueries({ queryKey: baseQueryKey });
   }, [baseQueryKey, queryClient]);
 
+  // Row text and status come from the per-string target cache, which a save
+  // updates itself. The queue only has to refetch when a save can move rows: a
+  // status filter or sort, a search, advanced filters, or grouped rows whose
+  // group status changes. Otherwise refetching re-reads every loaded page, so
+  // just mark the queue stale for the next time it is read.
+  const savesCanMoveRows =
+    serverQueueFilter !== "all" ||
+    queueSort !== "file_order" ||
+    debouncedSearch.trim().length > 0 ||
+    Boolean(serializedQueueAdvanced) ||
+    Boolean(input.grouped);
+  const invalidateQueueAfterSave = useCallback(async () => {
+    await queryClient.invalidateQueries({
+      queryKey: baseQueryKey,
+      refetchType: savesCanMoveRows ? "active" : "none",
+    });
+  }, [baseQueryKey, queryClient, savesCanMoveRows]);
+
   const queryKey = useMemo(
     () =>
       projectFileCatQueryKey({
@@ -479,6 +497,7 @@ export function useContentEditorSegmentQuery(input: {
     isFetchingPage:
       contentEditorQuery.isFetchingNextPage || contentEditorQuery.isFetchingPreviousPage,
     invalidateQueue,
+    invalidateQueueAfterSave,
     queryKey,
     baseQueryKey,
     isFetchingNextPage: contentEditorQuery.isFetchingNextPage,

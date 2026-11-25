@@ -187,9 +187,7 @@ export function ContentEditorSideBySidePanelSkeleton({
           </div>
         </div>
       }
-      intelligence={
-        <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-border" />
-      }
+      intelligence={<div className="flex h-full min-h-0 flex-col bg-background" />}
     />
   );
 }
