@@ -2525,3 +2525,208 @@ export const TextOperationsNarrow: Story = {
     await expect(canvas.getByText(/Preview: Hello, Ada/)).toBeInTheDocument();
   },
 };
+
+const createTranslationJobNodes = [
+  {
+    id: "trigger-create-job",
+    type: "trigger.manual" as const,
+    position: { x: 80, y: 220 },
+    data: {
+      catalogType: "trigger.manual" as const,
+      config: { kind: "trigger.manual" as const },
+      outputFields: [
+        { path: "projectId", type: "string" as const },
+        { path: "sourceText", type: "string" as const },
+        { path: "targetLocales", type: "array" as const },
+      ],
+      runStatus: "succeeded" as const,
+      lastOutput: {
+        projectId: "project_demo",
+        sourceText: "Welcome to Hyperlocalise",
+        targetLocales: ["fr-FR", "de-DE"],
+      },
+    },
+  },
+  {
+    id: "create-translation-job",
+    type: "action.create_translation_job" as const,
+    position: { x: 460, y: 180 },
+    data: {
+      catalogType: "action.create_translation_job" as const,
+      config: {
+        kind: "action.create_translation_job" as const,
+        sourceKind: "string" as const,
+        projectId: "project_demo",
+        sourceText: "Welcome to Hyperlocalise",
+        sourceFileId: "",
+        sourceLocale: "en-AU",
+        targetLocales: "fr-FR, de-DE",
+        instructions: "Keep the product name unchanged.",
+        contextOverrides: '{"domain":"product"}',
+        onError: "branch" as const,
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: {
+        jobId: "job_story_translation",
+        status: "queued",
+        targetLocales: ["fr-FR", "de-DE"],
+        createdAt: "2026-11-25T10:00:00.000Z",
+      },
+    },
+  },
+];
+
+const createTranslationJobEdges = [
+  {
+    id: "trigger-create-job-execution",
+    source: "trigger-create-job",
+    target: "create-translation-job",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  ...[
+    ["projectId", "projectId"],
+    ["sourceText", "sourceText"],
+    ["targetLocales", "targetLocales"],
+  ].map(([sourceHandle, targetHandle]) => ({
+    id: `trigger-create-job-${targetHandle}`,
+    source: "trigger-create-job",
+    target: "create-translation-job",
+    sourceHandle,
+    targetHandle,
+    data: { kind: "data" as const },
+  })),
+];
+
+export const CreateTranslationJobConfigured: Story = {
+  name: "Create Translation Job — configured and connected",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Creates a durable translation job from connected typed values and previews its inspectable output.",
+      },
+    },
+  },
+  args: {
+    initialName: "Create a product translation job",
+    initialNodes: createTranslationJobNodes,
+    initialEdges: createTranslationJobEdges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const sourceInput = await canvas.findByLabelText(
+      "Data input: sourceText, string, optional",
+      {},
+      { timeout: 10_000 },
+    );
+    await expect(sourceInput).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: jobId, string")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: createdAt, string")).toBeInTheDocument();
+    await userEvent.click(sourceInput.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("combobox", { name: "Source type" })).toHaveTextContent("Text");
+    await expect(canvas.getByRole("textbox", { name: "Source locale" })).toHaveValue("en-AU");
+    await expect(canvas.getByRole("textbox", { name: "Instructions" })).toHaveValue(
+      "Keep the product name unchanged.",
+    );
+  },
+};
+
+function createTranslationJobState(
+  runStatus: "idle" | "running" | "succeeded" | "failed",
+  lastOutput?: Record<string, unknown>,
+  lastError?: { code: string; message: string },
+) {
+  return createTranslationJobNodes.map((node) =>
+    node.id === "create-translation-job"
+      ? { ...node, data: { ...node.data, runStatus, lastOutput, lastError } }
+      : node,
+  );
+}
+
+export const CreateTranslationJobValidationError: Story = {
+  name: "Create Translation Job — validation error",
+  args: {
+    ...CreateTranslationJobConfigured.args,
+    initialNodes: createTranslationJobNodes.map((node) =>
+      node.id === "create-translation-job" &&
+      node.data.config.kind === "action.create_translation_job"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: { ...node.data.config, sourceText: "" },
+              runStatus: "idle" as const,
+              lastOutput: undefined,
+            },
+          }
+        : node,
+    ),
+    initialEdges: createTranslationJobEdges.filter(
+      (edge) => edge.id !== "trigger-create-job-sourceText",
+    ),
+  },
+  play: async ({ canvas }) => {
+    const node = await canvas.findByText("Create translation job", {}, { timeout: 10_000 });
+    await userEvent.click(node.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("textbox", { name: "Source text" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  },
+};
+
+export const CreateTranslationJobRunning: Story = {
+  name: "Create Translation Job — running",
+  args: {
+    ...CreateTranslationJobConfigured.args,
+    initialNodes: createTranslationJobState("running"),
+  },
+};
+
+export const CreateTranslationJobSucceeded: Story = {
+  name: "Create Translation Job — succeeded",
+  args: { ...CreateTranslationJobConfigured.args },
+};
+
+export const CreateTranslationJobFailed: Story = {
+  name: "Create Translation Job — failed",
+  args: {
+    ...CreateTranslationJobConfigured.args,
+    initialNodes: createTranslationJobState("failed", undefined, {
+      code: "translation_job_create_failed",
+      message: "Unable to create translation job.",
+    }),
+  },
+};
+
+export const CreateTranslationJobPermissionError: Story = {
+  name: "Create Translation Job — permission error",
+  args: {
+    ...CreateTranslationJobConfigured.args,
+    initialNodes: createTranslationJobState("failed", undefined, {
+      code: "project_not_found",
+      message: "Choose a project in this organization.",
+    }),
+  },
+};
+
+export const CreateTranslationJobEmpty: Story = {
+  name: "Create Translation Job — empty",
+  args: {
+    ...CreateTranslationJobConfigured.args,
+    initialNodes: createTranslationJobState("idle"),
+  },
+};
+
+export const CreateTranslationJobNarrow: Story = {
+  name: "Create Translation Job — narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...CreateTranslationJobConfigured.args },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findAllByText("Succeeded", {}, { timeout: 10_000 })).toHaveLength(2);
+    await expect(canvas.getByText(/job_story_translation/)).toBeInTheDocument();
+  },
+};

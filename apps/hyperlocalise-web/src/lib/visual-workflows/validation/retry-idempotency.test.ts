@@ -76,6 +76,7 @@ describe("buildVisualWorkflowNodeIdempotencyKey", () => {
 describe("isRepeatableVisualWorkflowAction", () => {
   it("treats job-creating and read-only localization steps as repeatable", () => {
     expect(isRepeatableVisualWorkflowAction("action.machine_translate")).toBe(true);
+    expect(isRepeatableVisualWorkflowAction("action.create_translation_job")).toBe(true);
     expect(isRepeatableVisualWorkflowAction("action.create_task")).toBe(true);
     expect(isRepeatableVisualWorkflowAction("action.check_progress")).toBe(true);
     expect(isRepeatableVisualWorkflowAction("action.crowdin_check_progress")).toBe(true);

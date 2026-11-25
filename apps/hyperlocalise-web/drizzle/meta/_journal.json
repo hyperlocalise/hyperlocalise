@@ -1408,6 +1408,13 @@
       "when": 1795598990360,
       "tag": "0200_team_is_vendor",
       "breakpoints": true
+    },
+    {
+      "idx": 201,
+      "version": "7",
+      "when": 1795603756362,
+      "tag": "0201_rainy_firelord",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 const mocks = vi.hoisted(() => ({
   selectLimit: vi.fn(),
   enqueueFileTranslationJob: vi.fn(),
+  enqueueStringTranslationJob: vi.fn(),
   createWorkflowTaskJob: vi.fn(),
   updateNativeJob: vi.fn(),
   createTranslationJobEventQueue: vi.fn(() => ({ enqueue: vi.fn() })),
@@ -47,12 +48,17 @@ vi.mock("@/lib/database/client", () => ({
       organizationId: "organizationId",
       projectId: "projectId",
       inputPayload: "inputPayload",
+      createdAt: "createdAt",
     },
   },
 }));
 
 vi.mock("@/lib/projects/jobs/enqueue-file-translation-job", () => ({
   enqueueFileTranslationJob: (...args: unknown[]) => mocks.enqueueFileTranslationJob(...args),
+}));
+
+vi.mock("@/lib/projects/jobs/enqueue-string-translation-job", () => ({
+  enqueueStringTranslationJob: (...args: unknown[]) => mocks.enqueueStringTranslationJob(...args),
 }));
 
 vi.mock("@/lib/projects/jobs/create-workflow-task-job", () => ({
@@ -71,6 +77,7 @@ import { err, ok } from "@/lib/primitives/result/results";
 
 import {
   parseWorkflowDueAt,
+  runCreateTranslationJobAction,
   runCreateTaskAction,
   runMachineTranslateAction,
   runUpdateJobAction,
@@ -83,6 +90,124 @@ const sourceFileId = "22222222-2222-4222-8222-222222222222";
 function projectRow() {
   return { sourceLocale: "en", targetLocales: ["fr-FR", "de-DE"] };
 }
+
+describe("runCreateTranslationJobAction", () => {
+  beforeEach(() => {
+    mocks.selectLimit.mockReset();
+    mocks.enqueueFileTranslationJob.mockReset();
+    mocks.enqueueStringTranslationJob.mockReset();
+    mocks.createTranslationJobEventQueue.mockClear();
+  });
+
+  it("creates a string job with bounded structured context", async () => {
+    mocks.selectLimit.mockResolvedValueOnce([projectRow()]);
+    mocks.enqueueStringTranslationJob.mockResolvedValue({
+      ok: true,
+      jobId: "job_string",
+      createdAt: new Date("2026-01-02T03:04:05.000Z"),
+      status: "queued",
+      replayed: false,
+    });
+
+    const result = await runCreateTranslationJobAction({
+      organizationId,
+      projectId,
+      sourceKind: "string",
+      sourceText: "Hello",
+      sourceFileId: "",
+      sourceLocale: "en",
+      targetLocales: ["fr-FR", "de-DE"],
+      instructions: "Keep names unchanged.",
+      contextOverrides: { domain: "commerce" },
+      idempotencyKey: "run-1/create-job/0",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      output: {
+        jobId: "job_string",
+        status: "queued",
+        targetLocales: ["fr-FR", "de-DE"],
+        createdAt: "2026-01-02T03:04:05.000Z",
+      },
+    });
+    expect(mocks.enqueueStringTranslationJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId,
+        projectId,
+        sourceText: "Hello",
+        context: 'Keep names unchanged.\n\n{"domain":"commerce"}',
+        metadata: { workflowStepKey: "run-1/create-job/0" },
+      }),
+    );
+  });
+
+  it("creates a file job and returns inspectable creation metadata", async () => {
+    mocks.selectLimit
+      .mockResolvedValueOnce([projectRow()])
+      .mockResolvedValueOnce([
+        { createdAt: new Date("2026-02-03T04:05:06.000Z"), status: "queued" },
+      ]);
+    mocks.enqueueFileTranslationJob.mockResolvedValue({ ok: true, jobId: "job_file" });
+
+    const result = await runCreateTranslationJobAction({
+      organizationId,
+      projectId,
+      sourceKind: "file",
+      sourceText: "",
+      sourceFileId,
+      sourceLocale: "en",
+      targetLocales: "fr-FR",
+      instructions: "",
+      contextOverrides: {},
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      output: {
+        jobId: "job_file",
+        status: "queued",
+        targetLocales: ["fr-FR"],
+        createdAt: "2026-02-03T04:05:06.000Z",
+      },
+    });
+    expect(mocks.enqueueFileTranslationJob).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId, projectId, sourceFileId }),
+    );
+  });
+
+  it("rejects cross-organization projects and cancelled execution", async () => {
+    mocks.selectLimit.mockResolvedValueOnce([]);
+    const denied = await runCreateTranslationJobAction({
+      organizationId,
+      projectId,
+      sourceKind: "string",
+      sourceText: "Hello",
+      sourceFileId: "",
+      sourceLocale: "en",
+      targetLocales: ["fr-FR"],
+      instructions: "",
+      contextOverrides: {},
+    });
+    expect(denied).toMatchObject({ ok: false, error: { code: "project_not_found" } });
+
+    const controller = new AbortController();
+    controller.abort();
+    const cancelled = await runCreateTranslationJobAction({
+      organizationId,
+      projectId,
+      sourceKind: "string",
+      sourceText: "Hello",
+      sourceFileId: "",
+      sourceLocale: "en",
+      targetLocales: ["fr-FR"],
+      instructions: "",
+      contextOverrides: {},
+      signal: controller.signal,
+    });
+    expect(cancelled).toMatchObject({ ok: false, error: { code: "execution_cancelled" } });
+  });
+});
 
 describe("runMachineTranslateAction", () => {
   beforeEach(() => {

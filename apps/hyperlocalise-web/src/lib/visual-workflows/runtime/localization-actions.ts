@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createHash } from "node:crypto";
+
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
@@ -31,6 +33,8 @@ type ActionInput = {
 };
 
 type ProjectScope = { sourceLocale: string; targetLocales: string[] };
+
+const MAX_TRANSLATION_JOB_CONTEXT_CHARS = 20_000;
 
 function failure(code: string, message: string): VisualWorkflowNodeExecutionResult {
   return { ok: false, error: { code, message } };
@@ -138,6 +142,139 @@ async function loadProjectScope(
 function resolveLocales(configured: unknown, project: ProjectScope): string[] {
   const locales = parseWorkflowList(configured);
   return locales.length > 0 ? locales : project.targetLocales;
+}
+
+function translationJobContext(input: {
+  instructions: string;
+  contextOverrides: unknown;
+}): string | undefined {
+  const instructions = input.instructions.trim();
+  const overrides =
+    input.contextOverrides &&
+    typeof input.contextOverrides === "object" &&
+    !Array.isArray(input.contextOverrides)
+      ? JSON.stringify(input.contextOverrides)
+      : "";
+  const context = [instructions, overrides].filter(Boolean).join("\n\n");
+  return context || undefined;
+}
+
+async function jobMetadata(organizationId: string, jobId: string) {
+  const [job] = await db
+    .select({ createdAt: schema.jobs.createdAt, status: schema.jobs.status })
+    .from(schema.jobs)
+    .where(and(eq(schema.jobs.organizationId, organizationId), eq(schema.jobs.id, jobId)))
+    .limit(1);
+  return job ? { createdAt: job.createdAt.toISOString(), status: job.status } : null;
+}
+
+export async function runCreateTranslationJobAction(
+  input: ActionInput & {
+    sourceKind: "string" | "file";
+    projectId: string;
+    sourceText: string;
+    sourceFileId: string;
+    sourceLocale: string;
+    targetLocales: unknown;
+    instructions: string;
+    contextOverrides: unknown;
+    signal?: AbortSignal;
+  },
+): Promise<VisualWorkflowNodeExecutionResult> {
+  if (input.signal?.aborted) return failure("execution_cancelled", "The workflow was cancelled.");
+  if (!input.projectId || !input.sourceLocale) {
+    return failure("missing_translation_job_config", "Choose a project and source locale.");
+  }
+  if (input.sourceKind === "string" ? !input.sourceText.trim() : !input.sourceFileId) {
+    return failure(
+      "missing_translation_source",
+      input.sourceKind === "string" ? "Enter source text." : "Choose a stored source file.",
+    );
+  }
+
+  const project = await loadProjectScope(input.organizationId, input.projectId);
+  if (!project) return failure("project_not_found", "Choose a project in this organization.");
+  const targetLocales = parseWorkflowList(input.targetLocales);
+  if (targetLocales.length === 0) {
+    return failure("target_locales_required", "Choose at least one target locale.");
+  }
+  const context = translationJobContext(input);
+  if ((context?.length ?? 0) > MAX_TRANSLATION_JOB_CONTEXT_CHARS) {
+    return failure("translation_context_too_large", "Translation context is too large.");
+  }
+
+  const { createTranslationJobEventQueue } = await import("@/lib/workflow/queues");
+  const metadata = input.idempotencyKey ? { workflowStepKey: input.idempotencyKey } : undefined;
+  const idempotency = input.idempotencyKey
+    ? {
+        key: input.idempotencyKey,
+        requestHash: createHash("sha256")
+          .update(
+            JSON.stringify({
+              sourceKind: input.sourceKind,
+              projectId: input.projectId,
+              sourceText: input.sourceKind === "string" ? input.sourceText : undefined,
+              sourceFileId: input.sourceKind === "file" ? input.sourceFileId : undefined,
+              sourceLocale: input.sourceLocale,
+              targetLocales,
+              context,
+            }),
+          )
+          .digest("hex"),
+      }
+    : undefined;
+  if (input.sourceKind === "string") {
+    const { enqueueStringTranslationJob } =
+      await import("@/lib/projects/jobs/enqueue-string-translation-job");
+    const result = await enqueueStringTranslationJob({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourceText: input.sourceText,
+      sourceLocale: input.sourceLocale,
+      targetLocales,
+      context,
+      metadata,
+      idempotency,
+      jobQueue: createTranslationJobEventQueue(),
+    });
+    if (!result.ok) return failure(result.code, result.message);
+    return {
+      ok: true,
+      output: {
+        jobId: result.jobId,
+        status: result.status,
+        targetLocales,
+        createdAt: result.createdAt.toISOString(),
+      },
+    };
+  }
+
+  const { enqueueFileTranslationJob } =
+    await import("@/lib/projects/jobs/enqueue-file-translation-job");
+  const result = await enqueueFileTranslationJob({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    assigneeType: "agent",
+    sourceFileId: input.sourceFileId,
+    sourceLocale: input.sourceLocale,
+    targetLocales,
+    context,
+    metadata,
+    idempotency,
+    jobQueue: createTranslationJobEventQueue(),
+  });
+  if (!result.ok) return failure(result.code, result.message);
+  const created = await jobMetadata(input.organizationId, result.jobId);
+  if (!created) return failure("translation_job_not_found", "The created job was not found.");
+  return {
+    ok: true,
+    output: {
+      jobId: result.jobId,
+      status: created.status,
+      targetLocales,
+      createdAt: created.createdAt,
+    },
+  };
 }
 
 async function findJobForStep(input: {

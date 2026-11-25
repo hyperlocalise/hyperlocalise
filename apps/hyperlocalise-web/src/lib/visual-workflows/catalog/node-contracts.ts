@@ -163,6 +163,29 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     outputs: [output("jobId"), output("status"), output("targetLocales", "array")],
     mock: { jobId: "job_mock", status: "queued", targetLocales: ["fr-FR", "de-DE"] },
   },
+  "action.create_translation_job": {
+    inputs: [
+      field("projectId"),
+      field("sourceText", "string", false),
+      field("sourceFileId", "string", false),
+      field("sourceLocale"),
+      field("targetLocales", "array"),
+      field("instructions", "string", false),
+      field("contextOverrides", "object", false),
+    ],
+    outputs: [
+      output("jobId"),
+      output("status"),
+      output("targetLocales", "array"),
+      output("createdAt"),
+    ],
+    mock: {
+      jobId: "job_mock_translation",
+      status: "queued",
+      targetLocales: ["fr-FR", "de-DE"],
+      createdAt: "2026-01-01T00:00:00.000Z",
+    },
+  },
   "action.create_task": {
     inputs: [
       field("projectId"),

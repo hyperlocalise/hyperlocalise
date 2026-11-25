@@ -337,6 +337,32 @@ export function compileWorkflowIssues(
           config[field.name] === "")
       )
         add("invalid_node_config", node.id, undefined, { field: field.name, reason: "required" });
+    if (node.config.kind === "action.create_translation_job") {
+      const sourceField = node.config.sourceKind === "file" ? "sourceFileId" : "sourceText";
+      if (!node.inputs?.[sourceField] && !node.config[sourceField].trim()) {
+        add("invalid_node_config", node.id, undefined, {
+          field: sourceField,
+          reason: "required",
+        });
+      }
+      const context = node.config.contextOverrides.trim();
+      if (context && !context.includes("{{")) {
+        try {
+          const parsed: unknown = JSON.parse(context);
+          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            add("invalid_node_config", node.id, undefined, {
+              field: "contextOverrides",
+              reason: "invalid",
+            });
+          }
+        } catch {
+          add("invalid_node_config", node.id, undefined, {
+            field: "contextOverrides",
+            reason: "invalid",
+          });
+        }
+      }
+    }
     if (
       node.config.kind === "logic.select_path" &&
       node.config.path.length === 0 &&

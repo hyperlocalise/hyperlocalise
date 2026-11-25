@@ -2835,6 +2835,7 @@ export function VisualWorkflowConfigPanel({
           />
         ) : null}
         {config.kind === "action.machine_translate" ||
+        config.kind === "action.create_translation_job" ||
         config.kind === "action.create_task" ||
         config.kind === "action.check_progress" ||
         config.kind === "action.run_qa" ||
@@ -2849,6 +2850,86 @@ export function VisualWorkflowConfigPanel({
             // The panel stays mounted from step to step; the field's own state must not.
             key={node.id}
           />
+        ) : null}
+        {config.kind === "action.create_translation_job" ? (
+          <>
+            <SelectField
+              id="vw-create-translation-job-source-kind"
+              label={intl.formatMessage(messages.createTranslationJobSourceKind)}
+              value={config.sourceKind}
+              items={[
+                {
+                  value: "string",
+                  label: intl.formatMessage(messages.createTranslationJobSourceString),
+                },
+                {
+                  value: "file",
+                  label: intl.formatMessage(messages.createTranslationJobSourceFile),
+                },
+              ]}
+              onValueChange={(value) => {
+                if (value === "string" || value === "file") {
+                  onChangeConfig({ ...config, sourceKind: value });
+                }
+              }}
+            />
+            {config.sourceKind === "string" ? (
+              <TextAreaField
+                id="vw-create-translation-job-source-text"
+                label={intl.formatMessage(messages.createTranslationJobSourceText)}
+                value={config.sourceText}
+                {...connectedInputProps("sourceText")}
+                invalid={invalidFields.has("sourceText")}
+                onChange={(sourceText) => onChangeConfig({ ...config, sourceText })}
+              />
+            ) : (
+              <TextField
+                id="vw-create-translation-job-source-file"
+                label={intl.formatMessage(messages.localizationSourceFileId)}
+                value={config.sourceFileId}
+                {...connectedInputProps("sourceFileId")}
+                invalid={invalidFields.has("sourceFileId")}
+                onChange={(sourceFileId) => onChangeConfig({ ...config, sourceFileId })}
+                placeholder="{{ trigger.sourceFileId }}"
+              />
+            )}
+            <TextField
+              id="vw-create-translation-job-source-locale"
+              label={intl.formatMessage(messages.createTranslationJobSourceLocale)}
+              value={config.sourceLocale}
+              {...connectedInputProps("sourceLocale")}
+              invalid={invalidFields.has("sourceLocale")}
+              onChange={(sourceLocale) => onChangeConfig({ ...config, sourceLocale })}
+              placeholder="en-AU"
+            />
+            <TextField
+              id="vw-create-translation-job-target-locales"
+              label={intl.formatMessage(messages.localizationTargetLocales)}
+              description={intl.formatMessage(messages.createTranslationJobTargetLocalesHint)}
+              value={config.targetLocales}
+              {...connectedInputProps("targetLocales")}
+              invalid={invalidFields.has("targetLocales")}
+              onChange={(targetLocales) => onChangeConfig({ ...config, targetLocales })}
+              placeholder="fr-FR, de-DE"
+            />
+            <TextAreaField
+              id="vw-create-translation-job-instructions"
+              label={intl.formatMessage(messages.createTranslationJobInstructions)}
+              value={config.instructions}
+              {...connectedInputProps("instructions")}
+              onChange={(instructions) => onChangeConfig({ ...config, instructions })}
+            />
+            <TextAreaField
+              id="vw-create-translation-job-context"
+              label={intl.formatMessage(messages.createTranslationJobContextOverrides)}
+              description={intl.formatMessage(messages.createTranslationJobContextOverridesHint)}
+              value={config.contextOverrides}
+              {...connectedInputProps("contextOverrides")}
+              invalid={invalidFields.has("contextOverrides")}
+              onChange={(contextOverrides) => onChangeConfig({ ...config, contextOverrides })}
+              placeholder={'{"domain":"commerce"}'}
+            />
+          </>
         ) : null}
         {config.kind === "action.translation_as_source" ? (
           <>
