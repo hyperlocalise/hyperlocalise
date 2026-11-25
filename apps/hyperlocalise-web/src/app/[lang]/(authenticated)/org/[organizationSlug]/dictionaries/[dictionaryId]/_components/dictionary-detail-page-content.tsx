@@ -15,9 +15,11 @@
 import { useMemo, useRef } from "react";
 import {
   ArrowLeftIcon,
+  DotsThreeIcon,
   DownloadSimpleIcon,
   PlusIcon,
   TextTIcon,
+  TrashIcon,
   UploadSimpleIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -27,14 +29,31 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { normalizeSpellcheckWord } from "@/lib/spellcheck-dictionary/normalize-word";
 import { createDictionaryClient } from "@/lib/spellcheck-dictionary/client";
 
@@ -93,6 +112,7 @@ const DictionaryDetailPageView = observer(function DictionaryDetailPageView({
   canWriteDictionaries: boolean;
 }) {
   const intl = useIntl();
+  const router = useOrgRouter();
   const queryClient = useQueryClient();
   const { client: goSvcClient } = useGoSvcClient();
   const dictionaryClient = useMemo(() => createDictionaryClient(goSvcClient), [goSvcClient]);
@@ -337,6 +357,33 @@ const DictionaryDetailPageView = observer(function DictionaryDetailPageView({
     },
   });
 
+  const deleteDictionary = useMutation({
+    mutationFn: async () => {
+      try {
+        await dictionaryClient.remove({
+          param: { organizationSlug, dictionaryId },
+        });
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(dictionaryDetailMessages.deleteDictionaryFailed),
+          ),
+          { cause: error },
+        );
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["spellcheck-dictionaries", organizationSlug],
+      });
+      toast.success(intl.formatMessage(dictionaryDetailMessages.dictionaryDeleted));
+      store.setDeleteDictionaryDialogOpen(false);
+      router.push(dictionariesHref);
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
   async function exportWords() {
     try {
       const response = await dictionaryClient.exportWords({
@@ -364,7 +411,7 @@ const DictionaryDetailPageView = observer(function DictionaryDetailPageView({
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <section className="flex flex-col gap-3">
-        <div>
+        <div className="flex items-center justify-between gap-2">
           <Button
             nativeButton={false}
             render={<OrgNavLink href={dictionariesHref} />}
@@ -375,6 +422,28 @@ const DictionaryDetailPageView = observer(function DictionaryDetailPageView({
             <ArrowLeftIcon data-icon="inline-start" />
             <FormattedMessage {...dictionaryDetailMessages.backToDictionaries} />
           </Button>
+          {canWriteDictionaries && dictionary ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label={intl.formatMessage(dictionaryDetailMessages.moreActions)}
+                className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <DotsThreeIcon className="size-5" weight="bold" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => store.setDeleteDictionaryDialogOpen(true)}
+                    disabled={deleteDictionary.isPending}
+                  >
+                    <TrashIcon />
+                    <FormattedMessage {...dictionaryDetailMessages.deleteDictionary} />
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <TextTIcon className="size-5 text-muted-foreground" />
@@ -560,6 +629,43 @@ const DictionaryDetailPageView = observer(function DictionaryDetailPageView({
           </div>
         ) : null}
       </section>
+
+      {dictionary ? (
+        <AlertDialog
+          open={store.deleteDictionaryDialogOpen}
+          onOpenChange={(open) => {
+            if (!deleteDictionary.isPending) {
+              store.setDeleteDictionaryDialogOpen(open);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                <FormattedMessage {...dictionaryDetailMessages.confirmDeleteDictionaryTitle} />
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {intl.formatMessage(dictionaryDetailMessages.confirmDeleteDictionaryDescription, {
+                  dictionaryName: dictionary.name,
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteDictionary.isPending}>
+                <FormattedMessage {...dictionaryDetailMessages.cancel} />
+              </AlertDialogCancel>
+              <Button
+                variant="destructive"
+                disabled={deleteDictionary.isPending}
+                onClick={() => deleteDictionary.mutate()}
+              >
+                {deleteDictionary.isPending ? <Spinner /> : <TrashIcon />}
+                <FormattedMessage {...dictionaryDetailMessages.deleteDictionary} />
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
     </main>
   );
 });

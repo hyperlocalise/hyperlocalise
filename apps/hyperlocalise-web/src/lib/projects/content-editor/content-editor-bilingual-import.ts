@@ -75,11 +75,17 @@ export async function postCatBilingualImport(input: {
   locale: string;
   file: File;
   fallbackMessage: string;
+  /** Native version branch; omit for the default branch. */
+  branch?: string | null;
 }): Promise<CatBilingualImportCounts> {
   const form = new FormData();
   form.set("sourcePath", input.sourcePath);
   form.set("locale", input.locale);
   form.set("file", input.file);
+  const branch = input.branch?.trim();
+  if (branch) {
+    form.set("branch", branch);
+  }
 
   const response = await fetch(catBilingualImportApiPath(input.organizationSlug, input.projectId), {
     method: "POST",

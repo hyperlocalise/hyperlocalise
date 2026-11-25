@@ -56,6 +56,7 @@ const AI_CALL_SITES: Record<string, string> = {
   "lib/localisation-audit/company-profile.ts": "not billed: public website audit, no workspace",
   "lib/localisation-audit/credits/luna.ts": "not billed: public website audit, no workspace",
   "lib/projects/files/document-variant-service.ts": "AI credit tokens",
+  "lib/qa/quality-estimation.ts": "AI credit tokens, per QE page in lib/qa/run-project-qa-scan.ts",
   "lib/translation/generation.ts":
     "tokens returned to callers (translation jobs, chat translate_string, Contentful fields, editor suggestions), which bill them",
   "lib/visual-workflows/runtime/execute-node.ts": "AI credit tokens (visual workflow AI step)",

@@ -118,7 +118,7 @@ func generateElevenLabs(ctx context.Context, client *elevenlabs.Client, req iris
 		lines := req.Fields.dialogueLines()
 		dialogue := make([]elevenlabs.DialogueLine, 0, len(lines))
 		for _, line := range lines {
-			dialogue = append(dialogue, elevenlabs.DialogueLine{Text: line.Text, Voice: line.Voice})
+			dialogue = append(dialogue, elevenlabs.DialogueLine{Text: line.Text, Voice: irisProviderVoice(req.Voices, line.Voice)})
 		}
 		audio, err = client.CreateDialogue(ctx, elevenlabs.DialogueRequest{
 			Lines:          dialogue,

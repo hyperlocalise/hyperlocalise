@@ -13,6 +13,7 @@
 import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { projectWideQaRun } from "@/lib/qa/project-wide-qa-run";
 import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
 import type {
@@ -144,6 +145,7 @@ export async function listLatestSucceededQaFindingsForCat(input: {
         eq(schema.translationQaRuns.organizationId, input.organizationId),
         eq(schema.translationQaRuns.projectId, input.projectId),
         eq(schema.translationQaRuns.status, "succeeded"),
+        projectWideQaRun,
       ),
     )
     .orderBy(desc(schema.translationQaRuns.completedAt), desc(schema.translationQaRuns.createdAt))
@@ -213,7 +215,7 @@ export async function listLatestTranslationQaRunsForOrganization(organizationId:
       createdAt: schema.translationQaRuns.createdAt,
     })
     .from(schema.translationQaRuns)
-    .where(eq(schema.translationQaRuns.organizationId, organizationId))
+    .where(and(eq(schema.translationQaRuns.organizationId, organizationId), projectWideQaRun))
     .orderBy(schema.translationQaRuns.projectId, desc(schema.translationQaRuns.createdAt))
     .as("latest_qa_run");
 
@@ -269,6 +271,7 @@ const latestSucceededRunPerProject = (organizationId: string, projectId?: string
   const filters = [
     eq(schema.translationQaRuns.organizationId, organizationId),
     eq(schema.translationQaRuns.status, "succeeded"),
+    projectWideQaRun,
   ];
   if (projectId) {
     filters.push(eq(schema.translationQaRuns.projectId, projectId));

@@ -17,7 +17,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { IntlProvider } from "react-intl";
 
-import { IRIS_LAUNCH_YOUTUBE_WATCH_URL } from "@/lib/iris/iris-waitlist";
+import { IRIS_LAUNCH_YOUTUBE_WATCH_URL } from "@/lib/iris/iris-launch-film";
 
 import { UpdateAnnouncer } from "./update-announcer";
 import {

@@ -13,6 +13,10 @@
 import { z } from "zod";
 
 import { isValidTextPlaceholderName, parseTextTemplate } from "./text-template";
+import {
+  MAX_SOURCE_PATH_PATTERN_LENGTH,
+  MAX_SOURCE_PATH_PATTERNS,
+} from "../dispatch/source-path-filter";
 
 import { contentSyncProviderSchema } from "@/lib/agents/content-sync/content-sync-types";
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
@@ -39,6 +43,9 @@ const visualTargetLocalesSchema = z.string().trim().max(2000);
 const visualIdListSchema = z.string().trim().max(2000);
 const visualCrowdinIdSchema = z.string().trim().max(256);
 const visualDueAtSchema = z.string().trim().max(256).optional();
+/** Up to a year ahead, in whole hours. */
+const MAX_DUE_IN_HOURS = 24 * 366;
+const visualDueInHoursSchema = z.number().int().min(1).max(MAX_DUE_IN_HOURS);
 
 function isValidIntlLocale(locale: string): boolean {
   try {
@@ -335,6 +342,13 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("trigger.source_upload"),
     projectId: z.string().trim().min(1).max(128).optional(),
+    uploads: z.enum(["new", "new_and_updated"]).optional(),
+    pathSyntax: z.enum(["glob", "regex"]).optional(),
+    // Whether each pattern can be used is a publish check, so a half-typed pattern still saves.
+    pathPatterns: z
+      .array(z.string().max(MAX_SOURCE_PATH_PATTERN_LENGTH))
+      .max(MAX_SOURCE_PATH_PATTERNS)
+      .optional(),
   }),
   z.object({
     kind: z.literal("trigger.webhook"),
@@ -390,7 +404,8 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("action.notify_slack"),
-    channelId: z.string().trim().min(1).max(64),
+    // Empty until the person picks a channel; publish reports it as required.
+    channelId: z.string().trim().max(64),
     message: z.string().max(4000),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
@@ -399,7 +414,8 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     provider: z.enum(EMAIL_PROVIDER_SLUGS).default("resend"),
     workosUserId: z.string().trim().min(1).max(128).optional(),
     from: z.string().max(320),
-    recipients: z.string().trim().min(1).max(4000),
+    // Empty until the person adds recipients; publish reports it as required.
+    recipients: z.string().trim().max(4000),
     subject: z.string().max(1000),
     message: z.string().max(4000),
     onError: visualNodeErrorBehaviorSchema.optional(),
@@ -422,6 +438,7 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     title: z.string().max(256),
     dueAt: visualDueAtSchema,
     afterJobId: z.string().trim().max(256).optional(),
+    dueInHours: visualDueInHoursSchema.optional(),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({
@@ -435,6 +452,9 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("action.run_qa"),
     projectId: z.string().trim().max(128),
+    sourceFileId: z.string().trim().max(256).optional(),
+    targetLocales: visualTargetLocalesSchema.optional(),
+    jobId: z.string().trim().max(256).optional(),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({
@@ -477,6 +497,7 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     assigneeWorkosUserId: z.string().trim().max(256),
     title: z.string().max(256),
     dueAt: visualDueAtSchema,
+    dueInHours: visualDueInHoursSchema.optional(),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({

@@ -138,7 +138,7 @@ func (api *automationAPI) getWorkspaceAutomation(r *http.Request, actor automati
 	if err != nil {
 		return nil, 0, err
 	}
-	runs, err := api.loadWorkspaceAutomationRuns(r.Context(), actor.organizationID, id, automationRecentRunLimit)
+	runs, err := api.loadWorkspaceAutomationRuns(r.Context(), actor.organizationID, id, automationRecentRunLimit, 0)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -229,7 +229,7 @@ func (api *automationAPI) patchWorkspaceAutomation(r *http.Request, actor automa
 			TargetKind: "automation",
 		})
 	}
-	runs, err := api.loadWorkspaceAutomationRuns(r.Context(), actor.organizationID, record.ID, automationRecentRunLimit)
+	runs, err := api.loadWorkspaceAutomationRuns(r.Context(), actor.organizationID, record.ID, automationRecentRunLimit, 0)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -860,7 +860,7 @@ func (api *automationAPI) loadWorkspaceAutomation(ctx context.Context, organizat
 	return record, err
 }
 
-func (api *automationAPI) loadWorkspaceAutomationRuns(ctx context.Context, organizationID, automationID string, limit int) ([]workspaceAutomationRunRecord, error) {
+func (api *automationAPI) loadWorkspaceAutomationRuns(ctx context.Context, organizationID, automationID string, limit, offset int) ([]workspaceAutomationRunRecord, error) {
 	rows, err := api.pool.Query(ctx, `
         select id::text, automation_id::text, organization_id::text, trigger_source, status, idempotency_key,
                coalesce(input_snapshot, '{}'::jsonb), coalesce(output_summary, '{}'::jsonb), error,
@@ -868,7 +868,7 @@ func (api *automationAPI) loadWorkspaceAutomationRuns(ctx context.Context, organ
         from workspace_automation_runs
         where organization_id=$1 and automation_id=$2
         order by created_at desc
-        limit $3`, organizationID, automationID, limit)
+        limit $3 offset $4`, organizationID, automationID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

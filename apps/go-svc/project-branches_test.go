@@ -150,14 +150,42 @@ func TestProjectBranchesCreateSyncMergeAndDelete(t *testing.T) {
 	require.Equal(t, http.StatusConflict, upload.Code, upload.Body.String())
 	require.Contains(t, upload.Body.String(), "protected_branch")
 
-	// Translation import always writes main, so naming another branch does not skip protection.
+	// Translation import writes the named branch, so protected main still
+	// blocks default-branch imports and a missing branch does not skip that check.
 	imported := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/files/translations/import"), map[string]any{
-		"branch":     "feature-checkout",
 		"sourcePath": "lang/en.json",
 		"locale":     "fr",
 	})
 	require.Equal(t, http.StatusConflict, imported.Code, imported.Body.String())
 	require.Contains(t, imported.Body.String(), "protected_branch")
+	importedMain := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/files/translations/import"), map[string]any{
+		"branch":     "main",
+		"sourcePath": "lang/en.json",
+		"locale":     "fr",
+	})
+	require.Equal(t, http.StatusConflict, importedMain.Code, importedMain.Body.String())
+	require.Contains(t, importedMain.Body.String(), "protected_branch")
+	importedMissing := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/files/translations/import"), map[string]any{
+		"branch":     "feature-checkout",
+		"sourcePath": "lang/en.json",
+		"locale":     "fr",
+	})
+	require.Equal(t, http.StatusNotFound, importedMissing.Code, importedMissing.Body.String())
+	require.Contains(t, importedMissing.Body.String(), "branch_not_found")
+
+	translated := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/files/translate"), map[string]any{
+		"sourcePath": "lang/en.json",
+		"locales":    []string{"fr"},
+	})
+	require.Equal(t, http.StatusConflict, translated.Code, translated.Body.String())
+	require.Contains(t, translated.Body.String(), "protected_branch")
+	createdJob := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/jobs"), map[string]any{
+		"fileIds":       []string{"lang/en.json"},
+		"targetLocales": []string{"fr"},
+		"title":         "Translate app",
+	})
+	require.Equal(t, http.StatusConflict, createdJob.Code, createdJob.Body.String())
+	require.Contains(t, createdJob.Body.String(), "protected_branch")
 
 	settings := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/files/settings"), map[string]any{
 		"sourcePath": "lang/en.json",

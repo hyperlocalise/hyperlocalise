@@ -156,6 +156,9 @@ export type AiUsageReport = {
     points: { start: string; calls: number[]; tokens: number[]; chargeUsd: number[] }[];
   };
   automationName: string | null;
+  /** The member, and the Iris thread, the usage is narrowed to, by name. */
+  memberName: string | null;
+  threadTitle: string | null;
 };
 
 export type BandCounts = Partial<Record<MatchBucket, number>>;

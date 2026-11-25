@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { createElement, useMemo, useState } from "react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -22,6 +22,7 @@ import {
   VISUAL_NODE_CATALOG,
   type VisualNodeCatalogItem,
 } from "@/lib/visual-workflows/catalog/node-catalog";
+import { VISUAL_WORKFLOW_NODE_DRAG_MIME } from "@/lib/visual-workflows/editor/visual-workflow-node-drag";
 import type { VisualCatalogCategory, VisualCatalogType } from "@/lib/visual-workflows/schema/types";
 import { cn } from "@/lib/primitives/cn";
 
@@ -30,10 +31,16 @@ import { visualWorkflowEditorMessages as messages } from "./visual-workflow-edit
 export function VisualWorkflowNodePicker({
   queryFilter,
   disableTriggers,
+  allowedTypes,
+  heading,
+  autoFocusSearch = false,
   onPick,
 }: {
   queryFilter?: string;
   disableTriggers: boolean;
+  allowedTypes?: readonly VisualCatalogType[];
+  heading?: MessageDescriptor;
+  autoFocusSearch?: boolean;
   onPick: (type: VisualCatalogType) => void;
 }) {
   const intl = useIntl();
@@ -41,7 +48,11 @@ export function VisualWorkflowNodePicker({
   const normalized = query.trim().toLowerCase();
 
   const grouped = useMemo(() => {
+    const allowed = allowedTypes ? new Set(allowedTypes) : null;
     const matches = VISUAL_NODE_CATALOG.filter((item) => {
+      if (allowed && !allowed.has(item.type)) {
+        return false;
+      }
       const title = intl.formatMessage(titleFor(item.type));
       const hint = intl.formatMessage(hintFor(item.type));
       if (!normalized) {
@@ -54,19 +65,20 @@ export function VisualWorkflowNodePicker({
       const items = matches.filter((item) => item.category === category);
       return items.length > 0 ? [{ category, items }] : [];
     });
-  }, [intl, normalized]);
+  }, [allowedTypes, intl, normalized]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="border-b border-border px-4 py-3">
         <h2 className="text-sm font-medium text-foreground">
-          <FormattedMessage {...messages.pickerTitle} />
+          <FormattedMessage {...(heading ?? messages.pickerTitle)} />
         </h2>
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={intl.formatMessage(messages.pickerSearch)}
           className="mt-3"
+          autoFocus={autoFocusSearch}
         />
       </div>
       <ScrollArea className="min-h-0 flex-1">
@@ -113,6 +125,12 @@ function PickerRow({
       type="button"
       disabled={disabled}
       onClick={() => onPick(item.type)}
+      draggable={!disabled}
+      onDragStart={(event) => {
+        event.dataTransfer.setData(VISUAL_WORKFLOW_NODE_DRAG_MIME, item.type);
+        event.dataTransfer.setData("text/plain", item.type);
+        event.dataTransfer.effectAllowed = "copy";
+      }}
       className={cn(
         "flex w-full items-start gap-3 rounded-lg border border-transparent px-2 py-2 text-left hover:border-border hover:bg-muted/60",
         disabled

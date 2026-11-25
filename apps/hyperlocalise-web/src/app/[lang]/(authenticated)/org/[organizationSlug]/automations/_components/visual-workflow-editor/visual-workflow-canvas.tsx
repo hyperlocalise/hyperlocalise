@@ -13,10 +13,11 @@
  * Version 2.0 or later.
  */
 import {
+  EdgeChangeset,
   MarkerType,
   type Connection,
   type EdgeChange,
-  type NodeChange,
+  type NodeChangeset,
   type OnSelectionChangeParams,
   type ReactFlowInstance,
   type XYPosition,
@@ -48,7 +49,10 @@ import type {
 
 import { ShortcutHintAnchor, VisualWorkflowCanvasShortcutHints } from "../automation-shortcut-hint";
 import { VisualWorkflowCompactNode } from "./nodes/visual-workflow-compact-node";
+import { VisualWorkflowInsertEdge } from "./visual-workflow-insert-edge";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
+import { visualWorkflowNodeTypeFromDrag } from "@/lib/visual-workflows/editor/visual-workflow-node-drag";
+import type { VisualWorkflowAddIntent } from "@/lib/visual-workflows/editor/visual-workflow-add-from";
 import {
   fromCanvasEdgeHandles,
   toCanvasEdgeHandles,
@@ -63,6 +67,18 @@ export const VISUAL_WORKFLOW_NODE_TYPES = Object.fromEntries(
     VisualWorkflowCompactNode,
   ]),
 ) as Record<VisualCatalogType, typeof VisualWorkflowCompactNode>;
+
+const VISUAL_WORKFLOW_EDGE_TYPES = {
+  insertable: VisualWorkflowInsertEdge,
+};
+
+function clientPoint(event: MouseEvent | TouchEvent): { x: number; y: number } | null {
+  if ("changedTouches" in event) {
+    const touch = event.changedTouches[0];
+    return touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+  return { x: event.clientX, y: event.clientY };
+}
 
 // A label's letters get an outline in the canvas colour, which hides the line and the dots right
 // behind them and nothing else. React Flow's own box behind a label is white, and shows.
@@ -151,6 +167,7 @@ export function presentVisualWorkflowEdges(
         : undefined;
       return {
         ...edge,
+        type: "insertable",
         ...EDGE_LABEL_PROPS,
         style,
         label: `${sourceLabel ?? edge.sourceHandle ?? "output"} → ${targetLabel ?? edge.targetHandle ?? "input"}`,
@@ -167,6 +184,7 @@ export function presentVisualWorkflowEdges(
     // Every execution wire looks like a Loop's Done path did, so only its Each item steps stand out.
     const wire = {
       ...edge,
+      type: "insertable",
       style: executionWireStyle(
         edge,
         belongsToEachRegion ? "var(--primary)" : "var(--muted-foreground)",
@@ -217,14 +235,17 @@ export function VisualWorkflowCanvas({
   onAddFirstStep,
   onLoadSample,
   onTestWorkflow,
+  onDropCreate,
+  onPaneAdd,
+  onDropNodeType,
   testSettings,
   fitViewRef,
 }: {
   nodes: VisualWorkflowRfNode[];
   edges: VisualWorkflowRfEdge[];
   isRunning: boolean;
-  onNodesChange: (changes: NodeChange<VisualWorkflowRfNode>[]) => void;
-  onEdgesChange: (changes: EdgeChange<VisualWorkflowRfEdge>[]) => void;
+  onNodesChange: (changes: NodeChangeset<VisualWorkflowRfNode>) => void;
+  onEdgesChange: (changes: EdgeChangeset<VisualWorkflowRfEdge>) => void;
   /** Runs before a keyboard deletion; returning false leaves the deletion to the editor. */
   onBeforeDelete?: (elements: {
     nodes: VisualWorkflowRfNode[];
@@ -240,6 +261,18 @@ export function VisualWorkflowCanvas({
   onAddFirstStep: () => void;
   onLoadSample: () => void;
   onTestWorkflow: () => void;
+  /** Drag from a pin onto empty canvas: open a picker at the cursor and spawn a connected step. */
+  onDropCreate?: (input: {
+    intent: VisualWorkflowAddIntent;
+    client: { x: number; y: number };
+  }) => void;
+  /** Right-click or double-click empty canvas: open a picker at the cursor. */
+  onPaneAdd?: (input: {
+    intent: VisualWorkflowAddIntent;
+    client: { x: number; y: number };
+  }) => void;
+  /** A catalog row dropped onto the canvas. */
+  onDropNodeType?: (type: VisualCatalogType, position: XYPosition) => void;
   /** A control shown beside the Test workflow button. */
   testSettings?: ReactNode;
   /** Filled with a function that fits the graph in the view while the canvas is shown. */
@@ -267,7 +300,7 @@ export function VisualWorkflowCanvas({
       return;
     }
     fitViewRef.current = () => {
-      void reactFlowRef.current?.fitView({ padding: 0.2 });
+      void reactFlowRef.current?.fitView({ padding: "20%" });
     };
     return () => {
       fitViewRef.current = null;
@@ -281,6 +314,21 @@ export function VisualWorkflowCanvas({
       ),
     [presentedEdges],
   );
+  const openAtClient = useCallback(
+    (
+      client: { x: number; y: number },
+      intent: VisualWorkflowAddIntent,
+      open?: (input: { intent: VisualWorkflowAddIntent; client: { x: number; y: number } }) => void,
+    ) => {
+      const position = reactFlowRef.current?.screenToFlowPosition(client);
+      if (!position || !open) {
+        return;
+      }
+      open({ intent: { ...intent, position }, client });
+    },
+    [],
+  );
+
   const isValidConnection = useCallback(
     (connection: Connection | VisualWorkflowCanvasEdge) => {
       const result = validateVisualWorkflowConnection({
@@ -325,13 +373,18 @@ export function VisualWorkflowCanvas({
         nodes={nodes}
         edges={presentedEdges}
         nodeTypes={VISUAL_WORKFLOW_NODE_TYPES}
+        edgeTypes={VISUAL_WORKFLOW_EDGE_TYPES}
         onNodesChange={onNodesChange}
         // Reference lines cannot be selected or deleted; only stored edges reach the editor.
         onEdgesChange={(changes) =>
           onEdgesChange(
-            changes.filter(
-              (change) => !("id" in change) || !referenceLineIds.has(change.id),
-            ) as EdgeChange<VisualWorkflowRfEdge>[],
+            new EdgeChangeset(
+              changes
+                .toArray()
+                .filter(
+                  (change) => !referenceLineIds.has(change.id),
+                ) as EdgeChange<VisualWorkflowRfEdge>[],
+            ),
           )
         }
         onBeforeDelete={
@@ -347,16 +400,63 @@ export function VisualWorkflowCanvas({
         onConnectStart={() => {
           lastConnectionErrorRef.current = null;
         }}
-        onConnectEnd={(_, connectionState) => {
-          if (
-            connectionState.toHandle &&
-            connectionState.isValid === false &&
-            lastConnectionErrorRef.current
-          ) {
-            toast.error(lastConnectionErrorRef.current);
+        onConnectEnd={(event, connectionState) => {
+          if (connectionState.toNode || connectionState.toHandle) {
+            if (
+              connectionState.toHandle &&
+              connectionState.isValid === false &&
+              lastConnectionErrorRef.current
+            ) {
+              toast.error(lastConnectionErrorRef.current);
+            }
+            lastConnectionErrorRef.current = null;
+            return;
           }
-
           lastConnectionErrorRef.current = null;
+          const fromNode = connectionState.fromNode;
+          const fromHandle = connectionState.fromHandle;
+          const client = clientPoint(event);
+          if (!fromNode || !fromHandle || !client) {
+            return;
+          }
+          openAtClient(
+            client,
+            {
+              from: {
+                nodeId: fromNode.id,
+                handleId: fromHandle.id,
+                handleType: fromHandle.type,
+              },
+            },
+            onDropCreate,
+          );
+        }}
+        onPaneContextMenu={(event) => {
+          event.preventDefault();
+          openAtClient({ x: event.clientX, y: event.clientY }, {}, onPaneAdd);
+        }}
+        onPaneClick={(event) => {
+          if (event.detail === 2) {
+            openAtClient({ x: event.clientX, y: event.clientY }, {}, onPaneAdd);
+          }
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+        }}
+        onDrop={(event) => {
+          const type = visualWorkflowNodeTypeFromDrag(event.dataTransfer);
+          if (!type || !onDropNodeType) {
+            return;
+          }
+          event.preventDefault();
+          const position = reactFlowRef.current?.screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+          });
+          if (position) {
+            onDropNodeType(type, position);
+          }
         }}
         onReconnect={(oldEdge, connection) => {
           const [stored] = storedEdges([oldEdge]);
@@ -388,7 +488,7 @@ export function VisualWorkflowCanvas({
         connectOnClick={false}
         onInit={(reactFlow) => {
           reactFlowRef.current = reactFlow;
-          void reactFlow.fitView({ padding: 0.2 });
+          void reactFlow.fitView({ padding: "20%" });
         }}
         proOptions={{ hideAttribution: true }}
       >

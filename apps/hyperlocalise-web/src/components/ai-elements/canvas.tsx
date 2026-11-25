@@ -14,7 +14,7 @@ import type { Edge, Node, ReactFlowProps } from "@xyflow/react";
 import { Background, ReactFlow } from "@xyflow/react";
 import type { ReactNode } from "react";
 
-import "@xyflow/react/dist/style.css";
+import "@xyflow/react/style.css";
 
 type CanvasProps<NodeType extends Node = Node, EdgeType extends Edge = Edge> = ReactFlowProps<
   NodeType,

@@ -19,6 +19,7 @@ export type AutomationShortcutId =
   | "undo"
   | "redo"
   | "addNode"
+  | "duplicate"
   | "fitView"
   | "shortcuts";
 
@@ -43,6 +44,7 @@ const VISUAL_WORKFLOW_SHORTCUTS: readonly AutomationShortcutId[] = [
   "undo",
   "redo",
   "addNode",
+  "duplicate",
   "fitView",
   "shortcuts",
 ];
@@ -79,6 +81,8 @@ export function getAutomationShortcutKeys(
       return isMac ? [mod, "⇧", "Z"] : [mod, "Shift", "Z"];
     case "addNode":
       return ["N"];
+    case "duplicate":
+      return [mod, "D"];
     case "fitView":
       return ["F"];
     case "shortcuts":

@@ -53,6 +53,8 @@ function describeTrigger(intl: IntlShape, trigger: WorkspaceAutomationTriggerSum
       return intl.formatMessage(workspaceAutomationTriggerMessages.sourceUpload);
     case "web_chat":
       return intl.formatMessage(workspaceAutomationTriggerMessages.webChat);
+    case "google_drive":
+      return intl.formatMessage(workspaceAutomationTriggerMessages.googleDrive);
     case "scheduled": {
       if (trigger.cadence === "hourly") {
         return intl.formatMessage(workspaceAutomationFormMessages.scheduledTriggerHourly);

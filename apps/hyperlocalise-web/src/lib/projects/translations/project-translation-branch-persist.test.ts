@@ -29,6 +29,7 @@ import { applyProjectSourceText } from "@/lib/projects/files/source-text-editing
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import {
+  importApprovedProjectTranslationsFromEntries,
   loadProjectTranslationsAsPrefilledEntries,
   persistFileJobTranslations,
   upsertProjectTranslationKeysFromEntries,
@@ -349,5 +350,47 @@ describe("file translation jobs on version branches", () => {
       jobId: branchJobId,
     });
     expect(fromBranchJob.prefilled).toEqual({ greeting: "Salut" });
+  });
+
+  it("imports bilingual translations onto the named branch, not a clone on main", async () => {
+    const seeded = await seedBranchedFile();
+
+    await importApprovedProjectTranslationsFromEntries({
+      organizationId: seeded.organization.id,
+      projectId: seeded.project.id,
+      sourcePath: "locales/en.json",
+      targetLocale: "fr-FR",
+      entries: { greeting: "Bonjour" },
+      actorUserId: seeded.project.createdByUserId,
+    });
+    await importApprovedProjectTranslationsFromEntries({
+      organizationId: seeded.organization.id,
+      projectId: seeded.project.id,
+      sourcePath: "locales/en.json",
+      targetLocale: "fr-FR",
+      entries: { greeting: "Salut" },
+      actorUserId: seeded.project.createdByUserId,
+      branchName: "feature-checkout",
+    });
+
+    expect(await translationOnFile(seeded.mainVersion.repositorySourceFileId)).toMatchObject({
+      text: "Bonjour",
+    });
+    expect(await translationOnFile(seeded.branchFile.id)).toMatchObject({ text: "Salut" });
+
+    await importApprovedProjectTranslationsFromEntries({
+      organizationId: seeded.organization.id,
+      projectId: seeded.project.id,
+      sourcePath: "locales/en.json",
+      targetLocale: "fr-FR",
+      entries: { greeting: "Encore" },
+      actorUserId: seeded.project.createdByUserId,
+      branchName: "feature-checkout",
+    });
+
+    expect(await translationOnFile(seeded.mainVersion.repositorySourceFileId)).toMatchObject({
+      text: "Bonjour",
+    });
+    expect(await translationOnFile(seeded.branchFile.id)).toMatchObject({ text: "Encore" });
   });
 });

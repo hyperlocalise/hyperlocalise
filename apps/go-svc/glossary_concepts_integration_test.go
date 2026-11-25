@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -82,4 +83,35 @@ func TestGlossaryConceptValidationAndExternal(t *testing.T) {
 	existing := mustGlossaryConcept(t, scope, nativeID, "A", "", "")
 	rec = glossaryRequest(api, scope, http.MethodPatch, scope.OrgPath("/glossaries/"+nativeID+"/concepts/"+existing), `{}`)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestGlossaryTermPronunciationPatch(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	glossaryID := scope.MustGlossary(t, "", "Spoken terms", "en-US")
+	base := scope.OrgPath("/glossaries/" + glossaryID + "/concepts")
+
+	rec := glossaryRequest(api, scope, http.MethodPost, base, `{"primaryTerm":"Iris"}`)
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	var created map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
+	concept := created["concept"].(map[string]any)
+	conceptID := concept["id"].(string)
+	termID := concept["terms"].([]any)[0].(map[string]any)["id"].(string)
+
+	termPath := base + "/" + conceptID + "/terms/" + termID
+	rec = glossaryRequest(api, scope, http.MethodPatch, termPath, `{"pronunciation":"eye-ris"}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"pronunciation":"eye-ris"`)
+
+	rec = glossaryRequest(api, scope, http.MethodPatch, termPath, `{"note":"brand voice"}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"pronunciation":"eye-ris"`)
+
+	rec = glossaryRequest(api, scope, http.MethodPatch, termPath, `{"pronunciation":""}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.NotContains(t, rec.Body.String(), `"pronunciation"`)
+
+	rec = glossaryRequest(api, scope, http.MethodPatch, termPath, `{"pronunciation":"`+strings.Repeat("a", glossaryMaxPronunciation+1)+`"}`)
+	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "invalid_glossary_payload")
 }

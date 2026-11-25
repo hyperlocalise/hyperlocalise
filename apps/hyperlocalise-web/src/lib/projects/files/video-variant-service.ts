@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import {
   VideoLocalizationError,
@@ -43,6 +43,7 @@ export type VideoVariantError =
   | { code: "source_file_not_found" }
   | { code: "source_bytes_missing" }
   | { code: "approved_locked" }
+  | { code: "variant_branch_conflict" }
   | { code: "video_fetch_failed"; message: string }
   | { code: "video_ssrf_blocked" }
   | { code: "unsupported_video_format" }
@@ -57,6 +58,15 @@ export type VideoVariantError =
     }
   | { code: "ai_credit_unavailable"; message: string }
   | { code: "video_localization_failed"; message: string };
+
+function variantBoundToOtherSourceFile(
+  existingFileId: string | null | undefined,
+  requestedFileId?: string | null,
+): boolean {
+  const existing = existingFileId?.trim();
+  const requested = requestedFileId?.trim();
+  return Boolean(existing && requested && existing !== requested);
+}
 
 export function projectVideoAssetPath(input: {
   organizationSlug: string;
@@ -102,8 +112,10 @@ export async function ensureVideoVariantsForSourceFile(input: {
             schema.projectVideoVariants.targetLocale,
           ],
           set: {
-            repositorySourceFileId: input.repositorySourceFileId ?? null,
-            externalTmsFileId: input.externalTmsFileId ?? null,
+            // Keep the first bound source file. Rebinding a clone after #3343
+            // would let deleting that clone CASCADE-delete the shared variant.
+            repositorySourceFileId: sql`coalesce(${schema.projectVideoVariants.repositorySourceFileId}, excluded.repository_source_file_id)`,
+            externalTmsFileId: sql`coalesce(${schema.projectVideoVariants.externalTmsFileId}, excluded.external_tms_file_id)`,
             updatedAt: new Date(),
           },
         })
@@ -145,12 +157,18 @@ export async function updateVideoVariantStatus(input: {
   targetLocale: string;
   status: ProjectVideoVariantStatus;
   actorUserId?: string | null;
+  repositorySourceFileId?: string | null;
   db?: typeof db;
 }): Promise<Result<typeof schema.projectVideoVariants.$inferSelect, VideoVariantError>> {
   const database = input.db ?? db;
   const existing = await getVideoVariant(input);
   if (!existing) {
     return err({ code: "variant_not_found" });
+  }
+  if (
+    variantBoundToOtherSourceFile(existing.repositorySourceFileId, input.repositorySourceFileId)
+  ) {
+    return err({ code: "variant_branch_conflict" });
   }
 
   const reviewedAt = input.status === "approved" || input.status === "rejected" ? new Date() : null;
@@ -301,6 +319,12 @@ export async function localizeAndStoreVideoVariant(input: {
     targetLocale: input.targetLocale,
   });
 
+  if (
+    variantBoundToOtherSourceFile(existing?.repositorySourceFileId, input.repositorySourceFileId)
+  ) {
+    return err({ code: "variant_branch_conflict" });
+  }
+
   if (existing?.status === "approved" && !input.force) {
     return err({ code: "approved_locked" });
   }
@@ -441,6 +465,11 @@ export async function replaceVideoVariantBytes(input: {
   force?: boolean;
 }): Promise<Result<typeof schema.projectVideoVariants.$inferSelect, VideoVariantError>> {
   const existing = await getVideoVariant(input);
+  if (
+    variantBoundToOtherSourceFile(existing?.repositorySourceFileId, input.repositorySourceFileId)
+  ) {
+    return err({ code: "variant_branch_conflict" });
+  }
   if (existing?.status === "approved" && !input.force) {
     return err({ code: "approved_locked" });
   }

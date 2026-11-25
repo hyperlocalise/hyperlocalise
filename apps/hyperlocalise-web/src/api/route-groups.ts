@@ -44,6 +44,7 @@ import { createBrazeRoutes } from "./routes/braze/braze.route";
 import { createLoopsRoutes } from "./routes/loops/loops.route";
 import { createCustomerIoRoutes } from "./routes/customer-io/customer-io.route";
 import { createHubspotRoutes } from "./routes/hubspot/hubspot.route";
+import { createLinearRoutes } from "./routes/linear/linear.route";
 import { createMailchimpRoutes } from "./routes/mailchimp/mailchimp.route";
 import { createIterableRoutes } from "./routes/iterable/iterable.route";
 import { createPipesRoutes } from "./routes/pipes/pipes.route";
@@ -205,6 +206,7 @@ export function createOrgIntegrationsRoutes() {
     .route("/customer-io", createCustomerIoRoutes())
     .route("/hubspot", createHubspotRoutes())
     .route("/mailchimp", createMailchimpRoutes())
+    .route("/linear", createLinearRoutes())
     .route("/iterable", createIterableRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())

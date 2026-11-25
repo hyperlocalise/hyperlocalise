@@ -26,10 +26,11 @@ export const heroSectionMessages = defineMessages({
     id: "Gx82rosgM3",
     description: "Marketing homepage hero supporting copy below the headline",
   },
-  joinWaitlist: {
-    defaultMessage: "Request a Demo",
-    id: "5lnOyXIzKl",
-    description: "Primary call-to-action button on the marketing homepage hero",
+  bookDemo: {
+    defaultMessage: "Book a demo",
+    id: "ND/zOXuanC",
+    description:
+      "Secondary call-to-action on the marketing homepage closing section that opens the demo booking calendar",
   },
   goToDashboard: {
     defaultMessage: "Go to dashboard",

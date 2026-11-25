@@ -9,6 +9,13 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/elevenlabs"
 )
 
+const (
+	// defaultIrisListenModel is the documented Gemini audio file-part path.
+	defaultIrisListenModel = "google/gemini-3.8-flash"
+	// defaultIrisListenBackupModel is tagged audio-input on AI Gateway.
+	defaultIrisListenBackupModel = "xiaomi/mimo-v2.6-pro"
+)
+
 type irisModelKind string
 
 const (
@@ -40,9 +47,10 @@ type irisModelInfo struct {
 	// references (`@Image1`…), keeping the people, set and look they show,
 	// rather than as the frame FalRefID starts on.
 	FalReferencesID string `json:"-"`
-	// MaxReferences bounds `images` on a FalReferencesID model.
+	// MaxReferences bounds `images` on a model that takes reference images,
+	// on fal (FalReferencesID) or AI Gateway (`inputReferences`).
 	MaxReferences int `json:"-"`
-	// ReferencesReplaceFrames: FalReferencesID takes no start or end frame.
+	// ReferencesReplaceFrames: reference images take the place of a start or end frame.
 	ReferencesReplaceFrames bool `json:"-"`
 	ETASeconds              int  `json:"-"`
 	PromptMax               int  `json:"-"`
@@ -85,7 +93,7 @@ func irisModels() []irisModelInfo {
 		{ID: "veo-3.1-fast", Name: "Veo 3.1 Fast", Kind: irisKindVideo, GatewayID: "google/veo-3.1-fast-generate-001", ETASeconds: 60, PromptMax: 4000},
 		{ID: "kling-3-pro", Name: "Kling 3.0", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/v3/pro/text-to-video", FalRefID: "fal-ai/kling-video/v3/pro/image-to-video", ETASeconds: 80, PromptMax: 4000},
 		{ID: "kling-o3-pro", Name: "Kling 3.0 Omni", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "kuaishou/kling-v3", NativeID: "fal-ai/kling-video/o3/pro/text-to-video", FalRefID: "fal-ai/kling-video/o3/pro/image-to-video", FalVideoID: "fal-ai/kling-video/o3/pro/video-to-video/edit", FalReferencesID: "fal-ai/kling-video/o3/pro/reference-to-video", MaxReferences: 4, ETASeconds: 90, PromptMax: 4000},
-		{ID: "seedance-2.5", Name: "Seedance 2.5", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "bytedance/seedance-2.5/text-to-video", FalRefID: "bytedance/seedance-2.5/image-to-video", FalReferencesID: "bytedance/seedance-2.5/reference-to-video", MaxReferences: 30, ReferencesReplaceFrames: true, ETASeconds: 70, PromptMax: 4000},
+		{ID: "seedance-2.5", Name: "Seedance 2.5", Kind: irisKindVideo, GatewayID: "bytedance/seedance-2.5", MaxReferences: 30, ReferencesReplaceFrames: true, ETASeconds: 70, PromptMax: 4000},
 		{ID: "wan-3.0", Name: "Wan 3.0", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "alibaba/wan-2.6", NativeID: "alibaba/wan-3.0-prime/text-to-video", FalRefID: "alibaba/wan-3.0-prime/reference-to-video", ETASeconds: 75, PromptMax: 4000},
 		{ID: "minimax-h3", Name: "MiniMax H3", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "minimax/hailuo-2.3", NativeID: "minimax/h3/text-to-video", FalRefID: "minimax/h3/image-to-video", ETASeconds: 80, PromptMax: 4000},
 		{ID: "minimax-h3-max", Name: "MiniMax H3 Max", Kind: irisKindVideo, Provider: irisProviderFal, GatewayID: "minimax/hailuo-2.3", NativeID: "minimax/h3-max/text-to-video", FalRefID: "minimax/h3-max/image-to-video", ETASeconds: 55, PromptMax: 4000},
@@ -110,7 +118,9 @@ func irisModels() []irisModelInfo {
 		{ID: "bytedance-upscaler", Name: "ByteDance Upscaler", Kind: irisKindTool, Provider: irisProviderFal, GatewayID: "bytedance/seedance-2.5", NativeID: "fal-ai/bytedance-upscaler/upscale/video", ETASeconds: 60, RequiresRef: true},
 		{ID: "universal-3.5-pro", Name: "Universal 3.5 Pro", Kind: irisKindTool, GatewayID: "google/gemini-3.5-transcribe", ETASeconds: 25, RequiresRef: true},
 		{ID: "fish-audio-transcribe-1", Name: "Fish Audio Transcribe 1", Kind: irisKindTool, GatewayID: "fish-audio/transcribe-1", ETASeconds: 25, RequiresRef: true},
-		{ID: "qwen3.8-omni-flash", Name: "Qwen 3.8 Omni Flash", Kind: irisKindTool, GatewayID: "alibaba/qwen3.8-omni-flash", ETASeconds: 20, RequiresRef: true},
+		// Listen: Gemini 3.8 Flash, then MiMo V2.6 Pro. Chat completions with
+		// a file part; the answer is analysis.md, not a transcript.
+		{ID: "listen", Name: "Listen", Kind: irisKindTool, GatewayID: defaultIrisListenModel, ETASeconds: 20, RequiresRef: true},
 		// Sound out of a video or audio file: the speech alone, or the speech
 		// in another voice. Each returns audio as long as the input.
 		{ID: "elevenlabs-voice-isolator", Name: "ElevenLabs Voice Isolator", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "audio-isolation", ETASeconds: 30, RequiresRef: true},
@@ -138,6 +148,7 @@ var irisModelAliases = map[string]string{
 	"fish-audio/s2.1-pro":     "fish-audio-s2.1-pro",
 	"fish-audio/drama-3":      "fish-audio-drama-3",
 	"fish-audio/transcribe-1": "fish-audio-transcribe-1",
+	"qwen3.8-omni-flash":      "listen",
 }
 
 func irisModelByID(id string) (irisModelInfo, bool) {
@@ -485,7 +496,7 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 	if model.Kind == irisKindVoice && req.voice() == "" {
 		return model, fmt.Errorf("voice is required")
 	}
-	if images := len(req.assets("images")); images > 0 && model.FalReferencesID != "" {
+	if images := len(req.assets("images")); images > 0 && model.MaxReferences > 0 {
 		if images > model.MaxReferences {
 			return model, fmt.Errorf("%s takes at most %d reference images", model.ID, model.MaxReferences)
 		}
@@ -515,7 +526,7 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 			}
 			return model, fmt.Errorf("audio is required")
 		}
-	case "qwen3.8-omni-flash":
+	case "listen":
 		if _, ok := req.asset("media"); !ok {
 			return model, fmt.Errorf("media is required")
 		}

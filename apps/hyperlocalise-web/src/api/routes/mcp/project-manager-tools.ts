@@ -200,7 +200,7 @@ const mcpGetReportInputSchema = z.object({
     ])
     .optional()
     .describe(
-      "Words: rows per project (default), per task (50 tasks a page), per week and project, per language, or per task step and language. Rows per task or task step count a string in each task that holds it, so they can add up to more than total and bandTotals, which count it once per project. AI: area (default), feature, model, provider, channel, key, project, task or automation (50 groups a page).",
+      "Words: rows per project (default), per task (50 tasks a page), per week and project, per language, or per task step and language. Rows per task or task step count a string in each task that holds it, so they can add up to more than total and bandTotals, which count it once per project. AI: area (default), feature, model, provider, channel, key, project, task, automation, member or thread (an Iris desktop app thread) (50 groups a page).",
     ),
   thenBy: z
     .enum(AI_USAGE_DIMENSIONS)
@@ -229,6 +229,18 @@ const mcpGetReportInputSchema = z.object({
       "AI only: our_ai (plan credit), own_key (the workspace's provider key) or not_recorded.",
     ),
   automationId: z.string().min(1).max(200).optional().describe("AI only: automation ID filter."),
+  memberId: z
+    .string()
+    .min(1)
+    .max(200)
+    .optional()
+    .describe("AI only: the member whose requests used the AI, as in the member groups."),
+  threadId: z
+    .string()
+    .min(1)
+    .max(200)
+    .optional()
+    .describe("AI only: an Iris desktop app thread, as in the thread groups."),
   page: z.number().int().min(1).max(10_000).optional().describe("Page of rows, from 1."),
 });
 

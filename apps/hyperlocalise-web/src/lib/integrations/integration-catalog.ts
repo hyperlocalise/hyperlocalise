@@ -81,7 +81,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
   {
     slug: "linear",
     category: "collaboration",
-    status: "coming-soon",
+    status: "available",
     type: "partner",
     marketing: true,
     workspace: true,

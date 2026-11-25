@@ -16,6 +16,7 @@ import { db, schema } from "@/lib/database/client";
 import type { RepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
+import { resolvedProjectBranchName } from "@/lib/projects/branches/project-branch-name";
 
 export {
   normalizeSegmentationSettings,
@@ -33,6 +34,8 @@ export async function getRepositorySourceFileSegmentation(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  /** The file's branch; the default branch when left out. */
+  branchName?: string | null;
 }) {
   const sourcePath = normalizeSourcePath(input.sourcePath);
   const [row] = await db
@@ -46,6 +49,7 @@ export async function getRepositorySourceFileSegmentation(input: {
         eq(schema.repositorySourceFiles.organizationId, input.organizationId),
         eq(schema.repositorySourceFiles.projectId, input.projectId),
         eq(schema.repositorySourceFiles.sourcePath, sourcePath),
+        eq(schema.repositorySourceFiles.branchName, resolvedProjectBranchName(input.branchName)),
       ),
     )
     .limit(1);
@@ -67,6 +71,8 @@ export async function updateRepositorySourceFileSegmentation(input: {
   projectId: string;
   sourcePath: string;
   settings: RepositorySourceFileSegmentationSettingsInput;
+  /** The file's branch; the default branch when left out. */
+  branchName?: string | null;
 }) {
   const parsed = repositorySourceFileSegmentationSettingsSchema.parse(input.settings);
   const sourcePath = normalizeSourcePath(input.sourcePath);
@@ -93,6 +99,7 @@ export async function updateRepositorySourceFileSegmentation(input: {
         eq(schema.repositorySourceFiles.organizationId, input.organizationId),
         eq(schema.repositorySourceFiles.projectId, input.projectId),
         eq(schema.repositorySourceFiles.sourcePath, sourcePath),
+        eq(schema.repositorySourceFiles.branchName, resolvedProjectBranchName(input.branchName)),
       ),
     )
     .limit(1);

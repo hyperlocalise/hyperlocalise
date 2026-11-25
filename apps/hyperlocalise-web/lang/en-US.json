@@ -11,6 +11,10 @@
     "defaultMessage": "No description",
     "description": "Empty state message when a markdown description preview has no content"
   },
+  "++MP4qRhvG": {
+    "defaultMessage": "Download the Iris file, open it from your Downloads folder, then drag Iris into Applications. Iris updates itself when a new version ships.",
+    "description": "Iris page FAQ answer about installing the Mac app"
+  },
   "++VvL4EEbo": {
     "defaultMessage": "Copied",
     "description": "Copy button label after the API key was copied"
@@ -400,7 +404,7 @@
     "description": "Import warning or error line with a CSV row number"
   },
   "+Ve/t+/sO9": {
-    "defaultMessage": "Ask your organization admin to confirm your WorkOS membership, choose another organization, or sign out and retry with another account.",
+    "defaultMessage": "Ask your organization admin to confirm your membership, choose another organization, or sign out and retry with another account.",
     "description": "Default access denied page guidance"
   },
   "+WCxVTeO3+": {
@@ -1287,6 +1291,10 @@
     "defaultMessage": "Hidden",
     "description": "Badge shown when a TMS source string is hidden from translators"
   },
+  "/d6o8nwZbo": {
+    "defaultMessage": "A repeated group that repeats again, such as (a+)+, can be very slow. Write it without the nested repeat.",
+    "description": "Error under a regular expression with a nested quantifier"
+  },
   "/d8vf0Z+2x": {
     "defaultMessage": "Repositories",
     "description": "Table header for GitHub repository names"
@@ -1314,6 +1322,10 @@
   "/fmhRd2i7v": {
     "defaultMessage": "Remove email notifications",
     "description": "Accessible label to remove email notifications"
+  },
+  "/gZRu7p4LI": {
+    "defaultMessage": "Open the Iris file in your Downloads folder, then drag Iris into Applications.",
+    "description": "Toast body telling a visitor how to install the Iris Mac app they just downloaded"
   },
   "/ga0PCFNu5": {
     "defaultMessage": "No linked domains yet",
@@ -1615,10 +1627,6 @@
     "defaultMessage": "See which version wins in each market, and by how much.",
     "description": "market-experimentation use case page: capabilities › items › #5 › body"
   },
-  "07nyefIF8a": {
-    "defaultMessage": "Describe and search footage",
-    "description": "Card summary for the Qwen 3.8 Omni Flash media model on the pricing page"
-  },
   "07pTu6Ro98": {
     "defaultMessage": "Unlimited",
     "description": "Shown when a billing feature has unlimited usage"
@@ -1650,6 +1658,10 @@
   "0A/FtMSjnF": {
     "defaultMessage": "Assignees",
     "description": "Label for multi-assignee selection on Crowdin jobs"
+  },
+  "0A/Zs4RAEW": {
+    "defaultMessage": "Medical",
+    "description": "Project QA settings: medical and life-sciences content domain option"
   },
   "0A0B8c6FRK": {
     "defaultMessage": "Warnings",
@@ -1862,6 +1874,10 @@
   "0PhWie0NMV": {
     "defaultMessage": "Queries",
     "description": "Workspace Queries page title"
+  },
+  "0Pk9BNF6+x": {
+    "defaultMessage": "Slack",
+    "description": "Step in a featured workflow's flow: a Slack message is sent"
   },
   "0PkHdvb57G": {
     "defaultMessage": "Show text regions",
@@ -2182,6 +2198,10 @@
   "0njV/b+hso": {
     "defaultMessage": "02 Adapt",
     "description": "Content Studio workflow step 2"
+  },
+  "0oefDgMMaG": {
+    "defaultMessage": "Major",
+    "description": "MQM penalty level: major, 5 points"
   },
   "0pg6zXLFtI": {
     "defaultMessage": "Role permissions",
@@ -2523,6 +2543,10 @@
     "defaultMessage": "Heading 3",
     "description": "Slash menu item for a level-3 heading"
   },
+  "1KpaEZEK6R": {
+    "defaultMessage": "Video and subtitles",
+    "description": "Iris page capability title for localising video"
+  },
   "1Kqhhea0Ee": {
     "defaultMessage": "Changes to files and strings in this project.",
     "description": "Description for the All Files activity dialog"
@@ -2530,6 +2554,10 @@
   "1KrZsg7J3I": {
     "defaultMessage": "Could not save text layers. Your edits are still here.",
     "description": "Image viewer: saveError"
+  },
+  "1LKfOhUAeH": {
+    "defaultMessage": "Estimate threshold",
+    "description": "Project QA settings: label for the quality estimate threshold input"
   },
   "1LT7IofQ2x": {
     "defaultMessage": "Choose which project should receive the imported Queries rows.",
@@ -2591,6 +2619,10 @@
     "defaultMessage": "Every string this save, job or import changed goes back to its earlier version. Strings edited or locked since are left as they are.",
     "description": "Body of the dialog confirming an undo of a whole operation"
   },
+  "1RKEAnbFH/": {
+    "defaultMessage": "Not yet. Iris is Mac only for now. You can still localise text, websites and apps in the Hyperlocalise web app from any browser.",
+    "description": "Iris page FAQ answer about Windows and Linux support"
+  },
   "1RfCN9F8ux": {
     "defaultMessage": "—",
     "description": "Placeholder shown when a job property value is empty"
@@ -2610,6 +2642,10 @@
   "1ToGNDd6TO": {
     "defaultMessage": "Files",
     "description": "Label for the files selection list"
+  },
+  "1TvpM4j9NP": {
+    "defaultMessage": "Gemini 4 Argon",
+    "description": "Label for the Google Gemini 4 Argon automation model"
   },
   "1U++3URWS4": {
     "defaultMessage": "Repository folder",
@@ -2751,6 +2787,10 @@
     "defaultMessage": "Subscription",
     "description": "Subscription card title on billing settings"
   },
+  "1cO9bQ1Q+8": {
+    "defaultMessage": "Estimated quality",
+    "description": "QA overview: metric card label for the average AI quality estimate of the scan"
+  },
   "1cl5eWnQmi": {
     "defaultMessage": "Rotate secret",
     "description": "Button that replaces a webhook endpoint's signing secret"
@@ -2862,6 +2902,10 @@
   "1kGndGN4wG": {
     "defaultMessage": "SharePoint",
     "description": "Guidelines source tab for SharePoint"
+  },
+  "1kXBD4X9vj": {
+    "defaultMessage": "Created {count} of {total} Linear issues in {team}. The rest were not sent.",
+    "description": "Toast when only some QA findings were filed as Linear issues"
   },
   "1krX2eFo9o": {
     "defaultMessage": "Contentful webhook",
@@ -3026,6 +3070,10 @@
   "2+NyPbgMUJ": {
     "defaultMessage": "Assign it where it applies",
     "description": "Title of the third point in the empty glossaries explainer"
+  },
+  "2+VVMEY5/3": {
+    "defaultMessage": "Upload",
+    "description": "Step in a featured workflow's flow: a source file is uploaded"
   },
   "2+cYRmg3ua": {
     "defaultMessage": "Your developer will tell you the shape. Paste the value they need.",
@@ -3315,6 +3363,10 @@
     "defaultMessage": "Unlink string",
     "description": "Button to unlink the translation string from an issue"
   },
+  "2JKySNAhyO": {
+    "defaultMessage": "How do I install Iris?",
+    "description": "Iris page FAQ question about installing the Mac app"
+  },
   "2JTdlEzKQS": {
     "defaultMessage": "No translation yet",
     "description": "Placeholder shown in a locked side-by-side row that has no translation"
@@ -3474,6 +3526,10 @@
   "2bKPj5jMhl": {
     "defaultMessage": "Reference",
     "description": "Label of the field for the quote's reference, such as a purchase order number"
+  },
+  "2bbc7EgHVF": {
+    "defaultMessage": "Estimated quality",
+    "description": "QA review: per-segment AI quality estimate check"
   },
   "2bcqIKg6pj": {
     "defaultMessage": "International growth teams that want each market to get the version that works there, not just a translation of the home market.",
@@ -3815,6 +3871,10 @@
     "defaultMessage": "Finished by people",
     "description": "Contributors card: units people finished in the dates"
   },
+  "34a9MdnGLI": {
+    "defaultMessage": "Quality score",
+    "description": "Project QA overview: metric card label for the scan's MQM score"
+  },
   "34gyyDcFUG": {
     "defaultMessage": "Provider",
     "description": "Label for the workspace files provider filter"
@@ -3914,10 +3974,6 @@
   "3BUeVi4UCO": {
     "defaultMessage": "Market features",
     "description": "market-experimentation use case page: capabilities › items › #1 › title"
-  },
-  "3BtQulEZ6Y": {
-    "defaultMessage": "Connect a Gemini key and use Flash to move through a long list of strings. Google bills this usage. It does not draw down your monthly AI credit.",
-    "description": "Story for Gemini Flash on the pricing page"
   },
   "3CTikplBoF": {
     "defaultMessage": "Select a run to inspect node-level status.",
@@ -4062,6 +4118,10 @@
   "3QmQFMO6jX": {
     "defaultMessage": "Languages",
     "description": "Multilingual table languages label"
+  },
+  "3RDf6ipqz/": {
+    "defaultMessage": "Rewrite the copy inside banners, social ads and product shots so each variant reads as if it was made locally.",
+    "description": "Iris page capability body for localising images, banners and social ads"
   },
   "3RQjQSebWm": {
     "defaultMessage": "Members failed to load.",
@@ -4627,6 +4687,10 @@
     "defaultMessage": "Contextual Audit",
     "description": "Label for the contextual dimension on a localisation audit result"
   },
+  "46YLTYWLk2": {
+    "defaultMessage": "Unable to delete dictionary",
+    "description": "Fallback error when deleting a dictionary fails"
+  },
   "477uPaXfz1": {
     "defaultMessage": "Block on failure",
     "description": "Label for blocking automation when localization check fails"
@@ -4847,6 +4911,10 @@
     "defaultMessage": "New version",
     "description": "Label when the visitor sees the treatment page"
   },
+  "4Oq3UwFiGw": {
+    "defaultMessage": "Dub voiceovers and generate audio in the language of every audience.",
+    "description": "Iris page capability body for voiceover and dubbing"
+  },
   "4Ot6qB+D/E": {
     "defaultMessage": "Connected. {repoSummary}",
     "description": "GitHub integration description when connected without a known account login"
@@ -4854,6 +4922,10 @@
   "4OtY5abyua": {
     "defaultMessage": "hreflang",
     "description": "Detected-locale source: found in hreflang link tags"
+  },
+  "4P8Gr7Fd41": {
+    "defaultMessage": "Penalty for {check}",
+    "description": "Project QA settings: accessible label for a check's MQM penalty control"
   },
   "4Pn2dw7D0g": {
     "defaultMessage": "Fix grammar",
@@ -4979,9 +5051,17 @@
     "defaultMessage": "Dispatch execution paths in a configured order.",
     "description": "Sequence node picker hint"
   },
+  "4ccYexoxn/": {
+    "defaultMessage": "Try Iris on your next campaign.",
+    "description": "Closing call-to-action heading at the bottom of the Iris page"
+  },
   "4ciFI7Zk4c": {
     "defaultMessage": "Translated {done} of {total, plural, one {# locale} other {# locales}}.",
     "description": "Run card summary when the run finished"
+  },
+  "4eJBjHNeVu": {
+    "defaultMessage": "New files only",
+    "description": "Source upload trigger option: only files uploaded for the first time"
   },
   "4ePMzhVeCL": {
     "defaultMessage": "Edit",
@@ -5287,6 +5367,10 @@
     "defaultMessage": "Rate",
     "description": "Column heading: the rate that prices the row"
   },
+  "52MHdr6Qkq": {
+    "defaultMessage": "Translates each new source file with AI and runs QA. Work that passes ships; work QA or the quality estimate flags, or content in a domain that always needs review, gets a review task per language.",
+    "description": "What the QA gate workflow template does"
+  },
   "52PUHNXgoK": {
     "defaultMessage": "Filter languages...",
     "description": "Filter input for concept editor language groups"
@@ -5326,6 +5410,10 @@
   "57DpzgJvLI": {
     "defaultMessage": "No issues for \"{source}\"",
     "description": "Empty-state title naming the CAT source text when the segment has no linked issues"
+  },
+  "57tEfCkZq/": {
+    "defaultMessage": "Subtitle and adapt product videos and video ads for each market without going back to the edit suite.",
+    "description": "Iris page capability body for localising video"
   },
   "57vdPa03Kj": {
     "defaultMessage": "Could not import the bilingual file.",
@@ -5550,6 +5638,10 @@
   "5Ol0Sy99An": {
     "defaultMessage": "https://…",
     "description": "Placeholder for the link URL input"
+  },
+  "5OqquqGiMa": {
+    "defaultMessage": "Download Iris",
+    "description": "Primary marketing call-to-action that downloads the Iris desktop app on a Mac, or opens the Iris page elsewhere"
   },
   "5Oy8VIf/qh": {
     "defaultMessage": "Side by side",
@@ -5855,10 +5947,6 @@
     "defaultMessage": "New rate card",
     "description": "Button that starts a new rate card"
   },
-  "5lnOyXIzKl": {
-    "defaultMessage": "Request a Demo",
-    "description": "Primary call-to-action button on the marketing homepage hero"
-  },
   "5lw2B8GGrH": {
     "defaultMessage": "started a visual workflow run",
     "description": "Action for starting a visual workflow run"
@@ -5902,6 +5990,10 @@
   "5orwY/wNVx": {
     "defaultMessage": "Workspace",
     "description": "Badge for a native workspace glossary"
+  },
+  "5pHCCSXneT": {
+    "defaultMessage": "General",
+    "description": "Project QA settings: general content domain option"
   },
   "5pV4YpFmRv": {
     "defaultMessage": "Automation",
@@ -6167,6 +6259,10 @@
     "defaultMessage": "Restored from an earlier version",
     "description": "Note on a version that put back an earlier version"
   },
+  "6DGt+KEg8z": {
+    "defaultMessage": "Use Haiku for shorter turns. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Anthropic key if you want Anthropic to bill this model instead.",
+    "description": "Story for Claude Haiku on the pricing page"
+  },
   "6Dbk+444Cr": {
     "defaultMessage": "Programme reporting",
     "description": "localisation-operations use case page: capabilities › items › #6 › title"
@@ -6371,6 +6467,10 @@
     "defaultMessage": "Track scores by locale, vendor, and content type over time.",
     "description": "localisation-quality-monitoring use case page: capabilities › items › #6 › body"
   },
+  "6TxlE4k/RL": {
+    "defaultMessage": "Use Sonnet for longer drafts and review notes. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Anthropic key if you want Anthropic to bill this model instead.",
+    "description": "Story for Claude Sonnet on the pricing page"
+  },
   "6V7dDBU2jk": {
     "defaultMessage": "Concept saved",
     "description": "Toast after a concept is saved"
@@ -6434,6 +6534,10 @@
   "6c1dq311jJ": {
     "defaultMessage": "You can re-run this audit once a day. Next run {when}.",
     "description": "Cooldown note when a localisation audit cannot be re-run yet"
+  },
+  "6cEvqd8zKN": {
+    "defaultMessage": "Used when the due date above is empty, for example 48 for two days.",
+    "description": "Hint under the Due in (hours) setting"
   },
   "6chHHa/1bQ": {
     "defaultMessage": "HubSpot",
@@ -7032,7 +7136,7 @@
     "description": "Error when the live TMS provider job request fails"
   },
   "7MaLlZw62e": {
-    "defaultMessage": "Your account is signed in, but we could not reach WorkOS to confirm your organization membership.",
+    "defaultMessage": "Your account is signed in, but we could not confirm your organization membership. Try again in a moment.",
     "description": "Access denied page summary when WorkOS membership lookup fails"
   },
   "7Mb6b+z2q1": {
@@ -7264,7 +7368,7 @@
     "description": "Toast when creating a new workflow from the new automation page fails"
   },
   "7itDAFKmls": {
-    "defaultMessage": "Workspace creation requires WorkOS organization management to be configured.",
+    "defaultMessage": "Workspace creation isn't available right now. Contact support if this continues.",
     "description": "Error when WorkOS organization management is not configured"
   },
   "7j13INCpbH": {
@@ -7647,6 +7751,10 @@
     "defaultMessage": "Text",
     "description": "Issue column type label for text"
   },
+  "8DEJWgut39": {
+    "defaultMessage": "Iris thread",
+    "description": "AI usage detail: the Iris desktop app thread (one task with its agent) that used the AI"
+  },
   "8DTgncaRKl": {
     "defaultMessage": "Add to a task…",
     "description": "Bulk action that puts the selected strings into a new or open task for people"
@@ -7775,8 +7883,16 @@
     "defaultMessage": "the last change",
     "description": "What an undo step did, after 'Undo' or 'Redo', when it changed several things at once"
   },
+  "8N7H9E36x3": {
+    "defaultMessage": "Iris questions",
+    "description": "Heading of the FAQ section on the Iris page"
+  },
+  "8O+tkwHLGv": {
+    "defaultMessage": "Add pattern",
+    "description": "Button that adds an empty path pattern to the Source upload filter"
+  },
   "8O4l4wC1UK": {
-    "defaultMessage": "Sanity through WorkOS Pipes is not enabled for this environment yet. An admin can enable the Sanity data integration in WorkOS.",
+    "defaultMessage": "Sanity isn't available in this workspace yet. Contact support to turn it on.",
     "description": "Integration row description when Sanity Pipes is unavailable"
   },
   "8OHSn5eQCa": {
@@ -8378,6 +8494,10 @@
   "99GL6BjW2r": {
     "defaultMessage": "Could not copy link",
     "description": "Toast when copying a link to a string fails"
+  },
+  "9A04YV3x5z": {
+    "defaultMessage": "Type a pattern or remove this row.",
+    "description": "Error under an empty path pattern"
   },
   "9B07etsjy7": {
     "defaultMessage": "Push to Intercom",
@@ -9015,6 +9135,10 @@
     "defaultMessage": "Last week",
     "description": "Knowledge mock UI relative timestamp"
   },
+  "A+CpdMTX/N": {
+    "defaultMessage": "Starts the workflow",
+    "description": "Result when the tried path matches the Source upload filter"
+  },
   "A+IsVf0TGL": {
     "defaultMessage": "Contentful Help Center",
     "description": "Placeholder for the Contentful connection display name field"
@@ -9346,10 +9470,6 @@
   "AQFTimLagD": {
     "defaultMessage": "of any content type",
     "description": "Prose after the Contentful trigger name when every content type starts a run"
-  },
-  "AQZXVFsnl+": {
-    "defaultMessage": "Iris | AI Localisation Engine for Multilingual Assets | Hyperlocalise",
-    "description": "Page title for the Iris waitlist page"
   },
   "AQrXctSpNJ": {
     "defaultMessage": "Format",
@@ -9686,6 +9806,10 @@
   "AuCHneqNSE": {
     "defaultMessage": "Save this automation to get a public chat URL.",
     "description": "Hint shown before a web chat automation has been saved"
+  },
+  "AuEwPzJu/g": {
+    "defaultMessage": "A clip has the right words but the wrong mix or the wrong voice.",
+    "description": "Situation for Iris voice tools on the pricing page"
   },
   "AuYw3s9yoM": {
     "defaultMessage": "No words for {locale} yet. Add one above or import a .txt file.",
@@ -10178,6 +10302,10 @@
   "Ba3w87XTBS": {
     "defaultMessage": "Failed to update proposal review",
     "description": "Toast and error fallback when saving proposal review fails"
+  },
+  "BaPLthDtqY": {
+    "defaultMessage": "Iris for Mac",
+    "description": "Eyebrow above the Iris page introduction, under the launch film"
   },
   "BavpDSRiE2": {
     "defaultMessage": "Delete team",
@@ -10967,6 +11095,10 @@
     "defaultMessage": "Succeeded",
     "description": "Status label for a succeeded job on project overview"
   },
+  "CbqHZiFcRJ": {
+    "defaultMessage": "Which AI models does Iris use?",
+    "description": "Iris page FAQ question about the AI models behind Iris"
+  },
   "CbuvPB6HCw": {
     "defaultMessage": "Approved",
     "description": "Progress table row label for approved work"
@@ -11187,6 +11319,10 @@
     "defaultMessage": "Send a transactional email through Resend or SendGrid.",
     "description": "Catalog description for the notify email action node"
   },
+  "CsN4Lwf+Xq": {
+    "defaultMessage": "Proofread",
+    "description": "Step in a featured workflow's flow: a person proofreads"
+  },
   "CtXpaStJTy": {
     "defaultMessage": "Marketing site launch",
     "description": "Placeholder for the project name field"
@@ -11375,6 +11511,10 @@
     "defaultMessage": "Reasoning failed to render",
     "description": "Error boundary title when reasoning UI crashes"
   },
+  "D6nGaFfAXq": {
+    "defaultMessage": "Other automations",
+    "description": "Heading above every other way to start an automation, after the featured localisation workflows"
+  },
   "D6oB7iB5pO": {
     "defaultMessage": "Separate tags with commas. A tag is up to 64 letters, digits, _ or -. Tags apply in every language.",
     "description": "Explains how to type tags in the bulk tag dialog"
@@ -11430,6 +11570,10 @@
   "DBp1QKDYgw": {
     "defaultMessage": "A scheduled job runs hl sync pull and opens a pull request with the updated locale files.",
     "description": "localisation-cli-and-api use case page: scenario › events › #3 › body"
+  },
+  "DBpkRRnvyH": {
+    "defaultMessage": "Free",
+    "description": "Small badge inside the Download Iris button saying Iris is free to start using"
   },
   "DBygjYGTST": {
     "defaultMessage": "Target keeps the required placeholders and ICU structure.",
@@ -11491,6 +11635,10 @@
     "defaultMessage": "Product glossary",
     "description": "localisation-quality-monitoring use case page: guide › steps › #1 › visual › items › #2 › label"
   },
+  "DHnnbTgHql": {
+    "defaultMessage": "Leave the file, languages and job empty to check the whole project. Narrow it to check only the work this run produced.",
+    "description": "Hint above the Run QA step's optional scope settings"
+  },
   "DHw/85SGxB": {
     "defaultMessage": "After break (regex)",
     "description": "Label for afterbreak pattern"
@@ -11534,6 +11682,10 @@
   "DJGr6J4yAS": {
     "defaultMessage": "French (France)",
     "description": "Display name for BCP-47 locale fr-FR"
+  },
+  "DJwiwpSIjB": {
+    "defaultMessage": "No Linear teams found",
+    "description": "Shown when the connected Linear account has no teams"
   },
   "DK4GxTemCY": {
     "defaultMessage": "Choose a row to narrow the tab to it.",
@@ -12075,6 +12227,10 @@
     "defaultMessage": "In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the same list when you connect Crowdin.",
     "description": "Intro text for Crowdin OAuth scope requirements"
   },
+  "E7BIsfV5Ko": {
+    "defaultMessage": "Checked every 15 minutes. A run starts when a file in the chosen folders is added or edited. Translations written back to Drive do not start a run.",
+    "description": "Explains how often the Google Drive trigger checks for changed files"
+  },
   "E7OAFUiyvH": {
     "defaultMessage": "tag-name",
     "description": "Placeholder in the small inline field for adding a tag; shows the tag format (lowercase words joined by hyphens)"
@@ -12102,6 +12258,10 @@
   "E9pJgVHyhd": {
     "defaultMessage": "Developer",
     "description": "Project settings nav group for CLI and CI integration"
+  },
+  "E9wwHtcU9r": {
+    "defaultMessage": "Only files matching",
+    "description": "Label of the list of path patterns that limit which files start the workflow"
   },
   "EAE54Sl6XL": {
     "defaultMessage": "Column create failed",
@@ -12146,6 +12306,10 @@
   "EEDujIUcvK": {
     "defaultMessage": "Machine or human",
     "description": "CAT queue filter: narrows strings by whether a machine or a person wrote the translation"
+  },
+  "EFdSAgjqjW": {
+    "defaultMessage": "Could not load Linear teams.",
+    "description": "Shown when the Linear teams list fails to load"
   },
   "EFqMJ3jrZJ": {
     "defaultMessage": "Combine objects with an explicit conflict policy.",
@@ -12790,6 +12954,10 @@
   "F2Mfo5rtgk": {
     "defaultMessage": "Create and adapt text, documents, slides, images, and video in one shared multilingual workspace—so every format in a campaign stays together.",
     "description": "Content Studio FAQ answer about supported formats"
+  },
+  "F2yszBCIk9": {
+    "defaultMessage": "Member",
+    "description": "AI usage detail: the workspace member whose request used the AI"
   },
   "F3LRM6/D0t": {
     "defaultMessage": "Die Welt in einem neuen Licht sehen.",
@@ -13575,6 +13743,10 @@
     "defaultMessage": "Scroll to end",
     "description": "Accessible label for the message scroller jump-to-end control"
   },
+  "G66FBcR/Y7": {
+    "defaultMessage": "{field} reads a value that a run cannot find. Choose it from the fields of earlier steps instead.",
+    "description": "Validation message when a setting of a workflow step holds a reference in double curly brackets that does not point at the trigger or an earlier step. {field} is the setting's key, such as projectId"
+  },
   "G6Gi/jdmf1": {
     "defaultMessage": "Video translations",
     "description": "AI feature: translated versions of a project's videos"
@@ -13590,10 +13762,6 @@
   "G6aiREcgX6": {
     "defaultMessage": "Update workspace settings",
     "description": "Permission row for updating workspace settings"
-  },
-  "G715x+6MXV": {
-    "defaultMessage": "Connect an Anthropic key and use Haiku for shorter turns. Anthropic bills this usage. It does not draw down your monthly AI credit.",
-    "description": "Story for Claude Haiku on the pricing page"
   },
   "G73Dfp2P/t": {
     "defaultMessage": "Copy run ID",
@@ -13839,6 +14007,10 @@
     "defaultMessage": "@Hyperlocalise is the Japanese banner ready for review?",
     "description": "marketing-localisation use case page: guide › steps › #3 › visual › messages › #1 › text"
   },
+  "GTuqE3OpBf": {
+    "defaultMessage": "* matches within a folder, ** across folders, and '{a,b}' either one. A pattern without a / matches the file name in any folder.",
+    "description": "How glob patterns work, under the Source upload path filter"
+  },
   "GTw4YEIupV": {
     "defaultMessage": "Check every variant against your brand guide and approved terms.",
     "description": "marketing-localisation use case page: capabilities › items › #4 › body"
@@ -13882,10 +14054,6 @@
   "GZKnztd4Eu": {
     "defaultMessage": "{count, plural, one {# task} other {# tasks}}",
     "description": "How many tasks an estimate covers"
-  },
-  "GZPe87SKjx": {
-    "defaultMessage": "Iris, the AI localisation engine",
-    "description": "Open Graph heading for the Iris waitlist page"
   },
   "GZgOkkX0hj": {
     "defaultMessage": "Japanese (Japan)",
@@ -13974,6 +14142,10 @@
   "GgENm3BRpj": {
     "defaultMessage": "Questions",
     "description": "Heading for the FAQ section on the localisation audit landing page"
+  },
+  "GgaVU1Vn/i": {
+    "defaultMessage": "Could not create Linear issues.",
+    "description": "Toast when no QA findings could be filed as Linear issues"
   },
   "GgcJD1DYC4": {
     "defaultMessage": "Callout",
@@ -14123,6 +14295,10 @@
     "defaultMessage": "Connect GitHub in <link>Integrations</link> to comment on pull requests.",
     "description": "Description for GitHub comment notifications when GitHub is not connected"
   },
+  "GtlOKbCrFv": {
+    "defaultMessage": "Iris, the AI localisation engine for multilingual assets",
+    "description": "Visually hidden heading for the Iris product page"
+  },
   "GuEU+qQCHt": {
     "defaultMessage": "Overwrite targets",
     "description": "Toggle label for overwriting Contentful target locales"
@@ -14134,6 +14310,10 @@
   "GuYiT4dWiy": {
     "defaultMessage": "{count} duplicates skipped",
     "description": "Badge showing how many duplicate rows will be skipped"
+  },
+  "GutPXDHoRd": {
+    "defaultMessage": "Delete this dictionary?",
+    "description": "Title of the dictionary deletion confirmation dialog"
   },
   "GvUbPf6mr6": {
     "defaultMessage": "Add a domain",
@@ -14204,7 +14384,7 @@
     "description": "Label of the row that holds the link to the design (such as a Figma frame) where the string appears"
   },
   "GzYGhS8+WR": {
-    "defaultMessage": "Your name is stored on your Hyperlocalise account. Email comes from WorkOS.",
+    "defaultMessage": "Your name is stored on your Hyperlocalise account. Email comes from your sign-in account.",
     "description": "Helper text under the profile section on account settings"
   },
   "GzdUfM35EF": {
@@ -14262,6 +14442,10 @@
   "H02egE79hp": {
     "defaultMessage": "Pricing",
     "description": "Marketing navbar link to the pricing page"
+  },
+  "H09UjvD6L5": {
+    "defaultMessage": "Catch truncated text and broken layouts before a long German headline breaks your banner.",
+    "description": "Iris page capability body for catching broken layouts in translated assets"
   },
   "H0IVjRDKWW": {
     "defaultMessage": "Spring release",
@@ -14387,6 +14571,10 @@
     "defaultMessage": "Onboarding emails",
     "description": "localisation-operations use case page: hero › visual › primary › items › #4 › label"
   },
+  "HCPJpu/Mvc": {
+    "defaultMessage": "Is Iris free?",
+    "description": "Iris page FAQ question about price"
+  },
   "HCZzZ6mMQr": {
     "defaultMessage": "AI Context",
     "description": "Button in file view header to open the AI Context drawer"
@@ -14410,6 +14598,10 @@
   "HDUb3fboOf": {
     "defaultMessage": "Hyperlocalise drafts the two edited sections in twelve locales using the product glossary.",
     "description": "help-center-localisation use case page: scenario › events › #2 › body"
+  },
+  "HEkzIiwa50": {
+    "defaultMessage": "TEP: translate, edit, proofread",
+    "description": "Title of the workflow template for human translation, editing and proofreading (TEP)"
   },
   "HEmDtrKdrX": {
     "defaultMessage": "Suggested source correction",
@@ -14819,6 +15011,10 @@
     "defaultMessage": "Connect your OpenAI account",
     "description": "OpenAI BYOK provider description on the AI Engine page"
   },
+  "Hr/JQvzLiZ": {
+    "defaultMessage": "AI translate",
+    "description": "Step in a featured workflow's flow: the file is translated with AI"
+  },
   "HrB9mIwARt": {
     "defaultMessage": "Edit",
     "description": "Compact CAT workspace tab for the translation editor"
@@ -14839,6 +15035,10 @@
     "defaultMessage": "Queries Imported",
     "description": "Activity log event type label for importing Queries"
   },
+  "HsjxzJIUuM": {
+    "defaultMessage": "Open {identifier}",
+    "description": "Toast action that opens the Linear issue just created"
+  },
   "Hsz2q13V4l": {
     "defaultMessage": "Loading jobs",
     "description": "Accessible label while the grouped jobs list is loading"
@@ -14850,6 +15050,10 @@
   "HtVUcSTMS/": {
     "defaultMessage": "On error is set to Continue, so the test run goes on past this step.",
     "description": "On a workflow step's Test tab, what a failure does when the step's On error setting is Continue"
+  },
+  "HtmL7NfR7y": {
+    "defaultMessage": "Content domain",
+    "description": "Project QA settings: label for the content domain control"
   },
   "Hv8dudDiIO": {
     "defaultMessage": "Chat, translation, and coding",
@@ -14983,6 +15187,10 @@
     "defaultMessage": "Supported formats: .pdf, .docx, .md, .txt. Up to 25 MB, 1 file per upload.",
     "description": "Supported formats and file limit for knowledge upload"
   },
+  "I4W/7/gfOu": {
+    "defaultMessage": "Add a step",
+    "description": "Heading of the menu that appears when adding a step on the canvas"
+  },
   "I4iH2T3OLx": {
     "defaultMessage": "Google Drive",
     "description": "Guidelines source tab for Google Drive"
@@ -15024,7 +15232,7 @@
     "description": "Access denied page guidance when the organization slug is missing"
   },
   "IATCAL7GZ3": {
-    "defaultMessage": "WorkOS is not configured, so Search Console cannot connect through Pipes.",
+    "defaultMessage": "Search Console isn't available right now. Contact support if this continues.",
     "description": "Empty state description when WorkOS Pipes is unavailable"
   },
   "IBYpVWNrJA": {
@@ -15246,6 +15454,10 @@
   "IWQH2bHvzr": {
     "defaultMessage": "No MCP servers connected yet.",
     "description": "Empty state when no MCP server connections exist"
+  },
+  "IWTpyHvJes": {
+    "defaultMessage": "Use Opus when the wording needs extra attention. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Anthropic key if you want Anthropic to bill this model instead.",
+    "description": "Story for Claude Opus on the pricing page"
   },
   "IZNNOIJHQD": {
     "defaultMessage": "Search tasks",
@@ -15983,10 +16195,6 @@
     "defaultMessage": "Of this task's strings sent for review",
     "description": "Detail under the approved card"
   },
-  "JTdejUyr0G": {
-    "defaultMessage": "Connect an Anthropic key and use Opus when the wording needs extra attention. Anthropic bills this usage. It does not draw down your monthly AI credit.",
-    "description": "Story for Claude Opus on the pricing page"
-  },
   "JU7dBsiFsd": {
     "defaultMessage": "Save",
     "description": "Button to save the Loops API key"
@@ -16062,6 +16270,10 @@
   "JcGQchl/ia": {
     "defaultMessage": "Slack workspace",
     "description": "Fallback workspace name in Slack status when team name is missing"
+  },
+  "JdbyW4qn3s": {
+    "defaultMessage": "Gemini 4 Neon",
+    "description": "Label for the Google Gemini 4 Neon automation model"
   },
   "JdmZOy+P6b": {
     "defaultMessage": "Switching an AI model or vendor means rebuilding the workflow.",
@@ -16194,10 +16406,6 @@
   "JpP4nc8IcB": {
     "defaultMessage": "ICU sub-filter",
     "description": "Label for treating matching strings as ICU MessageFormat"
-  },
-  "JpPN4GGwvP": {
-    "defaultMessage": "Agentic localisation platform",
-    "description": "Marketing homepage hero eyebrow naming the product category"
   },
   "JpmYHdvmx/": {
     "defaultMessage": "Connect your agent",
@@ -16655,6 +16863,10 @@
     "defaultMessage": "revoked a personal access token",
     "description": "Action for a personal access token revocation activity"
   },
+  "KVnvqKVdu/": {
+    "defaultMessage": "Remove pattern {number}",
+    "description": "Accessible label of the button that removes one path pattern"
+  },
   "KW+cTDzjgb": {
     "defaultMessage": "This week's requests",
     "description": "localisation-operations use case page: hero › visual › primary › title"
@@ -16827,9 +17039,17 @@
     "defaultMessage": "Updated translation",
     "description": "Activity action"
   },
+  "KnE38OJSY5": {
+    "defaultMessage": "Skipped: no pattern matches",
+    "description": "Result when the tried path matches none of the Source upload patterns"
+  },
   "KnQWJg+k9n": {
     "defaultMessage": "Job ID (optional)",
     "description": "Job setting on the check progress step"
+  },
+  "KoC1pGxUBj": {
+    "defaultMessage": "Free to download",
+    "description": "Iris page detail title saying the Iris app costs nothing to download"
   },
   "KoWP5ExqQO": {
     "defaultMessage": "Page {page} of {totalPages}",
@@ -17031,6 +17251,10 @@
     "defaultMessage": "Unable to load task files",
     "description": "Fallback error when task files fail to load without an Error message"
   },
+  "L8o2cpm67y": {
+    "defaultMessage": "No member",
+    "description": "AI usage group: calls no member asked for, such as automations"
+  },
   "L8xTOJqX0d": {
     "defaultMessage": "Search: {value}",
     "description": "Active jobs filter chip showing the current search query"
@@ -17058,6 +17282,10 @@
   "LAxJwBLxhc": {
     "defaultMessage": "One locale, or several for a job in many locales.",
     "description": "Help text under the pick assignee locale input"
+  },
+  "LC11FQ5Dwr": {
+    "defaultMessage": "Try a path",
+    "description": "Label of the box where a person types a file path to see whether it matches"
   },
   "LC2bgUm6Db": {
     "defaultMessage": "Active",
@@ -17411,6 +17639,10 @@
     "defaultMessage": "We only read public pages. We never sign in or fill in forms.",
     "description": "Scope note on the localisation audit landing page"
   },
+  "Le+9bhU9g1": {
+    "defaultMessage": "The setups most teams start with. Each opens on the canvas with its steps connected; pick the project, the Slack channels and who does the work, then publish.",
+    "description": "Text under the heading of the workflow templates section"
+  },
   "LeIm9531Cr": {
     "defaultMessage": "Literal text",
     "description": "Concatenate literal segment kind"
@@ -17667,6 +17899,10 @@
     "defaultMessage": "Queued and completed imports and exports will appear here.",
     "description": "Empty import and export history description"
   },
+  "LzY4RMClnF": {
+    "defaultMessage": "Generating images, video and audio draws on AI credit. Paid plans include monthly credit, starting at $20 a month.",
+    "description": "Iris page detail body explaining that generating assets uses AI credit"
+  },
   "Lzjyu+8nDt": {
     "defaultMessage": "No locales available",
     "description": "Empty state when the locale selection list has no items"
@@ -17787,6 +18023,10 @@
     "defaultMessage": "Show Germany a new headline. Keep France on the current one. Ship the version people actually use.",
     "description": "Body for the Hyperlab experiments solution panel"
   },
+  "M5yyhs+NHe": {
+    "defaultMessage": "Review done: QA, then fix or deliver",
+    "description": "Title of the workflow template that runs QA when a post-edit or proofread task is finished"
+  },
   "M66Lw6ds7d": {
     "defaultMessage": "Delete glossary",
     "description": "Button to delete the current glossary"
@@ -17798,6 +18038,10 @@
   "M6Srmv7irr": {
     "defaultMessage": "This needs to be valid JSON.",
     "description": "Error when config JSON cannot be parsed"
+  },
+  "M7UxdPJ+uA": {
+    "defaultMessage": "Checks this job's file and languages, such as the task that was just marked done. A file or languages set above take precedence.",
+    "description": "Hint under the Run QA step's job setting"
   },
   "M7YWxB1rFS": {
     "defaultMessage": "Visual Workflow",
@@ -17858,6 +18102,10 @@
   "MBw6r00XBp": {
     "defaultMessage": "Select all loaded",
     "description": "Bulk action to select every issue in the current loaded list"
+  },
+  "MC7M/wi3wt": {
+    "defaultMessage": "Score each scan out of 100. Every finding costs points per source word: minor 1, major 5, critical 25. A language passes when it reaches the threshold and has no critical finding. Run QA steps in workflows pass or fail on this score.",
+    "description": "Project QA settings: help text for MQM quality scoring"
   },
   "MCViSbp0Sq": {
     "defaultMessage": "Run a scheduled compliance check on medical device labelling and IFU translations. Compare locales against approved terminology, flag missing translations for regulated markets, check unit and warning phrase consistency, then report blockers for review. Do not publish.",
@@ -18095,6 +18343,10 @@
     "defaultMessage": "All reviews",
     "description": "All option for the concept review filter"
   },
+  "MTUXy1sXU0": {
+    "defaultMessage": "New and updated files",
+    "description": "Source upload trigger option: every upload, including a new version of a file"
+  },
   "MTdu3wkxG7": {
     "defaultMessage": "Some hourly work has no time estimate and is not in the total.",
     "description": "Printed quote note when an hourly line has no time estimate"
@@ -18106,6 +18358,10 @@
   "MU0OTjSMs5": {
     "defaultMessage": "Cut the background out",
     "description": "Tooltip for the remove background image edit action"
+  },
+  "MUDO3AYEIq": {
+    "defaultMessage": "Duplicate selected steps",
+    "description": "Shortcut label for duplicating the selected visual workflow steps"
   },
   "MUU0MB1WKf": {
     "defaultMessage": "Translation jobs",
@@ -18631,6 +18887,10 @@
     "defaultMessage": "Artifact reference (optional)",
     "description": "Human Approval protected artifact reference field"
   },
+  "ND/zOXuanC": {
+    "defaultMessage": "Book a demo",
+    "description": "Secondary call-to-action on the marketing homepage closing section that opens the demo booking calendar"
+  },
   "NDXmA1pbVL": {
     "defaultMessage": "We'll email a short summary — score, top fixes, and a link back to this report — so it's easy to forward.",
     "description": "Body for the email-summary form on a localisation audit result"
@@ -18662,6 +18922,10 @@
   "NERy9XM6Cd": {
     "defaultMessage": "Zoom in",
     "description": "Accessible label for zooming in within the image lightbox"
+  },
+  "NEU7c1Ouub": {
+    "defaultMessage": "Translate",
+    "description": "Step in a featured workflow's flow: a person translates"
   },
   "NEzvK9axzr": {
     "defaultMessage": "Query deleted",
@@ -18802,6 +19066,10 @@
   "NPxj2A77E6": {
     "defaultMessage": "No guidelines for this project",
     "description": "Title when a project view has no applicable guideline documents"
+  },
+  "NPzSWXmSze": {
+    "defaultMessage": "Iris is downloading",
+    "description": "Toast title shown after a visitor starts downloading the Iris Mac app"
   },
   "NQI5GeXhlu": {
     "defaultMessage": "Do we have to use your translation engine?",
@@ -18995,6 +19263,10 @@
     "defaultMessage": "Reply to {name}…",
     "description": "Placeholder when replying to a specific comment author"
   },
+  "Nfgyq1HnJz": {
+    "defaultMessage": "Dictionary deleted",
+    "description": "Toast after a dictionary is deleted successfully"
+  },
   "NflNg4/F7g": {
     "defaultMessage": "Glossary deleted",
     "description": "Toast after a glossary is deleted successfully"
@@ -19126,6 +19398,10 @@
   "NqAGQvs7qB": {
     "defaultMessage": "English (Australia)",
     "description": "Display name for BCP-47 locale en-AU"
+  },
+  "NqVJWK9Xsc": {
+    "defaultMessage": "Iris translations",
+    "description": "AI feature: translating a creative's copy in Iris, the desktop app"
   },
   "NrJMjFZ+Df": {
     "defaultMessage": "Romanian (Romania)",
@@ -19531,6 +19807,10 @@
     "defaultMessage": "Live research via DataForSEO. Saved keywords and rank snapshots persist per market.",
     "description": "Disclosure for live domain research metrics"
   },
+  "OQGKHGhNJL": {
+    "defaultMessage": "Medical, legal and financial content always asks for human review in workflows, holds the quality estimate to a higher threshold, and tells the estimator which mistakes matter most.",
+    "description": "Project QA settings: help text for the content domain control"
+  },
   "OQRAAutFV6": {
     "defaultMessage": "Awaiting Approval",
     "description": "Tool status badge when approval is requested"
@@ -19566,6 +19846,10 @@
   "OT92Awvsrm": {
     "defaultMessage": "Merge strings: translate duplicates once",
     "description": "Title of the product update announcement for the Merge strings feature"
+  },
+  "OTXAzDlTy5": {
+    "defaultMessage": "Use Flash to move through a long list of strings. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Gemini key if you want Google to bill this model instead.",
+    "description": "Story for Gemini Flash on the pricing page"
   },
   "OU5qhClfKo": {
     "defaultMessage": "Publish Multilingual Blog",
@@ -19723,6 +20007,10 @@
     "defaultMessage": "A member",
     "description": "QA manual run trigger"
   },
+  "OhHA3+4Wkh": {
+    "defaultMessage": "Choose Google Drive folders or files in the Google Drive tool for this trigger to watch.",
+    "description": "Shown under the Google Drive trigger when no folders or files are chosen yet"
+  },
   "OhR/3nyLW+": {
     "defaultMessage": "Hyperlocalise agents flag copy that doesn't follow the guidelines, and say which rule it breaks.",
     "description": "Description of the second point in the empty guidelines explainer"
@@ -19799,6 +20087,10 @@
     "defaultMessage": "External project {projectId}",
     "description": "Label for an external project id when no Hyperlocalise project is linked"
   },
+  "Oo96L4uY2q": {
+    "defaultMessage": "Fix or ship",
+    "description": "Step in a featured workflow's flow: failing work goes back, passing work ships"
+  },
   "OoB/oKq2Hs": {
     "defaultMessage": "Open in Cursor",
     "description": "Menu item to open the prompt in Cursor"
@@ -19858,6 +20150,10 @@
   "OuhJgSgMVm": {
     "defaultMessage": "Choose the project: Use translation as source would otherwise send finished tasks from every project. To mean that, tick Send tasks from any project on each Use translation as source step.",
     "description": "Validation issue on a Job changed trigger with no project in a workflow that has a Use translation as source step"
+  },
+  "Ouz6Q2dQze": {
+    "defaultMessage": "Edit",
+    "description": "Step in a featured workflow's flow: a person edits the translation"
   },
   "OvonIo9cAp": {
     "defaultMessage": "Sample data",
@@ -20066,6 +20362,10 @@
   "P9C1n98DZ2": {
     "defaultMessage": "Provider file",
     "description": "Metadata label for a TMS provider file resource in the files tree"
+  },
+  "P9FnIb5bY/": {
+    "defaultMessage": "Google Drive",
+    "description": "Automation list trigger label: runs start when Google Drive files change"
   },
   "P9Kxy3XGc5": {
     "defaultMessage": "Warnings",
@@ -20286,6 +20586,10 @@
   "PScpvnievX": {
     "defaultMessage": "Fix with context",
     "description": "localisation-quality-monitoring use case page: guide › steps › #3 › title"
+  },
+  "PSdpb4ZhsU": {
+    "defaultMessage": "Pass threshold",
+    "description": "Project QA settings: lowest passing quality score"
   },
   "PSqr8lzpHo": {
     "defaultMessage": "Turkish (Türkiye)",
@@ -20883,6 +21187,10 @@
     "defaultMessage": "Add at least one supported tool to activate this automation.",
     "description": "Hint when the automation cannot be activated without a tool"
   },
+  "QLTuspeSzC": {
+    "defaultMessage": "Minor",
+    "description": "MQM penalty level: minor, 1 point"
+  },
   "QMh6yY0nNA": {
     "defaultMessage": "Match UI labels and product terms so instructions line up with the app.",
     "description": "help-center-localisation use case page: capabilities › items › #3 › body"
@@ -21019,10 +21327,6 @@
     "defaultMessage": "Team deleted",
     "description": "Toast after a team is deleted successfully"
   },
-  "QZjNY0zpti": {
-    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Join the waitlist.",
-    "description": "Meta description for the Iris waitlist page"
-  },
   "Qa2OXtJ4Ug": {
     "defaultMessage": "HTML",
     "description": "Load HTML SRX template"
@@ -21082,6 +21386,10 @@
   "QeTm6cGbAa": {
     "defaultMessage": "Save the workflow to get its webhook URL.",
     "description": "Shown instead of the webhook URL before the workflow is saved"
+  },
+  "Qes9AxeWPG": {
+    "defaultMessage": "Agent templates",
+    "description": "Heading of the templates section on the new automation page"
   },
   "QfEwz9eSDW": {
     "defaultMessage": "Slack assistant",
@@ -21154,6 +21462,10 @@
   "QjMQ0YNYXB": {
     "defaultMessage": "Last 7 days",
     "description": "Activity filter option that shows changes from the last 7 days"
+  },
+  "QjdO7c1BCr": {
+    "defaultMessage": "Iris | AI Localisation Engine for Multilingual Assets | Hyperlocalise",
+    "description": "Page title for the Iris product page"
   },
   "Qk1QL2BxcT": {
     "defaultMessage": "AI-reviewed",
@@ -21847,6 +22159,10 @@
     "defaultMessage": "Launch campaign email",
     "description": "TM match context for a launch campaign string in the CAT mock"
   },
+  "RhmlCVOrxz": {
+    "defaultMessage": "More actions",
+    "description": "Accessible label for the dictionary detail overflow menu"
+  },
   "Rhnh/znHl6": {
     "defaultMessage": "Decide where {domain} should be attached after verification.",
     "description": "Project help"
@@ -22194,6 +22510,10 @@
   "S9c8QG8bF2": {
     "defaultMessage": "View jobs",
     "description": "Link from overview activity to the jobs page"
+  },
+  "SA0HeX8VjT": {
+    "defaultMessage": "Financial",
+    "description": "Project QA settings: financial content domain option"
   },
   "SALsrEbsZU": {
     "defaultMessage": "Connected",
@@ -22647,6 +22967,10 @@
     "defaultMessage": "Select a text element to jump to its reference frame.",
     "description": "Video refinement workspace: timelineHint"
   },
+  "SpbuxYK8Fb": {
+    "defaultMessage": "MTPE: AI translation, then post-edit",
+    "description": "Title of the workflow template for machine translation followed by human post-editing (MTPE)"
+  },
   "Sq+eRlJZgQ": {
     "defaultMessage": "Loading articles",
     "description": "Shown while mapped Intercom articles load"
@@ -22878,6 +23202,10 @@
   "TA6Yq+oOXe": {
     "defaultMessage": "Other findings",
     "description": "Heading for localisation audit findings that are not shown under a failing or watched criterion"
+  },
+  "TAFjOxPMm4": {
+    "defaultMessage": "{count, plural, =0 {No segments below {threshold}} one {# segment below {threshold}} other {# segments below {threshold}}}",
+    "description": "QA overview: detail under the estimated quality metric; count is segments scored below the threshold"
   },
   "TBPUwXAr0t": {
     "defaultMessage": "{count} estimated visits",
@@ -23175,6 +23503,10 @@
     "defaultMessage": "Projects",
     "description": "Label for the project scope picker on the upload page"
   },
+  "TVKMlRSdJ5": {
+    "defaultMessage": "Iris has builds for Apple Silicon Macs (M1 and later) and Intel Macs. The main download button gives you the Apple Silicon build. Use the menu beside it for the Intel build.",
+    "description": "Iris page FAQ answer about supported Macs"
+  },
   "TViRJtMGI6": {
     "defaultMessage": "Up to date",
     "description": "help-center-localisation use case page: hero › visual › primary › locales › #1 › note"
@@ -23278,6 +23610,10 @@
   "TcPLZlmUn0": {
     "defaultMessage": "No plans are configured in Autumn yet.",
     "description": "Empty state when Autumn has no plans configured"
+  },
+  "TcmlRF0VAv": {
+    "defaultMessage": "Recommended",
+    "description": "Badge on the workflow template teams should start from: AI translation with review only when QA asks for it"
   },
   "TdNvcRaC0s": {
     "defaultMessage": "How can we get started?",
@@ -23519,6 +23855,10 @@
     "defaultMessage": "Could not send your queued message. It is still in the queue.",
     "description": "Error when sending a message that was queued while the agent answered fails"
   },
+  "TuCqNYsw9D": {
+    "defaultMessage": "Post-edit",
+    "description": "Step in a featured workflow's flow: a person post-edits the AI translation"
+  },
   "TuGOT1kPBK": {
     "defaultMessage": "Connect an MCP server in Integrations before using this tool.",
     "description": "Description when no MCP server connection is available"
@@ -23546,6 +23886,10 @@
   "TxLzteAQOy": {
     "defaultMessage": "Translated and checked",
     "description": "github-release-localisation use case page: guide › steps › #3 › visual › rows › #3 › label"
+  },
+  "TxoIMy6Uz0": {
+    "defaultMessage": "Describe what you need, build an agent or a workflow from scratch, or start from an agent template.",
+    "description": "Text under the Other automations heading"
   },
   "Tyhk/abQFS": {
     "defaultMessage": "What is the Hyperlocalise Startup Program?",
@@ -23646,6 +23990,10 @@
   "U76tWGMJVU": {
     "defaultMessage": "started an automation run",
     "description": "Action for starting an automation run"
+  },
+  "U7BlJqdUmg": {
+    "defaultMessage": "Use this workflow",
+    "description": "Call to action on a featured localisation workflow card"
   },
   "U7L1HEq5cv": {
     "defaultMessage": "characters",
@@ -23963,6 +24311,10 @@
     "defaultMessage": "No tasks with Reports data match.",
     "description": "Shown when the task search finds nothing"
   },
+  "UWS4Z91lmP": {
+    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Download Iris for Mac.",
+    "description": "Meta description for the Iris product page"
+  },
   "UWZ1G1FSvB": {
     "defaultMessage": "Untranslated first",
     "description": "CAT queue sort option that shows untranslated segments first"
@@ -24043,6 +24395,10 @@
     "defaultMessage": "All",
     "description": "Integration category filter tab showing every category"
   },
+  "UeADOH2IXX": {
+    "defaultMessage": "Iris",
+    "description": "AI channel: Iris, the Hyperlocalise desktop app for creatives"
+  },
   "UeIGZOrfgq": {
     "defaultMessage": "This Sanity authorization request is missing or expired. Start again from Sanity.",
     "description": "Error when the Sanity OAuth request cookie is missing"
@@ -24062,6 +24418,10 @@
   "UfyoQ9IKvC": {
     "defaultMessage": "Code block",
     "description": "Slash menu item for a fenced code block"
+  },
+  "UgGsS3G7nT": {
+    "defaultMessage": "Files change in Google Drive",
+    "description": "Trigger option: runs start when files in the automation's Google Drive folders are added or edited"
   },
   "UgPHp0bv4a": {
     "defaultMessage": "Delete {name}",
@@ -24723,6 +25083,10 @@
     "defaultMessage": "Query Deleted",
     "description": "Activity log event type label for deleting a Query"
   },
+  "VTASz0PXM4": {
+    "defaultMessage": "In project QA scans, AI scores every translated segment from 0 to 100. Segments scored below the project's estimation threshold become findings, so they count toward the quality score and can route work to human review. Unchanged segments reuse their earlier score. If the estimator stops part-way, older estimate findings stay open and the scan notes that estimates were incomplete.",
+    "description": "Help for the quality estimate QA check in project settings"
+  },
   "VTNiq0wxG3": {
     "defaultMessage": "Choose a TMS project",
     "description": "Title prompting the user to select a TMS project for live glossaries"
@@ -24778,6 +25142,10 @@
   "VaBWbObFr8": {
     "defaultMessage": "Bearer token",
     "description": "HTTP node bearer auth option"
+  },
+  "VaITe7E6yo": {
+    "defaultMessage": "This is not a valid pattern.",
+    "description": "Error under a path pattern that cannot be read"
   },
   "VaRVOa2ruT": {
     "defaultMessage": "Failed to update video mode",
@@ -24946,6 +25314,10 @@
   "Vq0Rk5ZFcw": {
     "defaultMessage": "Failed to load project",
     "description": "Fallback API error when project settings fail to load for file details"
+  },
+  "Vq3nULSNz4": {
+    "defaultMessage": "Iris for Mac is here",
+    "description": "Homepage hero announcement pill that links to the Iris page, announcing the Iris Mac app launch"
   },
   "VqCMClnRVk": {
     "defaultMessage": "Copy verification file contents",
@@ -25787,6 +26159,10 @@
     "defaultMessage": "Skipped",
     "description": "Import skipped count"
   },
+  "X33IduJXlN": {
+    "defaultMessage": "Layout checks",
+    "description": "Iris page capability title for catching broken layouts in translated assets"
+  },
   "X3WC1ONHHK": {
     "defaultMessage": "This language already has an approved image. Editing replaces it and sends it back to review.",
     "description": "Explanation that editing an approved gallery image overwrites it"
@@ -26079,6 +26455,10 @@
     "defaultMessage": "Testing what each market prefers.",
     "description": "FAQ subheading on the market-experimentation use case page"
   },
+  "XS4uGbZzzL": {
+    "defaultMessage": "What you need to get started",
+    "description": "Iris page heading above the platform, price and AI credit details"
+  },
   "XTQH6Cl2jC": {
     "defaultMessage": "GPT-6 Luna (Fast)",
     "description": "Label for the OpenAI GPT-6 Luna fast automation model"
@@ -26159,6 +26539,10 @@
     "defaultMessage": "Unable to add member to team.",
     "description": "Error adding a member to a team"
   },
+  "XaxUxOrSQ7": {
+    "defaultMessage": "Due in (hours)",
+    "description": "Label of the setting that sets a task's due date a number of hours after the step runs"
+  },
   "XbLeNEXbTC": {
     "defaultMessage": "Show API key",
     "description": "Aria label for revealing the Loops API key field"
@@ -26230,6 +26614,10 @@
   "XeOh0cpTI1": {
     "defaultMessage": "Status",
     "description": "Column header for membership status"
+  },
+  "XeUhOWspWv": {
+    "defaultMessage": "Pattern syntax",
+    "description": "Accessible label of the glob or regex switch on the path filter"
   },
   "XeXZ1sE3tK": {
     "defaultMessage": "e.g. Keep product names in English and preserve MDX components.",
@@ -26322,6 +26710,10 @@
   "Xo2+rtWc3U": {
     "defaultMessage": "Newest first",
     "description": "Crowdin glossary ordering option for newest glossaries"
+  },
+  "Xop9+UWzYg": {
+    "defaultMessage": "See plans and model rates",
+    "description": "Iris page link to the pricing page from the AI credit detail"
   },
   "XosmLLsDOK": {
     "defaultMessage": "Filter by type",
@@ -27271,6 +27663,10 @@
     "defaultMessage": "Tools",
     "description": "Section heading for automation tool settings"
   },
+  "Z3DwRJesqT": {
+    "defaultMessage": "Pull speech out of mixed audio",
+    "description": "Card summary for the ElevenLabs Voice Isolator model on the pricing page"
+  },
   "Z3S7OrVNyY": {
     "defaultMessage": "Email agent enabled",
     "description": "Toast after enabling the email agent"
@@ -27528,8 +27924,12 @@
     "description": "Shown when the webhook URL fails to load"
   },
   "ZT3mGAyTVi": {
-    "defaultMessage": "Authorize Hyperlocalise to access Sanity on your behalf through WorkOS Pipes.",
+    "defaultMessage": "Authorize Hyperlocalise to access Sanity on your behalf.",
     "description": "Intro when connecting Sanity with OAuth"
+  },
+  "ZTPtuGZQJE": {
+    "defaultMessage": "Describe and search footage",
+    "description": "Card summary for the Listen model on the pricing page"
   },
   "ZTpZqdYE6W": {
     "defaultMessage": "Details",
@@ -28303,6 +28703,10 @@
     "defaultMessage": "detached a glossary from a project",
     "description": "Action for detaching a glossary from a project"
   },
+  "aSP+9zPRje": {
+    "defaultMessage": "Translates each uploaded file with AI, then assigns a post-edit task per language, due in two days, that opens when the translation is done.",
+    "description": "What the MTPE workflow template does"
+  },
   "aSS7NkkPQ7": {
     "defaultMessage": "Keep your TMS as the system of record if you already have one.",
     "description": "github-release-localisation use case page: capabilities › items › #6 › body"
@@ -28346,6 +28750,10 @@
   "aXy7jDdqhj": {
     "defaultMessage": "Billing is not available for this workspace.",
     "description": "Error when the billing customer is unavailable"
+  },
+  "aYIs6jAO+Z": {
+    "defaultMessage": "Free to download. Mac only for now.",
+    "description": "Short note under an Iris download button saying the app costs nothing to download and only runs on macOS today"
   },
   "aYK9Ws6gX4": {
     "defaultMessage": "Keep editing",
@@ -28835,6 +29243,10 @@
     "defaultMessage": "Hyperlocalise",
     "description": "Product name shown next to the logo in the app shell sidebar"
   },
+  "bAcsTcwDMg": {
+    "defaultMessage": "Cancel",
+    "description": "Button to dismiss the dictionary deletion confirmation dialog"
+  },
   "bAkdHjBiWF": {
     "defaultMessage": "Technical details",
     "description": "QA failure diagnostic disclosure"
@@ -28914,6 +29326,10 @@
   "bHXY88TkOe": {
     "defaultMessage": "View findings",
     "description": "Workspace QA action to filter findings to one project"
+  },
+  "bHij4EA705": {
+    "defaultMessage": "Voice and dubbing",
+    "description": "Iris page capability title for voiceover and dubbing"
   },
   "bHnFWGWqed": {
     "defaultMessage": "No files are linked to this task.",
@@ -29142,6 +29558,10 @@
   "bZmWrWqZb+": {
     "defaultMessage": "Push source",
     "description": "Push source toggle label"
+  },
+  "ba52MnbtYg": {
+    "defaultMessage": "Lowest passing score, from 0 to 100.",
+    "description": "Project QA settings: help text for the pass threshold"
   },
   "baC+vfP5oL": {
     "defaultMessage": "Disabled after repeated failures",
@@ -29374,6 +29794,10 @@
   "bubst9Dzg+": {
     "defaultMessage": "Refresh repo list",
     "description": "Refresh repository list button label"
+  },
+  "bukf9DJ0yp": {
+    "defaultMessage": "Passed · threshold {threshold}",
+    "description": "Project QA overview: every language reached the pass threshold"
   },
   "bvPNfnGgVD": {
     "defaultMessage": "/auth.md",
@@ -30471,6 +30895,10 @@
     "defaultMessage": "Note",
     "description": "Label for an audience description field"
   },
+  "dMiZxsgrm/": {
+    "defaultMessage": "Localisation workflows",
+    "description": "Heading of the section with ready-made workflow templates on the new automation page"
+  },
   "dMlTGb8y8K": {
     "defaultMessage": "See quality and guidelines",
     "description": "Link from an integration detail page to a related use case"
@@ -30630,6 +31058,10 @@
   "dZcHfTdmF2": {
     "defaultMessage": "Numbered list",
     "description": "Tooltip and accessible label for the numbered list toolbar button"
+  },
+  "dZiSVEw/Vx": {
+    "defaultMessage": "No Iris thread",
+    "description": "AI usage group: calls made outside an Iris desktop app thread"
   },
   "dZjmTiak7a": {
     "defaultMessage": "Search team glossaries...",
@@ -31223,6 +31655,10 @@
     "defaultMessage": "Comments",
     "description": "Tab in the CAT details panel listing comments on the focused string"
   },
+  "eI7Cqkjjq4": {
+    "defaultMessage": "Images and ads",
+    "description": "Iris page capability title for localising images, banners and social ads"
+  },
   "eI8CB+a2hA": {
     "defaultMessage": "Translation mistake",
     "description": "Issue type filter option for a translation mistake"
@@ -31503,9 +31939,17 @@
     "defaultMessage": "Video, subtitles and dubbing",
     "description": "Marketing homepage cultureDetailVideoTitle"
   },
+  "ef9NaZ7SyI": {
+    "defaultMessage": "Job (optional)",
+    "description": "Label of the Run QA setting that checks only one job's file and languages"
+  },
   "efAi5lrO4s": {
     "defaultMessage": "Save and run",
     "description": "Button that saves the unsaved automation changes and then queues a run"
+  },
+  "efIxAXxmtW": {
+    "defaultMessage": "Make every asset feel local.",
+    "description": "Iris page introduction heading under the launch film"
   },
   "eg1vE4iGCz": {
     "defaultMessage": "Search templates",
@@ -31534,6 +31978,10 @@
   "ehiNyfW7wC": {
     "defaultMessage": "Add competitors",
     "description": "Open add competitors dialog"
+  },
+  "ei/+JUw/aJ": {
+    "defaultMessage": "AI credit for generation",
+    "description": "Iris page detail title explaining that generating assets uses AI credit"
   },
   "ej+FsoZqXe": {
     "defaultMessage": "Failed to load provider translation memories ({status})",
@@ -31727,6 +32175,10 @@
     "defaultMessage": "Choose one or more event types.",
     "description": "Hint for the activity log event type filter"
   },
+  "eyp3u/Dcme": {
+    "defaultMessage": "Quality estimates stopped before every segment was scored. Older estimate findings stay open.",
+    "description": "QA run notice when the per-segment quality estimate did not finish"
+  },
   "eyqY+L+ZXJ": {
     "defaultMessage": "Ask a workspace admin to build a workflow.",
     "description": "Note on the workflow card when the person's role cannot create workflows"
@@ -31755,6 +32207,10 @@
     "defaultMessage": "Meets the bar. Nothing to do.",
     "description": "Legend explanation for a passed check on the localisation audit landing page"
   },
+  "f+aTLZyByF": {
+    "defaultMessage": "Legal",
+    "description": "Project QA settings: legal content domain option"
+  },
   "f+cpbxZH+C": {
     "defaultMessage": "Sync localized strings and run validation on push.",
     "description": "GitHub integration description on the dashboard"
@@ -31767,6 +32223,10 @@
     "defaultMessage": "Reviewers see the rule, the source, and a suggested fix together, so corrections take seconds instead of a round trip.",
     "description": "localisation-quality-monitoring use case page: guide › steps › #3 › body"
   },
+  "f/GttDI9Xi": {
+    "defaultMessage": "Created {count, plural, one {# Linear issue} other {# Linear issues}} in {team}",
+    "description": "Toast after QA findings were filed as Linear issues"
+  },
   "f/Vobm5joW": {
     "defaultMessage": "More translation memory actions",
     "description": "Accessible label for the translation memory actions menu"
@@ -31778,6 +32238,10 @@
   "f01aYrKnGZ": {
     "defaultMessage": "Automation",
     "description": "Activity subtitle for an automation run on the overview"
+  },
+  "f0CobpM34f": {
+    "defaultMessage": "Add {pattern}",
+    "description": "Accessible label of an example path pattern button"
   },
   "f0NJ4uP7Ab": {
     "defaultMessage": "Created",
@@ -31914,6 +32378,10 @@
   "fBUXcsxgXO": {
     "defaultMessage": "Use Add files above to upload JSON, YAML, XLIFF, PO, Qt TS, images, Office files, and other supported formats.",
     "description": "Empty-state description for native projects with no uploaded files"
+  },
+  "fBYBrbL0G6": {
+    "defaultMessage": "AI translation on upload",
+    "description": "Title of the workflow template that translates each new source file with AI"
   },
   "fC01ZiLItd": {
     "defaultMessage": "Allow ordinary browser traffic through your firewall, CDN, bot protection, or login wall, then start a new audit.",
@@ -32146,6 +32614,10 @@
   "fUsluXqG6t": {
     "defaultMessage": "Verify {domain}",
     "description": "Verification heading"
+  },
+  "fVhXAnrH/m": {
+    "defaultMessage": "Gemini 4 Carbon",
+    "description": "Label for the Google Gemini 4 Carbon automation model"
   },
   "fVpiXJn1r7": {
     "defaultMessage": "translate, post-edit or proofread.",
@@ -32631,6 +33103,10 @@
     "defaultMessage": "Move while the opportunity is open",
     "description": "Story beat title: scale into markets while timing favors you"
   },
+  "g61fLD4F1a": {
+    "defaultMessage": "Send to Linear",
+    "description": "Button on the QA findings bar that files the selected findings as Linear issues"
+  },
   "g6Tru4ATTb": {
     "defaultMessage": "Estimated traffic is DataForSEO’s ETV estimate, captured on demand.",
     "description": "DataForSEO ETV disclosure"
@@ -32690,6 +33166,10 @@
   "gCwJ0sQiJR": {
     "defaultMessage": "Send to project",
     "description": "Project picker label for the use translation as source step: the project that takes the file as its source"
+  },
+  "gCwQoMqA0C": {
+    "defaultMessage": "When a post-edit or proofread task is done, runs QA on its work. Passing work is announced; failing work goes back to the same person to fix.",
+    "description": "What the review done workflow template does"
   },
   "gDPRQKf6Ay": {
     "defaultMessage": "Audiences",
@@ -33467,10 +33947,6 @@
     "defaultMessage": "Query actions",
     "description": "Aria label for the query detail overflow menu"
   },
-  "hEEAW/iMSI": {
-    "defaultMessage": "Iris, the AI localisation engine for multilingual assets",
-    "description": "Visually hidden heading for the Iris waitlist page"
-  },
   "hEZ5a5ZO9w": {
     "defaultMessage": "Use translation memory match 1–3",
     "description": "Keyboard shortcuts dialog row for applying one of the first three translation memory matches"
@@ -33627,10 +34103,6 @@
     "defaultMessage": "Fix the QA errors before saving: {checks}",
     "description": "Error shown when a translator declines to save past failing QA Error checks, or a bulk save hits them"
   },
-  "hRiPxjtqBZ": {
-    "defaultMessage": "Connect a Gemini key and use Pro for harder drafts. Google bills this usage. It does not draw down your monthly AI credit.",
-    "description": "Story for Gemini Pro on the pricing page"
-  },
   "hSHhxI/mnH": {
     "defaultMessage": "Try it now",
     "description": "Opens the feature described in the product update announcement card"
@@ -33706,10 +34178,6 @@
   "hXSssVY0i9": {
     "defaultMessage": "Pending",
     "description": "Tool status badge when tool input is still streaming"
-  },
-  "hXWQPTAV5J": {
-    "defaultMessage": "Start from a template",
-    "description": "Heading of the templates section on the new automation page"
   },
   "hXea3UMGXu": {
     "defaultMessage": "With the noise gone, reviewers only see the words that need fixing.",
@@ -34203,6 +34671,10 @@
     "defaultMessage": "Search concepts",
     "description": "Accessible label for the concept search input"
   },
+  "iDirbS65Em": {
+    "defaultMessage": "Delete dictionary",
+    "description": "Button to delete the current dictionary"
+  },
   "iE2A3xoRIH": {
     "defaultMessage": "Done",
     "description": "Bulk action bar button that exits selection mode"
@@ -34518,6 +34990,10 @@
   "ibTu9Z1u2B": {
     "defaultMessage": "Active",
     "description": "Status toggle label when the automation is active"
+  },
+  "ibV/CKuQ9K": {
+    "defaultMessage": "Pull speech out of a mixed track, or recast it in another voice, without leaving the Iris timeline.",
+    "description": "Story for Iris voice tools (voice isolation, voice changer) on the pricing page"
   },
   "icuWnstCMG": {
     "defaultMessage": "Edit locales",
@@ -35179,6 +35655,10 @@
     "defaultMessage": "Drag the divider to compare. Use arrow keys when focused.",
     "description": "Image viewer: dividerHint"
   },
+  "jYP7V6VeVA": {
+    "defaultMessage": "QA",
+    "description": "Step in a featured workflow's flow: QA checks run"
+  },
   "jZ//cDcZ51": {
     "defaultMessage": "Conversation messages will appear here.",
     "description": "Empty state description when an inbox conversation has no messages"
@@ -35439,6 +35919,10 @@
     "defaultMessage": "Download conversation",
     "description": "Accessible label and tooltip for the button that downloads the conversation as a file"
   },
+  "jz4GTlYvSI": {
+    "defaultMessage": "Examples",
+    "description": "Label before example path patterns a person can click to add"
+  },
   "jzHn8+99pe": {
     "defaultMessage": "Hide {title}",
     "description": "Button that collapses a guideline document in the editor sheet"
@@ -35522,6 +36006,10 @@
   "k3TrZpmKkB": {
     "defaultMessage": "Jobs created and tracked in this workspace.",
     "description": "Description under the native jobs section title"
+  },
+  "k3doPysMk7": {
+    "defaultMessage": "Iris audio and media tools",
+    "description": "AI feature: speech, music, transcripts, media analysis and other tools run in Iris, the desktop app"
   },
   "k3eu1T7STw": {
     "defaultMessage": "Start a new audit",
@@ -35627,9 +36115,17 @@
     "defaultMessage": "another issue",
     "description": "Fallback name for a related issue when its title isn't available (cross-project)"
   },
+  "kBVwXjVr0i": {
+    "defaultMessage": "Iris is the AI localisation engine for multilingual assets. Create and adapt images, video, voice and audio for every language and market, right from your Mac.",
+    "description": "Iris page introduction body explaining what the Iris desktop app does"
+  },
   "kBjfpWlIHs": {
     "defaultMessage": "Running",
     "description": "Tool status badge when the tool is running"
+  },
+  "kBpQcdptW3": {
+    "defaultMessage": "Iris runs image, video, voice and audio models from several AI vendors. The pricing page lists every model Iris can run and what each one costs.",
+    "description": "Iris page FAQ answer about the AI models behind Iris"
   },
   "kC1soSUZq7": {
     "defaultMessage": "The event this trigger passes on when you test the workflow. Real runs use the real event.",
@@ -35843,6 +36339,10 @@
     "defaultMessage": "Import Help Center articles into a native project, then push approved translations back as Intercom drafts.",
     "description": "Explanation of what a connected Intercom workspace can do"
   },
+  "kTkTSkxal4": {
+    "defaultMessage": "This content domain uses at least {domainFloor}.",
+    "description": "Project QA settings: note under the estimate threshold when the content domain sets a higher minimum"
+  },
   "kTq8UVI+8c": {
     "defaultMessage": "Languages",
     "description": "Label of the new task's target languages"
@@ -35959,6 +36459,10 @@
     "defaultMessage": "03 Count what wins",
     "description": "Hyperlab workflow step 3"
   },
+  "kcrePkUiva": {
+    "defaultMessage": "Glob",
+    "description": "Path filter syntax option: glob patterns such as **/*.json"
+  },
   "kdGPpCpall": {
     "defaultMessage": "1 Jul – 30 Sep",
     "description": "Reports mock UI date range label"
@@ -35966,6 +36470,10 @@
   "ke25Z8UYMw": {
     "defaultMessage": "Members",
     "description": "Heading above the team members list"
+  },
+  "keB6ISfBZ6": {
+    "defaultMessage": "This permanently deletes {dictionaryName} and all of its accepted words. This action cannot be undone.",
+    "description": "Description of the dictionary deletion confirmation dialog"
   },
   "keLfuoYZXy": {
     "defaultMessage": "Track every locale live",
@@ -36195,6 +36703,10 @@
     "defaultMessage": "Powered by DataForSEO Labs’ Google Domain Rank Overview API.",
     "description": "Market data attribution"
   },
+  "kzRKNukaB3": {
+    "defaultMessage": "Iris images",
+    "description": "AI feature: images generated or edited in Iris, the desktop app"
+  },
   "kzjEnGFmtM": {
     "defaultMessage": "{skipped, plural, one {Skipped # unmatched or empty row.} other {Skipped # unmatched or empty rows.}}",
     "description": "Follow-on toast text after bilingual import. {skipped} is unmatched or empty rows"
@@ -36202,6 +36714,10 @@
   "kzwi13YrTF": {
     "defaultMessage": "Optional. Add anything specific to your team: tone, report format, what to ignore.",
     "description": "Placeholder for the automation instructions textarea when a skill is attached"
+  },
+  "l+ic10z8k+": {
+    "defaultMessage": "Every file starts the workflow. Add a pattern to run only for some files.",
+    "description": "Shown under the path filter while it has no patterns"
   },
   "l+omfB57gF": {
     "defaultMessage": "Guidelines",
@@ -36622,6 +37138,10 @@
   "lYH/c2rk1D": {
     "defaultMessage": "Needs review",
     "description": "Multilingual table highlight option for translations waiting for review"
+  },
+  "lYS3k+allm": {
+    "defaultMessage": "AI translation with a QA gate",
+    "description": "Title of the workflow template that sends AI translations to human review only when QA asks for it"
   },
   "lYqWI3Hv5b": {
     "defaultMessage": "This string is locked. Unlock it to add a concept.",
@@ -37343,6 +37863,10 @@
     "defaultMessage": "Refresh preview",
     "description": "Aria label for refresh button on the visual editor preview URL bar"
   },
+  "mRh696+WIu": {
+    "defaultMessage": "Connect Linear in Integrations to send findings there.",
+    "description": "Shown when the person has not connected their Linear account"
+  },
   "mRvhPlspGD": {
     "defaultMessage": "When do I need Enterprise?",
     "description": "Pricing FAQ question about Enterprise fit"
@@ -37362,6 +37886,10 @@
   "mTauU9Q8fj": {
     "defaultMessage": "Unchanged",
     "description": "Tab for deep audit findings also present in the previous run"
+  },
+  "mUAsBEj5Ug": {
+    "defaultMessage": "Builds for Apple Silicon and Intel Macs. Iris is Mac only for now, so Windows and Linux are not supported yet.",
+    "description": "Iris page detail body about which computers can run Iris"
   },
   "mUSeeXuwsP": {
     "defaultMessage": "Failed to load dictionaries.",
@@ -38427,6 +38955,10 @@
     "defaultMessage": "Invite and manage members",
     "description": "Link to the workspace members page from the sidebar workspace switcher, shown to users who can invite members"
   },
+  "nvJIFxM8Ts": {
+    "defaultMessage": "Task done",
+    "description": "Step in a featured workflow's flow: a review task is marked done"
+  },
   "nwEXrsmZmr": {
     "defaultMessage": "Enable this repository before configuring automation.",
     "description": "API error when configuring automation on a disabled repository"
@@ -38462,6 +38994,10 @@
   "o/5bDmAGTd": {
     "defaultMessage": "Used as the prefix for new issue IDs (e.g. HL-12). Must be unique among projects in this workspace. Existing issue IDs are kept.",
     "description": "Help text under the project issue identifier field"
+  },
+  "o/WNblFvuF": {
+    "defaultMessage": "Recast speech in another voice",
+    "description": "Card summary for the ElevenLabs Voice Changer model on the pricing page"
   },
   "o/m/oSG780": {
     "defaultMessage": "Open issues",
@@ -38610,6 +39146,10 @@
   "oFoqUqR3xA": {
     "defaultMessage": "Unable to load language progress.",
     "description": "Error message when locale progress fails to load"
+  },
+  "oGG66eAqv0": {
+    "defaultMessage": "Run on",
+    "description": "Label of the choice of which uploads start a Source upload workflow"
   },
   "oGqbKb18Lb": {
     "defaultMessage": "Close the assistant",
@@ -39083,6 +39623,10 @@
     "defaultMessage": "Suggested: “{suggestion}”",
     "description": "Inline suggested replacement for the first QA issue"
   },
+  "opXOXg+I3A": {
+    "defaultMessage": "Insert a step on this wire",
+    "description": "Accessible label for the plus control in the middle of a workflow wire"
+  },
   "oppq51uTAm": {
     "defaultMessage": "Size",
     "description": "Pick assignee input: how big the work is"
@@ -39483,6 +40027,10 @@
     "defaultMessage": "Source file",
     "description": "Glossary import source file label"
   },
+  "pN22I6+aJc": {
+    "defaultMessage": "Gemini 4 Hydrogen",
+    "description": "Label for the Google Gemini 4 Hydrogen automation model"
+  },
   "pNA+bX2Ulk": {
     "defaultMessage": "Content Editor / Review queue",
     "description": "Location breadcrumb for the QA banner segment in the hero Content Editor mock"
@@ -39751,6 +40299,10 @@
     "defaultMessage": "{step} step",
     "description": "Subtitle of the finished words by language list"
   },
+  "pgWGvAMQcI": {
+    "defaultMessage": "A regular expression tested against the whole path, ignoring case, such as ^locales/en/.*\\.json$.",
+    "description": "How regex patterns work, under the Source upload path filter"
+  },
   "pgj0hoaJ/o": {
     "defaultMessage": "Coverage",
     "description": "URL inspection coverage label"
@@ -39786,6 +40338,10 @@
   "pjTufHJtA+": {
     "defaultMessage": "SSO / SAML",
     "description": "Pricing matrix row label for SSO"
+  },
+  "pjYA9ErMWK": {
+    "defaultMessage": "Keep a pattern under 200 characters.",
+    "description": "Error under a path pattern that is too long"
   },
   "pjmwxFyZ2z": {
     "defaultMessage": "Complete successfully",
@@ -40635,6 +41191,10 @@
     "defaultMessage": "Last {days} days",
     "description": "Ready-made date range: the last N days, today included"
   },
+  "qodhPbECWl": {
+    "defaultMessage": "{count, plural, one {# language} other {# languages}} below threshold {threshold}",
+    "description": "Project QA overview: languages that did not pass the quality threshold"
+  },
   "qpxWkOMxRR": {
     "defaultMessage": "Name",
     "description": "Label for the dictionary name field"
@@ -40682,6 +41242,10 @@
   "qtTx0ZhgLU": {
     "defaultMessage": "Polish (Poland)",
     "description": "Display name for BCP-47 locale pl-PL"
+  },
+  "quTg02JT7U": {
+    "defaultMessage": "See pricing",
+    "description": "Link after the Iris availability note that opens the pricing page"
   },
   "quhhKaWY+z": {
     "defaultMessage": "Manage integrations",
@@ -41295,6 +41859,10 @@
     "defaultMessage": "Secret access key",
     "description": "Label for the AWS secret access key"
   },
+  "rfkzkk/MO+": {
+    "defaultMessage": "Translates each uploaded source file with AI, waits for it, runs QA on that file and posts the result to Slack.",
+    "description": "What the AI translation on upload workflow template does"
+  },
   "rfsreH4z0t": {
     "defaultMessage": "Members",
     "description": "Read-only link to the workspace members list from the sidebar workspace switcher"
@@ -41794,6 +42362,10 @@
   "sLTQn6B7e0": {
     "defaultMessage": "Asset management",
     "description": "Job kind option on the job changed trigger"
+  },
+  "sLaKcboN5o": {
+    "defaultMessage": "For each language of an uploaded file, assigns translate, edit and proofread tasks. Each opens when the one before it is done.",
+    "description": "What the TEP workflow template does"
   },
   "sLmZG0yQ3C": {
     "defaultMessage": "{count} ranking keywords",
@@ -42347,6 +42919,10 @@
     "defaultMessage": "Failed to load members",
     "description": "Fallback error when organization members fail to load"
   },
+  "t8nxKUE6u+": {
+    "defaultMessage": "Use Pro for harder drafts. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Gemini key if you want Google to bill this model instead.",
+    "description": "Story for Gemini Pro on the pricing page"
+  },
   "t8uH650RAY": {
     "defaultMessage": "Crowdin project ID",
     "description": "Numeric Crowdin project setting on the Crowdin steps"
@@ -42362,10 +42938,6 @@
   "t9u0C/3PvD": {
     "defaultMessage": "Book a demo. We'll confirm eligibility and show you startup pricing at 80% off Growth.",
     "description": "Final CTA supporting copy on the startups page"
-  },
-  "t9wxr1NNC0": {
-    "defaultMessage": "Connect an Anthropic key and use Sonnet for longer drafts and review notes. Anthropic bills this usage. It does not draw down your monthly AI credit.",
-    "description": "Story for Claude Sonnet on the pricing page"
   },
   "tAIkYXyE7a": {
     "defaultMessage": "A lab connected to the bigger picture.",
@@ -42611,6 +43183,10 @@
     "defaultMessage": "English (United Kingdom)",
     "description": "Display name for BCP-47 locale en-GB"
   },
+  "tW1a3BKGZD": {
+    "defaultMessage": "Review if needed",
+    "description": "Step in a featured workflow's flow: people review the work only when QA asks for it"
+  },
   "tWfjSsUysY": {
     "defaultMessage": "Not recommended",
     "description": "Not recommended native glossary term status"
@@ -42715,6 +43291,10 @@
     "defaultMessage": "Import translation memory",
     "description": "Marketing homepage guideTmTitle"
   },
+  "tgqxU3MqpJ": {
+    "defaultMessage": "Which Macs can run Iris?",
+    "description": "Iris page FAQ question about supported Macs"
+  },
   "thEFPkPaJE": {
     "defaultMessage": "Remove sample data",
     "description": "Button that deletes the sample projects and resources"
@@ -42758,10 +43338,6 @@
   "tlhF4FQ2PT": {
     "defaultMessage": "Choose a file, or write the guideline.",
     "description": "Footer hint on the guideline upload page before a file is selected"
-  },
-  "tm2wgAMGK3": {
-    "defaultMessage": "Join the waitlist",
-    "description": "Primary button that opens the Iris Tally waitlist form"
   },
   "tmfZmWyVtO": {
     "defaultMessage": "Source files",
@@ -43259,6 +43835,10 @@
     "defaultMessage": "Show secondary task properties",
     "description": "Accessible label when secondary job properties are collapsed"
   },
+  "uST5+aAtqk": {
+    "defaultMessage": "Pattern {number}",
+    "description": "Accessible label of one path pattern box; number counts from 1"
+  },
   "uSTMZ4V2UT": {
     "defaultMessage": "Support · 12 locales · synced",
     "description": "localisation-operations use case page: hero › visual › primary › items › #3 › meta"
@@ -43318,6 +43898,10 @@
   "uXkk9nvslN": {
     "defaultMessage": "Technical",
     "description": "Deep audit dimension: technical localisation checks"
+  },
+  "uXu5iikA3V": {
+    "defaultMessage": "Critical",
+    "description": "MQM penalty level: critical, 25 points; any critical finding fails the language"
   },
   "uXvES3jNQD": {
     "defaultMessage": "Scheduled",
@@ -43779,6 +44363,10 @@
     "defaultMessage": "Every locale is live",
     "description": "help-center-localisation use case page: scenario › events › #4 › title"
   },
+  "v8/Eb3C3P6": {
+    "defaultMessage": "Iris is free to download and install. Generating images, video and audio uses AI credit, which paid plans include from $20 a month. The pricing page lists the rate for every model.",
+    "description": "Iris page FAQ answer about price"
+  },
   "v8HmqsxSuZ": {
     "defaultMessage": "Ranks",
     "description": "App shell breadcrumb title for domain rank tracking"
@@ -43846,6 +44434,10 @@
   "vF01WtRXQ8": {
     "defaultMessage": "Upscale a video",
     "description": "Card summary for the ByteDance video upscaler on the pricing page"
+  },
+  "vFIbVLco1O": {
+    "defaultMessage": "Iris agent",
+    "description": "AI feature: a turn of the agent in Iris, the desktop app"
   },
   "vFXL8WUX2+": {
     "defaultMessage": "Review and quality checks",
@@ -44471,6 +45063,10 @@
     "defaultMessage": "Remove Create job",
     "description": "Accessible label to remove the Create job tool"
   },
+  "w2cJysSXjy": {
+    "defaultMessage": "Loading teams…",
+    "description": "Shown while the Linear teams list loads"
+  },
   "w2tot+OYiM": {
     "defaultMessage": "Completed",
     "description": "Wait completion output"
@@ -44518,10 +45114,6 @@
   "w7Pf6lfSKh": {
     "defaultMessage": "Filtered by tags",
     "description": "Accessible name of the row of tag filters beside the search box"
-  },
-  "w7U8I+r5dS": {
-    "defaultMessage": "Request a Demo",
-    "description": "Marketing navbar call-to-action to request a demo"
   },
   "w7sk9jcVLD": {
     "defaultMessage": "asset management",
@@ -44646,6 +45238,10 @@
   "wHFmp4/+wj": {
     "defaultMessage": "Source file",
     "description": "Inbox issue detail source label in content ops mock"
+  },
+  "wHdnjWrvAW": {
+    "defaultMessage": "Iris videos",
+    "description": "AI feature: videos generated in Iris, the desktop app"
   },
   "wI7t6e90fP": {
     "defaultMessage": "Project",
@@ -45067,6 +45663,10 @@
     "defaultMessage": "Back to teams",
     "description": "Link back to the workspace teams list"
   },
+  "wtwB9wYEeh": {
+    "defaultMessage": "Runs on Mac",
+    "description": "Iris page detail title about which computers can run Iris"
+  },
   "wtxoYMaNGy": {
     "defaultMessage": "Space ID",
     "description": "Label for the Contentful space ID field"
@@ -45118,6 +45718,10 @@
   "wwKiGsumAM": {
     "defaultMessage": "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents check drafts against the brand and compliance files your team already maintains.",
     "description": "Meta description for the Guidelines product page"
+  },
+  "wwVFm2ECvN": {
+    "defaultMessage": "The Iris app costs nothing to download and install.",
+    "description": "Iris page detail body saying the Iris app costs nothing to download"
   },
   "wwl2e+kYrU": {
     "defaultMessage": "Usage meter copy shown in billing and review dashboards.",
@@ -45603,6 +46207,10 @@
     "defaultMessage": "We created the workspace, but could not prepare its URL. Please retry.",
     "description": "Error when workspace was created without a usable slug"
   },
+  "xXdEvsjNEO": {
+    "defaultMessage": "Is there a Windows or Linux version?",
+    "description": "Iris page FAQ question about Windows and Linux support"
+  },
   "xXi7rFWRDl": {
     "defaultMessage": "Quality scores by locale, vendor, and content type, tracked over time.",
     "description": "localisation-quality-monitoring use case page: shift › after › #3"
@@ -45610,6 +46218,14 @@
   "xXvQeFYygi": {
     "defaultMessage": "Ready for the next market?",
     "description": "Final CTA heading on the startups page"
+  },
+  "xXxJgL1vao": {
+    "defaultMessage": "New",
+    "description": "Small tag inside the homepage hero announcement pill for the Iris launch"
+  },
+  "xYAEn3Yicl": {
+    "defaultMessage": "Create issues in team",
+    "description": "Label above the list of Linear teams to file QA findings in"
   },
   "xYZMz3piZI": {
     "defaultMessage": "Could not lock this string. Try again.",
@@ -45707,6 +46323,10 @@
     "defaultMessage": "Loading…",
     "description": "Button label while more issue comments are loading"
   },
+  "xdd2UBxiby": {
+    "defaultMessage": "Duplicate",
+    "description": "Shortcut label for duplicating the selected workflow steps"
+  },
   "xePdJUPla7": {
     "defaultMessage": "Add other target locale",
     "description": "Accessible label for the button that reveals the custom locale input"
@@ -45758,6 +46378,10 @@
   "xiDdn1qcaz": {
     "defaultMessage": "9 locales",
     "description": "localisation-cli-and-api use case page: hero › visual › floating › items › #2 › meta"
+  },
+  "xiRC52jGRm": {
+    "defaultMessage": "Regex",
+    "description": "Path filter syntax option: regular expressions"
   },
   "xiUq3JN/5o": {
     "defaultMessage": "Errors",
@@ -46071,6 +46695,10 @@
     "defaultMessage": "See how each market searches for what you sell, where you rank, and how AI answers talk about you. Then create the localised content that captures that demand.",
     "description": "market-entry use case page: hero › body"
   },
+  "y2u7doaXXd": {
+    "defaultMessage": "Quality score",
+    "description": "Project QA settings: switch that turns on MQM quality scoring"
+  },
   "y301nYXIIx": {
     "defaultMessage": "Enabled",
     "description": "Badge shown when a Canva connection is enabled"
@@ -46259,6 +46887,10 @@
     "defaultMessage": "Translate with agent",
     "description": "Context menu action to translate a project file with an agent"
   },
+  "yIlgFUYLPm": {
+    "defaultMessage": "Segments the AI estimate scores below this, from 0 to 100, become findings.",
+    "description": "Project QA settings: help text for the quality estimate threshold"
+  },
   "yIwRFz93s7": {
     "defaultMessage": "Italian (Italy)",
     "description": "Display name for BCP-47 locale it-IT"
@@ -46282,6 +46914,10 @@
   "yJtQmL9RYq": {
     "defaultMessage": "Used by {count, plural, one {# project sync} other {# project syncs}}.",
     "description": "How many project syncs run with a GitLab connection"
+  },
+  "yJtUqiy1Lo": {
+    "defaultMessage": "Iris, the AI localisation engine",
+    "description": "Open Graph heading for the Iris product page"
   },
   "yKFLGCc18p": {
     "defaultMessage": "Style guide",

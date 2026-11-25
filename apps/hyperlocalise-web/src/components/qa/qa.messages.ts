@@ -395,6 +395,23 @@ export const qaMessages = defineMessages({
     description: "Help for the guideline QA check in the editor and scans",
     id: "qkcs2YRJiN",
   },
+  quality_estimate: {
+    defaultMessage: "Estimated quality",
+    description: "QA review: per-segment AI quality estimate check",
+    id: "2bbc7EgHVF",
+  },
+  qualityEstimateHelp: {
+    defaultMessage:
+      "In project QA scans, AI scores every translated segment from 0 to 100. Segments scored below the project's estimation threshold become findings, so they count toward the quality score and can route work to human review. Unchanged segments reuse their earlier score. If the estimator stops part-way, older estimate findings stay open and the scan notes that estimates were incomplete.",
+    description: "Help for the quality estimate QA check in project settings",
+    id: "VTASz0PXM4",
+  },
+  qualityEstimateIncomplete: {
+    defaultMessage:
+      "Quality estimates stopped before every segment was scored. Older estimate findings stay open.",
+    description: "QA run notice when the per-segment quality estimate did not finish",
+    id: "eyp3u/Dcme",
+  },
   explainError: {
     defaultMessage: "Could not explain this finding. Please retry.",
     description: "QA finding card error when on-demand guideline reasoning fails",

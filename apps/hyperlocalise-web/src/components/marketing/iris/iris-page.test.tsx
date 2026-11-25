@@ -18,13 +18,12 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { IrisPage } from "./iris-page";
 import { irisMacDownloadUrl } from "@/lib/iris/iris-download";
-import { IRIS_WAITLIST_URL } from "@/lib/iris/iris-waitlist";
 
 describe("IrisPage", () => {
-  it("renders the waitlist control and a sound toggle once the film can play", async () => {
+  it("renders the Mac download control and a sound toggle once the film can play", async () => {
     render(
       <IntlProvider locale="en" messages={{}} onError={() => undefined}>
-        <IrisPage />
+        <IrisPage faqItems={[{ question: "Is Iris free?", answer: "Free to download." }]} />
       </IntlProvider>,
     );
 
@@ -34,16 +33,13 @@ describe("IrisPage", () => {
         name: "Iris, the AI localisation engine for multilingual assets",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Join the waitlist" })).toHaveAttribute(
-      "href",
-      IRIS_WAITLIST_URL,
-    );
-    expect(screen.getByRole("button", { name: "Download for Mac" })).toHaveAttribute(
+    expect(screen.queryByRole("button", { name: "Join the waitlist" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Download for Mac" })[0]).toHaveAttribute(
       "href",
       irisMacDownloadUrl("arm64"),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "More Mac downloads" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "More Mac downloads" })[0]!);
     expect(await screen.findByRole("menuitem", { name: "Apple Silicon Mac" })).toHaveAttribute(
       "href",
       irisMacDownloadUrl("arm64"),
@@ -52,6 +48,14 @@ describe("IrisPage", () => {
       "href",
       irisMacDownloadUrl("x64"),
     );
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Make every asset feel local." }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Is Iris free?")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: /See pricing|See plans and model rates/ }).length,
+    ).toBeGreaterThan(0);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Unmute the launch film" })).toBeInTheDocument();

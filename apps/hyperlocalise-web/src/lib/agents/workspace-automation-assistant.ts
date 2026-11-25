@@ -104,7 +104,7 @@ const INTEGRATIONS: readonly WorkspaceAutomationSkillIntegration[] = [
 ];
 
 export const triggerSummarySchema = z.union([
-  z.object({ mode: z.enum(["manual", "contentful", "source_upload", "web_chat"]) }),
+  z.object({ mode: z.enum(["manual", "contentful", "source_upload", "web_chat", "google_drive"]) }),
   z.object({
     mode: z.literal("scheduled"),
     cadence: z.enum(["hourly", "daily", "weekly"]),
@@ -618,6 +618,8 @@ export function describeWorkspaceAutomationTrigger(
       return "when a source file is uploaded";
     case "web_chat":
       return "from a web chat";
+    case "google_drive":
+      return "when files change in the connected Google Drive folders";
     default:
       return assertNever(trigger);
   }

@@ -176,6 +176,139 @@ describe("glossaryRoutes", () => {
     expect(body.concept.terms[0]).not.toHaveProperty("externalKey");
   });
 
+  it("rejects a pronunciation over 200 characters", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Checkout",
+          translatable: true,
+          terms: [
+            {
+              locale: "en",
+              term: "Checkout",
+              pronunciation: "a".repeat(201),
+              status: "draft",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_glossary_payload",
+    });
+  });
+
+  it("clears a term pronunciation when a concept patch sends null, and keeps it when omitted", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Checkout",
+          translatable: true,
+          terms: [
+            {
+              locale: "vi-VN",
+              term: "Thanh toán",
+              pronunciation: "tahn twahn",
+              status: "draft",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as {
+      concept: {
+        id: string;
+        terms: Array<{
+          id: string;
+          locale: string;
+          term: string;
+          pronunciation?: string | null;
+        }>;
+      };
+    };
+    const vietnamese = created.concept.terms.find((term) => term.locale === "vi-VN");
+    expect(vietnamese?.pronunciation).toBe("tahn twahn");
+
+    const keepResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts[":conceptId"].$patch(
+      {
+        param: { organizationSlug, glossaryId, conceptId: created.concept.id },
+        json: {
+          terms: created.concept.terms.map((term) => ({
+            id: term.id,
+            locale: term.locale,
+            term: term.term,
+          })),
+        },
+      },
+      { headers },
+    );
+    expect(keepResponse.status).toBe(200);
+    await expect(keepResponse.json()).resolves.toMatchObject({
+      concept: {
+        terms: expect.arrayContaining([
+          expect.objectContaining({
+            id: vietnamese!.id,
+            pronunciation: "tahn twahn",
+          }),
+        ]),
+      },
+    });
+
+    const clearResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts[":conceptId"].$patch(
+      {
+        param: { organizationSlug, glossaryId, conceptId: created.concept.id },
+        json: {
+          terms: created.concept.terms.map((term) => ({
+            id: term.id,
+            locale: term.locale,
+            term: term.term,
+            pronunciation: term.id === vietnamese!.id ? null : term.pronunciation,
+          })),
+        },
+      },
+      { headers },
+    );
+    expect(clearResponse.status).toBe(200);
+    const cleared = (await clearResponse.json()) as {
+      concept: { terms: Array<{ id: string; pronunciation?: string | null }> };
+    };
+    const clearedTerm = cleared.concept.terms.find((term) => term.id === vietnamese!.id);
+    expect(clearedTerm?.pronunciation ?? null).toBeNull();
+  });
+
   it("preserves omitted concept fields during a sparse patch", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
@@ -846,9 +979,10 @@ describe("glossaryRoutes", () => {
       role: "member",
     });
 
+    const externalProjectId = uniqueTestProjectIdentifier();
     const projectId = encodeProviderProjectId({
       providerKind: "crowdin",
-      externalProjectId: "902807",
+      externalProjectId,
     });
     await db.insert(schema.projects).values({
       id: projectId,
@@ -860,7 +994,7 @@ describe("glossaryRoutes", () => {
       name: "Materialized Crowdin Project",
       source: "external_tms",
       externalProviderKind: "crowdin",
-      externalProjectId: "902807",
+      externalProjectId,
       sourceLocale: "en-US",
       targetLocales: ["es-ES"],
       isActive: true,

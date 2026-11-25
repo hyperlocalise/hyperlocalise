@@ -149,6 +149,8 @@ export const AI_FILTER_DIMENSIONS = [
   "model",
   "provider",
   "automation",
+  "member",
+  "thread",
 ] as const satisfies readonly AiUsageDimension[];
 export type AiFilterDimension = (typeof AI_FILTER_DIMENSIONS)[number];
 export type AiFilters = Partial<Record<AiFilterDimension, string>>;

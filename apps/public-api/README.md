@@ -135,7 +135,7 @@ filters. Missing and inaccessible records both return `404`.
 | Screenshots | `GET, POST /v1/projects/{projectId}/screenshots`, `GET, DELETE .../screenshots/{screenshotId}`, `POST .../finalize`, `POST .../markers`, `DELETE .../markers/{markerId}` | `strings:read` / `strings:write` |
 | Figma attachments | `GET, POST /v1/projects/{projectId}/figma-attachments`, `GET, DELETE .../figma-attachments/{attachmentId}`, `GET, POST, DELETE .../strings` (views over strings' `designUrl`) | `strings:read` / `strings:write`, for admins, localization managers and developers |
 | Batch review | `POST /v1/projects/{projectId}/translations/approve`, `POST .../translations/send-to-review` | `translations:approve` / `strings:write` |
-| Bilingual files | `GET, POST /v1/projects/{projectId}/bilingual-file` (CSV, TMX, XLF, XLIFF, XLSX) | `strings:read` / `translations:approve` |
+| Bilingual files | `GET, POST /v1/projects/{projectId}/bilingual-file` (CSV, TMX, XLF, XLIFF, XLSX; optional `branch`) | `strings:read` / `translations:approve` |
 | Translations | `GET /v1/projects/{projectId}/translations`, `GET /v1/projects/{projectId}/strings/{stringId}/translations`, `GET, PUT .../translations/{locale}` | `strings:read` / `strings:write`; `translations:approve` to approve or reject |
 | Glossaries | `GET /v1/glossaries`, `GET /v1/glossaries/{glossaryId}`, `GET .../terms`, `GET .../export` (TBX, CSV, XLSX) | `glossaries:read` |
 | Translation memories | `GET /v1/translation-memories`, `GET /v1/translation-memories/{memoryId}`, `GET .../entries`, `GET .../export` (TMX, CSV) | `translation-memories:read` |
@@ -179,8 +179,9 @@ design link through the strings bulk update. Unlinking and deleting clear it, an
 
 Bilingual imports, string batches, and memory imports apply in one transaction.
 Bilingual imports save approved translations with provenance `import` and skip
-locked or over-length segments. Job updates port the web app's
-`updateNativeJob`.
+locked or over-length segments. Optional `branch` (query on GET, form field on
+POST) selects a native version branch; omit it or leave it empty to use `main`.
+Job updates port the web app's `updateNativeJob`.
 
 Every new write records a workspace activity-log event in the same transaction
 as the change, attributed to the token (`api_key` actor, the token id as the

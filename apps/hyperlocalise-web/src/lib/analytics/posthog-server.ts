@@ -161,7 +161,10 @@ export async function capturePostHogServerException(
     await posthogServerClient(
       projectToken,
       options?.host ?? posthogIngestHost(),
-    ).captureExceptionImmediate(error, distinctId, event.properties);
+    ).captureExceptionImmediate(error, {
+      distinctId,
+      properties: event.properties,
+    });
   } catch {
     // Error tracking must not break the product path.
   }

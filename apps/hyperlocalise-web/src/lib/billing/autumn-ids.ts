@@ -38,6 +38,7 @@ export const autumnFeatureIds = {
   agentRuns: "agent_runs",
   seats: "seats",
   projects: "projects",
+  /** Allocated automation quota; also the plan gate for Automations nav and pages. */
   automations: "automations",
   integrations: "integrations",
   aiFeatures: "ai_features",

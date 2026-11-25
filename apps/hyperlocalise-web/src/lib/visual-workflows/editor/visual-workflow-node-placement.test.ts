@@ -88,6 +88,16 @@ describe("placeNewVisualWorkflowNode", () => {
     expect([place("attempt"), place("succeeded"), place("exhausted")]).toEqual([80, 236, 392]);
   });
 
+  it("centres a dropped step on the release point", () => {
+    expect(
+      placeNewVisualWorkflowNode({
+        nodes: [],
+        position: { x: 400, y: 200 },
+        size,
+      }),
+    ).toEqual({ x: 260, y: 148 });
+  });
+
   it("falls back to a fixed spot when the view is not known", () => {
     expect(placeNewVisualWorkflowNode({ nodes: [node("a", { x: 0, y: 0 })] })).toEqual({
       x: 144,

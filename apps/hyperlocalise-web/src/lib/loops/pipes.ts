@@ -21,7 +21,7 @@ import type { LoopsPipesConnectionStatus, LoopsPipesError } from "./types";
 
 const PIPES_UNAVAILABLE: LoopsPipesError = {
   code: "loops_pipes_unavailable",
-  message: "WorkOS is not configured, so Loops cannot connect through Pipes.",
+  message: "Loops isn't available right now. Contact support if this continues.",
 };
 
 const LOOPS_NOT_CONNECTED: LoopsPipesError = {
@@ -41,8 +41,7 @@ const LOOPS_NEEDS_REAUTHORIZATION: LoopsPipesError = {
 
 const LOOPS_PIPES_PROVIDER_MISSING: LoopsPipesError = {
   code: "loops_pipes_provider_missing",
-  message:
-    "WorkOS Pipes does not have the Loops provider yet. Enable it in the WorkOS Dashboard, then save again.",
+  message: "Loops isn't available yet. Contact support to turn it on.",
 };
 
 function mapPipesError(code: string): LoopsPipesError {

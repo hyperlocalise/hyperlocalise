@@ -133,7 +133,7 @@ func (api *qaReportAPI) assertFindingsOnLatestSucceededRuns(ctx context.Context,
 	rows, err := api.pool.Query(ctx, `
         select distinct on (project_id) project_id, id
         from translation_qa_runs
-        where organization_id = $1 and status = 'succeeded' and project_id = any($2)
+        where organization_id = $1 and status = 'succeeded' and project_id = any($2) and `+qaProjectWideRunSQL+`
         order by project_id, completed_at desc nulls last, created_at desc`, organizationID, projectIDs)
 	if err != nil {
 		return err

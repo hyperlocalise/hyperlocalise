@@ -58,6 +58,45 @@ export async function scanTranslationQaPageStep(input: {
   }
 }
 
+export async function estimateTranslationQaQualityStep(input: {
+  runId: string;
+  organizationId: string;
+  projectId: string;
+  afterTranslationId: string | null;
+  page: number;
+}) {
+  "use step";
+  const { createLogger, serializeErrorForLog } = await import("@/lib/log");
+  const logger = createLogger("translation-qa-scan-step");
+  const stepContext = {
+    runId: input.runId,
+    projectId: input.projectId,
+    page: input.page,
+    hasAfterTranslationId: Boolean(input.afterTranslationId),
+  };
+  const startedAt = Date.now();
+  const { estimateTranslationQaQualityPage } = await import("@/lib/qa/run-project-qa-scan");
+  try {
+    const result = await estimateTranslationQaQualityPage({
+      runId: input.runId,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      afterTranslationId: input.afterTranslationId,
+    });
+    logger.info(
+      { ...stepContext, done: result.done, durationMs: Date.now() - startedAt },
+      "translation qa scan estimate step completed",
+    );
+    return result;
+  } catch (error) {
+    logger.error(
+      { ...stepContext, durationMs: Date.now() - startedAt, err: serializeErrorForLog(error) },
+      "translation qa scan estimate step threw",
+    );
+    throw error;
+  }
+}
+
 export async function completeTranslationQaScanStep(input: TranslationQaScanEventData) {
   "use step";
   const { createLogger, serializeErrorForLog } = await import("@/lib/log");

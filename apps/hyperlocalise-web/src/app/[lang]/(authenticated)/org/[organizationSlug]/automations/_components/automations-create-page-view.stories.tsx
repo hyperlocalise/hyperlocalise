@@ -43,6 +43,12 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole("heading", { name: "Localisation workflows" }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "MTPE: AI translation, then post-edit" }),
+    ).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "What should happen?" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: /^Agent/ })).toHaveAttribute(
       "href",

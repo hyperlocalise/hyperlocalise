@@ -58,7 +58,8 @@ export type WorkspaceAutomationTriggerMode =
   | "github"
   | "contentful"
   | "source_upload"
-  | "web_chat";
+  | "web_chat"
+  | "google_drive";
 
 export type WorkspaceAutomationFormState = {
   kind: WorkspaceAutomationKind;
@@ -308,7 +309,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   gitlab_agent_trigger_required: "Use GitLab repo automations with a scheduled or manual trigger.",
   gitlab_not_connected: "Connect GitLab in Integrations before using it.",
   gitlab_pipes_needs_reauthorization: "Reconnect GitLab in Integrations, then try again.",
-  gitlab_pipes_unavailable: "GitLab is unavailable until WorkOS Pipes is configured.",
+  gitlab_pipes_unavailable: "GitLab isn't available right now. Contact support if this continues.",
   project_required: "Choose a Hyperlocalise project for this automation.",
   github_project_required: "Choose a Hyperlocalise project for this automation.",
   contentful_project_required: "Choose a Hyperlocalise project for this automation.",
@@ -322,7 +323,8 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
   intercom_not_connected: "Connect Intercom in Integrations before using it.",
   intercom_pipes_needs_reauthorization: "Reconnect Intercom in Integrations, then try again.",
-  intercom_pipes_unavailable: "Intercom is unavailable until WorkOS Pipes is configured.",
+  intercom_pipes_unavailable:
+    "Intercom isn't available right now. Contact support if this continues.",
   intercom_help_center_required: "Choose an Intercom Help Center.",
   intercom_target_locales_unmapped:
     "One or more selected Intercom target locales do not exist on this Help Center.",
@@ -332,7 +334,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "The Intercom source locale must be the same language as the project source locale.",
   sanity_not_connected: "Connect Sanity in Integrations before using it.",
   sanity_pipes_needs_reauthorization: "Reconnect Sanity in Integrations, then try again.",
-  sanity_pipes_unavailable: "Sanity is unavailable until WorkOS Pipes is configured.",
+  sanity_pipes_unavailable: "Sanity isn't available right now. Contact support if this continues.",
   sanity_project_required: "Choose a Sanity project and dataset.",
   sanity_document_types_required: "Choose at least one Sanity document type.",
   sanity_target_locales_unmapped:
@@ -347,7 +349,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "The Webflow primary locale must match the project source locale.",
   braze_not_connected: "Connect Braze in Integrations before using it.",
   braze_pipes_needs_reauthorization: "Reconnect Braze in Integrations, then try again.",
-  braze_pipes_unavailable: "Braze is unavailable until WorkOS Pipes is configured.",
+  braze_pipes_unavailable: "Braze isn't available right now. Contact support if this continues.",
   braze_endpoint_missing: "Save a Braze REST cluster in Integrations before using it.",
   braze_source_locale_mismatch:
     "The Braze source locale must be the same language as the project source locale.",
@@ -355,16 +357,19 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.",
   customer_io_not_connected: "Connect Customer.io in Integrations before using it.",
   customer_io_pipes_needs_reauthorization: "Reconnect Customer.io in Integrations, then try again.",
-  customer_io_pipes_unavailable: "Customer.io is unavailable until WorkOS Pipes is configured.",
+  customer_io_pipes_unavailable:
+    "Customer.io isn't available right now. Contact support if this continues.",
   loops_not_connected: "Connect Loops in Integrations before using it.",
   loops_pipes_needs_reauthorization: "Reconnect Loops in Integrations, then try again.",
-  loops_pipes_unavailable: "Loops is unavailable until WorkOS Pipes is configured.",
+  loops_pipes_unavailable: "Loops isn't available right now. Contact support if this continues.",
   hubspot_not_connected: "Connect HubSpot in Integrations before using it.",
   hubspot_pipes_needs_reauthorization: "Reconnect HubSpot in Integrations, then try again.",
-  hubspot_pipes_unavailable: "HubSpot is unavailable until WorkOS Pipes is configured.",
+  hubspot_pipes_unavailable:
+    "HubSpot isn't available right now. Contact support if this continues.",
   iterable_not_connected: "Connect Iterable in Integrations before using it.",
   iterable_pipes_needs_reauthorization: "Reconnect Iterable in Integrations, then try again.",
-  iterable_pipes_unavailable: "Iterable is unavailable until WorkOS Pipes is configured.",
+  iterable_pipes_unavailable:
+    "Iterable isn't available right now. Contact support if this continues.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -374,7 +379,8 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "Connect an email provider in Integrations before using email notifications.",
   email_pipes_needs_reauthorization:
     "Reconnect your email provider in Integrations, then try again.",
-  email_pipes_unavailable: "Email providers are unavailable until WorkOS Pipes is configured.",
+  email_pipes_unavailable:
+    "Email providers aren't available right now. Contact support if this continues.",
   email_from_required: "Add a verified sender address for email notifications.",
   email_recipients_required: "Add at least one email recipient.",
   contentful_connection_required: "Choose a Contentful connection.",
@@ -384,6 +390,8 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   assign_translate_with_agent_requires_create_job:
     "Translate with agent requires Create job to be enabled.",
   source_upload_workflow_required: "Source upload triggers require Create job to be enabled.",
+  google_drive_trigger_requires_files:
+    "Add Google Drive folders or files to watch before using this trigger.",
   mcp_connection_required: "Choose an MCP server connection.",
   mcp_connection_not_found:
     "The selected MCP server connection was not found. Choose another connection.",
@@ -398,7 +406,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   zernio_not_connected: "Enable the selected Zernio connection in Integrations before using it.",
   ahrefs_not_connected: "Connect Ahrefs in Integrations before using it.",
   ahrefs_pipes_needs_reauthorization: "Reconnect Ahrefs in Integrations, then try again.",
-  ahrefs_pipes_unavailable: "Ahrefs is unavailable until WorkOS Pipes is configured.",
+  ahrefs_pipes_unavailable: "Ahrefs isn't available right now. Contact support if this continues.",
   crowdin_project_required: "Choose a Crowdin-linked project for Crowdin review.",
   crowdin_project_not_found: "The selected Crowdin project was not found. Choose another project.",
   crowdin_project_not_linked:
@@ -975,7 +983,9 @@ export function formStateToWorkspaceAutomationPayload(
             ? { mode: "source_upload" }
             : form.triggerMode === "web_chat"
               ? { mode: "web_chat" }
-              : { mode: "manual" };
+              : form.triggerMode === "google_drive"
+                ? { mode: "google_drive" }
+                : { mode: "manual" };
 
   const repositoryTarget: WorkspaceAutomationRepositoryTarget =
     form.gitlabEnabled && form.gitlabPathWithNamespace.trim()
@@ -1611,6 +1621,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "gitlab_agent_trigger_required":
     case "scheduled_workflow_required":
     case "source_upload_workflow_required":
+    case "google_drive_trigger_requires_files":
       return { trigger: message };
     case "invalid_automation_timezone":
       return { scheduledTimezone: message };
@@ -1732,7 +1743,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
 export function workspaceAutomationFormSupportsOnDemandRun(
   triggerMode: WorkspaceAutomationTriggerMode,
 ) {
-  return triggerMode === "manual" || triggerMode === "scheduled";
+  return triggerMode === "manual" || triggerMode === "scheduled" || triggerMode === "google_drive";
 }
 
 /** The form as a save would store it, where that differs from what was typed. */

@@ -197,4 +197,35 @@ describe("createWorkflowTaskJob", () => {
     );
     expect(isOk(budget)).toBe(true);
   });
+
+  it("binds the stored file version on the requested branch", async () => {
+    const { organization, project } = await projectFixture.createStoredProjectFixture();
+    const file = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+      sourceKind: "repository_file",
+      metadata: { sourcePath: "locales/messages.json" },
+    });
+    const result = await createWorkflowTaskJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceFileId: file.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      step: "proofread",
+      branchName: "feature-checkout",
+    });
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    const [job] = await db
+      .select({ inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, result.value.jobId));
+    expect(job?.inputPayload).toMatchObject({
+      sourceFileId: file.id,
+      branch: "feature-checkout",
+    });
+  });
 });

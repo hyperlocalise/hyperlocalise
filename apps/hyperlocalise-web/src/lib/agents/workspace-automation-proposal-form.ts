@@ -160,6 +160,7 @@ export function summarizeWorkspaceAutomationFormTrigger(
     case "contentful":
     case "source_upload":
     case "web_chat":
+    case "google_drive":
       return { mode: form.triggerMode };
     default:
       return assertNever(form.triggerMode);
@@ -197,6 +198,7 @@ function applyProposalTrigger(
     case "manual":
     case "contentful":
     case "source_upload":
+    case "google_drive":
       return { ...form, triggerMode: trigger.mode };
     default:
       return assertNever(trigger);

@@ -52,6 +52,7 @@ export function ProjectFileActionDialogs({
         projectId={actions.projectId}
         sourcePath={file.sourcePath}
         targetLocales={actions.targetLocales}
+        branch={actions.branch}
       />
       <DownloadTranslationsDialog
         open={actions.downloadDialogOpen}
@@ -69,6 +70,7 @@ export function ProjectFileActionDialogs({
           organizationSlug={actions.organizationSlug}
           projectId={actions.projectId}
           sourcePath={file.sourcePath}
+          branch={actions.branch}
         />
       ) : null}
       {actions.messageFormatDialogOpen ? (
@@ -78,6 +80,7 @@ export function ProjectFileActionDialogs({
           organizationSlug={actions.organizationSlug}
           projectId={actions.projectId}
           sourcePath={file.sourcePath}
+          branch={actions.branch}
         />
       ) : null}
       {actions.importSettingsDialogOpen ? (
@@ -87,6 +90,7 @@ export function ProjectFileActionDialogs({
           organizationSlug={actions.organizationSlug}
           projectId={actions.projectId}
           sourcePath={file.sourcePath}
+          branch={actions.branch}
         />
       ) : null}
     </>

@@ -12,7 +12,10 @@
  */
 import type { Metadata } from "next";
 
+import { getIrisFaqItems } from "@/components/marketing/iris/iris-faq-content";
 import { IrisPage } from "@/components/marketing/iris/iris-page";
+import { MarketingFooter } from "@/components/marketing/marketing-footer";
+import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { JsonLd } from "@/components/seo/json-ld";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
@@ -51,7 +54,14 @@ export default async function IrisRoutePage({ params }: IrisRouteProps) {
   return (
     <>
       <JsonLd data={buildIrisJsonLd(locale)} />
-      <IrisPage />
+      <IrisPage faqItems={getIrisFaqItems(locale)} />
+      <div className="mx-auto max-w-7xl">
+        <section className="border-t border-border">
+          <div className="px-5 pt-20 sm:px-8 sm:pt-24 lg:px-10">
+            <MarketingFooter columns={footerColumns} />
+          </div>
+        </section>
+      </div>
     </>
   );
 }

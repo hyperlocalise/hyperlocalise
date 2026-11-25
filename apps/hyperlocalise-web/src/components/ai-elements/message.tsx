@@ -20,11 +20,11 @@ import { cn } from "@/lib/primitives/cn";
 import type { UIMessage } from "ai";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Markdown } from "@pierre/words/react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Streamdown } from "streamdown";
 
 import { messageMessages } from "./message.messages";
-import { streamdownPlugins } from "./streamdown-plugins";
+import { markdownPlugins } from "./markdown-plugins";
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: UIMessage["role"];
@@ -306,13 +306,15 @@ export const MessageBranchPage = ({ className, ...props }: MessageBranchPageProp
   );
 };
 
-export type MessageResponseProps = ComponentProps<typeof Streamdown>;
+export type MessageResponseProps = ComponentProps<typeof Markdown>;
 
 export const MessageResponse = memo(
   ({ className, ...props }: MessageResponseProps) => (
-    <Streamdown
+    <Markdown
       className={cn("size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0", className)}
-      plugins={streamdownPlugins}
+      plugins={markdownPlugins}
+      cjk
+      math
       {...props}
     />
   ),

@@ -241,6 +241,9 @@ export function resolveAutomationTriggerLabel(
   if (triggerConfig.mode === "web_chat") {
     return intl.formatMessage(automationsPageViewModelMessages.triggerWebChat);
   }
+  if (triggerConfig.mode === "google_drive") {
+    return intl.formatMessage(automationsPageViewModelMessages.triggerGoogleDrive);
+  }
   return intl.formatMessage(automationsPageViewModelMessages.triggerManual);
 }
 

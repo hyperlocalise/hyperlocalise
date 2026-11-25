@@ -479,6 +479,7 @@ export function ProjectFileContentEditorWorkspace({
           locale: targetLocale,
           file,
           fallbackMessage: intl.formatMessage(contentEditorImportDialogMessages.importFailed),
+          branch,
         });
         await Promise.all([
           invalidateQueue(),
@@ -497,7 +498,16 @@ export function ProjectFileContentEditorWorkspace({
         setIsImportingBilingualFile(false);
       }
     },
-    [invalidateQueue, intl, organizationSlug, projectId, queryClient, sourcePath, targetLocale],
+    [
+      branch,
+      invalidateQueue,
+      intl,
+      organizationSlug,
+      projectId,
+      queryClient,
+      sourcePath,
+      targetLocale,
+    ],
   );
   const availableQueueFilters = useMemo(
     () => resolveAvailableCatQueueFilters(contentEditorFile?.provider?.kind),
@@ -946,6 +956,7 @@ export function ProjectFileContentEditorWorkspace({
           ":projectId"
         ].files.detail.cat.images.status.$patch({
           param: { organizationSlug, projectId },
+          query: withCatBranch(branch).query ?? {},
           json: {
             sourcePath,
             targetLocale,

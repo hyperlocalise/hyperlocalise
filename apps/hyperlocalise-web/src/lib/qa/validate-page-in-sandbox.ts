@@ -117,10 +117,14 @@ function outputBytes(output: string | undefined) {
   return output ? utf8Bytes(output) : 0;
 }
 
-/** Older sandbox CLIs reject an error severity. The CLI does not run this check; go-svc does. */
-function cliQaPolicy(policy: QaCheckPolicy): QaCheckPolicy {
+/**
+ * Older sandbox CLIs reject an error severity on guidelines; go-svc runs that check, not the CLI.
+ * The CLI rejects `quality_estimate` as an unknown check: the scan's estimate phase runs it.
+ */
+function cliQaPolicy(policy: QaCheckPolicy): Omit<QaCheckPolicy, "quality_estimate"> {
+  const { quality_estimate: _qualityEstimate, ...checks } = policy;
   return {
-    ...policy,
+    ...checks,
     guideline: { enabled: policy.guideline.enabled, severity: "warning" },
   };
 }

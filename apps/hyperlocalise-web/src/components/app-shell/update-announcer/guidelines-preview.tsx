@@ -17,7 +17,7 @@ import { PlayIcon } from "@phosphor-icons/react/ssr";
 import { useReducedMotion } from "motion/react";
 import { useIntl } from "react-intl";
 
-import { irisLaunchEmbedSrc, irisLaunchPosterSrc } from "@/lib/iris/iris-waitlist";
+import { irisLaunchEmbedSrc, irisLaunchPosterSrc } from "@/lib/iris/iris-launch-film";
 
 import { updateAnnouncerMessages } from "./update-announcer.messages";
 

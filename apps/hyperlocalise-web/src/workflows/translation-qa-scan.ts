@@ -16,11 +16,13 @@ import type { TranslationQaScanEventData } from "@/lib/workflow/types";
 
 import {
   completeTranslationQaScanStep,
+  estimateTranslationQaQualityStep,
   failTranslationQaScanStep,
   scanTranslationQaPageStep,
 } from "./steps/translation-qa-scan";
 
 const MAX_SCAN_PAGES = 50_000;
+const MAX_ESTIMATE_PAGES = 100_000;
 
 function formatExecutionError(error: unknown) {
   return error instanceof Error ? error.message : "translation qa scan failed";
@@ -49,6 +51,21 @@ export async function translationQaScanWorkflow(event: TranslationQaScanEventDat
       }
       afterKeyId = result.afterKeyId;
       guidelineBatchOffset = result.guidelineBatchOffset;
+    }
+
+    let afterTranslationId: string | null = null;
+    for (let page = 0; page < MAX_ESTIMATE_PAGES; page += 1) {
+      const result = await estimateTranslationQaQualityStep({
+        runId: event.runId,
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+        afterTranslationId,
+        page,
+      });
+      if (result.done) {
+        break;
+      }
+      afterTranslationId = result.afterTranslationId;
     }
 
     failureCode = "qa_scan_finalization_failed";

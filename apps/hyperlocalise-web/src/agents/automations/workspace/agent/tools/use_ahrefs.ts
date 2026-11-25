@@ -13,7 +13,7 @@
 import { isStepCount, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
 
-import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
+import { defineAgentTool, type AgentToolExecuteOptions } from "@/agents/_runtime/define-agent-tool";
 import {
   SUBAGENT_NO_QUESTIONS_RULES,
   SUBAGENT_RESPONSE_FORMAT,
@@ -49,7 +49,7 @@ export function createUseAhrefsTool(session: WorkspaceOrchestratorSession) {
     description:
       "Query Ahrefs SEO data through the connected Ahrefs MCP server. Use available Ahrefs tools to gather keyword, backlink, ranking, and site metrics.",
     inputSchema: useAhrefsInputSchema,
-    execute: async ({ objective }, { toolCallId } = {}) => {
+    execute: async ({ objective }, { toolCallId }: AgentToolExecuteOptions = {}) => {
       const ahrefs = session.automation.toolConfig.ahrefs;
       if (!ahrefs?.enabled || !ahrefs.workosUserId) {
         throw new Error("ahrefs_not_configured");

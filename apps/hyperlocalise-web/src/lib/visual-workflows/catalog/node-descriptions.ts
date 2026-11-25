@@ -26,7 +26,8 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   "trigger.github": { title: "GitHub", purpose: "Start when a repository event occurs." },
   "trigger.source_upload": {
     title: "Source upload",
-    purpose: "Start when a source file is uploaded.",
+    purpose:
+      "Start when a source file is uploaded: new files only, or updated files too, optionally only paths matching glob or regex patterns. Gives the file's path, name, extension, branch, whether it is new, and the project's source and target locales.",
   },
   "trigger.webhook": {
     title: "Webhook",
@@ -57,7 +58,7 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   "action.create_task": {
     title: "Assign task",
     purpose:
-      "Give a person a translate, post-edit, or proofread task on a source file, with an optional due date, for MTPE and TEP steps. A post-edit or proofread task can come after an earlier task: it waits, and opens when that one is marked done or cancelled.",
+      "Give a person a translate, post-edit, or proofread task on a source file, with an optional due date or a number of hours until it is due, for MTPE and TEP steps. A post-edit or proofread task can come after an earlier task: it waits, and opens when that one is marked done or cancelled.",
   },
   "action.check_progress": {
     title: "Check progress",
@@ -66,7 +67,8 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   },
   "action.run_qa": {
     title: "Run QA checks",
-    purpose: "Run the project's QA checks and report errors and warnings.",
+    purpose:
+      "Run the project's QA checks and report errors and warnings: on the whole project, or only one source file, some languages, or the file and languages of a job. Reports the quality score when the project scores translations, the AI quality estimate when that check is on, and needsHumanReview: true when QA did not pass, the estimate flagged segments, or the project's content domain always needs review.",
   },
   "action.list_source_files": {
     title: "List source files",
@@ -92,7 +94,8 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   },
   "action.update_job": {
     title: "Update job",
-    purpose: "Reassign a job to a workspace member, rename it, or set its due date.",
+    purpose:
+      "Reassign a job to a workspace member, rename it, or set its due date or a number of hours until it is due.",
   },
   "action.pick_assignee": {
     title: "Pick assignee",

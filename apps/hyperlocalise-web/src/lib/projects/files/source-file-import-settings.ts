@@ -14,6 +14,7 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
+import { resolvedProjectBranchName } from "@/lib/projects/branches/project-branch-name";
 import { requestSourceFileReingest } from "@/lib/projects/files/source-file-segmentation";
 import {
   normalizeImportSettings,
@@ -35,8 +36,8 @@ export async function getRepositorySourceFileImportSettings(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
-  /** The file's branch; any branch's file at the path when left out. */
-  branchName?: string;
+  /** The file's branch; the default branch when left out. */
+  branchName?: string | null;
 }) {
   const sourcePath = normalizeSourcePath(input.sourcePath);
   const [row] = await db
@@ -50,9 +51,7 @@ export async function getRepositorySourceFileImportSettings(input: {
         eq(schema.repositorySourceFiles.organizationId, input.organizationId),
         eq(schema.repositorySourceFiles.projectId, input.projectId),
         eq(schema.repositorySourceFiles.sourcePath, sourcePath),
-        input.branchName === undefined
-          ? undefined
-          : eq(schema.repositorySourceFiles.branchName, input.branchName),
+        eq(schema.repositorySourceFiles.branchName, resolvedProjectBranchName(input.branchName)),
       ),
     )
     .limit(1);
@@ -74,6 +73,8 @@ export async function updateRepositorySourceFileImportSettings(input: {
   projectId: string;
   sourcePath: string;
   settings: RepositorySourceFileImportSettings;
+  /** The file's branch; the default branch when left out. */
+  branchName?: string | null;
 }) {
   const parsed = repositorySourceFileImportSettingsSchema.parse(input.settings);
   const sourcePath = normalizeSourcePath(input.sourcePath);
@@ -89,6 +90,7 @@ export async function updateRepositorySourceFileImportSettings(input: {
         eq(schema.repositorySourceFiles.organizationId, input.organizationId),
         eq(schema.repositorySourceFiles.projectId, input.projectId),
         eq(schema.repositorySourceFiles.sourcePath, sourcePath),
+        eq(schema.repositorySourceFiles.branchName, resolvedProjectBranchName(input.branchName)),
       ),
     )
     .limit(1);

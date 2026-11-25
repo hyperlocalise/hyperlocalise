@@ -241,7 +241,7 @@ func editorCatQaIssuesSQL(orgN, projectN, localeN int, checkTypeN int) string {
               and q.run_id = (
                   select r.id from translation_qa_runs r
                   where r.organization_id=$` + strconv.Itoa(orgN) + ` and r.project_id=$` + strconv.Itoa(projectN) + `
-                    and r.status='succeeded'
+                    and r.status='succeeded' and not (r.summary ? 'scope')
                   order by r.completed_at desc nulls last, r.created_at desc
                   limit 1
               )

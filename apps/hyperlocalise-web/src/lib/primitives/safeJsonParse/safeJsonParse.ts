@@ -12,4 +12,4 @@
  */
 import { fromThrowable } from "../result/results";
 
-export const safeJsonParse = fromThrowable(JSON.parse);
+export const safeJsonParse = fromThrowable((text: string) => JSON.parse(text) as unknown);

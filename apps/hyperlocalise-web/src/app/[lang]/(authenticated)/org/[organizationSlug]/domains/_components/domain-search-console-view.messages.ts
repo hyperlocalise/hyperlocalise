@@ -112,8 +112,8 @@ export const domainSearchConsoleViewMessages = defineMessages({
     description: "Empty state title when WorkOS Pipes is unavailable",
   },
   unconfiguredDescription: {
-    defaultMessage: "WorkOS is not configured, so Search Console cannot connect through Pipes.",
-    id: "IATCAL7GZ3",
+    defaultMessage: "Search Console isn't available right now. Contact support if this continues.",
+    id: "hkmkj50dwv",
     description: "Empty state description when WorkOS Pipes is unavailable",
   },
   needsReauthTitle: {

@@ -127,25 +127,72 @@ describe("AutomationsCreatePageContent", () => {
     expect(mocks.createVisualWorkflow).toHaveBeenCalledWith("acme");
   });
 
+  it("features the localisation workflows before every other way to start", () => {
+    renderPage();
+
+    const featured = screen.getByRole("heading", { name: "Localisation workflows" });
+    const other = screen.getByRole("heading", { name: "Other automations" });
+    expect(featured.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      other.compareDocumentPosition(screen.getByRole("heading", { name: "What should happen?" })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: "AI translation on upload" })
+        .getAttribute("aria-describedby"),
+    ).toBeTruthy();
+  });
+
+  it("creates a workflow from a localisation template and opens its canvas", async () => {
+    const user = userEvent.setup();
+    mocks.createVisualWorkflow.mockResolvedValue(createVisualWorkflowSummary());
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /^MTPE: AI translation, then post-edit/ }));
+
+    await waitFor(() => {
+      expect(mocks.push).toHaveBeenCalledWith(
+        "/org/acme/automations/visual-workflows/33333333-3333-4333-8333-333333333333",
+      );
+    });
+    expect(mocks.createVisualWorkflow).toHaveBeenCalledWith("acme", {
+      definition: expect.objectContaining({
+        name: "MTPE: AI translation, then post-edit",
+        nodes: expect.arrayContaining([
+          expect.objectContaining({ id: "trigger", type: "trigger.source_upload" }),
+          expect.objectContaining({ id: "create_task", type: "action.create_task" }),
+        ]),
+      }),
+    });
+  });
+
   it("offers an upgrade on a plan without workflows", () => {
     renderPage({ workflowAccess: "upgrade" });
 
     expect(screen.queryByRole("button", { name: /^Workflow/ })).toBeNull();
-    expect(screen.getByText("Workflows come with a higher plan.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Upgrade plan" })).toBeTruthy();
+    // The featured workflows stay visible to show what the upgrade brings, but cannot be started.
+    expect(screen.getByRole("heading", { name: "Localisation workflows" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "AI translation on upload" })).toBeNull();
+    expect(screen.getAllByText("Workflows come with a higher plan.").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Upgrade plan" }).length).toBeGreaterThan(0);
   });
 
   it("says who can build a workflow to a role that cannot", () => {
     renderPage({ workflowAccess: "restricted" });
 
     expect(screen.queryByRole("button", { name: /^Workflow/ })).toBeNull();
-    expect(screen.getByText("Ask a workspace admin to build a workflow.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "AI translation on upload" })).toBeNull();
+    expect(
+      screen.getAllByText("Ask a workspace admin to build a workflow.").length,
+    ).toBeGreaterThan(0);
   });
 
   it("starts agents alone in a project", () => {
     renderPage({ projectId: "proj_1", workflowAccess: "hidden" });
 
     expect(screen.queryByText("Workflow")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Localisation workflows" })).toBeNull();
     expect(screen.getByRole("link", { name: /^Agent/ }).getAttribute("href")).toBe(
       "/org/acme/projects/proj_1/automations/new",
     );

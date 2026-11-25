@@ -6,12 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -111,11 +109,20 @@ type irisChatReply struct {
 	OutputTokens int
 }
 
+// tokenUsage is the reply's usage for billing; nothing when it used none.
+func (r irisChatReply) tokenUsage() []irisTokenUsage {
+	if strings.TrimSpace(r.Model) == "" || r.InputTokens+r.OutputTokens == 0 {
+		return nil
+	}
+	return []irisTokenUsage{{Model: r.Model, InputTokens: r.InputTokens, OutputTokens: r.OutputTokens}}
+}
+
 type irisChatRequest struct {
 	Model  string
 	System string
 	User   string
 	Images []irisProviderInput
+	Files  []irisProviderInput
 	JSON   bool
 }
 
@@ -439,21 +446,16 @@ limit 500`,
 // trackTranslation bills a translation's model tokens to the workspace's AI
 // credit, the way the other LLM features are billed.
 func (api *irisGenerationAPI) trackTranslation(ctx context.Context, scope irisOrgScope, usage irisChatReply) {
-	if api.meter == nil || usage.Model == "" || usage.InputTokens+usage.OutputTokens == 0 {
-		return
-	}
-	trackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-	defer cancel()
-	if err := api.meter.TrackTokens(trackCtx, autumn.TrackTokensRequest{
-		CustomerID:   scope.OrganizationID,
-		FeatureID:    autumn.AITokens,
-		ModelID:      usage.Model,
-		InputTokens:  usage.InputTokens,
-		OutputTokens: usage.OutputTokens,
-		Properties:   map[string]any{"feature": "iris_translate", "user_id": scope.UserID},
-	}); err != nil {
-		slog.WarnContext(trackCtx, "iris_localise_track_failed", "organization_id", scope.OrganizationID, "error", err)
-	}
+	api.charge(ctx, scope, irisCharge{
+		OperationKey: irisOperationKey("iris-localise"),
+		Source:       irisSourceTranslate,
+		Track: autumn.TrackTokensRequest{
+			ModelID:      usage.Model,
+			InputTokens:  usage.InputTokens,
+			OutputTokens: usage.OutputTokens,
+			Properties:   map[string]any{"feature": "iris_translate", "user_id": scope.UserID},
+		},
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -761,7 +763,7 @@ func (p *irisGatewayProvider) imageText(ctx context.Context, req irisProviderReq
 	if parsed.Regions == nil {
 		parsed.Regions = []irisImageTextEntry{}
 	}
-	return []irisProviderOutput{{Bytes: mustJSON(parsed), Filename: "text.json", ContentType: "application/json"}}, nil
+	return []irisProviderOutput{{Bytes: mustJSON(parsed), Filename: "text.json", ContentType: "application/json", Usage: reply.tokenUsage()}}, nil
 }
 
 // Complete runs a chat completion on the gateway and returns the reply text.
@@ -771,6 +773,16 @@ func (p *irisGatewayProvider) Complete(ctx context.Context, req irisChatRequest)
 		content = append(content, map[string]any{
 			"type":      "image_url",
 			"image_url": map[string]string{"url": "data:" + defaultType(image.ContentType, "image/png") + ";base64," + base64.StdEncoding.EncodeToString(image.Bytes)},
+		})
+	}
+	for _, file := range req.Files {
+		mediaType := irisAudioMediaType(file)
+		content = append(content, map[string]any{
+			"type": "file",
+			"file": map[string]string{
+				"filename":  irisMediaFilename(mediaType),
+				"file_data": "data:" + mediaType + ";base64," + base64.StdEncoding.EncodeToString(file.Bytes),
+			},
 		})
 	}
 	payload := map[string]any{
@@ -795,7 +807,7 @@ func (p *irisGatewayProvider) Complete(ctx context.Context, req irisChatRequest)
 	var parsed struct {
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content json.RawMessage `json:"content"`
 			} `json:"message"`
 		} `json:"choices"`
 		Usage struct {
@@ -807,11 +819,35 @@ func (p *irisGatewayProvider) Complete(ctx context.Context, req irisChatRequest)
 		return irisChatReply{}, err
 	}
 	reply := irisChatReply{Model: req.Model, InputTokens: parsed.Usage.PromptTokens, OutputTokens: parsed.Usage.CompletionTokens}
-	if len(parsed.Choices) == 0 || strings.TrimSpace(parsed.Choices[0].Message.Content) == "" {
+	if len(parsed.Choices) == 0 {
 		return reply, fmt.Errorf("gateway chat returned no reply")
 	}
-	reply.Text = parsed.Choices[0].Message.Content
+	reply.Text = irisChatContentText(parsed.Choices[0].Message.Content)
+	if reply.Text == "" {
+		return reply, fmt.Errorf("gateway chat returned no reply")
+	}
 	return reply, nil
+}
+
+func irisChatContentText(raw json.RawMessage) string {
+	if len(raw) == 0 || string(raw) == "null" {
+		return ""
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err == nil {
+		return strings.TrimSpace(text)
+	}
+	var parts []struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(raw, &parts); err == nil {
+		var b strings.Builder
+		for _, part := range parts {
+			b.WriteString(part.Text)
+		}
+		return strings.TrimSpace(b.String())
+	}
+	return ""
 }
 
 // newIrisTextModel prefers the AI Gateway, then a direct OpenAI key.

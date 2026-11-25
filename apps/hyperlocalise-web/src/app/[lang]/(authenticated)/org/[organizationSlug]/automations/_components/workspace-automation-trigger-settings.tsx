@@ -24,6 +24,7 @@ import {
   GitCommitIcon,
   GithubLogoIcon,
   GitPullRequestIcon,
+  GoogleDriveLogoIcon,
   HandTapIcon,
   UploadSimpleIcon,
   WebhooksLogoIcon,
@@ -601,6 +602,21 @@ function ContentfulTriggerDetails(props: TriggerFieldsProps) {
   );
 }
 
+function GoogleDriveTriggerDetails({ form }: TriggerFieldsProps) {
+  const watchesFiles = form.googleDriveFolderIds.length > 0 || form.googleDriveFileIds.length > 0;
+  return (
+    <TriggerDetailRow>
+      <span className="text-xs text-pretty text-muted-foreground">
+        <FormattedMessage
+          {...(watchesFiles
+            ? workspaceAutomationTriggerMessages.googleDriveWatching
+            : workspaceAutomationTriggerMessages.googleDriveChooseFiles)}
+        />
+      </span>
+    </TriggerDetailRow>
+  );
+}
+
 function WebChatTriggerDetails({ automationId, organizationSlug }: TriggerFieldsProps) {
   const intl = useIntl();
 
@@ -758,6 +774,14 @@ const TRIGGER_OPTIONS: TriggerOption[] = [
       createNativeTmsJobUseProjectTargetLocales: true,
       assignTranslateWithAgentEnabled: true,
     }),
+  },
+  {
+    id: "google_drive",
+    icon: GoogleDriveLogoIcon,
+    label: workspaceAutomationTriggerMessages.googleDrive,
+    matches: (form) => form.triggerMode === "google_drive",
+    select: (form) => ({ ...form, triggerMode: "google_drive", googleDriveEnabled: true }),
+    Details: GoogleDriveTriggerDetails,
   },
   {
     id: "web_chat",

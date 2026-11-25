@@ -14,7 +14,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { ToolSet } from "ai";
 
-import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
+import { defineAgentTool, type AgentToolExecuteOptions } from "@/agents/_runtime/define-agent-tool";
 import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
@@ -87,7 +87,10 @@ export function createCrowdinReviewTools(input: {
       description:
         "Search Crowdin glossary and translation memory for source expressions in a locale pair.",
       inputSchema: searchConcordanceInputSchema,
-      execute: async ({ expressions, sourceLocale, targetLocale }, { abortSignal } = {}) => {
+      execute: async (
+        { expressions, sourceLocale, targetLocale },
+        { abortSignal }: AgentToolExecuteOptions = {},
+      ) => {
         const result = await crowdinTmsProvider.searchConcordanceForAgent({
           organizationId: input.organizationId,
           actorUserId: input.actorUserId,
@@ -116,7 +119,7 @@ export function createCrowdinReviewTools(input: {
       description:
         "Load Hyperlocalise project translation context and Crowdin AI style prompts that apply to this project.",
       inputSchema: z.object({}),
-      execute: async (_input, { abortSignal } = {}) => {
+      execute: async (_input, { abortSignal }: AgentToolExecuteOptions = {}) => {
         const [project] = await db
           .select({
             name: schema.projects.name,
@@ -159,7 +162,7 @@ export function createCrowdinReviewTools(input: {
       description:
         "Recommend a translation grounded in Crowdin concordance, project context, and style guidance. Read-only; does not write back to Crowdin.",
       inputSchema: recommendTranslationInputSchema,
-      execute: async (recommendationInput, { abortSignal } = {}) => {
+      execute: async (recommendationInput, { abortSignal }: AgentToolExecuteOptions = {}) => {
         const ensured = await ensureOrganizationProjectRecord({
           organizationId: input.organizationId,
           projectId: input.projectId,

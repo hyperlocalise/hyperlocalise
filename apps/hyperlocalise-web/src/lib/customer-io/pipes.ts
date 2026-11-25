@@ -21,7 +21,7 @@ import type { CustomerIoPipesConnectionStatus, CustomerIoPipesError } from "./ty
 
 const PIPES_UNAVAILABLE: CustomerIoPipesError = {
   code: "customer_io_pipes_unavailable",
-  message: "WorkOS is not configured, so Customer.io cannot connect through Pipes.",
+  message: "Customer.io isn't available right now. Contact support if this continues.",
 };
 
 const NOT_CONNECTED: CustomerIoPipesError = {
@@ -41,8 +41,7 @@ const NEEDS_REAUTHORIZATION: CustomerIoPipesError = {
 
 const PIPES_PROVIDER_MISSING: CustomerIoPipesError = {
   code: "customer_io_pipes_provider_missing",
-  message:
-    "WorkOS Pipes does not have the Customer.io provider yet. Enable it in the WorkOS Dashboard, then save again.",
+  message: "Customer.io isn't available yet. Contact support to turn it on.",
 };
 
 function mapPipesError(code: string): CustomerIoPipesError {

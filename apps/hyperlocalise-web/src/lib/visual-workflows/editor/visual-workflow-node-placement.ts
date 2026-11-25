@@ -52,9 +52,17 @@ export function placeNewVisualWorkflowNode(input: {
   handleId?: string | null;
   /** The canvas position at the middle of the view. */
   viewCenter?: { x: number; y: number } | null;
+  /** Drop or click position; the new step is centred on it. */
+  position?: { x: number; y: number } | null;
   /** The new step's size, so the step and not its corner lands on `viewCenter`. */
   size?: { width: number; height: number };
 }): { x: number; y: number } {
+  if (input.position) {
+    return {
+      x: Math.round(input.position.x - (input.size?.width ?? 0) / 2),
+      y: Math.round(input.position.y - (input.size?.height ?? 0) / 2),
+    };
+  }
   if (input.source) {
     return {
       x: input.source.position.x + NODE_GAP_X,

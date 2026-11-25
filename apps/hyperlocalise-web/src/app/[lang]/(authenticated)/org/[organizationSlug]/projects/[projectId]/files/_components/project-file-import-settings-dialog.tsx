@@ -72,12 +72,14 @@ export function ProjectFileImportSettingsDialog({
   organizationSlug,
   projectId,
   sourcePath,
+  branch,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
+  branch?: string | null;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -88,7 +90,13 @@ export function ProjectFileImportSettingsDialog({
   const excludePathsId = useId();
   const contextId = useId();
   const limitId = useId();
-  const queryKey = ["project-file-import-settings", organizationSlug, projectId, sourcePath];
+  const queryKey = [
+    "project-file-import-settings",
+    organizationSlug,
+    projectId,
+    sourcePath,
+    branch,
+  ];
 
   const settingsQuery = useQuery({
     queryKey,
@@ -98,7 +106,7 @@ export function ProjectFileImportSettingsDialog({
       try {
         const response = await importSettingsApi().$get({
           param: { organizationSlug, projectId },
-          query: { sourcePath },
+          query: { sourcePath, ...(branch?.trim() ? { branch: branch.trim() } : {}) },
         });
         if (response.status !== 200) {
           throw await readApiResponseError(response, fallback);
@@ -124,7 +132,11 @@ export function ProjectFileImportSettingsDialog({
     mutationFn: async (value: RepositorySourceFileImportSettings) => {
       const response = await importSettingsApi().$patch({
         param: { organizationSlug, projectId },
-        json: { sourcePath, importSettings: value },
+        json: {
+          sourcePath,
+          importSettings: value,
+          ...(branch?.trim() ? { branch: branch.trim() } : {}),
+        },
       });
       if (response.status !== 200) {
         throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));

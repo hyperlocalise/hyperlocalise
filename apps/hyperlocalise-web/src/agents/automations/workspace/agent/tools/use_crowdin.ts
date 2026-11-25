@@ -13,7 +13,7 @@
 import { isStepCount, ToolLoopAgent } from "ai";
 import { z } from "zod";
 
-import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
+import { defineAgentTool, type AgentToolExecuteOptions } from "@/agents/_runtime/define-agent-tool";
 import {
   SUBAGENT_NO_QUESTIONS_RULES,
   SUBAGENT_RESPONSE_FORMAT,
@@ -47,7 +47,7 @@ export function createUseCrowdinTool(session: WorkspaceOrchestratorSession) {
     description:
       "Look up Crowdin glossary, translation memory, style guidance, and translation recommendations for strings under review. Pass source strings, locales, and surrounding context from prior steps.",
     inputSchema: useCrowdinInputSchema,
-    execute: async ({ objective }, { abortSignal, toolCallId } = {}) => {
+    execute: async ({ objective }, { abortSignal, toolCallId }: AgentToolExecuteOptions = {}) => {
       const crowdin = session.automation.toolConfig.crowdin;
       const projectId = crowdin?.projectId?.trim();
       if (!crowdin?.enabled || !projectId) {
