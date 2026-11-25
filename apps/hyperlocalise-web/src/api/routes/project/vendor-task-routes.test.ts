@@ -45,6 +45,15 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 vi.mock("@/lib/reporting/capture", () => ({ captureJobStatus: vi.fn(async () => undefined) }));
+// Without AWS credentials (CI) every SQS send waits about 2s before failing, which runs a test
+// that changes a task's owner a few times past its timeout.
+vi.mock("@/lib/activity-log/activity-log-writer", () => {
+  const enqueued = () => ({ ok: true, value: { createdAt: new Date(), id: crypto.randomUUID() } });
+  return {
+    enqueueActivityLogEvent: vi.fn(async () => enqueued()),
+    enqueueActivityLogEvents: vi.fn(async (inputs: unknown[]) => inputs.map(enqueued)),
+  };
+});
 // The AI suggestion's own plan check and model call: only who may ask is under test here.
 vi.mock("@/api/billing/ai-features-response", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/billing/ai-features-response")>()),
