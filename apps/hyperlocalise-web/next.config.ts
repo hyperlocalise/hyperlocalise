@@ -38,7 +38,15 @@ const nextConfig: NextConfig = {
   skipTrailingSlashRedirect: true,
   async rewrites() {
     const authkitDomain = process.env.WORKOS_AUTHKIT_DOMAIN;
-    const rewrites = [...posthogNextRewrites()];
+    const rewrites = [
+      ...posthogNextRewrites(),
+      // Markdown copies of blog posts for agents and answer engines. Array rewrites run
+      // before dynamic routes, so this wins over `[lang]/blog/[slug]`.
+      {
+        source: "/:lang/blog/:slug([a-z0-9-]+)\\.md",
+        destination: "/blog-markdown/:lang/:slug",
+      },
+    ];
     if (authkitDomain) {
       rewrites.push({
         source: "/auth.md",

@@ -28,11 +28,7 @@ describe("buildProductJsonLd", () => {
         url: `https://www.hyperlocalise.com/en/product/${slug}`,
         applicationCategory: "BusinessApplication",
         operatingSystem: "Cloud",
-        provider: {
-          "@type": "Organization",
-          name: "Hyperlocalise",
-          url: "https://www.hyperlocalise.com",
-        },
+        provider: { "@id": "https://www.hyperlocalise.com/#organization" },
       });
       expect(jsonLd.name).toBeTruthy();
       expect(jsonLd.description).toBeTruthy();
