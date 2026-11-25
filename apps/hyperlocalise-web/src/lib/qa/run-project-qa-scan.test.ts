@@ -39,9 +39,11 @@ vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
 }));
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
+import * as agentRuntimeUsage from "@/lib/billing/agent-runtime-usage";
 import { db, schema } from "@/lib/database/client";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
+import { hyperlocaliseManagedGatewayModelId } from "@/lib/providers/language-model";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import type { TranslationQaScanQueue } from "@/lib/workflow/types";
 
@@ -2036,5 +2038,58 @@ describe("quality estimation", () => {
       }),
     ).resolves.toEqual({ done: true });
     expect(generate).not.toHaveBeenCalled();
+  });
+
+  it("bills the estimator's tokens as quality-estimate AI credit", async () => {
+    const track = vi.spyOn(agentRuntimeUsage, "trackAiCallTokenUsage").mockResolvedValue(undefined);
+    const { organization, project, runId } = await setUpEstimatedProject();
+    const usage = { inputTokens: 40, outputTokens: 12, totalTokens: 52 };
+    const generate: QeGenerate = vi.fn(async ({ onUsage, prompt }) => {
+      onUsage?.(usage);
+      return scoringModel()({ prompt });
+    });
+
+    try {
+      await estimateTranslationQaQualityPage({
+        runId,
+        organizationId: organization.id,
+        projectId: project.id,
+        afterTranslationId: null,
+        generate,
+      });
+
+      expect(track).toHaveBeenCalledWith({
+        organizationId: organization.id,
+        source: "translation_qa_quality_estimate",
+        tokenUsage: usage,
+        modelId: hyperlocaliseManagedGatewayModelId,
+        credentialSource: "gateway",
+        projectId: project.id,
+      });
+    } finally {
+      track.mockRestore();
+    }
+  });
+
+  it("does not bill when quality estimation is off", async () => {
+    const track = vi.spyOn(agentRuntimeUsage, "trackAiCallTokenUsage").mockResolvedValue(undefined);
+    const { organization, project, runId } = await setUpEstimatedProject();
+    await db
+      .update(schema.translationQaRuns)
+      .set({ checkPolicy: DEFAULT_QA_POLICY })
+      .where(eq(schema.translationQaRuns.id, runId));
+
+    try {
+      await estimateTranslationQaQualityPage({
+        runId,
+        organizationId: organization.id,
+        projectId: project.id,
+        afterTranslationId: null,
+        generate: scoringModel(),
+      });
+      expect(track).not.toHaveBeenCalled();
+    } finally {
+      track.mockRestore();
+    }
   });
 });

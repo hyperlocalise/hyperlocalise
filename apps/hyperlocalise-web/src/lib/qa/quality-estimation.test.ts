@@ -78,6 +78,29 @@ describe("estimateQualityBatch", () => {
     expect(result.ok).toBe(true);
     expect(generate).not.toHaveBeenCalled();
   });
+
+  it("hands the model call's token usage to onUsage", async () => {
+    const onUsage = vi.fn();
+    const usage = { inputTokens: 11, outputTokens: 7, totalTokens: 18 };
+    const generate: QeGenerate = vi.fn(async ({ onUsage: report }) => {
+      report?.(usage);
+      return {
+        segments: [
+          { id: "a", score: 90, reason: "ok" },
+          { id: "b", score: 80, reason: "ok" },
+        ],
+      };
+    });
+
+    const result = await estimateQualityBatch(
+      { sourceLocale: "en-US", targetLocale: "de-DE", domain: "general", segments },
+      { generate, onUsage },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({ onUsage }));
+    expect(onUsage).toHaveBeenCalledWith(usage);
+  });
 });
 
 describe("buildQualityEstimatePrompt", () => {
