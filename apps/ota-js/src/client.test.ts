@@ -225,12 +225,19 @@ describe("createOtaClient", () => {
     const routes: Record<string, Route> = {
       [`/${HASH}/manifest.json`]: { body: manifest(100) },
     };
-    const { client, cdn } = setup(routes, { baseUrl: "https://cdn.example.com/" });
+    const { client, cdn } = setup(routes, { baseUrl: "https://cdn.example.com///" });
 
     await client.getManifest();
     expect(cdn.calls[0]).toMatch(
       new RegExp(`^https://cdn\\.example\\.com/${HASH}/manifest\\.json\\?t=`),
     );
+  });
+
+  it("trims a base URL with many inner slashes in linear time", () => {
+    const baseUrl = `https://cdn.example.com${"/".repeat(50_000)}x`;
+    const started = performance.now();
+    expect(() => createOtaClient({ hash: HASH, baseUrl, fetch: vi.fn() })).not.toThrow();
+    expect(performance.now() - started).toBeLessThan(500);
   });
 
   it("clamps the poll interval and polls with startPolling", async () => {

@@ -93,7 +93,12 @@ interface StoredContent {
 }
 
 function trimSlash(url: string): string {
-  return url.replace(/\/+$/, "");
+  // A loop, not /\/+$/, which backtracks quadratically on many inner slashes.
+  let end = url.length;
+  while (end > 0 && url.charCodeAt(end - 1) === 47 /* "/" */) {
+    end -= 1;
+  }
+  return url.slice(0, end);
 }
 
 function toOtaError(error: unknown, url: string): OtaError {
