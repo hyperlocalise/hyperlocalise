@@ -55,6 +55,24 @@ export const workspaceAutomationTriggerMessages = defineMessages({
     id: "BN2svhpj+I",
     description: "Trigger option: runs start when a source file is uploaded to the project",
   },
+  googleDrive: {
+    defaultMessage: "Files change in Google Drive",
+    id: "UgGsS3G7nT",
+    description:
+      "Trigger option: runs start when files in the automation's Google Drive folders are added or edited",
+  },
+  googleDriveWatching: {
+    defaultMessage:
+      "Checked every 15 minutes. A run starts when a file in the chosen folders is added or edited. Translations written back to Drive do not start a run.",
+    id: "E7BIsfV5Ko",
+    description: "Explains how often the Google Drive trigger checks for changed files",
+  },
+  googleDriveChooseFiles: {
+    defaultMessage:
+      "Choose Google Drive folders or files in the Google Drive tool for this trigger to watch.",
+    id: "OhHA3+4Wkh",
+    description: "Shown under the Google Drive trigger when no folders or files are chosen yet",
+  },
   webChat: {
     defaultMessage: "A web chat message arrives",
     id: "GwpF6lZmgi",

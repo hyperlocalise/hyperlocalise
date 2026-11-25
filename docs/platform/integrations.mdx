@@ -14,6 +14,9 @@ Connect the systems that hold your content or provide tools for your workflows. 
 | Mailchimp | [Localize Mailchimp](/platform/connections/mailchimp) (regular campaigns; HTML user templates only). Connect Mailchimp from **Integrations**, then use **Translate Mailchimp content**. |
 | Linear | [Connect Linear](/platform/connections/linear). Connect Linear from **Integrations** by signing in to your Linear account. |
 | Iterable | [Localize Iterable](/platform/connections/iterable) (email, in-app, push, SMS, and snippets) |
+| Contentful | [Localize Contentful](/platform/connections/contentful) (entries translated on publish and written back as drafts) |
+| Google Drive | [Google Drive](/integrations/google-drive) (Docs, Sheets, Slides, and supported files in chosen folders) |
+| Slack | [Slack](#slack) (an agent in mentions and DMs, plus automation and workflow notifications) |
 | Canva | [Localize Canva](/platform/connections/canva) |
 | Figma | [Localize Figma](/platform/connections/figma) |
 | Sanity (Studio inspector) | [Localize Sanity Studio documents](/platform/connections/sanity-studio-plugin) |
@@ -21,6 +24,7 @@ Connect the systems that hold your content or provide tools for your workflows. 
 | Repository files through CI | [Connect the CLI](/platform/cli) |
 | An AI agent working with Platform | [Hosted MCP server](/platform/mcp) |
 | Custom file and job integrations | [Public API](/platform/api) |
+| A tool with no built-in connection | [Connect any other tool](/platform/guides/connect-other-tools) |
 
 ## GitHub
 
@@ -29,6 +33,14 @@ Connect the GitHub App, enable the repositories you need, then configure [conten
 ## Canva
 
 Create a Canva connection with a personal token. Designers pick the native project in the Canva app. Jobs use that project's source and target languages. There is no separate Canva locale list. Follow [Localize Canva](/platform/connections/canva) to collect page files and apply existing translations.
+
+## Contentful
+
+Connect a Contentful space with a Content Management API token and choose the content types to translate. Hyperlocalise registers the publish webhook for you. An automation with the **A Contentful entry is published** trigger translates each published entry and writes the locale values back as an unpublished draft. See [Localize Contentful](/platform/connections/contentful).
+
+## Google Drive
+
+Connect Google Drive, add folders or files, then use a **Translate Google Drive files** automation to import them. Use the **Files change in Google Drive** trigger to start a run when files are added or edited, or import on a schedule or on demand. **Push to Google Drive** writes translated copies back. See [Google Drive](/integrations/google-drive).
 
 ## Figma
 
@@ -97,9 +109,17 @@ To let an automation call tools on an external MCP server:
 
 This connects Platform to an external server. To connect an agent such as Cursor to Platform, use the [hosted MCP server](/platform/mcp) instead.
 
-## Slack Connect
+## Slack
 
-Use the Slack integration for bot tools and automation notifications in your Slack workspace. The Slack Connect invitation on workspace **Overview**, when available, creates a shared support channel instead. See [Contact support](/platform/help/contact-support).
+An admin or localization manager connects Slack from **Integrations** with **Connect Slack** and approves the app in your Slack workspace. Slack is then used in three ways:
+
+- **Slack agent.** Turn on **Enable Slack agent** so people can mention the app or send it a direct message. It answers localization questions, starts text and file translation jobs, and localizes an image posted in the thread.
+- **Automation notifications.** Add the **Slack** tool to an automation and pick a channel to post run results.
+- **Visual workflows.** A **Notify Slack** step posts to a channel, for example when QA passes or work needs review. See [Visual workflows](/platform/visual-workflows).
+
+### Slack Connect
+
+The Slack Connect invitation on workspace **Overview**, when available, creates a shared support channel with the Hyperlocalise team. It is separate from the Slack integration. See [Contact support](/platform/help/contact-support).
 
 ## API keys and tokens
 

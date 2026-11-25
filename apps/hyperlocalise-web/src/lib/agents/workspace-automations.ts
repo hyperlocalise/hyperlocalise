@@ -472,6 +472,16 @@ function validateWorkspaceAutomationConfig(input: {
     });
   }
 
+  if (input.triggerConfig.mode === "google_drive") {
+    const googleDrive = input.toolConfig.googleDrive;
+    if (!googleDrive?.enabled || (!googleDrive.folderIds.length && !googleDrive.fileIds.length)) {
+      return err({
+        code: "google_drive_trigger_requires_files",
+        message: "The Google Drive trigger needs Google Drive folders or files to watch.",
+      });
+    }
+  }
+
   const mcpTools = input.toolConfig.mcp;
   if (mcpTools?.enabled && !mcpTools.connectionId) {
     return err({
@@ -2676,6 +2686,29 @@ export async function listSourceUploadWorkspaceAutomations(input: {
     )
     .orderBy(desc(schema.workspaceAutomations.createdAt))
     .limit(input.limit ?? 20);
+
+  return rows.map((row) => serializeAutomation(row));
+}
+
+/**
+ * Active automations that start when their Google Drive files change. Picked in random order, so
+ * when there are more than one tick can check, every automation is still reached over time.
+ */
+export async function listGoogleDriveTriggerWorkspaceAutomations(input: {
+  limit?: number;
+}): Promise<WorkspaceAutomationRecord[]> {
+  const rows = await db
+    .select()
+    .from(schema.workspaceAutomations)
+    .where(
+      and(
+        eq(schema.workspaceAutomations.status, "active"),
+        sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'google_drive'`,
+        sql`${schema.workspaceAutomations.toolConfig}->'googleDrive'->>'enabled' = 'true'`,
+      ),
+    )
+    .orderBy(sql`random()`)
+    .limit(input.limit ?? 100);
 
   return rows.map((row) => serializeAutomation(row));
 }

@@ -62,7 +62,10 @@ vi.mock("@/lib/intercom/wait-for-source-file-ingest", () => ({
     mocks.waitForSourceFileVersionIngest(...args),
 }));
 
-import { runImportGoogleDriveFiles } from "./import-google-drive-files";
+import {
+  fingerprintGoogleDriveFiles,
+  runImportGoogleDriveFiles,
+} from "./import-google-drive-files";
 
 const PDF_BYTES = Buffer.from("%PDF-1.4 imported brief");
 const PDF_HASH = createHash("sha256").update(PDF_BYTES).digest("hex");
@@ -336,5 +339,31 @@ describe("runImportGoogleDriveFiles", () => {
       }),
     ).resolves.toEqual({ imported: 1, skipped: 0, failed: 0, truncated: 0 });
     expect(mocks.uploadSourceFile).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("fingerprintGoogleDriveFiles", () => {
+  const docs = { fileId: "f1", modifiedTime: "2026-11-20T10:00:00.000Z", md5Checksum: null };
+  const sheet = { fileId: "f2", modifiedTime: "2026-11-21T10:00:00.000Z", md5Checksum: "abc" };
+
+  it("does not depend on the order Drive lists files in", () => {
+    expect(fingerprintGoogleDriveFiles([docs, sheet])).toBe(
+      fingerprintGoogleDriveFiles([sheet, docs]),
+    );
+  });
+
+  it("changes when a file is edited, added or removed", () => {
+    const base = fingerprintGoogleDriveFiles([docs, sheet]);
+    const edited = { ...docs, modifiedTime: "2026-11-22T10:00:00.000Z" };
+
+    expect(fingerprintGoogleDriveFiles([edited, sheet])).not.toBe(base);
+    expect(fingerprintGoogleDriveFiles([docs, sheet, { ...sheet, fileId: "f3" }])).not.toBe(base);
+    expect(fingerprintGoogleDriveFiles([docs])).not.toBe(base);
+  });
+
+  it("changes when only the checksum changes", () => {
+    expect(fingerprintGoogleDriveFiles([{ ...sheet, md5Checksum: "def" }])).not.toBe(
+      fingerprintGoogleDriveFiles([sheet]),
+    );
   });
 });

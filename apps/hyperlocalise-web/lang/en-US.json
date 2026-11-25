@@ -2903,6 +2903,10 @@
     "defaultMessage": "SharePoint",
     "description": "Guidelines source tab for SharePoint"
   },
+  "1kXBD4X9vj": {
+    "defaultMessage": "Created {count} of {total} Linear issues in {team}. The rest were not sent.",
+    "description": "Toast when only some QA findings were filed as Linear issues"
+  },
   "1krX2eFo9o": {
     "defaultMessage": "Contentful webhook",
     "description": "Label for the Contentful webhook trigger"
@@ -11679,6 +11683,10 @@
     "defaultMessage": "French (France)",
     "description": "Display name for BCP-47 locale fr-FR"
   },
+  "DJwiwpSIjB": {
+    "defaultMessage": "No Linear teams found",
+    "description": "Shown when the connected Linear account has no teams"
+  },
   "DK4GxTemCY": {
     "defaultMessage": "Choose a row to narrow the tab to it.",
     "description": "Subtitle of the AI usage table"
@@ -12219,6 +12227,10 @@
     "defaultMessage": "In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the same list when you connect Crowdin.",
     "description": "Intro text for Crowdin OAuth scope requirements"
   },
+  "E7BIsfV5Ko": {
+    "defaultMessage": "Checked every 15 minutes. A run starts when a file in the chosen folders is added or edited. Translations written back to Drive do not start a run.",
+    "description": "Explains how often the Google Drive trigger checks for changed files"
+  },
   "E7OAFUiyvH": {
     "defaultMessage": "tag-name",
     "description": "Placeholder in the small inline field for adding a tag; shows the tag format (lowercase words joined by hyphens)"
@@ -12294,6 +12306,10 @@
   "EEDujIUcvK": {
     "defaultMessage": "Machine or human",
     "description": "CAT queue filter: narrows strings by whether a machine or a person wrote the translation"
+  },
+  "EFdSAgjqjW": {
+    "defaultMessage": "Could not load Linear teams.",
+    "description": "Shown when the Linear teams list fails to load"
   },
   "EFqMJ3jrZJ": {
     "defaultMessage": "Combine objects with an explicit conflict policy.",
@@ -14127,6 +14143,10 @@
     "defaultMessage": "Questions",
     "description": "Heading for the FAQ section on the localisation audit landing page"
   },
+  "GgaVU1Vn/i": {
+    "defaultMessage": "Could not create Linear issues.",
+    "description": "Toast when no QA findings could be filed as Linear issues"
+  },
   "GgcJD1DYC4": {
     "defaultMessage": "Callout",
     "description": "Document editor: highlighted note block type"
@@ -15014,6 +15034,10 @@
   "HsTC/VyFCY": {
     "defaultMessage": "Queries Imported",
     "description": "Activity log event type label for importing Queries"
+  },
+  "HsjxzJIUuM": {
+    "defaultMessage": "Open {identifier}",
+    "description": "Toast action that opens the Linear issue just created"
   },
   "Hsz2q13V4l": {
     "defaultMessage": "Loading jobs",
@@ -19983,6 +20007,10 @@
     "defaultMessage": "A member",
     "description": "QA manual run trigger"
   },
+  "OhHA3+4Wkh": {
+    "defaultMessage": "Choose Google Drive folders or files in the Google Drive tool for this trigger to watch.",
+    "description": "Shown under the Google Drive trigger when no folders or files are chosen yet"
+  },
   "OhR/3nyLW+": {
     "defaultMessage": "Hyperlocalise agents flag copy that doesn't follow the guidelines, and say which rule it breaks.",
     "description": "Description of the second point in the empty guidelines explainer"
@@ -20334,6 +20362,10 @@
   "P9C1n98DZ2": {
     "defaultMessage": "Provider file",
     "description": "Metadata label for a TMS provider file resource in the files tree"
+  },
+  "P9FnIb5bY/": {
+    "defaultMessage": "Google Drive",
+    "description": "Automation list trigger label: runs start when Google Drive files change"
   },
   "P9Kxy3XGc5": {
     "defaultMessage": "Warnings",
@@ -23579,6 +23611,10 @@
     "defaultMessage": "No plans are configured in Autumn yet.",
     "description": "Empty state when Autumn has no plans configured"
   },
+  "TcmlRF0VAv": {
+    "defaultMessage": "Recommended",
+    "description": "Badge on the workflow template teams should start from: AI translation with review only when QA asks for it"
+  },
   "TdNvcRaC0s": {
     "defaultMessage": "How can we get started?",
     "description": "Hyperlab FAQ question about getting started"
@@ -24382,6 +24418,10 @@
   "UfyoQ9IKvC": {
     "defaultMessage": "Code block",
     "description": "Slash menu item for a fenced code block"
+  },
+  "UgGsS3G7nT": {
+    "defaultMessage": "Files change in Google Drive",
+    "description": "Trigger option: runs start when files in the automation's Google Drive folders are added or edited"
   },
   "UgPHp0bv4a": {
     "defaultMessage": "Delete {name}",
@@ -32183,6 +32223,10 @@
     "defaultMessage": "Reviewers see the rule, the source, and a suggested fix together, so corrections take seconds instead of a round trip.",
     "description": "localisation-quality-monitoring use case page: guide › steps › #3 › body"
   },
+  "f/GttDI9Xi": {
+    "defaultMessage": "Created {count, plural, one {# Linear issue} other {# Linear issues}} in {team}",
+    "description": "Toast after QA findings were filed as Linear issues"
+  },
   "f/Vobm5joW": {
     "defaultMessage": "More translation memory actions",
     "description": "Accessible label for the translation memory actions menu"
@@ -33058,6 +33102,10 @@
   "g5f066LmY+": {
     "defaultMessage": "Move while the opportunity is open",
     "description": "Story beat title: scale into markets while timing favors you"
+  },
+  "g61fLD4F1a": {
+    "defaultMessage": "Send to Linear",
+    "description": "Button on the QA findings bar that files the selected findings as Linear issues"
   },
   "g6Tru4ATTb": {
     "defaultMessage": "Estimated traffic is DataForSEO’s ETV estimate, captured on demand.",
@@ -37814,6 +37862,10 @@
   "mRdtQn8m2l": {
     "defaultMessage": "Refresh preview",
     "description": "Aria label for refresh button on the visual editor preview URL bar"
+  },
+  "mRh696+WIu": {
+    "defaultMessage": "Connect Linear in Integrations to send findings there.",
+    "description": "Shown when the person has not connected their Linear account"
   },
   "mRvhPlspGD": {
     "defaultMessage": "When do I need Enterprise?",
@@ -45011,6 +45063,10 @@
     "defaultMessage": "Remove Create job",
     "description": "Accessible label to remove the Create job tool"
   },
+  "w2cJysSXjy": {
+    "defaultMessage": "Loading teams…",
+    "description": "Shown while the Linear teams list loads"
+  },
   "w2tot+OYiM": {
     "defaultMessage": "Completed",
     "description": "Wait completion output"
@@ -46166,6 +46222,10 @@
   "xXxJgL1vao": {
     "defaultMessage": "New",
     "description": "Small tag inside the homepage hero announcement pill for the Iris launch"
+  },
+  "xYAEn3Yicl": {
+    "defaultMessage": "Create issues in team",
+    "description": "Label above the list of Linear teams to file QA findings in"
   },
   "xYZMz3piZI": {
     "defaultMessage": "Could not lock this string. Try again.",

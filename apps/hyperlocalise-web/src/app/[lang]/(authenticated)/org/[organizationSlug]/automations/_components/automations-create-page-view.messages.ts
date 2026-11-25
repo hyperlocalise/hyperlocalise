@@ -244,6 +244,12 @@ export const automationsCreatePageViewMessages = defineMessages({
     description:
       "Title of the workflow template that sends AI translations to human review only when QA asks for it",
   },
+  workflowTemplateRecommended: {
+    defaultMessage: "Recommended",
+    id: "TcmlRF0VAv",
+    description:
+      "Badge on the workflow template teams should start from: AI translation with review only when QA asks for it",
+  },
   workflowTemplateQaGateDescription: {
     defaultMessage:
       "Translates each new source file with AI and runs QA. Work that passes ships; work QA or the quality estimate flags, or content in a domain that always needs review, gets a review task per language.",

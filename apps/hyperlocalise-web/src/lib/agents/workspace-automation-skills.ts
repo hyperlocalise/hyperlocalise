@@ -114,6 +114,7 @@ const ORCHESTRATED_TRIGGERS = [
   "github",
   "contentful",
   "source_upload",
+  "google_drive",
 ] as const;
 
 export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = [
@@ -264,7 +265,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     grants:
       "Reads and writes Google Drive files for connected folders. Imports source files into the Content editor and writes copies as [vi-VN] overview.docx, overview [vi-VN].docx, overview_vi-VN.docx, or vi-VN/overview.docx.",
     tools: ["import_google_drive_files", "push_google_drive_translations"],
-    triggers: ["manual", "scheduled"],
+    triggers: ["google_drive", "manual", "scheduled"],
     sharedSkills: [],
     keywords: {
       strong: ["google drive", "drive folder", "google docs"],

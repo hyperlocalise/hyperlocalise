@@ -259,6 +259,8 @@ function everydayTrigger(trigger: SetupResult["trigger"]): string {
       return "when a source file is uploaded";
     case "web_chat":
       return "from a web chat";
+    case "google_drive":
+      return "when files change in the connected Google Drive folders";
   }
 }
 

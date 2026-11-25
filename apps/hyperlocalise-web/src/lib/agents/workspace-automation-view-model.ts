@@ -58,7 +58,8 @@ export type WorkspaceAutomationTriggerMode =
   | "github"
   | "contentful"
   | "source_upload"
-  | "web_chat";
+  | "web_chat"
+  | "google_drive";
 
 export type WorkspaceAutomationFormState = {
   kind: WorkspaceAutomationKind;
@@ -389,6 +390,8 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   assign_translate_with_agent_requires_create_job:
     "Translate with agent requires Create job to be enabled.",
   source_upload_workflow_required: "Source upload triggers require Create job to be enabled.",
+  google_drive_trigger_requires_files:
+    "Add Google Drive folders or files to watch before using this trigger.",
   mcp_connection_required: "Choose an MCP server connection.",
   mcp_connection_not_found:
     "The selected MCP server connection was not found. Choose another connection.",
@@ -980,7 +983,9 @@ export function formStateToWorkspaceAutomationPayload(
             ? { mode: "source_upload" }
             : form.triggerMode === "web_chat"
               ? { mode: "web_chat" }
-              : { mode: "manual" };
+              : form.triggerMode === "google_drive"
+                ? { mode: "google_drive" }
+                : { mode: "manual" };
 
   const repositoryTarget: WorkspaceAutomationRepositoryTarget =
     form.gitlabEnabled && form.gitlabPathWithNamespace.trim()
@@ -1616,6 +1621,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "gitlab_agent_trigger_required":
     case "scheduled_workflow_required":
     case "source_upload_workflow_required":
+    case "google_drive_trigger_requires_files":
       return { trigger: message };
     case "invalid_automation_timezone":
       return { scheduledTimezone: message };
@@ -1737,7 +1743,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
 export function workspaceAutomationFormSupportsOnDemandRun(
   triggerMode: WorkspaceAutomationTriggerMode,
 ) {
-  return triggerMode === "manual" || triggerMode === "scheduled";
+  return triggerMode === "manual" || triggerMode === "scheduled" || triggerMode === "google_drive";
 }
 
 /** The form as a save would store it, where that differs from what was typed. */

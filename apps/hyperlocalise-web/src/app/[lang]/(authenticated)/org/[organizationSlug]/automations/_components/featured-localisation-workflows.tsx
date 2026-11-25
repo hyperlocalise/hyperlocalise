@@ -31,6 +31,7 @@ import { FormattedMessage, type MessageDescriptor } from "react-intl";
 import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { cn } from "@/lib/primitives/cn";
 import {
+  RECOMMENDED_VISUAL_WORKFLOW_TEMPLATE_ID,
   VISUAL_WORKFLOW_TEMPLATE_IDS,
   type VisualWorkflowTemplateId,
 } from "@/lib/visual-workflows/templates/visual-workflow-templates";
@@ -112,13 +113,21 @@ function FeaturedWorkflowCardBody({
   footer?: ReactNode;
 }) {
   const workflow = FEATURED_WORKFLOWS[templateId];
+  const recommended = templateId === RECOMMENDED_VISUAL_WORKFLOW_TEMPLATE_ID;
   return (
     <>
-      <span
-        id={`featured-workflow-${templateId}-title`}
-        className="font-sans text-base font-medium text-balance text-foreground"
-      >
-        <FormattedMessage {...workflow.title} />
+      <span className="flex flex-wrap items-center gap-2">
+        <span
+          id={`featured-workflow-${templateId}-title`}
+          className="font-sans text-base font-medium text-balance text-foreground"
+        >
+          <FormattedMessage {...workflow.title} />
+        </span>
+        {recommended ? (
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            <FormattedMessage {...messages.workflowTemplateRecommended} />
+          </span>
+        ) : null}
       </span>
       <span
         id={`featured-workflow-${templateId}-description`}

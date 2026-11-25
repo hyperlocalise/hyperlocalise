@@ -137,6 +137,7 @@ describe("workspace automation skills", () => {
         "github",
         "contentful",
         "source_upload",
+        "google_drive",
       ]);
     }
   });
