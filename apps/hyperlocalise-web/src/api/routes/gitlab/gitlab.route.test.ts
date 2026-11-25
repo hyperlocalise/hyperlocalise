@@ -144,7 +144,7 @@ describe("gitlabRoutes", () => {
       projects: [],
       error: {
         code: "gitlab_pipes_unavailable",
-        message: "WorkOS is not configured, so GitLab cannot connect through Pipes.",
+        message: "GitLab isn't available right now. Contact support if this continues.",
       },
     });
     const identity = fixture.createWorkosIdentityWithRole("admin");

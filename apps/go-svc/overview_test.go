@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,21 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type stubOverviewFlags struct {
-	enabled bool
-}
-
-func (s stubOverviewFlags) Enabled(context.Context, string, string, string) (bool, error) {
-	return s.enabled, nil
-}
-
 func overviewTestAPI(t *testing.T, role string, automationsEnabled bool) (*overviewAPI, *testenv.Scope) {
 	t.Helper()
+	t.Setenv("LOCAL_AUTUMN_FEATURES_ENABLED", "false")
 	scope := testenv.Seed(t, testenv.Options{Role: role, WithProject: true})
 	return &overviewAPI{
 		pool:       scope.Pool,
 		membership: scope.Membership(role),
-		flags:      stubOverviewFlags{enabled: automationsEnabled},
+		autumn:     stubAutumnChecker{allowed: automationsEnabled},
 	}, scope
 }
 
@@ -232,7 +224,7 @@ func TestOverviewRoutes(t *testing.T) {
 		require.Equal(t, "Missing CTA", body.Board[0].Title)
 	})
 
-	t.Run("hides automations without the flag", func(t *testing.T) {
+	t.Run("hides automations without the Autumn plan feature", func(t *testing.T) {
 		api, scope := overviewTestAPI(t, "admin", false)
 		rec := overviewRequest(api, scope, scope.OrgPath("/overview/automations"))
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())

@@ -389,6 +389,16 @@ describe("parseWorkflowDueAt", () => {
       new Date("2026-05-01T17:00:00.000Z"),
     );
   });
+
+  it("counts a period from the moment the step runs", () => {
+    const now = new Date("2026-11-19T08:00:00.000Z");
+    expect(parseWorkflowDueAt("+3d", now)).toEqual(new Date("2026-11-22T08:00:00.000Z"));
+    expect(parseWorkflowDueAt(" + 12 H ", now)).toEqual(new Date("2026-11-19T20:00:00.000Z"));
+    // Not periods: no plus sign, nothing to count, another unit, or more than a period.
+    for (const value of ["3d", "+0d", "+3w", "+d", "+1.5d", "+3d tomorrow", "-3d", "+3", "+12"]) {
+      expect(parseWorkflowDueAt(value, now), value).toBeUndefined();
+    }
+  });
 });
 
 describe("runUpdateJobAction", () => {

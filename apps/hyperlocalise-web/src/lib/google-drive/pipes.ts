@@ -22,7 +22,7 @@ import type { GoogleDrivePipesError } from "./types";
 
 const PIPES_UNAVAILABLE: GoogleDrivePipesError = {
   code: "google_drive_pipes_unavailable",
-  message: "WorkOS is not configured, so Google Drive cannot connect through Pipes.",
+  message: "Google Drive isn't available right now. Contact support if this continues.",
 };
 
 const NOT_CONNECTED: GoogleDrivePipesError = {

@@ -6,7 +6,7 @@ description: "HTTP API for the same multilingual content operations pipeline the
 
 Use this API to upload source files, create translation jobs, check progress, and retrieve translated files. It is also the API used by [Platform CLI sync](/platform/cli).
 
-For identity, project discovery, and Queries, use the separate [Projects and Queries API](/platform/developers/projects-and-queries). See [Choose an API](/platform/developers/api-overview) for base URLs and authentication. The OpenAPI document for that API does not describe these file and job routes.
+For identity, project discovery, and Queries, use the separate [Projects and Queries API](/platform/developers/projects-and-queries). See [Choose an API](/platform/developers/api-overview) for base URLs and authentication. The [Public API reference](/api) does not describe these file and job routes.
 
 ## Base URL
 
@@ -284,7 +284,7 @@ To set up a file's steps in one go, create the post-edit task, then the proofrea
 }
 ```
 
-The `201` response has `"status": "waiting_for_review"`, or `"queued"` for a task that waits. Finish each task with [Complete a task for people](#complete-a-task-for-people). Tasks on files count towards the workspace's limit of 50 open jobs.
+The `201` response has `"status": "waiting_for_review"`, or `"queued"` for a task that waits. Finish each task with [Complete a task for people](#complete-a-task-for-people). Tasks for people, on files or on chosen strings, do not count towards the workspace's limit of 50 open jobs, and that limit never refuses one. The limit of 120 jobs created an hour applies to them (`429 organization_job_budget_exceeded`).
 
 #### Title, deadline and owner
 

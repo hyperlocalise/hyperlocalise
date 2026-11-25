@@ -21,6 +21,9 @@ type stubIrisChatStream struct {
 	calls   []irisChatToolCall
 	usage   irisChatUsage
 	err     error
+	// failAfter fails the turn after the gateway accepted it and the reply
+	// was sent, the way a stopped or dropped turn ends.
+	failAfter error
 }
 
 func (s *stubIrisChatStream) Complete(context.Context, irisChatRequest) (irisChatReply, error) {
@@ -32,10 +35,16 @@ func (s *stubIrisChatStream) StreamChat(_ context.Context, req irisChatStreamReq
 	if s.err != nil {
 		return s.err
 	}
+	if err := emit(irisChatStreamEvent{Type: irisChatEventOpen}); err != nil {
+		return err
+	}
 	if s.reply != "" {
 		if err := emit(irisChatStreamEvent{Type: "delta", Text: s.reply}); err != nil {
 			return err
 		}
+	}
+	if s.failAfter != nil {
+		return s.failAfter
 	}
 	for _, call := range s.calls {
 		if err := emit(irisChatStreamEvent{
@@ -304,6 +313,7 @@ func TestIrisGatewayStreamChatPostsManagedWriter(t *testing.T) {
 	require.Equal(t, irisChatGatewayID, payloads[0]["model"])
 	require.Equal(t, true, payloads[0]["stream"])
 	require.Equal(t, []irisChatStreamEvent{
+		{Type: irisChatEventOpen},
 		{Type: "delta", Text: "ok"},
 		{Type: "done", Usage: &irisChatUsage{InputTokens: 1, OutputTokens: 1}},
 	}, events)

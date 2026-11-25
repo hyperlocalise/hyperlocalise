@@ -148,8 +148,10 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        "200": { description: File exists. }
-        "404": { description: Hash, locale, or path is unknown. }
+        "200":
+          description: File exists.
+        "404":
+          description: Hash, locale, or path is unknown.
   /ofrep/v1/evaluate/flags:
     post:
       operationId: evaluateOfrepFlags
@@ -2096,7 +2098,8 @@ paths:
       description: >-
         Requires `strings:read`. Returns the project's strings with their translations in one
         target locale, in the same CSV, TMX, XLF, XLIFF, or XLSX layout as the Content Editor's
-        bilingual export. Use `filePath` to export one file. A file holds at most 5,000 strings.
+        bilingual export. Use `filePath` to export one file. Optional `branch` selects a native
+        version branch; omit it or leave it empty to use `main`. A file holds at most 5,000 strings.
       parameters:
         - name: locale
           in: query
@@ -2109,6 +2112,10 @@ paths:
         - name: filePath
           in: query
           schema: { type: string, maxLength: 2048 }
+        - name: branch
+          in: query
+          description: Native version branch. Empty or omitted uses `main`.
+          schema: { type: string, maxLength: 128 }
         - name: includeHidden
           in: query
           schema: { type: boolean, default: false }
@@ -2132,7 +2139,8 @@ paths:
       description: >-
         Requires `translations:approve` (admins, localization managers and reviewers). Native
         projects only. Saves each row's target text as an
-        approved, imported translation of the string with the same key and file. Rows without a
+        approved, imported translation of the string with the same key and file on the chosen
+        native version branch (`branch`; omit or leave empty for `main`). Rows without a
         key or target text, for another locale, for an unknown string, for a locked segment, or
         longer than the string's `maxLength` are skipped. With `filePath`, rows that name no file
         belong to it and rows that name another file are skipped. The format comes from the file
@@ -2148,6 +2156,7 @@ paths:
                 file: { type: string, format: binary, description: At most 25 MiB and 5,000 rows. }
                 locale: { type: string, maxLength: 64 }
                 filePath: { type: string, maxLength: 2048 }
+                branch: { type: string, maxLength: 128, description: Native version branch. Empty or omitted uses `main`. }
                 format: { type: string, enum: [csv, tmx, xlf, xliff, xlsx] }
       responses:
         "200":
@@ -2218,9 +2227,9 @@ paths:
         analysed for Reports until work is saved in it; one created with `POST /api/v1/jobs` is.
         Languages must be enabled on the project. A file job's `fileFormat` must match its source
         file's name (`400 source_file_format_mismatch` gives `details.expectedFileFormat`). A
-        workspace holds at most 50 open jobs, not counting `keys` jobs (a task for a person on a file
-        counts), and creates at most 120
-        jobs an hour (`429 organization_job_budget_exceeded`). Send an `Idempotency-Key` header to
+        workspace holds at most 50 open jobs, not counting tasks for people (`keys` jobs and file
+        jobs with a `step`), and creates at most 120 jobs an hour, tasks for people included
+        (`429 organization_job_budget_exceeded`). Send an `Idempotency-Key` header to
         retry safely. A repeat of the same request returns the first job with `200` and
         `Idempotent-Replayed: true`. The same key with a different body returns
         `422 idempotency_key_reused`. Keys are shared with `POST /api/v1/jobs`.

@@ -226,10 +226,17 @@ func TestNativeProjectWorkflowActionsAllowTranslatorsToCreateJobs(t *testing.T) 
 	_, _, err := api.uploadFileHandler(req, translator)
 	requireForbidden(t, err)
 
-	_, _, err = api.translateFileHandler(req, translator)
-	var failure *projectError
-	require.True(t, errors.As(err, &failure))
-	require.NotEqual(t, http.StatusForbidden, failure.status)
+	for _, fn := range []func(*http.Request, projectActor) (any, int, error){
+		api.translateFileHandler,
+		api.nativeJobCreate,
+	} {
+		_, _, err = fn(req, translator)
+		require.Error(t, err)
+		var failure *projectError
+		if errors.As(err, &failure) {
+			require.NotEqual(t, http.StatusForbidden, failure.status)
+		}
+	}
 }
 
 func TestNativeProjectWorkflowRequiresTeamAccess(t *testing.T) {

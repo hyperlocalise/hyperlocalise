@@ -141,6 +141,42 @@ export const dictionaryDetailMessages = defineMessages({
     id: "uFYNRK7fNC",
     description: "Error when attaching a dictionary to a project fails",
   },
+  moreActions: {
+    defaultMessage: "More actions",
+    id: "RhmlCVOrxz",
+    description: "Accessible label for the dictionary detail overflow menu",
+  },
+  deleteDictionary: {
+    defaultMessage: "Delete dictionary",
+    id: "iDirbS65Em",
+    description: "Button to delete the current dictionary",
+  },
+  confirmDeleteDictionaryTitle: {
+    defaultMessage: "Delete this dictionary?",
+    id: "GutPXDHoRd",
+    description: "Title of the dictionary deletion confirmation dialog",
+  },
+  confirmDeleteDictionaryDescription: {
+    defaultMessage:
+      "This permanently deletes {dictionaryName} and all of its accepted words. This action cannot be undone.",
+    id: "keB6ISfBZ6",
+    description: "Description of the dictionary deletion confirmation dialog",
+  },
+  deleteDictionaryFailed: {
+    defaultMessage: "Unable to delete dictionary",
+    id: "46YLTYWLk2",
+    description: "Fallback error when deleting a dictionary fails",
+  },
+  dictionaryDeleted: {
+    defaultMessage: "Dictionary deleted",
+    id: "Nfgyq1HnJz",
+    description: "Toast after a dictionary is deleted successfully",
+  },
+  cancel: {
+    defaultMessage: "Cancel",
+    id: "bAcsTcwDMg",
+    description: "Button to dismiss the dictionary deletion confirmation dialog",
+  },
   wordRequired: {
     defaultMessage: "Enter a single word with no spaces.",
     id: "HnQHQaB8I0",

@@ -15,7 +15,11 @@ import { withAuth } from "@/lib/workos/server-auth";
 
 import type { OrganizationCapability } from "@/api/auth/policy";
 import { hasCapability } from "@/api/auth/policy";
-import { VendorAccessDeniedError, vendorHomePath } from "@/api/auth/vendor-access";
+import {
+  VendorAccessDeniedError,
+  vendorHomePath,
+  workspaceHomePath,
+} from "@/api/auth/vendor-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import {
   OrganizationSlugUnresolvableError,
@@ -109,7 +113,7 @@ async function resolveAppAuthContext(
 
       await setStoredActiveOrganizationSlug(error.currentSlug);
       redirect(
-        `/org/${error.currentSlug}/dashboard${options.staleOrganizationRedirectSearch ?? ""}`,
+        `${workspaceHomePath(error.currentSlug, error.inVendorTeam)}${options.staleOrganizationRedirectSearch ?? ""}`,
       );
     }
 

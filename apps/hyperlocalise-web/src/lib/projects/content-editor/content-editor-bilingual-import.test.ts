@@ -99,6 +99,30 @@ describe("postCatBilingualImport", () => {
     expect(form.get("sourcePath")).toBe("locales/en.json");
     expect(form.get("locale")).toBe("fr");
     expect(form.get("file")).toBe(file);
+    expect(form.get("branch")).toBeNull();
+  });
+
+  it("sends the open version branch when one is selected", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ import: { matched: 1, imported: 1, skipped: 0, files: 1 } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const file = new File(["<xliff/>"], "queue-fr.xliff", { type: "application/xliff+xml" });
+
+    await postCatBilingualImport({
+      organizationSlug: "acme",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      locale: "fr",
+      file,
+      fallbackMessage: "import failed",
+      branch: "feature-checkout",
+    });
+
+    const form = (fetchMock.mock.calls[0] as [string, RequestInit])[1].body as FormData;
+    expect(form.get("branch")).toBe("feature-checkout");
   });
 
   it("throws the API error message when import fails", async () => {

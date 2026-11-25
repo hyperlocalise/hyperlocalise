@@ -17,28 +17,6 @@ func catReq(method, target, body string) *http.Request {
 	return httptest.NewRequest(method, target, strings.NewReader(body))
 }
 
-func TestEditorCatSkippedRoutes(t *testing.T) {
-	api := &editorCatAPI{}
-	actor := editorCatActor{role: "admin"}
-	project := editorCatProject{ID: "p", Source: "native"}
-	req := catReq(http.MethodPost, "/", "{}")
-	cases := []struct {
-		name string
-		fn   func(*http.Request, editorCatActor, editorCatProject) (any, int, error)
-		code string
-	}{
-		{"recommendation", api.skipRecommendation, "ai_recommendation_deferred"},
-		{"regenerate", api.skipImageRegenerate, "image_regenerate_deferred"},
-		{"upload", api.skipImageUpload, "image_upload_deferred"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, _, err := tc.fn(req, actor, project)
-			require.EqualError(t, err, tc.code)
-		})
-	}
-}
-
 func TestStringContext(t *testing.T) {
 	api := &editorCatAPI{}
 	project := editorCatProject{ID: "p", Source: "native"}

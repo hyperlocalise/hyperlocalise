@@ -27,14 +27,15 @@ import { QaNotice, QaRunStatus } from "@/components/qa/qa-status";
 import { qaMessages as m } from "@/components/qa/qa.messages";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
-import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
+import {
+  createProjectQaReportClient,
+  type ProjectQaSettingsUpdate,
+} from "@/lib/qa/qa-report-client";
 import { workspaceQaReportsQueryKey } from "@/lib/qa/use-workspace-qa-reports";
-import type { QaCheckPolicy } from "@/lib/qa/qa-policy";
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
 import { QA_FILTER_ALL } from "@/components/qa/qa-filters-store";
 import { QaProjectUiStoreProvider, useQaProjectUiStore } from "../store/qa-project-store-context";
 import { qaProjectMessages as messages } from "../qa-project.messages";
-import type { QaCadence } from "../store/qa-project-ui-store";
 import { QaProjectOverview } from "./qa-project-overview";
 import { QaProjectSettingsDialog } from "./qa-project-settings-dialog";
 import { QaScanPicker } from "./qa-scan-picker";
@@ -172,8 +173,7 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
     },
   });
   const settingsMutation = useMutation({
-    mutationFn: (json: { cadence?: QaCadence; checks?: QaCheckPolicy }) =>
-      api.updateSettings({ param, json }),
+    mutationFn: (json: ProjectQaSettingsUpdate) => api.updateSettings({ param, json }),
     onSuccess: async () => {
       pageStore.closeSettings();
       toast.success(intl.formatMessage(m.policySaved));

@@ -47,6 +47,7 @@ const LABELS: Record<
   undo: () => messages.undo,
   redo: () => messages.redo,
   addNode: () => messages.addNode,
+  duplicate: () => messages.duplicate,
   fitView: () => messages.fitView,
   shortcuts: () => messages.shortcuts,
 };

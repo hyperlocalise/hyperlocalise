@@ -674,6 +674,7 @@ export function useContentEditorMutations(input: {
             organizationSlug: input.organizationSlug,
             projectId: input.projectId,
           },
+          query: catOptions.query ?? {},
           json: {
             sourcePath,
             targetLocale: mutationInput.targetLocale ?? input.targetLocale,
@@ -724,6 +725,7 @@ export function useContentEditorMutations(input: {
             organizationSlug: input.organizationSlug,
             projectId: input.projectId,
           },
+          query: catOptions.query ?? {},
           form: {
             sourcePath,
             targetLocale: mutationInput.targetLocale,
@@ -786,6 +788,7 @@ export function useContentEditorMutations(input: {
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
         },
+        query: catOptions.query ?? {},
         form: {
           sourcePath,
           targetLocale: input.targetLocale,

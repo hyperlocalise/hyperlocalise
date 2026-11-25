@@ -14,7 +14,12 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import { llmProviderContentEditoralog } from "@/lib/providers/shared/catalog";
+import {
+  curatedAnthropicGatewayWriterModelIds,
+  curatedGeminiGatewayWriterModelIds,
+} from "@/lib/providers/shared/vercel-ai-gateway-managed-writer-models";
 import { curatedOpenAiNativeModels } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
+import { pricingManagedAgentGatewayModelIds } from "./pricing-supported-models";
 
 import { PRICING_IRIS_MODELS } from "./pricing-iris-models";
 import { getPricingCatalogEntries } from "./pricing-model-catalog";
@@ -37,9 +42,32 @@ describe("pricing model catalog", () => {
       ),
     ).toEqual(new Set(curatedOpenAiNativeModels.map((slug) => `openai/${slug}`)));
 
+    expect(new Set(pricingManagedAgentGatewayModelIds)).toEqual(
+      new Set([
+        ...curatedOpenAiNativeModels.map((slug) => `openai/${slug}`),
+        ...curatedAnthropicGatewayWriterModelIds,
+        ...curatedGeminiGatewayWriterModelIds,
+      ]),
+    );
     expect(
       new Set(
-        entries.filter((entry) => entry.providerId === "anthropic").map((entry) => entry.modelId),
+        entries
+          .filter((entry) => entry.providerId === "anthropic" && entry.access === "included")
+          .map((entry) => entry.modelId),
+      ),
+    ).toEqual(new Set(curatedAnthropicGatewayWriterModelIds));
+    expect(
+      new Set(
+        entries
+          .filter((entry) => entry.providerId === "gemini" && entry.access === "included")
+          .map((entry) => entry.modelId),
+      ),
+    ).toEqual(new Set(curatedGeminiGatewayWriterModelIds));
+    expect(
+      new Set(
+        entries
+          .filter((entry) => entry.providerId === "anthropic" && entry.access === "byok")
+          .map((entry) => entry.modelId),
       ),
     ).toEqual(new Set(llmProviderContentEditoralog.anthropic.models));
     expect(
@@ -63,7 +91,7 @@ describe("pricing model catalog", () => {
           "GPT-6 Luna",
         ],
         [
-          "claude-sonnet-5",
+          "anthropic/claude-sonnet-5",
           "Claude Sonnet 5",
         ],
         [
@@ -215,6 +243,106 @@ describe("pricing model catalog", () => {
           "GPT-5.4 Pro",
         ],
         [
+          "anthropic/claude-opus-5.5",
+          "Claude Opus 5.5",
+        ],
+        [
+          "anthropic/claude-opus-5",
+          "Claude Opus 5",
+        ],
+        [
+          "anthropic/claude-sonnet-4.6",
+          "Claude Sonnet 4.6",
+        ],
+        [
+          "anthropic/claude-opus-4.8",
+          "Claude Opus 4.8",
+        ],
+        [
+          "anthropic/claude-opus-4.7",
+          "Claude Opus 4.7",
+        ],
+        [
+          "anthropic/claude-opus-4.6",
+          "Claude Opus 4.6",
+        ],
+        [
+          "anthropic/claude-haiku-4.5",
+          "Claude Haiku 4.5",
+        ],
+        [
+          "anthropic/claude-sonnet-4.5",
+          "Claude Sonnet 4.5",
+        ],
+        [
+          "anthropic/claude-opus-4.5",
+          "Claude Opus 4.5",
+        ],
+        [
+          "google/gemini-4-neon",
+          "Gemini 4 Neon",
+        ],
+        [
+          "google/gemini-4-carbon",
+          "Gemini 4 Carbon",
+        ],
+        [
+          "google/gemini-4-argon",
+          "Gemini 4 Argon",
+        ],
+        [
+          "google/gemini-4-hydrogen",
+          "Gemini 4 Hydrogen",
+        ],
+        [
+          "google/gemini-3.8-flash",
+          "Gemini 3.8 Flash",
+        ],
+        [
+          "google/gemini-3.7-flash",
+          "Gemini 3.7 Flash",
+        ],
+        [
+          "google/gemini-3.6-flash",
+          "Gemini 3.6 Flash",
+        ],
+        [
+          "google/gemini-3.5-flash",
+          "Gemini 3.5 Flash",
+        ],
+        [
+          "google/gemini-3.5-flash-lite",
+          "Gemini 3.5 Flash Lite",
+        ],
+        [
+          "google/gemini-3.1-pro-preview",
+          "Gemini 3.1 Pro Preview",
+        ],
+        [
+          "google/gemini-3.1-flash-lite",
+          "Gemini 3.1 Flash Lite",
+        ],
+        [
+          "google/gemini-3-flash",
+          "Gemini 3 Flash",
+        ],
+        [
+          "google/gemini-3-pro-preview",
+          "Gemini 3 Pro Preview",
+        ],
+        [
+          "google/gemini-2.5-pro",
+          "Gemini 2.5 Pro",
+        ],
+        [
+          "google/gemini-2.5-flash",
+          "Gemini 2.5 Flash",
+        ],
+        [
+          "google/gemini-2.5-flash-lite",
+          "Gemini 2.5 Flash Lite",
+        ],
+        [
           "grok-imagine-image-2.0",
           "Grok Imagine 2.0",
         ],
@@ -315,8 +443,8 @@ describe("pricing model catalog", () => {
           "Fish Audio Transcribe 1",
         ],
         [
-          "qwen3.8-omni-flash",
-          "Qwen 3.8 Omni Flash",
+          "listen",
+          "Listen",
         ],
         [
           "elevenlabs-voice-isolator",
@@ -359,6 +487,10 @@ describe("pricing model catalog", () => {
           "Claude Opus 5",
         ],
         [
+          "claude-sonnet-5",
+          "Claude Sonnet 5",
+        ],
+        [
           "claude-sonnet-4-6",
           "Claude Sonnet 4.6",
         ],
@@ -385,6 +517,22 @@ describe("pricing model catalog", () => {
         [
           "claude-opus-4-5",
           "Claude Opus 4.5",
+        ],
+        [
+          "gemini-4-neon",
+          "Gemini 4 Neon",
+        ],
+        [
+          "gemini-4-carbon",
+          "Gemini 4 Carbon",
+        ],
+        [
+          "gemini-4-argon",
+          "Gemini 4 Argon",
+        ],
+        [
+          "gemini-4-hydrogen",
+          "Gemini 4 Hydrogen",
         ],
         [
           "gemini-3.8-flash",

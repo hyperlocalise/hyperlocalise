@@ -59,11 +59,10 @@ export type HubspotSeedDiscoveryCache = {
 
 function parseStoredJsonObject(content: string): { [key: string]: HubspotJson } | null {
   const parsed = safeJsonParse(content);
-  if (!parsed.ok) {
+  if (!parsed.ok || !isHubspotJsonObject(parsed.value)) {
     return null;
   }
-  const value: HubspotJson = parsed.value;
-  return isHubspotJsonObject(value) ? value : null;
+  return parsed.value;
 }
 
 /** Source keys a locale must cover before it counts as fully seeded. */

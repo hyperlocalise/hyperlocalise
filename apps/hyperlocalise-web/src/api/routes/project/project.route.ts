@@ -13,7 +13,7 @@
 import path from "node:path";
 
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
@@ -236,6 +236,7 @@ import {
   projectFileCatHiddenStringsBodySchema,
   projectFileCatLockedStringsBodySchema,
   projectFileCatMaxLengthBodySchema,
+  projectFileCatBranchQuerySchema,
   projectFileCatImageRegenerateBodySchema,
   projectFileCatImageStatusBodySchema,
   projectFileCatRecommendationBodySchema,
@@ -842,6 +843,16 @@ const validateProjectFileContentEditorMaxLengthBody = validator("json", (value, 
   return parsed.data;
 });
 
+const validateProjectFileContentEditorBranchQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatBranchQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileContentEditorImageRegenerateBody = validator("json", (value, c) => {
   const parsed = projectFileCatImageRegenerateBodySchema.safeParse(value);
 
@@ -1175,6 +1186,46 @@ async function contentEditorSegmentLockedResponse(
   }
 
   return conflictResponse(c, "translation_locked", "This string is locked. Unlock it to edit.");
+}
+
+async function writableProjectFileBranch(
+  c: Context<{ Variables: AuthVariables }>,
+  projectId: string,
+  branch?: string,
+) {
+  await projectBranchService.ensureDefaultBranch({
+    organizationId: c.var.auth.organization.localOrganizationId,
+    projectId,
+    createdByUserId: c.var.auth.user.localUserId,
+  });
+  const writableBranch = await projectBranchService.assertWritable({
+    projectId,
+    branchName: branch,
+  });
+  if (!writableBranch.ok) {
+    if (writableBranch.error === "protected_branch") {
+      return {
+        ok: false as const,
+        response: conflictResponse(c, "protected_branch", "This branch is protected."),
+      };
+    }
+    return {
+      ok: false as const,
+      response: notFoundResponse(c, "branch_not_found", "Branch not found."),
+    };
+  }
+  return { ok: true as const, branchName: writableBranch.value };
+}
+
+function mediaVariantMutationErrorResponse(
+  c: Context<{ Variables: AuthVariables }>,
+  code: string,
+  fallbackMessage: string,
+) {
+  if (code === "variant_branch_conflict") {
+    return conflictResponse(c, code, "This localized file belongs to another version branch.");
+  }
+  return badRequestResponse(c, code, fallbackMessage);
 }
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
@@ -2348,6 +2399,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .post(
       "/:projectId/files/detail/cat/images/regenerate",
       validateProjectParams,
+      validateProjectFileContentEditorBranchQuery,
       validateProjectFileContentEditorImageRegenerateBody,
       async (c) => {
         if (!isAiActionAllowed(c.var.auth.membership.role)) {
@@ -2364,6 +2416,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
         const params = c.req.valid("param");
         const body = c.req.valid("json");
+        const branchName = c.req.valid("query").branch;
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
         if (target.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, target);
@@ -2393,6 +2446,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               organizationId,
               projectId: params.projectId,
               sourcePath: body.sourcePath,
+              branchName,
             })
           : null;
         const isFileBackedAsset = Boolean(
@@ -2430,6 +2484,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId,
             projectId: params.projectId,
             sourcePath: body.sourcePath,
+            branchName,
           });
           if (!latestVersion?.storedFileId) {
             return badRequestResponse(c, "source_bytes_missing", "Source video bytes are missing");
@@ -2466,7 +2521,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             if (result.error.code === "ai_credit_unavailable") {
               return apiErrorResponse(c, 503, result.error.code, result.error.message);
             }
-            return badRequestResponse(c, result.error.code, "Video regeneration failed");
+            return mediaVariantMutationErrorResponse(
+              c,
+              result.error.code,
+              "Video regeneration failed",
+            );
           }
 
           const targetAssetUrl = result.value.storedFileId
@@ -2504,6 +2563,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId,
             projectId: params.projectId,
             sourcePath: body.sourcePath,
+            branchName,
           });
           if (!latestVersion?.storedFileId) {
             return badRequestResponse(
@@ -2567,6 +2627,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId,
             projectId: params.projectId,
             sourcePath: body.sourcePath,
+            branchName,
           });
           if (!latestVersion?.storedFileId) {
             return badRequestResponse(c, "source_bytes_missing", "Source image bytes are missing");
@@ -2604,7 +2665,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             if (result.error.code === "ai_credit_unavailable") {
               return apiErrorResponse(c, 503, result.error.code, result.error.message);
             }
-            return badRequestResponse(c, result.error.code, "Image regeneration failed");
+            return mediaVariantMutationErrorResponse(
+              c,
+              result.error.code,
+              "Image regeneration failed",
+            );
           }
 
           const targetAssetUrl = result.value.storedFileId
@@ -2738,6 +2803,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .post(
       "/:projectId/files/detail/cat/images/edit",
       validateProjectParams,
+      validateProjectFileContentEditorBranchQuery,
       bodyLimit({
         maxSize: maxProjectFileUploadBytes,
         onError: (c) => badRequestResponse(c, "file_upload_too_large", "File upload is too large"),
@@ -2830,6 +2896,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           organizationId,
           projectId: params.projectId,
           sourcePath,
+          branchName: c.req.valid("query").branch,
         });
         if (!sourceFile) {
           return badRequestResponse(
@@ -2884,7 +2951,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           if (result.error.code === "ai_credit_unavailable") {
             return apiErrorResponse(c, 503, result.error.code, result.error.message);
           }
-          return badRequestResponse(c, result.error.code, "Image edit failed");
+          return mediaVariantMutationErrorResponse(c, result.error.code, "Image edit failed");
         }
 
         const targetAssetUrl = result.value.storedFileId
@@ -2911,6 +2978,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .post(
       "/:projectId/files/detail/cat/images/upload",
       validateProjectParams,
+      validateProjectFileContentEditorBranchQuery,
       bodyLimit({
         maxSize: maxProjectFileUploadBytes,
         onError: (c) => badRequestResponse(c, "file_upload_too_large", "File upload is too large"),
@@ -2950,6 +3018,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               organizationId,
               projectId: params.projectId,
               sourcePath,
+              branchName: c.req.valid("query").branch,
             })
           : null;
         const lockedUploadResponse = await contentEditorSegmentLockedResponse(c, {
@@ -3119,7 +3188,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           });
 
           if (!result.ok) {
-            return badRequestResponse(c, result.error.code, "File upload failed");
+            return mediaVariantMutationErrorResponse(c, result.error.code, "File upload failed");
           }
 
           const targetAssetUrl = result.value.storedFileId
@@ -3167,7 +3236,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           });
 
           if (!result.ok) {
-            return badRequestResponse(c, result.error.code, "File upload failed");
+            return mediaVariantMutationErrorResponse(c, result.error.code, "File upload failed");
           }
 
           const targetAssetUrl = result.value.storedFileId
@@ -3270,6 +3339,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .patch(
       "/:projectId/files/detail/cat/images/status",
       validateProjectParams,
+      validateProjectFileContentEditorBranchQuery,
       validateProjectFileContentEditorImageStatusBody,
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
@@ -3278,6 +3348,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
         const params = c.req.valid("param");
         const body = c.req.valid("json");
+        const branchName = c.req.valid("query").branch;
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
         if (target.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, target);
@@ -3303,6 +3374,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           organizationId,
           projectId: params.projectId,
           sourcePath: body.sourcePath,
+          branchName,
         });
         const lockedImageStatusResponse = await contentEditorSegmentLockedResponse(c, {
           organizationId,
@@ -3322,10 +3394,15 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             targetLocale: body.targetLocale,
             status: body.status,
             actorUserId: c.var.auth.user.localUserId,
+            repositorySourceFileId: sourceFile?.id,
           });
 
           if (!result.ok) {
-            return badRequestResponse(c, result.error.code, "File variant not found");
+            return mediaVariantMutationErrorResponse(
+              c,
+              result.error.code,
+              "File variant not found",
+            );
           }
 
           const targetAssetUrl = result.value.storedFileId
@@ -3357,10 +3434,15 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             targetLocale: body.targetLocale,
             status: body.status,
             actorUserId: c.var.auth.user.localUserId,
+            repositorySourceFileId: sourceFile?.id,
           });
 
           if (!result.ok) {
-            return badRequestResponse(c, result.error.code, "File variant not found");
+            return mediaVariantMutationErrorResponse(
+              c,
+              result.error.code,
+              "File variant not found",
+            );
           }
 
           const targetAssetUrl = result.value.storedFileId
@@ -3634,6 +3716,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: query.sourcePath,
+          branchName: query.branch,
         });
         if (!record) {
           return notFoundResponse(c, "source_file_not_found");
@@ -3677,10 +3760,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
+        const writableBranch = await writableProjectFileBranch(c, params.projectId, body.branch);
+        if (!writableBranch.ok) {
+          return writableBranch.response;
+        }
+
         const result = await updateRepositorySourceFileSegmentation({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: body.sourcePath,
+          branchName: writableBranch.branchName,
           settings: body.segmentation,
         });
 
@@ -3734,6 +3823,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: query.sourcePath,
+          branchName: query.branch,
         });
         if (!settings) {
           return notFoundResponse(c, "source_file_not_found");
@@ -3773,10 +3863,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
+        const writableBranch = await writableProjectFileBranch(c, params.projectId, body.branch);
+        if (!writableBranch.ok) {
+          return writableBranch.response;
+        }
+
         const settings = await updateRepositorySourceFilePlaceholderSettings({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: body.sourcePath,
+          branchName: writableBranch.branchName,
           messageFormat: body.messageFormat,
           placeholderPatterns: body.placeholderPatterns,
         });
@@ -3818,6 +3914,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: query.sourcePath,
+          branchName: query.branch,
         });
         if (!record) {
           return notFoundResponse(c, "source_file_not_found");
@@ -3857,10 +3954,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
+        const writableBranch = await writableProjectFileBranch(c, params.projectId, body.branch);
+        if (!writableBranch.ok) {
+          return writableBranch.response;
+        }
+
         const result = await updateRepositorySourceFileImportSettings({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: body.sourcePath,
+          branchName: writableBranch.branchName,
           settings: body.importSettings,
         });
         if (!result.ok) {
@@ -4557,6 +4660,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const parsed = projectFileTranslationImportBodySchema.safeParse({
           sourcePath: asString(body.sourcePath),
           locale: asString(body.locale),
+          branch: asString(body.branch),
         });
 
         if (!parsed.success) {
@@ -4583,10 +4687,28 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
         }
 
+        await projectBranchService.ensureDefaultBranch({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          createdByUserId: c.var.auth.user.localUserId,
+        });
+        const writableBranch = await projectBranchService.assertWritable({
+          projectId: params.projectId,
+          branchName: parsed.data.branch,
+        });
+        if (!writableBranch.ok) {
+          if (writableBranch.error === "protected_branch") {
+            return conflictResponse(c, "protected_branch", "This branch is protected.");
+          }
+          return notFoundResponse(c, "branch_not_found", "Branch not found.");
+        }
+        const importBranchName = writableBranch.value;
+
         const sourceFile = await getRepositorySourceFileByPath({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: parsed.data.sourcePath,
+          branchName: importBranchName,
         });
         if (!sourceFile) {
           return notFoundResponse(c, "source_file_not_found", "Source file not found");
@@ -4618,6 +4740,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             sourcePath: parsed.data.sourcePath,
             targetLocale: parsed.data.locale,
             actorUserId: c.var.auth.user.localUserId,
+            branchName: importBranchName,
           });
         } catch (error) {
           await db
@@ -4674,6 +4797,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const parsed = projectFileTranslationImportBodySchema.safeParse({
           sourcePath: asString(body.sourcePath),
           locale: asString(body.locale),
+          branch: asString(body.branch),
         });
         if (!parsed.success) {
           return invalidProjectPayloadResponse(c);
@@ -4692,12 +4816,29 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
         }
 
+        await projectBranchService.ensureDefaultBranch({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          createdByUserId: c.var.auth.user.localUserId,
+        });
+        const writableBranch = await projectBranchService.assertWritable({
+          projectId: params.projectId,
+          branchName: parsed.data.branch,
+        });
+        if (!writableBranch.ok) {
+          if (writableBranch.error === "protected_branch") {
+            return conflictResponse(c, "protected_branch", "This branch is protected.");
+          }
+          return notFoundResponse(c, "branch_not_found", "Branch not found.");
+        }
+
         const isAllFiles = isContentEditorAllFilesSourcePath(parsed.data.sourcePath);
         if (!isAllFiles) {
           const sourceFile = await getRepositorySourceFileByPath({
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             sourcePath: parsed.data.sourcePath,
+            branchName: parsed.data.branch,
           });
           if (!sourceFile) {
             return notFoundResponse(c, "source_file_not_found", "Source file not found");
@@ -4760,6 +4901,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             targetLocale: parsed.data.locale,
             rows,
             actorUserId: c.var.auth.user.localUserId,
+            branchName: parsed.data.branch,
           });
           return c.json({ import: result }, 200);
         } catch (error) {

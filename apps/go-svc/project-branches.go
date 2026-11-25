@@ -246,10 +246,6 @@ func branchFailure(err error) error {
 
 func (api *projectAPI) rejectProtectedBranchWrite(r *http.Request, actor projectActor, projectID, action string, body map[string]any) error {
 	switch action {
-	case "import_translations":
-		// The importer always writes the default branch, so a client-supplied
-		// branch name cannot choose a different line of work.
-		return api.assertProjectBranchWritable(r, actor, projectID, "")
 	case "use_translation_as_source":
 		// A send reads this project and writes the destination's default branch.
 		destinationID, _ := body["destinationProjectId"].(string)

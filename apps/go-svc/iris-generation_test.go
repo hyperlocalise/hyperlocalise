@@ -43,6 +43,9 @@ type stubIrisMeter struct {
 	checkErr    error
 	tracks      []autumn.TrackRequest
 	tokenTracks []autumn.TrackTokensRequest
+	// charged is what each token track reports Autumn charged.
+	charged  float64
+	trackErr error
 }
 
 func (s *stubIrisMeter) Check(_ context.Context, req autumn.CheckRequest) (autumn.CheckResponse, error) {
@@ -65,9 +68,9 @@ func (s *stubIrisMeter) Track(_ context.Context, req autumn.TrackRequest) error 
 	return nil
 }
 
-func (s *stubIrisMeter) TrackTokens(_ context.Context, req autumn.TrackTokensRequest) error {
+func (s *stubIrisMeter) TrackTokensCharged(_ context.Context, req autumn.TrackTokensRequest) (autumn.TrackTokensResponse, error) {
 	s.tokenTracks = append(s.tokenTracks, req)
-	return nil
+	return autumn.TrackTokensResponse{Value: s.charged}, s.trackErr
 }
 
 type presigningMemory struct {
@@ -501,7 +504,7 @@ func TestIrisGenerationAutumnGate(t *testing.T) {
 		api.credits = testIrisCredits()
 		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "99999999-9999-9999-9999-999999999998",
-			"request":        map[string]any{"model": "seedance-2.5", "prompt": "a clip", "duration": 8},
+			"request":        map[string]any{"model": "kling-3-pro", "prompt": "a clip", "duration": 8},
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.Len(t, meter.tokenTracks, 1)
@@ -587,14 +590,14 @@ func TestIrisSyntheticCredit(t *testing.T) {
 		},
 		{
 			name:   "fal video seconds",
-			job:    irisJobRecord{ID: "job_vid", OrgID: "org_local", Model: "seedance-2.5", Request: irisGenerateRequest{"duration": float64(8)}},
+			job:    irisJobRecord{ID: "job_vid", OrgID: "org_local", Model: "kling-3-pro", Request: irisGenerateRequest{"duration": float64(8)}},
 			model:  "custom/fal-video",
 			vendor: "fal",
 			output: 8,
 		},
 		{
 			name:   "fal video default seconds",
-			job:    irisJobRecord{ID: "job_vid_default", OrgID: "org_local", Model: "seedance-2.5"},
+			job:    irisJobRecord{ID: "job_vid_default", OrgID: "org_local", Model: "kling-3-pro"},
 			model:  "custom/fal-video",
 			vendor: "fal",
 			output: 6,
@@ -650,8 +653,8 @@ func TestIrisSyntheticCredit(t *testing.T) {
 		},
 		{
 			name:   "omni flash default input minute",
-			job:    irisJobRecord{ID: "job_omni", OrgID: "org_local", Model: "qwen3.8-omni-flash"},
-			model:  "alibaba/qwen3.8-omni-flash",
+			job:    irisJobRecord{ID: "job_omni", OrgID: "org_local", Model: "listen"},
+			model:  "google/gemini-3.8-flash",
 			vendor: "gateway",
 			output: 1,
 		},
@@ -888,13 +891,13 @@ func TestIrisPublicHTTPSURL(t *testing.T) {
 func TestIrisGatewayProviderUpscalerIncludesVideo(t *testing.T) {
 	var payload map[string]any
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/videos", r.URL.Path)
+		require.Equal(t, "/v4/ai/video-model", r.URL.Path)
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
-		_, _ = w.Write([]byte(`{"video":{"b64_json":"dmlkZW8="}}`))
+		_, _ = w.Write([]byte("data: {\"type\":\"result\",\"videos\":[{\"type\":\"base64\",\"data\":\"dmlkZW8=\",\"mediaType\":\"video/mp4\"}]}\n\n"))
 	}))
 	t.Cleanup(server.Close)
 	provider := &irisGatewayProvider{
-		baseURL:    server.URL,
+		baseURL:    server.URL + "/v1",
 		apiKey:     "test-key",
 		httpClient: server.Client(),
 	}
@@ -910,9 +913,161 @@ func TestIrisGatewayProviderUpscalerIncludesVideo(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []byte("video"), outputs[0].Bytes)
-	ref, _ := payload["input_reference"].(string)
-	require.Contains(t, ref, "video/mp4")
-	require.Contains(t, ref, "Y2xpcA==")
+	refs, _ := payload["inputReferences"].([]any)
+	require.Len(t, refs, 1)
+	ref, _ := refs[0].(map[string]any)
+	require.Equal(t, "video/mp4", ref["mediaType"])
+	require.Equal(t, "Y2xpcA==", ref["data"])
+}
+
+func TestIrisGatewayProviderSeedanceSendsReferences(t *testing.T) {
+	var payload map[string]any
+	var headers http.Header
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/v4/ai/video-model", r.URL.Path)
+		headers = r.Header.Clone()
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"type\":\"result\",\"videos\":[{\"type\":\"base64\",\"data\":\"dmlkZW8=\",\"mediaType\":\"video/mp4\"}]}\n\n"))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{baseURL: server.URL + "/v1", apiKey: "test-key", httpClient: server.Client()}
+	model, ok := irisModelByID("seedance-2.5")
+	require.True(t, ok)
+	require.Equal(t, irisProviderGateway, model.Provider)
+
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:       model,
+		Prompt:      "@Image1 hands @Image2 a shirt",
+		Duration:    10.4,
+		AspectRatio: "16:9",
+		Inputs: []irisProviderInput{
+			{Role: "image", Bytes: []byte("founder"), ContentType: "image/png"},
+			{Role: "image", Bytes: []byte("shirt"), ContentType: "image/jpeg"},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []byte("video"), outputs[0].Bytes)
+	require.Equal(t, "bytedance/seedance-2.5", headers.Get("ai-model-id"))
+	require.Equal(t, "4", headers.Get("ai-video-model-specification-version"))
+	require.Equal(t, "Bearer test-key", headers.Get("Authorization"))
+	require.Equal(t, "[Image 1] hands [Image 2] a shirt", payload["prompt"])
+	require.Equal(t, float64(10), payload["duration"])
+	require.Equal(t, "16:9", payload["aspectRatio"])
+	require.Equal(t, true, payload["generateAudio"])
+	refs, _ := payload["inputReferences"].([]any)
+	require.Len(t, refs, 2)
+	second, _ := refs[1].(map[string]any)
+	require.Equal(t, "file", second["type"])
+	require.Equal(t, "image/jpeg", second["mediaType"])
+	require.Equal(t, base64.StdEncoding.EncodeToString([]byte("shirt")), second["data"])
+	_, hasFrames := payload["frameImages"]
+	require.False(t, hasFrames)
+}
+
+func TestIrisGatewayProviderSeedanceFramesAndErrors(t *testing.T) {
+	var payload map[string]any
+	fail := false
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		if fail {
+			_, _ = w.Write([]byte("data: {\"type\":\"error\",\"message\":\"content rejected\",\"errorType\":\"invalid_request\",\"statusCode\":400,\"param\":null}\n\n"))
+			return
+		}
+		_, _ = w.Write([]byte("data: {\"type\":\"result\",\"videos\":[{\"type\":\"base64\",\"data\":\"dmlkZW8=\",\"mediaType\":\"video/mp4\"}]}\n\n"))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{baseURL: server.URL + "/v1", apiKey: "test-key", httpClient: server.Client()}
+	model, ok := irisModelByID("seedance-2.5")
+	require.True(t, ok)
+	req := irisProviderRequest{
+		Model:  model,
+		Prompt: "walk in",
+		Inputs: []irisProviderInput{
+			{Role: "start", Bytes: []byte("start"), ContentType: "image/png"},
+			{Role: "end", Bytes: []byte("end"), ContentType: "image/png"},
+		},
+	}
+
+	_, err := provider.Generate(t.Context(), req)
+	require.NoError(t, err)
+	frames, _ := payload["frameImages"].([]any)
+	require.Len(t, frames, 2)
+	first, _ := frames[0].(map[string]any)
+	last, _ := frames[1].(map[string]any)
+	require.Equal(t, "first_frame", first["frameType"])
+	require.Equal(t, "last_frame", last["frameType"])
+	_, hasRefs := payload["inputReferences"]
+	require.False(t, hasRefs)
+
+	fail = true
+	_, err = provider.Generate(t.Context(), req)
+	require.ErrorContains(t, err, "content rejected")
+}
+
+func TestIrisGatewayProviderVideoModelsUseVideoModelProtocol(t *testing.T) {
+	cases := []struct {
+		modelID   string
+		gatewayID string
+		audio     bool
+	}{
+		{modelID: "veo-3.1", gatewayID: "google/veo-3.1-generate-001", audio: true},
+		{modelID: "veo-3.1-fast", gatewayID: "google/veo-3.1-fast-generate-001", audio: true},
+		{modelID: "grok-imagine-video-1.5", gatewayID: "spacexai/grok-imagine-video-1.5", audio: true},
+		{modelID: "flux-3-video", gatewayID: "bfl/flux-3-video", audio: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.modelID, func(t *testing.T) {
+			var payload map[string]any
+			var headers http.Header
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, "/v4/ai/video-model", r.URL.Path)
+				headers = r.Header.Clone()
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+				_, _ = w.Write([]byte("data: {\"type\":\"result\",\"videos\":[{\"type\":\"base64\",\"data\":\"dmlkZW8=\",\"mediaType\":\"video/mp4\"}]}\n\n"))
+			}))
+			t.Cleanup(server.Close)
+			provider := &irisGatewayProvider{baseURL: server.URL + "/v1", apiKey: "test-key", httpClient: server.Client()}
+			model, ok := irisModelByID(tc.modelID)
+			require.True(t, ok)
+			require.Equal(t, irisProviderGateway, model.Provider)
+
+			outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+				Model:       model,
+				Prompt:      "@Image1 walks in",
+				Duration:    8,
+				AspectRatio: "9:16",
+				Inputs: []irisProviderInput{
+					{Role: "start", Bytes: []byte("start"), ContentType: "image/png"},
+					{Role: "end", Bytes: []byte("end"), ContentType: "image/jpeg"},
+					{Role: "image", Bytes: []byte("ignored"), ContentType: "image/png"},
+				},
+			})
+			require.NoError(t, err)
+			require.Equal(t, []byte("video"), outputs[0].Bytes)
+			require.Equal(t, tc.gatewayID, headers.Get("ai-model-id"))
+			require.Equal(t, "4", headers.Get("ai-video-model-specification-version"))
+			require.Equal(t, "@Image1 walks in", payload["prompt"])
+			require.Equal(t, float64(8), payload["duration"])
+			require.Equal(t, "9:16", payload["aspectRatio"])
+			_, hasOptions := payload["providerOptions"]
+			require.False(t, hasOptions)
+			_, hasRefs := payload["inputReferences"]
+			require.False(t, hasRefs)
+			if tc.audio {
+				require.Equal(t, true, payload["generateAudio"])
+			} else {
+				_, hasAudio := payload["generateAudio"]
+				require.False(t, hasAudio)
+			}
+			frames, _ := payload["frameImages"].([]any)
+			require.Len(t, frames, 2)
+			last, _ := frames[1].(map[string]any)
+			require.Equal(t, "last_frame", last["frameType"])
+			image, _ := last["image"].(map[string]any)
+			require.Equal(t, "image/jpeg", image["mediaType"])
+		})
+	}
 }
 
 func TestIrisGatewayProviderImageEditForwardsAllReferences(t *testing.T) {
@@ -1207,15 +1362,18 @@ func TestIrisGatewayProviderTranscribeUsesV4Endpoint(t *testing.T) {
 	require.Equal(t, "api-key", gotAuthMethod)
 	require.Equal(t, "audio/wav", payload["mediaType"])
 	require.Equal(t, base64.StdEncoding.EncodeToString(audio), payload["audio"])
+	require.Equal(t, map[string]any{"google": map[string]any{"wordTimestamp": true}}, payload["providerOptions"])
 	require.JSONEq(t, `[{"text":"hello from vo","words":[{"text":"hello from vo","start":0.1,"end":1.2}]}]`, string(outputs[0].Bytes))
 }
 
 func TestIrisGatewayProviderFishAudioTranscribeUsesGatewayID(t *testing.T) {
 	audio := []byte("RIFF....WAVEfmt ")
 	var gotModel string
+	var payload map[string]any
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotModel = r.Header.Get("ai-model-id")
 		require.Equal(t, "/v4/ai/transcription-model", r.URL.Path)
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
 		_, _ = w.Write([]byte(`{"text":"fish transcript","segments":[{"text":"fish transcript","startSecond":0,"endSecond":1}]}`))
 	}))
 	t.Cleanup(server.Close)
@@ -1236,7 +1394,168 @@ func TestIrisGatewayProviderFishAudioTranscribeUsesGatewayID(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "fish-audio/transcribe-1", gotModel)
+	require.Equal(t, "audio/wav", payload["mediaType"])
+	require.NotContains(t, payload, "providerOptions", "Gemini word timestamps are only for universal-3.5-pro")
 	require.JSONEq(t, `[{"text":"fish transcript","words":[{"text":"fish transcript","start":0,"end":1}]}]`, string(outputs[0].Bytes))
+}
+
+func TestIrisGatewayProviderListenUsesChatCompletions(t *testing.T) {
+	video := []byte("ftypisom")
+	var gotPath string
+	var payload map[string]any
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"- 00:01 A woman says hello.\n- 00:04 Music under the VO."}}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("listen")
+	require.True(t, ok)
+	require.Equal(t, defaultIrisListenModel, model.GatewayID)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:    model,
+		Prompt:   "what is said?",
+		Language: "en",
+		Inputs: []irisProviderInput{{
+			Role:        "media",
+			Bytes:       video,
+			ContentType: "video/mp4",
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "/chat/completions", gotPath)
+	require.NotContains(t, gotPath, "transcription-model")
+	require.Equal(t, defaultIrisListenModel, payload["model"])
+	require.NotContains(t, payload, "response_format")
+	messages, _ := payload["messages"].([]any)
+	require.Len(t, messages, 2)
+	system, _ := messages[0].(map[string]any)
+	require.Equal(t, irisListenSystem, system["content"])
+	user, _ := messages[1].(map[string]any)
+	parts, _ := user["content"].([]any)
+	require.Len(t, parts, 2)
+	text, _ := parts[0].(map[string]any)
+	require.Equal(t, "what is said? The speech is in en.", text["text"])
+	filePart, _ := parts[1].(map[string]any)
+	require.Equal(t, "file", filePart["type"])
+	file, _ := filePart["file"].(map[string]any)
+	require.Equal(t, "media.mp4", file["filename"])
+	require.Equal(t, "data:video/mp4;base64,"+base64.StdEncoding.EncodeToString(video), file["file_data"])
+	require.Equal(t, "analysis.md", outputs[0].Filename)
+	require.Equal(t, "text/markdown", outputs[0].ContentType)
+	require.Equal(t, "- 00:01 A woman says hello.\n- 00:04 Music under the VO.", string(outputs[0].Bytes))
+}
+
+func TestIrisGatewayProviderListenRequiresMedia(t *testing.T) {
+	provider := &irisGatewayProvider{baseURL: "https://example.invalid", apiKey: "test-key"}
+	model, ok := irisModelByID("listen")
+	require.True(t, ok)
+	_, err := provider.Generate(t.Context(), irisProviderRequest{Model: model})
+	require.EqualError(t, err, "media input is required")
+}
+
+func TestIrisGatewayProviderListenReadsArrayContent(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":[{"type":"text","text":"A low drone from 00:00 to 00:08."}]}}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("listen")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model: model,
+		Inputs: []irisProviderInput{{
+			Role:        "media",
+			Bytes:       []byte("RIFF"),
+			ContentType: "audio/wav",
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "analysis.md", outputs[0].Filename)
+	require.Equal(t, "A low drone from 00:00 to 00:08.", string(outputs[0].Bytes))
+}
+
+func TestIrisGatewayProviderListenFallsBackToGemini(t *testing.T) {
+	var models []string
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		model, _ := payload["model"].(string)
+		models = append(models, model)
+		if model == defaultIrisListenModel {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":{"message":"'Only image file parts are supported' functionality not supported.","type":"AI_UnsupportedFunctionalityError"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"Backup heard a laugh at 00:02."}}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("listen")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model: model,
+		Inputs: []irisProviderInput{{
+			Role:        "media",
+			Bytes:       []byte("RIFF"),
+			ContentType: "audio/wav",
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{defaultIrisListenModel, defaultIrisListenBackupModel}, models)
+	require.Equal(t, "analysis.md", outputs[0].Filename)
+	require.Equal(t, "Backup heard a laugh at 00:02.", string(outputs[0].Bytes))
+}
+
+func TestIrisListenGatewayIDs(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, []string{defaultIrisListenModel, defaultIrisListenBackupModel}, irisListenGatewayIDs(""))
+	require.Equal(t, []string{defaultIrisListenModel, defaultIrisListenBackupModel}, irisListenGatewayIDs(defaultIrisListenModel))
+	require.Equal(t, []string{defaultIrisListenBackupModel}, irisListenGatewayIDs(defaultIrisListenBackupModel))
+}
+
+func TestIrisGatewayProviderListenFailsWhenBothModelsFail(t *testing.T) {
+	var models []string
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		model, _ := payload["model"].(string)
+		models = append(models, model)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"message":"file parts are not supported"}}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL,
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("listen")
+	require.True(t, ok)
+	_, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model: model,
+		Inputs: []irisProviderInput{{
+			Role:        "media",
+			Bytes:       []byte("RIFF"),
+			ContentType: "audio/wav",
+		}},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "gateway request failed")
+	require.Equal(t, []string{defaultIrisListenModel, defaultIrisListenBackupModel}, models)
 }
 
 func TestIrisGatewayProviderTranscribeOpenAIUsesMultipart(t *testing.T) {
@@ -1344,4 +1663,13 @@ func TestIrisAudioMediaType(t *testing.T) {
 	require.Equal(t, "audio/wav", irisAudioMediaType(irisProviderInput{ContentType: "application/octet-stream"}))
 	require.Equal(t, "audio.mp3", irisAudioFilename("audio/mpeg"))
 	require.Equal(t, "audio.wav", irisAudioFilename("audio/wav"))
+	require.Equal(t, "media.mp4", irisMediaFilename("video/mp4"))
+	require.Equal(t, "audio.mp3", irisMediaFilename("audio/mpeg"))
+}
+
+func TestIrisChatContentText(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "hello", irisChatContentText(json.RawMessage(`"hello"`)))
+	require.Equal(t, "hello there", irisChatContentText(json.RawMessage(`[{"type":"text","text":"hello "},{"type":"text","text":"there"}]`)))
+	require.Equal(t, "", irisChatContentText(json.RawMessage(`null`)))
 }

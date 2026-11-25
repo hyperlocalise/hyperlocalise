@@ -20,12 +20,24 @@ type bilingualExportQuery struct {
 	Locale        string
 	FilePath      *string
 	IncludeHidden bool
+	// Branch is the native version branch. Empty means the default branch, main.
+	Branch string
 }
 
 type bilingualImportInput struct {
 	Locale   string
 	FilePath *string
 	Rows     []editor_export.Row
+	// Branch is the native version branch. Empty means the default branch, main.
+	Branch string
+}
+
+func bilingualBranchName(value string) string {
+	name := normalizeBranchName(value)
+	if name == "" {
+		return "main"
+	}
+	return name
 }
 
 // bilingualImportCounts matches the web app's Content Editor bilingual import result.
@@ -102,6 +114,7 @@ func (s *postgresStore) exportBilingualRows(ctx context.Context, actor principal
 	}
 	where := newSQLFilter("k.organization_id = $1 AND k.project_id = $2", actor.OrganizationID, scope.ID)
 	where.args = append(where.args, query.Locale)
+	where.add("k.branch_name = ?", bilingualBranchName(query.Branch))
 	if !query.IncludeHidden {
 		where.conditions = append(where.conditions, "NOT k.is_hidden")
 	}
@@ -157,11 +170,15 @@ func (s *postgresStore) importBilingualRows(ctx context.Context, actor principal
 		if !slices.Contains(scope.TargetLocales, input.Locale) {
 			return errLocaleNotInProject
 		}
+		branch := bilingualBranchName(input.Branch)
+		if err := rejectProtectedBranch(ctx, tx, scope, branch); err != nil {
+			return err
+		}
 		if input.FilePath != nil {
 			var exists bool
 			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM repository_source_files
-				WHERE organization_id = $1 AND project_id = $2 AND source_path = $3)`,
-				actor.OrganizationID, scope.ID, *input.FilePath).Scan(&exists); err != nil {
+				WHERE organization_id = $1 AND project_id = $2 AND source_path = $3 AND branch_name = $4)`,
+				actor.OrganizationID, scope.ID, *input.FilePath, branch).Scan(&exists); err != nil {
 				return fmt.Errorf("check source file: %w", err)
 			}
 			if !exists {
@@ -171,7 +188,7 @@ func (s *postgresStore) importBilingualRows(ctx context.Context, actor principal
 		if len(entries) == 0 {
 			return nil
 		}
-		keys, err := lockBilingualKeys(ctx, tx, actor, scope, entries)
+		keys, err := lockBilingualKeys(ctx, tx, actor, scope, branch, entries)
 		if err != nil {
 			return err
 		}
@@ -228,7 +245,7 @@ func (s *postgresStore) importBilingualRows(ctx context.Context, actor principal
 	return counts, nil
 }
 
-func lockBilingualKeys(ctx context.Context, tx pgx.Tx, actor principal, scope projectScope, entries []bilingualEntry) ([]bilingualKey, error) {
+func lockBilingualKeys(ctx context.Context, tx pgx.Tx, actor principal, scope projectScope, branch string, entries []bilingualEntry) ([]bilingualKey, error) {
 	paths := make([]string, len(entries))
 	names := make([]string, len(entries))
 	for i, entry := range entries {
@@ -239,10 +256,10 @@ func lockBilingualKeys(ctx context.Context, tx pgx.Tx, actor principal, scope pr
 		FROM project_translation_keys k
 		LEFT JOIN repository_source_files f ON f.id = k.repository_source_file_id
 		JOIN unnest($3::text[], $4::text[]) AS e(path, key) ON e.key = k.key AND e.path = COALESCE(f.source_path, '')
-		WHERE k.organization_id = $1 AND k.project_id = $2
+		WHERE k.organization_id = $1 AND k.project_id = $2 AND k.branch_name = $5
 		ORDER BY k.id
 		FOR NO KEY UPDATE OF k`,
-		actor.OrganizationID, scope.ID, paths, names)
+		actor.OrganizationID, scope.ID, paths, names, bilingualBranchName(branch))
 	if err != nil {
 		return nil, fmt.Errorf("lock bilingual strings: %w", err)
 	}

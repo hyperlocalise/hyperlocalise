@@ -54,15 +54,15 @@ describe("NavbarDesktopAuthActions", () => {
     );
   });
 
-  it("tracks marketing CTA clicks for sign-in and request demo", async () => {
+  it("tracks marketing CTA clicks for sign-in and Download Iris", async () => {
     const user = userEvent.setup();
     renderActions(false);
 
     await user.click(screen.getByRole("button", { name: "Sign in" }));
-    await user.click(screen.getByRole("button", { name: "Request a Demo" }));
+    await user.click(screen.getByRole("button", { name: /Download Iris/ }));
 
     expect(trackMarketingCtaClickMock).toHaveBeenCalledWith("sign_in", "navbar");
-    expect(trackMarketingCtaClickMock).toHaveBeenCalledWith("request_demo", "navbar");
+    expect(trackMarketingCtaClickMock).toHaveBeenCalledWith("download_iris", "navbar");
     expect(PRODUCT_USAGE_ANALYTICS_EVENTS.marketingCtaClick).toBe("marketing_cta_click");
   });
 });

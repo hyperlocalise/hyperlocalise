@@ -32,6 +32,7 @@ import {
   WebhooksLogoIcon,
   ListChecksIcon,
   FilesIcon,
+  ListMagnifyingGlassIcon,
   UserSwitchIcon,
   UsersThreeIcon,
   TextTIcon,
@@ -146,6 +147,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     category: "localization",
     enabled: true,
     icon: FilesIcon,
+  },
+  {
+    type: "action.list_review_work",
+    category: "localization",
+    enabled: true,
+    icon: ListMagnifyingGlassIcon,
   },
   {
     type: "action.translation_as_source",
@@ -462,6 +469,8 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return { kind: "action.run_qa", projectId: "", onError: "stop" };
     case "action.list_source_files":
       return { kind: "action.list_source_files", projectId: "", pathPrefix: "", onError: "stop" };
+    case "action.list_review_work":
+      return { kind: "action.list_review_work", projectId: "", pathPrefix: "", onError: "stop" };
     case "action.translation_as_source":
       return {
         kind: "action.translation_as_source",
@@ -829,6 +838,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.projectId ? "Project QA" : "Select project";
     case "action.list_source_files":
       return config.pathPrefix.trim() || "All source files";
+    case "action.list_review_work":
+      return config.pathPrefix.trim() || "All files";
     case "action.translation_as_source":
       return config.destinationProjectId ? "Send to project" : "Select project";
     case "action.file_read":

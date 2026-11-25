@@ -110,6 +110,7 @@ async function importAndRecord(
     targetLocale: event.targetLocale,
     entries,
     actorUserId: event.actorUserId ?? null,
+    branchName: event.branchName,
   });
 
   await enqueueFileTranslationsImportedActivityStep({

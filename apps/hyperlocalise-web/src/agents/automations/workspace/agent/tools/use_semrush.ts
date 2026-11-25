@@ -13,7 +13,7 @@
 import { isStepCount, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
 
-import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
+import { defineAgentTool, type AgentToolExecuteOptions } from "@/agents/_runtime/define-agent-tool";
 import {
   SUBAGENT_NO_QUESTIONS_RULES,
   SUBAGENT_RESPONSE_FORMAT,
@@ -49,7 +49,7 @@ export function createUseSemrushTool(session: WorkspaceOrchestratorSession) {
     description:
       "Query Semrush SEO, traffic, and project data through the connected Semrush MCP server. Use discovery tools, get_report_schema, and execute_report as needed.",
     inputSchema: useSemrushInputSchema,
-    execute: async ({ objective }, { toolCallId } = {}) => {
+    execute: async ({ objective }, { toolCallId }: AgentToolExecuteOptions = {}) => {
       const semrush = session.automation.toolConfig.semrush;
       if (!semrush?.enabled || !semrush.connectionId) {
         throw new Error("semrush_not_configured");

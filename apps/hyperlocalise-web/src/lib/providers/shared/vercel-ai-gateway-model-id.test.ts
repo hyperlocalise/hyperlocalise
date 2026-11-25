@@ -29,6 +29,9 @@ describe("toVercelAiGatewayModelId", () => {
     expect(toVercelAiGatewayModelId({ provider: "gemini", model: "gemini-2.5-pro" })).toBe(
       "google/gemini-2.5-pro",
     );
+    expect(toVercelAiGatewayModelId({ provider: "gemini", model: "gemini-4-neon" })).toBe(
+      "google/gemini-4-neon",
+    );
     expect(toVercelAiGatewayModelId({ provider: "gemini", model: "gemini-3.8-flash" })).toBe(
       "google/gemini-3.8-flash",
     );

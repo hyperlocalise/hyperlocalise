@@ -178,7 +178,7 @@ func (api *projectAPI) forwardFileAction(r *http.Request, actor projectActor, ac
 	if err := decodeProjectBody(r, &body); err != nil {
 		return nil, 0, err
 	}
-	if action == "upload_file" || action == "import_translations" || action == "file_settings_patch" || action == "use_translation_as_source" {
+	if action == "upload_file" || action == "import_translations" || action == "file_settings_patch" || action == "use_translation_as_source" || action == "translate_file" || action == "create_job" {
 		if err := api.rejectProtectedBranchWrite(r, actor, projectID, action, body); err != nil {
 			return nil, 0, err
 		}

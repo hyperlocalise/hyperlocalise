@@ -15,11 +15,7 @@ import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-pa
 import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
 import { getMergedWorkspaceAutomationTemplates } from "@/lib/agents/workspace-automation-templates.server";
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
-import {
-  getAutumnWorkspaceBooleanFeatureEnabled,
-  getWorkspaceFeatureFlagEnabled,
-  workspaceAutomationsFlag,
-} from "@/lib/flags/workspace-flags";
+import { getAutumnWorkspaceBooleanFeatureEnabled } from "@/lib/flags/workspace-flags";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
@@ -45,7 +41,7 @@ async function CreateAutomationPageLoader({
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
   const [automationsEnabled, visualWorkflowsEnabled, assistantEnabled] = await Promise.all([
-    getWorkspaceFeatureFlagEnabled(workspaceAutomationsFlag, auth),
+    getAutumnWorkspaceBooleanFeatureEnabled(autumnFeatureIds.automations, auth),
     getAutumnWorkspaceBooleanFeatureEnabled(autumnFeatureIds.automationWorkflow, auth),
     canUseWorkspaceAutomationAssistant(auth),
   ]);

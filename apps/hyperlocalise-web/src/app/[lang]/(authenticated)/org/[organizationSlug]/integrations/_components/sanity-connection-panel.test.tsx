@@ -135,9 +135,7 @@ describe("SanityConnectionPanel", () => {
 
     expect(await screen.findByLabelText("Authentication method")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Authorize Hyperlocalise to access Sanity on your behalf through WorkOS Pipes.",
-      ),
+      screen.getByText("Authorize Hyperlocalise to access Sanity on your behalf."),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Authorize with Sanity" })).toBeEnabled();
     expect(screen.queryByTestId("workos-pipes-widget")).not.toBeInTheDocument();

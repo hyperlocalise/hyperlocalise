@@ -17,6 +17,7 @@ import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/primitives/cn";
 import type { ComponentProps, ReactNode } from "react";
+import { Markdown } from "@pierre/words/react";
 import {
   createContext,
   memo,
@@ -27,13 +28,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { Streamdown } from "streamdown";
 import { useIntl } from "react-intl";
 
 import { AgentPulse } from "./agent-pulse";
+import { markdownPlugins } from "./markdown-plugins";
 import { reasoningMessages } from "./reasoning.messages";
 import { Shimmer } from "./shimmer";
-import { streamdownPlugins } from "./streamdown-plugins";
 import { TypographyP } from "@/components/ui/typography";
 
 interface ReasoningContextValue {
@@ -205,18 +205,23 @@ export type ReasoningContentProps = ComponentProps<typeof CollapsibleContent> & 
   children: string;
 };
 
-export const ReasoningContent = memo(({ className, children, ...props }: ReasoningContentProps) => (
-  <CollapsibleContent
-    className={cn(
-      "mt-4 text-sm",
-      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
-      className,
-    )}
-    {...props}
-  >
-    <Streamdown plugins={streamdownPlugins}>{children}</Streamdown>
-  </CollapsibleContent>
-));
+export const ReasoningContent = memo(({ className, children, ...props }: ReasoningContentProps) => {
+  const { isStreaming } = useReasoning();
+  return (
+    <CollapsibleContent
+      className={cn(
+        "mt-4 text-sm",
+        "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+        className,
+      )}
+      {...props}
+    >
+      <Markdown plugins={markdownPlugins} cjk math isAnimating={isStreaming}>
+        {children}
+      </Markdown>
+    </CollapsibleContent>
+  );
+});
 
 Reasoning.displayName = "Reasoning";
 ReasoningTrigger.displayName = "ReasoningTrigger";

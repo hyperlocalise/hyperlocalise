@@ -17,11 +17,7 @@ import { visualWorkflowIdParamSchema } from "@/api/routes/visual-workflow/visual
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
-import {
-  getAutumnWorkspaceBooleanFeatureEnabled,
-  getWorkspaceFeatureFlagEnabled,
-  workspaceAutomationsFlag,
-} from "@/lib/flags/workspace-flags";
+import { getAutumnWorkspaceBooleanFeatureEnabled } from "@/lib/flags/workspace-flags";
 import {
   getVisualWorkflowById,
   getVisualWorkflowProjectName,
@@ -52,7 +48,7 @@ async function VisualWorkflowEditorPageLoader({
   const { organizationSlug, visualWorkflowId } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
   const [automationsEnabled, visualWorkflowsEnabled, assistantEnabled] = await Promise.all([
-    getWorkspaceFeatureFlagEnabled(workspaceAutomationsFlag, auth),
+    getAutumnWorkspaceBooleanFeatureEnabled(autumnFeatureIds.automations, auth),
     getAutumnWorkspaceBooleanFeatureEnabled(autumnFeatureIds.automationWorkflow, auth),
     canUseWorkspaceAutomationAssistant(auth),
   ]);

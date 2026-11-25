@@ -65,7 +65,7 @@ tags:
 在仓库根目录创建 `i18n.yml`：
 
 ```yaml
-version: hyperlocalise@1.13.10
+version: hyperlocalise@1.14.0
 
 locales:
   source: en-US

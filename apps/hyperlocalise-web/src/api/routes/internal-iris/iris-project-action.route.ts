@@ -13,6 +13,7 @@
 import { Hono } from "hono";
 
 import { verifyGoSvcServiceToken } from "@/lib/go-svc/go-svc-service-token";
+import { runIrisAutomationAction } from "@/lib/automations/iris-automation-actions";
 import {
   runIrisProjectAction,
   type IrisProjectActionDeps,
@@ -40,6 +41,17 @@ export function createIrisProjectActionRoutes(deps: IrisProjectActionDeps) {
         return c.json({ error: "invalid_request_body", message: "Invalid project action" }, 400);
       }
       const result = await runIrisProjectAction(body.action, body.payload, deps);
+      return c.json(result.body, result.status as 200);
+    })
+    .post("/automation-action", async (c) => {
+      const body = (await c.req.json().catch(() => null)) as {
+        action?: string;
+        payload?: Record<string, unknown>;
+      } | null;
+      if (!body?.action || !body.payload) {
+        return c.json({ error: "invalid_request_body", message: "Invalid automation action" }, 400);
+      }
+      const result = await runIrisAutomationAction(body.action, body.payload);
       return c.json(result.body, result.status as 200);
     });
 }

@@ -270,6 +270,17 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "LSAb8ph9tQ",
     description: "Catalog description for the list source files node",
   },
+  nodeListReviewWork: {
+    defaultMessage: "List work to review",
+    id: "x6+CVCpXnQ",
+    description: "Catalog title for the step that lists files and languages with review work",
+  },
+  nodeListReviewWorkHint: {
+    defaultMessage:
+      "Find each file and language with translations waiting for review that nobody has a task for.",
+    id: "zdITXRNL2Q",
+    description: "Catalog description for the step that lists files and languages with review work",
+  },
   nodeFileRead: {
     defaultMessage: "Read file",
     id: "4+YLajE++n",
@@ -1073,6 +1084,21 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Add node from {handle}",
     id: "8UCB2eKoiL",
     description: "Accessible label for a per-output quick-add control on a node handle",
+  },
+  contextPickerTitle: {
+    defaultMessage: "Add a step",
+    id: "I4W/7/gfOu",
+    description: "Heading of the menu that appears when adding a step on the canvas",
+  },
+  insertOnWire: {
+    defaultMessage: "Insert a step on this wire",
+    id: "opXOXg+I3A",
+    description: "Accessible label for the plus control in the middle of a workflow wire",
+  },
+  duplicateNodes: {
+    defaultMessage: "Duplicate",
+    id: "xdd2UBxiby",
+    description: "Shortcut label for duplicating the selected workflow steps",
   },
   backToPicker: {
     defaultMessage: "Back",
@@ -2688,8 +2714,8 @@ export const visualWorkflowEditorMessages = defineMessages({
   },
   taskDueAtHint: {
     defaultMessage:
-      "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty for no due date.",
-    id: "SQUPAVRD+K",
+      "A date such as 2026-05-01T17:00Z, a period from when the step runs such as +3d or +12h, or a value from an earlier step. Leave empty for no due date.",
+    id: "r//PBG5Cpu",
     description:
       "Help text for the due date setting of the Assign task and Crowdin task workflow steps",
   },
@@ -2702,6 +2728,12 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "For example locales/en/. Up to 100 files are listed.",
     id: "ijFxeRDSFN",
     description: "Help text under the path setting of the list source files step",
+  },
+  listReviewWorkPathPrefixHint: {
+    defaultMessage:
+      "For example locales/en/. Up to 100 files and languages are listed; the rest come at the next run.",
+    id: "wlp63zuJYJ",
+    description: "Help text under the path setting of the list work to review step",
   },
   updateJobJobId: {
     defaultMessage: "Job ID",
@@ -2725,8 +2757,8 @@ export const visualWorkflowEditorMessages = defineMessages({
   },
   updateJobDueAtHint: {
     defaultMessage:
-      "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty to keep the current due date.",
-    id: "Yn8fBlm1d2",
+      "A date such as 2026-05-01T17:00Z, a period from when the step runs such as +3d or +12h, or a value from an earlier step. Leave empty to keep the current due date.",
+    id: "9x6oc8jVLH",
     description: "Help text for the due date setting of the Update job workflow step",
   },
   updateJobHint: {
@@ -3342,5 +3374,33 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Ran for real",
     id: "r/zdhHnzwh",
     description: "Mark beside a step in a test run's step list: the step called out for real",
+  },
+  runQaScopeHint: {
+    defaultMessage:
+      "Leave the file, languages and job empty to check the whole project. Narrow it to check only the work this run produced.",
+    id: "DHnnbTgHql",
+    description: "Hint above the Run QA step's optional scope settings",
+  },
+  runQaJobId: {
+    defaultMessage: "Job (optional)",
+    id: "ef9NaZ7SyI",
+    description: "Label of the Run QA setting that checks only one job's file and languages",
+  },
+  runQaJobHint: {
+    defaultMessage:
+      "Checks this job's file and languages, such as the task that was just marked done. A file or languages set above take precedence.",
+    id: "M7UxdPJ+uA",
+    description: "Hint under the Run QA step's job setting",
+  },
+  taskDueInHours: {
+    defaultMessage: "Due in (hours)",
+    id: "XaxUxOrSQ7",
+    description:
+      "Label of the setting that sets a task's due date a number of hours after the step runs",
+  },
+  taskDueInHoursHint: {
+    defaultMessage: "Used when the due date above is empty, for example 48 for two days.",
+    id: "6cEvqd8zKN",
+    description: "Hint under the Due in (hours) setting",
   },
 });

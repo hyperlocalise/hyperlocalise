@@ -53,6 +53,7 @@ import { createStoredFile } from "@/lib/file-storage/records";
 
 import {
   editAndStoreImageVariant,
+  ensureImageVariantsForSourceFile,
   fetchImageBytesFromUrl,
   localizeAndStoreImageVariant,
   replaceImageVariantBytes,
@@ -215,6 +216,119 @@ describe("fetchImageBytesFromUrl", () => {
     expect(result.error).toEqual({
       code: "fetch_failed",
       message: `Response too large (exceeds ${MAX_PUBLIC_HTTP_RESPONSE_BYTES} byte limit)`,
+    });
+  });
+});
+
+describe("image variant version-branch isolation", () => {
+  async function insertSourceFile(input: {
+    organizationId: string;
+    projectId: string;
+    sourcePath: string;
+    branchName: string;
+  }) {
+    const [row] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        branchName: input.branchName,
+      })
+      .returning({ id: schema.repositorySourceFiles.id });
+    if (!row) {
+      throw new Error("expected source file");
+    }
+    return row;
+  }
+
+  it("does not rebind or overwrite a main-bound variant from a clone file id", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const mainFile = await insertSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      branchName: "main",
+    });
+    const cloneFile = await insertSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      branchName: "feature-checkout",
+    });
+    const previous = await createStoredFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      role: "output",
+      sourceKind: "job_output",
+      filename: "hero.fr-FR.png",
+      contentType: "image/png",
+      content: Buffer.from("main-localized"),
+      metadata: {},
+    });
+    const [variant] = await db
+      .insert(schema.projectImageVariants)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: mainFile.id,
+        sourcePath: "assets/hero.png",
+        targetLocale: "fr-FR",
+        status: "needs_review",
+        provenance: "agent",
+        storedFileId: previous.id,
+      })
+      .returning();
+
+    const localized = await localizeAndStoreImageVariant({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      sourceUrl: "https://cdn.example.com/assets/hero.png",
+      repositorySourceFileId: cloneFile.id,
+      provenance: "agent",
+    });
+    expect(isErr(localized)).toBe(true);
+    if (isOk(localized)) {
+      throw new Error("expected clone localize to conflict with the main variant");
+    }
+    expect(localized.error).toEqual({ code: "variant_branch_conflict" });
+    expect(regenerateImageFromAttachment).not.toHaveBeenCalled();
+
+    const replaced = await replaceImageVariantBytes({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr-FR",
+      content: Buffer.from("clone-upload"),
+      contentType: "image/png",
+      filename: "hero-clone.png",
+      repositorySourceFileId: cloneFile.id,
+    });
+    expect(isErr(replaced)).toBe(true);
+    if (isOk(replaced)) {
+      throw new Error("expected clone upload to conflict with the main variant");
+    }
+    expect(replaced.error).toEqual({ code: "variant_branch_conflict" });
+
+    await ensureImageVariantsForSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "assets/hero.png",
+      repositorySourceFileId: cloneFile.id,
+      targetLocales: ["fr-FR"],
+    });
+
+    const [storedVariant] = await db
+      .select()
+      .from(schema.projectImageVariants)
+      .where(eq(schema.projectImageVariants.id, variant.id))
+      .limit(1);
+    expect(storedVariant).toMatchObject({
+      repositorySourceFileId: mainFile.id,
+      storedFileId: previous.id,
+      status: "needs_review",
     });
   });
 });

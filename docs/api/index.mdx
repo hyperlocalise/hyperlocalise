@@ -1,0 +1,28 @@
+---
+title: "Public API reference"
+sidebarTitle: "Overview"
+description: "Call the Hyperlocalise Public API from the generated OpenAPI reference."
+---
+
+Use this reference to call `https://public-api.hyperlocalise.com`. Each endpoint page is generated from the [OpenAPI document](https://public-api.hyperlocalise.com/openapi.yaml). Send a personal access token in `x-api-key`. Create one under **Settings**.
+
+File uploads and job creation stay on `https://hyperlocalise.com/api/v1`. Follow [Files and jobs](/platform/api) for that host. It has no OpenAPI document yet.
+
+## Authenticate
+
+1. Create a [personal access token](/platform/settings#personal-access-tokens).
+2. Open an endpoint page and enter the token in the playground, or send it on every request:
+
+```
+x-api-key: <secret>
+```
+
+Start with [Get the current token principal](/api-reference/identity/get-current-principal) to confirm the workspace and permissions.
+
+## Guides
+
+- [Choose an API](/platform/developers/api-overview)
+- [Projects and Queries](/platform/developers/projects-and-queries)
+- [Strings and key jobs](/platform/developers/strings-and-key-jobs)
+- [Webhooks](/platform/developers/webhooks)
+- [Files and jobs](/platform/api)

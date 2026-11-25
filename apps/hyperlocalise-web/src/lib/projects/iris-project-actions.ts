@@ -10,14 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, notExists, or, type SQL } from "drizzle-orm";
+import { and, eq, notExists, or, type SQL } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
 import { db, schema } from "@/lib/database/client";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
-import { createStoredFile } from "@/lib/file-storage/records";
+import { createStoredFile, getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
+import { resolvedProjectBranchName } from "@/lib/projects/branches/project-branch-name";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
 import {
@@ -144,19 +146,18 @@ async function loadAccessibleNativeProject(
   return { project, role: membership.role };
 }
 
-async function storedFileIdForPath(organizationId: string, projectId: string, sourcePath: string) {
-  const [version] = await db
-    .select({ storedFileId: schema.repositorySourceFileVersions.storedFileId })
-    .from(schema.repositorySourceFileVersions)
-    .where(
-      and(
-        eq(schema.repositorySourceFileVersions.organizationId, organizationId),
-        eq(schema.repositorySourceFileVersions.projectId, projectId),
-        eq(schema.repositorySourceFileVersions.sourcePath, sourcePath),
-      ),
-    )
-    .orderBy(desc(schema.repositorySourceFileVersions.createdAt))
-    .limit(1);
+async function storedFileIdForPath(
+  organizationId: string,
+  projectId: string,
+  sourcePath: string,
+  branchName?: string | null,
+) {
+  const version = await getLatestRepositorySourceFileVersion({
+    organizationId,
+    projectId,
+    sourcePath,
+    branchName,
+  });
   return version?.storedFileId ?? null;
 }
 
@@ -165,14 +166,18 @@ function bytesOf(value: unknown): Uint8Array | null {
   return Uint8Array.from(Buffer.from(value, "base64"));
 }
 
+function asString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 export async function runIrisProjectAction(
   action: string,
   payload: Record<string, unknown>,
   deps: IrisProjectActionDeps,
 ): Promise<ActionResult> {
-  const organizationId = String(payload.organizationId ?? "");
-  const userId = String(payload.userId ?? "");
-  const projectId = String(payload.projectId ?? "");
+  const organizationId = asString(payload.organizationId);
+  const userId = asString(payload.userId);
+  const projectId = asString(payload.projectId);
   if (!organizationId || !userId || !projectId) {
     return fail(400, "invalid_request_body", "organization, user, and project are required");
   }
@@ -208,9 +213,9 @@ export async function runIrisProjectAction(
     case "translate_file":
       return translateFile(organizationId, userId, project, payload, deps);
     case "file_settings_get":
-      return fileSettings(organizationId, projectId, payload, false);
+      return fileSettings(organizationId, userId, projectId, payload, false);
     case "file_settings_patch":
-      return fileSettings(organizationId, projectId, payload, true);
+      return fileSettings(organizationId, userId, projectId, payload, true);
     case "use_translation_as_source":
       return useTranslation(organizationId, userId, project, payload);
     case "create_job":
@@ -233,14 +238,14 @@ async function upload(
   payload: Record<string, unknown>,
 ): Promise<ActionResult> {
   const bytes = bytesOf(payload.contentBase64);
-  const sourcePath = String(payload.sourcePath ?? "");
+  const sourcePath = asString(payload.sourcePath);
   if (!bytes || !sourcePath)
     return fail(400, "invalid_request_body", "File and source path are required");
   const uploaded = await uploadSourceFile({
     organizationId,
     project,
     file: {
-      filename: String(payload.filename ?? sourcePath),
+      filename: asString(payload.filename) || sourcePath,
       contentType: "application/octet-stream",
       content: bytes,
     },
@@ -259,8 +264,8 @@ async function download(
   projectId: string,
   payload: Record<string, unknown>,
 ): Promise<ActionResult> {
-  const sourcePath = String(payload.sourcePath ?? "");
-  const locale = String(payload.locale ?? "");
+  const sourcePath = asString(payload.sourcePath);
+  const locale = asString(payload.locale);
   if (!sourcePath || !locale)
     return fail(400, "invalid_request_body", "source path and locale are required");
   const office = await loadProjectOfficeTranslationDownload({
@@ -319,8 +324,9 @@ async function importTranslations(
   payload: Record<string, unknown>,
   deps: IrisProjectActionDeps,
 ): Promise<ActionResult> {
-  const sourcePath = String(payload.sourcePath ?? "");
-  const locale = String(payload.locale ?? "");
+  const sourcePath = asString(payload.sourcePath);
+  const locale = asString(payload.locale);
+  const branchName = asString(payload.branch).trim() || undefined;
   const bytes = bytesOf(payload.contentBase64);
   if (!sourcePath || !locale || !bytes) {
     return fail(400, "invalid_request_body", "File, source path, and locale are required");
@@ -331,10 +337,10 @@ async function importTranslations(
     createdByUserId: userId,
     role: "reference",
     sourceKind: "tms_file",
-    filename: String(payload.filename ?? sourcePath),
+    filename: asString(payload.filename) || sourcePath,
     contentType: "application/octet-stream",
     content: bytes,
-    metadata: { sourcePath, targetLocale: locale, uploadSurface: "iris" },
+    metadata: { sourcePath, targetLocale: locale, uploadSurface: "iris", branch: branchName },
     adapter: getFileStorageAdapter(),
   });
   await deps.importQueue.enqueue({
@@ -344,6 +350,7 @@ async function importTranslations(
     sourcePath,
     targetLocale: locale,
     actorUserId: userId,
+    branchName,
   });
   return ok({ imported: true, sourcePath, locale }, 201);
 }
@@ -357,9 +364,10 @@ async function translateFile(
 ): Promise<ActionResult> {
   const sourceLocale = sourceLocaleOf(project);
   if (!sourceLocale) return fail(400, "invalid_request_body", "Project has no source language");
-  const sourcePath = String(payload.sourcePath ?? "");
+  const sourcePath = asString(payload.sourcePath);
   const locales = Array.isArray(payload.locales) ? payload.locales.map(String) : [];
-  const fileId = await storedFileIdForPath(organizationId, project.id, sourcePath);
+  const branchName = asString(payload.branch).trim() || undefined;
+  const fileId = await storedFileIdForPath(organizationId, project.id, sourcePath, branchName);
   if (!fileId) return fail(404, "source_file_not_found", "Source file not found");
   const created = await enqueueFileTranslationJob({
     organizationId,
@@ -371,6 +379,7 @@ async function translateFile(
     assigneeType: "agent",
     jobQueue: deps.jobQueue,
     metadata: payload.forceEmpty === true ? { forceEmpty: "true" } : undefined,
+    branchName,
   });
   if (!created.ok) return fail(400, created.code, created.message);
   return ok({ jobId: created.jobId, sourcePath }, 201);
@@ -378,13 +387,33 @@ async function translateFile(
 
 async function fileSettings(
   organizationId: string,
+  userId: string,
   projectId: string,
   payload: Record<string, unknown>,
   write: boolean,
 ): Promise<ActionResult> {
-  const sourcePath = String(payload.sourcePath ?? "");
-  const kind = String(payload.kind ?? "");
-  const scope = { organizationId, projectId, sourcePath };
+  const sourcePath = asString(payload.sourcePath);
+  const kind = asString(payload.kind);
+  let branchName = resolvedProjectBranchName(asString(payload.branch));
+  if (write) {
+    await projectBranchService.ensureDefaultBranch({
+      organizationId,
+      projectId,
+      createdByUserId: userId,
+    });
+    const writable = await projectBranchService.assertWritable({
+      projectId,
+      branchName: asString(payload.branch),
+    });
+    if (!writable.ok) {
+      if (writable.error === "protected_branch") {
+        return fail(409, "protected_branch", "This branch is protected");
+      }
+      return fail(404, "branch_not_found", "Branch not found");
+    }
+    branchName = writable.value;
+  }
+  const scope = { organizationId, projectId, sourcePath, branchName };
   if (kind === "segmentation") {
     if (!write) {
       const record = await getRepositorySourceFileSegmentation(scope);
@@ -442,21 +471,21 @@ async function useTranslation(
   const destination = await loadAccessibleNativeProject(
     organizationId,
     userId,
-    String(payload.destinationProjectId ?? ""),
+    asString(payload.destinationProjectId),
   );
   if (!destination) return fail(404, "project_not_found", "Project not found");
   const sent = await sendTranslationAsSource({
     organizationId,
     sourceProject: source,
     destinationProject: destination.project,
-    sourcePath: String(payload.sourcePath ?? ""),
-    locale: String(payload.locale ?? ""),
+    sourcePath: asString(payload.sourcePath),
+    locale: asString(payload.locale),
     actorUserId: userId,
     replaceVersionId:
       typeof payload.replaceVersionId === "string" ? payload.replaceVersionId : undefined,
   });
   if (isErr(sent)) return fail(400, sent.error.code, "Could not send the translation as source");
-  return ok({ sent: true, sourcePath: String(payload.sourcePath ?? "") });
+  return ok({ sent: true, sourcePath: asString(payload.sourcePath) });
 }
 
 async function createJob(
@@ -470,18 +499,19 @@ async function createJob(
   if (!sourceLocale) return fail(400, "invalid_request_body", "Project has no source language");
   const files = Array.isArray(payload.fileIds) ? payload.fileIds.map(String) : [];
   const locales = Array.isArray(payload.targetLocales) ? payload.targetLocales.map(String) : [];
-  const title = String(payload.title ?? "");
+  const title = asString(payload.title);
   const description = typeof payload.description === "string" ? payload.description : undefined;
   const assigneeIds = Array.isArray(payload.assigneeUserIds)
     ? payload.assigneeUserIds.map(String)
     : [];
+  const branchName = asString(payload.branch).trim() || undefined;
   const metadata: Record<string, string> = { title };
   if (description) metadata.description = description;
   const jobs: { id: string; title: string }[] = [];
   for (const sourcePath of files) {
     const fileId =
       sourcePath.includes("/") || sourcePath.includes(".")
-        ? await storedFileIdForPath(organizationId, project.id, sourcePath)
+        ? await storedFileIdForPath(organizationId, project.id, sourcePath, branchName)
         : sourcePath;
     if (!fileId) return fail(404, "source_file_not_found", "Source file not found");
     if (payload.kind === "proofread") {
@@ -496,6 +526,7 @@ async function createJob(
         title,
         ...(assigneeWorkosUserId ? { assigneeWorkosUserId } : {}),
         metadata,
+        branchName,
       });
       if (isErr(created)) return fail(400, created.error.code, created.error.message);
       jobs.push({ id: created.value.jobId, title });
@@ -512,6 +543,7 @@ async function createJob(
       ...(assigneeIds[0] ? { ownerUserId: assigneeIds[0] } : {}),
       metadata,
       jobQueue: deps.jobQueue,
+      branchName,
     });
     if (!created.ok) return fail(400, created.code, created.message);
     jobs.push({ id: created.jobId, title });
@@ -536,8 +568,8 @@ async function jobAction(
   payload: Record<string, unknown>,
   deps: IrisProjectActionDeps,
 ): Promise<ActionResult> {
-  const jobId = String(payload.jobId ?? "");
-  const action = String(payload.action ?? "");
+  const jobId = asString(payload.jobId);
+  const action = asString(payload.action);
   const accessWhere = jobAccessWhere(organizationId, projectId);
   if (action === "cancel") {
     const cancelled = await cancelNativeJob({
@@ -567,7 +599,7 @@ async function jobAction(
       body: {
         ...(ownerWorkosUserId !== undefined ? { ownerWorkosUserId } : {}),
         ...(action === "due"
-          ? { dueAt: payload.dueAt === null ? null : String(payload.dueAt ?? "") }
+          ? { dueAt: payload.dueAt === null ? null : asString(payload.dueAt) }
           : {}),
       },
     });
@@ -687,7 +719,7 @@ async function importQueries(
     projectId,
     actorUserId: userId,
     body: {
-      content: String(payload.content ?? ""),
+      content: asString(payload.content),
       dryRun: payload.dryRun === true,
       mapping: payload.mapping as ImportBody["mapping"],
     },

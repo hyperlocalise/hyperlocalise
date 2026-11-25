@@ -79,6 +79,10 @@ const NAME_WORDS: Record<string, string> = {
   astra: "Astra",
   sol: "Sol",
   terra: "Terra",
+  neon: "Neon",
+  carbon: "Carbon",
+  argon: "Argon",
+  hydrogen: "Hydrogen",
 };
 
 const managedDefaultModelId = `openai/${hyperlocaliseAgentModelId}`;
@@ -86,7 +90,7 @@ const managedDefaultModelId = `openai/${hyperlocaliseAgentModelId}`;
 /** Models a localization manager should see before the long tail, in display order. */
 export const pricingRecommendedModelIds = [
   managedDefaultModelId,
-  "claude-sonnet-5",
+  "anthropic/claude-sonnet-5",
   "gpt-image-2.6-sunburst",
   "nano-banana-2.1",
   "image-localise",
@@ -139,6 +143,17 @@ export function formatPricingModelName(modelId: string): string {
   }
 
   return parts.join(" ");
+}
+
+function providerIdFromGatewayWriterModelId(modelId: string): PricingModelProviderId {
+  const providerPrefix = modelId.split("/")[0];
+  if (providerPrefix === "google") {
+    return "gemini";
+  }
+  if (providerPrefix === "openai" || providerPrefix === "anthropic") {
+    return providerPrefix;
+  }
+  throw new Error(`Unexpected managed writer gateway model id: ${modelId}`);
 }
 
 function writerCopyKey(modelId: string): PricingWriterCopyKey {
@@ -200,7 +215,7 @@ export function getPricingCatalogEntries(): readonly PricingCatalogEntry[] {
   const writingProviders: readonly PricingByokProviderId[] = ["anthropic", "gemini"];
   const entries = [
     ...pricingManagedAgentGatewayModelIds.map((modelId) =>
-      writerEntry(modelId, "openai", "included"),
+      writerEntry(modelId, providerIdFromGatewayWriterModelId(modelId), "included"),
     ),
     ...irisEntries(),
     ...writingProviders.flatMap((providerId) =>

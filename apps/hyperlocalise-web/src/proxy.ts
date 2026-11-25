@@ -181,19 +181,21 @@ export function isUnsupportedLocalePath(pathname: string): boolean {
   return true;
 }
 
+const APP_LOCALE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+
 function applyLocaleToResponse(response: WorkosProxyResult, locale: string): WorkosProxyResult {
   if (!response) {
     return response;
   }
 
   if (response instanceof NextResponse) {
-    response.cookies.set({
-      name: APP_LOCALE_COOKIE_NAME,
-      value: locale,
-      path: "/",
-      maxAge: 60 * 60 * 24 * 365,
-      sameSite: "lax",
-    });
+    // Appended as a raw header, as AuthKit appends its session cookie. `response.cookies.set`
+    // would drop that session cookie, and Next.js would count it as changed data on a server
+    // action response, dropping the client router cache and re-rendering the page.
+    response.headers.append(
+      "set-cookie",
+      `${APP_LOCALE_COOKIE_NAME}=${locale}; Path=/; Max-Age=${APP_LOCALE_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`,
+    );
 
     return ensureRequestLocaleHeader(response, locale);
   }

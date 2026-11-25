@@ -20,7 +20,7 @@ import { updateJobs } from "@/lib/job-change-events/job-writes";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 import { canOwnFileTaskOutsideTeam } from "./job-owner";
-import { fileTaskWhere } from "./task-access";
+import { openFileTaskWhere } from "./open-file-task";
 
 /**
  * Tasks given to a vendor team. An open or waiting post-edit or proofread task on a file can be
@@ -50,7 +50,7 @@ export function managedTeamTaskWhere(input: { organizationId: string; userId: st
           ),
         ),
     ),
-    fileTaskWhere(true),
+    openFileTaskWhere({ organizationId: input.organizationId, includeWaiting: true }),
   )!;
 }
 

@@ -160,6 +160,14 @@ describe("workspace automation view model", () => {
   });
 
   it("resolves Google Gemini gateway models with Vercel AI Gateway ids", () => {
+    expect(resolveWorkspaceAutomationModel("google/gemini-4-neon")).toBe("google/gemini-4-neon");
+    expect(resolveWorkspaceAutomationModel("google/gemini-4-carbon")).toBe(
+      "google/gemini-4-carbon",
+    );
+    expect(resolveWorkspaceAutomationModel("google/gemini-4-argon")).toBe("google/gemini-4-argon");
+    expect(resolveWorkspaceAutomationModel("google/gemini-4-hydrogen")).toBe(
+      "google/gemini-4-hydrogen",
+    );
     expect(resolveWorkspaceAutomationModel("google/gemini-3.8-flash")).toBe(
       "google/gemini-3.8-flash",
     );
@@ -948,7 +956,7 @@ describe("workspace automation view model", () => {
       ahrefs: "Reconnect Ahrefs in Integrations, then try again.",
     });
     expect(mapWorkspaceAutomationApiErrorToFieldErrors("ahrefs_pipes_unavailable")).toEqual({
-      ahrefs: "Ahrefs is unavailable until WorkOS Pipes is configured.",
+      ahrefs: "Ahrefs isn't available right now. Contact support if this continues.",
     });
     expect(mapWorkspaceAutomationApiErrorToFieldErrors("iterable_not_connected")).toEqual({
       iterable: "Connect Iterable in Integrations before using it.",
@@ -959,7 +967,7 @@ describe("workspace automation view model", () => {
       iterable: "Reconnect Iterable in Integrations, then try again.",
     });
     expect(mapWorkspaceAutomationApiErrorToFieldErrors("iterable_pipes_unavailable")).toEqual({
-      iterable: "Iterable is unavailable until WorkOS Pipes is configured.",
+      iterable: "Iterable isn't available right now. Contact support if this continues.",
     });
   });
 

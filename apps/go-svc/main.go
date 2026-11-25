@@ -114,10 +114,15 @@ func main() {
 		analytics: newGAProductUsageTrackerFromEnv(),
 	}
 	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
+	h.sampleWorkspace = &sampleWorkspaceAPI{}
 	h.sessionOrganizations = &sessionOrganizationsAPI{}
 	h.sessionAccount = &sessionAccountAPI{}
 	h.sessionOnboarding = &sessionOnboardingAPI{}
-	h.irisGeneration = &irisGenerationAPI{provider: newIrisGenerationProvider(), text: newIrisTextModel()}
+	irisProvider := newIrisGenerationProvider()
+	h.irisGeneration = &irisGenerationAPI{provider: irisProvider, voices: irisVoiceLibraryFrom(irisProvider), text: newIrisTextModel()}
+	if gateway := newIrisGatewayProvider(); gateway != nil {
+		h.irisGeneration.gatewayCosts = gateway
+	}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
@@ -141,6 +146,7 @@ func main() {
 		} else {
 			h.autumn = client
 			h.issueSheets.autumn = autumnClientChecker{client: client}
+			h.overview.autumn = autumnClientChecker{client: client}
 			h.members.seats = autumnMemberSeats{client: client}
 			h.projects.autumn = client
 			h.billing.autumn = client
@@ -170,6 +176,7 @@ func main() {
 	}
 	h.reports = newReportingAPI()
 	h.pipes = &pipesAPI{}
+	h.workspaceIntegrations = &workspaceIntegrationsAPI{}
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
 		h.workspace.pipes = workosPipeTokens{client: workosClient}
@@ -204,6 +211,7 @@ func main() {
 		h.teams.pool = traced
 		h.members.pool = traced
 		h.workspaceSettings.pool = traced
+		h.sampleWorkspace.pool = traced
 		h.sessionOrganizations.pool = traced
 		h.sessionAccount.pool = traced
 		h.sessionOnboarding.pool = traced
@@ -222,6 +230,7 @@ func main() {
 		h.publicTranslations.auth.pool = traced
 		h.workspace.pool = traced
 		h.pipes.pool = traced
+		h.workspaceIntegrations.pool = traced
 		store := experiment.NewPGStoreFromPool(traced)
 		h.ofrep = experiment.NewOFREPHandler(store)
 		h.ota = ota.NewHandler(ota.NewPGLookup(traced))
@@ -236,6 +245,8 @@ func main() {
 	h.glossaries.objects = h.objects
 	h.memories.objects = h.objects
 	h.contentEditor.objects = h.objects
+	h.contentEditor.ai = h.irisGeneration
+	h.sampleWorkspace.objects = h.objects
 	if h.irisGeneration != nil {
 		h.irisGeneration.objects = h.objects
 		if h.objects != nil {
@@ -311,6 +322,7 @@ func main() {
 	h.teams.membership = membershipLookup
 	h.members.membership = membershipLookup
 	h.workspaceSettings.membership = membershipLookup
+	h.sampleWorkspace.membership = membershipLookup
 	h.apiKeys.membership = membershipLookup
 	h.issueSheets.membership = membershipLookup
 	h.notifications.membership = membershipLookup
@@ -321,11 +333,11 @@ func main() {
 	h.conversations.membership = membershipLookup
 	h.automations.membership = membershipLookup
 	h.overview.membership = membershipLookup
-	h.overview.flags = h.workspace.flags
 	h.reports.membership = membershipLookup
 	h.publicTranslations.auth.membership = membershipLookup
 	h.workspace.membership = membershipLookup
 	h.pipes.membership = membershipLookup
+	h.workspaceIntegrations.membership = membershipLookup
 
 	mux := http.NewServeMux()
 	registerRoutes(mux, h, verifier)

@@ -21,6 +21,7 @@ import { WorkflowDataPanel } from "./workflow-data-panel";
 import { PortMark, WorkflowBoundField, type BoundPort } from "./workflow-bound-field";
 import { WorkflowTestDataPanel } from "./workflow-test-data-panel";
 import { ConcatenateConfig, TextTemplateConfig } from "./visual-workflow-text-config";
+import { SourceUploadTriggerFields } from "./source-upload-trigger-fields";
 import type {
   WorkflowBinding,
   WorkflowNodeContract,
@@ -2803,6 +2804,13 @@ export function VisualWorkflowConfigPanel({
             }}
           />
         ) : null}
+        {config.kind === "trigger.source_upload" ? (
+          <SourceUploadTriggerFields
+            key={node.id}
+            config={config}
+            onChangeConfig={onChangeConfig}
+          />
+        ) : null}
         {config.kind === "trigger.job_changed" ? (
           <JobChangedTriggerFields
             config={config}
@@ -2830,7 +2838,8 @@ export function VisualWorkflowConfigPanel({
         config.kind === "action.create_task" ||
         config.kind === "action.check_progress" ||
         config.kind === "action.run_qa" ||
-        config.kind === "action.list_source_files" ? (
+        config.kind === "action.list_source_files" ||
+        config.kind === "action.list_review_work" ? (
           <ProjectIdField
             projects={resources.projects}
             value={config.projectId}
@@ -2904,6 +2913,17 @@ export function VisualWorkflowConfigPanel({
             placeholder="locales/en/"
           />
         ) : null}
+        {config.kind === "action.list_review_work" ? (
+          <TextField
+            id="vw-review-work-path-prefix"
+            label={intl.formatMessage(messages.listFilesPathPrefix)}
+            description={intl.formatMessage(messages.listReviewWorkPathPrefixHint)}
+            value={config.pathPrefix}
+            {...connectedInputProps("pathPrefix")}
+            onChange={(value) => onChangeConfig({ ...config, pathPrefix: value })}
+            placeholder="locales/en/"
+          />
+        ) : null}
         {config.kind === "action.update_job" ? (
           <>
             <TypographyP className="text-xs text-muted-foreground">
@@ -2961,16 +2981,22 @@ export function VisualWorkflowConfigPanel({
         ) : null}
         {config.kind === "action.machine_translate" ||
         config.kind === "action.create_task" ||
-        config.kind === "action.check_progress" ? (
+        config.kind === "action.check_progress" ||
+        config.kind === "action.run_qa" ? (
           <>
+            {config.kind === "action.run_qa" ? (
+              <TypographyP className="text-xs text-muted-foreground">
+                <FormattedMessage {...messages.runQaScopeHint} />
+              </TypographyP>
+            ) : null}
             <TextField
               id="vw-localization-source-file"
               label={intl.formatMessage(
-                config.kind === "action.check_progress"
+                config.kind === "action.check_progress" || config.kind === "action.run_qa"
                   ? messages.localizationSourceFileIdOptional
                   : messages.localizationSourceFileId,
               )}
-              value={config.sourceFileId}
+              value={config.sourceFileId ?? ""}
               {...connectedInputProps("sourceFileId")}
               onChange={(value) => onChangeConfig({ ...config, sourceFileId: value })}
               placeholder="{{ trigger.sourceFileId }}"
@@ -2979,12 +3005,23 @@ export function VisualWorkflowConfigPanel({
               id="vw-localization-target-locales"
               label={intl.formatMessage(messages.localizationTargetLocales)}
               description={intl.formatMessage(messages.localizationTargetLocalesHint)}
-              value={config.targetLocales}
+              value={config.targetLocales ?? ""}
               {...connectedInputProps("targetLocales")}
               onChange={(value) => onChangeConfig({ ...config, targetLocales: value })}
               placeholder="fr-FR, de-DE"
             />
           </>
+        ) : null}
+        {config.kind === "action.run_qa" ? (
+          <TextField
+            id="vw-run-qa-job"
+            label={intl.formatMessage(messages.runQaJobId)}
+            description={intl.formatMessage(messages.runQaJobHint)}
+            value={config.jobId ?? ""}
+            {...connectedInputProps("jobId")}
+            onChange={(value) => onChangeConfig({ ...config, jobId: value })}
+            placeholder="{{ trigger.jobId }}"
+          />
         ) : null}
         {config.kind === "action.machine_translate" ? (
           <CheckboxField
@@ -3190,6 +3227,21 @@ export function VisualWorkflowConfigPanel({
             {...connectedInputProps("dueAt")}
             onChange={(value) => onChangeConfig({ ...config, dueAt: value })}
             placeholder="{{ trigger.body.dueAt }}"
+          />
+        ) : null}
+        {config.kind === "action.create_task" || config.kind === "action.update_job" ? (
+          <NumberField
+            id="vw-task-due-in-hours"
+            label={intl.formatMessage(messages.taskDueInHours)}
+            description={intl.formatMessage(messages.taskDueInHoursHint)}
+            value={config.dueInHours}
+            onChange={(value) => {
+              const hours = Number.parseInt(value, 10);
+              onChangeConfig({
+                ...config,
+                dueInHours: Number.isFinite(hours) && hours > 0 ? hours : undefined,
+              });
+            }}
           />
         ) : null}
         {config.kind === "action.create_task" && config.step !== "translate" ? (

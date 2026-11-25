@@ -6,14 +6,10 @@ import {
   releaseQaSandboxVcrImageFlag,
   releaseSandboxVcrImageFlag,
 } from "../../../../lib/flags/release-flags";
-import {
-  workspaceAutomationsFlag,
-  workspaceDomainsFlag,
-} from "../../../../lib/flags/workspace-flags";
+import { workspaceDomainsFlag } from "../../../../lib/flags/workspace-flags";
 
 export const GET = createFlagsDiscoveryEndpoint(async () =>
   getProviderData({
-    workspaceAutomationsFlag,
     workspaceDomainsFlag,
     releaseContentEditorAllFilesFlag,
     releaseCatAdaptiveWorkspaceFlag,

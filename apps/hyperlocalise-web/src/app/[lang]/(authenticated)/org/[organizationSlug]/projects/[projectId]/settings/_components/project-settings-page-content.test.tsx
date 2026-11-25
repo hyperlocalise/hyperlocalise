@@ -569,7 +569,7 @@ describe("ProjectSettingsPageContent leave guard", () => {
     fireEvent.click(screen.getByRole("link", { name: "Projects" }));
     await user.click(await screen.findByRole("button", { name: "Leave without saving" }));
 
-    expect(routerReplaceMock).toHaveBeenCalledWith("/org/acme/projects", { scroll: undefined });
+    expect(routerReplaceMock).toHaveBeenCalledWith("/en/org/acme/projects", { scroll: undefined });
   });
 
   it("asks about an unsaved section that is not the one on screen", async () => {

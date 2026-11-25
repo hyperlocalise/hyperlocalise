@@ -15,27 +15,6 @@ func projectFileStringSourceTextHash(text string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (api *editorCatAPI) skipRecommendation(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
-	return nil, 0, editorCatVercelDeferred(
-		"ai_recommendation_deferred",
-		"AI recommendation stays on the Hono route; it uses the Vercel AI Gateway / AI SDK",
-	)
-}
-
-func (api *editorCatAPI) skipImageRegenerate(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
-	return nil, 0, editorCatVercelDeferred(
-		"image_regenerate_deferred",
-		"Image and video regeneration stays on the Hono route; it uses Vercel Workflow and Blob-backed stored files",
-	)
-}
-
-func (api *editorCatAPI) skipImageUpload(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
-	return nil, 0, editorCatVercelDeferred(
-		"image_upload_deferred",
-		"Localized image upload stays on the Hono route; it writes through the Vercel Blob file adapter",
-	)
-}
-
 func (api *editorCatAPI) stringContext(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
 	var body struct {
 		SourcePath         string  `json:"sourcePath"`

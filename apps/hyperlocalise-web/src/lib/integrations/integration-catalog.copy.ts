@@ -94,7 +94,7 @@ export const integrationCatalogCopy = {
       },
       {
         defaultMessage:
-          "Connect GitLab.com through WorkOS Pipes so Hyperlocalise can list membership projects and clone them.",
+          "Connect GitLab.com so Hyperlocalise can list your projects and clone them.",
         id: "intGitLabOverview1",
         description: "GitLab integration marketing overview paragraph",
       },
@@ -876,7 +876,7 @@ export const integrationCatalogCopy = {
     overview: [
       {
         defaultMessage:
-          "Linear support will help teams turn translation blockers into tracked issues without losing product context.",
+          "Connect Linear so teams can turn translation blockers into tracked issues without losing product context.",
         id: "intLinearOverview0",
         description: "Linear integration marketing overview paragraph",
       },
@@ -904,7 +904,7 @@ export const integrationCatalogCopy = {
     },
     metadataDescription: {
       defaultMessage:
-        "Coming soon: turn translation blockers into Linear issues so launch work stays beside the rest of your product pipeline.",
+        "Turn translation blockers into Linear issues so launch work stays beside the rest of your product pipeline.",
       id: "intLinearMetaDescription",
       description: "Linear integration marketing page meta description",
     },
@@ -1246,7 +1246,7 @@ export const integrationCatalogCopy = {
     },
     tagline: {
       defaultMessage:
-        "Connect Search Console through Pipes to import clicks, impressions, and queries for claimed domains.",
+        "Connect Search Console to import clicks, impressions, and queries for claimed domains.",
       id: "intGoogleSearchConsoleTagline",
       description: "Google Search Console integration description on the integrations page",
     },

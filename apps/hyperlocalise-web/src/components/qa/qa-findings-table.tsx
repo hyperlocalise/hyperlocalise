@@ -45,6 +45,7 @@ import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/t
 import { qaMessages as m } from "./qa.messages";
 import { qaFindingsTableMessages as originalMessages } from "./qa-findings-table.messages";
 import { QaNotice } from "./qa-status";
+import { QaSendToLinearMenu } from "./qa-send-to-linear-menu";
 
 export type QaFindingRow = Omit<ProjectQaFinding, "sourcePath" | "category" | "relatedTokens"> & {
   projectName?: string;
@@ -273,6 +274,12 @@ export function QaFindingsTable({
                   {intl.formatMessage(m.createSelected, { count: promotable.length })}
                 </Button>
               ) : null}
+              <QaSendToLinearMenu
+                organizationSlug={organizationSlug}
+                findingIds={selected.map((f) => f.id)}
+                disabled={promote.isPending || bulkIgnore.isPending}
+                onSent={() => setSelectedIds(new Set())}
+              />
               <QaIgnoreMenu
                 label={intl.formatMessage(m.ignoreSelected, { count: selected.length })}
                 variant="outline"

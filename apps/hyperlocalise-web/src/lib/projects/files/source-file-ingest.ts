@@ -146,6 +146,8 @@ export async function dispatchSourceUploadAutomations(input: {
     organizationId: input.organizationId,
     projectId: input.projectId,
     sourceFileId: input.sourceFileId,
+    sourceFileVersionId: input.sourceFileVersionId,
+    sourcePath: input.sourcePath,
   });
 }
 

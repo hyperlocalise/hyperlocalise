@@ -12,7 +12,7 @@
  */
 import { isAutumnBooleanFeatureEnabled } from "@/lib/billing/autumn-boolean-feature-access";
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, lt, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import type { JobChangeEventRecord } from "@/lib/job-change-events/job-change-events-contract";
@@ -353,10 +353,23 @@ export async function dispatchVisualWorkflowsForSourceUpload(input: {
   organizationId: string;
   projectId: string;
   sourceFileId: string;
+  sourceFileVersionId?: string;
+  sourcePath?: string;
   queue?: VisualWorkflowExecutionQueue;
 }): Promise<VisualWorkflowDispatchResult[]> {
-  const workflows = (await listAllActiveVisualWorkflows(input.organizationId)).filter((workflow) =>
-    visualWorkflowShouldDispatchOnSourceUpload(workflow, { projectId: input.projectId }),
+  const activeWorkflows = (await listAllActiveVisualWorkflows(input.organizationId)).filter(
+    (workflow) =>
+      getVisualWorkflowTriggerNode(workflow.definition)?.type === "trigger.source_upload",
+  );
+  if (activeWorkflows.length === 0) return [];
+
+  const upload = await readSourceUploadFields(input);
+  const workflows = activeWorkflows.filter((workflow) =>
+    visualWorkflowShouldDispatchOnSourceUpload(workflow, {
+      projectId: input.projectId,
+      sourcePath: upload.sourcePath,
+      isNewFile: upload.isNewFile,
+    }),
   );
 
   const results: VisualWorkflowDispatchResult[] = [];
@@ -374,6 +387,7 @@ export async function dispatchVisualWorkflowsForSourceUpload(input: {
         inputSnapshot: {
           projectId: input.projectId,
           sourceFileId: input.sourceFileId,
+          ...upload,
         },
         queue: input.queue,
       });
@@ -391,6 +405,89 @@ export async function dispatchVisualWorkflowsForSourceUpload(input: {
   }
 
   return results;
+}
+
+/**
+ * What a Source upload run is told about the file beyond its id: where it sits, whether this is
+ * its first upload, and the project's languages, so later steps can loop over them.
+ */
+async function readSourceUploadFields(input: {
+  organizationId: string;
+  projectId: string;
+  sourceFileVersionId?: string;
+  sourcePath?: string;
+}) {
+  const [project] = await db
+    .select({
+      sourceLocale: schema.projects.sourceLocale,
+      targetLocales: schema.projects.targetLocales,
+    })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.organizationId, input.organizationId),
+        eq(schema.projects.id, input.projectId),
+      ),
+    )
+    .limit(1);
+
+  let branchName = "main";
+  let sourcePath = input.sourcePath ?? "";
+  let isNewFile = true;
+  if (input.sourceFileVersionId) {
+    const [version] = await db
+      .select({
+        repositorySourceFileId: schema.repositorySourceFileVersions.repositorySourceFileId,
+        createdAt: schema.repositorySourceFileVersions.createdAt,
+        sourcePath: schema.repositorySourceFileVersions.sourcePath,
+        branchName: schema.repositorySourceFiles.branchName,
+      })
+      .from(schema.repositorySourceFileVersions)
+      .innerJoin(
+        schema.repositorySourceFiles,
+        eq(
+          schema.repositorySourceFiles.id,
+          schema.repositorySourceFileVersions.repositorySourceFileId,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
+          eq(schema.repositorySourceFileVersions.id, input.sourceFileVersionId),
+        ),
+      )
+      .limit(1);
+    if (version) {
+      branchName = version.branchName;
+      sourcePath ||= version.sourcePath;
+      const [earlier] = await db
+        .select({ id: schema.repositorySourceFileVersions.id })
+        .from(schema.repositorySourceFileVersions)
+        .where(
+          and(
+            eq(
+              schema.repositorySourceFileVersions.repositorySourceFileId,
+              version.repositorySourceFileId,
+            ),
+            lt(schema.repositorySourceFileVersions.createdAt, version.createdAt),
+          ),
+        )
+        .limit(1);
+      isNewFile = !earlier;
+    }
+  }
+
+  const fileName = sourcePath.split("/").pop() ?? "";
+  const extensionAt = fileName.lastIndexOf(".");
+  return {
+    sourcePath,
+    fileName,
+    fileExtension: extensionAt > 0 ? fileName.slice(extensionAt + 1).toLowerCase() : "",
+    branchName,
+    isNewFile,
+    ...(project?.sourceLocale ? { sourceLocale: project.sourceLocale } : {}),
+    targetLocales: project?.targetLocales ?? [],
+  };
 }
 
 /**

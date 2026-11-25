@@ -525,7 +525,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
             const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
               tx,
               organizationId,
-              { isKeyJob },
+              { isPersonTask },
             );
             if (isErr(jobBudget)) {
               throw new OrganizationJobBudgetExceededError(jobBudget.error);

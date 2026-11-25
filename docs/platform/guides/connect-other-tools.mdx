@@ -1,0 +1,55 @@
+---
+title: "Connect any other tool"
+sidebarTitle: "Connect other tools"
+description: "Move content between Hyperlocalise Platform and a tool that has no built-in connection, with the API, webhooks, workflows, or MCP."
+---
+
+Built-in connections cover common content tools. For anything else, such as a data platform, an in-house CMS, an orchestration tool, or a warehouse table of product copy, use the same building blocks the built-in connections use. Every one of them works with any system that can send or receive HTTP.
+
+| You want to… | Use |
+| --- | --- |
+| Send source content in and pull translations out | [Files and jobs API](/platform/api) |
+| Let another system start a Platform workflow | A visual workflow with a [Webhook trigger](/platform/visual-workflows#start-from-an-inbound-webhook) |
+| Call another system from a workflow | An **HTTP Request** step in a [visual workflow](/platform/visual-workflows) |
+| Tell another system that a job changed | [Job webhooks](/platform/developers/webhooks) |
+| Let an AI agent work with Platform | The [hosted MCP server](/platform/mcp) |
+| Let an automation use tools on another server | An [MCP server connection](/platform/integrations#mcp-server-connections) |
+
+## Pattern: export, translate, import
+
+Most custom connections follow the same loop. Example: product copy kept in a data platform table.
+
+1. **Export.** A scheduled job in your system writes the rows that changed to a file, such as JSON keyed by row ID or a CSV with one string per row.
+2. **Upload.** Send the file to a native project with `POST /v1/files`. Use a stable `sourcePath`, such as `catalog/product-copy.json`, so each upload updates the same strings instead of adding new ones.
+3. **Translate.** Create a file job with `POST /v1/jobs`, or let a [source-upload automation](/platform/automation/create-automation) or workflow start it for you. Review and QA run as they do for any other content.
+4. **Wait.** Subscribe a [job webhook](/platform/developers/webhooks) to `job.status_changed`, or poll the job's status.
+5. **Import.** When the job succeeds, download each locale with `GET /v1/projects/{projectId}/translations/download` and write the values back into your system.
+
+```bash
+# 1. Upload the exported file
+curl --fail-with-body -X POST "https://hyperlocalise.com/api/v1/files" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -F "projectId=$PROJECT_ID" \
+  -F "sourcePath=catalog/product-copy.json" \
+  -F "file=@product-copy.json"
+
+# 2. Download the French translation once the job has succeeded
+curl --fail-with-body \
+  "https://hyperlocalise.com/api/v1/projects/$PROJECT_ID/translations/download?sourcePath=catalog/product-copy.json&locale=fr-FR" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -o product-copy.fr-FR.json
+```
+
+Create a dedicated API key for each integration, with only the permissions it needs: `files:write` and `jobs:write` to send work, `files:read` and `jobs:read` to collect it. Keys see only the projects their creator can access.
+
+## Pattern: your system starts a workflow
+
+When the other tool can call a URL on an event, such as a record published or an orchestration step reached, give it a workflow's **Webhook URL**. The request body becomes the trigger's `body`, so later steps can read IDs from it, fetch the content with **HTTP Request**, translate, run QA, and call your system back with the result. Send an `Idempotency-Key` header so a retried delivery starts only one run.
+
+## Pattern: an agent does the work
+
+Connect an agent, such as Claude or Cursor, to the [hosted MCP server](/platform/mcp). It can then upload files, start jobs, read QA results, and search glossaries for you, with your own access. This suits one-off or exploratory work. Use the API or a workflow for anything that should run unattended.
+
+## Next
+
+[Choose an API](/platform/developers/api-overview), then follow [Files and jobs](/platform/api) for every field and response.

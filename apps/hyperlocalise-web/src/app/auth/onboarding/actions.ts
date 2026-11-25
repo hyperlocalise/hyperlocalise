@@ -146,8 +146,8 @@ export async function createWorkspaceAction(
       return {
         error: intl.formatMessage({
           defaultMessage:
-            "Workspace creation requires WorkOS organization management to be configured.",
-          id: "7itDAFKmls",
+            "Workspace creation isn't available right now. Contact support if this continues.",
+          id: "4oXz/ocU7M",
           description: "Error when WorkOS organization management is not configured",
         }),
       };

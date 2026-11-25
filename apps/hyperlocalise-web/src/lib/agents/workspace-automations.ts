@@ -472,6 +472,16 @@ function validateWorkspaceAutomationConfig(input: {
     });
   }
 
+  if (input.triggerConfig.mode === "google_drive") {
+    const googleDrive = input.toolConfig.googleDrive;
+    if (!googleDrive?.enabled || (!googleDrive.folderIds.length && !googleDrive.fileIds.length)) {
+      return err({
+        code: "google_drive_trigger_requires_files",
+        message: "The Google Drive trigger needs Google Drive folders or files to watch.",
+      });
+    }
+  }
+
   const mcpTools = input.toolConfig.mcp;
   if (mcpTools?.enabled && !mcpTools.connectionId) {
     return err({
@@ -577,7 +587,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       }
       return err({
         code: "email_pipes_unavailable",
-        message: "WorkOS is not configured, so email providers cannot connect through Pipes.",
+        message: "email providers isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -744,7 +754,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "ahrefs_pipes_unavailable",
-        message: "WorkOS is not configured, so Ahrefs cannot connect through Pipes.",
+        message: "Ahrefs isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -782,7 +792,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "gitlab_pipes_unavailable",
-        message: "WorkOS is not configured, so GitLab cannot connect through Pipes.",
+        message: "GitLab isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -818,7 +828,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "intercom_pipes_unavailable",
-        message: "WorkOS is not configured, so Intercom cannot connect through Pipes.",
+        message: "Intercom isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -919,7 +929,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "google_drive_pipes_unavailable",
-        message: "WorkOS is not configured, so Google Drive cannot connect through Pipes.",
+        message: "Google Drive isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1018,7 +1028,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "sanity_pipes_unavailable",
-        message: "WorkOS is not configured, so Sanity cannot connect through Pipes.",
+        message: "Sanity isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1243,7 +1253,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "braze_pipes_unavailable",
-        message: "WorkOS is not configured, so Braze cannot connect through Pipes.",
+        message: "Braze isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1321,7 +1331,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "braze_pipes_unavailable",
-        message: "WorkOS is not configured, so Braze cannot connect through Pipes.",
+        message: "Braze isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1399,7 +1409,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "customer_io_pipes_unavailable",
-        message: "WorkOS is not configured, so Customer.io cannot connect through Pipes.",
+        message: "Customer.io isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1435,7 +1445,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "loops_pipes_unavailable",
-        message: "WorkOS is not configured, so Loops cannot connect through Pipes.",
+        message: "Loops isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1481,7 +1491,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "hubspot_pipes_unavailable",
-        message: "WorkOS is not configured, so HubSpot cannot connect through Pipes.",
+        message: "HubSpot isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1517,7 +1527,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     if (isErr(status)) {
       return err({
         code: "mailchimp_pipes_unavailable",
-        message: "WorkOS is not configured, so Mailchimp cannot connect through Pipes.",
+        message: "Mailchimp isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -1569,7 +1579,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       }
       return err({
         code: "iterable_pipes_unavailable",
-        message: "WorkOS is not configured, so Iterable cannot connect through Pipes.",
+        message: "Iterable isn't available right now. Contact support if this continues.",
       });
     }
 
@@ -2676,6 +2686,29 @@ export async function listSourceUploadWorkspaceAutomations(input: {
     )
     .orderBy(desc(schema.workspaceAutomations.createdAt))
     .limit(input.limit ?? 20);
+
+  return rows.map((row) => serializeAutomation(row));
+}
+
+/**
+ * Active automations that start when their Google Drive files change. Picked in random order, so
+ * when there are more than one tick can check, every automation is still reached over time.
+ */
+export async function listGoogleDriveTriggerWorkspaceAutomations(input: {
+  limit?: number;
+}): Promise<WorkspaceAutomationRecord[]> {
+  const rows = await db
+    .select()
+    .from(schema.workspaceAutomations)
+    .where(
+      and(
+        eq(schema.workspaceAutomations.status, "active"),
+        sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'google_drive'`,
+        sql`${schema.workspaceAutomations.toolConfig}->'googleDrive'->>'enabled' = 'true'`,
+      ),
+    )
+    .orderBy(sql`random()`)
+    .limit(input.limit ?? 100);
 
   return rows.map((row) => serializeAutomation(row));
 }

@@ -103,6 +103,7 @@ export function ProjectFileDetailPanel({
   requestedSourcePath,
   highlightLocale,
   encodedJobId,
+  branch = null,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -110,6 +111,7 @@ export function ProjectFileDetailPanel({
   requestedSourcePath: string | null;
   highlightLocale: string | null;
   encodedJobId?: string | null;
+  branch?: string | null;
 }) {
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
@@ -193,6 +195,7 @@ export function ProjectFileDetailPanel({
         isLoading={detailQuery.isLoading}
         error={detailQuery.isError ? detailQuery.error : undefined}
         detail={detailQuery.data}
+        branch={branch}
       />
     </>
   );
@@ -209,6 +212,7 @@ export function ProjectFileDetailPanelView({
   isLoading,
   error,
   detail,
+  branch = null,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -217,6 +221,7 @@ export function ProjectFileDetailPanelView({
   highlightLocale: string | null;
   targetLocales?: string[];
   sourceLocale?: string;
+  branch?: string | null;
   isLoading: boolean;
   error?: unknown;
   detail?: ProjectFileDetail;
@@ -310,6 +315,7 @@ export function ProjectFileDetailPanelView({
         file={file}
         sourceLocale={sourceLocale}
         targetLocales={targetLocales}
+        branch={branch}
       />
       {!provider ? (
         <ImportTranslationsDialog
@@ -319,6 +325,7 @@ export function ProjectFileDetailPanelView({
           projectId={projectId}
           sourcePath={sourcePath}
           targetLocales={targetLocales}
+          branch={branch}
         />
       ) : null}
       <header className="space-y-2 border-b border-border pb-4">

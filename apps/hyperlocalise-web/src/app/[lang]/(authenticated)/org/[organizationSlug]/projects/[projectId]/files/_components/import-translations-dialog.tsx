@@ -54,6 +54,7 @@ type ImportTranslationsDialogProps = {
   projectId: string;
   sourcePath: string;
   targetLocales: readonly string[];
+  branch?: string | null;
 };
 
 function importApiPath(organizationSlug: string, projectId: string) {
@@ -67,6 +68,7 @@ export function ImportTranslationsDialog({
   projectId,
   sourcePath,
   targetLocales,
+  branch,
 }: ImportTranslationsDialogProps) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -98,6 +100,9 @@ export function ImportTranslationsDialog({
       formData.set("file", selectedFile);
       formData.set("sourcePath", sourcePath);
       formData.set("locale", locale);
+      if (branch?.trim()) {
+        formData.set("branch", branch.trim());
+      }
 
       const response = await fetch(importApiPath(organizationSlug, projectId), {
         method: "POST",

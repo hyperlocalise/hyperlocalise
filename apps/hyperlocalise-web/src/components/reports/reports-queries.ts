@@ -213,13 +213,15 @@ export function useStepTimes(input: SectionInput) {
 export function aiUsageQuery(input: SectionInput) {
   const { state } = input;
   const { from, to, projectId, jobId } = scope(input);
-  const { automation, ...filters } = state.aiFilters;
+  const { automation, member, thread, ...filters } = state.aiFilters;
   return compact({
     from,
     to,
     projectId,
     jobId,
     automationId: automation,
+    memberId: member,
+    threadId: thread,
     ...filters,
     groupBy: state.aiGroup,
     thenBy: optional(state.aiThen),

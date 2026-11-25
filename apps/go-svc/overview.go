@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 )
 
 const (
@@ -18,19 +20,17 @@ const (
 	overviewAutomationLimit    = 3
 	overviewRecentJobsLimit    = 8
 	overviewRecentRunsLimit    = 8
-	workspaceAutomationsFlag   = "workspace-automations"
 	overviewOpenJobStatusesSQL = `'queued', 'running', 'waiting_for_review'`
 )
 
 type overviewAPI struct {
 	pool       dictionaryPool
 	membership organizationMembershipLookup
-	flags      workspaceFlagChecker
+	autumn     autumnChecker
 }
 
 type overviewActor struct {
 	userID, organizationID, organizationSlug, role string
-	workosUserID, workosOrganizationID             string
 }
 
 func (a overviewActor) canReadAllTeams() bool {
@@ -91,18 +91,16 @@ func (api *overviewAPI) actor(ctx context.Context, claims AuthClaims, slug strin
 	if err != nil {
 		return overviewActor{}, mapOrganizationAccessError(err, overviewFailure)
 	}
-	var organizationSlug, workosOrg string
-	if err := api.pool.QueryRow(ctx, `select slug, workos_organization_id from organizations where id=$1`, resolved.organizationID).
-		Scan(&organizationSlug, &workosOrg); err != nil {
+	var organizationSlug string
+	if err := api.pool.QueryRow(ctx, `select slug from organizations where id=$1`, resolved.organizationID).
+		Scan(&organizationSlug); err != nil {
 		return overviewActor{}, err
 	}
 	return overviewActor{
-		userID:               resolved.userID,
-		organizationID:       resolved.organizationID,
-		organizationSlug:     organizationSlug,
-		role:                 resolved.role,
-		workosUserID:         claims.UserID,
-		workosOrganizationID: workosOrg,
+		userID:           resolved.userID,
+		organizationID:   resolved.organizationID,
+		organizationSlug: organizationSlug,
+		role:             resolved.role,
 	}, nil
 }
 
@@ -140,11 +138,16 @@ func (api *overviewAPI) handle(fn func(*http.Request, overviewActor) (any, int, 
 }
 
 func (api *overviewAPI) includeAutomations(ctx context.Context, actor overviewActor) bool {
-	if !actor.canReadAutomations() || api.flags == nil {
+	if !actor.canReadAutomations() {
 		return false
 	}
-	enabled, err := api.flags.Enabled(ctx, actor.workosOrganizationID, actor.workosUserID, workspaceAutomationsFlag)
-	return err == nil && enabled
+	if localAutumnFeaturesEnabled() {
+		return true
+	}
+	if api.autumn == nil {
+		return false
+	}
+	return api.autumn.BooleanFeatureEnabled(ctx, actor.organizationID, autumn.Automations)
 }
 
 func overviewPathEscape(value string) string {

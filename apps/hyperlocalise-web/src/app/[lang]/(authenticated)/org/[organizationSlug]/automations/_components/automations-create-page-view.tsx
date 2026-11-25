@@ -28,6 +28,7 @@ import {
   type WorkspaceAutomationTemplateCategory,
 } from "@/lib/agents/workspace-automation-templates";
 import { cn } from "@/lib/primitives/cn";
+import type { VisualWorkflowTemplateId } from "@/lib/visual-workflows/templates/visual-workflow-templates";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { AutomationAssistantPrompt } from "./automation-assistant-prompt";
@@ -38,6 +39,7 @@ import {
   type AutomationsLinkRenderer,
 } from "./automation-template-card";
 import { automationsCreatePageViewMessages as messages } from "./automations-create-page-view.messages";
+import { FeaturedLocalisationWorkflows } from "./featured-localisation-workflows";
 import { AUTOMATION_TYPE_ICONS, type AutomationsPageAssistant } from "./automations-page-view";
 import { automationsPageViewMessages } from "./automations-page-view.messages";
 import {
@@ -105,11 +107,14 @@ function WorkflowCard({
   access,
   organizationSlug,
   creating,
+  disabled,
   onCreate,
 }: {
   access: Exclude<AutomationWorkflowAccess, "hidden">;
   organizationSlug: string;
   creating: boolean;
+  /** Another workflow, such as one from a template, is being created. */
+  disabled: boolean;
   onCreate: () => void;
 }) {
   const body = {
@@ -124,9 +129,9 @@ function WorkflowCard({
       <button
         type="button"
         className={cn(BUILD_CARD_CLASS, BUILD_CARD_INTERACTIVE_CLASS, "disabled:opacity-60")}
-        disabled={creating}
+        disabled={disabled}
         aria-busy={creating}
-        onClick={onCreate}
+        onClick={() => onCreate()}
       >
         <BuildCardBody
           {...body}
@@ -175,8 +180,9 @@ function WorkflowCard({
 }
 
 /**
- * Where a new automation starts: describe it to the assistant, choose to build an agent or a
- * workflow yourself, or begin from a template.
+ * Where a new automation starts. The common localisation workflows come first; below them, every
+ * other way to start: describe it to the assistant, build an agent or a workflow yourself, or begin
+ * from an agent template.
  */
 export function AutomationsCreatePageView({
   organizationSlug,
@@ -185,6 +191,7 @@ export function AutomationsCreatePageView({
   assistant,
   workflowAccess,
   creatingWorkflow = false,
+  creatingTemplateId = null,
   onCreateWorkflow,
   renderAutomationLink = defaultRenderAutomationLink,
 }: {
@@ -194,7 +201,10 @@ export function AutomationsCreatePageView({
   assistant?: AutomationsPageAssistant;
   workflowAccess: AutomationWorkflowAccess;
   creatingWorkflow?: boolean;
-  onCreateWorkflow: () => void;
+  /** The template a workflow is being created from, while it is. */
+  creatingTemplateId?: VisualWorkflowTemplateId | null;
+  /** Starts a blank workflow, or one from a template. */
+  onCreateWorkflow: (templateId?: VisualWorkflowTemplateId) => void;
   renderAutomationLink?: AutomationsLinkRenderer;
 }) {
   const intl = useIntl();
@@ -232,15 +242,36 @@ export function AutomationsCreatePageView({
       />
 
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-10">
+        {workflowAccess === "hidden" ? null : (
+          <FeaturedLocalisationWorkflows
+            access={workflowAccess}
+            organizationSlug={organizationSlug}
+            creatingTemplateId={creatingWorkflow ? creatingTemplateId : null}
+            disabled={creatingWorkflow}
+            onCreate={onCreateWorkflow}
+          />
+        )}
+
+        {workflowAccess === "hidden" ? null : (
+          <div className="flex flex-col gap-1 border-t border-border pt-8">
+            <h2 className="font-sans text-lg font-medium text-balance text-foreground">
+              <FormattedMessage {...messages.otherAutomationsTitle} />
+            </h2>
+            <TypographyP tone="subtle">
+              <FormattedMessage {...messages.otherAutomationsDescription} />
+            </TypographyP>
+          </div>
+        )}
+
         {assistant ? (
           <section aria-labelledby="describe-automation-title" className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <h2
+              <h3
                 id="describe-automation-title"
-                className="font-sans text-lg font-medium text-balance text-foreground"
+                className="font-sans text-base font-medium text-balance text-foreground"
               >
                 <FormattedMessage {...messages.describeTitle} />
-              </h2>
+              </h3>
               {assistant.aiFeaturesStatus === "denied" ? null : (
                 <TypographyP tone="subtle">
                   <FormattedMessage {...messages.describeDescription} />
@@ -257,12 +288,12 @@ export function AutomationsCreatePageView({
         ) : null}
 
         <section aria-labelledby="build-automation-title" className="flex flex-col gap-4">
-          <h2
+          <h3
             id="build-automation-title"
             className="font-sans text-base font-medium text-balance text-foreground"
           >
             <FormattedMessage {...(assistant ? messages.buildTitle : messages.buildTitleAlone)} />
-          </h2>
+          </h3>
           <div className="grid gap-4 sm:grid-cols-2">
             {renderAutomationLink({
               href: `${automationsBasePath}/new`,
@@ -285,7 +316,8 @@ export function AutomationsCreatePageView({
               <WorkflowCard
                 access={workflowAccess}
                 organizationSlug={organizationSlug}
-                creating={creatingWorkflow}
+                creating={creatingWorkflow && creatingTemplateId === null}
+                disabled={creatingWorkflow}
                 onCreate={onCreateWorkflow}
               />
             )}
@@ -295,12 +327,12 @@ export function AutomationsCreatePageView({
         {usableTemplates.length > 0 ? (
           <section aria-labelledby="automation-templates-title" className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <h2
+              <h3
                 id="automation-templates-title"
                 className="font-sans text-base font-medium text-balance text-foreground"
               >
                 <FormattedMessage {...messages.templatesTitle} />
-              </h2>
+              </h3>
               <TypographyP tone="subtle">
                 <FormattedMessage {...messages.templatesDescription} />
               </TypographyP>

@@ -1,0 +1,27 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "exa",
+    srcs = [
+        "client.go",
+        "config.go",
+        "doc.go",
+        "errors.go",
+        "location.go",
+        "market.go",
+        "types.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/exa",
+    visibility = ["//visibility:public"],
+    deps = ["@org_golang_x_text//language"],
+)
+
+go_test(
+    name = "exa_test",
+    srcs = [
+        "client_test.go",
+        "market_test.go",
+    ],
+    embed = [":exa"],
+    deps = ["@com_github_stretchr_testify//require"],
+)

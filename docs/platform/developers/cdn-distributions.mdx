@@ -6,7 +6,7 @@ description: "Publish approved native-project translations to a public CDN hash,
 
 CDN distributions ship an **approved snapshot** of a native project's translations to mobile and web apps. The public address is an unguessable hash, not an API key. Nothing is live until you click **Release**.
 
-A distribution selects files, locales, and one format. A release writes `manifest.json` plus locale files. Clients poll the manifest and fetch content when `timestamp` changes.
+A distribution selects files, locales, and one format. A release writes `manifest.json` plus locale files. Clients poll the manifest and fetch content when `timestamp` changes. JavaScript apps can use the [JavaScript OTA SDK](/platform/developers/ota-javascript-sdk) for this.
 
 ## Create a distribution
 
@@ -108,6 +108,7 @@ External TMS projects cannot create distributions.
 
 ## Next
 
+- [JavaScript OTA SDK](/platform/developers/ota-javascript-sdk)
 - [Connect the CLI](/platform/cli)
 - [Public API](/platform/api)
 - [Project settings](/platform/projects/settings)

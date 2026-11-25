@@ -17,12 +17,20 @@ import { createContext, useContext, type ReactNode } from "react";
 export type VisualWorkflowAddFrom = {
   nodeId: string;
   handleId?: string;
+  handleType?: "source" | "target";
+};
+
+export type VisualWorkflowInsertOnEdge = {
+  edgeId: string;
+  client: { x: number; y: number };
+  position: { x: number; y: number };
 };
 
 const NO_NODE_IDS: ReadonlySet<string> = new Set();
 
 const VisualWorkflowCanvasActionsContext = createContext<{
   onAddFromNode: (from: VisualWorkflowAddFrom) => void;
+  onInsertOnEdge?: (insert: VisualWorkflowInsertOnEdge) => void;
   issueNodeIds: ReadonlySet<string>;
   freshNodeIds: ReadonlySet<string>;
   pointedNodeId: string | null;
@@ -31,6 +39,7 @@ const VisualWorkflowCanvasActionsContext = createContext<{
 
 export function VisualWorkflowCanvasActionsProvider({
   onAddFromNode,
+  onInsertOnEdge,
   issueNodeIds = NO_NODE_IDS,
   freshNodeIds = NO_NODE_IDS,
   pointedNodeId = null,
@@ -38,6 +47,7 @@ export function VisualWorkflowCanvasActionsProvider({
   children,
 }: {
   onAddFromNode: (from: VisualWorkflowAddFrom) => void;
+  onInsertOnEdge?: (insert: VisualWorkflowInsertOnEdge) => void;
   /** The steps a validation issue is about, which the canvas marks. */
   issueNodeIds?: ReadonlySet<string>;
   /** The steps that appeared or were changed and have not been selected since, which the canvas marks. */
@@ -50,7 +60,14 @@ export function VisualWorkflowCanvasActionsProvider({
 }) {
   return (
     <VisualWorkflowCanvasActionsContext.Provider
-      value={{ onAddFromNode, issueNodeIds, freshNodeIds, pointedNodeId, realNodeIds }}
+      value={{
+        onAddFromNode,
+        onInsertOnEdge,
+        issueNodeIds,
+        freshNodeIds,
+        pointedNodeId,
+        realNodeIds,
+      }}
     >
       {children}
     </VisualWorkflowCanvasActionsContext.Provider>

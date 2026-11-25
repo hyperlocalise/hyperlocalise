@@ -171,6 +171,32 @@ func (c *Client) doMultipart(
 	media []byte,
 	contentType string,
 ) ([]byte, string, error) {
+	return c.doMultipartFiles(ctx, path, query, fields, []multipartFile{{
+		Field:       fileField,
+		Name:        defaultDubbingMediaName,
+		Bytes:       media,
+		ContentType: contentType,
+	}})
+}
+
+// multipartFile is one file part of a multipart request. Name is the
+// filename without its extension; the extension follows ContentType.
+type multipartFile struct {
+	Field       string
+	Name        string
+	Bytes       []byte
+	ContentType string
+}
+
+// doMultipartFiles posts `fields` and each of `files` to `path`, answering
+// with the response body and its content type.
+func (c *Client) doMultipartFiles(
+	ctx context.Context,
+	path string,
+	query url.Values,
+	fields url.Values,
+	files []multipartFile,
+) ([]byte, string, error) {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 	for key, values := range fields {
@@ -180,12 +206,14 @@ func (c *Client) doMultipart(
 			}
 		}
 	}
-	part, err := writer.CreatePart(mediaPartHeader(fileField, contentType))
-	if err != nil {
-		return nil, "", fmt.Errorf("elevenlabs: build multipart request: %w", err)
-	}
-	if _, err := part.Write(media); err != nil {
-		return nil, "", fmt.Errorf("elevenlabs: build multipart request: %w", err)
+	for _, file := range files {
+		part, err := writer.CreatePart(mediaPartHeader(file.Field, file.Name, file.ContentType))
+		if err != nil {
+			return nil, "", fmt.Errorf("elevenlabs: build multipart request: %w", err)
+		}
+		if _, err := part.Write(file.Bytes); err != nil {
+			return nil, "", fmt.Errorf("elevenlabs: build multipart request: %w", err)
+		}
 	}
 	if err := writer.Close(); err != nil {
 		return nil, "", fmt.Errorf("elevenlabs: build multipart request: %w", err)
@@ -216,13 +244,13 @@ func (c *Client) doMultipart(
 	return body, resp.Header.Get("Content-Type"), nil
 }
 
-func mediaPartHeader(field, contentType string) map[string][]string {
+func mediaPartHeader(field, name, contentType string) map[string][]string {
 	contentType = strings.TrimSpace(contentType)
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
 	return map[string][]string{
-		"Content-Disposition": {fmt.Sprintf(`form-data; name=%q; filename="%s%s"`, field, defaultDubbingMediaName, mediaExtension(contentType))},
+		"Content-Disposition": {fmt.Sprintf(`form-data; name=%q; filename="%s%s"`, field, name, mediaExtension(contentType))},
 		"Content-Type":        {contentType},
 	}
 }

@@ -15,17 +15,19 @@ import (
 )
 
 const (
-	automationBodyLimit       = 1 << 20
-	automationRequestTimeout  = 30 * time.Second
-	automationListDefault     = 50
-	automationListMax         = 100
-	automationNameMaxChars    = 120
-	automationInstructionsMax = 20_000
-	automationSkillIDMax      = 64
-	automationSkillMaxCount   = 64
-	automationRecentRunLimit  = 10
-	automationDefaultModel    = "openai/gpt-6-luna"
-	automationTimeLayout      = "2006-01-02T15:04:05.000Z"
+	automationBodyLimit            = 1 << 20
+	automationRequestTimeout       = 30 * time.Second
+	automationListDefault          = 50
+	automationListMax              = 100
+	automationNameMaxChars         = 120
+	automationInstructionsMax      = 20_000
+	automationSkillIDMax           = 64
+	automationSkillMaxCount        = 64
+	automationRecentRunLimit       = 10
+	automationWorkspaceRunsDefault = 25
+	automationVisualRunsDefault    = 20
+	automationDefaultModel         = "openai/gpt-6-luna"
+	automationTimeLayout           = "2006-01-02T15:04:05.000Z"
 )
 
 var (
@@ -109,11 +111,18 @@ func (api *automationAPI) register(mux *http.ServeMux, verifier SessionVerifier)
 	route("GET "+automations+"/{automationId}", bindActor(api, (*automationAPI).getWorkspaceAutomation))
 	route("PATCH "+automations+"/{automationId}", bindActor(api, (*automationAPI).patchWorkspaceAutomation))
 	route("DELETE "+automations+"/{automationId}", bindActor(api, (*automationAPI).deleteWorkspaceAutomation))
+	route("GET "+automations+"/{automationId}/runs", bindActor(api, (*automationAPI).listWorkspaceAutomationRuns))
+	route("POST "+automations+"/{automationId}/runs", bindActor(api, (*automationAPI).createWorkspaceAutomationRun))
 	route("GET "+visual, bindActor(api, (*automationAPI).listVisualWorkflows))
 	route("POST "+visual, bindActor(api, (*automationAPI).createVisualWorkflow))
 	route("GET "+visual+"/{visualWorkflowId}", bindActor(api, (*automationAPI).getVisualWorkflow))
 	route("PATCH "+visual+"/{visualWorkflowId}", bindActor(api, (*automationAPI).patchVisualWorkflow))
 	route("DELETE "+visual+"/{visualWorkflowId}", bindActor(api, (*automationAPI).deleteVisualWorkflow))
+	route("POST "+visual+"/{visualWorkflowId}/publish", bindActor(api, (*automationAPI).publishVisualWorkflow))
+	route("POST "+visual+"/{visualWorkflowId}/test", bindActor(api, (*automationAPI).testVisualWorkflow))
+	route("GET "+visual+"/{visualWorkflowId}/runs", bindActor(api, (*automationAPI).listVisualWorkflowRuns))
+	route("POST "+visual+"/{visualWorkflowId}/runs", bindActor(api, (*automationAPI).createVisualWorkflowRun))
+	route("GET "+visual+"/{visualWorkflowId}/runs/{runId}", bindActor(api, (*automationAPI).getVisualWorkflowRun))
 }
 
 func (api *automationAPI) handle(fn func(*http.Request, automationActor) (any, int, error)) http.Handler {
@@ -312,6 +321,52 @@ func parseAutomationListQuery(r *http.Request, statuses map[string]struct{}) (st
 		projectID = strings.TrimSpace(raw[0])
 	}
 	return status, projectID, limit, offset, nil
+}
+
+func parseAutomationRunsQuery(r *http.Request, defaultLimit int) (limit, offset int, err error) {
+	query := r.URL.Query()
+	limit = defaultLimit
+	if raw, ok := query["limit"]; ok {
+		if len(raw) != 1 {
+			return 0, 0, automationFailure(http.StatusBadRequest, "invalid_query_params", "Query parameters are invalid.")
+		}
+		parsed, parseErr := parseBoundedInt(raw[0], 1, automationListMax)
+		if parseErr != nil {
+			return 0, 0, automationFailure(http.StatusBadRequest, "invalid_query_params", "Query parameters are invalid.")
+		}
+		limit = parsed
+	}
+	if raw, ok := query["offset"]; ok {
+		if len(raw) != 1 {
+			return 0, 0, automationFailure(http.StatusBadRequest, "invalid_query_params", "Query parameters are invalid.")
+		}
+		parsed, parseErr := parseBoundedInt(raw[0], 0, 1_000_000)
+		if parseErr != nil {
+			return 0, 0, automationFailure(http.StatusBadRequest, "invalid_query_params", "Query parameters are invalid.")
+		}
+		offset = parsed
+	}
+	return limit, offset, nil
+}
+
+func readAutomationJSONMap(r *http.Request) (map[string]any, error) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		var maxBytes *http.MaxBytesError
+		if errors.As(err, &maxBytes) {
+			return nil, automationFailure(http.StatusRequestEntityTooLarge, "payload_too_large", "Request payload is too large")
+		}
+		return nil, automationFailure(http.StatusBadRequest, "invalid_payload", "Request payload is invalid")
+	}
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 {
+		return map[string]any{}, nil
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(trimmed, &fields); err != nil || fields == nil {
+		return nil, automationFailure(http.StatusBadRequest, "invalid_payload", "Request payload is invalid")
+	}
+	return fields, nil
 }
 
 func parseBoundedInt(raw string, min, max int) (int, error) {

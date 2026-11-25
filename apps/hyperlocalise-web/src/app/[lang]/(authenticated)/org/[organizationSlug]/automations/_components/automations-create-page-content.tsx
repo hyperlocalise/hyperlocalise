@@ -20,6 +20,10 @@ import { toast } from "sonner";
 import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import type { WorkspaceAutomationTemplate } from "@/lib/agents/workspace-automation-templates";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
+import {
+  buildVisualWorkflowTemplate,
+  type VisualWorkflowTemplateId,
+} from "@/lib/visual-workflows/templates/visual-workflow-templates";
 
 import type { AutomationsLinkRenderer } from "./automation-template-card";
 import {
@@ -69,7 +73,12 @@ export function AutomationsCreatePageContent({
   });
 
   const createWorkflow = useMutation({
-    mutationFn: () => injectedVisualWorkflowsApi.createVisualWorkflow(organizationSlug),
+    mutationFn: (templateId: VisualWorkflowTemplateId | undefined) =>
+      templateId
+        ? injectedVisualWorkflowsApi.createVisualWorkflow(organizationSlug, {
+            definition: buildVisualWorkflowTemplate(templateId, { projectId }),
+          })
+        : injectedVisualWorkflowsApi.createVisualWorkflow(organizationSlug),
     onSuccess: (workflow) => {
       void queryClient.invalidateQueries({ queryKey: ["visual-workflows", organizationSlug] });
       router.push(`${buildAutomationsPath(organizationSlug)}/visual-workflows/${workflow.id}`);
@@ -88,7 +97,8 @@ export function AutomationsCreatePageContent({
       workflowAccess={workflowAccess}
       // Stays busy after success too, while the canvas opens.
       creatingWorkflow={createWorkflow.isPending || createWorkflow.isSuccess}
-      onCreateWorkflow={() => createWorkflow.mutate()}
+      creatingTemplateId={createWorkflow.variables ?? null}
+      onCreateWorkflow={(templateId) => createWorkflow.mutate(templateId)}
       renderAutomationLink={renderProductionAutomationLink}
     />
   );

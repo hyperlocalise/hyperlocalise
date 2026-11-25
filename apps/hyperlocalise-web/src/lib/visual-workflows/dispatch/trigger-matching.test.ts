@@ -208,20 +208,30 @@ describe("visual workflow trigger matching", () => {
     };
 
     expect(
-      visualWorkflowShouldDispatchOnSourceUpload(workflowRecord(scoped), { projectId: "proj-1" }),
+      visualWorkflowShouldDispatchOnSourceUpload(workflowRecord(scoped), {
+        projectId: "proj-1",
+        sourcePath: "a.json",
+        isNewFile: true,
+      }),
     ).toBe(true);
     expect(
-      visualWorkflowShouldDispatchOnSourceUpload(workflowRecord(scoped), { projectId: "proj-2" }),
+      visualWorkflowShouldDispatchOnSourceUpload(workflowRecord(scoped), {
+        projectId: "proj-2",
+        sourcePath: "a.json",
+        isNewFile: true,
+      }),
     ).toBe(false);
     expect(
       visualWorkflowShouldDispatchOnSourceUpload(workflowRecord(anyProject), {
         projectId: "proj-2",
+        sourcePath: "a.json",
+        isNewFile: true,
       }),
     ).toBe(true);
     expect(
       visualWorkflowShouldDispatchOnSourceUpload(
         { ...workflowRecord(scoped), status: "draft" },
-        { projectId: "proj-1" },
+        { projectId: "proj-1", sourcePath: "a.json", isNewFile: true },
       ),
     ).toBe(false);
     expect(resolveVisualWorkflowTriggerFingerprint({ id: "wf-up", definition: scoped })).toBe(

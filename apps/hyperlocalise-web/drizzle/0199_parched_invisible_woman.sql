@@ -1,0 +1,1 @@
+ALTER TYPE "public"."workspace_automation_run_trigger_source" ADD VALUE 'google_drive';

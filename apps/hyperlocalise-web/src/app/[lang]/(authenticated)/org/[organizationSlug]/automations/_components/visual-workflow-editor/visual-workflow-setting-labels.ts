@@ -14,6 +14,7 @@ import type { MessageDescriptor } from "react-intl";
 
 import type { VisualCatalogType } from "@/lib/visual-workflows/schema/types";
 
+import { sourceUploadTriggerFieldsMessages as sourceUploadMessages } from "./source-upload-trigger-fields.messages";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 
 const ON_ERROR = { onError: messages.onErrorLabel };
@@ -26,7 +27,12 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     branches: messages.githubBranches,
     events: messages.githubEvents,
   },
-  "trigger.source_upload": { projectId: messages.sourceUploadProject },
+  "trigger.source_upload": {
+    projectId: messages.sourceUploadProject,
+    uploads: sourceUploadMessages.uploadsLabel,
+    pathSyntax: sourceUploadMessages.syntaxLabel,
+    pathPatterns: sourceUploadMessages.filterLabel,
+  },
   "action.translation_as_source": {
     ...ON_ERROR,
     jobId: messages.updateJobJobId,
@@ -76,6 +82,7 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     assigneeWorkosUserId: messages.createTaskAssignee,
     title: messages.createTaskTitle,
     dueAt: messages.taskDueAt,
+    dueInHours: messages.taskDueInHours,
     afterJobId: messages.createTaskAfterJob,
     ...ON_ERROR,
   },
@@ -86,7 +93,18 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     jobId: messages.checkProgressJobId,
     ...ON_ERROR,
   },
-  "action.run_qa": { projectId: messages.localizationProjectId, ...ON_ERROR },
+  "action.run_qa": {
+    projectId: messages.localizationProjectId,
+    sourceFileId: messages.localizationSourceFileIdOptional,
+    targetLocales: messages.localizationTargetLocales,
+    jobId: messages.runQaJobId,
+    ...ON_ERROR,
+  },
+  "action.list_review_work": {
+    projectId: messages.localizationProjectId,
+    pathPrefix: messages.listFilesPathPrefix,
+    ...ON_ERROR,
+  },
   "action.list_source_files": {
     projectId: messages.localizationProjectId,
     pathPrefix: messages.listFilesPathPrefix,
@@ -115,6 +133,7 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     assigneeWorkosUserId: messages.updateJobAssignee,
     title: messages.updateJobTitle,
     dueAt: messages.taskDueAt,
+    dueInHours: messages.taskDueInHours,
     ...ON_ERROR,
   },
   "action.pick_assignee": {
