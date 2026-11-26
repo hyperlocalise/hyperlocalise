@@ -15,6 +15,7 @@ import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
+import { err } from "@/lib/primitives/result/results";
 
 const mocks = vi.hoisted(() => ({
   dbSelect: vi.fn(),
@@ -63,6 +64,7 @@ vi.mock("@/lib/intercom/wait-for-source-file-ingest", () => ({
 }));
 
 import {
+  computeGoogleDriveSelectionFingerprint,
   fingerprintGoogleDriveFiles,
   runImportGoogleDriveFiles,
 } from "./import-google-drive-files";
@@ -339,6 +341,105 @@ describe("runImportGoogleDriveFiles", () => {
       }),
     ).resolves.toEqual({ imported: 1, skipped: 0, failed: 0, truncated: 0 });
     expect(mocks.uploadSourceFile).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("computeGoogleDriveSelectionFingerprint", () => {
+  beforeEach(() => {
+    mocks.dbSelect.mockReset();
+    mocks.loadGoogleDrivePipesAccessToken.mockReset();
+    mocks.getGoogleDriveFile.mockReset();
+  });
+
+  it("rejects a Drive trigger that is not configured or has no folders or files", async () => {
+    await expect(
+      computeGoogleDriveSelectionFingerprint({
+        organizationId: "org-1",
+        automation: automation({ toolConfig: {} }),
+      }),
+    ).resolves.toEqual(err({ code: "google_drive_not_configured" }));
+    await expect(
+      computeGoogleDriveSelectionFingerprint({
+        organizationId: "org-1",
+        automation: automation(),
+      }),
+    ).resolves.toEqual(err({ code: "google_drive_folders_required" }));
+  });
+
+  it("rejects a missing project, a TMS project, and a project from another workspace", async () => {
+    await expect(
+      computeGoogleDriveSelectionFingerprint({
+        organizationId: "org-1",
+        automation: automation({
+          projectId: null,
+          toolConfig: pdfFileAutomation().toolConfig,
+        }),
+      }),
+    ).resolves.toEqual(err({ code: "project_not_found" }));
+
+    selectQueue([[]]);
+    await expect(
+      computeGoogleDriveSelectionFingerprint({
+        organizationId: "org-1",
+        automation: pdfFileAutomation(),
+      }),
+    ).resolves.toEqual(err({ code: "google_drive_native_project_required" }));
+
+    selectQueue([[{ source: "external_tms", targetLocales: ["vi-VN"] }]]);
+    await expect(
+      computeGoogleDriveSelectionFingerprint({
+        organizationId: "org-1",
+        automation: pdfFileAutomation(),
+      }),
+    ).resolves.toEqual(err({ code: "google_drive_native_project_required" }));
+  });
+
+  it("fails closed when Drive is disconnected or a selected file cannot be listed", async () => {
+    selectQueue([[{ source: "native", targetLocales: ["vi-VN"] }]]);
+    mocks.loadGoogleDrivePipesAccessToken.mockResolvedValue(
+      err({ code: "google_drive_not_connected" }),
+    );
+    await expect(
+      computeGoogleDriveSelectionFingerprint({
+        organizationId: "org-1",
+        automation: pdfFileAutomation(),
+      }),
+    ).resolves.toEqual(err({ code: "google_drive_token_unavailable" }));
+
+    selectQueue([[{ source: "native", targetLocales: ["vi-VN"] }]]);
+    mocks.loadGoogleDrivePipesAccessToken.mockResolvedValue({ ok: true, value: "token" });
+    mocks.getGoogleDriveFile.mockResolvedValue(err({ code: "google_drive_file_not_found" }));
+    await expect(
+      computeGoogleDriveSelectionFingerprint({
+        organizationId: "org-1",
+        automation: pdfFileAutomation(),
+      }),
+    ).resolves.toEqual(err({ code: "google_drive_selection_unreadable" }));
+  });
+
+  it("hashes the selected files without counting a failed listing as a change", async () => {
+    selectQueue([[{ source: "native", targetLocales: ["vi-VN"] }]]);
+    mocks.loadGoogleDrivePipesAccessToken.mockResolvedValue({ ok: true, value: "token" });
+    mockPdfDriveFile();
+
+    await expect(
+      computeGoogleDriveSelectionFingerprint({
+        organizationId: "org-1",
+        automation: pdfFileAutomation(),
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      value: {
+        fingerprint: fingerprintGoogleDriveFiles([
+          {
+            fileId: "drive-pdf-1",
+            modifiedTime: "2026-10-27T00:00:00.000Z",
+            md5Checksum: "pdf-md5",
+          },
+        ]),
+        fileCount: 1,
+      },
+    });
   });
 });
 
