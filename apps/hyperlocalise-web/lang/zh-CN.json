@@ -1190,6 +1190,9 @@
   "/dTXVxCVNH": {
     "defaultMessage": "审核人员在团队的 TMS 中验证译文草稿，批准已准备就绪的语言区域，并对仍需修改的内容留下反馈。"
   },
+  "/dc/w9u9zm": {
+    "defaultMessage": "Text"
+  },
   "/e6ibZCuf5": {
     "defaultMessage": "创建包含上下文、文件、区域设置和受派人员的任务。"
   },
@@ -1318,6 +1321,9 @@
   },
   "/t0AsVdAjV": {
     "defaultMessage": "显示详情"
+  },
+  "/t9gruUZ70": {
+    "defaultMessage": "不在团队名单中的人"
   },
   "/u4S4pwmIn": {
     "defaultMessage": "FR 100% · DE 98% · JA 87% 覆盖率"
@@ -2263,6 +2269,9 @@
   },
   "155ppkZ0rK": {
     "defaultMessage": "Key"
+  },
+  "15FkZAAWZn": {
+    "defaultMessage": "从文本或已存储的文件创建一个持久化翻译任务。"
   },
   "15JsK395Aq": {
     "defaultMessage": "借助 CMS 以及自动化的 AEO 和 SEO 运营，将内容呈现给您的受众。"
@@ -4591,6 +4600,9 @@
   },
   "4No/FCwLf4": {
     "defaultMessage": "Link"
+  },
+  "4NrFt6runw": {
+    "defaultMessage": "说明"
   },
   "4NxMcshAkK": {
     "defaultMessage": "主要术语"
@@ -13325,6 +13337,9 @@
   "GzgrtCYOAU": {
     "defaultMessage": "已记录工时"
   },
+  "GzlzhrsNZ6": {
+    "defaultMessage": "源语言"
+  },
   "H+501fU+xu": {
     "defaultMessage": "Customer.io"
   },
@@ -15854,6 +15869,9 @@
   "Kp+e7u3nEc": {
     "defaultMessage": "绩效学习"
   },
+  "KpItEVAT5b": {
+    "defaultMessage": "适用于外部代理机构或自由职业者。其成员只能查看分配给他们的任务，团队经理也可以查看团队任务。成员加入后会退出其他团队。此设置之后无法更改。"
+  },
   "Kph9F7aQfL": {
     "defaultMessage": "Tool"
   },
@@ -16519,6 +16537,9 @@
   },
   "LpAm1eoUb6": {
     "defaultMessage": "无法加载工作区概览。"
+  },
+  "LpQRt+NA1h": {
+    "defaultMessage": "创建翻译任务"
   },
   "LpSbNeWQyy": {
     "defaultMessage": "用文字修改图像的局部部分"
@@ -18254,6 +18275,9 @@
   "OJm01EvxZW": {
     "defaultMessage": "创建 Crowdin 作业失败"
   },
+  "OK0mqQVghA": {
+    "defaultMessage": "可以查看团队的所有任务，并将每项任务分配给团队成员。"
+  },
   "OKElC8KspG": {
     "defaultMessage": "产品、网站和文档本地化"
   },
@@ -18814,6 +18838,9 @@
   },
   "P7iGJ3MOIk": {
     "defaultMessage": "每个项目内的节点"
+  },
+  "P7qMEBwvFk": {
+    "defaultMessage": "这是一个供应商团队。此人只能看到分配给自己的任务；如果此人是团队经理，也可以看到团队的任务，并且会从其加入的其他团队中移除。"
   },
   "P83ZEtDAlo": {
     "defaultMessage": "加载 GitHub 仓库失败"
@@ -21499,6 +21526,9 @@
   },
   "T8LFTkce6e": {
     "defaultMessage": "工作区连接"
+  },
+  "T9bH+pMAZ1": {
+    "defaultMessage": "只能查看分配给他们的任务。"
   },
   "T9mYohjPzf": {
     "defaultMessage": "已发送"
@@ -29012,6 +29042,9 @@
   "dnlKnYoNl8": {
     "defaultMessage": "已阻止"
   },
+  "dnoEDGww+o": {
+    "defaultMessage": "{teamName} 将被移除。团队成员将不再受限于其任务：他们将恢复其角色在工作区中允许的权限，但不再属于任何团队。分配给该团队且尚未被任何成员接手的任务将变为未分配状态。"
+  },
   "dnuXZ5sBJ3": {
     "defaultMessage": "任务失败"
   },
@@ -29975,6 +30008,9 @@
   "f22yrNzzSr": {
     "defaultMessage": "在源文件选择器中选择一个 GitHub 仓库，以查找字符串上下文。"
   },
+  "f24Kokxqli": {
+    "defaultMessage": "未分配"
+  },
   "f28BtwGbZV": {
     "defaultMessage": "暂时无法检查此连接。"
   },
@@ -30085,6 +30121,9 @@
   },
   "fC5ypafpDV": {
     "defaultMessage": "或"
+  },
+  "fCJqBOlPJw": {
+    "defaultMessage": "请用逗号分隔一个或多个目标语言区域。"
   },
   "fCRbJ9qc0i": {
     "defaultMessage": "没有符合这些筛选条件的发现。"
@@ -31450,6 +31489,9 @@
   },
   "h5+KJI2d7A": {
     "defaultMessage": "无法加载问题。"
+  },
+  "h5QP7DKHn0": {
+    "defaultMessage": "已存储的文件"
   },
   "h5YfBD98F1": {
     "defaultMessage": "从 CSV 导入问题"
@@ -33080,6 +33122,9 @@
   "jQ86ApxA97": {
     "defaultMessage": "treatment"
   },
+  "jQdEMjrp0Z": {
+    "defaultMessage": "供应商团队"
+  },
   "jR18LljICi": {
     "defaultMessage": "为工作区或单个项目上传风格指南和品牌文档。"
   },
@@ -33953,6 +33998,9 @@
   "kca9z02Mat": {
     "defaultMessage": "03 统计胜果"
   },
+  "kcg9+yrlzC": {
+    "defaultMessage": "源类型"
+  },
   "kcrePkUiva": {
     "defaultMessage": "Glob 通配模式"
   },
@@ -34024,6 +34072,9 @@
   },
   "kjx+4Dj0jz": {
     "defaultMessage": "创始人寄语"
+  },
+  "kk28w+hjbt": {
+    "defaultMessage": "可选的、大小受限的 JSON 对象，用于覆盖翻译上下文。"
   },
   "kl2EbTmfas": {
     "defaultMessage": "相关评分"
@@ -34384,6 +34435,9 @@
   },
   "lEAnS9LFlv": {
     "defaultMessage": "按语言环境划分的作业"
+  },
+  "lEKf0oF5z/": {
+    "defaultMessage": "这是一个供应商团队。团队成员只能看到分配给他们的任务，团队经理会分配团队的任务。加入该团队后，他们将从其他团队中移除。需要在工作区添加新成员？<invite>邀请成员</invite>。"
   },
   "lERlTBAMnZ": {
     "defaultMessage": "聊天 URL 已复制"
@@ -38423,6 +38477,9 @@
   "qwKm4yzub8": {
     "defaultMessage": "你编辑了工作流 · {count, plural, one {# 项更改} other {# 项更改}}"
   },
+  "qx3hu9ObBd": {
+    "defaultMessage": "上下文覆盖"
+  },
   "qxAtQr1hgC": {
     "defaultMessage": "Schedule"
   },
@@ -39202,6 +39259,9 @@
   },
   "s/g9Iuph++": {
     "defaultMessage": "各市场的价格、日期和示例"
+  },
+  "s08zNUwVe0": {
+    "defaultMessage": "他们是该团队唯一的管理员。分配给该团队但尚未被团队成员查看的任务，将一直处于未查看状态，直到团队重新有管理员为止。"
   },
   "s0B+f3G8Yz": {
     "defaultMessage": "自动化运行"
@@ -43813,6 +43873,9 @@
   },
   "yVIGBzoY1L": {
     "defaultMessage": "任务"
+  },
+  "yVIbEyWOOq": {
+    "defaultMessage": "源文本"
   },
   "yVKWDzxbjh": {
     "defaultMessage": "感受本土风情，而非翻译腔。"

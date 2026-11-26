@@ -1190,6 +1190,9 @@
   "/dTXVxCVNH": {
     "defaultMessage": "Prüferinnen und Prüfer validieren die Übersetzungsentwürfe im TMS des Teams, geben fertige Gebietsschemata frei und hinterlassen Feedback, wenn noch Änderungen erforderlich sind."
   },
+  "/dc/w9u9zm": {
+    "defaultMessage": "Text"
+  },
   "/e6ibZCuf5": {
     "defaultMessage": "Erstellen Sie einen Auftrag mit Kontext, Dateien, Gebietsschemata und Zuständigen."
   },
@@ -1318,6 +1321,9 @@
   },
   "/t0AsVdAjV": {
     "defaultMessage": "Details anzeigen"
+  },
+  "/t9gruUZ70": {
+    "defaultMessage": "Jemand, der nicht auf der Teamliste steht"
   },
   "/u4S4pwmIn": {
     "defaultMessage": "FR 100 % · DE 98 % · JA 87 % Abdeckung"
@@ -2263,6 +2269,9 @@
   },
   "155ppkZ0rK": {
     "defaultMessage": "Schlüssel"
+  },
+  "15FkZAAWZn": {
+    "defaultMessage": "Erstellen Sie einen persistenten Übersetzungsauftrag aus Text oder einer gespeicherten Datei."
   },
   "15JsK395Aq": {
     "defaultMessage": "Bringen Sie Inhalte mit einem CMS sowie automatisierten AEO- und SEO-Prozessen zu Ihrer Zielgruppe."
@@ -4591,6 +4600,9 @@
   },
   "4No/FCwLf4": {
     "defaultMessage": "Link"
+  },
+  "4NrFt6runw": {
+    "defaultMessage": "Anweisungen"
   },
   "4NxMcshAkK": {
     "defaultMessage": "Primärbegriff"
@@ -13325,6 +13337,9 @@
   "GzgrtCYOAU": {
     "defaultMessage": "Erfasste Stunden"
   },
+  "GzlzhrsNZ6": {
+    "defaultMessage": "Quellgebiet"
+  },
   "H+501fU+xu": {
     "defaultMessage": "Customer.io"
   },
@@ -15854,6 +15869,9 @@
   "Kp+e7u3nEc": {
     "defaultMessage": "Leistungslernen"
   },
+  "KpItEVAT5b": {
+    "defaultMessage": "Für eine externe Agentur oder eine freiberufliche Person. Ihre Mitglieder sehen nur die Aufgaben, die ihnen zugewiesen wurden. Der Manager des Teams sieht auch die Aufgaben des Teams. Beim Beitritt verlassen sie ihre anderen Teams. Das lässt sich später nicht mehr ändern."
+  },
   "Kph9F7aQfL": {
     "defaultMessage": "Tool"
   },
@@ -16519,6 +16537,9 @@
   },
   "LpAm1eoUb6": {
     "defaultMessage": "Die Workspace-Übersicht konnte nicht geladen werden."
+  },
+  "LpQRt+NA1h": {
+    "defaultMessage": "Übersetzungsauftrag erstellen"
   },
   "LpSbNeWQyy": {
     "defaultMessage": "Ändere einen Teil eines Bildes mit Worten"
@@ -18254,6 +18275,9 @@
   "OJm01EvxZW": {
     "defaultMessage": "Crowdin-Jobs konnten nicht erstellt werden"
   },
+  "OK0mqQVghA": {
+    "defaultMessage": "Sieht alle Aufgaben des Teams und weist jede einer Person im Team zu."
+  },
   "OKElC8KspG": {
     "defaultMessage": "Produkt-, Website- und Dokumentationslokalisierung"
   },
@@ -18814,6 +18838,9 @@
   },
   "P7iGJ3MOIk": {
     "defaultMessage": "Knoten in jedem Element"
+  },
+  "P7qMEBwvFk": {
+    "defaultMessage": "Dies ist ein Anbieterteam. Die Person sieht nur die Aufgaben, die ihr zugewiesen wurden, oder als Teammanager auch die Aufgaben des Teams. Außerdem wird sie aus ihren anderen Teams entfernt."
   },
   "P83ZEtDAlo": {
     "defaultMessage": "GitHub-Repositorys konnten nicht geladen werden"
@@ -21499,6 +21526,9 @@
   },
   "T8LFTkce6e": {
     "defaultMessage": "Arbeitsbereichsverbindung"
+  },
+  "T9bH+pMAZ1": {
+    "defaultMessage": "Sieht nur die Aufgaben, die ihnen zugewiesen wurden."
   },
   "T9mYohjPzf": {
     "defaultMessage": "Gesendet"
@@ -29012,6 +29042,9 @@
   "dnlKnYoNl8": {
     "defaultMessage": "Blockiert"
   },
+  "dnoEDGww+o": {
+    "defaultMessage": "{teamName} wird entfernt. Die Mitglieder sind dann nicht mehr auf ihre Aufgaben beschränkt: Sie erhalten im Workspace wieder die Zugriffsrechte, die ihre Rolle zulässt, und gehören keinem Team mehr an. Aufgaben, die dem Team zugewiesen wurden, aber noch von niemandem übernommen wurden, werden wieder als nicht zugewiesen markiert."
+  },
   "dnuXZ5sBJ3": {
     "defaultMessage": "Auftrag fehlgeschlagen"
   },
@@ -29975,6 +30008,9 @@
   "f22yrNzzSr": {
     "defaultMessage": "Wählen Sie im Quelldatei-Auswahldialog ein GitHub-Repository aus, um den String-Kontext abzurufen."
   },
+  "f24Kokxqli": {
+    "defaultMessage": "Nicht zugewiesen"
+  },
   "f28BtwGbZV": {
     "defaultMessage": "Diese Verbindung konnte gerade nicht überprüft werden."
   },
@@ -30085,6 +30121,9 @@
   },
   "fC5ypafpDV": {
     "defaultMessage": "oder"
+  },
+  "fCJqBOlPJw": {
+    "defaultMessage": "Trennen Sie eine oder mehrere Ziel-Locales durch Kommas."
   },
   "fCRbJ9qc0i": {
     "defaultMessage": "Keine Ergebnisse entsprechen diesen Filtern."
@@ -31450,6 +31489,9 @@
   },
   "h5+KJI2d7A": {
     "defaultMessage": "Probleme konnten nicht geladen werden."
+  },
+  "h5QP7DKHn0": {
+    "defaultMessage": "Gespeicherte Datei"
   },
   "h5YfBD98F1": {
     "defaultMessage": "Probleme aus CSV importieren"
@@ -33080,6 +33122,9 @@
   "jQ86ApxA97": {
     "defaultMessage": "Behandlung"
   },
+  "jQdEMjrp0Z": {
+    "defaultMessage": "Anbieterteams"
+  },
   "jR18LljICi": {
     "defaultMessage": "Laden Sie Stilrichtlinien und Markendokumente für den Arbeitsbereich oder ein einzelnes Projekt hoch."
   },
@@ -33953,6 +33998,9 @@
   "kca9z02Mat": {
     "defaultMessage": "03 Zähle, was gewinnt"
   },
+  "kcg9+yrlzC": {
+    "defaultMessage": "Quelltyp"
+  },
   "kcrePkUiva": {
     "defaultMessage": "Glob"
   },
@@ -34024,6 +34072,9 @@
   },
   "kjx+4Dj0jz": {
     "defaultMessage": "Ein Hinweis von den Gründern"
+  },
+  "kk28w+hjbt": {
+    "defaultMessage": "Optionales JSON-Objekt mit Überschreibungen für den Übersetzungskontext."
   },
   "kl2EbTmfas": {
     "defaultMessage": "Zugehörige Punktzahlen"
@@ -34384,6 +34435,9 @@
   },
   "lEAnS9LFlv": {
     "defaultMessage": "Jobs nach Locale"
+  },
+  "lEKf0oF5z/": {
+    "defaultMessage": "Dies ist ein Team für Anbieter. Seine Mitglieder sehen nur die Aufgaben, die ihnen zugewiesen wurden, und der Manager weist dem Team Aufgaben zu. Wenn Mitglieder diesem Team beitreten, werden sie aus ihren anderen Teams entfernt. Brauchen Sie jemanden Neues im Arbeitsbereich ? <invite>Mitglied einladen</invite>."
   },
   "lERlTBAMnZ": {
     "defaultMessage": "Chat-URL kopiert"
@@ -38423,6 +38477,9 @@
   "qwKm4yzub8": {
     "defaultMessage": "Sie haben den Workflow bearbeitet · {count, plural, one {# Änderung} other {# Änderungen}}"
   },
+  "qx3hu9ObBd": {
+    "defaultMessage": "Kontextüberschreibungen"
+  },
   "qxAtQr1hgC": {
     "defaultMessage": "Zeitplan"
   },
@@ -39202,6 +39259,9 @@
   },
   "s/g9Iuph++": {
     "defaultMessage": "Preise, Daten und Beispiele für jeden Markt"
+  },
+  "s08zNUwVe0": {
+    "defaultMessage": "Diese Person ist die einzige Person mit Managerrechten in diesem Team. Aufgaben, die dem Team zugewiesen wurden und die noch niemand im Team übernommen hat, bleiben unbemerkt, bis das Team wieder eine Managerin oder einen Manager hat."
   },
   "s0B+f3G8Yz": {
     "defaultMessage": "Automatisierungsläufe"
@@ -43813,6 +43873,9 @@
   },
   "yVIGBzoY1L": {
     "defaultMessage": "Aufgabe"
+  },
+  "yVIbEyWOOq": {
+    "defaultMessage": "Quelltext"
   },
   "yVKWDzxbjh": {
     "defaultMessage": "Fühl dich wie vor Ort – nicht wie übersetzt."

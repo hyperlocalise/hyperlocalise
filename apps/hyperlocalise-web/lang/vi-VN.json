@@ -1190,6 +1190,9 @@
   "/dTXVxCVNH": {
     "defaultMessage": "Người đánh giá kiểm tra các bản dịch nháp trong TMS của nhóm, phê duyệt những ngôn ngữ đã sẵn sàng và để lại phản hồi về những nội dung vẫn cần chỉnh sửa."
   },
+  "/dc/w9u9zm": {
+    "defaultMessage": "Text"
+  },
   "/e6ibZCuf5": {
     "defaultMessage": "Tạo một công việc với ngữ cảnh, tệp, ngôn ngữ và người được giao."
   },
@@ -1318,6 +1321,9 @@
   },
   "/t0AsVdAjV": {
     "defaultMessage": "Hiển thị chi tiết"
+  },
+  "/t9gruUZ70": {
+    "defaultMessage": "Người không có trong danh sách của nhóm"
   },
   "/u4S4pwmIn": {
     "defaultMessage": "FR 100% · DE 98% · JA 87% mức độ bao phủ"
@@ -2263,6 +2269,9 @@
   },
   "155ppkZ0rK": {
     "defaultMessage": "Key"
+  },
+  "15FkZAAWZn": {
+    "defaultMessage": "Tạo tác vụ dịch thuật bền vững từ văn bản hoặc tệp đã lưu trữ."
   },
   "15JsK395Aq": {
     "defaultMessage": "Đưa nội dung đến với đối tượng của bạn bằng CMS cùng các hoạt động AEO và SEO tự động."
@@ -4591,6 +4600,9 @@
   },
   "4No/FCwLf4": {
     "defaultMessage": "Liên kết"
+  },
+  "4NrFt6runw": {
+    "defaultMessage": "Hướng dẫn"
   },
   "4NxMcshAkK": {
     "defaultMessage": "Thuật ngữ chính"
@@ -13325,6 +13337,9 @@
   "GzgrtCYOAU": {
     "defaultMessage": "Số giờ đã ghi nhận"
   },
+  "GzlzhrsNZ6": {
+    "defaultMessage": "Ngôn ngữ nguồn"
+  },
   "H+501fU+xu": {
     "defaultMessage": "Customer.io"
   },
@@ -15854,6 +15869,9 @@
   "Kp+e7u3nEc": {
     "defaultMessage": "Học về hiệu suất"
   },
+  "KpItEVAT5b": {
+    "defaultMessage": "Dành cho agency bên ngoài hoặc freelancer. Thành viên chỉ xem được các công việc được giao cho họ, còn Quản lý của nhóm cũng xem được các công việc của nhóm. Khi tham gia, họ sẽ rời các nhóm khác. Không thể thay đổi sau này."
+  },
   "Kph9F7aQfL": {
     "defaultMessage": "Tool"
   },
@@ -16519,6 +16537,9 @@
   },
   "LpAm1eoUb6": {
     "defaultMessage": "Không thể tải tổng quan không gian làm việc."
+  },
+  "LpQRt+NA1h": {
+    "defaultMessage": "Tạo tác vụ dịch thuật"
   },
   "LpSbNeWQyy": {
     "defaultMessage": "Thay đổi một phần hình ảnh bằng lời nhắc văn bản"
@@ -18254,6 +18275,9 @@
   "OJm01EvxZW": {
     "defaultMessage": "Không thể tạo các tác vụ Crowdin"
   },
+  "OK0mqQVghA": {
+    "defaultMessage": "Xem tất cả nhiệm vụ của nhóm và giao từng nhiệm vụ cho một thành viên trong nhóm."
+  },
   "OKElC8KspG": {
     "defaultMessage": "Bản địa hóa sản phẩm, trang web và tài liệu"
   },
@@ -18814,6 +18838,9 @@
   },
   "P7iGJ3MOIk": {
     "defaultMessage": "Các nút bên trong mỗi mục"
+  },
+  "P7qMEBwvFk": {
+    "defaultMessage": "Đây là nhóm nhà cung cấp. Người này sẽ chỉ thấy các nhiệm vụ được giao cho họ; nếu được thêm làm Quản lý, họ cũng sẽ thấy các nhiệm vụ của nhóm và bị xóa khỏi các nhóm khác của họ."
   },
   "P83ZEtDAlo": {
     "defaultMessage": "Không thể tải các kho lưu trữ GitHub"
@@ -21499,6 +21526,9 @@
   },
   "T8LFTkce6e": {
     "defaultMessage": "Kết nối không gian làm việc"
+  },
+  "T9bH+pMAZ1": {
+    "defaultMessage": "Chỉ xem được các nhiệm vụ được giao cho họ."
   },
   "T9mYohjPzf": {
     "defaultMessage": "Đã gửi"
@@ -29012,6 +29042,9 @@
   "dnlKnYoNl8": {
     "defaultMessage": "Bị chặn"
   },
+  "dnoEDGww+o": {
+    "defaultMessage": "{teamName} sẽ bị xóa. Các thành viên sẽ không còn bị giới hạn ở những nhiệm vụ của mình: họ sẽ được khôi phục quyền theo vai trò trong không gian làm việc và không còn thuộc nhóm nào. Các nhiệm vụ được giao cho nhóm mà chưa có thành viên nào nhận sẽ trở thành nhiệm vụ chưa được giao."
+  },
   "dnuXZ5sBJ3": {
     "defaultMessage": "Công việc thất bại"
   },
@@ -29975,6 +30008,9 @@
   "f22yrNzzSr": {
     "defaultMessage": "Chọn một kho lưu trữ GitHub trong trình chọn tệp nguồn để tra cứu ngữ cảnh chuỗi."
   },
+  "f24Kokxqli": {
+    "defaultMessage": "Chưa được giao"
+  },
   "f28BtwGbZV": {
     "defaultMessage": "Hiện không thể kiểm tra kết nối này."
   },
@@ -30085,6 +30121,9 @@
   },
   "fC5ypafpDV": {
     "defaultMessage": "hoặc"
+  },
+  "fCJqBOlPJw": {
+    "defaultMessage": "Phân tách một hoặc nhiều ngôn ngữ đích bằng dấu phẩy."
   },
   "fCRbJ9qc0i": {
     "defaultMessage": "Không có phát hiện nào khớp với các bộ lọc này."
@@ -31450,6 +31489,9 @@
   },
   "h5+KJI2d7A": {
     "defaultMessage": "Không thể tải các vấn đề."
+  },
+  "h5QP7DKHn0": {
+    "defaultMessage": "Tệp đã lưu"
   },
   "h5YfBD98F1": {
     "defaultMessage": "Nhập các vấn đề từ CSV"
@@ -33080,6 +33122,9 @@
   "jQ86ApxA97": {
     "defaultMessage": "treatment"
   },
+  "jQdEMjrp0Z": {
+    "defaultMessage": "Nhóm nhà cung cấp"
+  },
   "jR18LljICi": {
     "defaultMessage": "Tải lên hướng dẫn phong cách và tài liệu thương hiệu cho không gian làm việc hoặc một dự án riêng lẻ."
   },
@@ -33953,6 +33998,9 @@
   "kca9z02Mat": {
     "defaultMessage": "03 Đếm những gì chiến thắng"
   },
+  "kcg9+yrlzC": {
+    "defaultMessage": "Loại nguồn"
+  },
   "kcrePkUiva": {
     "defaultMessage": "Mẫu glob"
   },
@@ -34024,6 +34072,9 @@
   },
   "kjx+4Dj0jz": {
     "defaultMessage": "Lời nhắn từ những người sáng lập"
+  },
+  "kk28w+hjbt": {
+    "defaultMessage": "Đối tượng JSON tùy chọn có giới hạn để ghi đè ngữ cảnh dịch."
   },
   "kl2EbTmfas": {
     "defaultMessage": "Điểm số liên quan"
@@ -34384,6 +34435,9 @@
   },
   "lEAnS9LFlv": {
     "defaultMessage": "Công việc theo ngôn ngữ địa phương"
+  },
+  "lEKf0oF5z/": {
+    "defaultMessage": "Đây là nhóm nhà cung cấp. Thành viên chỉ xem được các nhiệm vụ được giao cho họ, còn Người quản lý phân công các nhiệm vụ được giao cho nhóm. Khi tham gia nhóm này, họ sẽ bị xóa khỏi các nhóm khác. Cần thêm người mới vào không gian làm việc? <invite>Mời thành viên</invite>."
   },
   "lERlTBAMnZ": {
     "defaultMessage": "Đã sao chép URL trò chuyện"
@@ -38423,6 +38477,9 @@
   "qwKm4yzub8": {
     "defaultMessage": "Bạn đã chỉnh sửa quy trình · {count, plural, one {# thay đổi} other {# thay đổi}}"
   },
+  "qx3hu9ObBd": {
+    "defaultMessage": "Ngữ cảnh ghi đè"
+  },
   "qxAtQr1hgC": {
     "defaultMessage": "Schedule"
   },
@@ -39202,6 +39259,9 @@
   },
   "s/g9Iuph++": {
     "defaultMessage": "Giá cả, ngày tháng và ví dụ cho từng thị trường"
+  },
+  "s08zNUwVe0": {
+    "defaultMessage": "Người này là quản lý duy nhất của nhóm. Các nhiệm vụ được giao cho nhóm mà chưa có ai trong nhóm nhận sẽ không hiển thị cho đến khi nhóm có lại quản lý."
   },
   "s0B+f3G8Yz": {
     "defaultMessage": "Các lần chạy tự động hóa"
@@ -43365,7 +43425,7 @@
     "defaultMessage": "Không có mục nào trong hộp thư đến khớp trên trang này."
   },
   "xuKFsgkvM/": {
-    "defaultMessage": "{dimension}: {value}"
+    "defaultMessage": "{dimension} : {value}"
   },
   "xunumski1w": {
     "defaultMessage": "Dự án"
@@ -43813,6 +43873,9 @@
   },
   "yVIGBzoY1L": {
     "defaultMessage": "Nhiệm vụ"
+  },
+  "yVIbEyWOOq": {
+    "defaultMessage": "Vui lòng cung cấp văn bản nguồn cần dịch."
   },
   "yVKWDzxbjh": {
     "defaultMessage": "Hòa mình vào địa phương, đừng chỉ là bản dịch."
