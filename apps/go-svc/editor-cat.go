@@ -178,6 +178,7 @@ func writeEditorCatError(w http.ResponseWriter, r *http.Request, phase string, e
 }
 
 func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
+	api.registerProjectAssets(mux, verifier)
 	p := orgRoutePrefix + "/projects/{projectId}"
 	cat := p + "/files/detail/cat"
 	route := func(pattern string, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) {
