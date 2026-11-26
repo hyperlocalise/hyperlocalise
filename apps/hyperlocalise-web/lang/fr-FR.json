@@ -1190,6 +1190,9 @@
   "/dTXVxCVNH": {
     "defaultMessage": "Les réviseurs valident les traductions provisoires dans le TMS de l’équipe, approuvent les versions linguistiques prêtes et laissent des commentaires lorsque des modifications sont encore nécessaires."
   },
+  "/dc/w9u9zm": {
+    "defaultMessage": "Text"
+  },
   "/e6ibZCuf5": {
     "defaultMessage": "Créer une tâche avec un contexte, des fichiers, des paramètres régionaux et des personnes assignées."
   },
@@ -1318,6 +1321,9 @@
   },
   "/t0AsVdAjV": {
     "defaultMessage": "Afficher les détails"
+  },
+  "/t9gruUZ70": {
+    "defaultMessage": "Quelqu’un qui ne figure pas dans la liste de l’équipe"
   },
   "/u4S4pwmIn": {
     "defaultMessage": "Couverture : FR 100 % · DE 98 % · JA 87 %"
@@ -2263,6 +2269,9 @@
   },
   "155ppkZ0rK": {
     "defaultMessage": "Clé"
+  },
+  "15FkZAAWZn": {
+    "defaultMessage": "Créez une tâche de traduction persistante à partir de texte ou d’un fichier stocké."
   },
   "15JsK395Aq": {
     "defaultMessage": "Diffusez votre contenu auprès de votre audience grâce à un CMS et à des opérations AEO et SEO automatisées."
@@ -4591,6 +4600,9 @@
   },
   "4No/FCwLf4": {
     "defaultMessage": "Lien"
+  },
+  "4NrFt6runw": {
+    "defaultMessage": "Instructions"
   },
   "4NxMcshAkK": {
     "defaultMessage": "Terme principal"
@@ -13325,6 +13337,9 @@
   "GzgrtCYOAU": {
     "defaultMessage": "Heures enregistrées"
   },
+  "GzlzhrsNZ6": {
+    "defaultMessage": "Paramètres régionaux source"
+  },
   "H+501fU+xu": {
     "defaultMessage": "Customer.io"
   },
@@ -15854,6 +15869,9 @@
   "Kp+e7u3nEc": {
     "defaultMessage": "Apprentissage des performances"
   },
+  "KpItEVAT5b": {
+    "defaultMessage": "Pour une agence externe ou un freelance. Ses membres ne voient que les tâches qui leur sont confiées, et son responsable voit également les tâches de l’équipe. Lorsqu’ils la rejoignent, ils quittent leurs autres équipes. Ce choix ne peut pas être modifié par la suite."
+  },
   "Kph9F7aQfL": {
     "defaultMessage": "Tool"
   },
@@ -16519,6 +16537,9 @@
   },
   "LpAm1eoUb6": {
     "defaultMessage": "La vue d’ensemble de l’espace de travail n’a pas pu être chargée."
+  },
+  "LpQRt+NA1h": {
+    "defaultMessage": "Créer une tâche de traduction"
   },
   "LpSbNeWQyy": {
     "defaultMessage": "Modifiez une partie d’une image avec des mots"
@@ -18254,6 +18275,9 @@
   "OJm01EvxZW": {
     "defaultMessage": "Échec de la création des tâches Crowdin"
   },
+  "OK0mqQVghA": {
+    "defaultMessage": "Voit toutes les tâches de l’équipe et confie chacune à une personne de l’équipe."
+  },
   "OKElC8KspG": {
     "defaultMessage": "Localisation des produits, des sites web et de la documentation"
   },
@@ -18814,6 +18838,9 @@
   },
   "P7iGJ3MOIk": {
     "defaultMessage": "Nœuds à l’intérieur de chaque élément"
+  },
+  "P7qMEBwvFk": {
+    "defaultMessage": "Il s’agit d’une équipe de fournisseurs. La personne ne verra que les tâches qui lui sont attribuées ou, en tant que responsable, également celles de l’équipe, et ne fera plus partie de ses autres équipes."
   },
   "P83ZEtDAlo": {
     "defaultMessage": "Échec du chargement des référentiels GitHub"
@@ -21499,6 +21526,9 @@
   },
   "T8LFTkce6e": {
     "defaultMessage": "Connexion à l’espace de travail"
+  },
+  "T9bH+pMAZ1": {
+    "defaultMessage": "Ne voit que les tâches qui lui sont attribuées."
   },
   "T9mYohjPzf": {
     "defaultMessage": "Envoyé"
@@ -29012,6 +29042,9 @@
   "dnlKnYoNl8": {
     "defaultMessage": "Bloqué"
   },
+  "dnoEDGww+o": {
+    "defaultMessage": "{teamName} sera supprimée. Les personnes qui en font partie ne seront plus limitées à leurs tâches : elles retrouveront les autorisations accordées par leur rôle dans l’espace de travail, sans être dans une équipe. Les tâches attribuées à l’équipe que personne n’a encore prises en charge deviendront non attribuées."
+  },
   "dnuXZ5sBJ3": {
     "defaultMessage": "Échec de la tâche"
   },
@@ -29975,6 +30008,9 @@
   "f22yrNzzSr": {
     "defaultMessage": "Choisissez un dépôt GitHub dans le sélecteur de fichiers source pour rechercher le contexte de la chaîne."
   },
+  "f24Kokxqli": {
+    "defaultMessage": "Non attribué"
+  },
   "f28BtwGbZV": {
     "defaultMessage": "Impossible de vérifier cette connexion pour le moment."
   },
@@ -30085,6 +30121,9 @@
   },
   "fC5ypafpDV": {
     "defaultMessage": "ou"
+  },
+  "fCJqBOlPJw": {
+    "defaultMessage": "Séparez une ou plusieurs langues cibles par des virgules."
   },
   "fCRbJ9qc0i": {
     "defaultMessage": "Aucun résultat ne correspond à ces filtres."
@@ -31450,6 +31489,9 @@
   },
   "h5+KJI2d7A": {
     "defaultMessage": "Impossible de charger les problèmes."
+  },
+  "h5QP7DKHn0": {
+    "defaultMessage": "Fichier enregistré"
   },
   "h5YfBD98F1": {
     "defaultMessage": "Importer des problèmes depuis un fichier CSV"
@@ -33080,6 +33122,9 @@
   "jQ86ApxA97": {
     "defaultMessage": "treatment"
   },
+  "jQdEMjrp0Z": {
+    "defaultMessage": "Équipes de fournisseurs"
+  },
   "jR18LljICi": {
     "defaultMessage": "Importez des guides de style et des documents de marque pour l’espace de travail ou pour un projet spécifique."
   },
@@ -33953,6 +33998,9 @@
   "kca9z02Mat": {
     "defaultMessage": "03 Comptez ce qui gagne"
   },
+  "kcg9+yrlzC": {
+    "defaultMessage": "Type de source"
+  },
   "kcrePkUiva": {
     "defaultMessage": "Glob"
   },
@@ -34024,6 +34072,9 @@
   },
   "kjx+4Dj0jz": {
     "defaultMessage": "Un message des fondateurs"
+  },
+  "kk28w+hjbt": {
+    "defaultMessage": "Objet JSON facultatif de taille limitée contenant des surcharges du contexte de traduction."
   },
   "kl2EbTmfas": {
     "defaultMessage": "Scores associés"
@@ -34384,6 +34435,9 @@
   },
   "lEAnS9LFlv": {
     "defaultMessage": "Jobs par langue locale"
+  },
+  "lEKf0oF5z/": {
+    "defaultMessage": "Il s’agit d’une équipe de prestataires. Ses membres ne voient que les tâches qui leur sont attribuées, et son responsable distribue les tâches confiées à l’équipe. La rejoindre les retire de leurs autres équipes. Besoin d’ajouter quelqu’un à l’espace de travail ? <invite>Inviter un membre</invite>."
   },
   "lERlTBAMnZ": {
     "defaultMessage": "URL du chat copiée"
@@ -38423,6 +38477,9 @@
   "qwKm4yzub8": {
     "defaultMessage": "Vous avez modifié le workflow · {count, plural, one {# modification} other {# modifications}}"
   },
+  "qx3hu9ObBd": {
+    "defaultMessage": "Remplacements de contexte"
+  },
   "qxAtQr1hgC": {
     "defaultMessage": "Planifier"
   },
@@ -38598,7 +38655,7 @@
     "defaultMessage": "Réussi"
   },
   "r9gEKB/NGc": {
-    "defaultMessage": "Note {number}"
+    "defaultMessage": "Annotation {number}"
   },
   "rABy9vmP7Y": {
     "defaultMessage": "Faites local, sans avoir l’air traduit."
@@ -39202,6 +39259,9 @@
   },
   "s/g9Iuph++": {
     "defaultMessage": "Prix, dates et exemples pour chaque marché"
+  },
+  "s08zNUwVe0": {
+    "defaultMessage": "Cette personne est l’unique responsable de cette équipe. Les tâches attribuées à l’équipe que personne n’a encore prises en charge resteront invisibles jusqu’à ce que l’équipe ait de nouveau un responsable."
   },
   "s0B+f3G8Yz": {
     "defaultMessage": "Exécutions d’automatisation"
@@ -43813,6 +43873,9 @@
   },
   "yVIGBzoY1L": {
     "defaultMessage": "Tâche"
+  },
+  "yVIbEyWOOq": {
+    "defaultMessage": "Texte source"
   },
   "yVKWDzxbjh": {
     "defaultMessage": "Faites local, pas traduit."
