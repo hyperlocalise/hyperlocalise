@@ -869,6 +869,8 @@ func TestVendorIsAcceptedOnlyWhereListed(t *testing.T) {
 		"POST cat/translations",
 		"POST cat/visual-context",
 		"POST m/leave",
+		// Finish an open task job the vendor owns (web mark-done parity).
+		"POST orgRoutePrefix/jobs/{jobId}/mark-done",
 	}, opened, "the routes a vendor may call")
 }
 
