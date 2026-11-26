@@ -22,6 +22,20 @@ The row then shows **Connected**. Each Hyperlocalise user connects their own Lin
 
 If access is removed in Linear or expires, the row shows **Reconnect**. Choose it and approve access again.
 
+## File QA findings in Linear
+
+When Linear is connected, reviewers can turn [project QA findings](/platform/help/quality#review-findings) into issues in a Linear team.
+
+1. On a native project's **QA** page, or on the workspace **QA** overview, open the findings table.
+2. Select one or more open findings (at most 25 per action).
+3. Choose **Create Linear issues**, pick the Linear team, and confirm.
+
+Hyperlocalise creates one issue per finding as **you**, the signed-in user whose Linear account is connected. Issues use the check type, locale, and string key in the title, include the finding message plus fenced source and translation text in the description, and link back to the project **QA** page when your workspace URL is known. Error-level findings get **High** priority in Linear; warnings get **Medium**.
+
+You need a role that can [approve translations](/platform/workspace/roles) (for example **Reviewer**, **Localization manager**, or **Admin**). Translators can read findings but cannot file Linear issues. If Linear is not connected, access expired, or Linear is temporarily unavailable, the action fails with a short message; reconnect from **Integrations** and try again.
+
+Hyperlocalise does not sync issue status back into QA. Close or reopen findings in the workspace when the work in Linear is done.
+
 ## Disconnect Linear
 
 Open **Integrations** and choose **Disconnect** on **Linear**. Hyperlocalise stops using the connection immediately. To remove access on the Linear side too, remove the application under **Settings → Account → Security & access** in Linear.

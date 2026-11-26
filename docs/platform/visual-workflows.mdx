@@ -185,6 +185,22 @@ On **Pick assignee**, rules are checked from top to bottom; the first rule whose
 
 Job types accept common aliases such as `post-edit`, `MTPE`, and `review` for translate, edit, and proofread steps.
 
+## Create translation jobs
+
+**Create translation job** enqueues a durable [AI translation job](/platform/translation/jobs) and exposes `jobId`, `status`, `targetLocales`, and `createdAt`. Wire `jobId` into **Check progress**, **Wait**, **Run QA**, or an **Assign task** step's **Comes after** field.
+
+| Setting | Use it to |
+| --- | --- |
+| **Source** | Choose **Text content** to translate inline source text, or **Stored file** to translate an uploaded file in the project by **Source file ID**. |
+| **Project** and **Source locale** | Scope the job to a native project and its source language. |
+| **Target locales** | List locales to translate into, comma-separated. Leave empty only when wired from an earlier step; at least one locale is required. |
+| **Instructions** | Optional free-text guidance passed to the translation agent with the job. |
+| **Context overrides** | Optional JSON object, or a template that resolves to an object, merged into the job context after instructions. Instructions plus overrides may not exceed 20,000 characters in total. |
+
+Compared with **Machine translate**, this step can start from arbitrary text (not only a file already in the project), accepts **Instructions** and **Context overrides**, and does not turn translation memory on or off (that step's **Use translation memory** toggle). **Machine translate** stays the right choice on a **Source upload** trigger when you only need the uploaded file translated with TM.
+
+When a run retries the step, the same workflow step key reuses the first job it created instead of enqueueing duplicates. The step is safe inside **Retry** when duplicate jobs are acceptable or the retry body is idempotent.
+
 ## Follow up edits on a schedule
 
 Editing a translation or source text in the Content Editor changes its status and starts nothing by itself. To turn those edits into work for people, run a workflow on a schedule that finds what is waiting:
