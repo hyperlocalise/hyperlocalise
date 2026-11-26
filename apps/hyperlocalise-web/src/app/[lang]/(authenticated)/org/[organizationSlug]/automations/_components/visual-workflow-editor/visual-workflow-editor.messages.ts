@@ -3436,6 +3436,66 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "DHnnbTgHql",
     description: "Hint above the Run QA step's optional scope settings",
   },
+  runQaMode: {
+    defaultMessage: "QA input",
+    id: "RQx5k3KVUL",
+    description: "Label for choosing stored project content or an inline translation pair",
+  },
+  runQaModeProject: {
+    defaultMessage: "Stored project content",
+    id: "TZiuVmX3Li",
+    description: "Run QA input mode using stored project content",
+  },
+  runQaModeInline: {
+    defaultMessage: "Source and translation",
+    id: "P85yq+Sbxp",
+    description: "Run QA input mode using an inline translation pair",
+  },
+  runQaSource: {
+    defaultMessage: "Source text",
+    id: "7x3zO5jVnm",
+    description: "Source text input for inline Translation QA",
+  },
+  runQaTranslation: {
+    defaultMessage: "Translation",
+    id: "+a66U3ztvM",
+    description: "Translated text input for inline Translation QA",
+  },
+  runQaSourceLocale: {
+    defaultMessage: "Source locale",
+    id: "V98dNISM8Q",
+    description: "Source locale input for inline Translation QA",
+  },
+  runQaTargetLocale: {
+    defaultMessage: "Target locale",
+    id: "WDIsaTgs7G",
+    description: "Target locale input for inline Translation QA",
+  },
+  runQaSelectedChecks: {
+    defaultMessage: "Checks",
+    id: "MI/Sy9d1Z6",
+    description: "Selected Translation QA checks",
+  },
+  runQaSelectedChecksHint: {
+    defaultMessage: "Leave every check clear to use all deterministic checks.",
+    id: "Q6EZugWCl5",
+    description: "Hint for the selected Translation QA checks",
+  },
+  runQaProjectPolicies: {
+    defaultMessage: "Project policies",
+    id: "wlnwgHWUao",
+    description: "Project policy overrides for inline Translation QA",
+  },
+  runQaGlossaryReferences: {
+    defaultMessage: "Glossary references",
+    id: "dwoJNHdLmv",
+    description: "Glossary references for inline Translation QA",
+  },
+  runQaMemoryReferences: {
+    defaultMessage: "Translation memory references",
+    id: "ZrKu7ngmMP",
+    description: "Translation memory references for inline Translation QA",
+  },
   runQaJobId: {
     defaultMessage: "Job (optional)",
     id: "ef9NaZ7SyI",

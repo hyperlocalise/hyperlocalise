@@ -13,6 +13,7 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { EmailProviderSlug } from "@/lib/email/constants";
+import type { TranslationQaCheckType } from "@/lib/qa/types";
 
 import type { SourcePathMatchSyntax } from "../dispatch/source-path-filter";
 import {
@@ -361,6 +362,8 @@ export type VisualNodeConfig =
     }
   | {
       kind: "action.run_qa";
+      /** Stored-project scans preserve the existing behavior; inline evaluates one text pair. */
+      mode?: "project" | "inline";
       projectId: string;
       /** Checks only the strings of this source file; empty checks the whole project. */
       sourceFileId?: string;
@@ -368,6 +371,15 @@ export type VisualNodeConfig =
       targetLocales?: string;
       /** Checks the file and languages of this job, unless the settings above narrow them. */
       jobId?: string;
+      source?: string;
+      translation?: string;
+      sourceLocale?: string;
+      targetLocale?: string;
+      projectPolicies?: Record<string, unknown>;
+      glossaryReferences?: Record<string, unknown>[];
+      translationMemoryReferences?: Record<string, unknown>[];
+      /** Empty uses the project's enabled QA policy. */
+      selectedChecks?: TranslationQaCheckType[];
       onError?: VisualNodeErrorBehavior;
     }
   | {

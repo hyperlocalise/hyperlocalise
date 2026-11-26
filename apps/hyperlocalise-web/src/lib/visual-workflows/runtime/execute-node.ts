@@ -280,10 +280,20 @@ export async function executeVisualWorkflowNode(input: {
     case "action.run_qa":
       return runQaChecksAction({
         organizationId: input.organizationId,
+        mode: node.config.mode,
         projectId: text(node.config.projectId).trim(),
         sourceFileId: text(node.config.sourceFileId ?? "").trim(),
         targetLocales: list(node.config.targetLocales ?? ""),
         jobId: text(node.config.jobId ?? "").trim(),
+        source: text(node.config.source ?? ""),
+        translation: text(node.config.translation ?? ""),
+        sourceLocale: text(node.config.sourceLocale ?? "").trim(),
+        targetLocale: text(node.config.targetLocale ?? "").trim(),
+        projectPolicies: node.config.projectPolicies,
+        glossaryReferences: node.config.glossaryReferences,
+        translationMemoryReferences: node.config.translationMemoryReferences,
+        selectedChecks: node.config.selectedChecks,
+        signal: input.signal,
       });
     case "action.list_source_files":
       return runListSourceFilesAction({

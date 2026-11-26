@@ -363,6 +363,43 @@ export function compileWorkflowIssues(
         }
       }
     }
+    if (node.config.kind === "action.run_qa") {
+      const source = node.config.source ?? "";
+      const translation = node.config.translation ?? "";
+      const sourceLocale = node.config.sourceLocale ?? "";
+      const targetLocale = node.config.targetLocale ?? "";
+      const selectedChecks = node.config.selectedChecks ?? [];
+      if (node.config.mode === "inline") {
+        const requiredInlineFields = { source, translation, sourceLocale, targetLocale };
+        for (const field of Object.keys(requiredInlineFields) as Array<
+          keyof typeof requiredInlineFields
+        >) {
+          if (!node.inputs?.[field] && !requiredInlineFields[field].trim()) {
+            add("invalid_node_config", node.id, undefined, {
+              field,
+              reason: "required",
+            });
+          }
+        }
+        if (
+          !node.inputs?.sourceLocale &&
+          !node.inputs?.targetLocale &&
+          sourceLocale.trim() &&
+          sourceLocale.trim().toLowerCase() === targetLocale.trim().toLowerCase()
+        ) {
+          add("invalid_node_config", node.id, undefined, {
+            field: "targetLocale",
+            reason: "invalid",
+          });
+        }
+      }
+      if (new Set(selectedChecks).size !== selectedChecks.length) {
+        add("invalid_node_config", node.id, undefined, {
+          field: "selectedChecks",
+          reason: "invalid",
+        });
+      }
+    }
     if (
       node.config.kind === "logic.select_path" &&
       node.config.path.length === 0 &&

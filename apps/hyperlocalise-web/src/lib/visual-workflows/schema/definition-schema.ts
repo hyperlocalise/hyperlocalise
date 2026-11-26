@@ -20,6 +20,7 @@ import {
 
 import { contentSyncProviderSchema } from "@/lib/agents/content-sync/content-sync-types";
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
+import { translationQaCheckTypes } from "@/lib/qa/types";
 import {
   JOB_CHANGE_EVENT_TYPES,
   JOB_STATUSES,
@@ -465,10 +466,22 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("action.run_qa"),
+    mode: z.enum(["project", "inline"]).default("project"),
     projectId: z.string().trim().max(128),
     sourceFileId: z.string().trim().max(256).optional(),
     targetLocales: visualTargetLocalesSchema.optional(),
     jobId: z.string().trim().max(256).optional(),
+    source: z.string().max(100_000).default(""),
+    translation: z.string().max(100_000).default(""),
+    sourceLocale: z.string().trim().max(32).default(""),
+    targetLocale: z.string().trim().max(32).default(""),
+    projectPolicies: z.record(z.string(), z.unknown()).default({}),
+    glossaryReferences: z.array(z.record(z.string(), z.unknown())).max(100).default([]),
+    translationMemoryReferences: z.array(z.record(z.string(), z.unknown())).max(100).default([]),
+    selectedChecks: z
+      .array(z.enum(translationQaCheckTypes))
+      .max(translationQaCheckTypes.length)
+      .default([]),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({

@@ -14,6 +14,10 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
+import type {
+  VisualWorkflowRfEdge,
+  VisualWorkflowRfNode,
+} from "@/lib/visual-workflows/schema/types";
 
 import {
   visualWorkflowDemoDraft,
@@ -2728,5 +2732,216 @@ export const CreateTranslationJobNarrow: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findAllByText("Succeeded", {}, { timeout: 10_000 })).toHaveLength(2);
     await expect(canvas.getByText(/job_story_translation/)).toBeInTheDocument();
+  },
+};
+
+const translationQaNodes: VisualWorkflowRfNode[] = [
+  {
+    id: "trigger-translation-qa",
+    type: "trigger.manual" as const,
+    position: { x: 80, y: 220 },
+    data: {
+      catalogType: "trigger.manual" as const,
+      config: { kind: "trigger.manual" as const },
+      outputFields: [
+        { path: "projectId", type: "string" as const },
+        { path: "source", type: "string" as const },
+        { path: "translation", type: "string" as const },
+        { path: "sourceLocale", type: "string" as const },
+        { path: "targetLocale", type: "string" as const },
+      ],
+      runStatus: "succeeded" as const,
+      lastOutput: {
+        projectId: "project_demo",
+        source: "Welcome, {name}!",
+        translation: "Bienvenue, {name} !",
+        sourceLocale: "en-AU",
+        targetLocale: "fr-FR",
+      },
+    },
+  },
+  {
+    id: "translation-qa",
+    type: "action.run_qa" as const,
+    position: { x: 500, y: 170 },
+    data: {
+      catalogType: "action.run_qa" as const,
+      config: {
+        kind: "action.run_qa" as const,
+        mode: "inline" as const,
+        projectId: "project_demo",
+        source: "Welcome, {name}!",
+        translation: "Bienvenue, {name} !",
+        sourceLocale: "en-AU",
+        targetLocale: "fr-FR",
+        projectPolicies: { maxLength: 80 },
+        glossaryReferences: [
+          { sourceTerm: "Welcome", targetTerm: "Bienvenue", targetLocale: "fr-FR" },
+        ],
+        translationMemoryReferences: [],
+        selectedChecks: ["placeholder_mismatch", "glossary_violation"],
+        onError: "branch" as const,
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: {
+        runId: "inline_story_translation_qa",
+        passed: true,
+        errorCount: 0,
+        warningCount: 0,
+        findingCount: 0,
+        targetLocales: ["fr-FR"],
+        findings: [],
+        suggestedCorrections: [],
+        deterministicFindingCount: 0,
+        modelFindingCount: 0,
+        findingsTruncated: false,
+      },
+    },
+  },
+];
+
+const translationQaEdges: VisualWorkflowRfEdge[] = [
+  {
+    id: "trigger-translation-qa-execution",
+    source: "trigger-translation-qa",
+    target: "translation-qa",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  ...["projectId", "source", "translation", "sourceLocale", "targetLocale"].map((port) => ({
+    id: `trigger-translation-qa-${port}`,
+    source: "trigger-translation-qa",
+    target: "translation-qa",
+    sourceHandle: port,
+    targetHandle: port,
+    data: { kind: "data" as const },
+  })),
+];
+
+export const TranslationQaConfigured: Story = {
+  name: "Translation QA — configured and connected",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Evaluates a connected source and translation pair with typed ports, selected checks, and a bounded inspectable output.",
+      },
+    },
+  },
+  args: {
+    initialName: "Check a product translation",
+    initialNodes: translationQaNodes,
+    initialEdges: translationQaEdges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const sourceInput = await canvas.findByLabelText(
+      "Data input: source, string, optional",
+      {},
+      { timeout: 10_000 },
+    );
+    await expect(sourceInput).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: passed, boolean")).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data output: findings, array, optional"),
+    ).toBeInTheDocument();
+    await userEvent.click(sourceInput.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("combobox", { name: "QA input" })).toHaveTextContent(
+      "Source and translation",
+    );
+    await expect(canvas.getByRole("textbox", { name: "Source locale" })).toHaveValue("en-AU");
+    await expect(canvas.getByRole("checkbox", { name: "placeholder mismatch" })).toBeChecked();
+  },
+};
+
+function translationQaState(
+  runStatus: "idle" | "running" | "succeeded" | "failed",
+  lastOutput?: Record<string, unknown>,
+  lastError?: { code: string; message: string },
+) {
+  return translationQaNodes.map((node) =>
+    node.id === "translation-qa"
+      ? { ...node, data: { ...node.data, runStatus, lastOutput, lastError } }
+      : node,
+  );
+}
+
+export const TranslationQaValidationError: Story = {
+  name: "Translation QA — validation error",
+  args: {
+    ...TranslationQaConfigured.args,
+    initialNodes: translationQaNodes.map((node) =>
+      node.id === "translation-qa" && node.data.config.kind === "action.run_qa"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: { ...node.data.config, translation: "" },
+              runStatus: "idle" as const,
+              lastOutput: undefined,
+            },
+          }
+        : node,
+    ),
+    initialEdges: translationQaEdges.filter(
+      (edge) => edge.id !== "trigger-translation-qa-translation",
+    ),
+  },
+  play: async ({ canvas }) => {
+    const node = await canvas.findByText("Run QA checks", {}, { timeout: 10_000 });
+    await userEvent.click(node.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("textbox", { name: "Translation" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  },
+};
+
+export const TranslationQaRunning: Story = {
+  name: "Translation QA — running",
+  args: { ...TranslationQaConfigured.args, initialNodes: translationQaState("running") },
+};
+
+export const TranslationQaSucceeded: Story = {
+  name: "Translation QA — succeeded",
+  args: { ...TranslationQaConfigured.args },
+};
+
+export const TranslationQaFailed: Story = {
+  name: "Translation QA — failed",
+  args: {
+    ...TranslationQaConfigured.args,
+    initialNodes: translationQaState("failed", undefined, {
+      code: "qa_model_unavailable",
+      message: "The model-assisted QA checks did not finish.",
+    }),
+  },
+};
+
+export const TranslationQaPermissionError: Story = {
+  name: "Translation QA — permission error",
+  args: {
+    ...TranslationQaConfigured.args,
+    initialNodes: translationQaState("failed", undefined, {
+      code: "project_not_found",
+      message: "Choose a project in this organization.",
+    }),
+  },
+};
+
+export const TranslationQaEmpty: Story = {
+  name: "Translation QA — empty",
+  args: { ...TranslationQaConfigured.args, initialNodes: translationQaState("idle") },
+};
+
+export const TranslationQaNarrow: Story = {
+  name: "Translation QA — narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...TranslationQaConfigured.args },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findAllByText("Succeeded", {}, { timeout: 10_000 })).toHaveLength(2);
+    await expect(canvas.getByText(/inline_story_translation_qa/)).toBeInTheDocument();
   },
 };
