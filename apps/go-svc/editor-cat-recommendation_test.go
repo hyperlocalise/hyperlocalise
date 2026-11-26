@@ -121,6 +121,24 @@ func TestEditorCatRecommendation(t *testing.T) {
 		require.Contains(t, rec.Body.String(), "provider_unavailable")
 	})
 
+	t.Run("accepts aiSuggestion field names and fills missing reasoning", func(t *testing.T) {
+		api, scope := editorCatTestAPI(t, "translator")
+		text := &stubIrisText{reply: `{"aiSuggestion":"ここで回答を選択","aiReasoning":""}`}
+		meter := &stubIrisMeter{features: true, tokens: true}
+		api.ai = &irisGenerationAPI{text: text, meter: meter, pool: api.pool}
+		rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/recommendation"), editorCatRecommendationRequestBody())
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		var body struct {
+			Recommendation struct {
+				AISuggestion string `json:"aiSuggestion"`
+				AIReasoning  string `json:"aiReasoning"`
+			} `json:"recommendation"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		require.Equal(t, "ここで回答を選択", body.Recommendation.AISuggestion)
+		require.NotEmpty(t, body.Recommendation.AIReasoning)
+	})
+
 	t.Run("maps model failures to ai_recommendation_failed", func(t *testing.T) {
 		api, scope := editorCatTestAPI(t, "translator")
 		meter := &stubIrisMeter{features: true, tokens: true}

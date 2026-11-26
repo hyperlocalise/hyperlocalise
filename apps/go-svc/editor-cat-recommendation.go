@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 )
@@ -58,10 +59,69 @@ type editorCatRecommendationResult struct {
 func editorCatRecommendationDisplayLocale(displayLocale *string) string {
 	if displayLocale != nil {
 		if trimmed := strings.TrimSpace(*displayLocale); trimmed != "" {
-			return trimmed
+			return normalizeEditorCatDisplayLocale(trimmed)
 		}
 	}
 	return "en"
+}
+
+// normalizeEditorCatDisplayLocale strips Unicode extension subtags (en-u-hc-h12 → en)
+// so reasoning prompts match the web editor.
+func normalizeEditorCatDisplayLocale(locale string) string {
+	lower := strings.ToLower(locale)
+	if idx := strings.Index(lower, "-u-"); idx > 0 {
+		locale = locale[:idx]
+	}
+	trimmed := strings.TrimSpace(locale)
+	if trimmed == "" {
+		return "en"
+	}
+	return trimmed
+}
+
+func parseEditorCatRecommendationReply(text string) (suggestion, reasoning string, ok bool) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return "", "", false
+	}
+	if strings.HasPrefix(text, "```") {
+		text = strings.TrimPrefix(text, "```")
+		text = strings.TrimSpace(text)
+		if strings.HasPrefix(strings.ToLower(text), "json") {
+			text = strings.TrimSpace(text[4:])
+		}
+		text = strings.TrimSuffix(text, "```")
+		text = strings.TrimSpace(text)
+	}
+	var primary struct {
+		Suggestion string `json:"suggestion"`
+		Reasoning  string `json:"reasoning"`
+	}
+	var alternate struct {
+		AISuggestion string `json:"aiSuggestion"`
+		AIReasoning  string `json:"aiReasoning"`
+	}
+	if err := json.Unmarshal([]byte(text), &primary); err != nil {
+		if err := json.Unmarshal([]byte(text), &alternate); err != nil {
+			return "", "", false
+		}
+		primary.Suggestion = alternate.AISuggestion
+		primary.Reasoning = alternate.AIReasoning
+	} else if strings.TrimSpace(primary.Suggestion) == "" && strings.TrimSpace(primary.Reasoning) == "" {
+		if err := json.Unmarshal([]byte(text), &alternate); err == nil {
+			primary.Suggestion = alternate.AISuggestion
+			primary.Reasoning = alternate.AIReasoning
+		}
+	}
+	suggestion = strings.TrimSpace(primary.Suggestion)
+	reasoning = strings.TrimSpace(primary.Reasoning)
+	if suggestion == "" {
+		return "", "", false
+	}
+	if reasoning == "" {
+		reasoning = "Translation suggestion for the source string."
+	}
+	return suggestion, reasoning, true
 }
 
 func editorCatRecommendationSystem(projectName, projectContext, displayLocale string, maxLength *int, glossary []editorCatRecommendationGlossaryTerm, memory []editorCatRecommendationMemoryMatch, fileContext, repositoryContext *string) string {
@@ -77,6 +137,7 @@ func editorCatRecommendationSystem(projectName, projectContext, displayLocale st
 		"When a current target draft is provided, improve it when needed instead of repeating it unchanged.",
 		"Write the suggestion in the target locale. Write the reasoning in the reviewer's display locale (" + displayLocale + "), not in the target translation locale.",
 		"Return concise reasoning that explains terminology, tone, or product-fit choices.",
+		`Respond with JSON only: {"suggestion":"<target text>","reasoning":"<short rationale>"}. Both fields are required and must be non-empty strings.`,
 	}
 	if maxLength != nil {
 		lines = append(lines, "Maximum length: "+strconv.Itoa(*maxLength)+" characters")
@@ -233,19 +294,11 @@ func (api *editorCatAPI) recommendTranslation(r *http.Request, actor editorCatAc
 	if err != nil {
 		return nil, 0, editorCatFailure(400, "ai_recommendation_failed", "Failed to generate AI translation recommendation")
 	}
-	var output struct {
-		Suggestion string `json:"suggestion"`
-		Reasoning  string `json:"reasoning"`
-	}
-	if err := json.Unmarshal([]byte(reply.Text), &output); err != nil {
+	suggestion, reasoning, ok := parseEditorCatRecommendationReply(reply.Text)
+	if !ok {
 		return nil, 0, editorCatFailure(400, "ai_recommendation_failed", "Failed to generate AI translation recommendation")
 	}
-	output.Suggestion = strings.TrimSpace(output.Suggestion)
-	output.Reasoning = strings.TrimSpace(output.Reasoning)
-	if output.Suggestion == "" || output.Reasoning == "" {
-		return nil, 0, editorCatFailure(400, "ai_recommendation_failed", "Failed to generate AI translation recommendation")
-	}
-	if body.MaxLength != nil && len([]rune(output.Suggestion)) > *body.MaxLength {
+	if body.MaxLength != nil && utf8.RuneCountInString(suggestion) > *body.MaxLength {
 		return nil, 0, editorCatFailure(400, "ai_recommendation_failed", "Recommendation exceeds maxLength")
 	}
 	api.ai.charge(r.Context(), irisOrgScope{OrganizationID: actor.organizationID, UserID: actor.userID, Role: actor.role}, irisCharge{
@@ -259,7 +312,7 @@ func (api *editorCatAPI) recommendTranslation(r *http.Request, actor editorCatAc
 		},
 	})
 	return map[string]any{"recommendation": editorCatRecommendationResult{
-		AISuggestion: output.Suggestion,
-		AIReasoning:  output.Reasoning,
+		AISuggestion: suggestion,
+		AIReasoning:  reasoning,
 	}}, 200, nil
 }
