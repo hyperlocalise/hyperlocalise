@@ -66,6 +66,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
+import { translationQaCheckTypes } from "@/lib/qa/types";
 import {
   createAssignmentRule,
   createCoalesceInputId,
@@ -2931,6 +2932,133 @@ export function VisualWorkflowConfigPanel({
             />
           </>
         ) : null}
+        {config.kind === "action.run_qa" ? (
+          <>
+            <SelectField
+              id="vw-run-qa-mode"
+              label={intl.formatMessage(messages.runQaMode)}
+              value={config.mode ?? "project"}
+              items={[
+                { value: "project", label: intl.formatMessage(messages.runQaModeProject) },
+                { value: "inline", label: intl.formatMessage(messages.runQaModeInline) },
+              ]}
+              onValueChange={(value) => {
+                if (value === "project" || value === "inline") {
+                  onChangeConfig({ ...config, mode: value });
+                }
+              }}
+            />
+            {config.mode === "inline" ? (
+              <>
+                <TextAreaField
+                  id="vw-run-qa-source"
+                  label={intl.formatMessage(messages.runQaSource)}
+                  value={config.source ?? ""}
+                  {...connectedInputProps("source")}
+                  invalid={invalidFields.has("source")}
+                  onChange={(source) => onChangeConfig({ ...config, source })}
+                />
+                <TextAreaField
+                  id="vw-run-qa-translation"
+                  label={intl.formatMessage(messages.runQaTranslation)}
+                  value={config.translation ?? ""}
+                  {...connectedInputProps("translation")}
+                  invalid={invalidFields.has("translation")}
+                  onChange={(translation) => onChangeConfig({ ...config, translation })}
+                />
+                <TextField
+                  id="vw-run-qa-source-locale"
+                  label={intl.formatMessage(messages.runQaSourceLocale)}
+                  value={config.sourceLocale ?? ""}
+                  {...connectedInputProps("sourceLocale")}
+                  invalid={invalidFields.has("sourceLocale")}
+                  onChange={(sourceLocale) => onChangeConfig({ ...config, sourceLocale })}
+                  placeholder="en-AU"
+                />
+                <TextField
+                  id="vw-run-qa-target-locale"
+                  label={intl.formatMessage(messages.runQaTargetLocale)}
+                  value={config.targetLocale ?? ""}
+                  {...connectedInputProps("targetLocale")}
+                  invalid={invalidFields.has("targetLocale")}
+                  onChange={(targetLocale) => onChangeConfig({ ...config, targetLocale })}
+                  placeholder="fr-FR"
+                />
+                <div className="grid gap-2">
+                  <Label>{intl.formatMessage(messages.runQaSelectedChecks)}</Label>
+                  <TypographyP className="text-xs text-muted-foreground">
+                    <FormattedMessage {...messages.runQaSelectedChecksHint} />
+                  </TypographyP>
+                  <div className="grid grid-cols-2 gap-2">
+                    {translationQaCheckTypes.map((check) => (
+                      <CheckboxField
+                        key={check}
+                        id={`vw-run-qa-check-${check}`}
+                        label={check.replaceAll("_", " ")}
+                        checked={(config.selectedChecks ?? []).includes(check)}
+                        onCheckedChange={(checked) =>
+                          onChangeConfig({
+                            ...config,
+                            selectedChecks: checked
+                              ? [...new Set([...(config.selectedChecks ?? []), check])]
+                              : (config.selectedChecks ?? []).filter((value) => value !== check),
+                          })
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
+                <JsonBoundField
+                  id="vw-run-qa-project-policies"
+                  label={intl.formatMessage(messages.runQaProjectPolicies)}
+                  value={config.projectPolicies ?? {}}
+                  port={portFor("projectPolicies")}
+                  requireObject
+                  onChange={(projectPolicies) =>
+                    onChangeConfig({
+                      ...config,
+                      projectPolicies: projectPolicies as Record<string, unknown>,
+                    })
+                  }
+                />
+                <JsonBoundField
+                  id="vw-run-qa-glossary-references"
+                  label={intl.formatMessage(messages.runQaGlossaryReferences)}
+                  value={config.glossaryReferences ?? []}
+                  port={portFor("glossaryReferences")}
+                  onChange={(glossaryReferences) =>
+                    onChangeConfig({
+                      ...config,
+                      glossaryReferences: Array.isArray(glossaryReferences)
+                        ? glossaryReferences.filter(
+                            (value): value is Record<string, unknown> =>
+                              value !== null && typeof value === "object" && !Array.isArray(value),
+                          )
+                        : [],
+                    })
+                  }
+                />
+                <JsonBoundField
+                  id="vw-run-qa-memory-references"
+                  label={intl.formatMessage(messages.runQaMemoryReferences)}
+                  value={config.translationMemoryReferences ?? []}
+                  port={portFor("translationMemoryReferences")}
+                  onChange={(translationMemoryReferences) =>
+                    onChangeConfig({
+                      ...config,
+                      translationMemoryReferences: Array.isArray(translationMemoryReferences)
+                        ? translationMemoryReferences.filter(
+                            (value): value is Record<string, unknown> =>
+                              value !== null && typeof value === "object" && !Array.isArray(value),
+                          )
+                        : [],
+                    })
+                  }
+                />
+              </>
+            ) : null}
+          </>
+        ) : null}
         {config.kind === "action.translation_as_source" ? (
           <>
             <TypographyP className="text-xs text-muted-foreground">
@@ -3063,7 +3191,7 @@ export function VisualWorkflowConfigPanel({
         {config.kind === "action.machine_translate" ||
         config.kind === "action.create_task" ||
         config.kind === "action.check_progress" ||
-        config.kind === "action.run_qa" ? (
+        (config.kind === "action.run_qa" && config.mode !== "inline") ? (
           <>
             {config.kind === "action.run_qa" ? (
               <TypographyP className="text-xs text-muted-foreground">
@@ -3093,7 +3221,7 @@ export function VisualWorkflowConfigPanel({
             />
           </>
         ) : null}
-        {config.kind === "action.run_qa" ? (
+        {config.kind === "action.run_qa" && config.mode !== "inline" ? (
           <TextField
             id="vw-run-qa-job"
             label={intl.formatMessage(messages.runQaJobId)}

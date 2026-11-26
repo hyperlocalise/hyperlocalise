@@ -99,7 +99,7 @@ export function resolveWorkflowNodeInputs(
         value = resolveVisualWorkflowTemplate(value, context);
     }
     if (
-      node.type === "action.create_translation_job" &&
+      (node.type === "action.create_translation_job" || node.type === "action.run_qa") &&
       field.name === "targetLocales" &&
       !bound[field.name] &&
       typeof value === "string"

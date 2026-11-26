@@ -19,7 +19,14 @@ import { getRepositorySourceFileVersionForStoredFile } from "@/lib/file-storage/
 import { isErr } from "@/lib/primitives/result/results";
 import type { TranslationQaQuality } from "@/lib/qa/qa-scoring";
 import { QA_DOMAIN_PROFILES, type QaDomain } from "@/lib/qa/quality-domains";
-import type { TranslationQaEstimationSummary, TranslationQaScanScope } from "@/lib/qa/types";
+import type {
+  TranslationQaCheck,
+  TranslationQaCheckType,
+  TranslationQaEstimationSummary,
+  TranslationQaGlossaryTerm,
+  TranslationQaScanScope,
+} from "@/lib/qa/types";
+import { validateTranslationSegment } from "@/lib/qa/validate-segment";
 import type { VisualTaskStep } from "../schema/types";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 
@@ -35,6 +42,12 @@ type ActionInput = {
 type ProjectScope = { sourceLocale: string; targetLocales: string[] };
 
 const MAX_TRANSLATION_JOB_CONTEXT_CHARS = 20_000;
+const MAX_INLINE_QA_FINDINGS = 100;
+const MODEL_ASSISTED_QA_CHECKS = new Set<TranslationQaCheckType>(["guideline", "quality_estimate"]);
+
+function redactedQaMessage(checkType: TranslationQaCheckType): string {
+  return `The ${checkType.replaceAll("_", " ")} check found an issue.`;
+}
 
 function failure(code: string, message: string): VisualWorkflowNodeExecutionResult {
   return { ok: false, error: { code, message } };
@@ -766,15 +779,26 @@ export function qaRunOutcome(input: {
 
 export async function runQaChecksAction(
   input: ActionInput & {
+    mode?: "project" | "inline";
     projectId: string;
     sourceFileId?: string;
     targetLocales?: unknown;
     jobId?: string;
+    source?: string;
+    translation?: string;
+    sourceLocale?: string;
+    targetLocale?: string;
+    projectPolicies?: Record<string, unknown>;
+    glossaryReferences?: Record<string, unknown>[];
+    translationMemoryReferences?: Record<string, unknown>[];
+    selectedChecks?: TranslationQaCheckType[];
+    signal?: AbortSignal;
   },
 ): Promise<VisualWorkflowNodeExecutionResult> {
   if (!input.projectId) {
     return failure("missing_qa_config", "Choose a project to check.");
   }
+  if (input.mode === "inline") return runInlineQaChecksAction(input);
   const resolved = await resolveQaScope({
     ...input,
     sourceFileId: input.sourceFileId ?? "",
@@ -841,4 +865,157 @@ export async function runQaChecksAction(
       targetLocales: resolved.targetLocales,
     },
   };
+}
+
+type InlineQaFinding = Pick<
+  TranslationQaCheck,
+  "checkType" | "severity" | "category" | "message"
+> & {
+  origin: "deterministic" | "model";
+};
+
+function inlineGlossaryTerms(
+  references: readonly Record<string, unknown>[],
+  targetLocale: string,
+): TranslationQaGlossaryTerm[] {
+  return references.flatMap((reference) => {
+    if (typeof reference.sourceTerm !== "string" || typeof reference.targetTerm !== "string") {
+      return [];
+    }
+    return [
+      {
+        sourceTerm: reference.sourceTerm,
+        targetTerm: reference.targetTerm,
+        targetLocale:
+          typeof reference.targetLocale === "string" ? reference.targetLocale : targetLocale,
+        forbidden: reference.forbidden === true,
+        caseSensitive: reference.caseSensitive === true,
+      },
+    ];
+  });
+}
+
+function optionalPositiveNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+export function evaluateInlineTranslationQa(input: {
+  projectId: string;
+  source: string;
+  translation: string;
+  sourceLocale: string;
+  targetLocale: string;
+  projectPolicies?: Record<string, unknown>;
+  glossaryReferences?: Record<string, unknown>[];
+  translationMemoryReferences?: Record<string, unknown>[];
+  selectedChecks?: TranslationQaCheckType[];
+}): VisualWorkflowNodeExecutionResult {
+  const policies = input.projectPolicies ?? {};
+  const selected = new Set(input.selectedChecks ?? []);
+  const checks = validateTranslationSegment({
+    sourceText: input.source,
+    targetText: input.translation,
+    targetLocale: input.targetLocale,
+    maxLength: optionalPositiveNumber(policies.maxLength),
+    glossaryTerms: inlineGlossaryTerms(input.glossaryReferences ?? [], input.targetLocale),
+    placeholderPatterns: Array.isArray(policies.placeholderPatterns)
+      ? policies.placeholderPatterns.filter((value): value is string => typeof value === "string")
+      : undefined,
+  }).filter((check) => selected.size === 0 || selected.has(check.checkType));
+
+  const deterministicFindings: InlineQaFinding[] = checks.map((check) => ({
+    checkType: check.checkType,
+    severity: check.severity,
+    category: check.category,
+    message: redactedQaMessage(check.checkType),
+    origin: "deterministic",
+  }));
+  // Model checks are intentionally not inferred from deterministic results. A project scan owns
+  // provider calls; inline evaluation reports only findings it actually evaluated.
+  const modelChecksSelected = [...selected].some((check) => MODEL_ASSISTED_QA_CHECKS.has(check));
+  const findings = deterministicFindings.slice(0, MAX_INLINE_QA_FINDINGS);
+  const errorCount = deterministicFindings.filter((finding) => finding.severity === "error").length;
+  const warningCount = deterministicFindings.length - errorCount;
+  const digest = createHash("sha256")
+    .update(
+      JSON.stringify([
+        input.projectId,
+        input.source,
+        input.translation,
+        input.sourceLocale,
+        input.targetLocale,
+      ]),
+    )
+    .digest("hex")
+    .slice(0, 16);
+
+  return {
+    ok: true,
+    output: {
+      runId: `inline_${digest}`,
+      ...qaRunOutcome({ errorCount }),
+      errorCount,
+      warningCount,
+      findingCount: deterministicFindings.length,
+      targetLocales: [input.targetLocale],
+      findings,
+      suggestedCorrections: findings.map((finding) => ({
+        checkType: finding.checkType,
+        message: finding.message,
+      })),
+      deterministicFindingCount: deterministicFindings.length,
+      modelFindingCount: 0,
+      findingsTruncated: deterministicFindings.length > findings.length,
+      ...(modelChecksSelected ? { modelChecksSkipped: true } : {}),
+    },
+  };
+}
+
+/** Runs one bounded, side-effect-free QA evaluation for workflow-provided text. */
+export async function runInlineQaChecksAction(
+  input: ActionInput & {
+    projectId: string;
+    source?: string;
+    translation?: string;
+    sourceLocale?: string;
+    targetLocale?: string;
+    projectPolicies?: Record<string, unknown>;
+    glossaryReferences?: Record<string, unknown>[];
+    translationMemoryReferences?: Record<string, unknown>[];
+    selectedChecks?: TranslationQaCheckType[];
+    signal?: AbortSignal;
+  },
+): Promise<VisualWorkflowNodeExecutionResult> {
+  if (input.signal?.aborted) return failure("qa_cancelled", "The QA evaluation was cancelled.");
+  const source = input.source ?? "";
+  const translation = input.translation ?? "";
+  const sourceLocale = input.sourceLocale?.trim() ?? "";
+  const targetLocale = input.targetLocale?.trim() ?? "";
+  if (!source || !translation || !sourceLocale || !targetLocale) {
+    return failure("missing_qa_config", "Provide source, translation and both locales.");
+  }
+  if (sourceLocale.toLowerCase() === targetLocale.toLowerCase()) {
+    return failure("invalid_qa_locale_pair", "Source and target locales must be different.");
+  }
+  const project = await loadProjectScope(input.organizationId, input.projectId);
+  if (!project) return failure("project_not_found", "Choose a project in this organization.");
+  if (
+    project.sourceLocale.toLowerCase() !== sourceLocale.toLowerCase() ||
+    !project.targetLocales.some((locale) => locale.toLowerCase() === targetLocale.toLowerCase())
+  ) {
+    return failure("invalid_qa_locale_pair", "Choose locales configured for this project.");
+  }
+  if (input.signal?.aborted) return failure("qa_cancelled", "The QA evaluation was cancelled.");
+
+  return evaluateInlineTranslationQa({
+    projectId: input.projectId,
+    source,
+    translation,
+    sourceLocale,
+    targetLocale,
+    projectPolicies: input.projectPolicies,
+    glossaryReferences: input.glossaryReferences,
+    translationMemoryReferences: input.translationMemoryReferences,
+    selectedChecks: input.selectedChecks,
+  });
 }

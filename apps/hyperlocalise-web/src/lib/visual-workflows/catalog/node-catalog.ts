@@ -485,7 +485,20 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         onError: "stop",
       };
     case "action.run_qa":
-      return { kind: "action.run_qa", projectId: "", onError: "stop" };
+      return {
+        kind: "action.run_qa",
+        mode: "project",
+        projectId: "",
+        source: "",
+        translation: "",
+        sourceLocale: "",
+        targetLocale: "",
+        projectPolicies: {},
+        glossaryReferences: [],
+        translationMemoryReferences: [],
+        selectedChecks: [],
+        onError: "stop",
+      };
     case "action.list_source_files":
       return { kind: "action.list_source_files", projectId: "", pathPrefix: "", onError: "stop" };
     case "action.list_review_work":
@@ -856,7 +869,11 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
     case "action.check_progress":
       return config.jobId.trim() ? "Job and strings" : "Strings";
     case "action.run_qa":
-      return config.projectId ? "Project QA" : "Select project";
+      return config.mode === "inline"
+        ? config.targetLocale || "Translation pair"
+        : config.projectId
+          ? "Project QA"
+          : "Select project";
     case "action.list_source_files":
       return config.pathPrefix.trim() || "All source files";
     case "action.list_review_work":

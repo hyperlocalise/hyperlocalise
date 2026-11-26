@@ -2165,6 +2165,61 @@ describe("a step's project", () => {
   });
 });
 
+describe("Translation QA configuration", () => {
+  function qaNode(): VisualWorkflowRfNode {
+    return {
+      id: "qa",
+      type: "action.run_qa",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("action.run_qa"),
+      data: {
+        catalogType: "action.run_qa",
+        config: {
+          ...(createDefaultConfig("action.run_qa") as Extract<
+            VisualNodeConfig,
+            { kind: "action.run_qa" }
+          >),
+          mode: "inline",
+          projectId: "project-1",
+          source: "Hello {name}",
+          translation: "Bonjour {name}",
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          selectedChecks: ["placeholder_mismatch"],
+        },
+        runStatus: "idle",
+      },
+    };
+  }
+
+  it("shows inline typed inputs and hides stored-project scope settings", () => {
+    const node = qaNode();
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        nodes={[node]}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "QA input" })).toHaveTextContent(
+      "Source and translation",
+    );
+    expect(screen.getByRole("textbox", { name: "Source text" })).toHaveTextContent("Hello {name}");
+    expect(screen.getByRole("textbox", { name: "Translation" })).toHaveTextContent(
+      "Bonjour {name}",
+    );
+    expect(screen.getByRole("checkbox", { name: "placeholder mismatch" })).toBeChecked();
+    expect(screen.getByRole("textbox", { name: "Project policies" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Job (optional)" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Target languages" })).not.toBeInTheDocument();
+  });
+});
+
 describe("Test tab", () => {
   function panel(
     node: VisualWorkflowRfNode,
