@@ -587,6 +587,10 @@ Session-authenticated job reads under `/v1/orgs/{organizationSlug}/...` (also `/
 | GET | `/jobs/{jobId}/files` | Live Crowdin or Smartling job files |
 | GET | `/jobs/{jobId}/comments` | Live Crowdin task comments |
 | GET | `/jobs/{jobId}/events` | List a native job's progress events, oldest first (newest 500) |
+| POST | `/jobs/{jobId}/retry` | Re-queue a failed native translation job (Iris desktop; web parity) |
+| POST | `/jobs/{jobId}/cancel` | Cancel an open native job |
+| POST | `/jobs/{jobId}/mark-failed` | Mark an agent job failed |
+| POST | `/jobs/{jobId}/mark-done` | Finish an open task job (vendors may call when assignee) |
 
 **Access:** Admins and localization managers can read all organization jobs. Other roles are restricted to accessible project teams, with unassigned projects belonging to the default team. `relationship=assigned` allows organization-wide discovery of assigned jobs.
 

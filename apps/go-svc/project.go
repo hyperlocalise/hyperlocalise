@@ -184,8 +184,12 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+orgRoutePrefix+"/jobs/{jobId}/files", bindActor(api, (*projectAPI).orgJobFilesHandler))
 	route("GET "+orgRoutePrefix+"/jobs/{jobId}/comments", bindActor(api, (*projectAPI).orgJobCommentsHandler))
 	route("GET "+orgRoutePrefix+"/jobs/{jobId}/events", bindActor(api, (*projectAPI).orgJobEventsHandler))
+	route("POST "+orgRoutePrefix+"/jobs/{jobId}/retry", bindActor(api, (*projectAPI).orgJobRetryHandler))
+	route("POST "+orgRoutePrefix+"/jobs/{jobId}/cancel", bindActor(api, (*projectAPI).orgJobCancelHandler))
+	route("POST "+orgRoutePrefix+"/jobs/{jobId}/mark-failed", bindActor(api, (*projectAPI).orgJobMarkFailedHandler))
 	// Open to vendors for a vendor team's manager, who hands the team's tasks out.
 	routeAllowingVendor("GET "+orgRoutePrefix+"/jobs/{jobId}/assignable-owners", bindActor(api, (*projectAPI).orgJobAssignableOwnersHandler))
+	routeAllowingVendor("POST "+orgRoutePrefix+"/jobs/{jobId}/mark-done", bindActor(api, (*projectAPI).orgJobMarkDoneHandler))
 }
 
 func (api *projectAPI) actorFor(ctx context.Context, claims AuthClaims, slug string, allowVendor bool) (projectActor, error) {
