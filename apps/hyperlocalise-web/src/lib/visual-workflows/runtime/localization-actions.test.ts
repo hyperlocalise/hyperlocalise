@@ -19,39 +19,71 @@ const mocks = vi.hoisted(() => ({
   createWorkflowTaskJob: vi.fn(),
   updateNativeJob: vi.fn(),
   createTranslationJobEventQueue: vi.fn(() => ({ enqueue: vi.fn() })),
-}));
-
-vi.mock("@/lib/file-storage/records", () => ({
+  runProjectTranslationQaScan: vi.fn(),
   getRepositorySourceFileVersionForStoredFile: vi.fn(),
 }));
 
-vi.mock("@/lib/database/client", () => ({
-  db: {
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: () => ({
-          limit: mocks.selectLimit,
-        }),
-      })),
-    })),
-  },
-  schema: {
-    projects: {
-      id: "id",
-      organizationId: "organizationId",
-      sourceLocale: "sourceLocale",
-      targetLocales: "targetLocales",
-    },
-    jobs: {
-      id: "id",
-      status: "status",
-      organizationId: "organizationId",
-      projectId: "projectId",
-      inputPayload: "inputPayload",
-      createdAt: "createdAt",
-    },
-  },
+vi.mock("@/lib/file-storage/records", () => ({
+  getRepositorySourceFileVersionForStoredFile: (...args: unknown[]) =>
+    mocks.getRepositorySourceFileVersionForStoredFile(...args),
 }));
+
+vi.mock("@/lib/qa/run-project-qa-scan", () => ({
+  runProjectTranslationQaScan: (...args: unknown[]) => mocks.runProjectTranslationQaScan(...args),
+}));
+
+vi.mock("@/lib/database/client", () => {
+  const select = vi.fn(() => {
+    const query: {
+      from: () => typeof query;
+      leftJoin: () => typeof query;
+      where: () => typeof query;
+      limit: typeof mocks.selectLimit;
+    } = {
+      from: () => query,
+      leftJoin: () => query,
+      where: () => query,
+      limit: mocks.selectLimit,
+    };
+    return query;
+  });
+  return {
+    db: { select },
+    schema: {
+      projects: {
+        id: "id",
+        organizationId: "organizationId",
+        sourceLocale: "sourceLocale",
+        targetLocales: "targetLocales",
+      },
+      jobs: {
+        id: "id",
+        status: "status",
+        organizationId: "organizationId",
+        projectId: "projectId",
+        inputPayload: "inputPayload",
+        createdAt: "createdAt",
+      },
+      translationJobDetails: {
+        jobId: "jobId",
+        sourceFileVersionId: "sourceFileVersionId",
+      },
+      repositorySourceFileVersions: {
+        id: "id",
+        organizationId: "organizationId",
+        projectId: "projectId",
+        repositorySourceFileId: "repositorySourceFileId",
+      },
+      translationQaRuns: {
+        id: "id",
+        errorCount: "errorCount",
+        warningCount: "warningCount",
+        findingCount: "findingCount",
+        summary: "summary",
+      },
+    },
+  };
+});
 
 vi.mock("@/lib/projects/jobs/enqueue-file-translation-job", () => ({
   enqueueFileTranslationJob: (...args: unknown[]) => mocks.enqueueFileTranslationJob(...args),
@@ -80,6 +112,7 @@ import {
   runCreateTranslationJobAction,
   runCreateTaskAction,
   runMachineTranslateAction,
+  runQaChecksAction,
   runUpdateJobAction,
 } from "./localization-actions";
 
@@ -501,6 +534,102 @@ describe("runCreateTaskAction", () => {
       output: { jobId: "job_task", dueAt: "2026-06-02T09:00:00.000Z" },
     });
     expect(mocks.createWorkflowTaskJob).not.toHaveBeenCalled();
+  });
+});
+
+describe("runQaChecksAction", () => {
+  beforeEach(() => {
+    mocks.selectLimit.mockReset();
+    mocks.runProjectTranslationQaScan.mockReset();
+    mocks.getRepositorySourceFileVersionForStoredFile.mockReset();
+  });
+
+  it("scopes a clone job to the version it was made for, not main", async () => {
+    mocks.selectLimit
+      .mockResolvedValueOnce([
+        {
+          projectId,
+          sourceFileId,
+          branch: "feature-checkout",
+          targetLocales: ["fr-FR"],
+          repositorySourceFileId: "repo_file_clone",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          errorCount: 0,
+          warningCount: 0,
+          findingCount: 0,
+          summary: {},
+        },
+      ]);
+    mocks.runProjectTranslationQaScan.mockResolvedValue({ ok: true, runId: "run_clone" });
+
+    const result = await runQaChecksAction({
+      organizationId,
+      projectId,
+      jobId: "job_clone_review",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      output: { runId: "run_clone", passed: true, targetLocales: ["fr-FR"] },
+    });
+    expect(mocks.getRepositorySourceFileVersionForStoredFile).not.toHaveBeenCalled();
+    expect(mocks.runProjectTranslationQaScan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId,
+        projectId,
+        scope: { repositorySourceFileId: "repo_file_clone", targetLocales: ["fr-FR"] },
+      }),
+    );
+  });
+
+  it("looks up a shared blob on the job's branch when no version is bound", async () => {
+    mocks.selectLimit
+      .mockResolvedValueOnce([
+        {
+          projectId,
+          sourceFileId,
+          branch: "feature-checkout",
+          targetLocales: ["de-DE"],
+          repositorySourceFileId: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          errorCount: 2,
+          warningCount: 0,
+          findingCount: 2,
+          summary: {},
+        },
+      ]);
+    mocks.getRepositorySourceFileVersionForStoredFile.mockResolvedValue({
+      repositorySourceFileId: "repo_file_branch",
+    });
+    mocks.runProjectTranslationQaScan.mockResolvedValue({ ok: true, runId: "run_branch" });
+
+    const result = await runQaChecksAction({
+      organizationId,
+      projectId,
+      jobId: "job_branch",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      output: { runId: "run_branch", passed: false, errorCount: 2 },
+    });
+    expect(mocks.getRepositorySourceFileVersionForStoredFile).toHaveBeenCalledWith({
+      organizationId,
+      projectId,
+      fileId: sourceFileId,
+      branchName: "feature-checkout",
+    });
+    expect(mocks.runProjectTranslationQaScan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: { repositorySourceFileId: "repo_file_branch", targetLocales: ["de-DE"] },
+      }),
+    );
   });
 });
 

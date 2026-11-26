@@ -672,14 +672,33 @@ async function resolveQaScope(
 > {
   let sourceFileId = input.sourceFileId;
   let targetLocales = parseWorkflowList(input.targetLocales);
+  let branchName: string | undefined;
+  let boundRepositorySourceFileId: string | undefined;
   if (input.jobId) {
     const [job] = await db
       .select({
         projectId: schema.jobs.projectId,
         sourceFileId: sql<string | null>`${schema.jobs.inputPayload} ->> 'sourceFileId'`,
+        branch: sql<string | null>`${schema.jobs.inputPayload} ->> 'branch'`,
         targetLocales: sql<unknown>`${schema.jobs.inputPayload} -> 'targetLocales'`,
+        repositorySourceFileId: schema.repositorySourceFileVersions.repositorySourceFileId,
       })
       .from(schema.jobs)
+      .leftJoin(
+        schema.translationJobDetails,
+        eq(schema.translationJobDetails.jobId, schema.jobs.id),
+      )
+      .leftJoin(
+        schema.repositorySourceFileVersions,
+        and(
+          eq(
+            schema.repositorySourceFileVersions.id,
+            schema.translationJobDetails.sourceFileVersionId,
+          ),
+          eq(schema.repositorySourceFileVersions.organizationId, schema.jobs.organizationId),
+          eq(schema.repositorySourceFileVersions.projectId, schema.jobs.projectId),
+        ),
+      )
       .where(
         and(eq(schema.jobs.organizationId, input.organizationId), eq(schema.jobs.id, input.jobId)),
       )
@@ -691,15 +710,24 @@ async function resolveQaScope(
       };
     }
     sourceFileId ||= job.sourceFileId ?? "";
+    branchName = job.branch?.trim() || undefined;
+    // The stored file id is shared after a clone. The version the job was made
+    // for names the branch whose strings this scan must check.
+    if (!input.sourceFileId) {
+      boundRepositorySourceFileId = job.repositorySourceFileId ?? undefined;
+    }
     if (targetLocales.length === 0) targetLocales = parseWorkflowList(job.targetLocales);
   }
 
   let repositorySourceFileId: string | undefined;
-  if (sourceFileId) {
+  if (boundRepositorySourceFileId) {
+    repositorySourceFileId = boundRepositorySourceFileId;
+  } else if (sourceFileId) {
     const version = await getRepositorySourceFileVersionForStoredFile({
       organizationId: input.organizationId,
       projectId: input.projectId,
       fileId: sourceFileId,
+      branchName,
     });
     if (!version) {
       return {
