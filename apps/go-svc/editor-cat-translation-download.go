@@ -84,7 +84,55 @@ func (api *editorCatAPI) buildEditorCatTranslationDownload(
 	if isOfficeTranslationSource(sourcePath) {
 		return api.buildEditorCatOfficeTranslationDownload(ctx, actor, project, sourcePath, targetLocale)
 	}
+	if ext == ".html" || ext == ".htm" {
+		return api.buildEditorCatHtmlTranslationDownload(ctx, actor, project, sourcePath, targetLocale)
+	}
 	return nil, "", "", nil, editorCatFailure(404, "source_file_not_found", "Source file not found")
+}
+
+func (api *editorCatAPI) buildEditorCatHtmlTranslationDownload(
+	ctx context.Context,
+	actor editorCatActor,
+	project editorCatProject,
+	sourcePath, targetLocale string,
+) ([]byte, string, string, []string, error) {
+	sourceFileID, err := api.sourceFileIDFromQuery(ctx, actor, project, sourcePath, "")
+	if err != nil {
+		return nil, "", "", nil, err
+	}
+	if sourceFileID == "" {
+		return nil, "", "", nil, editorCatFailure(404, "source_file_not_found", "Source file not found")
+	}
+	values, loaded, err := api.loadEditorCatReadyTranslationValues(ctx, actor.organizationID, project.ID, sourceFileID, targetLocale)
+	if err != nil {
+		return nil, "", "", nil, err
+	}
+	if loaded == 0 {
+		return nil, "", "", nil, nil
+	}
+	var storedFileID string
+	err = api.pool.QueryRow(ctx, `
+        select v.stored_file_id
+        from repository_source_file_versions v
+        where v.organization_id=$1 and v.project_id=$2 and v.repository_source_file_id=$3
+        order by v.created_at desc, v.id desc
+        limit 1`, actor.organizationID, project.ID, sourceFileID).Scan(&storedFileID)
+	if errors.Is(err, pgx.ErrNoRows) || storedFileID == "" {
+		return nil, "", "", nil, editorCatFailure(404, "source_content_not_found", "Source content not found")
+	}
+	if err != nil {
+		return nil, "", "", nil, err
+	}
+	template, _, _, err := api.readEditorCatStoredFileForProject(ctx, actor.organizationID, project.ID, storedFileID)
+	if err != nil {
+		return nil, "", "", nil, err
+	}
+	out, _ := translationfileparser.MarshalHTML(template, values)
+	ext := ".html"
+	if strings.HasSuffix(strings.ToLower(sourcePath), ".htm") {
+		ext = ".htm"
+	}
+	return out, "text/html; charset=utf-8", officeDownloadFilename(sourcePath, ext), nil, nil
 }
 
 func (api *editorCatAPI) buildEditorCatOfficeTranslationDownload(

@@ -568,6 +568,11 @@ func isEditorCatDocument(sourcePath string) bool {
 	return editorCatSourceKind(sourcePath) == editorCatKindDocument
 }
 
+func isEditorCatHtml(sourcePath string) bool {
+	lower := strings.ToLower(sourcePath)
+	return strings.HasSuffix(lower, ".html") || strings.HasSuffix(lower, ".htm")
+}
+
 func isEditorCatWholeFile(sourcePath string) bool {
 	return editorCatSourceKind(sourcePath) != editorCatKindText
 }
