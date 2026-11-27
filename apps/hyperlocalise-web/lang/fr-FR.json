@@ -434,6 +434,9 @@
   "+ZMg3bOljT": {
     "defaultMessage": "Certaines tâches n’ont pas de tarif, d’estimation de durée ou de plage de correspondance, le coût est donc approximatif."
   },
+  "+a66U3ztvM": {
+    "defaultMessage": "translation"
+  },
   "+aCQ19Fp2o": {
     "defaultMessage": "Préparation en cours"
   },
@@ -3283,6 +3286,9 @@
   },
   "2XHcKlFYBF": {
     "defaultMessage": "Description"
+  },
+  "2XiJEf/2+4": {
+    "defaultMessage": "Travaux récents"
   },
   "2XlmC+CUlh": {
     "defaultMessage": "Mettez à jour le titre ou le contenu Markdown de ce document de consignes."
@@ -6991,6 +6997,9 @@
   },
   "7x2pJbn0qz": {
     "defaultMessage": "Delete"
+  },
+  "7x3zO5jVnm": {
+    "defaultMessage": "Texte source"
   },
   "7xOUFwYHfE": {
     "defaultMessage": "Domaines"
@@ -16362,7 +16371,7 @@
     "defaultMessage": "Nous n’avons pas pu charger cet audit."
   },
   "LZCFkSSHP6": {
-    "defaultMessage": "Source ({locale})"
+    "defaultMessage": "Fichier source ({locale})"
   },
   "LZxIZH8h0g": {
     "defaultMessage": "Japon"
@@ -16873,6 +16882,9 @@
   },
   "MHv6MtNx22": {
     "defaultMessage": "Choisissez un fichier TMX ou CSV."
+  },
+  "MI/Sy9d1Z6": {
+    "defaultMessage": "Vérifications"
   },
   "MIC7tMfqgJ": {
     "defaultMessage": "Compte"
@@ -18845,6 +18857,9 @@
   "P83ZEtDAlo": {
     "defaultMessage": "Échec du chargement des référentiels GitHub"
   },
+  "P85yq+Sbxp": {
+    "defaultMessage": "Source et traduction"
+  },
   "P8FDaqATCf": {
     "defaultMessage": "Les projets TMS externes héritent des données source et des paramètres régionaux du fournisseur connecté."
   },
@@ -19510,6 +19525,9 @@
   },
   "Q6ERj50qSO": {
     "defaultMessage": "Hyperlocalise"
+  },
+  "Q6EZugWCl5": {
+    "defaultMessage": "Laissez toutes les cases décochées pour utiliser tous les contrôles déterministes."
   },
   "Q6fTrZjDFK": {
     "defaultMessage": "Planifier"
@@ -20359,6 +20377,9 @@
   },
   "RQv/LERmVL": {
     "defaultMessage": "Créer un job"
+  },
+  "RQx5k3KVUL": {
+    "defaultMessage": "Entrée AQ"
   },
   "RRTJeJffFC": {
     "defaultMessage": "La synchronisation s’est arrêtée de manière inattendue."
@@ -21854,6 +21875,9 @@
   "TZ3ud06CD+": {
     "defaultMessage": "Notes sur le marché japonais"
   },
+  "TZiuVmX3Li": {
+    "defaultMessage": "Contenu du projet enregistré"
+  },
   "TZz2MhGETq": {
     "defaultMessage": "Mots-clés suivis"
   },
@@ -23033,6 +23057,9 @@
   "V94a2u8bZl": {
     "defaultMessage": "Il évalue un site web en matière de localisation, de SEO et de préparation aux réponses de l’IA : configuration de hreflang, couverture des langues et des régions, métadonnées traduites et contenu structuré que les moteurs d’IA peuvent exploiter. Vous pouvez revendiquer le domaine depuis le rapport d’audit afin de poursuivre son analyse."
   },
+  "V98dNISM8Q": {
+    "defaultMessage": "Paramètres régionaux source"
+  },
   "V99Pmv6BsN": {
     "defaultMessage": "Déplacer l’entrée {index} vers le haut"
   },
@@ -23747,6 +23774,9 @@
   "WCzohOaFyx": {
     "defaultMessage": "mardi"
   },
+  "WDIsaTgs7G": {
+    "defaultMessage": "Paramètres régionaux cibles"
+  },
   "WDLvPq44w7": {
     "defaultMessage": "À réaliser après"
   },
@@ -23875,6 +23905,9 @@
   },
   "WRpKPr9aNJ": {
     "defaultMessage": "Nom de produit approuvé utilisé"
+  },
+  "WS2bWPiAho": {
+    "defaultMessage": "Tous les paramètres régionaux"
   },
   "WSFk5OnR7q": {
     "defaultMessage": "Auditez votre site"
@@ -26245,6 +26278,9 @@
   },
   "ZrA/LAv/+i": {
     "defaultMessage": "Workspace"
+  },
+  "ZrKu7ngmMP": {
+    "defaultMessage": "Références de mémoire de traduction"
   },
   "ZrPJtYzsBR": {
     "defaultMessage": "Aucun fichier source n’est associé à cette tâche."
@@ -29155,6 +29191,9 @@
   },
   "dwmJPhGlWT": {
     "defaultMessage": "Cet aperçu PDF ne peut pas encore afficher le script cible."
+  },
+  "dwoJNHdLmv": {
+    "defaultMessage": "Références du glossaire"
   },
   "dwrrquikgT": {
     "defaultMessage": "Profile"
@@ -34859,6 +34898,9 @@
   "ls6eXbtmYv": {
     "defaultMessage": "Annuler la tâche"
   },
+  "lsKLGc0lJS": {
+    "defaultMessage": "{count, plural, one {# langue locale} other {# langues locales}}"
+  },
   "lsXD2TTIpU": {
     "defaultMessage": "Indépendant du LLM"
   },
@@ -37582,6 +37624,9 @@
   },
   "phMXmlQCix": {
     "defaultMessage": "Automation"
+  },
+  "phqs4kYYqs": {
+    "defaultMessage": "Options d’affichage"
   },
   "pi6YCralA1": {
     "defaultMessage": "API publique"
@@ -42512,6 +42557,9 @@
   "whMSAtiplz": {
     "defaultMessage": "Commentaires"
   },
+  "whTYSGbklR": {
+    "defaultMessage": "Filtrer les problèmes"
+  },
   "whTnlyYlKA": {
     "defaultMessage": "Télécharger {locale}"
   },
@@ -42559,6 +42607,9 @@
   },
   "wlOEitxlRT": {
     "defaultMessage": "Connectez votre compte Anthropic"
+  },
+  "wlnwgHWUao": {
+    "defaultMessage": "Politiques du projet"
   },
   "wlp63zuJYJ": {
     "defaultMessage": "Par exemple, locales/en/. Jusqu’à 100 fichiers et langues sont répertoriés ; le reste sera traité lors de la prochaine exécution."

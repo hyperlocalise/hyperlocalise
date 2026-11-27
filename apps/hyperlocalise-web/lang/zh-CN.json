@@ -434,6 +434,9 @@
   "+ZMg3bOljT": {
     "defaultMessage": "有些工作没有费率、时间预估或匹配区间，因此费用并不准确。"
   },
+  "+a66U3ztvM": {
+    "defaultMessage": "translation"
+  },
   "+aCQ19Fp2o": {
     "defaultMessage": "准备中"
   },
@@ -3283,6 +3286,9 @@
   },
   "2XHcKlFYBF": {
     "defaultMessage": "Description"
+  },
+  "2XiJEf/2+4": {
+    "defaultMessage": "最近的任务"
   },
   "2XlmC+CUlh": {
     "defaultMessage": "更新此准则文档的标题或 Markdown 内容。"
@@ -6992,6 +6998,9 @@
   "7x2pJbn0qz": {
     "defaultMessage": "Delete"
   },
+  "7x3zO5jVnm": {
+    "defaultMessage": "源文本"
+  },
   "7xOUFwYHfE": {
     "defaultMessage": "域名"
   },
@@ -7248,7 +7257,7 @@
     "defaultMessage": "选择 {folder} 中的所有文件"
   },
   "8HqELsDVf0": {
-    "defaultMessage": "{used} / {total}"
+    "defaultMessage": "已用 {used} / 总量 {total}"
   },
   "8IDMB90y6m": {
     "defaultMessage": "市场：{market}"
@@ -16874,6 +16883,9 @@
   "MHv6MtNx22": {
     "defaultMessage": "选择一个 TMX 或 CSV 文件。"
   },
+  "MI/Sy9d1Z6": {
+    "defaultMessage": "检查項"
+  },
   "MIC7tMfqgJ": {
     "defaultMessage": "账户"
   },
@@ -18845,6 +18857,9 @@
   "P83ZEtDAlo": {
     "defaultMessage": "加载 GitHub 仓库失败"
   },
+  "P85yq+Sbxp": {
+    "defaultMessage": "源文和译文"
+  },
   "P8FDaqATCf": {
     "defaultMessage": "外部 TMS 项目会从已连接的提供商继承源数据和语言区域设置。"
   },
@@ -19510,6 +19525,9 @@
   },
   "Q6ERj50qSO": {
     "defaultMessage": "Hyperlocalise"
+  },
+  "Q6EZugWCl5": {
+    "defaultMessage": "不选中任何检查项，即可使用所有确定性检查。"
   },
   "Q6fTrZjDFK": {
     "defaultMessage": "Schedule"
@@ -20359,6 +20377,9 @@
   },
   "RQv/LERmVL": {
     "defaultMessage": "创建任务"
+  },
+  "RQx5k3KVUL": {
+    "defaultMessage": "QA 输入"
   },
   "RRTJeJffFC": {
     "defaultMessage": "同步意外停止。"
@@ -21854,6 +21875,9 @@
   "TZ3ud06CD+": {
     "defaultMessage": "日本市场备注"
   },
+  "TZiuVmX3Li": {
+    "defaultMessage": "已存储的项目内容"
+  },
   "TZz2MhGETq": {
     "defaultMessage": "已跟踪的关键词"
   },
@@ -23033,6 +23057,9 @@
   "V94a2u8bZl": {
     "defaultMessage": "它会对网站的本地化、SEO 和 AI 答案就绪度进行评分，评估 hreflang 设置、语言区域覆盖范围、已翻译的元数据，以及 AI 引擎可用的结构化内容。你可以通过审计报告认领该域名，以便继续研究。"
   },
+  "V98dNISM8Q": {
+    "defaultMessage": "源语言"
+  },
   "V99Pmv6BsN": {
     "defaultMessage": "将输入 {index} 上移"
   },
@@ -23747,6 +23774,9 @@
   "WCzohOaFyx": {
     "defaultMessage": "星期二"
   },
+  "WDIsaTgs7G": {
+    "defaultMessage": "目标语言"
+  },
   "WDLvPq44w7": {
     "defaultMessage": "前置任务"
   },
@@ -23875,6 +23905,9 @@
   },
   "WRpKPr9aNJ": {
     "defaultMessage": "已使用经批准的产品名称"
+  },
+  "WS2bWPiAho": {
+    "defaultMessage": "所有语言环境"
   },
   "WSFk5OnR7q": {
     "defaultMessage": "审核您的网站"
@@ -26245,6 +26278,9 @@
   },
   "ZrA/LAv/+i": {
     "defaultMessage": "Workspace"
+  },
+  "ZrKu7ngmMP": {
+    "defaultMessage": "翻译记忆参考材料"
   },
   "ZrPJtYzsBR": {
     "defaultMessage": "此任务未关联源文件。"
@@ -29155,6 +29191,9 @@
   },
   "dwmJPhGlWT": {
     "defaultMessage": "此 PDF 预览暂时无法渲染目标文字。"
+  },
+  "dwoJNHdLmv": {
+    "defaultMessage": "术语表参考"
   },
   "dwrrquikgT": {
     "defaultMessage": "Profile"
@@ -34859,6 +34898,9 @@
   "ls6eXbtmYv": {
     "defaultMessage": "取消任务"
   },
+  "lsKLGc0lJS": {
+    "defaultMessage": "{count, plural, one {# 个区域设置} other {# 个区域设置}}"
+  },
   "lsXD2TTIpU": {
     "defaultMessage": "与LLM无关"
   },
@@ -37582,6 +37624,9 @@
   },
   "phMXmlQCix": {
     "defaultMessage": "Automation"
+  },
+  "phqs4kYYqs": {
+    "defaultMessage": "显示选项"
   },
   "pi6YCralA1": {
     "defaultMessage": "公共 API"
@@ -42512,6 +42557,9 @@
   "whMSAtiplz": {
     "defaultMessage": "评论"
   },
+  "whTYSGbklR": {
+    "defaultMessage": "筛选问题"
+  },
   "whTnlyYlKA": {
     "defaultMessage": "下载 {locale}"
   },
@@ -42559,6 +42607,9 @@
   },
   "wlOEitxlRT": {
     "defaultMessage": "连接您的 Anthropic 账户"
+  },
+  "wlnwgHWUao": {
+    "defaultMessage": "项目政策"
   },
   "wlp63zuJYJ": {
     "defaultMessage": "例如 locales/en/。最多列出 100 个文件和语言；其余内容将在下次运行时显示。"

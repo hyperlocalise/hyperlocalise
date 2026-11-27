@@ -459,6 +459,10 @@
     "defaultMessage": "Some work has no rate, no time estimate or no match band, so the cost is not exact.",
     "description": "Detail under the estimated cost card when some prices are missing"
   },
+  "+a66U3ztvM": {
+    "defaultMessage": "Translation",
+    "description": "Translated text input for inline Translation QA"
+  },
   "+aCQ19Fp2o": {
     "defaultMessage": "Preparing",
     "description": "Run card badge while the agent prepares context and extracts strings"
@@ -3511,6 +3515,10 @@
     "defaultMessage": "Description",
     "description": "Heading for the job description section on the task overview tab"
   },
+  "2XiJEf/2+4": {
+    "defaultMessage": "Recent jobs",
+    "description": "Heading for the project overview list of the latest jobs"
+  },
   "2Y27cUhCTS": {
     "defaultMessage": "See the UI context",
     "description": "AI feature capability title: visual context"
@@ -4374,10 +4382,6 @@
   "3knVI+YndO": {
     "defaultMessage": "Loading conversation",
     "description": "Aria label while the selected inbox conversation is loading"
-  },
-  "3ljQO/9DOw": {
-    "defaultMessage": "Today",
-    "description": "Heading for the project overview triage list"
   },
   "3lnMAqI5qB": {
     "defaultMessage": "Advanced settings",
@@ -7562,6 +7566,10 @@
   "7x2pJbn0qz": {
     "defaultMessage": "Delete",
     "description": "Button that deletes a version branch"
+  },
+  "7x3zO5jVnm": {
+    "defaultMessage": "Source text",
+    "description": "Source text input for inline Translation QA"
   },
   "7xOUFwYHfE": {
     "defaultMessage": "Domains",
@@ -18195,6 +18203,10 @@
     "defaultMessage": "Choose a TMX or CSV file.",
     "description": "Validation error when the create-memory upload is not TMX or CSV"
   },
+  "MI/Sy9d1Z6": {
+    "defaultMessage": "Checks",
+    "description": "Selected Translation QA checks"
+  },
   "MIC7tMfqgJ": {
     "defaultMessage": "Account",
     "description": "Tooltip for the account menu button in the app shell header"
@@ -20371,6 +20383,10 @@
     "defaultMessage": "Failed to load GitHub repositories",
     "description": "Fallback error when GitHub repositories fail to load for CAT context"
   },
+  "P85yq+Sbxp": {
+    "defaultMessage": "Source and translation",
+    "description": "Run QA input mode using an inline translation pair"
+  },
   "P8FDaqATCf": {
     "defaultMessage": "External TMS projects inherit source data and locales from the connected provider.",
     "description": "Description for the external TMS source connection section"
@@ -21074,6 +21090,10 @@
   "Q5whbwkMF+": {
     "defaultMessage": "Translation agent is running",
     "description": "Toast when a translation agent job is created successfully"
+  },
+  "Q6EZugWCl5": {
+    "defaultMessage": "Leave every check clear to use all deterministic checks.",
+    "description": "Hint for the selected Translation QA checks"
   },
   "Q6fTrZjDFK": {
     "defaultMessage": "Schedule",
@@ -21974,6 +21994,10 @@
   "RQHyujQ0I4": {
     "defaultMessage": "Sampled {count} pages across technical, linguistic, contextual, and visual localisation credits.",
     "description": "Summary of how many pages a localisation audit sampled"
+  },
+  "RQx5k3KVUL": {
+    "defaultMessage": "QA input",
+    "description": "Label for choosing stored project content or an inline translation pair"
   },
   "RRTJeJffFC": {
     "defaultMessage": "The sync stopped unexpectedly.",
@@ -23623,6 +23647,10 @@
     "defaultMessage": "Japan market notes",
     "description": "Notion page title on the guidelines board"
   },
+  "TZiuVmX3Li": {
+    "defaultMessage": "Stored project content",
+    "description": "Run QA input mode using stored project content"
+  },
   "TZz2MhGETq": {
     "defaultMessage": "Tracked keywords",
     "description": "Metric label for tracked keywords"
@@ -24875,6 +24903,10 @@
     "defaultMessage": "It scores a website for localisation, SEO, and AI answer readiness: hreflang setup, locale coverage, translated metadata, and structured content that AI engines can use. You can claim the domain from the audit report to keep researching it.",
     "description": "market-entry use case FAQ answer 1"
   },
+  "V98dNISM8Q": {
+    "defaultMessage": "Source locale",
+    "description": "Source locale input for inline Translation QA"
+  },
   "V99Pmv6BsN": {
     "defaultMessage": "Move input {index} up",
     "description": "Move a Merge input upward"
@@ -25639,6 +25671,10 @@
     "defaultMessage": "Tuesday",
     "description": "Weekday option for scheduled automation"
   },
+  "WDIsaTgs7G": {
+    "defaultMessage": "Target locale",
+    "description": "Target locale input for inline Translation QA"
+  },
   "WDLvPq44w7": {
     "defaultMessage": "Comes after",
     "description": "Label of the row on a task's page naming the earlier task that must be finished before this one can start"
@@ -25782,6 +25818,10 @@
   "WRpKPr9aNJ": {
     "defaultMessage": "Approved product name used",
     "description": "marketing-localisation use case page: hero › visual › floating › items › #2 › label"
+  },
+  "WS2bWPiAho": {
+    "defaultMessage": "All locales",
+    "description": "Option in the issue list locale filter that shows every locale"
   },
   "WSFk5OnR7q": {
     "defaultMessage": "Audit your site",
@@ -28270,6 +28310,10 @@
   "Zr6ABmqsLb": {
     "defaultMessage": "New flag",
     "description": "Dialog title for creating a flag"
+  },
+  "ZrKu7ngmMP": {
+    "defaultMessage": "Translation memory references",
+    "description": "Translation memory references for inline Translation QA"
   },
   "ZrPJtYzsBR": {
     "defaultMessage": "No source file linked to this job.",
@@ -31398,6 +31442,10 @@
   "dwmJPhGlWT": {
     "defaultMessage": "This PDF preview cannot render the target script yet.",
     "description": "Error when the translated PDF uses an unsupported script"
+  },
+  "dwoJNHdLmv": {
+    "defaultMessage": "Glossary references",
+    "description": "Glossary references for inline Translation QA"
   },
   "dwrrquikgT": {
     "defaultMessage": "Profile",
@@ -37463,6 +37511,10 @@
     "defaultMessage": "Cancel job",
     "description": "Button label to open the cancel job confirmation dialog"
   },
+  "lsKLGc0lJS": {
+    "defaultMessage": "{count, plural, one {# locale} other {# locales}}",
+    "description": "How many target locales a job on the project overview works on"
+  },
   "lsoHEzfNM1": {
     "defaultMessage": "Checking what changes when you leave…",
     "description": "Shown while the leave workspace dialog loads the API keys and automations"
@@ -40423,6 +40475,10 @@
     "defaultMessage": "Automation",
     "description": "Automations list column header for name"
   },
+  "phqs4kYYqs": {
+    "defaultMessage": "Display options",
+    "description": "Tooltip and accessible label for the icon button that opens the issue list ordering"
+  },
   "pi6YCralA1": {
     "defaultMessage": "Public API",
     "description": "Developer resources link title for the public HTTP API docs"
@@ -41438,10 +41494,6 @@
   "r/zdhHnzwh": {
     "defaultMessage": "Ran for real",
     "description": "Mark beside a step in a test run's step list: the step called out for real"
-  },
-  "r0PXBuEaOF": {
-    "defaultMessage": "{label}: {value}",
-    "description": "QA active filter chip, for example Language: de-DE"
   },
   "r0YvO5Z1tm": {
     "defaultMessage": "Your own GitLab.com account, for chat and for automations you create. To sync files, connect GitLab for the workspace above.",
@@ -45603,10 +45655,6 @@
     "defaultMessage": "Enter a title.",
     "description": "Validation error when the guideline title is empty"
   },
-  "wdhrNg8UHz": {
-    "defaultMessage": "Open job",
-    "description": "CTA for a failed or active job on project overview"
-  },
   "wdsH3flxH3": {
     "defaultMessage": "Authentication method",
     "description": "Label for Sanity OAuth vs API token selector"
@@ -45646,6 +45694,10 @@
   "whMSAtiplz": {
     "defaultMessage": "Comments",
     "description": "Group heading for Word comments"
+  },
+  "whTYSGbklR": {
+    "defaultMessage": "Filter findings",
+    "description": "Tooltip and accessible label for the QA findings filter menu button"
   },
   "whTnlyYlKA": {
     "defaultMessage": "Download {locale}",
@@ -45706,6 +45758,10 @@
   "wlOEitxlRT": {
     "defaultMessage": "Connect your Anthropic account",
     "description": "Anthropic BYOK provider description on the AI Engine page"
+  },
+  "wlnwgHWUao": {
+    "defaultMessage": "Project policies",
+    "description": "Project policy overrides for inline Translation QA"
   },
   "wlp63zuJYJ": {
     "defaultMessage": "For example locales/en/. Up to 100 files and languages are listed; the rest come at the next run.",
