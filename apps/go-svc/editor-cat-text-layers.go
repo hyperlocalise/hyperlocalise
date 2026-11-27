@@ -29,10 +29,10 @@ type editorCatImageTextBounds struct {
 }
 
 type editorCatImageTextRegion struct {
-	ID           string                                           `json:"id"`
-	Text         string                                           `json:"text"`
-	Bounds       editorCatImageTextBounds                         `json:"bounds"`
-	Translations map[string]editorCatImageTextRegionTranslation   `json:"translations"`
+	ID           string                                         `json:"id"`
+	Text         string                                         `json:"text"`
+	Bounds       editorCatImageTextBounds                       `json:"bounds"`
+	Translations map[string]editorCatImageTextRegionTranslation `json:"translations"`
 }
 
 type editorCatImageTextRegionTranslation struct {

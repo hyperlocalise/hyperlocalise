@@ -32,7 +32,7 @@ func TestEditorCatImageTextLayers(t *testing.T) {
 		layers := editorCatImageTextLayers{
 			Version: 1, SourceHash: "abc123", Revision: uuid.NewString(),
 			ExtractedAt: "2026-01-01T00:00:00Z",
-			Regions:   []editorCatImageTextRegion{{ID: "r1", Text: "Sale", Bounds: editorCatImageTextBounds{X: 0.1, Y: 0.2, Width: 0.3, Height: 0.1}}},
+			Regions:     []editorCatImageTextRegion{{ID: "r1", Text: "Sale", Bounds: editorCatImageTextBounds{X: 0.1, Y: 0.2, Width: 0.3, Height: 0.1}}},
 		}
 		raw, _ := json.Marshal(layers)
 		fileID := mustEditorCatImageWithMetadata(t, api, scope, scope.ProjectID, "hero.png", "image/png", []byte("png"), map[string]any{"imageTextLayers": json.RawMessage(raw)})
