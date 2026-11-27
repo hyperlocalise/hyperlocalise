@@ -300,8 +300,10 @@ describe("Reports page", () => {
     );
     mocks.search = "tab=costs";
     renderPage();
-    expect(await screen.findByRole("tab", { name: "Time" })).toBeInTheDocument();
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+    // One group, so no group tabs: its reports show as view pills.
+    expect(await screen.findByRole("radio", { name: "Time" })).toBeChecked();
+    expect(screen.queryAllByRole("tab")).toEqual([]);
+    expect(screen.getAllByRole("radio").map((pill) => pill.textContent)).toEqual([
       "Time",
       "Contributors",
     ]);
@@ -330,11 +332,13 @@ describe("Reports page", () => {
     mocks.search = "tab=estimate";
     const { unmount } = renderPage();
     expect(await screen.findByText("Choose tasks to estimate")).toBeInTheDocument();
-    expect(filterLabels()).toEqual(["Project", "Tasks", "Rate card"]);
+    expect(filterLabels()).toEqual(["Tasks"]);
     expect(screen.getByRole("button", { name: "Manage rates" })).toBeInTheDocument();
-    // The language filter is behind the Filters button.
+    // Project, language and rate card are behind the Filters button.
     await userEvent.click(screen.getByRole("button", { name: "Filters" }));
-    expect(await screen.findByRole("combobox", { name: "Language" })).toBeInTheDocument();
+    expect(await screen.findByRole("combobox", { name: "Project" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Language" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Rate card" })).toBeInTheDocument();
     // No tasks chosen, so nothing is estimated.
     expect(callsTo("cost-estimate")).toEqual([]);
     unmount();
@@ -342,7 +346,8 @@ describe("Reports page", () => {
     mocks.search = "tab=budgets";
     renderPage();
     expect(await screen.findByText("Web app")).toBeInTheDocument();
-    expect(filterLabels()).toEqual(["Project"]);
+    expect(filterLabels()).toEqual([]);
+    expect(screen.getByRole("button", { name: "Filters" })).toBeInTheDocument();
   });
 
   it("reads the tab and filters from the URL and writes changes back", async () => {
@@ -368,7 +373,7 @@ describe("Reports page", () => {
         "/en/org/acme/reports?tab=contributors&range=7&unit=strings&group=task",
       ),
     );
-    await userEvent.click(await screen.findByRole("tab", { name: "Time" }));
+    await userEvent.click(await screen.findByRole("radio", { name: "Time" }));
     await waitFor(() =>
       expect(currentHref()).toBe("/en/org/acme/reports?tab=time&range=7&unit=strings&group=task"),
     );
@@ -615,9 +620,9 @@ describe("Reports page", () => {
     renderPage();
     // The card and the table's total.
     expect(await screen.findAllByText("$41.25")).toHaveLength(2);
-    // The filter bar's fields (Area, Channel and Key are behind Filters), then the table's two
-    // groupings.
-    expect(filterLabels()).toEqual(["Project", "Task", "Dates", "Group by", "Then by"]);
+    // The filter bar's dates (project, task, area, channel and key are behind Filters), then the
+    // table's two groupings.
+    expect(filterLabels()).toEqual(["Dates", "Group by", "Then by"]);
     expect(callsTo("ai-usage")[0]?.args.query).toMatchObject({
       groupBy: "area",
       thenBy: "model",

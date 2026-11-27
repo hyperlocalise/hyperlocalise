@@ -14,21 +14,23 @@
  */
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
-import { CaretDownIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import {
+  CaretDownIcon,
+  MagnifyingGlassIcon,
+  SortAscendingIcon,
+  SortDescendingIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type { ProjectLocaleProgressRow } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Input } from "@/components/ui/input";
 import { Box } from "@/components/ui/layout/box";
-import { Column } from "@/components/ui/layout/column";
-import { Columns } from "@/components/ui/layout/columns";
-import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
 import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
 import { getLocaleFlagEmoji } from "@/lib/i18n/locales";
@@ -297,81 +299,67 @@ function LocaleProgressItem({
       : messages.remainingStrings;
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <Box
-        border="standard"
-        borderRadius="large"
-        background={open ? "muted" : "transparent"}
-        paddingX="2u"
-        paddingY="1.5u"
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="border-t border-border/50 first:border-t-0"
+    >
+      <CollapsibleTrigger
+        className={cn(
+          "flex h-10 w-full min-w-0 cursor-pointer items-center gap-3 px-3 text-start outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset",
+          open && "bg-muted/40",
+        )}
+        aria-label={intl.formatMessage(open ? messages.collapse : messages.expand, {
+          locale: localeLabel,
+        })}
       >
-        <CollapsibleTrigger
-          className="flex w-full min-w-0 cursor-pointer flex-col gap-2 text-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          aria-label={intl.formatMessage(open ? messages.collapse : messages.expand, {
-            locale: localeLabel,
-          })}
-        >
-          <div className="flex w-full min-w-0 items-center gap-3">
-            <LocaleBadge locale={row.locale} />
-            <span className="w-36 shrink-0 truncate text-sm font-medium text-foreground">
-              {localeLabel}
-            </span>
-            <div className="hidden min-w-0 flex-1 sm:block">
-              <LocaleProgressBar
-                translated={row.translationProgress}
-                approved={row.approvalProgress}
-                label={intl.formatMessage(messages.progressLabel, {
-                  locale: localeLabel,
-                })}
-              />
-            </div>
-            <span className="shrink-0 font-mono text-[13px] tabular-nums text-muted-foreground">
-              <span className={cn(row.translationProgress > 0 && TRANSLATED_TEXT_CLASS)}>
-                <FormattedMessage
-                  {...messages.translationPercent}
-                  values={{ percent: row.translationProgress }}
-                />
-              </span>
-              <span aria-hidden> · </span>
-              <span className={cn(row.approvalProgress > 0 && APPROVED_TEXT_CLASS)}>
-                <FormattedMessage
-                  {...messages.approvalPercent}
-                  values={{ percent: row.approvalProgress }}
-                />
-              </span>
-            </span>
-            <span className="hidden w-20 shrink-0 text-end font-mono text-[13px] tabular-nums text-muted-foreground sm:block">
-              <FormattedMessage {...remainingMessage} values={{ count: remaining }} />
-            </span>
-            <CaretDownIcon
-              className={cn(
-                "size-4 shrink-0 text-muted-foreground transition-transform",
-                open && "rotate-180",
-              )}
+        <LocaleBadge locale={row.locale} />
+        <span className="w-40 shrink-0 truncate text-sm text-foreground">{localeLabel}</span>
+        <div className="hidden min-w-0 flex-1 sm:block">
+          <LocaleProgressBar
+            translated={row.translationProgress}
+            approved={row.approvalProgress}
+            label={intl.formatMessage(messages.progressLabel, {
+              locale: localeLabel,
+            })}
+          />
+        </div>
+        <span className="ms-auto shrink-0 font-mono text-xs tabular-nums text-muted-foreground sm:ms-0">
+          <span className={cn(row.translationProgress > 0 && TRANSLATED_TEXT_CLASS)}>
+            <FormattedMessage
+              {...messages.translationPercent}
+              values={{ percent: row.translationProgress }}
             />
-          </div>
-          <div className="sm:hidden">
-            <LocaleProgressBar
-              translated={row.translationProgress}
-              approved={row.approvalProgress}
-              label={intl.formatMessage(messages.progressLabel, {
-                locale: localeLabel,
-              })}
+          </span>
+          <span aria-hidden> · </span>
+          <span className={cn(row.approvalProgress > 0 && APPROVED_TEXT_CLASS)}>
+            <FormattedMessage
+              {...messages.approvalPercent}
+              values={{ percent: row.approvalProgress }}
             />
-          </div>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <Box paddingTop="2u">
-            <LocaleProgressDetails
-              row={row}
-              unit={unit}
-              onUnitChange={setUnit}
-              stringsHref={stringsHref}
-              renderAgentAction={renderAgentAction}
-            />
-          </Box>
-        </CollapsibleContent>
-      </Box>
+          </span>
+        </span>
+        <span className="hidden w-20 shrink-0 text-end font-mono text-xs tabular-nums text-muted-foreground sm:block">
+          <FormattedMessage {...remainingMessage} values={{ count: remaining }} />
+        </span>
+        <CaretDownIcon
+          className={cn(
+            "size-3.5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="border-t border-border/50 bg-muted/20 px-4 py-3">
+          <LocaleProgressDetails
+            row={row}
+            unit={unit}
+            onUnitChange={setUnit}
+            stringsHref={stringsHref}
+            renderAgentAction={renderAgentAction}
+          />
+        </div>
+      </CollapsibleContent>
     </Collapsible>
   );
 }
@@ -387,6 +375,7 @@ export function ProjectLocaleProgressList({
 }: ProjectLocaleProgressListProps) {
   const intl = useIntl();
   const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [sort, setSort] = useState<LocaleProgressSort>("az");
   const localeCount =
     isLoading && expectedLocaleCount !== undefined ? expectedLocaleCount : locales.length;
@@ -401,24 +390,79 @@ export function ProjectLocaleProgressList({
     [intl, locales, query, sort],
   );
 
+  const hasLocales = !isLoading && !isError && locales.length > 0;
+  const searchVisible = searchOpen || query !== "";
+  const sortLabel = intl.formatMessage(sort === "az" ? messages.sortAz : messages.sortZa);
+  const searchLabel = intl.formatMessage(messages.searchPlaceholder);
+
   return (
     <Rows spacing="1.5u">
-      <Row spacing="0" align="spaceBetween" alignY="baseline">
-        <span className="text-xs font-medium tracking-wider text-foreground uppercase">
+      <div className="flex h-7 items-center gap-2">
+        <span className="text-sm font-medium text-foreground">
           <FormattedMessage {...messages.title} />
         </span>
-        <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase tabular-nums">
-          {localeCount}
-        </span>
-      </Row>
-      <Separator className="bg-foreground" />
+        <span className="text-sm text-muted-foreground tabular-nums">{localeCount}</span>
+        {hasLocales ? (
+          <div className="ms-auto flex items-center gap-1.5">
+            {searchVisible ? (
+              <Input
+                autoFocus={searchOpen && query === ""}
+                value={query}
+                onChange={(event) => setQuery(event.currentTarget.value)}
+                onBlur={() => {
+                  if (query === "") setSearchOpen(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setQuery("");
+                    setSearchOpen(false);
+                  }
+                }}
+                placeholder={searchLabel}
+                aria-label={searchLabel}
+                className="h-7 w-56 rounded-full text-sm"
+              />
+            ) : (
+              <IconTool label={searchLabel}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className={TOOL_CLASS}
+                  aria-label={searchLabel}
+                  onClick={() => setSearchOpen(true)}
+                >
+                  <MagnifyingGlassIcon />
+                </Button>
+              </IconTool>
+            )}
+            <IconTool label={sortLabel}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className={TOOL_CLASS}
+                aria-label={sortLabel}
+                onClick={() => setSort((current) => (current === "az" ? "za" : "az"))}
+              >
+                {sort === "az" ? <SortAscendingIcon /> : <SortDescendingIcon />}
+              </Button>
+            </IconTool>
+          </div>
+        ) : null}
+      </div>
 
       {isLoading ? (
-        <Rows spacing="1u">
+        <div className="overflow-hidden rounded-xl border">
           {Array.from({ length: localeCount }, (_, index) => (
-            <Skeleton key={index} className="h-12 w-full" />
+            <div
+              key={index}
+              className="flex h-10 items-center border-t border-border/50 px-3 first:border-t-0"
+            >
+              <Skeleton className="h-3 w-full" />
+            </div>
           ))}
-        </Rows>
+        </div>
       ) : isError ? (
         <Box paddingTop="1u">
           <TypographyP wrapStyle="pretty" size="small" tone="subtle">
@@ -439,52 +483,34 @@ export function ProjectLocaleProgressList({
             </Link>
           </Rows>
         </Box>
+      ) : visibleLocales.length === 0 ? (
+        <TypographyP wrapStyle="pretty" size="small" tone="subtle">
+          <FormattedMessage {...messages.noSearchResults} values={{ query }} />
+        </TypographyP>
       ) : (
-        <Rows spacing="1.5u">
-          <Columns spacing="1u" collapseBelow="small" alignY="center">
-            <Column width="fluid">
-              <InputGroup className="max-w-sm">
-                <InputGroupAddon>
-                  <MagnifyingGlassIcon className="size-4" />
-                </InputGroupAddon>
-                <InputGroupInput
-                  value={query}
-                  onChange={(event) => setQuery(event.currentTarget.value)}
-                  placeholder={intl.formatMessage(messages.searchPlaceholder)}
-                  aria-label={intl.formatMessage(messages.searchPlaceholder)}
-                />
-              </InputGroup>
-            </Column>
-            <Column width="content">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setSort((current) => (current === "az" ? "za" : "az"))}
-              >
-                <FormattedMessage {...(sort === "az" ? messages.sortAz : messages.sortZa)} />
-              </Button>
-            </Column>
-          </Columns>
-
-          {visibleLocales.length === 0 ? (
-            <TypographyP wrapStyle="pretty" size="small" tone="subtle">
-              <FormattedMessage {...messages.noSearchResults} values={{ query }} />
-            </TypographyP>
-          ) : (
-            <Rows spacing="1u">
-              {visibleLocales.map((row) => (
-                <LocaleProgressItem
-                  key={row.locale}
-                  row={row}
-                  stringsHref={stringsHref}
-                  renderAgentAction={renderAgentAction}
-                />
-              ))}
-            </Rows>
-          )}
-        </Rows>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          {visibleLocales.map((row) => (
+            <LocaleProgressItem
+              key={row.locale}
+              row={row}
+              stringsHref={stringsHref}
+              renderAgentAction={renderAgentAction}
+            />
+          ))}
+        </div>
       )}
     </Rows>
+  );
+}
+
+const TOOL_CLASS =
+  "size-7 rounded-full border border-border text-muted-foreground hover:text-foreground";
+
+function IconTool({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="inline-flex" />}>{children}</TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
   );
 }

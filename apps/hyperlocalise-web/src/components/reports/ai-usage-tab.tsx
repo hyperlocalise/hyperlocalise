@@ -612,7 +612,7 @@ function AiUsageTable({
                       </Fragment>
                     );
                   })}
-                  <TableRow className="bg-muted/50 font-semibold">
+                  <TableRow className="border-t border-border/60 font-medium">
                     <TableCell>{intl.formatMessage(pageMessages.total)}</TableCell>
                     {cells(data.totals)}
                   </TableRow>

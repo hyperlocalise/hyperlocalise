@@ -14,7 +14,7 @@
  */
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { PlusIcon, ArrowRightIcon, TranslateIcon } from "@phosphor-icons/react";
+import { PlusIcon, ArrowRightIcon, CaretRightIcon, TranslateIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
@@ -38,9 +38,10 @@ import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resour
 import { CreateJobDialog } from "../../../jobs/_components/create-job-dialog";
 import {
   getJobName,
-  taskDetailSummary,
+  getJobTargetLocaleIds,
   type ApiJob,
 } from "../../../jobs/_components/jobs-page-view";
+import { formatRelativeTimestamp } from "../../../_components/workspace-files-shared";
 import type { ProjectListRow } from "../../_components/project-list";
 import { ProjectLocaleProgressList } from "./project-locale-progress-list";
 import { projectOverviewPageContentMessages as messages } from "./project-overview-page-content.messages";
@@ -51,6 +52,8 @@ import { useProjectOverviewJobsQuery } from "./use-project-overview-jobs";
 import {
   buildProjectOverviewJobItems,
   formatProjectLocaleRoute,
+  PROJECT_OVERVIEW_INLINE_LOCALES,
+  stripTrailingJobTimestamp,
   type ProjectOverviewJobItem,
   type ProjectOverviewJobKind,
 } from "./project-overview-view-model";
@@ -59,21 +62,20 @@ function buildProjectJobHref(organizationSlug: string, projectId: string, jobId:
   return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
 }
 
-function resolveTriageJobMeta(
+/** "fr-FR, ja-JP" for a few locales, "10 locales" past that; the full list goes in the tooltip. */
+function resolveJobLocaleSummary(
   job: ApiJob | undefined,
   intl: ReturnType<typeof useIntl>,
-): string | null {
-  if (!job) {
-    return null;
-  }
-
-  const hasLocales = Boolean(job.externalTargetLocales?.length || job.reviewTargetLocale);
-  const hasAssignees = Boolean(job.externalAssignedUsers?.length);
-  if (!hasLocales && !hasAssignees) {
-    return null;
-  }
-
-  return taskDetailSummary(job, intl);
+): { label: string; full: string } | null {
+  if (!job) return null;
+  const locales = getJobTargetLocaleIds(job);
+  if (locales.length === 0) return null;
+  const full = locales.join(", ");
+  const label =
+    locales.length <= PROJECT_OVERVIEW_INLINE_LOCALES
+      ? full
+      : intl.formatMessage(messages.localeCount, { count: locales.length });
+  return { label, full };
 }
 
 function jobStatusLabel(kind: ProjectOverviewJobKind, intl: ReturnType<typeof useIntl>) {
@@ -97,51 +99,90 @@ function jobStatusLabel(kind: ProjectOverviewJobKind, intl: ReturnType<typeof us
   }
 }
 
-function jobStatusClassName(kind: ProjectOverviewJobKind) {
+/** The dot carries the status; a ring means nothing has happened yet. */
+function jobStatusDotClassName(kind: ProjectOverviewJobKind) {
   switch (kind) {
     case "review":
-      return "text-amber-900";
+      return "bg-amber-500";
     case "failed":
-      return "text-red-800";
+      return "bg-red-500";
     case "running":
+      return "bg-primary animate-pulse";
     case "queued":
-      return "text-primary";
+      return "border-[1.5px] border-primary";
     case "succeeded":
-      return "text-emerald-800";
+      return "bg-emerald-500";
     case "cancelled":
-      return "text-muted-foreground";
+      return "bg-muted-foreground/40";
     case "guidance":
-      return "text-muted-foreground";
+      return "border-[1.5px] border-dashed border-muted-foreground";
     default:
       return assertNever(kind);
   }
 }
 
+/** Only rows someone has to act on spell their status out. */
+function jobStatusCalloutClassName(kind: ProjectOverviewJobKind): string | null {
+  switch (kind) {
+    case "review":
+      return "text-amber-700 dark:text-amber-400";
+    case "failed":
+      return "text-red-700 dark:text-red-400";
+    case "running":
+    case "queued":
+    case "succeeded":
+    case "cancelled":
+    case "guidance":
+      return null;
+    default:
+      return assertNever(kind);
+  }
+}
+
+type JobRowCopy = {
+  title: string;
+  fullTitle: string;
+  locales: { label: string; full: string } | null;
+  trailing: string | null;
+  trailingTitle: string | null;
+  cta: string | null;
+};
+
 function resolveJobRowCopy(
   item: ProjectOverviewJobItem,
   intl: ReturnType<typeof useIntl>,
-): { title: string; meta: string | null; cta: string } {
+): JobRowCopy {
   switch (item.kind) {
     case "review":
     case "failed":
     case "running":
     case "queued":
     case "succeeded":
-    case "cancelled":
+    case "cancelled": {
+      const job = item.job!;
+      const fullTitle = getJobName(job, intl);
       return {
-        title: getJobName(item.job!, intl),
-        meta: resolveTriageJobMeta(item.job, intl),
-        cta:
-          item.kind === "review"
-            ? intl.formatMessage(messages.reviewCta)
-            : intl.formatMessage(messages.openJobCta),
+        title: stripTrailingJobTimestamp(fullTitle),
+        fullTitle,
+        locales: resolveJobLocaleSummary(job, intl),
+        trailing: job.updatedAt ? formatRelativeTimestamp(job.updatedAt) : null,
+        trailingTitle: job.updatedAt
+          ? intl.formatDate(job.updatedAt, { dateStyle: "medium", timeStyle: "short" })
+          : null,
+        cta: item.kind === "review" ? intl.formatMessage(messages.reviewCta) : null,
       };
-    case "guidance":
+    }
+    case "guidance": {
+      const title = intl.formatMessage(messages.triageGuidanceTitle);
       return {
-        title: intl.formatMessage(messages.triageGuidanceTitle),
-        meta: intl.formatMessage(messages.triageGuidanceDescription),
+        title,
+        fullTitle: `${title} — ${intl.formatMessage(messages.triageGuidanceDescription)}`,
+        locales: null,
+        trailing: null,
+        trailingTitle: null,
         cta: intl.formatMessage(messages.addGuidanceCta),
       };
+    }
     default: {
       const _exhaustive: never = item.kind;
       return _exhaustive;
@@ -157,48 +198,57 @@ function ProjectOverviewSectionLabel({ children }: { children: ReactNode }) {
 
 function ProjectOverviewTriageRow({
   href,
+  kind,
   statusLabel,
-  statusClassName,
-  title,
-  meta,
-  cta,
+  copy,
 }: {
   href: string;
+  kind: ProjectOverviewJobKind;
   statusLabel: string;
-  statusClassName: string;
-  title: string;
-  meta: string | null;
-  cta: string;
+  copy: JobRowCopy;
 }) {
+  const calloutClassName = jobStatusCalloutClassName(kind);
   return (
-    <Link href={href} className="group">
-      <Box paddingY="2u">
-        <Row spacing="2u" alignY="start">
-          <Column width="content">
-            <span
-              className={`inline-block w-24 shrink-0 pt-0.5 text-xs font-medium tracking-[0.04em] uppercase ${statusClassName}`}
-            >
-              {statusLabel}
-            </span>
-          </Column>
-          <Column width="fluid">
-            <Rows spacing="0.5u">
-              <span className="text-base font-medium text-pretty text-foreground">{title}</span>
-              {meta ? (
-                <span className="font-mono text-[13px] leading-[18px] text-muted-foreground">
-                  {meta}
-                </span>
-              ) : null}
-            </Rows>
-          </Column>
-          <Column width="content">
-            <span className="inline-flex w-24 shrink-0 items-center justify-end gap-1 pt-0.5 text-sm font-medium text-foreground">
-              {cta}
-              <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </Column>
-        </Row>
-      </Box>
+    <Link
+      href={href}
+      className="group -mx-2 flex h-9 min-w-0 items-center gap-3 rounded-md px-2 text-sm transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none"
+    >
+      <span
+        role="img"
+        aria-label={statusLabel}
+        title={statusLabel}
+        className={`size-2 shrink-0 rounded-full ${jobStatusDotClassName(kind)}`}
+      />
+      <span className="min-w-0 flex-1 truncate text-foreground" title={copy.fullTitle}>
+        {copy.title}
+      </span>
+      {calloutClassName && !copy.cta ? (
+        <span className={`shrink-0 text-xs font-medium ${calloutClassName}`} aria-hidden>
+          {statusLabel}
+        </span>
+      ) : null}
+      {copy.locales ? (
+        <span
+          className="hidden shrink-0 text-xs whitespace-nowrap text-muted-foreground tabular-nums sm:inline"
+          title={copy.locales.full}
+        >
+          {copy.locales.label}
+        </span>
+      ) : null}
+      {copy.cta ? (
+        <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium whitespace-nowrap text-amber-700 dark:text-amber-400">
+          {copy.cta}
+          <CaretRightIcon className="size-3 transition-transform group-hover:translate-x-0.5" />
+        </span>
+      ) : null}
+      {copy.trailing ? (
+        <span
+          className="min-w-24 shrink-0 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums"
+          title={copy.trailingTitle ?? undefined}
+        >
+          {copy.trailing}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -395,14 +445,14 @@ export function ProjectOverviewPageContentView({
                       <Box paddingBottom="1.5u">
                         <Row spacing="0" align="spaceBetween" alignY="baseline">
                           <ProjectOverviewSectionLabel>
-                            <FormattedMessage {...messages.todayTitle} />
+                            <FormattedMessage {...messages.recentJobsTitle} />
                           </ProjectOverviewSectionLabel>
                           <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase tabular-nums">
                             {recentJobItems.length}
                           </span>
                         </Row>
                       </Box>
-                      <Separator className="bg-foreground" />
+                      <Separator />
 
                       {isJobsLoading ? (
                         <Box paddingTop="3u">
@@ -410,30 +460,29 @@ export function ProjectOverviewPageContentView({
                         </Box>
                       ) : recentJobItems.length > 0 ? (
                         <>
-                          {recentJobItems.map((item) => {
-                            const copy = resolveJobRowCopy(item, intl);
-                            const href =
-                              item.kind === "guidance"
-                                ? settingsHref
-                                : item.job
-                                  ? buildProjectJobHref(organizationSlug, projectId, item.job.id)
-                                  : jobsHref;
+                          <ul className="py-1">
+                            {recentJobItems.map((item) => {
+                              const copy = resolveJobRowCopy(item, intl);
+                              const href =
+                                item.kind === "guidance"
+                                  ? settingsHref
+                                  : item.job
+                                    ? buildProjectJobHref(organizationSlug, projectId, item.job.id)
+                                    : jobsHref;
 
-                            return (
-                              <div key={item.id}>
-                                <ProjectOverviewTriageRow
-                                  href={href}
-                                  statusLabel={jobStatusLabel(item.kind, intl)}
-                                  statusClassName={jobStatusClassName(item.kind)}
-                                  title={copy.title}
-                                  meta={copy.meta}
-                                  cta={copy.cta}
-                                />
-                                <Separator />
-                              </div>
-                            );
-                          })}
-                          <Box paddingTop="2u">
+                              return (
+                                <li key={item.id}>
+                                  <ProjectOverviewTriageRow
+                                    href={href}
+                                    kind={item.kind}
+                                    statusLabel={jobStatusLabel(item.kind, intl)}
+                                    copy={copy}
+                                  />
+                                </li>
+                              );
+                            })}
+                          </ul>
+                          <Box paddingTop="1u">
                             <Link
                               href={jobsHref}
                               className="inline-flex w-fit items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"

@@ -123,7 +123,7 @@ export function CostsTab({ input }: { input: SectionInput }) {
                       </TableCell>
                     </TableRow>
                   ) : null}
-                  <TableRow className="bg-muted/50 font-semibold">
+                  <TableRow className="border-t border-border/60 font-medium">
                     <TableCell>{intl.formatMessage(pageMessages.total)}</TableCell>
                     <TableCell className={numeric}>
                       {formatUsd(intl, data.totals.peopleUsd)}

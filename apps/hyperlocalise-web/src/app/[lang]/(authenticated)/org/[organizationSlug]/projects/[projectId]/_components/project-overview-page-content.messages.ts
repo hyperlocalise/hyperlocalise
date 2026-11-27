@@ -56,10 +56,15 @@ export const projectOverviewPageContentMessages = defineMessages({
     id: "htyIICw1rr",
     description: "Breadcrumb link above the project overview title",
   },
-  todayTitle: {
-    defaultMessage: "Today",
-    id: "3ljQO/9DOw",
-    description: "Heading for the project overview triage list",
+  recentJobsTitle: {
+    defaultMessage: "Recent jobs",
+    id: "2XiJEf/2+4",
+    description: "Heading for the project overview list of the latest jobs",
+  },
+  localeCount: {
+    defaultMessage: "{count, plural, one {# locale} other {# locales}}",
+    id: "lsKLGc0lJS",
+    description: "How many target locales a job on the project overview works on",
   },
   statusReview: {
     defaultMessage: "Review",
@@ -110,11 +115,6 @@ export const projectOverviewPageContentMessages = defineMessages({
     defaultMessage: "Review",
     id: "v0Xmk6UQW5",
     description: "CTA for a job waiting for review on project overview",
-  },
-  openJobCta: {
-    defaultMessage: "Open job",
-    id: "wdhrNg8UHz",
-    description: "CTA for a failed or active job on project overview",
   },
   addGuidanceCta: {
     defaultMessage: "Add style guide",

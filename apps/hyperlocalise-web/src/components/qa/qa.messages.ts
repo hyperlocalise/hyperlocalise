@@ -469,15 +469,15 @@ export const qaMessages = defineMessages({
     description: "QA findings severity filter option for warnings",
     id: "/HrhRXll0S",
   },
-  filterChip: {
-    defaultMessage: "{label}: {value}",
-    description: "QA active filter chip, for example Language: de-DE",
-    id: "r0PXBuEaOF",
-  },
   removeFilter: {
     defaultMessage: "Remove filter {label}: {value}",
     description: "Accessible label for removing one active QA filter",
     id: "EUl/k6hPi8",
+  },
+  filterFindings: {
+    defaultMessage: "Filter findings",
+    description: "Tooltip and accessible label for the QA findings filter menu button",
+    id: "whTYSGbklR",
   },
   clearAll: {
     defaultMessage: "Clear all",

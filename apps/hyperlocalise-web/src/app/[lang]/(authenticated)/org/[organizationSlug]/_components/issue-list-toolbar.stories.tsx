@@ -85,22 +85,20 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   play: async ({ canvas }) => {
+    await expect(canvas.getByRole("radio", { name: "All open" })).toBeChecked();
     await expect(canvas.getByRole("button", { name: "Filter" })).toBeInTheDocument();
-    await expect(canvas.getByPlaceholderText(/Search title/i)).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Search" }));
+    await expect(canvas.getByPlaceholderText(/Search ID, title/i)).toBeInTheDocument();
   },
 };
 
-export const FilterPopoverOpen: Story = {
+export const FilterMenuOpen: Story = {
   play: async ({ canvas, canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("button", { name: "Filter" }));
-    await expect(body.getByText("Filters")).toBeInTheDocument();
-    await expect(body.getByText("View")).toBeInTheDocument();
-    await expect(body.getByText("Status")).toBeInTheDocument();
-    await expect(body.getByText("Locale")).toBeInTheDocument();
-    await expect(body.getByRole("combobox", { name: "Select locale" })).toHaveTextContent(
-      "Any locale",
-    );
+    await expect(await body.findByRole("menuitem", { name: "Status" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Locale" })).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: "Project" })).toBeInTheDocument();
   },
 };
 
@@ -108,15 +106,11 @@ export const LocaleFilter: Story = {
   play: async ({ canvas, canvasElement, args }) => {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("button", { name: "Filter" }));
-
-    const localeTrigger = body.getByRole("combobox", { name: "Select locale" });
-    await userEvent.click(localeTrigger);
-    await userEvent.click(await body.findByRole("option", { name: /French \(France\)/i }));
+    await userEvent.click(await body.findByRole("menuitem", { name: "Locale" }));
+    await userEvent.click(await body.findByRole("menuitemradio", { name: /French \(France\)/i }));
 
     await expect(args.onStateChange).toHaveBeenCalledWith({ locale: "fr-FR" });
     await expect(canvas.getByText("Locale: fr-FR")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Filter (1)" })).toBeInTheDocument();
-    await expect(localeTrigger).toHaveTextContent("French (France)");
   },
 };
 
@@ -136,23 +130,6 @@ export const ActiveChips: Story = {
     await expect(canvas.getByText("Locale: de-DE")).toBeInTheDocument();
     await expect(canvas.getByText(/Search:/i)).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Clear filters" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Filter (3)" })).toBeInTheDocument();
-  },
-};
-
-export const LocaleFilterSelected: Story = {
-  args: {
-    initialState: {
-      ...defaultState,
-      locale: "es-ES",
-    },
-  },
-  play: async ({ canvas, canvasElement }) => {
-    const body = within(canvasElement.ownerDocument.body);
-    await expect(canvas.getByText("Locale: es-ES")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Filter (1)" }));
-    await expect(body.getByRole("combobox", { name: "Select locale" })).toHaveTextContent(
-      "Spanish (Spain)",
-    );
+    await expect(canvas.getByRole("textbox", { name: "Search" })).toHaveValue("checkout");
   },
 };

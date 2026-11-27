@@ -52,7 +52,7 @@ export const Default: Story = {
     await expect(canvas.getByRole("heading", { name: "Website localization" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Projects" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Create job" })).toBeInTheDocument();
-    await expect(canvas.getByText("Today")).toBeInTheDocument();
+    await expect(canvas.getByText("Recent jobs")).toBeInTheDocument();
     await expect(canvas.getByText("Running")).toBeInTheDocument();
     await expect(canvas.getByText("Review")).toBeInTheDocument();
     await expect(canvas.getByText("Failed")).toBeInTheDocument();

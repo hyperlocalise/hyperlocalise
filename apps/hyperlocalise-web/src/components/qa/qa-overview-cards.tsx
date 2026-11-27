@@ -109,54 +109,61 @@ export function QaOverviewTray({
     <section
       aria-label={intl.formatMessage(messages.overviewLabel)}
       aria-busy={isLoading || undefined}
-      className="relative overflow-clip rounded-2xl border border-border p-2"
+      data-tone={needsAction ? "action" : "calm"}
+      className="relative isolate overflow-clip rounded-lg border border-border/60"
     >
-      <Image
-        src={needsAction ? PROJECT_OVERVIEW_ACTION_MESH_SRC : PROJECT_OVERVIEW_CALM_MESH_SRC}
-        alt=""
+      <div
         aria-hidden
-        fill
-        sizes="(min-width: 1280px) 72rem, 100vw"
-        className="object-cover object-center"
-        priority
-      />
-      <div className="relative flex flex-col gap-2">
-        <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
-          {isLoading
-            ? Array.from({ length: 4 }, (_, index) => (
-                <Skeleton key={index} className="min-h-[88px] rounded-xl" />
-              ))
-            : metrics}
-        </div>
-        {showCharts && !isLoading ? (
-          <div id={chartsId} className="grid grid-cols-1 gap-2 lg:grid-cols-3">
-            {charts}
-          </div>
-        ) : null}
-        {!isLoading ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="xs"
-              variant="secondary"
-              aria-expanded={showCharts}
-              aria-controls={showCharts ? chartsId : undefined}
-              onClick={toggleCharts}
-            >
-              {intl.formatMessage(showCharts ? qaMessages.hideCharts : qaMessages.showCharts)}
-            </Button>
-            {showCharts && hint ? (
-              <p className="rounded-lg bg-card/80 px-2 py-1 text-xs text-muted-foreground">
-                {hint}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-56 opacity-35 [mask-image:linear-gradient(to_bottom,black,transparent)] dark:opacity-30"
+      >
+        <Image
+          src={needsAction ? PROJECT_OVERVIEW_ACTION_MESH_SRC : PROJECT_OVERVIEW_CALM_MESH_SRC}
+          alt=""
+          fill
+          sizes="(min-width: 1280px) 72rem, 100vw"
+          className="object-cover object-center"
+          priority
+        />
       </div>
+      <div className="-ms-px -mt-px grid grid-cols-2 xl:grid-cols-4">
+        {isLoading
+          ? Array.from({ length: 4 }, (_, index) => (
+              <div
+                key={index}
+                className="flex min-h-[84px] flex-col gap-3 border-s border-t border-border/60 px-4 py-3"
+                aria-hidden
+              >
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-6 w-16" />
+              </div>
+            ))
+          : metrics}
+      </div>
+      {showCharts && !isLoading ? (
+        <div id={chartsId} className="-ms-px grid grid-cols-1 lg:grid-cols-3">
+          {charts}
+        </div>
+      ) : null}
+      {!isLoading ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 px-2 py-1.5">
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            aria-expanded={showCharts}
+            aria-controls={showCharts ? chartsId : undefined}
+            onClick={toggleCharts}
+          >
+            {intl.formatMessage(showCharts ? qaMessages.hideCharts : qaMessages.showCharts)}
+          </Button>
+          {showCharts && hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+        </div>
+      ) : null}
     </section>
   );
 }
 
+/** One figure in the QA strip: hairline-split like the reports metrics, no card of its own. */
 export function QaMetricCard({
   label,
   value,
@@ -173,12 +180,12 @@ export function QaMetricCard({
 }) {
   const intl = useIntl();
   return (
-    <div className="flex min-h-[88px] min-w-0 flex-col gap-1 rounded-xl border border-border bg-card px-3 py-2.5">
-      <p className="text-[13px] leading-5 font-medium text-muted-foreground">{label}</p>
-      <div className="flex flex-col gap-0.5">
+    <div className="flex min-h-[84px] min-w-0 flex-col justify-between gap-2 border-s border-t border-border/60 px-4 py-3">
+      <p className="truncate text-xs leading-5 font-medium text-muted-foreground">{label}</p>
+      <div className="flex flex-col gap-1">
         <p
           className={cn(
-            "text-2xl font-medium tracking-[-0.03em] text-foreground tabular-nums",
+            "text-xl/tight font-semibold tracking-[-0.02em] text-foreground tabular-nums",
             emphasis === "risk" && "text-destructive",
             emphasis === "watch" && "text-warning-foreground",
           )}
@@ -189,8 +196,8 @@ export function QaMetricCard({
           <p
             className={cn(
               "text-xs leading-4 font-medium tabular-nums",
-              change > 0 && "text-destructive",
-              change < 0 && "text-success",
+              change > 0 && "text-[var(--ds-red-900)]",
+              change < 0 && "text-[var(--ds-green-900)]",
               change === 0 && "text-muted-foreground",
             )}
           >
@@ -201,7 +208,7 @@ export function QaMetricCard({
                 })}
           </p>
         )}
-        <p className="text-[13px] leading-5 text-pretty text-muted-foreground">{detail}</p>
+        <p className="text-xs leading-4 text-pretty text-muted-foreground">{detail}</p>
       </div>
     </div>
   );
@@ -238,10 +245,10 @@ function QaChartCardFrame({
   return (
     <section
       aria-label={title}
-      className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-card p-4"
+      className="flex min-w-0 flex-col gap-3 border-s border-t border-border/60 p-4"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="text-[13px] leading-5 font-medium text-foreground">{title}</h2>
+        <h2 className="text-xs leading-5 font-medium text-muted-foreground">{title}</h2>
         {note ? <p className="text-xs text-muted-foreground tabular-nums">{note}</p> : null}
       </div>
       {children}

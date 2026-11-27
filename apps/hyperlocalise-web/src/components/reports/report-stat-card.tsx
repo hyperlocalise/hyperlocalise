@@ -35,8 +35,8 @@ function trendTone(trend: ReportTrend | undefined, goodWhen: "up" | "down" | und
 }
 
 /**
- * One figure of a report. `detail` is data and always shows; `hint` says what the figure means
- * and shows on hovering the info icon. The featured card is the tab's headline figure.
+ * One figure in a report's metrics strip. `detail` is data and always shows; `hint` says what the
+ * figure means and shows on hovering the info icon. The featured figure is the tab's headline.
  */
 export function ReportStatCard({
   label,
@@ -67,13 +67,10 @@ export function ReportStatCard({
     <div
       data-slot="report-stat-card"
       data-featured={featured || undefined}
-      className={cn(
-        "flex min-w-0 flex-col justify-between gap-3 rounded-xl border bg-card p-4",
-        featured && "border-primary/25 bg-primary/[0.04]",
-      )}
+      className="flex min-w-0 flex-col justify-between gap-2 border-s border-t border-border/60 px-4 py-3"
     >
       <div className="flex min-w-0 items-center gap-1">
-        <p className="truncate text-[13px] leading-5 font-medium text-muted-foreground">{label}</p>
+        <p className="truncate text-xs leading-5 font-medium text-muted-foreground">{label}</p>
         {hint ? (
           <Tooltip>
             <TooltipTrigger
@@ -96,8 +93,8 @@ export function ReportStatCard({
         <div className="flex min-w-0 flex-col gap-1">
           <p
             className={cn(
-              "font-semibold tracking-[-0.03em] text-foreground tabular-nums",
-              featured ? "text-4xl/tight" : "text-2xl/tight",
+              "font-semibold tracking-[-0.02em] text-foreground tabular-nums",
+              featured ? "text-3xl/tight" : "text-xl/tight",
             )}
           >
             {value}
@@ -138,7 +135,7 @@ function Sparkline({ values }: { values: number[] }) {
     <svg
       aria-hidden
       viewBox={`0 0 ${SPARKLINE_WIDTH} ${SPARKLINE_HEIGHT}`}
-      className="hidden h-10 w-[120px] shrink-0 text-primary @md:block"
+      className="hidden h-8 w-[120px] shrink-0 text-primary @md:block"
       preserveAspectRatio="none"
     >
       <polygon
@@ -172,13 +169,19 @@ const GRID_COLUMNS: Record<number, string> = {
 };
 const FEATURED_SPANS = new Set([5, 7]);
 
+/**
+ * One strip of figures split by hairlines, not a grid of cards. Each figure draws its own top and
+ * start border; the strip's negative margin tucks the outer ones under its frame, so the lines
+ * stay right when the strip wraps.
+ */
 export function ReportStatCards({ children }: { children: React.ReactNode }) {
   const count = Children.toArray(children).length;
   return (
-    <div className="@container">
+    <div className="@container overflow-hidden rounded-lg border border-border/60">
       <div
+        data-slot="report-stat-strip"
         className={cn(
-          "grid grid-cols-1 gap-3",
+          "-ms-px -mt-px grid grid-cols-1",
           GRID_COLUMNS[count] ?? GRID_COLUMNS[4],
           FEATURED_SPANS.has(count) && "@md:[&>[data-featured]]:col-span-2",
         )}
@@ -193,11 +196,14 @@ export function ReportStatCardsSkeleton({ count }: { count: number }) {
   return (
     <ReportStatCards>
       {Array.from({ length: count }, (_, index) => (
-        <Skeleton
+        <div
           key={index}
           data-featured={index === 0 || undefined}
-          className="min-h-[116px] rounded-xl"
-        />
+          className="flex min-h-[84px] flex-col gap-3 border-s border-t border-border/60 px-4 py-3"
+        >
+          <Skeleton className="h-3 w-20 rounded" />
+          <Skeleton className="h-6 w-16 rounded" />
+        </div>
       ))}
     </ReportStatCards>
   );
