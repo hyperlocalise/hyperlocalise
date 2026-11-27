@@ -12,8 +12,9 @@ func TestEditorCatOrgFiles(t *testing.T) {
 	t.Run("uploads and serves a markdown editor image", func(t *testing.T) {
 		api, scope := editorCatTestAPI(t, "member")
 		api.objects = visualContextObjectRegistry(t)
+		png := mustVisualContextPNG(t, 1, 1)
 		upload := editorCatMultipartScope(t, api, scope, http.MethodPost, "/v1/orgs/"+scope.Slug+"/files", nil, map[string][]byte{
-			"file": []byte("png-bytes"),
+			"file": png,
 		}, map[string]string{"file": "hero.png"})
 		require.Equal(t, http.StatusCreated, upload.Code, upload.Body.String())
 		require.Contains(t, upload.Body.String(), `"url":"/api/orgs/`)
@@ -28,7 +29,7 @@ func TestEditorCatOrgFiles(t *testing.T) {
 
 		download := editorCatRequestScope(api, scope, http.MethodGet, "/v1/orgs/"+scope.Slug+"/files/"+parsed.File.ID, "")
 		require.Equal(t, http.StatusOK, download.Code, download.Body.String())
-		require.Equal(t, []byte("png-bytes"), download.Body.Bytes())
+		require.Equal(t, png, download.Body.Bytes())
 		require.Equal(t, "image/png", download.Header().Get("Content-Type"))
 	})
 }

@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -31,7 +33,10 @@ func editorCatMultipartScope(t *testing.T, api *editorCatAPI, scope *testenv.Sco
 		if name == "" {
 			name = field + ".png"
 		}
-		part, err := writer.CreateFormFile(field, name)
+		partHeader := make(textproto.MIMEHeader)
+		partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, field, name))
+		partHeader.Set("Content-Type", editorCatImageContentType(name, ""))
+		part, err := writer.CreatePart(partHeader)
 		require.NoError(t, err)
 		_, err = part.Write(content)
 		require.NoError(t, err)
