@@ -94,6 +94,54 @@ func TestEditorCatImageTextLayers(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), "unsupported_image_type")
 	})
+
+	t.Run("lets members read layers but not extract or save", func(t *testing.T) {
+		api, scope := editorCatTestAPI(t, "member")
+		api.ai = &irisGenerationAPI{text: &stubIrisText{reply: `{"language":"en","texts":[{"text":"Hello","bounds":{"x":0.1,"y":0.1,"width":0.2,"height":0.1}}]}`}, meter: &stubIrisMeter{features: true, tokens: true}}
+		layers := editorCatImageTextLayers{
+			Version: 1, SourceHash: "abc123", Revision: uuid.NewString(),
+			ExtractedAt: "2026-01-01T00:00:00Z",
+			Regions:     []editorCatImageTextRegion{{ID: "r1", Text: "Sale", Bounds: editorCatImageTextBounds{X: 0.1, Y: 0.2, Width: 0.3, Height: 0.1}}},
+		}
+		raw, _ := json.Marshal(layers)
+		fileID := mustEditorCatImageWithMetadata(t, api, scope, scope.ProjectID, "hero.png", "image/png", []byte("png"), map[string]any{"imageTextLayers": json.RawMessage(raw)})
+
+		rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatTextLayersPath(scope, fileID), "")
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+		rec = editorCatRequestScope(api, scope, http.MethodPost, editorCatTextLayersPath(scope, fileID), "")
+		requireEditorCatError(t, rec, http.StatusForbidden, "forbidden")
+
+		body, _ := json.Marshal(layers)
+		rec = editorCatRequestScope(api, scope, http.MethodPatch, editorCatTextLayersPath(scope, fileID), string(body))
+		requireEditorCatError(t, rec, http.StatusForbidden, "forbidden")
+	})
+
+	t.Run("hides a file from another workspace", func(t *testing.T) {
+		api, scope := editorCatTestAPI(t, "translator")
+		foreign, foreignScope := editorCatTestAPI(t, "translator")
+		fileID := mustEditorCatProjectAsset(t, foreign, foreignScope, foreignScope.ProjectID, "hero.png", "image/png", []byte("png"))
+
+		rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatTextLayersPath(scope, fileID), "")
+		requireEditorCatError(t, rec, http.StatusNotFound, "file_not_found")
+	})
+
+	t.Run("rejects invalid region bounds", func(t *testing.T) {
+		api, scope := editorCatTestAPI(t, "translator")
+		revision := uuid.NewString()
+		layers := editorCatImageTextLayers{
+			Version: 1, SourceHash: "abc123", Revision: revision,
+			ExtractedAt: "2026-01-01T00:00:00Z",
+			Regions:     []editorCatImageTextRegion{{ID: "r1", Text: "Sale", Bounds: editorCatImageTextBounds{X: 0.1, Y: 0.2, Width: 0.3, Height: 0.1}}},
+		}
+		raw, _ := json.Marshal(layers)
+		fileID := mustEditorCatImageWithMetadata(t, api, scope, scope.ProjectID, "hero.png", "image/png", []byte("png"), map[string]any{"imageTextLayers": json.RawMessage(raw)})
+
+		layers.Regions[0].Bounds.Width = 0
+		body, _ := json.Marshal(layers)
+		rec := editorCatRequestScope(api, scope, http.MethodPatch, editorCatTextLayersPath(scope, fileID), string(body))
+		requireEditorCatError(t, rec, http.StatusBadRequest, "invalid_text_layers")
+	})
 }
 
 func TestDecodeEditorCatVideoFramePNG(t *testing.T) {
