@@ -208,6 +208,42 @@ describe("Translation QA workflow node contract", () => {
     expect(resolved.config).toMatchObject({ targetLocales: ["fr-FR", "de-DE"] });
   });
 
+  it("parses JSON target locales from trigger templates", () => {
+    const config: TranslationQaConfig = {
+      ...(createDefaultConfig("action.run_qa") as TranslationQaConfig),
+      projectId: "project_1",
+      targetLocales: "{{ trigger.targetLocales }}",
+    };
+    const resolved = resolveWorkflowNodeInputs(
+      {
+        id: "qa",
+        type: "action.run_qa",
+        config,
+      },
+      { trigger: { targetLocales: ["fr-FR", "de-DE"] }, nodes: {} },
+    );
+
+    expect(resolved.config).toMatchObject({ targetLocales: ["fr-FR", "de-DE"] });
+  });
+
+  it("treats an empty JSON locale list as no locales", () => {
+    const config: TranslationQaConfig = {
+      ...(createDefaultConfig("action.run_qa") as TranslationQaConfig),
+      projectId: "project_1",
+      targetLocales: "{{ trigger.targetLocales }}",
+    };
+    const resolved = resolveWorkflowNodeInputs(
+      {
+        id: "qa",
+        type: "action.run_qa",
+        config,
+      },
+      { trigger: { targetLocales: [] }, nodes: {} },
+    );
+
+    expect(resolved.config).toMatchObject({ targetLocales: [] });
+  });
+
   it("expands unbound inline text templates and preserves structured references", () => {
     const config: TranslationQaConfig = {
       ...inlineConfig,

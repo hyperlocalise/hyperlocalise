@@ -19,6 +19,7 @@ import { getWorkflowInputFields, matchesWorkflowType } from "../catalog/node-con
 import type { VisualWorkflowExecutionContext } from "./context";
 import { resolveVisualWorkflowCollection, resolveVisualWorkflowTemplate } from "./expressions";
 import { resolveHttpRequestBody } from "./http-request";
+import { parseWorkflowList } from "./parse-workflow-list";
 
 export function readWorkflowPath(root: unknown, path: readonly (string | number)[]): unknown {
   let value = root;
@@ -102,12 +103,11 @@ export function resolveWorkflowNodeInputs(
       (node.type === "action.create_translation_job" || node.type === "action.run_qa") &&
       field.name === "targetLocales" &&
       !bound[field.name] &&
-      typeof value === "string"
+      (typeof value === "string" || Array.isArray(value))
     ) {
-      value = value
-        .split(",")
-        .map((locale) => locale.trim())
-        .filter(Boolean);
+      // Typed "fr-FR, de-DE" and templates like {{ trigger.targetLocales }} that
+      // stringify to JSON must become a locale array before the array type check.
+      value = parseWorkflowList(value);
     }
     if (
       node.type === "action.create_translation_job" &&
