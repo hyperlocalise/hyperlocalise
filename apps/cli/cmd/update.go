@@ -124,6 +124,7 @@ func fetchRelease(ctx context.Context, version string) (*githubRelease, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create release metadata request: %w", err)
 	}
+	req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
 
 	resp, err := updateHTTPClient.Do(req)
 	if err != nil {
