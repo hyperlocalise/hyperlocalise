@@ -38,8 +38,8 @@ require (
 	github.com/klippa-app/go-pdfium v1.21.5
 	github.com/lokalise/go-lokalise-api/v5 v5.1.1
 	github.com/mattn/go-isatty v0.0.24
-	github.com/openai/openai-go/v3 v3.105.0
-	github.com/phrase/phrase-go/v4 v4.38.0
+	github.com/openai/openai-go/v3 v3.106.0
+	github.com/phrase/phrase-go/v4 v4.39.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/subosito/gotenv v1.6.0
