@@ -17,11 +17,6 @@ func (api *editorCatAPI) registerProjectTranslationDownload(mux *http.ServeMux, 
 	registerAuthenticated(mux, verifier, pattern, http.HandlerFunc(api.serveProjectTranslationDownload))
 }
 
-func editorCatOrgTranslationDownloadPath(organizationSlug, projectID, sourcePath, targetLocale string) string {
-	return "/v1/orgs/" + url.PathEscape(organizationSlug) + "/projects/" + url.PathEscape(projectID) +
-		"/files/translations/download?sourcePath=" + url.QueryEscape(sourcePath) + "&locale=" + url.QueryEscape(targetLocale)
-}
-
 func (api *editorCatAPI) serveProjectTranslationDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if api.pool == nil {
