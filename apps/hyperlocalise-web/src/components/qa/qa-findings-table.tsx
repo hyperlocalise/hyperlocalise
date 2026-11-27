@@ -15,6 +15,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { observer } from "mobx-react-lite";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 import { ArrowRightIcon, CaretDownIcon } from "@phosphor-icons/react";
@@ -46,6 +47,7 @@ import { qaMessages as m } from "./qa.messages";
 import { qaFindingsTableMessages as originalMessages } from "./qa-findings-table.messages";
 import { QaNotice } from "./qa-status";
 import { QaSendToLinearMenu } from "./qa-send-to-linear-menu";
+import { QaFindingsTableStore, selectQaFindings } from "./qa-findings-table-store";
 
 export type QaFindingRow = Omit<ProjectQaFinding, "sourcePath" | "category" | "relatedTokens"> & {
   projectName?: string;
@@ -73,7 +75,7 @@ function findingStatusVariant(status: QaFindingRow["status"]) {
   if (status === "ignored") return "secondary" as const;
   return "outline" as const;
 }
-export function QaFindingsTable({
+export const QaFindingsTable = observer(function QaFindingsTable({
   organizationSlug,
   findings,
   total,
@@ -103,14 +105,8 @@ export function QaFindingsTable({
   const intl = useIntl();
   const { client } = useGoSvcClient();
   const queryClient = useQueryClient();
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [whitespaceGroups, setWhitespaceGroups] = useState<Set<string>>(new Set());
-  // A finding id, or BULK_IGNORE while the bulk bar asks for a custom reason.
-  const [ignoringId, setIgnoringId] = useState<string | null>(null);
-  const [reason, setReason] = useState("");
-  const eligible = findings.filter((f) => (f.status ?? "open") === "open" && !f.needsRecheck);
-  const selected = eligible.filter((f) => selectedIds.has(f.id));
-  const promotable = selected.filter((f) => !f.issueIdentifier);
+  const [store] = useState(() => new QaFindingsTableStore());
+  const { eligible, selected, promotable } = selectQaFindings(findings, store.selectedIds);
   async function refresh() {
     await Promise.all(
       [
@@ -143,8 +139,7 @@ export function QaFindingsTable({
     }) =>
       client.qaReport.findings.review(organizationSlug, id, { status, reason: reviewReason ?? "" }),
     onSuccess: async () => {
-      setIgnoringId(null);
-      setReason("");
+      store.closeIgnore();
       await refresh();
     },
   });
@@ -159,9 +154,7 @@ export function QaFindingsTable({
       }
     },
     onSuccess: async (_, { ids }) => {
-      setSelectedIds(new Set());
-      setIgnoringId(null);
-      setReason("");
+      store.finishBulkIgnore();
       toast.success(intl.formatMessage(m.bulkIgnored, { count: ids.length }));
       await refresh();
     },
@@ -185,11 +178,13 @@ export function QaFindingsTable({
       }}
     >
       <Field>
-        <FieldLabel htmlFor={`reason-${ignoringId}`}>{intl.formatMessage(m.reason)}</FieldLabel>
+        <FieldLabel htmlFor={`reason-${store.ignoringId}`}>
+          {intl.formatMessage(m.reason)}
+        </FieldLabel>
         <Input
-          id={`reason-${ignoringId}`}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
+          id={`reason-${store.ignoringId}`}
+          value={store.reason}
+          onChange={(event) => store.setReason(event.target.value)}
           required
           autoFocus
           maxLength={1000}
@@ -200,11 +195,11 @@ export function QaFindingsTable({
         <Button
           size="sm"
           type="submit"
-          disabled={!reason.trim() || review.isPending || bulkIgnore.isPending}
+          disabled={!store.canSubmitIgnore || review.isPending || bulkIgnore.isPending}
         >
           {intl.formatMessage(m.saveIgnore)}
         </Button>
-        <Button variant="ghost" size="sm" type="button" onClick={() => setIgnoringId(null)}>
+        <Button variant="ghost" size="sm" type="button" onClick={() => store.closeIgnore()}>
           {intl.formatMessage(m.cancel)}
         </Button>
       </div>
@@ -227,7 +222,7 @@ export function QaFindingsTable({
       }
     },
     onSuccess: async () => {
-      setSelectedIds(new Set());
+      store.clearSelection();
       await refresh();
     },
     onError: () => {
@@ -253,7 +248,7 @@ export function QaFindingsTable({
                       : "indeterminate"
                 }
                 onCheckedChange={(checked) =>
-                  setSelectedIds(checked ? new Set(eligible.map((f) => f.id)) : new Set())
+                  checked ? store.selectAll(eligible.map((f) => f.id)) : store.clearSelection()
                 }
               />
               {selected.length
@@ -276,27 +271,24 @@ export function QaFindingsTable({
                 organizationSlug={organizationSlug}
                 findingIds={selected.map((f) => f.id)}
                 disabled={promote.isPending || bulkIgnore.isPending}
-                onSent={() => setSelectedIds(new Set())}
+                onSent={() => store.clearSelection()}
               />
               <QaIgnoreMenu
                 label={intl.formatMessage(m.ignoreSelected, { count: selected.length })}
                 variant="outline"
                 disabled={promote.isPending || bulkIgnore.isPending}
                 onIgnore={ignoreSelected}
-                onOther={() => {
-                  setIgnoringId(BULK_IGNORE);
-                  setReason("");
-                }}
+                onOther={() => store.startBulkIgnore()}
               />
-              <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+              <Button variant="ghost" size="sm" onClick={() => store.clearSelection()}>
                 {intl.formatMessage(m.clearSelection)}
               </Button>
             </>
           ) : null}
         </div>
       </div>
-      {ignoringId === BULK_IGNORE && selected.length
-        ? ignoreForm(() => ignoreSelected(reason))
+      {store.isBulkIgnoring && selected.length
+        ? ignoreForm(() => ignoreSelected(store.reason))
         : null}
       {review.isError ? <QaNotice message={intl.formatMessage(m.reviewError)} /> : null}
       {groups.size ? (
@@ -306,7 +298,7 @@ export function QaFindingsTable({
             const completedAt = lastCompletedByProject?.[first.projectId];
             const canShowWhitespace =
               hasNotableWhitespace(first.sourceText) || hasNotableWhitespace(first.targetText);
-            const showWhitespace = canShowWhitespace && whitespaceGroups.has(groupId);
+            const showWhitespace = canShowWhitespace && store.showsWhitespace(groupId);
             return (
               <section key={groupId} className="flex flex-col">
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 pt-3 pb-2">
@@ -335,14 +327,7 @@ export function QaFindingsTable({
                         size="xs"
                         variant="ghost"
                         aria-pressed={showWhitespace}
-                        onClick={() =>
-                          setWhitespaceGroups((current) => {
-                            const next = new Set(current);
-                            if (next.has(groupId)) next.delete(groupId);
-                            else next.add(groupId);
-                            return next;
-                          })
-                        }
+                        onClick={() => store.toggleWhitespaceGroup(groupId)}
                       >
                         {intl.formatMessage(showWhitespace ? m.hideWhitespace : m.showWhitespace)}
                       </Button>
@@ -398,19 +383,14 @@ export function QaFindingsTable({
                           {canPromote && eligible.some((f) => f.id === finding.id) ? (
                             <Checkbox
                               className="mt-0.5"
-                              checked={selectedIds.has(finding.id)}
+                              checked={store.isSelected(finding.id)}
                               aria-label={intl.formatMessage(m.select, {
                                 key: finding.key,
                                 locale: finding.targetLocale,
                                 check: qaCheckLabel(finding.checkType, intl),
                               })}
                               onCheckedChange={(checked) =>
-                                setSelectedIds((current) => {
-                                  const next = new Set(current);
-                                  if (checked) next.add(finding.id);
-                                  else next.delete(finding.id);
-                                  return next;
-                                })
+                                store.setSelected(finding.id, checked === true)
                               }
                             />
                           ) : null}
@@ -513,15 +493,18 @@ export function QaFindingsTable({
                               onIgnore={(value) => ignoreOne(finding.id, value)}
                               onOther={() => {
                                 review.reset();
-                                setIgnoringId(finding.id);
-                                setReason("");
+                                store.startIgnore(finding.id);
                               }}
                             />
                           ) : null}
                         </div>
-                        {ignoringId === finding.id
+                        {store.isIgnoring(finding.id)
                           ? ignoreForm(() =>
-                              review.mutate({ id: finding.id, status: "ignored", reason }),
+                              review.mutate({
+                                id: finding.id,
+                                status: "ignored",
+                                reason: store.reason,
+                              }),
                             )
                           : null}
                       </div>
@@ -545,8 +528,7 @@ export function QaFindingsTable({
       </div>
     </div>
   );
-}
-const BULK_IGNORE = "bulk";
+});
 const BULK_REVIEW_BATCH_SIZE = 100;
 const IGNORE_REASONS = [m.ignoreFalsePositive, m.ignoreIntentional, m.ignoreBrandTerm];
 
