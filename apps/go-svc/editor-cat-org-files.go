@@ -141,7 +141,7 @@ func readOrgEditorImageUpload(header *multipart.FileHeader) (content []byte, fil
 		filename = "image.png"
 	}
 	contentType = strings.ToLower(strings.TrimSpace(strings.Split(header.Header.Get("Content-Type"), ";")[0]))
-	if contentType == "" {
+	if contentType == "" || !strings.HasPrefix(contentType, "image/") {
 		contentType = editorCatImageContentType(filename, "")
 	}
 	if _, ok := orgEditorImageContentTypes[contentType]; !ok {
