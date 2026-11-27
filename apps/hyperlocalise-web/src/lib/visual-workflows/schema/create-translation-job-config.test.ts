@@ -171,7 +171,34 @@ describe("Create translation job configuration", () => {
     expect(resolved.config).toMatchObject({
       sourceText: "Hello",
       contextOverrides: { domain: "commerce" },
+      targetLocales: ["fr-FR", "de-DE"],
     });
+  });
+
+  it("parses JSON target locales from trigger templates", () => {
+    const resolved = resolveWorkflowNodeInputs(
+      {
+        id: "create-job",
+        type: "action.create_translation_job",
+        config: { ...configured, targetLocales: "{{ trigger.targetLocales }}" },
+      },
+      { trigger: { targetLocales: ["fr-FR", "de-DE"] }, nodes: {} },
+    );
+
+    expect(resolved.config).toMatchObject({ targetLocales: ["fr-FR", "de-DE"] });
+  });
+
+  it("leaves a blank target locale list empty so the action can require it", () => {
+    const resolved = resolveWorkflowNodeInputs(
+      {
+        id: "create-job",
+        type: "action.create_translation_job",
+        config: { ...configured, targetLocales: "{{ trigger.targetLocales }}" },
+      },
+      { trigger: { targetLocales: [] }, nodes: {} },
+    );
+
+    expect(resolved.config).toMatchObject({ targetLocales: [] });
   });
 
   it("keeps an empty optional context override absent", () => {

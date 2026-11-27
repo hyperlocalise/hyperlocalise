@@ -29,8 +29,10 @@ import type {
 import { validateTranslationSegment } from "@/lib/qa/validate-segment";
 import type { VisualTaskStep } from "../schema/types";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
+import { parseWorkflowList } from "./parse-workflow-list";
 
-const LIST_SEPARATOR = /[\s,;]+/;
+export { parseWorkflowList };
+
 const FINISHED_JOB_STATUSES = new Set(["succeeded", "failed", "cancelled"]);
 
 type ActionInput = {
@@ -58,37 +60,6 @@ function invalidDueDate(): VisualWorkflowNodeExecutionResult {
     "invalid_due_date",
     "The due date is not a date, such as 2026-05-01T17:00Z, or a period, such as +3d.",
   );
-}
-
-/**
- * Reads a list setting typed as "fr-FR, de-DE", or wired from an earlier step's array, which a
- * template renders as JSON.
- */
-export function parseWorkflowList(value: unknown): string[] {
-  let entries: unknown[];
-  if (Array.isArray(value)) {
-    entries = value;
-  } else if (typeof value === "number") {
-    entries = [value];
-  } else if (typeof value !== "string") {
-    entries = [];
-  } else if (value.trim().startsWith("[")) {
-    try {
-      const parsed: unknown = JSON.parse(value);
-      entries = Array.isArray(parsed) ? parsed : [];
-    } catch {
-      entries = value.replace(/[[\]"]/g, " ").split(LIST_SEPARATOR);
-    }
-  } else {
-    entries = value.split(LIST_SEPARATOR);
-  }
-  return [
-    ...new Set(
-      entries.flatMap((entry) =>
-        typeof entry === "string" || typeof entry === "number" ? [String(entry).trim()] : [],
-      ),
-    ),
-  ].filter(Boolean);
 }
 
 /** A period counted from now: `+3d` or `+12h`. A recurring workflow has no fixed date to give. */
