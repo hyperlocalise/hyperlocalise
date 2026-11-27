@@ -434,6 +434,9 @@
   "+ZMg3bOljT": {
     "defaultMessage": "Một số công việc không có đơn giá, thời gian ước tính hoặc khoảng mức độ phù hợp, nên chi phí không hoàn toàn chính xác."
   },
+  "+a66U3ztvM": {
+    "defaultMessage": "translation"
+  },
   "+aCQ19Fp2o": {
     "defaultMessage": "Đang chuẩn bị"
   },
@@ -3283,6 +3286,9 @@
   },
   "2XHcKlFYBF": {
     "defaultMessage": "Description"
+  },
+  "2XiJEf/2+4": {
+    "defaultMessage": "Công việc gần đây"
   },
   "2XlmC+CUlh": {
     "defaultMessage": "Cập nhật tiêu đề hoặc nội dung Markdown của tài liệu hướng dẫn này."
@@ -6991,6 +6997,9 @@
   },
   "7x2pJbn0qz": {
     "defaultMessage": "Xóa"
+  },
+  "7x3zO5jVnm": {
+    "defaultMessage": "Vui lòng cung cấp văn bản nguồn cần dịch."
   },
   "7xOUFwYHfE": {
     "defaultMessage": "Tên miền"
@@ -16874,6 +16883,9 @@
   "MHv6MtNx22": {
     "defaultMessage": "Chọn tệp TMX hoặc CSV."
   },
+  "MI/Sy9d1Z6": {
+    "defaultMessage": "Kiểm tra"
+  },
   "MIC7tMfqgJ": {
     "defaultMessage": "Tài khoản"
   },
@@ -18845,6 +18857,9 @@
   "P83ZEtDAlo": {
     "defaultMessage": "Không thể tải các kho lưu trữ GitHub"
   },
+  "P85yq+Sbxp": {
+    "defaultMessage": "Nguồn và bản dịch"
+  },
   "P8FDaqATCf": {
     "defaultMessage": "Các dự án TMS bên ngoài kế thừa dữ liệu nguồn và ngôn ngữ từ nhà cung cấp được kết nối."
   },
@@ -19510,6 +19525,9 @@
   },
   "Q6ERj50qSO": {
     "defaultMessage": "Hyperlocalise"
+  },
+  "Q6EZugWCl5": {
+    "defaultMessage": "Để trống mọi mục kiểm tra để sử dụng tất cả các mục kiểm tra xác định."
   },
   "Q6fTrZjDFK": {
     "defaultMessage": "Schedule"
@@ -20359,6 +20377,9 @@
   },
   "RQv/LERmVL": {
     "defaultMessage": "Tạo công việc"
+  },
+  "RQx5k3KVUL": {
+    "defaultMessage": "Đầu vào QA"
   },
   "RRTJeJffFC": {
     "defaultMessage": "Quá trình đồng bộ hóa đã dừng đột ngột."
@@ -21854,6 +21875,9 @@
   "TZ3ud06CD+": {
     "defaultMessage": "Ghi chú về thị trường Nhật Bản"
   },
+  "TZiuVmX3Li": {
+    "defaultMessage": "Nội dung dự án đã lưu"
+  },
   "TZz2MhGETq": {
     "defaultMessage": "Từ khóa được theo dõi"
   },
@@ -23033,6 +23057,9 @@
   "V94a2u8bZl": {
     "defaultMessage": "Công cụ đánh giá một trang web về mức độ sẵn sàng cho bản địa hóa, SEO và câu trả lời của AI: cấu hình hreflang, độ bao phủ ngôn ngữ và khu vực, siêu dữ liệu đã dịch và nội dung có cấu trúc mà các công cụ AI có thể sử dụng. Bạn có thể xác nhận quyền sở hữu tên miền từ báo cáo kiểm tra để tiếp tục nghiên cứu tên miền đó."
   },
+  "V98dNISM8Q": {
+    "defaultMessage": "Ngôn ngữ nguồn"
+  },
   "V99Pmv6BsN": {
     "defaultMessage": "Di chuyển đầu vào {index} lên trên"
   },
@@ -23747,6 +23774,9 @@
   "WCzohOaFyx": {
     "defaultMessage": "Thứ Ba"
   },
+  "WDIsaTgs7G": {
+    "defaultMessage": "Ngôn ngữ đích"
+  },
   "WDLvPq44w7": {
     "defaultMessage": "Thực hiện sau"
   },
@@ -23875,6 +23905,9 @@
   },
   "WRpKPr9aNJ": {
     "defaultMessage": "Đã sử dụng tên sản phẩm được phê duyệt"
+  },
+  "WS2bWPiAho": {
+    "defaultMessage": "Tất cả ngôn ngữ địa phương"
   },
   "WSFk5OnR7q": {
     "defaultMessage": "Tự kiểm tra trang web của bạn"
@@ -26245,6 +26278,9 @@
   },
   "ZrA/LAv/+i": {
     "defaultMessage": "Workspace"
+  },
+  "ZrKu7ngmMP": {
+    "defaultMessage": "Tham chiếu bộ nhớ dịch"
   },
   "ZrPJtYzsBR": {
     "defaultMessage": "Không có tệp nguồn nào được liên kết với công việc này."
@@ -29155,6 +29191,9 @@
   },
   "dwmJPhGlWT": {
     "defaultMessage": "Bản xem trước PDF này hiện chưa thể hiển thị hệ chữ của ngôn ngữ đích."
+  },
+  "dwoJNHdLmv": {
+    "defaultMessage": "Tham chiếu thuật ngữ"
   },
   "dwrrquikgT": {
     "defaultMessage": "Profile"
@@ -34859,6 +34898,9 @@
   "ls6eXbtmYv": {
     "defaultMessage": "Hủy công việc"
   },
+  "lsKLGc0lJS": {
+    "defaultMessage": "{count, plural, one {# ngôn ngữ} other {# ngôn ngữ}}"
+  },
   "lsXD2TTIpU": {
     "defaultMessage": "Không phụ thuộc vào LLM"
   },
@@ -37582,6 +37624,9 @@
   },
   "phMXmlQCix": {
     "defaultMessage": "Automation"
+  },
+  "phqs4kYYqs": {
+    "defaultMessage": "Tùy chọn hiển thị"
   },
   "pi6YCralA1": {
     "defaultMessage": "API công khai"
@@ -42512,6 +42557,9 @@
   "whMSAtiplz": {
     "defaultMessage": "Nhận xét"
   },
+  "whTYSGbklR": {
+    "defaultMessage": "Lọc vấn đề"
+  },
   "whTnlyYlKA": {
     "defaultMessage": "Tải xuống {locale}"
   },
@@ -42559,6 +42607,9 @@
   },
   "wlOEitxlRT": {
     "defaultMessage": "Kết nối tài khoản Anthropic của bạn"
+  },
+  "wlnwgHWUao": {
+    "defaultMessage": "Chính sách dự án"
   },
   "wlp63zuJYJ": {
     "defaultMessage": "Ví dụ: locales/en/. Tối đa 100 tệp và ngôn ngữ được liệt kê; phần còn lại sẽ xuất hiện ở lần chạy tiếp theo."

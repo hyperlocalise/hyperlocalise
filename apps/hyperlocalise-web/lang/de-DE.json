@@ -434,6 +434,9 @@
   "+ZMg3bOljT": {
     "defaultMessage": "Für manche Arbeiten gibt es keinen Stundensatz, keine Zeitschätzung oder keine passende Preisspanne. Daher sind die Kosten nicht genau."
   },
+  "+a66U3ztvM": {
+    "defaultMessage": "Übersetzung"
+  },
   "+aCQ19Fp2o": {
     "defaultMessage": "Wird vorbereitet"
   },
@@ -3283,6 +3286,9 @@
   },
   "2XHcKlFYBF": {
     "defaultMessage": "Beschreibung"
+  },
+  "2XiJEf/2+4": {
+    "defaultMessage": "Neueste Jobs"
   },
   "2XlmC+CUlh": {
     "defaultMessage": "Aktualisiere den Titel oder den Markdown-Inhalt dieses Richtliniendokuments."
@@ -6991,6 +6997,9 @@
   },
   "7x2pJbn0qz": {
     "defaultMessage": "Löschen"
+  },
+  "7x3zO5jVnm": {
+    "defaultMessage": "Quelltext"
   },
   "7xOUFwYHfE": {
     "defaultMessage": "Domains"
@@ -16874,6 +16883,9 @@
   "MHv6MtNx22": {
     "defaultMessage": "Wählen Sie eine TMX- oder CSV-Datei aus."
   },
+  "MI/Sy9d1Z6": {
+    "defaultMessage": "Prüfungen"
+  },
   "MIC7tMfqgJ": {
     "defaultMessage": "Konto"
   },
@@ -18845,6 +18857,9 @@
   "P83ZEtDAlo": {
     "defaultMessage": "GitHub-Repositorys konnten nicht geladen werden"
   },
+  "P85yq+Sbxp": {
+    "defaultMessage": "Quelle und Übersetzung"
+  },
   "P8FDaqATCf": {
     "defaultMessage": "Externe TMS-Projekte übernehmen Quelldaten und Gebietsschemas vom verbundenen Anbieter."
   },
@@ -19510,6 +19525,9 @@
   },
   "Q6ERj50qSO": {
     "defaultMessage": "Hyperlocalise"
+  },
+  "Q6EZugWCl5": {
+    "defaultMessage": "Lassen Sie alle Kontrollkästchen leer, um alle deterministischen Prüfungen zu verwenden."
   },
   "Q6fTrZjDFK": {
     "defaultMessage": "Zeitplan"
@@ -20359,6 +20377,9 @@
   },
   "RQv/LERmVL": {
     "defaultMessage": "Job erstellen"
+  },
+  "RQx5k3KVUL": {
+    "defaultMessage": "QA-Eingabe"
   },
   "RRTJeJffFC": {
     "defaultMessage": "Die Synchronisierung wurde unerwartet beendet."
@@ -21854,6 +21875,9 @@
   "TZ3ud06CD+": {
     "defaultMessage": "Notizen zum japanischen Markt"
   },
+  "TZiuVmX3Li": {
+    "defaultMessage": "Gespeicherter Projektinhalt"
+  },
   "TZz2MhGETq": {
     "defaultMessage": "Verfolgte Keywords"
   },
@@ -23033,6 +23057,9 @@
   "V94a2u8bZl": {
     "defaultMessage": "Es bewertet eine Website im Hinblick auf Lokalisierung, SEO und ihre Eignung für KI-generierte Antworten: hreflang-Konfiguration, Abdeckung der Sprachversionen, übersetzte Metadaten und strukturierte Inhalte, die KI-Systeme nutzen können. Sie können die Domain über den Auditbericht beanspruchen, um weiter zu recherchieren."
   },
+  "V98dNISM8Q": {
+    "defaultMessage": "Quellgebiet"
+  },
   "V99Pmv6BsN": {
     "defaultMessage": "Eingabe {index} nach oben verschieben"
   },
@@ -23747,6 +23774,9 @@
   "WCzohOaFyx": {
     "defaultMessage": "Dienstag"
   },
+  "WDIsaTgs7G": {
+    "defaultMessage": "Zielsprache"
+  },
   "WDLvPq44w7": {
     "defaultMessage": "Folgt auf"
   },
@@ -23875,6 +23905,9 @@
   },
   "WRpKPr9aNJ": {
     "defaultMessage": "Genehmigter Produktname verwendet"
+  },
+  "WS2bWPiAho": {
+    "defaultMessage": "Alle Regionen"
   },
   "WSFk5OnR7q": {
     "defaultMessage": "Überprüfen Sie Ihre Website selbst"
@@ -26245,6 +26278,9 @@
   },
   "ZrA/LAv/+i": {
     "defaultMessage": "Arbeitsbereich"
+  },
+  "ZrKu7ngmMP": {
+    "defaultMessage": "Referenzen zum Übersetzungsspeicher"
   },
   "ZrPJtYzsBR": {
     "defaultMessage": "Keine Quelldatei mit diesem Auftrag verknüpft."
@@ -29155,6 +29191,9 @@
   },
   "dwmJPhGlWT": {
     "defaultMessage": "Diese PDF-Vorschau kann das Zielscripts noch nicht rendern."
+  },
+  "dwoJNHdLmv": {
+    "defaultMessage": "Glossarverweise"
   },
   "dwrrquikgT": {
     "defaultMessage": "Profil"
@@ -34859,6 +34898,9 @@
   "ls6eXbtmYv": {
     "defaultMessage": "Auftrag abbrechen"
   },
+  "lsKLGc0lJS": {
+    "defaultMessage": "{count, plural, one {# Gebietsschema} other {# Gebietsschemata}}"
+  },
   "lsXD2TTIpU": {
     "defaultMessage": "LLM-agnostisch"
   },
@@ -37582,6 +37624,9 @@
   },
   "phMXmlQCix": {
     "defaultMessage": "Automatisierung"
+  },
+  "phqs4kYYqs": {
+    "defaultMessage": "Anzeigeoptionen"
   },
   "pi6YCralA1": {
     "defaultMessage": "Öffentliche API"
@@ -42512,6 +42557,9 @@
   "whMSAtiplz": {
     "defaultMessage": "Kommentare"
   },
+  "whTYSGbklR": {
+    "defaultMessage": "Ergebnisse filtern"
+  },
   "whTnlyYlKA": {
     "defaultMessage": "{locale} herunterladen"
   },
@@ -42559,6 +42607,9 @@
   },
   "wlOEitxlRT": {
     "defaultMessage": "Verbinden Sie Ihr Anthropic-Konto"
+  },
+  "wlnwgHWUao": {
+    "defaultMessage": "Projektrichtlinien"
   },
   "wlp63zuJYJ": {
     "defaultMessage": "Zum Beispiel locales/en/. Es werden bis zu 100 Dateien und Sprachen aufgelistet; der Rest folgt beim nächsten Durchlauf."
