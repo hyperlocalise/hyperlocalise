@@ -11,6 +11,7 @@ import (
 func TestEditorCatOrgFiles(t *testing.T) {
 	t.Run("uploads and serves a markdown editor image", func(t *testing.T) {
 		api, scope := editorCatTestAPI(t, "member")
+		api.objects = visualContextObjectRegistry(t)
 		upload := editorCatMultipartScope(t, api, scope, http.MethodPost, "/v1/orgs/"+scope.Slug+"/files", nil, map[string][]byte{
 			"file": []byte("png-bytes"),
 		}, map[string]string{"file": "hero.png"})
