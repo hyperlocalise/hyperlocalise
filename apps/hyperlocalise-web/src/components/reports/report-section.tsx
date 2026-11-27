@@ -12,14 +12,12 @@
  */
 "use client";
 
-import { WarningCircleIcon } from "@phosphor-icons/react";
+import { DownloadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { FormattedMessage } from "react-intl";
 import { toast } from "sonner";
 
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ApiResponseError } from "@/lib/api-error";
@@ -49,9 +47,7 @@ export function ReportSection({
         <div className="flex flex-wrap items-end justify-between gap-3">
           {title ? (
             <div className="flex flex-col gap-1">
-              <h2 className="text-base font-semibold tracking-[-0.01em] text-foreground">
-                {title}
-              </h2>
+              <h2 className="text-sm font-medium text-foreground">{title}</h2>
               {description ? (
                 <p className="text-[13px] text-muted-foreground">{description}</p>
               ) : null}
@@ -84,17 +80,18 @@ export function ReportLoadFailed({
   retry: () => unknown;
 }) {
   return (
-    <Alert variant="destructive">
-      <WarningCircleIcon />
-      <AlertDescription>
+    <div
+      role="alert"
+      className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-[13px]"
+    >
+      <WarningCircleIcon aria-hidden className="size-3.5 shrink-0 text-destructive" />
+      <p className="min-w-0 flex-1 text-foreground">
         <FormattedMessage {...failureMessage(error, kept)} />
-      </AlertDescription>
-      <AlertAction>
-        <Button size="sm" variant="outline" onClick={() => void retry()}>
-          <FormattedMessage {...messages.retry} />
-        </Button>
-      </AlertAction>
-    </Alert>
+      </p>
+      <Button size="sm" variant="ghost" onClick={() => void retry()}>
+        <FormattedMessage {...messages.retry} />
+      </Button>
+    </div>
   );
 }
 
@@ -140,14 +137,14 @@ export function ReportSectionState<T>({
 
 export function ReportEmpty({ title, description }: { title?: string; description?: string }) {
   return (
-    <Empty className="border border-dashed border-border">
-      <EmptyHeader>
-        <EmptyTitle>{title ?? <FormattedMessage {...messages.noDataTitle} />}</EmptyTitle>
-        <EmptyDescription>
-          {description ?? <FormattedMessage {...messages.noData} />}
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+    <div className="flex flex-col items-center gap-0.5 px-6 py-8 text-center">
+      <p className="text-[13px] font-medium text-foreground">
+        {title ?? <FormattedMessage {...messages.noDataTitle} />}
+      </p>
+      <p className="text-[13px] text-muted-foreground">
+        {description ?? <FormattedMessage {...messages.noData} />}
+      </p>
+    </div>
   );
 }
 
@@ -172,15 +169,10 @@ export function ReportPager({
         <FormattedMessage {...messages.showingRows} values={{ from: first, to: last, total }} />
       </span>
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
           <FormattedMessage {...messages.previousPage} />
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={last >= total}
-          onClick={() => onPage(page + 1)}
-        >
+        <Button variant="ghost" size="sm" disabled={last >= total} onClick={() => onPage(page + 1)}>
           <FormattedMessage {...messages.nextPage} />
         </Button>
       </div>
@@ -207,8 +199,16 @@ export function DownloadCsvButton({ download }: { download: () => Promise<GoSvcD
     }
   };
   return (
-    <Button variant="outline" size="sm" disabled={pending} onClick={() => void run()}>
-      {pending ? <Spinner data-icon="inline-start" aria-hidden className="size-3.5" /> : null}
+    <Button variant="ghost" size="sm" disabled={pending} onClick={() => void run()}>
+      {pending ? (
+        <Spinner data-icon="inline-start" aria-hidden className="size-3.5" />
+      ) : (
+        <DownloadSimpleIcon
+          data-icon="inline-start"
+          aria-hidden
+          className="size-3.5 text-muted-foreground"
+        />
+      )}
       <FormattedMessage {...messages.downloadCsv} />
     </Button>
   );

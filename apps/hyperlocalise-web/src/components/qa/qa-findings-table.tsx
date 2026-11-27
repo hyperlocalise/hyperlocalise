@@ -61,13 +61,11 @@ export function qaCheckLabel(check: string, intl: ReturnType<typeof useIntl>) {
   );
 }
 
-function findingAccentClass(finding: QaFindingRow) {
-  if (finding.status === "resolved") return "border-l-success bg-success/10";
-  if (finding.status === "ignored") return "border-l-border bg-muted/50";
-  if (finding.severity === "error") {
-    return "border-l-destructive bg-destructive/10 dark:bg-destructive/15";
-  }
-  return "border-l-warning bg-warning/10 dark:bg-warning/15";
+/** The small dot that marks a finding's severity, or that it was fixed or ignored. */
+function findingDotClass(finding: QaFindingRow) {
+  if (finding.status === "resolved") return "bg-success";
+  if (finding.status === "ignored") return "bg-muted-foreground/40";
+  return finding.severity === "error" ? "bg-destructive" : "bg-warning";
 }
 
 function findingStatusVariant(status: QaFindingRow["status"]) {
@@ -301,212 +299,246 @@ export function QaFindingsTable({
         ? ignoreForm(() => ignoreSelected(reason))
         : null}
       {review.isError ? <QaNotice message={intl.formatMessage(m.reviewError)} /> : null}
-      {[...groups.entries()].map(([groupId, rows]) => {
-        const first = rows[0]!;
-        const completedAt = lastCompletedByProject?.[first.projectId];
-        const canShowWhitespace =
-          hasNotableWhitespace(first.sourceText) || hasNotableWhitespace(first.targetText);
-        const showWhitespace = canShowWhitespace && whitespaceGroups.has(groupId);
-        return (
-          <section
-            key={groupId}
-            className="overflow-hidden rounded-xl border border-border bg-card"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <p className="break-words text-sm font-medium">{first.key}</p>
-                <p className="text-xs text-muted-foreground">
-                  {[first.projectName, first.sourcePath, first.targetLocale]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-                {completedAt ? (
-                  <p className="text-xs text-muted-foreground tabular-nums">
-                    {intl.formatMessage(m.completedScanAt, {
-                      date: intl.formatDate(completedAt, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      }),
-                    })}
-                  </p>
-                ) : null}
-              </div>
-              <Button nativeButton={false} render={<Link href={first.editorHref} />} size="sm">
-                {intl.formatMessage(m.review)}
-                <ArrowRightIcon data-icon="inline-end" />
-              </Button>
-            </div>
-            <div className="relative grid gap-px border-y border-border bg-border md:grid-cols-2">
-              {canShowWhitespace ? (
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="ghost"
-                  className="absolute end-2 top-2 z-10"
-                  aria-pressed={showWhitespace}
-                  onClick={() =>
-                    setWhitespaceGroups((current) => {
-                      const next = new Set(current);
-                      if (next.has(groupId)) next.delete(groupId);
-                      else next.add(groupId);
-                      return next;
-                    })
-                  }
-                >
-                  {intl.formatMessage(showWhitespace ? m.hideWhitespace : m.showWhitespace)}
-                </Button>
-              ) : null}
-              <div className="bg-muted/40 px-4 py-3">
-                <p className="mb-1 text-xs font-medium text-muted-foreground">
-                  {intl.formatMessage(m.source)}
-                </p>
-                <QaText
-                  text={first.sourceText}
-                  tokens={rows.flatMap((f) => f.relatedTokens ?? [])}
-                  visibleWhitespace={showWhitespace}
-                />
-              </div>
-              <div className="bg-muted/40 px-4 py-3">
-                <p className="mb-1 text-xs font-medium text-muted-foreground">
-                  {intl.formatMessage(m.target)}
-                </p>
-                <QaText
-                  text={first.targetText}
-                  tokens={rows.flatMap((f) => f.relatedTokens ?? [])}
-                  visibleWhitespace={showWhitespace}
-                />
-              </div>
-            </div>
-            {rows.map((finding) => {
-              const displayMessage = humanizeQaFindingMessage(finding.message);
-              const status = finding.status ?? "open";
-              const canReviewFinding = canPromote && status !== "resolved" && !finding.needsRecheck;
-              return (
-                <div
-                  key={finding.id}
-                  className={cn(
-                    "flex flex-col gap-3 border-l-4 px-4 py-3",
-                    findingAccentClass(finding),
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    {canPromote && eligible.some((f) => f.id === finding.id) ? (
-                      <Checkbox
-                        className="mt-0.5"
-                        checked={selectedIds.has(finding.id)}
-                        aria-label={intl.formatMessage(m.select, {
-                          key: finding.key,
-                          locale: finding.targetLocale,
-                          check: qaCheckLabel(finding.checkType, intl),
+      {groups.size ? (
+        <div className="flex flex-col divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60">
+          {[...groups.entries()].map(([groupId, rows]) => {
+            const first = rows[0]!;
+            const completedAt = lastCompletedByProject?.[first.projectId];
+            const canShowWhitespace =
+              hasNotableWhitespace(first.sourceText) || hasNotableWhitespace(first.targetText);
+            const showWhitespace = canShowWhitespace && whitespaceGroups.has(groupId);
+            return (
+              <section key={groupId} className="flex flex-col">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 pt-3 pb-2">
+                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                    <p className="break-words text-sm font-medium">{first.key}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {[first.projectName, first.sourcePath, first.targetLocale]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                    {completedAt ? (
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {intl.formatMessage(m.completedScanAt, {
+                          date: intl.formatDate(completedAt, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          }),
                         })}
-                        onCheckedChange={(checked) =>
-                          setSelectedIds((current) => {
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {canShowWhitespace ? (
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="ghost"
+                        aria-pressed={showWhitespace}
+                        onClick={() =>
+                          setWhitespaceGroups((current) => {
                             const next = new Set(current);
-                            if (checked) next.add(finding.id);
-                            else next.delete(finding.id);
+                            if (next.has(groupId)) next.delete(groupId);
+                            else next.add(groupId);
                             return next;
                           })
                         }
-                      />
-                    ) : null}
-                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                      <p className="text-sm font-medium whitespace-pre-wrap break-words">
-                        {displayMessage}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant={finding.severity === "error" ? "destructive" : "warning"}>
-                          {intl.formatMessage(m[finding.severity])}
-                        </Badge>
-                        <span>{qaCheckLabel(finding.checkType, intl)}</span>
-                        {status !== "open" ? (
-                          <Badge variant={findingStatusVariant(status)}>
-                            {intl.formatMessage(m[status])}
-                          </Badge>
-                        ) : null}
-                        {finding.needsRecheck ? (
-                          <Badge variant="outline">{intl.formatMessage(m.needsRecheckBadge)}</Badge>
-                        ) : null}
-                        {finding.issueIdentifier ? (
-                          <Link
-                            className="text-foreground underline"
-                            href={`/org/${encodeURIComponent(organizationSlug)}/issues/${encodeURIComponent(finding.issueIdentifier)}`}
-                          >
-                            {intl.formatMessage(m.linkedIssue, {
-                              identifier: finding.issueIdentifier,
-                            })}
-                          </Link>
-                        ) : null}
-                      </div>
-                      {finding.ignoreReason ? (
-                        <p className="text-xs text-muted-foreground">{finding.ignoreReason}</p>
-                      ) : null}
-                      {displayMessage !== finding.message ? (
-                        <details className="text-xs text-muted-foreground">
-                          <summary className="cursor-pointer">
-                            {intl.formatMessage(m.technicalDetails)}
-                          </summary>
-                          <p className="mt-1 whitespace-pre-wrap break-words">{finding.message}</p>
-                        </details>
-                      ) : null}
-                    </div>
-                    {status === "open" &&
-                    finding.checkType === "guideline" &&
-                    finding.reasoningAvailable &&
-                    finding.passageId ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={explainFinding.isPending}
-                        onClick={() => explainFinding.mutate(finding.id)}
                       >
-                        {explainFinding.isPending && explainFinding.variables === finding.id
-                          ? intl.formatMessage(contentEditorGuidelineCheckMessages.explaining)
-                          : intl.formatMessage(contentEditorGuidelineCheckMessages.explain)}
+                        {intl.formatMessage(showWhitespace ? m.hideWhitespace : m.showWhitespace)}
                       </Button>
                     ) : null}
-                    {canReviewFinding && status === "ignored" ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={review.isPending}
-                        onClick={() => {
-                          review.reset();
-                          review.mutate({ id: finding.id, status: "open" });
-                        }}
-                      >
-                        {intl.formatMessage(m.undo)}
-                      </Button>
-                    ) : null}
-                    {canReviewFinding && status === "open" ? (
-                      <QaIgnoreMenu
-                        label={intl.formatMessage(m.ignore)}
-                        variant="ghost"
-                        disabled={review.isPending || bulkIgnore.isPending}
-                        onIgnore={(value) => ignoreOne(finding.id, value)}
-                        onOther={() => {
-                          review.reset();
-                          setIgnoringId(finding.id);
-                          setReason("");
-                        }}
-                      />
-                    ) : null}
+                    <Button
+                      nativeButton={false}
+                      render={<Link href={first.editorHref} />}
+                      size="xs"
+                      variant="ghost"
+                    >
+                      {intl.formatMessage(m.review)}
+                      <ArrowRightIcon data-icon="inline-end" />
+                    </Button>
                   </div>
-                  {ignoringId === finding.id
-                    ? ignoreForm(() => review.mutate({ id: finding.id, status: "ignored", reason }))
-                    : null}
                 </div>
-              );
-            })}
-          </section>
-        );
-      })}
+                <div className="mx-4 grid gap-x-6 gap-y-2 rounded-md bg-muted/40 px-3 py-2.5 md:grid-cols-2">
+                  <div className="min-w-0">
+                    <p className="mb-0.5 text-xs text-muted-foreground">
+                      {intl.formatMessage(m.source)}
+                    </p>
+                    <QaText
+                      text={first.sourceText}
+                      tokens={rows.flatMap((f) => f.relatedTokens ?? [])}
+                      visibleWhitespace={showWhitespace}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="mb-0.5 text-xs text-muted-foreground">
+                      {intl.formatMessage(m.target)}
+                    </p>
+                    <QaText
+                      text={first.targetText}
+                      tokens={rows.flatMap((f) => f.relatedTokens ?? [])}
+                      visibleWhitespace={showWhitespace}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col py-1.5">
+                  {rows.map((finding) => {
+                    const displayMessage = humanizeQaFindingMessage(finding.message);
+                    const status = finding.status ?? "open";
+                    const canReviewFinding =
+                      canPromote && status !== "resolved" && !finding.needsRecheck;
+                    return (
+                      <div
+                        key={finding.id}
+                        className={cn(
+                          "flex flex-col gap-3 px-4 py-1.5",
+                          status !== "open" && "text-muted-foreground",
+                        )}
+                      >
+                        <div className="flex min-h-7 items-start gap-3">
+                          {canPromote && eligible.some((f) => f.id === finding.id) ? (
+                            <Checkbox
+                              className="mt-0.5"
+                              checked={selectedIds.has(finding.id)}
+                              aria-label={intl.formatMessage(m.select, {
+                                key: finding.key,
+                                locale: finding.targetLocale,
+                                check: qaCheckLabel(finding.checkType, intl),
+                              })}
+                              onCheckedChange={(checked) =>
+                                setSelectedIds((current) => {
+                                  const next = new Set(current);
+                                  if (checked) next.add(finding.id);
+                                  else next.delete(finding.id);
+                                  return next;
+                                })
+                              }
+                            />
+                          ) : null}
+                          <span
+                            aria-hidden
+                            className={cn(
+                              "mt-[7px] size-2 shrink-0 rounded-full",
+                              findingDotClass(finding),
+                            )}
+                          />
+                          <div className="flex min-w-0 flex-1 flex-col gap-1">
+                            <p className="text-sm whitespace-pre-wrap break-words">
+                              {displayMessage}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                              <span
+                                className={cn(
+                                  "font-medium",
+                                  status === "open" &&
+                                    (finding.severity === "error"
+                                      ? "text-destructive"
+                                      : "text-warning-foreground"),
+                                )}
+                              >
+                                {intl.formatMessage(m[finding.severity])}
+                              </span>
+                              <span aria-hidden className="size-0.5 rounded-full bg-current" />
+                              <span>{qaCheckLabel(finding.checkType, intl)}</span>
+                              {status !== "open" ? (
+                                <Badge variant={findingStatusVariant(status)}>
+                                  {intl.formatMessage(m[status])}
+                                </Badge>
+                              ) : null}
+                              {finding.needsRecheck ? (
+                                <Badge variant="outline">
+                                  {intl.formatMessage(m.needsRecheckBadge)}
+                                </Badge>
+                              ) : null}
+                              {finding.issueIdentifier ? (
+                                <Link
+                                  className="text-foreground underline"
+                                  href={`/org/${encodeURIComponent(organizationSlug)}/issues/${encodeURIComponent(finding.issueIdentifier)}`}
+                                >
+                                  {intl.formatMessage(m.linkedIssue, {
+                                    identifier: finding.issueIdentifier,
+                                  })}
+                                </Link>
+                              ) : null}
+                            </div>
+                            {finding.ignoreReason ? (
+                              <p className="text-xs text-muted-foreground">
+                                {finding.ignoreReason}
+                              </p>
+                            ) : null}
+                            {displayMessage !== finding.message ? (
+                              <details className="text-xs text-muted-foreground">
+                                <summary className="cursor-pointer">
+                                  {intl.formatMessage(m.technicalDetails)}
+                                </summary>
+                                <p className="mt-1 whitespace-pre-wrap break-words">
+                                  {finding.message}
+                                </p>
+                              </details>
+                            ) : null}
+                          </div>
+                          {status === "open" &&
+                          finding.checkType === "guideline" &&
+                          finding.reasoningAvailable &&
+                          finding.passageId ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              disabled={explainFinding.isPending}
+                              onClick={() => explainFinding.mutate(finding.id)}
+                            >
+                              {explainFinding.isPending && explainFinding.variables === finding.id
+                                ? intl.formatMessage(contentEditorGuidelineCheckMessages.explaining)
+                                : intl.formatMessage(contentEditorGuidelineCheckMessages.explain)}
+                            </Button>
+                          ) : null}
+                          {canReviewFinding && status === "ignored" ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={review.isPending}
+                              onClick={() => {
+                                review.reset();
+                                review.mutate({ id: finding.id, status: "open" });
+                              }}
+                            >
+                              {intl.formatMessage(m.undo)}
+                            </Button>
+                          ) : null}
+                          {canReviewFinding && status === "open" ? (
+                            <QaIgnoreMenu
+                              label={intl.formatMessage(m.ignore)}
+                              variant="ghost"
+                              disabled={review.isPending || bulkIgnore.isPending}
+                              onIgnore={(value) => ignoreOne(finding.id, value)}
+                              onOther={() => {
+                                review.reset();
+                                setIgnoringId(finding.id);
+                                setReason("");
+                              }}
+                            />
+                          ) : null}
+                        </div>
+                        {ignoringId === finding.id
+                          ? ignoreForm(() =>
+                              review.mutate({ id: finding.id, status: "ignored", reason }),
+                            )
+                          : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      ) : null}
       <div className="flex items-center gap-3">
         <p className="text-xs text-muted-foreground tabular-nums">
           {intl.formatMessage(m.shown, { shown: shownCount, total })}
         </p>
         {hasMore ? (
-          <Button variant="outline" size="sm" disabled={isLoadingMore} onClick={onLoadMore}>
+          <Button variant="ghost" size="sm" disabled={isLoadingMore} onClick={onLoadMore}>
             {intl.formatMessage(isLoadingMore ? m.loading : m.more)}
           </Button>
         ) : null}

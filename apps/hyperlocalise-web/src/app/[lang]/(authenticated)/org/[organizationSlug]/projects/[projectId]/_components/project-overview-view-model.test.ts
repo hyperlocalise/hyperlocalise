@@ -17,6 +17,7 @@ import {
   buildProjectOverviewJobItems,
   formatProjectLocaleRoute,
   projectOverviewMeshTone,
+  stripTrailingJobTimestamp,
 } from "./project-overview-view-model";
 
 function job(partial: Partial<ApiJob> & Pick<ApiJob, "id" | "status">): ApiJob {
@@ -140,5 +141,24 @@ describe("projectOverviewMeshTone", () => {
   it("uses action tone when recent jobs exist", () => {
     expect(projectOverviewMeshTone(2)).toBe("action");
     expect(projectOverviewMeshTone(0)).toBe("calm");
+  });
+});
+
+describe("stripTrailingJobTimestamp", () => {
+  it("drops a trailing date and time stamp", () => {
+    expect(stripTrailingJobTimestamp("en-US.json · 2026-11-26 10:41")).toBe("en-US.json");
+  });
+
+  it("drops a trailing date-only stamp", () => {
+    expect(stripTrailingJobTimestamp("guide.md · 2026-11-24")).toBe("guide.md");
+  });
+
+  it("keeps titles without a stamp", () => {
+    expect(stripTrailingJobTimestamp("Translation: en-US.json")).toBe("Translation: en-US.json");
+    expect(stripTrailingJobTimestamp("Review · fr-FR")).toBe("Review · fr-FR");
+  });
+
+  it("keeps the title when it is only a stamp", () => {
+    expect(stripTrailingJobTimestamp("2026-11-24 12:17")).toBe("2026-11-24 12:17");
   });
 });

@@ -51,7 +51,10 @@ import { REPORT_STEPS } from "@/lib/reporting/report-units";
 
 import { channelLabel, dimensionLabel, keyTypeLabel, originLabel } from "./ai-usage-labels";
 import { aiUsageTabMessages as aiMessages } from "./ai-usage-tab.messages";
+import { cn } from "@/lib/primitives/cn";
+
 import { stepLabel } from "./report-format";
+import { REPORT_PILL } from "./report-pill";
 import { ReportsDateRange } from "./reports-date-range";
 import { reportsPageMessages as messages } from "./reports-page.messages";
 import {
@@ -120,10 +123,74 @@ export function ReportsFilterBar({
     return [...new Set(chosen.flatMap((project) => project.targetLocales ?? []))].sort();
   }, [projects, state.projectId]);
 
-  // The less used filters sit behind one button; the chosen ones show as chips below the bar.
+  const projectLabel = intl.formatMessage(messages.project);
+  const taskLabel = intl.formatMessage(messages.task);
+  const chosenTask = useReportTasks({
+    organizationSlug,
+    projectId: null,
+    ids: state.jobId ? [state.jobId] : [],
+    enabled: filters.task === "one" && Boolean(state.jobId),
+  });
+
+  // Every filter sits behind one button; the chosen ones show as chips below the bar.
   const more: React.ReactNode[] = [];
   const chips: { key: string; filter: string; value: string; clear: Partial<ReportsUrlState> }[] =
     [];
+  if (!fixedProjectId) {
+    more.push(
+      <ReportSelect
+        key="project"
+        label={projectLabel}
+        className="w-full"
+        value={state.projectId ?? ALL}
+        options={[
+          { value: ALL, label: intl.formatMessage(messages.allProjects) },
+          ...projects.map((project) => ({ value: project.id, label: project.name })),
+        ]}
+        onChange={(value) => {
+          // An automation belongs to one project, so it does not carry over to another.
+          const { automation: _automation, ...aiFilters } = state.aiFilters;
+          onChange({
+            projectId: value === ALL ? null : value,
+            jobId: null,
+            jobIds: [],
+            aiFilters,
+          });
+        }}
+      />,
+    );
+    const project = state.projectId
+      ? projects.find((candidate) => candidate.id === state.projectId)
+      : undefined;
+    if (project) {
+      const { automation: _automation, ...aiFilters } = state.aiFilters;
+      chips.push({
+        key: "project",
+        filter: projectLabel,
+        value: project.name,
+        clear: { projectId: null, jobId: null, jobIds: [], aiFilters },
+      });
+    }
+  }
+  if (filters.task === "one") {
+    more.push(
+      <TaskPicker
+        key="task"
+        className="w-full"
+        organizationSlug={organizationSlug}
+        projectId={state.projectId}
+        value={state.jobId}
+        onChange={(jobId) => onChange({ jobId })}
+      />,
+    );
+    if (state.jobId)
+      chips.push({
+        key: "task",
+        filter: taskLabel,
+        value: chosenTask.data?.find((task) => task.id === state.jobId)?.title ?? "…",
+        clear: { jobId: null },
+      });
+  }
   if (filters.language) {
     const label = intl.formatMessage(messages.language);
     more.push(
@@ -210,95 +277,75 @@ export function ReportsFilterBar({
     }
   }
 
+  if (filters.rateCard)
+    more.push(
+      <ReportSelect
+        key="rateCard"
+        label={intl.formatMessage(messages.rateCard)}
+        className="w-full"
+        value={chosenRateCard(state, settings) ?? ALL}
+        disabled={settings.rateCardNames.length === 0}
+        options={
+          settings.rateCardNames.length
+            ? settings.rateCardNames.map((name) => ({ value: name, label: name }))
+            : [{ value: ALL, label: intl.formatMessage(messages.noRateCards) }]
+        }
+        onChange={(value) => onChange({ rateCard: value === ALL ? null : value })}
+      />,
+    );
+
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
         {leading}
-        {fixedProjectId ? null : (
-          <ReportSelect
-            hideLabel
-            label={intl.formatMessage(messages.project)}
-            value={state.projectId ?? ALL}
-            options={[
-              { value: ALL, label: intl.formatMessage(messages.allProjects) },
-              ...projects.map((project) => ({ value: project.id, label: project.name })),
-            ]}
-            onChange={(value) => {
-              // An automation belongs to one project, so it does not carry over to another.
-              const { automation: _automation, ...aiFilters } = state.aiFilters;
-              onChange({
-                projectId: value === ALL ? null : value,
-                jobId: null,
-                jobIds: [],
-                aiFilters,
-              });
-            }}
-          />
-        )}
-        {filters.task === "one" ? (
-          <TaskPicker
-            hideLabel
-            organizationSlug={organizationSlug}
-            projectId={state.projectId}
-            value={state.jobId}
-            onChange={(jobId) => onChange({ jobId })}
-          />
-        ) : null}
-        {filters.task === "many" ? (
-          <TasksPicker
-            organizationSlug={organizationSlug}
-            projectId={state.projectId}
-            value={state.jobIds}
-            onChange={(jobIds) => onChange({ jobIds })}
-          />
-        ) : null}
-        {filters.rateCard ? (
-          <>
-            <ReportSelect
-              hideLabel
-              label={intl.formatMessage(messages.rateCard)}
-              value={chosenRateCard(state, settings) ?? ALL}
-              disabled={settings.rateCardNames.length === 0}
-              options={
-                settings.rateCardNames.length
-                  ? settings.rateCardNames.map((name) => ({ value: name, label: name }))
-                  : [{ value: ALL, label: intl.formatMessage(messages.noRateCards) }]
-              }
-              onChange={(value) => onChange({ rateCard: value === ALL ? null : value })}
-            />
-            <Button variant="outline" onClick={onOpenRates}>
-              {intl.formatMessage(settings.canManage ? messages.manageRates : messages.viewRates)}
-            </Button>
-          </>
-        ) : null}
-        {more.length ? (
-          <Popover>
-            <PopoverTrigger render={<Button variant="outline" />}>
-              <FunnelSimpleIcon aria-hidden />
-              {intl.formatMessage(messages.filters)}
-              {chips.length ? (
-                <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground tabular-nums">
-                  {chips.length}
-                </span>
-              ) : null}
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-72 gap-3">
-              {more}
-            </PopoverContent>
-          </Popover>
-        ) : null}
-        {filters.dates ? (
-          <div className="ms-auto">
+        <div className="ms-auto flex flex-wrap items-center gap-1.5">
+          {more.length ? (
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    className={cn(REPORT_PILL, chips.length > 0 && "text-foreground")}
+                  />
+                }
+              >
+                <FunnelSimpleIcon aria-hidden />
+                {intl.formatMessage(messages.filters)}
+                {chips.length ? (
+                  <span className="inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground tabular-nums">
+                    {chips.length}
+                  </span>
+                ) : null}
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 gap-3">
+                {more}
+              </PopoverContent>
+            </Popover>
+          ) : null}
+          {filters.dates ? (
             <ReportsDateRange state={state} settings={settings} onChange={onChange} />
-          </div>
-        ) : null}
+          ) : null}
+          {filters.rateCard ? (
+            <button type="button" className={REPORT_PILL} onClick={onOpenRates}>
+              {intl.formatMessage(settings.canManage ? messages.manageRates : messages.viewRates)}
+            </button>
+          ) : null}
+        </div>
       </div>
+      {filters.task === "many" ? (
+        <TasksPicker
+          organizationSlug={organizationSlug}
+          projectId={state.projectId}
+          value={state.jobIds}
+          onChange={(jobIds) => onChange({ jobIds })}
+        />
+      ) : null}
       {chips.length ? (
         <div className="flex flex-wrap items-center gap-1.5">
           {chips.map((chip) => (
             <span
               key={chip.key}
-              className="inline-flex h-7 items-center gap-1 rounded-full border bg-muted ps-2.5 pe-1 text-xs font-medium"
+              className="inline-flex h-6 max-w-72 items-center gap-1 rounded-full border border-border/60 bg-muted/60 ps-2.5 pe-0.5 text-xs"
             >
               {intl.formatMessage(messages.activeFilter, {
                 filter: chip.filter,

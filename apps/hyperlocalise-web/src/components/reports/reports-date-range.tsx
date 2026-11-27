@@ -21,8 +21,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/primitives/cn";
 import { REPORT_PRESET_DAYS } from "@/lib/reporting/report-period";
 
+import { REPORT_PILL } from "./report-pill";
 import { reportsPageMessages as messages } from "./reports-page.messages";
 import { reportDates, type ReportSettings } from "./reports-queries";
 import type { ReportsPreset, ReportsUrlState } from "./reports-url-state";
@@ -116,10 +118,10 @@ export function ReportsDateRange({
         <PopoverTrigger
           render={
             // Named by the label and the range it shows.
-            <Button
-              variant="outline"
+            <button
+              type="button"
               aria-labelledby={`${labelId} ${valueId}`}
-              className="max-w-full min-w-0 shrink justify-start font-normal"
+              className={cn(REPORT_PILL, "max-w-full min-w-0 shrink")}
             />
           }
         >
@@ -132,7 +134,7 @@ export function ReportsDateRange({
                   range,
                 })}
           </span>
-          <CaretDownIcon aria-hidden className="text-muted-foreground" />
+          <CaretDownIcon aria-hidden className="ms-auto" />
         </PopoverTrigger>
         <PopoverContent
           align="start"

@@ -12,19 +12,28 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { XIcon, FunnelIcon } from "@phosphor-icons/react";
+import { useState, type ReactNode } from "react";
+import {
+  FunnelSimpleIcon,
+  MagnifyingGlassIcon,
+  SlidersHorizontalIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -32,6 +41,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
+import { cn } from "@/lib/primitives/cn";
 import {
   ISSUE_LIST_SORT_DIRECTIONS,
   ISSUE_LIST_SORT_FIELDS,
@@ -56,10 +68,14 @@ import {
   type IssueFilterChip,
   type IssueListUrlState,
 } from "./issue-list-url-state";
-import { IssueLocalePicker } from "./issue-detail/issue-locale-picker";
-import { WorkspaceFilterField, workspaceFilterTriggerClassName } from "./workspace-resource-shared";
 
 type ProjectOption = { id: string; name: string };
+type Option = { value: string; label: string };
+type FilterKey = "status" | "issueType" | "priority" | "locale" | "assignee" | "projectId";
+
+const ALL = "all";
+const TOOL_CLASS =
+  "size-7 rounded-full border border-border text-muted-foreground hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground";
 
 function formatIssueFilterChipLabel(
   intl: ReturnType<typeof useIntl>,
@@ -89,6 +105,10 @@ function formatIssueFilterChipLabel(
   }
 }
 
+/**
+ * Linear-style list header: view pills on the left; search, filter and display as round icon
+ * tools on the right; the filters in use as removable chips below.
+ */
 export function IssueListToolbar({
   state,
   searchDraft,
@@ -109,8 +129,12 @@ export function IssueListToolbar({
   searchPlaceholder?: string;
 }) {
   const intl = useIntl();
+  const [searchOpen, setSearchOpen] = useState(false);
   const resolvedSearchPlaceholder =
     searchPlaceholder ?? intl.formatMessage(messages.searchPlaceholder);
+  const searchLabel = intl.formatMessage(messages.searchLabel);
+  const filterLabel = intl.formatMessage(messages.filterButton);
+  const displayLabel = intl.formatMessage(messages.displayAction);
   const projectNameById = Object.fromEntries(
     (projects ?? []).map((project) => [project.id, project.name]),
   );
@@ -118,8 +142,8 @@ export function IssueListToolbar({
     includeProject: Boolean(projects),
     projectNameById,
   });
-  const hasActiveFilters = chips.length > 0;
   const filterChipCount = chips.filter((chip) => chip.key !== "search").length;
+  const searchVisible = searchOpen || searchDraft !== "";
 
   const viewOptions = ISSUE_LIST_VIEWS.map((value) => ({
     value,
@@ -133,304 +157,280 @@ export function IssueListToolbar({
     value,
     label: intl.formatMessage(getIssueListSortDirMessage(value)),
   }));
+  const localeOptions = [...new Set([...locales, ...(state.locale ? [state.locale] : [])])];
+  const fields: { key: FilterKey; label: string; value: string; options: Option[] }[] = [
+    {
+      key: "status",
+      label: intl.formatMessage(messages.statusLabel),
+      value: state.status ?? ALL,
+      options: [
+        { value: ALL, label: intl.formatMessage(messages.allStatuses) },
+        ...ISSUE_STATUS_FILTERS.map((value) => ({
+          value,
+          label: intl.formatMessage(getIssueStatusFilterMessage(value)),
+        })),
+      ],
+    },
+    {
+      key: "issueType",
+      label: intl.formatMessage(messages.typeLabel),
+      value: state.issueType ?? ALL,
+      options: [
+        { value: ALL, label: intl.formatMessage(messages.allTypes) },
+        ...ISSUE_TYPE_FILTERS.map((value) => ({
+          value,
+          label: intl.formatMessage(getIssueTypeFilterMessage(value)),
+        })),
+      ],
+    },
+    {
+      key: "priority",
+      label: intl.formatMessage(messages.priorityLabel),
+      value: state.priority ?? ALL,
+      options: [
+        { value: ALL, label: intl.formatMessage(messages.allPriorities) },
+        ...ISSUE_PRIORITIES.map((value) => ({ value, label: value })),
+      ],
+    },
+    ...(localeOptions.length
+      ? [
+          {
+            key: "locale" as const,
+            label: intl.formatMessage(messages.localeLabel),
+            value: state.locale ?? ALL,
+            options: [
+              { value: ALL, label: intl.formatMessage(messages.allLocales) },
+              ...localeOptions.map((value) => ({
+                value,
+                label: formatLocaleDisplayName(intl, value),
+              })),
+            ],
+          },
+        ]
+      : []),
+    {
+      key: "assignee",
+      label: intl.formatMessage(messages.assigneeLabel),
+      value: state.assignee ?? ALL,
+      options: [
+        { value: ALL, label: intl.formatMessage(messages.assigneeAnyone) },
+        ...ISSUE_ASSIGNEE_FILTERS.map((value) => ({
+          value,
+          label: intl.formatMessage(getIssueAssigneeFilterMessage(value)),
+        })),
+      ],
+    },
+    ...(projects
+      ? [
+          {
+            key: "projectId" as const,
+            label: intl.formatMessage(messages.projectLabel),
+            value: state.projectId ?? ALL,
+            options: [
+              { value: ALL, label: intl.formatMessage(messages.allProjects) },
+              ...projects.map((project) => ({ value: project.id, label: project.name })),
+            ],
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          value={searchDraft}
-          onChange={(event) => onSearchDraftChange(event.currentTarget.value)}
-          placeholder={resolvedSearchPlaceholder}
-          className="h-9 min-w-[12rem] flex-1 md:max-w-md"
-          aria-label={intl.formatMessage(messages.searchLabel)}
-        />
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div
+          role="radiogroup"
+          aria-label={intl.formatMessage(messages.viewLabel)}
+          className="flex flex-wrap items-center gap-1.5"
+        >
+          {viewOptions.map((option) => {
+            const on = state.view === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => {
+                  if (!on) onStateChange({ view: option.value });
+                }}
+                className={cn(
+                  "h-7 rounded-full border px-3 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                  on
+                    ? "border-transparent bg-muted text-foreground"
+                    : "border-border text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
 
-        <Popover>
-          <PopoverTrigger
-            render={<Button type="button" variant="outline" size="sm" className="gap-1.5" />}
-          >
-            <FunnelIcon className="size-3.5" />
-            {filterChipCount > 0 ? (
-              <FormattedMessage
-                {...messages.filterButtonWithCount}
-                values={{ count: filterChipCount }}
-              />
-            ) : (
-              <FormattedMessage {...messages.filterButton} />
-            )}
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-[22rem] gap-3 p-3 sm:w-[26rem]">
-            <PopoverHeader className="px-1">
-              <PopoverTitle className="text-sm font-medium">
-                <FormattedMessage {...messages.filterPopoverTitle} />
-              </PopoverTitle>
-            </PopoverHeader>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <WorkspaceFilterField label={intl.formatMessage(messages.viewLabel)}>
+        <div className="ms-auto flex items-center gap-1.5">
+          {searchVisible ? (
+            <Input
+              autoFocus={searchOpen && searchDraft === ""}
+              value={searchDraft}
+              onChange={(event) => onSearchDraftChange(event.currentTarget.value)}
+              onBlur={() => {
+                if (searchDraft === "") setSearchOpen(false);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  onSearchDraftChange("");
+                  setSearchOpen(false);
+                }
+              }}
+              placeholder={resolvedSearchPlaceholder}
+              aria-label={searchLabel}
+              className="h-7 w-56 rounded-full text-sm md:w-72"
+            />
+          ) : (
+            <Tool label={searchLabel}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className={TOOL_CLASS}
+                aria-label={searchLabel}
+                onClick={() => setSearchOpen(true)}
+              >
+                <MagnifyingGlassIcon />
+              </Button>
+            </Tool>
+          )}
+
+          <DropdownMenu>
+            <Tool label={filterLabel}>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className={cn(TOOL_CLASS, "relative", filterChipCount > 0 && "text-foreground")}
+                    aria-label={filterLabel}
+                  />
+                }
+              >
+                <FunnelSimpleIcon />
+                {filterChipCount > 0 ? (
+                  <span
+                    aria-hidden
+                    className="absolute end-0.5 top-0.5 size-1.5 rounded-full bg-primary"
+                  />
+                ) : null}
+              </DropdownMenuTrigger>
+            </Tool>
+            <DropdownMenuContent align="end" className="w-52">
+              {fields.map((field) => (
+                <DropdownMenuSub key={field.key}>
+                  <DropdownMenuSubTrigger>{field.label}</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="max-h-80">
+                    <DropdownMenuRadioGroup
+                      value={field.value}
+                      onValueChange={(value) => {
+                        const next = String(value);
+                        onStateChange({ [field.key]: next === ALL ? undefined : next });
+                      }}
+                    >
+                      {field.options.map((option) => (
+                        <DropdownMenuRadioItem key={option.value} value={option.value}>
+                          {option.label}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Popover>
+            <Tool label={displayLabel}>
+              <PopoverTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className={TOOL_CLASS}
+                    aria-label={displayLabel}
+                  />
+                }
+              >
+                <SlidersHorizontalIcon />
+              </PopoverTrigger>
+            </Tool>
+            <PopoverContent align="end" className="w-84 gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="flex-1 text-muted-foreground">
+                  <FormattedMessage {...messages.sortByLabel} />
+                </span>
                 <Select
-                  value={state.view}
-                  items={viewOptions}
+                  value={state.sort}
+                  items={sortOptions}
                   onValueChange={(value) =>
-                    onStateChange({
-                      view: (value ?? "all_open") as IssueListUrlState["view"],
-                    })
+                    onStateChange({ sort: (value ?? "status") as IssueListUrlState["sort"] })
                   }
                 >
-                  <SelectTrigger className={workspaceFilterTriggerClassName}>
-                    <SelectValue placeholder={intl.formatMessage(messages.viewLabel)} />
+                  <SelectTrigger
+                    size="sm"
+                    className="w-28"
+                    aria-label={intl.formatMessage(messages.sortByLabel)}
+                  >
+                    <SelectValue placeholder={intl.formatMessage(messages.sortPlaceholder)} />
                   </SelectTrigger>
                   <SelectContent>
-                    {viewOptions.map((item) => (
+                    {sortOptions.map((item) => (
                       <SelectItem key={item.value} value={item.value} label={item.label}>
                         {item.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </WorkspaceFilterField>
-
-              <WorkspaceFilterField label={intl.formatMessage(messages.statusLabel)}>
                 <Select
-                  value={state.status ?? "all"}
+                  value={state.sortDir}
+                  items={sortDirOptions}
                   onValueChange={(value) =>
-                    onStateChange({
-                      status:
-                        value && value !== "all"
-                          ? (value as NonNullable<IssueListUrlState["status"]>)
-                          : undefined,
-                    })
+                    onStateChange({ sortDir: (value ?? "asc") as IssueListUrlState["sortDir"] })
                   }
                 >
-                  <SelectTrigger className={workspaceFilterTriggerClassName}>
-                    <SelectValue>
-                      {state.status
-                        ? intl.formatMessage(getIssueStatusFilterMessage(state.status))
-                        : intl.formatMessage(messages.allStatuses)}
-                    </SelectValue>
+                  <SelectTrigger
+                    size="sm"
+                    className="w-auto"
+                    aria-label={intl.formatMessage(messages.orderLabel)}
+                  >
+                    <SelectValue placeholder={intl.formatMessage(messages.orderLabel)} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all" label={intl.formatMessage(messages.allStatuses)}>
-                      <FormattedMessage {...messages.allStatuses} />
-                    </SelectItem>
-                    {ISSUE_STATUS_FILTERS.map((status) => {
-                      const label = intl.formatMessage(getIssueStatusFilterMessage(status));
-                      return (
-                        <SelectItem key={status} value={status} label={label}>
-                          {label}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </WorkspaceFilterField>
-
-              <WorkspaceFilterField label={intl.formatMessage(messages.typeLabel)}>
-                <Select
-                  value={state.issueType ?? "all"}
-                  onValueChange={(value) =>
-                    onStateChange({
-                      issueType:
-                        value && value !== "all"
-                          ? (value as NonNullable<IssueListUrlState["issueType"]>)
-                          : undefined,
-                    })
-                  }
-                >
-                  <SelectTrigger className={workspaceFilterTriggerClassName}>
-                    <SelectValue>
-                      {state.issueType
-                        ? intl.formatMessage(getIssueTypeFilterMessage(state.issueType))
-                        : intl.formatMessage(messages.allTypes)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all" label={intl.formatMessage(messages.allTypes)}>
-                      <FormattedMessage {...messages.allTypes} />
-                    </SelectItem>
-                    {ISSUE_TYPE_FILTERS.map((type) => {
-                      const label = intl.formatMessage(getIssueTypeFilterMessage(type));
-                      return (
-                        <SelectItem key={type} value={type} label={label}>
-                          {label}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </WorkspaceFilterField>
-
-              <WorkspaceFilterField label={intl.formatMessage(messages.priorityLabel)}>
-                <Select
-                  value={state.priority ?? "all"}
-                  onValueChange={(value) =>
-                    onStateChange({
-                      priority:
-                        value && value !== "all"
-                          ? (value as NonNullable<IssueListUrlState["priority"]>)
-                          : undefined,
-                    })
-                  }
-                >
-                  <SelectTrigger className={workspaceFilterTriggerClassName}>
-                    <SelectValue>
-                      {state.priority ?? intl.formatMessage(messages.allPriorities)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all" label={intl.formatMessage(messages.allPriorities)}>
-                      <FormattedMessage {...messages.allPriorities} />
-                    </SelectItem>
-                    {ISSUE_PRIORITIES.map((priority) => (
-                      <SelectItem key={priority} value={priority} label={priority}>
-                        {priority}
+                    {sortDirOptions.map((item) => (
+                      <SelectItem key={item.value} value={item.value} label={item.label}>
+                        {item.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </WorkspaceFilterField>
-
-              <WorkspaceFilterField label={intl.formatMessage(messages.localeLabel)}>
-                <IssueLocalePicker
-                  value={state.locale}
-                  locales={locales}
-                  allowAny
-                  size="sm"
-                  triggerClassName={workspaceFilterTriggerClassName}
-                  onValueChange={(locale) => onStateChange({ locale: locale || undefined })}
-                />
-              </WorkspaceFilterField>
-
-              <WorkspaceFilterField label={intl.formatMessage(messages.assigneeLabel)}>
-                <Select
-                  value={state.assignee ?? "all"}
-                  onValueChange={(value) =>
-                    onStateChange({
-                      assignee:
-                        value && value !== "all"
-                          ? (value as NonNullable<IssueListUrlState["assignee"]>)
-                          : undefined,
-                    })
-                  }
-                >
-                  <SelectTrigger className={workspaceFilterTriggerClassName}>
-                    <SelectValue>
-                      {state.assignee
-                        ? intl.formatMessage(getIssueAssigneeFilterMessage(state.assignee))
-                        : intl.formatMessage(messages.assigneeAnyone)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all" label={intl.formatMessage(messages.assigneeAnyone)}>
-                      <FormattedMessage {...messages.assigneeAnyone} />
-                    </SelectItem>
-                    {ISSUE_ASSIGNEE_FILTERS.map((assignee) => {
-                      const label = intl.formatMessage(getIssueAssigneeFilterMessage(assignee));
-                      return (
-                        <SelectItem key={assignee} value={assignee} label={label}>
-                          {label}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </WorkspaceFilterField>
-
-              {projects ? (
-                <WorkspaceFilterField label={intl.formatMessage(messages.projectLabel)}>
-                  <Select
-                    value={state.projectId ?? "all"}
-                    onValueChange={(value) =>
-                      onStateChange({
-                        projectId: value && value !== "all" ? value : undefined,
-                      })
-                    }
-                  >
-                    <SelectTrigger className={workspaceFilterTriggerClassName}>
-                      <SelectValue>
-                        {state.projectId
-                          ? (projectNameById[state.projectId] ?? state.projectId)
-                          : intl.formatMessage(messages.allProjects)}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all" label={intl.formatMessage(messages.allProjects)}>
-                        <FormattedMessage {...messages.allProjects} />
-                      </SelectItem>
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id} label={project.name}>
-                          {project.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </WorkspaceFilterField>
-              ) : null}
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <div className="flex items-center gap-1.5">
-          <Select
-            value={state.sort}
-            items={sortOptions}
-            onValueChange={(value) =>
-              onStateChange({
-                sort: (value ?? "status") as IssueListUrlState["sort"],
-              })
-            }
-          >
-            <SelectTrigger
-              size="sm"
-              className="h-8 w-[8.5rem]"
-              aria-label={intl.formatMessage(messages.sortByLabel)}
-            >
-              <SelectValue placeholder={intl.formatMessage(messages.sortPlaceholder)} />
-            </SelectTrigger>
-            <SelectContent>
-              {sortOptions.map((item) => (
-                <SelectItem key={item.value} value={item.value} label={item.label}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={state.sortDir}
-            items={sortDirOptions}
-            onValueChange={(value) =>
-              onStateChange({
-                sortDir: (value ?? "asc") as IssueListUrlState["sortDir"],
-              })
-            }
-          >
-            <SelectTrigger
-              size="sm"
-              className="h-8 w-[8.5rem]"
-              aria-label={intl.formatMessage(messages.orderLabel)}
-            >
-              <SelectValue placeholder={intl.formatMessage(messages.orderLabel)} />
-            </SelectTrigger>
-            <SelectContent>
-              {sortDirOptions.map((item) => (
-                <SelectItem key={item.value} value={item.value} label={item.label}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
-      {hasActiveFilters ? (
-        <div className="flex flex-wrap items-center gap-2">
+      {chips.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
           {chips.map((chip) => {
             const label = formatIssueFilterChipLabel(intl, chip);
             return (
-              <Badge key={chip.key} variant="secondary" className="gap-1 rounded-full pe-1">
-                <span>{label}</span>
+              <span
+                key={chip.key}
+                className="inline-flex h-6 max-w-72 items-center gap-1.5 rounded-md bg-muted ps-2 pe-0.5 text-xs text-foreground"
+              >
+                <span className="truncate">{label}</span>
                 <button
                   type="button"
-                  className="rounded-full p-0.5 hover:bg-muted"
+                  className="inline-flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background/60 hover:text-foreground"
                   aria-label={intl.formatMessage(messages.removeChipAriaLabel, { label })}
                   onClick={() => {
                     if (chip.key === "search") {
@@ -439,16 +439,30 @@ export function IssueListToolbar({
                     onStateChange({ [chip.key]: chip.key === "search" ? "" : undefined });
                   }}
                 >
-                  <XIcon className="size-3.5" />
+                  <XIcon aria-hidden className="size-3" />
                 </button>
-              </Badge>
+              </span>
             );
           })}
-          <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
+          <button
+            type="button"
+            onClick={onClearFilters}
+            className="ms-auto text-xs text-muted-foreground hover:text-foreground"
+          >
             <FormattedMessage {...messages.clearFilters} />
-          </Button>
+          </button>
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** An icon tool with a tooltip; the wrapper span lets menu and popover triggers keep their own render. */
+function Tool({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="inline-flex" />}>{children}</TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
   );
 }

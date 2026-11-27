@@ -12,10 +12,20 @@
  * Version 2.0 or later.
  */
 import { useId } from "react";
-import { XIcon } from "@phosphor-icons/react";
+import { FunnelSimpleIcon, XIcon } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -25,6 +35,7 @@ import {
   SelectGroup,
   SelectItem,
 } from "@/components/ui/select";
+import { cn } from "@/lib/primitives/cn";
 import { translationQaScanCheckTypes } from "@/lib/qa/types";
 import { qaCheckLabel } from "./qa-findings-table";
 import { QA_FILTER_ALL } from "./qa-filters-store";
@@ -123,9 +134,14 @@ export function QaSegmentedControl({
 
 export type QaFindingFilterKey = "projectId" | "locale" | "checkType" | "severity" | "status";
 
+const QA_PILL =
+  "inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50";
+const QA_PILL_OFF = "border-border text-muted-foreground hover:text-foreground";
+const QA_PILL_ON = "border-transparent bg-muted text-foreground";
+
 /**
- * Status and severity as always-visible toggles, the rest as dropdowns, and a
- * row of removable chips with the result count so the current scope is clear.
+ * Linear-style findings header: review status as pills on the left, every other filter in one
+ * menu on the right, and the filters in use as removable chips below.
  */
 export function QaFindingFilterBar({
   values,
@@ -148,107 +164,169 @@ export function QaFindingFilterBar({
 }) {
   const intl = useIntl();
   const all = { value: QA_FILTER_ALL, label: intl.formatMessage(m.all) };
-  const projectLabel = intl.formatMessage(m.projects);
-  const languageLabel = intl.formatMessage(m.language);
-  const checkLabel = intl.formatMessage(m.check);
-  const chips = [
-    projects && values.projectId && values.projectId !== QA_FILTER_ALL
-      ? {
-          key: "projectId" as const,
-          label: projectLabel,
-          value:
-            projects.find((option) => option.value === values.projectId)?.label ?? values.projectId,
-        }
-      : null,
-    values.locale !== QA_FILTER_ALL
-      ? { key: "locale" as const, label: languageLabel, value: values.locale }
-      : null,
-    values.checkType !== QA_FILTER_ALL
-      ? {
-          key: "checkType" as const,
-          label: checkLabel,
-          value: qaCheckLabel(values.checkType, intl),
-        }
-      : null,
-  ].filter((chip) => chip !== null);
+  const fields: {
+    key: Exclude<QaFindingFilterKey, "status">;
+    label: string;
+    value: string;
+    options: QaFilterOption[];
+  }[] = [
+    {
+      key: "severity",
+      label: intl.formatMessage(m.severity),
+      value: values.severity,
+      options: [
+        all,
+        { value: "error", label: intl.formatMessage(m.errorsFilter) },
+        { value: "warning", label: intl.formatMessage(m.warningsFilter) },
+      ],
+    },
+    ...(projects
+      ? [
+          {
+            key: "projectId" as const,
+            label: intl.formatMessage(m.projects),
+            value: values.projectId ?? QA_FILTER_ALL,
+            options: [all, ...projects],
+          },
+        ]
+      : []),
+    {
+      key: "locale",
+      label: intl.formatMessage(m.language),
+      value: values.locale,
+      options: [all, ...locales.map((value) => ({ value, label: value }))],
+    },
+    {
+      key: "checkType",
+      label: intl.formatMessage(m.check),
+      value: values.checkType,
+      options: [
+        all,
+        ...translationQaScanCheckTypes.map((value) => ({
+          value,
+          label: qaCheckLabel(value, intl),
+        })),
+      ],
+    },
+  ];
+  const chips = fields
+    .filter((field) => field.value !== QA_FILTER_ALL)
+    .map((field) => ({
+      key: field.key,
+      label: field.label,
+      value: field.options.find((option) => option.value === field.value)?.label ?? field.value,
+    }));
+  const filterLabel = intl.formatMessage(m.filterFindings);
+  const statusOptions = [
+    ...(["open", "ignored", "resolved"] as const).map((value) => ({
+      value,
+      label: intl.formatMessage(m[value]),
+    })),
+    all,
+  ];
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end gap-3">
-        <QaSegmentedControl
-          label={intl.formatMessage(m.status)}
-          value={values.status}
-          onChange={(value) => onChange("status", value)}
-          options={[
-            ...(["open", "ignored", "resolved"] as const).map((value) => ({
-              value,
-              label: intl.formatMessage(m[value]),
-            })),
-            all,
-          ]}
-        />
-        <QaSegmentedControl
-          label={intl.formatMessage(m.severity)}
-          value={values.severity}
-          onChange={(value) => onChange("severity", value)}
-          options={[
-            all,
-            { value: "error", label: intl.formatMessage(m.errorsFilter) },
-            { value: "warning", label: intl.formatMessage(m.warningsFilter) },
-          ]}
-        />
-        {projects ? (
-          <QaFilter
-            label={projectLabel}
-            value={values.projectId ?? QA_FILTER_ALL}
-            onChange={(value) => onChange("projectId", value)}
-            options={[all, ...projects]}
-          />
-        ) : null}
-        <QaFilter
-          label={languageLabel}
-          value={values.locale}
-          onChange={(value) => onChange("locale", value)}
-          options={[all, ...locales.map((value) => ({ value, label: value }))]}
-        />
-        <QaFilter
-          label={checkLabel}
-          value={values.checkType}
-          onChange={(value) => onChange("checkType", value)}
-          options={[
-            all,
-            ...translationQaScanCheckTypes.map((value) => ({
-              value,
-              label: qaCheckLabel(value, intl),
-            })),
-          ]}
-        />
-      </div>
-      {total !== undefined || isFiltered ? (
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div
+          role="radiogroup"
+          aria-label={intl.formatMessage(m.status)}
+          className="flex flex-wrap items-center gap-1.5"
+        >
+          {statusOptions.map((option) => {
+            const on = option.value === values.status;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => {
+                  if (!on) onChange("status", option.value);
+                }}
+                className={cn(QA_PILL, on ? QA_PILL_ON : QA_PILL_OFF)}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="ms-auto flex items-center gap-3">
           {total !== undefined ? (
-            <p className="text-sm font-medium tabular-nums" role="status">
+            <p className="text-xs text-muted-foreground tabular-nums" role="status">
               {intl.formatMessage(m.resultCount, { count: total })}
             </p>
           ) : null}
-          {chips.map((chip) => (
-            <Button
-              key={chip.key}
-              type="button"
-              size="xs"
-              variant="secondary"
-              aria-label={intl.formatMessage(m.removeFilter, chip)}
-              onClick={() => onChange(chip.key, QA_FILTER_ALL)}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={filterLabel}
+                  title={filterLabel}
+                  className={cn(
+                    "relative inline-flex size-7 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-muted aria-expanded:text-foreground",
+                    chips.length > 0 && "text-foreground",
+                  )}
+                />
+              }
             >
-              {intl.formatMessage(m.filterChip, chip)}
-              <XIcon data-icon="inline-end" />
-            </Button>
+              <FunnelSimpleIcon aria-hidden className="size-3.5" />
+              {chips.length ? (
+                <span
+                  aria-hidden
+                  className="absolute end-0.5 top-0.5 size-1.5 rounded-full bg-primary"
+                />
+              ) : null}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {fields.map((field) => (
+                <DropdownMenuSub key={field.key}>
+                  <DropdownMenuSubTrigger>{field.label}</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="max-h-80">
+                    <DropdownMenuRadioGroup
+                      value={field.value}
+                      onValueChange={(value) => onChange(field.key, String(value))}
+                    >
+                      {field.options.map((option) => (
+                        <DropdownMenuRadioItem key={option.value} value={option.value}>
+                          {option.label}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      {chips.length || isFiltered ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {chips.map((chip) => (
+            <span
+              key={chip.key}
+              className="inline-flex h-6 max-w-72 items-center gap-1.5 rounded-md bg-muted ps-2 pe-0.5 text-xs text-muted-foreground"
+            >
+              {chip.label}
+              <span className="truncate text-foreground">{chip.value}</span>
+              <button
+                type="button"
+                aria-label={intl.formatMessage(m.removeFilter, chip)}
+                onClick={() => onChange(chip.key, QA_FILTER_ALL)}
+                className="inline-flex size-5 shrink-0 items-center justify-center rounded hover:bg-background/60 hover:text-foreground"
+              >
+                <XIcon aria-hidden className="size-3" />
+              </button>
+            </span>
           ))}
-          {isFiltered ? (
-            <Button type="button" size="xs" variant="ghost" onClick={onClear}>
-              {intl.formatMessage(m.clearAll)}
-            </Button>
-          ) : null}
+          <button
+            type="button"
+            onClick={onClear}
+            className="ms-auto text-xs text-muted-foreground hover:text-foreground"
+          >
+            {intl.formatMessage(m.clearAll)}
+          </button>
         </div>
       ) : null}
     </div>

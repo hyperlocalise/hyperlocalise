@@ -22,6 +22,7 @@ import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/primitives/cn";
 
 import { ActivityTab } from "./activity-tab";
 import { AiUsageTab } from "./ai-usage-tab";
@@ -30,6 +31,7 @@ import { ContributorsTab } from "./contributors-tab";
 import { CostEstimateTab } from "./cost-estimate-tab";
 import { CostsTab } from "./costs-tab";
 import { ManageRatesSheet } from "./manage-rates-sheet";
+import { REPORT_PILL, REPORT_PILL_ON } from "./report-pill";
 import { ReportLoadFailed } from "./report-section";
 import { chosenRateCard, ReportsFilterBar } from "./reports-filter-bar";
 import { reportsPageMessages as messages } from "./reports-page.messages";
@@ -86,9 +88,9 @@ export function ReportsPage({
       <div className="flex w-full flex-col gap-6">
         <h1 className="sr-only">{intl.formatMessage(messages.title)}</h1>
         <Skeleton className="h-9 w-full max-w-md rounded-lg" />
-        <Skeleton className="h-9 w-full max-w-2xl rounded-lg" />
-        <Skeleton className="h-[116px] w-full rounded-xl" />
-        <Skeleton className="h-80 w-full rounded-xl" />
+        <Skeleton className="h-7 w-full max-w-2xl rounded-full" />
+        <Skeleton className="h-[84px] w-full rounded-lg" />
+        <Skeleton className="h-80 w-full rounded-lg" />
       </div>
     );
   // Settings that fail to reload keep the page and any open sheet, unless go-svc refused them.
@@ -113,6 +115,8 @@ export function ReportsPage({
     startedDay: data.startedDay,
   };
   const rateCardName = chosenRateCard(effective, data);
+  const group = reportsGroupOf(tab);
+  const groupTabs = groups.find((entry) => entry.group === group)?.tabs ?? [tab];
 
   const report = (value: ReportsTab) => {
     switch (value) {
@@ -146,7 +150,7 @@ export function ReportsPage({
       <h1 className="sr-only">{intl.formatMessage(messages.title)}</h1>
       {settings.isError ? <ReportLoadFailed kept retry={settings.refetch} /> : null}
       <Tabs
-        value={reportsGroupOf(tab)}
+        value={group}
         onValueChange={(value) => {
           const next = groups.find((entry) => entry.group === value);
           if (next) update({ tab: next.tabs[0] });
@@ -158,9 +162,9 @@ export function ReportsPage({
             {/* One group needs no tabs of its own: its reports' tabs below are enough. */}
             {groups.length > 1 ? (
               <TabsList variant="line" aria-label={intl.formatMessage(messages.tabsLabel)}>
-                {groups.map(({ group }) => (
-                  <TabsTrigger key={group} value={group}>
-                    {intl.formatMessage(GROUP_LABELS[group])}
+                {groups.map((entry) => (
+                  <TabsTrigger key={entry.group} value={entry.group}>
+                    {intl.formatMessage(GROUP_LABELS[entry.group])}
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -182,41 +186,31 @@ export function ReportsPage({
             </p>
           ) : null}
         </div>
-        {groups.map(({ group, tabs: groupTabs }) => (
-          <TabsContent key={group} value={group}>
-            <Tabs
-              value={tab}
-              onValueChange={(value) => update({ tab: String(value) as ReportsTab })}
-              className="gap-8"
-            >
-              <ReportsFilterBar
-                organizationSlug={organizationSlug}
-                tab={tab}
-                state={effective}
-                settings={data}
-                fixedProjectId={projectId}
-                onChange={update}
-                onOpenRates={() => setRatesOpen(true)}
-                leading={
-                  groupTabs.length > 1 ? (
-                    <TabsList aria-label={intl.formatMessage(messages.viewsLabel)}>
-                      {groupTabs.map((value) => (
-                        <TabsTrigger key={value} value={value} className="px-3">
-                          {intl.formatMessage(TAB_LABELS[value])}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                  ) : null
-                }
-              />
-              {groupTabs.map((value) => (
-                <TabsContent key={value} value={value}>
-                  {report(value)}
-                </TabsContent>
-              ))}
-            </Tabs>
-          </TabsContent>
-        ))}
+        <TabsContent value={group} className="flex flex-col gap-6">
+          <ReportsFilterBar
+            organizationSlug={organizationSlug}
+            tab={tab}
+            state={effective}
+            settings={data}
+            fixedProjectId={projectId}
+            onChange={update}
+            onOpenRates={() => setRatesOpen(true)}
+            leading={
+              groupTabs.length > 1 ? (
+                <ReportViewPills
+                  label={intl.formatMessage(messages.viewsLabel)}
+                  value={tab}
+                  options={groupTabs.map((value) => ({
+                    value,
+                    label: intl.formatMessage(TAB_LABELS[value]),
+                  }))}
+                  onChange={(value) => update({ tab: value })}
+                />
+              ) : null
+            }
+          />
+          <div key={tab}>{report(tab)}</div>
+        </TabsContent>
       </Tabs>
       {ratesOpen ? (
         <ManageRatesSheet
@@ -227,6 +221,39 @@ export function ReportsPage({
           onClose={() => setRatesOpen(false)}
         />
       ) : null}
+    </div>
+  );
+}
+
+/** The reports inside a group, as pills like the Issues list's views. */
+function ReportViewPills({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: ReportsTab;
+  options: { value: ReportsTab; label: string }[];
+  onChange: (value: ReportsTab) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="flex flex-wrap items-center gap-1.5">
+      {options.map((option) => {
+        const on = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => onChange(option.value)}
+            className={cn(REPORT_PILL, on && REPORT_PILL_ON)}
+          >
+            {option.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

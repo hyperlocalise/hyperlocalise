@@ -82,7 +82,7 @@ function StatusGroupHeader({
   return (
     <button
       type="button"
-      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted/40"
+      className="flex h-8 w-full items-center gap-2 bg-muted/40 px-3 text-left text-xs font-medium text-foreground hover:bg-muted/60"
       aria-expanded={!collapsed}
       aria-label={intl.formatMessage(
         collapsed ? messages.expandGroupAria : messages.collapseGroupAria,
@@ -92,10 +92,10 @@ function StatusGroupHeader({
       )}
       onClick={onToggle}
     >
-      {createElement(chevron, { className: "size-3.5 text-muted-foreground" })}
-      <IssueStatusIcon status={status} />
+      {createElement(chevron, { className: "size-3 text-muted-foreground" })}
+      <IssueStatusIcon status={status} className="size-3.5" />
       <span>{label}</span>
-      <span className="text-muted-foreground tabular-nums">{count}</span>
+      <span className="font-normal text-muted-foreground tabular-nums">{count}</span>
     </button>
   );
 }
@@ -132,7 +132,7 @@ export function IssueListRow({
   };
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/30">
+    <div className="flex h-9 items-center gap-2.5 border-t border-border/50 px-3 text-sm first:border-t-0 hover:bg-muted/40">
       {selectionEnabled ? (
         <Checkbox
           checked={selected}
@@ -158,7 +158,7 @@ export function IssueListRow({
               issueId: issue.identifier,
               scope: detailScope,
             })}
-            className="block truncate font-medium text-foreground hover:underline"
+            className="block truncate text-foreground hover:underline"
             onClick={stopPropagation}
             onKeyDown={stopPropagation}
           >
@@ -315,7 +315,7 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
           return (
             <section
               key={group.status}
-              className={cn(groupIndex > 0 && "border-t")}
+              className={cn(groupIndex > 0 && "border-t border-border/60")}
               data-status-group={group.status}
             >
               {hideHeaders ? null : (
@@ -332,7 +332,7 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
                 />
               )}
               {isCollapsed ? null : (
-                <div className={cn(!hideHeaders && "border-t border-border/60")}>
+                <div className={cn(!hideHeaders && "border-t border-border/50")}>
                   {group.issues.map((issue) => (
                     <IssueListRow
                       key={`${issue.projectId}:${issue.id}`}

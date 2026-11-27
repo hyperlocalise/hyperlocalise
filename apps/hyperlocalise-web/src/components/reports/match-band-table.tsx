@@ -136,7 +136,7 @@ export function MatchBandTable<Row extends { bands: BandCounts }>({
           </TableRow>
         ))}
         {totals ? (
-          <TableRow className="bg-muted/50 font-semibold">
+          <TableRow className="border-t border-border/60 font-medium">
             <TableCell colSpan={leading.length}>{intl.formatMessage(messages.total)}</TableCell>
             {bands.map((bucket) => (
               <TableCell key={bucket} className={numeric}>

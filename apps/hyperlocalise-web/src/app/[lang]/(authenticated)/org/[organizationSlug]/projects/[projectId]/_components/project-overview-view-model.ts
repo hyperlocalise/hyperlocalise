@@ -92,3 +92,15 @@ export function formatProjectLocaleRoute(
 export function projectOverviewMeshTone(jobCount: number): "action" | "calm" {
   return jobCount > 0 ? "action" : "calm";
 }
+
+/**
+ * A job title without the trailing " · 2026-11-26 10:41" stamp that sync jobs
+ * carry: the overview shows when the job ran in its own column.
+ */
+export function stripTrailingJobTimestamp(title: string): string {
+  const stripped = title.replace(/\s*·\s*\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?\s*$/, "");
+  return stripped.trim() || title;
+}
+
+/** Up to this many target locales are listed by code; more collapse to a count. */
+export const PROJECT_OVERVIEW_INLINE_LOCALES = 3;

@@ -157,6 +157,11 @@ export const issueListFiltersBarMessages = defineMessages({
     id: "9uLeJ8mf3J",
     description: "Issue list priority filter option to show every priority",
   },
+  allLocales: {
+    defaultMessage: "All locales",
+    id: "WS2bWPiAho",
+    description: "Option in the issue list locale filter that shows every locale",
+  },
   allProjects: {
     defaultMessage: "All projects",
     id: "ZwAUDRMMpe",
@@ -286,6 +291,12 @@ export const issueListFiltersBarMessages = defineMessages({
     defaultMessage: "Filters",
     id: "/ZyYtiK1Js",
     description: "Title for the issue list filter popover",
+  },
+  displayAction: {
+    defaultMessage: "Display options",
+    id: "phqs4kYYqs",
+    description:
+      "Tooltip and accessible label for the icon button that opens the issue list ordering",
   },
   sortButton: {
     defaultMessage: "Sort",
