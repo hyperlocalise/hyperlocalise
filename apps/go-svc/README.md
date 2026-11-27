@@ -678,7 +678,10 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | POST | `/files/detail/cat/segments/{id}/max-length` | Set key max length |
 | PATCH | `/files/detail/cat/images/status` | Update image/video variant status |
 | POST | `/files/detail/cat/images/regenerate` | AI-regenerate a file-backed image variant or a URL-backed image translation (`image-localise`) |
-| POST | `/files/detail/cat/images/upload` | Replace a localized image variant with uploaded bytes (multipart, up to 32 MB) |
+| GET, POST, PATCH | `/projects/{projectId}/assets/{fileId}/text-layers` | Read, extract (vision), or save reviewed image text regions |
+| POST | `/projects/{projectId}/assets/{fileId}/frame-text` | Extract on-screen text from a video frame PNG |
+| GET | `/projects/{projectId}/files/translations/download` | Generated Office, PDF, or HTML file from segment translations (`sourcePath`, `locale`) |
+| POST | `/files/detail/cat/images/upload` | Replace a localized file variant with uploaded bytes: images, video, or whole document/office files (multipart, up to 32 MB) |
 | POST | `/files/detail/cat/images/edit` | Targeted AI image edit on a file-backed variant (`image-edit`, multipart) |
 | POST | `/files/detail/cat/segments/{id}/treat-as-image` | Toggle image-URL content kind |
 | POST | `/files/detail/cat/segments/{id}/treat-as-video` | Toggle video-URL content kind |

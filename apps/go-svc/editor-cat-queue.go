@@ -254,7 +254,17 @@ func (api *editorCatAPI) loadQueue(r *http.Request, actor editorCatActor, projec
 			if unfiltered && empty {
 				queue, err = api.loadWholeFileQueue(r, actor, project, query)
 			} else {
-				view, viewErr := api.loadDocumentView(r, actor, project, query)
+				var view *editorCatDocumentView
+				var viewErr error
+				if isEditorCatHtml(query.sourcePath) {
+					sourceFileID, idErr := api.sourceFileID(r, actor, project, query.sourcePath)
+					if idErr != nil {
+						return editorCatQueueFile{}, idErr
+					}
+					view, viewErr = api.generatedFileDocumentView(r, actor, project, query, sourceFileID)
+				} else {
+					view, viewErr = api.loadDocumentView(r, actor, project, query)
+				}
 				if viewErr != nil {
 					return editorCatQueueFile{}, viewErr
 				}

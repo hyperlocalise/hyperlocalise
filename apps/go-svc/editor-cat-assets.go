@@ -17,6 +17,9 @@ import (
 func (api *editorCatAPI) registerProjectAssets(mux *http.ServeMux, verifier SessionVerifier) {
 	pattern := "GET " + orgRoutePrefix + "/projects/{projectId}/assets/{fileId}"
 	registerAuthenticated(mux, verifier, pattern, http.HandlerFunc(api.serveProjectAsset))
+	api.registerProjectImageTextLayers(mux, verifier)
+	api.registerProjectVideoFrameText(mux, verifier)
+	api.registerProjectTranslationDownload(mux, verifier)
 }
 
 func (api *editorCatAPI) serveProjectAsset(w http.ResponseWriter, r *http.Request) {

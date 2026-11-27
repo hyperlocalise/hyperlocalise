@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"path"
@@ -143,21 +144,42 @@ func (api *editorCatAPI) uploadImage(r *http.Request, actor editorCatActor, proj
 	}
 	filename := fileHeaders[0].Filename
 	contentType := fileHeaders[0].Header.Get("Content-Type")
-	if contentType == "" || !strings.HasPrefix(contentType, "image/") {
-		contentType = editorCatImageContentType(filename, sourcePath)
-	}
-	if !strings.HasPrefix(contentType, "image/") {
-		return nil, 0, editorCatFailure(415, "unsupported_image_response", "Edits must be images")
-	}
 	kind := editorCatSourceKind(sourcePath)
 	if isEditorCatWholeFile(sourcePath) {
 		if sourceFileID == "" {
 			return nil, 0, editorCatFailure(400, "source_file_not_found", "Source file not found for the given path")
 		}
-		if kind != editorCatKindImage {
+		switch kind {
+		case editorCatKindImage:
+			if contentType == "" || !strings.HasPrefix(contentType, "image/") {
+				contentType = editorCatImageContentType(filename, sourcePath)
+			}
+			if !strings.HasPrefix(contentType, "image/") {
+				return nil, 0, editorCatFailure(415, "unsupported_image_response", "Edits must be images")
+			}
+			return api.replaceImageVariantBytes(r, actor, project, sourcePath, targetLocale, sourceFileID, content, contentType, filename, force)
+		case editorCatKindVideo:
+			if contentType == "" {
+				contentType = "video/mp4"
+			}
+			if contentType != "video/mp4" {
+				return nil, 0, editorCatFailure(400, "unsupported_video_type", "Unsupported video type")
+			}
+			return api.replaceVideoVariantBytes(r, actor, project, sourcePath, targetLocale, sourceFileID, content, contentType, filename, force)
+		case editorCatKindOffice, editorCatKindDocument:
+			if contentType == "" {
+				contentType = editorCatSourceContentType(filename, sourcePath)
+			}
+			return api.replaceImageVariantBytes(r, actor, project, sourcePath, targetLocale, sourceFileID, content, contentType, filename, force)
+		default:
 			return nil, 0, editorCatFailure(400, "unsupported_image_response", "File upload failed")
 		}
-		return api.replaceImageVariantBytes(r, actor, project, sourcePath, targetLocale, sourceFileID, content, contentType, filename, force)
+	}
+	if contentType == "" || !strings.HasPrefix(contentType, "image/") {
+		contentType = editorCatImageContentType(filename, sourcePath)
+	}
+	if !strings.HasPrefix(contentType, "image/") {
+		return nil, 0, editorCatFailure(415, "unsupported_image_response", "Edits must be images")
 	}
 	if externalID == "" {
 		return nil, 0, editorCatFailure(400, "external_string_id_required", "externalStringId is required for URL-backed image upload")
@@ -361,6 +383,53 @@ func editorCatImageContentType(filename, sourcePath string) string {
 	default:
 		return "image/png"
 	}
+}
+
+func editorCatSourceContentType(filename, sourcePath string) string {
+	name := filename
+	if name == "" {
+		name = sourcePath
+	}
+	if byType := mime.TypeByExtension(strings.ToLower(path.Ext(name))); byType != "" {
+		return byType
+	}
+	return "application/octet-stream"
+}
+
+func (api *editorCatAPI) replaceVideoVariantBytes(
+	r *http.Request,
+	actor editorCatActor,
+	project editorCatProject,
+	sourcePath, targetLocale, sourceFileID string,
+	content []byte,
+	contentType, filename string,
+	force bool,
+) (any, int, error) {
+	if api.objects == nil {
+		return nil, 0, editorCatFailure(503, "object_storage_unavailable", "Object storage is unavailable")
+	}
+	status, _, boundFileID, err := api.editorCatVideoVariantState(r, actor, project, sourcePath, targetLocale)
+	if err != nil {
+		return nil, 0, err
+	}
+	if editorCatVariantBoundToOtherSourceFile(boundFileID, sourceFileID) {
+		return nil, 0, editorCatVariantBranchConflict()
+	}
+	if status == "approved" && !force {
+		return nil, 0, editorCatFailure(400, "approved_locked", "Approved variants cannot be changed without force")
+	}
+	if err := api.ensureEditorCatVideoVariant(r, actor, project, sourcePath, targetLocale, sourceFileID); err != nil {
+		return nil, 0, err
+	}
+	storedID, _, err := api.insertEditorCatStoredOutput(r, actor, project, filename, content, contentType, map[string]any{
+		"videoLocalizationManualUpload": true,
+		"sourcePath":                    sourcePath,
+		"targetLocale":                  targetLocale,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	return api.updateEditorCatVideoVariantStored(r, actor, project, sourcePath, targetLocale, sourceFileID, storedID, "needs_review", "manual")
 }
 
 func (api *editorCatAPI) regenerateFileBackedImageVariant(
@@ -771,6 +840,95 @@ func (api *editorCatAPI) editorCatImageVariantState(
 		boundSourceFileID = *bound
 	}
 	return status, storedFileID, boundSourceFileID, nil
+}
+
+func (api *editorCatAPI) updateEditorCatVideoVariantStored(
+	r *http.Request,
+	actor editorCatActor,
+	project editorCatProject,
+	sourcePath, targetLocale, sourceFileID, storedFileID, status, provenance string,
+) (any, int, error) {
+	var id, variantStatus string
+	err := api.pool.QueryRow(r.Context(), `
+        update project_video_variants
+        set stored_file_id=$5, status=$6, provenance=$7, reviewed_at=null, reviewed_by_user_id=null, updated_at=now()
+        where organization_id=$1 and project_id=$2 and source_path=$3 and target_locale=$4
+          and (
+            $8 = ''
+            or repository_source_file_id is null
+            or repository_source_file_id = nullif($8, '')::uuid
+          )
+        returning id, status`,
+		actor.organizationID, project.ID, sourcePath, targetLocale, storedFileID, status, provenance, strings.TrimSpace(sourceFileID),
+	).Scan(&id, &variantStatus)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, 0, editorCatFailure(400, "variant_not_found", "File variant not found")
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	return editorCatVideoVariantResponse(actor, project, id, variantStatus, storedFileID), http.StatusOK, nil
+}
+
+func editorCatVideoVariantResponse(actor editorCatActor, project editorCatProject, id, status, storedFileID string) map[string]any {
+	asset := editorCatAssetPath(actor.organizationSlug, project.ID, storedFileID)
+	return map[string]any{
+		"imageVariant": map[string]any{
+			"id":             id,
+			"status":         status,
+			"targetAssetUrl": asset,
+			"storedFileId":   storedFileID,
+		},
+	}
+}
+
+func (api *editorCatAPI) editorCatVideoVariantState(
+	r *http.Request,
+	actor editorCatActor,
+	project editorCatProject,
+	sourcePath, targetLocale string,
+) (status, storedFileID, boundSourceFileID string, err error) {
+	var statusValue, stored, bound *string
+	err = api.pool.QueryRow(r.Context(), `
+        select status, stored_file_id, repository_source_file_id::text
+        from project_video_variants
+        where organization_id=$1 and project_id=$2 and source_path=$3 and target_locale=$4
+        limit 1`, actor.organizationID, project.ID, sourcePath, targetLocale,
+	).Scan(&statusValue, &stored, &bound)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", "", nil
+	}
+	if err != nil {
+		return "", "", "", err
+	}
+	if statusValue != nil {
+		status = *statusValue
+	}
+	if stored != nil {
+		storedFileID = *stored
+	}
+	if bound != nil {
+		boundSourceFileID = *bound
+	}
+	return status, storedFileID, boundSourceFileID, nil
+}
+
+func (api *editorCatAPI) ensureEditorCatVideoVariant(
+	r *http.Request,
+	actor editorCatActor,
+	project editorCatProject,
+	sourcePath, targetLocale, sourceFileID string,
+) error {
+	_, err := api.pool.Exec(r.Context(), `
+        insert into project_video_variants (
+            organization_id, project_id, repository_source_file_id, source_path, target_locale, status, provenance
+        ) values ($1,$2,$3,$4,$5,'draft','manual')
+        on conflict (project_id, source_path, target_locale) do update
+        set repository_source_file_id=coalesce(project_video_variants.repository_source_file_id, excluded.repository_source_file_id),
+            updated_at=now()`,
+		actor.organizationID, project.ID, sourceFileID, sourcePath, targetLocale,
+	)
+	return err
 }
 
 func (api *editorCatAPI) ensureEditorCatImageVariant(

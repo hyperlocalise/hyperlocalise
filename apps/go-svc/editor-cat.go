@@ -179,6 +179,7 @@ func writeEditorCatError(w http.ResponseWriter, r *http.Request, phase string, e
 
 func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	api.registerProjectAssets(mux, verifier)
+	api.registerOrgEditorFiles(mux, verifier)
 	p := orgRoutePrefix + "/projects/{projectId}"
 	cat := p + "/files/detail/cat"
 	route := func(pattern string, fn func(*http.Request, editorCatActor, editorCatProject) (any, int, error)) {
@@ -566,6 +567,11 @@ func isEditorCatPdf(sourcePath string) bool {
 
 func isEditorCatDocument(sourcePath string) bool {
 	return editorCatSourceKind(sourcePath) == editorCatKindDocument
+}
+
+func isEditorCatHtml(sourcePath string) bool {
+	lower := strings.ToLower(sourcePath)
+	return strings.HasSuffix(lower, ".html") || strings.HasSuffix(lower, ".htm")
 }
 
 func isEditorCatWholeFile(sourcePath string) bool {
