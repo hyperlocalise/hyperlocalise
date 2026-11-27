@@ -644,6 +644,10 @@ func TestEditorCatQueueHTMLKeysAndDocumentView(t *testing.T) {
 	require.Equal(t, "html.p[0]", body.ContentEditorQueue.Segments[0].Key)
 	require.NotNil(t, body.ContentEditorQueue.DocumentView)
 	require.Equal(t, fileID, body.ContentEditorQueue.DocumentView.ExternalStringID)
+	require.NotNil(t, body.ContentEditorQueue.DocumentView.TargetAssetURL)
+	require.Equal(t,
+		"/api/orgs/"+scope.Slug+"/projects/"+scope.ProjectID+"/files/translations/download?sourcePath="+url.QueryEscape("pages/formatting-test.html")+"&locale=fr",
+		*body.ContentEditorQueue.DocumentView.TargetAssetURL)
 }
 
 func TestHasHashedHTMLSegmentKey(t *testing.T) {

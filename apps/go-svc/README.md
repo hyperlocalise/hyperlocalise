@@ -680,7 +680,7 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | POST | `/files/detail/cat/images/regenerate` | AI-regenerate a file-backed image variant or a URL-backed image translation (`image-localise`) |
 | GET, POST, PATCH | `/projects/{projectId}/assets/{fileId}/text-layers` | Read, extract (vision), or save reviewed image text regions |
 | POST | `/projects/{projectId}/assets/{fileId}/frame-text` | Extract on-screen text from a video frame PNG |
-| GET | `/projects/{projectId}/files/translations/download` | Generated Office/PDF file from segment translations (`sourcePath`, `locale`) |
+| GET | `/projects/{projectId}/files/translations/download` | Generated Office, PDF, or HTML file from segment translations (`sourcePath`, `locale`) |
 | POST | `/files/detail/cat/images/upload` | Replace a localized file variant with uploaded bytes: images, video, or whole document/office files (multipart, up to 32 MB) |
 | POST | `/files/detail/cat/images/edit` | Targeted AI image edit on a file-backed variant (`image-edit`, multipart) |
 | POST | `/files/detail/cat/segments/{id}/treat-as-image` | Toggle image-URL content kind |
