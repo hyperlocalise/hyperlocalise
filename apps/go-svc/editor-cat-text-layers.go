@@ -35,9 +35,33 @@ type editorCatImageTextRegion struct {
 	Translations map[string]editorCatImageTextRegionTranslation `json:"translations"`
 }
 
+// editorCatImageTextRegionTranslation is one locale's copy for a source region.
+// Bounds, TargetText, Status and TargetHash describe the box read from the
+// localised (target) image; they are optional so older layers still load.
 type editorCatImageTextRegionTranslation struct {
-	Text         string `json:"text"`
-	Instructions string `json:"instructions"`
+	Text         string                    `json:"text"`
+	Instructions string                    `json:"instructions"`
+	Bounds       *editorCatImageTextBounds `json:"bounds,omitempty"`
+	TargetText   string                    `json:"targetText,omitempty"`
+	Status       string                    `json:"status,omitempty"`
+	TargetHash   string                    `json:"targetHash,omitempty"`
+}
+
+const editorCatTextLayerMaxTargetHash = 128
+
+var editorCatImageTextTargetStatuses = map[string]bool{
+	"detected": true,
+	"queued":   true,
+	"applied":  true,
+	"verified": true,
+	"mismatch": true,
+}
+
+func validEditorCatImageTextBounds(bounds editorCatImageTextBounds) bool {
+	return bounds.Width > 0 && bounds.Height > 0 &&
+		bounds.X >= 0 && bounds.Y >= 0 &&
+		bounds.X+bounds.Width <= 1.001 &&
+		bounds.Y+bounds.Height <= 1.001
 }
 
 type editorCatImageTextLayers struct {
@@ -238,10 +262,7 @@ func validateEditorCatImageTextLayers(layers *editorCatImageTextLayers) error {
 			return editorCatFailure(400, "invalid_text_layers", "Invalid text layers payload")
 		}
 		seen[region.ID] = true
-		if region.Bounds.Width <= 0 || region.Bounds.Height <= 0 ||
-			region.Bounds.X < 0 || region.Bounds.Y < 0 ||
-			region.Bounds.X+region.Bounds.Width > 1.001 ||
-			region.Bounds.Y+region.Bounds.Height > 1.001 {
+		if !validEditorCatImageTextBounds(region.Bounds) {
 			return editorCatFailure(400, "invalid_text_layers", "Invalid text layers payload")
 		}
 		if len(region.Translations) > 100 {
@@ -250,7 +271,15 @@ func validateEditorCatImageTextLayers(layers *editorCatImageTextLayers) error {
 		for locale, translation := range region.Translations {
 			if locale == "" || len(locale) > 64 ||
 				len(translation.Text) > editorCatTextLayerMaxTranslationLen ||
-				len(translation.Instructions) > 2000 {
+				len(translation.Instructions) > 2000 ||
+				len(translation.TargetText) > editorCatTextLayerMaxTranslationLen ||
+				len(translation.TargetHash) > editorCatTextLayerMaxTargetHash {
+				return editorCatFailure(400, "invalid_text_layers", "Invalid text layers payload")
+			}
+			if translation.Status != "" && !editorCatImageTextTargetStatuses[translation.Status] {
+				return editorCatFailure(400, "invalid_text_layers", "Invalid text layers payload")
+			}
+			if translation.Bounds != nil && !validEditorCatImageTextBounds(*translation.Bounds) {
 				return editorCatFailure(400, "invalid_text_layers", "Invalid text layers payload")
 			}
 		}

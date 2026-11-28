@@ -16,6 +16,7 @@ import (
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type memoryImportPayload struct {
@@ -356,18 +357,19 @@ func (api *memoryAPI) promoteMemoryFromProject(r *http.Request, actor memoryActo
 	}
 	promoted := 0
 	for _, row := range eligible {
-		normalized := normalizeMemorySourceText(row.sourceText)
 		externalKey := row.keyID + ":" + row.targetLocale
 		meta, _ := json.Marshal(map[string]any{
 			"projectId": ownedProject, "sourcePath": row.sourcePath, "segmentKey": row.key,
 			"translationId": row.translationID,
 		})
-		tag, execErr := api.pool.Exec(r.Context(), `insert into memory_entries (memory_id, source_locale, target_locale, source_text, normalized_source_text, target_text, provenance, review_status, external_key, metadata) values ($1,$2,$3,$4,$5,$6,'approved_job','approved',$7,$8::jsonb) on conflict (memory_id, source_locale, target_locale, normalized_source_text) do update set target_text=excluded.target_text, provenance=excluded.provenance, review_status=excluded.review_status, external_key=excluded.external_key, metadata=excluded.metadata, version=memory_entries.version+1, updated_at=now()`,
-			m.ID, sourceLocale, row.targetLocale, row.sourceText, normalized, row.targetText, externalKey, meta)
+		written, execErr := upsertApprovedMemoryEntry(r.Context(), api.pool, approvedMemoryEntry{
+			memoryID: m.ID, sourceLocale: sourceLocale, targetLocale: row.targetLocale,
+			sourceText: row.sourceText, targetText: row.targetText, externalKey: externalKey, metadata: meta,
+		})
 		if execErr != nil {
 			return nil, 0, execErr
 		}
-		if tag.RowsAffected() > 0 {
+		if written {
 			promoted++
 		}
 	}
@@ -537,4 +539,30 @@ func (api *memoryAPI) loadMemoryImportAttempt(ctx context.Context, actor memoryA
 		})
 	}
 	return attempt, diagnostics, rows.Err()
+}
+
+type memoryEntryExecer interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+}
+
+// approvedMemoryEntry is one approved source/target pair bound for a native memory.
+type approvedMemoryEntry struct {
+	memoryID, sourceLocale, targetLocale string
+	sourceText, targetText, externalKey  string
+	metadata                             []byte
+}
+
+// upsertApprovedMemoryEntry writes an approved pair into a memory, replacing the
+// target for the same normalized source. Project promotion and image approval share it.
+func upsertApprovedMemoryEntry(ctx context.Context, db memoryEntryExecer, entry approvedMemoryEntry) (bool, error) {
+	metadata := entry.metadata
+	if len(metadata) == 0 {
+		metadata = []byte("{}")
+	}
+	tag, err := db.Exec(ctx, `insert into memory_entries (memory_id, source_locale, target_locale, source_text, normalized_source_text, target_text, provenance, review_status, external_key, metadata) values ($1,$2,$3,$4,$5,$6,'approved_job','approved',$7,$8::jsonb) on conflict (memory_id, source_locale, target_locale, normalized_source_text) do update set target_text=excluded.target_text, provenance=excluded.provenance, review_status=excluded.review_status, external_key=excluded.external_key, metadata=excluded.metadata, version=memory_entries.version+1, updated_at=now()`,
+		entry.memoryID, entry.sourceLocale, entry.targetLocale, entry.sourceText, normalizeMemorySourceText(entry.sourceText), entry.targetText, entry.externalKey, metadata)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
 }

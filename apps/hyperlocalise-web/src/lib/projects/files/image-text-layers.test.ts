@@ -56,6 +56,61 @@ describe("image text layer metadata", () => {
       }).success,
     ).toBe(false);
   });
+  it("keeps target box fields and rejects an unknown target status", () => {
+    const withTarget: ImageTextLayers = {
+      ...layers,
+      regions: [
+        {
+          ...layers.regions[0],
+          translations: {
+            fr: {
+              text: "Un peu plus près",
+              instructions: "",
+              bounds: { x: 0.12, y: 0.21, width: 0.58, height: 0.19 },
+              targetText: "Un peu plus pres",
+              status: "mismatch",
+              targetHash: "hash-target",
+            },
+          },
+        },
+        {
+          id: "badge",
+          text: "",
+          bounds: { x: 0.5, y: 0.5, width: 0.2, height: 0.1 },
+          translations: { fr: { text: "Nouveau", instructions: "", status: "detected" } },
+        },
+      ],
+    };
+    expect(readImageTextLayers({ imageTextLayers: withTarget }, "hash-source")).toEqual(withTarget);
+    expect(
+      imageTextLayersSchema.safeParse({
+        ...withTarget,
+        regions: [
+          {
+            ...withTarget.regions[0],
+            translations: { fr: { text: "x", instructions: "", status: "done" } },
+          },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      imageTextLayersSchema.safeParse({
+        ...withTarget,
+        regions: [
+          {
+            ...withTarget.regions[0],
+            translations: {
+              fr: {
+                text: "x",
+                instructions: "",
+                bounds: { x: 0.9, y: 0, width: 0.4, height: 0.2 },
+              },
+            },
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
   it("adds only the requested locale's exact wording and region instructions", () => {
     const prompt = imageTextLayerPrompt(layers, "fr");
     expect(prompt).toContain("Un peu plus près");
