@@ -39,10 +39,11 @@ describe("sitemap", () => {
 
     for (const locale of SUPPORTED_APP_LOCALES) {
       const blogIndex = entries.find((entry) => entry.url === `${SITE_URL}/${locale}/blog`);
-      expect(blogIndex?.alternates?.languages?.["x-default"]).toBe(`${SITE_URL}/en/blog`);
-      expect(blogIndex?.alternates?.languages?.[appLocaleToHreflangTag(locale)]).toBe(
-        `${SITE_URL}/${locale}/blog`,
-      );
+      const languages = blogIndex?.alternates?.languages as
+        | Record<string, string | undefined>
+        | undefined;
+      expect(languages?.["x-default"]).toBe(`${SITE_URL}/en/blog`);
+      expect(languages?.[appLocaleToHreflangTag(locale)]).toBe(`${SITE_URL}/${locale}/blog`);
     }
   });
 
