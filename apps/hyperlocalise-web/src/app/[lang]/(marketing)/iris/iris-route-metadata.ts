@@ -30,8 +30,8 @@ export function getIrisRouteMetadata(intl: IntlShape) {
     }),
     description: intl.formatMessage({
       defaultMessage:
-        "Iris is Hyperlocalise's AI localisation engine. Create and adapt images, video, motion, and audio for every language. Download Iris for Mac.",
-      id: "UkLJNambdC",
+        "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Adapt images, video, motion, and audio for every language. Download for Mac.",
+      id: "E19aAp9DAp",
       description: "Meta description for the Iris product page",
     }),
     ogHeading: intl.formatMessage({

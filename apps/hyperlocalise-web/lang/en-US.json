@@ -12307,6 +12307,10 @@
     "defaultMessage": "Connect Contentful in <link>Integrations</link> to use this tool.",
     "description": "Description for Contentful translate when Contentful is not connected"
   },
+  "E19aAp9DAp": {
+    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Adapt images, video, motion, and audio for every language. Download for Mac.",
+    "description": "Meta description for the Iris product page"
+  },
   "E1B85N8tbj": {
     "defaultMessage": "Refreshing…",
     "description": "Button label while refreshing live provider job details"
@@ -24698,10 +24702,6 @@
   "UjtfsCANFW": {
     "defaultMessage": "Use at most {max, number} characters.",
     "description": "Validation error when a project template field is too long"
-  },
-  "UkLJNambdC": {
-    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine. Create and adapt images, video, motion, and audio for every language. Download Iris for Mac.",
-    "description": "Meta description for the Iris product page"
   },
   "UkPonG/OHc": {
     "defaultMessage": "Integration limit reached for your current plan. Remove an unused integration or upgrade, then try again.",
