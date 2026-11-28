@@ -153,6 +153,12 @@ export type WorkspaceAutomationFormState = {
   webflowExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   webflowRunQa: boolean;
   webflowPublishOnPush: boolean;
+  storyblokEnabled: boolean;
+  storyblokConnectionId: string;
+  storyblokFolderSlugs: string[];
+  storyblokTargetLocales: string[];
+  storyblokExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  storyblokRunQa: boolean;
   brazeEnabled: boolean;
   brazeCampaignsEnabled: boolean;
   customerIoEnabled: boolean;
@@ -223,6 +229,7 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     form.googleDriveEnabled ||
     form.sanityEnabled ||
     form.webflowEnabled ||
+    form.storyblokEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
     form.customerIoEnabled ||
@@ -278,6 +285,8 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "webflowConnectionId"
     | "webflowCollectionIds"
     | "webflowSourceLocale"
+    | "storyblok"
+    | "storyblokConnectionId"
     | "braze"
     | "brazeSourceLocale"
     | "iterable"
@@ -347,6 +356,8 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   webflow_collection_ids_required: "Choose at least one Webflow collection.",
   webflow_source_locale_mismatch:
     "The Webflow primary locale must match the project source locale.",
+  storyblok_not_connected: "Connect Storyblok in Integrations before using it.",
+  storyblok_connection_required: "Choose a Storyblok connection.",
   braze_not_connected: "Connect Braze in Integrations before using it.",
   braze_pipes_needs_reauthorization: "Reconnect Braze in Integrations, then try again.",
   braze_pipes_unavailable: "Braze isn't available right now. Contact support if this continues.",
@@ -525,6 +536,12 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     webflowExistingTranslationPolicy: "seed_empty",
     webflowRunQa: true,
     webflowPublishOnPush: false,
+    storyblokEnabled: false,
+    storyblokConnectionId: "",
+    storyblokFolderSlugs: [],
+    storyblokTargetLocales: [],
+    storyblokExistingTranslationPolicy: "seed_empty",
+    storyblokRunQa: true,
     brazeEnabled: false,
     brazeCampaignsEnabled: false,
     customerIoEnabled: false,
@@ -606,6 +623,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const googleDrive = automation.toolConfig.googleDrive;
   const sanity = automation.toolConfig.sanity;
   const webflow = automation.toolConfig.webflow;
+  const storyblok = automation.toolConfig.storyblok;
   const braze = automation.toolConfig.braze;
   const brazeCampaigns = automation.toolConfig.brazeCampaigns;
   const customerIo = automation.toolConfig.customerIo;
@@ -738,6 +756,16 @@ export function createWorkspaceAutomationFormStateFromRecord(
         : "seed_empty",
     webflowRunQa: webflow?.runQa ?? true,
     webflowPublishOnPush: webflow?.publishOnPush ?? false,
+    storyblokEnabled: Boolean(storyblok?.enabled),
+    storyblokConnectionId: storyblok?.connectionId ?? "",
+    storyblokFolderSlugs: storyblok?.folderSlugs ? [...storyblok.folderSlugs] : [],
+    storyblokTargetLocales: storyblok?.targetLocales ? [...storyblok.targetLocales] : [],
+    storyblokExistingTranslationPolicy:
+      storyblok?.existingTranslationPolicy === "refresh_imported" ||
+      storyblok?.existingTranslationPolicy === "overwrite_all"
+        ? storyblok.existingTranslationPolicy
+        : "seed_empty",
+    storyblokRunQa: storyblok?.runQa ?? true,
     brazeEnabled: Boolean(braze?.enabled),
     brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
     customerIoEnabled: Boolean(customerIo?.enabled),
@@ -1224,6 +1252,18 @@ export function formStateToWorkspaceAutomationPayload(
           },
         }
       : {}),
+    ...(form.storyblokEnabled
+      ? {
+          storyblok: {
+            enabled: true,
+            connectionId: form.storyblokConnectionId || undefined,
+            folderSlugs: form.storyblokFolderSlugs,
+            targetLocales: form.storyblokTargetLocales,
+            existingTranslationPolicy: form.storyblokExistingTranslationPolicy,
+            runQa: form.storyblokRunQa,
+          },
+        }
+      : {}),
     ...(form.createNativeTmsJobEnabled
       ? {
           createNativeTmsJob: {
@@ -1514,6 +1554,10 @@ export function validateWorkspaceAutomationFormState(
     }
   }
 
+  if (form.storyblokEnabled && !form.storyblokConnectionId) {
+    errors.storyblokConnectionId = "Choose a Storyblok connection.";
+  }
+
   if (form.contentfulEnabled) {
     if (!form.contentfulConnectionId) {
       errors.contentfulConnectionId = "Choose a Contentful connection.";
@@ -1697,6 +1741,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
       return { webflowCollectionIds: message };
     case "webflow_source_locale_mismatch":
       return { webflowSourceLocale: message };
+    case "storyblok_not_connected":
+      return { storyblok: message };
+    case "storyblok_connection_required":
+      return { storyblokConnectionId: message };
     case "braze_not_connected":
     case "braze_pipes_needs_reauthorization":
     case "braze_pipes_unavailable":
@@ -1792,6 +1840,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.googleDriveEnabled ||
     form.sanityEnabled ||
     form.webflowEnabled ||
+    form.storyblokEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
     form.customerIoEnabled ||

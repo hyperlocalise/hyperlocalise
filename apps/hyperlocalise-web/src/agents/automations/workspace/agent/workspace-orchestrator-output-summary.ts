@@ -579,6 +579,62 @@ export function readPushWebflowTranslations(
   return null;
 }
 
+export function readImportStoryblokStories(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.import_storyblok_stories;
+  if (fromCurrentStep && typeof fromCurrentStep.imported === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.importStoryblokStories;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.imported === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "import_storyblok_stories",
+  );
+  if (fromPriorStep && typeof fromPriorStep.imported === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readPushStoryblokTranslations(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.push_storyblok_translations;
+  if (fromCurrentStep && typeof fromCurrentStep.pushedLocales === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.pushStoryblokTranslations;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.pushedLocales === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "push_storyblok_translations",
+  );
+  if (fromPriorStep && typeof fromPriorStep.pushedLocales === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
 export function readPushSanityTranslations(
   outputSummary: Record<string, unknown>,
   stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
@@ -769,6 +825,8 @@ export function buildWorkspaceOrchestratorOutputSummary(
   const pushSanityTranslations = readPushSanityTranslations(base, stepResults);
   const importWebflowItems = readImportWebflowItems(base, stepResults);
   const pushWebflowTranslations = readPushWebflowTranslations(base, stepResults);
+  const importStoryblokStories = readImportStoryblokStories(base, stepResults);
+  const pushStoryblokTranslations = readPushStoryblokTranslations(base, stepResults);
   const importBrazeTemplates = readImportBrazeTemplates(base, stepResults);
   const pushBrazeTemplates = readPushBrazeTemplates(base, stepResults);
   const importBrazeCampaigns = readImportBrazeCampaigns(base, stepResults);
@@ -792,6 +850,8 @@ export function buildWorkspaceOrchestratorOutputSummary(
     ...(pushSanityTranslations ? { pushSanityTranslations } : {}),
     ...(importWebflowItems ? { importWebflowItems } : {}),
     ...(pushWebflowTranslations ? { pushWebflowTranslations } : {}),
+    ...(importStoryblokStories ? { importStoryblokStories } : {}),
+    ...(pushStoryblokTranslations ? { pushStoryblokTranslations } : {}),
     ...(importBrazeTemplates ? { importBrazeTemplates } : {}),
     ...(pushBrazeTemplates ? { pushBrazeTemplates } : {}),
     ...(importBrazeCampaigns ? { importBrazeCampaigns } : {}),

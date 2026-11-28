@@ -609,6 +609,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "zC+2fxCHmG",
     description: "Name of the Webflow integration in the hint on a skill that needs it connected",
   },
+  skillIntegrationStoryblok: {
+    defaultMessage: "Storyblok",
+    id: "xrLyh3cy4/",
+    description: "Name of the Storyblok integration in the hint on a skill that needs it connected",
+  },
   skillIntegrationGoogleDrive: {
     defaultMessage: "Google Drive",
     id: "mCZ6rjBj9L",

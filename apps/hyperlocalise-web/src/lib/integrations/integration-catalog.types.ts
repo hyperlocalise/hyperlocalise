@@ -44,6 +44,7 @@ export type IntegrationIconKey =
   | "similarweb"
   | "googlesearchconsole"
   | "webflow"
+  | "storyblok"
   | "sanity";
 
 export type IntegrationCapabilityDescriptor = {

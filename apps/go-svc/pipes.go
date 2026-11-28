@@ -40,6 +40,7 @@ var pipesProviderSlugs = []string{
 	"sanity",
 	"sendgrid",
 	"similarweb",
+	"storyblok",
 	"webflow",
 }
 

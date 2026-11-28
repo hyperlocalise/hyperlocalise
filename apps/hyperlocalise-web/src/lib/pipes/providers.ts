@@ -33,6 +33,7 @@ export const PIPES_PROVIDER_SLUGS = [
   "sanity",
   "sendgrid",
   "similarweb",
+  "storyblok",
   "webflow",
 ] as const;
 
@@ -53,6 +54,7 @@ export const PIPES_PROVIDER_CATEGORIES = {
   sendgrid: "customer-engagement",
   resend: "customer-engagement",
   webflow: "cms",
+  storyblok: "cms",
   sanity: "cms",
   "google-drive": "guidelines",
   notion: "guidelines",

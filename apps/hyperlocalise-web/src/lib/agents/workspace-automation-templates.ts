@@ -160,6 +160,34 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-storyblok-stories",
+    category: "popular",
+    name: "Translate Storyblok stories",
+    description:
+      "Import Storyblok stories into a native project on a schedule, localise in Jobs, then push approved translations when you are ready.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Storyblok localisation connector",
+      capabilities: [
+        "Import changed stories' translatable fields as JSON source files in the attached project",
+        "Open native translation jobs for target locales that match the space's languages",
+        "Never push translations automatically on import — operators enqueue push separately",
+      ],
+      goal: "Keep Storyblok stories in sync for localisation and write approved translations back as field-level translations.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-storyblok-stories"],
+      name: "Translate Storyblok stories",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      storyblokEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-sanity-documents",
     category: "popular",
     name: "Translate Sanity documents",
@@ -1297,6 +1325,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.webflowEnabled) {
     tools.push({ id: "webflow", label: "Webflow" });
+  }
+
+  if (form.storyblokEnabled) {
+    tools.push({ id: "storyblok", label: "Storyblok" });
   }
 
   if (form.googleDriveEnabled) {

@@ -727,6 +727,10 @@
     "defaultMessage": "Agent Activity",
     "description": "Heading for the agent run history list"
   },
+  "+vOb5y92d4": {
+    "defaultMessage": "This space has no translation languages yet. Add them in Storyblok under Settings → Internationalization.",
+    "description": "Warning when the Storyblok space has no translation languages"
+  },
   "+wkfFZiCrl": {
     "defaultMessage": "Support",
     "description": "Footer support link label in marketing app shell mock"
@@ -4187,6 +4191,10 @@
     "defaultMessage": "Ahrefs",
     "description": "Tool badge when an automation uses Ahrefs"
   },
+  "3UiqM/Asqu": {
+    "defaultMessage": "Automation",
+    "description": "Label for choosing which Storyblok automation to push with"
+  },
   "3UkcudWLuJ": {
     "defaultMessage": "No translation",
     "description": "Shown in place of the text of a version that has no translation"
@@ -4210,6 +4218,10 @@
   "3VvPI125F/": {
     "defaultMessage": "Entry updated",
     "description": "Toast after a translation memory entry is updated from the detail sheet"
+  },
+  "3VvnGM3Q62": {
+    "defaultMessage": "Storyblok connection removed.",
+    "description": "Toast after a Storyblok connection is removed"
   },
   "3W7isWjvZh": {
     "defaultMessage": "Filters",
@@ -5775,6 +5787,10 @@
     "defaultMessage": "Import",
     "description": "Menu item that opens translation memory import"
   },
+  "5XPryAfAvG": {
+    "defaultMessage": "The region your Storyblok space was created in.",
+    "description": "Help text for the Storyblok space region select"
+  },
   "5XYzcl7mI9": {
     "defaultMessage": "Edit",
     "description": "Edit a guideline document"
@@ -7175,6 +7191,10 @@
     "defaultMessage": "Reads the guidelines you already have",
     "description": "localisation-quality-monitoring use case page: integrations › title"
   },
+  "7NaqKqiaSL": {
+    "defaultMessage": "United States",
+    "description": "Storyblok region option for the United States"
+  },
   "7OEl2Ch1Rv": {
     "defaultMessage": "Updates, product thinking, and lessons from building agent-native localisation workflows.",
     "description": "Meta description for the marketing blog index page"
@@ -8083,6 +8103,10 @@
     "defaultMessage": "No file",
     "description": "Option to clear the issue source path"
   },
+  "8bHw8mNhtI": {
+    "defaultMessage": "Disconnect",
+    "description": "Button that removes the Storyblok connection"
+  },
   "8bfW3Jqg2b": {
     "defaultMessage": "Draft",
     "description": "Status badge for a draft glossary term"
@@ -8298,6 +8322,10 @@
   "8rEgGjdW4Y": {
     "defaultMessage": "Detect the change",
     "description": "help-center-localisation use case page: guide › steps › #1 › title"
+  },
+  "8rGGckkgct": {
+    "defaultMessage": "This space's plan doesn't include translation export and import, so it can't be connected.",
+    "description": "Warning when the Storyblok space plan lacks translation export"
   },
   "8rJlIWqu54": {
     "defaultMessage": "Edit link",
@@ -8658,6 +8686,10 @@
   "9LhH/qmimS": {
     "defaultMessage": "{card} · prices of {date}",
     "description": "Rate card cell: the card's name, then the day its prices were taken"
+  },
+  "9LtFG+rOJD": {
+    "defaultMessage": "Choose which imported stories to update. Approved translations are written as field-level translations. Stories are not published.",
+    "description": "Description of the Storyblok story picker dialog"
   },
   "9M6xjAhsYc": {
     "defaultMessage": "Look through every model, or clear the search.",
@@ -11091,6 +11123,10 @@
     "defaultMessage": "Two flags still open on this draft",
     "description": "Status row value in the attached guidelines mock"
   },
+  "CXhmOtzwtQ": {
+    "defaultMessage": "Could not load Storyblok connections.",
+    "description": "Error when the Storyblok connections list fails to load"
+  },
   "CXxeX4tNjR": {
     "defaultMessage": "Push source",
     "description": "Toggle label for the push source GitHub sync workflow"
@@ -12407,6 +12443,10 @@
     "defaultMessage": "Add webhook endpoint",
     "description": "Title of the dialog that adds a webhook endpoint"
   },
+  "EKQP/VhEKR": {
+    "defaultMessage": "China",
+    "description": "Storyblok region option for China"
+  },
   "EKVrW1yga/": {
     "defaultMessage": "Run market experiments and show different features by country. Hyperlab tells you what works, then you take that version everywhere.",
     "description": "Meta description for the Hyperlab product page"
@@ -13531,6 +13571,10 @@
     "defaultMessage": "Because every language is another opportunity to connect people.",
     "description": "Twelfth paragraph of the founders note on the company page"
   },
+  "FiX+C2m3fm": {
+    "defaultMessage": "Select a space",
+    "description": "Placeholder for the Storyblok space select"
+  },
   "FjC75ZSZ0M": {
     "defaultMessage": "Crowdin pre-translate",
     "description": "Catalog title for the Crowdin pre-translate node"
@@ -13566,6 +13610,10 @@
   "FlXBmFercA": {
     "defaultMessage": "Remove GitHub sync workflows",
     "description": "Accessible label to remove GitHub sync workflows"
+  },
+  "FlnUu+fgEO": {
+    "defaultMessage": "Could not queue Storyblok push",
+    "description": "Toast when queuing a Storyblok push automation run fails"
   },
   "FlwYDfCvTq": {
     "defaultMessage": "{count} passed",
@@ -14763,6 +14811,10 @@
     "defaultMessage": "{provider} glossaries and term bases appear here after sync. Connect or resync from Integrations if you expected to see one.",
     "description": "Empty state description when a TMS provider is connected but no glossaries exist"
   },
+  "HTnAdmO5ZW": {
+    "defaultMessage": "Create one in Storyblok under My account → Personal access tokens. It needs access to the space you want to translate. The space's plan must include translation export and import.",
+    "description": "Help text for the Storyblok personal access token field"
+  },
   "HU7m4FhTH/": {
     "defaultMessage": "Cost estimate",
     "description": "Reports tab: what chosen tasks will cost"
@@ -14922,6 +14974,10 @@
   "HiDbEs7qe/": {
     "defaultMessage": "Cancel",
     "description": "QA review: cancel"
+  },
+  "HiZ3zFIgSF": {
+    "defaultMessage": "Storyblok push queued",
+    "description": "Toast after a Storyblok push automation run is queued"
   },
   "HjDd1APjzG": {
     "defaultMessage": "Browse all docs",
@@ -15086,6 +15142,10 @@
   "HtmL7NfR7y": {
     "defaultMessage": "Content domain",
     "description": "Project QA settings: label for the content domain control"
+  },
+  "Huf0QjYPX1": {
+    "defaultMessage": "Display name",
+    "description": "Label for the Storyblok connection display name field"
   },
   "Hv8dudDiIO": {
     "defaultMessage": "Chat, translation, and coding",
@@ -16715,6 +16775,10 @@
     "defaultMessage": "Project Created",
     "description": "Activity log event type label for project creation"
   },
+  "KEkaqxy1+/": {
+    "defaultMessage": "Search stories",
+    "description": "Placeholder for filtering imported Storyblok stories"
+  },
   "KFoEqCEp2d": {
     "defaultMessage": "{actor} unassigned",
     "description": "Activity line when an issue assignee is cleared"
@@ -16730,6 +16794,10 @@
   "KGh/pkMCst": {
     "defaultMessage": "Machine translation",
     "description": "Crowdin pre-translate method option"
+  },
+  "KHA0X60qT6": {
+    "defaultMessage": "Your plan's integration limit is reached. Remove another integration or upgrade to connect Storyblok.",
+    "description": "Error when saving a Storyblok connection hits the workspace integration limit"
   },
   "KHhslFYk0s": {
     "defaultMessage": "Preferred · keep in every language",
@@ -18507,6 +18575,10 @@
     "defaultMessage": "Results in 1–3 minutes",
     "description": "Trust fact under the audit form on the localisation audit landing page"
   },
+  "Mg+PtIeObo": {
+    "defaultMessage": "Import stories from these folders only. Leave all unticked to import every story.",
+    "description": "Help text for the Storyblok folder picker"
+  },
   "MgM7OBu7rL": {
     "defaultMessage": "—",
     "description": "Placeholder when an issue list cell has no value"
@@ -19619,6 +19691,10 @@
     "defaultMessage": "Source text",
     "description": "Label for the source text field on a translation memory entry form"
   },
+  "O3i4OwJY2O": {
+    "defaultMessage": "Folders",
+    "description": "Label for the Storyblok folder picker"
+  },
   "O3nJ0XBCbB": {
     "defaultMessage": "File order",
     "description": "CAT queue sort option that keeps file or key order"
@@ -20063,6 +20139,10 @@
     "defaultMessage": "Overview",
     "description": "Tab label for the job overview panel"
   },
+  "OhuQSgXqhd": {
+    "defaultMessage": "Choose a space.",
+    "description": "Error when saving a Storyblok connection without a space"
+  },
   "OiFub+Q+VA": {
     "defaultMessage": "Duplicate",
     "description": "Document editor: block menu action"
@@ -20222,6 +20302,10 @@
   "OwqU6nfgnC": {
     "defaultMessage": "QA checks",
     "description": "Tab in the CAT details panel listing format and QA checks"
+  },
+  "Ox+z02eprO": {
+    "defaultMessage": "Save connection",
+    "description": "Button that saves the Storyblok connection"
   },
   "OxbEfuCKvL": {
     "defaultMessage": "Failed to load project settings.",
@@ -25331,6 +25415,10 @@
     "defaultMessage": "SharePoint · 9 rules",
     "description": "localisation-quality-monitoring use case page: guide › steps › #1 › visual › items › #3 › meta"
   },
+  "Vm/01gnOo4": {
+    "defaultMessage": "Push to Storyblok",
+    "description": "Title of the Content editor dialog for choosing Storyblok stories to push"
+  },
   "Vm0vUMTtIL": {
     "defaultMessage": "Canvas shortcuts",
     "description": "Accessible name for hold-to-reveal canvas shortcut hints"
@@ -25510,6 +25598,10 @@
   "W+B8lwWr04": {
     "defaultMessage": "Clear filters",
     "description": "Button that clears all active jobs list filters"
+  },
+  "W+QeODx8EP": {
+    "defaultMessage": "Canada",
+    "description": "Storyblok region option for Canada"
   },
   "W/3qaSxy0d": {
     "defaultMessage": "No Help Centers were found on this workspace.",
@@ -25822,6 +25914,10 @@
   "WS2bWPiAho": {
     "defaultMessage": "All locales",
     "description": "Option in the issue list locale filter that shows every locale"
+  },
+  "WSDHK7T+R3": {
+    "defaultMessage": "No imported stories",
+    "description": "Empty state when a Storyblok automation has no imported stories"
   },
   "WSFk5OnR7q": {
     "defaultMessage": "Audit your site",
@@ -29143,6 +29239,10 @@
     "defaultMessage": "Could not load Sanity connection status.",
     "description": "Integration row description when status query fails"
   },
+  "b+VZtbWKyH": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel the Storyblok story picker"
+  },
   "b+el1VIvgt": {
     "defaultMessage": "Run {count, plural, one {# file} other {# files}}",
     "description": "Button to run the automation for selected source files"
@@ -29738,6 +29838,10 @@
   "bgBgMVkDdH": {
     "defaultMessage": "Other target locale",
     "description": "Placeholder for adding a custom target locale"
+  },
+  "bgbvTDFx0f": {
+    "defaultMessage": "Personal access token",
+    "description": "Label for the Storyblok personal access token field"
   },
   "bh+4Gvynlp": {
     "defaultMessage": "Send",
@@ -31723,6 +31827,10 @@
     "defaultMessage": "No. Translation and review happen in the workspace with the models, vendors, and reviewers you choose. The CLI and API move files in and out.",
     "description": "localisation-cli-and-api use case FAQ answer 6"
   },
+  "eDxCB+Kz/L": {
+    "defaultMessage": "Could not save the Storyblok connection.",
+    "description": "Error when saving a Storyblok connection fails"
+  },
   "eE0tsyfxal": {
     "defaultMessage": "Translation memories",
     "description": "Label for the translation memories a project template attaches"
@@ -32890,6 +32998,10 @@
   "fjjjlNCOer": {
     "defaultMessage": "Write, or type / for blocks…",
     "description": "Placeholder shown in an empty markdown description editor"
+  },
+  "fkalHdpgw/": {
+    "defaultMessage": "Select all",
+    "description": "Select every imported Storyblok story in the push dialog"
   },
   "fkrYmhHuuT": {
     "defaultMessage": "Unable to load the repositories. Reload the page to try again.",
@@ -34767,6 +34879,10 @@
     "defaultMessage": "Complete or intentionally cancel this workflow.",
     "description": "Catalog description for the terminal workflow stop node"
   },
+  "iBzYrQs7X5": {
+    "defaultMessage": "Europe",
+    "description": "Storyblok region option for Europe"
+  },
   "iCZtn2vyra": {
     "defaultMessage": "Pages that mention KI or AI must include the EU AI Act disclosure from this policy.",
     "description": "PDF clause body for AI disclosures"
@@ -35238,6 +35354,14 @@
   "inRpXeF/YP": {
     "defaultMessage": "Add term",
     "description": "Button to add a new glossary term"
+  },
+  "intStoryblokName": {
+    "defaultMessage": "Storyblok",
+    "description": "Storyblok integration name on the integrations page"
+  },
+  "intStoryblokTagline": {
+    "defaultMessage": "Localize Storyblok stories with field-level translations.",
+    "description": "Storyblok integration description on the integrations page"
   },
   "inv55FPnya": {
     "defaultMessage": "Delete team...",
@@ -35814,6 +35938,10 @@
   "jal4p9crNk": {
     "defaultMessage": "Open in Scira",
     "description": "Menu item to open the prompt in Scira"
+  },
+  "jauIrloLXZ": {
+    "defaultMessage": "Search stories",
+    "description": "Accessible label for the Storyblok story search field"
   },
   "jbZZYRafrx": {
     "defaultMessage": "Cancel",
@@ -36799,6 +36927,10 @@
     "defaultMessage": "Unable to load automation settings.",
     "description": "Error message when automation settings query fails"
   },
+  "kvvnfTxT7q": {
+    "defaultMessage": "Loading stories",
+    "description": "Shown while imported Storyblok stories load"
+  },
   "kw52i77eD3": {
     "defaultMessage": "All locales",
     "description": "Option to show proposals for all locales"
@@ -36982,6 +37114,10 @@
   "l8JOw0VDJ/": {
     "defaultMessage": "Access until {date}",
     "description": "Renewal copy when the active plan is scheduled to cancel"
+  },
+  "l8KAREfmsp": {
+    "defaultMessage": "Leave blank to keep the current token",
+    "description": "Placeholder for the Storyblok token field when a token is already saved"
   },
   "l8ozXVAWsC": {
     "defaultMessage": "Could not save the approval decision.",
@@ -38423,6 +38559,10 @@
     "defaultMessage": "People on screen should sound like themselves in every market.",
     "description": "Situation for the Iris dubbing model on the pricing page"
   },
+  "n+MZmNWhL2": {
+    "defaultMessage": "No matching stories",
+    "description": "Empty state when story search matches nothing"
+  },
   "n+YVQESgnK": {
     "defaultMessage": "Update the team name or slug used across the workspace.",
     "description": "Description of the edit team dialog on the teams list page"
@@ -39307,6 +39447,10 @@
     "defaultMessage": "Close the assistant",
     "description": "Label of the button that closes the assistant panel"
   },
+  "oGwbbTEW21": {
+    "defaultMessage": "Space",
+    "description": "Label for the Storyblok space select"
+  },
   "oH98RKdc2i": {
     "defaultMessage": "Export selected CSV",
     "description": "Keyword research screen: exportSelected"
@@ -39838,6 +39982,10 @@
   "owWio6fQLv": {
     "defaultMessage": "Review imports and changes across this glossary.",
     "description": "Glossary history page description"
+  },
+  "owvs5sOUYa": {
+    "defaultMessage": "Space region",
+    "description": "Label for the Storyblok space region select"
   },
   "oxzB/oMCuE": {
     "defaultMessage": "Choose a project",
@@ -42679,6 +42827,10 @@
     "defaultMessage": "2,000 agent runs per month",
     "description": "Growth plan feature: agent run quota"
   },
+  "saan9//3+L": {
+    "defaultMessage": "Last push failed",
+    "description": "Hint that the previous Storyblok push for this story failed"
+  },
   "sbFxGzM9M2": {
     "defaultMessage": "Clicks",
     "description": "Search Console clicks metric label"
@@ -43055,6 +43207,10 @@
     "defaultMessage": "These checks failed. If a check is wrong, you can save anyway. The issues stay in the QA panel.",
     "description": "Body of the dialog that lets a translator save despite failing QA error checks"
   },
+  "t56OK53cmU": {
+    "defaultMessage": "Clear",
+    "description": "Clear the Storyblok story selection"
+  },
   "t5xBIlTLwl": {
     "defaultMessage": "disconnecting steps",
     "description": "What an undo step did, after 'Undo' or 'Redo': an edge was removed"
@@ -43375,6 +43531,10 @@
     "defaultMessage": "What you get",
     "description": "Heading for the integration capabilities section"
   },
+  "tY/EOkL8C4": {
+    "defaultMessage": "Could not remove the Storyblok connection.",
+    "description": "Error when removing a Storyblok connection fails"
+  },
   "tYBVGxIBlg": {
     "defaultMessage": "Syntax",
     "description": "Label for the placeholder syntax select"
@@ -43530,6 +43690,10 @@
   "toROT17dSP": {
     "defaultMessage": "Could not update this finding. Please retry.",
     "description": "QA review: reviewError"
+  },
+  "toTUd2mhoh": {
+    "defaultMessage": "Storyblok connection saved.",
+    "description": "Toast after a Storyblok connection is saved"
   },
   "toaWaws2L2": {
     "defaultMessage": "Show token",
@@ -43778,6 +43942,10 @@
   "u8fmrg2kzX": {
     "defaultMessage": "Connects to the stack you already run",
     "description": "localisation-operations use case page: integrations › title"
+  },
+  "u9NLbk5cd6": {
+    "defaultMessage": "Could not load Storyblok spaces for this token.",
+    "description": "Fallback error when loading Storyblok spaces for a token fails"
   },
   "u9Qg5J09WM": {
     "defaultMessage": "No fields from earlier steps.",
@@ -44246,6 +44414,10 @@
   "umK6yIapNV": {
     "defaultMessage": "Value",
     "description": "Value placeholder for key-value editor"
+  },
+  "umXkHgL0Fa": {
+    "defaultMessage": "Load spaces",
+    "description": "Button that checks the Storyblok token and loads its spaces"
   },
   "umhjXIiCiC": {
     "defaultMessage": "View projects",
@@ -45263,6 +45435,10 @@
     "defaultMessage": "Claude Code",
     "description": "localisation-for-ai-coding-agents use case page: hero › visual › primary › title"
   },
+  "w5tiCWLnlv": {
+    "defaultMessage": "Australia",
+    "description": "Storyblok region option for Australia"
+  },
   "w69BfzSUw0": {
     "defaultMessage": "Imported {count, plural, one {# term} other {# terms}}",
     "description": "Toast after glossary terms are imported from a file"
@@ -45686,6 +45862,10 @@
   "wgHYL67Rfn": {
     "defaultMessage": "Work by person",
     "description": "Accessible label for the contributors table"
+  },
+  "wgncY8vQLm": {
+    "defaultMessage": "Push to Storyblok",
+    "description": "Button that opens the dialog to write approved translations to Storyblok"
   },
   "wgpJwxQgNi": {
     "defaultMessage": "Loading plan usage",
@@ -46571,6 +46751,10 @@
     "defaultMessage": "Errors",
     "description": "Workspace QA projects list column for error count"
   },
+  "xisOV3z/p5": {
+    "defaultMessage": "Paste a Storyblok personal access token.",
+    "description": "Error when saving a new Storyblok connection without a token"
+  },
   "xixmTqHWvz": {
     "defaultMessage": "Open",
     "description": "Button to open a linked issue detail page"
@@ -46682,6 +46866,10 @@
   "xqyGtroaKn": {
     "defaultMessage": "Select {key}, {locale}, {check}",
     "description": "QA review: select"
+  },
+  "xrLyh3cy4/": {
+    "defaultMessage": "Storyblok",
+    "description": "Name of the Storyblok integration in the hint on a skill that needs it connected"
   },
   "xrjRwFNsAt": {
     "defaultMessage": "From context switching to asking your agent",
@@ -46994,6 +47182,10 @@
   "yC1DFxWE4z": {
     "defaultMessage": "Reviewer or team ID",
     "description": "Human Approval reviewer identifier field"
+  },
+  "yCWzSAZpGe": {
+    "defaultMessage": "Could not load stories",
+    "description": "Error when imported Storyblok stories fail to load"
   },
   "yD2L9eM3l9": {
     "defaultMessage": "Select all loaded issues",

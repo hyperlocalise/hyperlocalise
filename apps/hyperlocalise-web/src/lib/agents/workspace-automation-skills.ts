@@ -28,6 +28,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "push_sanity_translations",
   "import_webflow_items",
   "push_webflow_translations",
+  "import_storyblok_stories",
+  "push_storyblok_translations",
   "import_google_drive_files",
   "push_google_drive_translations",
   "import_braze_templates",
@@ -238,6 +240,22 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     keywords: {
       strong: ["webflow", "cms"],
       weak: ["collection", "items", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-storyblok-stories",
+    name: "Translate Storyblok stories",
+    category: "translate",
+    description:
+      "Import Storyblok stories into a project, open native translation jobs, and push approved translations on demand.",
+    grants:
+      "Reads Storyblok stories through translation export, writes JSON source files and native jobs. Push writes field-level translations when you run Push to Storyblok.",
+    tools: ["import_storyblok_stories", "push_storyblok_translations"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["storyblok"],
+      weak: ["stories", "story", "cms", "import", "translate"],
     },
   },
   {
@@ -500,6 +518,7 @@ export const MAX_WORKSPACE_AUTOMATION_SKILLS = WORKSPACE_AUTOMATION_SKILLS.lengt
 /** Document/CMS translation skills that each take over the orchestrator plan. */
 export const CMS_TRANSLATION_SKILL_IDS = [
   "translate-webflow-items",
+  "translate-storyblok-stories",
   "translate-sanity-documents",
   "translate-google-drive-files",
   "translate-intercom-articles",
@@ -553,6 +572,7 @@ export type WorkspaceAutomationSkillIntegration =
   | "google_drive"
   | "sanity"
   | "webflow"
+  | "storyblok"
   | "braze"
   | "customer_io"
   | "iterable"
@@ -576,6 +596,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   push_sanity_translations: "sanity",
   import_webflow_items: "webflow",
   push_webflow_translations: "webflow",
+  import_storyblok_stories: "storyblok",
+  push_storyblok_translations: "storyblok",
   import_google_drive_files: "google_drive",
   push_google_drive_translations: "google_drive",
   import_braze_templates: "braze",
@@ -704,6 +726,9 @@ export function workspaceAutomationSkillToolEnabled(
     case "import_webflow_items":
     case "push_webflow_translations":
       return Boolean(toolConfig.webflow?.enabled);
+    case "import_storyblok_stories":
+    case "push_storyblok_translations":
+      return Boolean(toolConfig.storyblok?.enabled);
     case "import_google_drive_files":
     case "push_google_drive_translations":
       return Boolean(toolConfig.googleDrive?.enabled);

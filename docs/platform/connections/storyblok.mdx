@@ -1,0 +1,78 @@
+---
+title: "Localize Storyblok stories (automation)"
+description: "Use automations to import Storyblok stories into a native project, translate them in Jobs, and push approved translations back to Storyblok."
+---
+
+Use a saved automation to import Storyblok stories into a native project, translate them in [Jobs](/platform/translation/jobs), then write approved translations back to the stories. Import never changes your stories. **Push to Storyblok** is a separate action, and it never publishes.
+
+## Before you start
+
+- The Storyblok space's plan must include translation export and import. Hyperlocalise reads and writes stories the same way Storyblok's **Export Translatable Fields** and **Import Translatable Fields** apps do. When the plan doesn't include it, Hyperlocalise won't save the connection.
+- The space uses field-level translation. Add the languages you want under **Settings → Internationalization** in Storyblok.
+- Each field you want translated is marked **Translatable** in its block's schema. Other fields are not imported.
+
+## Connect Storyblok
+
+1. In Storyblok, open **My account → Personal access tokens** and create a token. Give it access to the space you want to translate.
+2. In Hyperlocalise, open workspace **Integrations** and find **Storyblok**.
+3. Choose the **Space region** your space was created in (Europe, United States, Canada, Australia or China).
+4. Paste the token and select **Load spaces**.
+5. Choose the **Space**. Hyperlocalise shows the space's languages.
+6. Optional: tick the **Folders** to import from. Leave all unticked to import every story.
+7. Select **Save connection**.
+
+If Hyperlocalise can't reach the space, check that the region matches the space and that the token can access it. See [Connection troubleshooting](/platform/help/connections).
+
+## Prepare the native project
+
+Create or choose a [native project](/platform/projects/create-project), then set **source** and **target** locales under [project Settings → Locales](/platform/projects/languages).
+
+- The space's default language is the source. Use the same language as the project's source locale.
+- Each target locale maps to a Storyblok language. Codes match regardless of case or separator, so project `pt-BR` matches Storyblok `pt-br`. A language-only code such as `de` covers every regional project locale of that language.
+- When several regional Storyblok languages share a language and there is no language-only one (for example `en-us` and `en-gb` for project `en`), the locale is skipped instead of guessed.
+
+## Create the automation
+
+1. Open workspace **Automations** and select **New Automation**.
+2. Apply the **Translate Storyblok stories** template, or add that skill from **Add Skill**.
+3. Attach the native project.
+4. Choose a **scheduled** or **manual** trigger. A schedule imports changed stories. It does not push translations.
+5. Under **Storyblok stories**, set:
+   - **Connection**
+   - **Folders**, to narrow the connection's folders for this automation
+   - **Existing Storyblok translations**
+6. Save the automation.
+
+## Import stories
+
+**Run now** or wait for the schedule. Import writes one JSON file per story under `storyblok/{space ID}/{story path}.json`. Each key stands for one translatable field. Keep the keys as they are, because push uses them to find the field again.
+
+When a language already has translations in Storyblok, import adds them to the project according to **Existing Storyblok translations**:
+
+- **Only empty locales** (default) never overwrites work already in Hyperlocalise.
+- **Refresh imported locales** refreshes locales that an earlier import added.
+- **Overwrite all locales** always takes the Storyblok translations.
+
+## Review and push translations
+
+1. Translate and [approve](/platform/cat) every string for a locale.
+2. Open a Storyblok story file in the Content editor. The header shows **Push to Storyblok** when at least one locale is fully approved and no push is running.
+3. Choose the stories to update and confirm.
+
+Push writes each approved translation onto its field in that story's language. Fields without an approved translation keep their current Storyblok value. Push doesn't publish the story. Review and publish it in Storyblok.
+
+If a story's source text changed in Storyblok after import, push skips that story. Run the import again, translate the changes, then push.
+
+## Change or remove access
+
+Disconnect Storyblok from **Integrations** when this workspace should stop using it. Check automations that use the connection before you disconnect. To replace the token, paste a new one over the existing connection and save.
+
+## If import or push does not run
+
+- Confirm Storyblok is connected and the automation is **Active**.
+- Confirm the space has languages that match the project's target locales.
+- If the connection reports that the plan doesn't include translation export and import, upgrade the space's plan in Storyblok.
+- If **Push to Storyblok** is missing, open a Storyblok story file. The action is hidden on other files.
+- Open **Run History** for the failed story or locale.
+
+See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).

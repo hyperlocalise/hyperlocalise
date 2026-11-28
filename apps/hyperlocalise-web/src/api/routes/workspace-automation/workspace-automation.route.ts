@@ -59,6 +59,7 @@ import {
   hasWorkspaceAutomationMailchimpTool,
   hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationWebflowTool,
+  hasWorkspaceAutomationStoryblokTool,
   type WorkspaceAutomationConfigValidationError,
   type WorkspaceAutomationKind,
   type WorkspaceAutomationRepositoryTarget,
@@ -115,6 +116,11 @@ import {
   isWebflowPushRunActive,
   type WebflowPushItem,
 } from "@/lib/webflow/push-eligibility";
+import {
+  getStoryblokPushEligibility,
+  isStoryblokPushRunActive,
+  type StoryblokPushItem,
+} from "@/lib/storyblok/push-eligibility";
 import {
   createWorkspaceAutomationKnowledgeFile,
   deleteWorkspaceAutomationKnowledgeFile,
@@ -745,6 +751,26 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
+      let storyblokPush: {
+        eligibleLocaleCount: number;
+        mappedStoryCount: number;
+        pushRunInProgress: boolean;
+        items?: StoryblokPushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationStoryblokTool(automation.toolConfig)) {
+        const eligibility = await getStoryblokPushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        storyblokPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedStoryCount: eligibility?.mappedStoryCount ?? 0,
+          pushRunInProgress: isStoryblokPushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
       let googleDrivePush: {
         eligibleLocaleCount: number;
         mappedFileCount: number;
@@ -872,6 +898,7 @@ export function createWorkspaceAutomationRoutes(
           intercomPush,
           sanityPush,
           webflowPush,
+          storyblokPush,
           brazePush,
           googleDrivePush,
           customerIoPush,

@@ -515,7 +515,7 @@ func bytesTrim(raw json.RawMessage) []byte {
 }
 
 // Pipes-backed toolConfig keys whose workosUserId is a credential owner.
-// Matches Hono stampPipesUsersOnToolConfig, plus webflow (same Pipes IDOR).
+// Matches Hono stampPipesUsersOnToolConfig, plus webflow and storyblok (same Pipes IDOR).
 var workspaceAutomationPipesToolKeys = map[string]struct{}{
 	"ahrefs":         {},
 	"gitlab":         {},
@@ -531,6 +531,7 @@ var workspaceAutomationPipesToolKeys = map[string]struct{}{
 	"iterable":       {},
 	"email":          {},
 	"webflow":        {},
+	"storyblok":      {},
 }
 
 func pipesCredentialOwnerWorkosUserID(actorWorkosUserID, authorWorkosUserID string) string {

@@ -206,6 +206,17 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     relatedSlugs: ["contentful", "sanity"],
   },
   {
+    slug: "storyblok",
+    category: "cms",
+    status: "available",
+    type: "partner",
+    marketing: false,
+    workspace: true,
+    iconKey: "storyblok",
+    websiteUrl: "https://www.storyblok.com",
+    relatedSlugs: ["contentful", "sanity", "webflow"],
+  },
+  {
     slug: "sanity",
     category: "cms",
     status: "available",

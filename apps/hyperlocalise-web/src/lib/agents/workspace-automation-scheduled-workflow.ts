@@ -30,6 +30,7 @@ import {
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationWebflowTool,
+  hasWorkspaceAutomationStoryblokTool,
   hasWorkspaceAutomationListIssuesTool,
   hasWorkspaceAutomationWebSearchTool,
   type WorkspaceAutomationToolConfig,
@@ -47,6 +48,7 @@ export function hasWorkspaceAutomationScheduledWorkflow(
     hasWorkspaceAutomationIntercomTool(toolConfig) ||
     hasWorkspaceAutomationSanityTool(toolConfig) ||
     hasWorkspaceAutomationWebflowTool(toolConfig) ||
+    hasWorkspaceAutomationStoryblokTool(toolConfig) ||
     hasWorkspaceAutomationGoogleDriveTool(toolConfig) ||
     hasWorkspaceAutomationBrazeTool(toolConfig) ||
     hasWorkspaceAutomationBrazeCampaignsTool(toolConfig) ||
