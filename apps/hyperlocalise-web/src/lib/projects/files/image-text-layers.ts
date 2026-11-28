@@ -12,28 +12,46 @@
  */
 import { z } from "zod";
 
+export const imageTextBoundsSchema = z
+  .object({
+    x: z.number().min(0).max(1),
+    y: z.number().min(0).max(1),
+    width: z.number().positive().max(1),
+    height: z.number().positive().max(1),
+  })
+  .refine((b) => b.x + b.width <= 1.001 && b.y + b.height <= 1.001, "Region exceeds image bounds");
+
+/**
+ * Where a region stands on one locale's localised image: `detected` was read off the
+ * target as is, `queued` waits for Apply, `applied` waits to be read again, and
+ * `verified` / `mismatch` say whether the re-read matched the wording asked for.
+ */
+export const imageTextTargetStatusSchema = z.enum([
+  "detected",
+  "queued",
+  "applied",
+  "verified",
+  "mismatch",
+]);
+
+export const imageTextRegionTranslationSchema = z.object({
+  text: z.string().max(4000),
+  instructions: z.string().max(2000),
+  /** The box on the localised (target) image, normalized to it. */
+  bounds: imageTextBoundsSchema.optional(),
+  /** What was last read inside `bounds` on the localised image. */
+  targetText: z.string().max(4000).optional(),
+  status: imageTextTargetStatusSchema.optional(),
+  /** Which localised image `bounds` and `targetText` were read from. */
+  targetHash: z.string().max(128).optional(),
+});
+
 export const imageTextRegionSchema = z.object({
   id: z.string().min(1).max(128),
   text: z.string().max(4000),
-  bounds: z
-    .object({
-      x: z.number().min(0).max(1),
-      y: z.number().min(0).max(1),
-      width: z.number().positive().max(1),
-      height: z.number().positive().max(1),
-    })
-    .refine(
-      (b) => b.x + b.width <= 1.001 && b.y + b.height <= 1.001,
-      "Region exceeds image bounds",
-    ),
+  bounds: imageTextBoundsSchema,
   translations: z
-    .record(
-      z.string().min(1).max(64),
-      z.object({
-        text: z.string().max(4000),
-        instructions: z.string().max(2000),
-      }),
-    )
+    .record(z.string().min(1).max(64), imageTextRegionTranslationSchema)
     .refine((value) => Object.keys(value).length <= 100),
 });
 export const imageTextRegionsSchema = z
@@ -50,6 +68,9 @@ export const imageTextLayersSchema = z.object({
   extractedAt: z.string().datetime(),
   regions: imageTextRegionsSchema,
 });
+export type ImageTextBounds = z.infer<typeof imageTextBoundsSchema>;
+export type ImageTextTargetStatus = z.infer<typeof imageTextTargetStatusSchema>;
+export type ImageTextRegionTranslation = z.infer<typeof imageTextRegionTranslationSchema>;
 export type ImageTextRegion = z.infer<typeof imageTextRegionSchema>;
 export type ImageTextLayers = z.infer<typeof imageTextLayersSchema>;
 

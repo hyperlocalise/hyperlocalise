@@ -1066,12 +1066,19 @@ func (api *editorCatAPI) updateImageStatus(r *http.Request, actor editorCatActor
 		url := editorCatAssetPath(actor.organizationSlug, project.ID, *storedFileID)
 		asset = &url
 	}
-	return map[string]any{"imageVariant": map[string]any{
-		"id":             id,
-		"status":         status,
-		"targetAssetUrl": asset,
-		"storedFileId":   storedFileID,
-	}}, 200, nil
+	tmEntriesWritten := 0
+	if status == "approved" && table == "project_image_variants" {
+		tmEntriesWritten = api.editorCatImageApprovalTMWritten(r.Context(), actor, project, sourceFile, sourcePath, targetLocale, id)
+	}
+	return map[string]any{
+		"imageVariant": map[string]any{
+			"id":             id,
+			"status":         status,
+			"targetAssetUrl": asset,
+			"storedFileId":   storedFileID,
+		},
+		"tmEntriesWritten": tmEntriesWritten,
+	}, 200, nil
 }
 
 func (api *editorCatAPI) rejectIfLocked(r *http.Request, actor editorCatActor, project editorCatProject, targetLocale string, ids []string) error {

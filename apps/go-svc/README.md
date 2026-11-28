@@ -676,7 +676,7 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | POST | `/files/detail/cat/strings/hidden` | Hide or unhide keys |
 | POST | `/files/detail/cat/strings/locked` | Lock or unlock segments |
 | POST | `/files/detail/cat/segments/{id}/max-length` | Set key max length |
-| PATCH | `/files/detail/cat/images/status` | Update image/video variant status |
+| PATCH | `/files/detail/cat/images/status` | Update image/video variant status; approving an image writes its text pairs to TM (see below) |
 | POST | `/files/detail/cat/images/regenerate` | AI-regenerate a file-backed image variant or a URL-backed image translation (`image-localise`) |
 | GET, POST, PATCH | `/projects/{projectId}/assets/{fileId}/text-layers` | Read, extract (vision), or save reviewed image text regions |
 | POST | `/projects/{projectId}/assets/{fileId}/frame-text` | Extract on-screen text from a video frame PNG |
@@ -686,6 +686,41 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | POST | `/files/detail/cat/segments/{id}/treat-as-image` | Toggle image-URL content kind |
 | POST | `/files/detail/cat/segments/{id}/treat-as-video` | Toggle video-URL content kind |
 | POST | `/files/string-context` | Cached repository context only (`cachedOnly: true`) |
+
+### Image text layers
+
+`GET`/`POST`/`PATCH /projects/{projectId}/assets/{fileId}/text-layers` read and save `imageTextLayers` on the source image's stored file. Layers load only while `sourceHash` matches the file's current hash, and `PATCH` must send the current `revision` (else `409 text_layers_conflict`). Each region has `id`, source `text` (may be empty), source `bounds`, and `translations` keyed by target locale:
+
+```json
+{
+  "text": "Soldes d'été",
+  "instructions": "Keep it bold",
+  "bounds": { "x": 0.12, "y": 0.21, "width": 0.28, "height": 0.09 },
+  "targetText": "Soldes d'ete",
+  "status": "mismatch",
+  "targetHash": "sha256:…"
+}
+```
+
+`text` and `instructions` are always present. The rest describe the box read from the localised (target) image. They are optional and omitted when empty, and `PATCH` saves them unchanged:
+
+- `bounds` — the box on the target image, normalized 0..1 from the top left. Same rules as source bounds: `x,y ≥ 0`, `width,height > 0`, `x+width` and `y+height ≤ 1.001`.
+- `targetText` — the text last read inside `bounds`, up to 4000 characters.
+- `status` — `detected`, `queued`, `applied`, `verified` or `mismatch`.
+- `targetHash` — which target image `bounds` and `targetText` came from, up to 128 characters.
+
+Anything else is `400 invalid_text_layers`.
+
+**TM on image approval.** When `PATCH /files/detail/cat/images/status` sets an image variant to `approved` for locale `L`, go-svc reads the source image's text layers (only if they match the current source hash). For every region where trimmed `text` and `translations[L].text` are both non-empty, it upserts a pair from the project source locale to `L` into the project's first attached native, non-archived memory. Identical pairs are written once. It uses the same `approved_job` upsert as `promote-from-project`. The response adds the count:
+
+```json
+{
+  "imageVariant": { "id": "…", "status": "approved", "targetAssetUrl": "…", "storedFileId": "…" },
+  "tmEntriesWritten": 2
+}
+```
+
+`tmEntriesWritten` is always present and is `0` for other statuses, for video variants, and when there are no layers, the layers are stale, or the project has no writable memory. A TM write failure is logged and returns `0`. It never fails the approval.
 
 ### Deferred CAT routes (Hono remains canonical)
 
