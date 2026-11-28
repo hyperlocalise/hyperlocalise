@@ -5275,6 +5275,8 @@ function contentSyncProviderMessage(provider: ContentSyncProvider) {
       return messages.providerGithub;
     case "gitlab":
       return messages.providerGitlab;
+    case "bitbucket":
+      return messages.providerBitbucket;
     case "contentful":
       return messages.providerContentful;
     case "intercom":

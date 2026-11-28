@@ -25235,6 +25235,10 @@
     "defaultMessage": "Back",
     "description": "Back link from a Hyperlab detail page"
   },
+  "VOHjKf9pLF": {
+    "defaultMessage": "Bitbucket",
+    "description": "Bitbucket provider label on the content sync action"
+  },
   "VP21W4YIkX": {
     "defaultMessage": "{count, plural, one {# occurrence} other {# occurrences}} with different translations",
     "description": "Tooltip on the occurrence badge of a grouped row whose copies disagree"

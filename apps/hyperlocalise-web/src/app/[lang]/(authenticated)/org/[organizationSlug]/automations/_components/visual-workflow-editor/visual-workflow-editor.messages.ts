@@ -3202,6 +3202,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "V0L6vHYKYa",
     description: "GitLab provider label on the content sync action",
   },
+  providerBitbucket: {
+    defaultMessage: "Bitbucket",
+    id: "VOHjKf9pLF",
+    description: "Bitbucket provider label on the content sync action",
+  },
   providerContentful: {
     defaultMessage: "Contentful",
     id: "bWR03+Qpir",
