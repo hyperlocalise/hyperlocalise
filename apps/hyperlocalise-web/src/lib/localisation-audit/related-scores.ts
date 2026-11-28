@@ -13,7 +13,7 @@
 import { normalizeDomainKey } from "./domain-slug";
 import { SCHEDULED_LOCALISATION_AUDIT_SITES } from "./scheduled-audit-sites";
 
-export const RELATED_LOCALISATION_AUDIT_SCORE_LIMIT = 3;
+export const RELATED_LOCALISATION_AUDIT_SCORE_LIMIT = 4;
 
 export type LocalisationAuditRelatedScore = {
   domainKey: string;
@@ -52,6 +52,14 @@ function scoreProximity(
   return a.domainKey.localeCompare(b.domainKey);
 }
 
+function isDefined<T>(value: T | undefined): value is T {
+  return value !== undefined;
+}
+
+/**
+ * Picks other audits to link from a report. `entries` must be in leaderboard rank order:
+ * the entries ranked directly above and below the current audit are always included.
+ */
 export function pickRelatedLocalisationAuditScores({
   domainKey,
   domainSlug,
@@ -78,9 +86,19 @@ export function pickRelatedLocalisationAuditScores({
       )
     : [];
 
+  // Always link the audits ranked directly above and below this one. Score proximity alone
+  // keeps picking the same few sites, which leaves many audit pages with no internal links;
+  // rank neighbours chain every leaderboard entry to the next.
+  const rankIndex = entries.findIndex(
+    (entry) => entry.domainSlug === domainSlug || entry.domainKey === domainKey,
+  );
+  const rankNeighbours =
+    rankIndex === -1 ? [] : [entries[rankIndex - 1], entries[rankIndex + 1]].filter(isDefined);
+
   const picked: LocalisationAuditRelatedScore[] = [];
   const seen = new Set<string>();
   const pools = [
+    rankNeighbours,
     inCategory.toSorted((a, b) => scoreProximity(a, b, score)),
     others.toSorted((a, b) => scoreProximity(a, b, score)),
   ];

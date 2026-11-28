@@ -48,14 +48,18 @@ describe("LocalisationAuditLeaderboard", () => {
     render(<LocalisationAuditLeaderboard locale="en" entries={entries} />);
 
     expect(screen.getAllByRole("link")).toHaveLength(LOCALISATION_AUDIT_LEADERBOARD_PAGE_SIZE);
-    expect(screen.queryByText("Site 26")).toBeNull();
+    // Rows past the first page stay in the HTML so crawlers can follow every audit link.
+    expect(screen.getAllByRole("link", { hidden: true })).toHaveLength(
+      LOCALISATION_AUDIT_LEADERBOARD_PAGE_SIZE + extra,
+    );
+    expect(screen.queryByText("Site 26")).not.toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Show more" }));
 
     expect(screen.getAllByRole("link")).toHaveLength(
       LOCALISATION_AUDIT_LEADERBOARD_PAGE_SIZE + extra,
     );
-    expect(screen.getByText("Site 26")).toBeTruthy();
+    expect(screen.getByText("Site 26")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
   });
 });

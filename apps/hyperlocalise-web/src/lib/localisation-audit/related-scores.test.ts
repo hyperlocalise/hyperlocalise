@@ -95,7 +95,34 @@ describe("pickRelatedLocalisationAuditScores", () => {
     });
 
     expect(related).toHaveLength(RELATED_LOCALISATION_AUDIT_SCORE_LIMIT);
-    expect(related.map((entry) => entry.domainKey)).toEqual(["wise.com", "paypal.com", "nike.com"]);
+    expect(related.map((entry) => entry.domainKey)).toEqual([
+      "paypal.com",
+      "wise.com",
+      "nike.com",
+      "amazon.com",
+    ]);
+  });
+
+  it("always links the audits ranked directly above and below", () => {
+    const tied = ["a", "b", "c", "d", "e"].map((letter) =>
+      relatedScore({ domainKey: `${letter}.example`, domainSlug: `${letter}-example`, score: 70 }),
+    );
+    const current = tied[3];
+
+    const related = pickRelatedLocalisationAuditScores({
+      domainKey: current.domainKey,
+      domainSlug: current.domainSlug,
+      score: current.score,
+      entries: tied,
+      limit: 3,
+    });
+
+    // Score proximity alone would pick a, b and c; the rank neighbours c and e come first.
+    expect(related.map((entry) => entry.domainKey)).toEqual([
+      "c.example",
+      "e.example",
+      "a.example",
+    ]);
   });
 
   it("excludes the current site by slug and domain key", () => {

@@ -67,7 +67,6 @@ export function LocalisationAuditLeaderboard({
 }: LocalisationAuditLeaderboardProps) {
   const copy = getLocalisationAuditPageCopy(locale);
   const [visibleCount, setVisibleCount] = useState(LOCALISATION_AUDIT_LEADERBOARD_PAGE_SIZE);
-  const visibleEntries = entries.slice(0, visibleCount);
   const hasMore = entries.length > visibleCount;
 
   if (entries.length === 0) {
@@ -106,8 +105,10 @@ export function LocalisationAuditLeaderboard({
         </div>
 
         <ol className="divide-y divide-border">
-          {visibleEntries.map((entry) => (
-            <li key={entry.domainSlug}>
+          {/* Every row stays in the HTML so crawlers can follow each audit link; rows past
+              the current page are only hidden until "Show more". */}
+          {entries.map((entry, index) => (
+            <li key={entry.domainSlug} hidden={index >= visibleCount}>
               <Link
                 href={`/${locale}/localisation-audit/${entry.domainSlug}`}
                 className={cn(
