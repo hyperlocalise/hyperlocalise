@@ -1,7 +1,7 @@
 ---
 title: "Using Iris from Claude Code, Cursor and Other Agents over MCP"
 date: 2026-11-24T00:00:00.000Z
-excerpt: Iris makes its full creative localisation toolset available over MCP. Connect Claude Code, Cursor, Codex or another agent, and ask it to localise images, subtitle and dub video, and check every market against your glossary while you watch the work happen in the app.
+excerpt: Connect Claude Code, Cursor, or Codex to Iris over MCP to localise images, subtitle and dub video, and check every market against your glossary.
 category: Engineering
 tags:
   - Iris

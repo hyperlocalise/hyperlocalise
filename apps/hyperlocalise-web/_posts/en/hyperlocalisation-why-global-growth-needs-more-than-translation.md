@@ -1,7 +1,7 @@
 ---
 title: "Hyperlocalisation: Why Global Growth Needs More Than Translation"
 date: 2026-06-20T00:00:00.000Z
-excerpt: Global growth has outpaced traditional localisation. Hyperlocalisation adapts communication so it feels natural, relevant, and trusted in every market — with context, not just translation.
+excerpt: Global growth has outpaced traditional localisation. Hyperlocalisation adapts communication so it feels natural, relevant, and trusted in every market.
 category: Product
 tags:
   - hyperlocalisation

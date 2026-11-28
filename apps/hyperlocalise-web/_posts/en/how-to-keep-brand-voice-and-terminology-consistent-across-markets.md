@@ -1,7 +1,7 @@
 ---
 title: "How to Keep Brand Voice and Terminology Consistent Across Markets at Scale"
 date: 2026-10-10T00:00:00.000Z
-excerpt: A practical guide to terminology governance, brand-voice consistency, and compliance review across languages — who owns the rules, where they should live, how to enforce them before publish, and how to catch drift after launch.
+excerpt: "A practical guide to terminology, brand voice, and compliance across languages: who owns the rules, how to enforce them before publish, and catch drift."
 category: Product
 tags:
   - brand voice

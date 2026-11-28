@@ -1,7 +1,7 @@
 ---
 title: What Is a Website Localisation Audit?
 date: 2026-08-13T00:00:00.000Z
-excerpt: Translating a website is only the beginning. A localisation audit scores technical implementation, language quality, product context, and visual experience — and tells you what to fix first.
+excerpt: Translating a website is only the start. A localisation audit scores technical setup, language quality, context, and visuals, and shows what to fix first.
 category: Product
 tags:
   - localisation audit

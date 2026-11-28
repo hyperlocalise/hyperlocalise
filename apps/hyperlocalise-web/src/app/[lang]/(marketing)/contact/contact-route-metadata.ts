@@ -20,8 +20,9 @@ export function getContactRouteMetadata(intl: IntlShape) {
       description: "Meta title for the marketing contact page",
     }),
     description: intl.formatMessage({
-      defaultMessage: "Email the Hyperlocalise team about localisation, pricing, or support.",
-      id: "0S1pdjIx4Z",
+      defaultMessage:
+        "Contact the Hyperlocalise team about AI localisation, pricing, enterprise plans, integrations, partnerships, or product support.",
+      id: "kRSrd7vo4l",
       description: "Meta description for the marketing contact page",
     }),
   };

@@ -22,7 +22,7 @@ describe("buildIrisJsonLd", () => {
       name: "Iris",
       alternateName: "Iris by Hyperlocalise",
       description:
-        "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Download Iris for Mac.",
+        "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Adapt images, video, motion, and audio for every language. Download for Mac.",
       featureList: [
         "Multilingual image localisation",
         "Video localisation",

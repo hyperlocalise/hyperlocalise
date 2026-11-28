@@ -1,7 +1,7 @@
 ---
 title: "GitHub Localisation Workflow: From Pull Request to Multilingual Release"
 date: 2026-09-09T00:00:00.000Z
-excerpt: Build a practical GitHub localisation workflow that checks changed strings, sends source content to Hyperlocalise, brings reviewed translations back, and publishes multilingual release notes.
+excerpt: Build a GitHub localisation workflow that checks changed strings, sends them to Hyperlocalise, syncs reviewed translations, and ships multilingual releases.
 category: Engineering
 tags:
   - github localization

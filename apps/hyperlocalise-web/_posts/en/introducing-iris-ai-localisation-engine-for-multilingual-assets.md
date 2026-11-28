@@ -1,7 +1,7 @@
 ---
 title: "Introducing Iris: The AI Localisation Engine for Multilingual Assets"
 date: 2026-11-24T00:00:00.000Z
-excerpt: Iris is a free Mac app that localises images, video, voice and audio for every language and market. You get rewritten ad copy, subtitles, dubbing and layout checks, all using the same glossary and brand rules as the rest of Hyperlocalise.
+excerpt: Iris is a free Mac app that localises images, video, voice, and audio for every market, with ad copy, subtitles, dubbing, and your brand glossary.
 category: Product
 tags:
   - Iris

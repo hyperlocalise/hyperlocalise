@@ -221,7 +221,7 @@ export const integrationCatalogCopy = {
     },
     metadataDescription: {
       defaultMessage:
-        "Route localisation review requests and launch blockers to the Slack channel that already owns the work.",
+        "Route localisation review requests, approvals, and launch blockers to the Slack channels that already own the work, without context switching.",
       id: "intSlackMetaDescription",
       description: "Slack integration marketing page meta description",
     },
@@ -431,7 +431,7 @@ export const integrationCatalogCopy = {
     },
     metadataDescription: {
       defaultMessage:
-        "Keep Smartling as the enterprise TMS. Hyperlocalise adds review, context, and launch visibility on top.",
+        "Keep Smartling as your enterprise TMS. Hyperlocalise adds AI review, product context, and launch visibility on top of the workflows you run.",
       id: "intSmartlingMetaDescription",
       description: "Smartling integration marketing page meta description",
     },
@@ -589,7 +589,7 @@ export const integrationCatalogCopy = {
     },
     metadataDescription: {
       defaultMessage:
-        "Localise Intercom help articles and in-product messaging with the same review process as product strings.",
+        "Localise Intercom help articles and in-product messages with the same glossary, review, and publishing workflow as your product strings.",
       id: "intIntercomMetaDescription",
       description: "Intercom integration marketing page meta description",
     },
@@ -641,7 +641,7 @@ export const integrationCatalogCopy = {
     },
     metadataDescription: {
       defaultMessage:
-        "Use Ahrefs keyword and ranking data to choose which pages to localise, then run review in Hyperlocalise.",
+        "Use Ahrefs keyword and ranking data to choose which pages to localise first, then translate and review them for each market in Hyperlocalise.",
       id: "intAhrefsMetaDescription",
       description: "Ahrefs integration marketing page meta description",
     },
@@ -694,7 +694,7 @@ export const integrationCatalogCopy = {
     },
     metadataDescription: {
       defaultMessage:
-        "Use Semrush keyword and competitive research to pick markets and pages, then localise them in Hyperlocalise.",
+        "Use Semrush keyword and competitive research to pick the markets and pages worth localising, then translate and review them in Hyperlocalise.",
       id: "intSemrushMetaDescription",
       description: "Semrush integration marketing page meta description",
     },
@@ -747,7 +747,7 @@ export const integrationCatalogCopy = {
     },
     metadataDescription: {
       defaultMessage:
-        "After localisation, create paid ads across Meta, Google Ads, TikTok, LinkedIn, and more from one Zernio API.",
+        "After localisation, publish paid ads for every market across Meta, Google Ads, TikTok, LinkedIn, and more from one Zernio API connection.",
       id: "intZernioMetaDescription",
       description: "Zernio integration marketing page meta description",
     },
@@ -800,7 +800,7 @@ export const integrationCatalogCopy = {
     },
     metadataDescription: {
       defaultMessage:
-        "Test a locale change with some users before everyone sees it, using Hyperlab inside Hyperlocalise.",
+        "Test a localised change with a share of users before everyone sees it, then roll out the winner with Hyperlab, built into Hyperlocalise.",
       id: "intHyperlabMetaDescription",
       description: "Hyperlab integration marketing page meta description",
     },
@@ -852,7 +852,7 @@ export const integrationCatalogCopy = {
     },
     metadataDescription: {
       defaultMessage:
-        "Coming soon: ship localised copy behind Statsig feature flags and experiments from Hyperlocalise.",
+        "Coming soon: ship localised copy behind Statsig feature flags and experiments from Hyperlocalise, and measure how each market responds.",
       id: "intStatsigMetaDescription",
       description: "Statsig integration marketing page meta description",
     },
@@ -957,7 +957,7 @@ export const integrationCatalogCopy = {
     },
     metadataDescription: {
       defaultMessage:
-        "Turn translation blockers into Linear issues so launch work stays beside the rest of your product pipeline.",
+        "Turn translation blockers and review feedback into Linear issues so localisation work stays beside the rest of your product pipeline.",
       id: "intLinearMetaDescription",
       description: "Linear integration marketing page meta description",
     },
@@ -1010,7 +1010,7 @@ export const integrationCatalogCopy = {
     },
     metadataDescription: {
       defaultMessage:
-        "Import Notion style guides and market notes so localisation drafts follow the docs your team already keeps.",
+        "Import Notion style guides, glossaries, and market notes so every localisation draft follows the documentation your team already keeps.",
       id: "intNotionMetaDescription",
       description: "Notion integration marketing page meta description",
     },

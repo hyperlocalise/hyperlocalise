@@ -1,7 +1,7 @@
 ---
 title: How to Localise Image Ads and Social Creatives for Every Market
 date: 2026-11-24T00:00:00.000Z
-excerpt: Translating the caption is easy. The copy baked into the banner is where multi-market campaigns slow down. This guide covers how to localise image ads, social creatives and product shots so each market version reads as if it were made locally.
+excerpt: Translating captions is easy; copy baked into banners is not. How to localise image ads, social creatives, and product shots so each market feels local.
 category: Product
 tags:
   - Iris

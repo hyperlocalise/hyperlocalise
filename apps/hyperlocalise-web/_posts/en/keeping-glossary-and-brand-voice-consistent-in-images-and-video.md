@@ -1,7 +1,7 @@
 ---
 title: "Keeping Your Glossary and Brand Voice Consistent in Images and Video"
 date: 2026-11-24T00:00:00.000Z
-excerpt: Terminology rules usually stop at text. Banners, subtitles and voiceovers are where brand terms drift, forbidden claims come back and product names get mispronounced. Here's how to apply the same glossary, translation memory and guidelines to every creative asset.
+excerpt: Brand terms drift in banners, subtitles, and voiceovers. Apply the same glossary, translation memory, and guidelines to every image and video asset.
 category: Product
 tags:
   - Iris

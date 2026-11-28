@@ -1,7 +1,7 @@
 ---
 title: How to Choose a Continuous Localisation Workflow
 date: 2026-10-10T00:00:00.000Z
-excerpt: Ranked vendor lists do not tell you whether a localisation stack can keep up with product releases. This buyer guide defines what to expect from an AI-native localisation platform, the criteria that matter, and the classes of options in the market.
+excerpt: "A buyer guide to continuous localisation: what to expect from an AI-native platform, the criteria that matter, and how to keep up with product releases."
 category: Product
 tags:
   - continuous localisation
