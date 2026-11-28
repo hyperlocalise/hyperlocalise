@@ -85,7 +85,6 @@ export type WorkspaceAutomationFormState = {
   githubInstallationRepositoryId: string;
   gitlabEnabled: boolean;
   gitlabPathWithNamespace: string;
-  /** Kept as saved so editing an automation doesn't drop it; the form has no Bitbucket picker yet. */
   bitbucketEnabled: boolean;
   bitbucketRepositoryFullName: string;
   githubEnabled: boolean;
@@ -260,6 +259,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "projectId"
     | "githubRepository"
     | "gitlabRepository"
+    | "bitbucketRepository"
     | "trigger"
     | "pushBranches"
     | "githubEvents"
@@ -1478,6 +1478,19 @@ export function validateWorkspaceAutomationFormState(
     }
   }
 
+  if (form.bitbucketEnabled) {
+    if (!form.bitbucketRepositoryFullName.trim()) {
+      errors.bitbucketRepository = "Choose a Bitbucket repository.";
+    }
+    if (form.triggerMode !== "manual" && form.triggerMode !== "scheduled") {
+      errors.trigger = "Use Bitbucket repo automations with a scheduled or manual trigger.";
+    }
+    if (form.githubEnabled || form.githubCommentEnabled || form.gitlabEnabled) {
+      errors.bitbucketRepository =
+        "Bitbucket can't be enabled with GitHub or GitLab on the same automation.";
+    }
+  }
+
   if (form.triggerMode === "github" && form.pushBranches.length === 0) {
     errors.pushBranches = "Add at least one branch pattern.";
   }
@@ -1672,10 +1685,11 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "gitlab_pipes_needs_reauthorization":
     case "gitlab_pipes_unavailable":
       return { gitlabRepository: message };
-    case "gitlab_github_exclusive":
     case "bitbucket_repository_exclusive":
     case "bitbucket_repository_target_required":
     case "bitbucket_not_connected":
+      return { bitbucketRepository: message };
+    case "gitlab_github_exclusive":
       return { form: message };
     case "project_required":
     case "github_project_required":

@@ -318,6 +318,48 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "aD9snRqB1l",
     description: "Placeholder when no GitLab project is selected",
   },
+  useBitbucketRepo: {
+    defaultMessage: "Use Bitbucket repo",
+    id: "Vgb/2QKuHh",
+    description: "Menu item and tool title for the Bitbucket agent repository tool",
+  },
+  useBitbucketRepoDescription: {
+    defaultMessage:
+      "Read the repository and follow your instructions. Bitbucket skills apply automatically.",
+    id: "QmRENmBMyl",
+    description: "Description for the Bitbucket agent repository tool",
+  },
+  removeBitbucketRepoTool: {
+    defaultMessage: "Remove Bitbucket repo tool",
+    id: "z4YI595nWW",
+    description: "Accessible label to remove the Bitbucket agent repository tool",
+  },
+  bitbucketRepositoryLabel: {
+    defaultMessage: "Repository",
+    id: "o+E9E4pxoI",
+    description: "Label for the Bitbucket repository select",
+  },
+  connectBitbucketForRepository: {
+    defaultMessage: "Connect Bitbucket to choose a repository",
+    id: "5FzQe9/xce",
+    description: "Placeholder when Bitbucket is not connected so repositories cannot be chosen",
+  },
+  bitbucketRepositoriesLoadFailed: {
+    defaultMessage: "Couldn't load repositories from Bitbucket",
+    id: "htzStQfF3Q",
+    description: "Placeholder when the Bitbucket repository list failed to load",
+  },
+  noBitbucketRepositories: {
+    defaultMessage: "No Bitbucket repositories found",
+    id: "3b6fyEcm3v",
+    description:
+      "Placeholder when Bitbucket is connected but the workspace's connection can read no repositories",
+  },
+  selectBitbucketRepository: {
+    defaultMessage: "Select a Bitbucket repository",
+    id: "GwSTJhZ612",
+    description: "Placeholder when no Bitbucket repository is selected",
+  },
   githubSyncWorkflows: {
     defaultMessage: "GitHub sync workflows",
     id: "wewNVYT5+w",

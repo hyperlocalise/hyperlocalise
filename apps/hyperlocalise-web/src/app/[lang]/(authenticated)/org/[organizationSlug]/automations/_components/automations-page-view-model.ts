@@ -250,6 +250,7 @@ export function resolveAutomationTriggerLabel(
 export const AUTOMATION_LIST_TOOL_IDS = [
   "github",
   "gitlab",
+  "bitbucket",
   "slack",
   "email",
   "githubComment",
@@ -298,6 +299,14 @@ export function resolveAutomationTools(
         },
       ];
     }
+    if (provider === "bitbucket") {
+      return [
+        {
+          id: "bitbucket",
+          label: intl.formatMessage(automationsPageViewModelMessages.toolBitbucket),
+        },
+      ];
+    }
     if (provider === "contentful") {
       return [
         {
@@ -326,6 +335,9 @@ export function resolveAutomationTools(
   }
   if (toolConfig.gitlab?.enabled) {
     addTool(tools, "gitlab", intl.formatMessage(automationsPageViewModelMessages.toolGitlab));
+  }
+  if (toolConfig.bitbucket?.enabled) {
+    addTool(tools, "bitbucket", intl.formatMessage(automationsPageViewModelMessages.toolBitbucket));
   }
   if (toolConfig.slack?.enabled) {
     addTool(tools, "slack", intl.formatMessage(automationsPageViewModelMessages.toolSlack));

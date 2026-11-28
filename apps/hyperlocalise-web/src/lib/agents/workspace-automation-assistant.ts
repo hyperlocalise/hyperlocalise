@@ -629,6 +629,7 @@ export function describeWorkspaceAutomationTrigger(
 
 const REPLACED_SETTING_NAMES: Record<WorkspaceAutomationReplacedSetting, string> = {
   gitlab: "the GitLab tool the person turned on",
+  bitbucket: "the Bitbucket tool the person turned on",
   github_sync: "the GitHub sync workflows the person turned on",
   other: "a setting the person entered",
 };
@@ -872,6 +873,7 @@ function listManualTools(form: WorkspaceAutomationFormState): string[] {
       "GitHub repository",
     ],
     [form.gitlabEnabled, "GitLab repository"],
+    [form.bitbucketEnabled, "Bitbucket repository"],
     [form.githubCommentEnabled && !skillTools.has("notify_github_comment"), "Pull request comment"],
     [form.slackEnabled && !skillTools.has("notify_slack"), "Slack"],
     [form.emailEnabled && !skillTools.has("notify_email"), "Email"],

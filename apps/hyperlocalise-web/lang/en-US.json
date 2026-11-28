@@ -4283,6 +4283,10 @@
     "defaultMessage": "Hero title · Max 2 lines on tablet",
     "description": "Constraints line in the hero CAT mock intelligence panel"
   },
+  "3b6fyEcm3v": {
+    "defaultMessage": "No Bitbucket repositories found",
+    "description": "Placeholder when Bitbucket is connected but the workspace's connection can read no repositories"
+  },
   "3bMyg1I54K": {
     "defaultMessage": "No custom buckets yet",
     "description": "Empty-state title for CDN destinations"
@@ -5618,6 +5622,10 @@
   "5Ftr9lj7RM": {
     "defaultMessage": "Update role",
     "description": "Confirm button to update a workspace member’s role"
+  },
+  "5FzQe9/xce": {
+    "defaultMessage": "Connect Bitbucket to choose a repository",
+    "description": "Placeholder when Bitbucket is not connected so repositories cannot be chosen"
   },
   "5G+03OcnR5": {
     "defaultMessage": "Iterable push queued",
@@ -14459,6 +14467,10 @@
     "defaultMessage": "SOURCE",
     "description": "Badge identifying the glossary source locale"
   },
+  "GwSTJhZ612": {
+    "defaultMessage": "Select a Bitbucket repository",
+    "description": "Placeholder when no Bitbucket repository is selected"
+  },
   "GwX/prLtJh": {
     "defaultMessage": "Connect Semrush with an API key in Integrations before using this tool.",
     "description": "Description when no Semrush connection is available"
@@ -15626,6 +15638,10 @@
   "Ic0GDPpTRm": {
     "defaultMessage": "Translation context must be 20,000 characters or fewer.",
     "description": "Validation error when translation context exceeds 20,000 characters"
+  },
+  "IcL7Dm6k2e": {
+    "defaultMessage": "Bitbucket",
+    "description": "Tool badge when an automation uses Bitbucket"
   },
   "Icd4dfBmnK": {
     "defaultMessage": "Give every reviewer the context, checks, and approval controls they need before translated copy reaches production.",
@@ -21687,6 +21703,10 @@
     "defaultMessage": "What does \"up to 80% off\" mean?",
     "description": "Startups FAQ question about the discount amount"
   },
+  "QmRENmBMyl": {
+    "defaultMessage": "Read the repository and follow your instructions. Bitbucket skills apply automatically.",
+    "description": "Description for the Bitbucket agent repository tool"
+  },
   "QmSbWirtRR": {
     "defaultMessage": "https://example.com",
     "description": "Placeholder for a term reference URL"
@@ -25446,6 +25466,10 @@
   "Vgaq960mDR": {
     "defaultMessage": "Yes. It follows the brand guide, uses the approved product name, and fits the length limit. Kenji in Tokyo has the review link.",
     "description": "marketing-localisation use case page: guide › steps › #3 › visual › messages › #2 › text"
+  },
+  "Vgb/2QKuHh": {
+    "defaultMessage": "Use Bitbucket repo",
+    "description": "Menu item and tool title for the Bitbucket agent repository tool"
   },
   "VgnggScypZ": {
     "defaultMessage": "Put localisation in your pipeline",
@@ -34739,6 +34763,10 @@
     "defaultMessage": "Projects",
     "description": "Breadcrumb link above the project overview title"
   },
+  "htzStQfF3Q": {
+    "defaultMessage": "Couldn't load repositories from Bitbucket",
+    "description": "Placeholder when the Bitbucket repository list failed to load"
+  },
   "hu3lSudbHb": {
     "defaultMessage": "Audit timeline",
     "description": "Heading for the translation memory entry audit timeline"
@@ -39386,6 +39414,10 @@
   "o+CbdMbr62": {
     "defaultMessage": "Portuguese (Portugal)",
     "description": "Display name for BCP-47 locale pt-PT"
+  },
+  "o+E9E4pxoI": {
+    "defaultMessage": "Repository",
+    "description": "Label for the Bitbucket repository select"
   },
   "o/5bDmAGTd": {
     "defaultMessage": "Used as the prefix for new issue IDs (e.g. HL-12). Must be unique among projects in this workspace. Existing issue IDs are kept.",
@@ -47878,6 +47910,10 @@
   "z48kpV5sye": {
     "defaultMessage": "Not registered",
     "description": "Webhook registration status when registration failed"
+  },
+  "z4YI595nWW": {
+    "defaultMessage": "Remove Bitbucket repo tool",
+    "description": "Accessible label to remove the Bitbucket agent repository tool"
   },
   "z4rY7Y3WKu": {
     "defaultMessage": "Load more",

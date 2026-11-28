@@ -132,6 +132,8 @@ function enableSkillTool(
         githubInstallationRepositoryId: githubRepositoryId,
         gitlabEnabled: false,
         gitlabPathWithNamespace: "",
+        bitbucketEnabled: false,
+        bitbucketRepositoryFullName: "",
         pushSourceEnabled: false,
         pullTranslationsEnabled: false,
         validationEnabled: false,
@@ -144,6 +146,8 @@ function enableSkillTool(
         githubInstallationRepositoryId: githubRepositoryId,
         gitlabEnabled: false,
         gitlabPathWithNamespace: "",
+        bitbucketEnabled: false,
+        bitbucketRepositoryFullName: "",
       };
     case "use_crowdin":
       return {

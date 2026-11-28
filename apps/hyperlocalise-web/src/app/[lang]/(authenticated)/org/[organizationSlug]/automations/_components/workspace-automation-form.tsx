@@ -40,6 +40,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
 import {
+  siBitbucket,
   siGithub,
   siGitlab,
   siGoogle,
@@ -225,6 +226,11 @@ type GitlabProjectOption = {
   defaultBranch: string | null;
   httpUrlToRepo: string;
   archived: boolean;
+};
+type BitbucketRepositoryOption = {
+  uuid: string;
+  fullName: string;
+  mainBranch: string | null;
 };
 type McpServerConnectionOption = {
   id: string;
@@ -623,6 +629,7 @@ function toolCount(form: WorkspaceAutomationFormState) {
   return (
     Number(form.githubEnabled) +
     Number(form.gitlabEnabled) +
+    Number(form.bitbucketEnabled) +
     Number(form.slackEnabled) +
     Number(form.emailEnabled) +
     Number(form.githubCommentEnabled) +
@@ -697,6 +704,35 @@ function withGitlabRepository(
     githubEnabled: false,
     githubCommentEnabled: false,
     githubInstallationRepositoryId: "",
+    bitbucketEnabled: false,
+    bitbucketRepositoryFullName: "",
+  };
+}
+
+function resolveDefaultBitbucketRepository(
+  form: WorkspaceAutomationFormState,
+  repositories: BitbucketRepositoryOption[],
+): BitbucketRepositoryOption | null {
+  const current = repositories.find(
+    (repository) => repository.fullName === form.bitbucketRepositoryFullName,
+  );
+  return current ?? repositories[0] ?? null;
+}
+
+function withBitbucketRepository(
+  form: WorkspaceAutomationFormState,
+  repository: { fullName: string },
+): WorkspaceAutomationFormState {
+  return {
+    ...form,
+    bitbucketEnabled: true,
+    bitbucketRepositoryFullName: repository.fullName,
+    repositoryTargetKind: "bitbucket",
+    githubEnabled: false,
+    githubCommentEnabled: false,
+    githubInstallationRepositoryId: "",
+    gitlabEnabled: false,
+    gitlabPathWithNamespace: "",
   };
 }
 
@@ -822,6 +858,75 @@ function GitlabProjectSelect({
               label={formatGitlabProjectOptionLabel(project)}
             >
               {formatGitlabProjectOptionLabel(project)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <FieldError message={error} />
+    </div>
+  );
+}
+
+function BitbucketRepositorySelect({
+  connected,
+  disabled,
+  error,
+  form,
+  loadFailed,
+  onChange,
+  repositories,
+}: {
+  connected: boolean;
+  disabled?: boolean;
+  error?: string;
+  form: WorkspaceAutomationFormState;
+  loadFailed?: boolean;
+  onChange: (next: WorkspaceAutomationFormState) => void;
+  repositories: BitbucketRepositoryOption[];
+}) {
+  const intl = useIntl();
+  const selectedValue = form.bitbucketRepositoryFullName;
+  const emptyMessage = loadFailed
+    ? workspaceAutomationFormMessages.bitbucketRepositoriesLoadFailed
+    : connected
+      ? workspaceAutomationFormMessages.noBitbucketRepositories
+      : workspaceAutomationFormMessages.connectBitbucketForRepository;
+
+  return (
+    <div className="grid gap-1.5">
+      <Label className="text-xs text-muted-foreground">
+        <FormattedMessage {...workspaceAutomationFormMessages.bitbucketRepositoryLabel} />
+      </Label>
+      <Select
+        value={selectedValue || null}
+        onValueChange={(value) => {
+          if (!value) {
+            return;
+          }
+          const repository = repositories.find((entry) => entry.fullName === value);
+          if (!repository) {
+            return;
+          }
+          onChange(withBitbucketRepository(form, repository));
+        }}
+        disabled={disabled || repositories.length === 0}
+      >
+        <SelectTrigger className="h-8 w-full rounded-lg">
+          <span className="truncate">
+            {repositories.length === 0
+              ? intl.formatMessage(emptyMessage)
+              : selectedValue ||
+                intl.formatMessage(workspaceAutomationFormMessages.selectBitbucketRepository)}
+          </span>
+        </SelectTrigger>
+        <SelectContent>
+          {repositories.map((repository) => (
+            <SelectItem
+              key={repository.uuid}
+              value={repository.fullName}
+              label={repository.fullName}
+            >
+              {repository.fullName}
             </SelectItem>
           ))}
         </SelectContent>
@@ -999,6 +1104,8 @@ function HeaderProjectSelector({
 }
 
 function AddToolMenu({
+  bitbucketConnected,
+  bitbucketRepositories,
   contentfulConnected,
   crowdinConnected,
   disabled,
@@ -1028,6 +1135,8 @@ function AddToolMenu({
   slackConnected,
   crowdinProjects,
 }: {
+  bitbucketConnected: boolean;
+  bitbucketRepositories: BitbucketRepositoryOption[];
   contentfulConnected: boolean;
   crowdinConnected: boolean;
   disabled?: boolean;
@@ -1128,7 +1237,12 @@ function AddToolMenu({
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="min-w-56">
                 <DropdownMenuItem
-                  disabled={form.githubEnabled || !githubConnected || form.gitlabEnabled}
+                  disabled={
+                    form.githubEnabled ||
+                    !githubConnected ||
+                    form.gitlabEnabled ||
+                    form.bitbucketEnabled
+                  }
                   onClick={() => {
                     const defaultRepositoryId = resolveDefaultGithubRepositoryId(
                       form,
@@ -1162,7 +1276,12 @@ function AddToolMenu({
                   ) : null}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  disabled={form.githubEnabled || !githubConnected || form.gitlabEnabled}
+                  disabled={
+                    form.githubEnabled ||
+                    !githubConnected ||
+                    form.gitlabEnabled ||
+                    form.bitbucketEnabled
+                  }
                   onClick={() => {
                     const defaultRepositoryId = resolveDefaultGithubRepositoryId(
                       form,
@@ -1197,7 +1316,12 @@ function AddToolMenu({
                   ) : null}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  disabled={form.githubCommentEnabled || !githubConnected || form.gitlabEnabled}
+                  disabled={
+                    form.githubCommentEnabled ||
+                    !githubConnected ||
+                    form.gitlabEnabled ||
+                    form.bitbucketEnabled
+                  }
                   onClick={() => {
                     const defaultRepositoryId = resolveDefaultGithubRepositoryId(
                       form,
@@ -1233,7 +1357,8 @@ function AddToolMenu({
                 form.gitlabEnabled ||
                 !gitlabConnected ||
                 form.githubEnabled ||
-                form.githubCommentEnabled
+                form.githubCommentEnabled ||
+                form.bitbucketEnabled
               }
               onClick={() => {
                 const defaultProject = resolveDefaultGitlabProject(form, gitlabProjects);
@@ -1251,6 +1376,38 @@ function AddToolMenu({
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
                 </DropdownMenuHint>
               ) : !gitlabConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.bitbucketEnabled ||
+                !bitbucketConnected ||
+                form.githubEnabled ||
+                form.githubCommentEnabled ||
+                form.gitlabEnabled
+              }
+              onClick={() => {
+                const defaultRepository = resolveDefaultBitbucketRepository(
+                  form,
+                  bitbucketRepositories,
+                );
+                onChange(
+                  withBitbucketRepository(form, {
+                    fullName: defaultRepository?.fullName ?? "",
+                  }),
+                );
+              }}
+            >
+              <AutomationToolMenuIcon icon={siBitbucket} />
+              <FormattedMessage {...workspaceAutomationFormMessages.useBitbucketRepo} />
+              {form.bitbucketEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !bitbucketConnected ? (
                 <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
                 </DropdownMenuHint>
@@ -2195,6 +2352,7 @@ const SUGGESTION_TYPING_PAUSE_MS = 300;
 const SUGGESTED_TOOL_LABELS: Record<WorkspaceAutomationSuggestedToolId, MessageDescriptor> = {
   github_sync: workspaceAutomationFormMessages.githubSyncWorkflows,
   gitlab: workspaceAutomationFormMessages.useGitlabRepo,
+  bitbucket: workspaceAutomationFormMessages.useBitbucketRepo,
   semrush: workspaceAutomationFormMessages.semrush,
   ahrefs: workspaceAutomationFormMessages.ahrefs,
   zernio: workspaceAutomationFormMessages.zernio,
@@ -2313,6 +2471,9 @@ function SuggestionChips({
 
 function ToolsSettings({
   automationId,
+  bitbucketConnected,
+  bitbucketRepositories,
+  bitbucketRepositoriesFailed,
   contentfulConnections,
   crowdinConnected,
   crowdinLiveProjects,
@@ -2350,6 +2511,9 @@ function ToolsSettings({
   mailchimpConnected,
 }: {
   automationId?: string;
+  bitbucketConnected: boolean;
+  bitbucketRepositories: BitbucketRepositoryOption[];
+  bitbucketRepositoriesFailed: boolean;
   contentfulConnections: ContentfulConnectionOption[];
   crowdinConnected: boolean;
   crowdinLiveProjects: ProjectOption[];
@@ -2536,6 +2700,41 @@ function ToolsSettings({
               loadFailed={gitlabProjectsFailed}
               onChange={onChange}
               projects={gitlabProjects}
+            />
+          </EditorRow>
+        ) : null}
+
+        {form.bitbucketEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon icon={siBitbucket} />}
+            tone="external"
+            title={<FormattedMessage {...workspaceAutomationFormMessages.useBitbucketRepo} />}
+            description={
+              <FormattedMessage {...workspaceAutomationFormMessages.useBitbucketRepoDescription} />
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeBitbucketRepoTool)}
+                onClick={() =>
+                  onChange({
+                    ...form,
+                    bitbucketEnabled: false,
+                    bitbucketRepositoryFullName: "",
+                    repositoryTargetKind: "none",
+                  })
+                }
+              />
+            }
+          >
+            <BitbucketRepositorySelect
+              connected={bitbucketConnected}
+              disabled={disabled}
+              error={errors.bitbucketRepository}
+              form={form}
+              loadFailed={bitbucketRepositoriesFailed}
+              onChange={onChange}
+              repositories={bitbucketRepositories}
             />
           </EditorRow>
         ) : null}
@@ -3961,6 +4160,8 @@ function ToolsSettings({
         ) : null}
 
         <AddToolMenu
+          bitbucketConnected={bitbucketConnected}
+          bitbucketRepositories={bitbucketRepositories}
           contentfulConnected={contentfulConnected}
           crowdinConnected={crowdinConnected}
           crowdinProjects={crowdinProjects}
@@ -4506,6 +4707,19 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const bitbucketRepositoriesQuery = useQuery({
+    queryKey: ["bitbucket-repositories", organizationSlug],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].bitbucket.repositories.$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Bitbucket repositories");
+      }
+      return await response.json();
+    },
+  });
+
   const repositories = useMemo(
     () =>
       selectableAutomationRepositories(
@@ -4545,6 +4759,10 @@ export function WorkspaceAutomationEditor({
     Boolean(gitlabPipesQuery.data?.connected) || Boolean(gitlabServerConnectionQuery.data);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
   const gitlabProjectsFailed = gitlabProjectsQuery.isError;
+  const bitbucketConnected = Boolean(bitbucketRepositoriesQuery.data?.connected);
+  const bitbucketRepositories: BitbucketRepositoryOption[] =
+    bitbucketRepositoriesQuery.data?.repositories ?? [];
+  const bitbucketRepositoriesFailed = bitbucketRepositoriesQuery.isError;
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
   const hasHistory = mode === "detail";
   const skillDefaults: WorkspaceAutomationSkillDefaults = {
@@ -4594,6 +4812,7 @@ export function WorkspaceAutomationEditor({
     connections: {
       github: githubConnected,
       gitlab: gitlabConnected,
+      bitbucket: bitbucketConnected,
       semrush: usableSemrushConnections.length > 0,
       ahrefs: ahrefsConnected,
       zernio: usableZernioConnections.length > 0,
@@ -4627,6 +4846,8 @@ export function WorkspaceAutomationEditor({
         githubInstallationRepositoryId: skillDefaults.githubInstallationRepositoryId,
         gitlabPathWithNamespace: resolveDefaultGitlabProject(form, gitlabProjects)
           ?.pathWithNamespace,
+        bitbucketRepositoryFullName: resolveDefaultBitbucketRepository(form, bitbucketRepositories)
+          ?.fullName,
         semrushConnectionId:
           usableSemrushConnections.length === 1 ? usableSemrushConnections[0]?.id : undefined,
         zernioConnectionId:
@@ -4827,6 +5048,9 @@ export function WorkspaceAutomationEditor({
 
           <ToolsSettings
             automationId={automationId}
+            bitbucketConnected={bitbucketConnected}
+            bitbucketRepositories={bitbucketRepositories}
+            bitbucketRepositoriesFailed={bitbucketRepositoriesFailed}
             contentfulConnections={contentfulConnections}
             crowdinConnected={crowdinConnected}
             crowdinLiveProjects={crowdinLiveProjects}

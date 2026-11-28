@@ -60,7 +60,7 @@ export type WorkspaceAutomationProposalSkillOutcome = {
 export type WorkspaceAutomationChangeLeftOutReason = "needs_connection" | "wrong_trigger";
 
 /** Something the person set by hand that a change would take away. */
-export type WorkspaceAutomationReplacedSetting = "gitlab" | "github_sync" | "other";
+export type WorkspaceAutomationReplacedSetting = "gitlab" | "bitbucket" | "github_sync" | "other";
 
 export type WorkspaceAutomationChangeReplaces = {
   skills: Array<{ id: string; name: string }>;
@@ -214,13 +214,24 @@ const REPLACED_SETTING_BY_FIELD: Partial<
 > = {
   gitlabEnabled: "gitlab",
   gitlabPathWithNamespace: "gitlab",
-  // Only GitLab holds a repository target that a skill's tool then replaces.
-  repositoryTargetKind: "gitlab",
+  bitbucketEnabled: "bitbucket",
+  bitbucketRepositoryFullName: "bitbucket",
   githubMode: "github_sync",
   pushSourceEnabled: "github_sync",
   pullTranslationsEnabled: "github_sync",
   validationEnabled: "github_sync",
 };
+
+function replacedSettingForField(
+  current: WorkspaceAutomationFormState,
+  field: keyof WorkspaceAutomationFormState,
+): WorkspaceAutomationReplacedSetting {
+  // Only GitLab and Bitbucket hold a repository target that a skill's tool then replaces.
+  if (field === "repositoryTargetKind") {
+    return current.repositoryTargetKind === "bitbucket" ? "bitbucket" : "gitlab";
+  }
+  return REPLACED_SETTING_BY_FIELD[field] ?? "other";
+}
 
 /**
  * What attaching a skill would take from the person: a field that already holds something other
@@ -241,7 +252,7 @@ function listReplacedSettings(
     ) {
       continue;
     }
-    replaced.add(REPLACED_SETTING_BY_FIELD[field] ?? "other");
+    replaced.add(replacedSettingForField(current, field));
   }
   return [...replaced];
 }

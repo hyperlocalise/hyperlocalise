@@ -40,6 +40,7 @@ export const MAX_WORKSPACE_AUTOMATION_SUGGESTIONS = 5;
 export const WORKSPACE_AUTOMATION_SUGGESTED_TOOL_IDS = [
   "github_sync",
   "gitlab",
+  "bitbucket",
   "semrush",
   "ahrefs",
   "zernio",
@@ -63,6 +64,7 @@ const SUGGESTED_TOOL_KEYWORDS: Record<
     weak: [["validation", "validate"], "coverage", REPOSITORY_KEYWORDS],
   },
   gitlab: { strong: ["gitlab", "merge request"], weak: [] },
+  bitbucket: { strong: ["bitbucket"], weak: [] },
   semrush: {
     strong: ["semrush", "keyword research", "search volume"],
     weak: ["seo", ["keyword", "ranking"], ["traffic", "organic"]],
@@ -81,13 +83,14 @@ const SUGGESTED_TOOL_KEYWORDS: Record<
 export type WorkspaceAutomationSuggestedToolDefaults = {
   githubInstallationRepositoryId?: string;
   gitlabPathWithNamespace?: string;
+  bitbucketRepositoryFullName?: string;
   semrushConnectionId?: string;
   zernioConnectionId?: string;
 };
 
 /** Whether the integration behind each suggested tool is connected. Missing means not connected. */
 export type WorkspaceAutomationSuggestedToolConnections = Partial<
-  Record<"github" | "gitlab" | "semrush" | "ahrefs" | "zernio", boolean>
+  Record<"github" | "gitlab" | "bitbucket" | "semrush" | "ahrefs" | "zernio", boolean>
 >;
 
 export type WorkspaceAutomationSuggestion =
@@ -161,6 +164,8 @@ function isSuggestedToolEnabled(
       return form.githubEnabled && form.githubMode === "sync";
     case "gitlab":
       return form.gitlabEnabled;
+    case "bitbucket":
+      return form.bitbucketEnabled;
     case "semrush":
       return form.semrushEnabled;
     case "ahrefs":
@@ -186,9 +191,17 @@ function resolveSuggestedToolAvailability(
 
   switch (toolId) {
     case "github_sync":
-      return form.githubEnabled || form.gitlabEnabled ? null : requires(connections.github);
+      return form.githubEnabled || form.gitlabEnabled || form.bitbucketEnabled
+        ? null
+        : requires(connections.github);
     case "gitlab":
-      return form.githubEnabled || form.githubCommentEnabled ? null : requires(connections.gitlab);
+      return form.githubEnabled || form.githubCommentEnabled || form.bitbucketEnabled
+        ? null
+        : requires(connections.gitlab);
+    case "bitbucket":
+      return form.githubEnabled || form.githubCommentEnabled || form.gitlabEnabled
+        ? null
+        : requires(connections.bitbucket);
     case "semrush":
       return requires(connections.semrush);
     case "ahrefs":
@@ -293,6 +306,8 @@ export function addSuggestedToolToWorkspaceAutomationForm(
           form.githubInstallationRepositoryId || defaults.githubInstallationRepositoryId || "",
         gitlabEnabled: false,
         gitlabPathWithNamespace: "",
+        bitbucketEnabled: false,
+        bitbucketRepositoryFullName: "",
         validationEnabled:
           form.pushSourceEnabled || form.pullTranslationsEnabled ? form.validationEnabled : true,
       };
@@ -306,6 +321,21 @@ export function addSuggestedToolToWorkspaceAutomationForm(
         githubEnabled: false,
         githubCommentEnabled: false,
         githubInstallationRepositoryId: "",
+        bitbucketEnabled: false,
+        bitbucketRepositoryFullName: "",
+      };
+    case "bitbucket":
+      return {
+        ...form,
+        bitbucketEnabled: true,
+        bitbucketRepositoryFullName:
+          form.bitbucketRepositoryFullName || defaults.bitbucketRepositoryFullName || "",
+        repositoryTargetKind: "bitbucket",
+        githubEnabled: false,
+        githubCommentEnabled: false,
+        githubInstallationRepositoryId: "",
+        gitlabEnabled: false,
+        gitlabPathWithNamespace: "",
       };
     case "semrush":
       return {

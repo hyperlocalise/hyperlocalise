@@ -680,6 +680,94 @@ describe("workspace automation view model", () => {
     });
   });
 
+  it("maps a Bitbucket repo tool onto a bitbucket repository target", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Bitbucket digest",
+      instructions: "Summarize recent commits.",
+      triggerMode: "manual" as const,
+      repositoryTargetKind: "bitbucket" as const,
+      bitbucketEnabled: true,
+      bitbucketRepositoryFullName: "acme/web",
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form)).toMatchObject({
+      repositoryTarget: {
+        kind: "bitbucket",
+        bitbucketRepositoryFullName: "acme/web",
+      },
+      toolConfig: {
+        bitbucket: {
+          enabled: true,
+        },
+      },
+    });
+  });
+
+  it("requires a Bitbucket repository and a scheduled or manual trigger", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Bitbucket digest",
+      instructions: "Summarize recent commits.",
+      triggerMode: "contentful" as const,
+      bitbucketEnabled: true,
+      bitbucketRepositoryFullName: " ",
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
+      bitbucketRepository: "Choose a Bitbucket repository.",
+      trigger: "Use Bitbucket repo automations with a scheduled or manual trigger.",
+    });
+  });
+
+  it("rejects Bitbucket alongside GitHub or GitLab", () => {
+    const base = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Bitbucket digest",
+      instructions: "Summarize recent commits.",
+      triggerMode: "scheduled" as const,
+      bitbucketEnabled: true,
+      bitbucketRepositoryFullName: "acme/web",
+    };
+    const message = "Bitbucket can't be enabled with GitHub or GitLab on the same automation.";
+
+    expect(
+      validateWorkspaceAutomationFormState({
+        ...base,
+        gitlabEnabled: true,
+        gitlabPathWithNamespace: "acme/platform/web",
+      }).bitbucketRepository,
+    ).toBe(message);
+    expect(
+      validateWorkspaceAutomationFormState({
+        ...base,
+        githubCommentEnabled: true,
+        githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+      }).bitbucketRepository,
+    ).toBe(message);
+  });
+
+  it("maps Bitbucket API errors onto the Bitbucket repository field", () => {
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("bitbucket_not_connected")).toEqual({
+      bitbucketRepository: "Connect Bitbucket in Integrations before using it.",
+    });
+    expect(
+      mapWorkspaceAutomationApiErrorToFieldErrors("bitbucket_repository_target_required"),
+    ).toEqual({
+      bitbucketRepository: "Choose a Bitbucket repository before enabling Bitbucket tools.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("bitbucket_repository_exclusive")).toEqual({
+      bitbucketRepository:
+        "Bitbucket can't be enabled with GitHub or GitLab on the same automation.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("bitbucket_agent_trigger_required")).toEqual(
+      {
+        trigger: "Use Bitbucket repo automations with a scheduled or manual trigger.",
+      },
+    );
+  });
+
   it("maps Contentful tool settings to API payload", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
