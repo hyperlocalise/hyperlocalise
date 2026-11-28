@@ -24,6 +24,10 @@ const config: StorybookConfig = {
     const emptyCssMock = path.resolve(storybookDir, "./mocks/empty.css");
     const aiFeaturesAccessMock = path.resolve(storybookDir, "./mocks/use-ai-features-access.ts");
     const autoAnimateReactMock = path.resolve(storybookDir, "./mocks/auto-animate-react.ts");
+    const leaveWorkspaceActionsMock = path.resolve(
+      storybookDir,
+      "./mocks/leave-workspace-actions.ts",
+    );
 
     viteConfig.resolve ??= {};
     const existingAlias = viteConfig.resolve.alias;
@@ -55,6 +59,10 @@ const config: StorybookConfig = {
           find: "@formkit/auto-animate/react",
           replacement: autoAnimateReactMock,
         },
+        {
+          find: "@/app/auth/leave-workspace/actions",
+          replacement: leaveWorkspaceActionsMock,
+        },
         ...existingAlias,
       ];
     } else {
@@ -66,6 +74,7 @@ const config: StorybookConfig = {
           "@workos-inc/widgets": workosWidgetsMock,
           "@/lib/billing/use-ai-features-access": aiFeaturesAccessMock,
           "@formkit/auto-animate/react": autoAnimateReactMock,
+          "@/app/auth/leave-workspace/actions": leaveWorkspaceActionsMock,
         },
         existingAlias && !Array.isArray(existingAlias) ? existingAlias : {},
       );
