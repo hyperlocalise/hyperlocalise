@@ -92,7 +92,7 @@ jobs:
           fi
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       # VCR answers GET /v2/ with 401 (correct) but HEAD /v2/ with 404.
       # `docker login` (docker/login-action and `vercel vcr login`) pings with
@@ -112,7 +112,7 @@ jobs:
           printf '{"auths":{"%s":{"auth":"%s"}}}\n' "${REGISTRY}" "${auth}" > "${HOME}/.docker/config.json"
 
       - name: Build and push
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           # Same context as `vercel vcr build docker apps/sandbox-image`.
           context: apps/sandbox-image
