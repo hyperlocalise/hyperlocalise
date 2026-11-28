@@ -135,6 +135,15 @@ export const automationEditorMswHandlers = [
       ],
     }),
   ),
+  http.get("/api/orgs/:organizationSlug/bitbucket/repositories", () =>
+    HttpResponse.json({
+      connected: true,
+      repositories: [
+        { uuid: "{repository-web}", fullName: "acme/web", mainBranch: "main" },
+        { uuid: "{repository-docs}", fullName: "acme/docs", mainBranch: "main" },
+      ],
+    }),
+  ),
   http.get("/api/orgs/:organizationSlug/pipes/:provider", ({ params }) =>
     HttpResponse.json({
       pipe: {
@@ -206,6 +215,9 @@ export const automationEditorDisconnectedMswHandlers = [
   ),
   http.get("/api/orgs/:organizationSlug/gitlab/projects", () =>
     HttpResponse.json({ projects: [] }),
+  ),
+  http.get("/api/orgs/:organizationSlug/bitbucket/repositories", () =>
+    HttpResponse.json({ connected: false, repositories: [] }),
   ),
   http.get("/api/orgs/:organizationSlug/pipes/:provider", ({ params }) =>
     HttpResponse.json({

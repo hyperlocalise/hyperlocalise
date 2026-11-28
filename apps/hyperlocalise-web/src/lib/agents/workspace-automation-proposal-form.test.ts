@@ -358,6 +358,15 @@ describe("applyWorkspaceAutomationProposal", () => {
 
   it.each([
     ["GitLab", { gitlabEnabled: true, gitlabPathWithNamespace: "acme/web" }, "gitlab"],
+    [
+      "Bitbucket",
+      {
+        bitbucketEnabled: true,
+        bitbucketRepositoryFullName: "acme/web",
+        repositoryTargetKind: "bitbucket",
+      },
+      "bitbucket",
+    ],
     ["GitHub sync workflows", { githubEnabled: true, pushSourceEnabled: true }, "github_sync"],
   ] as const)(
     "attaches a skill and says it switched off %s the person turned on",
@@ -374,6 +383,7 @@ describe("applyWorkspaceAutomationProposal", () => {
         skillIds: ["review-translation-changes"],
         githubMode: "agent",
         gitlabEnabled: false,
+        bitbucketEnabled: false,
       });
       expect(result.outcome.items).toMatchObject([
         {

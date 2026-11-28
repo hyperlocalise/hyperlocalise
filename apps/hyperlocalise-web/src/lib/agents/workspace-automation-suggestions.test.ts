@@ -28,6 +28,7 @@ import {
 const ALL_CONNECTED: WorkspaceAutomationSuggestedToolConnections = {
   github: true,
   gitlab: true,
+  bitbucket: true,
   semrush: true,
   ahrefs: true,
   zernio: true,
@@ -195,6 +196,18 @@ describe("workspace automation suggestions", () => {
     expect(suggest("Sync with GitLab.")).toEqual(["tool:github_sync", "tool:gitlab"]);
   });
 
+  it("suggests the Bitbucket repo tool unless another repository tool is in use", () => {
+    expect(suggest("Work in Bitbucket.")).toEqual(["tool:bitbucket"]);
+    expect(suggest("Work in Bitbucket.", { gitlabEnabled: true })).toEqual([]);
+    expect(suggest("Sync with GitLab.", { bitbucketEnabled: true })).toEqual([]);
+    expect(
+      suggestWorkspaceAutomationAdditions({
+        form: formWith("Work in Bitbucket."),
+        connections: { bitbucket: false },
+      }),
+    ).toMatchObject([{ key: "tool:bitbucket", availability: "connect_first" }]);
+  });
+
   it("skips dismissed suggestions and caps the list", () => {
     expect(
       suggestWorkspaceAutomationAdditions({
@@ -245,6 +258,20 @@ describe("workspace automation suggestions", () => {
       gitlabEnabled: true,
       repositoryTargetKind: "gitlab",
       gitlabPathWithNamespace: "acme/web",
+      githubEnabled: false,
+    });
+    expect(
+      addSuggestedToolToWorkspaceAutomationForm(
+        formWith("", { gitlabEnabled: true, gitlabPathWithNamespace: "acme/platform" }),
+        "bitbucket",
+        { bitbucketRepositoryFullName: "acme/web" },
+      ),
+    ).toMatchObject({
+      bitbucketEnabled: true,
+      repositoryTargetKind: "bitbucket",
+      bitbucketRepositoryFullName: "acme/web",
+      gitlabEnabled: false,
+      gitlabPathWithNamespace: "",
       githubEnabled: false,
     });
   });
