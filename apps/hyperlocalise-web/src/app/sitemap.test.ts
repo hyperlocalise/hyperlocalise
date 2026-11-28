@@ -13,6 +13,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
+import { getAllPosts } from "@/lib/blog/blog-post";
 import { appLocaleToHreflangTag } from "@/lib/seo/bcp47-locale";
 import { SITE_URL } from "@/lib/seo/site-url";
 
@@ -37,7 +38,11 @@ describe("sitemap", () => {
       "x-default": `${SITE_URL}/en`,
     });
 
-    for (const locale of SUPPORTED_APP_LOCALES) {
+    // Blog indexes are listed only for locales whose posts have synced.
+    const blogLocales = SUPPORTED_APP_LOCALES.filter((locale) => getAllPosts(locale).length > 0);
+    expect(blogLocales).toContain("en");
+
+    for (const locale of blogLocales) {
       const blogIndex = entries.find((entry) => entry.url === `${SITE_URL}/${locale}/blog`);
       const languages = blogIndex?.alternates?.languages as
         | Record<string, string | undefined>

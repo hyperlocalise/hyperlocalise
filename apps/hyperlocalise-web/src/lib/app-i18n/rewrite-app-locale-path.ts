@@ -70,8 +70,11 @@ const APP_LOCALE_FLAG_EMOJI = {
   "fil-PH": "🇵🇭",
   "fr-FR": "🇫🇷",
   "de-DE": "🇩🇪",
+  "it-IT": "🇮🇹",
   "ja-JP": "🇯🇵",
   "ko-KR": "🇰🇷",
+  "pt-BR": "🇧🇷",
+  "es-ES": "🇪🇸",
   "th-TH": "🇹🇭",
   "vi-VN": "🇻🇳",
 } as const satisfies Record<AppLocale, string>;
