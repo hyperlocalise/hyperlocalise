@@ -35,6 +35,12 @@ import {
   type ContentSyncConfig,
 } from "@/lib/agents/content-sync/content-sync-types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
+import { getBitbucketRepository, listBitbucketRepositories } from "@/lib/bitbucket/client";
+import {
+  listBitbucketConnections,
+  loadBitbucketConnectionCredentials,
+} from "@/lib/bitbucket/connections";
+import type { BitbucketRepository } from "@/lib/bitbucket/types";
 import { db, schema } from "@/lib/database/client";
 import {
   canReadGitLabRepository,
@@ -74,13 +80,19 @@ const HIDDEN_KEY_LIMIT = 20;
 
 const validateConnectionsQuery = validator("query", (value, c) => {
   const parsed = z
-    .object({ gitlabConnectionId: z.string().uuid().optional() })
-    .safeParse({ gitlabConnectionId: value.gitlabConnectionId || undefined });
+    .object({
+      gitlabConnectionId: z.string().uuid().optional(),
+      bitbucketConnectionId: z.string().uuid().optional(),
+    })
+    .safeParse({
+      gitlabConnectionId: value.gitlabConnectionId || undefined,
+      bitbucketConnectionId: value.bitbucketConnectionId || undefined,
+    });
   if (!parsed.success) {
     return validationErrorResponse(
       c,
       "invalid_content_sync_connections_query",
-      "Invalid GitLab connection",
+      "Invalid connection",
       parsed.error.issues,
     );
   }
@@ -186,8 +198,15 @@ function readHiddenKeys(pulled: unknown) {
   });
 }
 
-function syncProvider(sync: { syncConfig: Record<string, unknown> } | null): "github" | "gitlab" {
-  return sync?.syncConfig.provider === "gitlab" ? "gitlab" : "github";
+type GitSyncProvider = "github" | "gitlab" | "bitbucket";
+
+function isGitSyncProvider(value: unknown): value is GitSyncProvider {
+  return value === "github" || value === "gitlab" || value === "bitbucket";
+}
+
+function syncProvider(sync: { syncConfig: Record<string, unknown> } | null): GitSyncProvider {
+  const provider = sync?.syncConfig.provider;
+  return provider === "gitlab" || provider === "bitbucket" ? provider : "github";
 }
 
 /** The saved GitLab project, so the connections list can include it even past the listing's cap. */
@@ -200,7 +219,17 @@ function savedGitLabProject(sync: { syncConfig: Record<string, unknown> } | null
     : undefined;
 }
 
-function serializeRun(run: ProjectContentSyncRunRow, syncProvider: "github" | "gitlab") {
+/** The saved Bitbucket repository, so the list can include it even past the listing's cap. */
+function savedBitbucketRepository(sync: { syncConfig: Record<string, unknown> } | null) {
+  const { provider, resourceKey, connectionId } = sync?.syncConfig ?? {};
+  return provider === "bitbucket" &&
+    typeof resourceKey === "string" &&
+    typeof connectionId === "string"
+    ? { connectionId, resourceKey }
+    : undefined;
+}
+
+function serializeRun(run: ProjectContentSyncRunRow, syncProvider: GitSyncProvider) {
   const pulled = run.summary?.pulled;
   const pushed = run.summary?.pushed;
   // Recorded with the run since the sync can move between services; older runs follow the sync.
@@ -211,7 +240,7 @@ function serializeRun(run: ProjectContentSyncRunRow, syncProvider: "github" | "g
       : null;
   return {
     id: run.id,
-    provider: provider === "github" || provider === "gitlab" ? provider : syncProvider,
+    provider: isGitSyncProvider(provider) ? provider : syncProvider,
     trigger: run.trigger,
     status: run.status,
     // A failed run may carry only the service it ran with.
@@ -300,7 +329,7 @@ const GITLAB_CONNECTION_REMOVED_ERROR: SyncConnectionError = {
 };
 
 type SyncConnectionOption = {
-  provider: "github" | "gitlab";
+  provider: GitSyncProvider;
   connectionId: string;
   resourceKey: string;
   /** The branch a GitHub repository was enabled with; a GitLab sync names its own. */
@@ -407,6 +436,110 @@ async function listGitLabSyncConnections(
   };
 }
 
+const BITBUCKET_NOT_CONNECTED_ERROR: SyncConnectionError = {
+  code: "content_sync_bitbucket_not_connected",
+  message: "Connect Bitbucket in Integrations first.",
+};
+
+const BITBUCKET_TOKEN_UNREADABLE_ERROR: SyncConnectionError = {
+  code: "content_sync_bitbucket_token_unreadable",
+  message:
+    "The workspace's saved Bitbucket token can't be read. Save the connection again in Integrations.",
+};
+
+const BITBUCKET_REPOSITORY_NOT_FOUND_ERROR: SyncConnectionError = {
+  code: "content_sync_bitbucket_repository_not_found",
+  message: "The workspace's Bitbucket token can't see this repository. Choose it again.",
+};
+
+const BITBUCKET_UNREACHABLE_ERROR: SyncConnectionError = {
+  code: "content_sync_bitbucket_unavailable",
+  message: "Bitbucket couldn't be reached. Try again or check Integrations.",
+};
+
+const BITBUCKET_CONNECTION_REMOVED_ERROR: SyncConnectionError = {
+  code: "content_sync_bitbucket_connection_removed",
+  message: "The chosen Bitbucket connection no longer exists. Choose another connection.",
+};
+
+type BitbucketSyncListing = {
+  /** Whether the workspace has any Bitbucket connection. */
+  connected: boolean;
+  /** Whether the chosen connection's repositories could be read. */
+  available: boolean;
+  /** The connection the repositories belong to: the one asked for, else the default. */
+  connectionId: string | null;
+  connections: SyncConnectionOption[];
+};
+
+function syncOptionFromBitbucketRepository(repository: BitbucketRepository): SyncConnectionOption {
+  return {
+    provider: "bitbucket",
+    connectionId: repository.uuid,
+    resourceKey: repository.fullName,
+    // What an empty branch field reads; shown as its placeholder.
+    branch: repository.mainBranch,
+    // Bitbucket doesn't say what a token may do per repository; a refused write is reported on the run.
+    canSend: null,
+    canRead: true,
+  };
+}
+
+/**
+ * One Bitbucket connection's repositories; `available` is false when Bitbucket can't be read. A
+ * saved repository outside the most recently updated few hundred is looked up and added.
+ */
+async function listBitbucketSyncConnections(
+  organizationId: string,
+  bitbucketConnectionId: string | null,
+  saved?: { connectionId: string; resourceKey: string },
+): Promise<BitbucketSyncListing> {
+  const access = await loadBitbucketConnectionCredentials({
+    organizationId,
+    connectionId: bitbucketConnectionId,
+  });
+  const unavailable = (connected: boolean): BitbucketSyncListing => ({
+    connected,
+    available: false,
+    connectionId: bitbucketConnectionId,
+    connections: [],
+  });
+  if (isErr(access)) {
+    return unavailable(true);
+  }
+  if (!access.value) {
+    const connected = bitbucketConnectionId
+      ? (await listBitbucketConnections({ organizationId })).length > 0
+      : false;
+    return unavailable(connected);
+  }
+  const connectionId = access.value.id;
+  const repositories = await listBitbucketRepositories(access.value);
+  if (isErr(repositories)) {
+    return { ...unavailable(true), connectionId };
+  }
+  const listed = repositories.value;
+  if (saved && !listed.some((repository) => repository.uuid === saved.connectionId)) {
+    const found = await getBitbucketRepository({ ...access.value, fullName: saved.resourceKey });
+    if (isErr(found)) {
+      if (found.error.code !== "bitbucket_not_found") {
+        // A slow or failing lookup must not call the saved repository missing.
+        return { ...unavailable(true), connectionId };
+      }
+    } else if (found.value.uuid === saved.connectionId) {
+      listed.push(found.value);
+    }
+  }
+  return {
+    connected: true,
+    available: true,
+    connectionId,
+    connections: listed
+      .map(syncOptionFromBitbucketRepository)
+      .sort((left, right) => left.resourceKey.localeCompare(right.resourceKey)),
+  };
+}
+
 /** Checks the connection belongs to the workspace and fills in what the provider owns. */
 async function resolveSyncConnection(input: {
   organizationId: string;
@@ -491,6 +624,46 @@ async function resolveSyncConnection(input: {
         ...config,
         resourceKey: project.value.pathWithNamespace,
         gitlabConnectionId: access.value.id,
+      });
+    }
+    case "bitbucket": {
+      // Syncs run with one of the workspace's Bitbucket connections: the one chosen, else the
+      // default, whose id is then kept so changing the default never moves the sync.
+      const access = await loadBitbucketConnectionCredentials({
+        organizationId: input.organizationId,
+        connectionId: config.bitbucketConnectionId,
+      });
+      if (isErr(access)) {
+        return err(BITBUCKET_TOKEN_UNREADABLE_ERROR);
+      }
+      if (!access.value) {
+        return err(
+          config.bitbucketConnectionId
+            ? BITBUCKET_CONNECTION_REMOVED_ERROR
+            : BITBUCKET_NOT_CONNECTED_ERROR,
+        );
+      }
+      // The path is what runs use; the uuid proves it still names the repository chosen.
+      const repository = await getBitbucketRepository({
+        ...access.value,
+        fullName: config.resourceKey,
+      });
+      if (isErr(repository)) {
+        return err(
+          repository.error.code === "bitbucket_not_found" ||
+            repository.error.code === "bitbucket_forbidden"
+            ? BITBUCKET_REPOSITORY_NOT_FOUND_ERROR
+            : BITBUCKET_UNREACHABLE_ERROR,
+        );
+      }
+      if (repository.value.uuid !== config.connectionId) {
+        return err(BITBUCKET_REPOSITORY_NOT_FOUND_ERROR);
+      }
+      const { gitlabConnectionId: _gitlabConnectionId, ...bitbucket } = config;
+      return ok({
+        ...bitbucket,
+        resourceKey: repository.value.fullName,
+        bitbucketConnectionId: access.value.id,
       });
     }
     default:
@@ -587,7 +760,14 @@ export function createProjectContentSyncRoutes(
           ? saved.syncConfig.gitlabConnectionId
           : null;
       const askedConnectionId = c.req.valid("query").gitlabConnectionId ?? savedConnectionId;
-      const [gitlab, gitlabConnections] = await Promise.all([
+      const savedBitbucketConnectionId =
+        saved?.syncConfig.provider === "bitbucket" &&
+        typeof saved.syncConfig.bitbucketConnectionId === "string"
+          ? saved.syncConfig.bitbucketConnectionId
+          : null;
+      const askedBitbucketConnectionId =
+        c.req.valid("query").bitbucketConnectionId ?? savedBitbucketConnectionId;
+      const [gitlab, gitlabConnections, bitbucket, bitbucketConnections] = await Promise.all([
         listGitLabSyncConnections(
           resolved.project.organizationId,
           askedConnectionId,
@@ -595,6 +775,14 @@ export function createProjectContentSyncRoutes(
           askedConnectionId === savedConnectionId ? savedGitLabProject(saved) : undefined,
         ),
         listGitLabConnections({ organizationId: resolved.project.organizationId }),
+        listBitbucketSyncConnections(
+          resolved.project.organizationId,
+          askedBitbucketConnectionId,
+          askedBitbucketConnectionId === savedBitbucketConnectionId
+            ? savedBitbucketRepository(saved)
+            : undefined,
+        ),
+        listBitbucketConnections({ organizationId: resolved.project.organizationId }),
       ]);
 
       const connections: SyncConnectionOption[] = [
@@ -605,6 +793,7 @@ export function createProjectContentSyncRoutes(
           branch: repository.defaultBranch,
         })),
         ...gitlab.connections,
+        ...bitbucket.connections,
       ];
       return c.json(
         {
@@ -619,6 +808,16 @@ export function createProjectContentSyncRoutes(
             id: connection.id,
             name: connection.name,
             serverUrl: connection.serverUrl,
+            isDefault: connection.isDefault,
+          })),
+          bitbucket: {
+            connected: bitbucket.connected,
+            available: bitbucket.available,
+            connectionId: bitbucket.connectionId,
+          },
+          bitbucketConnections: bitbucketConnections.map((connection) => ({
+            id: connection.id,
+            name: connection.name,
             isDefault: connection.isDefault,
           })),
         },

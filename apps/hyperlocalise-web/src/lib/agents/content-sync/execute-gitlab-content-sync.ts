@@ -87,7 +87,10 @@ export type GitLabContentSyncSummary = ContentSyncSummary & {
   };
 };
 
-export async function executeGitLabContentSync(input: {
+/** A Bitbucket pull reports the same as a GitLab one. */
+export type RepositoryContentSyncSummary = GitLabContentSyncSummary;
+
+export type RepositoryContentSyncInput = {
   organizationId: string;
   projectId: string;
   automationId: string;
@@ -98,12 +101,97 @@ export async function executeGitLabContentSync(input: {
   /** Tests inject a reader (and a writer, or no delivery); the app uses the workspace's connection. */
   reader?: ContentSyncRepositoryReader;
   writer?: ContentSyncRepositoryWriter;
-}): Promise<Result<GitLabContentSyncSummary, ContentSyncError>> {
+};
+
+/** The repository's reader and writer, through the connection the sync names. */
+export type ResolvedContentSyncRepository = {
+  reader: ContentSyncRepositoryReader;
+  writer: ContentSyncRepositoryWriter;
+};
+
+export async function executeGitLabContentSync(
+  input: RepositoryContentSyncInput,
+): Promise<Result<GitLabContentSyncSummary, ContentSyncError>> {
+  return executeRepositoryContentSync({
+    ...input,
+    providerName: "GitLab",
+    uploadSurface: GITLAB_CONTENT_SYNC_UPLOAD_SURFACE,
+    resolveRepository: () => resolveGitLabRepository(input),
+  });
+}
+
+async function resolveGitLabRepository(
+  input: RepositoryContentSyncInput,
+): Promise<Result<ResolvedContentSyncRepository, ContentSyncError>> {
+  const access = await resolveGitLabAccess({
+    localOrganizationId: input.organizationId,
+    connectionId: input.syncConfig.gitlabConnectionId,
+  });
+  if (isErr(access)) {
+    return err({
+      code: "content_sync_connection_required",
+      message:
+        access.error.code === "gitlab_connection_decrypt_failed"
+          ? "The sync's saved GitLab token can't be read. Save the connection again in Integrations."
+          : access.error.code === "gitlab_connection_removed"
+            ? "The GitLab connection this sync uses was removed in Integrations. Choose another connection in the project's Sync settings."
+            : "Connect GitLab in Integrations before syncing.",
+    });
+  }
+  // The saved path is looked up on the workspace's current server; the id proves it's still
+  // the project that was chosen, not another one at the same path on a replaced server.
+  const gitlabProject = await getGitLabProject({
+    ...access.value,
+    pathWithNamespace: input.syncConfig.resourceKey,
+  });
+  if (isErr(gitlabProject)) {
+    return err({
+      code: "content_sync_connection_required",
+      message:
+        gitlabProject.error.code === "gitlab_not_found"
+          ? "The workspace's GitLab token can't see this repository. Check the connection in Integrations."
+          : gitlabProject.error.code === "gitlab_unauthorized"
+            ? "The workspace's GitLab token was refused. Check the connection in Integrations."
+            : "GitLab couldn't be reached. Check the connection in Integrations.",
+    });
+  }
+  if (String(gitlabProject.value.id) !== input.syncConfig.connectionId) {
+    return err({
+      code: "content_sync_connection_required",
+      message:
+        "The repository at this path is not the one chosen for this sync. Choose the repository again.",
+    });
+  }
+  return ok({
+    reader: createGitLabContentSyncReader({
+      access: access.value,
+      pathWithNamespace: input.syncConfig.resourceKey,
+    }),
+    writer: createGitLabContentSyncWriter({
+      access: access.value,
+      pathWithNamespace: input.syncConfig.resourceKey,
+    }),
+  });
+}
+
+/**
+ * Pulls a git repository's language files into the project over the provider's REST API, then
+ * delivers approved translations as one review. Provider-neutral: GitLab and Bitbucket differ
+ * only in how the repository is reached (`resolveRepository`) and the upload surface they store.
+ */
+export async function executeRepositoryContentSync(
+  input: RepositoryContentSyncInput & {
+    /** For messages people read: `GitLab`, `Bitbucket`. */
+    providerName: string;
+    uploadSurface: string;
+    resolveRepository: () => Promise<Result<ResolvedContentSyncRepository, ContentSyncError>>;
+  },
+): Promise<Result<RepositoryContentSyncSummary, ContentSyncError>> {
   const pathTemplate = input.syncConfig.pathTemplate?.trim() ?? "";
   if (!pathTemplate) {
     return err({
       code: "content_sync_path_template_required",
-      message: "GitLab sync needs a path template that says where each language's files are.",
+      message: `${input.providerName} sync needs a path template that says where each language's files are.`,
     });
   }
 
@@ -135,53 +223,12 @@ export async function executeGitLabContentSync(input: {
   let reader = input.reader;
   let writer = input.writer;
   if (!reader) {
-    const access = await resolveGitLabAccess({
-      localOrganizationId: input.organizationId,
-      connectionId: input.syncConfig.gitlabConnectionId,
-    });
-    if (isErr(access)) {
-      return err({
-        code: "content_sync_connection_required",
-        message:
-          access.error.code === "gitlab_connection_decrypt_failed"
-            ? "The sync's saved GitLab token can't be read. Save the connection again in Integrations."
-            : access.error.code === "gitlab_connection_removed"
-              ? "The GitLab connection this sync uses was removed in Integrations. Choose another connection in the project's Sync settings."
-              : "Connect GitLab in Integrations before syncing.",
-      });
+    const resolved = await input.resolveRepository();
+    if (isErr(resolved)) {
+      return err(resolved.error);
     }
-    // The saved path is looked up on the workspace's current server; the id proves it's still
-    // the project that was chosen, not another one at the same path on a replaced server.
-    const gitlabProject = await getGitLabProject({
-      ...access.value,
-      pathWithNamespace: input.syncConfig.resourceKey,
-    });
-    if (isErr(gitlabProject)) {
-      return err({
-        code: "content_sync_connection_required",
-        message:
-          gitlabProject.error.code === "gitlab_not_found"
-            ? "The workspace's GitLab token can't see this repository. Check the connection in Integrations."
-            : gitlabProject.error.code === "gitlab_unauthorized"
-              ? "The workspace's GitLab token was refused. Check the connection in Integrations."
-              : "GitLab couldn't be reached. Check the connection in Integrations.",
-      });
-    }
-    if (String(gitlabProject.value.id) !== input.syncConfig.connectionId) {
-      return err({
-        code: "content_sync_connection_required",
-        message:
-          "The repository at this path is not the one chosen for this sync. Choose the repository again.",
-      });
-    }
-    reader = createGitLabContentSyncReader({
-      access: access.value,
-      pathWithNamespace: input.syncConfig.resourceKey,
-    });
-    writer ??= createGitLabContentSyncWriter({
-      access: access.value,
-      pathWithNamespace: input.syncConfig.resourceKey,
-    });
+    reader = resolved.value.reader;
+    writer ??= resolved.value.writer;
   }
 
   const head = await reader.resolveBranchHead({ branch: input.syncConfig.branch });
@@ -309,7 +356,7 @@ export async function executeGitLabContentSync(input: {
       content: content.value,
       commitSha: head.value.commitSha,
       workflowRunId: input.runId,
-      uploadSurface: GITLAB_CONTENT_SYNC_UPLOAD_SURFACE,
+      uploadSurface: input.uploadSurface,
       skipUnchanged: "content",
     });
     if (stored.outcome === "uploaded") {
@@ -389,6 +436,7 @@ export async function executeGitLabContentSync(input: {
   const files = [
     ...reports.map(({ versionId: _versionId, ...report }) => report),
     ...(await hideFilesMissingFromRepository({
+      uploadSurface: input.uploadSurface,
       organizationId: input.organizationId,
       projectId: input.projectId,
       syncConfig: input.syncConfig,
@@ -402,13 +450,14 @@ export async function executeGitLabContentSync(input: {
   logger.info(
     {
       automationId: input.automationId,
+      provider: input.syncConfig.provider,
       pulled,
       unmatched,
       translationFiles,
       clashes: files.reduce((count, file) => count + file.clashes.length, 0),
       missingKeys: files.reduce((count, file) => count + file.missingKeys.length, 0),
     },
-    "gitlab content sync pulled",
+    "repository content sync pulled",
   );
 
   let pushed: GitLabContentSyncSummary["pushed"] = { written: 0 };
@@ -435,7 +484,7 @@ export async function executeGitLabContentSync(input: {
     }).catch((error: unknown) => {
       logger.error(
         { projectId: input.projectId, err: serializeErrorForLog(error) },
-        "gitlab content sync delivery failed",
+        "repository content sync delivery failed",
       );
       return {
         written: 0,
@@ -607,6 +656,7 @@ function escapeLikePattern(value: string): string {
  * another sync's files under the same project folder are left alone.
  */
 async function hideFilesMissingFromRepository(input: {
+  uploadSurface: string;
   organizationId: string;
   projectId: string;
   syncConfig: ContentSyncConfig;
@@ -637,7 +687,7 @@ async function hideFilesMissingFromRepository(input: {
           schema.repositorySourceFiles.sourcePath,
           `${escapeLikePattern(input.syncConfig.projectFolder)}/%`,
         ),
-        eq(schema.repositorySourceFileVersions.uploadSurface, GITLAB_CONTENT_SYNC_UPLOAD_SURFACE),
+        eq(schema.repositorySourceFileVersions.uploadSurface, input.uploadSurface),
       ),
     );
   const reports: ContentSyncFileReport[] = [];

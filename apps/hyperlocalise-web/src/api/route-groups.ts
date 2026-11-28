@@ -57,6 +57,7 @@ import { createEngineSetupRoutes } from "./routes/engine-setup/engine-setup.rout
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
+import { createBitbucketRoutes } from "./routes/bitbucket/bitbucket.route";
 import { createGitlabRoutes } from "./routes/gitlab/gitlab.route";
 import { createIntercomRoutes } from "./routes/intercom/intercom.route";
 import { createSanityRoutes } from "./routes/sanity/sanity.route";
@@ -222,6 +223,7 @@ export function createOrgAgentsRoutes() {
     .route("/slack-connect", createSlackConnectRoutes())
     .route("/github-installation", createGithubInstallationRoutes())
     .route("/gitlab", createGitlabRoutes())
+    .route("/bitbucket", createBitbucketRoutes())
     .route("/intercom", createIntercomRoutes())
     .route("/sanity", createSanityRoutes());
 }

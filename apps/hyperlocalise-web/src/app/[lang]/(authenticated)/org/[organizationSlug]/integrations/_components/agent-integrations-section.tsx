@@ -31,6 +31,7 @@ import { LoopsConnectionPanel } from "./loops-connection-panel";
 import { MailchimpConnectionPanel } from "./mailchimp-connection-panel";
 import { IntercomConnectionPanel } from "./intercom-connection-panel";
 import { GoogleDriveConnectionPanel } from "./google-drive-connection-panel";
+import { BitbucketConnectionPanel } from "./bitbucket-connection-panel";
 import { GitLabServerConnectionPanel } from "./gitlab-server-connection-panel";
 import { gitlabServerConnectionPanelMessages } from "./gitlab-server-connection-panel.messages";
 import { useGitLabServerConnection } from "./use-gitlab-server-connection";
@@ -162,6 +163,7 @@ export function SourceControlIntegrationsSection({
           )}
         />
       ) : null}
+      <BitbucketConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
     </>
   );
 }

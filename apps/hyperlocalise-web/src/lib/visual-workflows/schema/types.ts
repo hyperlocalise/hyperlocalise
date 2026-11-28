@@ -282,7 +282,7 @@ export type VisualNodeConfig =
   | {
       kind: "action.content_sync";
       projectId: string;
-      provider: "github" | "gitlab" | "contentful" | "intercom";
+      provider: "github" | "gitlab" | "bitbucket" | "contentful" | "intercom";
       connectionId: string;
       resourceKey: string;
       providerFolder: string;

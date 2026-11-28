@@ -1,11 +1,11 @@
 ---
 title: "Sync content with a repository"
-description: "Move source files into Platform from a GitHub or GitLab repository and return translations."
+description: "Move source files into Platform from a GitHub, GitLab or Bitbucket repository and return translations."
 ---
 
-Content sync moves files between a connected repository and a native project. A project's **Sync** settings sync with GitLab. To sync a GitHub repository, use its **Automation** settings under **Integrations → GitHub**, or a visual workflow **Content sync** step.
+Content sync moves files between a connected repository and a native project. A project's **Sync** settings sync with GitLab or Bitbucket. To sync a GitHub repository, use its **Automation** settings under **Integrations → GitHub**, or a visual workflow **Content sync** step.
 
-Connecting GitHub or GitLab gives Platform access to repositories. It does not start a file sync or generate translations.
+Connecting GitHub, GitLab or Bitbucket gives Platform access to repositories. It does not start a file sync or generate translations.
 
 ## Configure content sync
 
@@ -41,6 +41,16 @@ After the pull, each run writes one language file per source file and target lan
 
 With **Allow source text editing** on, the same merge request also writes the project's source text into the repository's JSON, JSONC and ARB source files, wherever it was edited in Hyperlocalise or kept in a clash, so merging it brings the repository in line. Only the edited strings change; the rest of the file stays as it is. Strings hidden in the editor and keys the repository dropped are left as the file has them, and so is a list item that clashes, since an item added above it in the repository may have moved it. **Recent syncs** counts the source files sent, and the merge request's description says when it changes source text. A GitHub sync doesn't write source text back.
 
+
+## Pull from Bitbucket
+
+A workspace connected to Bitbucket Cloud can pull a repository's source files into a project from the project's **Sync** settings, and send approved translations back as one pull request per sync.
+
+1. [Connect Bitbucket](/platform/connections/bitbucket) under **Integrations**, with a token that can read and write repositories and pull requests (a read-only token pulls only). With several connections, the Sync panel shows a **Bitbucket connection** field, and the sync keeps the connection it was saved with even if the default changes later.
+2. Open the project's **Settings**, select **Sync**, choose **Bitbucket** as the repository service and pick the repository.
+3. Fill in the repository folder, the branch (empty reads the repository's main branch), the language file paths and the project folder the same way as [for GitLab](#pull-from-gitlab).
+
+Everything described for GitLab above applies: which files are imported, keys the repository dropped being hidden, and what goes back. Bitbucket calls the review a pull request. The sync's branch is made again on the current target whenever what it carries changes; if Bitbucket declines the open pull request when that happens, the run opens a new one. A pull request you decline stays declined until the translations to send change. Visual workflow **Content sync** steps don't offer Bitbucket yet.
 ## Connect the translation step
 
 Content sync itself does not create translation jobs. Add a [Source upload automation](/platform/automation/create-automation) or [request a translation](/platform/translation/start) after the source arrives. Review the translations before the next outbound sync.

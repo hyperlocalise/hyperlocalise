@@ -21,7 +21,12 @@ import { inferSupportedOfficeTranslationFileFormat } from "@/lib/translation/fil
 import { TRANSLATION_AS_SOURCE_UPLOAD_SURFACE } from "./translation-as-source-support";
 
 /** Uploads whose next run may store their own copy again over anything sent in their place. */
-const SYNC_UPLOAD_SURFACES = new Set(["content_sync", "gitlab_content_sync", "github_automation"]);
+const SYNC_UPLOAD_SURFACES = new Set([
+  "content_sync",
+  "gitlab_content_sync",
+  "bitbucket_content_sync",
+  "github_automation",
+]);
 
 /** What the destination has at the path a send writes to. */
 export type TranslationAsSourceDestinationFile =

@@ -1,0 +1,23 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+/** Bitbucket Cloud's REST API origin. Every Bitbucket call goes here, never to an address someone typed. */
+export const BITBUCKET_API_ORIGIN = "https://api.bitbucket.org";
+
+export const BITBUCKET_REPOSITORY_PAGE_SIZE = 100;
+
+export const BITBUCKET_REPOSITORY_MAX_PAGES = 3;
+
+export const BITBUCKET_REQUEST_TIMEOUT_MS = 15_000;
+
+/** A commit of many files takes Bitbucket longer to apply than a read; the answer is waited for. */
+export const BITBUCKET_WRITE_REQUEST_TIMEOUT_MS = 60_000;

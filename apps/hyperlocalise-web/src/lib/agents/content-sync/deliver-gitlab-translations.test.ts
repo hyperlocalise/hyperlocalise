@@ -424,6 +424,39 @@ describe("deliverGitLabTranslations", () => {
     expect(none.upsertReview).toHaveBeenCalledTimes(1);
   });
 
+  it("reads and hashes the branch's changed files when the provider lists no blob ids", async () => {
+    prefilled({ "fr-FR": { title: "Accueil" } });
+    const built = '{\n  "title": "Accueil"\n}\n';
+    const target = { "locales/fr.json": '{\n  "title": "Vieux"\n}\n' };
+    // Bitbucket's listings carry no blob ids.
+    const withoutIds = (files: Record<string, string>) => {
+      const reader = fakeReader({ target, syncBranch: { files, parent: "abc" } });
+      reader.listFiles.mockImplementation(async ({ commitSha }) =>
+        ok(
+          commitSha === "sync-head"
+            ? Object.keys(files).map((path) => ({ path, contentId: null }))
+            : [],
+        ),
+      );
+      return reader;
+    };
+    const paths = ["locales/en.json", "locales/fr.json"];
+
+    const same = withoutIds({ "locales/fr.json": built });
+    const kept = fakeWriter({ state: "open" });
+    await deliver({ reader: same, writer: kept, repositoryPaths: paths });
+    expect(kept.commitFiles).not.toHaveBeenCalled();
+    expect(same.readFile).toHaveBeenCalledWith({ commitSha: "sync-head", path: "locales/fr.json" });
+
+    const different = fakeWriter({ state: "open" });
+    await deliver({
+      reader: withoutIds({ "locales/fr.json": '{\n  "title": "Autre"\n}\n' }),
+      writer: different,
+      repositoryPaths: paths,
+    });
+    expect(different.commitFiles).toHaveBeenCalledTimes(1);
+  });
+
   it("rebuilds the branch when it sits on an older target or changes other files too", async () => {
     prefilled({ "fr-FR": { title: "Accueil" } });
     const built = '{\n  "title": "Accueil"\n}\n';

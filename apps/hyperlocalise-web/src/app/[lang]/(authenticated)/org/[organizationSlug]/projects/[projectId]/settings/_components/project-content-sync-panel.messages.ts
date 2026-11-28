@@ -53,10 +53,10 @@ export const projectContentSyncPanelMessages = defineMessages({
   },
   noRepositories: {
     defaultMessage:
-      "Connect GitLab in Integrations to sync this project. A GitHub repository syncs from its Automation settings there.",
-    id: "BL4Aw/xqvM",
+      "Connect GitLab or Bitbucket in Integrations to sync this project. A GitHub repository syncs from its Automation settings there.",
+    id: "59k1Oji7ES",
     description:
-      "Shown in the project Sync panel when the workspace has no GitLab connection and the project has no sync",
+      "Shown in the project Sync panel when the workspace has no GitLab or Bitbucket connection and the project has no sync",
   },
   openIntegrations: {
     defaultMessage: "Open Integrations",
@@ -594,5 +594,91 @@ export const projectContentSyncPanelMessages = defineMessages({
     defaultMessage: "and {more, number} more",
     id: "RJLxYJk50b",
     description: "Follows a shortened list of hidden keys in a project sync run",
+  },
+  bitbucketBehaviour: {
+    defaultMessage:
+      "A Bitbucket sync reads the repository through its API, hides keys the repository dropped, and sends approved translations back in a pull request.",
+    id: "uBQoDAnFtM",
+    description:
+      "Note under the repository service picker while Bitbucket is chosen, saying what a Bitbucket sync does",
+  },
+
+  bitbucketConnectionLabel: {
+    defaultMessage: "Bitbucket connection",
+    id: "kaoidOmXvv",
+    description: "Label for the picker of which workspace Bitbucket connection a project sync uses",
+  },
+
+  bitbucketConnectionHelp: {
+    defaultMessage:
+      "Which of the workspace's Bitbucket connections this sync runs with. New syncs use the default one.",
+    id: "MwE3sNR+71",
+    description: "Help under the Bitbucket connection picker in the project Sync panel",
+  },
+
+  noBitbucketConnection: {
+    defaultMessage: "Connect Bitbucket in Integrations to sync from Bitbucket.",
+    id: "VDqO0OE3Hj",
+    description:
+      "Shown in the project Sync panel when Bitbucket is chosen and the workspace has no Bitbucket connection",
+  },
+
+  bitbucketUnavailable: {
+    defaultMessage:
+      "Unable to list the Bitbucket repositories. Check the connection in Integrations.",
+    id: "0z0VW5nvlL",
+    description: "Shown in the project Sync panel when the Bitbucket repositories can't be read",
+  },
+
+  noBitbucketRepositories: {
+    defaultMessage:
+      "This connection's token can read no repositories. A repository or project access token sees only that repository or project.",
+    id: "k5vKK9aHNE",
+    description:
+      "Shown in the project Sync panel when the Bitbucket connection lists no repositories",
+  },
+
+  errorBitbucketNotConnected: {
+    defaultMessage: "Connect Bitbucket in Integrations first.",
+    id: "q0t9uRfu4z",
+    description:
+      "Error shown when a Bitbucket project sync is saved while the workspace has no Bitbucket connection",
+  },
+
+  errorBitbucketTokenUnreadable: {
+    defaultMessage:
+      "The workspace's saved Bitbucket token can't be read. Save the connection again in Integrations.",
+    id: "wrpb8RvxPm",
+    description: "Error shown when the workspace's stored Bitbucket token can't be decrypted",
+  },
+
+  errorBitbucketRepositoryNotFound: {
+    defaultMessage: "The workspace's Bitbucket token can't see this repository. Choose it again.",
+    id: "xevO29DVZl",
+    description:
+      "Error shown when the Bitbucket repository chosen for the project sync is not found",
+  },
+
+  errorBitbucketUnavailable: {
+    defaultMessage:
+      "Bitbucket couldn't be reached. Try again or check the connection in Integrations.",
+    id: "4GcT6yvYDX",
+    description: "Error shown when Bitbucket can't be reached while saving the project sync",
+  },
+
+  errorBitbucketConnectionRemoved: {
+    defaultMessage:
+      "The Bitbucket connection this sync used was removed in Integrations. Choose another connection.",
+    id: "YoYLReeAk1",
+    description:
+      "Shown in the project Sync panel when the sync's Bitbucket connection no longer exists",
+  },
+
+  errorBitbucketConnectionRemovedNone: {
+    defaultMessage:
+      "The Bitbucket connection this sync used was removed in Integrations. Add a connection there, then choose it here.",
+    id: "vjMheKi1ow",
+    description:
+      "Shown in the project Sync panel when the sync's Bitbucket connection no longer exists and the workspace has none left",
   },
 });

@@ -1,0 +1,33 @@
+---
+title: "Connect Bitbucket"
+description: "Connect Bitbucket Cloud with an API token to sync repository files with your projects."
+---
+
+Connect Bitbucket Cloud to pull a repository's source files into a project and send approved translations back as a pull request. An admin or localization manager makes the connection; anyone who can change a project's settings can then use it for that project's sync.
+
+## Create a token in Bitbucket
+
+Use either of these:
+
+- **An API token** from your Atlassian account settings. Give it read and write access to repositories and pull requests. You enter it together with the email address of the Atlassian account that created it.
+- **A workspace, project or repository access token** from Bitbucket's settings, with read and write access to repositories and pull requests. It reaches only that workspace, project or repository, which makes it a good fit for a single project's sync. You enter it without an email.
+
+A token that can only read pulls files and doesn't open pull requests; each run says why translations weren't sent. Set an expiry and replace the token before it runs out.
+
+## Add the connection
+
+1. Open workspace **Integrations**, find **Bitbucket**, and select **Add connection**.
+2. Give the connection a name (optional), enter the Atlassian account email for an API token or leave it empty for an access token, and paste the token.
+3. Select **Save and check**. Hyperlocalise checks the token with Bitbucket before saving it, and checks each connection again whenever you open the row. The row warns when a token can't read any repository.
+
+Everyone who can set up a project sync can choose any of the workspace's Bitbucket connections, so choose each token's reach with care. You can add several connections, for example one per team's repositories. The first one is the **Default**, which new project syncs use unless someone picks another; **Make default** moves it.
+
+## Sync a repository
+
+Open the project's **Settings**, select **Sync**, choose **Bitbucket** as the repository service and pick the repository. The rest works the same as a GitLab sync: see [Sync content with a repository](/platform/automation/content-sync#pull-from-bitbucket).
+
+## Change or remove a connection
+
+**Change** replaces a connection's name, email or token; the token is always entered again, and project syncs that use the connection follow the change. **Remove** asks you to confirm and says how many project syncs use the connection; those syncs stop until they are given another connection in the project's Sync settings.
+
+If a repository is missing from a project's Sync settings, check that the connection's token can read it. See [Connection troubleshooting](/platform/help/connections).

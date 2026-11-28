@@ -71,6 +71,7 @@ import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { contentSyncFingerprintFromConfig } from "@/lib/agents/content-sync/content-sync-config";
+import { saveBitbucketConnection } from "@/lib/bitbucket/connections";
 import { db, schema } from "@/lib/database/client";
 import type { GitLabProject } from "@/lib/gitlab/types";
 import { err, ok } from "@/lib/primitives/result/results";
@@ -213,6 +214,8 @@ describe("project content sync routes", () => {
       ],
       gitlab: { connected: false, available: false, connectionId: null, tokenCanSend: null },
       gitlabConnections: [],
+      bitbucket: { connected: false, available: false, connectionId: null },
+      bitbucketConnections: [],
     });
 
     const refused = await routeFor().$put({ param, json: syncBody(repository.id) }, { headers });
@@ -428,6 +431,126 @@ describe("project content sync routes", () => {
     expect(await saved.json()).toMatchObject({ error: "content_sync_connection_required" });
   });
 
+  describe("Bitbucket", () => {
+    const repository = {
+      uuid: "{11111111-1111-4111-8111-111111111111}",
+      full_name: "acme/site",
+      name: "site",
+      mainbranch: { name: "main" },
+    };
+
+    function json(value: unknown, status = 200) {
+      return new Response(JSON.stringify(value), { status });
+    }
+
+    /** Bitbucket Cloud answering a token that reads one repository. */
+    function stubBitbucket() {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: string | URL) => {
+          const url = new URL(String(input));
+          if (url.pathname === "/2.0/repositories") {
+            return json({ values: [repository] });
+          }
+          // Bitbucket ignores the case of a repository path.
+          if (url.pathname.toLowerCase() === "/2.0/repositories/acme/site") {
+            return json(repository);
+          }
+          if (url.pathname === "/2.0/user") {
+            return json({ display_name: "Dev" });
+          }
+          return json({}, 404);
+        }),
+      );
+    }
+
+    function bitbucketBody(overrides: Record<string, unknown> = {}) {
+      return {
+        schedule: "manual" as const,
+        syncConfig: {
+          provider: "bitbucket" as const,
+          connectionId: repository.uuid,
+          resourceKey: "Acme/Site",
+          providerFolder: "locales",
+          projectFolder: "bitbucket/acme/site",
+          pathTemplate: "{{locale}}.json",
+          ...overrides,
+        },
+      };
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("lists a connection's repositories and saves a sync with the default connection", async () => {
+      stubBitbucket();
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+      const saved = await saveBitbucketConnection({
+        organizationId: project.organizationId,
+        userId: await projectFixture.getLocalUserId(admin.user.workosUserId),
+        accessToken: "bitbucket-access-token",
+      });
+      if (!saved.ok) {
+        throw new Error("expected the connection to save");
+      }
+
+      const connections = await routeFor().connections.$get({ param, query: {} }, { headers });
+      const body = await connections.json();
+      expect(body).toMatchObject({
+        bitbucket: { connected: true, available: true, connectionId: saved.value.connection.id },
+        bitbucketConnections: [{ id: saved.value.connection.id, name: "Dev", isDefault: true }],
+      });
+      expect("connections" in body && body.connections).toContainEqual({
+        provider: "bitbucket",
+        connectionId: repository.uuid,
+        resourceKey: "acme/site",
+        branch: "main",
+        canSend: null,
+        canRead: true,
+      });
+
+      const put = await routeFor().$put({ param, json: bitbucketBody() }, { headers });
+      expect(put.status).toBe(200);
+      const putBody = (await put.json()) as { sync: { syncConfig: Record<string, unknown> } };
+      expect(putBody.sync.syncConfig).toMatchObject({
+        provider: "bitbucket",
+        resourceKey: "acme/site",
+        bitbucketConnectionId: saved.value.connection.id,
+        pathTemplate: "{{locale}}.json",
+      });
+    });
+
+    it("refuses a repository whose path now names another one, or a workspace with no connection", async () => {
+      stubBitbucket();
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+
+      const unconnected = await routeFor().$put({ param, json: bitbucketBody() }, { headers });
+      expect(unconnected.status).toBe(400);
+      expect(await unconnected.json()).toMatchObject({
+        error: "content_sync_bitbucket_not_connected",
+      });
+
+      await saveBitbucketConnection({
+        organizationId: project.organizationId,
+        userId: await projectFixture.getLocalUserId(admin.user.workosUserId),
+        accessToken: "bitbucket-access-token",
+      });
+      const replaced = await routeFor().$put(
+        { param, json: bitbucketBody({ connectionId: "{22222222-2222-4222-8222-222222222222}" }) },
+        { headers },
+      );
+      expect(replaced.status).toBe(400);
+      expect(await replaced.json()).toMatchObject({
+        error: "content_sync_bitbucket_repository_not_found",
+      });
+    });
+  });
+
   describe("GitLab", () => {
     const access = {
       id: "33333333-3333-4333-8333-333333333333",
@@ -502,6 +625,8 @@ describe("project content sync routes", () => {
         ],
         gitlab: { connected: true, available: true, connectionId: access.id, tokenCanSend: null },
         gitlabConnections: [],
+        bitbucket: { connected: false, available: false, connectionId: null },
+        bitbucketConnections: [],
       });
 
       const saved = await routeFor().$put({ param, json: gitlabBody() }, { headers });

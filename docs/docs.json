@@ -230,6 +230,7 @@
                       "platform/integrations",
                       "platform/tms",
                       "platform/connections/github",
+                      "platform/connections/bitbucket",
                       "platform/connections/contentful",
                       "integrations/google-drive",
                       "platform/connections/intercom",

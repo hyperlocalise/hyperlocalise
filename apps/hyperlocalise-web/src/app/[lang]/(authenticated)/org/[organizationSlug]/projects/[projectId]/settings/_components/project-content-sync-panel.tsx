@@ -61,18 +61,20 @@ const SCHEDULED_POLL_MS = 60_000;
 
 type SyncSchedule = "manual" | "hourly" | "daily";
 
-type SyncProvider = "github" | "gitlab";
+type SyncProvider = "github" | "gitlab" | "bitbucket";
 
 // Brand names, not translated.
 const PROVIDERS: { value: SyncProvider; label: string }[] = [
   { value: "github", label: "GitHub" },
   { value: "gitlab", label: "GitLab" },
+  { value: "bitbucket", label: "Bitbucket" },
 ];
 
 /** What the service picker says about a service that can't be chosen. */
 const UNAVAILABLE_PROVIDER_TEXT = {
   github: { label: messages.providerNotAvailable, hint: messages.githubInIntegrations },
   gitlab: { label: messages.providerNotSetUp, hint: messages.noGitLabConnection },
+  bitbucket: { label: messages.providerNotSetUp, hint: messages.noBitbucketConnection },
 } satisfies Record<SyncProvider, unknown>;
 
 const PATH_TEMPLATE_EXAMPLE = `${CONTENT_SYNC_LOCALE_PLACEHOLDER}.json`;
@@ -89,12 +91,14 @@ type SyncDraft = {
   resourceKey: string;
   providerFolder: string;
   projectFolder: string;
-  /** GitLab only; empty reads the default branch. */
+  /** GitLab and Bitbucket only; empty reads the default branch. */
   branch: string;
-  /** GitLab only. */
+  /** GitLab and Bitbucket only. */
   pathTemplate: string;
   /** GitLab only: the workspace connection to run with; empty means the default one. */
   gitlabConnectionId: string;
+  /** Bitbucket only: the workspace connection to run with; empty means the default one. */
+  bitbucketConnectionId: string;
   schedule: SyncSchedule;
 };
 
@@ -116,6 +120,7 @@ const EMPTY_DRAFT: SyncDraft = {
   branch: "",
   pathTemplate: "",
   gitlabConnectionId: "",
+  bitbucketConnectionId: "",
   schedule: "manual",
 };
 
@@ -140,6 +145,11 @@ const requestErrorMessages: Record<string, PanelMessage> = {
   content_sync_gitlab_unavailable: messages.errorGitLabUnavailable,
   content_sync_gitlab_connection_removed: messages.errorGitLabConnectionRemoved,
   content_sync_gitlab_access_too_low: messages.errorGitLabAccessTooLow,
+  content_sync_bitbucket_not_connected: messages.errorBitbucketNotConnected,
+  content_sync_bitbucket_token_unreadable: messages.errorBitbucketTokenUnreadable,
+  content_sync_bitbucket_repository_not_found: messages.errorBitbucketRepositoryNotFound,
+  content_sync_bitbucket_unavailable: messages.errorBitbucketUnavailable,
+  content_sync_bitbucket_connection_removed: messages.errorBitbucketConnectionRemoved,
 };
 
 /** Messages for the error codes a finished run records; others show the stored text. */
@@ -190,6 +200,7 @@ function draftsEqual(a: SyncDraft, b: SyncDraft) {
     a.provider === b.provider &&
     a.connectionId === b.connectionId &&
     a.gitlabConnectionId === b.gitlabConnectionId &&
+    a.bitbucketConnectionId === b.bitbucketConnectionId &&
     a.branch.trim() === b.branch.trim() &&
     a.pathTemplate.trim() === b.pathTemplate.trim() &&
     a.providerFolder.trim() === b.providerFolder.trim() &&
@@ -219,7 +230,7 @@ function defaultProjectFolderFor(provider: SyncProvider, resourceKey: string) {
 }
 
 function isSyncProvider(value: unknown): value is SyncProvider {
-  return value === "github" || value === "gitlab";
+  return value === "github" || value === "gitlab" || value === "bitbucket";
 }
 
 export function ProjectContentSyncPanel({
@@ -282,6 +293,7 @@ export function ProjectContentSyncPanel({
         branch: saved.syncConfig.branch ?? "",
         pathTemplate: saved.syncConfig.pathTemplate ?? "",
         gitlabConnectionId: saved.syncConfig.gitlabConnectionId ?? "",
+        bitbucketConnectionId: saved.syncConfig.bitbucketConnectionId ?? "",
         schedule: saved.schedule,
       }
     : null;
@@ -289,16 +301,25 @@ export function ProjectContentSyncPanel({
   const values: SyncDraft = edits ?? baseDraft;
   const dirty = edits !== null && !draftsEqual(edits, baseDraft);
   const isGitLab = values.provider === "gitlab";
+  const isBitbucket = values.provider === "bitbucket";
+  // GitLab and Bitbucket syncs read a branch and name each language's files.
+  const namesLanguageFiles = isGitLab || isBitbucket;
   // The GitLab projects listed are the chosen connection's; empty asks for the saved sync's,
-  // else the default's.
+  // else the default's. The same goes for Bitbucket repositories.
   const chosenGitLabConnectionId = values.gitlabConnectionId || null;
+  const chosenBitbucketConnectionId = values.bitbucketConnectionId || null;
   const connectionsQuery = useQuery({
-    queryKey: [...queryKey, "connections", chosenGitLabConnectionId],
+    queryKey: [...queryKey, "connections", chosenGitLabConnectionId, chosenBitbucketConnectionId],
     enabled: canManage && shown,
     queryFn: async () => {
       const response = await contentSyncRoute().connections.$get({
         param,
-        query: chosenGitLabConnectionId ? { gitlabConnectionId: chosenGitLabConnectionId } : {},
+        query: {
+          ...(chosenGitLabConnectionId ? { gitlabConnectionId: chosenGitLabConnectionId } : {}),
+          ...(chosenBitbucketConnectionId
+            ? { bitbucketConnectionId: chosenBitbucketConnectionId }
+            : {}),
+        },
       });
       if (!response.ok) {
         throw new Error(intl.formatMessage(messages.loadConnectionsError));
@@ -351,13 +372,41 @@ export function ProjectContentSyncPanel({
   }
   const showGitLabConnectionPicker =
     isGitLab && canManage && (gitlabConnections.length > 1 || gitlabConnectionRemoved);
+  const bitbucket = freshConnections?.bitbucket ?? {
+    connected: false,
+    available: false,
+    connectionId: null,
+  };
+  const bitbucketConnections = connectionsQuery.data?.bitbucketConnections ?? [];
+  const effectiveBitbucketConnectionId =
+    chosenBitbucketConnectionId ?? bitbucket.connectionId ?? "";
+  const bitbucketConnectionItems = bitbucketConnections.map((connection) => ({
+    value: connection.id,
+    label: connection.isDefault
+      ? intl.formatMessage(messages.gitlabConnectionDefault, { name: connection.name })
+      : connection.name,
+  }));
+  const bitbucketConnectionRemoved =
+    isBitbucket &&
+    connectionsQuery.isSuccess &&
+    Boolean(values.bitbucketConnectionId) &&
+    !bitbucketConnections.some((connection) => connection.id === values.bitbucketConnectionId);
+  if (bitbucketConnectionRemoved && values.bitbucketConnectionId) {
+    bitbucketConnectionItems.unshift({
+      value: values.bitbucketConnectionId,
+      label: intl.formatMessage(messages.gitlabConnectionRemoved),
+    });
+  }
+  const showBitbucketConnectionPicker =
+    isBitbucket && canManage && (bitbucketConnections.length > 1 || bitbucketConnectionRemoved);
+  const connectionRemoved = gitlabConnectionRemoved || bitbucketConnectionRemoved;
   const providerConnections = connections.filter(
     (connection) => connection.provider === values.provider,
   );
-  // GitLab's list can be missing because the server is down, which says nothing about the project.
-  const providerListed = !isGitLab || gitlab.available;
+  // A list can be missing because the service is down, which says nothing about the repository.
+  const providerListed = isGitLab ? gitlab.available : isBitbucket ? bitbucket.available : true;
   const pathTemplateInvalid =
-    isGitLab &&
+    namesLanguageFiles &&
     values.pathTemplate.trim().length > 0 &&
     !values.pathTemplate.includes(CONTENT_SYNC_LOCALE_PLACEHOLDER);
   const providerFolderUnsafe = folderIsUnsafe(values.providerFolder);
@@ -368,7 +417,7 @@ export function ProjectContentSyncPanel({
     values.projectFolder.trim().length > 0 &&
     !providerFolderUnsafe &&
     !projectFolderUnsafe &&
-    (!isGitLab || (values.pathTemplate.trim().length > 0 && !pathTemplateInvalid));
+    (!namesLanguageFiles || (values.pathTemplate.trim().length > 0 && !pathTemplateInvalid));
   const runs = syncQuery.data?.runs ?? [];
   const running = runs[0]?.status === "running";
 
@@ -404,14 +453,17 @@ export function ProjectContentSyncPanel({
             resourceKey: draft.resourceKey,
             providerFolder: draft.providerFolder.trim(),
             projectFolder: draft.projectFolder.trim(),
-            ...(draft.provider === "gitlab"
+            ...(draft.provider === "gitlab" || draft.provider === "bitbucket"
               ? {
                   ...(draft.branch.trim() ? { branch: draft.branch.trim() } : {}),
                   pathTemplate: draft.pathTemplate.trim(),
-                  ...(draft.gitlabConnectionId
-                    ? { gitlabConnectionId: draft.gitlabConnectionId }
-                    : {}),
                 }
+              : {}),
+            ...(draft.provider === "gitlab" && draft.gitlabConnectionId
+              ? { gitlabConnectionId: draft.gitlabConnectionId }
+              : {}),
+            ...(draft.provider === "bitbucket" && draft.bitbucketConnectionId
+              ? { bitbucketConnectionId: draft.bitbucketConnectionId }
               : {}),
           },
         },
@@ -509,6 +561,7 @@ export function ProjectContentSyncPanel({
       connectionId: "",
       resourceKey: "",
       gitlabConnectionId: "",
+      bitbucketConnectionId: "",
       projectFolder: keepsProjectFolder() ? values.projectFolder : "",
     });
   }
@@ -520,6 +573,19 @@ export function ProjectContentSyncPanel({
     }
     update({
       gitlabConnectionId,
+      connectionId: "",
+      resourceKey: "",
+      projectFolder: keepsProjectFolder() ? values.projectFolder : "",
+    });
+  }
+
+  /** Another connection lists other repositories, so the chosen one no longer applies. */
+  function chooseBitbucketConnection(bitbucketConnectionId: string) {
+    if (bitbucketConnectionId === effectiveBitbucketConnectionId) {
+      return;
+    }
+    update({
+      bitbucketConnectionId,
       connectionId: "",
       resourceKey: "",
       projectFolder: keepsProjectFolder() ? values.projectFolder : "",
@@ -557,7 +623,7 @@ export function ProjectContentSyncPanel({
     canManage &&
     connectionsListed &&
     providerListed &&
-    !gitlabConnectionRemoved &&
+    !connectionRemoved &&
     Boolean(values.connectionId) &&
     !providerConnections.some((connection) => connection.connectionId === values.connectionId);
   const fieldsDisabled = !canManage || busy;
@@ -597,13 +663,15 @@ export function ProjectContentSyncPanel({
     : repositoryNotEnabled
       ? "project-sync-repository-error"
       : undefined;
-  const showNoRepositories = canManage && connectionsListed && !gitlab.connected && !saved;
+  const showNoRepositories =
+    canManage && connectionsListed && !gitlab.connected && !bitbucket.connected && !saved;
   // A service that isn't available can't be chosen, unless the sync already uses it. GitHub
   // repositories sync from their Automation settings in Integrations for now, which a GitHub sync
   // here would duplicate.
   const providerAvailable: Record<SyncProvider, boolean> = {
     github: false,
     gitlab: !connectionsListed || gitlab.connected,
+    bitbucket: !connectionsListed || bitbucket.connected,
   };
   const unavailableProviders = PROVIDERS.filter(
     (provider) =>
@@ -613,15 +681,21 @@ export function ProjectContentSyncPanel({
   ).map((provider) => provider.value);
   // Why the repository list is empty for the chosen service, when it is.
   const emptyRepositoriesHint =
-    !canManage || !connectionsListed || providerConnections.length > 0 || gitlabConnectionRemoved
+    !canManage || !connectionsListed || providerConnections.length > 0 || connectionRemoved
       ? null
-      : !isGitLab
-        ? messages.noGitHubRepositories
-        : !gitlab.connected
-          ? messages.noGitLabConnection
-          : !gitlab.available
-            ? messages.gitlabUnavailable
-            : messages.noGitLabRepositories;
+      : isBitbucket
+        ? !bitbucket.connected
+          ? messages.noBitbucketConnection
+          : !bitbucket.available
+            ? messages.bitbucketUnavailable
+            : messages.noBitbucketRepositories
+        : !isGitLab
+          ? messages.noGitHubRepositories
+          : !gitlab.connected
+            ? messages.noGitLabConnection
+            : !gitlab.available
+              ? messages.gitlabUnavailable
+              : messages.noGitLabRepositories;
 
   return (
     <div className="grid gap-5">
@@ -641,7 +715,7 @@ export function ProjectContentSyncPanel({
                     running ||
                     dirty ||
                     repositoryNotEnabled ||
-                    gitlabConnectionRemoved ||
+                    connectionRemoved ||
                     syncNowMutation.isPending ||
                     busy
                   }
@@ -729,7 +803,11 @@ export function ProjectContentSyncPanel({
                 </Select>
                 <FieldDescription>
                   <FormattedMessage
-                    {...(isGitLab ? messages.gitlabBehaviour : messages.githubBehaviour)}
+                    {...(isGitLab
+                      ? messages.gitlabBehaviour
+                      : isBitbucket
+                        ? messages.bitbucketBehaviour
+                        : messages.githubBehaviour)}
                   />
                 </FieldDescription>
                 {unavailableProviders.length > 0 ? (
@@ -796,6 +874,56 @@ export function ProjectContentSyncPanel({
                   )}
                 </Field>
               ) : null}
+              {showBitbucketConnectionPicker ? (
+                <Field className="gap-1.5">
+                  <FieldLabel htmlFor="project-sync-bitbucket-connection">
+                    <FormattedMessage {...messages.bitbucketConnectionLabel} />
+                  </FieldLabel>
+                  <Select
+                    value={effectiveBitbucketConnectionId || null}
+                    items={bitbucketConnectionItems}
+                    disabled={fieldsDisabled}
+                    onValueChange={(value) => {
+                      if (typeof value === "string") {
+                        chooseBitbucketConnection(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      id="project-sync-bitbucket-connection"
+                      className="w-full md:w-[360px]"
+                      aria-invalid={bitbucketConnectionRemoved || undefined}
+                      aria-describedby={
+                        bitbucketConnectionRemoved
+                          ? "project-sync-bitbucket-connection-error"
+                          : undefined
+                      }
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bitbucketConnectionItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value} label={item.label}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {bitbucketConnectionRemoved ? (
+                    <FieldError id="project-sync-bitbucket-connection-error">
+                      <FormattedMessage
+                        {...(bitbucketConnections.length === 0
+                          ? messages.errorBitbucketConnectionRemovedNone
+                          : messages.errorBitbucketConnectionRemoved)}
+                      />
+                    </FieldError>
+                  ) : (
+                    <FieldDescription>
+                      <FormattedMessage {...messages.bitbucketConnectionHelp} />
+                    </FieldDescription>
+                  )}
+                </Field>
+              ) : null}
               <Field className="gap-1.5">
                 <FieldLabel htmlFor="project-sync-repository">
                   <FormattedMessage {...messages.repositoryLabel} />
@@ -835,7 +963,9 @@ export function ProjectContentSyncPanel({
                     <FormattedMessage
                       {...(isGitLab
                         ? messages.errorGitLabProjectNotFound
-                        : messages.errorRepositoryNotEnabled)}
+                        : isBitbucket
+                          ? messages.errorBitbucketRepositoryNotFound
+                          : messages.errorRepositoryNotEnabled)}
                     />
                   </FieldError>
                 ) : null}
@@ -888,7 +1018,7 @@ export function ProjectContentSyncPanel({
                 ) : null}
                 <FieldDescription>
                   <FormattedMessage
-                    {...(isGitLab
+                    {...(namesLanguageFiles
                       ? messages.providerFolderHelp
                       : messages.providerFolderHelpGithub)}
                   />
@@ -898,7 +1028,7 @@ export function ProjectContentSyncPanel({
                 <FieldLabel htmlFor="project-sync-branch">
                   <FormattedMessage {...messages.branchLabel} />
                 </FieldLabel>
-                {isGitLab ? (
+                {namesLanguageFiles ? (
                   <Input
                     id="project-sync-branch"
                     value={values.branch}
@@ -924,11 +1054,13 @@ export function ProjectContentSyncPanel({
                 )}
                 <FieldDescription id="project-sync-branch-help">
                   <FormattedMessage
-                    {...(isGitLab ? messages.branchHelp : messages.branchFromIntegrations)}
+                    {...(namesLanguageFiles
+                      ? messages.branchHelp
+                      : messages.branchFromIntegrations)}
                   />
                 </FieldDescription>
               </Field>
-              {isGitLab ? (
+              {namesLanguageFiles ? (
                 <Field className="gap-1.5">
                   <FieldLabel htmlFor="project-sync-path-template">
                     <FormattedMessage {...messages.pathTemplateLabel} />
@@ -1255,7 +1387,7 @@ function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
                     className="text-sm text-primary underline-offset-4 hover:underline"
                   >
                     <FormattedMessage
-                      {...(run.provider === "github"
+                      {...(run.provider === "github" || run.provider === "bitbucket"
                         ? messages.openPullRequest
                         : messages.openMergeRequest)}
                     />
