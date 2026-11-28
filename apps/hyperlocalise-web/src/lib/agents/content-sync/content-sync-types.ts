@@ -71,11 +71,6 @@ export const contentSyncConfigSchema = z.object({
    * connections had names) runs with the workspace's default connection.
    */
   gitlabConnectionId: z.string().uuid().optional(),
-  /**
-   * Bitbucket: the workspace connection the sync runs with, chosen in the Sync panel and filled
-   * in when a sync is saved; the workspace's default connection when absent.
-   */
-  bitbucketConnectionId: z.string().uuid().optional(),
 });
 export type ContentSyncConfig = z.infer<typeof contentSyncConfigSchema>;
 

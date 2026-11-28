@@ -18,7 +18,13 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 
 import type { PipesProviderSlug } from "./providers";
-import type { PipesConnectionStatus, PipesCredentialError, PipesStatusError } from "./types";
+import type {
+  PipesConnectionOwner,
+  PipesConnectionStatus,
+  PipesCredentialError,
+  PipesOrganizationAccount,
+  PipesStatusError,
+} from "./types";
 
 const PIPES_UNAVAILABLE: PipesStatusError = {
   code: "pipes_unavailable",
@@ -241,6 +247,11 @@ export async function createPipesAuthorizeUrl(input: {
   localOrganizationId: string;
   workosUserId: string;
   returnTo?: string;
+  /**
+   * `organization` connects one account shared by the whole workspace; the member authorizing
+   * does not own it. The person's own account (`user`) otherwise.
+   */
+  connectionOwner?: PipesConnectionOwner;
 }): Promise<Result<{ url: string }, PipesStatusError>> {
   const workos = getWorkosServerClient();
   if (!workos) {
@@ -257,6 +268,7 @@ export async function createPipesAuthorizeUrl(input: {
       slug: input.provider,
       userId: input.workosUserId,
       organizationId: organizationIdResult.value,
+      ...(input.connectionOwner === "organization" ? { connectionOwner: "organization" } : {}),
       ...(input.returnTo ? { returnTo: input.returnTo } : {}),
     });
     const url = result.url?.trim();
@@ -274,6 +286,8 @@ export async function deletePipesConnectedAccount(input: {
   provider: PipesProviderSlug;
   localOrganizationId: string;
   workosUserId: string;
+  /** `organization` removes the workspace's shared account; the person's own otherwise. */
+  connectionOwner?: PipesConnectionOwner;
 }): Promise<Result<void, PipesCredentialError>> {
   const workos = getWorkosServerClient();
   if (!workos) {
@@ -286,11 +300,18 @@ export async function deletePipesConnectedAccount(input: {
   }
 
   try {
-    await workos.pipes.deleteUserConnectedAccount({
-      slug: input.provider,
-      userId: input.workosUserId,
-      organizationId: organizationIdResult.value,
-    });
+    if (input.connectionOwner === "organization") {
+      await workos.pipes.deleteOrganizationConnectedAccount({
+        slug: input.provider,
+        organizationId: organizationIdResult.value,
+      });
+    } else {
+      await workos.pipes.deleteUserConnectedAccount({
+        slug: input.provider,
+        userId: input.workosUserId,
+        organizationId: organizationIdResult.value,
+      });
+    }
     return ok(undefined);
   } catch (error) {
     if (isNotFound(error)) {
@@ -304,7 +325,10 @@ export async function deletePipesConnectedAccount(input: {
 export async function loadPipesAccessToken(input: {
   provider: PipesProviderSlug;
   localOrganizationId: string;
+  /** For `organization`, the member the token is issued on behalf of; they must still belong. */
   workosUserId: string;
+  /** `organization` reads the workspace's shared account; the person's own otherwise. */
+  connectionOwner?: PipesConnectionOwner;
 }): Promise<Result<string, PipesCredentialError>> {
   const workos = getWorkosServerClient();
   if (!workos) {
@@ -321,6 +345,7 @@ export async function loadPipesAccessToken(input: {
       provider: input.provider,
       userId: input.workosUserId,
       organizationId: organizationIdResult.value,
+      ...(input.connectionOwner === "organization" ? { connectionOwner: "organization" } : {}),
     });
 
     if (!result.active) {
@@ -336,6 +361,56 @@ export async function loadPipesAccessToken(input: {
   } catch (error) {
     if (isNotFound(error)) {
       return err(PIPES_NOT_CONNECTED);
+    }
+
+    return err(PIPES_UNAVAILABLE);
+  }
+}
+
+/**
+ * The workspace's shared (organization-owned) account for a provider: whether it works, who
+ * established it (the member tokens are issued on behalf of), and whether that member has left.
+ */
+export async function getPipesOrganizationAccount(input: {
+  provider: PipesProviderSlug;
+  localOrganizationId: string;
+  workosOrganizationId?: string | null;
+}): Promise<Result<PipesOrganizationAccount, PipesStatusError>> {
+  const workos = getWorkosServerClient();
+  if (!workos) {
+    return err(PIPES_UNAVAILABLE);
+  }
+
+  const organizationIdResult = await resolveWorkosOrganizationId({
+    localOrganizationId: input.localOrganizationId,
+    workosOrganizationId: input.workosOrganizationId,
+  });
+  if (isErr(organizationIdResult)) {
+    return organizationIdResult;
+  }
+
+  try {
+    const account = await workos.pipes.getOrganizationConnectedAccount({
+      slug: input.provider,
+      organizationId: organizationIdResult.value,
+    });
+    const establisherLeft = account.stateReason === "establishing_member_membership_ended";
+    return ok({
+      connected: account.state === "connected" && Boolean(account.establishedByUserId),
+      needsReauthorization: account.state === "needs_reauthorization" || establisherLeft,
+      establisherLeft,
+      establishedByWorkosUserId: account.establishedByUserId ?? null,
+      accountName: account.accountDisplayName?.trim() || null,
+    });
+  } catch (error) {
+    if (isNotFound(error)) {
+      return ok({
+        connected: false,
+        needsReauthorization: false,
+        establisherLeft: false,
+        establishedByWorkosUserId: null,
+        accountName: null,
+      });
     }
 
     return err(PIPES_UNAVAILABLE);

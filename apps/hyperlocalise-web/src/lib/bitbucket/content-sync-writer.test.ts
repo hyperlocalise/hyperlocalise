@@ -41,7 +41,7 @@ function pullRequest(overrides: Record<string, unknown> = {}) {
 
 function writer() {
   return createBitbucketContentSyncWriter({
-    access: { accessToken: "token", accountEmail: null },
+    access: { accessToken: "token" },
     fullName: "acme/web",
   });
 }

@@ -11,21 +11,17 @@
  * Version 2.0 or later.
  */
 export type BitbucketApiError =
-  | { code: "bitbucket_connection_decrypt_failed"; message: string }
-  | { code: "bitbucket_connection_removed"; message: string }
   | { code: "bitbucket_not_connected"; message: string }
+  | { code: "bitbucket_needs_reconnect"; message: string }
+  | { code: "bitbucket_unavailable"; message: string }
   | { code: "bitbucket_unauthorized"; message: string }
   | { code: "bitbucket_forbidden"; message: string }
   | { code: "bitbucket_not_found"; message: string }
   | { code: "bitbucket_request_failed"; message: string; status: number; timedOut?: boolean };
 
-/**
- * Who to ask Bitbucket Cloud as. An Atlassian API token is sent with its account's email (basic
- * auth); a workspace, project or repository access token is sent alone (bearer).
- */
+/** The workspace's Bitbucket token, issued by WorkOS Pipes for its shared connection. */
 export type BitbucketAccess = {
   accessToken: string;
-  accountEmail: string | null;
 };
 
 export type BitbucketRepository = {
@@ -37,37 +33,13 @@ export type BitbucketRepository = {
   mainBranch: string | null;
 };
 
-/** What a live check of a saved connection found. */
-export type BitbucketConnectionCheck = {
-  /** Whether the token can read at least one repository. */
-  readsRepositories: boolean;
+/** The workspace's shared Bitbucket connection, as Integrations shows it. */
+export type BitbucketConnectionStatus = {
+  connected: boolean;
+  /** Bitbucket must be connected again: the sign-in lapsed, or the admin who connected it left. */
+  needsReconnect: boolean;
+  /** The admin who connected it has left the workspace. */
+  connectorLeft: boolean;
+  /** The Bitbucket account's name, when given. */
+  accountName: string | null;
 };
-
-export type BitbucketConnectionSummary = {
-  id: string;
-  /** What people call it: the saved name, else the connected account. */
-  name: string;
-  /** The saved name alone, so a form can start from it. */
-  storedName: string | null;
-  isDefault: boolean;
-  /** The Atlassian account email an API token is sent with; null for an access token. */
-  accountEmail: string | null;
-  connectedAccount: string | null;
-  maskedTokenSuffix: string;
-  updatedAt: string;
-  /** Project syncs that name this connection; they stop until repointed if it is removed. */
-  syncCount: number;
-};
-
-export type BitbucketConnectionDecryptError = {
-  code: "bitbucket_connection_decrypt_failed";
-  message: string;
-};
-
-export type BitbucketConnectionError =
-  | { code: "bitbucket_unreachable"; message: string }
-  | { code: "bitbucket_token_rejected"; message: string }
-  | { code: "bitbucket_token_invalid"; message: string }
-  | { code: "bitbucket_email_invalid"; message: string }
-  | { code: "bitbucket_connection_not_found"; message: string }
-  | { code: "bitbucket_connection_decrypt_failed"; message: string };

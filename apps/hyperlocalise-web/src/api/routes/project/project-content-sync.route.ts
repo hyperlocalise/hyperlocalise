@@ -36,10 +36,7 @@ import {
 } from "@/lib/agents/content-sync/content-sync-types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { getBitbucketRepository, listBitbucketRepositories } from "@/lib/bitbucket/client";
-import {
-  listBitbucketConnections,
-  loadBitbucketConnectionCredentials,
-} from "@/lib/bitbucket/connections";
+import { loadBitbucketAccess } from "@/lib/bitbucket/pipes";
 import type { BitbucketRepository } from "@/lib/bitbucket/types";
 import { db, schema } from "@/lib/database/client";
 import {
@@ -82,11 +79,9 @@ const validateConnectionsQuery = validator("query", (value, c) => {
   const parsed = z
     .object({
       gitlabConnectionId: z.string().uuid().optional(),
-      bitbucketConnectionId: z.string().uuid().optional(),
     })
     .safeParse({
       gitlabConnectionId: value.gitlabConnectionId || undefined,
-      bitbucketConnectionId: value.bitbucketConnectionId || undefined,
     });
   if (!parsed.success) {
     return validationErrorResponse(
@@ -436,20 +431,10 @@ async function listGitLabSyncConnections(
   };
 }
 
-const BITBUCKET_NOT_CONNECTED_ERROR: SyncConnectionError = {
-  code: "content_sync_bitbucket_not_connected",
-  message: "Connect Bitbucket in Integrations first.",
-};
-
-const BITBUCKET_TOKEN_UNREADABLE_ERROR: SyncConnectionError = {
-  code: "content_sync_bitbucket_token_unreadable",
-  message:
-    "The workspace's saved Bitbucket token can't be read. Save the connection again in Integrations.",
-};
-
 const BITBUCKET_REPOSITORY_NOT_FOUND_ERROR: SyncConnectionError = {
   code: "content_sync_bitbucket_repository_not_found",
-  message: "The workspace's Bitbucket token can't see this repository. Choose it again.",
+  message:
+    "The Bitbucket account connected for this workspace can't see this repository. Choose it again.",
 };
 
 const BITBUCKET_UNREACHABLE_ERROR: SyncConnectionError = {
@@ -457,18 +442,13 @@ const BITBUCKET_UNREACHABLE_ERROR: SyncConnectionError = {
   message: "Bitbucket couldn't be reached. Try again or check Integrations.",
 };
 
-const BITBUCKET_CONNECTION_REMOVED_ERROR: SyncConnectionError = {
-  code: "content_sync_bitbucket_connection_removed",
-  message: "The chosen Bitbucket connection no longer exists. Choose another connection.",
-};
-
 type BitbucketSyncListing = {
-  /** Whether the workspace has any Bitbucket connection. */
+  /** Whether the workspace has connected Bitbucket. */
   connected: boolean;
-  /** Whether the chosen connection's repositories could be read. */
+  /** Bitbucket must be connected again before anything can be listed or synced. */
+  needsReconnect: boolean;
+  /** Whether the repositories could be read. */
   available: boolean;
-  /** The connection the repositories belong to: the one asked for, else the default. */
-  connectionId: string | null;
   connections: SyncConnectionOption[];
 };
 
@@ -479,44 +459,41 @@ function syncOptionFromBitbucketRepository(repository: BitbucketRepository): Syn
     resourceKey: repository.fullName,
     // What an empty branch field reads; shown as its placeholder.
     branch: repository.mainBranch,
-    // Bitbucket doesn't say what a token may do per repository; a refused write is reported on the run.
+    // Bitbucket doesn't say per repository what the connection may write; a refused write is
+    // reported on the run.
     canSend: null,
     canRead: true,
   };
 }
 
 /**
- * One Bitbucket connection's repositories; `available` is false when Bitbucket can't be read. A
- * saved repository outside the most recently updated few hundred is looked up and added.
+ * The repositories the workspace's Bitbucket connection can read; `available` is false when
+ * Bitbucket can't be read. A saved repository outside the most recently updated few hundred is
+ * looked up and added.
  */
 async function listBitbucketSyncConnections(
   organizationId: string,
-  bitbucketConnectionId: string | null,
   saved?: { connectionId: string; resourceKey: string },
 ): Promise<BitbucketSyncListing> {
-  const access = await loadBitbucketConnectionCredentials({
-    organizationId,
-    connectionId: bitbucketConnectionId,
-  });
-  const unavailable = (connected: boolean): BitbucketSyncListing => ({
-    connected,
-    available: false,
-    connectionId: bitbucketConnectionId,
-    connections: [],
-  });
+  const access = await loadBitbucketAccess({ localOrganizationId: organizationId });
   if (isErr(access)) {
-    return unavailable(true);
+    return {
+      // An outage says nothing about whether Bitbucket is connected, so it isn't called missing.
+      connected: access.error.code !== "bitbucket_not_connected",
+      needsReconnect: access.error.code === "bitbucket_needs_reconnect",
+      available: false,
+      connections: [],
+    };
   }
-  if (!access.value) {
-    const connected = bitbucketConnectionId
-      ? (await listBitbucketConnections({ organizationId })).length > 0
-      : false;
-    return unavailable(connected);
-  }
-  const connectionId = access.value.id;
+  const unavailable: BitbucketSyncListing = {
+    connected: true,
+    needsReconnect: false,
+    available: false,
+    connections: [],
+  };
   const repositories = await listBitbucketRepositories(access.value);
   if (isErr(repositories)) {
-    return { ...unavailable(true), connectionId };
+    return unavailable;
   }
   const listed = repositories.value;
   if (saved && !listed.some((repository) => repository.uuid === saved.connectionId)) {
@@ -524,7 +501,7 @@ async function listBitbucketSyncConnections(
     if (isErr(found)) {
       if (found.error.code !== "bitbucket_not_found") {
         // A slow or failing lookup must not call the saved repository missing.
-        return { ...unavailable(true), connectionId };
+        return unavailable;
       }
     } else if (found.value.uuid === saved.connectionId) {
       listed.push(found.value);
@@ -532,8 +509,8 @@ async function listBitbucketSyncConnections(
   }
   return {
     connected: true,
+    needsReconnect: false,
     available: true,
-    connectionId,
     connections: listed
       .map(syncOptionFromBitbucketRepository)
       .sort((left, right) => left.resourceKey.localeCompare(right.resourceKey)),
@@ -627,21 +604,18 @@ async function resolveSyncConnection(input: {
       });
     }
     case "bitbucket": {
-      // Syncs run with one of the workspace's Bitbucket connections: the one chosen, else the
-      // default, whose id is then kept so changing the default never moves the sync.
-      const access = await loadBitbucketConnectionCredentials({
-        organizationId: input.organizationId,
-        connectionId: config.bitbucketConnectionId,
-      });
+      // Syncs run with the workspace's one shared Bitbucket connection.
+      const access = await loadBitbucketAccess({ localOrganizationId: input.organizationId });
       if (isErr(access)) {
-        return err(BITBUCKET_TOKEN_UNREADABLE_ERROR);
-      }
-      if (!access.value) {
-        return err(
-          config.bitbucketConnectionId
-            ? BITBUCKET_CONNECTION_REMOVED_ERROR
-            : BITBUCKET_NOT_CONNECTED_ERROR,
-        );
+        return err({
+          code:
+            access.error.code === "bitbucket_not_connected"
+              ? "content_sync_bitbucket_not_connected"
+              : access.error.code === "bitbucket_needs_reconnect"
+                ? "content_sync_bitbucket_needs_reconnect"
+                : "content_sync_bitbucket_unavailable",
+          message: access.error.message,
+        });
       }
       // The path is what runs use; the uuid proves it still names the repository chosen.
       const repository = await getBitbucketRepository({
@@ -660,11 +634,7 @@ async function resolveSyncConnection(input: {
         return err(BITBUCKET_REPOSITORY_NOT_FOUND_ERROR);
       }
       const { gitlabConnectionId: _gitlabConnectionId, ...bitbucket } = config;
-      return ok({
-        ...bitbucket,
-        resourceKey: repository.value.fullName,
-        bitbucketConnectionId: access.value.id,
-      });
+      return ok({ ...bitbucket, resourceKey: repository.value.fullName });
     }
     default:
       return err({
@@ -760,14 +730,7 @@ export function createProjectContentSyncRoutes(
           ? saved.syncConfig.gitlabConnectionId
           : null;
       const askedConnectionId = c.req.valid("query").gitlabConnectionId ?? savedConnectionId;
-      const savedBitbucketConnectionId =
-        saved?.syncConfig.provider === "bitbucket" &&
-        typeof saved.syncConfig.bitbucketConnectionId === "string"
-          ? saved.syncConfig.bitbucketConnectionId
-          : null;
-      const askedBitbucketConnectionId =
-        c.req.valid("query").bitbucketConnectionId ?? savedBitbucketConnectionId;
-      const [gitlab, gitlabConnections, bitbucket, bitbucketConnections] = await Promise.all([
+      const [gitlab, gitlabConnections, bitbucket] = await Promise.all([
         listGitLabSyncConnections(
           resolved.project.organizationId,
           askedConnectionId,
@@ -777,12 +740,8 @@ export function createProjectContentSyncRoutes(
         listGitLabConnections({ organizationId: resolved.project.organizationId }),
         listBitbucketSyncConnections(
           resolved.project.organizationId,
-          askedBitbucketConnectionId,
-          askedBitbucketConnectionId === savedBitbucketConnectionId
-            ? savedBitbucketRepository(saved)
-            : undefined,
+          savedBitbucketRepository(saved),
         ),
-        listBitbucketConnections({ organizationId: resolved.project.organizationId }),
       ]);
 
       const connections: SyncConnectionOption[] = [
@@ -812,14 +771,9 @@ export function createProjectContentSyncRoutes(
           })),
           bitbucket: {
             connected: bitbucket.connected,
+            needsReconnect: bitbucket.needsReconnect,
             available: bitbucket.available,
-            connectionId: bitbucket.connectionId,
           },
-          bitbucketConnections: bitbucketConnections.map((connection) => ({
-            id: connection.id,
-            name: connection.name,
-            isDefault: connection.isDefault,
-          })),
         },
         200,
       );

@@ -1422,13 +1422,6 @@
       "when": 1795611047662,
       "tag": "0202_job_owner_team",
       "breakpoints": true
-    },
-    {
-      "idx": 203,
-      "version": "7",
-      "when": 1795852495087,
-      "tag": "0203_bitbucket_connections",
-      "breakpoints": true
     }
   ]
 }

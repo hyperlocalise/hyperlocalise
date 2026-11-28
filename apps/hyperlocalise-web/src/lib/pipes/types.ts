@@ -18,6 +18,21 @@ export type PipesConnectionStatus = {
   apiKeyLast4: string | null;
 };
 
+/** Whose account a connection is: the person's own, or one shared by the whole workspace. */
+export type PipesConnectionOwner = "user" | "organization";
+
+/** A workspace's shared (organization-owned) account for a provider. */
+export type PipesOrganizationAccount = {
+  connected: boolean;
+  needsReauthorization: boolean;
+  /** The member who connected it has left the workspace, so it must be connected again. */
+  establisherLeft: boolean;
+  /** The member who connected it; tokens are issued on their behalf. */
+  establishedByWorkosUserId: string | null;
+  /** The provider account's name, when the provider gives one. */
+  accountName: string | null;
+};
+
 export type PipesStatus = PipesConnectionStatus & {
   provider: PipesProviderSlug;
 };

@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { PipesProviderSlug } from "@/lib/pipes/providers";
+
 /** Bitbucket Cloud's REST API origin. Every Bitbucket call goes here, never to an address someone typed. */
 export const BITBUCKET_API_ORIGIN = "https://api.bitbucket.org";
 
@@ -21,3 +23,6 @@ export const BITBUCKET_REQUEST_TIMEOUT_MS = 15_000;
 
 /** A commit of many files takes Bitbucket longer to apply than a read; the answer is waited for. */
 export const BITBUCKET_WRITE_REQUEST_TIMEOUT_MS = 60_000;
+
+/** WorkOS Pipes slug for Bitbucket. The workspace shares one organization-owned connection. */
+export const BITBUCKET_PIPES_SLUG = "bitbucket" satisfies PipesProviderSlug;

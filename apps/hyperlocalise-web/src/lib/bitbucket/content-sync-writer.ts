@@ -33,14 +33,15 @@ function writeError(error: BitbucketApiError, what: "commit" | "review"): Conten
       code: "content_sync_connection_required",
       message:
         what === "commit"
-          ? "Bitbucket refused the write: the workspace's token can't push here, or a branch restriction covers the sync branch (hyperlocalise/translations-…). To send pull requests the token needs write access to repositories and pull requests; a read-only token pulls only."
-          : "Bitbucket refused the pull request: the workspace's token needs write access to pull requests.",
+          ? "Bitbucket refused the write: the connected Bitbucket account can't push here, or a branch restriction covers the sync branch (hyperlocalise/translations-…). To send pull requests, connect an account that can write to the repository and open pull requests; with read access only, syncs pull files only."
+          : "Bitbucket refused the pull request: the connected Bitbucket account needs permission to open pull requests here.",
     };
   }
   if (error.code === "bitbucket_not_found") {
     return {
       code: "content_sync_repository_not_found",
-      message: "The workspace's Bitbucket token can't see this repository any more.",
+      message:
+        "The Bitbucket account connected for this workspace can't see this repository any more.",
     };
   }
   if (error.code === "bitbucket_request_failed") {

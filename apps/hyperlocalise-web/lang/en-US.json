@@ -1243,6 +1243,10 @@
     "defaultMessage": "Extract text at playhead",
     "description": "Video refinement workspace: extract"
   },
+  "/YJ7SRIxSt": {
+    "defaultMessage": "Bitbucket couldn't be disconnected. Try again.",
+    "description": "Toast when disconnecting Bitbucket failed"
+  },
   "/YdY1bOwtr": {
     "defaultMessage": "Ingest",
     "description": "Button that queues a workspace automation import run from the Content editor"
@@ -1354,10 +1358,6 @@
   "/iIPpWEOXd": {
     "defaultMessage": "Finding {detail}",
     "description": "Live explore status when the agent is listing files with a pattern"
-  },
-  "/intCFl15C": {
-    "defaultMessage": "Cancel",
-    "description": "Button that closes the Bitbucket connection form or confirmation"
   },
   "/jSn20wHsp": {
     "defaultMessage": "Visual Workflow Run Started",
@@ -1574,10 +1574,6 @@
   "02MXJJxV6e": {
     "defaultMessage": "Status",
     "description": "Column heading for segment status in side-by-side CAT view"
-  },
-  "02WmrhCvQt": {
-    "defaultMessage": "Create an API token in your Atlassian account settings with read and write access to repositories and pull requests, then enter it here with your Atlassian account email. A workspace, project or repository access token works too: leave the email empty. A token that can only read pulls files and doesn't open pull requests.",
-    "description": "Introduction shown when the workspace has no Bitbucket connection"
   },
   "02hUDkxuJ0": {
     "defaultMessage": "Use the connection's content types",
@@ -3463,10 +3459,6 @@
     "defaultMessage": "Running",
     "description": "Automation run status badge for running"
   },
-  "2QvLC+3K5P": {
-    "defaultMessage": "Add connection",
-    "description": "Button that opens the form to add a Bitbucket connection"
-  },
   "2Qxq98kpQX": {
     "defaultMessage": "Next-gen CAT Tool",
     "description": "Hero eyebrow for the next-gen CAT tool product page"
@@ -3486,10 +3478,6 @@
   "2SPuScjz1x": {
     "defaultMessage": "API key ending in {suffix}",
     "description": "Hint that a Zernio API key is already stored"
-  },
-  "2SVgjgtlp1": {
-    "defaultMessage": "This connection isn't working: {reason}",
-    "description": "Shown when a Bitbucket connection's token no longer works; reason says why"
   },
   "2T/aeUGznk": {
     "defaultMessage": "Add a localisation check to your next pull request",
@@ -4099,10 +4087,6 @@
     "defaultMessage": "Is every page fully translated, and does the writing still sound like you?",
     "description": "Body of the linguistic dimension on the localisation audit landing page methodology"
   },
-  "3IiGBH4O56": {
-    "defaultMessage": "{count, plural, one {# connection} other {# connections}}. New project syncs use {name}.",
-    "description": "Integrations row description when the workspace has several Bitbucket connections; name is the default connection's name"
-  },
   "3J/2hNdEQN": {
     "defaultMessage": "QA failure",
     "description": "Label for the QA failure issue template"
@@ -4659,10 +4643,6 @@
     "defaultMessage": "This model runs the automation and its nested agents.",
     "description": "Helper text for the automation language model select"
   },
-  "40N6Cz4jsc": {
-    "defaultMessage": "Project syncs using this connection keep using it with the new token.",
-    "description": "Note in the form that changes a Bitbucket connection"
-  },
   "40ZOWpo+3r": {
     "defaultMessage": "Brazil",
     "description": "Guideline mock UI market card title"
@@ -4850,6 +4830,10 @@
   "4HNfhY9OdS": {
     "defaultMessage": "Localisation audit",
     "description": "Heading of the domain deep localisation audit page"
+  },
+  "4HUdoLH/wM": {
+    "defaultMessage": "Bitbucket sign-in couldn't be started. Try again.",
+    "description": "Toast when the Bitbucket sign-in page couldn't be opened"
   },
   "4HX2beF1U5": {
     "defaultMessage": "the trigger",
@@ -5246,10 +5230,6 @@
   "4pdfLuPtnC": {
     "defaultMessage": "Linguists and agents translate in the workspace. Nobody touches a file.",
     "description": "localisation-cli-and-api use case page: scenario › events › #2 › body"
-  },
-  "4qKAjPhJpj": {
-    "defaultMessage": "Marketing site repositories",
-    "description": "Placeholder for a Bitbucket connection's name field"
   },
   "4qQ8w1wkBs": {
     "defaultMessage": "Add value",
@@ -5870,10 +5850,6 @@
   "5aBQ8ovclg": {
     "defaultMessage": "Export · {timestamp}",
     "description": "Name of a glossary export run identified by its timestamp"
-  },
-  "5aMOHljuCT": {
-    "defaultMessage": "Remove",
-    "description": "Button that asks to remove a Bitbucket connection"
   },
   "5atqmuSxdx": {
     "defaultMessage": "Tools",
@@ -6543,6 +6519,10 @@
     "defaultMessage": "Use Sonnet for longer drafts and review notes. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Anthropic key if you want Anthropic to bill this model instead.",
     "description": "Story for Claude Sonnet on the pricing page"
   },
+  "6UMF+SVEkB": {
+    "defaultMessage": "Bitbucket disconnected. Project syncs that use it stop until it is connected again.",
+    "description": "Toast after Bitbucket was disconnected from the workspace"
+  },
   "6V7dDBU2jk": {
     "defaultMessage": "Concept saved",
     "description": "Toast after a concept is saved"
@@ -6714,10 +6694,6 @@
   "6kuZ6kPWkr": {
     "defaultMessage": "Move rule {number} down",
     "description": "Button that checks a pick assignee rule later"
-  },
-  "6kwNWsZcf+": {
-    "defaultMessage": "The default connection couldn't be changed.",
-    "description": "Toast when marking a Bitbucket connection as default failed"
   },
   "6lH73749rG": {
     "defaultMessage": "Today’s queue for this project.",
@@ -7166,10 +7142,6 @@
   "7IPdyrPeiO": {
     "defaultMessage": "{count, plural, one {# match} other {# matches}}",
     "description": "Badge on the Translation Memory section showing how many matches were found"
-  },
-  "7JWzL0fYgH": {
-    "defaultMessage": "Bitbucket connections couldn't be loaded. Refresh the page to try again.",
-    "description": "Integrations row description when the Bitbucket connections failed to load"
   },
   "7JjKbhttRR": {
     "defaultMessage": "Original page",
@@ -8355,10 +8327,6 @@
     "defaultMessage": "Edit link",
     "description": "Button that opens the field for changing the string's design link"
   },
-  "8rVweIsKFa": {
-    "defaultMessage": "The token couldn't be checked just now.",
-    "description": "Shown when a Bitbucket connection's check request failed"
-  },
   "8rom3KX2rX": {
     "defaultMessage": "Send email",
     "description": "Menu item and tool title for email notifications"
@@ -8783,10 +8751,6 @@
     "defaultMessage": "Empty translation",
     "description": "QA review: emptyText"
   },
-  "9SEp04CxuC": {
-    "defaultMessage": "Used by {count, plural, one {# project sync} other {# project syncs}}.",
-    "description": "How many project syncs use a Bitbucket connection"
-  },
   "9Smo/yfjr3": {
     "defaultMessage": "Priority",
     "description": "Label for the priority select"
@@ -8854,10 +8818,6 @@
   "9Z4RmfuZsn": {
     "defaultMessage": "This workflow was changed somewhere else. Reload to get the latest version.",
     "description": "Toast when publishing or pausing a visual workflow fails because another save happened first"
-  },
-  "9ZLNqjFyj0": {
-    "defaultMessage": "Show token",
-    "description": "Button that shows the typed Bitbucket token"
   },
   "9ZWYVTYF71": {
     "defaultMessage": "Open in Reports",
@@ -10327,6 +10287,10 @@
     "defaultMessage": "Locale",
     "description": "Label for the locale filter"
   },
+  "BRe6NIwj7J": {
+    "defaultMessage": "Bitbucket's status couldn't be loaded. Refresh the page to try again.",
+    "description": "Integration row description when the Bitbucket connection status failed to load"
+  },
   "BRhb3j8GLb": {
     "defaultMessage": "Route work automatically",
     "description": "localisation-operations use case page: guide › steps › #2 › title"
@@ -10422,10 +10386,6 @@
   "BbkM1vD0OG": {
     "defaultMessage": "Whether a machine or a person wrote this version's text",
     "description": "Tooltip on the origin badge of a translation revision"
-  },
-  "Bbvttz43Nz": {
-    "defaultMessage": "{count, plural, =0 {Remove this connection?} one {# project sync uses this connection and stops until another is chosen. Remove it?} other {# project syncs use this connection and stop until another is chosen. Remove it?}}",
-    "description": "Confirmation before removing a Bitbucket connection"
   },
   "BcMa5KTy8c": {
     "defaultMessage": "The assistant needs a plan with AI features.",
@@ -10999,10 +10959,6 @@
     "defaultMessage": "Repository agent, GitHub automations, patches, and sandboxed code changes for localization fixes.",
     "description": "Hyperlocalise Agent Coding capability description"
   },
-  "CJ/dcP8L98": {
-    "defaultMessage": "Remove connection",
-    "description": "Button that removes a Bitbucket connection after confirmation"
-  },
   "CJ1Pudssld": {
     "defaultMessage": "Comment posted",
     "description": "Toast after posting an issue comment"
@@ -11363,10 +11319,6 @@
     "defaultMessage": "A language model reviewed these checks. They can point you to issues worth a look, but they do not affect the score because model judgements can vary between runs.",
     "description": "Explanation of why AI-assessed localisation audit criteria are excluded from the score"
   },
-  "Cn1L/dOB3x": {
-    "defaultMessage": "Bitbucket connection saved.",
-    "description": "Toast after a Bitbucket connection was saved"
-  },
   "CnZV1EVZQu": {
     "defaultMessage": "Product terminology",
     "description": "Placeholder for the glossary name field"
@@ -11483,10 +11435,6 @@
     "defaultMessage": "{count, plural, one {Required for skill} other {Required for # skills}}",
     "description": "Badge on a tool row that one or more attached skills need"
   },
-  "CwwWNKIrNl": {
-    "defaultMessage": "Change",
-    "description": "Button that opens the form to change a Bitbucket connection"
-  },
   "Cx/AirNdqn": {
     "defaultMessage": "Prompts",
     "description": "App shell breadcrumb title for domain prompt explorer"
@@ -11598,10 +11546,6 @@
   "D3kQXWPcCW": {
     "defaultMessage": "HubSpot push queued",
     "description": "Toast after a HubSpot push automation run is queued"
-  },
-  "D3t8cnywmB": {
-    "defaultMessage": "Default",
-    "description": "Badge on the Bitbucket connection new project syncs use"
   },
   "D4SMVMIcIp": {
     "defaultMessage": "changed a string status",
@@ -11890,6 +11834,10 @@
   "DQnt+zm1/q": {
     "defaultMessage": "No relationships yet",
     "description": "Shown when an issue has no relationships"
+  },
+  "DRBCBNJfgl": {
+    "defaultMessage": "Connected for the whole workspace as {account}.",
+    "description": "Integration row description when the workspace has connected Bitbucket; account is the Bitbucket account's name"
   },
   "DRRpzdvulu": {
     "defaultMessage": "GitHub",
@@ -12210,6 +12158,10 @@
   "DvvgU2P+3/": {
     "defaultMessage": "Build text from literals and named typed inputs.",
     "description": "Catalog description for the text template node"
+  },
+  "DwC1To3cUZ": {
+    "defaultMessage": "Connected for the whole workspace.",
+    "description": "Integration row description when the workspace has connected Bitbucket"
   },
   "DwaD/cBlPO": {
     "defaultMessage": "Web Search",
@@ -15771,10 +15723,6 @@
     "defaultMessage": "Failed",
     "description": "A task's state in the task picker"
   },
-  "IplAYWnzN2": {
-    "defaultMessage": "Connect Bitbucket Cloud with an API token to sync repository files with your projects.",
-    "description": "Integration row description for the workspace's Bitbucket connection"
-  },
   "IpqFY41m31": {
     "defaultMessage": "Works for JSON, JSONC and ARB files. Uploads and syncs keep edits made in Hyperlocalise, and GitLab syncs send them back.",
     "description": "Source text editing setting description"
@@ -16406,10 +16354,6 @@
   "JemgHUamHh": {
     "defaultMessage": "Unable to load terms",
     "description": "Fallback error when glossary terms fail to load"
-  },
-  "Jf1cQtTjT7": {
-    "defaultMessage": "Hide token",
-    "description": "Button that hides the typed Bitbucket token"
   },
   "Jf8jVutxI7": {
     "defaultMessage": "Force translate untranslated strings",
@@ -17359,10 +17303,6 @@
     "defaultMessage": "Failed to upload screenshot.",
     "description": "Error when a visual context screenshot upload fails"
   },
-  "L6JZRKZl/n": {
-    "defaultMessage": "{name} is now the default Bitbucket connection.",
-    "description": "Toast after a Bitbucket connection became the default"
-  },
   "L7iavACo3u": {
     "defaultMessage": "Next scheduled run: <time>{nextRunAt}</time>",
     "description": "Metadata label showing next scheduled automation run time"
@@ -17374,10 +17314,6 @@
   "L80pAvj6yJ": {
     "defaultMessage": "Unable to load task files",
     "description": "Fallback error when task files fail to load without an Error message"
-  },
-  "L8SRgFEsi6": {
-    "defaultMessage": "The Bitbucket connection couldn't be saved.",
-    "description": "Toast when saving a Bitbucket connection failed"
   },
   "L8o2cpm67y": {
     "defaultMessage": "No member",
@@ -17839,10 +17775,6 @@
     "defaultMessage": "Slack",
     "description": "Automation product visual integration source name"
   },
-  "Lh6T5t29wY": {
-    "defaultMessage": "Connected as {account}.",
-    "description": "Integrations row description of a Bitbucket connection; account is who it acts as"
-  },
   "LhaVWhw3K9": {
     "defaultMessage": "Keep the winning version in Japan, then test or roll it out in the markets most likely to respond.",
     "description": "market-experimentation use case page: guide › steps › #4 › body"
@@ -18086,6 +18018,10 @@
   "M0cRkUTb0F": {
     "defaultMessage": "This automation already has the maximum number of knowledge files.",
     "description": "Toast when the knowledge file count limit is reached"
+  },
+  "M0gpS5u6yZ": {
+    "defaultMessage": "The Bitbucket account connected for this workspace can't see this repository. Choose it again.",
+    "description": "Error shown when the Bitbucket repository chosen for the project sync is not found"
   },
   "M0znNdV8EN": {
     "defaultMessage": "AI search has no FAQ block to quote from this page.",
@@ -18555,6 +18491,10 @@
     "defaultMessage": "{enabledCount} of {totalCount} repositories enabled.",
     "description": "Summary of enabled vs total GitHub repositories"
   },
+  "Ma7ERYjIOT": {
+    "defaultMessage": "Disconnect",
+    "description": "Button that disconnects Bitbucket from the workspace"
+  },
   "MaPGsx9bEV": {
     "defaultMessage": "Push to Braze",
     "description": "Button that opens the dialog to write approved template translations as Braze copies"
@@ -18818,10 +18758,6 @@
   "Mw591341oS": {
     "defaultMessage": "Help center localisation",
     "description": "Name of the help-center-localisation use case"
-  },
-  "MwE3sNR+71": {
-    "defaultMessage": "Which of the workspace's Bitbucket connections this sync runs with. New syncs use the default one.",
-    "description": "Help under the Bitbucket connection picker in the project Sync panel"
   },
   "MwSO0+vGDF": {
     "defaultMessage": "Perfect score",
@@ -19583,10 +19519,6 @@
     "defaultMessage": "A–Z",
     "description": "Button label to sort locales alphabetically"
   },
-  "NtxJdiszvI": {
-    "defaultMessage": "Connected with a workspace, project or repository access token.",
-    "description": "Integrations row description of a Bitbucket connection made with an access token that doesn't say who it belongs to"
-  },
   "Nu4S+TZdcN": {
     "defaultMessage": "Machine translation",
     "description": "Crowdin machine-translation submenu: MT engine"
@@ -20294,6 +20226,10 @@
   "OtoAcs/psJ": {
     "defaultMessage": "SSO / SAML",
     "description": "Enterprise plan feature: SSO"
+  },
+  "OttlAapcwh": {
+    "defaultMessage": "Sync repository files with your projects. An admin connects it once for the whole workspace.",
+    "description": "Integration row description while the workspace hasn't connected Bitbucket"
   },
   "Ou1XbnhiV6": {
     "defaultMessage": "Gender",
@@ -22098,10 +22034,6 @@
   "ROCi5JAcai": {
     "defaultMessage": "Testing",
     "description": "market-experimentation use case page: guide › steps › #4 › visual › locales › #2 › note"
-  },
-  "RP3etSJgd3": {
-    "defaultMessage": "Bitbucket connection removed.",
-    "description": "Toast after a Bitbucket connection was removed"
   },
   "RQHyujQ0I4": {
     "defaultMessage": "Sampled {count} pages across technical, linguistic, contextual, and visual localisation credits.",
@@ -24178,10 +24110,6 @@
   "U7L1HEq5cv": {
     "defaultMessage": "characters",
     "description": "Plural noun for the weighted card: characters"
-  },
-  "U7N0nRz4WS": {
-    "defaultMessage": "Enter the token again, or a new one. The saved token is never shown.",
-    "description": "Hint under the Bitbucket API token field when changing a connection"
   },
   "U7Oa7ZDE9f": {
     "defaultMessage": "P2",
@@ -27439,6 +27367,10 @@
     "defaultMessage": "No screenshots are attached to this string.",
     "description": "Empty state when a string has no screenshot context"
   },
+  "YSJXvZU9UJ": {
+    "defaultMessage": "Disconnecting…",
+    "description": "Button label while Bitbucket is being disconnected"
+  },
   "YSNcbNZ9DI": {
     "defaultMessage": "Proofread",
     "description": "Job task type label for proofreading jobs"
@@ -27706,10 +27638,6 @@
   "YoXNaqtoVz": {
     "defaultMessage": "Iris adapts on-screen text, subtitles, and voice for each market, then checks every locale before you publish.",
     "description": "Description for the Iris video on the global campaigns use case page"
-  },
-  "YoYLReeAk1": {
-    "defaultMessage": "The Bitbucket connection this sync used was removed in Integrations. Choose another connection.",
-    "description": "Shown in the project Sync panel when the sync's Bitbucket connection no longer exists"
   },
   "YokJOF4NZE": {
     "defaultMessage": "What is AEO?",
@@ -29511,17 +29439,9 @@
     "defaultMessage": "Loading…",
     "description": "Loading state in the Crowdin assignee picker"
   },
-  "bFkOvyIO2U": {
-    "defaultMessage": "It can't read any repository yet.",
-    "description": "Warning when a working Bitbucket token can read no repository"
-  },
   "bFtb6TziqW": {
     "defaultMessage": "Market features",
     "description": "Hyperlab mock UI flags use case title"
-  },
-  "bGRMREhpJR": {
-    "defaultMessage": "The Bitbucket connection couldn't be removed.",
-    "description": "Toast when removing a Bitbucket connection failed"
   },
   "bGafpU6o5g": {
     "defaultMessage": "6 articles behind",
@@ -30119,6 +30039,10 @@
     "defaultMessage": "Table",
     "description": "Document editor: block type"
   },
+  "c1kHhl0GZ4": {
+    "defaultMessage": "Every project sync in this workspace uses this Bitbucket account and reaches the repositories it can see. Use an account that belongs only to the repositories you sync.",
+    "description": "Note in the open Bitbucket row about what the shared connection reaches"
+  },
   "c2AEweY0yB": {
     "defaultMessage": "Queries",
     "description": "Activity log event type group for Queries"
@@ -30526,6 +30450,10 @@
   "cgdeN4r2SO": {
     "defaultMessage": "Not checked yet. Run a scan to review translation quality.",
     "description": "QA review: notScanned"
+  },
+  "cgfcUojHJf": {
+    "defaultMessage": "Allow pop-ups for this site to sign in to Bitbucket.",
+    "description": "Toast when the browser blocked the Bitbucket sign-in window"
   },
   "cgtFQ4wcV0": {
     "defaultMessage": "Locks and hiding",
@@ -32267,10 +32195,6 @@
     "defaultMessage": "Paid for people's work",
     "description": "Contributors card: what people's finished work and logged time cost"
   },
-  "enG7KbGDgX": {
-    "defaultMessage": "Token ending {suffix} works.",
-    "description": "Shown when a Bitbucket connection's token works; suffix is its last characters"
-  },
   "enQcoq4887": {
     "defaultMessage": "changing a step's type",
     "description": "What an undo step did, after 'Undo' or 'Redo': a node was given another type"
@@ -32619,10 +32543,6 @@
     "defaultMessage": "Create an App API key in Iterable Settings → API Credentials. It needs read/write access to campaigns, newsletters, broadcasts, and transactional messages.",
     "description": "Hint describing where to create a Iterable App API key"
   },
-  "fAdgEoJssi": {
-    "defaultMessage": "The email of the account that created the API token. Leave empty for a workspace, project or repository access token.",
-    "description": "Hint under the Bitbucket connection's email field"
-  },
   "fB8k9m+qMa": {
     "defaultMessage": "Hourly",
     "description": "Hourly schedule cadence option"
@@ -32874,10 +32794,6 @@
   "fUsluXqG6t": {
     "defaultMessage": "Verify {domain}",
     "description": "Verification heading"
-  },
-  "fVAAyPf4Hj": {
-    "defaultMessage": "Save and check",
-    "description": "Button that checks and saves a Bitbucket connection"
   },
   "fVhXAnrH/m": {
     "defaultMessage": "Gemini 4 Carbon",
@@ -33194,6 +33110,10 @@
   "fvon1YlGXk": {
     "defaultMessage": "Keyword or phrase",
     "description": "Keyword research screen: query"
+  },
+  "fwR5UPPKjG": {
+    "defaultMessage": "Bitbucket needs to be connected again in Integrations before this project can sync.",
+    "description": "Shown in the project Sync panel when the workspace's Bitbucket connection must be connected again"
   },
   "fwRsrXyIL0": {
     "defaultMessage": "Last run · 2 days ago · 842 pages crawled",
@@ -33734,10 +33654,6 @@
   "gbgp71RdPY": {
     "defaultMessage": "Reset search",
     "description": "Keyword research screen: resetSearch"
-  },
-  "gcZogYjXvb": {
-    "defaultMessage": "Give it read and write access to repositories and pull requests so syncs can open pull requests.",
-    "description": "Hint under the Bitbucket API token field"
   },
   "gcoMjtaFWO": {
     "defaultMessage": "ICU structure",
@@ -36327,10 +36243,6 @@
     "defaultMessage": "Acme · Multilingual blog workflow",
     "description": "Header breadcrumb in marketing app shell mock"
   },
-  "k5vKK9aHNE": {
-    "defaultMessage": "This connection's token can read no repositories. A repository or project access token sees only that repository or project.",
-    "description": "Shown in the project Sync panel when the Bitbucket connection lists no repositories"
-  },
   "k66v97xuuE": {
     "defaultMessage": "URL",
     "description": "HTTP node URL field label"
@@ -36723,10 +36635,6 @@
     "defaultMessage": "Agents",
     "description": "Knowledge product visual memory node label"
   },
-  "kaoidOmXvv": {
-    "defaultMessage": "Bitbucket connection",
-    "description": "Label for the picker of which workspace Bitbucket connection a project sync uses"
-  },
   "kbAlbZYGxZ": {
     "defaultMessage": "Footer {number}",
     "description": "Group heading for paragraphs in a Word page footer"
@@ -36818,10 +36726,6 @@
   "khmp8meCYb": {
     "defaultMessage": "Knowledge stored",
     "description": "Knowledge mock UI stage 3 title"
-  },
-  "khzvviRW7G": {
-    "defaultMessage": "Make default",
-    "description": "Button that makes a Bitbucket connection the workspace's default"
   },
   "kiUN7wuEU1": {
     "defaultMessage": "Mark failed",
@@ -38067,6 +37971,10 @@
     "defaultMessage": "Revoked",
     "description": "Badge for a revoked CDN distribution"
   },
+  "mIVet/CyFm": {
+    "defaultMessage": "Bitbucket needs to be connected again before project syncs can run.",
+    "description": "Integration row description when the workspace's Bitbucket connection lapsed"
+  },
   "mIfS2KCWEo": {
     "defaultMessage": "Add an accepted word",
     "description": "Placeholder for the dictionary word field"
@@ -38238,6 +38146,10 @@
   "mVt29nZn4/": {
     "defaultMessage": "Integration Disconnected",
     "description": "Activity log event type label for disconnected integrations"
+  },
+  "mVzj5NvU0Q": {
+    "defaultMessage": "The Bitbucket account connected for this workspace can read no repositories. Connect an account that can see the repositories to sync.",
+    "description": "Shown in the project Sync panel when the Bitbucket connection lists no repositories"
   },
   "mWEB+wjuUJ": {
     "defaultMessage": "No members found.",
@@ -39047,10 +38959,6 @@
     "defaultMessage": "Rewrite",
     "description": "Selected text AI action: rewrite"
   },
-  "ncyrDEYGI0": {
-    "defaultMessage": "Optional. Shown when a project chooses which connection its sync uses.",
-    "description": "Hint under a Bitbucket connection's name field"
-  },
   "ne00IJ9KEp": {
     "defaultMessage": "Could not add that word to the dictionary.",
     "description": "Error when adding a CAT spelling token to a dictionary fails"
@@ -39230,10 +39138,6 @@
   "nouZfHJYX6": {
     "defaultMessage": "A content sync automation already syncs this repository folder into the project. Pause it on the Automations page first.",
     "description": "Error shown when saving the project sync while an active content sync automation covers the same repository folder"
-  },
-  "npaxCXYatK": {
-    "defaultMessage": "Removing…",
-    "description": "Button label while a Bitbucket connection is removed"
   },
   "nqWsz/vBZ6": {
     "defaultMessage": "Who should own the connected files?",
@@ -39542,10 +39446,6 @@
   "oLZRmhKHIV": {
     "defaultMessage": "DE checkout CTA review",
     "description": "Inbox conversation title in content ops mock"
-  },
-  "oLpVFGGbnB": {
-    "defaultMessage": "Atlassian account email",
-    "description": "Label for the email an Atlassian API token belongs to"
   },
   "oLwNToY1hg": {
     "defaultMessage": "Subject",
@@ -40534,10 +40434,6 @@
   "pZzJNiijOV": {
     "defaultMessage": "View affected entries",
     "description": "View entries affected by this import"
-  },
-  "paGmakQOxr": {
-    "defaultMessage": "Name",
-    "description": "Label for a Bitbucket connection's name field"
   },
   "pbA55RTgks": {
     "defaultMessage": "{position} / {total}",
@@ -44975,10 +44871,6 @@
     "defaultMessage": "Set pricing for the {step} step",
     "description": "Accessible name of the set pricing button for one step"
   },
-  "vTI+7YwIJu": {
-    "defaultMessage": "Add another connection to give a project's sync a token that only reaches its own repositories.",
-    "description": "Hint above the button that adds another Bitbucket connection"
-  },
   "vUbkXURPep": {
     "defaultMessage": "Visual Audit",
     "description": "Label for the visual dimension on a localisation audit result"
@@ -45131,10 +45023,6 @@
     "defaultMessage": "Enable the email agent to receive a unique workspace address for translation requests.",
     "description": "Email integration description before an inbound address is generated"
   },
-  "vd4trMKy52": {
-    "defaultMessage": "API token",
-    "description": "Label for the Bitbucket API token field"
-  },
   "vdOK0pRPUg": {
     "defaultMessage": "Preview and localize this URL as an image",
     "description": "Tooltip for the treat-as-image toggle in CAT"
@@ -45186,10 +45074,6 @@
   "vhieXbkbZZ": {
     "defaultMessage": "Do prices, dates, buttons, and examples make sense in each market?",
     "description": "Body of the contextual dimension on the localisation audit landing page methodology"
-  },
-  "vjMheKi1ow": {
-    "defaultMessage": "The Bitbucket connection this sync used was removed in Integrations. Add a connection there, then choose it here.",
-    "description": "Shown in the project Sync panel when the sync's Bitbucket connection no longer exists and the workspace has none left"
   },
   "vjXHRG767Q": {
     "defaultMessage": "Created {createdCount} of {totalCount} jobs, then failed: {errorMessage}",
@@ -45458,10 +45342,6 @@
   "w4kK/l0YhQ": {
     "defaultMessage": "Loading plan",
     "description": "Plan name shown on the footer control while billing data is loading"
-  },
-  "w5FVJM90Ev": {
-    "defaultMessage": "Checking…",
-    "description": "Button label while a Bitbucket connection is checked and saved"
   },
   "w5MQavc77w": {
     "defaultMessage": "Remove rule {number}",
@@ -46035,10 +45915,6 @@
     "defaultMessage": "Brand voice · Style guide",
     "description": "Brand style guide panel title"
   },
-  "wrpb8RvxPm": {
-    "defaultMessage": "The workspace's saved Bitbucket token can't be read. Save the connection again in Integrations.",
-    "description": "Error shown when the workspace's stored Bitbucket token can't be decrypted"
-  },
   "wsHoyAw3d4": {
     "defaultMessage": "Marketing site / Hero",
     "description": "Location breadcrumb in the hero CAT mock intelligence panel"
@@ -46078,6 +45954,10 @@
   "wufZJk5FA/": {
     "defaultMessage": "Guideline",
     "description": "Label for the guideline button in the app shell footer"
+  },
+  "wuzkTh2mjI": {
+    "defaultMessage": "The admin who connected Bitbucket has left this workspace. Connect it again so project syncs keep running.",
+    "description": "Integration row description when the admin who connected Bitbucket is no longer a member"
   },
   "wv0BYwWOsy": {
     "defaultMessage": "Sample data removed",
@@ -46579,10 +46459,6 @@
     "defaultMessage": "Pre-publish compliance checks against your legal policies and each market's regulations, from GDPR claims to AI disclosures.",
     "description": "Marketing homepage growth stack column body for compliance"
   },
-  "xVj8zoSOdV": {
-    "defaultMessage": "Checking the token…",
-    "description": "Shown while a Bitbucket connection's token is checked"
-  },
   "xVjKDBvqPx": {
     "defaultMessage": "Push {count, plural, one {# item} other {# items}}",
     "description": "Confirm pushing the selected HubSpot items"
@@ -46738,10 +46614,6 @@
   "xeqCGSaHwJ": {
     "defaultMessage": "Hyperlab",
     "description": "App shell breadcrumb title for Hyperlab"
-  },
-  "xevO29DVZl": {
-    "defaultMessage": "The workspace's Bitbucket token can't see this repository. Choose it again.",
-    "description": "Error shown when the Bitbucket repository chosen for the project sync is not found"
   },
   "xfMEcMmH8Z": {
     "defaultMessage": "Import",

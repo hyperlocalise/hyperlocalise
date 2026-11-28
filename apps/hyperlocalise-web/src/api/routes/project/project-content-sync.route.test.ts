@@ -25,6 +25,7 @@ const {
   getGitLabTokenAbilitiesMock,
   listGitLabMembershipProjectsMock,
   loadGitLabConnectionCredentialsMock,
+  loadBitbucketAccessMock,
   resolveApiAuthContextFromSessionMock,
 } = vi.hoisted(() => ({
   enqueueActivityLogEventMock: vi.fn(async () => ({ ok: true as const, value: {} })),
@@ -33,6 +34,7 @@ const {
   getGitLabTokenAbilitiesMock: vi.fn(),
   listGitLabMembershipProjectsMock: vi.fn(),
   loadGitLabConnectionCredentialsMock: vi.fn(),
+  loadBitbucketAccessMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -48,6 +50,11 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
   };
 });
+
+vi.mock("@/lib/bitbucket/pipes", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/bitbucket/pipes")>()),
+  loadBitbucketAccess: loadBitbucketAccessMock,
+}));
 
 vi.mock("@/lib/gitlab/connections", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/gitlab/connections")>()),
@@ -71,7 +78,6 @@ import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { contentSyncFingerprintFromConfig } from "@/lib/agents/content-sync/content-sync-config";
-import { saveBitbucketConnection } from "@/lib/bitbucket/connections";
 import { db, schema } from "@/lib/database/client";
 import type { GitLabProject } from "@/lib/gitlab/types";
 import { err, ok } from "@/lib/primitives/result/results";
@@ -90,6 +96,13 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  loadBitbucketAccessMock.mockReset();
+  loadBitbucketAccessMock.mockResolvedValue(
+    err({
+      code: "bitbucket_not_connected",
+      message: "Connect Bitbucket in Integrations before syncing.",
+    }),
+  );
   loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(null));
   getGitLabTokenAbilitiesMock.mockReset();
   getGitLabTokenAbilitiesMock.mockResolvedValue(ok(null));
@@ -214,8 +227,7 @@ describe("project content sync routes", () => {
       ],
       gitlab: { connected: false, available: false, connectionId: null, tokenCanSend: null },
       gitlabConnections: [],
-      bitbucket: { connected: false, available: false, connectionId: null },
-      bitbucketConnections: [],
+      bitbucket: { connected: false, needsReconnect: false, available: false },
     });
 
     const refused = await routeFor().$put({ param, json: syncBody(repository.id) }, { headers });
@@ -483,25 +495,17 @@ describe("project content sync routes", () => {
       vi.unstubAllGlobals();
     });
 
-    it("lists a connection's repositories and saves a sync with the default connection", async () => {
+    it("lists the workspace connection's repositories and saves a sync", async () => {
       stubBitbucket();
       const { admin, project } = await seedWorkspace();
       const headers = await projectFixture.authHeadersFor(admin);
       const param = paramFor(admin, project.id);
-      const saved = await saveBitbucketConnection({
-        organizationId: project.organizationId,
-        userId: await projectFixture.getLocalUserId(admin.user.workosUserId),
-        accessToken: "bitbucket-access-token",
-      });
-      if (!saved.ok) {
-        throw new Error("expected the connection to save");
-      }
+      loadBitbucketAccessMock.mockResolvedValue(ok({ accessToken: "bitbucket-token" }));
 
       const connections = await routeFor().connections.$get({ param, query: {} }, { headers });
       const body = await connections.json();
       expect(body).toMatchObject({
-        bitbucket: { connected: true, available: true, connectionId: saved.value.connection.id },
-        bitbucketConnections: [{ id: saved.value.connection.id, name: "Dev", isDefault: true }],
+        bitbucket: { connected: true, needsReconnect: false, available: true },
       });
       expect("connections" in body && body.connections).toContainEqual({
         provider: "bitbucket",
@@ -518,7 +522,6 @@ describe("project content sync routes", () => {
       expect(putBody.sync.syncConfig).toMatchObject({
         provider: "bitbucket",
         resourceKey: "acme/site",
-        bitbucketConnectionId: saved.value.connection.id,
         pathTemplate: "{{locale}}.json",
       });
     });
@@ -535,11 +538,7 @@ describe("project content sync routes", () => {
         error: "content_sync_bitbucket_not_connected",
       });
 
-      await saveBitbucketConnection({
-        organizationId: project.organizationId,
-        userId: await projectFixture.getLocalUserId(admin.user.workosUserId),
-        accessToken: "bitbucket-access-token",
-      });
+      loadBitbucketAccessMock.mockResolvedValue(ok({ accessToken: "bitbucket-token" }));
       const replaced = await routeFor().$put(
         { param, json: bitbucketBody({ connectionId: "{22222222-2222-4222-8222-222222222222}" }) },
         { headers },
@@ -548,6 +547,24 @@ describe("project content sync routes", () => {
       expect(await replaced.json()).toMatchObject({
         error: "content_sync_bitbucket_repository_not_found",
       });
+    });
+
+    it("says Bitbucket must be connected again when the connection lapsed", async () => {
+      stubBitbucket();
+      loadBitbucketAccessMock.mockResolvedValue(
+        err({ code: "bitbucket_needs_reconnect", message: "Reconnect Bitbucket in Integrations." }),
+      );
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+
+      const connections = await routeFor().connections.$get({ param, query: {} }, { headers });
+      expect(await connections.json()).toMatchObject({
+        bitbucket: { connected: true, needsReconnect: true, available: false },
+      });
+      const saved = await routeFor().$put({ param, json: bitbucketBody() }, { headers });
+      expect(saved.status).toBe(400);
+      expect(await saved.json()).toMatchObject({ error: "content_sync_bitbucket_needs_reconnect" });
     });
   });
 
@@ -625,8 +642,7 @@ describe("project content sync routes", () => {
         ],
         gitlab: { connected: true, available: true, connectionId: access.id, tokenCanSend: null },
         gitlabConnections: [],
-        bitbucket: { connected: false, available: false, connectionId: null },
-        bitbucketConnections: [],
+        bitbucket: { connected: false, needsReconnect: false, available: false },
       });
 
       const saved = await routeFor().$put({ param, json: gitlabBody() }, { headers });

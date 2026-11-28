@@ -163,8 +163,7 @@ function renderPanel(
       tokenCanSend?: boolean | null;
     };
     gitlabConnections?: unknown[];
-    bitbucket?: { connected: boolean; available: boolean; connectionId?: string | null };
-    bitbucketConnections?: unknown[];
+    bitbucket?: { connected: boolean; needsReconnect?: boolean; available: boolean };
     runs?: unknown[];
   } = {},
 ) {
@@ -183,8 +182,7 @@ function renderPanel(
       ],
       gitlab: input.gitlab ?? { connected: false, available: false, connectionId: null },
       gitlabConnections: input.gitlabConnections ?? [],
-      bitbucket: input.bitbucket ?? { connected: false, available: false, connectionId: null },
-      bitbucketConnections: input.bitbucketConnections ?? [],
+      bitbucket: input.bitbucket ?? { connected: false, needsReconnect: false, available: false },
     }),
   );
   api.put.mockResolvedValue(jsonResponse(200, { sync: savedSync }));
@@ -431,34 +429,20 @@ describe("ProjectContentSyncPanel", () => {
   });
 
   describe("Bitbucket", () => {
-    const teamConnection = {
-      id: "33333333-3333-4333-8333-333333333333",
-      name: "Team",
-      isDefault: true,
-    };
-    const siteConnection = {
-      id: "44444444-4444-4444-8444-444444444444",
-      name: "Site",
-      isDefault: false,
-    };
-
-    it("sets up a new Bitbucket sync with its language file paths and connection", async () => {
+    it("sets up a new Bitbucket sync with its language file paths", async () => {
       const user = userEvent.setup();
       renderPanel({
         sync: null,
         connections: [
           { provider: "bitbucket", connectionId: "{r1}", resourceKey: "acme/site", branch: "main" },
         ],
-        bitbucket: { connected: true, available: true, connectionId: teamConnection.id },
-        bitbucketConnections: [teamConnection, siteConnection],
+        bitbucket: { connected: true, available: true },
       });
 
       await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
       await user.click(await screen.findByRole("option", { name: "Bitbucket" }));
-      expect(
-        await screen.findByRole("combobox", { name: "Bitbucket connection" }),
-      ).toHaveTextContent("Team (default)");
-      await user.click(screen.getByRole("combobox", { name: "Repository" }));
+      expect(screen.queryByRole("combobox", { name: /connection/ })).not.toBeInTheDocument();
+      await user.click(await screen.findByRole("combobox", { name: "Repository" }));
       await user.click(await screen.findByRole("option", { name: "acme/site" }));
       expect(screen.getByLabelText("Branch")).toHaveAttribute("placeholder", "main");
       await user.type(screen.getByLabelText("Repository folder"), "locales");
@@ -481,6 +465,21 @@ describe("ProjectContentSyncPanel", () => {
           },
         },
       });
+    });
+
+    it("says Bitbucket must be connected again when the workspace connection lapsed", async () => {
+      const user = userEvent.setup();
+      renderPanel({
+        sync: null,
+        connections: [],
+        bitbucket: { connected: true, needsReconnect: true, available: false },
+      });
+
+      await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
+      await user.click(await screen.findByRole("option", { name: "Bitbucket" }));
+      expect(
+        await screen.findByText(/Bitbucket needs to be connected again in Integrations/),
+      ).toBeInTheDocument();
     });
 
     it("points to Integrations when the workspace has no Bitbucket connection", async () => {

@@ -46,7 +46,7 @@ With **Allow source text editing** on, the same merge request also writes the pr
 
 A workspace connected to Bitbucket Cloud can pull a repository's source files into a project from the project's **Sync** settings, and send approved translations back as one pull request per sync.
 
-1. [Connect Bitbucket](/platform/connections/bitbucket) under **Integrations**, with a token that can read and write repositories and pull requests (a read-only token pulls only). With several connections, the Sync panel shows a **Bitbucket connection** field, and the sync keeps the connection it was saved with even if the default changes later.
+1. An admin [connects Bitbucket](/platform/connections/bitbucket) once for the workspace under **Integrations**, with an account that can write to the repository and open pull requests (an account that can only read pulls files only). Every project sync uses that connection.
 2. Open the project's **Settings**, select **Sync**, choose **Bitbucket** as the repository service and pick the repository.
 3. Fill in the repository folder, the branch (empty reads the repository's main branch), the language file paths and the project folder the same way as [for GitLab](#pull-from-gitlab).
 

@@ -603,19 +603,6 @@ export const projectContentSyncPanelMessages = defineMessages({
       "Note under the repository service picker while Bitbucket is chosen, saying what a Bitbucket sync does",
   },
 
-  bitbucketConnectionLabel: {
-    defaultMessage: "Bitbucket connection",
-    id: "kaoidOmXvv",
-    description: "Label for the picker of which workspace Bitbucket connection a project sync uses",
-  },
-
-  bitbucketConnectionHelp: {
-    defaultMessage:
-      "Which of the workspace's Bitbucket connections this sync runs with. New syncs use the default one.",
-    id: "MwE3sNR+71",
-    description: "Help under the Bitbucket connection picker in the project Sync panel",
-  },
-
   noBitbucketConnection: {
     defaultMessage: "Connect Bitbucket in Integrations to sync from Bitbucket.",
     id: "VDqO0OE3Hj",
@@ -632,8 +619,8 @@ export const projectContentSyncPanelMessages = defineMessages({
 
   noBitbucketRepositories: {
     defaultMessage:
-      "This connection's token can read no repositories. A repository or project access token sees only that repository or project.",
-    id: "k5vKK9aHNE",
+      "The Bitbucket account connected for this workspace can read no repositories. Connect an account that can see the repositories to sync.",
+    id: "mVzj5NvU0Q",
     description:
       "Shown in the project Sync panel when the Bitbucket connection lists no repositories",
   },
@@ -645,16 +632,10 @@ export const projectContentSyncPanelMessages = defineMessages({
       "Error shown when a Bitbucket project sync is saved while the workspace has no Bitbucket connection",
   },
 
-  errorBitbucketTokenUnreadable: {
-    defaultMessage:
-      "The workspace's saved Bitbucket token can't be read. Save the connection again in Integrations.",
-    id: "wrpb8RvxPm",
-    description: "Error shown when the workspace's stored Bitbucket token can't be decrypted",
-  },
-
   errorBitbucketRepositoryNotFound: {
-    defaultMessage: "The workspace's Bitbucket token can't see this repository. Choose it again.",
-    id: "xevO29DVZl",
+    defaultMessage:
+      "The Bitbucket account connected for this workspace can't see this repository. Choose it again.",
+    id: "M0gpS5u6yZ",
     description:
       "Error shown when the Bitbucket repository chosen for the project sync is not found",
   },
@@ -666,19 +647,11 @@ export const projectContentSyncPanelMessages = defineMessages({
     description: "Error shown when Bitbucket can't be reached while saving the project sync",
   },
 
-  errorBitbucketConnectionRemoved: {
+  bitbucketNeedsReconnect: {
     defaultMessage:
-      "The Bitbucket connection this sync used was removed in Integrations. Choose another connection.",
-    id: "YoYLReeAk1",
+      "Bitbucket needs to be connected again in Integrations before this project can sync.",
+    id: "fwR5UPPKjG",
     description:
-      "Shown in the project Sync panel when the sync's Bitbucket connection no longer exists",
-  },
-
-  errorBitbucketConnectionRemovedNone: {
-    defaultMessage:
-      "The Bitbucket connection this sync used was removed in Integrations. Add a connection there, then choose it here.",
-    id: "vjMheKi1ow",
-    description:
-      "Shown in the project Sync panel when the sync's Bitbucket connection no longer exists and the workspace has none left",
+      "Shown in the project Sync panel when the workspace's Bitbucket connection must be connected again",
   },
 });

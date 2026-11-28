@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { getBitbucketRepository } from "@/lib/bitbucket/client";
-import { resolveBitbucketAccess } from "@/lib/bitbucket/connections";
+import { loadBitbucketAccess } from "@/lib/bitbucket/pipes";
 import { createBitbucketContentSyncReader } from "@/lib/bitbucket/content-sync-reader";
 import { createBitbucketContentSyncWriter } from "@/lib/bitbucket/content-sync-writer";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -27,7 +27,7 @@ import {
 
 /**
  * Bitbucket Cloud content sync: the same pull and pull-request delivery as GitLab's, through the
- * workspace's Bitbucket connection. `connectionId` holds the repository's uuid and `resourceKey`
+ * workspace's shared Bitbucket connection (WorkOS Pipes, organization-owned). `connectionId` holds the repository's uuid and `resourceKey`
  * its `workspace/repo-slug`.
  */
 export async function executeBitbucketContentSync(
@@ -44,20 +44,10 @@ export async function executeBitbucketContentSync(
 export async function resolveBitbucketRepository(
   input: Pick<RepositoryContentSyncInput, "organizationId" | "syncConfig">,
 ): Promise<Result<ResolvedContentSyncRepository, ContentSyncError>> {
-  const access = await resolveBitbucketAccess({
-    organizationId: input.organizationId,
-    connectionId: input.syncConfig.bitbucketConnectionId,
-  });
+  const access = await loadBitbucketAccess({ localOrganizationId: input.organizationId });
   if (isErr(access)) {
-    return err({
-      code: "content_sync_connection_required",
-      message:
-        access.error.code === "bitbucket_connection_decrypt_failed"
-          ? "The sync's saved Bitbucket token can't be read. Save the connection again in Integrations."
-          : access.error.code === "bitbucket_connection_removed"
-            ? "The Bitbucket connection this sync uses was removed in Integrations. Choose another connection in the project's Sync settings."
-            : "Connect Bitbucket in Integrations before syncing.",
-    });
+    // Each reason names what to do: connect, reconnect, or try again later.
+    return err({ code: "content_sync_connection_required", message: access.error.message });
   }
   // The path is what every call uses; the uuid proves it still names the repository chosen,
   // not another one that took its name after a rename.
@@ -70,10 +60,10 @@ export async function resolveBitbucketRepository(
       code: "content_sync_connection_required",
       message:
         repository.error.code === "bitbucket_not_found"
-          ? "The workspace's Bitbucket token can't see this repository. Check the connection in Integrations."
+          ? "The Bitbucket account connected for this workspace can't see this repository. Check the connection in Integrations."
           : repository.error.code === "bitbucket_unauthorized" ||
               repository.error.code === "bitbucket_forbidden"
-            ? "The workspace's Bitbucket token was refused. Check the connection in Integrations."
+            ? "Bitbucket refused the workspace's connection. Reconnect Bitbucket in Integrations."
             : "Bitbucket couldn't be reached. Try again shortly.",
     });
   }
@@ -84,10 +74,7 @@ export async function resolveBitbucketRepository(
         "The repository at this path is not the one chosen for this sync. Choose the repository again.",
     });
   }
-  const credentials = {
-    accessToken: access.value.accessToken,
-    accountEmail: access.value.accountEmail,
-  };
+  const credentials = access.value;
   return ok({
     reader: createBitbucketContentSyncReader({
       access: credentials,

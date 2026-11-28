@@ -27,12 +27,12 @@ const logger = createLogger("bitbucket-client");
 
 const UNAUTHORIZED: BitbucketApiError = {
   code: "bitbucket_unauthorized",
-  message: "Bitbucket rejected the connection's token.",
+  message: "Bitbucket refused the workspace's connection.",
 };
 
 const FORBIDDEN: BitbucketApiError = {
   code: "bitbucket_forbidden",
-  message: "The connection's token isn't allowed to do this.",
+  message: "The connected Bitbucket account isn't allowed to do this.",
 };
 
 const NOT_FOUND: BitbucketApiError = {
@@ -77,12 +77,6 @@ export function encodeBitbucketFilePath(path: string): string {
     .filter((segment) => segment.length > 0)
     .map(encodeURIComponent)
     .join("/");
-}
-
-function authorizationHeader(access: BitbucketAccess): string {
-  return access.accountEmail
-    ? `Basic ${Buffer.from(`${access.accountEmail}:${access.accessToken}`).toString("base64")}`
-    : `Bearer ${access.accessToken}`;
 }
 
 /** The error's kind only: its message can carry a path, which is customer data. */
@@ -135,7 +129,7 @@ export async function bitbucketRequest(
     return url;
   }
   const headers: Record<string, string> = {
-    Authorization: authorizationHeader(input),
+    Authorization: `Bearer ${input.accessToken}`,
     Accept: input.accept,
   };
   let body: string | FormData | undefined;
@@ -246,34 +240,6 @@ function parseRepository(value: unknown): BitbucketRepository | null {
     name: asString(record.name) ?? fullName,
     mainBranch: asString(asRecord(record.mainbranch)?.name),
   };
-}
-
-/** Who the token belongs to; null when the token may not say (an access token without the account scope). */
-export async function getBitbucketCurrentAccount(
-  input: BitbucketAccess & { signal?: AbortSignal },
-): Promise<Result<string | null, BitbucketApiError>> {
-  const result = await bitbucketJson({ ...input, path: "/2.0/user" });
-  if (isErr(result)) {
-    return result.error.code === "bitbucket_forbidden" ? ok(null) : result;
-  }
-  const record = asRecord(result.value);
-  return ok(asString(record?.display_name) ?? asString(record?.username) ?? null);
-}
-
-/** Whether the token reads at least one repository; a refused token is an error. */
-export async function checkBitbucketRepositoryAccess(
-  input: BitbucketAccess & { signal?: AbortSignal },
-): Promise<Result<{ readsRepositories: boolean }, BitbucketApiError>> {
-  const result = await bitbucketJson({
-    ...input,
-    path: "/2.0/repositories",
-    query: new URLSearchParams({ role: "member", pagelen: "1", fields: "values.uuid" }),
-  });
-  if (isErr(result)) {
-    return result;
-  }
-  const values = asRecord(result.value)?.values;
-  return ok({ readsRepositories: Array.isArray(values) && values.length > 0 });
 }
 
 /** The repositories the token can read, the most recently updated first, a few hundred at most. */

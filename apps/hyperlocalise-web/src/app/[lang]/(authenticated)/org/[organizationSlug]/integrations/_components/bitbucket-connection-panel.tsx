@@ -12,109 +12,77 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useId, useState } from "react";
-import { EyeIcon, EyeSlashIcon, FloppyDiskIcon, PlusIcon } from "@phosphor-icons/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { siBitbucket } from "simple-icons";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Rows } from "@/components/ui/layout/rows";
+import { TypographyP } from "@/components/ui/typography";
 import { createApiClient } from "@/lib/api-client";
-import { readApiError } from "@/lib/api-error";
+import { BITBUCKET_PIPES_SLUG } from "@/lib/bitbucket/constants";
 
 import { bitbucketConnectionPanelMessages as messages } from "./bitbucket-connection-panel.messages";
-import { CollapsibleIntegrationRow } from "./integration-row";
+import { IntegrationRow } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
-import { bitbucketConnectionsQueryKey, useBitbucketConnections } from "./use-bitbucket-connections";
 
 const api = createApiClient();
 
-type BitbucketConnection = NonNullable<ReturnType<typeof useBitbucketConnections>["data"]>[number];
+const SIGN_IN_WINDOW_NAME = "hyperlocalise-bitbucket-sign-in";
+const SIGN_IN_WINDOW_WIDTH = 520;
+const SIGN_IN_WINDOW_HEIGHT = 720;
+const PIPES_CONNECTED_MESSAGE = "hyperlocalise-pipes-connected";
 
-/** The form is open to add a connection, or to change one. */
-type Editing = { mode: "add" } | { mode: "change"; connection: BitbucketConnection };
+export const bitbucketConnectionQueryKey = (organizationSlug: string) =>
+  ["bitbucket", organizationSlug, "connection"] as const;
 
-function checkQueryKey(organizationSlug: string, connection: BitbucketConnection) {
-  return ["bitbucket", organizationSlug, "connection-check", connection.id, connection.updatedAt];
+function openSignInWindow(url: string): Window | null {
+  const left = Math.round(window.screenX + (window.outerWidth - SIGN_IN_WINDOW_WIDTH) / 2);
+  const top = Math.round(window.screenY + (window.outerHeight - SIGN_IN_WINDOW_HEIGHT) / 2);
+  return window.open(
+    url,
+    SIGN_IN_WINDOW_NAME,
+    `popup=yes,width=${SIGN_IN_WINDOW_WIDTH},height=${SIGN_IN_WINDOW_HEIGHT},left=${left},top=${top},scrollbars=yes,resizable=yes`,
+  );
 }
 
-/** One connection's live check, asked when the row opens: a token can stop working at any time. */
-function ConnectionStatus({
-  organizationSlug,
-  connection,
-  expanded,
-}: {
-  organizationSlug: string;
-  connection: BitbucketConnection;
-  expanded: boolean;
-}) {
-  const queryClient = useQueryClient();
-  const checkQuery = useQuery({
-    queryKey: checkQueryKey(organizationSlug, connection),
-    enabled: expanded,
-    staleTime: Number.POSITIVE_INFINITY,
-    queryFn: async ({ signal }) => {
-      const response = await api.api.orgs[":organizationSlug"].bitbucket.connections[
-        ":connectionId"
-      ].check.$get(
-        { param: { organizationSlug, connectionId: connection.id } },
-        { init: { signal } },
-      );
-      if (response.status === 404) {
-        // Removed elsewhere since this page loaded.
-        await queryClient.invalidateQueries({
-          queryKey: bitbucketConnectionsQueryKey(organizationSlug),
-        });
+function isConnectedMessage(data: unknown): boolean {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "type" in data &&
+    data.type === PIPES_CONNECTED_MESSAGE &&
+    "provider" in data &&
+    data.provider === BITBUCKET_PIPES_SLUG
+  );
+}
+
+/** The workspace's shared Bitbucket connection; null when this person's role can't see it. */
+export function useBitbucketConnection(organizationSlug: string) {
+  return useQuery({
+    queryKey: bitbucketConnectionQueryKey(organizationSlug),
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].bitbucket.connection.$get({
+        param: { organizationSlug },
+      });
+      if (response.status === 403) {
         return null;
       }
       if (!response.ok) {
-        throw new Error("bitbucket_connection_check_failed");
+        throw new Error("bitbucket_connection_load_failed");
       }
-      return response.json();
+      const body = await response.json();
+      return "bitbucketConnection" in body ? body.bitbucketConnection : null;
     },
   });
-  const result = checkQuery.data;
-  return (
-    <p className="text-xs text-muted-foreground" role="status">
-      {checkQuery.isFetching ? (
-        <FormattedMessage {...messages.checking} />
-      ) : checkQuery.isError ? (
-        <FormattedMessage {...messages.checkUnavailable} />
-      ) : result?.working === false ? (
-        <FormattedMessage {...messages.checkFailed} values={{ reason: result.message }} />
-      ) : result?.working ? (
-        <>
-          <FormattedMessage
-            {...messages.checkPassed}
-            values={{ suffix: connection.maskedTokenSuffix }}
-          />
-          {result.readsRepositories ? null : (
-            <>
-              {" "}
-              <span className="text-destructive">
-                <FormattedMessage {...messages.tokenReadsNothing} />
-              </span>
-            </>
-          )}
-        </>
-      ) : null}
-    </p>
-  );
 }
 
-function ConnectionAccount({ connection }: { connection: BitbucketConnection }) {
-  const account = connection.connectedAccount ?? connection.accountEmail;
-  return account ? (
-    <FormattedMessage {...messages.connectedDescription} values={{ account }} />
-  ) : (
-    <FormattedMessage {...messages.connectedAccessToken} />
-  );
-}
-
+/**
+ * Bitbucket Cloud for the whole workspace: an admin signs in once and every project sync uses
+ * that account, with nobody signed in.
+ */
 export function BitbucketConnectionPanel({
   organizationSlug,
   disabled,
@@ -126,390 +94,173 @@ export function BitbucketConnectionPanel({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const nameFieldId = useId();
-  const emailFieldId = useId();
-  const tokenFieldId = useId();
   const [expanded, setExpanded] = useState(false);
-  const [editing, setEditing] = useState<Editing | null>(null);
-  const [name, setName] = useState<string | null>(null);
-  const [accountEmail, setAccountEmail] = useState<string | null>(null);
-  const [accessToken, setAccessToken] = useState("");
-  const [showToken, setShowToken] = useState(false);
-  const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null);
+  const signInWindowRef = useRef<Window | null>(null);
+  const statusQuery = useBitbucketConnection(organizationSlug);
+  const status = statusQuery.data ?? null;
   const userCanManage = !disabled;
-  const listKey = bitbucketConnectionsQueryKey(organizationSlug);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: listKey, exact: true });
+  const isConnected = Boolean(status?.connected) && !status?.needsReconnect;
 
-  const connectionsQuery = useBitbucketConnections(organizationSlug);
-  const connections = connectionsQuery.data ?? [];
-  const defaultConnection = connections[0] ?? null;
+  const refresh = useCallback(async () => {
+    await queryClient.invalidateQueries({
+      queryKey: bitbucketConnectionQueryKey(organizationSlug),
+    });
+    // The project Sync panels list repositories through this connection.
+    await queryClient.invalidateQueries({ queryKey: ["project-content-sync", organizationSlug] });
+  }, [organizationSlug, queryClient]);
 
-  const clearForm = () => {
-    setEditing(null);
-    setName(null);
-    setAccountEmail(null);
-    setAccessToken("");
-    setShowToken(false);
-  };
-
-  const changeExpanded = (open: boolean) => {
-    setExpanded(open);
-    if (!open) {
-      setConfirmingRemove(null);
-      const checks = ["bitbucket", organizationSlug, "connection-check"];
-      void queryClient.cancelQueries({ queryKey: checks });
-      queryClient.removeQueries({ queryKey: checks });
-    }
-  };
-
-  const save = useMutation({
-    mutationFn: async (input: {
-      connectionId: string | null;
-      json: { name: string; accountEmail: string; accessToken: string };
-    }) => {
-      const response = input.connectionId
-        ? await api.api.orgs[":organizationSlug"].bitbucket.connections[":connectionId"].$put({
-            param: { organizationSlug, connectionId: input.connectionId },
-            json: input.json,
-          })
-        : await api.api.orgs[":organizationSlug"].bitbucket.connections.$post({
-            param: { organizationSlug },
-            json: input.json,
-          });
+  const connect = useMutation({
+    mutationFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].bitbucket.connection[
+        "authorize-url"
+      ].$get({ param: { organizationSlug } });
       if (!response.ok) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.saveFailed)));
+        throw new Error(intl.formatMessage(messages.connectFailed));
       }
       const body = await response.json();
-      return "bitbucketConnection" in body
-        ? { connection: body.bitbucketConnection, check: body.check }
-        : null;
-    },
-    onSuccess: async (saved) => {
-      clearForm();
-      setConfirmingRemove(null);
-      // Saving has just checked the connection, so the open row needn't check it again.
-      if (saved) {
-        queryClient.setQueryData(checkQueryKey(organizationSlug, saved.connection), {
-          working: true,
-          ...saved.check,
-        });
+      if (!("url" in body) || typeof body.url !== "string" || !body.url) {
+        throw new Error(intl.formatMessage(messages.connectFailed));
       }
-      await refresh();
-      toast.success(intl.formatMessage(messages.saved));
+      return body.url;
+    },
+    onSuccess: (url) => {
+      const opened = signInWindowRef.current;
+      if (opened && !opened.closed) {
+        opened.location.href = url;
+        return;
+      }
+      const popup = openSignInWindow(url);
+      if (!popup) {
+        toast.error(intl.formatMessage(messages.popupBlocked));
+        return;
+      }
+      signInWindowRef.current = popup;
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : intl.formatMessage(messages.saveFailed));
+      signInWindowRef.current?.close();
+      signInWindowRef.current = null;
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.connectFailed),
+      );
     },
   });
 
-  const makeDefault = useMutation({
-    mutationFn: async (connection: BitbucketConnection) => {
-      const response = await api.api.orgs[":organizationSlug"].bitbucket.connections[
-        ":connectionId"
-      ].default.$post({ param: { organizationSlug, connectionId: connection.id } });
+  const disconnect = useMutation({
+    mutationFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].bitbucket.connection.$delete({
+        param: { organizationSlug },
+      });
       if (!response.ok) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.defaultFailed)));
+        throw new Error(intl.formatMessage(messages.disconnectFailed));
       }
-      return connection;
     },
-    onSuccess: async (connection) => {
+    onSuccess: async () => {
       await refresh();
-      toast.success(intl.formatMessage(messages.defaultSaved, { name: connection.name }));
+      setExpanded(false);
+      toast.success(intl.formatMessage(messages.disconnectedToast));
     },
     onError: (error) => {
       toast.error(
-        error instanceof Error ? error.message : intl.formatMessage(messages.defaultFailed),
+        error instanceof Error ? error.message : intl.formatMessage(messages.disconnectFailed),
       );
     },
   });
 
-  const remove = useMutation({
-    mutationFn: async (connection: BitbucketConnection) => {
-      const response = await api.api.orgs[":organizationSlug"].bitbucket.connections[
-        ":connectionId"
-      ].$delete({ param: { organizationSlug, connectionId: connection.id } });
-      // Already removed elsewhere since this page loaded: the outcome is the same.
-      if (!response.ok && response.status !== 404) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.removeFailed)));
-      }
-    },
-    onSuccess: async (_removed, connection) => {
-      setConfirmingRemove(null);
-      if (editing?.mode === "change" && editing.connection.id === connection.id) {
-        clearForm();
-      }
-      await refresh();
-      toast.success(intl.formatMessage(messages.removed));
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof Error ? error.message : intl.formatMessage(messages.removeFailed),
+  // The sign-in window lands back on Integrations, tells this page, and closes.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("pipesCallback") !== BITBUCKET_PIPES_SLUG) {
+      return;
+    }
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage(
+        { type: PIPES_CONNECTED_MESSAGE, provider: BITBUCKET_PIPES_SLUG },
+        window.location.origin,
       );
-    },
-  });
+      window.close();
+    }
+  }, []);
 
-  const startChange = (connection: BitbucketConnection) => {
-    clearForm();
-    setEditing({ mode: "change", connection });
-    setConfirmingRemove(null);
-  };
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.origin === window.location.origin && isConnectedMessage(event.data)) {
+        void refresh();
+        setExpanded(true);
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [refresh]);
 
-  const changing = editing?.mode === "change" ? editing.connection : null;
-  const nameValue = name ?? changing?.storedName ?? "";
-  const emailValue = accountEmail ?? changing?.accountEmail ?? "";
-  const busy = save.isPending || makeDefault.isPending || remove.isPending;
-  // A failed load can't say what exists, so saving could overwrite a connection unwarned.
-  const canEdit = userCanManage && !connectionsQuery.isError;
-  const canSave = userCanManage && !busy && accessToken.trim().length > 0;
+  // A window closed without finishing still refreshes, so a finished sign-in is never missed.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const popup = signInWindowRef.current;
+      if (popup?.closed) {
+        signInWindowRef.current = null;
+        void refresh();
+      }
+    }, 800);
+    return () => window.clearInterval(timer);
+  }, [refresh]);
+
+  const handleConnect = useCallback(() => {
+    // Opened on the click itself, so the browser doesn't block it while the address loads.
+    const popup = openSignInWindow("about:blank");
+    if (!popup) {
+      toast.error(intl.formatMessage(messages.popupBlocked));
+      return;
+    }
+    signInWindowRef.current = popup;
+    connect.mutate();
+  }, [connect, intl]);
+
+  const description = statusQuery.isError
+    ? intl.formatMessage(messages.loadError)
+    : status?.connectorLeft
+      ? intl.formatMessage(messages.connectorLeftDescription)
+      : status?.needsReconnect
+        ? intl.formatMessage(messages.reconnectDescription)
+        : isConnected
+          ? status?.accountName
+            ? intl.formatMessage(messages.connectedAsDescription, { account: status.accountName })
+            : intl.formatMessage(messages.connectedDescription)
+          : intl.formatMessage(messages.description);
+  const action = !userCanManage ? "view-only" : isConnected ? "manage" : "connect";
 
   return (
-    <CollapsibleIntegrationRow
+    <IntegrationRow
       name={intl.formatMessage(messages.name)}
-      description={
-        connectionsQuery.isError
-          ? intl.formatMessage(messages.loadError)
-          : connections.length > 1 && defaultConnection
-            ? intl.formatMessage(messages.connectionsDescription, {
-                count: connections.length,
-                name: defaultConnection.name,
-              })
-            : intl.formatMessage(messages.description)
-      }
-      icon={<SimpleBrandIcon icon={siBitbucket} colored={defaultConnection !== null} />}
-      isConnected={defaultConnection !== null}
-      userIsAdmin={userCanManage}
+      description={description}
+      icon={<SimpleBrandIcon icon={siBitbucket} colored={isConnected} />}
+      action={action}
       expanded={expanded}
-      onExpandedChange={changeExpanded}
-      isLoading={connectionsQuery.isLoading}
+      onExpandedChange={setExpanded}
+      onConnect={handleConnect}
+      isConnecting={connect.isPending}
+      isLoading={statusQuery.isLoading}
       isLast={isLast}
     >
-      <div className="grid gap-3">
-        {connectionsQuery.isError ? null : connections.length === 0 ? (
-          <p className="text-sm leading-6 text-muted-foreground">
-            <FormattedMessage {...messages.intro} />
-          </p>
-        ) : (
-          <ul className="grid gap-2">
-            {connections.map((connection) => (
-              <li
-                key={connection.id}
-                className="grid gap-1 rounded-md border border-border bg-background p-3"
-                aria-label={connection.name}
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium">{connection.name}</span>
-                  {connection.isDefault ? (
-                    <Badge variant="secondary">
-                      <FormattedMessage {...messages.defaultBadge} />
-                    </Badge>
-                  ) : null}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  <ConnectionAccount connection={connection} />{" "}
-                  {connection.syncCount > 0 ? (
-                    <FormattedMessage
-                      {...messages.usedBySyncs}
-                      values={{ count: connection.syncCount }}
-                    />
-                  ) : null}
-                </p>
-                <ConnectionStatus
-                  organizationSlug={organizationSlug}
-                  connection={connection}
-                  expanded={expanded}
-                />
-                {canEdit ? (
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {confirmingRemove === connection.id ? (
-                      <>
-                        <p className="basis-full text-end text-xs text-muted-foreground">
-                          <FormattedMessage
-                            {...messages.removeConfirm}
-                            values={{ count: connection.syncCount }}
-                          />
-                        </p>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => setConfirmingRemove(null)}
-                        >
-                          <FormattedMessage {...messages.cancel} />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => remove.mutate(connection)}
-                        >
-                          <FormattedMessage
-                            {...(remove.isPending ? messages.removing : messages.removeNow)}
-                          />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        {connection.isDefault ? null : (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => makeDefault.mutate(connection)}
-                          >
-                            <FormattedMessage {...messages.makeDefault} />
-                          </Button>
-                        )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => startChange(connection)}
-                        >
-                          <FormattedMessage {...messages.change} />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => setConfirmingRemove(connection.id)}
-                        >
-                          <FormattedMessage {...messages.remove} />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-        {canEdit && editing === null ? (
-          <div className="grid gap-2">
-            {connections.length > 0 ? (
-              <p className="text-xs text-muted-foreground">
-                <FormattedMessage {...messages.addIntro} />
-              </p>
-            ) : null}
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant={connections.length > 0 ? "outline" : "default"}
-                size="sm"
-                disabled={busy}
-                onClick={() => setEditing({ mode: "add" })}
-              >
-                <PlusIcon />
-                <FormattedMessage {...messages.addConnection} />
-              </Button>
-            </div>
+      <Rows spacing="2u">
+        <TypographyP size="small" tone="subtle">
+          <FormattedMessage {...messages.sharedHint} />
+        </TypographyP>
+        {userCanManage ? (
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disconnect.isPending}
+              onClick={() => disconnect.mutate()}
+            >
+              <FormattedMessage
+                {...(disconnect.isPending ? messages.disconnecting : messages.disconnect)}
+              />
+            </Button>
           </div>
         ) : null}
-        {canEdit && editing !== null ? (
-          <form
-            className="grid gap-3 rounded-md border border-border p-3"
-            aria-label={intl.formatMessage(changing ? messages.change : messages.addConnection)}
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (canSave) {
-                save.mutate({
-                  connectionId: changing?.id ?? null,
-                  json: {
-                    name: nameValue.trim(),
-                    accountEmail: emailValue.trim(),
-                    accessToken,
-                  },
-                });
-              }
-            }}
-          >
-            <Field>
-              <FieldLabel htmlFor={nameFieldId}>
-                <FormattedMessage {...messages.nameLabel} />
-              </FieldLabel>
-              <Input
-                id={nameFieldId}
-                autoComplete="off"
-                maxLength={80}
-                placeholder={intl.formatMessage(messages.namePlaceholder)}
-                value={nameValue}
-                disabled={busy}
-                onChange={(event) => setName(event.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                <FormattedMessage {...messages.nameHint} />
-              </p>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor={emailFieldId}>
-                <FormattedMessage {...messages.emailLabel} />
-              </FieldLabel>
-              <Input
-                id={emailFieldId}
-                type="email"
-                autoComplete="off"
-                maxLength={320}
-                value={emailValue}
-                disabled={busy}
-                onChange={(event) => setAccountEmail(event.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                <FormattedMessage {...messages.emailHint} />
-              </p>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor={tokenFieldId}>
-                <FormattedMessage {...messages.tokenLabel} />
-              </FieldLabel>
-              <div className="relative">
-                <Input
-                  id={tokenFieldId}
-                  type={showToken ? "text" : "password"}
-                  autoComplete="off"
-                  value={accessToken}
-                  disabled={busy}
-                  onChange={(event) => setAccessToken(event.target.value)}
-                  className="pe-9"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowToken((current) => !current)}
-                  disabled={busy}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-                  aria-label={intl.formatMessage(
-                    showToken ? messages.hideToken : messages.showToken,
-                  )}
-                >
-                  {showToken ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                <FormattedMessage
-                  {...(changing ? messages.tokenReplaceHint : messages.tokenHint)}
-                />
-              </p>
-            </Field>
-            {changing ? (
-              <p className="text-xs text-muted-foreground">
-                <FormattedMessage {...messages.replaceWarning} />
-              </p>
-            ) : null}
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button type="button" variant="ghost" disabled={busy} onClick={clearForm}>
-                <FormattedMessage {...messages.cancel} />
-              </Button>
-              <Button type="submit" disabled={!canSave}>
-                <FloppyDiskIcon />
-                <FormattedMessage {...(save.isPending ? messages.saving : messages.save)} />
-              </Button>
-            </div>
-          </form>
-        ) : null}
-      </div>
-    </CollapsibleIntegrationRow>
+      </Rows>
+    </IntegrationRow>
   );
 }

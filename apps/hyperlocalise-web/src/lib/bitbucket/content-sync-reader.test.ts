@@ -23,9 +23,9 @@ vi.mock("@/lib/log", async () => {
 
 const repo = "https://api.bitbucket.org/2.0/repositories/acme/web";
 
-function reader(accountEmail: string | null = null) {
+function reader() {
   return createBitbucketContentSyncReader({
-    access: { accessToken: "token", accountEmail },
+    access: { accessToken: "token" },
     fullName: "acme/web",
   });
 }
@@ -72,22 +72,16 @@ describe("createBitbucketContentSyncReader", () => {
     expect(isErr(result) && result.error.code).toBe("content_sync_branch_not_found");
   });
 
-  it("sends an API token with its email and an access token alone", async () => {
+  it("sends the workspace's token as a bearer token", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(json({ name: "main", target: { hash: "abc", parents: [] } }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await reader("dev@example.com").resolveBranchHead({ branch: "main" });
     await reader().resolveBranchHead({ branch: "main" });
 
-    const headers = fetchMock.mock.calls.map(
-      (call) => (call[1] as RequestInit).headers as Record<string, string>,
-    );
-    expect(headers[0]!.Authorization).toBe(
-      `Basic ${Buffer.from("dev@example.com:token").toString("base64")}`,
-    );
-    expect(headers[1]!.Authorization).toBe("Bearer token");
+    const headers = (fetchMock.mock.calls[0]![1] as RequestInit).headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer token");
   });
 
   it("lists every file under the folder one folder at a time, following pages", async () => {

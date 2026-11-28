@@ -42,18 +42,17 @@ export function bitbucketProviderError(error: BitbucketApiError): ContentSyncPro
   switch (error.code) {
     case "bitbucket_unauthorized":
     case "bitbucket_forbidden":
-    case "bitbucket_connection_decrypt_failed":
-    case "bitbucket_connection_removed":
     case "bitbucket_not_connected":
+    case "bitbucket_needs_reconnect":
       return {
         code: "content_sync_connection_required",
         message:
-          "The workspace's Bitbucket token was refused. Check the connection in Integrations.",
+          "Bitbucket refused the workspace's connection. Reconnect Bitbucket in Integrations.",
       };
     case "bitbucket_not_found":
       return {
         code: "content_sync_repository_not_found",
-        message: "The workspace's Bitbucket token can't see this repository.",
+        message: "The Bitbucket account connected for this workspace can't see this repository.",
       };
     default:
       return {

@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-Adds Bitbucket Cloud as the third provider behind the content sync interface designed in [self-hosted GitLab content sync](./2026-11-04-self-hosted-gitlab-content-sync-design.md), with workspace connections modelled on [several named GitLab connections](./2026-11-03-self-hosted-gitlab-connection-design.md#several-named-connections-2026-11-05).
+Adds Bitbucket Cloud as the third provider behind the content sync interface designed in [self-hosted GitLab content sync](./2026-11-04-self-hosted-gitlab-content-sync-design.md), connected through WorkOS Pipes like the workspace's other sign-in integrations.
 
 ## Context
 
@@ -10,9 +10,10 @@ Workspaces on Bitbucket want the same project Sync as GitLab: pull locale files,
 
 ## Decision
 
-- **API tokens, no OAuth.** A connection holds one token, encrypted like other provider credentials and never returned: an Atlassian API token sent with its account email (basic auth), or a workspace, project or repository access token sent alone (bearer). No WorkOS Pipes slug and no app registration. OAuth can be added later as another way to fill the same connection.
-- **Bitbucket Cloud only.** Every call goes to `https://api.bitbucket.org`, through one request function in `lib/bitbucket/client.ts`. Pagination follows Bitbucket's `next` links only on that origin, so the token never leaves it. Bitbucket Data Center is a separate API and is not covered.
-- **Connections** (`bitbucket_connections`) copy GitLab's shape: several per workspace, optional names, at most one marked default (partial unique index), the oldest otherwise. Saving checks the token first (lists one repository; asks who it belongs to where the token may say) and saves nothing on failure. A project sync stores `bitbucketConnectionId`, filled with the default when none is chosen, so moving the default never moves a sync. Routes: `GET/POST /bitbucket/connections`, `PUT/DELETE /bitbucket/connections/:id`, `POST …/:id/default`, `GET …/:id/check`.
+- **WorkOS Pipes, organization-owned.** Bitbucket is a Pipes provider (slug `bitbucket`). An admin (`integrations:write`) signs in once from Integrations and the connection belongs to the workspace (`connectionOwner: "organization"`), not to that person. Syncs run with nobody signed in, so a per-member connection would tie each sync to whoever set it up and break when they disconnect; one shared connection also lets an admin decide what every sync can reach. No token is stored by Hyperlocalise and there is no Bitbucket table.
+- **Tokens on behalf of the connecting admin.** WorkOS issues an organization token on behalf of an active member. Runs use the member WorkOS records as having established the connection (`establishedByUserId`). When that member leaves, WorkOS clears the connection (`state_reason: establishing_member_membership_ended`); runs and the Integrations row then say an admin must connect Bitbucket again. The shared Pipes helpers (`lib/pipes/accounts.ts`) gained an optional `connectionOwner` for authorize, token, disconnect, and `getPipesOrganizationAccount` for status.
+- **Bitbucket Cloud only.** Every call goes to `https://api.bitbucket.org` with the bearer token, through one request function in `lib/bitbucket/client.ts`. Pagination follows Bitbucket's `next` links only on that origin, so the token never leaves it. Bitbucket Data Center is a separate API and is not covered.
+- **Routes:** `GET /bitbucket/connection` (status), `GET /bitbucket/connection/authorize-url` and `DELETE /bitbucket/connection`. The sign-in window returns to Integrations with `?pipesCallback=bitbucket`, which tells the opening page and closes.
 - **A sync names the repository by `workspace/repo-slug` (`resourceKey`) and its uuid (`connectionId`)**; a run refuses to start when the path now names another repository.
 - **One pipeline.** `executeRepositoryContentSync` (in `execute-gitlab-content-sync.ts`) is the provider-neutral pull and delivery; GitLab and Bitbucket each supply only how the repository is reached and their upload surface (`bitbucket_content_sync`, which keeps missing keys hidden like GitLab's). Delivery is `deliver-gitlab-translations.ts` unchanged except for the review noun.
 - **Branch rebuilds.** Bitbucket can't move a branch to another commit, and its `src` endpoint commits on an existing branch only when `parents` is that branch's head. A sync branch that doesn't sit on the current target is deleted and made again as one commit on it. Bitbucket may decline the open pull request when its branch is deleted; the run then opens a new one, and the declined one is not the sync's own close, so it never holds a later one back unless its content matches.
@@ -22,6 +23,7 @@ Workspaces on Bitbucket want the same project Sync as GitLab: pull locale files,
 
 ## Consequences
 
-- A token's per-repository write access isn't reported by Bitbucket for API or access tokens, so the Sync panel can't mark repositories *pull only*; a refused write is reported on the run, as for GitLab.
+- Bitbucket doesn't report per repository what the connected account may write, so the Sync panel can't mark repositories *pull only*; a refused write is reported on the run, as for GitLab.
+- One connection per workspace. A project whose repositories the shared account can't see needs that account given access in Bitbucket; several connections per workspace (Pipes supports them) are later work.
 - Chat repository context and repository agents don't use Bitbucket.
 - Reviewer comments on a declined-and-reopened pull request stay on the declined one.
