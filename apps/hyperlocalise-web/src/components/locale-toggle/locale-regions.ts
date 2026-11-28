@@ -25,8 +25,11 @@ const APP_LOCALE_REGIONS = {
   "fil-PH": { group: "asia-pacific", countryCode: "PH" },
   "fr-FR": { group: "europe", countryCode: "FR" },
   "de-DE": { group: "europe", countryCode: "DE" },
+  "it-IT": { group: "europe", countryCode: "IT" },
   "ja-JP": { group: "asia-pacific", countryCode: "JP" },
   "ko-KR": { group: "asia-pacific", countryCode: "KR" },
+  "pt-BR": { group: "americas", countryCode: "BR" },
+  "es-ES": { group: "europe", countryCode: "ES" },
   "th-TH": { group: "asia-pacific", countryCode: "TH" },
   "vi-VN": { group: "asia-pacific", countryCode: "VN" },
 } as const satisfies Record<AppLocale, { group: AppLocaleRegionGroup; countryCode: string }>;

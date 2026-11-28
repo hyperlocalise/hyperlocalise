@@ -54,8 +54,11 @@ describe("app i18n locales", () => {
       "fil-PH",
       "fr-FR",
       "de-DE",
+      "it-IT",
       "ja-JP",
       "ko-KR",
+      "pt-BR",
+      "es-ES",
       "th-TH",
       "vi-VN",
     ]);

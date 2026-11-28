@@ -14,11 +14,14 @@ import { createIntl, createIntlCache, type IntlShape } from "@formatjs/intl";
 
 import daDKMessages from "../../../lang/da-DK.json";
 import deDEMessages from "../../../lang/de-DE.json";
+import esESMessages from "../../../lang/es-ES.json";
 import filPHMessages from "../../../lang/fil-PH.json";
 import frFRMessages from "../../../lang/fr-FR.json";
+import itITMessages from "../../../lang/it-IT.json";
 import jaJPMessages from "../../../lang/ja-JP.json";
 import koKRMessages from "../../../lang/ko-KR.json";
 import nlNLMessages from "../../../lang/nl-NL.json";
+import ptBRMessages from "../../../lang/pt-BR.json";
 import thTHMessages from "../../../lang/th-TH.json";
 import viVNMessages from "../../../lang/vi-VN.json";
 import zhCNMessages from "../../../lang/zh-CN.json";
@@ -56,8 +59,11 @@ const translatedCatalogs: Partial<Record<AppContentLocale, Record<string, string
   "fil-PH": toMessages(filPHMessages as LocaleCatalog),
   "fr-FR": toMessages(frFRMessages as LocaleCatalog),
   "de-DE": toMessages(deDEMessages as LocaleCatalog),
+  "it-IT": toMessages(itITMessages as LocaleCatalog),
   "ja-JP": toMessages(jaJPMessages as LocaleCatalog),
   "ko-KR": toMessages(koKRMessages as LocaleCatalog),
+  "pt-BR": toMessages(ptBRMessages as LocaleCatalog),
+  "es-ES": toMessages(esESMessages as LocaleCatalog),
   "th-TH": toMessages(thTHMessages as LocaleCatalog),
   "vi-VN": toMessages(viVNMessages as LocaleCatalog),
 };

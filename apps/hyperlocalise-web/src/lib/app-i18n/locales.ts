@@ -27,8 +27,11 @@ export const AVAILABLE_APP_CONTENT_LOCALES = [
   "fil-PH",
   "fr-FR",
   "de-DE",
+  "it-IT",
   "ja-JP",
   "ko-KR",
+  "pt-BR",
+  "es-ES",
   "th-TH",
   "vi-VN",
 ] as const;

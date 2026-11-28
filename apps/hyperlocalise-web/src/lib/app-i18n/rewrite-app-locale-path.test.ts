@@ -82,5 +82,8 @@ describe("getAppLocaleFlagEmoji", () => {
     expect(getAppLocaleFlagEmoji("ja-JP")).toBe("🇯🇵");
     expect(getAppLocaleFlagEmoji("ko-KR")).toBe("🇰🇷");
     expect(getAppLocaleFlagEmoji("th-TH")).toBe("🇹🇭");
+    expect(getAppLocaleFlagEmoji("it-IT")).toBe("🇮🇹");
+    expect(getAppLocaleFlagEmoji("pt-BR")).toBe("🇧🇷");
+    expect(getAppLocaleFlagEmoji("es-ES")).toBe("🇪🇸");
   });
 });

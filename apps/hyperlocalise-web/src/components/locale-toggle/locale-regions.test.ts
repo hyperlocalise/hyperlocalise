@@ -30,9 +30,9 @@ describe("groupLocalePickerEntries", () => {
         groupEntries.map((entry) => entry.locale),
       ]),
     ).toEqual([
-      ["americas", ["en"]],
+      ["americas", ["en", "pt-BR"]],
       ["asia-pacific", ["zh-CN", "fil-PH", "ja-JP", "ko-KR", "th-TH", "vi-VN"]],
-      ["europe", ["da-DK", "nl-NL", "fr-FR", "de-DE"]],
+      ["europe", ["da-DK", "nl-NL", "fr-FR", "de-DE", "it-IT", "es-ES"]],
     ]);
   });
 
