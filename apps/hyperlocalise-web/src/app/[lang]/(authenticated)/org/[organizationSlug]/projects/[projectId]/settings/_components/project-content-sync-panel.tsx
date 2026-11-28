@@ -40,6 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { TypographyP } from "@/components/ui/typography";
 import {
   isSafeContentSyncFolder,
@@ -97,6 +98,8 @@ type SyncDraft = {
   pathTemplate: string;
   /** GitLab only: the workspace connection to run with; empty means the default one. */
   gitlabConnectionId: string;
+  /** Bitbucket only: run whenever the branch is pushed to. */
+  syncOnPush: boolean;
   schedule: SyncSchedule;
 };
 
@@ -118,6 +121,7 @@ const EMPTY_DRAFT: SyncDraft = {
   branch: "",
   pathTemplate: "",
   gitlabConnectionId: "",
+  syncOnPush: false,
   schedule: "manual",
 };
 
@@ -146,6 +150,7 @@ const requestErrorMessages: Record<string, PanelMessage> = {
   content_sync_bitbucket_needs_reconnect: messages.bitbucketNeedsReconnect,
   content_sync_bitbucket_repository_not_found: messages.errorBitbucketRepositoryNotFound,
   content_sync_bitbucket_unavailable: messages.errorBitbucketUnavailable,
+  content_sync_bitbucket_webhook_failed: messages.errorBitbucketWebhookFailed,
 };
 
 /** Messages for the error codes a finished run records; others show the stored text. */
@@ -196,6 +201,7 @@ function draftsEqual(a: SyncDraft, b: SyncDraft) {
     a.provider === b.provider &&
     a.connectionId === b.connectionId &&
     a.gitlabConnectionId === b.gitlabConnectionId &&
+    a.syncOnPush === b.syncOnPush &&
     a.branch.trim() === b.branch.trim() &&
     a.pathTemplate.trim() === b.pathTemplate.trim() &&
     a.providerFolder.trim() === b.providerFolder.trim() &&
@@ -288,6 +294,7 @@ export function ProjectContentSyncPanel({
         branch: saved.syncConfig.branch ?? "",
         pathTemplate: saved.syncConfig.pathTemplate ?? "",
         gitlabConnectionId: saved.syncConfig.gitlabConnectionId ?? "",
+        syncOnPush: saved.syncConfig.syncOnPush === true,
         schedule: saved.schedule,
       }
     : null;
@@ -425,6 +432,7 @@ export function ProjectContentSyncPanel({
                   pathTemplate: draft.pathTemplate.trim(),
                 }
               : {}),
+            ...(draft.provider === "bitbucket" && draft.syncOnPush ? { syncOnPush: true } : {}),
             ...(draft.provider === "gitlab" && draft.gitlabConnectionId
               ? { gitlabConnectionId: draft.gitlabConnectionId }
               : {}),
@@ -524,6 +532,7 @@ export function ProjectContentSyncPanel({
       connectionId: "",
       resourceKey: "",
       gitlabConnectionId: "",
+      syncOnPush: false,
       projectFolder: keepsProjectFolder() ? values.projectFolder : "",
     });
   }
@@ -1018,6 +1027,24 @@ export function ProjectContentSyncPanel({
                   <FormattedMessage {...messages.projectFolderHelp} />
                 </FieldDescription>
               </Field>
+              {isBitbucket ? (
+                <div className="flex items-start justify-between gap-4 rounded-md border border-border bg-background p-3 md:w-[360px]">
+                  <div className="min-w-0">
+                    <label htmlFor="project-sync-on-push" className="text-sm font-medium">
+                      <FormattedMessage {...messages.syncOnPushLabel} />
+                    </label>
+                    <TypographyP size="small" tone="subtle">
+                      <FormattedMessage {...messages.syncOnPushHelp} />
+                    </TypographyP>
+                  </div>
+                  <Switch
+                    id="project-sync-on-push"
+                    checked={values.syncOnPush}
+                    disabled={fieldsDisabled}
+                    onCheckedChange={(checked) => update({ syncOnPush: checked })}
+                  />
+                </div>
+              ) : null}
               <Field className="gap-1.5">
                 <FieldLabel htmlFor="project-sync-schedule">
                   <FormattedMessage {...messages.scheduleLabel} />
@@ -1133,7 +1160,7 @@ type SyncRun = {
   id: string;
   /** The service the run used, which may differ from the sync's current one. */
   provider: SyncProvider;
-  trigger: "manual" | "scheduled";
+  trigger: "manual" | "scheduled" | "push";
   status: "running" | "succeeded" | "failed";
   pulled: { uploaded: number; skipped: number; failed: number; unmatched: number } | null;
   hiddenKeys: { path: string; keys: string[]; keyCount: number }[];
@@ -1202,7 +1229,9 @@ function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
                     <FormattedMessage
                       {...(run.trigger === "scheduled"
                         ? messages.runScheduled
-                        : messages.runManual)}
+                        : run.trigger === "push"
+                          ? messages.runOnPush
+                          : messages.runManual)}
                     />
                   </TypographyP>
                 </div>

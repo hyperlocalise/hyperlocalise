@@ -37,6 +37,8 @@ import {
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { getBitbucketRepository, listBitbucketRepositories } from "@/lib/bitbucket/client";
 import { loadBitbucketAccess } from "@/lib/bitbucket/pipes";
+import { env } from "@/lib/env";
+import { reconcileBitbucketPushWebhook } from "@/lib/projects/content-sync/bitbucket-push-webhook";
 import type { BitbucketRepository } from "@/lib/bitbucket/types";
 import { db, schema } from "@/lib/database/client";
 import {
@@ -644,6 +646,13 @@ async function resolveSyncConnection(input: {
   }
 }
 
+/** The app's public origin, which a repository's push webhook delivers to. */
+function publicOrigin(requestUrl: string) {
+  return env.HYPERLOCALISE_PUBLIC_APP_URL
+    ? new URL(env.HYPERLOCALISE_PUBLIC_APP_URL).origin
+    : new URL(requestUrl).origin;
+}
+
 async function recordSyncSettingsChange(auth: AuthVariables["auth"], projectId: string) {
   await enqueueActivityLogEvent({
     actorCredentialId: null,
@@ -788,13 +797,13 @@ export function createProjectContentSyncRoutes(
       }
 
       const body = c.req.valid("json");
+      const existing = await getProjectContentSync({
+        organizationId: resolved.project.organizationId,
+        projectId: resolved.project.id,
+      });
       // GitHub repositories sync from their Automation settings in Integrations for now, which a
       // new GitHub sync here would duplicate; one saved before then can still be changed.
       if (body.syncConfig.provider === "github") {
-        const existing = await getProjectContentSync({
-          organizationId: resolved.project.organizationId,
-          projectId: resolved.project.id,
-        });
         if (!existing || syncProvider(existing) !== "github") {
           return badRequestResponse(
             c,
@@ -824,10 +833,22 @@ export function createProjectContentSyncRoutes(
         );
       }
 
+      // A Bitbucket sync that runs on push needs its webhook on the repository before it is saved.
+      const withWebhook = await reconcileBitbucketPushWebhook({
+        organizationId: resolved.project.organizationId,
+        projectId: resolved.project.id,
+        previous: existing ? normalizeContentSyncConfig(existing.syncConfig) : null,
+        next: config.value,
+        origin: publicOrigin(c.req.url),
+      });
+      if (isErr(withWebhook)) {
+        return badRequestResponse(c, withWebhook.error.code, withWebhook.error.message);
+      }
+
       const sync = await saveProjectContentSync({
         organizationId: resolved.project.organizationId,
         projectId: resolved.project.id,
-        syncConfig: config.value,
+        syncConfig: withWebhook.value ?? config.value,
         schedule: body.schedule,
         userId: c.var.auth.user.localUserId,
       });
@@ -843,6 +864,10 @@ export function createProjectContentSyncRoutes(
         return projectUnavailableResponse(c, resolved.kind);
       }
 
+      const existing = await getProjectContentSync({
+        organizationId: resolved.project.organizationId,
+        projectId: resolved.project.id,
+      });
       const deleted = await deleteProjectContentSync({
         organizationId: resolved.project.organizationId,
         projectId: resolved.project.id,
@@ -852,6 +877,14 @@ export function createProjectContentSyncRoutes(
           ? conflictResponse(c, deleted.error.code, "Wait for the running sync to finish")
           : notFoundResponse(c, deleted.error.code);
       }
+      // The repository's push webhook goes with the sync; one that can't be removed is ignored.
+      await reconcileBitbucketPushWebhook({
+        organizationId: resolved.project.organizationId,
+        projectId: resolved.project.id,
+        previous: existing ? normalizeContentSyncConfig(existing.syncConfig) : null,
+        next: null,
+        origin: publicOrigin(c.req.url),
+      });
       await recordSyncSettingsChange(c.var.auth, resolved.project.id);
       return c.body(null, 204);
     })

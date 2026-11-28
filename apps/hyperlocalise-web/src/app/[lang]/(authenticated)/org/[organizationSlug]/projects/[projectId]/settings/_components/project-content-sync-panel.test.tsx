@@ -448,6 +448,7 @@ describe("ProjectContentSyncPanel", () => {
       await user.type(screen.getByLabelText("Repository folder"), "locales");
       await user.type(screen.getByLabelText("Language file paths"), "{{{{locale}}.json");
       expect(screen.getByLabelText("Project folder")).toHaveValue("bitbucket/acme/site");
+      await user.click(screen.getByRole("switch", { name: "Sync on push" }));
       await user.click(screen.getByRole("button", { name: "Save" }));
 
       await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
@@ -462,6 +463,7 @@ describe("ProjectContentSyncPanel", () => {
             providerFolder: "locales",
             projectFolder: "bitbucket/acme/site",
             pathTemplate: "{{locale}}.json",
+            syncOnPush: true,
           },
         },
       });

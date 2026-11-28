@@ -34,6 +34,7 @@ import { createFigmaIntegrationRoutes } from "./routes/figma-integration/figma-i
 import { createSanityOauthRoutes } from "./routes/sanity-oauth/sanity-oauth.route";
 import { createSanityIntegrationRoutes } from "./routes/sanity-integration/sanity-integration.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
+import { createBitbucketWebhookRoutes } from "./routes/bitbucket-webhook/bitbucket-webhook.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
 import { healthRoutes } from "./routes/health";
 import { createPublicMediaRoutes } from "./routes/public-media/public-media.route";
@@ -203,6 +204,10 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
 
 function createWebhookRoutes(options: CreateAppOptions) {
   return new Hono()
+    .route(
+      "/bitbucket",
+      createBitbucketWebhookRoutes({ projectContentSyncQueue: options.projectContentSyncQueue }),
+    )
     .route(
       "/github",
       createGithubWebhookRoutes({

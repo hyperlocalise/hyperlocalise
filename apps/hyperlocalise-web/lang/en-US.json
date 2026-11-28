@@ -12275,6 +12275,10 @@
     "defaultMessage": "Project",
     "description": "Fallback project name in the sidebar while the project is loading"
   },
+  "E29VWroPvd": {
+    "defaultMessage": "Bitbucket didn't let Hyperlocalise run this sync on push. The connected Bitbucket account needs admin access to the repository; turn off Sync on push to save without it.",
+    "description": "Error when Bitbucket refused to add the push webhook while saving a sync"
+  },
   "E2gAmHwHN8": {
     "defaultMessage": "Send email for unread Inbox notifications on issues you subscribe to.",
     "description": "Description for enabling Issue Sheet email notifications"
@@ -20039,6 +20043,10 @@
     "defaultMessage": "Query Semrush SEO and traffic data through your connected API key.",
     "description": "Description for the Semrush automation tool when a connection exists"
   },
+  "OcHjEY/Ksm": {
+    "defaultMessage": "Runs the sync each time the branch is pushed to. Needs admin access to the repository for the connected Bitbucket account.",
+    "description": "Help under the Sync on push switch in the project Sync panel"
+  },
   "OcefiTvR3e": {
     "defaultMessage": "No team glossary is available for this project",
     "description": "Error when CAT add-to-glossary is missing a glossary target"
@@ -22210,6 +22218,10 @@
   "RcXQkSHSjo": {
     "defaultMessage": "Download",
     "description": "Starts the filtered export download"
+  },
+  "RcaQCWz4GM": {
+    "defaultMessage": "Sync on push",
+    "description": "Label for the switch that runs a Bitbucket project sync on every push"
   },
   "RdJ/7jnqpq": {
     "defaultMessage": "Bulleted list",
@@ -31278,6 +31290,10 @@
   "ddoWNAQtXz": {
     "defaultMessage": "Show more",
     "description": "Button label to expand secondary job properties"
+  },
+  "de7OvnQtF+": {
+    "defaultMessage": "On push",
+    "description": "Label for a sync run started by a push to the repository"
   },
   "deAxZHDk25": {
     "defaultMessage": "Start free trial",

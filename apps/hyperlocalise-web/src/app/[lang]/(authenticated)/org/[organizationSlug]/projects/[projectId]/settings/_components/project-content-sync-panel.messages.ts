@@ -654,4 +654,30 @@ export const projectContentSyncPanelMessages = defineMessages({
     description:
       "Shown in the project Sync panel when the workspace's Bitbucket connection must be connected again",
   },
+
+  syncOnPushLabel: {
+    defaultMessage: "Sync on push",
+    id: "RcaQCWz4GM",
+    description: "Label for the switch that runs a Bitbucket project sync on every push",
+  },
+
+  syncOnPushHelp: {
+    defaultMessage:
+      "Runs the sync each time the branch is pushed to. Needs admin access to the repository for the connected Bitbucket account.",
+    id: "OcHjEY/Ksm",
+    description: "Help under the Sync on push switch in the project Sync panel",
+  },
+
+  runOnPush: {
+    defaultMessage: "On push",
+    id: "de7OvnQtF+",
+    description: "Label for a sync run started by a push to the repository",
+  },
+
+  errorBitbucketWebhookFailed: {
+    defaultMessage:
+      "Bitbucket didn't let Hyperlocalise run this sync on push. The connected Bitbucket account needs admin access to the repository; turn off Sync on push to save without it.",
+    id: "E29VWroPvd",
+    description: "Error when Bitbucket refused to add the push webhook while saving a sync",
+  },
 });

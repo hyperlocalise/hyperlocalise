@@ -71,6 +71,13 @@ export const contentSyncConfigSchema = z.object({
    * connections had names) runs with the workspace's default connection.
    */
   gitlabConnectionId: z.string().uuid().optional(),
+  /** Bitbucket: run the sync whenever the branch it reads is pushed to. */
+  syncOnPush: z.boolean().optional(),
+  /**
+   * Bitbucket: the push webhook the sync registered on the repository, so it can be removed.
+   * Set by the server only.
+   */
+  bitbucketWebhookId: z.string().trim().max(128).optional(),
 });
 export type ContentSyncConfig = z.infer<typeof contentSyncConfigSchema>;
 

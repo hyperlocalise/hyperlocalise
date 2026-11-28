@@ -16,7 +16,7 @@ import { organizations, users } from "./organizations";
 import { projects } from "./projects";
 
 export type ProjectContentSyncSchedule = "manual" | "hourly" | "daily";
-export type ProjectContentSyncRunTrigger = "manual" | "scheduled";
+export type ProjectContentSyncRunTrigger = "manual" | "scheduled" | "push";
 export type ProjectContentSyncRunStatus = "running" | "succeeded" | "failed";
 
 /**
