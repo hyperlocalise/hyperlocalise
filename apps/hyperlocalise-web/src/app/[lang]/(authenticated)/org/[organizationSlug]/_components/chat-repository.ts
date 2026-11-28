@@ -12,7 +12,7 @@
  */
 import type { GithubRepository } from "./github-repository";
 
-export type ChatRepositoryProvider = "github" | "gitlab";
+export type ChatRepositoryProvider = "github" | "gitlab" | "bitbucket";
 
 export type ChatRepository = {
   archived: boolean;
@@ -41,6 +41,10 @@ export function parseChatRepositorySelectionKey(
   if (key.startsWith("gitlab:")) {
     const fullName = key.slice("gitlab:".length);
     return fullName ? { provider: "gitlab", fullName } : null;
+  }
+  if (key.startsWith("bitbucket:")) {
+    const fullName = key.slice("bitbucket:".length);
+    return fullName ? { provider: "bitbucket", fullName } : null;
   }
   return null;
 }
@@ -71,5 +75,21 @@ export function toChatRepositoryFromGitlab(project: {
     name: project.name,
     provider: "gitlab",
     selectionKey: chatRepositorySelectionKey("gitlab", project.pathWithNamespace),
+  };
+}
+
+/** A repository the workspace's Bitbucket connection can read; `fullName` is `workspace/repo-slug`. */
+export function toChatRepositoryFromBitbucket(repository: {
+  fullName: string;
+  mainBranch: string | null;
+}): ChatRepository {
+  return {
+    archived: false,
+    defaultBranch: repository.mainBranch,
+    enabled: true,
+    fullName: repository.fullName,
+    name: repository.fullName.split("/").pop() || repository.fullName,
+    provider: "bitbucket",
+    selectionKey: chatRepositorySelectionKey("bitbucket", repository.fullName),
   };
 }

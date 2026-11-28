@@ -21,6 +21,7 @@ import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 
 import type { ChatRepository, ChatRepositoryProvider } from "../../_components/chat-repository";
 import {
+  toChatRepositoryFromBitbucket,
   toChatRepositoryFromGithub,
   toChatRepositoryFromGitlab,
 } from "../../_components/chat-repository";
@@ -157,9 +158,20 @@ export function createInboxApi(
       const gitlabRequest = client.api.orgs[":organizationSlug"].gitlab.projects.$get({
         param: { organizationSlug },
       });
-      const [githubResponse, gitlabResponse] = await Promise.all([githubRequest, gitlabRequest]);
+      const bitbucketRequest = client.api.orgs[":organizationSlug"].bitbucket.repositories.$get({
+        param: { organizationSlug },
+      });
+      const [githubResponse, gitlabResponse, bitbucketResponse] = await Promise.all([
+        githubRequest,
+        gitlabRequest,
+        bitbucketRequest,
+      ]);
 
-      if (githubResponse.status !== 200 && gitlabResponse.status !== 200) {
+      if (
+        githubResponse.status !== 200 &&
+        gitlabResponse.status !== 200 &&
+        bitbucketResponse.status !== 200
+      ) {
         throw await readApiResponseError(githubResponse, "Failed to load repositories");
       }
 
@@ -177,6 +189,10 @@ export function createInboxApi(
         repositories.push(
           ...body.projects.filter((project) => !project.archived).map(toChatRepositoryFromGitlab),
         );
+      }
+      if (bitbucketResponse.status === 200) {
+        const body = await bitbucketResponse.json();
+        repositories.push(...body.repositories.map(toChatRepositoryFromBitbucket));
       }
 
       return repositories;

@@ -51,6 +51,7 @@ import { createRunGithubWorkflowsTool } from "./tools/run_github_workflows";
 import { createUseAhrefsTool } from "./tools/use_ahrefs";
 import { createUseCrowdinTool } from "./tools/use_crowdin";
 import { createUseGithubRepositoryTool } from "./tools/use_github_repository";
+import { createUseBitbucketRepositoryTool } from "./tools/use_bitbucket_repository";
 import { createUseGitlabRepositoryTool } from "./tools/use_gitlab_repository";
 import { createUseSemrushTool } from "./tools/use_semrush";
 import { createUseZernioTool } from "./tools/use_zernio";
@@ -62,6 +63,7 @@ const TOOL_BUILDERS: Record<
 > = {
   use_github_repository: createUseGithubRepositoryTool,
   use_gitlab_repository: createUseGitlabRepositoryTool,
+  use_bitbucket_repository: createUseBitbucketRepositoryTool,
   run_github_workflows: createRunGithubWorkflowsTool,
   run_contentful_translation: createRunContentfulTranslationTool,
   import_intercom_articles: createImportIntercomArticlesTool,

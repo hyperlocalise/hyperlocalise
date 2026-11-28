@@ -16,6 +16,7 @@ import type {
   HyperlocaliseAgentSurface,
   HyperlocaliseAttachedProjectContext,
 } from "@/agents/hyperlocalise/agent/agent";
+import type { RepositoryAgentBitbucketContext } from "@/lib/agent-contracts/bitbucket-repository-task";
 import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-repository-task";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import type { RepositoryAgentTaskSource } from "@/lib/agent-contracts/repository-task";
@@ -28,6 +29,13 @@ import {
   getOrganizationRepositoryConnectorConfig,
   resolveConversationRepositoryGitHubContext,
 } from "@/lib/agents/repository-context";
+import { createBitbucketRepositorySandbox } from "@/lib/bitbucket/bitbucket-repository-sandbox";
+import { resolveBitbucketCredentialOwner } from "@/lib/bitbucket/pipes";
+import {
+  buildRepositoryBitbucketContextInstructions,
+  keepBitbucketContextIfConnected,
+  resolveConversationRepositoryBitbucketContext,
+} from "@/lib/bitbucket/repository-context";
 import {
   checkStoredGitLabContext,
   keepGitLabContextIfCurrent,
@@ -65,6 +73,7 @@ import {
 } from "./hyperlocalise-agent";
 import { resolveOrganizationHasTmsIntegration } from "../skills/conversation-tms-integration";
 import {
+  getBitbucketRepositoryContextKey,
   getGitlabRepositoryContextKey,
   getRepositoryContextKey,
   type ConversationRepositorySession,
@@ -150,7 +159,7 @@ export function buildMissingRepositoryContextInstructions(followUp: string) {
   return [
     "Repository context is not available for this request.",
     `If the user asks where a string, message, copy, or localized text appears in code, ask this follow-up exactly: ${followUp}`,
-    "Do not invent a GitHub or GitLab repository, pull request, merge request, branch, installation ID, path, or file contents.",
+    "Do not invent a GitHub, GitLab, or Bitbucket repository, pull request, merge request, branch, installation ID, path, or file contents.",
   ].join("\n");
 }
 
@@ -176,6 +185,18 @@ export function buildResolvedGitLabRepositoryContextInstructions(
   ].join("\n");
 }
 
+export function buildResolvedBitbucketRepositoryContextInstructions(
+  context: RepositoryAgentBitbucketContext,
+) {
+  return [
+    buildRepositoryBitbucketContextInstructions(context),
+    "Repository read tools are available for this request.",
+    "Use grep with the user's literal string or copy, then read for surrounding lines when needed.",
+    "Only explain where strings, messages, or copy appear and what nearby code implies.",
+    "Do not modify files, upload sources, commit, push, or create jobs from repository context alone.",
+  ].join("\n");
+}
+
 type ResolveRepositoryContextInput = {
   surface: HyperlocaliseAgentSurface;
   organizationId: string;
@@ -193,6 +214,8 @@ type ResolveRepositoryContextInput = {
 export type ResolvedRepositoryContext = {
   context: RepositoryAgentGitHubContext | null;
   gitlabContext: RepositoryAgentGitLabContext | null;
+  /** Omitted when the turn resolved no Bitbucket repository. */
+  bitbucketContext?: RepositoryAgentBitbucketContext | null;
   instructions: string | null;
   clarificationFollowUp: string | null;
   /** Answers offered with the follow-up, such as the enabled repositories. */
@@ -229,7 +252,19 @@ export async function resolveConversationRepositoryContext(
     localOrganizationId: input.organizationId,
     context: input.repositorySession?.repositoryGitLabContext,
   });
-  const resolution = await resolveRepositoryContextWithStoredGitLab(input, storedGitLab.context);
+  const storedBitbucketContext = await keepBitbucketContextIfConnected({
+    localOrganizationId: input.organizationId,
+    context: input.repositorySession?.repositoryBitbucketContext,
+  });
+  const resolution = forgetDisconnectedBitbucketContext(
+    input.repositorySession?.repositoryBitbucketContext,
+    storedBitbucketContext,
+    await resolveRepositoryContextWithStoredGitLab(
+      input,
+      storedGitLab.context,
+      storedBitbucketContext,
+    ),
+  );
   if (!storedGitLab.dropped) {
     return resolution;
   }
@@ -240,7 +275,7 @@ export async function resolveConversationRepositoryContext(
     resolution.updatedSession?.repositoryGitLabContext === staleContext
       ? { ...resolution.updatedSession, repositoryGitLabContext: undefined }
       : resolution.updatedSession;
-  if (resolution.context || resolution.gitlabContext) {
+  if (resolution.context || resolution.gitlabContext || resolution.bitbucketContext) {
     return { ...resolution, updatedSession };
   }
   const droppedNote = DROPPED_GITLAB_CONTEXT_INSTRUCTIONS[storedGitLab.dropped];
@@ -253,14 +288,49 @@ export async function resolveConversationRepositoryContext(
   };
 }
 
+/** A Bitbucket repository the workspace can no longer open isn't carried into later turns. */
+function forgetDisconnectedBitbucketContext(
+  storedContext: RepositoryAgentBitbucketContext | undefined,
+  keptContext: RepositoryAgentBitbucketContext | null,
+  resolution: ResolvedRepositoryContext,
+): ResolvedRepositoryContext {
+  if (
+    !storedContext ||
+    keptContext ||
+    resolution.updatedSession?.repositoryBitbucketContext !== storedContext
+  ) {
+    return resolution;
+  }
+  return {
+    ...resolution,
+    updatedSession: { ...resolution.updatedSession, repositoryBitbucketContext: undefined },
+  };
+}
+
+function resolvedBitbucketRepositoryContext(
+  context: RepositoryAgentBitbucketContext,
+  updatedSession: ConversationRepositorySession | null,
+): ResolvedRepositoryContext {
+  return {
+    context: null,
+    gitlabContext: null,
+    bitbucketContext: context,
+    instructions: buildResolvedBitbucketRepositoryContextInstructions(context),
+    clarificationFollowUp: null,
+    updatedSession,
+  };
+}
+
 async function resolveRepositoryContextWithStoredGitLab(
   input: ResolveRepositoryContextInput,
   storedGitLabContext: RepositoryAgentGitLabContext | null,
+  storedBitbucketContext: RepositoryAgentBitbucketContext | null,
 ): Promise<ResolvedRepositoryContext> {
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
   const shouldResolve = shouldAttemptRepositoryContextResolution({
     classification: input.classification,
-    storedRepositoryContext: storedRepositoryContext ?? storedGitLabContext,
+    storedRepositoryContext:
+      storedRepositoryContext ?? storedGitLabContext ?? storedBitbucketContext,
   });
 
   if (!shouldResolve) {
@@ -295,6 +365,10 @@ async function resolveRepositoryContextWithStoredGitLab(
     };
   }
 
+  if (canReuseStoredRepositoryContext && storedBitbucketContext) {
+    return resolvedBitbucketRepositoryContext(storedBitbucketContext, input.repositorySession);
+  }
+
   const githubContextResolution = await resolveConversationRepositoryGitHubContext({
     organizationId: input.organizationId,
     text: input.conversationText,
@@ -315,6 +389,7 @@ async function resolveRepositoryContextWithStoredGitLab(
         ...input.repositorySession,
         repositoryGitHubContext: context,
         repositoryGitLabContext: undefined,
+        repositoryBitbucketContext: undefined,
       },
     };
   }
@@ -339,8 +414,23 @@ async function resolveRepositoryContextWithStoredGitLab(
         ...input.repositorySession,
         repositoryGitHubContext: undefined,
         repositoryGitLabContext: gitlabContextResolution.context,
+        repositoryBitbucketContext: undefined,
       },
     };
+  }
+
+  const bitbucketContextResolution = await resolveConversationRepositoryBitbucketContext({
+    organizationId: input.organizationId,
+    text: input.conversationText,
+  });
+
+  if (bitbucketContextResolution.status === "resolved") {
+    return resolvedBitbucketRepositoryContext(bitbucketContextResolution.context, {
+      ...input.repositorySession,
+      repositoryGitHubContext: undefined,
+      repositoryGitLabContext: undefined,
+      repositoryBitbucketContext: bitbucketContextResolution.context,
+    });
   }
 
   if (githubContextResolution.status === "unresolved") {
@@ -394,6 +484,23 @@ async function resolveRepositoryContextWithStoredGitLab(
     };
   }
 
+  if (bitbucketContextResolution.status === "unresolved") {
+    const clarificationFollowUp = shouldRequireRepositoryContextClarification(
+      input.classification,
+      { repositoryContextStatus: "unresolved" },
+    )
+      ? bitbucketContextResolution.followUp
+      : null;
+
+    return {
+      context: null,
+      gitlabContext: null,
+      instructions: buildMissingRepositoryContextInstructions(bitbucketContextResolution.followUp),
+      clarificationFollowUp,
+      updatedSession: input.repositorySession,
+    };
+  }
+
   if (storedGitLabContext && !input.classification.currentMessageSpecifiesRepository) {
     return {
       context: null,
@@ -402,6 +509,10 @@ async function resolveRepositoryContextWithStoredGitLab(
       clarificationFollowUp: null,
       updatedSession: input.repositorySession,
     };
+  }
+
+  if (storedBitbucketContext && !input.classification.currentMessageSpecifiesRepository) {
+    return resolvedBitbucketRepositoryContext(storedBitbucketContext, input.repositorySession);
   }
 
   return emptyRepositoryResolution(input.repositorySession);
@@ -440,6 +551,7 @@ export async function getOrCreateConversationRepositorySandbox(input: {
         ...input.repositorySession,
         repositoryGitHubContext: input.githubContext,
         repositoryGitLabContext: undefined,
+        repositoryBitbucketContext: undefined,
         repositorySandboxSession: {
           ...sandboxSession,
           lastUsedAt: now,
@@ -465,6 +577,7 @@ export async function getOrCreateConversationRepositorySandbox(input: {
     ...input.repositorySession,
     repositoryGitHubContext: input.githubContext,
     repositoryGitLabContext: undefined,
+    repositoryBitbucketContext: undefined,
     repositorySandboxSession: {
       sandboxId,
       repositoryContextKey,
@@ -527,6 +640,7 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
         ...input.repositorySession,
         repositoryGitHubContext: undefined,
         repositoryGitLabContext: input.gitlabContext,
+        repositoryBitbucketContext: undefined,
         repositorySandboxSession: {
           ...sandboxSession,
           lastUsedAt: now,
@@ -559,6 +673,7 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
     ...input.repositorySession,
     repositoryGitHubContext: undefined,
     repositoryGitLabContext: input.gitlabContext,
+    repositoryBitbucketContext: undefined,
     repositorySandboxSession: {
       sandboxId,
       repositoryContextKey,
@@ -571,6 +686,90 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
   const staleSandboxId = sandboxSession?.sandboxId ?? null;
 
   return { sandboxId, updatedSession, sandboxCreated: true, staleSandboxId };
+}
+
+export async function getOrCreateConversationBitbucketRepositorySandbox(input: {
+  conversationId: string;
+  surface: HyperlocaliseAgentSurface;
+  bitbucketContext: RepositoryAgentBitbucketContext;
+  repositorySession: ConversationRepositorySession | null;
+  organizationId: string;
+}): Promise<{
+  sandboxId: string;
+  updatedSession: ConversationRepositorySession;
+  sandboxCreated: boolean;
+  staleSandboxId: string | null;
+}> {
+  const log = logger.child({
+    conversationId: input.conversationId,
+    surface: input.surface,
+  });
+  const credentialOwner = await resolveBitbucketCredentialOwner({
+    localOrganizationId: input.organizationId,
+  });
+  if (!credentialOwner) {
+    throw new Error("bitbucket_not_connected");
+  }
+
+  const repositoryContextKey = getBitbucketRepositoryContextKey(input.bitbucketContext);
+  const sandboxSession = input.repositorySession?.repositorySandboxSession;
+  const now = new Date().toISOString();
+  const sessionContexts = {
+    repositoryGitHubContext: undefined,
+    repositoryGitLabContext: undefined,
+    repositoryBitbucketContext: input.bitbucketContext,
+  };
+  const canReuseStoredSandbox =
+    sandboxSession != null &&
+    sandboxSession.repositoryContextKey === repositoryContextKey &&
+    sandboxSession.credentialOwnerWorkosUserId === credentialOwner;
+
+  if (canReuseStoredSandbox && (await isRepositorySandboxAvailable(sandboxSession.sandboxId))) {
+    log.info(
+      { sandboxId: sandboxSession.sandboxId },
+      "reusing stored bitbucket repository sandbox for conversation agent",
+    );
+    return {
+      sandboxId: sandboxSession.sandboxId,
+      updatedSession: {
+        ...input.repositorySession,
+        ...sessionContexts,
+        repositorySandboxSession: { ...sandboxSession, lastUsedAt: now },
+      },
+      sandboxCreated: false,
+      staleSandboxId: null,
+    };
+  }
+
+  log.info(
+    {
+      repositoryUuid: input.bitbucketContext.repositoryUuid,
+      revisionKind: input.bitbucketContext.branch ? "branch" : "head",
+    },
+    "creating bitbucket repository sandbox for conversation agent",
+  );
+  const sandboxId = await createBitbucketRepositorySandbox({
+    localOrganizationId: input.organizationId,
+    bitbucketContext: input.bitbucketContext,
+  });
+  log.info({ sandboxId }, "bitbucket repository sandbox created for conversation agent");
+
+  return {
+    sandboxId,
+    updatedSession: {
+      ...input.repositorySession,
+      ...sessionContexts,
+      repositorySandboxSession: {
+        sandboxId,
+        repositoryContextKey,
+        credentialOwnerWorkosUserId: credentialOwner,
+        createdAt: now,
+        lastUsedAt: now,
+      },
+    },
+    sandboxCreated: true,
+    staleSandboxId: sandboxSession?.sandboxId ?? null,
+  };
 }
 
 export async function stopStaleRepositorySandbox(
@@ -646,6 +845,10 @@ export async function prepareConversationAgentTurn(
     localOrganizationId: input.organizationId,
     context: input.repositorySession?.repositoryGitLabContext,
   });
+  const storedBitbucketContext = await keepBitbucketContextIfConnected({
+    localOrganizationId: input.organizationId,
+    context: input.repositorySession?.repositoryBitbucketContext,
+  });
   const languageModel =
     input.languageModel ??
     (await resolveHyperlocaliseAgentLanguageModel({
@@ -657,7 +860,9 @@ export async function prepareConversationAgentTurn(
     currentMessage: input.messageText,
     conversationText,
     hasFileAttachments: input.hasTranslationAttachments,
-    hasStoredRepositoryContext: Boolean(storedRepositoryContext ?? storedGitLabContext),
+    hasStoredRepositoryContext: Boolean(
+      storedRepositoryContext ?? storedGitLabContext ?? storedBitbucketContext,
+    ),
     knowledgeMemoryEnabled: input.knowledgeMemoryEnabled === true,
     surface: input.surface,
     model: languageModel.model,
@@ -685,6 +890,7 @@ export async function prepareConversationAgentTurn(
   let staleSandboxId: string | null = null;
   let activeRepositoryContext = repositoryResolution.context;
   let activeGitlabContext = repositoryResolution.gitlabContext;
+  let activeBitbucketContext = repositoryResolution.bitbucketContext ?? null;
   let repositoryInstructions = repositoryResolution.instructions;
   let clarificationFollowUp = repositoryResolution.clarificationFollowUp;
 
@@ -698,6 +904,7 @@ export async function prepareConversationAgentTurn(
       updatedRepositorySession = input.repositorySession ?? null;
       activeRepositoryContext = null;
       activeGitlabContext = null;
+      activeBitbucketContext = null;
       repositoryInstructions = null;
       clarificationFollowUp = REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP;
     } else {
@@ -731,6 +938,31 @@ export async function prepareConversationAgentTurn(
         organizationId: input.organizationId,
         workosUserId: input.workosUserId,
         localUserId: input.localUserId,
+      });
+      sandboxId = sandboxResult.sandboxId;
+      updatedRepositorySession = sandboxResult.updatedSession;
+      staleSandboxId = sandboxResult.staleSandboxId;
+    }
+  } else if (repositoryResolution.bitbucketContext) {
+    const repositoryContextKey = getBitbucketRepositoryContextKey(
+      repositoryResolution.bitbucketContext,
+    );
+    const canReuseStoredSandbox =
+      updatedRepositorySession?.repositorySandboxSession?.repositoryContextKey ===
+      repositoryContextKey;
+
+    if (input.reuseCommittedRepositorySandboxOnly && !canReuseStoredSandbox) {
+      updatedRepositorySession = input.repositorySession ?? null;
+      activeBitbucketContext = null;
+      repositoryInstructions = null;
+      clarificationFollowUp = REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP;
+    } else {
+      const sandboxResult = await getOrCreateConversationBitbucketRepositorySandbox({
+        conversationId: input.conversationId,
+        surface: input.surface,
+        bitbucketContext: repositoryResolution.bitbucketContext,
+        repositorySession: updatedRepositorySession,
+        organizationId: input.organizationId,
       });
       sandboxId = sandboxResult.sandboxId;
       updatedRepositorySession = sandboxResult.updatedSession;
@@ -771,6 +1003,7 @@ export async function prepareConversationAgentTurn(
             sandboxId,
             githubContext: activeRepositoryContext,
             gitlabContext: activeGitlabContext,
+            bitbucketContext: activeBitbucketContext,
             workMode:
               hasVisualMockSkill && activeRepositoryContext
                 ? ("write" as const)

@@ -119,6 +119,11 @@ export function buildOrchestratorRunSummaryMessage(session: WorkspaceOrchestrato
     gitlabAgentResult && typeof gitlabAgentResult.digest === "string"
       ? gitlabAgentResult.digest.trim()
       : null;
+  const bitbucketAgentResult = session.stepResults.use_bitbucket_repository;
+  const bitbucketDigest =
+    bitbucketAgentResult && typeof bitbucketAgentResult.digest === "string"
+      ? bitbucketAgentResult.digest.trim()
+      : null;
   const crowdinSummary = asString(session.stepResults.use_crowdin?.summary);
 
   if (githubDigest) {
@@ -127,6 +132,10 @@ export function buildOrchestratorRunSummaryMessage(session: WorkspaceOrchestrato
 
   if (gitlabDigest) {
     return gitlabDigest;
+  }
+
+  if (bitbucketDigest) {
+    return bitbucketDigest;
   }
 
   if (crowdinSummary) {

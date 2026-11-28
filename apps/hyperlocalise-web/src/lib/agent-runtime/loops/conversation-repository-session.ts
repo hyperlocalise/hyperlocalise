@@ -12,6 +12,7 @@
  */
 import { and, eq, lte } from "drizzle-orm";
 
+import type { RepositoryAgentBitbucketContext } from "@/lib/agent-contracts/bitbucket-repository-task";
 import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-repository-task";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import { stopRepositorySandbox } from "@/lib/agent-runtime/workspaces/repository-sandbox";
@@ -27,7 +28,8 @@ export type ConversationRepositorySandboxSession = {
   lastUsedAt: string;
   /**
    * Whose credentials made the clone: a WorkOS user id, or `gitlab-connection:<server>:<saved at>`
-   * for a workspace's own GitLab server. The name predates the second form.
+   * for a workspace's own GitLab server, or `bitbucket-connection:<WorkOS user id>` for the
+   * workspace's shared Bitbucket connection. The name predates the later forms.
    */
   credentialOwnerWorkosUserId?: string;
 };
@@ -35,6 +37,7 @@ export type ConversationRepositorySandboxSession = {
 export type ConversationRepositorySession = {
   repositoryGitHubContext?: RepositoryAgentGitHubContext;
   repositoryGitLabContext?: RepositoryAgentGitLabContext;
+  repositoryBitbucketContext?: RepositoryAgentBitbucketContext;
   repositorySandboxSession?: ConversationRepositorySandboxSession;
 };
 
@@ -57,6 +60,16 @@ export function getGitlabRepositoryContextKey(context: RepositoryAgentGitLabCont
     mergeRequestIid: context.mergeRequestIid ?? null,
     branch: context.branch ?? null,
     commitSha: context.commitSha ?? null,
+  });
+}
+
+export function getBitbucketRepositoryContextKey(context: RepositoryAgentBitbucketContext): string {
+  return JSON.stringify({
+    provider: "bitbucket",
+    repositoryUuid: context.repositoryUuid,
+    repositoryFullName: context.repositoryFullName,
+    pullRequestId: context.pullRequestId ?? null,
+    branch: context.branch ?? null,
   });
 }
 

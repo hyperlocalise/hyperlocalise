@@ -14,6 +14,7 @@ import {
   hasWorkspaceAutomationGithubAgentTool,
   hasWorkspaceAutomationGithubWorkflow,
 } from "@/lib/agents/workspace-automation-github-mapping";
+import { hasWorkspaceAutomationBitbucketAgentTool } from "@/lib/agents/workspace-automation-bitbucket-mapping";
 import { hasWorkspaceAutomationGitlabAgentTool } from "@/lib/agents/workspace-automation-gitlab-mapping";
 import {
   hasWorkspaceAutomationAssignTranslateWithAgentTool,
@@ -43,6 +44,7 @@ import { getTemplateExecutorAgent } from "./workspace-template-manifest";
 export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "use_github_repository",
   "use_gitlab_repository",
+  "use_bitbucket_repository",
   "run_github_workflows",
   "run_contentful_translation",
   "import_intercom_articles",
@@ -98,6 +100,7 @@ export type WorkspaceOrchestratorTriggerContext = {
 const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "use_github_repository",
   "use_gitlab_repository",
+  "use_bitbucket_repository",
   "run_github_workflows",
   "run_contentful_translation",
   "import_intercom_articles",
@@ -142,6 +145,8 @@ function workflowToolEnabled(
       return hasWorkspaceAutomationGithubAgentTool(toolConfig);
     case "use_gitlab_repository":
       return hasWorkspaceAutomationGitlabAgentTool(toolConfig);
+    case "use_bitbucket_repository":
+      return hasWorkspaceAutomationBitbucketAgentTool(toolConfig);
     case "run_github_workflows":
       return hasWorkspaceAutomationGithubWorkflow(toolConfig);
     case "run_contentful_translation":
@@ -246,6 +251,7 @@ function orderWorkflowTools(input: {
       ...enabled.filter((tool) => tool === "run_github_workflows"),
       ...enabled.filter((tool) => tool === "use_github_repository"),
       ...enabled.filter((tool) => tool === "use_gitlab_repository"),
+      ...enabled.filter((tool) => tool === "use_bitbucket_repository"),
       ...enabled.filter((tool) => tool === "create_native_tms_job"),
       ...enabled.filter((tool) => tool === "assign_translate_with_agent"),
       ...enabled.filter((tool) => tool === "list_issues"),
@@ -261,6 +267,7 @@ function orderWorkflowTools(input: {
   return [
     ...enabled.filter((tool) => tool === "use_github_repository"),
     ...enabled.filter((tool) => tool === "use_gitlab_repository"),
+    ...enabled.filter((tool) => tool === "use_bitbucket_repository"),
     ...enabled.filter((tool) => tool === "run_github_workflows"),
     ...enabled.filter((tool) => tool === "run_contentful_translation"),
     ...enabled.filter((tool) => tool === "create_native_tms_job"),

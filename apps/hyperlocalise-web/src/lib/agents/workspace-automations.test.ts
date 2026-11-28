@@ -19,6 +19,9 @@ const pipesMocks = vi.hoisted(() => ({
   getAhrefsPipesConnectionStatus: vi.fn(),
   getEmailPipesConnectionStatus: vi.fn(),
   getGitLabPipesConnectionStatus: vi.fn(),
+  resolveBitbucketCredentialOwner: vi.fn(
+    async (..._args: unknown[]): Promise<string | null> => null,
+  ),
 }));
 
 const { enqueueAutomationRunStartedActivityMock } = vi.hoisted(() => ({
@@ -53,6 +56,15 @@ vi.mock("@/lib/gitlab/pipes", async (importOriginal) => {
     ...actual,
     getGitLabPipesConnectionStatus: (...args: unknown[]) =>
       pipesMocks.getGitLabPipesConnectionStatus(...args),
+  };
+});
+
+vi.mock("@/lib/bitbucket/pipes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/bitbucket/pipes")>();
+  return {
+    ...actual,
+    resolveBitbucketCredentialOwner: (...args: unknown[]) =>
+      pipesMocks.resolveBitbucketCredentialOwner(...args),
   };
 });
 
@@ -1841,6 +1853,58 @@ describe("workspace automations", () => {
 
     expect(created.toolConfig.gitlab?.enabled).toBe(true);
     expect(pipesMocks.getGitLabPipesConnectionStatus).not.toHaveBeenCalled();
+  });
+
+  it("creates Bitbucket automations on the workspace's connection and keeps other providers out", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const base = {
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Bitbucket automation",
+      instructions: "Review localisation impact.",
+      triggerConfig: { mode: "manual" as const },
+    };
+    const target = { kind: "bitbucket" as const, bitbucketRepositoryFullName: "acme/web" };
+
+    pipesMocks.resolveBitbucketCredentialOwner.mockResolvedValue(null);
+    const disconnected = await createWorkspaceAutomation({
+      ...base,
+      repositoryTarget: target,
+      toolConfig: { bitbucket: { enabled: true } },
+    });
+    expect(!disconnected.ok && disconnected.error.code).toBe("bitbucket_not_connected");
+
+    pipesMocks.resolveBitbucketCredentialOwner.mockResolvedValue("bitbucket-connection:user_admin");
+    const created = expectOk(
+      await createWorkspaceAutomation({
+        ...base,
+        repositoryTarget: target,
+        toolConfig: { bitbucket: { enabled: true } },
+      }),
+    );
+    expect(created.toolConfig.bitbucket).toEqual({ enabled: true });
+    expect(created.repositoryTarget).toEqual(target);
+
+    const noTarget = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: { bitbucket: { enabled: true } },
+    });
+    expect(!noTarget.ok && noTarget.error.code).toBe("bitbucket_repository_target_required");
+
+    const withGitlab = await createWorkspaceAutomation({
+      ...base,
+      repositoryTarget: target,
+      toolConfig: { bitbucket: { enabled: true }, gitlab: { enabled: true } },
+    });
+    expect(!withGitlab.ok && withGitlab.error.code).toBe("bitbucket_repository_exclusive");
+
+    const githubTrigger = await createWorkspaceAutomation({
+      ...base,
+      triggerConfig: { mode: "github", branches: ["main"], events: ["push"] },
+      repositoryTarget: target,
+      toolConfig: { bitbucket: { enabled: true } },
+    });
+    expect(!githubTrigger.ok && githubTrigger.error.code).toBe("bitbucket_agent_trigger_required");
   });
 
   it("creates GitLab.com automations and keeps GitHub exclusive", async () => {

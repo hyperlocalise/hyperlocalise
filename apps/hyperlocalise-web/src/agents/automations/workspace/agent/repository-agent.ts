@@ -14,6 +14,7 @@ import { isStepCount, ToolLoopAgent, type ModelMessage, type ToolSet } from "ai"
 
 import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import type { AgentTodoItem } from "@/lib/agent-contracts/tool-context";
+import type { RepositoryAgentBitbucketContext } from "@/lib/agent-contracts/bitbucket-repository-task";
 import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-repository-task";
 import {
   filterToolSetByNames,
@@ -31,12 +32,15 @@ import { ensureAgentSession, type ToolContext } from "@/lib/tools/types";
 
 import type { WorkspaceOrchestratorSession } from "./context";
 
-export type RepositoryAgentToolName = "use_github_repository" | "use_gitlab_repository";
+export type RepositoryAgentToolName =
+  | "use_github_repository"
+  | "use_gitlab_repository"
+  | "use_bitbucket_repository";
 
 /**
  * Everything a repository agent needs after its sandbox exists. Plain data so it can cross
- * workflow step boundaries; credentials stay out (sandboxes are reached by id, GitLab context
- * carries no token).
+ * workflow step boundaries; credentials stay out (sandboxes are reached by id, GitLab and
+ * Bitbucket contexts carry no token).
  */
 export type RepositoryAgentStart = {
   toolName: RepositoryAgentToolName;
@@ -45,6 +49,8 @@ export type RepositoryAgentStart = {
   instructions: string;
   prompt: string;
   gitlabContext: RepositoryAgentGitLabContext | null;
+  /** Omitted by agents for other providers. */
+  bitbucketContext?: RepositoryAgentBitbucketContext | null;
   /** Tool output without the digest, which the agent produces. */
   payload: Record<string, unknown>;
   emptyDigest: string;
@@ -62,6 +68,7 @@ export function buildRepositoryAgentToolContext(input: {
   organizationId: string;
   sandboxId: string;
   gitlabContext: RepositoryAgentGitLabContext | null;
+  bitbucketContext?: RepositoryAgentBitbucketContext | null;
   todos?: AgentTodoItem[];
 }): ToolContext {
   const toolContext: ToolContext = {
@@ -73,7 +80,11 @@ export function buildRepositoryAgentToolContext(input: {
     projectId: null,
     db,
     workMode: "read_only",
-    repositorySource: input.gitlabContext ? "gitlab" : "github",
+    repositorySource: input.gitlabContext
+      ? "gitlab"
+      : input.bitbucketContext
+        ? "bitbucket"
+        : "github",
     actor: {
       sourceUserId: "workspace_automation",
       displayName: "Workspace automation",
@@ -82,6 +93,7 @@ export function buildRepositoryAgentToolContext(input: {
     sandboxId: input.sandboxId,
     githubContext: null,
     ...(input.gitlabContext ? { gitlabContext: input.gitlabContext } : {}),
+    ...(input.bitbucketContext ? { bitbucketContext: input.bitbucketContext } : {}),
   };
 
   ensureAgentSession(toolContext);
@@ -103,6 +115,7 @@ export async function runRepositoryAgentInProcess(input: {
       organizationId: input.session.organizationId,
       sandboxId: input.start.sandboxId,
       gitlabContext: input.start.gitlabContext,
+      bitbucketContext: input.start.bitbucketContext,
     }),
   );
 

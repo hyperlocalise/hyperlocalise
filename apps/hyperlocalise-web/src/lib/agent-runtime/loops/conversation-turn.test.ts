@@ -28,6 +28,10 @@ const {
   resolveGitLabPipesWorkosUserIdMock,
   getGitLabConnectionMock,
   loadGitLabConnectionCredentialsMock,
+  resolveConversationRepositoryBitbucketContextMock,
+  keepBitbucketContextIfConnectedMock,
+  createBitbucketRepositorySandboxMock,
+  resolveBitbucketCredentialOwnerMock,
 } = vi.hoisted(() => ({
   classifyConversationMock: vi.fn(),
   createConversationToolLoopAgentMock: vi.fn(() => ({ stream: vi.fn() })),
@@ -50,6 +54,16 @@ const {
   resolveGitLabPipesWorkosUserIdMock: vi.fn(async () => "user_workos"),
   getGitLabConnectionMock: vi.fn(async (..._args: unknown[]): Promise<unknown> => null),
   loadGitLabConnectionCredentialsMock: vi.fn(async (..._args: unknown[]): Promise<unknown> => null),
+  resolveConversationRepositoryBitbucketContextMock: vi.fn(
+    async (..._args: unknown[]): Promise<unknown> => ({ status: "not_applicable" }),
+  ),
+  keepBitbucketContextIfConnectedMock: vi.fn(
+    async (input: { context?: unknown }): Promise<unknown> => input.context ?? null,
+  ),
+  createBitbucketRepositorySandboxMock: vi.fn(),
+  resolveBitbucketCredentialOwnerMock: vi.fn(
+    async (..._args: unknown[]): Promise<string | null> => "bitbucket-connection:user_admin",
+  ),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -115,6 +129,23 @@ vi.mock("@/lib/gitlab/pipes", () => ({
   resolveGitLabPipesWorkosUserId: resolveGitLabPipesWorkosUserIdMock,
 }));
 
+vi.mock("@/lib/bitbucket/repository-context", () => ({
+  buildRepositoryBitbucketContextInstructions: vi.fn(() => "resolved-bitbucket-context"),
+  keepBitbucketContextIfConnected: (input: { context?: unknown }) =>
+    keepBitbucketContextIfConnectedMock(input),
+  resolveConversationRepositoryBitbucketContext: (...args: unknown[]) =>
+    resolveConversationRepositoryBitbucketContextMock(...args),
+}));
+
+vi.mock("@/lib/bitbucket/bitbucket-repository-sandbox", () => ({
+  createBitbucketRepositorySandbox: createBitbucketRepositorySandboxMock,
+}));
+
+vi.mock("@/lib/bitbucket/pipes", () => ({
+  resolveBitbucketCredentialOwner: (...args: unknown[]) =>
+    resolveBitbucketCredentialOwnerMock(...args),
+}));
+
 vi.mock("@/lib/agent-runtime/workspaces/repository-sandbox", () => ({
   createRepositorySandbox: createRepositorySandboxMock,
   isRepositorySandboxAvailable: isRepositorySandboxAvailableMock,
@@ -139,6 +170,7 @@ vi.mock("@/lib/log", async () => {
 
 import {
   buildFileTranslationInstructions,
+  getOrCreateConversationBitbucketRepositorySandbox,
   getOrCreateConversationGitlabRepositorySandbox,
   getOrCreateConversationRepositorySandbox,
   prepareConversationAgentTurn,
@@ -887,6 +919,235 @@ describe("conversation turn preparation", () => {
       }),
     );
     expect(result.updatedRepositorySession?.repositoryGitLabContext).toEqual(gitlabContext);
+  });
+});
+
+const bitbucketContext = {
+  resolved: true as const,
+  provider: "bitbucket" as const,
+  repositoryUuid: "{repo-uuid}",
+  repositoryFullName: "acme/web",
+  branch: "main",
+};
+
+describe("conversation bitbucket repository context", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    classifyConversationMock.mockResolvedValue({
+      ...baseClassification,
+      needsRepositoryTools: true,
+    });
+    loadInteractionModelMessagesMock.mockResolvedValue([
+      { role: "user", content: "where is Checkout in https://bitbucket.org/acme/web?" },
+    ]);
+    resolveOrganizationHasTmsIntegrationMock.mockResolvedValue(false);
+    resolveWorkspaceVisualMockFlagMock.mockResolvedValue(false);
+    resolveConversationRepositoryGitHubContextMock.mockResolvedValue({
+      status: "not_applicable",
+    });
+    resolveConversationRepositoryGitLabContextMock.mockResolvedValue({
+      status: "not_applicable",
+    });
+    resolveConversationRepositoryBitbucketContextMock.mockResolvedValue({
+      status: "not_applicable",
+    });
+    keepBitbucketContextIfConnectedMock.mockImplementation(
+      async (input: { context?: unknown }) => input.context ?? null,
+    );
+    resolveBitbucketCredentialOwnerMock.mockResolvedValue("bitbucket-connection:user_admin");
+    isRepositorySandboxAvailableMock.mockResolvedValue(true);
+  });
+
+  const turnInput = {
+    surface: "web" as const,
+    conversationId: "conv_123",
+    organizationId: "org_123",
+    localUserId: "user_123",
+    membershipRole: "admin" as const,
+    projectId: null,
+    messageText: "where is Checkout in https://bitbucket.org/acme/web?",
+    hasTranslationAttachments: false,
+    db: {} as never,
+  };
+
+  it("clones a linked Bitbucket repository and gives the agent read-only tools", async () => {
+    resolveConversationRepositoryBitbucketContextMock.mockResolvedValue({
+      status: "resolved",
+      context: bitbucketContext,
+    });
+    createBitbucketRepositorySandboxMock.mockResolvedValue("sandbox_bitbucket");
+    classifyConversationMock.mockResolvedValue({
+      ...baseClassification,
+      needsRepositoryTools: true,
+      currentMessageSpecifiesRepository: true,
+    });
+
+    const result = await prepareConversationAgentTurn({
+      ...turnInput,
+      repositorySession: {
+        repositoryGitLabContext: {
+          resolved: true,
+          provider: "gitlab",
+          projectId: 11,
+          repositoryFullName: "acme/old",
+          httpUrlToRepo: "https://gitlab.com/acme/old.git",
+        },
+      },
+    });
+
+    expect(resolveConversationRepositoryBitbucketContextMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      text: turnInput.messageText,
+    });
+    expect(createBitbucketRepositorySandboxMock).toHaveBeenCalledWith({
+      localOrganizationId: "org_123",
+      bitbucketContext,
+    });
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        additionalInstructions: expect.stringContaining("resolved-bitbucket-context"),
+        toolContext: expect.objectContaining({
+          sandboxId: "sandbox_bitbucket",
+          bitbucketContext,
+          gitlabContext: null,
+          githubContext: null,
+          workMode: "read_only",
+          repositorySource: "chat_ui",
+        }),
+      }),
+    );
+    expect(result.updatedRepositorySession).toEqual(
+      expect.objectContaining({
+        repositoryBitbucketContext: bitbucketContext,
+        repositoryGitLabContext: undefined,
+        repositoryGitHubContext: undefined,
+        repositorySandboxSession: expect.objectContaining({
+          sandboxId: "sandbox_bitbucket",
+          credentialOwnerWorkosUserId: "bitbucket-connection:user_admin",
+        }),
+      }),
+    );
+  });
+
+  it("asks the follow-up when a Bitbucket link can't be opened", async () => {
+    resolveConversationRepositoryBitbucketContextMock.mockResolvedValue({
+      status: "unresolved",
+      followUp: "Bitbucket couldn't be reached just now. Try again shortly.",
+    });
+
+    const result = await prepareConversationAgentTurn(turnInput);
+
+    expect(result.clarificationFollowUp).toBe(
+      "Bitbucket couldn't be reached just now. Try again shortly.",
+    );
+    expect(createBitbucketRepositorySandboxMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps using a remembered Bitbucket repository on a follow-up", async () => {
+    const resolution = await resolveConversationRepositoryContext({
+      surface: "web",
+      organizationId: "org_123",
+      projectId: null,
+      conversationText: "and the nearby copy?",
+      classification: { ...baseClassification, needsRepositoryTools: true },
+      repositorySession: { repositoryBitbucketContext: bitbucketContext },
+    });
+
+    expect(resolution.bitbucketContext).toEqual(bitbucketContext);
+    expect(resolution.instructions).toContain("resolved-bitbucket-context");
+    expect(resolveConversationRepositoryBitbucketContextMock).not.toHaveBeenCalled();
+  });
+
+  it("forgets a remembered Bitbucket repository once Bitbucket is disconnected", async () => {
+    keepBitbucketContextIfConnectedMock.mockResolvedValue(null);
+
+    const resolution = await resolveConversationRepositoryContext({
+      surface: "web",
+      organizationId: "org_123",
+      projectId: null,
+      conversationText: "and the nearby copy?",
+      classification: { ...baseClassification, needsRepositoryTools: true },
+      repositorySession: { repositoryBitbucketContext: bitbucketContext },
+    });
+
+    expect(resolution.bitbucketContext ?? null).toBeNull();
+    expect(resolution.updatedSession?.repositoryBitbucketContext).toBeUndefined();
+  });
+
+  it("reuses a Bitbucket clone made under the same connection", async () => {
+    const repositorySession = {
+      repositoryBitbucketContext: bitbucketContext,
+      repositorySandboxSession: {
+        sandboxId: "sandbox_existing",
+        repositoryContextKey: JSON.stringify({
+          provider: "bitbucket",
+          repositoryUuid: "{repo-uuid}",
+          repositoryFullName: "acme/web",
+          pullRequestId: null,
+          branch: "main",
+        }),
+        credentialOwnerWorkosUserId: "bitbucket-connection:user_admin",
+        createdAt: "2026-11-28T00:00:00.000Z",
+        lastUsedAt: "2026-11-28T00:00:00.000Z",
+      },
+    };
+
+    const result = await getOrCreateConversationBitbucketRepositorySandbox({
+      conversationId: "conv_123",
+      surface: "web",
+      bitbucketContext,
+      repositorySession,
+      organizationId: "org_123",
+    });
+
+    expect(result.sandboxId).toBe("sandbox_existing");
+    expect(result.sandboxCreated).toBe(false);
+    expect(createBitbucketRepositorySandboxMock).not.toHaveBeenCalled();
+  });
+
+  it("clones again once a different admin has connected Bitbucket", async () => {
+    resolveBitbucketCredentialOwnerMock.mockResolvedValue("bitbucket-connection:user_other");
+    createBitbucketRepositorySandboxMock.mockResolvedValue("sandbox_new");
+
+    const result = await getOrCreateConversationBitbucketRepositorySandbox({
+      conversationId: "conv_123",
+      surface: "web",
+      bitbucketContext,
+      repositorySession: {
+        repositorySandboxSession: {
+          sandboxId: "sandbox_existing",
+          repositoryContextKey: JSON.stringify({
+            provider: "bitbucket",
+            repositoryUuid: "{repo-uuid}",
+            repositoryFullName: "acme/web",
+            pullRequestId: null,
+            branch: "main",
+          }),
+          credentialOwnerWorkosUserId: "bitbucket-connection:user_admin",
+          createdAt: "2026-11-28T00:00:00.000Z",
+          lastUsedAt: "2026-11-28T00:00:00.000Z",
+        },
+      },
+      organizationId: "org_123",
+    });
+
+    expect(result.sandboxId).toBe("sandbox_new");
+    expect(result.staleSandboxId).toBe("sandbox_existing");
+  });
+
+  it("refuses to clone when Bitbucket isn't connected", async () => {
+    resolveBitbucketCredentialOwnerMock.mockResolvedValue(null);
+
+    await expect(
+      getOrCreateConversationBitbucketRepositorySandbox({
+        conversationId: "conv_123",
+        surface: "web",
+        bitbucketContext,
+        repositorySession: null,
+        organizationId: "org_123",
+      }),
+    ).rejects.toThrow("bitbucket_not_connected");
+    expect(createBitbucketRepositorySandboxMock).not.toHaveBeenCalled();
   });
 });
 

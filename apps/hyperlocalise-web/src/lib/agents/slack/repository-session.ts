@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { RepositoryAgentBitbucketContext } from "@/lib/agent-contracts/bitbucket-repository-task";
 import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-repository-task";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 
@@ -33,7 +34,8 @@ export type SlackRepositorySandboxSession = {
   lastUsedAt: string;
   /**
    * Whose credentials made the clone: a WorkOS user id, or `gitlab-connection:<server>:<saved at>`
-   * for a workspace's own GitLab server. The name predates the second form.
+   * for a workspace's own GitLab server, or `bitbucket-connection:<WorkOS user id>` for the
+   * workspace's shared Bitbucket connection. The name predates the later forms.
    */
   credentialOwnerWorkosUserId?: string;
 };
@@ -66,6 +68,7 @@ export type SlackBotThreadState = {
   warnedNonMemberUsers?: string[];
   repositoryGitHubContext?: RepositoryAgentGitHubContext;
   repositoryGitLabContext?: RepositoryAgentGitLabContext;
+  repositoryBitbucketContext?: RepositoryAgentBitbucketContext;
   repositorySandboxSession?: SlackRepositorySandboxSession;
   pendingSlackImageTask?: PendingSlackImageTask;
   imageSourceAssets?: SlackImageSourceAsset[];

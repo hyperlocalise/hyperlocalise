@@ -423,6 +423,23 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["use_gitlab_repository", "notify_slack"]);
   });
 
+  it("includes use_bitbucket_repository when Bitbucket is enabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        repositoryTarget: {
+          kind: "bitbucket",
+          bitbucketRepositoryFullName: "acme/web",
+        },
+        toolConfig: {
+          bitbucket: { enabled: true },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["use_bitbucket_repository", "notify_slack"]);
+  });
+
   it("plans use_crowdin after GitHub tools when a Crowdin project is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({

@@ -176,9 +176,16 @@ export const triggerConfigSchema = z
 
 export const repositoryTargetSchema = z
   .object({
-    kind: z.enum(["none", "github", "gitlab"]).default("none"),
+    kind: z.enum(["none", "github", "gitlab", "bitbucket"]).default("none"),
     githubInstallationRepositoryId: z.string().uuid().optional(),
     gitlabPathWithNamespace: z.string().trim().min(1).max(512).optional(),
+    /** `workspace/repo-slug` on Bitbucket Cloud. */
+    bitbucketRepositoryFullName: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/)
+      .max(255)
+      .optional(),
   })
   .default({ kind: "none" });
 
@@ -319,6 +326,13 @@ const gitlabToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     workosUserId: z.string().trim().min(1).max(128).optional(),
+  })
+  .default({ enabled: false });
+
+/** The workspace's one shared Bitbucket connection is used; nothing is kept per member. */
+const bitbucketToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
   })
   .default({ enabled: false });
 
@@ -743,6 +757,7 @@ const toolConfigObjectSchema = z
     zernio: zernioToolConfigSchema.optional(),
     ahrefs: ahrefsToolConfigSchema.optional(),
     gitlab: gitlabToolConfigSchema.optional(),
+    bitbucket: bitbucketToolConfigSchema.optional(),
     intercom: intercomToolConfigSchema.optional(),
     googleDrive: googleDriveToolConfigSchema.optional(),
     sanity: sanityToolConfigSchema.optional(),
@@ -864,6 +879,22 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "gitlab_pipes_unavailable";
       message: "GitLab isn't available right now. Contact support if this continues.";
+    }
+  | {
+      code: "bitbucket_repository_target_required";
+      message: "Enabled Bitbucket tools require a Bitbucket repository target.";
+    }
+  | {
+      code: "bitbucket_repository_exclusive";
+      message: "Bitbucket can't be enabled with GitHub or GitLab on the same automation.";
+    }
+  | {
+      code: "bitbucket_agent_trigger_required";
+      message: "Bitbucket repo agent automations support scheduled or manual triggers only.";
+    }
+  | {
+      code: "bitbucket_not_connected";
+      message: "Connect Bitbucket in Integrations before using it.";
     }
   | {
       code: "intercom_not_connected";

@@ -46,10 +46,12 @@ const {
   resolveHyperlocaliseAgentLanguageModelMock,
   createWebChatAgentUIStreamResponseMock,
   resolveGitLabProjectContextMock,
+  resolveBitbucketRepositoryContextMock,
 } = vi.hoisted(() => ({
   resolveHyperlocaliseAgentLanguageModelMock: vi.fn(),
   createWebChatAgentUIStreamResponseMock: vi.fn(() => new Response("stream-ok", { status: 200 })),
   resolveGitLabProjectContextMock: vi.fn(),
+  resolveBitbucketRepositoryContextMock: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -87,6 +89,10 @@ vi.mock("@/agents/hyperlocalise/agent/channels/web", () => ({
 
 vi.mock("@/lib/gitlab/repository-context", () => ({
   resolveGitLabProjectContext: resolveGitLabProjectContextMock,
+}));
+
+vi.mock("@/lib/bitbucket/repository-context", () => ({
+  resolveBitbucketRepositoryContext: resolveBitbucketRepositoryContextMock,
 }));
 
 const app = createApp({ fileStorageAdapter: createMemoryFileStorageAdapter() });
@@ -146,6 +152,7 @@ afterEach(async () => {
     new Response("stream-ok", { status: 200 }),
   );
   resolveGitLabProjectContextMock.mockResolvedValue(null);
+  resolveBitbucketRepositoryContextMock.mockResolvedValue(null);
   await cleanup();
 });
 
@@ -431,6 +438,63 @@ describe("conversation creation", () => {
       projectId: 11,
       repositoryFullName: "acme/platform/web",
       branch: "main",
+    });
+  });
+
+  it("seeds selected Bitbucket repository context when creating a chat UI conversation", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    resolveBitbucketRepositoryContextMock.mockResolvedValue({
+      resolved: true,
+      provider: "bitbucket",
+      repositoryUuid: "{repo-uuid}",
+      repositoryFullName: "acme/web",
+      branch: "main",
+    });
+    const formData = new FormData();
+    formData.set("text", "Where is the checkout copy?");
+    formData.set("repositoryFullName", "acme/web");
+    formData.set("repositoryProvider", "bitbucket");
+
+    const response = await app.request(`/api/orgs/${identity.organization.slug}/conversations`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { conversation: { id: string } };
+    expect(resolveBitbucketRepositoryContextMock).toHaveBeenCalledWith({
+      localOrganizationId: globalThis.__testApiAuthContext?.activeOrganization.localOrganizationId,
+      repositoryFullName: "acme/web",
+    });
+    expect(resolveGitLabProjectContextMock).not.toHaveBeenCalled();
+    const session = await getWebConversationRepositorySession(body.conversation.id);
+    expect(session?.session.repositoryBitbucketContext).toMatchObject({
+      provider: "bitbucket",
+      repositoryFullName: "acme/web",
+      branch: "main",
+    });
+    expect(session?.session.repositoryGitLabContext).toBeUndefined();
+  });
+
+  it("rejects a selected Bitbucket repository the workspace's connection can't open", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("text", "Where is the checkout copy?");
+    formData.set("repositoryFullName", "acme/secret");
+    formData.set("repositoryProvider", "bitbucket");
+
+    const response = await app.request(`/api/orgs/${identity.organization.slug}/conversations`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "bitbucket_repository_not_available",
     });
   });
 

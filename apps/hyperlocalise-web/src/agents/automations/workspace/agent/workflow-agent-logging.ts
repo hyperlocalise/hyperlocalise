@@ -24,7 +24,11 @@ const LOG_PREFIX = "[workspace-automation-agent]";
 
 /** Identifies which agent loop a log line belongs to. */
 export type WorkflowAgentLogContext = {
-  agent: "workspace_orchestrator" | "use_github_repository" | "use_gitlab_repository";
+  agent:
+    | "workspace_orchestrator"
+    | "use_github_repository"
+    | "use_gitlab_repository"
+    | "use_bitbucket_repository";
   workspaceAutomationRunId: string;
   organizationId: string;
   workflowRunId: string;

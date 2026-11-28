@@ -117,6 +117,7 @@ export type WorkspaceOrchestratorToolOutcome =
 const RETRY_SAFE_TOOLS = new Set<WorkspaceOrchestratorToolName>([
   "use_github_repository",
   "use_gitlab_repository",
+  "use_bitbucket_repository",
   "run_github_workflows",
   "run_contentful_translation",
   "list_issues",

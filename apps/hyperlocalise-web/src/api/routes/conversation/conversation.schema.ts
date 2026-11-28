@@ -24,7 +24,9 @@ export const conversationToolOutputParamsSchema = z.object({
   toolCallId: z.string().min(1).max(200),
 });
 
-export const repositoryProviderSchema = z.enum(["github", "gitlab"]);
+export const repositoryProviderSchema = z.enum(["github", "gitlab", "bitbucket"]);
+
+export type RepositoryProvider = z.infer<typeof repositoryProviderSchema>;
 
 export const createConversationRequestSchema = z.object({
   text: z.string().trim().max(10000).default(""),

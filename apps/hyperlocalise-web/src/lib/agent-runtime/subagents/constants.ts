@@ -55,7 +55,8 @@ export const WORKSPACE_GITHUB_JOB_DURABLE_POLL_INTERVAL_MS = 15_000;
 export const WORKSPACE_GITHUB_JOB_DURABLE_POLL_MAX_MS = 60 * 60 * 1000;
 
 /**
- * Durable repository agents (use_github_repository / use_gitlab_repository) run one workflow step
+ * Durable repository agents (use_github_repository / use_gitlab_repository /
+ * use_bitbucket_repository) run one workflow step
  * per model call and per repository tool call, so the whole review can run far longer than one
  * function invocation. The sandbox must outlive the agent deadline.
  */
@@ -68,6 +69,7 @@ export const REPOSITORY_AGENT_SANDBOX_TIMEOUT_MS =
 export const WORKSPACE_ORCHESTRATOR_DURABLE_TOOL_BUDGET_MS = {
   use_github_repository: REPOSITORY_AGENT_DURABLE_TIMEOUT_MS + 5 * AGENT_STEP_TIMEOUT_MS,
   use_gitlab_repository: REPOSITORY_AGENT_DURABLE_TIMEOUT_MS + 5 * AGENT_STEP_TIMEOUT_MS,
+  use_bitbucket_repository: REPOSITORY_AGENT_DURABLE_TIMEOUT_MS + 5 * AGENT_STEP_TIMEOUT_MS,
   run_github_workflows: WORKSPACE_GITHUB_JOB_DURABLE_POLL_MAX_MS + 5 * AGENT_STEP_TIMEOUT_MS,
 } as const;
 

@@ -65,6 +65,7 @@ import {
   normalizeWebflowLocaleTag,
 } from "@/lib/webflow/webflow-locale";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
+import { resolveBitbucketCredentialOwner } from "@/lib/bitbucket/pipes";
 import { getGitLabConnection } from "@/lib/gitlab/connections";
 import { getGitLabPipesConnectionStatus, resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import {
@@ -275,6 +276,37 @@ function validateWorkspaceAutomationConfig(input: {
   const gitlabTargetSelected =
     input.repositoryTarget.kind === "gitlab" &&
     Boolean(input.repositoryTarget.gitlabPathWithNamespace);
+
+  const bitbucketTools = input.toolConfig.bitbucket;
+  const bitbucketTargetSelected =
+    input.repositoryTarget.kind === "bitbucket" &&
+    Boolean(input.repositoryTarget.bitbucketRepositoryFullName);
+
+  if (
+    bitbucketTools?.enabled &&
+    (githubTools?.enabled || githubCommentEnabled || gitlabTools?.enabled)
+  ) {
+    return err({
+      code: "bitbucket_repository_exclusive",
+      message: "Bitbucket can't be enabled with GitHub or GitLab on the same automation.",
+    });
+  }
+
+  if (bitbucketTools?.enabled) {
+    if (!bitbucketTargetSelected) {
+      return err({
+        code: "bitbucket_repository_target_required",
+        message: "Enabled Bitbucket tools require a Bitbucket repository target.",
+      });
+    }
+
+    if (input.triggerConfig.mode !== "manual" && input.triggerConfig.mode !== "scheduled") {
+      return err({
+        code: "bitbucket_agent_trigger_required",
+        message: "Bitbucket repo agent automations support scheduled or manual triggers only.",
+      });
+    }
+  }
 
   if ((githubTools?.enabled || githubCommentEnabled) && gitlabTools?.enabled) {
     return err({
@@ -811,6 +843,16 @@ export async function validateWorkspaceAutomationIntegrations(input: {
         message: "Connect GitLab in Integrations before using it.",
       });
     }
+  }
+
+  if (
+    input.toolConfig.bitbucket?.enabled &&
+    !(await resolveBitbucketCredentialOwner({ localOrganizationId: input.organizationId }))
+  ) {
+    return err({
+      code: "bitbucket_not_connected",
+      message: "Connect Bitbucket in Integrations before using it.",
+    });
   }
 
   if (input.toolConfig.intercom?.enabled) {
