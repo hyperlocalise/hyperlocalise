@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { appLocaleToBcp47Tag } from "./bcp47-locale";
+import { appLocaleToBcp47Tag, appLocaleToHreflangTag } from "./bcp47-locale";
 
 describe("appLocaleToBcp47Tag", () => {
   it("canonicalizes supported app locales", () => {
@@ -21,5 +21,17 @@ describe("appLocaleToBcp47Tag", () => {
     expect(appLocaleToBcp47Tag("vi-VN")).toBe("vi-VN");
     expect(appLocaleToBcp47Tag("de-DE")).toBe("de-DE");
     expect(appLocaleToBcp47Tag("fr-FR")).toBe("fr-FR");
+  });
+});
+
+describe("appLocaleToHreflangTag", () => {
+  it("maps fil-PH to tl-PH", () => {
+    expect(appLocaleToHreflangTag("fil-PH")).toBe("tl-PH");
+    expect(appLocaleToBcp47Tag("fil-PH")).toBe("fil-PH");
+  });
+
+  it("keeps other locales unchanged", () => {
+    expect(appLocaleToHreflangTag("en")).toBe("en");
+    expect(appLocaleToHreflangTag("vi-VN")).toBe("vi-VN");
   });
 });

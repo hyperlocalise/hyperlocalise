@@ -15,7 +15,7 @@ import type { MetadataRoute } from "next";
 
 import { DEFAULT_APP_LOCALE, SUPPORTED_APP_LOCALES, type AppLocale } from "@/lib/app-i18n/locales";
 
-import { appLocaleToBcp47Tag } from "./bcp47-locale";
+import { appLocaleToHreflangTag } from "./bcp47-locale";
 import { SITE_URL } from "./site-url";
 
 function normalizeLocalizedPath(path: string): string {
@@ -52,7 +52,7 @@ function buildLanguageMap(path: string, locales: readonly AppLocale[]): Record<s
   const languages: Record<string, string> = {};
 
   for (const appLocale of locales) {
-    languages[appLocaleToBcp47Tag(appLocale)] = getLocalizedAbsoluteUrl(appLocale, path);
+    languages[appLocaleToHreflangTag(appLocale)] = getLocalizedAbsoluteUrl(appLocale, path);
   }
 
   if (locales.includes(DEFAULT_APP_LOCALE)) {

@@ -21,6 +21,7 @@ import {
   localizedOpenGraph,
 } from "./localized-alternates";
 import { SITE_URL } from "./site-url";
+import { appLocaleToHreflangTag } from "./bcp47-locale";
 
 describe("getLocalizedAbsoluteUrl", () => {
   it("builds home and nested paths with the locale prefix", () => {
@@ -45,13 +46,23 @@ describe("getLocalizedAlternates", () => {
     expect(alternates.canonical).toBe(`${SITE_URL}/vi-VN/product/agents`);
     expect(alternates.languages).toEqual({
       ...Object.fromEntries(
-        SUPPORTED_APP_LOCALES.map((locale) => [locale, `${SITE_URL}/${locale}/product/agents`]),
+        SUPPORTED_APP_LOCALES.map((locale) => [
+          appLocaleToHreflangTag(locale),
+          `${SITE_URL}/${locale}/product/agents`,
+        ]),
       ),
       "x-default": `${SITE_URL}/en/product/agents`,
     });
     expect(Object.keys(alternates.languages ?? {}).filter((key) => key !== "x-default")).toEqual(
-      expect.arrayContaining([...SUPPORTED_APP_LOCALES]),
+      expect.arrayContaining(SUPPORTED_APP_LOCALES.map(appLocaleToHreflangTag)),
     );
+  });
+
+  it("uses tl-PH as the hreflang key for fil-PH pages", () => {
+    const alternates = getLocalizedAlternates({ locale: "fil-PH", path: "/pricing" });
+
+    expect(alternates.languages).toMatchObject({ "tl-PH": `${SITE_URL}/fil-PH/pricing` });
+    expect(alternates.languages).not.toHaveProperty("fil-PH");
   });
 
   it("limits hreflang to the locales that actually have the page", () => {
